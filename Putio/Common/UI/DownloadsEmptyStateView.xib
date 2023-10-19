@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="15702" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina4_7" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="15704"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <view contentMode="scaleToFill" id="iN0-l3-epB" customClass="DownloadsEmptyStateView" customModule="Putio" customModuleProvider="target">
+            <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
+            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+            <subviews>
+                <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" spacing="5" translatesAutoresizingMaskIntoConstraints="NO" id="4JP-vT-nTB">
+                    <rect key="frame" x="0.0" y="278.5" width="375" height="70.5"/>
+                    <subviews>
+                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="No downloads 🤖" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="jgB-Pi-QWd">
+                            <rect key="frame" x="0.0" y="0.0" width="375" height="33.5"/>
+                            <fontDescription key="fontDescription" style="UICTFontTextStyleTitle1"/>
+                            <color key="textColor" cocoaTouchSystemColor="lightTextColor"/>
+                            <nil key="highlightedColor"/>
+                        </label>
+                        <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="SQQ-TG-0Sk">
+                            <rect key="frame" x="0.0" y="38.5" width="375" height="32"/>
+                            <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
+                            <state key="normal" title="Not sure how does it work? Tap to find out!">
+                                <color key="titleColor" red="0.99215686270000003" green="0.80784313730000001" blue="0.27058823529999998" alpha="1" colorSpace="calibratedRGB"/>
+                            </state>
+                            <connections>
+                                <action selector="buttonTapped:" destination="iN0-l3-epB" eventType="touchUpInside" id="Vja-fg-SxJ"/>
+                            </connections>
+                        </button>
+                    </subviews>
+                </stackView>
+            </subviews>
+            <color key="backgroundColor" red="0.1999788582" green="0.20001345870000001" blue="0.1999712884" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <constraints>
+                <constraint firstItem="vUN-kp-3ea" firstAttribute="trailing" secondItem="4JP-vT-nTB" secondAttribute="trailing" id="51y-bf-U1p"/>
+                <constraint firstItem="4JP-vT-nTB" firstAttribute="leading" secondItem="vUN-kp-3ea" secondAttribute="leading" id="VAh-Ns-9NW"/>
+                <constraint firstItem="4JP-vT-nTB" firstAttribute="centerY" secondItem="vUN-kp-3ea" secondAttribute="centerY" constant="-20" id="kaL-Ps-3Lq"/>
+                <constraint firstItem="4JP-vT-nTB" firstAttribute="centerX" secondItem="vUN-kp-3ea" secondAttribute="centerX" id="oex-gW-Nay"/>
+            </constraints>
+            <viewLayoutGuide key="safeArea" id="vUN-kp-3ea"/>
+            <connections>
+                <outlet property="button" destination="SQQ-TG-0Sk" id="jfn-1P-5aQ"/>
+                <outlet property="headingLabel" destination="jgB-Pi-QWd" id="Cl9-VP-Sw0"/>
+            </connections>
+            <point key="canvasLocation" x="33.5" y="54.5"/>
+        </view>
+    </objects>
+</document>

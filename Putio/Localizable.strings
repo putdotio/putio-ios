@@ -1,0 +1,2840 @@
+/*
+ * Loco ios export: iOS Localizable.strings
+ * Project: frontend
+ * Release: Working copy
+ * Locale: en, English
+ * Exported by: Altay Aydemir
+ * Exported at: Tue, 15 Feb 2022 19:00:44 +0300
+ */
+
+/* loco:620a365cc178fc32ae330ad5 */
+"account_2fa" = "Two-factor authentication";
+
+/* loco:620a365d9e2cb240e221e922 */
+"account_2fa_description" = "Secure your account by adding an additional layer of security.";
+
+/* loco:620a365dc178fc32ae330ad7 */
+"account_action_label_change" = "Change";
+
+/* loco:620a365e14fd176fd3780ce2 */
+"account_action_label_disable" = "Disable";
+
+/* loco:620a365f32ee66532c6211b3 */
+"account_action_label_enable" = "Enable";
+
+/* loco:620a36605edca530bf137953 */
+"account_action_label_manage" = "Manage";
+
+/* loco:620a36604435b3611a408f52 */
+"account_action_label_start" = "Start";
+
+/* loco:620a366114fd176fd3780ce4 */
+"account_action_label_view" = "View";
+
+/* loco:620a3662418db0576903f972 */
+"account_api_docs_title" = "API Documentation";
+
+/* loco:620a3663eaa0b929fd05ad03 */
+"account_api_title" = "API";
+
+/* loco:620a3664296bc4142e31a342 */
+"account_change_email_confirmation" = "We sent you a confirmation email, please check the mailbox of your old email address.";
+
+/* loco:620a3664e7a56620977a9bd4 */
+"account_change_email_modal_title" = "Change your email address";
+
+/* loco:620a366632ee66532c6211b5 */
+"account_change_other_confirmation" = "We sent you a confirmation email, please check your mailbox.";
+
+/* loco:620a36671d0a9408ab781583 */
+"account_change_password_modal_title" = "Change your password";
+
+/* loco:620a3668eaa0b929fd05ad05 */
+"account_change_username_modal_title" = "Change your username";
+
+/* loco:620a3669e7a56620977a9bd6 */
+"account_clear_data" = "Clear your data";
+
+/* loco:620a366afb7d5e136c31c532 */
+"account_clear_data_description" = "If you fancy a fresh start, here's a way to wipe stuff. Be careful, we can't bring 'em back.";
+
+/* loco:620a366a19f4fd4c7b439892 */
+"account_confirm_password_modal_title" = "Confirm your password";
+
+/* loco:620a366be7a56620977a9bd8 */
+"account_destroy" = "Destroy your account";
+
+/* loco:620a366c9e2cb240e221e924 */
+"account_destroy_cancel" = "No, I will stay 🎉";
+
+/* loco:620a366d651d0a74fe1140b2 */
+"account_destroy_description" = "We definitely don't want this to happen, <a href=\"#\" id=\"putio:open-support-chat\">please talk to</a> us before you make up your mind.";
+
+/* loco:620a366ed68e1d7d504d36d3 */
+"account_destroy_input_label" = "Please enter your current password";
+
+/* loco:620a366e5edca530bf137955 */
+"account_destroy_input_placeholder" = "Current Password";
+
+/* loco:620a366f1d0a9408ab781586 */
+"account_destroy_modal_message" = "**%1$@**, are you 100&percnt; sure you want to destroy your account? There is no turning back!!! <br/> You can <a href=\"#\" id=\"%2$@\">still talk to us</a> if there is anything we can help with.";
+
+/* loco:620a3670e2fa16535e0e2ed2 */
+"account_destroy_modal_title" = "Destroy your account";
+
+/* loco:620a3671eaa0b929fd05ad07 */
+"account_destroy_submit" = "Yes, goodbye 😢";
+
+/* loco:620a36724435b3611a408f54 */
+"account_disable_two_factor_modal_title" = "Disable two-factor authentication";
+
+/* loco:620a3672296bc4142e31a344 */
+"account_disable_two_factor_success" = "Two-factor authentication is disabled. Please be careful!";
+
+/* loco:620a3673651d0a74fe1140b4 */
+"account_email" = "Email address";
+
+/* loco:620a36745edca530bf137958 */
+"account_enable_two_factor_download_instruction" = "Download and install an authenticator application like Google Authenticator on your mobile device.";
+
+/* loco:620a3675d68e1d7d504d36d5 */
+"account_enable_two_factor_modal_title" = "Enable two-factor authentication";
+
+/* loco:620a3676fb7d5e136c31c534 */
+"account_enable_two_factor_scan_qr_instruction" = "Use your authenticator application to scan the QR code below.";
+
+/* loco:620a3676418db0576903f975 */
+"account_enable_two_factor_success" = "Done! Two-factor authentication is enabled.";
+
+/* loco:620a3677140165135f4db0c2 */
+"account_enable_two_factor_warning_message" = "Some third party applications(ftp, webdav etc.) do not support two-factor authentication. On these applications please add your 6-digit authentication code to end of your password. For example \"mypassword321222\"";
+
+/* loco:620a367838dc2d6ac41ad722 */
+"account_form_current_password" = "Current Password";
+
+/* loco:620a367919f4fd4c7b439894 */
+"account_form_current_password_helper" = "We also need your current password, for confirmation.";
+
+/* loco:620a36795edca530bf13795a */
+"account_form_error_default" = "Something went wrong :(";
+
+/* loco:620a367aeaa0b929fd05ad09 */
+"account_form_error_existing_email" = "Email is already used by another account";
+
+/* loco:620a367b4435b3611a408f56 */
+"account_form_error_invalid_current_password" = "Your current password doesn't match the one in our records";
+
+/* loco:620a367b1d0a9408ab781588 */
+"account_form_error_invalid_email" = "Invalid email address";
+
+/* loco:620a367cfb7d5e136c31c536 */
+"account_form_error_invalid_new_password" = "Invalid new password";
+
+/* loco:620a367d140165135f4db0c4 */
+"account_form_error_invalid_otp_code" = "Invalid 6 digit code";
+
+/* loco:620a367ed68e1d7d504d36d8 */
+"account_form_error_invalid_username" = "Sorry, we couldn't update your username. Please select a different one.";
+
+/* loco:620a367f14fd176fd3780ce7 */
+"account_form_error_pwned_new_password" = "Sorry. This password matches with a compromised one at \"Have I been pwned\"s database. Please select a different one.";
+
+/* loco:620a367f9e2cb240e221e926 */
+"account_form_error_same_email" = "New email address is same as previous one";
+
+/* loco:620a36805edca530bf13795c */
+"account_form_error_same_username" = "Username is same as previous one. Please select a different one.";
+
+/* loco:620a3681651d0a74fe1140b6 */
+"account_form_error_two_factor_already_enabled" = "Two-factor authentication is already enabled.";
+
+/* loco:620a36824435b3611a408f58 */
+"account_form_error_username_in_use" = "This username is being used :/";
+
+/* loco:620a368314fd176fd3780ce9 */
+"account_form_error_username_whitespace_not_allowed" = "Whitespace is not allowed in username";
+
+/* loco:620a36834435b3611a408f5a */
+"account_form_error_username_wrong_range" = "Username must be between 3 and 80 characters";
+
+/* loco:620a36845edca530bf13795e */
+"account_form_new_email" = "New email address";
+
+/* loco:620a36859e2cb240e221e928 */
+"account_form_new_email_helper" = "Won't be visible to anyone.";
+
+/* loco:620a3685d68e1d7d504d36da */
+"account_form_new_password" = "New password";
+
+/* loco:620a368638dc2d6ac41ad724 */
+"account_form_new_password_confirmation" = "Confirm new password";
+
+/* loco:620a3687d68e1d7d504d36dc */
+"account_form_new_password_confirmation_error" = "New password and the confirmation doesn't match.";
+
+/* loco:620a3687fb7d5e136c31c538 */
+"account_form_new_password_confirmation_helper" = "Enter the new password one more time.";
+
+/* loco:620a3688eaa0b929fd05ad0b */
+"account_form_new_password_helper" = "4 to 128 characters.";
+
+/* loco:620a368914fd176fd3780ceb */
+"account_form_new_username" = "New username";
+
+/* loco:620a368aeaa0b929fd05ad0d */
+"account_form_new_username_helper" = "Must be between 3 and 80 characters, without whitespace";
+
+/* loco:620a368b19f4fd4c7b439897 */
+"account_form_otp" = "Enter the 6-digit code";
+
+/* loco:620a368c651d0a74fe1140b8 */
+"account_form_otp_helper" = "Get this code from your Authenticator application.";
+
+/* loco:620a368d4435b3611a408f5c */
+"account_form_password_confirmation_label" = "Please enter your current password";
+
+/* loco:620a368e418db0576903f978 */
+"account_form_password_confirmation_placeholder" = "Current Password";
+
+/* loco:620a368ed68e1d7d504d36de */
+"account_form_save" = "Save";
+
+/* loco:620a36904435b3611a408f5e */
+"account_form_save_success" = "Changes successfully saved";
+
+/* loco:620a3690d68e1d7d504d36e0 */
+"account_link_description" = "Connect your account with other put.io applications.";
+
+/* loco:620a36911d0a9408ab78158a */
+"account_logout_description" = "Come back anytime!";
+
+/* loco:620a3692296bc4142e31a347 */
+"account_logout_title" = "Log out";
+
+/* loco:620a36939e2cb240e221e92b */
+"account_pagename" = "Account";
+
+/* loco:620a3693418db0576903f97a */
+"account_password" = "Change your password";
+
+/* loco:620a3694e2fa16535e0e2ed5 */
+"account_password_last_changed_at" = "Last changed %@";
+
+/* loco:620a36954435b3611a408f60 */
+"account_password_last_changed_at_never" = "Periodically changing your password would keep your account in safe hands.";
+
+/* loco:620a3695d68e1d7d504d36e2 */
+"account_section_apps" = "Applications";
+
+/* loco:620a369638dc2d6ac41ad726 */
+"account_section_danger_zone" = "Danger zone";
+
+/* loco:620a3697140165135f4db0c7 */
+"account_section_info" = "Information";
+
+/* loco:620a3698fb7d5e136c31c53a */
+"account_section_item_pending_change" = "There is a pending change, please visit your e-mail to approve. If you did not do this change, let us know.";
+
+/* loco:620a3698418db0576903f97c */
+"account_section_security" = "Security";
+
+/* loco:620a3699eaa0b929fd05ad0f */
+"account_sessions" = "Where you are logged in";
+
+/* loco:620a369a1d0a9408ab78158c */
+"account_sessions_description" = "Applications and sessions you have recently logged in with your account.";
+
+/* loco:620a369b296bc4142e31a349 */
+"account_username" = "Username";
+
+/* loco:620a369b19f4fd4c7b439899 */
+"account_wipe_confirm_label" = "Start Clean-Up";
+
+/* loco:620a369c14fd176fd3780ced */
+"account_wipe_success_message" = "Clean-up completed!";
+
+/* loco:620a369d19f4fd4c7b43989b */
+"account_your_applications" = "Applications created by you";
+
+/* loco:620a369d14fd176fd3780cef */
+"account_your_applications_description" = "Have something in mind? Come inside and build the next favorite tool!";
+
+/* loco:620a369e9e2cb240e221e92d */
+"app_account_ratelimit_error_message" = "You have exceeded an allocated request count. Please try again later.";
+
+/* loco:620a369f4435b3611a408f62 */
+"app_auth_error_action" = "Try Again";
+
+/* loco:620a36a0296bc4142e31a34b */
+"app_auth_error_message" = "We're unable to complete the authentication process.";
+
+/* loco:620a36a038dc2d6ac41ad72a */
+"app_auth_error_network_message" = "Please check your network connection and try again.";
+
+/* loco:620a36a1eaa0b929fd05ad11 */
+"app_auth_error_title" = "Oops! An error occurred";
+
+/* loco:620a36a24435b3611a408f64 */
+"app_auth_message" = "wants to access your put.io account";
+
+/* loco:620a36a3e2fa16535e0e2ed7 */
+"app_auth_revoke_guide" = "You can revoke this authorization at any time from your <a href=\"/settings/account/oauth/authorizations\" target=\"_blank\">Authorizations</a> page.";
+
+/* loco:620a36a34435b3611a408f66 */
+"app_breadcrumb_backto_label" = "Back To";
+
+/* loco:620a36a45edca530bf137960 */
+"app_confirm_dialog_cancel" = "Cancel";
+
+/* loco:620a36a5fb7d5e136c31c53c */
+"app_confirm_dialog_confirm" = "Confirm";
+
+/* loco:620a36a5eaa0b929fd05ad13 */
+"app_confirm_dialog_ok" = "Okay";
+
+/* loco:620a36a619f4fd4c7b43989d */
+"app_dialog_close" = "Close";
+
+/* loco:620a36a7140165135f4db0c9 */
+"app_drag_drop_cancel" = "Cancel";
+
+/* loco:620a36a814fd176fd3780cf1 */
+"app_drag_drop_message" = "Drop your files here";
+
+/* loco:620a36a84435b3611a408f68 */
+"app_no_internet_connection" = "No internet connection";
+
+/* loco:620a36a9e2fa16535e0e2ed9 */
+"app_passive_account_cta_label" = "Keep a good thing going!";
+
+/* loco:620a36aa14fd176fd3780cf3 */
+"app_passive_account_file_delete_message" = "Your files are still here, but they are scheduled to be deleted in %@ days.";
+
+/* loco:620a36ab140165135f4db0cb */
+"app_passive_account_message" = "put.io would love to start working for you, but needs a little commitment before it can do that.";
+
+/* loco:620a36ac418db0576903f97e */
+"app_passive_account_processing_payment_cta_label" = "Contact Support";
+
+/* loco:620a36adfb7d5e136c31c53e */
+"app_passive_account_processing_payment_message" = "We're processing your payment at the moment and your account will be activated as soon as it completes.";
+
+/* loco:620a36ad418db0576903f980 */
+"app_passive_account_processing_payment_title" = "Payment is Processing";
+
+/* loco:620a36ae14fd176fd3780cf5 */
+"app_passive_account_title" = "Hello. This account is not active.";
+
+/* loco:620a36af4435b3611a408f6a */
+"app_payment_warning_cta_label" = "Update Payment Information";
+
+/* loco:620a36b038dc2d6ac41ad72c */
+"app_payment_warning_retry_message" = "We were unable to receive your last payment. Our payment provider will retry on %@.";
+
+/* loco:620a36b0e2fa16535e0e2edb */
+"app_payment_warning_title" = "Heads up!";
+
+/* loco:620a36b1140165135f4db0cd */
+"app_payment_warning_update_payment_information_message" = "We were unable to receive your last payment. You need to update your payment details to continue your subscription";
+
+/* loco:620a36b238dc2d6ac41ad72e */
+"app_prompt_dialog_cancel" = "Cancel";
+
+/* loco:620a36b314fd176fd3780cf7 */
+"app_prompt_dialog_ok" = "Okay";
+
+/* loco:620a36b414fd176fd3780cf9 */
+"app_prompt_dialog_retry" = "Retry";
+
+/* loco:620a36b4d68e1d7d504d36e4 */
+"app_public_share_guest_header_button_label" = "What sorcery is this? I want it too!";
+
+/* loco:620a36b5296bc4142e31a34d */
+"app_public_share_party_start_video_button_label" = "Welcome to put.io party. If all participants are ready, CLICK HERE to begin.";
+
+/* loco:620a36b64435b3611a408f6c */
+"app_public_share_user_header_button_label" = "Go to your files";
+
+/* loco:620a36b7296bc4142e31a34f */
+"app_ratelimit_error_action" = "Contact Us";
+
+/* loco:620a36b75edca530bf137962 */
+"app_ratelimit_error_message" = "You have banned for a while because of too many requests.";
+
+/* loco:620a36b81d0a9408ab781590 */
+"app_ratelimit_error_title" = "Oops!";
+
+/* loco:620a36b99e2cb240e221e92f */
+"app_selectbox_default_value_label" = "None";
+
+/* loco:620a36b9fb7d5e136c31c540 */
+"app_session_expired_action_label" = "Go to Login";
+
+/* loco:620a36ba9e2cb240e221e931 */
+"app_session_expired_login_message" = "Session expired, please log in again to keep using put.io";
+
+/* loco:620a36bb4435b3611a408f6e */
+"app_session_expired_message" = "Seems like this session is not valid anymore. Please log in again to keep using put.io";
+
+/* loco:620a36bbd68e1d7d504d36e6 */
+"app_session_expired_title" = "Session Expired";
+
+/* loco:620a36bd14fd176fd3780cfb */
+"app_simultaneous_download_limit" = "Your simultaneous transfer limit is %@";
+
+/* loco:620a36bd38dc2d6ac41ad730 */
+"app_version_update_arrived" = "Hey! We've just shipped a new version.";
+
+/* loco:620a36beeaa0b929fd05ad15 */
+"app_version_update_refresh" = "Can you please refresh this page to avoid unexpected problems.";
+
+/* loco:620a36bf1d0a9408ab781592 */
+"auth_two_factor_code_instructions" = "Open your Authenticator app on your mobile device to get your authentication code.";
+
+/* loco:620a36bfeaa0b929fd05ad17 */
+"auth_two_factor_code_label" = "Authentication code";
+
+/* loco:620a36c0e2fa16535e0e2edd */
+"auth_two_factor_code_placeholder" = "6-digit code";
+
+/* loco:620a36c14435b3611a408f70 */
+"auth_two_factor_invalid_code_error" = "The code you entered is invalid. Please try again.";
+
+/* loco:620a36c238dc2d6ac41ad732 */
+"auth_two_factor_not_enabled_error" = "Two-factor authentication is not enabled for your account. Please try logging in again.";
+
+/* loco:620a36c214fd176fd3780cfd */
+"auth_two_factor_submit_button_label" = "Verify";
+
+/* loco:620a36c3fb7d5e136c31c542 */
+"auth_two_factor_title" = "Two-factor authentication";
+
+/* loco:620a36c4418db0576903f982 */
+"chromecast_play" = "Play on Chromecast";
+
+/* loco:620a36c5d68e1d7d504d36e8 */
+"chromecast_session_error" = "We couldn't connect to your Chromecast. Please refresh the page or restart your device and try again.";
+
+/* loco:620a36c638dc2d6ac41ad734 */
+"chromecast_stop" = "Stop casting";
+
+/* loco:620a36c84435b3611a408f72 */
+"content_editable_discard" = "Discard Changes";
+
+/* loco:620a36c8bd968c23a97295d2 */
+"content_editable_edit" = "Edit";
+
+/* loco:620a36c99e2cb240e221e933 */
+"content_editable_save" = "Save Changes";
+
+/* loco:620a36ca651d0a74fe1140ba */
+"dashboard_action_download_label" = "Download";
+
+/* loco:620a36cbbfdc797e75044bd2 */
+"dashboard_action_remove_label" = "Clear";
+
+/* loco:620a36cb4d8ad56340206da2 */
+"dashboard_ancienttimes" = "Ancient times";
+
+/* loco:620a36ccc0685541424b21c2 */
+"dashboard_empty_message" = "You will see information here once things start happening.";
+
+/* loco:620a36cd7635cb5c4f5ec292 */
+"dashboard_empty_title" = "This is your history. It's currently empty.";
+
+/* loco:620a36cd651d0a74fe1140bc */
+"dashboard_item_detail_label" = "Details";
+
+/* loco:620a36cebfdc797e75044bd4 */
+"dashboard_item_error_message_title" = "Error detail";
+
+/* loco:620a36cf651d0a74fe1140be */
+"dashboard_item_source_label" = "Source";
+
+/* loco:620a36d0140165135f4db0cf */
+"dashboard_lastweek" = "Last week";
+
+/* loco:620a36d1bd968c23a97295d4 */
+"dashboard_privateip_message" = "Your private IP `%1$@` was temporarily down, we had to use `%2$@` for **%3$@**";
+
+/* loco:620a36d1e9d12431c958f3f2 */
+"dashboard_rss_error_message" = "Error in transfer from %1$@ for **%2$@**";
+
+/* loco:620a36d2bd968c23a97295d6 */
+"dashboard_rss_file_deleted_message" = "We had to delete **%@** per your instructions, since there wasn't enough free space.";
+
+/* loco:620a36d37635cb5c4f5ec294 */
+"dashboard_rss_pause_message" = "**%@** is paused because we couldn't reach the source";
+
+/* loco:620a36d3becf855f5a21ad42 */
+"dashboard_today" = "Today";
+
+/* loco:620a36d4dc0c354c8a1f4702 */
+"dashboard_transfer_callback_error_message" = "Error in transfer callback for **%@**";
+
+/* loco:620a36d5becf855f5a21ad44 */
+"dashboard_transfer_error_message" = "Error in transfer **%@**";
+
+/* loco:620a36d6e9d12431c958f3f4 */
+"dashboard_upload_message" = "You've uploaded **%@**";
+
+/* loco:620a36d6bd968c23a97295d8 */
+"dashboard_voucher_message" = "Hey there. Welcome to put.io. We've made you and **%@** friends. You can see their shares now.";
+
+/* loco:620a36d7becf855f5a21ad46 */
+"dashboard_yesterday" = "Yesterday";
+
+/* loco:620a36d8d85bd21bf649d9f2 */
+"dashboard_zip_message" = "You wanted to zip some files and they are ready.";
+
+/* loco:620a36d87635cb5c4f5ec296 */
+"family_delete_member_confirmation" = "Are you sure to remove %@ from your family?";
+
+/* loco:620a36d9becf855f5a21ad48 */
+"family_delete_member_failure" = "Oops, we couldn't complete that. Try again?";
+
+/* loco:620a36dabd968c23a97295da */
+"family_delete_member_success" = "%@ is no longer a member of your put.io family.";
+
+/* loco:620a36dae9d12431c958f3f6 */
+"family_empty_state_message" = "You can invite up to %@ people to your put.io family!";
+
+/* loco:620a36db296bc4142e31a351 */
+"family_empty_state_title" = "Your family is empty";
+
+/* loco:620a36dcdc0c354c8a1f4704 */
+"family_error_message" = "Please try to refresh the page";
+
+/* loco:620a36ddbfdc797e75044bd6 */
+"family_error_title" = "Oops! An error occurred";
+
+/* loco:620a36dd7635cb5c4f5ec298 */
+"family_join_action_label" = "Join!";
+
+/* loco:620a36dee2fa16535e0e2edf */
+"family_join_failure_active_user" = "Your account needs to be deactivated before joining a family plan.";
+
+/* loco:620a36dff3c934108c70b222 */
+"family_join_failure_invalid_code" = "Invite code is invalid, please check and try again.";
+
+/* loco:620a36df651d0a74fe1140c0 */
+"family_join_failure_owner_not_active" = "Owner of this invite code is no longer active";
+
+/* loco:620a36e0c0685541424b21c4 */
+"family_join_failure_owner_not_found" = "We couldn't find the owner of this invite code";
+
+/* loco:620a36e1f3c934108c70b224 */
+"family_join_message" = "Our mutual friend %@ has asked you to join their put.io family.";
+
+/* loco:620a36e1296bc4142e31a353 */
+"family_join_success" = "Hooray, you've joined %@'s family!";
+
+/* loco:620a36e2651d0a74fe1140c2 */
+"family_join_title" = "Hello %@!";
+
+/* loco:620a36e3296bc4142e31a355 */
+"family_leave_confirmation" = "Are you sure to leave %@'s family?";
+
+/* loco:620a36e4becf855f5a21ad4a */
+"family_leave_failure" = "Oops, we couldn't complete that. Try again?";
+
+/* loco:620a36e4bd968c23a97295dc */
+"family_leave_success" = "You are no longer a member of %@'s family :'(";
+
+/* loco:620a36e5d85bd21bf649d9f4 */
+"family_member_action_label" = "Leave";
+
+/* loco:620a36e6e9d12431c958f3f8 */
+"family_member_disk_usage" = "Using %@ space";
+
+/* loco:620a36e6140165135f4db0d1 */
+"family_member_disk_usage_none" = "Not using any space";
+
+/* loco:620a36e7c0685541424b21c6 */
+"family_member_message" = "You are a part of our dear friend %@'s put.io family.";
+
+/* loco:620a36e8bd968c23a97295de */
+"family_member_title" = "Hello %@!";
+
+/* loco:620a36e8bfdc797e75044bd8 */
+"family_members_title" = "Members";
+
+/* loco:620a36e9dc0c354c8a1f4706 */
+"family_pagename" = "Family";
+
+/* loco:620a36eae2fa16535e0e2ee1 */
+"file_shared_by" = "Shared by: %@";
+
+/* loco:620a36eac0685541424b21c8 */
+"file_video_start_from_beginning_label" = "Start from the beginning";
+
+/* loco:620a36ebbd968c23a97295e0 */
+"file_video_start_from_continue_label" = "Continue watching";
+
+/* loco:620a36ece9d12431c958f3fa */
+"file_video_start_from_subtitle" = "Last saved timestamp for this video is %1$@ of %2$@";
+
+/* loco:620a36edc0685541424b21ca */
+"file_video_start_from_title" = "Where would you like to start?";
+
+/* loco:620a36eddc0c354c8a1f4708 */
+"files_abusedetected_message" = "The file is not available anymore.";
+
+/* loco:620a36eee2fa16535e0e2ee3 */
+"files_abusedetected_title" = "File not found";
+
+/* loco:620a36efd85bd21bf649d9f6 */
+"files_action_mark_as_unwatched" = "Mark as Unwatched";
+
+/* loco:620a36ef651d0a74fe1140c4 */
+"files_action_mark_as_watched" = "Mark as Watched";
+
+/* loco:620a36f0dbbdd63da74147e3 */
+"files_action_next_episode_label" = "Play next video";
+
+/* loco:620a36f14d8ad56340206da4 */
+"files_action_next_video_label" = "Play next video";
+
+/* loco:620a36f2f3c934108c70b226 */
+"files_action_share_public_label" = "Share with someone special";
+
+/* loco:620a36f3bfdc797e75044bda */
+"files_action_shared_file_clone_label" = "Make a copy";
+
+/* loco:620a36f49a53ef70834b0342 */
+"files_badrequest_action_label" = "Go to your files";
+
+/* loco:620a36f47635cb5c4f5ec29a */
+"files_badrequest_message" = "We couldn't find that file";
+
+/* loco:620a36f5e9d12431c958f3fc */
+"files_badrequest_title" = "File not found";
+
+/* loco:620a36f64d8ad56340206da6 */
+"files_cannot_preview_message" = "put.io cannot preview this kind of file.";
+
+/* loco:620a36f7becf855f5a21ad4c */
+"files_convert_bulk_failure_limit" = "You cannot have more than %@ files in your conversion queue.";
+
+/* loco:620a36f77635cb5c4f5ec29c */
+"files_convert_bulk_no_mp4" = "Those files are already in MP4 format";
+
+/* loco:620a36f8bfdc797e75044bdc */
+"files_convert_bulk_success" = "We have added those files to your conversion queue!";
+
+/* loco:620a36f9d85bd21bf649d9f8 */
+"files_convert_done_label" = "Completed";
+
+/* loco:620a36f9c11b162c7422e512 */
+"files_convert_error_free_plan_label" = "We're unable to start conversion because you're on the free plan.";
+
+/* loco:620a36fae9d12431c958f3fe */
+"files_convert_error_label" = "Error.";
+
+/* loco:620a36fb7635cb5c4f5ec29e */
+"files_convert_error_notavideofile" = "This file does not seem to be a video file.";
+
+/* loco:620a36fcbfdc797e75044bde */
+"files_convert_inqueue_label" = "In Queue...";
+
+/* loco:620a36fdc11b162c7422e514 */
+"files_convert_message" = "This video is not in a format that can be displayed in a browser yet. But since you're here, we'll start transcoding.";
+
+/* loco:620a36fdbecf855f5a21ad4e */
+"files_convert_preparing_label" = "Preparing...";
+
+/* loco:620a36feb531fa24b0144532 */
+"files_convert_status_label" = "CONVERSION STATUS";
+
+/* loco:620a36fff3c934108c70b228 */
+"files_convert_waiting_label" = "Waiting...";
+
+/* loco:620a36ff0306c9309e7b13a2 */
+"files_delete_children_limit_error" = "There are more than %1$@ files inside '%2$@'. We can not send them to trash.";
+
+/* loco:620a3700f3c934108c70b22a */
+"files_delete_confirm" = "Are you sure to delete those files?";
+
+/* loco:620a3701b531fa24b0144534 */
+"files_delete_confirm_current_file" = "Do you really want to delete this file?";
+
+/* loco:620a37026b613e6b9c6b0122 */
+"files_delete_confirm_modal_title" = "Delete file?";
+
+/* loco:620a37039a53ef70834b0344 */
+"files_delete_confirm_modal_title_other" = "Delete %@ files?";
+
+/* loco:620a3703c11b162c7422e516 */
+"files_delete_confirm_warning_text" = "This will PERMANENTLY delete these files. Sure you want to do that?";
+
+/* loco:620a3704e9d12431c958f400 */
+"files_delete_confirm_warning_text_with_more" = "This will PERMANENTLY delete these files and %@ more. Sure you want to do that?";
+
+/* loco:620a3704becf855f5a21ad50 */
+"files_delete_no_permission_error" = "You don't have permission to delete these files";
+
+/* loco:620a3705d85bd21bf649d9fa */
+"files_delete_no_permission_partial_error" = "You only have permission to delete %1$@ of the selected %2$@ files. Still OK?";
+
+/* loco:620a3706f3c934108c70b22c */
+"files_delete_parent_limit_error" = "There are more than %@ files selected. We can not delete them.";
+
+/* loco:620a3707c11b162c7422e518 */
+"files_delete_success" = "Gone!";
+
+/* loco:620a37076b613e6b9c6b0124 */
+"files_download_label" = "Download (%@)";
+
+/* loco:620a3708dc0c354c8a1f470a */
+"files_download_mp4_label" = "Download MP4 (%@)";
+
+/* loco:620a3709c0685541424b21cc */
+"files_downloadlinks_modal_message" = "Here you go. Please use a download manager with big downloads.";
+
+/* loco:620a37094d8ad56340206da8 */
+"files_downloadlinks_modal_showall_label" = "Show all";
+
+/* loco:620a370a0306c9309e7b13a4 */
+"files_downloadlinks_modal_showmedia_label" = "Show only media";
+
+/* loco:620a370bdc0c354c8a1f470c */
+"files_downloadlinks_modal_showmp4_label" = "Show only MP4";
+
+/* loco:620a370cbfdc797e75044be0 */
+"files_downloadlinks_modal_title" = "Download links";
+
+/* loco:620a370cf3c934108c70b22e */
+"files_emptystate_action_label" = "New folder";
+
+/* loco:620a370db531fa24b0144536 */
+"files_emptystate_message" = "Maybe you'd like to create a new folder?";
+
+/* loco:620a370ee9d12431c958f402 */
+"files_emptystate_title" = "No files whatsoever!";
+
+/* loco:620a370ef3c934108c70b230 */
+"files_error_extraction" = "We couldn't extract these files. Please try again.";
+
+/* loco:620a370fbfdc797e75044be2 */
+"files_error_message" = "Please try to refresh the page";
+
+/* loco:620a3710dbbdd63da74147e5 */
+"files_error_nofileselected" = "You should select something in order to do that.";
+
+/* loco:620a37110306c9309e7b13a6 */
+"files_error_title" = "Oops! An error occurred";
+
+/* loco:620a3711e9d12431c958f404 */
+"files_lost_message" = "Sometimes we lose a storage server and it takes us a little time to re-download the lost files. And sometimes, although rarely we lose a file forever, because there are no more seeds on that torrent, or maybe it was from a private tracker and we don't want to mess your ratio. Given the type of data we're storing, we don't actually keep multiple copies and we used to consider this our unfair advantage. But we're not sure anymore. Sorry.";
+
+/* loco:620a3712b531fa24b0144538 */
+"files_lost_title" = "We cannot find that file.";
+
+/* loco:620a3713dbbdd63da74147e7 */
+"files_media_info_modal_title" = "Media Info";
+
+/* loco:620a3714bfdc797e75044be4 */
+"files_media_info_show_label" = "Show Media Info";
+
+/* loco:620a3715e9d12431c958f406 */
+"files_menu_convert_label" = "Convert to MP4";
+
+/* loco:620a37156b613e6b9c6b0126 */
+"files_menu_create_torrent_label" = "Create torrent";
+
+/* loco:620a3716e9d12431c958f408 */
+"files_menu_delete_label" = "Delete";
+
+/* loco:620a3717d85bd21bf649d9fc */
+"files_menu_downloadlinks_label" = "Download links";
+
+/* loco:620a37184d8ad56340206daa */
+"files_menu_extractall_label" = "Extract all";
+
+/* loco:620a3719becf855f5a21ad52 */
+"files_menu_label" = "Actions";
+
+/* loco:620a371ac11b162c7422e51a */
+"files_menu_mark_as_unwatched_label" = "Unwatched";
+
+/* loco:620a371a6b613e6b9c6b0128 */
+"files_menu_mark_as_watched_label" = "Watched";
+
+/* loco:620a371bc11b162c7422e51c */
+"files_menu_move_label" = "Move";
+
+/* loco:620a371ce9d12431c958f40a */
+"files_menu_move_to_trash_label" = "Trash";
+
+/* loco:620a371d7635cb5c4f5ec2a0 */
+"files_menu_newfolder_label" = "New folder";
+
+/* loco:620a371ee9d12431c958f40c */
+"files_menu_rename_label" = "Rename";
+
+/* loco:620a371fd85bd21bf649d9fe */
+"files_menu_rssfeed_label" = "RSS feed";
+
+/* loco:620a371fc0685541424b21ce */
+"files_menu_share_label" = "Share";
+
+/* loco:620a37207635cb5c4f5ec2a2 */
+"files_menu_vlc_label" = "VLC playlist";
+
+/* loco:620a3721bfdc797e75044be6 */
+"files_menu_zipdownload_label" = "Zip & download";
+
+/* loco:620a3722c0685541424b21d0 */
+"files_move_no_permission_error" = "You don't have permission to move these files";
+
+/* loco:620a3723e9d12431c958f40e */
+"files_move_no_permission_partial_error" = "You only have permission to move %1$@ of the selected %2$@ files. Still OK?";
+
+/* loco:620a37246b613e6b9c6b012a */
+"files_move_success_message" = "Something definitely moved!";
+
+/* loco:620a3724e9d12431c958f410 */
+"files_move_to_trash_skip_confirmation" = "This folder contains too many files. Would you want to delete it **PERMANENTLY**?";
+
+/* loco:620a37259a53ef70834b0346 */
+"files_move_to_trash_skip_confirmation_confirm" = "Delete";
+
+/* loco:620a37250306c9309e7b13a8 */
+"files_move_to_trash_skip_confirmation_other" = "%@ folders contain too many files. Would you want to delete them **PERMANENTLY**?";
+
+/* loco:620a3726b531fa24b014453a */
+"files_move_to_trash_skip_confirmation_title" = "We couldn't send these files to trash";
+
+/* loco:620a37270306c9309e7b13aa */
+"files_move_to_trash_success" = "Moved them all to Trash!";
+
+/* loco:620a37289a53ef70834b0348 */
+"files_name_already_exists_error" = "This folder contains a file with that name, please try a different one";
+
+/* loco:620a37286b613e6b9c6b012c */
+"files_name_already_exists_move_error" = "This folder contains file(s) with matching name(s], please rename them and try again";
+
+/* loco:620a3729e9d12431c958f412 */
+"files_name_too_long_error" = "Please use a name shorter than 255 characters";
+
+/* loco:620a372a6b613e6b9c6b012e */
+"files_newfolder_label" = "New folder name";
+
+/* loco:620a372a9a53ef70834b034a */
+"files_newfolder_path_not_found_error" = "Invalid location. Please check the parent file and try again.";
+
+/* loco:620a372bb531fa24b014453c */
+"files_newfolder_success" = "Here is a brand new folder for you.";
+
+/* loco:620a372c7635cb5c4f5ec2a4 */
+"files_next_video_flash_player_navigate_message" = "Navigating to next video...";
+
+/* loco:620a372ce9d12431c958f414 */
+"files_next_video_not_found" = "We couldn't find anything to play next";
+
+/* loco:620a372dd85bd21bf649da00 */
+"files_next_video_section_autoplay" = "Autoplay";
+
+/* loco:620a372ec0685541424b21d2 */
+"files_next_video_section_header" = "Next Video";
+
+/* loco:620a372fdc0c354c8a1f470e */
+"files_no_name_error" = "Sorry, name can't be blank";
+
+/* loco:620a372fbfdc797e75044be8 */
+"files_not_reachable_message" = "We cannot reach that file right now, please try again in a moment";
+
+/* loco:620a37306b613e6b9c6b0130 */
+"files_not_reachable_title" = "File is not reachable";
+
+/* loco:620a3731f3c934108c70b232 */
+"files_notfound_action_label" = "Go to your files";
+
+/* loco:620a37316b613e6b9c6b0132 */
+"files_notfound_message" = "We couldn't find that file";
+
+/* loco:620a3732dc0c354c8a1f4710 */
+"files_notfound_title" = "File not found";
+
+/* loco:620a3733b531fa24b014453e */
+"files_publiclink_abuse_message" = "ATTENTION: This is a public link, but it's not for the whole world to enjoy. The share will die if more than a certain number of IP addresses access the file or if more than a certain amount of data is downloaded. It will also vanish after 72 hours.";
+
+/* loco:620a3734e9d12431c958f416 */
+"files_publiclink_abuse_title" = "Not gonna happen...";
+
+/* loco:620a3735b531fa24b0144540 */
+"files_publiclink_error_limit_exceeded" = "You have reached the limit of your public links. You'll have to revoke some [here](/sharing/files) if you want to make more.";
+
+/* loco:620a37357635cb5c4f5ec2a6 */
+"files_publiclink_error_missing_data" = "Please make sure you fill out all the fields";
+
+/* loco:620a3736e9d12431c958f418 */
+"files_publiclink_error_not_allowed_plan" = "You can not create public links with your current plan";
+
+/* loco:620a3737dbbdd63da74147e9 */
+"files_publiclink_error_unsupported_file_type" = "This file type can not be shared";
+
+/* loco:620a3737becf855f5a21ad54 */
+"files_publiclink_expired_message" = "The link you are trying to access has expired and is not longer accessible.";
+
+/* loco:620a3738e9d12431c958f41a */
+"files_publiclink_expired_title" = "Link has expired";
+
+/* loco:620a3739dbbdd63da74147eb */
+"files_publiclink_sender_modal_title" = "Just a few things before you go 👇";
+
+/* loco:620a37394d8ad56340206dad */
+"files_rename_label" = "New file name";
+
+/* loco:620a373ac0685541424b21d4 */
+"files_rename_success" = "File renamed.";
+
+/* loco:620a373bd85bd21bf649da02 */
+"files_reset_label" = "Reset video time";
+
+/* loco:620a373c0306c9309e7b13ac */
+"files_reset_startfrom_success_message" = "Your place in this video was reset.";
+
+/* loco:620a373dbfdc797e75044bea */
+"files_rootdir_name" = "Your Files";
+
+/* loco:620a373dc11b162c7422e51e */
+"files_rssfeed_no_folder_error" = "You need to select at least one folder to create an RSS feed.";
+
+/* loco:620a373ee9d12431c958f41c */
+"files_rssfeed_title" = "Choose your feed type";
+
+/* loco:620a373fdbbdd63da74147ed */
+"files_rssmodal_all_label" = "All";
+
+/* loco:620a373f7635cb5c4f5ec2a8 */
+"files_rssmodal_audio_label" = "Audio only";
+
+/* loco:620a3740dc0c354c8a1f4712 */
+"files_rssmodal_media_label" = "Media only";
+
+/* loco:620a3741c11b162c7422e520 */
+"files_rssmodal_mp4_label" = "Video only but prefer MP4's";
+
+/* loco:620a3742f3c934108c70b234 */
+"files_save_subtitle_settings_error_message" = "Something went wrong :(";
+
+/* loco:620a3742b531fa24b0144542 */
+"files_save_subtitle_settings_success_message" = "Changes successfully saved";
+
+/* loco:620a3743f3c934108c70b236 */
+"files_saveasmp4_incurrent_success_message" = "An MP4 will be created in the same folder within a minute.";
+
+/* loco:620a37447635cb5c4f5ec2aa */
+"files_saveasmp4_inroot_success_message" = "An MP4 will be created in the root folder within a minute.";
+
+/* loco:620a3745c0685541424b21d7 */
+"files_saveasmp4_label" = "Save MP4 as a file";
+
+/* loco:620a37457635cb5c4f5ec2ac */
+"files_search_breadcrumb_title" = "Search Results for %@";
+
+/* loco:620a37460306c9309e7b13ae */
+"files_search_empty_phrase_error_message" = "Let's see what we can find...";
+
+/* loco:620a37474d8ad56340206db0 */
+"files_search_empty_phrase_error_title" = "Type a keyword";
+
+/* loco:620a3748d85bd21bf649da04 */
+"files_search_emptystate_message" = "We couldn't find anything for %@";
+
+/* loco:620a3749e9d12431c958f41e */
+"files_search_emptystate_title" = "No search result";
+
+/* loco:620a3749dc0c354c8a1f4714 */
+"files_search_page_title" = "Search";
+
+/* loco:620a374a6b613e6b9c6b0135 */
+"files_select_all" = "All %@ selected";
+
+/* loco:620a374bc11b162c7422e522 */
+"files_select_none" = "Select all";
+
+/* loco:620a374cbfdc797e75044bec */
+"files_select_partial" = "%@ selected";
+
+/* loco:620a374c0306c9309e7b13b0 */
+"files_selected_count_label" = "%@ file";
+
+/* loco:620a374dd85bd21bf649da06 */
+"files_selected_count_label_other" = "%@ files";
+
+/* loco:620a374dbecf855f5a21ad56 */
+"files_selected_label" = "%1$@ and %2$@ other file";
+
+/* loco:620a374ebfdc797e75044bee */
+"files_selected_label_other" = "%1$@ and %2$@ other files";
+
+/* loco:620a374f9a53ef70834b034d */
+"files_share_already_shared_error" = "Parent is already shared";
+
+/* loco:620a374fe9d12431c958f420 */
+"files_share_no_permission_error" = "You don't have permission to share these files";
+
+/* loco:620a3750dbbdd63da74147ef */
+"files_share_no_permission_partial_error" = "You only have permission to share %1$@ of the selected %2$@ files. Still OK?";
+
+/* loco:620a3751c11b162c7422e524 */
+"files_share_success_message" = "Shared";
+
+/* loco:620a37514d8ad56340206db2 */
+"files_shared_file_emptystate_message" = "Seems like this user haven't shared any files with you";
+
+/* loco:620a3752e9d12431c958f422 */
+"files_shared_root_folder_name" = "Your friends files";
+
+/* loco:620a3753bfdc797e75044bf0 */
+"files_slash_in_name_error" = "Name cannot contain / symbol";
+
+/* loco:620a3754b531fa24b0144544 */
+"files_sort_date_added_label" = "Date Added";
+
+/* loco:620a37540306c9309e7b13b2 */
+"files_sort_date_modified_label" = "Date Modified";
+
+/* loco:620a3755d85bd21bf649da08 */
+"files_sort_name_label" = "Name";
+
+/* loco:620a3756dc0c354c8a1f4716 */
+"files_sort_size_label" = "Size";
+
+/* loco:620a3756becf855f5a21ad58 */
+"files_sort_sorted_label" = "Sort by %@";
+
+/* loco:620a37577635cb5c4f5ec2ae */
+"files_sort_type_label" = "Type";
+
+/* loco:620a37586b613e6b9c6b0137 */
+"files_sort_watch_status_label" = "Watch Status";
+
+/* loco:620a3759b531fa24b0144546 */
+"files_streamlink_hls_label" = "HLS link";
+
+/* loco:620a37590306c9309e7b13b4 */
+"files_streamlink_label" = "Stream link";
+
+/* loco:620a375a7635cb5c4f5ec2b0 */
+"files_streamlink_mp4_label" = "MP4 Stream link";
+
+/* loco:620a375b0306c9309e7b13b6 */
+"files_subtitle_list_item_download_label" = "Download";
+
+/* loco:620a375cc0685541424b21d9 */
+"files_subtitles_addyourown_label" = "Add your own";
+
+/* loco:620a375cc11b162c7422e526 */
+"files_subtitles_empty_result_message" = "We couldn't find subtitles for the selected language.";
+
+/* loco:620a375dc11b162c7422e528 */
+"files_subtitles_failure_but_can_play_message" = "Failed to load subtitles but we can still play the video without them. You can refresh the page to try again.";
+
+/* loco:620a375e0306c9309e7b13b8 */
+"files_subtitles_fetching" = "Fetching Subtitles...";
+
+/* loco:620a375fbecf855f5a21ad5a */
+"files_subtitles_hide_label" = "Hide";
+
+/* loco:620a3760c0685541424b21db */
+"files_subtitles_nolanguageset_message" = "You can select a language to search for subtitles";
+
+/* loco:620a37616b613e6b9c6b0139 */
+"files_subtitles_save_label" = "Save changes";
+
+/* loco:620a3762becf855f5a21ad5c */
+"files_subtitles_settings_title" = "Subtitle Languages";
+
+/* loco:620a37629a53ef70834b0350 */
+"files_subtitles_show_label" = "Show all";
+
+/* loco:620a37636b613e6b9c6b013b */
+"files_subtitles_title" = "Subtitles";
+
+/* loco:620a3764952e672d7c245df2 */
+"files_subtitles_uploading" = "Uploading Subtitle...";
+
+/* loco:620a37659a53ef70834b0352 */
+"files_text_file_loading" = "Loading File Content";
+
+/* loco:620a37650306c9309e7b13ba */
+"files_text_file_loading_failed" = "We couldn't open that file :(";
+
+/* loco:620a3766b531fa24b0144548 */
+"files_update_watch_status_no_video_error" = "Please select video files";
+
+/* loco:620a3767e24f1e3f0218e372 */
+"files_update_watch_status_success" = "Done!";
+
+/* loco:620a376895476805845e5a32 */
+"files_upload_subtitle_error_message" = "Oops. Could not upload. Can you try again?";
+
+/* loco:620a37686b613e6b9c6b013d */
+"files_upload_subtitle_success_message" = "Those subtitles you just uploaded... They should be loaded in the player.";
+
+/* loco:620a37690306c9309e7b13bc */
+"files_video_open_popup_player" = "Open in Popup Window";
+
+/* loco:620a376ab531fa24b014454a */
+"files_vlc_error_noplayablefiles" = "There are no playable files in this folder.";
+
+/* loco:620a376b205a585b2e3ae4e2 */
+"files_xspf_label" = "VLC playlist";
+
+/* loco:620a376bed852c2ee5650e72 */
+"files_zip_zerobyte_error_message" = "That file (or those files) are zero bytes long. Surely something's amiss!";
+
+/* loco:620a376cc11b162c7422e52b */
+"friend_card_hover_title" = "Go to %@'s shared files";
+
+/* loco:620a376d6b613e6b9c6b013f */
+"friend_card_join_date" = "Joined %@";
+
+/* loco:620a376e95476805845e5a34 */
+"friendpicker_action_share_label" = "Share with selected friend(s)";
+
+/* loco:620a376f3447a118db243a42 */
+"friendpicker_modal_title" = "Share with all (present and future) friends";
+
+/* loco:620a377095fb0871e3529c02 */
+"friendpicker_search_placeholder" = "Type to search";
+
+/* loco:620a37710306c9309e7b13be */
+"friendpicker_selectall_help" = "Select this to share with all of your friends, including future ones.";
+
+/* loco:620a37723447a118db243a44 */
+"friendpicker_selectall_label" = "Sharing with everyone";
+
+/* loco:620a37722a65a41f4271d4f2 */
+"friendpicker_selectpartial_label" = "Share with selected friends";
+
+/* loco:620a37736b613e6b9c6b0141 */
+"generic_contact_support_error" = "We couldn't make this work, Please contact to the support team.";
+
+/* loco:620a377460d3d43b5e7f2822 */
+"generic_error" = "Something went wrong :(";
+
+/* loco:620a3775c11b162c7422e52d */
+"generic_error_503_message" = "We are having issues with this feature right now, please try again later. You can check our [status page](http://status.put.io) for the updates.";
+
+/* loco:620a37753447a118db243a46 */
+"generic_error_503_title" = "Service unavailable";
+
+/* loco:620a3776ed852c2ee5650e74 */
+"generic_error_cta_retry" = "Try Again";
+
+/* loco:620a377795476805845e5a36 */
+"generic_error_go_back_label" = "Go back";
+
+/* loco:620a3778c11b162c7422e52f */
+"generic_error_message" = "An error occurred, please try again";
+
+/* loco:620a377860d3d43b5e7f2824 */
+"generic_error_title" = "Oops!";
+
+/* loco:620a3779c11b162c7422e531 */
+"generic_error_try_again" = "We couldn't make this work, please try again later";
+
+/* loco:620a377a0306c9309e7b13c0 */
+"generic_network_error_message" = "We couldn't make this work, please check your network connection and try again.";
+
+/* loco:620a377a205a585b2e3ae4e4 */
+"generic_save_button_label" = "Save";
+
+/* loco:620a377bb531fa24b014454c */
+"go_back_to_putio" = "← Return to put.io";
+
+/* loco:620a377c2a65a41f4271d4f4 */
+"history_disable_confirm" = "Disabling history will also clear your current activities. Are you sure?";
+
+/* loco:620a377dc11b162c7422e533 */
+"invitation_create_failure" = "We couldn't create an invitation. Can you please try again?";
+
+/* loco:620a377d60d3d43b5e7f2826 */
+"invitation_create_label" = "Create Invitation (%@ Remaining)";
+
+/* loco:620a377e95fb0871e3529c04 */
+"invitation_create_limit_exceeded_error" = "Seems like you've already created all of your invitations.";
+
+/* loco:620a377f205a585b2e3ae4e6 */
+"invitation_create_request" = "Creating...";
+
+/* loco:620a377f6b613e6b9c6b0143 */
+"invitation_create_success" = "Your invitation is ready!";
+
+/* loco:620a378095476805845e5a38 */
+"invitation_empty_state_action_label" = "Create Invitation";
+
+/* loco:620a378143826d0113065722 */
+"invitation_links_title" = "Invitations";
+
+/* loco:620a37812a65a41f4271d4f6 */
+"invite_friends_dialog_friend" = "Friend";
+
+/* loco:620a378243826d0113065724 */
+"invite_friends_dialog_take_this" = "ಠ_ಠ... Here, take this: ";
+
+/* loco:620a3783205a585b2e3ae4e8 */
+"invite_friends_dialog_torrenting_is_awesome" = "Torrenting with put.io is awesome!";
+
+/* loco:620a3784c11b162c7422e535 */
+"invite_friends_dialog_why_pay" = "Yeah? Why should I pay for something free?";
+
+/* loco:620a3785952e672d7c245df4 */
+"invite_friends_dialog_you" = "You";
+
+/* loco:620a3786904a4742b40ce1d2 */
+"invite_friends_earned_amount" = "You’ve earned: $%@";
+
+/* loco:620a3787b2b0f242056b9b52 */
+"invite_friends_invite_create_label" = "Create a trial pass (%1$@ of %2$@)";
+
+/* loco:620a3787ae63c72714115c92 */
+"invite_friends_invite_created" = "Trial pass created!";
+
+/* loco:620a37880306c9309e7b13c2 */
+"invite_friends_joined_friends_title" = "Friends who joined the party";
+
+/* loco:620a378943826d0113065726 */
+"invite_friends_link_list_title" = "Trial Passes";
+
+/* loco:620a3789c11b162c7422e537 */
+"invite_friends_motivation_message" = "Treat your friends to a **free** month of put.io, and get **$9.99 credit** for each of them who stay.";
+
+/* loco:620a378a904a4742b40ce1d4 */
+"invite_friends_page_title" = "put.io hands together and help us!";
+
+/* loco:620a378cb2b0f242056b9b54 */
+"invite_friends_pagename" = "Invite your friends!";
+
+/* loco:620a378d952e672d7c245df6 */
+"invite_friends_reminder_account_activity" = "Your trial passes will only work if your account is active.";
+
+/* loco:620a378dcc18a4182953b152 */
+"invite_friends_reminder_credit_card" = "We'll ask your friends for their credit card info, but we won't charge them for 30 days.";
+
+/* loco:620a378eb2b0f242056b9b56 */
+"invite_friends_reminder_credit_card_subtitle" = "And even after we do, we promise to refund if they meant to cancel but forgot.";
+
+/* loco:620a378f952e672d7c245df8 */
+"invite_friends_reminder_title" = "Heads up!";
+
+/* loco:620a378f3447a118db243a48 */
+"invite_friends_status_converted" = "Decided to stay. YAY!";
+
+/* loco:620a3790205a585b2e3ae4ea */
+"invite_friends_status_in_trial" = "Joined %@. Trialing.";
+
+/* loco:620a3791904a4742b40ce1d6 */
+"invite_friends_status_trial_ended" = "Trial ended.";
+
+/* loco:620a37913447a118db243a4a */
+"invite_friends_status_trial_not_started" = "Joined %@ but hasn't started yet.";
+
+/* loco:620a3793ed852c2ee5650e76 */
+"invites_desciption_1" = "Here are some links that you can give out to your friends. They can try put.io for a month without any payment. We have a limited number of invites, so please consider friends who will benefit most from put.io.";
+
+/* loco:620a37932a65a41f4271d4f8 */
+"invites_desciption_2" = "Only a few, familiar customers are getting these invites. Please tell us if you genuinely need more.";
+
+/* loco:620a3794ed852c2ee5650e78 */
+"invites_empty_state_title" = "No vouchers whatsoever";
+
+/* loco:620a379543826d0113065728 */
+"invites_pagename" = "Set your friends up with some FREE put.io!";
+
+/* loco:620a3796ae63c72714115c94 */
+"legal_about_title" = "About put.io";
+
+/* loco:620a3796b2b0f242056b9b58 */
+"legal_dmca_policy_title" = "DMCA policy";
+
+/* loco:620a3797ae63c72714115c96 */
+"legal_libraries_title" = "Libraries we use in %@";
+
+/* loco:620a37983447a118db243a4c */
+"legal_privacy_policy_title" = "Privacy policy";
+
+/* loco:620a3799cc18a4182953b154 */
+"legal_terms_of_service_title" = "Terms of service";
+
+/* loco:620a3799ae63c72714115c98 */
+"link_device_action_label" = "Link";
+
+/* loco:620a379acc18a4182953b156 */
+"link_device_description" = "Enter the code shown on your device to link it to your put.io account.";
+
+/* loco:620a379bae63c72714115c9a */
+"link_device_error_message" = "Please check the code and try again.";
+
+/* loco:620a379c952e672d7c245dfa */
+"link_device_input_label" = "Activation code";
+
+/* loco:620a379dae63c72714115c9c */
+"link_device_success_message" = "You have successfully connected to %@";
+
+/* loco:620a379d952e672d7c245dfc */
+"link_device_title" = "Link your account";
+
+/* loco:620a379e3447a118db243a4e */
+"menu_account" = "Account";
+
+/* loco:620a379fe24f1e3f0218e374 */
+"menu_dashboard" = "History";
+
+/* loco:620a37a060d3d43b5e7f2828 */
+"menu_rssfeed" = "RSS Automation";
+
+/* loco:620a37a095fb0871e3529c06 */
+"menu_settings" = "Settings";
+
+/* loco:620a37a160d3d43b5e7f282a */
+"menu_sharing" = "Sharing";
+
+/* loco:620a37a2904a4742b40ce1d8 */
+"menu_tools" = "Favorite Tools";
+
+/* loco:620a37a2ae63c72714115c9f */
+"menu_transfers" = "Transfers";
+
+/* loco:620a37a3952e672d7c245dfe */
+"menu_trash" = "Trash";
+
+/* loco:620a37a4ed852c2ee5650e7a */
+"menu_yourfiles" = "Your Files";
+
+/* loco:620a37a5b2b0f242056b9b5a */
+"network_error_action" = "Refresh";
+
+/* loco:620a37a53447a118db243a50 */
+"network_error_message" = "Please make sure you have a stable network connection and refresh the page.";
+
+/* loco:620a37a63447a118db243a52 */
+"network_error_title" = "Network Error";
+
+/* loco:620a37a7ed852c2ee5650e7c */
+"notfound_page_action" = "Go to Your Files";
+
+/* loco:620a37a8952e672d7c245e00 */
+"notfound_page_message" = "The page or content you're looking for is not found";
+
+/* loco:620a37a8ed852c2ee5650e7e */
+"notfound_page_title" = "404";
+
+/* loco:620a37a960d3d43b5e7f282c */
+"oauth_app_callback_help" = "Must start with http:// or https:// eg: https://example.com/put-io-api/callbackurl. Multiple callback urls can be given by seperating them with newline.";
+
+/* loco:620a37aa95fb0871e3529c08 */
+"oauth_app_callback_label" = "Callback url";
+
+/* loco:620a37abdf69ba641c1d3902 */
+"oauth_app_create_success_message" = "Yaay, \"%@\" is here!";
+
+/* loco:620a37abb2b0f242056b9b5c */
+"oauth_app_delete_label" = "Delete";
+
+/* loco:620a37ac43826d011306572a */
+"oauth_app_desc_help" = "The description will be visible during authorization. 10 - 255 characters.";
+
+/* loco:620a37adb2b0f242056b9b5e */
+"oauth_app_desc_label" = "Description";
+
+/* loco:620a37adcc18a4182953b158 */
+"oauth_app_hide_label" = "Don't show in Favorite Tools page";
+
+/* loco:620a37ae2a65a41f4271d4fa */
+"oauth_app_icon_label" = "Application Icon";
+
+/* loco:620a37af95fb0871e3529c0a */
+"oauth_app_name_help" = "Enter a name here, so we can identify your application.";
+
+/* loco:620a37b0df69ba641c1d3904 */
+"oauth_app_name_label" = "Application Name";
+
+/* loco:620a37b0904a4742b40ce1da */
+"oauth_app_new_error_desc_too_short" = "Application description is too short";
+
+/* loco:620a37b195fb0871e3529c0c */
+"oauth_app_new_error_name_too_short" = "Application name is too short";
+
+/* loco:620a37b260d3d43b5e7f282e */
+"oauth_app_new_error_same_name" = "We have an application with the same name already.";
+
+/* loco:620a37b3952e672d7c245e02 */
+"oauth_app_new_pagename" = "Create new app";
+
+/* loco:620a37b4df69ba641c1d3906 */
+"oauth_app_save_label" = "Save";
+
+/* loco:620a37b4904a4742b40ce1dc */
+"oauth_app_secrets_client_id_help" = "Your application's ID.";
+
+/* loco:620a37b595fb0871e3529c0e */
+"oauth_app_secrets_client_id_label" = "Client ID";
+
+/* loco:620a37b62a65a41f4271d4fc */
+"oauth_app_secrets_pagename" = "Secrets for \"%@\"";
+
+/* loco:620a37b643826d011306572c */
+"oauth_app_secrets_secret_help" = "Your application's secret. Please keep this in a safe place.";
+
+/* loco:620a37b73447a118db243a54 */
+"oauth_app_secrets_secret_label" = "Client Secret";
+
+/* loco:620a37b8df69ba641c1d3908 */
+"oauth_app_secrets_token_help" = "This is your own user's token for your application.";
+
+/* loco:620a37b9b2b0f242056b9b60 */
+"oauth_app_secrets_token_label" = "OAuth Token";
+
+/* loco:620a37b9952e672d7c245e04 */
+"oauth_app_secrets_token_regenerate" = "Regenerate";
+
+/* loco:620a37bab2b0f242056b9b62 */
+"oauth_app_secrets_token_regenerate_success" = "We generated a new token for you. Keep it safe!";
+
+/* loco:620a37bbae63c72714115ca1 */
+"oauth_app_show_secrets_label" = "Show secrets";
+
+/* loco:620a37bc904a4742b40ce1de */
+"oauth_app_update_success_message" = "You have updated \"%@\".";
+
+/* loco:620a37bccc18a4182953b15a */
+"oauth_app_web_site_help" = "Users will see this during authorization.";
+
+/* loco:620a37bd43826d011306572e */
+"oauth_app_web_site_label" = "Application website";
+
+/* loco:620a37be3447a118db243a56 */
+"oauth_apps_authorizations" = "Authorizations";
+
+/* loco:620a37be904a4742b40ce1e0 */
+"oauth_apps_authorizations_label" = "Applications you gave access to";
+
+/* loco:620a37bf205a585b2e3ae4ec */
+"oauth_apps_clients" = "Active Logins";
+
+/* loco:620a37c043826d0113065730 */
+"oauth_apps_clients_deleted_app" = "Deleted App";
+
+/* loco:620a37c1e24f1e3f0218e377 */
+"oauth_apps_clients_description" = "Your active logins";
+
+/* loco:620a37c1ed852c2ee5650e80 */
+"oauth_apps_clients_last_used_at" = "Last used %@";
+
+/* loco:620a37c23447a118db243a58 */
+"oauth_apps_clients_not_used_yet" = "Not used yet";
+
+/* loco:620a37c3cc18a4182953b15c */
+"oauth_apps_clients_show_less" = "Show less ↑";
+
+/* loco:620a37c32a65a41f4271d4fe */
+"oauth_apps_clients_show_more" = "Show more ↓";
+
+/* loco:620a37c4cc18a4182953b15e */
+"oauth_apps_delete_confirm_message" = "Are you sure to delete your application \"%@\"?";
+
+/* loco:620a37c52a65a41f4271d500 */
+"oauth_apps_delete_success_message" = "Gone!";
+
+/* loco:620a37c5ae63c72714115ca3 */
+"oauth_apps_emptystate_action_label" = "Create One";
+
+/* loco:620a37c6cc18a4182953b160 */
+"oauth_apps_emptystate_title" = "You don't have any OAuth apps registered";
+
+/* loco:620a37c743826d0113065732 */
+"oauth_apps_new_label" = "Create new app";
+
+/* loco:620a37c8e24f1e3f0218e379 */
+"oauth_apps_pagename" = "OAuth Apps";
+
+/* loco:620a37c8b2b0f242056b9b64 */
+"oauth_auths_active_sessions_label" = "%@ session";
+
+/* loco:620a37c9205a585b2e3ae4ee */
+"oauth_auths_active_sessions_label_other" = "%@ sessions";
+
+/* loco:620a37ca952e672d7c245e06 */
+"oauth_auths_description" = "These are apps that you authorized via put.io API. You can revoke access to any app you authorized unless you are the developer :).";
+
+/* loco:620a37ca3447a118db243a5a */
+"oauth_auths_no_item_message" = "No api apps";
+
+/* loco:620a37cb2a65a41f4271d502 */
+"oauth_auths_revoke_cancel_label" = "Keep sessions";
+
+/* loco:620a37ccdf69ba641c1d390a */
+"oauth_auths_revoke_confirm_label" = "Yes, revoke";
+
+/* loco:620a37cc904a4742b40ce1f0 */
+"oauth_auths_revoke_confirm_message" = "Are you sure to revoke the access to %@?";
+
+/* loco:620a37cddf69ba641c1d390c */
+"oauth_auths_revoke_label" = "Revoke";
+
+/* loco:620a37ceae63c72714115ca5 */
+"oauth_auths_revoke_other_sessions_message" = "Would you like to sign out from all other devices?";
+
+/* loco:620a37cfed852c2ee5650e82 */
+"oauth_auths_revoke_success_message" = "Ok! Access revoked.";
+
+/* loco:620a37cf904a4742b40ce1f2 */
+"oauth_clients_description" = "These are sessions that you authorized via put.io API. You can close any session you authorized unless you are the developer of related app.";
+
+/* loco:620a37d0cc18a4182953b162 */
+"payment_activate_account_error" = "You need to activate your account to use this feature!";
+
+/* loco:620a37d195476805845e5a3b */
+"payment_bitcoin_cancel_no_invoice_error" = "There is no such invoice";
+
+/* loco:620a37d195fb0871e3529c10 */
+"payment_change_activate_account_title" = "Activate your account";
+
+/* loco:620a37d22a65a41f4271d504 */
+"payment_change_inactive_subscription_error" = "You current subscription is inactive. Please stop current subscripton and start a one.";
+
+/* loco:620a37d395fb0871e3529c12 */
+"payment_change_insufficient_disk_space" = "You need to open up %@ free space before downgrading to that plan.";
+
+/* loco:620a37d3cc18a4182953b164 */
+"payment_change_pending_upgrade_message" = "There is a pending upgrade, please check your e-mail to approve. If you did not do this change, let us know.";
+
+/* loco:620a37d495476805845e5a3d */
+"payment_change_period_title" = "Change your period";
+
+/* loco:620a37d52a65a41f4271d506 */
+"payment_change_plan_title" = "Change your plan";
+
+/* loco:620a37d6df69ba641c1d390e */
+"payment_change_provider_error" = "Something went wrong on payment provider service";
+
+/* loco:620a37d6ed852c2ee5650e84 */
+"payment_change_success_message" = "Ahoy! Its done";
+
+/* loco:620a37d7e24f1e3f0218e37b */
+"payment_change_swtich_to_subs_title" = "Switch to Recurring Payments";
+
+/* loco:620a37d8952e672d7c245e08 */
+"payment_change_unknown_error_message" = "Unknown error occurred!";
+
+/* loco:620a37d995fb0871e3529c14 */
+"payment_change_unknown_provider_error" = "Can not recognize payment provider";
+
+/* loco:620a37d943826d0113065734 */
+"payment_change_up_down_title" = "Upgrade or downgrade";
+
+/* loco:620a37dab2b0f242056b9b66 */
+"payment_confirm_action_label" = "Confirm";
+
+/* loco:620a37dbed852c2ee5650e86 */
+"payment_confirm_amount_charged_label" = "Amount charged";
+
+/* loco:620a37db43826d0113065736 */
+"payment_confirm_amount_refund_label" = "Amount to be refunded";
+
+/* loco:620a37dc2a65a41f4271d508 */
+"payment_confirm_amount_to_charged_label" = "Amount to be charged";
+
+/* loco:620a37ddb2b0f242056b9b68 */
+"payment_confirm_cancel_label" = "Cancel";
+
+/* loco:620a37dd60d3d43b5e7f2830 */
+"payment_confirm_convert_remaining_days_message" = "The remaining %1$@ days on your current plan, will become %2$@ days on your new plan. No payment will be necessary!";
+
+/* loco:620a37de205a585b2e3ae4f0 */
+"payment_confirm_expire_in_label" = "%1$@ day (%2$@)";
+
+/* loco:620a37dfae63c72714115ca7 */
+"payment_confirm_expire_in_label_other" = "%1$@ days (%2$@)";
+
+/* loco:620a37dfe24f1e3f0218e37d */
+"payment_confirm_new_period_days" = "%@ day";
+
+/* loco:620a37e0ed852c2ee5650e88 */
+"payment_confirm_new_period_days_other" = "%@ days";
+
+/* loco:620a37e095fb0871e3529c16 */
+"payment_confirm_new_product_label" = "New Plan Name";
+
+/* loco:620a37e1904a4742b40ce1f4 */
+"payment_confirm_no_remaining_days_message" = "This unfortunately brings your remaining days to 0. Your account will be suspended at the end of the day.";
+
+/* loco:620a37e2b2b0f242056b9b6a */
+"payment_confirm_old_remaining_days" = "%@ day";
+
+/* loco:620a37e395fb0871e3529c18 */
+"payment_confirm_old_remaining_days_other" = "%@ days";
+
+/* loco:620a37e395476805845e5a3f */
+"payment_confirm_result_title" = "Ahoy! Its done";
+
+/* loco:620a37e4952e672d7c245e0a */
+"payment_confirm_title" = "Please confirm";
+
+/* loco:620a37e443826d0113065738 */
+"payment_confirm_trial_subscription_amount" = "Free for %1$@ days, then $%2$@";
+
+/* loco:620a37e52a65a41f4271d50a */
+"payment_confirm_will_expire_label" = "Will Expire In";
+
+/* loco:620a37e695476805845e5a41 */
+"payment_coupon_no_longer_available_error" = "Coupon no longer available";
+
+/* loco:620a37e695fb0871e3529c1a */
+"payment_coupon_not_found_error" = "Invalid coupon code";
+
+/* loco:620a37e7cc18a4182953b166 */
+"payment_coupon_wrong_plan" = "Wrong plan for this coupon code";
+
+/* loco:620a37e8ed852c2ee5650e8a */
+"payment_error_generic" = "Something went wrong :(";
+
+/* loco:620a37e8b2b0f242056b9b6c */
+"payment_expiresin_label" = "Expires in";
+
+/* loco:620a37e9205a585b2e3ae4f2 */
+"payment_expiresin_value" = "%1$@ day (%2$@)";
+
+/* loco:620a37ea3447a118db243a5c */
+"payment_expiresin_value_other" = "%1$@ days (%2$@)";
+
+/* loco:620a37ea95fb0871e3529c1c */
+"payment_extend30" = "Extend 30 days";
+
+/* loco:620a37eb205a585b2e3ae4f4 */
+"payment_extend365" = "Extend 365 days";
+
+/* loco:620a37ec2a65a41f4271d50c */
+"payment_family_member_not_allowed_error" = "You need to leave your family to activate your account.";
+
+/* loco:620a37ec95fb0871e3529c1e */
+"payment_family_not_allowed_error" = "Casual plan is not allowed to use with family.";
+
+/* loco:620a37edb2b0f242056b9b6e */
+"payment_giftcard" = "Gift Card";
+
+/* loco:620a37eecc18a4182953b168 */
+"payment_history_hide" = "Hide payment history";
+
+/* loco:620a37ee60d3d43b5e7f2832 */
+"payment_history_show" = "Show payment history";
+
+/* loco:620a37ef95476805845e5a43 */
+"payment_history_table_amount" = "Amount";
+
+/* loco:620a37f06543e209155730f2 */
+"payment_history_table_date" = "Date";
+
+/* loco:620a37f1e24f1e3f0218e37f */
+"payment_history_table_id" = "ID";
+
+/* loco:620a37f1904a4742b40ce1f6 */
+"payment_history_table_invoice" = "Invoice";
+
+/* loco:620a37f295fb0871e3529c20 */
+"payment_history_table_plan" = "Plan";
+
+/* loco:620a37f3b2b0f242056b9b70 */
+"payment_history_table_type" = "Type";
+
+/* loco:620a37f3ed852c2ee5650e8c */
+"payment_history_title" = "Payment History";
+
+/* loco:620a37f4e24f1e3f0218e381 */
+"payment_method_coinbase" = "Cryptocurrency";
+
+/* loco:620a37f56543e209155730f4 */
+"payment_method_coinbase_failure" = "Payment failed, please try again :(";
+
+/* loco:620a37f6e24f1e3f0218e383 */
+"payment_method_coinbase_success" = "Payment confirmed!";
+
+/* loco:620a37f6904a4742b40ce1f8 */
+"payment_method_credit_card" = "Credit Card";
+
+/* loco:620a37f7df69ba641c1d3911 */
+"payment_method_credit_card_fs" = "Credit Card";
+
+/* loco:620a37f89d53c133c8710682 */
+"payment_method_credit_card_fs_invalid_product" = "Invalid product";
+
+/* loco:620a37f97890eb74fa4a0e12 */
+"payment_method_credit_card_fs_success" = "Payment confirmed!";
+
+/* loco:620a37f9aa7cff520520d2c2 */
+"payment_method_credit_card_fs_unknown_error" = "Unknown error occurred";
+
+/* loco:620a37fa95fb0871e3529c22 */
+"payment_method_credit_card_fs_verification_fail" = "Something went wrong on payment verification";
+
+/* loco:620a37fbcc18a4182953b16a */
+"payment_method_credit_card_paddle" = "Credit Card";
+
+/* loco:620a37fbb6704465e31ab212 */
+"payment_method_credit_card_paddle_failure" = "Payment failed, please try again :(";
+
+/* loco:620a37fcdf69ba641c1d3913 */
+"payment_method_credit_card_paddle_success" = "Payment confirmed!";
+
+/* loco:620a37fd6543e209155730f6 */
+"payment_method_credit_card_redirect" = "You will be redirected to our payment processor, Fastspring, in %@ seconds...";
+
+/* loco:620a37feb6704465e31ab214 */
+"payment_method_credit_card_update" = "Update card information";
+
+/* loco:620a37fedf69ba641c1d3915 */
+"payment_method_gift_card" = "Gift Card";
+
+/* loco:620a3800b6704465e31ab216 */
+"payment_method_label" = "Payment Method";
+
+/* loco:620a3801b94856168c370cb2 */
+"payment_method_modal_action_label" = "Select";
+
+/* loco:620a38019d53c133c8710686 */
+"payment_method_modal_contact_message" = "If you can’t see your preferred payment method here, let us know!";
+
+/* loco:620a38027890eb74fa4a0e14 */
+"payment_method_modal_title" = "Please select a payment method";
+
+/* loco:620a3803df69ba641c1d3917 */
+"payment_method_nano" = "Nano (%20 off!)";
+
+/* loco:620a380369b37b0f5476ec82 */
+"payment_method_nano_failure" = "Payment failed, please try again :(";
+
+/* loco:620a3804b6704465e31ab218 */
+"payment_method_nano_success" = "Payment confirmed!";
+
+/* loco:620a3805a6e595444d1c7c32 */
+"payment_method_other" = "Local Options";
+
+/* loco:620a38067890eb74fa4a0e16 */
+"payment_missing_information_error" = "Please update payment information first.";
+
+/* loco:620a3806b2b0f242056b9b72 */
+"payment_next_billing_date_label" = "Next Billing Date";
+
+/* loco:620a3807a6e595444d1c7c34 */
+"payment_not_enough_days_error" = "There are not enough days left to change your plan";
+
+/* loco:620a38087890eb74fa4a0e18 */
+"payment_pagename" = "Billing";
+
+/* loco:620a3808df69ba641c1d3919 */
+"payment_period_label" = "Period";
+
+/* loco:620a3809904a4742b40ce1fa */
+"payment_period_monthly_label" = "Monthly";
+
+/* loco:620a380a7890eb74fa4a0e1a */
+"payment_period_trial_label" = "Trial";
+
+/* loco:620a380bb94856168c370cb4 */
+"payment_period_yearly_label" = "Yearly";
+
+/* loco:620a380b9d53c133c8710688 */
+"payment_plan_change_error" = "Plan is not allowed to change. PLease contact us!";
+
+/* loco:620a380cae63c72714115ca9 */
+"payment_plan_label" = "Plan";
+
+/* loco:620a380d904a4742b40ce1fc */
+"payment_plan_not_found_error" = "Cannot recognize provided plan code";
+
+/* loco:620a380d60da9e2aa47e8cc2 */
+"payment_plans_action_choose_label" = "Choose";
+
+/* loco:620a380eb2b0f242056b9b74 */
+"payment_plans_current_plan_label" = "Current plan";
+
+/* loco:620a380fb6704465e31ab21a */
+"payment_plans_downgrade_label" = "Downgrade";
+
+/* loco:620a38102cf72617467ad6e2 */
+"payment_plans_name_label" = "Name";
+
+/* loco:620a3810b6704465e31ab21c */
+"payment_plans_price_label" = "Price";
+
+/* loco:620a381169b37b0f5476ec84 */
+"payment_plans_storage_label" = "Storage Space";
+
+/* loco:620a381260da9e2aa47e8cc4 */
+"payment_plans_torrent_slot_label" = "Torrent Slots";
+
+/* loco:620a3813b94856168c370cb6 */
+"payment_plans_trial_subscription_description" = "for %1$@ days, then %2$@ %3$@";
+
+/* loco:620a38146543e209155730f8 */
+"payment_plans_trial_subscription_setup" = "Continue setting up your subscription";
+
+/* loco:620a3814cc18a4182953b16d */
+"payment_plans_trial_subscription_title" = "👉 ✅ FREE! ✅ 👈";
+
+/* loco:620a38152cf72617467ad6e4 */
+"payment_plans_upgrade_label" = "Upgrade";
+
+/* loco:620a3816b6704465e31ab21e */
+"payment_refund_period_expired_error" = "Oops, we couldn't change your plan because refund period is expired. Please contact us.";
+
+/* loco:620a3816904a4742b40ce1fe */
+"payment_sub_upgrade_downgrade_warning" = "If you're upgrading or changing between monthly/yearly, you may be charged after confirming this change.";
+
+/* loco:620a38176543e209155730fa */
+"payment_subs_action_change_default" = "Change";
+
+/* loco:620a3818cc18a4182953b16f */
+"payment_subs_action_change_monthly" = "Switch to yearly";
+
+/* loco:620a381960da9e2aa47e8cc6 */
+"payment_subs_action_change_yearly" = "Switch to monthly";
+
+/* loco:620a38192cf72617467ad6e6 */
+"payment_subs_cancel_cancel_label" = "Go back";
+
+/* loco:620a381a69b37b0f5476ec86 */
+"payment_subs_cancel_confirm_label" = "Yes, cancel";
+
+/* loco:620a381bdf69ba641c1d391b */
+"payment_subs_cancel_confirmation_message" = "Are you sure to cancel your subscription?";
+
+/* loco:620a381bae63c72714115cab */
+"payment_subs_cancel_not_found_error" = "Can not find a subscription to cancel.";
+
+/* loco:620a381c2cf72617467ad6e8 */
+"payment_subs_cancel_trial_confirmation_message" = "If you cancel now, your account will be **deactivated immediately**. Are you sure you want to give up **%@ days of trial**?";
+
+/* loco:620a381dcc18a4182953b171 */
+"payment_subs_create" = "Start subscription";
+
+/* loco:620a381e7890eb74fa4a0e1c */
+"payment_subs_monthly_label" = "Monthly (%@ days)";
+
+/* loco:620a381edf69ba641c1d391d */
+"payment_subs_stop" = "Cancel subscription";
+
+/* loco:620a381f2cd7d65a237f0122 */
+"payment_subs_yearly_label" = "Yearly (%@ days)";
+
+/* loco:620a38202cf72617467ad6ea */
+"payment_trial_error" = "Trial plans can be used only once. Please contact us if you've cancelled unintentionally.";
+
+/* loco:620a382184d62650b161d3a2 */
+"payment_type_label" = "Payment type";
+
+/* loco:620a382169b37b0f5476ec88 */
+"payment_type_onetime_label" = "Prepaid";
+
+/* loco:620a382224226f05d93b4a22 */
+"payment_type_subs_cancelled_label" = "Subscription (Cancelled)";
+
+/* loco:620a38237890eb74fa4a0e1e */
+"payment_type_subs_label" = "Subscription";
+
+/* loco:620a3824aa7cff520520d2c4 */
+"payment_up_down_label" = "Upgrade or downgrade";
+
+/* loco:620a382424226f05d93b4a24 */
+"payment_upgrade_confirmation_invalid_error" = "Confirmation code is invalid";
+
+/* loco:620a382530907b17e764a6c2 */
+"payment_upgrade_confirmation_loading_label" = "Please keep this page open, while subscription upgrade is processing.";
+
+/* loco:620a3826c445016c45271ab2 */
+"payment_upgrade_confirmation_not_found_error" = "Confirmation code is either invalid or expired.";
+
+/* loco:620a382630907b17e764a6c4 */
+"payment_upgrade_confirmation_title" = "Upgrade your subscription plan";
+
+/* loco:620a38279d53c133c871068a */
+"payment_voucher_redeem" = "Redeem Voucher";
+
+/* loco:620a3828b6704465e31ab220 */
+"payment_voucher_redeem_action" = "Redeem";
+
+/* loco:620a382924226f05d93b4a26 */
+"payment_voucher_redeem_code_not_found" = "This is not a valid voucher code.";
+
+/* loco:620a382984d62650b161d3a4 */
+"payment_voucher_redeem_no_subs_error" = "You must first end your subscription. Voucher codes only work on prepaid plans.";
+
+/* loco:620a382a2cf72617467ad6ec */
+"payment_voucher_redeem_success_message" = "Voucher code applied successfully";
+
+/* loco:620a382bb94856168c370cb8 */
+"payment_voucher_redeem_title" = "Use voucher code";
+
+/* loco:620a382baa7cff520520d2c6 */
+"route_settings_change_route_success" = "You have changed your proxy!";
+
+/* loco:620a382c9d53c133c871068c */
+"route_settings_help" = "Your files will pass through servers in this location when you stream or download.";
+
+/* loco:620a382dc445016c45271ab4 */
+"route_settings_learn_more" = "Learn More";
+
+/* loco:620a382e69b37b0f5476ec8a */
+"route_settings_speed_test_start" = "Speed Test";
+
+/* loco:620a382e9d53c133c871068e */
+"route_settings_speed_test_status_download_speed_label" = "Download speed:";
+
+/* loco:620a382fb6704465e31ab222 */
+"route_settings_speed_test_status_error_message" = "Speed test failed!";
+
+/* loco:620a38306543e209155730fc */
+"route_settings_speed_test_status_latency_label" = "Ping:";
+
+/* loco:620a383160da9e2aa47e8cc8 */
+"route_settings_speed_test_status_starting_message" = "Starting...";
+
+/* loco:620a383224226f05d93b4a28 */
+"route_settings_speed_test_status_title" = "Speed Test";
+
+/* loco:620a38327890eb74fa4a0e20 */
+"route_settings_speed_test_status_waiting_message" = "Waiting...";
+
+/* loco:620a383369b37b0f5476ec8c */
+"route_settings_speed_test_stop" = "Stop Test";
+
+/* loco:620a383424226f05d93b4a2a */
+"route_settings_speed_test_testing" = "Connecting";
+
+/* loco:620a3834b6704465e31ab224 */
+"route_settings_title" = "Choose your proxy";
+
+/* loco:620a38359d53c133c8710690 */
+"saveto_action_active_label" = "Use current folder";
+
+/* loco:620a3836aa7cff520520d2c8 */
+"saveto_action_change_label" = "Change";
+
+/* loco:620a3837b6704465e31ab226 */
+"saveto_action_root_label" = "Use root folder";
+
+/* loco:620a383730907b17e764a6c6 */
+"saveto_label" = "Saving to";
+
+/* loco:620a383824226f05d93b4a2c */
+"saveto_loading_label" = "Loading...";
+
+/* loco:620a3839c445016c45271ab6 */
+"searchbar_placeholder" = "Type to search";
+
+/* loco:620a383a24226f05d93b4a2e */
+"settings_callbackurl_title" = "Configure callback URL";
+
+/* loco:620a383aaa7cff520520d2ca */
+"settings_form_callbackurl_help" = "Every time a transfer finishes we will send a POST request encoded as `application/x-www-form-urlencoded` to this URL with the details.";
+
+/* loco:620a383b84d62650b161d3a6 */
+"settings_form_callbackurl_label" = "Callback URL";
+
+/* loco:620a383ca6e595444d1c7c36 */
+"settings_form_defaultdownload_help" = "Your new transfers will be saved into this folder.";
+
+/* loco:620a383db94856168c370cba */
+"settings_form_defaultdownload_label" = "Choose default download folder";
+
+/* loco:620a383d24226f05d93b4a30 */
+"settings_form_defaultsubtitle_help" = "We will try to find subtitles matching these languages from <a href=\"https://www.opensubtitles.com\" target=\"_blank\">OpenSubtitles</a>.";
+
+/* loco:620a383ec445016c45271ab8 */
+"settings_form_defaultsubtitle_label" = "Preferred subtitle languages";
+
+/* loco:620a383fb6704465e31ab228 */
+"settings_form_error_default" = "Something went wrong :(";
+
+/* loco:620a38407890eb74fa4a0e22 */
+"settings_form_error_invalid_callback_url" = "Invalid callback URL.";
+
+/* loco:620a384069b37b0f5476ec8e */
+"settings_form_error_invalid_no_active_download_host" = "The torrent client we promised to use for your private torrents is not online.";
+
+/* loco:620a38416543e209155730fe */
+"settings_form_error_invalid_pushover_token" = "This is not a correct Pushover token.";
+
+/* loco:620a3842b94856168c370cbc */
+"settings_form_fluid_layout_help" = "100% layout for screens wider than 1280px.";
+
+/* loco:620a38422cd7d65a237f0124 */
+"settings_form_fluid_layout_label" = "Use fluid layout";
+
+/* loco:620a384384d62650b161d3a8 */
+"settings_form_history_help" = "The History menu item will be removed and activities will not be recorded. Keep this active if you think you might need the source links of previous transfers later.";
+
+/* loco:620a3844b94856168c370cbe */
+"settings_form_history_label" = "Log activities on the History page";
+
+/* loco:620a38452cf72617467ad6ee */
+"settings_form_invisible_help" = "You won't appear on the user searches.";
+
+/* loco:620a384560da9e2aa47e8cca */
+"settings_form_invisible_label" = "Become invisible";
+
+/* loco:620a3846a6e595444d1c7c38 */
+"settings_form_login_emails_help" = "We will send you an e-mail if you authorize an application or log in from a new device.";
+
+/* loco:620a3847b94856168c370cc0 */
+"settings_form_login_emails_label" = "Get alerts about your account activity";
+
+/* loco:620a384769b37b0f5476ec90 */
+"settings_form_magnethandler_help" = "We can make this work only in <a href=\"https://developer.mozilla.org/en-US/docs/Web/API/Navigator/registerProtocolHandler#browser_compatibility\" target=\"_blank\">supported browsers.</a>";
+
+/* loco:620a38482cf72617467ad6f0 */
+"settings_form_magnethandler_label" = "Make put.io your default magnet link handler";
+
+/* loco:620a384930907b17e764a6c8 */
+"settings_form_nextepisode_help" = "If we sense there are more audio or video files like the one you're enjoying, we try to find and suggest the next one.";
+
+/* loco:620a384a24226f05d93b4a32 */
+"settings_form_nextepisode_label" = "Suggest playing the next media";
+
+/* loco:620a384b30907b17e764a6ca */
+"settings_form_player_help" = "You can give it a try if you're experiencing buffering issues.";
+
+/* loco:620a384b24226f05d93b4a34 */
+"settings_form_player_label" = "Use alternative video player";
+
+/* loco:620a384cc445016c45271aba */
+"settings_form_privateip_label" = "Use a fixed IP with private trackers";
+
+/* loco:620a384d6543e20915573100 */
+"settings_form_pushover_help" = "\"<a href=\"https://pushover.net\" target=\"_blank\">Pushover</a>\" is a service that can send push notifications to your devices.";
+
+/* loco:620a384e24226f05d93b4a36 */
+"settings_form_pushover_label" = "Pushover token";
+
+/* loco:620a384eaa7cff520520d2cc */
+"settings_form_remembervideoplace_label" = "Remember current place in video and audio files";
+
+/* loco:620a384fb94856168c370cc2 */
+"settings_form_save_success" = "Changes successfully saved";
+
+/* loco:620a38502cd7d65a237f0126 */
+"settings_form_show_subtitles_help" = "If you disable this, we won't show anything related with the subtitles in the video page.";
+
+/* loco:620a3851c445016c45271abc */
+"settings_form_show_subtitles_label" = "Show Subtitles";
+
+/* loco:620a385130907b17e764a6cc */
+"settings_form_sort_files_help" = "Your files will be sorted by this rule unless you set a specific sort setting for each folder.";
+
+/* loco:620a385269b37b0f5476ec92 */
+"settings_form_sort_files_label" = "Default sort option for files";
+
+/* loco:620a3853b6704465e31ab22a */
+"settings_form_sort_files_reset_label" = "Restore all file specific sort settings to default";
+
+/* loco:620a38532cf72617467ad6f2 */
+"settings_form_trash_help" = "If you disable this, your files will be deleted permanently. Otherwise, we'll keep them for 14 days.";
+
+/* loco:620a38546543e20915573102 */
+"settings_form_trash_label" = "Move deleted files to trash";
+
+/* loco:620a385530907b17e764a6ce */
+"settings_pushover_title" = "Configure Pushover token";
+
+/* loco:620a385560da9e2aa47e8ccc */
+"sharing_files_pagename" = "Shared files";
+
+/* loco:620a385669b37b0f5476ec94 */
+"sharing_files_sharedwith_all" = "With all of your friends";
+
+/* loco:620a385730907b17e764a6d0 */
+"sharing_files_sharedwith_partial" = "With %@ friend";
+
+/* loco:620a385869b37b0f5476ec96 */
+"sharing_files_sharedwith_partial_other" = "With %@ friends";
+
+/* loco:620a3858b94856168c370cc4 */
+"sharing_files_title" = "Your Shared Files and Folders";
+
+/* loco:620a385930907b17e764a6d2 */
+"sharing_files_unshare" = "Unshare";
+
+/* loco:620a3859aa7cff520520d2ce */
+"sharing_friend_delete_confirm_message" = "Are you sure to unfriend this person?";
+
+/* loco:620a385a2cd7d65a237f0128 */
+"sharing_friend_delete_success_message" = "Your friendship deleted!";
+
+/* loco:620a385b24226f05d93b4a38 */
+"sharing_friendlist_incoming_title" = "Incoming friendship requests from other put.io users";
+
+/* loco:620a385c9d53c133c8710692 */
+"sharing_friendlist_title" = "Friends (%@)";
+
+/* loco:620a385c84d62650b161d3aa */
+"sharing_friends_pagename" = "Friends";
+
+/* loco:620a385d24226f05d93b4a3a */
+"sharing_links_revoke_confirmation" = "Are you sure to revoke this link?";
+
+/* loco:620a385e30907b17e764a6d4 */
+"sharing_links_revoke_error" = "Couldn't revoke the link, please try again.";
+
+/* loco:620a385e7890eb74fa4a0e24 */
+"sharing_links_revoke_label" = "Revoke";
+
+/* loco:620a385f9d53c133c8710694 */
+"sharing_links_revoke_success" = "Link is revoked";
+
+/* loco:620a386030907b17e764a6d6 */
+"sharing_links_title" = "Public shares";
+
+/* loco:620a386160da9e2aa47e8cce */
+"sharing_pagename" = "Sharing";
+
+/* loco:620a386269b37b0f5476ec98 */
+"sharing_public_links_created_at" = "Created at %@";
+
+/* loco:620a3862b94856168c370cc6 */
+"sharing_public_links_expires_in" = "Expires at %@";
+
+/* loco:620a38632cf72617467ad6f4 */
+"sharing_search_action" = "Search";
+
+/* loco:620a386469b37b0f5476ec9a */
+"sharing_search_result_empty" = "Empty search result";
+
+/* loco:620a386584d62650b161d3ac */
+"sharing_search_result_title" = "Search Results";
+
+/* loco:620a386524226f05d93b4a3c */
+"sharing_search_title" = "Search for other put.io users by e-mail or username";
+
+/* loco:620a38669d53c133c8710696 */
+"sharing_unshare_confirm_message" = "Are you sure to unshare this file?";
+
+/* loco:620a386760da9e2aa47e8cd0 */
+"sharing_user_action_add" = "Add as a friend";
+
+/* loco:620a386869b37b0f5476ec9c */
+"sharing_user_action_add_status" = "Awaiting approval";
+
+/* loco:620a3868b6704465e31ab22c */
+"sharing_user_action_approve" = "Approve";
+
+/* loco:620a38697890eb74fa4a0e26 */
+"sharing_user_action_delete" = "Delete";
+
+/* loco:620a386ab94856168c370cc8 */
+"sharing_user_action_deny" = "Deny";
+
+/* loco:620a386a60da9e2aa47e8cd2 */
+"sharing_user_action_unshare" = "Unshare";
+
+/* loco:620a386bc445016c45271abe */
+"speedtest_desc1" = "Our servers and all your files are in Netherlands. Sometimes due to strange peering agreements or saturation on international exchanges, the download speeds are not as great as we want them to be from everywhere in the world.";
+
+/* loco:620a386caa7cff520520d2d0 */
+"speedtest_desc2" = "We have purchased servers around the world in order to battle with this problem. If you choose an alternate route, a server located in that region downloads your content from Netherlands and serves it directly to you with speeds hopefully higher than your direct download speeds.";
+
+/* loco:620a386d6543e20915573104 */
+"speedtest_desc3" = "put.io will remember this setting.";
+
+/* loco:620a386d2cd7d65a237f012a */
+"speedtest_desc_title" = "About choosing your proxy";
+
+/* loco:620a386e24226f05d93b4a3e */
+"sub_addnew_title" = "New RSS Feed";
+
+/* loco:620a386f30907b17e764a6d8 */
+"sub_create_error_invalid_url_message" = "Invalid URL";
+
+/* loco:620a3870a6e595444d1c7c3a */
+"sub_create_error_message" = "Something went wrong :(";
+
+/* loco:620a3870c445016c45271ac0 */
+"sub_create_label" = "Create RSS Feed";
+
+/* loco:620a3871b6704465e31ab22e */
+"sub_create_success_message" = "New RSS feed is added";
+
+/* loco:620a387224226f05d93b4a40 */
+"sub_form_defaultdownload_help" = "Your downloads are placed into this folder by default.";
+
+/* loco:620a3872c445016c45271ac2 */
+"sub_form_defaultdownload_title" = "Default download folder";
+
+/* loco:620a3873aa7cff520520d2d2 */
+"sub_form_deleteoldfiles_title" = "If I run out of space, make room by deleting the oldest files in the download folder PERMANENTLY. BEWARE! This is powerful.";
+
+/* loco:620a3874a6e595444d1c7c3c */
+"sub_form_keywords_help" = "Case insensitive. Separate with commas (,) Examples: 720p,jazz,mp3 Use ampersand (&) for AND operator. Example: foobar&720p";
+
+/* loco:620a3874c445016c45271ac4 */
+"sub_form_keywords_title" = "Download items with titles that contain any of these words";
+
+/* loco:620a3875aa7cff520520d2d4 */
+"sub_form_negativekeywords_help" = "Case insensitive. Separate with commas (,) Examples: 720p,jazz,mp3 Use ampersand (&) for AND operator. Example: foobar&720p";
+
+/* loco:620a38767890eb74fa4a0e28 */
+"sub_form_negativekeywords_title" = "Never transfer items with titles that contain any of these words";
+
+/* loco:620a3877aa7cff520520d2d6 */
+"sub_form_oldfiles_title" = "Don't process the current feed, only transfer new items";
+
+/* loco:620a387769b37b0f5476ec9e */
+"sub_form_title_help" = "So you can remember it later.";
+
+/* loco:620a387860da9e2aa47e8cd4 */
+"sub_form_title_title" = "Name your RSS feed";
+
+/* loco:620a387969b37b0f5476eca0 */
+"sub_form_url_help" = "You can enter an RSS feed containing torrents or files themselves i.e. podcast feeds.";
+
+/* loco:620a387aaa7cff520520d2d8 */
+"sub_form_url_title" = "Enter the url of the RSS feed to watch";
+
+/* loco:620a387aa6e595444d1c7c3e */
+"sub_logs_pagename" = "%@'s logs";
+
+/* loco:620a387b60da9e2aa47e8cd6 */
+"sub_logs_pagename_loading" = "Loading Logs...";
+
+/* loco:620a387c69b37b0f5476eca2 */
+"sub_update_label" = "Update RSS Feed";
+
+/* loco:620a387c2cf72617467ad6f6 */
+"sub_update_success_message" = "RSS feed updated";
+
+/* loco:620a387d24226f05d93b4a42 */
+"subs_delete_confirm" = "Are you sure to delete this RSS feed?";
+
+/* loco:620a387ea6e595444d1c7c40 */
+"subs_delete_success" = "Gone!";
+
+/* loco:620a387f9d53c133c8710698 */
+"subs_emptystate_action_label" = "Add a new RSS feed";
+
+/* loco:620a387fb94856168c370cca */
+"subs_emptystate_message" = "If you don't know where to start, just google \"RSS torrents\". You'll see the light.";
+
+/* loco:620a3880aa7cff520520d2da */
+"subs_emptystate_title" = "No watched RSS feeds whatsoever";
+
+/* loco:620a3881a6e595444d1c7c42 */
+"subs_inactive_account_message" = "Please activate your account to manage your RSS feeds";
+
+/* loco:620a388124226f05d93b4a44 */
+"subs_logs_emptystate_message" = "This place will be full of them when we get updates from this feed.";
+
+/* loco:620a3882b94856168c370ccc */
+"subs_logs_emptystate_title" = "There are no logs to show";
+
+/* loco:620a3883aa7cff520520d2dc */
+"subs_new_label" = "Add a new RSS feed";
+
+/* loco:620a388384d62650b161d3af */
+"subs_notfound_error" = "RSS Feed not found";
+
+/* loco:620a38842cd7d65a237f012c */
+"subs_pagename" = "RSS Automation";
+
+/* loco:620a38859d53c133c871069a */
+"task_download_links_concurrent_limit_error" = "You exceeded concurrency limit of download links.";
+
+/* loco:620a38867890eb74fa4a0e2a */
+"task_download_links_error" = "Sorry. We could not get download links for these files.";
+
+/* loco:620a388669b37b0f5476eca4 */
+"task_download_links_message_done" = "Your download links are ready. Please consider using a download manager for consistency.";
+
+/* loco:620a388724226f05d93b4a46 */
+"task_download_links_message_new" = "Preparing download links";
+
+/* loco:620a388860da9e2aa47e8cd8 */
+"task_download_links_title_done" = "View Download Links for %@";
+
+/* loco:620a38897890eb74fa4a0e2c */
+"task_download_links_title_error" = "Couldn't Create Download Links for %@";
+
+/* loco:620a388b24226f05d93b4a48 */
+"task_download_links_title_new" = "Creating Download Links...";
+
+/* loco:620a388c5da66d2508490872 */
+"task_download_links_too_many_children_error" = "Files you selected have too many children to generate download links.";
+
+/* loco:620a388d7890eb74fa4a0e2e */
+"task_download_links_too_many_files_error" = "You selected too many files for generating download links.";
+
+/* loco:620a388e4416f72652138a92 */
+"task_extraction_password_prompt_label" = "Please enter the password";
+
+/* loco:620a388f69b37b0f5476eca6 */
+"task_extraction_password_prompt_placeholder" = "Password";
+
+/* loco:620a3890c445016c45271ac6 */
+"task_extraction_status_done" = "Done";
+
+/* loco:620a3891331e92373a1f3c32 */
+"task_extraction_status_extracting" = "Extracting";
+
+/* loco:620a38924416f72652138a94 */
+"task_extraction_status_in_queue" = "In queue";
+
+/* loco:620a3892c0e05977431a5e42 */
+"task_extraction_status_new" = "Sending";
+
+/* loco:620a38939bfe3260b974b332 */
+"task_extraction_status_partially_done" = "Partially Done";
+
+/* loco:620a3894e675fd42815e60f2 */
+"task_extraction_status_password_incorrect" = "Password incorrect";
+
+/* loco:620a3895bab496415b4db432 */
+"task_extraction_status_password_obtained" = "Password obtained";
+
+/* loco:620a3896331e92373a1f3c34 */
+"task_extraction_status_password_required" = "Password required";
+
+/* loco:620a3897c445016c45271ac8 */
+"task_extraction_title_done" = "All files extracted";
+
+/* loco:620a389730907b17e764a6da */
+"task_extraction_title_error" = "Error";
+
+/* loco:620a389884d62650b161d3b1 */
+"task_extraction_title_new" = "Ready to extract";
+
+/* loco:620a38994416f72652138a96 */
+"task_extraction_title_running" = "Extracting...";
+
+/* loco:620a3899c0e05977431a5e44 */
+"task_shared_file_clone_concurrent_limit_error" = "You exceeded concurrency limit to copy to your disk.";
+
+/* loco:620a389a24226f05d93b4a4a */
+"task_shared_file_clone_error" = "Sorry. We could not copy these files to your disk.";
+
+/* loco:620a389bc0e05977431a5e46 */
+"task_shared_file_clone_message_done" = "Files are copied to your disk successfully";
+
+/* loco:620a389c8e22371d5c05ba02 */
+"task_shared_file_clone_message_new" = "Copying \"%@\" to your disk...";
+
+/* loco:620a389ce675fd42815e60f4 */
+"task_shared_file_clone_parent_selector_general_title" = "Select location for %@ file";
+
+/* loco:620a389d9bfe3260b974b334 */
+"task_shared_file_clone_parent_selector_general_title_other" = "Select location for %@ files";
+
+/* loco:620a389e24226f05d93b4a4c */
+"task_shared_file_clone_parent_selector_spesific_title" = "Select location to copy \"%@\"";
+
+/* loco:620a389e24226f05d93b4a4e */
+"task_shared_file_clone_title_done" = "Go to copied files";
+
+/* loco:620a389f8e22371d5c05ba04 */
+"task_shared_file_clone_title_error" = "Couldn't copy \"%@\" to your disk";
+
+/* loco:620a38a0bab496415b4db434 */
+"task_shared_file_clone_title_new" = "Copying...";
+
+/* loco:620a38a00ffbac55007f41b2 */
+"task_shared_file_clone_too_many_files_error" = "You selected too many files to copy to your disk.";
+
+/* loco:620a38a1bab496415b4db436 */
+"task_upload_message_done" = "Your files will be available shortly. It can take a while if you uploaded a large file.";
+
+/* loco:620a38a29bfe3260b974b337 */
+"task_upload_title_done" = "All files uploaded";
+
+/* loco:620a38a25da66d2508490874 */
+"task_upload_title_error" = "Error";
+
+/* loco:620a38a39bfe3260b974b339 */
+"task_upload_title_new" = "Ready to upload";
+
+/* loco:620a38a484d62650b161d3b3 */
+"task_upload_title_running" = "Uploading...";
+
+/* loco:620a38a5e44c4c0a3a21a1d2 */
+"task_zip_error_missing_files_title" = "Here's the list of missing files:";
+
+/* loco:620a38a69bfe3260b974b33b */
+"task_zip_message_done" = "Please use a download manager, browsers are terrible at resuming broken downloads. Also applications monitoring your network traffic like some antivirus or firewall software may corrupt the zip file.";
+
+/* loco:620a38a6e44c4c0a3a21a1d4 */
+"task_zip_message_error" = "Sorry. We can't find some of the files in your selection. Re-fetching the torrent that brought them should fix this problem. Our apologies.";
+
+/* loco:620a38a79bfe3260b974b33d */
+"task_zip_message_new" = "Preparing the package";
+
+/* loco:620a38a8c445016c45271aca */
+"task_zip_message_running" = "Preparing the package";
+
+/* loco:620a38a9c0e05977431a5e48 */
+"task_zip_title_done" = "Download as zip";
+
+/* loco:620a38a9331e92373a1f3c36 */
+"task_zip_title_error" = "Couldn't Create the Package";
+
+/* loco:620a38aa5da66d2508490876 */
+"task_zip_title_new" = "Creating Package...";
+
+/* loco:620a38abbab496415b4db438 */
+"task_zip_title_running" = "Creating Package...";
+
+/* loco:620a38ab24226f05d93b4a50 */
+"tasks_clear_completed_label" = "Clear completed";
+
+/* loco:620a38ac331e92373a1f3c38 */
+"tasks_hide_tasks_label" = "Hide tasks";
+
+/* loco:620a38ad08a49e0c75107582 */
+"tasks_show_tasks_label" = "Show tasks";
+
+/* loco:620a38ae9bfe3260b974b33f */
+"tools_info" = "We do not curate this list. These are apps that authenticate using our API, ranked according to their usage. (More than 10 weekly users needed in order to show up here. App creators: you're invited to edit your app's appeareance, or if you prefer, hide it completely.)";
+
+/* loco:620a38ae5da66d2508490878 */
+"tools_show_hidden_apps_toggle" = "Show Hidden Apps";
+
+/* loco:620a38af9bfe3260b974b341 */
+"tools_show_visible_apps_toggle" = "Show Visible Apps";
+
+/* loco:620a38b008a49e0c75107584 */
+"transfer_source_error_already_added" = "You have already started a transfer for that source.";
+
+/* loco:620a38b19bfe3260b974b343 */
+"transfer_source_error_invalid_content" = "Downloading text/html is not allowed.";
+
+/* loco:620a38b143b13e56a1737ff2 */
+"transfer_source_error_invalid_torrent" = "File or link given is not a .torrent file or is corrupt.";
+
+/* loco:620a38b224226f05d93b4a52 */
+"transfer_source_error_server_connection" = "Cannot connect to remote server.";
+
+/* loco:620a38b3e675fd42815e60f6 */
+"transfer_source_error_server_response" = "Remote server did not return successful response.";
+
+/* loco:620a38b40ffbac55007f41b4 */
+"transfers_availability" = "availability: %@";
+
+/* loco:620a38b5479e0c2dfd766342 */
+"transfers_cancel_cancel_action_label" = "WAIT!";
+
+/* loco:620a38b6e44c4c0a3a21a1d6 */
+"transfers_cancel_confirm_action_label" = "100% Sure";
+
+/* loco:620a38b6331e92373a1f3c3a */
+"transfers_cancel_confirm_message" = "Are you sure you want to cancel that?";
+
+/* loco:620a38b74416f72652138a98 */
+"transfers_cancel_confirm_message_other" = "Are you sure you want to cancel selected %@ transfers?";
+
+/* loco:620a38b7331e92373a1f3c3c */
+"transfers_cancel_confirm_with_seeding" = "That transfer is still seeding. Are you sure you want to cancel?";
+
+/* loco:620a38b843b13e56a1737ff4 */
+"transfers_cancel_confirm_with_seeding_other" = "%1$@ of %2$@ transfers are still seeding. Are you sure you want to cancel all?";
+
+/* loco:620a38b92730d6224678c032 */
+"transfers_cancel_selected_label" = "Cancel selected";
+
+/* loco:620a38b94416f72652138a9a */
+"transfers_clear_all_confirm_message" = "Are you sure you want to clear the finished transfers?";
+
+/* loco:620a38ba479e0c2dfd766344 */
+"transfers_clear_finished_label" = "Clear completed";
+
+/* loco:620a38bb2730d6224678c034 */
+"transfers_downloaded" = "downloaded: %1$@ of %2$@";
+
+/* loco:620a38bbe675fd42815e60f8 */
+"transfers_empty_state_action_label" = "New transfer";
+
+/* loco:620a38bc0ffbac55007f41b6 */
+"transfers_empty_state_message" = "You can add some by clicking the button below.";
+
+/* loco:620a38bde44c4c0a3a21a1d8 */
+"transfers_empty_state_title" = "No transfers whatsoever";
+
+/* loco:620a38be479e0c2dfd766346 */
+"transfers_error_message" = "Please try to refresh the page";
+
+/* loco:620a38be43b13e56a1737ff6 */
+"transfers_error_notranferselected" = "You should select something in order to do that.";
+
+/* loco:620a38bf4416f72652138a9c */
+"transfers_error_title" = "Oops! An error occurred";
+
+/* loco:620a38c00ffbac55007f41b8 */
+"transfers_gotofile_label" = "Go to file";
+
+/* loco:620a38c0c0e05977431a5e4b */
+"transfers_info_label" = "Info";
+
+/* loco:620a38c14416f72652138a9e */
+"transfers_item_error_label" = "Error";
+
+/* loco:620a38c20ffbac55007f41ba */
+"transfers_live_stream_recording_time" = "Recording live footage: %@";
+
+/* loco:620a38c2c0e05977431a5e4d */
+"transfers_live_stream_stop_recording" = "Stop Rec";
+
+/* loco:620a38c308a49e0c75107586 */
+"transfers_peer_count" = "%@ peers";
+
+/* loco:620a38c42fb11801b95b2a12 */
+"transfers_playlist_download_count" = "Downloaded: %1$@ of %2$@";
+
+/* loco:620a38c543b13e56a1737ff8 */
+"transfers_playlist_download_status" = "Downloading...";
+
+/* loco:620a38c55da66d250849087a */
+"transfers_ratio" = "ratio: %@";
+
+/* loco:620a38c62fb11801b95b2a14 */
+"transfers_reannounce_error_message" = "Oops. Could not send reannounce request. Can you try again?";
+
+/* loco:620a38c72730d6224678c036 */
+"transfers_reannounce_error_not_active" = "Could not send reannounce request. Torrent is inactive.";
+
+/* loco:620a38c85da66d250849087c */
+"transfers_reannounce_label" = "Re-announce";
+
+/* loco:620a38c80ffbac55007f41bc */
+"transfers_reannounce_success_message" = "Okay. We'll reannounce";
+
+/* loco:620a38c9331e92373a1f3c3e */
+"transfers_retry_error_message" = "Oops. Could not send retry request. Can you try again?";
+
+/* loco:620a38cae44c4c0a3a21a1da */
+"transfers_retry_label" = "Retry";
+
+/* loco:620a38cabab496415b4db43a */
+"transfers_retry_success_message" = "Okay. We'll retry";
+
+/* loco:620a38cb5da66d250849087e */
+"transfers_seed_ratio" = "seeded: %1$@ of %2$@";
+
+/* loco:620a38cc0ffbac55007f41be */
+"transfers_seed_time" = "seed time: %@";
+
+/* loco:620a38cde675fd42815e60fa */
+"transfers_seeded_for" = "seeded for: %@";
+
+/* loco:620a38cdc0e05977431a5e4f */
+"transfers_sort_date_added_label" = "Date added";
+
+/* loco:620a38ce08a49e0c75107588 */
+"transfers_sort_downloaded_label" = "Downloaded";
+
+/* loco:620a38cf4416f72652138aa0 */
+"transfers_sort_eta_label" = "ETA";
+
+/* loco:620a38d02730d6224678c038 */
+"transfers_sort_label" = "Sort by %@";
+
+/* loco:620a38d04416f72652138aa2 */
+"transfers_sort_name_label" = "Name";
+
+/* loco:620a38d1bab496415b4db43c */
+"transfers_sort_peers_label" = "Peer Count";
+
+/* loco:620a38d29bfe3260b974b345 */
+"transfers_sort_ratio_label" = "Ratio";
+
+/* loco:620a38d308a49e0c7510758a */
+"transfers_sort_status_label" = "Status";
+
+/* loco:620a38d45da66d2508490880 */
+"transfers_sort_uploaded_label" = "Uploaded";
+
+/* loco:620a38d443b13e56a1737ffa */
+"transfers_source_label" = "Source";
+
+/* loco:620a38d508a49e0c7510758c */
+"transfers_status_message_completed" = "Completed";
+
+/* loco:620a38d643b13e56a1737ffc */
+"transfers_status_message_error" = "Error";
+
+/* loco:620a38d62fb11801b95b2a16 */
+"transfers_status_message_finishing" = "Finishing...";
+
+/* loco:620a38d708a49e0c7510758e */
+"transfers_status_message_in_queue" = "In queue...";
+
+/* loco:620a38d8e675fd42815e60fc */
+"transfers_status_message_preparing_to_download" = "Preparing...";
+
+/* loco:620a38d8e44c4c0a3a21a1dc */
+"transfers_status_message_preparing_to_seed" = "Preparing to seed... Please do not delete/move your selected files.";
+
+/* loco:620a38d95da66d2508490882 */
+"transfers_status_message_seeding" = "Finished & Seeding";
+
+/* loco:620a38da479e0c2dfd766348 */
+"transfers_status_message_waiting" = "Waiting...";
+
+/* loco:620a38db8e22371d5c05ba06 */
+"transfers_stop_recording_cancel_label" = "Keep going";
+
+/* loco:620a38db4416f72652138aa4 */
+"transfers_stop_recording_confirm_label" = "Stop recording";
+
+/* loco:620a38dc43b13e56a1737ffe */
+"transfers_stop_recording_confirm_message" = "Are you sure to stop recording \"%@\"?";
+
+/* loco:620a38dd5da66d2508490884 */
+"transfers_stop_recording_confirm_message_other" = "Are you sure to stop recording %@ transfers?";
+
+/* loco:620a38dde675fd42815e60fe */
+"transfers_uploaded" = "uploaded: %1$@ of %2$@";
+
+/* loco:620a38de479e0c2dfd76634a */
+"trash_action_confirm" = "Are you sure to permanently delete those files?";
+
+/* loco:620a38df43b13e56a1738000 */
+"trash_delete_failure" = "Couldn't delete files, please try again";
+
+/* loco:620a38df9bfe3260b974b347 */
+"trash_delete_success" = "Aaaand they're gone!";
+
+/* loco:620a38e043b13e56a1738002 */
+"trash_disable_confirm" = "Disabling trash will empty your trash first. Are you sure?";
+
+/* loco:620a38e15da66d2508490886 */
+"trash_empty_label" = "Empty Trash";
+
+/* loco:620a38e2479e0c2dfd76634c */
+"trash_error_file_not_found" = "File not found";
+
+/* loco:620a38e208a49e0c75107590 */
+"trash_error_lock_timeout" = "There is another ongoing trash operation. Please try again later.";
+
+/* loco:620a38e38e22371d5c05ba08 */
+"trash_error_still_in_progress" = "We are still working on sending these files to trash. Please try again later.";
+
+/* loco:620a38e4331e92373a1f3c40 */
+"trash_file_deleted_at" = "Deleted %@";
+
+/* loco:620a38e42fb11801b95b2a18 */
+"trash_file_expires_on" = "Expires on %@";
+
+/* loco:620a38e5bab496415b4db43e */
+"trash_info" = "Heads up: Files in trash have an expiry date of 14 days.";
+
+/* loco:620a38e62730d6224678c03a */
+"trash_menu_delete_label" = "Delete";
+
+/* loco:620a38e6c0e05977431a5e51 */
+"trash_menu_label" = "Actions";
+
+/* loco:620a38e7e44c4c0a3a21a1de */
+"trash_menu_restore_label" = "Restore";
+
+/* loco:620a38e8c0e05977431a5e53 */
+"trash_no_files_title" = "Your Trash is Empty";
+
+/* loco:620a38e94416f72652138aa6 */
+"trash_restore_failure" = "Couldn't restore files, please try again";
+
+/* loco:620a38e99bfe3260b974b349 */
+"trash_restore_started" = "Restore started! (It may take a long time if there are too many files)";
+
+/* loco:620a38eac0e05977431a5e55 */
+"trash_restore_success" = "Aaaand they're back!";
+
+/* loco:620a38eb0ffbac55007f41c0 */
+"trash_total_size" = "Using %@";
+
+/* loco:620a38eb9bfe3260b974b34b */
+"upload_100_plus_files_cancel_label" = "Cancel";
+
+/* loco:620a38ece44c4c0a3a21a1e0 */
+"upload_100_plus_files_confirm_label" = "Keep going";
+
+/* loco:620a38ed5da66d2508490888 */
+"upload_100_plus_files_confirm_message" = "Are you sure to upload %@ files?";
+
+/* loco:620a38ee4416f72652138aa8 */
+"upload_action_label" = "New transfer";
+
+/* loco:620a38eec0e05977431a5e57 */
+"upload_fold_label" = "Cancel";
+
+/* loco:620a38efe675fd42815e6100 */
+"upload_fromlink_label" = "Paste link";
+
+/* loco:620a38f043b13e56a1738004 */
+"upload_fromlink_title" = "Paste some links";
+
+/* loco:620a38f10ffbac55007f41c2 */
+"upload_hash_error" = "Some of the hashes couldn't add";
+
+/* loco:620a38f29bfe3260b974b34d */
+"upload_invalid_source_error" = "Couldn't find anything to transfer there. \n We accept torrent hashes, magnet links, links to torrents and some video page links.";
+
+/* loco:620a38f2e44c4c0a3a21a1e2 */
+"upload_magnet_help" = "Paste torrent links, magnet links, direct links or links to video pages from popular video sites.";
+
+/* loco:620a38f32730d6224678c03c */
+"upload_magnet_message" = "Make put.io the default application when you click on a magnet link.";
+
+/* loco:620a38f4331e92373a1f3c42 */
+"upload_no_link_error" = "There is no link";
+
+/* loco:620a38f4bab496415b4db440 */
+"upload_size_error" = "That file or those files are zero bytes long. Surely something's wrong!";
+
+/* loco:620a38f55da66d250849088a */
+"upload_start_label" = "Start transfers";
+
+/* loco:620a38f68e22371d5c05ba0a */
+"upload_transfer_start_message_full_error" = "We're unable to start transfers, please check links and try again.";
+
+/* loco:620a38f6e44c4c0a3a21a1e4 */
+"upload_transfer_start_message_full_error_free" = "We're unable to start transfers because you're on the free plan.";
+
+/* loco:620a38f78e22371d5c05ba0c */
+"upload_transfer_start_message_partial_error" = "We're unable to start some of your transfers.";
+
+/* loco:620a38f8e44c4c0a3a21a1e6 */
+"upload_transfer_start_message_partial_error_free" = "We're unable to start some of your transfers because you're on the free plan.";
+
+/* loco:620a38f85da66d250849088c */
+"upload_transfer_start_message_success" = "Your transfers have been started.";
+
+/* loco:620a38f94416f72652138aaa */
+"upload_upload_label" = "Upload file";
+
+/* loco:620a38fa8e22371d5c05ba0e */
+"upload_upload_selectfile_help" = "Choose a file or files from your computer";
+
+/* loco:620a38fb08a49e0c75107592 */
+"upload_upload_selectfile_label" = "Browse for files";
+
+/* loco:620a38fb4416f72652138aac */
+"upload_upload_title" = "Choose files";
+
+/* loco:620a38fc0ffbac55007f41c4 */
+"usage_label" = "%1$@ of %2$@ used";
+
+/* loco:620a38fd4416f72652138aae */
+"usage_label_optimistic" = "%1$@ of %2$@ free";
+
+/* loco:620a38fe9bfe3260b974b34f */
+"validators_length_between" = "Must be between %1$@ and %2$@ characters";
+
+/* loco:620a38fe479e0c2dfd76634e */
+"validators_length_exact" = "Must be exactly %@ characters";
+
+/* loco:620a38ffe44c4c0a3a21a1e8 */
+"validators_required" = "Cannot be blank";
+
+/* loco:620a39002fb11801b95b2a1a */
+"videojs_subtitle_off" = "turn off";
+
+/* loco:620a390143b13e56a1738006 */
+"videojs_subtitle_offset_update_message" = "Subtitle offset updated: %1$@ms. Total offset: %2$@ms.";
+
+/* loco:620a39010ffbac55007f41c6 */
+"videojs_subtitle_settings" = "settings";
+
+/* loco:620a39025da66d250849088e */
+"videojs_subtitle_settings_defaults" = "Restore Defaults";
+
+/* loco:620a3903479e0c2dfd766350 */
+"videojs_subtitle_settings_done" = "Done";
+
+/* loco:620a39042730d6224678c03e */
+"videojs_subtitle_style_bg" = "Background";
+
+/* loco:620a3905479e0c2dfd766352 */
+"videojs_subtitle_style_black" = "Black";
+
+/* loco:620a39052fb11801b95b2a1c */
+"videojs_subtitle_style_blue" = "Blue";
+
+/* loco:620a39060ffbac55007f41c8 */
+"videojs_subtitle_style_cyan" = "Cyan";
+
+/* loco:620a39079bfe3260b974b351 */
+"videojs_subtitle_style_depressed" = "Depressed";
+
+/* loco:620a390743b13e56a1738008 */
+"videojs_subtitle_style_dropshadow" = "Dropshadow";
+
+/* loco:620a39082fb11801b95b2a1e */
+"videojs_subtitle_style_fg" = "Foreground";
+
+/* loco:620a39092730d6224678c040 */
+"videojs_subtitle_style_font_casual" = "Casual";
+
+/* loco:620a390a5da66d2508490890 */
+"videojs_subtitle_style_font_family" = "Font Family";
+
+/* loco:620a390a0ffbac55007f41ca */
+"videojs_subtitle_style_font_monospace_sans_serif" = "Monospace Sans-Serif";
+
+/* loco:620a390b9bfe3260b974b353 */
+"videojs_subtitle_style_font_monospace_serif" = "Monospace Serif";
+
+/* loco:620a390c5da66d2508490892 */
+"videojs_subtitle_style_font_proportional_sans_serif" = "Proportional Sans-Serif";
+
+/* loco:620a390cbab496415b4db442 */
+"videojs_subtitle_style_font_proportional_serif" = "Proportional Serif";
+
+/* loco:620a390d5da66d2508490894 */
+"videojs_subtitle_style_font_script" = "Script";
+
+/* loco:620a390ee675fd42815e6102 */
+"videojs_subtitle_style_font_size" = "Font Size";
+
+/* loco:620a390fc0e05977431a5e59 */
+"videojs_subtitle_style_font_small_caps" = "Small Caps";
+
+/* loco:620a390f331e92373a1f3c44 */
+"videojs_subtitle_style_green" = "Green";
+
+/* loco:620a3910479e0c2dfd766354 */
+"videojs_subtitle_style_magenta" = "Magenta";
+
+/* loco:620a3911e44c4c0a3a21a1ea */
+"videojs_subtitle_style_none" = "None";
+
+/* loco:620a39122fb11801b95b2a20 */
+"videojs_subtitle_style_opaque" = "Opaque";
+
+/* loco:620a3912479e0c2dfd766356 */
+"videojs_subtitle_style_raised" = "Raised";
+
+/* loco:620a3913bab496415b4db444 */
+"videojs_subtitle_style_red" = "Red";
+
+/* loco:620a391408a49e0c75107594 */
+"videojs_subtitle_style_semi_transparent" = "Semi-Transparent";
+
+/* loco:620a39144416f72652138ab0 */
+"videojs_subtitle_style_text" = "Text";
+
+/* loco:620a3915331e92373a1f3c46 */
+"videojs_subtitle_style_text_edge_style" = "Text Edge Style";
+
+/* loco:620a3916bab496415b4db446 */
+"videojs_subtitle_style_transparent" = "Transparent";
+
+/* loco:620a39172730d6224678c042 */
+"videojs_subtitle_style_uniform" = "Uniform";
+
+/* loco:620a391708a49e0c75107596 */
+"videojs_subtitle_style_white" = "White";
+
+/* loco:620a39184416f72652138ab2 */
+"videojs_subtitle_style_window" = "Window";
+
+/* loco:620a3919e675fd42815e6104 */
+"videojs_subtitle_style_yellow" = "Yellow";

@@ -1,0 +1,93 @@
+import UIKit
+import AVKit
+import PutioAPI
+
+protocol FilePresenter: VideoConversionPresenter {}
+
+extension FilePresenter where Self: UIViewController {
+    func presentFile(_ file: PutioFile) {
+        switch file.type {
+        case .folder:
+            toFolder(file: file)
+
+        case .video:
+            if ChromecastManager.sharedInstance.isActive() {
+                return toChromecast(file: file)
+            }
+
+            if file.needConvert {
+                return presentVideoConversionView(for: file, intention: .play)
+            }
+
+            toVideo(file: file)
+
+        case .audio:
+            toAudio(file: file)
+
+        case .image:
+            toImage(file: file)
+
+        case .pdf:
+            toPDF(file: file)
+
+        default:
+            let alertController = UIAlertController(
+                title: "😐",
+                message: "We're unable to show these kind of files on this app (for now)",
+                preferredStyle: .alert
+            )
+            alertController.addAction(UIAlertAction(title: "😡", style: .destructive, handler: nil))
+            alertController.addAction(UIAlertAction(title: "👍", style: .cancel, handler: nil))
+            present(alertController, animated: true, completion: nil)
+        }
+    }
+
+    private func toFolder(file: PutioFile) {
+        let filesVC = storyboard?.instantiateViewController(withIdentifier: "Files") as! FilesViewController
+        filesVC.viewModel.file = file
+        navigationController?.pushViewController(filesVC, animated: true)
+    }
+
+    private func toVideo(file: PutioFile) {
+        MediaPlaybackManager.sharedInstance.play(MediaPlayerItem(file: file), sourceViewController: self)
+    }
+
+    private func toAudio(file: PutioFile) {
+        MediaPlaybackManager.sharedInstance.play(MediaPlayerItem(file: file), sourceViewController: self)
+    }
+
+    private func toImage(file: PutioFile) {
+        let imageVC = UIStoryboard(name: "Image", bundle: nil).instantiateViewController(withIdentifier: "ImageVC") as! ImageViewController
+        imageVC.file = file
+        navigationController?.pushViewController(imageVC, animated: true)
+    }
+
+    private func toPDF(file: PutioFile) {
+        let pdfVC = UIStoryboard(name: "PDF", bundle: nil).instantiateViewController(withIdentifier: "PDFVC") as! PDFViewController
+        pdfVC.file = file
+        navigationController?.pushViewController(pdfVC, animated: true)
+    }
+
+    private func toChromecast(file: PutioFile) {
+        return ChromecastManager.sharedInstance.castVideo(fileID: file.id, completion: { (_, error) in
+            if let error = error {
+                return self.handleChromecastError(for: file, error: error)
+            }
+        })
+    }
+
+    private func handleChromecastError(for file: PutioFile, error: ChromecastManager.CastError) {
+        switch error.reason {
+        case .fileNeedsConvert:
+            presentVideoConversionView(for: file, intention: .play)
+        default:
+            let alertController = UIAlertController(
+                title: "😔",
+                message: "An error occurred while trying to cast this file. Please try again.",
+                preferredStyle: .alert
+            )
+            alertController.addAction(UIAlertAction(title: "Close", style: .destructive, handler: nil))
+            present(alertController, animated: true, completion: nil)
+        }
+    }
+}

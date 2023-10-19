@@ -1,0 +1,11 @@
+included:
+  - Putio
+
+line_length: 200
+
+disabled_rules:
+  - force_cast
+  - force_try
+  - identifier_name
+  - function_body_length
+  - trailing_whitespace

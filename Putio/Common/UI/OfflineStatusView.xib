@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="19529" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina4_7" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="19519"/>
+        <capability name="Named colors" minToolsVersion="9.0"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <view contentMode="scaleToFill" id="nDc-D1-P5D" customClass="OfflineStatusView" customModule="Putio" customModuleProvider="target">
+            <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
+            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+            <subviews>
+                <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" spacing="10" translatesAutoresizingMaskIntoConstraints="NO" id="KbS-Zb-PS3">
+                    <rect key="frame" x="32" y="217.5" width="311" height="192"/>
+                    <subviews>
+                        <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="iconOffline" translatesAutoresizingMaskIntoConstraints="NO" id="3Kj-rL-D7A">
+                            <rect key="frame" x="0.0" y="0.0" width="311" height="90"/>
+                        </imageView>
+                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Network Error" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="ZxO-EO-Kni">
+                            <rect key="frame" x="0.0" y="100" width="311" height="30"/>
+                            <fontDescription key="fontDescription" style="UICTFontTextStyleTitle1"/>
+                            <color key="textColor" systemColor="lightTextColor"/>
+                            <nil key="highlightedColor"/>
+                        </label>
+                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="This feature requires a stable  internet connection. Please check your connection and try again." textAlignment="center" lineBreakMode="wordWrap" numberOfLines="6" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="khH-FR-xgx">
+                            <rect key="frame" x="0.0" y="140" width="311" height="52"/>
+                            <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
+                            <color key="textColor" systemColor="lightTextColor"/>
+                            <nil key="highlightedColor"/>
+                        </label>
+                    </subviews>
+                </stackView>
+            </subviews>
+            <viewLayoutGuide key="safeArea" id="uRA-yM-Icg"/>
+            <color key="backgroundColor" name="putio.background"/>
+            <constraints>
+                <constraint firstItem="KbS-Zb-PS3" firstAttribute="centerY" secondItem="uRA-yM-Icg" secondAttribute="centerY" constant="-20" id="IO3-YY-3M1"/>
+                <constraint firstItem="uRA-yM-Icg" firstAttribute="trailing" secondItem="KbS-Zb-PS3" secondAttribute="trailing" constant="32" id="T5w-uO-AW8"/>
+                <constraint firstItem="KbS-Zb-PS3" firstAttribute="leading" secondItem="uRA-yM-Icg" secondAttribute="leading" constant="32" id="ab7-Mb-Wi3"/>
+                <constraint firstItem="KbS-Zb-PS3" firstAttribute="centerX" secondItem="uRA-yM-Icg" secondAttribute="centerX" id="uO3-7h-eAi"/>
+            </constraints>
+            <connections>
+                <outlet property="descriptionLabel" destination="khH-FR-xgx" id="Mrc-QP-bP7"/>
+                <outlet property="headingLabel" destination="ZxO-EO-Kni" id="yoB-Ab-xVo"/>
+            </connections>
+            <point key="canvasLocation" x="33.5" y="54.5"/>
+        </view>
+    </objects>
+    <resources>
+        <image name="iconOffline" width="98" height="90"/>
+        <namedColor name="putio.background">
+            <color red="0.20000000298023224" green="0.20000000298023224" blue="0.20000000298023224" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <systemColor name="lightTextColor">
+            <color white="1" alpha="0.59999999999999998" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+        </systemColor>
+    </resources>
+</document>

@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> 
+<!--
+ Loco ios export: iOS plural rules
+ Project: frontend
+ Release: Working copy
+ Locale: en, English
+ Exported by: Altay Aydemir
+ Exported at: Tue, 15 Feb 2022 19:00:47 +0300 
+--> 
+<plist version="1.0">
+    <dict> 
+        <key>files_delete_confirm_modal_title</key>
+        <dict> 
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@items@</string>
+            <key>items</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>@</string> 
+                <key>one</key>
+                <string>Delete file?</string> 
+                <key>other</key>
+                <string>Delete %@ files?</string> 
+            </dict>
+        </dict> 
+        <key>files_move_to_trash_skip_confirmation</key>
+        <dict> 
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@items@</string>
+            <key>items</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>@</string> 
+                <key>one</key>
+                <string>This folder contains too many files. Would you want to delete it **PERMANENTLY**?</string> 
+                <key>other</key>
+                <string>%@ folders contain too many files. Would you want to delete them **PERMANENTLY**?</string> 
+            </dict>
+        </dict> 
+        <key>files_selected_count_label</key>
+        <dict> 
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@items@</string>
+            <key>items</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>@</string> 
+                <key>one</key>
+                <string>%@ file</string> 
+                <key>other</key>
+                <string>%@ files</string> 
+            </dict>
+        </dict> 
+        <key>files_selected_label</key>
+        <dict> 
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@items@</string>
+            <key>items</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>@</string> 
+                <key>one</key>
+                <string>%1$@ and %2$@ other file</string> 
+                <key>other</key>
+                <string>%1$@ and %2$@ other files</string> 
+            </dict>
+        </dict> 
+        <key>oauth_auths_active_sessions_label</key>
+        <dict> 
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@items@</string>
+            <key>items</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>@</string> 
+                <key>one</key>
+                <string>%@ session</string> 
+                <key>other</key>
+                <string>%@ sessions</string> 
+            </dict>
+        </dict> 
+        <key>payment_confirm_expire_in_label</key>
+        <dict> 
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@items@</string>
+            <key>items</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>@</string> 
+                <key>one</key>
+                <string>%1$@ day (%2$@)</string> 
+                <key>other</key>
+                <string>%1$@ days (%2$@)</string> 
+            </dict>
+        </dict> 
+        <key>payment_confirm_new_period_days</key>
+        <dict> 
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@items@</string>
+            <key>items</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>@</string> 
+                <key>one</key>
+                <string>%@ day</string> 
+                <key>other</key>
+                <string>%@ days</string> 
+            </dict>
+        </dict> 
+        <key>payment_confirm_old_remaining_days</key>
+        <dict> 
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@items@</string>
+            <key>items</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>@</string> 
+                <key>one</key>
+                <string>%@ day</string> 
+                <key>other</key>
+                <string>%@ days</string> 
+            </dict>
+        </dict> 
+        <key>payment_expiresin_value</key>
+        <dict> 
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@items@</string>
+            <key>items</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>@</string> 
+                <key>one</key>
+                <string>%1$@ day (%2$@)</string> 
+                <key>other</key>
+                <string>%1$@ days (%2$@)</string> 
+            </dict>
+        </dict> 
+        <key>sharing_files_sharedwith_partial</key>
+        <dict> 
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@items@</string>
+            <key>items</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>@</string> 
+                <key>one</key>
+                <string>With %@ friend</string> 
+                <key>other</key>
+                <string>With %@ friends</string> 
+            </dict>
+        </dict> 
+        <key>task_shared_file_clone_parent_selector_general_title</key>
+        <dict> 
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@items@</string>
+            <key>items</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>@</string> 
+                <key>one</key>
+                <string>Select location for %@ file</string> 
+                <key>other</key>
+                <string>Select location for %@ files</string> 
+            </dict>
+        </dict> 
+        <key>transfers_cancel_confirm_message</key>
+        <dict> 
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@items@</string>
+            <key>items</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>@</string> 
+                <key>one</key>
+                <string>Are you sure you want to cancel that?</string> 
+                <key>other</key>
+                <string>Are you sure you want to cancel selected %@ transfers?</string> 
+            </dict>
+        </dict> 
+        <key>transfers_cancel_confirm_with_seeding</key>
+        <dict> 
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@items@</string>
+            <key>items</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>@</string> 
+                <key>one</key>
+                <string>That transfer is still seeding. Are you sure you want to cancel?</string> 
+                <key>other</key>
+                <string>%1$@ of %2$@ transfers are still seeding. Are you sure you want to cancel all?</string> 
+            </dict>
+        </dict> 
+        <key>transfers_stop_recording_confirm_message</key>
+        <dict> 
+            <key>NSStringLocalizedFormatKey</key>
+            <string>%#@items@</string>
+            <key>items</key>
+            <dict>
+                <key>NSStringFormatSpecTypeKey</key>
+                <string>NSStringPluralRuleType</string>
+                <key>NSStringFormatValueTypeKey</key>
+                <string>@</string> 
+                <key>one</key>
+                <string>Are you sure to stop recording "%@"?</string> 
+                <key>other</key>
+                <string>Are you sure to stop recording %@ transfers?</string> 
+            </dict>
+        </dict> 
+    </dict>
+</plist>

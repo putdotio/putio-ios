@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="15702" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina6_1" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="15704"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--Navigation Controller-->
+        <scene sceneID="5WI-I2-gy5">
+            <objects>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="8Xo-kQ-4l2" userLabel="First Responder" sceneMemberID="firstResponder"/>
+                <navigationController storyboardIdentifier="VideoConversionNC" id="voc-CE-KyK" sceneMemberID="viewController">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" id="v0q-UG-mlk">
+                        <rect key="frame" x="0.0" y="44" width="414" height="44"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                        <color key="tintColor" red="0.99215686270000003" green="0.80784313730000001" blue="0.27058823529999998" alpha="1" colorSpace="calibratedRGB"/>
+                    </navigationBar>
+                    <connections>
+                        <segue destination="JLK-4X-reK" kind="relationship" relationship="rootViewController" id="PqJ-wa-5ij"/>
+                    </connections>
+                </navigationController>
+            </objects>
+            <point key="canvasLocation" x="1536" y="-1674"/>
+        </scene>
+        <!--Converting Video-->
+        <scene sceneID="IwS-or-uek">
+            <objects>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="sS3-9i-qrs" userLabel="First Responder" sceneMemberID="firstResponder"/>
+                <viewController storyboardIdentifier="VideoConversionVC" id="JLK-4X-reK" customClass="VideoConversionViewController" customModule="Putio" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="Fhu-TK-nRA">
+                        <rect key="frame" x="0.0" y="0.0" width="414" height="808"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="This video is not in a format that can be played on this app yet 😕  But since you're here, we'll start transcoding 👍" textAlignment="center" lineBreakMode="wordWrap" numberOfLines="10" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="DKi-6l-IEL">
+                                <rect key="frame" x="32" y="48" width="350" height="138.5"/>
+                                <fontDescription key="fontDescription" style="UICTFontTextStyleTitle2"/>
+                                <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="calibratedRGB"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" spacing="24" translatesAutoresizingMaskIntoConstraints="NO" id="r1J-e6-fT2">
+                                <rect key="frame" x="60" y="266.5" width="294" height="46.5"/>
+                                <subviews>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Status" textAlignment="center" lineBreakMode="wordWrap" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="qSm-aY-0Cf">
+                                        <rect key="frame" x="0.0" y="0.0" width="294" height="20.5"/>
+                                        <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
+                                        <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="calibratedRGB"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                    <progressView opaque="NO" contentMode="scaleToFill" verticalHuggingPriority="750" progress="0.5" translatesAutoresizingMaskIntoConstraints="NO" id="Vnd-3f-EGm">
+                                        <rect key="frame" x="0.0" y="44.5" width="294" height="2"/>
+                                        <color key="tintColor" red="0.99215686270000003" green="0.80784313730000001" blue="0.27058823529999998" alpha="1" colorSpace="calibratedRGB"/>
+                                        <color key="progressTintColor" red="0.99215686270000003" green="0.80784313730000001" blue="0.27058823529999998" alpha="1" colorSpace="calibratedRGB"/>
+                                        <color key="trackTintColor" red="0.062745098040000002" green="0.062745098040000002" blue="0.062745098040000002" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                    </progressView>
+                                </subviews>
+                            </stackView>
+                        </subviews>
+                        <color key="backgroundColor" red="0.1999788582" green="0.20001345870000001" blue="0.1999712884" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="DKi-6l-IEL" firstAttribute="top" secondItem="RkN-FY-yGs" secondAttribute="top" constant="48" id="1tS-u6-mKn"/>
+                            <constraint firstItem="r1J-e6-fT2" firstAttribute="top" secondItem="DKi-6l-IEL" secondAttribute="bottom" constant="80" id="7mw-Dx-KVL"/>
+                            <constraint firstItem="DKi-6l-IEL" firstAttribute="leading" secondItem="RkN-FY-yGs" secondAttribute="leading" constant="32" id="IKL-5L-Cip"/>
+                            <constraint firstItem="r1J-e6-fT2" firstAttribute="leading" secondItem="RkN-FY-yGs" secondAttribute="leading" constant="60" id="bFJ-eD-Cma"/>
+                            <constraint firstItem="RkN-FY-yGs" firstAttribute="trailing" secondItem="DKi-6l-IEL" secondAttribute="trailing" constant="32" id="t3d-Lq-fus"/>
+                            <constraint firstItem="RkN-FY-yGs" firstAttribute="trailing" secondItem="r1J-e6-fT2" secondAttribute="trailing" constant="60" id="tkZ-f6-caO"/>
+                        </constraints>
+                        <viewLayoutGuide key="safeArea" id="RkN-FY-yGs"/>
+                    </view>
+                    <navigationItem key="navigationItem" title="Converting Video" id="KMX-7W-Hv3">
+                        <barButtonItem key="leftBarButtonItem" systemItem="stop" id="XXB-g6-cEx">
+                            <connections>
+                                <action selector="closeButtonTapped:" destination="JLK-4X-reK" id="qgN-Vl-JEH"/>
+                            </connections>
+                        </barButtonItem>
+                    </navigationItem>
+                    <connections>
+                        <outlet property="progressView" destination="Vnd-3f-EGm" id="Gxj-su-bQo"/>
+                        <outlet property="statusLabel" destination="qSm-aY-0Cf" id="rWM-vP-5gK"/>
+                    </connections>
+                </viewController>
+            </objects>
+            <point key="canvasLocation" x="2290" y="-1675"/>
+        </scene>
+    </scenes>
+</document>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="15702" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina5_9" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="15704"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--View Controller-->
+        <scene sceneID="qi6-t0-9CY">
+            <objects>
+                <viewController storyboardIdentifier="PDFVC" id="TTg-Ph-uSN" customClass="PDFViewController" customModule="Putio" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="CEE-c4-ZjI">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="812"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="44y-6v-5YL" userLabel="PDF" customClass="PDFView">
+                                <rect key="frame" x="0.0" y="44" width="375" height="734"/>
+                                <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                            </view>
+                            <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" alignment="center" spacing="10" translatesAutoresizingMaskIntoConstraints="NO" id="IGb-rv-flo">
+                                <rect key="frame" x="141.33333333333334" y="378" width="92.333333333333343" height="66.333333333333314"/>
+                                <subviews>
+                                    <activityIndicatorView opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" hidesWhenStopped="YES" animating="YES" style="whiteLarge" translatesAutoresizingMaskIntoConstraints="NO" id="jGJ-HQ-isB">
+                                        <rect key="frame" x="27.666666666666657" y="0.0" width="37" height="37"/>
+                                    </activityIndicatorView>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Fetching File" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="7QB-eS-o3u">
+                                        <rect key="frame" x="0.0" y="47" width="92.333333333333329" height="19.333333333333329"/>
+                                        <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
+                                        <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                </subviews>
+                            </stackView>
+                        </subviews>
+                        <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <constraints>
+                            <constraint firstItem="IGb-rv-flo" firstAttribute="centerX" secondItem="c1c-Pb-Fhh" secondAttribute="centerX" id="KQ0-dN-uvu"/>
+                            <constraint firstItem="IGb-rv-flo" firstAttribute="centerY" secondItem="c1c-Pb-Fhh" secondAttribute="centerY" id="QVg-90-T6d"/>
+                            <constraint firstItem="44y-6v-5YL" firstAttribute="top" secondItem="c1c-Pb-Fhh" secondAttribute="top" id="R3G-Jy-6Ir"/>
+                            <constraint firstItem="44y-6v-5YL" firstAttribute="leading" secondItem="c1c-Pb-Fhh" secondAttribute="leading" id="W11-uh-cJz"/>
+                            <constraint firstItem="c1c-Pb-Fhh" firstAttribute="bottom" secondItem="44y-6v-5YL" secondAttribute="bottom" id="iPH-Yf-j79"/>
+                            <constraint firstItem="c1c-Pb-Fhh" firstAttribute="trailing" secondItem="44y-6v-5YL" secondAttribute="trailing" id="zor-UT-8P5"/>
+                        </constraints>
+                        <viewLayoutGuide key="safeArea" id="c1c-Pb-Fhh"/>
+                    </view>
+                    <connections>
+                        <outlet property="activityIndicator" destination="jGJ-HQ-isB" id="Qmz-Qh-2Ot"/>
+                        <outlet property="loadingText" destination="7QB-eS-o3u" id="guE-w0-t2K"/>
+                        <outlet property="pdfView" destination="44y-6v-5YL" id="7F2-pt-g7p"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="0GS-PJ-e4a" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="140" y="137"/>
+        </scene>
+    </scenes>
+</document>
