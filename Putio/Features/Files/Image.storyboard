@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="14460.31" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina5_9" orientation="portrait">
+        <adaptation id="fullscreen"/>
+    </device>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="14460.20"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--Image-->
+        <scene sceneID="EVQ-QQ-oyN">
+            <objects>
+                <viewController storyboardIdentifier="ImageVC" id="O0i-1I-Sxl" customClass="ImageViewController" customModule="Putio" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="Aso-A5-zcu">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="812"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <imageView contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="UFt-Vv-KOU">
+                                <rect key="frame" x="0.0" y="44" width="375" height="734"/>
+                                <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                            </imageView>
+                            <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" alignment="center" spacing="10" translatesAutoresizingMaskIntoConstraints="NO" id="Izd-nW-5n2">
+                                <rect key="frame" x="139" y="377.33333333333331" width="97.333333333333314" height="67.333333333333314"/>
+                                <subviews>
+                                    <activityIndicatorView opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" hidesWhenStopped="YES" animating="YES" style="whiteLarge" translatesAutoresizingMaskIntoConstraints="NO" id="e7t-eL-alP">
+                                        <rect key="frame" x="30" y="0.0" width="37" height="37"/>
+                                    </activityIndicatorView>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Fetching File" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="bCd-i3-H9o">
+                                        <rect key="frame" x="0.0" y="47" width="97.333333333333329" height="20.333333333333329"/>
+                                        <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
+                                        <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                </subviews>
+                            </stackView>
+                        </subviews>
+                        <color key="backgroundColor" red="0.062745098040000002" green="0.062745098040000002" blue="0.062745098040000002" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="UFt-Vv-KOU" firstAttribute="leading" secondItem="xVn-Cc-Dmk" secondAttribute="leading" id="IOQ-9o-vEh"/>
+                            <constraint firstItem="UFt-Vv-KOU" firstAttribute="top" secondItem="xVn-Cc-Dmk" secondAttribute="top" id="YYe-I3-yFX"/>
+                            <constraint firstItem="Izd-nW-5n2" firstAttribute="centerY" secondItem="xVn-Cc-Dmk" secondAttribute="centerY" id="bBk-bk-Xgu"/>
+                            <constraint firstItem="xVn-Cc-Dmk" firstAttribute="trailing" secondItem="UFt-Vv-KOU" secondAttribute="trailing" id="f3h-gi-veM"/>
+                            <constraint firstItem="xVn-Cc-Dmk" firstAttribute="bottom" secondItem="UFt-Vv-KOU" secondAttribute="bottom" id="w6K-hB-bgz"/>
+                            <constraint firstItem="Izd-nW-5n2" firstAttribute="centerX" secondItem="xVn-Cc-Dmk" secondAttribute="centerX" id="xUf-fI-jxc"/>
+                        </constraints>
+                        <viewLayoutGuide key="safeArea" id="xVn-Cc-Dmk"/>
+                    </view>
+                    <navigationItem key="navigationItem" title="Image" id="FwH-eJ-vDY"/>
+                    <connections>
+                        <outlet property="activityIndicator" destination="e7t-eL-alP" id="9Av-5E-u06"/>
+                        <outlet property="imageView" destination="UFt-Vv-KOU" id="jsb-Rf-5Rp"/>
+                        <outlet property="loadingText" destination="bCd-i3-H9o" id="SjM-rz-ICd"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="w7x-gP-tSy" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="105" y="251"/>
+        </scene>
+    </scenes>
+</document>

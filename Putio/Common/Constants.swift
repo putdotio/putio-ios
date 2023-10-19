@@ -1,0 +1,12 @@
+let APP_STORE_APP_ID = "id1260479699"
+
+let PUTIOKIT_CLIENT_ID = "3001"
+let PUTIOKIT_CLIENT_SECRET = ""
+
+let CHROMECAST_RECEIVER_APP_ID = "CC1AD845" // default receiver
+
+let INTERCOM_API_KEY = ""
+let INTERCOM_APP_ID = ""
+
+let SENTRY_DSN = ""
+

@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="20037" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina5_9" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="20020"/>
+        <capability name="Named colors" minToolsVersion="9.0"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--Navigation Controller-->
+        <scene sceneID="ZIk-mB-VWi">
+            <objects>
+                <navigationController storyboardIdentifier="MoveNC" id="0sv-ax-ZLf" sceneMemberID="viewController">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" id="3Ue-GB-aK4">
+                        <rect key="frame" x="0.0" y="44" width="375" height="44"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                        <color key="backgroundColor" name="putio.black"/>
+                        <color key="tintColor" name="putio.yellow"/>
+                    </navigationBar>
+                    <toolbar key="toolbar" opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" id="uSU-cy-gVe">
+                        <autoresizingMask key="autoresizingMask"/>
+                    </toolbar>
+                    <connections>
+                        <segue destination="RMh-cI-2cX" kind="relationship" relationship="rootViewController" id="Jvc-em-aqn"/>
+                    </connections>
+                </navigationController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="30t-cI-K16" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="2264" y="-1689"/>
+        </scene>
+        <!--Move File-->
+        <scene sceneID="3ci-Vm-i9e">
+            <objects>
+                <viewController storyboardIdentifier="MoveVC" title="Move File" id="RMh-cI-2cX" customClass="MoveFilesViewController" customModule="Putio" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="lWj-lo-h4u">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="690"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <tableView clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="28" sectionFooterHeight="28" translatesAutoresizingMaskIntoConstraints="NO" id="4iO-KU-SwN">
+                                <rect key="frame" x="0.0" y="0.0" width="375" height="607"/>
+                                <color key="backgroundColor" name="putio.background"/>
+                                <color key="tintColor" name="putio.yellow"/>
+                                <color key="separatorColor" name="putio.listSeperator"/>
+                                <prototypes>
+                                    <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="gray" indentationWidth="10" reuseIdentifier="moveFileReuse" textLabel="v6O-hB-0PW" imageView="qeN-PI-1uZ" style="IBUITableViewCellStyleDefault" id="9ny-2I-qGJ">
+                                        <rect key="frame" x="0.0" y="44.666666030883789" width="375" height="43.666667938232422"/>
+                                        <autoresizingMask key="autoresizingMask"/>
+                                        <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" preservesSuperviewLayoutMargins="YES" insetsLayoutMarginsFromSafeArea="NO" tableViewCell="9ny-2I-qGJ" id="vwm-ee-cWj">
+                                            <rect key="frame" x="0.0" y="0.0" width="375" height="43.666667938232422"/>
+                                            <autoresizingMask key="autoresizingMask"/>
+                                            <subviews>
+                                                <label opaque="NO" multipleTouchEnabled="YES" contentMode="left" insetsLayoutMarginsFromSafeArea="NO" text="Title" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" id="v6O-hB-0PW">
+                                                    <rect key="frame" x="53" y="0.0" width="306" height="43.666667938232422"/>
+                                                    <autoresizingMask key="autoresizingMask"/>
+                                                    <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
+                                                    <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                    <nil key="highlightedColor"/>
+                                                </label>
+                                                <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" image="iconFolder" id="qeN-PI-1uZ">
+                                                    <rect key="frame" x="16" y="11.666666666666664" width="22" height="20"/>
+                                                    <autoresizingMask key="autoresizingMask"/>
+                                                </imageView>
+                                            </subviews>
+                                        </tableViewCellContentView>
+                                        <color key="backgroundColor" name="putio.background"/>
+                                        <color key="tintColor" name="putio.yellow"/>
+                                    </tableViewCell>
+                                </prototypes>
+                            </tableView>
+                            <toolbar opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" barStyle="black" translucent="NO" translatesAutoresizingMaskIntoConstraints="NO" id="cIR-WG-g5y">
+                                <rect key="frame" x="0.0" y="607" width="375" height="49"/>
+                                <color key="backgroundColor" name="putio.black.tint"/>
+                                <items>
+                                    <barButtonItem title="Create Folder" style="plain" id="5Y9-eh-QJw">
+                                        <connections>
+                                            <action selector="createFolderButtonPressed:" destination="RMh-cI-2cX" id="Qrc-lq-KT3"/>
+                                        </connections>
+                                    </barButtonItem>
+                                    <barButtonItem style="plain" systemItem="flexibleSpace" id="Qg3-gP-z4m"/>
+                                    <barButtonItem title="Move Here" style="plain" id="SxY-eK-73E">
+                                        <connections>
+                                            <action selector="moveButtonPressed:" destination="RMh-cI-2cX" id="X4v-YA-faf"/>
+                                        </connections>
+                                    </barButtonItem>
+                                </items>
+                                <color key="tintColor" name="putio.yellow"/>
+                                <color key="barTintColor" name="putio.black.tint"/>
+                            </toolbar>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="ZRg-44-cKX"/>
+                        <color key="backgroundColor" name="putio.background"/>
+                        <color key="tintColor" name="putio.yellow"/>
+                        <constraints>
+                            <constraint firstItem="4iO-KU-SwN" firstAttribute="leading" secondItem="ZRg-44-cKX" secondAttribute="leading" id="4QW-2A-bdK"/>
+                            <constraint firstItem="cIR-WG-g5y" firstAttribute="top" secondItem="4iO-KU-SwN" secondAttribute="bottom" id="B3C-QL-TfW"/>
+                            <constraint firstItem="ZRg-44-cKX" firstAttribute="trailing" secondItem="4iO-KU-SwN" secondAttribute="trailing" id="HPD-hh-zqd"/>
+                            <constraint firstItem="cIR-WG-g5y" firstAttribute="trailing" secondItem="ZRg-44-cKX" secondAttribute="trailing" id="Nch-rv-sYG"/>
+                            <constraint firstItem="cIR-WG-g5y" firstAttribute="leading" secondItem="ZRg-44-cKX" secondAttribute="leading" id="X7F-DC-YH7"/>
+                            <constraint firstItem="cIR-WG-g5y" firstAttribute="bottom" secondItem="ZRg-44-cKX" secondAttribute="bottom" id="Y2z-l8-ote"/>
+                            <constraint firstItem="4iO-KU-SwN" firstAttribute="top" secondItem="ZRg-44-cKX" secondAttribute="top" id="Yld-2I-9w5"/>
+                            <constraint firstItem="cIR-WG-g5y" firstAttribute="top" secondItem="4iO-KU-SwN" secondAttribute="bottom" id="sOM-cR-P09"/>
+                        </constraints>
+                    </view>
+                    <navigationItem key="navigationItem" title="Your Files" prompt="Choose New Location" id="ptY-vw-Xdb">
+                        <barButtonItem key="rightBarButtonItem" systemItem="cancel" id="aQy-cW-2yG">
+                            <color key="tintColor" name="putio.yellow"/>
+                            <connections>
+                                <action selector="cancelButtonPressed:" destination="RMh-cI-2cX" id="ap1-C4-pfR"/>
+                            </connections>
+                        </barButtonItem>
+                    </navigationItem>
+                    <connections>
+                        <outlet property="createFolderButton" destination="5Y9-eh-QJw" id="hzw-nt-4Zt"/>
+                        <outlet property="moveButton" destination="SxY-eK-73E" id="JRV-IN-eb9"/>
+                        <outlet property="tableView" destination="4iO-KU-SwN" id="kYT-Mp-hDD"/>
+                        <outlet property="toolbar" destination="cIR-WG-g5y" id="41o-cc-V28"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="PlD-3T-Fbl" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="3054" y="-1690"/>
+        </scene>
+    </scenes>
+    <resources>
+        <image name="iconFolder" width="22" height="20"/>
+        <namedColor name="putio.background">
+            <color red="0.20000000298023224" green="0.20000000298023224" blue="0.20000000298023224" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.black">
+            <color red="0.12999999523162842" green="0.12999999523162842" blue="0.12999999523162842" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.black.tint">
+            <color red="0.059999998658895493" green="0.059999998658895493" blue="0.059999998658895493" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.listSeperator">
+            <color red="0.15000000596046448" green="0.15000000596046448" blue="0.15000000596046448" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.yellow">
+            <color red="0.99199998378753662" green="0.80800002813339233" blue="0.27099999785423279" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+    </resources>
+</document>

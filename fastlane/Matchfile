@@ -1,0 +1,6 @@
+git_url(ENV.fetch("MATCH_GIT_URL"))
+storage_mode("git")
+type("development")
+platform("ios")
+app_identifier("com.putio.tvOS")
+username("ui@put.io")

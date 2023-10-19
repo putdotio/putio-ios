@@ -1,0 +1,559 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="20037" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina5_9" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="20020"/>
+        <capability name="Named colors" minToolsVersion="9.0"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="System colors in document resources" minToolsVersion="11.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--Two-factor recovery codes-->
+        <scene sceneID="s0d-6b-0kx">
+            <objects>
+                <viewController storyboardIdentifier="TwoFactorRecoveryCodesVC" title="Two-factor recovery codes" id="Y6W-OH-hqX" customClass="TwoFactorRecoveryCodesViewController" customModule="Putio" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="5EZ-qb-Rvc">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="758"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" translatesAutoresizingMaskIntoConstraints="NO" id="H57-QQ-4HY">
+                                <rect key="frame" x="0.0" y="56" width="375" height="702"/>
+                                <subviews>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="6UU-Na-wMI" userLabel="BannerView">
+                                        <rect key="frame" x="0.0" y="0.0" width="375" height="57.666666666666664"/>
+                                        <subviews>
+                                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="If you lose access to your authenticator, you can authenticate to put.io using your recovery codes." lineBreakMode="wordWrap" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="OLV-hw-YKU" userLabel="BannerLabel">
+                                                <rect key="frame" x="16" y="12" width="343" height="33.666666666666664"/>
+                                                <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
+                                                <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                <nil key="highlightedColor"/>
+                                            </label>
+                                        </subviews>
+                                        <color key="backgroundColor" name="putio.black.tint"/>
+                                        <constraints>
+                                            <constraint firstItem="OLV-hw-YKU" firstAttribute="top" secondItem="6UU-Na-wMI" secondAttribute="top" constant="12" id="J6y-gZ-abh"/>
+                                            <constraint firstAttribute="height" relation="greaterThanOrEqual" id="LZx-zV-pdy"/>
+                                            <constraint firstItem="OLV-hw-YKU" firstAttribute="leading" secondItem="6UU-Na-wMI" secondAttribute="leading" constant="16" id="PLE-2q-h0O"/>
+                                            <constraint firstAttribute="bottom" secondItem="OLV-hw-YKU" secondAttribute="bottom" constant="12" id="ZKN-CS-BDA"/>
+                                            <constraint firstAttribute="trailing" secondItem="OLV-hw-YKU" secondAttribute="trailing" constant="16" id="lEq-ph-RG6"/>
+                                        </constraints>
+                                    </view>
+                                    <tableView clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="default" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="-1" estimatedSectionHeaderHeight="-1" sectionFooterHeight="-1" estimatedSectionFooterHeight="-1" translatesAutoresizingMaskIntoConstraints="NO" id="MhS-vo-fgh" userLabel="RecoveryCodesTableView">
+                                        <rect key="frame" x="0.0" y="57.666666666666686" width="375" height="520.33333333333326"/>
+                                        <color key="backgroundColor" name="putio.background"/>
+                                        <prototypes>
+                                            <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" selectionStyle="default" hidesAccessoryWhenEditing="NO" indentationLevel="1" indentationWidth="0.0" reuseIdentifier="recoveryCodeReuse" textLabel="EMP-EP-f7U" detailTextLabel="6cy-bm-ayP" style="IBUITableViewCellStyleSubtitle" id="vTv-A6-Ikp" customClass="TwoFactorRecoveryCodesTableViewCell" customModule="Putio" customModuleProvider="target">
+                                                <rect key="frame" x="0.0" y="44.666666030883789" width="375" height="49.666667938232422"/>
+                                                <autoresizingMask key="autoresizingMask"/>
+                                                <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" insetsLayoutMarginsFromSafeArea="NO" tableViewCell="vTv-A6-Ikp" id="cMa-VV-pZ2">
+                                                    <rect key="frame" x="0.0" y="0.0" width="375" height="49.666667938232422"/>
+                                                    <autoresizingMask key="autoresizingMask"/>
+                                                    <subviews>
+                                                        <label opaque="NO" multipleTouchEnabled="YES" contentMode="left" insetsLayoutMarginsFromSafeArea="NO" text="abcd-efgh" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" id="EMP-EP-f7U">
+                                                            <rect key="frame" x="16" y="7.9999999999999982" width="80" height="20.333333333333332"/>
+                                                            <autoresizingMask key="autoresizingMask"/>
+                                                            <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
+                                                            <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                            <nil key="highlightedColor"/>
+                                                        </label>
+                                                        <label opaque="NO" multipleTouchEnabled="YES" contentMode="left" insetsLayoutMarginsFromSafeArea="NO" text="Used on &lt;DATE&gt;" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" id="6cy-bm-ayP">
+                                                            <rect key="frame" x="16" y="28.333333333333332" width="95.666666666666671" height="14.333333333333334"/>
+                                                            <autoresizingMask key="autoresizingMask"/>
+                                                            <fontDescription key="fontDescription" style="UICTFontTextStyleCaption1"/>
+                                                            <color key="textColor" name="putio.listSubtitle"/>
+                                                            <nil key="highlightedColor"/>
+                                                        </label>
+                                                    </subviews>
+                                                </tableViewCellContentView>
+                                                <color key="backgroundColor" name="putio.background"/>
+                                            </tableViewCell>
+                                        </prototypes>
+                                    </tableView>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="W9I-3B-WSe">
+                                        <rect key="frame" x="0.0" y="578" width="375" height="124"/>
+                                        <subviews>
+                                            <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" distribution="fillEqually" spacing="16" translatesAutoresizingMaskIntoConstraints="NO" id="dq3-kd-Ogp">
+                                                <rect key="frame" x="0.0" y="16" width="375" height="92"/>
+                                                <subviews>
+                                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="AVM-h8-YpN">
+                                                        <rect key="frame" x="0.0" y="0.0" width="375" height="38"/>
+                                                        <subviews>
+                                                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="e1y-Bg-hhD" userLabel="secondaryButton" customClass="Button" customModule="Putio" customModuleProvider="target">
+                                                                <rect key="frame" x="16" y="0.0" width="343" height="38"/>
+                                                                <color key="backgroundColor" name="putio.black.tint"/>
+                                                                <constraints>
+                                                                    <constraint firstAttribute="height" constant="38" id="vPA-2O-dgi"/>
+                                                                </constraints>
+                                                                <color key="tintColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                                <inset key="imageEdgeInsets" minX="0.0" minY="0.0" maxX="2.2250738585072014e-308" maxY="0.0"/>
+                                                                <state key="normal" title="Button"/>
+                                                                <buttonConfiguration key="configuration" style="plain" title="Secondary action"/>
+                                                                <userDefinedRuntimeAttributes>
+                                                                    <userDefinedRuntimeAttribute type="number" keyPath="cornerRadius">
+                                                                        <real key="value" value="4"/>
+                                                                    </userDefinedRuntimeAttribute>
+                                                                    <userDefinedRuntimeAttribute type="string" keyPath="variant" value="secondary"/>
+                                                                </userDefinedRuntimeAttributes>
+                                                                <connections>
+                                                                    <action selector="secondaryButtonTapped:" destination="Y6W-OH-hqX" eventType="touchUpInside" id="Pm2-8b-S2I"/>
+                                                                </connections>
+                                                            </button>
+                                                        </subviews>
+                                                        <viewLayoutGuide key="safeArea" id="cdZ-i5-ZKv"/>
+                                                        <constraints>
+                                                            <constraint firstAttribute="trailing" secondItem="e1y-Bg-hhD" secondAttribute="trailing" constant="16" id="62M-an-FVL"/>
+                                                            <constraint firstItem="e1y-Bg-hhD" firstAttribute="top" secondItem="AVM-h8-YpN" secondAttribute="top" id="Djb-IQ-Yo9"/>
+                                                            <constraint firstAttribute="bottom" secondItem="e1y-Bg-hhD" secondAttribute="bottom" id="XzD-1W-fRc"/>
+                                                            <constraint firstItem="e1y-Bg-hhD" firstAttribute="leading" secondItem="AVM-h8-YpN" secondAttribute="leading" constant="16" id="cIP-cR-CVY"/>
+                                                            <constraint firstAttribute="height" relation="greaterThanOrEqual" id="oBo-TB-w6v"/>
+                                                        </constraints>
+                                                    </view>
+                                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="vqT-BL-2HJ">
+                                                        <rect key="frame" x="0.0" y="54" width="375" height="38"/>
+                                                        <subviews>
+                                                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="Mv5-kC-ahY" userLabel="primaryButton" customClass="Button" customModule="Putio" customModuleProvider="target">
+                                                                <rect key="frame" x="16" y="0.0" width="343" height="38"/>
+                                                                <color key="backgroundColor" name="putio.yellow"/>
+                                                                <constraints>
+                                                                    <constraint firstAttribute="height" constant="38" id="yfd-Zx-hGf"/>
+                                                                </constraints>
+                                                                <color key="tintColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                                <inset key="imageEdgeInsets" minX="0.0" minY="0.0" maxX="2.2250738585072014e-308" maxY="0.0"/>
+                                                                <state key="normal" title="Button"/>
+                                                                <buttonConfiguration key="configuration" style="plain" title="Primary action"/>
+                                                                <userDefinedRuntimeAttributes>
+                                                                    <userDefinedRuntimeAttribute type="number" keyPath="cornerRadius">
+                                                                        <real key="value" value="4"/>
+                                                                    </userDefinedRuntimeAttribute>
+                                                                    <userDefinedRuntimeAttribute type="string" keyPath="variant" value="primary"/>
+                                                                </userDefinedRuntimeAttributes>
+                                                                <connections>
+                                                                    <action selector="primaryButtonTapped:" destination="Y6W-OH-hqX" eventType="touchUpInside" id="TX7-H4-ud3"/>
+                                                                </connections>
+                                                            </button>
+                                                        </subviews>
+                                                        <constraints>
+                                                            <constraint firstAttribute="height" relation="greaterThanOrEqual" id="9xQ-cT-G37"/>
+                                                            <constraint firstAttribute="trailing" secondItem="Mv5-kC-ahY" secondAttribute="trailing" constant="16" id="AgK-nG-akt"/>
+                                                            <constraint firstItem="Mv5-kC-ahY" firstAttribute="top" secondItem="vqT-BL-2HJ" secondAttribute="top" id="LUg-BE-RAi"/>
+                                                            <constraint firstItem="Mv5-kC-ahY" firstAttribute="leading" secondItem="vqT-BL-2HJ" secondAttribute="leading" constant="16" id="Vgb-96-BWH"/>
+                                                            <constraint firstAttribute="bottom" secondItem="Mv5-kC-ahY" secondAttribute="bottom" id="hQi-c2-hn2"/>
+                                                        </constraints>
+                                                    </view>
+                                                </subviews>
+                                            </stackView>
+                                        </subviews>
+                                        <constraints>
+                                            <constraint firstItem="dq3-kd-Ogp" firstAttribute="leading" secondItem="W9I-3B-WSe" secondAttribute="leading" id="4az-WR-Ndf"/>
+                                            <constraint firstItem="dq3-kd-Ogp" firstAttribute="top" secondItem="W9I-3B-WSe" secondAttribute="top" constant="16" id="HGC-cc-dWb"/>
+                                            <constraint firstAttribute="bottom" secondItem="dq3-kd-Ogp" secondAttribute="bottom" constant="16" id="JZg-NL-rhc"/>
+                                            <constraint firstAttribute="trailing" secondItem="dq3-kd-Ogp" secondAttribute="trailing" id="l2o-K3-Btb"/>
+                                        </constraints>
+                                    </view>
+                                </subviews>
+                            </stackView>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="vDu-zF-Fre"/>
+                        <color key="backgroundColor" name="putio.background"/>
+                        <constraints>
+                            <constraint firstItem="vDu-zF-Fre" firstAttribute="bottom" secondItem="H57-QQ-4HY" secondAttribute="bottom" id="AID-xK-zfc"/>
+                            <constraint firstItem="H57-QQ-4HY" firstAttribute="leading" secondItem="vDu-zF-Fre" secondAttribute="leading" id="WJw-fJ-gUh"/>
+                            <constraint firstItem="vDu-zF-Fre" firstAttribute="trailing" secondItem="H57-QQ-4HY" secondAttribute="trailing" id="Y6F-iI-wfP"/>
+                            <constraint firstItem="H57-QQ-4HY" firstAttribute="top" secondItem="vDu-zF-Fre" secondAttribute="top" id="dpZ-mg-egJ"/>
+                        </constraints>
+                    </view>
+                    <navigationItem key="navigationItem" title="Two-factor recovery codes" id="Z7S-Qm-866"/>
+                    <connections>
+                        <outlet property="bannerView" destination="6UU-Na-wMI" id="WGu-tr-eRx"/>
+                        <outlet property="buttonStackView" destination="dq3-kd-Ogp" id="SxG-sX-gYM"/>
+                        <outlet property="primaryButton" destination="Mv5-kC-ahY" id="KMI-hj-DKZ"/>
+                        <outlet property="secondaryButton" destination="e1y-Bg-hhD" id="S5E-BT-gVp"/>
+                        <outlet property="tableView" destination="MhS-vo-fgh" id="rwC-KU-8fA"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="Ief-a0-LHa" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+                <view contentMode="scaleToFill" id="r12-av-opU">
+                    <rect key="frame" x="0.0" y="0.0" width="236.33333333333334" height="78"/>
+                    <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+                    <viewLayoutGuide key="safeArea" id="IqH-r8-H1p"/>
+                    <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                </view>
+            </objects>
+            <point key="canvasLocation" x="401" y="1476"/>
+        </scene>
+        <!--Navigation Controller-->
+        <scene sceneID="Eje-oY-f8E">
+            <objects>
+                <navigationController storyboardIdentifier="DisableTwoFactorNC" id="WFm-QP-RXT" sceneMemberID="viewController">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" id="rvt-87-EEu">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="56"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                    </navigationBar>
+                    <connections>
+                        <segue destination="HXJ-bz-1gF" kind="relationship" relationship="rootViewController" id="T5u-SH-c3g"/>
+                    </connections>
+                </navigationController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="Yd2-0F-kM0" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="401" y="2232"/>
+        </scene>
+        <!--Disable two-factor authentication-->
+        <scene sceneID="FHZ-ji-wl5">
+            <objects>
+                <viewController title="Disable two-factor auth" id="HXJ-bz-1gF" userLabel="Disable two-factor authentication" customClass="DisableTwoFactorAuthViewController" customModule="Putio" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="pbW-Gx-tLI">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="758"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" spacing="16" translatesAutoresizingMaskIntoConstraints="NO" id="vLG-Id-K2m">
+                                <rect key="frame" x="37.666666666666657" y="72" width="300" height="93.666666666666686"/>
+                                <subviews>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Please enter the access code from your authenticator or one of your recovery codes." textAlignment="center" lineBreakMode="wordWrap" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="oNi-yH-kod">
+                                        <rect key="frame" x="0.0" y="0.0" width="300" height="33.666666666666664"/>
+                                        <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
+                                        <color key="textColor" name="putio.listSubtitle"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                    <textField opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="left" contentVerticalAlignment="center" borderStyle="roundedRect" placeholder="Authenticator or recovery code" textAlignment="center" minimumFontSize="17" translatesAutoresizingMaskIntoConstraints="NO" id="chX-sm-jVE">
+                                        <rect key="frame" x="0.0" y="49.666666666666671" width="300" height="44"/>
+                                        <color key="backgroundColor" name="putio.black"/>
+                                        <constraints>
+                                            <constraint firstAttribute="height" constant="44" id="0bK-yC-8Dm"/>
+                                        </constraints>
+                                        <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
+                                        <textInputTraits key="textInputTraits" autocorrectionType="no" spellCheckingType="no" returnKeyType="done" smartDashesType="no" smartInsertDeleteType="no" smartQuotesType="no" textContentType="one-time-code"/>
+                                    </textField>
+                                </subviews>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="300" id="GPC-Gk-Yu8"/>
+                                </constraints>
+                            </stackView>
+                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="8oa-Q6-Haf" customClass="KeyboardAvoidingView" customModule="KeyboardAvoidingView">
+                                <rect key="frame" x="0.0" y="704" width="375" height="54"/>
+                                <subviews>
+                                    <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="87x-Z2-iWq" customClass="Button" customModule="Putio" customModuleProvider="target">
+                                        <rect key="frame" x="16" y="0.0" width="343" height="38"/>
+                                        <color key="backgroundColor" systemColor="systemRedColor"/>
+                                        <constraints>
+                                            <constraint firstAttribute="height" constant="38" id="htG-31-ZCf"/>
+                                        </constraints>
+                                        <color key="tintColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <inset key="imageEdgeInsets" minX="0.0" minY="0.0" maxX="2.2250738585072014e-308" maxY="0.0"/>
+                                        <state key="normal" title="Disable"/>
+                                        <buttonConfiguration key="configuration" style="plain" title="Disable"/>
+                                        <userDefinedRuntimeAttributes>
+                                            <userDefinedRuntimeAttribute type="string" keyPath="variant" value="danger"/>
+                                        </userDefinedRuntimeAttributes>
+                                        <connections>
+                                            <action selector="onDisable:" destination="HXJ-bz-1gF" eventType="touchUpInside" id="zZ7-pt-aLD"/>
+                                        </connections>
+                                    </button>
+                                </subviews>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="54" id="D5Q-rl-KIL"/>
+                                    <constraint firstItem="87x-Z2-iWq" firstAttribute="leading" secondItem="8oa-Q6-Haf" secondAttribute="leading" constant="16" id="LMP-Q6-2su"/>
+                                    <constraint firstAttribute="bottom" secondItem="87x-Z2-iWq" secondAttribute="bottom" constant="16" id="Qu8-le-rG5"/>
+                                    <constraint firstAttribute="trailing" secondItem="87x-Z2-iWq" secondAttribute="trailing" constant="16" id="b3J-YJ-uOB"/>
+                                </constraints>
+                            </view>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="lN7-3S-K2a"/>
+                        <color key="backgroundColor" name="putio.background"/>
+                        <constraints>
+                            <constraint firstItem="vLG-Id-K2m" firstAttribute="centerX" secondItem="lN7-3S-K2a" secondAttribute="centerX" id="DLn-bO-Lhn"/>
+                            <constraint firstItem="lN7-3S-K2a" firstAttribute="bottom" secondItem="8oa-Q6-Haf" secondAttribute="bottom" id="KnI-DZ-FT8"/>
+                            <constraint firstItem="8oa-Q6-Haf" firstAttribute="leading" secondItem="lN7-3S-K2a" secondAttribute="leading" id="M5p-fy-tZM"/>
+                            <constraint firstItem="lN7-3S-K2a" firstAttribute="trailing" secondItem="8oa-Q6-Haf" secondAttribute="trailing" id="Sbb-CE-DcN"/>
+                            <constraint firstItem="vLG-Id-K2m" firstAttribute="top" secondItem="lN7-3S-K2a" secondAttribute="top" constant="16" id="ZvZ-fd-mg5"/>
+                        </constraints>
+                    </view>
+                    <navigationItem key="navigationItem" title="Disable two-factor authentication" id="BlF-5M-1dR">
+                        <barButtonItem key="leftBarButtonItem" style="done" systemItem="stop" id="HuJ-ex-Hak">
+                            <color key="tintColor" name="putio.yellow"/>
+                            <connections>
+                                <action selector="onDismiss:" destination="HXJ-bz-1gF" id="2v1-yf-ETd"/>
+                            </connections>
+                        </barButtonItem>
+                    </navigationItem>
+                    <connections>
+                        <outlet property="button" destination="87x-Z2-iWq" id="MjK-u1-czR"/>
+                        <outlet property="textField" destination="chX-sm-jVE" id="05T-dk-kFg"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="4qe-Rm-EVx" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="1273" y="2232"/>
+        </scene>
+        <!--Navigation Controller-->
+        <scene sceneID="sWZ-mI-6zZ">
+            <objects>
+                <navigationController interfaceStyle="dark" id="WQP-4E-9K7" sceneMemberID="viewController">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" id="fK3-PF-vtK">
+                        <rect key="frame" x="0.0" y="44" width="375" height="44"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                    </navigationBar>
+                    <connections>
+                        <segue destination="nTT-wF-9WO" kind="relationship" relationship="rootViewController" id="b7n-rP-ZdY"/>
+                    </connections>
+                </navigationController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="LIR-m9-mu1" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="-1470" y="1295"/>
+        </scene>
+        <!--Two-factor root-->
+        <scene sceneID="4HL-I6-Tgf">
+            <objects>
+                <viewController id="nTT-wF-9WO" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="vQg-jY-5iq">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="812"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <viewLayoutGuide key="safeArea" id="CBI-D4-Sax"/>
+                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                    </view>
+                    <navigationItem key="navigationItem" title="Two-factor root" id="bsp-xf-olx"/>
+                    <connections>
+                        <segue destination="Y6W-OH-hqX" kind="show" identifier="toTwoFactorRecoveryCodesVC" id="f2o-99-f4q"/>
+                        <segue destination="WFm-QP-RXT" kind="presentation" identifier="toDisableTwoFactorAuthNC" id="cPo-oI-8Xw"/>
+                        <segue destination="S1T-ZI-wXZ" kind="presentation" identifier="toEnableTwoFactorAuthNC" id="4wH-Nj-k6o"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="wmj-DK-RLe" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="-721" y="1295"/>
+        </scene>
+        <!--Navigation Controller-->
+        <scene sceneID="p1M-jx-n9E">
+            <objects>
+                <navigationController storyboardIdentifier="EnableTwoFactorNC" id="S1T-ZI-wXZ" sceneMemberID="viewController">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" id="ESD-vU-z0R">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="56"/>
+                        <autoresizingMask key="autoresizingMask"/>
+                    </navigationBar>
+                    <connections>
+                        <segue destination="QYv-F3-275" kind="relationship" relationship="rootViewController" id="Wxy-i3-Cng"/>
+                    </connections>
+                </navigationController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="oQJ-gt-yYw" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="401" y="740"/>
+        </scene>
+        <!--Enable two-factor authentication-->
+        <scene sceneID="uCe-kr-GpX">
+            <objects>
+                <viewController title="Disable two-factor auth" id="QYv-F3-275" userLabel="Enable two-factor authentication" customClass="EnableTwoFactorSecretViewController" customModule="Putio" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="Llg-XL-PIa">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="758"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" spacing="16" translatesAutoresizingMaskIntoConstraints="NO" id="5uz-hA-1lX">
+                                <rect key="frame" x="37.666666666666657" y="72.000000000000014" width="300" height="138.33333333333337"/>
+                                <subviews>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Open your authenticator and enter the code below." textAlignment="center" lineBreakMode="wordWrap" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="vXj-Va-h84">
+                                        <rect key="frame" x="0.0" y="0.0" width="300" height="33.666666666666664"/>
+                                        <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
+                                        <color key="textColor" name="putio.listSubtitle"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+                                    <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" translatesAutoresizingMaskIntoConstraints="NO" id="8JL-jo-Exw">
+                                        <rect key="frame" x="0.0" y="49.666666666666664" width="300" height="88.666666666666686"/>
+                                        <subviews>
+                                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="5AA-t8-LY1" userLabel="SecretContainer" customClass="LabelContainerView" customModule="Putio" customModuleProvider="target">
+                                                <rect key="frame" x="0.0" y="0.0" width="300" height="57.666666666666664"/>
+                                                <subviews>
+                                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="76LY-TQZM-F6Z2-6N5C-GYTQ-KRBO-NENA-FMBV" textAlignment="center" lineBreakMode="wordWrap" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="bP3-iE-P3C" userLabel="SecretLabel">
+                                                        <rect key="frame" x="16" y="11.999999999999986" width="268" height="33.666666666666664"/>
+                                                        <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
+                                                        <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                        <nil key="highlightedColor"/>
+                                                    </label>
+                                                </subviews>
+                                                <color key="backgroundColor" name="putio.black.tint"/>
+                                                <constraints>
+                                                    <constraint firstItem="bP3-iE-P3C" firstAttribute="leading" secondItem="5AA-t8-LY1" secondAttribute="leading" constant="16" id="3Fr-gf-qPN"/>
+                                                    <constraint firstAttribute="height" relation="greaterThanOrEqual" id="4XB-Lj-lHU"/>
+                                                    <constraint firstAttribute="bottom" secondItem="bP3-iE-P3C" secondAttribute="bottom" constant="12" id="MbS-hG-CJB"/>
+                                                    <constraint firstAttribute="trailing" secondItem="bP3-iE-P3C" secondAttribute="trailing" constant="16" id="QG8-s3-m2E"/>
+                                                    <constraint firstItem="bP3-iE-P3C" firstAttribute="top" secondItem="5AA-t8-LY1" secondAttribute="top" constant="12" id="Qf0-4R-hKI"/>
+                                                </constraints>
+                                            </view>
+                                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="Zq8-K5-StK">
+                                                <rect key="frame" x="0.0" y="57.666666666666671" width="300" height="31"/>
+                                                <color key="tintColor" name="putio.yellow"/>
+                                                <state key="normal" title="Button"/>
+                                                <buttonConfiguration key="configuration" style="plain" title="Copy"/>
+                                                <connections>
+                                                    <action selector="copyButtonTapped:" destination="QYv-F3-275" eventType="touchUpInside" id="Qnm-gA-gvu"/>
+                                                </connections>
+                                            </button>
+                                        </subviews>
+                                    </stackView>
+                                </subviews>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="300" id="UUa-Cc-Tx6"/>
+                                </constraints>
+                            </stackView>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="rUO-X6-eVU" customClass="Button" customModule="Putio" customModuleProvider="target">
+                                <rect key="frame" x="16" y="704" width="343" height="38"/>
+                                <color key="backgroundColor" name="putio.yellow"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="38" id="4C0-WM-B59"/>
+                                </constraints>
+                                <color key="tintColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <inset key="imageEdgeInsets" minX="0.0" minY="0.0" maxX="2.2250738585072014e-308" maxY="0.0"/>
+                                <state key="normal" title="Disable"/>
+                                <buttonConfiguration key="configuration" style="plain" title="Next"/>
+                                <userDefinedRuntimeAttributes>
+                                    <userDefinedRuntimeAttribute type="string" keyPath="variant" value="primary"/>
+                                </userDefinedRuntimeAttributes>
+                                <connections>
+                                    <action selector="nextButtonTapped:" destination="QYv-F3-275" eventType="touchUpInside" id="hf8-go-Dtm"/>
+                                </connections>
+                            </button>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="GUU-nI-b2V"/>
+                        <color key="backgroundColor" name="putio.background"/>
+                        <constraints>
+                            <constraint firstItem="GUU-nI-b2V" firstAttribute="bottom" secondItem="rUO-X6-eVU" secondAttribute="bottom" constant="16" id="KLf-Qi-JSh"/>
+                            <constraint firstItem="rUO-X6-eVU" firstAttribute="leading" secondItem="GUU-nI-b2V" secondAttribute="leading" constant="16" id="UE1-uy-7uG"/>
+                            <constraint firstItem="5uz-hA-1lX" firstAttribute="top" secondItem="GUU-nI-b2V" secondAttribute="top" constant="16" id="aCA-L7-uAW"/>
+                            <constraint firstItem="5uz-hA-1lX" firstAttribute="centerX" secondItem="GUU-nI-b2V" secondAttribute="centerX" id="v9a-sQ-zpJ"/>
+                            <constraint firstItem="GUU-nI-b2V" firstAttribute="trailing" secondItem="rUO-X6-eVU" secondAttribute="trailing" constant="16" id="veg-HD-YHD"/>
+                        </constraints>
+                    </view>
+                    <navigationItem key="navigationItem" title="Enable two-factor authentication" id="Ln8-Hc-Jae">
+                        <barButtonItem key="leftBarButtonItem" style="done" systemItem="stop" id="YL5-yv-Rio">
+                            <color key="tintColor" name="putio.yellow"/>
+                            <connections>
+                                <action selector="closeButtonTapped:" destination="QYv-F3-275" id="goE-rj-Lah"/>
+                            </connections>
+                        </barButtonItem>
+                    </navigationItem>
+                    <connections>
+                        <outlet property="copyButton" destination="Zq8-K5-StK" id="JVY-ch-5t2"/>
+                        <outlet property="nextButton" destination="rUO-X6-eVU" id="eGL-UT-aC3"/>
+                        <outlet property="secretLabel" destination="bP3-iE-P3C" id="u2E-Pk-o9B"/>
+                        <segue destination="Sc7-5S-mTQ" kind="show" identifier="toEnterCodeVC" id="snl-IW-Pue"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="vgl-J6-Kj7" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="1244" y="740"/>
+        </scene>
+        <!--Enable two-factor authentication-->
+        <scene sceneID="aBw-Sy-Mst">
+            <objects>
+                <viewController title="Disable two-factor auth" id="Sc7-5S-mTQ" userLabel="Enable two-factor authentication" customClass="EnableTwoFactorCodeViewController" customModule="Putio" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="Qfb-Wb-UVZ">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="758"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" spacing="16" translatesAutoresizingMaskIntoConstraints="NO" id="k4S-dU-nbg">
+                                <rect key="frame" x="37.666666666666657" y="72" width="300" height="67.666666666666686"/>
+                                <subviews>
+                                    <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" spacing="8" translatesAutoresizingMaskIntoConstraints="NO" id="Tbb-hF-KGQ">
+                                        <rect key="frame" x="0.0" y="0.0" width="300" height="67.666666666666671"/>
+                                        <subviews>
+                                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Enter the 6-digit code" textAlignment="center" lineBreakMode="wordWrap" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="6rK-GL-FnR">
+                                                <rect key="frame" x="0.0" y="0.0" width="300" height="15.666666666666666"/>
+                                                <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
+                                                <color key="textColor" name="putio.listSubtitle"/>
+                                                <nil key="highlightedColor"/>
+                                            </label>
+                                            <textField opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="left" contentVerticalAlignment="center" borderStyle="roundedRect" placeholder="Authenticator code" textAlignment="center" minimumFontSize="17" translatesAutoresizingMaskIntoConstraints="NO" id="vih-ax-O38">
+                                                <rect key="frame" x="0.0" y="23.666666666666671" width="300" height="44"/>
+                                                <color key="backgroundColor" name="putio.black"/>
+                                                <constraints>
+                                                    <constraint firstAttribute="height" constant="44" id="FIT-bA-AdJ"/>
+                                                </constraints>
+                                                <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
+                                                <textInputTraits key="textInputTraits" autocorrectionType="no" spellCheckingType="no" returnKeyType="done" smartDashesType="no" smartInsertDeleteType="no" smartQuotesType="no" textContentType="one-time-code"/>
+                                            </textField>
+                                        </subviews>
+                                    </stackView>
+                                </subviews>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="300" id="9Nz-Ql-gDB"/>
+                                </constraints>
+                            </stackView>
+                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="fw3-0B-p0C" customClass="KeyboardAvoidingView" customModule="KeyboardAvoidingView">
+                                <rect key="frame" x="0.0" y="704" width="375" height="54"/>
+                                <subviews>
+                                    <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="xtZ-72-xrq" customClass="Button" customModule="Putio" customModuleProvider="target">
+                                        <rect key="frame" x="16" y="0.0" width="343" height="38"/>
+                                        <color key="backgroundColor" name="putio.yellow"/>
+                                        <constraints>
+                                            <constraint firstAttribute="height" constant="38" id="rwH-Cd-8Gh"/>
+                                        </constraints>
+                                        <color key="tintColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <inset key="imageEdgeInsets" minX="0.0" minY="0.0" maxX="2.2250738585072014e-308" maxY="0.0"/>
+                                        <state key="normal" title="Disable"/>
+                                        <buttonConfiguration key="configuration" style="plain" title="Enable"/>
+                                        <userDefinedRuntimeAttributes>
+                                            <userDefinedRuntimeAttribute type="string" keyPath="variant" value="primary"/>
+                                        </userDefinedRuntimeAttributes>
+                                        <connections>
+                                            <action selector="enableButtonTapped:" destination="Sc7-5S-mTQ" eventType="touchUpInside" id="sWq-gu-KPR"/>
+                                        </connections>
+                                    </button>
+                                </subviews>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="54" id="JzK-5e-xM9"/>
+                                    <constraint firstAttribute="bottom" secondItem="xtZ-72-xrq" secondAttribute="bottom" constant="16" id="Mv7-AL-2dE"/>
+                                    <constraint firstAttribute="trailing" secondItem="xtZ-72-xrq" secondAttribute="trailing" constant="16" id="RUC-Gn-Q6m"/>
+                                    <constraint firstItem="xtZ-72-xrq" firstAttribute="leading" secondItem="fw3-0B-p0C" secondAttribute="leading" constant="16" id="hOO-bX-9Ah"/>
+                                </constraints>
+                            </view>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="Uh8-7c-HLC"/>
+                        <color key="backgroundColor" name="putio.background"/>
+                        <constraints>
+                            <constraint firstItem="fw3-0B-p0C" firstAttribute="trailing" secondItem="Uh8-7c-HLC" secondAttribute="trailing" id="MvR-jG-b7n"/>
+                            <constraint firstItem="Uh8-7c-HLC" firstAttribute="bottom" secondItem="fw3-0B-p0C" secondAttribute="bottom" id="N5B-94-lBv"/>
+                            <constraint firstItem="fw3-0B-p0C" firstAttribute="leading" secondItem="Uh8-7c-HLC" secondAttribute="leading" id="R1w-6z-Giz"/>
+                            <constraint firstItem="k4S-dU-nbg" firstAttribute="top" secondItem="Uh8-7c-HLC" secondAttribute="top" constant="16" id="Tav-5l-w4U"/>
+                            <constraint firstItem="k4S-dU-nbg" firstAttribute="centerX" secondItem="Uh8-7c-HLC" secondAttribute="centerX" id="USe-4O-QDz"/>
+                        </constraints>
+                    </view>
+                    <navigationItem key="navigationItem" title="Enable two-factor authentication" id="JBP-jh-6lf"/>
+                    <connections>
+                        <outlet property="button" destination="xtZ-72-xrq" id="TOO-P2-v8x"/>
+                        <outlet property="textField" destination="vih-ax-O38" id="ZFY-A6-fnE"/>
+                        <segue destination="Y6W-OH-hqX" kind="show" identifier="toTwoFactorRecoveryCodesVC" id="xbo-Gt-0Es"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="FGQ-lw-I1d" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="2022" y="740"/>
+        </scene>
+    </scenes>
+    <inferredMetricsTieBreakers>
+        <segue reference="xbo-Gt-0Es"/>
+    </inferredMetricsTieBreakers>
+    <resources>
+        <namedColor name="putio.background">
+            <color red="0.20000000298023224" green="0.20000000298023224" blue="0.20000000298023224" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.black">
+            <color red="0.12999999523162842" green="0.12999999523162842" blue="0.12999999523162842" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.black.tint">
+            <color red="0.059999998658895493" green="0.059999998658895493" blue="0.059999998658895493" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.listSubtitle">
+            <color red="0.60000002384185791" green="0.60000002384185791" blue="0.60000002384185791" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.yellow">
+            <color red="0.99199998378753662" green="0.80800002813339233" blue="0.27099999785423279" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <systemColor name="systemBackgroundColor">
+            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+        </systemColor>
+        <systemColor name="systemRedColor">
+            <color red="1" green="0.23137254901960785" blue="0.18823529411764706" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        </systemColor>
+    </resources>
+</document>
