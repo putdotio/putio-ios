@@ -36,7 +36,6 @@ Pods/
 
 # fastlane
 fastlane/report.xml
-fastlane/screenshots
 
 ## Fastlane DSYM .zip
 *.zip
