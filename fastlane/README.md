@@ -15,22 +15,6 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 ## iOS
 
-### ios bump_version
-
-```sh
-[bundle exec] fastlane ios bump_version
-```
-
-
-
-### ios build_with_xcode_select
-
-```sh
-[bundle exec] fastlane ios build_with_xcode_select
-```
-
-
-
 ### ios build
 
 ```sh

@@ -4,7 +4,7 @@ target 'Putio' do
   use_frameworks!
 
   pod 'Alamofire', '~> 5.5.0'
-  pod 'google-cast-sdk-no-bluetooth', '~> 4.4'
+  pod 'google-cast-sdk-no-bluetooth'
   pod 'Intercom', '14.0.0'
   pod 'KeychainAccess'
   pod 'NFDownloadButton', '0.0.2'
@@ -25,5 +25,9 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings.delete 'IPHONEOS_DEPLOYMENT_TARGET'
     end
+  end
+
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings["EXCLUDED_ARCHS[sdk=iphonesimulator*]"] = "arm64"
   end
 end

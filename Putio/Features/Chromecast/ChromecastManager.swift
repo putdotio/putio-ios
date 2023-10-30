@@ -167,9 +167,11 @@ class ChromecastManager: NSObject {
                             languageCode: subtitle.languageCode,
                             customData: nil
                         )
-
-                        mediaTracks.append(track)
-                        mediaInfo.mediaTracks = mediaTracks
+                        
+                        if let mediaTrack = track {
+                            mediaTracks.append(mediaTrack)
+                            mediaInfo.mediaTracks = mediaTracks
+                        }
                     }
 
                     mediaLoadOptions.activeTrackIDs = [0]

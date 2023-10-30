@@ -4,8 +4,6 @@ Official iOS application of [put.io](https://itunes.apple.com/us/app/put-io/id12
 
 ## Development setup on macOS
 
-Follow the [instructions in the monorepo root](../../README.md) to install `rbenv`.
-
 Install iOS dependencies from [Cocoapods](https://cocoapods.org).
 
 ```zsh
