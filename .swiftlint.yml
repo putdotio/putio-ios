@@ -9,3 +9,4 @@ disabled_rules:
   - identifier_name
   - function_body_length
   - trailing_whitespace
+  - type_body_length

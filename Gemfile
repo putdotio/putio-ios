@@ -1,10 +1,8 @@
-# frozen_string_literal: true
-source "https://rubygems.org"
+source 'https://rubygems.org'
 
-gem "cocoapods"
-gem "fastlane"
-gem "pry"
+gem 'cocoapods'
+gem 'fastlane'
 
-
-plugins_path = File.join(File.dirname(__FILE__), 'fastlane', 'Pluginfile')
-eval_gemfile(plugins_path) if File.exist?(plugins_path)
+# fastlane plugins for ios
+ios_plugins_path = File.join(File.dirname(__FILE__), 'fastlane', 'Pluginfile')
+eval_gemfile(ios_plugins_path) if File.exist?(ios_plugins_path)
