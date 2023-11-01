@@ -5,8 +5,14 @@ class Stylize {
     static func UIKit(window: UIWindow?) {
         window?.backgroundColor = UIColor.Putio.black
 
-        UINavigationBar.appearance().backgroundColor = UIColor.Putio.black
-        UINavigationBar.appearance().titleTextAttributes = [NSAttributedStringKey.foregroundColor: UIColor.white]
+        let navigationBarAppearance = UINavigationBarAppearance()
+        navigationBarAppearance.backgroundColor = UIColor.Putio.black
+        navigationBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.white]
+        navigationBarAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor.white]
+
+        UINavigationBar.appearance().standardAppearance = navigationBarAppearance
+        UINavigationBar.appearance().compactAppearance = navigationBarAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navigationBarAppearance
 
         UINavigationBar.appearance().barTintColor = UIColor.Putio.black
         UINavigationBar.appearance().tintColor = UIColor.Putio.yellow

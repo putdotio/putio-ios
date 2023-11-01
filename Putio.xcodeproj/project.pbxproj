@@ -44,6 +44,7 @@
 		AC76E02A1FB4D6A100693A18 /* UITableViewCell+Dark.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC76E0291FB4D6A100693A18 /* UITableViewCell+Dark.swift */; };
 		AC7863182052C69400E26106 /* DownloadsEmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC7863172052C69400E26106 /* DownloadsEmptyStateView.swift */; };
 		AC78631C2052C6FE00E26106 /* DownloadsEmptyStateView.xib in Resources */ = {isa = PBXBuildFile; fileRef = AC78631B2052C6FE00E26106 /* DownloadsEmptyStateView.xib */; };
+		AC79B68F2AF0E0FD00D47BAF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ACEF62F41F9A26AA0026B25E /* Assets.xcassets */; };
 		AC7F4E881FD677FA001FFBA9 /* FilesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC7F4E871FD677FA001FFBA9 /* FilesViewModel.swift */; };
 		AC7F4E8A1FD67BB9001FFBA9 /* FilesTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC7F4E891FD67BB9001FFBA9 /* FilesTableViewCell.swift */; };
 		AC7F4E8C1FD691B7001FFBA9 /* FilesRootViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC7F4E8B1FD691B7001FFBA9 /* FilesRootViewController.swift */; };
@@ -52,6 +53,7 @@
 		AC87F8F2269A1F4300953C42 /* FolderCreatorPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC87F8F1269A1F4300953C42 /* FolderCreatorPresenter.swift */; };
 		AC88746027C366EB00BC65E9 /* Pods-Putio-acknowledgements.plist in Resources */ = {isa = PBXBuildFile; fileRef = AC88745F27C366EB00BC65E9 /* Pods-Putio-acknowledgements.plist */; };
 		AC8CA4FE1FECE78200262B2A /* ChromecastManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8CA4FD1FECE78200262B2A /* ChromecastManager.swift */; };
+		AC918F6E2AF128920082BFAF /* RootContainerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC918F6D2AF128920082BFAF /* RootContainerViewController.swift */; };
 		AC9E11FA27A7DFFB00E50966 /* DestroyAccounViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC9E11F927A7DFFB00E50966 /* DestroyAccounViewController.swift */; };
 		AC9F15EC23B98A5700C09BAB /* UIView+FindSubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC9F15EB23B98A5700C09BAB /* UIView+FindSubView.swift */; };
 		ACA0E003282CF66A00184DF7 /* EnableTwoFactorCodeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACA0E002282CF66A00184DF7 /* EnableTwoFactorCodeViewController.swift */; };
@@ -97,7 +99,6 @@
 		ACEB6E74231A989000611D74 /* AudioDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACEB6E73231A989000611D74 /* AudioDownloadManager.swift */; };
 		ACED3B5C1FEBC1BA0066F41A /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACED3B5B1FEBC1BA0066F41A /* Constants.swift */; };
 		ACEF62EE1F9A26AA0026B25E /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACEF62ED1F9A26AA0026B25E /* AppDelegate.swift */; };
-		ACEF62F51F9A26AA0026B25E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ACEF62F41F9A26AA0026B25E /* Assets.xcassets */; };
 		ACF43FD627A2B6AE00E523D1 /* ClearDataTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACF43FD527A2B6AE00E523D1 /* ClearDataTableViewController.swift */; };
 		ACF43FD827A2B6C300E523D1 /* ClearDataViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACF43FD727A2B6C300E523D1 /* ClearDataViewModel.swift */; };
 		ACF5681427856EC100A84B88 /* TrashTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACF5681327856EC100A84B88 /* TrashTableViewCell.swift */; };
@@ -166,6 +167,7 @@
 		AC87F8F1269A1F4300953C42 /* FolderCreatorPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderCreatorPresenter.swift; sourceTree = "<group>"; };
 		AC88745F27C366EB00BC65E9 /* Pods-Putio-acknowledgements.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "Pods-Putio-acknowledgements.plist"; path = "Pods/Target Support Files/Pods-Putio/Pods-Putio-acknowledgements.plist"; sourceTree = "<group>"; };
 		AC8CA4FD1FECE78200262B2A /* ChromecastManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromecastManager.swift; sourceTree = "<group>"; };
+		AC918F6D2AF128920082BFAF /* RootContainerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootContainerViewController.swift; sourceTree = "<group>"; };
 		AC9E11F927A7DFFB00E50966 /* DestroyAccounViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestroyAccounViewController.swift; sourceTree = "<group>"; };
 		AC9F15EB23B98A5700C09BAB /* UIView+FindSubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIView+FindSubView.swift"; sourceTree = "<group>"; };
 		ACA0E002282CF66A00184DF7 /* EnableTwoFactorCodeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnableTwoFactorCodeViewController.swift; sourceTree = "<group>"; };
@@ -359,6 +361,7 @@
 				ACCD39DF27BBF6BB00C13DA4 /* LaunchScreen.storyboard */,
 				AC19C7CF1FA9FBA400248748 /* Main.storyboard */,
 				AC45968A1FE7FB2C006E44DA /* MainTabBarController.swift */,
+				AC918F6D2AF128920082BFAF /* RootContainerViewController.swift */,
 				ACED3B5B1FEBC1BA0066F41A /* Constants.swift */,
 				ACCAE1CD27A90E3D007DA85F /* API */,
 				ACAA622323BD033C0043458C /* Models */,
@@ -655,6 +658,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AC79B68F2AF0E0FD00D47BAF /* Assets.xcassets in Resources */,
 				ACAD072220E126D100C3FB5F /* Image.storyboard in Resources */,
 				ACFA837B1FF12FA2008711B4 /* LoaderView.xib in Resources */,
 				AC78631C2052C6FE00E26106 /* DownloadsEmptyStateView.xib in Resources */,
@@ -665,7 +669,6 @@
 				ACAA622923BD05A80043458C /* VideoConversion.storyboard in Resources */,
 				ACCD39E027BBF6BB00C13DA4 /* LaunchScreen.storyboard in Resources */,
 				AC328A3821988B500056D25B /* blank.pdf in Resources */,
-				ACEF62F51F9A26AA0026B25E /* Assets.xcassets in Resources */,
 				AC19C7D01FA9FBA400248748 /* Main.storyboard in Resources */,
 				ACFA83811FF1338A008711B4 /* EmptyStateView.xib in Resources */,
 				AC88746027C366EB00BC65E9 /* Pods-Putio-acknowledgements.plist in Resources */,
@@ -800,6 +803,7 @@
 				AC9F15EC23B98A5700C09BAB /* UIView+FindSubView.swift in Sources */,
 				ACB7637124B3B439007289DA /* Debouncer.swift in Sources */,
 				AC6F93951FD6C22D00B2E79F /* DownloadsViewController.swift in Sources */,
+				AC918F6E2AF128920082BFAF /* RootContainerViewController.swift in Sources */,
 				ACF5681427856EC100A84B88 /* TrashTableViewCell.swift in Sources */,
 				ACDA73E22787362000C59611 /* TrashViewModel.swift in Sources */,
 				ACCBBB351FF0DB4600A44F9C /* SettingsViewModel.swift in Sources */,
@@ -1010,14 +1014,14 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 202;
+				CURRENT_PROJECT_VERSION = 208;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = STJ42L5PJH;
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = STJ42L5PJH;
 				INFOPLIST_FILE = Putio/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 2.56.0;
+				MARKETING_VERSION = 2.57.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1112,14 +1116,14 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 202;
+				CURRENT_PROJECT_VERSION = 208;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = STJ42L5PJH;
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = STJ42L5PJH;
 				INFOPLIST_FILE = Putio/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 2.56.0;
+				MARKETING_VERSION = 2.57.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",

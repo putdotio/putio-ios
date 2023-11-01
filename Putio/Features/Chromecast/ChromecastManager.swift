@@ -42,7 +42,7 @@ class ChromecastManager: NSObject {
         guard let user = realm.objects(User.self).first, let features = user.features else { return }
 
         #if DEBUG
-        debugEnabled = true
+        debugEnabled = false
         shouldSendLogsToSentry = false
         shouldPlayHLS = true
         #else
@@ -167,7 +167,7 @@ class ChromecastManager: NSObject {
                             languageCode: subtitle.languageCode,
                             customData: nil
                         )
-                        
+
                         if let mediaTrack = track {
                             mediaTracks.append(mediaTrack)
                             mediaInfo.mediaTracks = mediaTracks

@@ -11,7 +11,7 @@ platform :ios do
     )
   end
 
-  lane :build do
+  lane :beta do |options|
     setup_ci
     auth
     match(type: "appstore", platform: "ios")
