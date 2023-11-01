@@ -281,7 +281,7 @@ class SettingsViewModel {
                     title: "About",
                     type: .link,
                     icon: "iconInfo",
-                    value: "\(Bundle.main.versionNumber) (Build \(Bundle.main.buildNumber))",
+                    value: "\(Bundle.main.versionNumber)+\(Bundle.main.buildNumber)",
                     action: {
                         self.tableViewController?.performSegue(withIdentifier: "toAbout", sender: nil)
                     },

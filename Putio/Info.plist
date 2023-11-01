@@ -8,54 +8,7 @@
 	<string>put.io</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIcons</key>
-	<dict>
-		<key>CFBundleAlternateIcons</key>
-		<dict>
-			<key>rainbow</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>appIconRainbow</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>retro</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>appIconRetro</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-		</dict>
-	</dict>
-	<key>CFBundleIcons~ipad</key>
-	<dict>
-		<key>CFBundleAlternateIcons</key>
-		<dict>
-			<key>rainbow</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>appIconRainbow</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>retro</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>appIconRetro</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-		</dict>
-	</dict>
+
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -81,8 +34,32 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleIcons</key>
+<dict>
+    <key>CFBundlePrimaryIcon</key>
+    <dict>
+        <key>CFBundleIconFiles</key>
+        <array>
+            <string>AppIconRetro</string>
+        </array>
+        <key>UIPrerenderedIcon</key>
+        <false/>
+    </dict>
+    <key>CFBundleAlternateIcons</key>
+    <dict>
+        <key>AppIconRainbow</key>
+        <dict>
+            <key>CFBundleIconFiles</key>
+            <array>
+                <string>AppIconRainbow</string>
+            </array>
+            <key>UIPrerenderedIcon</key>
+            <false/>
+        </dict>
+    </dict>
+</dict>
 	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<string>208</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>IntercomAutoIntegratePushNotifications</key>
@@ -144,16 +121,10 @@ network.</string>
 	<string>UIStatusBarStyleLightContent</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
-		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>

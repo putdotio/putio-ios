@@ -166,20 +166,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func presentLoginScreen() {
-        let controller = UIStoryboard(name: "Login", bundle: nil).instantiateViewController(withIdentifier: "LoginVC")
-        window?.rootViewController = controller
+        window?.rootViewController = UIStoryboard(name: "Login", bundle: nil).instantiateViewController(withIdentifier: "LoginVC")
         window?.makeKeyAndVisible()
     }
 
     func presentMainScreen() {
         ChromecastManager.sharedInstance.setup()
-
-        let controller = UIStoryboard(name: "Main", bundle: nil).instantiateViewController(withIdentifier: "MainTabBarController")
-        let castContainerVC = GCKCastContext.sharedInstance().createCastContainerController(for: controller)
-        castContainerVC.miniMediaControlsItemEnabled = true
-        castContainerVC.view.backgroundColor = UIColor.Putio.black
-
-        window?.rootViewController = castContainerVC
+        window?.rootViewController = RootContainerViewController()
         window?.makeKeyAndVisible()
     }
 }
