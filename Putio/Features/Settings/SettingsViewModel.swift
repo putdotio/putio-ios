@@ -14,9 +14,14 @@ class SettingsViewModel {
         let realm = try! Realm()
         return realm.objects(User.self).first!.settings!
     }()
+    
+    var config: UserConfig = {
+        let realm = try! Realm()
+        return realm.objects(UserConfig.self).first!
+    }()
 
     var notificationTokens: [NotificationToken] = []
-
+    
     var tableViewController: SettingsTableViewController?
 
     var sections: [SettingsModel.Section] = []
@@ -52,8 +57,17 @@ class SettingsViewModel {
                 break
             }
         })
+        
+        let configOberserver = config.observe { change in
+            switch change {
+            case .change:
+                self.update()
+            default:
+                break
+            }
+        }
 
-        notificationTokens = [userObserver, settingsObserver]
+        notificationTokens = [userObserver, settingsObserver, configOberserver]
 
         NotificationCenter.default.addObserver(
             self,
@@ -82,7 +96,9 @@ class SettingsViewModel {
                         "historyEnabled": account.settings.historyEnabled,
                         "twoFactorEnabled": account.settings.twoFactorEnabled,
                         "trashEnabled": account.settings.trashEnabled,
-                        "showOptimisticUsage": account.settings.showOptimisticUsage
+                        "showOptimisticUsage": account.settings.showOptimisticUsage,
+                        "hideSubtitles": account.settings.hideSubtitles,
+                        "dontAutoSelectSubtitles": account.settings.dontAutoSelectSubtitles
                     ])
                 }
 
@@ -96,271 +112,290 @@ class SettingsViewModel {
         selectedSortByKey = SettingsModel.sortByKeys.first { $0.key == String(settings.sortBy.split(separator: "_")[0])}!
         selectedSortByDirection = SettingsModel.SortByDirection(key: String(settings.sortBy.split(separator: "_")[1]))
 
-        // MARK: account information
-        let accountInformationSection = SettingsModel.Section(
-            title: "Information",
-            items: [
-                SettingsModel.SectionItem(
-                    title: "Username",
-                    type: .text,
-                    icon: "iconUser",
-                    value: user.username,
-                    action: nil,
-                    visible: true
-                ),
-                SettingsModel.SectionItem(
-                    title: "Email address",
-                    type: .text,
-                    icon: "iconMail",
-                    value: user.mail,
-                    action: nil,
-                    visible: true
-                )
-            ]
-        )
-
-        // MARK: storage
-        let storageSection = SettingsModel.Section(
-            title: "Storage",
-            items: [
-                SettingsModel.SectionItem(
-                    title: "Usage",
-                    type: .button,
-                    icon: "iconServer",
-                    value: settings.showOptimisticUsage ?
-                        "\(user.disk!.available.bytesToHumanReadable()) free of \(user.disk!.size.bytesToHumanReadable())" :
-                        "\(user.disk!.used.bytesToHumanReadable()) of \(user.disk!.size.bytesToHumanReadable()) used",
-                    action: {
-                        self.toggleOptimisticUsage()
-                    },
-                    visible: true
-                ),
-                SettingsModel.SectionItem(
-                    title: "Move deleted files to trash",
-                    type: .toggle,
-                    icon: "iconRecycle",
-                    value: settings.trashEnabled,
-                    action: {
-                        self.toggleTrashEnabled()
-                    },
-                    visible: true
-                ),
-                SettingsModel.SectionItem(
-                    title: "Manage your trash",
-                    type: .link,
-                    icon: "iconTrash",
-                    value: user.trashSize > 0 ? user.trashSize.bytesToHumanReadable() : "",
-                    action: {
-                        self.tableViewController?.performSegue(withIdentifier: "toTrash", sender: nil)
-                    },
-                    visible: settings.trashEnabled
-                )
-            ]
-        )
-
-        // MARK: security
-        let securitySection = SettingsModel.Section(
-            title: "Security",
-            items: [
-                SettingsModel.SectionItem(
-                    title: "Two-factor authentication",
-                    type: .toggle,
-                    icon: "flaticons-stroke-lock-2",
-                    value: settings.twoFactorEnabled,
-                    action: {
-                        if self.settings.twoFactorEnabled {
-                            self.tableViewController?.toDisableTwoFactor()
-                        } else {
-                            self.tableViewController?.toEnableTwoFactor()
-                        }
-                    },
-                    visible: true
-                ),
-                SettingsModel.SectionItem(
-                    title: "View your two-factor recovery codes",
-                    type: .link,
-                    icon: "flaticons-stroke-briefcase-1",
-                    value: "",
-                    action: {
-                        self.tableViewController?.toTwoFactorRecoveryCodes(action: .regenerateCodes)
-                    },
-                    visible: settings.twoFactorEnabled
-                ),
-                SettingsModel.SectionItem(
-                    title: "Where you are logged in",
-                    type: .link,
-                    icon: "iconGlobe",
-                    value: "",
-                    action: {
-                        self.tableViewController?.performSegue(withIdentifier: "toAuthApps", sender: nil)
-                    },
-                    visible: true
-                ),
-                SettingsModel.SectionItem(
-                    title: "Link your account",
-                    type: .link,
-                    icon: "iconTV",
-                    value: "",
-                    action: {
-                        self.tableViewController?.performSegue(withIdentifier: "toLinkDevice", sender: nil)
-                    },
-                    visible: true
-                )
-            ]
-        )
-
-        // MARK: preferences
-        let preferencesSection = SettingsModel.Section(
-            title: "Preferences",
-            items: [
-                SettingsModel.SectionItem(
-                    title: "Choose your proxy",
-                    type: .link,
-                    icon: "iconRoute",
-                    value: settings.routeName == "default" ? "Amsterdam" : settings.routeName,
-                    action: {
-                        self.tableViewController?.performSegue(withIdentifier: "toRoutes", sender: nil)
-                    },
-                    visible: true
-                ),
-                SettingsModel.SectionItem(
-                    title: "Keep populating history",
-                    type: .toggle,
-                    icon: "iconHistory",
-                    value: settings.historyEnabled,
-                    action: {
-                        self.toggleHistoryEnabled()
-                    },
-                    visible: true
-                )
-            ]
-        )
-
-        // MARK: appearance
-        let appearanceSection = SettingsModel.Section(
-            title: "Appearance",
-            items: [
-                SettingsModel.SectionItem(
-                    title: "Change app icon",
-                    type: .button,
-                    icon: "flaticons-stroke-iphone-1",
-                    value: "",
-                    action: {
-                        self.tableViewController?.performSegue(withIdentifier: "toAppIconSettings", sender: nil)
-                    },
-                    visible: true
-                ),
-                SettingsModel.SectionItem(
-                    title: "Default sort option for files",
-                    type: .button,
-                    icon: "iconAlignLeft",
-                    value: "\(selectedSortByKey.label) \(selectedSortByDirection.label)",
-                    action: {
-                        self.presentSortSettings()
-                    },
-                    visible: true
-                ),
-                SettingsModel.SectionItem(
-                    title: "Reset all sort settings",
-                    type: .button,
-                    icon: "iconRefresh",
-                    value: "",
-                    action: {
-                        self.resetSortSettings()
-                    },
-                    visible: true
-                )
-            ]
-        )
-
-        // MARK: support
-        let supportSection = SettingsModel.Section(
-            title: "Support",
-            items: [
-                SettingsModel.SectionItem(
-                    title: "About",
-                    type: .link,
-                    icon: "iconInfo",
-                    value: "\(Bundle.main.versionNumber)+\(Bundle.main.buildNumber)",
-                    action: {
-                        self.tableViewController?.performSegue(withIdentifier: "toAbout", sender: nil)
-                    },
-                    visible: true
-                ),
-                SettingsModel.SectionItem(
-                    title: "Rate put.io on App Store",
-                    type: .button,
-                    icon: "iconStar",
-                    value: "",
-                    action: {
-                        AppStoreReviewManager.sharedInstance.requestReviewManually()
-                    },
-                    visible: true
-                ),
-                SettingsModel.SectionItem(
-                    title: "Contact us",
-                    type: .button,
-                    icon: Intercom.unreadConversationCount() > 0 ? "iconChatBadge" : "iconChat",
-                    value: "",
-                    action: {
-                        Intercom.present()
-                    },
-                    visible: true
-                )
-            ]
-        )
-
-        // MARK: danger zone
-        let dangerZoneSection = SettingsModel.Section(
-            title: "Danger Zone",
-            items: [
-                SettingsModel.SectionItem(
-                    title: "Clear your data",
-                    type: .link,
-                    icon: "iconRemoveFolder",
-                    value: "",
-                    action: {
-                        self.tableViewController?.performSegue(withIdentifier: "toClearData", sender: nil)
-                    },
-                    visible: true
-                ),
-                SettingsModel.SectionItem(
-                    title: "Destroy your account",
-                    type: .link,
-                    icon: "flaticons-stroke-x-2",
-                    value: "",
-                    action: {
-                        self.tableViewController?.performSegue(withIdentifier: "toDestroyAccount", sender: nil)
-                    },
-                    visible: true
-                )
-            ]
-        )
-
-        // MARK: logout
-        let logoutSection = SettingsModel.Section(title: "", items: [
-            SettingsModel.SectionItem(
-                title: "Log out",
-                type: .button,
-                icon: "iconLogout",
-                value: "",
-                action: {
-                    self.presentLogoutAlert()
-                },
-                visible: true
-            )
-        ])
-
-        // MARK: merge sections
         sections = [
-            accountInformationSection,
-            securitySection,
-            storageSection,
-            appearanceSection,
-            preferencesSection,
-            supportSection,
-            dangerZoneSection,
-            logoutSection
+            SettingsModel.Section(
+                title: "Information",
+                items: [
+                    SettingsModel.SectionItem(
+                        title: "Username",
+                        type: .text,
+                        icon: "iconUser",
+                        value: user.username,
+                        action: nil,
+                        visible: true
+                    ),
+                    SettingsModel.SectionItem(
+                        title: "Email address",
+                        type: .text,
+                        icon: "iconMail",
+                        value: user.mail,
+                        action: nil,
+                        visible: true
+                    )
+                ]
+            ),
+            
+            SettingsModel.Section(
+                title: "Storage",
+                items: [
+                    SettingsModel.SectionItem(
+                        title: "Usage",
+                        type: .button,
+                        icon: "iconServer",
+                        value: settings.showOptimisticUsage ?
+                            "\(user.disk!.available.bytesToHumanReadable()) free of \(user.disk!.size.bytesToHumanReadable())" :
+                            "\(user.disk!.used.bytesToHumanReadable()) of \(user.disk!.size.bytesToHumanReadable()) used",
+                        action: {
+                            self.toggleOptimisticUsage()
+                        },
+                        visible: true
+                    ),
+                    SettingsModel.SectionItem(
+                        title: "Move deleted files to trash",
+                        type: .toggle,
+                        icon: "iconRecycle",
+                        value: settings.trashEnabled,
+                        action: {
+                            self.toggleTrashEnabled()
+                        },
+                        visible: true
+                    ),
+                    SettingsModel.SectionItem(
+                        title: "Manage your trash",
+                        type: .link,
+                        icon: "iconTrash",
+                        value: user.trashSize > 0 ? user.trashSize.bytesToHumanReadable() : "",
+                        action: {
+                            self.tableViewController?.performSegue(withIdentifier: "toTrash", sender: nil)
+                        },
+                        visible: settings.trashEnabled
+                    )
+                ]
+            ),
+            
+            SettingsModel.Section(
+                title: "Files",
+                items: [
+                    SettingsModel.SectionItem(
+                        title: "Default sort option for files",
+                        type: .button,
+                        icon: "iconAlignLeft",
+                        value: "\(selectedSortByKey.label) \(selectedSortByDirection.label)",
+                        action: {
+                            self.presentSortSettings()
+                        },
+                        visible: true
+                    ),
+                    SettingsModel.SectionItem(
+                        title: "Reset all sort settings",
+                        type: .button,
+                        icon: "iconRefresh",
+                        value: "",
+                        action: {
+                            self.resetSortSettings()
+                        },
+                        visible: true
+                    )
+                ]
+            ),
+            
+            SettingsModel.Section(
+                title: "Media playback",
+                items: [
+                    SettingsModel.SectionItem(
+                        title: "Choose your proxy",
+                        type: .link,
+                        icon: "iconRoute",
+                        value: settings.routeName == "default" ? "Amsterdam" : settings.routeName,
+                        action: {
+                            self.tableViewController?.performSegue(withIdentifier: "toRoutes", sender: nil)
+                        },
+                        visible: true
+                    ),
+                    SettingsModel.SectionItem(
+                        title: "Chromecast video playback type",
+                        type: .link,
+                        icon: "flaticons-solid-film-1",
+                        value: config.chromecastPlaybackType.uppercased(with: .autoupdatingCurrent),
+                        action: {
+                            let value = self.config.chromecastPlaybackType == "hls" ? "mp4" : "hls"
+                            self.saveConfig(key: "chromecast_playback_type", realmKey: "chromecastPlaybackType", value: value)
+                        },
+                        visible: true
+                    ),
+                    SettingsModel.SectionItem(
+                        title: "Show subtitles",
+                        type: .toggle,
+                        icon: "flaticons-solid-text-1",
+                        value: !settings.hideSubtitles,
+                        action: {
+                            self.saveSetting(key: "hide_subtitles", realmKey: "hideSubtitles", value: !self.settings.hideSubtitles)
+                        },
+                        visible: true
+                    ),
+                    SettingsModel.SectionItem(
+                        title: "Do not select subtitles by default",
+                        type: .toggle,
+                        icon: "flaticons-solid-text-1",
+                        value: settings.dontAutoSelectSubtitles,
+                        action: {
+                            self.saveSetting(key: "dont_autoselect_subtitles", realmKey: "dontAutoSelectSubtitles", value: !self.settings.dontAutoSelectSubtitles)
+                        },
+                        visible: !settings.hideSubtitles
+                    )
+                ]
+            ),
+            
+            SettingsModel.Section(
+                title: "Security",
+                items: [
+                    SettingsModel.SectionItem(
+                        title: "Two-factor authentication",
+                        type: .toggle,
+                        icon: "flaticons-stroke-lock-2",
+                        value: settings.twoFactorEnabled,
+                        action: {
+                            if self.settings.twoFactorEnabled {
+                                self.tableViewController?.toDisableTwoFactor()
+                            } else {
+                                self.tableViewController?.toEnableTwoFactor()
+                            }
+                        },
+                        visible: true
+                    ),
+                    SettingsModel.SectionItem(
+                        title: "View your two-factor recovery codes",
+                        type: .link,
+                        icon: "flaticons-stroke-briefcase-1",
+                        value: "",
+                        action: {
+                            self.tableViewController?.toTwoFactorRecoveryCodes(action: .regenerateCodes)
+                        },
+                        visible: settings.twoFactorEnabled
+                    ),
+                    SettingsModel.SectionItem(
+                        title: "Where you are logged in",
+                        type: .link,
+                        icon: "iconGlobe",
+                        value: "",
+                        action: {
+                            self.tableViewController?.performSegue(withIdentifier: "toAuthApps", sender: nil)
+                        },
+                        visible: true
+                    ),
+                    SettingsModel.SectionItem(
+                        title: "Link your account",
+                        type: .link,
+                        icon: "iconTV",
+                        value: "",
+                        action: {
+                            self.tableViewController?.performSegue(withIdentifier: "toLinkDevice", sender: nil)
+                        },
+                        visible: true
+                    )
+                ]
+            ),
+            
+            SettingsModel.Section(
+                title: "Privacy and safety",
+                items: [
+                    SettingsModel.SectionItem(
+                        title: "Keep populating history",
+                        type: .toggle,
+                        icon: "iconHistory",
+                        value: settings.historyEnabled,
+                        action: {
+                            self.toggleHistoryEnabled()
+                        },
+                        visible: true
+                    )
+                ]
+            ),
+            
+            SettingsModel.Section(
+                title: "Support",
+                items: [
+                    SettingsModel.SectionItem(
+                        title: "About",
+                        type: .link,
+                        icon: "iconInfo",
+                        value: "\(Bundle.main.versionNumber)+\(Bundle.main.buildNumber)",
+                        action: {
+                            self.tableViewController?.performSegue(withIdentifier: "toAbout", sender: nil)
+                        },
+                        visible: true
+                    ),
+                    SettingsModel.SectionItem(
+                        title: "Change app icon",
+                        type: .button,
+                        icon: "flaticons-stroke-iphone-1",
+                        value: "",
+                        action: {
+                            self.tableViewController?.performSegue(withIdentifier: "toAppIconSettings", sender: nil)
+                        },
+                        visible: true
+                    ),
+                    SettingsModel.SectionItem(
+                        title: "Rate put.io on App Store",
+                        type: .button,
+                        icon: "iconStar",
+                        value: "",
+                        action: {
+                            AppStoreReviewManager.sharedInstance.requestReviewManually()
+                        },
+                        visible: true
+                    ),
+                    SettingsModel.SectionItem(
+                        title: "Contact us",
+                        type: .button,
+                        icon: Intercom.unreadConversationCount() > 0 ? "iconChatBadge" : "iconChat",
+                        value: "",
+                        action: {
+                            Intercom.present()
+                        },
+                        visible: true
+                    )
+                ]
+            ),
+            
+            SettingsModel.Section(
+                title: "Danger Zone",
+                items: [
+                    SettingsModel.SectionItem(
+                        title: "Clear your data",
+                        type: .link,
+                        icon: "iconRemoveFolder",
+                        value: "",
+                        action: {
+                            self.tableViewController?.performSegue(withIdentifier: "toClearData", sender: nil)
+                        },
+                        visible: true
+                    ),
+                    SettingsModel.SectionItem(
+                        title: "Destroy your account",
+                        type: .link,
+                        icon: "flaticons-stroke-x-2",
+                        value: "",
+                        action: {
+                            self.tableViewController?.performSegue(withIdentifier: "toDestroyAccount", sender: nil)
+                        },
+                        visible: true
+                    )
+                ]
+            ),
+            
+            SettingsModel.Section(title: "", items: [
+                SettingsModel.SectionItem(
+                    title: "Log out",
+                    type: .button,
+                    icon: "iconLogout",
+                    value: "",
+                    action: {
+                        self.presentLogoutAlert()
+                    },
+                    visible: true
+                )
+            ])
         ]
 
         self.tableViewController?.tableView.reloadData()
@@ -377,6 +412,33 @@ class SettingsViewModel {
                         let realm = try! Realm()
                         try! realm.write {
                             self.settings[realmKey] = value
+                        }
+
+                    case .failure(let error):
+                        let localizedError = api.localizeError(error: error)
+
+                        let errorAlert = UIAlertController(title: localizedError.message, message: localizedError.recoverySuggestion.description, preferredStyle: .alert)
+                        errorAlert.addAction(UIAlertAction(title: "OK", style: .cancel, handler: nil))
+
+                        self.update()
+                        self.tableViewController?.present(errorAlert, animated: true, completion: nil)
+                    }
+                }
+            }
+        })
+    }
+    
+    func saveConfig(key: String, realmKey: String, value: Any) {
+        let loadingAlert = UIAlertController(title: "Saving...", message: nil, preferredStyle: .alert)
+
+        self.tableViewController?.present(loadingAlert, animated: true, completion: {
+            api.put("/config/\(key)", body: ["value": value]) { result in
+                loadingAlert.dismiss(animated: true) {
+                    switch result {
+                    case .success:
+                        let realm = try! Realm()
+                        try! realm.write {
+                            self.config[realmKey] = value
                         }
 
                     case .failure(let error):

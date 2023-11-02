@@ -3,7 +3,7 @@ import RealmSwift
 
 class PutioRealm {
     static func setup() {
-        let latestSchemaVersion: UInt64 = 10
+        let latestSchemaVersion: UInt64 = 11
 
         let config = Realm.Configuration(
             schemaVersion: latestSchemaVersion,
@@ -39,24 +39,6 @@ class PutioRealm {
                     })
                 }
 
-                if oldSchemaVersion < 5 {
-                    migration.enumerateObjects(ofType: User.className(), { (_, newAppUser) in
-                        migration.enumerateObjects(ofType: UserFeatures.className(), { (_, newAppUserFeatures) in
-                            newAppUserFeatures!["debugChromecast"] = false
-                            newAppUser!["features"] = newAppUserFeatures
-                        })
-                    })
-                }
-
-                if oldSchemaVersion < 6 {
-                    migration.enumerateObjects(ofType: User.className(), { (_, newAppUser) in
-                        migration.enumerateObjects(ofType: UserFeatures.className(), { (_, newAppUserFeatures) in
-                            newAppUserFeatures!["downloadVideosAsMp4"] = false
-                            newAppUser!["features"] = newAppUserFeatures
-                        })
-                    })
-                }
-
                 if oldSchemaVersion < 7 {
                     migration.enumerateObjects(ofType: User.className(), { (_, newAppUser) in
                         migration.enumerateObjects(ofType: UserSettings.className(), { (_, newAppUserSettings) in
@@ -67,15 +49,6 @@ class PutioRealm {
                         migration.enumerateObjects(ofType: UserDisk.className(), { (_, newAppUserDisk) in
                             newAppUserDisk!["used"] = 0
                             newAppUser!["disk"] = newAppUserDisk
-                        })
-                    })
-                }
-
-                if oldSchemaVersion < 8 {
-                    migration.enumerateObjects(ofType: User.className(), { (_, newAppUser) in
-                        migration.enumerateObjects(ofType: UserFeatures.className(), { (_, newAppUserFeatures) in
-                            newAppUserFeatures!["playHLSOnChromecast"] = false
-                            newAppUser!["features"] = newAppUserFeatures
                         })
                     })
                 }
@@ -94,11 +67,19 @@ class PutioRealm {
                         })
                     })
                 }
+                
+                if oldSchemaVersion < 11 {
+                    migration.enumerateObjects(ofType: User.className(), { (_, newAppUser) in
+                        migration.enumerateObjects(ofType: UserSettings.className(), { (_, newAppUserSettings) in
+                            newAppUserSettings!["hideSubtitles"] = false
+                            newAppUserSettings!["dontAutoSelectSubtitles"] = false
+                            newAppUser!["settings"] = newAppUserSettings
+                        })
+                    })
+                }
             }
         )
 
         Realm.Configuration.defaultConfiguration = config
-
-        // log.debug("Realm \(Realm.Configuration.defaultConfiguration.fileURL?.path)", context: nil)
     }
 }

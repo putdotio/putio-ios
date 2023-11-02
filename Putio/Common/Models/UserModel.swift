@@ -1,6 +1,7 @@
 import Foundation
 import RealmSwift
 import PutioAPI
+import SwiftyJSON
 
 class User: Object {
     @objc dynamic var id: Int = 0
@@ -11,7 +12,6 @@ class User: Object {
     @objc dynamic var disk: UserDisk?
     @objc dynamic var trashSize: Int64 = 0
     @objc dynamic var settings: UserSettings?
-    @objc dynamic var features: UserFeatures?
 
     convenience init?(account: PutioAccount) {
         self.init()
@@ -22,7 +22,6 @@ class User: Object {
         self.disk = UserDisk(disk: account.disk)
         self.trashSize = account.trashSize
         self.settings = UserSettings(settings: account.settings)
-        self.features = UserFeatures(features: account.features)
     }
 
     override static func primaryKey() -> String? {
@@ -52,6 +51,8 @@ class UserSettings: Object {
     @objc dynamic var sortBy: String = ""
     @objc dynamic var showOptimisticUsage: Bool = false
     @objc dynamic var twoFactorEnabled: Bool = false
+    @objc dynamic var hideSubtitles: Bool = false
+    @objc dynamic var dontAutoSelectSubtitles: Bool = false
 
     convenience init?(settings: PutioAccount.Settings) {
         self.init()
@@ -63,27 +64,25 @@ class UserSettings: Object {
         self.trashEnabled = settings.trashEnabled
         self.showOptimisticUsage = settings.showOptimisticUsage
         self.twoFactorEnabled = settings.twoFactorEnabled
+        self.hideSubtitles = settings.hideSubtitles
+        self.dontAutoSelectSubtitles = settings.dontAutoSelectSubtitles
     }
 }
 
-class UserFeatures: Object {
-    @objc dynamic var downloadVideosAsMp4: Bool = false
-    @objc dynamic var debugChromecast: Bool = false
-    @objc dynamic var playHLSOnChromecast: Bool = false
+class UserConfig: Object {
+    @objc dynamic var chromecastPlaybackType: String = "hls"
 
-    convenience init?(features: [String: Any]) {
+    convenience init?(json: JSON) {
         self.init()
+        
+        log.debug(json)
 
-        if let debugChromecast = features["ios_debug_chromecast"] {
-            self.debugChromecast = debugChromecast as! Bool
-        } else {
-            self.debugChromecast = false
-        }
+        let chromecastPlaybackType = json["chromecast_playback_type"].stringValue
 
-        if let playHLSOnChromecast = features["ios_play_hls_on_chromecast"] {
-            self.playHLSOnChromecast = playHLSOnChromecast as! Bool
+        if chromecastPlaybackType.isEmpty || (chromecastPlaybackType != "hls" && chromecastPlaybackType != "mp4") {
+            self.chromecastPlaybackType = "hls"
         } else {
-            self.playHLSOnChromecast = false
+            self.chromecastPlaybackType = chromecastPlaybackType
         }
     }
 }
