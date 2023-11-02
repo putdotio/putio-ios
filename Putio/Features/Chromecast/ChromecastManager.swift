@@ -19,14 +19,19 @@ class ChromecastManager: NSObject {
     var castingFileId: Int?
     var timer: Timer?
 
-    var shouldPlayHLS: Bool = false
-    var shouldSendLogsToSentry = false
-    var debugEnabled: Bool = false
+    var debug: Bool = false
+
+    var userSettings: UserSettings? = {
+        let realm = try! Realm()
+        return realm.objects(User.self).first?.settings
+    }()
+
+    var userConfig: UserConfig? = {
+        let realm = try! Realm()
+        return realm.objects(UserConfig.self).first
+    }()
 
     func setup() {
-        configureFeatureFlags()
-        configureLogger()
-
         let discoveryCriteria = GCKDiscoveryCriteria(applicationID: CHROMECAST_RECEIVER_APP_ID)
         let options = GCKCastOptions(discoveryCriteria: discoveryCriteria)
 
@@ -34,22 +39,8 @@ class ChromecastManager: NSObject {
         GCKCastContext.sharedInstance().useDefaultExpandedMediaControls = true
         GCKCastContext.sharedInstance().sessionManager.add(self)
 
+        configureLogger()
         stylize()
-    }
-
-    func configureFeatureFlags() {
-        let realm = try! Realm()
-        guard let user = realm.objects(User.self).first, let features = user.features else { return }
-
-        #if DEBUG
-        debugEnabled = false
-        shouldSendLogsToSentry = false
-        shouldPlayHLS = true
-        #else
-        debugEnabled = features.debugChromecast
-        shouldSendLogsToSentry = features.debugChromecast
-        shouldPlayHLS = features.playHLSOnChromecast
-        #endif
     }
 
     private func configureLogger() {
@@ -65,7 +56,7 @@ class ChromecastManager: NSObject {
             "NSMutableDictionary"
         ]
 
-        let loggingLevel: GCKLoggerLevel = debugEnabled ? .debug : .none
+        let loggingLevel: GCKLoggerLevel = debug ? .debug : .none
         logFilter.setLoggingLevel(loggingLevel, forClasses: classesToLog)
 
         GCKLogger.sharedInstance().filter = logFilter
@@ -138,7 +129,8 @@ class ChromecastManager: NSObject {
         let mediaInfo = GCKMediaInformationBuilder()
         mediaInfo.metadata = metadata
 
-        if shouldPlayHLS {
+        if userConfig?.chromecastPlaybackType == "hls" {
+            log.debug("Chromecast: playing HLS")
             mediaInfo.contentID = file.getHlsStreamURL(token: api.config.token).absoluteString
             mediaInfo.streamType = .none
             mediaInfo.contentType = "video/m3u"
@@ -174,7 +166,9 @@ class ChromecastManager: NSObject {
                         }
                     }
 
-                    mediaLoadOptions.activeTrackIDs = [0]
+                    let shouldAutoSelectSubtitle = (self.userSettings?.dontAutoSelectSubtitles ?? false) ? false : true
+                    log.debug("Chromecast: shouldAutoSelectSubtitle -> \(shouldAutoSelectSubtitle)")
+                    mediaLoadOptions.activeTrackIDs =  shouldAutoSelectSubtitle ? [0] : nil
                 }
 
                 completion(mediaInfo.build(), nil)
@@ -242,13 +236,7 @@ class ChromecastManager: NSObject {
     }
 
     func logError(error: Error) {
-        if debugEnabled {
-            log.error(error)
-
-            if shouldSendLogsToSentry {
-                SentrySDK.capture(error: error)
-            }
-        }
+        if debug { log.error(error) }
     }
 }
 
@@ -276,8 +264,6 @@ extension ChromecastManager: GCKSessionManagerListener {
 
 extension ChromecastManager: GCKLoggerDelegate {
     func logMessage(_ message: String, at level: GCKLoggerLevel, fromFunction function: String, location: String) {
-        if debugEnabled {
-            log.debug("\(function)  \(message)")
-        }
+        if debug { log.debug("\(function) - \(message)") }
     }
 }

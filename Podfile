@@ -8,7 +8,7 @@ target 'Putio' do
   pod 'Intercom', '14.0.0'
   pod 'KeychainAccess'
   pod 'NFDownloadButton', '0.0.2'
-  pod 'PutioAPI', :git => 'https://github.com/putdotio/putio-swift.git', :tag => '1.3.0'
+  pod 'PutioAPI', :git => 'https://github.com/putdotio/putio-swift.git', :tag => '1.5.0'
   pod 'RealmSwift', '~> 3.19.0'
   pod 'Sentry', :git => 'https://github.com/getsentry/sentry-cocoa.git', :tag => '7.9.0'
   pod 'StatefulViewController', '~> 3.0'

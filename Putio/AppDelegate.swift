@@ -87,40 +87,72 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         PutioKeychain.sharedInstance.setToken(token)
         api.setToken(token: token)
-        fetchUserData()
+        fetchUser()
     }
 
-    func fetchUserData() {
+    func fetchUser() {
+        let dispatchGroup = DispatchGroup()
+        
+        var account: PutioAccount?
+        var accountError: PutioAPIError?
+        
+        var config: JSON?
+        var configError: PutioAPIError?
+        
         let accountInfoQuery: [String: Any] = [
             "download_token": 1,
-            "features": 1,
             "intercom": 1,
             "platform": "ios"
         ]
 
+        dispatchGroup.enter()
         api.getAccountInfo(query: accountInfoQuery) { result in
             switch result {
-            case .success(let account):
-                return self.fetchUserDataSuccess(account: account)
-
+            case .success(let accountData):
+                account = accountData
             case .failure(let error):
-                return self.fetchUserDataFailure(error: error)
+                accountError = error
+            }
+            dispatchGroup.leave()
+        }
+        
+        dispatchGroup.enter()
+        api.get("/config") { result in
+            switch result {
+            case .success(let json):
+                config = json["config"]
+            case .failure(let error):
+                configError = error
+            }
+            dispatchGroup.leave()
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            if let accountError = accountError {
+                return self.fetchUserFailure(error: accountError)
+            }
+            
+            if let configError = configError {
+                return self.fetchUserFailure(error: configError)
+            }
+            
+            if let account = account, let config = config {
+                return self.fetchUserSuccess(account: account, config: config)
             }
         }
     }
 
-    func fetchUserDataSuccess(account: PutioAccount) {
+    func fetchUserSuccess(account: PutioAccount, config: JSON) {
         let realm = try! Realm()
         let user = realm.objects(User.self).first
+        let userConfig = realm.objects(UserConfig.self).first
 
-        if let user = user {
-            try! realm.write {
-                realm.delete(user)
-            }
-        }
-
+        if let user = user { try! realm.write { realm.delete(user) } }
+        if let userConfig = userConfig { try! realm.write { realm.delete(userConfig) } }
+    
         try! realm.write {
             realm.add(User(account: account)!, update: .all)
+            realm.add(UserConfig(json: config)!)
         }
 
         Utils.authorizeNotifications(application: UIApplication.shared)
@@ -133,7 +165,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         self.presentMainScreen()
     }
 
-    func fetchUserDataFailure(error: PutioAPIError) {
+    func fetchUserFailure(error: PutioAPIError) {
         let realm = try! Realm()
         let user = realm.objects(User.self).first
 
