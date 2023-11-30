@@ -1,10 +1,3 @@
-//
-//  Button.swift
-//  Putio
-//
-//  Created by Altay Aydemir on 10.05.2022.
-//  Copyright © 2022 Put.io. All rights reserved.
-//
 
 import UIKit
 
