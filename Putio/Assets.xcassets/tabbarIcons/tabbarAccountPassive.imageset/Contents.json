@@ -1,23 +1,23 @@
 {
-  "images" : [
+  "images": [
     {
-      "filename" : "tabbarAccountPassive.png",
-      "idiom" : "universal",
-      "scale" : "1x"
+      "filename": "tabbarAccountPassive.png",
+      "idiom": "universal",
+      "scale": "1x"
     },
     {
-      "filename" : "tabbarAccountPassive@2x.png",
-      "idiom" : "universal",
-      "scale" : "2x"
+      "filename": "tabbarAccountPassive@2x.png",
+      "idiom": "universal",
+      "scale": "2x"
     },
     {
-      "filename" : "tabbarAccountPassive@3x.png",
-      "idiom" : "universal",
-      "scale" : "3x"
+      "filename": "tabbarAccountPassive@3x.png",
+      "idiom": "universal",
+      "scale": "3x"
     }
   ],
-  "info" : {
-    "author" : "xcode",
-    "version" : 1
+  "info": {
+    "author": "xcode",
+    "version": 1
   }
 }

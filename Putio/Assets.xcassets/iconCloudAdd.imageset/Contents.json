@@ -1,23 +1,23 @@
 {
-  "images" : [
+  "images": [
     {
-      "filename" : "iconCloudAdd.png",
-      "idiom" : "universal",
-      "scale" : "1x"
+      "filename": "iconCloudAdd.png",
+      "idiom": "universal",
+      "scale": "1x"
     },
     {
-      "filename" : "iconCloudAdd@2x.png",
-      "idiom" : "universal",
-      "scale" : "2x"
+      "filename": "iconCloudAdd@2x.png",
+      "idiom": "universal",
+      "scale": "2x"
     },
     {
-      "filename" : "iconCloudAdd@3x.png",
-      "idiom" : "universal",
-      "scale" : "3x"
+      "filename": "iconCloudAdd@3x.png",
+      "idiom": "universal",
+      "scale": "3x"
     }
   ],
-  "info" : {
-    "author" : "xcode",
-    "version" : 1
+  "info": {
+    "author": "xcode",
+    "version": 1
   }
 }

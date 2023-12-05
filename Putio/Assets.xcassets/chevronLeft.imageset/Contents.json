@@ -1,23 +1,23 @@
 {
-  "images" : [
+  "images": [
     {
-      "filename" : "chevronLeft.png",
-      "idiom" : "universal",
-      "scale" : "1x"
+      "filename": "chevronLeft.png",
+      "idiom": "universal",
+      "scale": "1x"
     },
     {
-      "filename" : "chevronLeft@2x.png",
-      "idiom" : "universal",
-      "scale" : "2x"
+      "filename": "chevronLeft@2x.png",
+      "idiom": "universal",
+      "scale": "2x"
     },
     {
-      "filename" : "chevronLeft@3x.png",
-      "idiom" : "universal",
-      "scale" : "3x"
+      "filename": "chevronLeft@3x.png",
+      "idiom": "universal",
+      "scale": "3x"
     }
   ],
-  "info" : {
-    "author" : "xcode",
-    "version" : 1
+  "info": {
+    "author": "xcode",
+    "version": 1
   }
 }
