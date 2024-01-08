@@ -1645,15 +1645,6 @@
 /* loco:620a37f3ed852c2ee5650e8c */
 "payment_history_title" = "Payment History";
 
-/* loco:620a37f4e24f1e3f0218e381 */
-"payment_method_coinbase" = "Cryptocurrency";
-
-/* loco:620a37f56543e209155730f4 */
-"payment_method_coinbase_failure" = "Payment failed, please try again :(";
-
-/* loco:620a37f6e24f1e3f0218e383 */
-"payment_method_coinbase_success" = "Payment confirmed!";
-
 /* loco:620a37f6904a4742b40ce1f8 */
 "payment_method_credit_card" = "Credit Card";
 
