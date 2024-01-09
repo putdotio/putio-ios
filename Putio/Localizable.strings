@@ -1663,15 +1663,6 @@
 /* loco:620a37fa95fb0871e3529c22 */
 "payment_method_credit_card_fs_verification_fail" = "Something went wrong on payment verification";
 
-/* loco:620a37fbcc18a4182953b16a */
-"payment_method_credit_card_paddle" = "Credit Card";
-
-/* loco:620a37fbb6704465e31ab212 */
-"payment_method_credit_card_paddle_failure" = "Payment failed, please try again :(";
-
-/* loco:620a37fcdf69ba641c1d3913 */
-"payment_method_credit_card_paddle_success" = "Payment confirmed!";
-
 /* loco:620a37fd6543e209155730f6 */
 "payment_method_credit_card_redirect" = "You will be redirected to our payment processor, Fastspring, in %@ seconds...";
 
@@ -1692,15 +1683,6 @@
 
 /* loco:620a38027890eb74fa4a0e14 */
 "payment_method_modal_title" = "Please select a payment method";
-
-/* loco:620a3803df69ba641c1d3917 */
-"payment_method_nano" = "Nano (%20 off!)";
-
-/* loco:620a380369b37b0f5476ec82 */
-"payment_method_nano_failure" = "Payment failed, please try again :(";
-
-/* loco:620a3804b6704465e31ab218 */
-"payment_method_nano_success" = "Payment confirmed!";
 
 /* loco:620a3805a6e595444d1c7c32 */
 "payment_method_other" = "Local Options";
