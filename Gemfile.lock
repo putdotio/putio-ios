@@ -277,9 +277,12 @@ PLATFORMS
   arm64-darwin-23
 
 DEPENDENCIES
-  cocoapods (~> 1.13.0)
+  cocoapods (~> 1.13)
   fastlane
   fastlane-plugin-versioning
+
+RUBY VERSION
+   ruby 3.2.2p53
 
 BUNDLED WITH
    2.4.21
