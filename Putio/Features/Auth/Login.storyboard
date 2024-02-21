@@ -1,288 +1,77 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0"
-    toolsVersion="21507" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none"
-    useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
-    <device id="retina5_9" orientation="portrait" appearance="light" />
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="22505" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina5_9" orientation="portrait" appearance="light"/>
     <dependencies>
-        <deployment identifier="iOS" />
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="21505" />
-        <capability name="Named colors" minToolsVersion="9.0" />
-        <capability name="Safe area layout guides" minToolsVersion="9.0" />
-        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0" />
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="22504"/>
+        <capability name="Named colors" minToolsVersion="9.0"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
         <!--LoginViewController-->
         <scene sceneID="FMu-4h-k7P">
             <objects>
-                <viewController storyboardIdentifier="LoginVC" title="LoginViewController"
-                    id="vpr-ij-Ovy" customClass="LoginViewController" customModule="Putio"
-                    customModuleProvider="target" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="LoginVC" title="LoginViewController" id="vpr-ij-Ovy" customClass="LoginViewController" customModule="Putio" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="1lo-re-agi">
-                        <rect key="frame" x="0.0" y="0.0" width="375" height="812" />
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES"
-                            heightSizable="YES" />
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="812"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit"
-                                horizontalHuggingPriority="251" verticalHuggingPriority="251"
-                                image="logoRetro" translatesAutoresizingMaskIntoConstraints="NO"
-                                id="YWa-EU-CUQ">
-                                <rect key="frame" x="-94.666666666666686" y="147"
-                                    width="564.33333333333337" height="60" />
+                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="logoRetro" translatesAutoresizingMaskIntoConstraints="NO" id="YWa-EU-CUQ">
+                                <rect key="frame" x="67.666666666666686" y="342" width="240" height="144"/>
                                 <constraints>
-                                    <constraint firstAttribute="height" constant="60"
-                                        id="7dd-VH-TFN" />
+                                    <constraint firstAttribute="width" constant="240" id="7dd-VH-TFN"/>
                                 </constraints>
                             </imageView>
-                            <stackView opaque="NO" contentMode="scaleToFill" axis="vertical"
-                                distribution="equalSpacing" alignment="center" spacing="16"
-                                translatesAutoresizingMaskIntoConstraints="NO" id="riv-OF-trp">
-                                <rect key="frame" x="37.666666666666657" y="237" width="300"
-                                    height="172" />
-                                <subviews>
-                                    <view contentMode="scaleToFill"
-                                        translatesAutoresizingMaskIntoConstraints="NO"
-                                        id="o0A-D3-uwE">
-                                        <rect key="frame" x="0.0" y="0.0" width="300" height="45" />
-                                        <subviews>
-                                            <textField opaque="NO" contentMode="scaleToFill"
-                                                contentHorizontalAlignment="left"
-                                                contentVerticalAlignment="center"
-                                                borderStyle="roundedRect"
-                                                placeholder="Username or email address"
-                                                adjustsFontForContentSizeCategory="YES"
-                                                minimumFontSize="15" clearButtonMode="whileEditing"
-                                                translatesAutoresizingMaskIntoConstraints="NO"
-                                                id="EM8-Z1-dWF">
-                                                <rect key="frame" x="0.0" y="0.66666666666665719"
-                                                    width="300" height="44" />
-                                                <color key="backgroundColor" name="putio.black" />
-                                                <constraints>
-                                                    <constraint firstAttribute="width"
-                                                        constant="300" id="Nau-lR-ftI" />
-                                                    <constraint firstAttribute="height"
-                                                        constant="44" id="ftJ-9f-lUy" />
-                                                </constraints>
-                                                <color key="textColor" white="1" alpha="1"
-                                                    colorSpace="custom"
-                                                    customColorSpace="genericGamma22GrayColorSpace" />
-                                                <fontDescription key="fontDescription"
-                                                    style="UICTFontTextStyleBody" />
-                                                <textInputTraits key="textInputTraits"
-                                                    autocorrectionType="no" spellCheckingType="no"
-                                                    keyboardType="emailAddress" returnKeyType="next"
-                                                    smartDashesType="no" smartInsertDeleteType="no"
-                                                    smartQuotesType="no" textContentType="username" />
-                                                <connections>
-                                                    <action selector="usernameChanged:"
-                                                        destination="vpr-ij-Ovy"
-                                                        eventType="editingChanged" id="yhn-oT-5iW" />
-                                                </connections>
-                                            </textField>
-                                        </subviews>
-                                        <constraints>
-                                            <constraint firstItem="EM8-Z1-dWF"
-                                                firstAttribute="centerY" secondItem="o0A-D3-uwE"
-                                                secondAttribute="centerY" id="Qw3-Rh-Gl7" />
-                                            <constraint firstAttribute="width" constant="300"
-                                                id="Tgo-le-Qla" />
-                                            <constraint firstItem="EM8-Z1-dWF"
-                                                firstAttribute="centerX" secondItem="o0A-D3-uwE"
-                                                secondAttribute="centerX" id="ppa-y2-QPt" />
-                                            <constraint firstAttribute="height" constant="45"
-                                                id="zIo-6r-PFq" />
-                                        </constraints>
-                                    </view>
-                                    <view contentMode="scaleToFill"
-                                        translatesAutoresizingMaskIntoConstraints="NO"
-                                        id="Mgq-Tu-GHr">
-                                        <rect key="frame" x="0.0" y="61" width="300" height="45" />
-                                        <subviews>
-                                            <textField opaque="NO" contentMode="scaleToFill"
-                                                contentHorizontalAlignment="left"
-                                                contentVerticalAlignment="center"
-                                                borderStyle="roundedRect" placeholder="Password"
-                                                clearsOnBeginEditing="YES"
-                                                adjustsFontForContentSizeCategory="YES"
-                                                minimumFontSize="15" clearButtonMode="whileEditing"
-                                                translatesAutoresizingMaskIntoConstraints="NO"
-                                                id="sIC-vk-V2e">
-                                                <rect key="frame" x="0.0" y="0.66666666666668561"
-                                                    width="300" height="44" />
-                                                <color key="backgroundColor" name="putio.black" />
-                                                <constraints>
-                                                    <constraint firstAttribute="width"
-                                                        constant="300" id="dJD-Aw-t3R" />
-                                                    <constraint firstAttribute="height"
-                                                        constant="44" id="rX9-6g-vI5" />
-                                                </constraints>
-                                                <color key="textColor" white="1" alpha="1"
-                                                    colorSpace="custom"
-                                                    customColorSpace="genericGamma22GrayColorSpace" />
-                                                <fontDescription key="fontDescription"
-                                                    style="UICTFontTextStyleBody" />
-                                                <textInputTraits key="textInputTraits"
-                                                    autocorrectionType="no" spellCheckingType="no"
-                                                    returnKeyType="done" secureTextEntry="YES"
-                                                    smartDashesType="no" smartInsertDeleteType="no"
-                                                    smartQuotesType="no" textContentType="password" />
-                                                <connections>
-                                                    <action selector="passwordChanged:"
-                                                        destination="vpr-ij-Ovy"
-                                                        eventType="editingChanged" id="blT-FL-LDm" />
-                                                </connections>
-                                            </textField>
-                                        </subviews>
-                                        <constraints>
-                                            <constraint firstItem="sIC-vk-V2e"
-                                                firstAttribute="centerX" secondItem="Mgq-Tu-GHr"
-                                                secondAttribute="centerX" id="6NP-v6-wBC" />
-                                            <constraint firstItem="sIC-vk-V2e"
-                                                firstAttribute="centerY" secondItem="Mgq-Tu-GHr"
-                                                secondAttribute="centerY" id="cGu-bk-PLP" />
-                                            <constraint firstAttribute="width" constant="300"
-                                                id="d4D-HR-CPg" />
-                                            <constraint firstAttribute="height" constant="45"
-                                                id="kw6-Uw-p8O" />
-                                        </constraints>
-                                    </view>
-                                    <view contentMode="scaleToFill"
-                                        translatesAutoresizingMaskIntoConstraints="NO"
-                                        id="ZvI-lH-cZ2">
-                                        <rect key="frame" x="0.0" y="122" width="300" height="50" />
-                                        <subviews>
-                                            <button opaque="NO" clearsContextBeforeDrawing="NO"
-                                                contentMode="scaleToFill"
-                                                contentHorizontalAlignment="center"
-                                                contentVerticalAlignment="center"
-                                                buttonType="system" lineBreakMode="middleTruncation"
-                                                translatesAutoresizingMaskIntoConstraints="NO"
-                                                id="CPH-1G-MTQ" customClass="Button"
-                                                customModule="Putio" customModuleProvider="target">
-                                                <rect key="frame" x="0.0" y="6" width="300"
-                                                    height="38" />
-                                                <color key="backgroundColor" name="putio.yellow" />
-                                                <constraints>
-                                                    <constraint firstAttribute="height"
-                                                        constant="38" id="74o-t1-NZA" />
-                                                    <constraint firstAttribute="width"
-                                                        constant="300" id="8WD-DK-yFO" />
-                                                </constraints>
-                                                <fontDescription key="fontDescription"
-                                                    style="UICTFontTextStyleCallout" />
-                                                <state key="normal" title="Log in">
-                                                    <color key="titleColor" name="putio.black" />
-                                                </state>
-                                                <userDefinedRuntimeAttributes>
-                                                    <userDefinedRuntimeAttribute type="string"
-                                                        keyPath="variant" value="primary" />
-                                                </userDefinedRuntimeAttributes>
-                                                <connections>
-                                                    <action selector="loginButtonPressed:"
-                                                        destination="vpr-ij-Ovy"
-                                                        eventType="touchUpInside" id="BUb-Km-NCN" />
-                                                </connections>
-                                            </button>
-                                            <activityIndicatorView hidden="YES" opaque="NO"
-                                                clearsContextBeforeDrawing="NO"
-                                                contentMode="scaleToFill"
-                                                horizontalHuggingPriority="750"
-                                                verticalHuggingPriority="750" fixedFrame="YES"
-                                                hidesWhenStopped="YES" style="gray"
-                                                translatesAutoresizingMaskIntoConstraints="NO"
-                                                id="4Da-cG-45W">
-                                                <rect key="frame" x="139.5" y="12" width="20"
-                                                    height="20" />
-                                                <autoresizingMask key="autoresizingMask"
-                                                    flexibleMaxX="YES" flexibleMaxY="YES" />
-                                                <color key="backgroundColor" white="0.0" alpha="0.0"
-                                                    colorSpace="custom"
-                                                    customColorSpace="genericGamma22GrayColorSpace" />
-                                            </activityIndicatorView>
-                                        </subviews>
-                                        <constraints>
-                                            <constraint firstAttribute="width" constant="300"
-                                                id="2Z1-Lf-fRd" />
-                                            <constraint firstItem="CPH-1G-MTQ"
-                                                firstAttribute="centerX" secondItem="ZvI-lH-cZ2"
-                                                secondAttribute="centerX" id="4W2-4x-POS" />
-                                            <constraint firstItem="CPH-1G-MTQ"
-                                                firstAttribute="centerY" secondItem="ZvI-lH-cZ2"
-                                                secondAttribute="centerY" id="J5G-Wh-MtI" />
-                                            <constraint firstAttribute="height" constant="50"
-                                                id="y5F-BD-JfL" />
-                                        </constraints>
-                                    </view>
-                                </subviews>
-                            </stackView>
-                            <button opaque="NO" contentMode="scaleToFill"
-                                contentHorizontalAlignment="center"
-                                contentVerticalAlignment="center" buttonType="system"
-                                lineBreakMode="middleTruncation"
-                                translatesAutoresizingMaskIntoConstraints="NO" id="SMF-5I-q9p">
-                                <rect key="frame" x="49" y="419" width="277" height="28" />
-                                <fontDescription key="fontDescription"
-                                    style="UICTFontTextStyleFootnote" />
-                                <state key="normal"
-                                    title="Having trouble? Try logging in with browser →">
-                                    <color key="titleColor" name="putio.yellow" />
+                            <button opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="CPH-1G-MTQ" customClass="Button" customModule="Putio" customModuleProvider="target">
+                                <rect key="frame" x="37.666666666666657" y="740" width="300" height="38"/>
+                                <color key="backgroundColor" name="putio.yellow"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="38" id="74o-t1-NZA"/>
+                                    <constraint firstAttribute="width" constant="300" id="8WD-DK-yFO"/>
+                                </constraints>
+                                <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
+                                <state key="normal" title="Log in">
+                                    <color key="titleColor" name="putio.black"/>
                                 </state>
+                                <userDefinedRuntimeAttributes>
+                                    <userDefinedRuntimeAttribute type="string" keyPath="variant" value="primary"/>
+                                </userDefinedRuntimeAttributes>
                                 <connections>
-                                    <action selector="alternativeLoginMethodButtonPressed:"
-                                        destination="vpr-ij-Ovy" eventType="touchUpInside"
-                                        id="UFu-kv-Cau" />
+                                    <action selector="loginButtonPressed:" destination="vpr-ij-Ovy" eventType="touchUpInside" id="BUb-Km-NCN"/>
                                 </connections>
                             </button>
                         </subviews>
-                        <viewLayoutGuide key="safeArea" id="392-Ph-ieL" />
-                        <color key="backgroundColor" name="putio.background" />
+                        <viewLayoutGuide key="safeArea" id="392-Ph-ieL"/>
+                        <color key="backgroundColor" name="putio.background"/>
                         <constraints>
-                            <constraint firstItem="riv-OF-trp" firstAttribute="centerX"
-                                secondItem="1lo-re-agi" secondAttribute="centerX" id="94X-tx-LDQ" />
-                            <constraint firstItem="riv-OF-trp" firstAttribute="top"
-                                secondItem="YWa-EU-CUQ" secondAttribute="bottom" constant="30"
-                                id="Ajj-dH-Ddc" />
-                            <constraint firstItem="YWa-EU-CUQ" firstAttribute="top"
-                                secondItem="392-Ph-ieL" secondAttribute="top" constant="100"
-                                id="ApQ-8Z-mnh" />
-                            <constraint firstItem="SMF-5I-q9p" firstAttribute="centerX"
-                                secondItem="1lo-re-agi" secondAttribute="centerX" id="HKK-JR-ixq" />
-                            <constraint firstItem="YWa-EU-CUQ" firstAttribute="centerX"
-                                secondItem="1lo-re-agi" secondAttribute="centerX" id="LkS-hd-hKu" />
-                            <constraint firstItem="SMF-5I-q9p" firstAttribute="top"
-                                secondItem="riv-OF-trp" secondAttribute="bottom" constant="10"
-                                id="YbW-Tl-R7Q" />
+                            <constraint firstItem="YWa-EU-CUQ" firstAttribute="centerX" secondItem="1lo-re-agi" secondAttribute="centerX" id="LkS-hd-hKu"/>
+                            <constraint firstItem="392-Ph-ieL" firstAttribute="bottom" secondItem="CPH-1G-MTQ" secondAttribute="bottom" id="Se7-1r-NgD"/>
+                            <constraint firstItem="CPH-1G-MTQ" firstAttribute="centerX" secondItem="392-Ph-ieL" secondAttribute="centerX" id="aM1-oP-XGQ"/>
+                            <constraint firstItem="YWa-EU-CUQ" firstAttribute="centerX" secondItem="392-Ph-ieL" secondAttribute="centerX" id="ljb-Fx-xgD"/>
+                            <constraint firstItem="YWa-EU-CUQ" firstAttribute="centerY" secondItem="392-Ph-ieL" secondAttribute="centerY" id="wdv-WW-8jS"/>
                         </constraints>
                     </view>
-                    <navigationItem key="navigationItem" id="9W9-Th-GAG" />
+                    <navigationItem key="navigationItem" id="9W9-Th-GAG"/>
                     <connections>
-                        <outlet property="activityIndicator" destination="4Da-cG-45W"
-                            id="sIA-RC-plL" />
-                        <outlet property="alternativeLoginMethodButton" destination="SMF-5I-q9p"
-                            id="Zbv-pk-p3f" />
-                        <outlet property="loginButton" destination="CPH-1G-MTQ" id="NEu-zl-fTu" />
-                        <outlet property="passwordField" destination="sIC-vk-V2e" id="pRb-YP-MDH" />
-                        <outlet property="usernameField" destination="EM8-Z1-dWF" id="xC6-No-Hb3" />
+                        <outlet property="loginButton" destination="CPH-1G-MTQ" id="NEu-zl-fTu"/>
                     </connections>
                 </viewController>
-                <placeholder placeholderIdentifier="IBFirstResponder" id="D8h-Ga-xgJ"
-                    userLabel="First Responder" sceneMemberID="firstResponder" />
+                <placeholder placeholderIdentifier="IBFirstResponder" id="D8h-Ga-xgJ" userLabel="First Responder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="6" y="831" />
+            <point key="canvasLocation" x="6" y="831"/>
         </scene>
     </scenes>
     <resources>
-        <image name="logoRetro" width="564" height="144" />
+        <image name="logoRetro" width="564" height="144"/>
         <namedColor name="putio.background">
-            <color red="0.20000000298023224" green="0.20000000298023224" blue="0.20000000298023224"
-                alpha="1" colorSpace="custom" customColorSpace="sRGB" />
+            <color red="0.20000000298023224" green="0.20000000298023224" blue="0.20000000298023224" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>
         <namedColor name="putio.black">
-            <color red="0.12999999523162842" green="0.12999999523162842" blue="0.12999999523162842"
-                alpha="1" colorSpace="custom" customColorSpace="sRGB" />
+            <color red="0.12999999523162842" green="0.12999999523162842" blue="0.12999999523162842" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>
         <namedColor name="putio.yellow">
-            <color red="0.99199998378753662" green="0.80800002813339233" blue="0.27099999785423279"
-                alpha="1" colorSpace="custom" customColorSpace="sRGB" />
+            <color red="0.99199998378753662" green="0.80800002813339233" blue="0.27099999785423279" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>
     </resources>
 </document>
