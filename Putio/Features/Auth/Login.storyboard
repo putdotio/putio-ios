@@ -24,11 +24,11 @@
                                 </constraints>
                             </imageView>
                             <button opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="CPH-1G-MTQ" customClass="Button" customModule="Putio" customModuleProvider="target">
-                                <rect key="frame" x="37.666666666666657" y="740" width="300" height="38"/>
+                                <rect key="frame" x="27.666666666666657" y="724" width="320" height="38"/>
                                 <color key="backgroundColor" name="putio.yellow"/>
                                 <constraints>
                                     <constraint firstAttribute="height" constant="38" id="74o-t1-NZA"/>
-                                    <constraint firstAttribute="width" constant="300" id="8WD-DK-yFO"/>
+                                    <constraint firstAttribute="width" constant="320" id="8WD-DK-yFO"/>
                                 </constraints>
                                 <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
                                 <state key="normal" title="Log in">
@@ -46,8 +46,8 @@
                         <color key="backgroundColor" name="putio.background"/>
                         <constraints>
                             <constraint firstItem="YWa-EU-CUQ" firstAttribute="centerX" secondItem="1lo-re-agi" secondAttribute="centerX" id="LkS-hd-hKu"/>
-                            <constraint firstItem="392-Ph-ieL" firstAttribute="bottom" secondItem="CPH-1G-MTQ" secondAttribute="bottom" id="Se7-1r-NgD"/>
                             <constraint firstItem="CPH-1G-MTQ" firstAttribute="centerX" secondItem="392-Ph-ieL" secondAttribute="centerX" id="aM1-oP-XGQ"/>
+                            <constraint firstItem="392-Ph-ieL" firstAttribute="bottom" secondItem="CPH-1G-MTQ" secondAttribute="bottom" constant="16" id="cq2-n8-Lz8"/>
                             <constraint firstItem="YWa-EU-CUQ" firstAttribute="centerX" secondItem="392-Ph-ieL" secondAttribute="centerX" id="ljb-Fx-xgD"/>
                             <constraint firstItem="YWa-EU-CUQ" firstAttribute="centerY" secondItem="392-Ph-ieL" secondAttribute="centerY" id="wdv-WW-8jS"/>
                         </constraints>
