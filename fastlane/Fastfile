@@ -3,17 +3,15 @@ update_fastlane
 default_platform(:ios)
 
 platform :ios do
-  private_lane :auth do
-    api_key = app_store_connect_api_key(
+  lane :beta do |options|
+    setup_ci
+
+    app_store_connect_api_key(
       issuer_id: ENV["APPSTORE_CONNECT_ISSUER_ID"],
       key_id: ENV["APPSTORE_CONNECT_KEY_ID"],
       key_filepath: ENV["APPSTORE_CONNECT_KEY_FILEPATH"]
     )
-  end
 
-  lane :beta do |options|
-    setup_ci
-    auth
     match(type: "appstore", platform: "ios")
 
     if options[:bump_type]
