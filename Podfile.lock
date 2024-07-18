@@ -93,11 +93,11 @@ SPEC CHECKSUMS:
   KeychainAccess: c0c4f7f38f6fc7bbe58f5702e25f7bd2f65abf51
   NFDownloadButton: ea79486ae2c68acc8202eae1b07bacef4684c6cc
   Protobuf: 351e9022fe13a6e2af00e9aefc22077cb88520f8
-  PutioAPI: f4384b5459439b5535c2496d79529a747db29548
+  PutioAPI: 512188cc755f7f64f572de0497d5156caef0b917
   Realm: fb377747e694c7deb62d402400454134fe321bee
   RealmSwift: 1302b0ab60f3105a2b214a735eeb0938607cf16b
   RoutableLogger: ff5425f9ec26ec79241a591a1ed16a7a69d70b2f
-  Sentry: 2f7e91f247cfb05b05bd01e0b5d0692557a7687b
+  Sentry: c0ccb95e4827baa32b96f3aec2478f5c6851fc80
   StatefulViewController: 4803bf900d44de26074344998e10e041113b5931
   SwiftGifOrigin: d6679d3ebe9df2e049a84bc52582635107b581f6
   SwiftLint: 5ce4d6a8ff83f1b5fd5ad5dbf30965d35af65e44
