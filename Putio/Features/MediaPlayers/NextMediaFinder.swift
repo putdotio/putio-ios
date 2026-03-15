@@ -31,7 +31,7 @@ class NextMediaFinder {
 
     private func findNextMediaFromDownloads(for item: MediaPlayerItem) {
         let downloads = realm.objects(Download.self)
-            .filter("fileType = %@", getMappedDownloadType(for: item).rawValue)
+            .filter("fileTypeRaw = %@", getMappedDownloadType(for: item).rawValue)
             .sorted(byKeyPath: "createdAt")
 
         guard let currentItemIndex = downloads.index(where: { $0.id == item.id }) else { return findNextMediaFromAPI(for: item) }

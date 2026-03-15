@@ -4,6 +4,10 @@ import RealmSwift
 class PutioRealm {
     private static let needsDownloadRecoveryKey = "PutioRealm.needsDownloadRecovery"
 
+    static var needsDownloadRecovery: Bool {
+        return UserDefaults.standard.bool(forKey: needsDownloadRecoveryKey)
+    }
+
     static func setup() {
         let latestSchemaVersion: UInt64 = 12
 
@@ -114,12 +118,15 @@ class PutioRealm {
         }
     }
 
+    private static let hlsExtensions: Set<String> = ["movpkg"]
+    private static let mediaExtensions: Set<String> = ["mp4", "mkv", "avi", "mov", "m4v", "wmv", "webm"]
+
     /// Rebuild Download records from file references left in UserDefaults.
     /// Video downloads are stored as bookmark Data, audio as relative path Strings.
+    /// Also scans the Documents directory for audio files whose UserDefaults entries were lost.
     /// Fetches real file names from the put.io API.
     static func recoverDownloadsIfNeeded() {
         guard UserDefaults.standard.bool(forKey: needsDownloadRecoveryKey) else { return }
-        defer { UserDefaults.standard.removeObject(forKey: needsDownloadRecoveryKey) }
 
         guard let realm = try? Realm() else { return }
 
@@ -127,20 +134,24 @@ class PutioRealm {
         let allKeys = defaults.dictionaryRepresentation().keys
 
         var recovered = 0
+        var recoveredFileIds = Set<Int>()
 
         for key in allKeys {
-            guard let fileId = Int(key) else { continue }
+            guard let fileId = Int(key), fileId > 0 else { continue }
 
             var isVideo = false
             var fileExists = false
 
-            // Video: bookmark Data
+            // Video: bookmark Data - validate it resolves to an HLS .movpkg or known media file
             if let bookmarkData = defaults.value(forKey: key) as? Data {
                 var isStale = false
                 if let url = (try? URL(resolvingBookmarkData: bookmarkData, bookmarkDataIsStale: &isStale)) ?? nil,
                    !isStale, FileManager.default.fileExists(atPath: url.path) {
-                    isVideo = true
-                    fileExists = true
+                    let ext = url.pathExtension.lowercased()
+                    if hlsExtensions.contains(ext) || mediaExtensions.contains(ext) {
+                        isVideo = true
+                        fileExists = true
+                    }
                 }
             }
 
@@ -170,9 +181,63 @@ class PutioRealm {
                 realm.add(download, update: .all)
             }
             recovered += 1
+            recoveredFileIds.insert(fileId)
+        }
 
-            // Fetch real name and size from the API
-            let capturedIsVideo = isVideo
+        // Fallback: scan Documents directory for audio files whose UserDefaults entries were lost
+        let docsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        if let contents = try? FileManager.default.contentsOfDirectory(atPath: docsURL.path) {
+            for filename in contents where filename.hasPrefix("putio_adm_") {
+                // Extract file ID from "putio_adm_{id}.ext" or "putio_adm_{id}"
+                let stripped = filename
+                    .replacingOccurrences(of: "putio_adm_", with: "")
+                    .components(separatedBy: ".").first ?? ""
+                guard let fileId = Int(stripped), fileId > 0, !recoveredFileIds.contains(fileId) else { continue }
+
+                let fileURL = docsURL.appendingPathComponent(filename)
+                guard FileManager.default.fileExists(atPath: fileURL.path) else { continue }
+
+                let download = Download()
+                download.id = fileId
+                download.name = "Recovering..."
+                download.stateRaw = Download.State.completed.rawValue
+                download.fileTypeRaw = Download.FileType.audio.rawValue
+                download.completedAt = Date()
+                download.createdAt = Date()
+
+                try? realm.write {
+                    realm.add(download, update: .all)
+                }
+                recovered += 1
+                recoveredFileIds.insert(fileId)
+            }
+        }
+
+        // Clear recovery flag after all records are created.
+        // API enrichment below is fire-and-forget - don't block flag clearing on it.
+        UserDefaults.standard.removeObject(forKey: needsDownloadRecoveryKey)
+
+        print("[PutioRealm] Recovered \(recovered) download record(s)")
+
+        // Enrich all recovered downloads with real names from the API
+        enrichPlaceholderDownloads(in: realm)
+    }
+
+    /// Re-attempt API enrichment for downloads that still have placeholder names.
+    /// Safe to call on every launch - just a query + API calls, no full recovery re-run.
+    static func enrichPlaceholderDownloads(in realm: Realm? = nil) {
+        guard let realm = realm ?? (try? Realm()) else { return }
+
+        let placeholders = realm.objects(Download.self).filter(
+            "name == 'Recovering...' OR name BEGINSWITH 'Video ' OR name BEGINSWITH 'Audio '"
+        )
+        guard !placeholders.isEmpty else { return }
+
+        print("[PutioRealm] Enriching \(placeholders.count) download(s) with placeholder names")
+
+        for download in placeholders {
+            let fileId = download.id
+            let isVideo = download.fileTypeRaw == Download.FileType.video.rawValue
             api.getFile(fileID: fileId) { result in
                 guard let download = realm.object(ofType: Download.self, forPrimaryKey: fileId) else { return }
                 switch result {
@@ -183,15 +248,16 @@ class PutioRealm {
                     }
                     print("[PutioRealm] Enriched download \(fileId): \(file.name)")
                 case .failure:
-                    let fallbackName = capturedIsVideo ? "Video \(fileId)" : "Audio \(fileId)"
-                    try? realm.write {
-                        download.name = fallbackName
+                    // Only replace "Recovering..." with a fallback - keep existing "Video/Audio X" as-is
+                    if download.name == "Recovering..." {
+                        let fallbackName = isVideo ? "Video \(fileId)" : "Audio \(fileId)"
+                        try? realm.write {
+                            download.name = fallbackName
+                        }
                     }
-                    print("[PutioRealm] Could not fetch file info for \(fileId), using fallback")
+                    print("[PutioRealm] Could not fetch file info for \(fileId)")
                 }
             }
         }
-
-        print("[PutioRealm] Recovered \(recovered) download record(s) from UserDefaults")
     }
 }
