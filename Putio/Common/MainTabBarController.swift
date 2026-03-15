@@ -73,7 +73,7 @@ class MainTabBarController: UITabBarController {
     func configureNavigationControllers() {
         viewControllers?.forEach { controller in
             guard let navigationController = controller as? UINavigationController else { return }
-            navigationController.navigationBar.prefersLargeTitles = Stylize.prefersLargeTitles
+            navigationController.navigationBar.prefersLargeTitles = false
         }
     }
 

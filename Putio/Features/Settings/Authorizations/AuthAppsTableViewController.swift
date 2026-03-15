@@ -11,7 +11,6 @@ class AuthAppsTableViewController: UITableViewController {
     }
 
     func configureApperance() {
-        navigationItem.largeTitleDisplayMode = .never
     }
 
     func fetchData() {
