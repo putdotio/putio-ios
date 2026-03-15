@@ -148,12 +148,12 @@ extension DownloadsViewController: UITableViewDelegate {
 
 extension DownloadsViewController: AVPlayerViewControllerDelegate {
     func playerViewControllerDidStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
-        (playerViewController as! VideoPlayerViewController).isPlayingInPictureOnPictureMode = true
+        (playerViewController as! VideoPlayerViewController).handlePictureInPictureDidStart()
     }
 
     func playerViewController(_ playerViewController: AVPlayerViewController, restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) {
         present(playerViewController, animated: true) {
-            (playerViewController as! VideoPlayerViewController).isPlayingInPictureOnPictureMode = false
+            (playerViewController as! VideoPlayerViewController).handlePictureInPictureDidStop()
             completionHandler(true)
         }
     }
