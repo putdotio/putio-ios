@@ -214,7 +214,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
 
             if sortKey == selectedSortKey {
                 item.state = .on
-                item.image = selectedSortDirection == "ASC" ? UIImage(systemName: "chevron.up") : UIImage(systemName: "chevron.down")
+                item.subtitle = selectedSortDirection == "ASC" ? "Ascending" : "Descending"
             }
 
             return item
