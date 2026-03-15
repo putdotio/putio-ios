@@ -62,6 +62,10 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
         )
     }
 
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         navigationItem.largeTitleDisplayMode = .never
@@ -106,6 +110,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     func configureAppearance() {
         configureToolbar()
 
+        tableView.rowHeight = 55.0
         tableView.separatorInset = UIEdgeInsets.zero
         tableView.contentInsetAdjustmentBehavior = .automatic
 
@@ -805,10 +810,6 @@ extension FilesViewController: UITableViewDataSource {
 }
 
 extension FilesViewController: UITableViewDelegate {
-    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return 55.0
-    }
-
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
         if viewModel.files[indexPath.row].isSharedRoot {
             return false
