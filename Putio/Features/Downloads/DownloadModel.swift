@@ -15,12 +15,12 @@ class Download: Object {
     @objc dynamic var name: String = ""
     @objc dynamic var size: Int64 = 0
     @objc dynamic var progress: String = "0"
-    @objc(state) dynamic private var persistedStateRawValue: Int = State.queued.rawValue
+    @objc dynamic var stateRaw: Int = State.queued.rawValue
     @objc dynamic var createdAt: Date?
     @objc dynamic var completedAt: Date?
     @objc dynamic var startFrom: Int = 0
     @objc dynamic var message: String = ""
-    @objc(fileType) dynamic private var persistedFileTypeRawValue: Int = FileType.video.rawValue
+    @objc dynamic var fileTypeRaw: Int = FileType.video.rawValue
 
     // TO BE DEPRECATED
     @objc dynamic var url: String = ""
@@ -46,21 +46,13 @@ class Download: Object {
     }
 
     var state: State {
-        get {
-            State(rawValue: persistedStateRawValue) ?? .queued
-        }
-        set {
-            persistedStateRawValue = newValue.rawValue
-        }
+        get { State(rawValue: stateRaw) ?? .queued }
+        set { stateRaw = newValue.rawValue }
     }
 
     var fileType: FileType {
-        get {
-            FileType(rawValue: persistedFileTypeRawValue) ?? .video
-        }
-        set {
-            persistedFileTypeRawValue = newValue.rawValue
-        }
+        get { FileType(rawValue: fileTypeRaw) ?? .video }
+        set { fileTypeRaw = newValue.rawValue }
     }
 
     override static func primaryKey() -> String? {
