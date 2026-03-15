@@ -30,16 +30,16 @@ class Stylize {
         navigationBar.titleTextAttributes = [.foregroundColor: UIColor.white]
         navigationBar.largeTitleTextAttributes = [.foregroundColor: UIColor.white]
 
+        let navigationBarAppearance = makeNavigationBarAppearance()
+        navigationBar.standardAppearance = navigationBarAppearance
+        navigationBar.compactAppearance = navigationBarAppearance
+        navigationBar.scrollEdgeAppearance = navigationBarAppearance
+        navigationBar.compactScrollEdgeAppearance = navigationBarAppearance
+
         if #available(iOS 26.0, *) {
             navigationBar.barStyle = .black
             navigationBar.isTranslucent = false
             navigationBar.barTintColor = UIColor.Putio.black
-        } else {
-            let navigationBarAppearance = makeNavigationBarAppearance()
-            navigationBar.standardAppearance = navigationBarAppearance
-            navigationBar.compactAppearance = navigationBarAppearance
-            navigationBar.scrollEdgeAppearance = navigationBarAppearance
-            navigationBar.compactScrollEdgeAppearance = navigationBarAppearance
         }
 
         UITabBar.appearance().barTintColor = UIColor.Putio.black
