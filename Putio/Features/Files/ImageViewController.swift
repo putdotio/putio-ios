@@ -13,8 +13,6 @@ class ImageViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        navigationItem.largeTitleDisplayMode = .never
-
         if let file = file {
             title = file.name
             loadImage()

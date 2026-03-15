@@ -40,8 +40,6 @@ class TwoFactorRecoveryCodesViewController: UIViewController, StatefulViewContro
     }
 
     func configureAppearance() {
-        navigationItem.largeTitleDisplayMode = .never
-
         switch action {
         case .confirmSave:
             primaryButton.setTitle("I have saved my recovery codes", for: .normal)

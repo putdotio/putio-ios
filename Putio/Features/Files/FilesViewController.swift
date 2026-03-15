@@ -68,7 +68,6 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationItem.largeTitleDisplayMode = .never
         navigationItem.searchController = nil
         navigationItem.hidesSearchBarWhenScrolling = true
         navigationItem.title = viewModel.file?.name
@@ -116,7 +115,6 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
 
         tableView.sectionHeaderTopPadding = 0
 
-        navigationItem.largeTitleDisplayMode = .never
         navigationItem.title = viewModel.file?.name
 
         configureNavigationBarRightButtons()

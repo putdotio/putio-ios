@@ -27,7 +27,6 @@ class FilesRootViewController: FilesViewController {
     override func configureAppearance() {
         super.configureAppearance()
 
-        navigationItem.largeTitleDisplayMode = Stylize.prefersLargeTitles ? .always : .never
         navigationItem.title = "Your Files"
 
         configureSearchbar()
@@ -52,12 +51,9 @@ class FilesRootViewController: FilesViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationController?.navigationBar.prefersLargeTitles = Stylize.prefersLargeTitles
-        navigationItem.largeTitleDisplayMode = Stylize.prefersLargeTitles ? .always : .never
         navigationItem.title = "Your Files"
         navigationItem.searchController = searchController
         navigationItem.hidesSearchBarWhenScrolling = false
-        Stylize.navigationItem(navigationItem)
     }
 
     override func viewWillDisappear(_ animated: Bool) {

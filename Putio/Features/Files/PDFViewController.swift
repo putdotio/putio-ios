@@ -29,7 +29,6 @@ class PDFViewController: UIViewController {
     }
 
     func configureAppearance() {
-        navigationItem.largeTitleDisplayMode = .never
         pdfView.displayMode = .singlePageContinuous
         pdfView.displayDirection = .vertical
         pdfView.autoScales = true

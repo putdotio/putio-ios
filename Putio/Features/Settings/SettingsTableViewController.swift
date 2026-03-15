@@ -13,10 +13,7 @@ class SettingsTableViewController: UITableViewController, TwoFactorAuthPresenter
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationController?.navigationBar.prefersLargeTitles = Stylize.prefersLargeTitles
-        navigationItem.largeTitleDisplayMode = Stylize.prefersLargeTitles ? .always : .never
         navigationItem.title = "Account"
-        Stylize.navigationItem(navigationItem)
     }
 
     func configureAppearance() {

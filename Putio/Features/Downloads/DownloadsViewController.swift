@@ -26,10 +26,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationController?.navigationBar.prefersLargeTitles = Stylize.prefersLargeTitles
-        navigationItem.largeTitleDisplayMode = Stylize.prefersLargeTitles ? .always : .never
         navigationItem.title = "Downloads"
-        Stylize.navigationItem(navigationItem)
         PutioRealm.enrichPlaceholderDownloads()
     }
 
