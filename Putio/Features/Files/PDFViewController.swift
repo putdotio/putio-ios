@@ -5,6 +5,7 @@ import PutioAPI
 
 class PDFViewController: UIViewController {
     var file: PutioFile?
+    private var request: DataRequest?
 
     @IBOutlet weak var pdfView: PDFView!
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
@@ -20,6 +21,11 @@ class PDFViewController: UIViewController {
             title = file.name
             downloadAndShowPDF()
         }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        request?.cancel()
     }
 
     func configureAppearance() {
@@ -40,7 +46,9 @@ class PDFViewController: UIViewController {
     func downloadAndShowPDF() {
         let url = file!.getDownloadURL(token: api.config.token)
 
-        AF.request(url.absoluteString).responseData { (response) in
+        request = AF.request(url.absoluteString).responseData { [weak self] (response) in
+            guard let self = self else { return }
+
             DispatchQueue.main.async {
                 self.activityIndicator.stopAnimating()
                 self.loadingText.isHidden = true
