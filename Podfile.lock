@@ -1,28 +1,25 @@
 PODS:
   - Alamofire (5.5.0)
-  - google-cast-sdk-no-bluetooth (4.8.0):
-    - google-cast-sdk-no-bluetooth/Core (= 4.8.0)
-    - Protobuf (~> 3.13)
-  - google-cast-sdk-no-bluetooth/Core (4.8.0):
+  - google-cast-sdk-no-bluetooth-xcframework (4.8.0):
     - Protobuf (~> 3.13)
   - Intercom (14.0.0)
   - KeyboardAvoidingView (5.2.0):
     - ViewState (>= 1.2.1)
   - KeychainAccess (4.2.2)
   - NFDownloadButton (0.0.2)
-  - Protobuf (3.24.4)
+  - Protobuf (3.29.6)
   - PutioAPI (1.5.0):
     - Alamofire (~> 5.5.0)
     - SwiftyJSON (~> 5.0)
-  - Realm (3.19.1):
-    - Realm/Headers (= 3.19.1)
-  - Realm/Headers (3.19.1)
-  - RealmSwift (3.19.1):
-    - Realm (= 3.19.1)
+  - Realm (10.54.6):
+    - Realm/Headers (= 10.54.6)
+  - Realm/Headers (10.54.6)
+  - RealmSwift (10.54.6):
+    - Realm (= 10.54.6)
   - RoutableLogger (12.3.3)
-  - Sentry (7.9.0):
-    - Sentry/Core (= 7.9.0)
-  - Sentry/Core (7.9.0)
+  - Sentry (8.58.0):
+    - Sentry/Core (= 8.58.0)
+  - Sentry/Core (8.58.0)
   - StatefulViewController (3.0)
   - SwiftGifOrigin (1.6.1)
   - SwiftLint (0.53.0)
@@ -34,14 +31,14 @@ PODS:
 
 DEPENDENCIES:
   - Alamofire (~> 5.5.0)
-  - google-cast-sdk-no-bluetooth
+  - google-cast-sdk-no-bluetooth-xcframework (= 4.8.0)
   - Intercom (= 14.0.0)
   - KeyboardAvoidingView (~> 5.2)
   - KeychainAccess
   - NFDownloadButton (= 0.0.2)
   - PutioAPI (from `https://github.com/putdotio/putio-swift.git`, tag `1.5.0`)
-  - RealmSwift (~> 3.19.0)
-  - Sentry (from `https://github.com/getsentry/sentry-cocoa.git`, tag `7.9.0`)
+  - RealmSwift (= 10.54.6)
+  - Sentry (from `https://github.com/getsentry/sentry-cocoa.git`, tag `8.58.0`)
   - StatefulViewController (~> 3.0)
   - SwiftGifOrigin (~> 1.6.1)
   - SwiftLint
@@ -52,7 +49,7 @@ DEPENDENCIES:
 SPEC REPOS:
   trunk:
     - Alamofire
-    - google-cast-sdk-no-bluetooth
+    - google-cast-sdk-no-bluetooth-xcframework
     - Intercom
     - KeyboardAvoidingView
     - KeychainAccess
@@ -75,7 +72,7 @@ EXTERNAL SOURCES:
     :tag: 1.5.0
   Sentry:
     :git: https://github.com/getsentry/sentry-cocoa.git
-    :tag: 7.9.0
+    :tag: 8.58.0
 
 CHECKOUT OPTIONS:
   PutioAPI:
@@ -83,21 +80,21 @@ CHECKOUT OPTIONS:
     :tag: 1.5.0
   Sentry:
     :git: https://github.com/getsentry/sentry-cocoa.git
-    :tag: 7.9.0
+    :tag: 8.58.0
 
 SPEC CHECKSUMS:
   Alamofire: 1c4fb5369c3fe93d2857c780d8bbe09f06f97e7c
-  google-cast-sdk-no-bluetooth: 23206cb79029beaeb610a93559f2ff4f65255797
+  google-cast-sdk-no-bluetooth-xcframework: 1783f52a1b2dc0293ac3ae995db5435989a87da7
   Intercom: 4faacb977c2fbdb876f5b3813671167662c1b572
   KeyboardAvoidingView: acc530b2435bba760b2270e722cb7132cf1c4d31
   KeychainAccess: c0c4f7f38f6fc7bbe58f5702e25f7bd2f65abf51
   NFDownloadButton: ea79486ae2c68acc8202eae1b07bacef4684c6cc
-  Protobuf: 351e9022fe13a6e2af00e9aefc22077cb88520f8
+  Protobuf: 8d5596f7468be5400861a6bbfb2dfe9d0d1cde34
   PutioAPI: 512188cc755f7f64f572de0497d5156caef0b917
-  Realm: fb377747e694c7deb62d402400454134fe321bee
-  RealmSwift: 1302b0ab60f3105a2b214a735eeb0938607cf16b
+  Realm: b1b3bc68162fa242132eb7eefbf91d7c40f36a85
+  RealmSwift: 456cfd82a4f23dff8e3456980999331ab69bbf3e
   RoutableLogger: ff5425f9ec26ec79241a591a1ed16a7a69d70b2f
-  Sentry: c0ccb95e4827baa32b96f3aec2478f5c6851fc80
+  Sentry: d587a8fe91ca13503ecd69a1905f3e8a0fcf61be
   StatefulViewController: 4803bf900d44de26074344998e10e041113b5931
   SwiftGifOrigin: d6679d3ebe9df2e049a84bc52582635107b581f6
   SwiftLint: 5ce4d6a8ff83f1b5fd5ad5dbf30965d35af65e44
@@ -106,6 +103,6 @@ SPEC CHECKSUMS:
   ViewState: 2443ba39d84bf9780fad2f5cd8909c81c62d4de5
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: 839d8b27e56c9c91635c97f93d80d1ab4d110527
+PODFILE CHECKSUM: 2db8e21e375e120c378514f472cee6bdcda80873
 
 COCOAPODS: 1.13.0

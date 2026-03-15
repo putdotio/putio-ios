@@ -65,7 +65,7 @@
 "account_destroy" = "Destroy your account";
 
 /* loco:620a366c9e2cb240e221e924 */
-"account_destroy_cancel" = "No, I will stay 🎉";
+"account_destroy_cancel" = "No, I will stay";
 
 /* loco:620a366d651d0a74fe1140b2 */
 "account_destroy_description" = "We definitely don't want this to happen, <a href=\"#\" id=\"putio:open-support-chat\">please talk to</a> us before you make up your mind.";
@@ -83,7 +83,7 @@
 "account_destroy_modal_title" = "Destroy your account";
 
 /* loco:620a3671eaa0b929fd05ad07 */
-"account_destroy_submit" = "Yes, goodbye 😢";
+"account_destroy_submit" = "Yes, goodbye";
 
 /* loco:620a36724435b3611a408f54 */
 "account_disable_two_factor_modal_title" = "Disable two-factor authentication";
@@ -881,7 +881,7 @@
 "files_publiclink_expired_title" = "Link has expired";
 
 /* loco:620a3739dbbdd63da74147eb */
-"files_publiclink_sender_modal_title" = "Just a few things before you go 👇";
+"files_publiclink_sender_modal_title" = "Just a few things before you go";
 
 /* loco:620a37394d8ad56340206dad */
 "files_rename_label" = "New file name";
@@ -1145,7 +1145,7 @@
 "generic_save_button_label" = "Save";
 
 /* loco:620a377bb531fa24b014454c */
-"go_back_to_putio" = "← Return to put.io";
+"go_back_to_putio" = "Return to put.io";
 
 /* loco:620a377c2a65a41f4271d4f4 */
 "history_disable_confirm" = "Disabling history will also clear your current activities. Are you sure?";
@@ -1175,7 +1175,7 @@
 "invite_friends_dialog_friend" = "Friend";
 
 /* loco:620a378243826d0113065724 */
-"invite_friends_dialog_take_this" = "ಠ_ಠ... Here, take this: ";
+"invite_friends_dialog_take_this" = "Here, take this: ";
 
 /* loco:620a3783205a585b2e3ae4e8 */
 "invite_friends_dialog_torrenting_is_awesome" = "Torrenting with put.io is awesome!";
@@ -1187,7 +1187,7 @@
 "invite_friends_dialog_you" = "You";
 
 /* loco:620a3786904a4742b40ce1d2 */
-"invite_friends_earned_amount" = "You’ve earned: $%@";
+"invite_friends_earned_amount" = "You've earned: $%@";
 
 /* loco:620a3787b2b0f242056b9b52 */
 "invite_friends_invite_create_label" = "Create a trial pass (%1$@ of %2$@)";
@@ -1430,10 +1430,10 @@
 "oauth_apps_clients_not_used_yet" = "Not used yet";
 
 /* loco:620a37c3cc18a4182953b15c */
-"oauth_apps_clients_show_less" = "Show less ↑";
+"oauth_apps_clients_show_less" = "Show less";
 
 /* loco:620a37c32a65a41f4271d4fe */
-"oauth_apps_clients_show_more" = "Show more ↓";
+"oauth_apps_clients_show_more" = "Show more";
 
 /* loco:620a37c4cc18a4182953b15e */
 "oauth_apps_delete_confirm_message" = "Are you sure to delete your application \"%@\"?";
@@ -1679,7 +1679,7 @@
 "payment_method_modal_action_label" = "Select";
 
 /* loco:620a38019d53c133c8710686 */
-"payment_method_modal_contact_message" = "If you can’t see your preferred payment method here, let us know!";
+"payment_method_modal_contact_message" = "If you can't see your preferred payment method here, let us know!";
 
 /* loco:620a38027890eb74fa4a0e14 */
 "payment_method_modal_title" = "Please select a payment method";
@@ -1748,7 +1748,7 @@
 "payment_plans_trial_subscription_setup" = "Continue setting up your subscription";
 
 /* loco:620a3814cc18a4182953b16d */
-"payment_plans_trial_subscription_title" = "👉 ✅ FREE! ✅ 👈";
+"payment_plans_trial_subscription_title" = "FREE!";
 
 /* loco:620a38152cf72617467ad6e4 */
 "payment_plans_upgrade_label" = "Upgrade";

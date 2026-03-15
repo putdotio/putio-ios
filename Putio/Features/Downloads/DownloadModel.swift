@@ -15,12 +15,12 @@ class Download: Object {
     @objc dynamic var name: String = ""
     @objc dynamic var size: Int64 = 0
     @objc dynamic var progress: String = "0"
-    @objc dynamic var state: State = .queued
+    @objc(state) dynamic private var persistedStateRawValue: Int = State.queued.rawValue
     @objc dynamic var createdAt: Date?
     @objc dynamic var completedAt: Date?
     @objc dynamic var startFrom: Int = 0
     @objc dynamic var message: String = ""
-    @objc dynamic var fileType: FileType = .video
+    @objc(fileType) dynamic private var persistedFileTypeRawValue: Int = FileType.video.rawValue
 
     // TO BE DEPRECATED
     @objc dynamic var url: String = ""
@@ -42,6 +42,24 @@ class Download: Object {
             self.fileType = .audio
         default:
             self.fileType = .video
+        }
+    }
+
+    var state: State {
+        get {
+            State(rawValue: persistedStateRawValue) ?? .queued
+        }
+        set {
+            persistedStateRawValue = newValue.rawValue
+        }
+    }
+
+    var fileType: FileType {
+        get {
+            FileType(rawValue: persistedFileTypeRawValue) ?? .video
+        }
+        set {
+            persistedFileTypeRawValue = newValue.rawValue
         }
     }
 

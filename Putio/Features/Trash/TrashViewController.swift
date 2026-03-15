@@ -47,7 +47,7 @@ class TrashViewController: UIViewController, StatefulViewController {
         stateMachine.addView(loadingView, forState: "loading")
 
         let emptyView = EmptyStateView.instantiateFromInterfaceBuilder()
-        emptyView.configure(heading: "Your trash is empty", description: "🦋")
+        emptyView.configure(heading: "Your trash is empty", description: "Items you move to trash will appear here.")
         stateMachine.addView(emptyView, forState: "empty")
 
         let errorView = EmptyStateView.instantiateFromInterfaceBuilder()
@@ -87,44 +87,35 @@ class TrashViewController: UIViewController, StatefulViewController {
             navigationItem.setHidesBackButton(false, animated: true)
             navigationItem.leftBarButtonItem = nil
 
-            if #available(iOS 14, *) {
-                let actions = [
-                    UIAction(
-                        title: "Select",
-                        image: UIImage(systemName: "checkmark.circle"),
-                        identifier: nil,
-                        handler: {  _ in self.toggleEditing() }
-                    ),
-                    UIAction(
-                        title: "Restore all",
-                        image: UIImage(systemName: "trash.slash"),
-                        identifier: nil,
-                        handler: {  _ in self.restoreAllFiles() }
-                    ),
-                    UIAction(
-                        title: "Empty trash",
-                        image: UIImage(systemName: "trash"),
-                        identifier: nil,
-                        attributes: .destructive,
-                        handler: {  _ in self.emptyTrash() }
-                    )
-                ]
-
-                let rightBarButton = UIBarButtonItem(
-                    title: "",
-                    image: UIImage(systemName: "ellipsis.circle"),
-                    menu: UIMenu(title: "", children: actions)
-                )
-
-                navigationItem.rightBarButtonItem = rightBarButton
-            } else {
-                navigationItem.rightBarButtonItem = UIBarButtonItem(
+            let actions = [
+                UIAction(
                     title: "Select",
-                    style: .plain,
-                    target: self,
-                    action: #selector(toggleEditing)
+                    image: UIImage(systemName: "checkmark.circle"),
+                    identifier: nil,
+                    handler: {  _ in self.toggleEditing() }
+                ),
+                UIAction(
+                    title: "Restore all",
+                    image: UIImage(systemName: "trash.slash"),
+                    identifier: nil,
+                    handler: {  _ in self.restoreAllFiles() }
+                ),
+                UIAction(
+                    title: "Empty trash",
+                    image: UIImage(systemName: "trash"),
+                    identifier: nil,
+                    attributes: .destructive,
+                    handler: {  _ in self.emptyTrash() }
                 )
-            }
+            ]
+
+            let rightBarButton = UIBarButtonItem(
+                title: "",
+                image: UIImage(systemName: "ellipsis.circle"),
+                menu: UIMenu(title: "", children: actions)
+            )
+
+            navigationItem.rightBarButtonItem = rightBarButton
 
             switch viewModel.state {
             case .loaded:

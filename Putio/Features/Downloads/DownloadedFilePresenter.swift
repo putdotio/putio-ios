@@ -26,7 +26,7 @@ extension DownloadedFilePresenter where Self: UIViewController {
 
     func presentFileNotReachableMessage(for download: Download) {
         let alert = UIAlertController(
-            title: "We are so sorry 😢",
+            title: "File Unavailable",
             message: "We couldn't read this file from the disk. It may be corrupted during the download or auto deleted by the operating system to cleanup disk space.",
             preferredStyle: .alert
         )
@@ -79,7 +79,7 @@ extension DownloadedFilePresenter where Self: UIViewController {
         }
 
         let alert = UIAlertController(
-            title: "Something went wrong 😰",
+            title: "Something went wrong",
             message: message,
             preferredStyle: .alert
         )

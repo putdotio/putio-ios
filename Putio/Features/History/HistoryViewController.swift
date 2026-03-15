@@ -8,6 +8,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
 
     @IBOutlet weak var clearAllButton: UIBarButtonItem!
     @IBOutlet weak var tableView: UITableView!
+    var clearAllCustomButton: UIButton?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -50,6 +51,30 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
     func configureAppearance() {
         tableView.separatorColor = UIColor.Putio.background
         tableView.backgroundColor = UIColor.Putio.background
+        tableView.contentInsetAdjustmentBehavior = .automatic
+
+        tableView.sectionHeaderTopPadding = 0
+
+        configureNavigationBarButton()
+    }
+
+    func configureNavigationBarButton() {
+        let button = UIButton(type: .system)
+        button.setTitle("Clear", for: .normal)
+        button.setTitleColor(UIColor.Putio.yellow, for: .normal)
+        button.setTitleColor(UIColor.Putio.listSubtitle, for: .disabled)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        button.backgroundColor = .clear
+        button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
+        button.addTarget(self, action: #selector(clearAllButtonTapped(_:)), for: .touchUpInside)
+        clearAllCustomButton = button
+        navigationItem.rightBarButtonItem = UIBarButtonItem(customView: button)
+        setClearAllButtonEnabled(false)
+    }
+
+    func setClearAllButtonEnabled(_ isEnabled: Bool) {
+        clearAllCustomButton?.isEnabled = isEnabled
+        clearAllCustomButton?.alpha = isEnabled ? 1 : 0.45
     }
 
     func configureStateMachine() {
@@ -112,7 +137,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
 
 extension HistoryViewController: HistoryViewModelDelegate {
     func stateChanged() {
-        clearAllButton.isEnabled = false
+        setClearAllButtonEnabled(false)
 
         switch viewModel.state {
         case .loading:
@@ -123,7 +148,7 @@ extension HistoryViewController: HistoryViewModelDelegate {
             stateMachine.transitionToState(.view("empty"), animated: false, completion: nil)
 
         case .loaded:
-            clearAllButton.isEnabled = true
+            setClearAllButtonEnabled(true)
             tableView.refreshControl?.endRefreshing()
             tableView.reloadData()
             stateMachine.transitionToState(.none)
@@ -132,7 +157,7 @@ extension HistoryViewController: HistoryViewModelDelegate {
             tableView.refreshControl?.endRefreshing()
             switch error.type {
             case .networkError:
-                clearAllButton.isEnabled = false
+                setClearAllButtonEnabled(false)
                 stateMachine.transitionToState(.view("offline"))
 
             default:

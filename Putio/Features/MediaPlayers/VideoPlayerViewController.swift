@@ -350,19 +350,19 @@ class VideoPlayerViewController: AVPlayerViewController {
     }
 
     private func syncRemotePlaybackPosition(_ startFrom: Int, shouldSyncRemoteInBackground: Bool) {
-        var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
+        var backgroundTaskID: UIBackgroundTaskIdentifier = UIBackgroundTaskInvalid
 
         if shouldSyncRemoteInBackground {
             backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "SaveVideoPlaybackPosition") {
                 UIApplication.shared.endBackgroundTask(backgroundTaskID)
-                backgroundTaskID = .invalid
+                backgroundTaskID = UIBackgroundTaskInvalid
             }
         }
 
         let completion: PutioAPIBoolCompletion = { _ in
-            guard backgroundTaskID != .invalid else { return }
+            guard backgroundTaskID != UIBackgroundTaskInvalid else { return }
             UIApplication.shared.endBackgroundTask(backgroundTaskID)
-            backgroundTaskID = .invalid
+            backgroundTaskID = UIBackgroundTaskInvalid
         }
 
         if startFrom == 0 {

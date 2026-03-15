@@ -28,7 +28,7 @@ class LinkAccountViewController: UIViewController, UITextFieldDelegate {
 
             case .failure(let error):
                 let alert = UIAlertController(
-                    title: "Oops, an error occurred 😢",
+                    title: "Oops, an error occurred",
                     message: error.message,
                     preferredStyle: .alert
                 )

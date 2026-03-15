@@ -9,7 +9,7 @@ class DestroyAccounViewController: UIViewController {
 
     @IBAction func destroyButtonTapped(_ sender: Any) {
         let alertController = UIAlertController(
-            title: "One last step 🥺",
+            title: "One last step",
             message: "Please enter your password for confirmation.",
             preferredStyle: .alert
         )

@@ -18,6 +18,8 @@ class MainTabBarController: UITabBarController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        view.backgroundColor = UIColor.Putio.black
+        overrideUserInterfaceStyle = .dark
         DeeplinkManager.sharedInstance.setup(with: self)
         cachedViewControllers = viewControllers
         updateDownloadQueueCount()

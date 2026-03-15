@@ -7,6 +7,7 @@ import Sentry
 class DownloadsViewController: UIViewController, DownloadedFilePresenter, StatefulViewController {
     @IBOutlet weak var tableView: UITableView!
     var notificationToken: NotificationToken?
+    var tutorialButton: UIButton?
     var downloads: Results<Download> = {
         let realm = try! Realm()
         return realm.objects(Download.self).sorted(byKeyPath: "createdAt")
@@ -18,8 +19,37 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
         tableView.dataSource = self
         tableView.delegate = self
 
+        configureAppearance()
         configureStateMachine()
         registerDataObserver()
+    }
+
+    func configureAppearance() {
+        tableView.separatorColor = UIColor.Putio.background
+        tableView.backgroundColor = UIColor.Putio.background
+        tableView.contentInsetAdjustmentBehavior = .automatic
+
+        tableView.sectionHeaderTopPadding = 0
+
+        configureNavigationBarButton()
+    }
+
+    func configureNavigationBarButton() {
+        let button = UIButton(type: .system)
+        button.tintColor = UIColor.Putio.yellow
+        button.backgroundColor = .clear
+        button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+        button.accessibilityLabel = "Downloads tutorial"
+        button.addTarget(self, action: #selector(tutorialButtonTapped), for: .touchUpInside)
+
+        if let image = UIImage(named: "flaticons-stroke-info-2") {
+            button.setImage(image.withRenderingMode(.alwaysTemplate), for: .normal)
+        } else {
+            button.setImage(UIImage(systemName: "info.circle"), for: .normal)
+        }
+
+        tutorialButton = button
+        navigationItem.rightBarButtonItem = UIBarButtonItem(customView: button)
     }
 
     func configureStateMachine() {
@@ -56,6 +86,10 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
 
     deinit {
         notificationToken?.invalidate()
+    }
+
+    @objc func tutorialButtonTapped() {
+        performSegue(withIdentifier: "toDownloadsTutorial", sender: nil)
     }
 
     // MARK: Swipe Actions
