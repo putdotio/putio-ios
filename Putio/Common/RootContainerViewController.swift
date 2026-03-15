@@ -111,6 +111,8 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        view.backgroundColor = UIColor.Putio.black
+        overrideUserInterfaceStyle = .dark
         createMainTabBarControllerView()
         createMiniMediaControllerView()
         createMaskingView()

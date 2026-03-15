@@ -856,7 +856,7 @@
                         </constraints>
                     </view>
                     <navigationItem key="navigationItem" title="Downloads: Mini Tutorial" largeTitleDisplayMode="never" id="wiF-8p-yTc">
-                        <barButtonItem key="rightBarButtonItem" style="done" systemItem="done" id="ALk-q8-2K3">
+                        <barButtonItem key="rightBarButtonItem" title="Done" id="ALk-q8-2K3">
                             <color key="tintColor" name="putio.yellow"/>
                             <connections>
                                 <action selector="dismissButtonTapped:" destination="WMo-G5-Llo" id="mEK-ph-gq4"/>
@@ -1121,7 +1121,7 @@
                                             <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                             <nil key="highlightedColor"/>
                                         </label>
-                                        <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" image="icon" id="hid-5t-dyH">
+                                        <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" image="appIconRetro" id="hid-5t-dyH">
                                             <rect key="frame" x="20" y="0.0" width="43.666666666666686" height="43.666666666666664"/>
                                             <autoresizingMask key="autoresizingMask"/>
                                         </imageView>

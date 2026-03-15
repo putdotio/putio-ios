@@ -35,16 +35,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             options.dsn = SENTRY_DSN
             options.enableAutoSessionTracking = true
             options.sessionTrackingIntervalMillis = 60000
-            options.enableOutOfMemoryTracking = false
         }
 
         Intercom.setApiKey(INTERCOM_API_KEY, forAppId: INTERCOM_APP_ID)
     }
 
     func configureUI() {
+        applyWindowAppearance()
         Stylize.UIKit(window: window)
         NetworkReachability.sharedInstance.setup()
         Utils.configureAVSession()
+    }
+
+    func applyWindowAppearance() {
+        window?.backgroundColor = UIColor.Putio.black
+        window?.tintColor = UIColor.Putio.yellow
+        window?.overrideUserInterfaceStyle = .dark
     }
 
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
@@ -198,12 +204,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func presentLoginScreen() {
+        applyWindowAppearance()
         window?.rootViewController = UIStoryboard(name: "Login", bundle: nil).instantiateViewController(withIdentifier: "LoginVC")
         window?.makeKeyAndVisible()
     }
 
     func presentMainScreen() {
         ChromecastManager.sharedInstance.setup()
+        applyWindowAppearance()
         window?.rootViewController = RootContainerViewController()
         window?.makeKeyAndVisible()
     }

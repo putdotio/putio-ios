@@ -10,6 +10,8 @@ import RealmSwift
 class FilesViewController: UIViewController, StatefulViewController, FilePresenter, DownloadedFilePresenter, FolderCreatorPresenter {
     var viewModel = FilesViewModel()
     var allSelected: Bool = false
+    var fileActionsButton: UIBarButtonItem?
+    var chromecastButton: GCKUICastButton?
 
     lazy var downloads: Results<Download> = {
         let realm = try! Realm()
@@ -39,6 +41,11 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
         fetchData(withLoader: false)
 
         registerObservers()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        updateTableInsets()
     }
 
     func registerObservers() {
@@ -97,7 +104,9 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
         configureToolbar()
 
         tableView.separatorInset = UIEdgeInsets.zero
-        tableView.contentInset.bottom = 100
+        tableView.contentInsetAdjustmentBehavior = .automatic
+
+        tableView.sectionHeaderTopPadding = 0
 
         navigationItem.largeTitleDisplayMode = .never
         navigationItem.title = viewModel.file?.name
@@ -105,120 +114,123 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
         configureNavigationBarRightButtons()
     }
 
-    func createNavigationBarFileActionsButton() -> UIBarButtonItem {
-        if #available(iOS 14, *) {
-            return UIBarButtonItem(
-                title: nil,
-                image: UIImage(systemName: "ellipsis.circle"),
-                primaryAction: nil,
-                menu: nil
-            )
-        }
+    func updateTableInsets() {
+        let toolbarHeight = navigationController?.isToolbarHidden == false ? navigationController?.toolbar.frame.height ?? 0 : 0
+        let contentInset = UIEdgeInsets(top: 0, left: 0, bottom: toolbarHeight, right: 0)
+        tableView.contentInset = contentInset
+        tableView.scrollIndicatorInsets = contentInset
+    }
 
-        return UIBarButtonItem(
-            title: "Select",
+    func createNavigationBarFileActionsButton() -> UIBarButtonItem {
+        let imageConfig = UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)
+        let button = UIBarButtonItem(
+            image: UIImage(systemName: "ellipsis.circle", withConfiguration: imageConfig),
             style: .plain,
-            target: self,
-            action: #selector(toggleTableEditing)
+            target: nil,
+            action: nil
         )
+        button.tintColor = UIColor.Putio.yellow
+        return button
     }
 
     func configureNavigationBarRightButtons() {
-        let chromecastButtonContainer = CGRect(x: 0, y: 0, width: 24, height: 24)
-        let chromecastButton = GCKUICastButton(frame: chromecastButtonContainer)
-        chromecastButton.tintColor = UIColor.Putio.yellow
+        let button = createNavigationBarFileActionsButton()
+        fileActionsButton = button
 
-        navigationItem.rightBarButtonItems = [createNavigationBarFileActionsButton(), UIBarButtonItem(customView: chromecastButton)]
-        navigationItem.rightBarButtonItems?[0].isEnabled = false
+        let castButton = GCKUICastButton(frame: .zero)
+        castButton.tintColor = UIColor.Putio.yellow
+        castButton.frame = CGRect(x: 0, y: 0, width: 24, height: 24)
+        chromecastButton = castButton
+        let castBarButtonItem = UIBarButtonItem(customView: castButton)
+
+        navigationItem.rightBarButtonItems = [button, castBarButtonItem]
+        setFileActionsEnabled(false)
+    }
+
+    func setFileActionsEnabled(_ isEnabled: Bool) {
+        fileActionsButton?.isEnabled = isEnabled
     }
 
     func configureFileActionsButtonMenuItems() {
         guard let parent = self.viewModel.file else { return }
         let children = self.viewModel.files
 
-        if #available(iOS 14, *) {
-            // app specific actions
-            // -- select --
-            let selectButton = UIAction(
-                title: "Select",
-                image: UIImage(systemName: "checkmark.circle"),
-                identifier: nil,
-                handler: { _ in self.toggleTableEditing() }
-            )
-            if children.count == 0 { selectButton.attributes = .disabled }
+        // app specific actions
+        // -- select --
+        let selectButton = UIAction(
+            title: "Select",
+            image: UIImage(systemName: "checkmark.circle"),
+            identifier: nil,
+            handler: { _ in self.toggleTableEditing() }
+        )
+        if children.count == 0 { selectButton.attributes = .disabled }
 
-            // api: universal actions
-            // -- new folder --
-            let newFolderButton = UIAction(
-                title: "New Folder",
-                image: UIImage(systemName: "folder.badge.plus"),
-                identifier: nil,
-                handler: { _ in
-                    let createFolderAlert = self.createFolderCreatorAlert(parentID: parent.id) { (_, error) in
-                        guard error == nil else { return }
-                        self.fetchData(withLoader: true)
-                    }
-
-                    self.present(createFolderAlert, animated: true, completion: nil)
-                }
-            )
-
-            // -- sort --
-            let sortKeys: KeyValuePairs = [
-                "NAME": "Name",
-                "SIZE": "Size",
-                "DATE": "Date Added",
-                "MODIFIED": "Date Modified",
-                "TYPE": "Type",
-                "WATCH": "Watch Status"
-            ]
-
-            let selectedSortKey = parent.sortBy.split(separator: "_")[0]
-            let selectedSortDirection = parent.sortBy.split(separator: "_")[1]
-
-            let sortMenuItems = sortKeys.map { (sortKey, label) -> UIAction in
-                let item = UIAction(
-                    title: label,
-                    image: nil,
-                    identifier: UIAction.Identifier(sortKey),
-                    discoverabilityTitle: nil,
-                    state: .off,
-                    handler: { _ in self.setSortSettings(nextSortKey: sortKey) }
-                )
-
-                if sortKey == selectedSortKey {
-                    item.state = .on
-                    item.image = selectedSortDirection == "ASC" ? UIImage(systemName: "chevron.up") : UIImage(systemName: "chevron.down")
+        // api: universal actions
+        // -- new folder --
+        let newFolderButton = UIAction(
+            title: "New Folder",
+            image: UIImage(systemName: "folder.badge.plus"),
+            identifier: nil,
+            handler: { _ in
+                let createFolderAlert = self.createFolderCreatorAlert(parentID: parent.id) { (_, error) in
+                    guard error == nil else { return }
+                    self.fetchData(withLoader: true)
                 }
 
-                return item
+                self.present(createFolderAlert, animated: true, completion: nil)
+            }
+        )
+
+        // -- sort --
+        let sortKeys: KeyValuePairs = [
+            "NAME": "Name",
+            "SIZE": "Size",
+            "DATE": "Date Added",
+            "MODIFIED": "Date Modified",
+            "TYPE": "Type",
+            "WATCH": "Watch Status"
+        ]
+
+        let selectedSortKey = parent.sortBy.split(separator: "_")[0]
+        let selectedSortDirection = parent.sortBy.split(separator: "_")[1]
+
+        let sortMenuItems = sortKeys.map { (sortKey, label) -> UIAction in
+            let item = UIAction(
+                title: label,
+                image: nil,
+                identifier: UIAction.Identifier(sortKey),
+                discoverabilityTitle: nil,
+                state: .off,
+                handler: { _ in self.setSortSettings(nextSortKey: sortKey) }
+            )
+
+            if sortKey == selectedSortKey {
+                item.state = .on
+                item.image = selectedSortDirection == "ASC" ? UIImage(systemName: "chevron.up") : UIImage(systemName: "chevron.down")
             }
 
-            let sortMenu = UIMenu(
-                title: "",
-                image: nil,
-                identifier: nil,
-                options: .displayInline,
-                children: sortMenuItems
-            )
-
-            // -- UI MENU --
-            navigationItem.rightBarButtonItems?[0] = UIBarButtonItem(
-                title: nil,
-                image: UIImage(systemName: "ellipsis.circle"),
-                primaryAction: nil,
-                menu: UIMenu(
-                    image: nil,
-                    identifier: nil,
-                    options: [],
-                    children: [
-                        selectButton,
-                        newFolderButton,
-                        sortMenu
-                    ]
-                )
-            )
+            return item
         }
+
+        let sortMenu = UIMenu(
+            title: "",
+            image: nil,
+            identifier: nil,
+            options: .displayInline,
+            children: sortMenuItems
+        )
+
+        // -- UI MENU --
+        fileActionsButton?.menu = UIMenu(
+            image: nil,
+            identifier: nil,
+            options: [],
+            children: [
+                selectButton,
+                newFolderButton,
+                sortMenu
+            ]
+        )
     }
 
     func configureToolbar() {
@@ -265,7 +277,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
 
                 self.tableView.reloadData()
                 self.configureFileActionsButtonMenuItems()
-                self.navigationItem.rightBarButtonItems?[0].isEnabled = !data.parent.isShared
+                self.setFileActionsEnabled(!data.parent.isShared)
 
                 if data.children.count == 0 {
                     self.stateMachine.transitionToState(.view("empty"))
@@ -283,7 +295,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
                     self.stateMachine.transitionToState(.view("error"))
 
                 case .networkError:
-                    self.navigationItem.rightBarButtonItems?[0].isEnabled = false
+                    self.setFileActionsEnabled(false)
                     self.stateMachine.transitionToState(.view("offline"))
 
                 case .unknownError:
@@ -325,6 +337,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
 
     func startEditing() {
         navigationController?.setToolbarHidden(false, animated: false)
+        updateTableInsets()
 
         tableView.setEditing(true, animated: true)
 
@@ -338,7 +351,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
 
         navigationItem.title = "Select Items"
 
-        navigationItem.rightBarButtonItems?[0] = UIBarButtonItem(
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: "Done",
             style: .plain,
             target: self,
@@ -351,6 +364,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
 
     func stopEditing() {
         navigationController?.setToolbarHidden(true, animated: false)
+        updateTableInsets()
 
         tableView.setEditing(false, animated: true)
 
@@ -359,8 +373,8 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
 
         navigationItem.title = viewModel.file?.name
 
-        navigationItem.rightBarButtonItems?[0] = createNavigationBarFileActionsButton()
-        navigationItem.rightBarButtonItems?[0].isEnabled = true
+        configureNavigationBarRightButtons()
+        setFileActionsEnabled(!(viewModel.file?.isShared ?? false))
         configureFileActionsButtonMenuItems()
 
         navigationItem.searchController?.searchBar.isUserInteractionEnabled = true
@@ -571,7 +585,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
 
                     case .failure(let error):
                         let errorAlert = UIAlertController(
-                            title: "Oops, an error occurred 😢",
+                            title: "Oops, an error occurred",
                             message: error.message,
                             preferredStyle: .alert
                         )

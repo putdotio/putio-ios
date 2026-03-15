@@ -66,7 +66,7 @@ class DownloadsTableViewCell: UITableViewCell {
                  subtitleLabel?.text = "Stopped"
             case .failed:
                  downloadProgressButton.downloadState = .toDownload
-                 subtitleLabel?.text = "⚠️ \(download.message)"
+                 subtitleLabel?.text = "Failed: \(download.message)"
             case .completed:
                 break
             }

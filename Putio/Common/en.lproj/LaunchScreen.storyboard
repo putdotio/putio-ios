@@ -17,7 +17,7 @@
                         <rect key="frame" x="0.0" y="0.0" width="375" height="812"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="logoRetroRainbow" translatesAutoresizingMaskIntoConstraints="NO" id="ouj-Zn-MMr">
+                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="logoRainbow" translatesAutoresizingMaskIntoConstraints="NO" id="ouj-Zn-MMr">
                                 <rect key="frame" x="56.666666666666657" y="377" width="262" height="68"/>
                                 <preferredSymbolConfiguration key="preferredSymbolConfiguration" scale="default"/>
                             </imageView>
@@ -37,7 +37,7 @@
     </scenes>
     <color key="tintColor" name="putio.yellow"/>
     <resources>
-        <image name="logoRetroRainbow" width="262" height="68"/>
+        <image name="logoRainbow" width="262" height="68"/>
         <namedColor name="putio.background">
             <color red="0.20000000298023224" green="0.20000000298023224" blue="0.20000000298023224" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>

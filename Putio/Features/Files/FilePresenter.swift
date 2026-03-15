@@ -32,12 +32,11 @@ extension FilePresenter where Self: UIViewController {
 
         default:
             let alertController = UIAlertController(
-                title: "😐",
-                message: "We're unable to show these kind of files on this app (for now)",
+                title: "Unsupported File",
+                message: "We're unable to show this kind of file in the app yet.",
                 preferredStyle: .alert
             )
-            alertController.addAction(UIAlertAction(title: "😡", style: .destructive, handler: nil))
-            alertController.addAction(UIAlertAction(title: "👍", style: .cancel, handler: nil))
+            alertController.addAction(UIAlertAction(title: "Close", style: .cancel, handler: nil))
             present(alertController, animated: true, completion: nil)
         }
     }
@@ -82,7 +81,7 @@ extension FilePresenter where Self: UIViewController {
             presentVideoConversionView(for: file, intention: .play)
         default:
             let alertController = UIAlertController(
-                title: "😔",
+                title: "Casting Error",
                 message: "An error occurred while trying to cast this file. Please try again.",
                 preferredStyle: .alert
             )

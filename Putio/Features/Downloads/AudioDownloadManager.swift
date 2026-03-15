@@ -36,15 +36,15 @@ class AudioDownloadManager: NSObject {
 
     private func restore() {
         urlSession.getAllTasks { (tasks) in
-            log.verbose("🎸 ADM: restore - task count: \(tasks.count)")
+            log.verbose("ADM: restore - task count: \(tasks.count)")
 
             tasks.forEach { (task) in
                 guard let taskDescription = task.taskDescription else {
-                    return log.error("🎸 ADM: restore - unknown task: \(task.taskDescription ?? "")")
+                    return log.error("ADM: restore - unknown task: \(task.taskDescription ?? "")")
                 }
 
                 guard let downloadId = Int(taskDescription) else {
-                    return log.error("🎸 ADM: restore - could not cast taskDescription: \(taskDescription)")
+                    return log.error("ADM: restore - could not cast taskDescription: \(taskDescription)")
                 }
 
                 self.activeDownloadsMap[task] = downloadId
@@ -58,7 +58,7 @@ class AudioDownloadManager: NSObject {
 
         let notificationContent = UNMutableNotificationContent()
         notificationContent.title = "Download Completed!"
-        notificationContent.body = "\(download.name) is ready! 🎧😴"
+        notificationContent.body = "\(download.name) is ready to play."
 
         let notificationTrigger = UNTimeIntervalNotificationTrigger(timeInterval: 1.0, repeats: false)
         let notificationRequest = UNNotificationRequest(
@@ -95,7 +95,7 @@ class AudioDownloadManager: NSObject {
         guard file.type == .audio else { return }
 
         let url = file.getAudioStreamURL(token: api.config.token).absoluteString
-        log.debug("🎸 ADM: createDownload url: \(url)")
+        log.debug("ADM: createDownload url: \(url)")
 
         guard let download = Download(file: file, url: url) else { return }
 
@@ -134,7 +134,7 @@ class AudioDownloadManager: NSObject {
     }
 
     func restartDownload(id: Int) {
-        log.verbose(["🎸 ADM: restartDownload", id])
+        log.verbose(["ADM: restartDownload", id])
         guard let download = getDownloadFromDatabase(id: id) else { return }
 
         cancelDownload(id: id)
@@ -157,12 +157,12 @@ class AudioDownloadManager: NSObject {
 
     func getLocalFileURL(for downloadId: Int) -> URL? {
         guard let filePath = UserDefaults.standard.value(forKey: String(downloadId)) as? String else {
-            log.error("🎸 ADM: getLocalFileURL: no filePath found in UserDefaults")
+            log.error("ADM: getLocalFileURL: no filePath found in UserDefaults")
             return nil
         }
 
         let url = getAbsoluteURL(for: filePath)
-        log.debug("🎸 ADM: getLocalFileURL found: \(url.absoluteString)")
+        log.debug("ADM: getLocalFileURL found: \(url.absoluteString)")
         return url
     }
 
@@ -173,7 +173,7 @@ class AudioDownloadManager: NSObject {
             try FileManager.default.removeItem(at: url)
             UserDefaults.standard.removeObject(forKey: String(downloadId))
         } catch {
-            log.error("🎸 ADM: deleteLocalFile error: \(downloadId): \(error)")
+            log.error("ADM: deleteLocalFile error: \(downloadId): \(error)")
         }
     }
 
@@ -239,12 +239,12 @@ extension AudioDownloadManager: URLSessionTaskDelegate {
 
 extension AudioDownloadManager: URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        log.verbose(["🎸 ADM: downloadTask-didWriteData task:", downloadTask.taskIdentifier])
+        log.verbose(["ADM: downloadTask-didWriteData task:", downloadTask.taskIdentifier])
 
         guard let downloadId = activeDownloadsMap[downloadTask] else { return }
         guard let download = getDownloadFromDatabase(id: downloadId) else { return }
 
-        log.verbose(["🎸 ADM: downloadTask-didWriteData download:", downloadId])
+        log.verbose(["ADM: downloadTask-didWriteData download:", downloadId])
 
         guard totalBytesExpectedToWrite > 0 else { return }
 
@@ -252,7 +252,7 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
         let oldProgress = (download.progress as NSString).floatValue
 
         if oldProgress == 0 || currentProgress - oldProgress >= 0.1 {
-            log.verbose(["🎸 ADM: downloadTask-didWriteData progress:", currentProgress, "oldProgress", oldProgress])
+            log.verbose(["ADM: downloadTask-didWriteData progress:", currentProgress, "oldProgress", oldProgress])
 
             try! realm.write {
                 download.progress = String(format: "%.1f", currentProgress)
@@ -262,7 +262,7 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
     }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        log.verbose(["🎸 ADM: downloadTask-didFinishDownloadingTo task:", downloadTask.taskIdentifier])
+        log.verbose(["ADM: downloadTask-didFinishDownloadingTo task:", downloadTask.taskIdentifier])
 
         guard let id = activeDownloadsMap[downloadTask] else { return }
         guard let download = getDownloadFromDatabase(id: id) else { return }
@@ -274,11 +274,11 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
         try? FileManager.default.removeItem(at: destinationURL)
 
         do {
-            log.verbose(["🎸 ADM: downloadTask-didFinishDownloadingTo saving file to:", destinationURL])
+            log.verbose(["ADM: downloadTask-didFinishDownloadingTo saving file to:", destinationURL])
             try FileManager.default.copyItem(at: location, to: destinationURL)
-            log.verbose("🎸 ADM: downloadTask-didFinishDownloadingTo saved file!")
+            log.verbose("ADM: downloadTask-didFinishDownloadingTo saved file!")
         } catch let error {
-            log.error(["🎸 ADM: downloadTask-didFinishDownloadingTo saved error:", error.localizedDescription])
+            log.error(["ADM: downloadTask-didFinishDownloadingTo saved error:", error.localizedDescription])
         }
 
         UserDefaults.standard.set(destinationPath, forKey: String(download.id))

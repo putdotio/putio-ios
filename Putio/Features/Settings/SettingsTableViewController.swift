@@ -14,6 +14,9 @@ class SettingsTableViewController: UITableViewController, TwoFactorAuthPresenter
     func configureAppearance() {
         tableView.separatorColor = UIColor.Putio.background
         tableView.backgroundColor = UIColor.Putio.background
+        tableView.contentInsetAdjustmentBehavior = .automatic
+
+        tableView.sectionHeaderTopPadding = 0
     }
 
     override func viewDidAppear(_ animated: Bool) {

@@ -188,7 +188,7 @@ class DownloadManager: NSObject {
 
         let notificationContent = UNMutableNotificationContent()
         notificationContent.title = "Download Completed!"
-        notificationContent.body = "\(download!.name) is ready! 🍿🎬😎"
+        notificationContent.body = "\(download!.name) is ready to play."
 
         let notificationTrigger = UNTimeIntervalNotificationTrigger(timeInterval: 1.0, repeats: false)
         let notificationRequest = UNNotificationRequest(
