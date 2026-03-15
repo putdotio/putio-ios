@@ -14,6 +14,7 @@ class VideoDownloadManager: NSObject {
     fileprivate var assetDownloadURLSession: AVAssetDownloadURLSession?
     fileprivate var activeDownloadsMap = [AVAssetDownloadTask: Int]()
     fileprivate var willDownloadToURLMap = [AVAssetDownloadTask: URL]()
+    fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
     fileprivate var didRestore = false
 
     var activeDownloadCount: Int {
@@ -259,13 +260,18 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
         }
 
         let oldProgress = (download.progress as NSString).doubleValue
+        let now = CFAbsoluteTimeGetCurrent()
+        let elapsed = now - (lastProgressUpdateTime[downloadId] ?? 0)
 
-        if oldProgress == 0 || currentProgress - oldProgress >= 0.1 {
+        if currentProgress > oldProgress && (oldProgress == 0 || (currentProgress - oldProgress >= 0.02 && elapsed >= 1.0)) {
             log.verbose(["VDM: assetDownloadTask-progress percent: ", currentProgress, "oldProgress", oldProgress])
+            lastProgressUpdateTime[downloadId] = now
 
             try! realm.write {
-                download.progress = String(format: "%.1f", currentProgress)
-                download.state = .active
+                download.progress = String(format: "%.2f", currentProgress)
+                if download.state != .active {
+                    download.state = .active
+                }
             }
         }
     }
@@ -277,6 +283,7 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
         log.verbose(["VDM: didCompleteWithError task: ", task.taskIdentifier])
 
         guard let id = activeDownloadsMap.removeValue(forKey: task) else { return }
+        lastProgressUpdateTime.removeValue(forKey: id)
         log.verbose(["VDM: didCompleteWithError task.id: ", id])
 
         guard let downloadURL = willDownloadToURLMap.removeValue(forKey: task) else { return }

@@ -416,63 +416,8 @@
                                                         </view>
                                                         <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="X1r-qC-0bE" userLabel="downloadButtonContainer">
                                                             <rect key="frame" x="313" y="5" width="50" height="50"/>
-                                                            <subviews>
-                                                                <button hidden="YES" opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="KYg-Sj-wOL" userLabel="downloadFinishedButton" customClass="NFDownloadButton" customModule="NFDownloadButton">
-                                                                    <rect key="frame" x="0.0" y="0.0" width="50" height="50"/>
-                                                                    <userDefinedRuntimeAttributes>
-                                                                        <userDefinedRuntimeAttribute type="color" keyPath="deviceColor">
-                                                                            <color key="value" white="0.66666666669999997" alpha="1" colorSpace="calibratedWhite"/>
-                                                                        </userDefinedRuntimeAttribute>
-                                                                        <userDefinedRuntimeAttribute type="color" keyPath="rippleColor">
-                                                                            <color key="value" white="0.66666666669999997" alpha="1" colorSpace="calibratedWhite"/>
-                                                                        </userDefinedRuntimeAttribute>
-                                                                        <userDefinedRuntimeAttribute type="color" keyPath="initialColor">
-                                                                            <color key="value" white="0.66666666669999997" alpha="1" colorSpace="calibratedWhite"/>
-                                                                        </userDefinedRuntimeAttribute>
-                                                                        <userDefinedRuntimeAttribute type="color" keyPath="buttonBackgroundColor">
-                                                                            <color key="value" red="0.062745098040000002" green="0.062745098040000002" blue="0.062745098040000002" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                                                        </userDefinedRuntimeAttribute>
-                                                                        <userDefinedRuntimeAttribute type="color" keyPath="downloadColor">
-                                                                            <color key="value" red="0.99215686270000003" green="0.80784313730000001" blue="0.27058823529999998" alpha="1" colorSpace="calibratedRGB"/>
-                                                                        </userDefinedRuntimeAttribute>
-                                                                        <userDefinedRuntimeAttribute type="boolean" keyPath="isDownloaded" value="YES"/>
-                                                                    </userDefinedRuntimeAttributes>
-                                                                </button>
-                                                                <button hidden="YES" opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="l6R-FE-vVu" userLabel="downloadProgressButton" customClass="NFDownloadButton" customModule="NFDownloadButton">
-                                                                    <rect key="frame" x="0.0" y="0.0" width="50" height="50"/>
-                                                                    <userDefinedRuntimeAttributes>
-                                                                        <userDefinedRuntimeAttribute type="color" keyPath="deviceColor">
-                                                                            <color key="value" white="0.66666666669999997" alpha="1" colorSpace="calibratedWhite"/>
-                                                                        </userDefinedRuntimeAttribute>
-                                                                        <userDefinedRuntimeAttribute type="color" keyPath="rippleColor">
-                                                                            <color key="value" white="0.66666666669999997" alpha="1" colorSpace="calibratedWhite"/>
-                                                                        </userDefinedRuntimeAttribute>
-                                                                        <userDefinedRuntimeAttribute type="color" keyPath="initialColor">
-                                                                            <color key="value" white="0.66666666669999997" alpha="1" colorSpace="calibratedWhite"/>
-                                                                        </userDefinedRuntimeAttribute>
-                                                                        <userDefinedRuntimeAttribute type="color" keyPath="buttonBackgroundColor">
-                                                                            <color key="value" red="0.062745098040000002" green="0.062745098040000002" blue="0.062745098040000002" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                                                        </userDefinedRuntimeAttribute>
-                                                                        <userDefinedRuntimeAttribute type="color" keyPath="downloadColor">
-                                                                            <color key="value" red="0.99215686270000003" green="0.80784313730000001" blue="0.27058823529999998" alpha="1" colorSpace="calibratedRGB"/>
-                                                                        </userDefinedRuntimeAttribute>
-                                                                        <userDefinedRuntimeAttribute type="boolean" keyPath="isDownloaded" value="NO"/>
-                                                                    </userDefinedRuntimeAttributes>
-                                                                    <connections>
-                                                                        <action selector="downloadButtonTapped:" destination="UcW-nK-dlL" eventType="touchUpInside" id="wZR-D2-3ug"/>
-                                                                    </connections>
-                                                                </button>
-                                                            </subviews>
                                                             <constraints>
-                                                                <constraint firstItem="KYg-Sj-wOL" firstAttribute="centerX" secondItem="X1r-qC-0bE" secondAttribute="centerX" id="1Eg-xC-lla"/>
                                                                 <constraint firstAttribute="height" constant="50" id="BDq-lc-OQc"/>
-                                                                <constraint firstItem="KYg-Sj-wOL" firstAttribute="width" secondItem="X1r-qC-0bE" secondAttribute="width" id="E5v-uM-3nH"/>
-                                                                <constraint firstItem="KYg-Sj-wOL" firstAttribute="centerY" secondItem="X1r-qC-0bE" secondAttribute="centerY" id="Ejm-tM-fUx"/>
-                                                                <constraint firstItem="l6R-FE-vVu" firstAttribute="height" secondItem="X1r-qC-0bE" secondAttribute="height" id="IbA-Vj-i56"/>
-                                                                <constraint firstItem="l6R-FE-vVu" firstAttribute="centerY" secondItem="X1r-qC-0bE" secondAttribute="centerY" id="aS0-mP-71k"/>
-                                                                <constraint firstItem="l6R-FE-vVu" firstAttribute="centerX" secondItem="X1r-qC-0bE" secondAttribute="centerX" id="cEX-I3-2Iw"/>
-                                                                <constraint firstItem="KYg-Sj-wOL" firstAttribute="height" secondItem="X1r-qC-0bE" secondAttribute="height" id="xLt-n8-S4t"/>
-                                                                <constraint firstItem="l6R-FE-vVu" firstAttribute="width" secondItem="X1r-qC-0bE" secondAttribute="width" id="yoa-1H-5Kp"/>
                                                                 <constraint firstAttribute="width" constant="50" id="z1d-GY-14R"/>
                                                             </constraints>
                                                         </view>
@@ -490,8 +435,6 @@
                                         <inset key="separatorInset" minX="44" minY="0.0" maxX="0.0" maxY="0.0"/>
                                         <connections>
                                             <outlet property="downloadButtonContainer" destination="X1r-qC-0bE" id="MKx-4b-tE8"/>
-                                            <outlet property="downloadFinishedButton" destination="KYg-Sj-wOL" id="Tq6-MB-MdZ"/>
-                                            <outlet property="downloadProgressButton" destination="l6R-FE-vVu" id="Neb-Fy-h7d"/>
                                             <outlet property="icon" destination="zCe-f3-81n" id="a0M-W9-POb"/>
                                             <outlet property="subtitleLabel" destination="tko-lc-Zpw" id="RIu-DA-mB9"/>
                                             <outlet property="titleLabel" destination="c9K-cp-KEs" id="SvW-kB-fb6"/>

@@ -30,6 +30,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
         navigationItem.largeTitleDisplayMode = Stylize.prefersLargeTitles ? .always : .never
         navigationItem.title = "Downloads"
         Stylize.navigationItem(navigationItem)
+        PutioRealm.enrichPlaceholderDownloads()
     }
 
     func configureAppearance() {
@@ -65,16 +66,31 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
         emptyView.delegate = self
         stateMachine.addView(emptyView, forState: "empty")
 
-        if downloads.count == 0 {
+        if PutioRealm.needsDownloadRecovery {
+            let recoveryView = DownloadsRecoveryView()
+            recoveryView.onRestore = { [weak self] in self?.runRecovery() }
+            stateMachine.addView(recoveryView, forState: "recovery")
+            stateMachine.transitionToState(.view("recovery"), animated: false, completion: nil)
+        } else if downloads.count == 0 {
             stateMachine.transitionToState(.view("empty"), animated: false, completion: nil)
+        }
+    }
+
+    func runRecovery() {
+        PutioRealm.recoverDownloadsIfNeeded()
+
+        if downloads.count == 0 {
+            stateMachine.transitionToState(.view("empty"))
+        } else {
+            stateMachine.transitionToState(.none)
         }
     }
 
     func registerDataObserver() {
         notificationToken = downloads.observe({ (change) in
-            if self.downloads.count == 0 {
+            if self.downloads.count == 0 && !PutioRealm.needsDownloadRecovery {
                 self.stateMachine.transitionToState(.view("empty"))
-            } else {
+            } else if self.downloads.count > 0 {
                 self.stateMachine.transitionToState(.none)
             }
 
@@ -84,9 +100,14 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
             case .update(_, let deletions, let insertions, let modifications):
                 self.tableView.beginUpdates()
                 self.tableView.insertRows(at: insertions.map({ IndexPath(row: $0, section: 0) }), with: .automatic)
-                self.tableView.reloadRows(at: modifications.map({ IndexPath(row: $0, section: 0) }), with: .none)
                 self.tableView.deleteRows(at: deletions.map({ IndexPath(row: $0, section: 0) }), with: .automatic)
                 self.tableView.endUpdates()
+                for index in modifications {
+                    let indexPath = IndexPath(row: index, section: 0)
+                    if let cell = self.tableView.cellForRow(at: indexPath) as? DownloadsTableViewCell {
+                        cell.configure(with: self.downloads[index].id)
+                    }
+                }
             case .error(let error):
                 SentrySDK.capture(error: error)
         }})
@@ -204,5 +225,80 @@ extension DownloadsViewController: AVPlayerViewControllerDelegate {
 extension DownloadsViewController: DownloadsEmptyStateViewDelegate {
     func downloadTutorialButtonTapped() {
         performSegue(withIdentifier: "toDownloadsTutorial", sender: nil)
+    }
+}
+
+// MARK: - Recovery View
+
+class DownloadsRecoveryView: UIView {
+    var onRestore: (() -> Void)?
+
+    private let restoreButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("Restore Downloads", for: .normal)
+        button.setTitleColor(.black, for: .normal)
+        button.titleLabel?.font = .preferredFont(forTextStyle: .headline)
+        button.backgroundColor = UIColor.Putio.yellow
+        button.layer.cornerRadius = 12
+        button.contentEdgeInsets = UIEdgeInsets(top: 14, left: 32, bottom: 14, right: 32)
+        return button
+    }()
+
+    private let spinner: UIActivityIndicatorView = {
+        let spinner = UIActivityIndicatorView(activityIndicatorStyle: .medium)
+        spinner.color = .white
+        spinner.hidesWhenStopped = true
+        return spinner
+    }()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setup()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setup()
+    }
+
+    private func setup() {
+        backgroundColor = UIColor.Putio.background
+        autoresizingMask = [.flexibleWidth, .flexibleHeight]
+
+        let titleLabel = UILabel()
+        titleLabel.text = "Restore Your Downloads"
+        titleLabel.font = .preferredFont(forTextStyle: .title1)
+        titleLabel.textColor = .white
+        titleLabel.textAlignment = .center
+
+        let bodyLabel = UILabel()
+        bodyLabel.text = "Your files are still on this device but need to be restored after an app update.\n\nA stable internet connection is recommended."
+        bodyLabel.font = .preferredFont(forTextStyle: .body)
+        bodyLabel.textColor = .lightGray
+        bodyLabel.textAlignment = .center
+        bodyLabel.numberOfLines = 0
+
+        restoreButton.addTarget(self, action: #selector(restoreTapped), for: .touchUpInside)
+
+        let stack = UIStackView(arrangedSubviews: [titleLabel, bodyLabel, restoreButton, spinner])
+        stack.axis = .vertical
+        stack.alignment = .center
+        stack.spacing = 16
+        stack.setCustomSpacing(24, after: bodyLabel)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            stack.centerYAnchor.constraint(equalTo: centerYAnchor, constant: -20),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 32),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -32)
+        ])
+    }
+
+    @objc private func restoreTapped() {
+        restoreButton.isEnabled = false
+        restoreButton.setTitle("Restoring...", for: .normal)
+        spinner.startAnimating()
+        onRestore?()
     }
 }

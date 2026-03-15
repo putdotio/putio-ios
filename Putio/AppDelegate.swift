@@ -214,6 +214,5 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         applyWindowAppearance()
         window?.rootViewController = RootContainerViewController()
         window?.makeKeyAndVisible()
-        PutioRealm.recoverDownloadsIfNeeded()
     }
 }

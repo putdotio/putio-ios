@@ -14,6 +14,7 @@ class AudioDownloadManager: NSObject {
 
     fileprivate var urlSession: URLSession!
     fileprivate var activeDownloadsMap = [URLSessionTask: Int]()
+    fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
 
     var activeDownloadCount: Int {
         return activeDownloadsMap.count
@@ -206,6 +207,7 @@ class AudioDownloadManager: NSObject {
 extension AudioDownloadManager: URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard let id = activeDownloadsMap.removeValue(forKey: task) else { return }
+        lastProgressUpdateTime.removeValue(forKey: id)
         guard let download = getDownloadFromDatabase(id: id) else { return }
 
         var state = Download.State.completed
@@ -250,13 +252,18 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
 
         let currentProgress = Float(totalBytesWritten) / Float(totalBytesExpectedToWrite)
         let oldProgress = (download.progress as NSString).floatValue
+        let now = CFAbsoluteTimeGetCurrent()
+        let elapsed = now - (lastProgressUpdateTime[downloadId] ?? 0)
 
-        if oldProgress == 0 || currentProgress - oldProgress >= 0.1 {
+        if currentProgress > oldProgress && (oldProgress == 0 || (currentProgress - oldProgress >= 0.02 && elapsed >= 1.0)) {
             log.verbose(["ADM: downloadTask-didWriteData progress:", currentProgress, "oldProgress", oldProgress])
+            lastProgressUpdateTime[downloadId] = now
 
             try! realm.write {
-                download.progress = String(format: "%.1f", currentProgress)
-                download.state = .active
+                download.progress = String(format: "%.2f", currentProgress)
+                if download.state != .active {
+                    download.state = .active
+                }
             }
         }
     }
