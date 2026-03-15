@@ -27,7 +27,7 @@ class FilesRootViewController: FilesViewController {
     override func configureAppearance() {
         super.configureAppearance()
 
-        navigationItem.largeTitleDisplayMode = .always
+        navigationItem.largeTitleDisplayMode = Stylize.prefersLargeTitles ? .always : .never
         navigationItem.title = "Your Files"
 
         configureSearchbar()
@@ -40,6 +40,7 @@ class FilesRootViewController: FilesViewController {
         searchController?.searchBar.delegate = self
         searchController?.searchBar.returnKeyType = .done
         searchController?.obscuresBackgroundDuringPresentation = false
+        searchController?.hidesNavigationBarDuringPresentation = false
 
         if let searchController = searchController {
             Stylize.searchBar(searchController.searchBar)
@@ -47,6 +48,22 @@ class FilesRootViewController: FilesViewController {
 
         navigationItem.searchController = searchController
         navigationItem.hidesSearchBarWhenScrolling = false
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.navigationBar.prefersLargeTitles = Stylize.prefersLargeTitles
+        navigationItem.largeTitleDisplayMode = Stylize.prefersLargeTitles ? .always : .never
+        navigationItem.title = "Your Files"
+        navigationItem.searchController = searchController
+        navigationItem.hidesSearchBarWhenScrolling = false
+        Stylize.navigationItem(navigationItem)
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+
+        searchController?.isActive = false
     }
 
     override func handlePossibleNetworkTransition() {

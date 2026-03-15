@@ -33,6 +33,14 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
         )
     }
 
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.navigationBar.prefersLargeTitles = Stylize.prefersLargeTitles
+        navigationItem.largeTitleDisplayMode = Stylize.prefersLargeTitles ? .always : .never
+        navigationItem.title = "History"
+        Stylize.navigationItem(navigationItem)
+    }
+
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
 

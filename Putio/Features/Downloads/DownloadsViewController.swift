@@ -24,6 +24,14 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
         registerDataObserver()
     }
 
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.navigationBar.prefersLargeTitles = Stylize.prefersLargeTitles
+        navigationItem.largeTitleDisplayMode = Stylize.prefersLargeTitles ? .always : .never
+        navigationItem.title = "Downloads"
+        Stylize.navigationItem(navigationItem)
+    }
+
     func configureAppearance() {
         tableView.separatorColor = UIColor.Putio.background
         tableView.backgroundColor = UIColor.Putio.background

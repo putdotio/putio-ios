@@ -62,9 +62,12 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
         )
     }
 
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        tableView.reloadData()
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationItem.largeTitleDisplayMode = .never
+        navigationItem.searchController = nil
+        navigationItem.hidesSearchBarWhenScrolling = true
+        navigationItem.title = viewModel.file?.name
     }
 
     func handlePossibleNetworkTransition() {
