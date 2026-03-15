@@ -20,6 +20,7 @@ class MainTabBarController: UITabBarController {
         super.viewDidLoad()
         view.backgroundColor = UIColor.Putio.black
         overrideUserInterfaceStyle = .dark
+        configureNavigationControllers()
         DeeplinkManager.sharedInstance.setup(with: self)
         cachedViewControllers = viewControllers
         updateDownloadQueueCount()
@@ -67,6 +68,13 @@ class MainTabBarController: UITabBarController {
                 break
             }
         })
+    }
+
+    func configureNavigationControllers() {
+        viewControllers?.forEach { controller in
+            guard let navigationController = controller as? UINavigationController else { return }
+            navigationController.navigationBar.prefersLargeTitles = Stylize.prefersLargeTitles
+        }
     }
 
     func setSelectedTab(title: TabbarItemTitle) {

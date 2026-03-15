@@ -175,11 +175,9 @@
                 <navigationController id="MHF-Ak-52j" sceneMemberID="viewController">
                     <tabBarItem key="tabBarItem" title="Files" image="tabbarFilesPassive" selectedImage="tabbarFiles" id="yV7-6B-q7L"/>
                     <toolbarItems/>
-                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" largeTitles="YES" id="WVt-RB-6XK">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="WVt-RB-6XK">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
                         <autoresizingMask key="autoresizingMask"/>
-                        <color key="backgroundColor" name="putio.black"/>
-                        <color key="tintColor" name="putio.yellow"/>
                     </navigationBar>
                     <toolbar key="toolbar" opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" id="HRR-Yj-nma">
                         <autoresizingMask key="autoresizingMask"/>
@@ -260,11 +258,9 @@
             <objects>
                 <navigationController id="be8-15-Bj9" sceneMemberID="viewController">
                     <tabBarItem key="tabBarItem" title="History" image="tabbarHistoryPassive" selectedImage="tabbarHistory" id="4cL-VA-bRX"/>
-                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" largeTitles="YES" id="vyO-b2-uiX">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="vyO-b2-uiX">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
                         <autoresizingMask key="autoresizingMask"/>
-                        <color key="backgroundColor" name="putio.black"/>
-                        <color key="tintColor" name="putio.yellow"/>
                     </navigationBar>
                     <connections>
                         <segue destination="Zvy-0D-ZY0" kind="relationship" relationship="rootViewController" id="dBn-I1-nUH"/>
@@ -350,11 +346,9 @@
             <objects>
                 <navigationController id="Z21-bC-ht7" sceneMemberID="viewController">
                     <tabBarItem key="tabBarItem" title="Downloads" image="tabbarDownloadsPassive" selectedImage="tabbarDownloads" id="JPZ-4q-6Dh"/>
-                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" largeTitles="YES" id="byd-hg-sjU">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="byd-hg-sjU">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
                         <autoresizingMask key="autoresizingMask"/>
-                        <color key="backgroundColor" name="putio.black"/>
-                        <color key="tintColor" name="putio.yellow"/>
                     </navigationBar>
                     <connections>
                         <segue destination="Yj3-bw-6p9" kind="relationship" relationship="rootViewController" id="bcD-hJ-kIL"/>
@@ -688,11 +682,9 @@
             <objects>
                 <navigationController id="Y67-xk-8xV" sceneMemberID="viewController">
                     <tabBarItem key="tabBarItem" title="Account" image="tabbarAccountPassive" selectedImage="tabbarAccount" id="5Pv-Wd-lfR"/>
-                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" largeTitles="YES" id="HVy-fW-jQo">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="HVy-fW-jQo">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
                         <autoresizingMask key="autoresizingMask"/>
-                        <color key="backgroundColor" name="putio.black"/>
-                        <color key="tintColor" name="putio.yellow"/>
                     </navigationBar>
                     <connections>
                         <segue destination="lFO-9C-ht9" kind="relationship" relationship="rootViewController" id="9v9-bs-6df"/>

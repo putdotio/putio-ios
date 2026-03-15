@@ -2,20 +2,45 @@ import Foundation
 import UIKit
 
 class Stylize {
-    static func UIKit(window: UIWindow?) {
-        window?.backgroundColor = UIColor.Putio.black
-
+    private static func makeNavigationBarAppearance() -> UINavigationBarAppearance {
         let navigationBarAppearance = UINavigationBarAppearance()
+        navigationBarAppearance.configureWithOpaqueBackground()
         navigationBarAppearance.backgroundColor = UIColor.Putio.black
+        navigationBarAppearance.shadowColor = .clear
         navigationBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.white]
         navigationBarAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor.white]
 
-        UINavigationBar.appearance().standardAppearance = navigationBarAppearance
-        UINavigationBar.appearance().compactAppearance = navigationBarAppearance
-        UINavigationBar.appearance().scrollEdgeAppearance = navigationBarAppearance
+        let buttonAppearance = UIBarButtonItemAppearance(style: .plain)
+        buttonAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.Putio.yellow]
+        buttonAppearance.highlighted.titleTextAttributes = [.foregroundColor: UIColor.Putio.yellow]
+        buttonAppearance.disabled.titleTextAttributes = [.foregroundColor: UIColor.Putio.yellow.withAlphaComponent(0.5)]
 
-        UINavigationBar.appearance().barTintColor = UIColor.Putio.black
-        UINavigationBar.appearance().tintColor = UIColor.Putio.yellow
+        navigationBarAppearance.buttonAppearance = buttonAppearance
+        navigationBarAppearance.backButtonAppearance = buttonAppearance
+        navigationBarAppearance.doneButtonAppearance = buttonAppearance
+
+        return navigationBarAppearance
+    }
+
+    static func UIKit(window: UIWindow?) {
+        window?.backgroundColor = UIColor.Putio.black
+
+        let navigationBar = UINavigationBar.appearance()
+        navigationBar.tintColor = UIColor.Putio.yellow
+        navigationBar.titleTextAttributes = [.foregroundColor: UIColor.white]
+        navigationBar.largeTitleTextAttributes = [.foregroundColor: UIColor.white]
+
+        if #available(iOS 26.0, *) {
+            navigationBar.barStyle = .black
+            navigationBar.isTranslucent = false
+            navigationBar.barTintColor = UIColor.Putio.black
+        } else {
+            let navigationBarAppearance = makeNavigationBarAppearance()
+            navigationBar.standardAppearance = navigationBarAppearance
+            navigationBar.compactAppearance = navigationBarAppearance
+            navigationBar.scrollEdgeAppearance = navigationBarAppearance
+            navigationBar.compactScrollEdgeAppearance = navigationBarAppearance
+        }
 
         UITabBar.appearance().barTintColor = UIColor.Putio.black
         UITabBar.appearance().tintColor = UIColor.Putio.yellow
@@ -45,5 +70,25 @@ class Stylize {
         searchBar.keyboardAppearance = .dark
         searchBar.returnKeyType = .done
         searchBar.autocorrectionType = .no
+    }
+
+    /// Whether large titles should be used. Disabled on iOS 26 due to a UIKit bug
+    /// where the large-title text vanishes after a scroll-collapse-expand cycle.
+    static var prefersLargeTitles: Bool {
+        if #available(iOS 26.0, *) { return false }
+        return true
+    }
+
+    static func navigationItem(_ navigationItem: UINavigationItem) {
+        if #available(iOS 26.0, *) {
+            // iOS 26: per-item UINavigationBarAppearance with configureWithOpaqueBackground
+            // conflicts with the global legacy bar styling and causes large-title text to
+            // vanish after a scroll-collapse-expand cycle. Rely on the global proxy instead.
+            return
+        }
+        let appearance = makeNavigationBarAppearance()
+        navigationItem.standardAppearance = appearance
+        navigationItem.compactAppearance = appearance
+        navigationItem.scrollEdgeAppearance = appearance
     }
 }
