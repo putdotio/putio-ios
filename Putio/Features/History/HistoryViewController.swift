@@ -54,11 +54,10 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
     }
 
     func configureAppearance() {
-        tableView.separatorColor = UIColor.Putio.background
         tableView.backgroundColor = UIColor.Putio.background
         tableView.contentInsetAdjustmentBehavior = .automatic
+        tableView.tableHeaderView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNormalMagnitude))
 
-        tableView.sectionHeaderTopPadding = 0
 
         configureNavigationBarButton()
     }

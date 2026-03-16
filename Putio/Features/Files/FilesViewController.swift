@@ -111,10 +111,9 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
         configureToolbar()
 
         tableView.rowHeight = 55.0
-        tableView.separatorInset = UIEdgeInsets.zero
         tableView.contentInsetAdjustmentBehavior = .automatic
+        tableView.tableHeaderView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNormalMagnitude))
 
-        tableView.sectionHeaderTopPadding = 0
 
         navigationItem.title = viewModel.file?.name
 
