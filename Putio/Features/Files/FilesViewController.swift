@@ -69,8 +69,6 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationItem.searchController = nil
-        navigationItem.hidesSearchBarWhenScrolling = true
         navigationItem.title = viewModel.file?.name
     }
 
@@ -140,6 +138,9 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     }
 
     func configureNavigationBarRightButtons() {
+        // Skip if already set by parent before push transition
+        guard fileActionsButton == nil else { return }
+
         let button = createNavigationBarFileActionsButton()
         fileActionsButton = button
 
@@ -150,7 +151,6 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
         let castBarButtonItem = UIBarButtonItem(customView: castButton)
 
         navigationItem.rightBarButtonItems = [button, castBarButtonItem]
-        setFileActionsEnabled(false)
     }
 
     func setFileActionsEnabled(_ isEnabled: Bool) {
@@ -227,16 +227,18 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
         )
 
         // -- UI MENU --
-        fileActionsButton?.menu = UIMenu(
-            image: nil,
-            identifier: nil,
-            options: [],
-            children: [
-                selectButton,
-                newFolderButton,
-                sortMenu
-            ]
-        )
+        UIView.performWithoutAnimation {
+            self.fileActionsButton?.menu = UIMenu(
+                image: nil,
+                identifier: nil,
+                options: [],
+                children: [
+                    selectButton,
+                    newFolderButton,
+                    sortMenu
+                ]
+            )
+        }
     }
 
     func configureToolbar() {
@@ -298,7 +300,9 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
 
                 self.tableView.reloadData()
                 self.configureFileActionsButtonMenuItems()
-                self.setFileActionsEnabled(!data.parent.isShared)
+                UIView.performWithoutAnimation {
+                    self.setFileActionsEnabled(!data.parent.isShared)
+                }
 
                 if data.children.count == 0 {
                     self.stateMachine.transitionToState(.view("empty"))
