@@ -43,12 +43,10 @@
                 <tabBarController storyboardIdentifier="MainTabBarController" id="Pxi-ta-EnX" customClass="MainTabBarController" customModule="Putio" customModuleProvider="target" sceneMemberID="viewController">
                     <extendedEdge key="edgesForExtendedLayout" top="YES"/>
                     <navigationItem key="navigationItem" id="dgr-ql-Ddc"/>
-                    <tabBar key="tabBar" opaque="NO" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" id="XRm-7X-eGE">
+                    <tabBar key="tabBar" opaque="NO" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" id="XRm-7X-eGE">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="49"/>
                         <autoresizingMask key="autoresizingMask"/>
-                        <color key="backgroundColor" name="putio.black"/>
                         <color key="tintColor" name="putio.yellow"/>
-                        <color key="selectedImageTintColor" name="putio.yellow"/>
                     </tabBar>
                     <connections>
                         <segue destination="MHF-Ak-52j" kind="relationship" relationship="viewControllers" id="MWI-jv-7QX"/>

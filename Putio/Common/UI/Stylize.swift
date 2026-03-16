@@ -37,8 +37,8 @@ class Stylize {
         navigationBar.scrollEdgeAppearance = navigationBarAppearance
         navigationBar.compactScrollEdgeAppearance = navigationBarAppearance
 
-        UITabBar.appearance().barTintColor = UIColor.Putio.black
         UITabBar.appearance().tintColor = UIColor.Putio.yellow
+        UITabBar.appearance().unselectedItemTintColor = .gray
 
         UITableView.appearance().backgroundColor = UIColor.Putio.background
         UITableView.appearance().separatorColor = UIColor.Putio.listSeperator
@@ -51,9 +51,8 @@ class Stylize {
         UITableViewCell.appearance().selectedBackgroundView = uiTableViewCellColorView
         UITableViewCell.appearance().multipleSelectionBackgroundView = uiTableViewCellColorView
 
-        UIToolbar.appearance().backgroundColor = UIColor.Putio.black
-        UIToolbar.appearance().tintColor = UIColor.Putio.yellow
-        UIToolbar.appearance().barTintColor = UIColor.Putio.black
+        let toolbar = UIToolbar.appearance()
+        toolbar.tintColor = UIColor.Putio.yellow
 
         UITextField.appearance().keyboardAppearance = .dark
     }

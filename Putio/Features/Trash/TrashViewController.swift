@@ -4,6 +4,7 @@ import PutioAPI
 
 class TrashViewController: UIViewController, StatefulViewController {
     var viewModel = TrashViewModel()
+    var editingToolbar: UIToolbar?
 
     @IBOutlet weak var stackView: UIStackView!
     @IBOutlet weak var tableViewHeader: UIView!
@@ -127,30 +128,39 @@ class TrashViewController: UIViewController, StatefulViewController {
     }
 
     func configureToolbar() {
-        navigationController?.toolbar.barTintColor = UIColor.Putio.blackTint
+        let toolbar = UIToolbar()
+        toolbar.translatesAutoresizingMaskIntoConstraints = false
+        toolbar.tintColor = UIColor.Putio.yellow
 
-        setToolbarItems([
-            UIBarButtonItem(
-                title: "Restore",
-                style: .plain,
-                target: self,
-                action: #selector(restoreSelectedFiles)
-            ),
+        let appearance = UIToolbarAppearance()
+        appearance.configureWithTransparentBackground()
+        toolbar.standardAppearance = appearance
+        toolbar.compactAppearance = appearance
+
+        let restoreBtn = UIBarButtonItem(title: "Restore", style: .plain, target: self, action: #selector(restoreSelectedFiles))
+        let deleteBtn = UIBarButtonItem(title: "Delete", style: .plain, target: self, action: #selector(deleteSelectedFiles))
+
+        toolbar.items = [
+            restoreBtn,
             UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil),
-            UIBarButtonItem(
-                title: "Delete",
-                style: .plain,
-                target: self,
-                action: #selector(deleteSelectedFiles)
-            )
-        ], animated: false)
+            deleteBtn
+        ]
 
+        toolbar.isHidden = true
+        view.addSubview(toolbar)
+
+        NSLayoutConstraint.activate([
+            toolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            toolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            toolbar.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+
+        editingToolbar = toolbar
         updateToolbarButtonStates(isEnabled: false)
     }
 
     func updateToolbarButtonStates(isEnabled: Bool) {
-        let toolbarItems = navigationController?.toolbar.items
-        toolbarItems?.forEach({ item in item.isEnabled = isEnabled })
+        editingToolbar?.items?.forEach { $0.isEnabled = isEnabled }
     }
 
     // MARK: Actions
@@ -238,11 +248,13 @@ class TrashViewController: UIViewController, StatefulViewController {
         if tableView.isEditing {
             tableView.setEditing(false, animated: false)
             configureNavigationBar(isEditing: false)
-            navigationController?.setToolbarHidden(true, animated: true)
+            editingToolbar?.isHidden = true
+            tabBarController?.setTabBarHidden(false, animated: true)
         } else {
             tableView.setEditing(true, animated: true)
             configureNavigationBar(isEditing: true)
-            navigationController?.setToolbarHidden(false, animated: true)
+            tabBarController?.setTabBarHidden(true, animated: true)
+            editingToolbar?.isHidden = false
         }
     }
 

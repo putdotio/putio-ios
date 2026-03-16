@@ -69,9 +69,8 @@
                                     </tableViewCell>
                                 </prototypes>
                             </tableView>
-                            <toolbar opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" barStyle="black" translucent="NO" translatesAutoresizingMaskIntoConstraints="NO" id="cIR-WG-g5y">
+                            <toolbar opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="cIR-WG-g5y">
                                 <rect key="frame" x="0.0" y="607" width="375" height="49"/>
-                                <color key="backgroundColor" name="putio.black.tint"/>
                                 <items>
                                     <barButtonItem title="Create Folder" style="plain" id="5Y9-eh-QJw">
                                         <connections>
@@ -86,7 +85,6 @@
                                     </barButtonItem>
                                 </items>
                                 <color key="tintColor" name="putio.yellow"/>
-                                <color key="barTintColor" name="putio.black.tint"/>
                             </toolbar>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="ZRg-44-cKX"/>
@@ -94,13 +92,12 @@
                         <color key="tintColor" name="putio.yellow"/>
                         <constraints>
                             <constraint firstItem="4iO-KU-SwN" firstAttribute="leading" secondItem="ZRg-44-cKX" secondAttribute="leading" id="4QW-2A-bdK"/>
-                            <constraint firstItem="cIR-WG-g5y" firstAttribute="top" secondItem="4iO-KU-SwN" secondAttribute="bottom" id="B3C-QL-TfW"/>
                             <constraint firstItem="ZRg-44-cKX" firstAttribute="trailing" secondItem="4iO-KU-SwN" secondAttribute="trailing" id="HPD-hh-zqd"/>
                             <constraint firstItem="cIR-WG-g5y" firstAttribute="trailing" secondItem="ZRg-44-cKX" secondAttribute="trailing" id="Nch-rv-sYG"/>
                             <constraint firstItem="cIR-WG-g5y" firstAttribute="leading" secondItem="ZRg-44-cKX" secondAttribute="leading" id="X7F-DC-YH7"/>
                             <constraint firstItem="cIR-WG-g5y" firstAttribute="bottom" secondItem="ZRg-44-cKX" secondAttribute="bottom" id="Y2z-l8-ote"/>
                             <constraint firstItem="4iO-KU-SwN" firstAttribute="top" secondItem="ZRg-44-cKX" secondAttribute="top" id="Yld-2I-9w5"/>
-                            <constraint firstItem="cIR-WG-g5y" firstAttribute="top" secondItem="4iO-KU-SwN" secondAttribute="bottom" id="sOM-cR-P09"/>
+                            <constraint firstItem="4iO-KU-SwN" firstAttribute="bottom" secondItem="ZRg-44-cKX" secondAttribute="bottom" id="tbl-bot-saf"/>
                         </constraints>
                     </view>
                     <navigationItem key="navigationItem" title="Your Files" prompt="Choose New Location" id="ptY-vw-Xdb">
