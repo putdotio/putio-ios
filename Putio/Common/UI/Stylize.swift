@@ -42,6 +42,8 @@ class Stylize {
 
         UITableView.appearance().backgroundColor = UIColor.Putio.background
         UITableView.appearance().separatorColor = UIColor.Putio.listSeperator
+        UITableView.appearance().separatorInset = UIEdgeInsets(top: 0, left: 44, bottom: 0, right: 0)
+        UITableView.appearance().sectionHeaderTopPadding = 0
 
         UITableViewCell.appearance().backgroundColor = UIColor.Putio.background
         UITableViewCell.appearance().tintColor = UIColor.Putio.yellow
