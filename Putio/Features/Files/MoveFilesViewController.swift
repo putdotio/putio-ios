@@ -38,6 +38,15 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
     func configureAppearance() {
         configureStateMachine()
 
+        let appearance = UIToolbarAppearance()
+        appearance.configureWithTransparentBackground()
+        toolbar.standardAppearance = appearance
+        toolbar.compactAppearance = appearance
+        toolbar.scrollEdgeAppearance = appearance
+
+        tableView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 56, right: 0)
+        tableView.scrollIndicatorInsets = tableView.contentInset
+
         let message = filesToMove.count > 1 ? "files" : "file"
         navigationItem.prompt = "Choose new location for \(filesToMove.count) \(message)"
         navigationItem.title = file?.name ?? "Your Files"

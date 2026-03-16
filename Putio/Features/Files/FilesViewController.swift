@@ -12,6 +12,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     var allSelected: Bool = false
     var fileActionsButton: UIBarButtonItem?
     var chromecastButton: GCKUICastButton?
+    var editingToolbar: UIToolbar?
 
     lazy var downloads: Results<Download> = {
         let realm = try! Realm()
@@ -121,7 +122,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     }
 
     func updateTableInsets() {
-        let toolbarHeight = navigationController?.isToolbarHidden == false ? navigationController?.toolbar.frame.height ?? 0 : 0
+        let toolbarHeight = editingToolbar?.isHidden == false ? 44.0 : 0.0
         let contentInset = UIEdgeInsets(top: 0, left: 0, bottom: toolbarHeight, right: 0)
         tableView.contentInset = contentInset
         tableView.scrollIndicatorInsets = contentInset
@@ -240,32 +241,47 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     }
 
     func configureToolbar() {
-        let deleteBtn = UIBarButtonItem(
-            title: userSettings.trashEnabled ? "Trash" : "Delete",
-            style: .plain,
-            target: self,
-            action: #selector(deleteSelectedFiles)
-        )
+        let toolbar = UIToolbar()
+        toolbar.translatesAutoresizingMaskIntoConstraints = false
+        toolbar.tintColor = UIColor.Putio.yellow
+
+        let appearance = UIToolbarAppearance()
+        appearance.configureWithTransparentBackground()
+        toolbar.standardAppearance = appearance
+        toolbar.compactAppearance = appearance
+
+        let deleteTitle = userSettings.trashEnabled ? "Trash" : "Delete"
+        let moveBtn = UIBarButtonItem(title: "Move", style: .plain, target: self, action: #selector(moveSelectedFiles))
+        moveBtn.isEnabled = false
+        let deleteBtn = UIBarButtonItem(title: deleteTitle, style: .plain, target: self, action: #selector(deleteSelectedFiles))
         deleteBtn.isEnabled = false
 
-        let moveBtn = UIBarButtonItem(
-            title: "Move",
-            style: .plain,
-            target: self,
-            action: #selector(moveSelectedFiles)
-        )
-        moveBtn.isEnabled = false
-
-        let items = [
+        toolbar.items = [
             moveBtn,
             UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil),
             deleteBtn
         ]
 
-        navigationController?.toolbar.barTintColor = UIColor.Putio.blackTint
-        setToolbarItems(items, animated: true)
+        toolbar.isHidden = true
+        view.addSubview(toolbar)
 
-        navigationController?.setToolbarHidden(true, animated: false)
+        NSLayoutConstraint.activate([
+            toolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            toolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            toolbar.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+
+        editingToolbar = toolbar
+    }
+
+    func showEditingToolbar() {
+        tabBarController?.setTabBarHidden(true, animated: true)
+        editingToolbar?.isHidden = false
+    }
+
+    func hideEditingToolbar() {
+        editingToolbar?.isHidden = true
+        tabBarController?.setTabBarHidden(false, animated: true)
     }
 
     @objc func fetchData(withLoader: Bool = false) {
@@ -342,7 +358,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     }
 
     func startEditing() {
-        navigationController?.setToolbarHidden(false, animated: false)
+        showEditingToolbar()
         updateTableInsets()
 
         tableView.setEditing(true, animated: true)
@@ -369,7 +385,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     }
 
     func stopEditing() {
-        navigationController?.setToolbarHidden(true, animated: false)
+        hideEditingToolbar()
         updateTableInsets()
 
         tableView.setEditing(false, animated: true)
@@ -454,7 +470,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     // MARK: Toolbar State and Actions
     func updateToolbarActions() {
         let isEnabled = getSelectedFiles().count > 0
-        navigationController?.toolbar?.items?.forEach {$0.isEnabled = isEnabled}
+        editingToolbar?.items?.forEach { $0.isEnabled = isEnabled }
     }
 
     func deleteFiles(fileIDs: [Int]) {
@@ -507,7 +523,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
 
         actionSheet.addAction(deleteButton)
         actionSheet.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
-        actionSheet.popoverPresentationController?.barButtonItem = navigationController?.toolbar.items?[2]
+        actionSheet.popoverPresentationController?.sourceView = editingToolbar
 
         present(actionSheet, animated: true, completion: nil)
     }

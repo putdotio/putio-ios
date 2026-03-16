@@ -18,7 +18,7 @@ class MainTabBarController: UITabBarController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor.Putio.black
+        view.backgroundColor = UIColor.Putio.background
         overrideUserInterfaceStyle = .dark
         configureNavigationControllers()
         DeeplinkManager.sharedInstance.setup(with: self)
