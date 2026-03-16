@@ -138,19 +138,18 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     }
 
     func configureNavigationBarRightButtons() {
-        // Skip if already set by parent before push transition
-        guard fileActionsButton == nil else { return }
+        if fileActionsButton == nil {
+            let button = createNavigationBarFileActionsButton()
+            fileActionsButton = button
 
-        let button = createNavigationBarFileActionsButton()
-        fileActionsButton = button
+            let castButton = GCKUICastButton(frame: .zero)
+            castButton.tintColor = UIColor.Putio.yellow
+            castButton.frame = CGRect(x: 0, y: 0, width: 24, height: 24)
+            chromecastButton = castButton
+        }
 
-        let castButton = GCKUICastButton(frame: .zero)
-        castButton.tintColor = UIColor.Putio.yellow
-        castButton.frame = CGRect(x: 0, y: 0, width: 24, height: 24)
-        chromecastButton = castButton
-        let castBarButtonItem = UIBarButtonItem(customView: castButton)
-
-        navigationItem.rightBarButtonItems = [button, castBarButtonItem]
+        let castBarButtonItem = UIBarButtonItem(customView: chromecastButton!)
+        navigationItem.rightBarButtonItems = [fileActionsButton!, castBarButtonItem]
     }
 
     func setFileActionsEnabled(_ isEnabled: Bool) {
