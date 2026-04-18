@@ -16,13 +16,14 @@
 - `bundle install`
 - `bundle exec pod install`
 - `xcodebuild -list -workspace Putio.xcworkspace`
-- `xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO`
+- `xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -sdk iphonesimulator build CODE_SIGNING_ALLOWED=NO`
 
 ## Repo-Specific Guidance
 
 - Keep checked-in defaults open-source-safe. Private service keys stay out of git
 - The checked-in app build should work without private release credentials
-- Local verification currently expects the iOS `26.4` platform package to be installed through the Apple toolchain components
+- Unsigned local verification should prefer `-sdk iphonesimulator` over generic simulator destinations
+- Running the app in Simulator UI still depends on a matching iOS `26.x` simulator runtime being installed through Xcode Components
 - Treat `fastlane/.env.example` as the contract for optional release-time configuration
 - Prefer simulator-safe verification and unsigned builds in automation
 - Update docs when setup, validation, or release expectations change

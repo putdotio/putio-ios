@@ -33,6 +33,7 @@ For local setup, workspace bootstrapping, and validation commands, use [CONTRIBU
 
 - [CONTRIBUTING.md](./CONTRIBUTING.md) for local setup, validation, and contributor workflow
 - [SECURITY.md](./SECURITY.md) for private vulnerability reporting
+- [AGENTS.md](./AGENTS.md) for repo-specific agent guidance
 - [fastlane/README.md](./fastlane/README.md) for the generated release-lane reference
 
 ## Contributing
