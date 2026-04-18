@@ -64,7 +64,7 @@ jobs:
             ${{ runner.os }}-cocoapods-release-
 
       - name: Install CocoaPods dependencies
-        run: make bootstrap
+        run: make bootstrap-ci
 
       - name: Verify repository
         run: make verify

@@ -57,6 +57,7 @@ The committed templates at `Config/Local.1password.xcconfig.template` and `fastl
 ## CI and Beta Delivery
 
 - `.github/workflows/ci.yml` is verify-only. It runs `make bootstrap` and `make verify` on pull requests and `main` pushes
+- GitHub Actions uses `make bootstrap-ci`, which reuses the restored `Pods` sandbox when `Pods/Manifest.lock` already matches `Podfile.lock` and falls back to `pod install` only when the cache is stale
 - `.github/workflows/beta.yml` is the intentional TestFlight path. It runs only from `workflow_dispatch`, verifies the repo first, then loads the shared `frontend-ci/putio-ios` item through `OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI`, and uploads a beta build when you ask for one
 - `.github/workflows/release.yml` reacts to published GitHub releases, checks out the release tag, verifies the repo, and uploads a release build using the GitHub release version and notes by default
 - The repo intentionally does not upload a beta build on every push to `main`

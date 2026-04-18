@@ -1,9 +1,12 @@
-.PHONY: bootstrap verify print-simulator-destination print-simulator-device run-simulator download-ios-platform op-local-config beta release
+.PHONY: bootstrap bootstrap-ci verify print-simulator-destination print-simulator-device run-simulator download-ios-platform op-local-config beta release
 
 bootstrap:
 	bundle config set --local path vendor/bundle
 	bundle install
 	bundle exec pod install
+
+bootstrap-ci:
+	@./scripts/bootstrap-ci.sh
 
 verify:
 	xcodebuild -list -workspace Putio.xcworkspace
