@@ -54,6 +54,10 @@ make release
   - `MATCH_GIT_URL`
   - `MATCH_TYPE`
   - `MATCH_PASSWORD`
+- Optional 1Password fields:
+  - `MATCH_GIT_BASIC_AUTHORIZATION`
+    - use this when `MATCH_GIT_URL` points at a private HTTPS Git repo
+    - format: Base64 of `github_username:personal_access_token`
 - Required 1Password attachment:
   - `AuthKey.p8`
 - Field-name contracts:
