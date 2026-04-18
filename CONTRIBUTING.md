@@ -62,7 +62,7 @@ The committed templates at `Config/Local.1password.xcconfig.template` and `fastl
 - `.github/workflows/release.yml` reacts to published GitHub releases, checks out the release tag, verifies the repo, and uploads a release build using the GitHub release version and notes by default
 - The repo intentionally does not upload a beta build on every push to `main`
 - Beta and release uploads use a UTC timestamp build number instead of committing build-version churn back into git
-- Keep the checked-in Xcode project build number as a harmless baseline. Do not reset it to `0`; App Store Connect only cares that uploaded builds keep increasing for a given release line
+- Keep the checked-in Xcode project build number at `1` as a harmless baseline. Apple requires `CFBundleVersion` to start above `0`, and App Store Connect only cares that uploaded builds keep increasing for a given release line
 - The fastlane `beta` and `release` lanes accept optional `build_number`, `changelog`, `groups`, and `distribute_external` inputs so local and CI-triggered uploads can share the same lane shape
 
 ## Run Locally
