@@ -23,6 +23,8 @@
 ## Repo-Specific Guidance
 
 - Keep checked-in defaults open-source-safe. Private service keys stay out of git
+- Build-time app settings flow through `Config/Shared.xcconfig`, optional `Config/Local.xcconfig`, and `Info.plist` placeholders
+- Fastlane release lanes use the same `PUTIO_*` environment variables from `fastlane/.env` and pass them through to Xcode
 - The checked-in app build should work without private release credentials
 - Unsigned local verification should prefer the repo `make verify` entrypoint
 - `make verify` prefers an Xcode-advertised iPhone simulator destination on iOS `26.0+` and falls back to the installed `iphonesimulator` SDK when Xcode is not exposing one yet
