@@ -4,6 +4,7 @@ import UIKit
 import Intercom
 import NotificationCenter
 
+// swiftlint:disable file_length
 class SettingsViewModel {
     var user: User = {
         let realm = try! Realm()
@@ -14,14 +15,14 @@ class SettingsViewModel {
         let realm = try! Realm()
         return realm.objects(User.self).first!.settings!
     }()
-    
+
     var config: UserConfig = {
         let realm = try! Realm()
         return realm.objects(UserConfig.self).first!
     }()
 
     var notificationTokens: [NotificationToken] = []
-    
+
     var tableViewController: SettingsTableViewController?
 
     var sections: [SettingsModel.Section] = []
@@ -566,3 +567,5 @@ class SettingsViewModel {
         self.tableViewController?.present(alert, animated: true, completion: nil)
     }
 }
+
+// swiftlint:enable file_length

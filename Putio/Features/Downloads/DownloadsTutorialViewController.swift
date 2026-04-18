@@ -5,10 +5,6 @@ class DownloadsTutorialViewController: UIViewController {
     @IBOutlet weak var videoContainerView: UIView!
     var player: AVPlayer?
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
-    }
-
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         guard let path = Bundle.main.path(forResource: "downloadsTutorial", ofType: "mov") else {
@@ -27,6 +23,6 @@ class DownloadsTutorialViewController: UIViewController {
     }
 
     @IBAction func dismissButtonTapped(_ sender: Any) {
-        self.dismiss(animated: true, completion: nil)
+        dismiss(animated: true, completion: nil)
     }
 }

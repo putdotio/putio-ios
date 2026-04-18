@@ -1,82 +1,43 @@
 import Foundation
 
 extension Date {
+    private struct TimeAgoDescriptor {
+        let value: Int?
+        let pluralLabel: String
+        let singularLabel: String
+    }
+
     func timeAgoSinceDate() -> String {
-        let date = self
         let calendar = NSCalendar.current
         let unitFlags: Set<Calendar.Component> = [.minute, .hour, .day, .weekOfYear, .month, .year, .second]
 
         let now = Date()
-        let earliest = now < date ? now : date
-        let latest = (earliest == now) ? date : now
+        let earliest = min(now, self)
+        let latest = earliest == now ? self : now
 
         let components = calendar.dateComponents(unitFlags, from: earliest, to: latest)
+        let descriptors: [TimeAgoDescriptor] = [
+            TimeAgoDescriptor(value: components.year, pluralLabel: "years ago", singularLabel: "last year"),
+            TimeAgoDescriptor(value: components.month, pluralLabel: "months ago", singularLabel: "last month"),
+            TimeAgoDescriptor(value: components.weekOfYear, pluralLabel: "weeks ago", singularLabel: "last week"),
+            TimeAgoDescriptor(value: components.day, pluralLabel: "days ago", singularLabel: "yesterday"),
+            TimeAgoDescriptor(value: components.hour, pluralLabel: "hours ago", singularLabel: "an hour ago"),
+            TimeAgoDescriptor(value: components.minute, pluralLabel: "minutes ago", singularLabel: "a minute ago")
+        ]
 
-        if let year = components.year {
-            if year >= 2 {
-                return "\(year) years ago"
+        for descriptor in descriptors {
+            guard let value = descriptor.value else { continue }
+            if value >= 2 {
+                return "\(value) \(descriptor.pluralLabel)"
             }
 
-            if year >= 1 {
-                return "last year"
-            }
-        }
-
-        if let month = components.month {
-            if month >= 2 {
-                return "\(month) months ago"
-            }
-
-            if month >= 1 {
-                return "last month"
-            }
-        }
-
-        if let weekOfYear = components.weekOfYear {
-            if weekOfYear >= 2 {
-                return "\(weekOfYear) weeks ago"
-            }
-
-            if weekOfYear >= 1 {
-                return "last week"
+            if value >= 1 {
+                return descriptor.singularLabel
             }
         }
 
-        if let day = components.day {
-            if day >= 2 {
-                return "\(day) days ago"
-            }
-
-            if day >= 1 {
-                return "yesterday"
-            }
-        }
-
-        if let hour = components.hour {
-            if hour >= 2 {
-                return "\(hour) hours ago"
-            }
-
-            if hour >= 1 {
-                return "an hour ago"
-            }
-        }
-
-        if let minute = components.minute {
-            if minute >= 2 {
-                return "\(minute) minutes ago"
-            }
-
-            if minute >= 1 {
-                return "a minute ago"
-            }
-        }
-
-        if let second = components.second {
-            if second >= 10 {
-                return "\(second) seconds ago"
-            }
-
+        if let second = components.second, second >= 10 {
+            return "\(second) seconds ago"
         }
 
         return "just now"

@@ -6,6 +6,7 @@ import StatefulViewController
 import PutioSDK
 import RealmSwift
 
+// swiftlint:disable file_length
 // swiftlint:disable:next type_body_length
 class FilesViewController: UIViewController, StatefulViewController, FilePresenter, DownloadedFilePresenter, FolderCreatorPresenter {
     var viewModel = FilesViewModel()
@@ -111,7 +112,6 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
         tableView.rowHeight = 55.0
         tableView.contentInsetAdjustmentBehavior = .automatic
         tableView.tableHeaderView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNormalMagnitude))
-
 
         navigationItem.title = viewModel.file?.name
 
@@ -668,7 +668,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
                     preferredStyle: .alert
                 )
 
-                renameAlert.addTextField { (textField) -> Void in
+                renameAlert.addTextField { textField in
                     textField.placeholder = "New Name"
                     textField.text = file.name
                     textField.autocorrectionType = .no
@@ -903,9 +903,11 @@ extension FilesViewController: VideoConversionViewControllerDelegate {
         case .download:
             VideoDownloadManager.sharedInstance.createDownload(from: file)
         case .play:
-           presentFile(file)
+            presentFile(file)
         }
     }
 
     func videoConversionControllerDismissedBeforeFinish() {}
 }
+
+// swiftlint:enable file_length

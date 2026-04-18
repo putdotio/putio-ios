@@ -35,7 +35,6 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
         tableView.contentInsetAdjustmentBehavior = .automatic
         tableView.tableHeaderView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNormalMagnitude))
 
-
         configureNavigationBarButton()
     }
 
@@ -106,7 +105,8 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
                 }
             case .error(let error):
                 SentrySDK.capture(error: error)
-        }})
+            }
+        })
     }
 
     deinit {

@@ -58,7 +58,6 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
         tableView.contentInsetAdjustmentBehavior = .automatic
         tableView.tableHeaderView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNormalMagnitude))
 
-
         configureNavigationBarButton()
     }
 
