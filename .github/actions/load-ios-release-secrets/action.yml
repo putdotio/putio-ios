@@ -44,7 +44,7 @@ runs:
       shell: bash
       run: |
         key_path="$RUNNER_TEMP/AuthKey.p8"
-        printf '%s' "$APPSTORE_CONNECT_KEY_CONTENT" > "$key_path"
+        printf '%s\n' "$APPSTORE_CONNECT_KEY_CONTENT" > "$key_path"
         chmod 600 "$key_path"
         echo "APPSTORE_CONNECT_KEY_FILEPATH=$key_path" >> "$GITHUB_ENV"
 
@@ -54,7 +54,7 @@ runs:
         fi
 
         match_git_private_key_path="$RUNNER_TEMP/match-git-private-key"
-        printf '%s' "$MATCH_GIT_PRIVATE_KEY_CONTENT" > "$match_git_private_key_path"
+        printf '%s\n' "$MATCH_GIT_PRIVATE_KEY_CONTENT" > "$match_git_private_key_path"
         chmod 600 "$match_git_private_key_path"
         echo "MATCH_GIT_PRIVATE_KEY=$match_git_private_key_path" >> "$GITHUB_ENV"
 

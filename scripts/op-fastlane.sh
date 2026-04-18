@@ -83,14 +83,14 @@ set -euo pipefail
 
 if [[ -n "${APPSTORE_CONNECT_KEY_CONTENT:-}" ]]; then
   key_path="${OP_1PASSWORD_TEMP_DIR}/AuthKey.p8"
-  printf '%s' "$APPSTORE_CONNECT_KEY_CONTENT" >"$key_path"
+  printf '%s\n' "$APPSTORE_CONNECT_KEY_CONTENT" >"$key_path"
   chmod 600 "$key_path"
   export APPSTORE_CONNECT_KEY_FILEPATH="$key_path"
 fi
 
 if [[ -n "${MATCH_GIT_PRIVATE_KEY_CONTENT:-}" ]]; then
   match_git_private_key_path="${OP_1PASSWORD_TEMP_DIR}/match-git-private-key"
-  printf '%s' "$MATCH_GIT_PRIVATE_KEY_CONTENT" >"$match_git_private_key_path"
+  printf '%s\n' "$MATCH_GIT_PRIVATE_KEY_CONTENT" >"$match_git_private_key_path"
   chmod 600 "$match_git_private_key_path"
   export MATCH_GIT_PRIVATE_KEY="$match_git_private_key_path"
 
