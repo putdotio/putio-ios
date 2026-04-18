@@ -8,7 +8,7 @@ extension UITextField {
 
         attributedPlaceholder = NSAttributedString(
             string: self.placeholder != nil ? self.placeholder! : "",
-            attributes: [NSAttributedStringKey.foregroundColor: UIColor(red: 1, green: 1, blue: 1, alpha: 0.2)]
+            attributes: [NSAttributedString.Key.foregroundColor: UIColor(red: 1, green: 1, blue: 1, alpha: 0.2)]
         )
 
         if let clearButton = value(forKey: "_clearButton") as? UIButton {

@@ -47,7 +47,7 @@ class DestroyAccounViewController: UIViewController {
         }
     }
 
-    func destroyAccountFailure(error: PutioAPIError) {
+    func destroyAccountFailure(error: PutioSDKError) {
         let localizedError = api.localizeError(error: error, localizers: [
             APIErrorLocalizer(
                 matcher: .errorType("INVALID_CURRENT_PASSWORD"),

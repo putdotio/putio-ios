@@ -75,8 +75,8 @@
 		ACC38DB32196DB530065241F /* VideoConversionPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC38DB22196DB530065241F /* VideoConversionPresenter.swift */; };
 		ACC92DDA1FC5843100064BF9 /* AudioPlayerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC92DD91FC5843100064BF9 /* AudioPlayerViewController.swift */; };
 		ACC92DE01FC5993800064BF9 /* Stylize.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC92DDF1FC5993800064BF9 /* Stylize.swift */; };
-		ACCAE1CF27A90E56007DA85F /* PutioAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCAE1CE27A90E56007DA85F /* PutioAPI.swift */; };
-		ACCAE1D127A91A14007DA85F /* PutioAPI+ErrorLocalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCAE1D027A91A14007DA85F /* PutioAPI+ErrorLocalizer.swift */; };
+		ACCAE1CF27A90E56007DA85F /* PutioSDK.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCAE1CE27A90E56007DA85F /* PutioSDK.swift */; };
+		ACCAE1D127A91A14007DA85F /* PutioSDK+ErrorLocalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCAE1D027A91A14007DA85F /* PutioSDK+ErrorLocalizer.swift */; };
 		ACCBBB351FF0DB4600A44F9C /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCBBB341FF0DB4600A44F9C /* SettingsViewModel.swift */; };
 		ACCBBB371FF0DD9C00A44F9C /* UserModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCBBB361FF0DD9C00A44F9C /* UserModel.swift */; };
 		ACCBBB3A1FF0EBBF00A44F9C /* RoutesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCBBB391FF0EBBF00A44F9C /* RoutesViewModel.swift */; };
@@ -189,8 +189,8 @@
 		ACC38DB22196DB530065241F /* VideoConversionPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoConversionPresenter.swift; sourceTree = "<group>"; };
 		ACC92DD91FC5843100064BF9 /* AudioPlayerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerViewController.swift; sourceTree = "<group>"; };
 		ACC92DDF1FC5993800064BF9 /* Stylize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stylize.swift; sourceTree = "<group>"; };
-		ACCAE1CE27A90E56007DA85F /* PutioAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PutioAPI.swift; sourceTree = "<group>"; };
-		ACCAE1D027A91A14007DA85F /* PutioAPI+ErrorLocalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PutioAPI+ErrorLocalizer.swift"; sourceTree = "<group>"; };
+		ACCAE1CE27A90E56007DA85F /* PutioSDK.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PutioSDK.swift; sourceTree = "<group>"; };
+		ACCAE1D027A91A14007DA85F /* PutioSDK+ErrorLocalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PutioSDK+ErrorLocalizer.swift"; sourceTree = "<group>"; };
 		ACCBBB341FF0DB4600A44F9C /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
 		ACCBBB361FF0DD9C00A44F9C /* UserModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserModel.swift; sourceTree = "<group>"; };
 		ACCBBB391FF0EBBF00A44F9C /* RoutesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutesViewModel.swift; sourceTree = "<group>"; };
@@ -492,8 +492,8 @@
 		ACCAE1CD27A90E3D007DA85F /* API */ = {
 			isa = PBXGroup;
 			children = (
-				ACCAE1CE27A90E56007DA85F /* PutioAPI.swift */,
-				ACCAE1D027A91A14007DA85F /* PutioAPI+ErrorLocalizer.swift */,
+				ACCAE1CE27A90E56007DA85F /* PutioSDK.swift */,
+				ACCAE1D027A91A14007DA85F /* PutioSDK+ErrorLocalizer.swift */,
 			);
 			path = API;
 			sourceTree = "<group>";
@@ -814,7 +814,7 @@
 				AC11C7292044502A0001CD89 /* VideoPlayerViewController.swift in Sources */,
 				ACFA837D1FF13141008711B4 /* UIView+InterfaceBuilderInstantiable.swift in Sources */,
 				AC7F4E881FD677FA001FFBA9 /* FilesViewModel.swift in Sources */,
-				ACCAE1CF27A90E56007DA85F /* PutioAPI.swift in Sources */,
+				ACCAE1CF27A90E56007DA85F /* PutioSDK.swift in Sources */,
 				ACDA73E4278C31AC00C59611 /* Int64+BytesToHumanReadable.swift in Sources */,
 				AC6F939D1FD6D53300B2E79F /* DownloadModel.swift in Sources */,
 				AC9E11FA27A7DFFB00E50966 /* DestroyAccounViewController.swift in Sources */,
@@ -867,7 +867,7 @@
 				AC328A2A219873A50056D25B /* PDFViewController.swift in Sources */,
 				AC0FC8BD1FC2D18B002E775B /* String+Truncate.swift in Sources */,
 				AC0FC8BF1FC2D6DF002E775B /* Utils.swift in Sources */,
-				ACCAE1D127A91A14007DA85F /* PutioAPI+ErrorLocalizer.swift in Sources */,
+				ACCAE1D127A91A14007DA85F /* PutioSDK+ErrorLocalizer.swift in Sources */,
 				AC5B420B282CCF9E0025064D /* EnableTwoFactorSecretViewModel.swift in Sources */,
 				AC6546531FAB2CF100E278EE /* Keychain.swift in Sources */,
 				ACBAF5991FB0B1FF00BEDE1D /* SettingsTableViewController.swift in Sources */,
@@ -1086,7 +1086,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.putio.tvOS;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
 			};
@@ -1180,7 +1180,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.putio.tvOS;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 4.0;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
 			};

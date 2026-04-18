@@ -59,7 +59,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(willEnterForeground),
-            name: .UIApplicationWillEnterForeground, object: nil
+            name: UIApplication.willEnterForegroundNotification, object: nil
         )
     }
 

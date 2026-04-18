@@ -4,7 +4,7 @@ import PutioSDK
 class ClearDataViewModel {
     enum ActionResult {
         case success
-        case failure(error: PutioAPIError)
+        case failure(error: PutioSDKError)
     }
 
     typealias ActionCompletion = ((_ result: ActionResult) -> Void)

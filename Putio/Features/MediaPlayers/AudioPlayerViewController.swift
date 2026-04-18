@@ -74,7 +74,7 @@ class AudioPlayerViewController: UIViewController {
         registerRemoteMediaControls()
 
         player?.insert(playerItem, after: player?.currentItem)
-        player?.seek(to: CMTimeMakeWithSeconds(Float64(media.startFrom), 600))
+        player?.seek(to: CMTimeMakeWithSeconds(Float64(media.startFrom), preferredTimescale: 600))
         player?.play()
     }
 
@@ -302,16 +302,16 @@ class AudioPlayerViewController: UIViewController {
 
     func onRewind() {
         guard let currentTime = player?.currentItem?.currentTime().seconds else { return }
-        player?.seek(to: CMTimeMakeWithSeconds(Float64(Int(currentTime) - 15), 600))
+        player?.seek(to: CMTimeMakeWithSeconds(Float64(Int(currentTime) - 15), preferredTimescale: 600))
     }
 
     func onFastForward() {
         guard let currentTime = player?.currentItem?.currentTime().seconds else { return }
-        player?.seek(to: CMTimeMakeWithSeconds(Float64(Int(currentTime) + 15), 600))
+        player?.seek(to: CMTimeMakeWithSeconds(Float64(Int(currentTime) + 15), preferredTimescale: 600))
     }
 
     func onSeek(to: Float) {
-        player?.seek(to: CMTimeMakeWithSeconds(Float64(to), 600))
+        player?.seek(to: CMTimeMakeWithSeconds(Float64(to), preferredTimescale: 600))
     }
 
     @IBAction func onTimeSliderValueChanged(_ sender: Any) {
