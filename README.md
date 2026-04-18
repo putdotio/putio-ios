@@ -17,13 +17,13 @@
 
 ## Overview
 
-`putio-ios` is the native iPhone and iPad app for put.io. The checked-in build is open-source-safe, runs without private release credentials, and uses the same local commands as CI.
+`putio-ios` is the native iPhone and iPad app for put.io. The checked-in repo is open-source-safe and the public contributor path works without private release credentials.
 
 Install the public app from the [App Store](https://apps.apple.com/app/id1260479699)
 
 ## Local Development
 
-For open-source contributors, the standard workflow is:
+Quick start:
 
 ```bash
 make bootstrap
@@ -35,20 +35,14 @@ make run-simulator
 - `make verify` builds the unsigned app for `iphonesimulator`
 - `make run-simulator` builds a normal signed Simulator app, boots an available iPhone simulator on iOS `26.0+`, installs the app, and launches it
 - `Config/Local.xcconfig` is the local override point for private runtime values
-- `.github/workflows/ci.yml` mirrors that same OSS-safe path on pull requests and `main` pushes
 
-For put.io teammates, the repo also supports a shared 1Password-backed flow using `frontend-ci/putio-ios` by default:
+For internal beta and release workflows, use the 1Password-backed `op` flow described in [CONTRIBUTING.md](./CONTRIBUTING.md). The default source is `frontend-ci/putio-ios`.
 
-- `scripts/op-local-config.sh` to render `Config/Local.xcconfig` from one 1Password item
-- `scripts/op-fastlane.sh` to load fastlane and app build settings from that same item for local beta/testflight runs
 - `make op-local-config` to sync local config from the default `frontend-ci/putio-ios` item
 - `make beta` to build and upload a beta using the same default item
 - `make release` to build and upload a release-tagged TestFlight build from the same default item
-- local and CI beta or release uploads both use a UTC timestamp build number so App Store Connect always sees one monotonic sequence
-- `.github/workflows/beta.yml` to upload a TestFlight build manually from GitHub Actions when you intentionally want one
-- `.github/workflows/release.yml` to react to published GitHub releases and upload a release build from the release tag
 
-For full setup, release-lane notes, and contributor workflow, use [CONTRIBUTING.md](./CONTRIBUTING.md)
+For setup details, CI behavior, and release notes, use [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## Requirements
 
