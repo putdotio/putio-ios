@@ -36,7 +36,7 @@
 - `make verify` prefers an Xcode-advertised iPhone simulator destination on iOS `26.0+` and falls back to the installed `iphonesimulator` SDK when Xcode is not exposing one yet
 - `make print-simulator-destination` shows the concrete iPhone simulator destination the repo would use when Xcode can advertise one
 - `make print-simulator-device` shows the fallback iPhone simulator device id the repo can use for manual install and launch flows
-- `make run-simulator` builds for `iphonesimulator`, boots an available iPhone simulator on iOS `26.0+`, installs the app, and launches it with `simctl`
+- `make run-simulator` uses the normal signed Simulator build so local auth and keychain persistence match a real interactive run, then boots an available iPhone simulator on iOS `26.0+`, installs the app, and launches it with `simctl`
 - Running the app in Simulator UI still depends on an installed iOS `26.x` platform and simulator runtime through Xcode Components
 - Treat `fastlane/.env.example` as the contract for optional release-time configuration
 - Prefer simulator-safe verification and unsigned builds in automation

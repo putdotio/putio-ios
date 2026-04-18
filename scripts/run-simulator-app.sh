@@ -49,7 +49,7 @@ app_path="$target_build_dir/$full_product_name"
 device_id="$(./scripts/simctl-iphone-device-id.sh --minimum-os "$minimum_os")"
 
 echo "Building $scheme for iphonesimulator"
-xcodebuild -workspace "$workspace" -scheme "$scheme" -configuration "$configuration" -sdk iphonesimulator build CODE_SIGNING_ALLOWED=NO >/dev/null
+xcodebuild -workspace "$workspace" -scheme "$scheme" -configuration "$configuration" -sdk iphonesimulator build >/dev/null
 
 echo "Booting simulator: $device_id"
 xcrun simctl boot "$device_id" >/dev/null 2>&1 || true
