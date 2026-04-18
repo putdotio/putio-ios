@@ -52,9 +52,9 @@ jobs:
           path: |
             Pods
             ~/Library/Caches/CocoaPods
-          key: ${{ runner.os }}-cocoapods-beta-${{ hashFiles('Podfile.lock') }}
+          key: ${{ runner.os }}-cocoapods-${{ hashFiles('Podfile.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cocoapods-beta-
+            ${{ runner.os }}-cocoapods-
 
       - name: Install CocoaPods dependencies
         run: make bootstrap-ci
