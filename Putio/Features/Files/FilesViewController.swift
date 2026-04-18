@@ -3,7 +3,7 @@ import AVKit
 import NotificationCenter
 import GoogleCast
 import StatefulViewController
-import PutioAPI
+import PutioSDK
 import RealmSwift
 
 // swiftlint:disable:next type_body_length

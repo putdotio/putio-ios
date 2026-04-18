@@ -1,5 +1,5 @@
 import UIKit
-import PutioAPI
+import PutioSDK
 
 class SettingsTableViewCell: UITableViewCell {
     var item: SettingsModel.SectionItem?

@@ -1,5 +1,5 @@
 import UIKit
-import PutioAPI
+import PutioSDK
 
 class FilesTableViewCell: UITableViewCell {
     @IBOutlet weak var icon: UIImageView!

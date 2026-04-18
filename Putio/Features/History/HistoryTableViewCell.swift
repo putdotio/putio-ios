@@ -1,5 +1,5 @@
 import UIKit
-import PutioAPI
+import PutioSDK
 
 class HistoryTableViewCell: UITableViewCell {
     func configure(with event: PutioHistoryEvent) {

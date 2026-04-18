@@ -7,7 +7,7 @@ PODS:
     - ViewState (>= 1.2.1)
   - KeychainAccess (4.2.2)
   - Protobuf (3.29.6)
-  - PutioAPI (1.5.0):
+  - PutioSDK (1.6.1):
     - Alamofire (~> 5.5.0)
     - SwiftyJSON (~> 5.0)
   - Realm (10.54.6):
@@ -20,8 +20,8 @@ PODS:
     - Sentry/Core (= 8.58.0)
   - Sentry/Core (8.58.0)
   - StatefulViewController (3.0)
-  - SwiftLint (0.53.0)
-  - SwiftyBeaver (1.9.5)
+  - SwiftLint (0.63.2)
+  - SwiftyBeaver (2.1.1)
   - SwiftyJSON (5.0.1)
   - ViewState (2.0.0):
     - RoutableLogger (>= 9.1.11)
@@ -33,13 +33,13 @@ DEPENDENCIES:
   - Intercom (= 14.0.0)
   - KeyboardAvoidingView (~> 5.2)
   - KeychainAccess
-  - PutioAPI (from `https://github.com/putdotio/putio-sdk-swift.git`, tag `1.5.0`)
+  - PutioSDK (= 1.6.1)
   - RealmSwift (= 10.54.6)
   - Sentry (from `https://github.com/getsentry/sentry-cocoa.git`, tag `8.58.0`)
   - StatefulViewController (~> 3.0)
-  - SwiftLint
-  - SwiftyBeaver
-  - SwiftyJSON
+  - SwiftLint (~> 0.63)
+  - SwiftyBeaver (~> 2.1)
+  - SwiftyJSON (~> 5.0)
   - VTAcknowledgementsViewController
 
 SPEC REPOS:
@@ -50,6 +50,7 @@ SPEC REPOS:
     - KeyboardAvoidingView
     - KeychainAccess
     - Protobuf
+    - PutioSDK
     - Realm
     - RealmSwift
     - RoutableLogger
@@ -61,17 +62,11 @@ SPEC REPOS:
     - VTAcknowledgementsViewController
 
 EXTERNAL SOURCES:
-  PutioAPI:
-    :git: https://github.com/putdotio/putio-sdk-swift.git
-    :tag: 1.5.0
   Sentry:
     :git: https://github.com/getsentry/sentry-cocoa.git
     :tag: 8.58.0
 
 CHECKOUT OPTIONS:
-  PutioAPI:
-    :git: https://github.com/putdotio/putio-sdk-swift.git
-    :tag: 1.5.0
   Sentry:
     :git: https://github.com/getsentry/sentry-cocoa.git
     :tag: 8.58.0
@@ -83,18 +78,18 @@ SPEC CHECKSUMS:
   KeyboardAvoidingView: acc530b2435bba760b2270e722cb7132cf1c4d31
   KeychainAccess: c0c4f7f38f6fc7bbe58f5702e25f7bd2f65abf51
   Protobuf: 8d5596f7468be5400861a6bbfb2dfe9d0d1cde34
-  PutioAPI: f4384b5459439b5535c2496d79529a747db29548
+  PutioSDK: 354f4e87dc3e1b33cc0ccaf14c9499c51a557f18
   Realm: b1b3bc68162fa242132eb7eefbf91d7c40f36a85
   RealmSwift: 456cfd82a4f23dff8e3456980999331ab69bbf3e
   RoutableLogger: ff5425f9ec26ec79241a591a1ed16a7a69d70b2f
   Sentry: d587a8fe91ca13503ecd69a1905f3e8a0fcf61be
   StatefulViewController: 4803bf900d44de26074344998e10e041113b5931
-  SwiftLint: 5ce4d6a8ff83f1b5fd5ad5dbf30965d35af65e44
-  SwiftyBeaver: 84069991dd5dca07d7069100985badaca7f0ce82
+  SwiftLint: 4fa4a9b437ccc4fc72f6c0bc98556e8e9e05bccf
+  SwiftyBeaver: ade157e4f857812e7d7f15f2e3396bb8733f8a1c
   SwiftyJSON: 2f33a42c6fbc52764d96f13368585094bfd8aa5e
   ViewState: 2443ba39d84bf9780fad2f5cd8909c81c62d4de5
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: a8ae8a080de1d2413cf43c17c67467e12505e068
+PODFILE CHECKSUM: b7dc4efcf377e6db811547dd373939ac2c2168d7
 
 COCOAPODS: 1.16.2

@@ -1,6 +1,6 @@
 import UIKit
 import Alamofire
-import PutioAPI
+import PutioSDK
 
 class ImageViewController: UIViewController {
     var file: PutioFile?

@@ -2,7 +2,7 @@ import UIKit
 import Intercom
 import SwiftyJSON
 import RealmSwift
-import PutioAPI
+import PutioSDK
 import SwiftyBeaver
 import Sentry
 import GoogleCast

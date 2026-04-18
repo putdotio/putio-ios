@@ -1,7 +1,7 @@
 import UIKit
 import PDFKit
 import Alamofire
-import PutioAPI
+import PutioSDK
 
 class PDFViewController: UIViewController {
     var file: PutioFile?

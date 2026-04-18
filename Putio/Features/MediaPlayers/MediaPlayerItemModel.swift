@@ -1,5 +1,5 @@
 import Foundation
-import PutioAPI
+import PutioSDK
 
 struct MediaPlayerItem {
     enum ConsumptionType: String {

@@ -1,6 +1,6 @@
 import Foundation
 import AVFoundation
-import PutioAPI
+import PutioSDK
 import RealmSwift
 import UserNotifications
 import NotificationCenter

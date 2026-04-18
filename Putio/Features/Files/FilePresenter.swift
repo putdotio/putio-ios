@@ -1,6 +1,6 @@
 import UIKit
 import AVKit
-import PutioAPI
+import PutioSDK
 
 protocol FilePresenter: VideoConversionPresenter {}
 

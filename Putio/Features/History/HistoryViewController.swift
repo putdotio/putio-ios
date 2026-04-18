@@ -1,7 +1,7 @@
 import UIKit
 import AVKit
 import StatefulViewController
-import PutioAPI
+import PutioSDK
 
 class HistoryViewController: UIViewController, FilePresenter, StatefulViewController {
     var viewModel: HistoryViewModel = HistoryViewModel()

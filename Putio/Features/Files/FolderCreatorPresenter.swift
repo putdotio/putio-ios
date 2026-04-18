@@ -1,6 +1,6 @@
 import Foundation
 import UIKit
-import PutioAPI
+import PutioSDK
 
 protocol FolderCreatorPresenter {}
 

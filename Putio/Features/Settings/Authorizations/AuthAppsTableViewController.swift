@@ -1,5 +1,5 @@
 import UIKit
-import PutioAPI
+import PutioSDK
 
 class AuthAppsTableViewController: UITableViewController {
     var apps: [PutioOAuthGrant] = []

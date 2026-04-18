@@ -1,6 +1,6 @@
 import UIKit
 import StatefulViewController
-import PutioAPI
+import PutioSDK
 
 class TrashViewController: UIViewController, StatefulViewController {
     var viewModel = TrashViewModel()

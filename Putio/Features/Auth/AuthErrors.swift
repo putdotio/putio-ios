@@ -1,5 +1,5 @@
 import Foundation
-import PutioAPI
+import PutioSDK
 
 struct AuthErrors {
     static func localizeLoginError(error: PutioAPIError) -> PutioLocalizedError {
