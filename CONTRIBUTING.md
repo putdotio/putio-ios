@@ -54,10 +54,8 @@ make release
   - `MATCH_GIT_URL`
   - `MATCH_TYPE`
   - `MATCH_PASSWORD`
-- Optional 1Password fields:
   - `MATCH_GIT_PRIVATE_KEY`
-    - preferred for private `match` repos on GitHub
-    - store the SSH private key that matches a read-only deploy key on the certificates repo
+    - store the SSH private key that matches the read-only deploy key on the certificates repo
 - Required 1Password attachment:
   - `AuthKey.p8`
 - Field-name contracts:

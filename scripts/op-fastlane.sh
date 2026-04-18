@@ -67,9 +67,11 @@ if [[ "$sync_local_config" == "true" ]]; then
   ./scripts/op-local-config.sh --vault "$vault" --item "$item"
 fi
 
-if optional_match_git_private_key_content="$(op read "op://$vault/$item/MATCH_GIT_PRIVATE_KEY" 2>/dev/null)"; then
-  export MATCH_GIT_PRIVATE_KEY_CONTENT="$optional_match_git_private_key_content"
+if ! match_git_private_key_content="$(op read "op://$vault/$item/MATCH_GIT_PRIVATE_KEY" 2>/dev/null)"; then
+  echo "MATCH_GIT_PRIVATE_KEY is not configured in $vault/$item" >&2
+  exit 1
 fi
+export MATCH_GIT_PRIVATE_KEY_CONTENT="$match_git_private_key_content"
 
 tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/putio-ios-fastlane.XXXXXX")"
 trap 'rm -rf "$tmpdir"' EXIT
@@ -122,6 +124,7 @@ required_keys=(
   MATCH_GIT_URL
   MATCH_TYPE
   MATCH_PASSWORD
+  MATCH_GIT_PRIVATE_KEY
 )
 
 missing_keys=()
