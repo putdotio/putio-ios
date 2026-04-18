@@ -2,7 +2,7 @@ import UIKit
 import AVKit
 import AVFoundation
 import RealmSwift
-import PutioAPI
+import PutioSDK
 
 private struct VideoPlaybackPositionEntry: Codable {
     let position: Int

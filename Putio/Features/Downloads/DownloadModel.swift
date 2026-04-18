@@ -1,6 +1,6 @@
 import Foundation
 import RealmSwift
-import PutioAPI
+import PutioSDK
 
 class Download: Object {
     @objc enum State: Int {

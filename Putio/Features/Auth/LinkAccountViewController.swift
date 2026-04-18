@@ -1,5 +1,5 @@
 import UIKit
-import PutioAPI
+import PutioSDK
 
 class LinkAccountViewController: UIViewController, UITextFieldDelegate {
     @IBOutlet weak var codeTextField: UITextField!

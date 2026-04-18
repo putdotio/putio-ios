@@ -1,5 +1,5 @@
 import Foundation
-import PutioAPI
+import PutioSDK
 
 protocol HistoryViewModelDelegate: class {
     func stateChanged()

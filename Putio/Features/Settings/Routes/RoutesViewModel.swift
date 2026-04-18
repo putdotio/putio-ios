@@ -1,5 +1,5 @@
 import Foundation
-import PutioAPI
+import PutioSDK
 import RealmSwift
 
 protocol RoutesViewModelDelegate: class {

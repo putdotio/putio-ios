@@ -1,6 +1,6 @@
 import UIKit
 import Intercom
-import PutioAPI
+import PutioSDK
 
 class DestroyAccounViewController: UIViewController {
     @IBAction func supportButtonTapped(_ sender: Any) {

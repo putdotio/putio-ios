@@ -1,7 +1,7 @@
 import Foundation
 import UIKit
 import RealmSwift
-import PutioAPI
+import PutioSDK
 
 class DeeplinkManager {
     static let sharedInstance = DeeplinkManager()

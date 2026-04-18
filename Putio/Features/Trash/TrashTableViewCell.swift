@@ -1,5 +1,5 @@
 import UIKit
-import PutioAPI
+import PutioSDK
 
 class TrashTableViewCell: UITableViewCell {
     func configure(with trashFile: PutioTrashFile) {

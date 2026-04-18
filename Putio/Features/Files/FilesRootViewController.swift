@@ -1,5 +1,5 @@
 import UIKit
-import PutioAPI
+import PutioSDK
 
 class FilesRootViewController: FilesViewController {
     let filesDebouncer = Debouncer(delay: 0.2)

@@ -1,6 +1,6 @@
 import Foundation
 import RealmSwift
-import PutioAPI
+import PutioSDK
 import SwiftyJSON
 
 class User: Object {

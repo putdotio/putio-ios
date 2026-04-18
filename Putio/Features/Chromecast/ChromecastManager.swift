@@ -1,7 +1,7 @@
 import Foundation
 import GoogleCast
 import RealmSwift
-import PutioAPI
+import PutioSDK
 import Sentry
 
 class ChromecastManager: NSObject {

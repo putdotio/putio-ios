@@ -1,5 +1,5 @@
 import UIKit
-import PutioAPI
+import PutioSDK
 
 class TwoFactorRecoveryCodesTableViewCell: UITableViewCell {
     var code: PutioTwoFactorRecoveryCode?

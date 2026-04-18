@@ -1,7 +1,7 @@
 import UIKit
 import AVKit
 import RealmSwift
-import PutioAPI
+import PutioSDK
 
 protocol DownloadedFilePresenter {}
 

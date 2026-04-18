@@ -1,6 +1,6 @@
 import Foundation
 import RealmSwift
-import PutioAPI
+import PutioSDK
 
 protocol NextMediaFinderDelegate: AnyObject {
     func didFindNextMedia(nextMedia: MediaPlayerItem)

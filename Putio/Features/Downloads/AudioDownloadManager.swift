@@ -4,7 +4,7 @@ import Alamofire
 import RealmSwift
 import UserNotifications
 import NotificationCenter
-import PutioAPI
+import PutioSDK
 
 class AudioDownloadManager: NSObject {
     static let sharedInstance = AudioDownloadManager()
