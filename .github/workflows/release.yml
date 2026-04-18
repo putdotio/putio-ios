@@ -76,18 +76,19 @@ jobs:
 
       - name: Upload release build
         env:
-          PUTIO_RELEASE_BUILD_NUMBER: ${{ github.run_number }}
           PUTIO_RELEASE_VERSION: ${{ inputs.version || github.event.release.tag_name }}
           PUTIO_RELEASE_GROUPS: ${{ inputs.groups }}
           PUTIO_RELEASE_DISTRIBUTE_EXTERNAL: false
           PUTIO_RELEASE_CHANGELOG_INPUT: ${{ inputs.changelog || github.event.release.body }}
         run: |
+          export PUTIO_RELEASE_BUILD_NUMBER="$(date -u +%Y%m%d%H%M%S)"
+
           changelog="$PUTIO_RELEASE_CHANGELOG_INPUT"
 
           if [ -z "$changelog" ]; then
             release_ref="${{ github.event.release.tag_name || inputs.ref }}"
             short_sha="$(git rev-parse --short HEAD)"
-            changelog="Release build from ${release_ref} (${short_sha})"
+            changelog="Release build ${PUTIO_RELEASE_BUILD_NUMBER} from ${release_ref} (${short_sha})"
           fi
 
           export PUTIO_RELEASE_CHANGELOG="$changelog"

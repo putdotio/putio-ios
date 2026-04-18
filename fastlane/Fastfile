@@ -21,6 +21,14 @@ def normalized_version(value)
   candidate.sub(/\Av/, "")
 end
 
+def generated_build_number
+  Time.now.utc.strftime("%Y%m%d%H%M%S")
+end
+
+def resolved_build_number(*values)
+  first_present(*values, generated_build_number)
+end
+
 def xcode_build_settings_from_env(keys)
   keys.filter_map do |key|
     value = ENV[key].to_s
@@ -34,7 +42,7 @@ platform :ios do
   lane :beta do |options|
     setup_ci
 
-    beta_build_number = first_present(options[:build_number], ENV["PUTIO_BETA_BUILD_NUMBER"])
+    beta_build_number = resolved_build_number(options[:build_number], ENV["PUTIO_BETA_BUILD_NUMBER"])
     beta_changelog = first_present(options[:changelog], ENV["PUTIO_BETA_CHANGELOG"])
     beta_groups = first_present(options[:groups], ENV["PUTIO_BETA_GROUPS"]).to_s.split(",").map(&:strip).reject(&:empty?)
     distribute_external = fastlane_bool(
@@ -59,11 +67,7 @@ platform :ios do
       )
     end
 
-    if beta_build_number.to_s.empty?
-      increment_build_number
-    else
-      increment_build_number(build_number: beta_build_number)
-    end
+    increment_build_number(build_number: beta_build_number)
 
     build_app(
       workspace: "Putio.xcworkspace",
@@ -91,7 +95,7 @@ platform :ios do
     setup_ci
 
     release_version = normalized_version(first_present(options[:version], ENV["PUTIO_RELEASE_VERSION"]))
-    release_build_number = first_present(options[:build_number], ENV["PUTIO_RELEASE_BUILD_NUMBER"])
+    release_build_number = resolved_build_number(options[:build_number], ENV["PUTIO_RELEASE_BUILD_NUMBER"])
     release_changelog = first_present(options[:changelog], ENV["PUTIO_RELEASE_CHANGELOG"])
     release_groups = first_present(options[:groups], ENV["PUTIO_RELEASE_GROUPS"]).to_s.split(",").map(&:strip).reject(&:empty?)
     distribute_external = fastlane_bool(
@@ -116,11 +120,7 @@ platform :ios do
       )
     end
 
-    if release_build_number.to_s.empty?
-      increment_build_number
-    else
-      increment_build_number(build_number: release_build_number)
-    end
+    increment_build_number(build_number: release_build_number)
 
     build_app(
       workspace: "Putio.xcworkspace",

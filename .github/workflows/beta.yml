@@ -69,14 +69,15 @@ jobs:
 
       - name: Upload beta build
         env:
-          PUTIO_BETA_BUILD_NUMBER: ${{ github.run_number }}
           PUTIO_BETA_CHANGELOG: ${{ inputs.changelog }}
           PUTIO_BETA_GROUPS: ${{ inputs.groups }}
           PUTIO_BETA_REF: ${{ inputs.ref }}
         run: |
+          export PUTIO_BETA_BUILD_NUMBER="$(date -u +%Y%m%d%H%M%S)"
+
           if [ -z "$PUTIO_BETA_CHANGELOG" ]; then
             short_sha="$(git rev-parse --short HEAD)"
-            export PUTIO_BETA_CHANGELOG="Manual beta build from ${PUTIO_BETA_REF} (${short_sha})"
+            export PUTIO_BETA_CHANGELOG="Manual beta build ${PUTIO_BETA_BUILD_NUMBER} from ${PUTIO_BETA_REF} (${short_sha})"
           fi
 
           bundle exec fastlane beta
