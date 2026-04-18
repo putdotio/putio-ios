@@ -39,6 +39,7 @@ fastlane/report.xml
 fastlane/.env
 fastlane/*.p8
 .bundle/
+vendor/bundle/
 
 ## Fastlane DSYM .zip
 *.zip

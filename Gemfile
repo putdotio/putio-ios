@@ -1,8 +1,8 @@
 source 'https://rubygems.org'
 
-ruby ">= 2.6.10"
+ruby '~> 3.2.4'
 
-gem 'cocoapods', '~> 1.13'
+gem 'cocoapods', '~> 1.16.2'
 gem 'fastlane', '~> 2.232'
 
 # fastlane plugins for ios

@@ -1,6 +1,7 @@
 .PHONY: bootstrap verify print-simulator-destination download-ios-platform
 
 bootstrap:
+	bundle config set --local path vendor/bundle
 	bundle install
 	bundle exec pod install
 
