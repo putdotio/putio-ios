@@ -40,6 +40,11 @@ make run-simulator
 - `make run-simulator` boots an available iPhone simulator on iOS `26.0+`, installs the app, and launches it
 - `Config/Local.xcconfig` is the local override point for private app ids, team ids, OAuth, Cast, Intercom, and Sentry values
 
+For teams using 1Password, the repo also includes:
+
+- `scripts/sync-local-config-from-1password.sh` to render `Config/Local.xcconfig` from one 1Password item
+- `scripts/fastlane-with-1password.sh` to load fastlane and app build settings from that same item for local beta/testflight runs
+
 For full setup, release-lane notes, and contributor workflow, use [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## Requirements

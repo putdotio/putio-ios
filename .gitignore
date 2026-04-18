@@ -41,6 +41,7 @@ fastlane/*.p8
 .bundle/
 vendor/bundle/
 Config/Local.xcconfig
+fastlane/.env.1password.local
 
 ## Fastlane DSYM .zip
 *.zip
