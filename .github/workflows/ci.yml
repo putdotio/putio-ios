@@ -37,9 +37,9 @@ jobs:
           path: |
             Pods
             ~/Library/Caches/CocoaPods
-          key: ${{ runner.os }}-cocoapods-${{ github.workflow }}-${{ hashFiles('Podfile.lock') }}
+          key: ${{ runner.os }}-cocoapods-${{ hashFiles('Podfile.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cocoapods-${{ github.workflow }}-
+            ${{ runner.os }}-cocoapods-
 
       - name: Install CocoaPods dependencies
         run: make bootstrap-ci
