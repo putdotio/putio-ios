@@ -71,6 +71,10 @@ if optional_match_git_basic_authorization="$(op read "op://$vault/$item/MATCH_GI
   export MATCH_GIT_BASIC_AUTHORIZATION="$optional_match_git_basic_authorization"
 fi
 
+if optional_match_git_private_key_content="$(op read "op://$vault/$item/MATCH_GIT_PRIVATE_KEY" 2>/dev/null)"; then
+  export MATCH_GIT_PRIVATE_KEY_CONTENT="$optional_match_git_private_key_content"
+fi
+
 tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/putio-ios-fastlane.XXXXXX")"
 trap 'rm -rf "$tmpdir"' EXIT
 
@@ -86,7 +90,30 @@ if [[ -n "${APPSTORE_CONNECT_KEY_CONTENT:-}" ]]; then
   export APPSTORE_CONNECT_KEY_FILEPATH="$key_path"
 fi
 
+if [[ -n "${MATCH_GIT_PRIVATE_KEY_CONTENT:-}" ]]; then
+  match_git_private_key_path="${OP_1PASSWORD_TEMP_DIR}/match-git-private-key"
+  printf '%s' "$MATCH_GIT_PRIVATE_KEY_CONTENT" >"$match_git_private_key_path"
+  chmod 600 "$match_git_private_key_path"
+  export MATCH_GIT_PRIVATE_KEY="$match_git_private_key_path"
+
+  match_git_host=""
+  if [[ "${MATCH_GIT_URL:-}" =~ ^git@([^:]+): ]]; then
+    match_git_host="${BASH_REMATCH[1]}"
+  elif [[ "${MATCH_GIT_URL:-}" =~ ^ssh://([^/]+) ]]; then
+    match_git_host="${BASH_REMATCH[1]}"
+  fi
+
+  if [[ -n "$match_git_host" ]]; then
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+    touch "$HOME/.ssh/known_hosts"
+    ssh-keyscan -H "$match_git_host" >>"$HOME/.ssh/known_hosts" 2>/dev/null || true
+    chmod 600 "$HOME/.ssh/known_hosts"
+  fi
+fi
+
 unset APPSTORE_CONNECT_KEY_CONTENT
+unset MATCH_GIT_PRIVATE_KEY_CONTENT
 
 required_keys=(
   APPSTORE_CONNECT_ISSUER_ID
