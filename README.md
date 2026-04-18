@@ -39,6 +39,7 @@ make run-simulator
 - `make verify` builds the unsigned app for `iphonesimulator`
 - `make run-simulator` boots an available iPhone simulator on iOS `26.0+`, installs the app, and launches it
 - `Config/Local.xcconfig` is the local override point for private app ids, team ids, OAuth, Cast, Intercom, and Sentry values
+- GitHub Actions mirrors that same OSS-safe path in `.github/workflows/ci.yml`, which only verifies the repo on pull requests and `main` pushes
 
 For put.io teammates, the same repo also supports an internal 1Password-backed flow using the shared `frontend-ci/putio-ios` item by default:
 
@@ -46,6 +47,9 @@ For put.io teammates, the same repo also supports an internal 1Password-backed f
 - `scripts/op-fastlane.sh` to load fastlane and app build settings from that same item for local beta/testflight runs
 - `make op-local-config` to sync local config from the default `frontend-ci/putio-ios` item
 - `make beta` to build and upload a beta using the same default item
+- `make release` to build and upload a release-tagged TestFlight build from the same default item
+- `.github/workflows/beta.yml` to upload a TestFlight build manually from GitHub Actions when you intentionally want one
+- `.github/workflows/release.yml` to react to published GitHub releases and upload a release build from the release tag
 
 For full setup, release-lane notes, and contributor workflow, use [CONTRIBUTING.md](./CONTRIBUTING.md)
 
