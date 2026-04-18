@@ -27,10 +27,7 @@ jobs:
           bundler-cache: true
 
       - name: Install CocoaPods dependencies
-        run: bundle exec pod install
+        run: make bootstrap
 
-      - name: Verify workspace
-        run: xcodebuild -list -workspace Putio.xcworkspace
-
-      - name: Build simulator app
-        run: xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -sdk iphonesimulator build CODE_SIGNING_ALLOWED=NO
+      - name: Verify repository
+        run: make verify

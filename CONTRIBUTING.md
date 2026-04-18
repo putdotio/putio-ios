@@ -4,11 +4,10 @@ Thanks for contributing to `putio-ios`.
 
 ## Setup
 
-Install Xcode `26.4`, Ruby `3.2.4`, and Bundler, then install the repo dependencies:
+Install Xcode `26.x`, Ruby `3.2.4`, and Bundler, then install the repo dependencies:
 
 ```bash
-bundle install
-bundle exec pod install
+make bootstrap
 ```
 
 ## Run Locally
@@ -24,9 +23,7 @@ open Putio.xcworkspace
 Run the same local bootstrap CI depends on:
 
 ```bash
-bundle exec pod install
-xcodebuild -list -workspace Putio.xcworkspace
-xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -sdk iphonesimulator build CODE_SIGNING_ALLOWED=NO
+make verify
 ```
 
 ## Development Notes
@@ -34,7 +31,7 @@ xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -sdk 
 - The checked-in repo disables private support integrations by default. `PUTIO_INTERCOM_API_KEY`, `PUTIO_INTERCOM_APP_ID`, and `PUTIO_SENTRY_DSN` are blank in `Putio/Info.plist`
 - The OAuth client id is still configured by default so the existing browser-based login flow keeps working in local builds
 - The checked-in CI build compiles against `iphonesimulator` without code signing, which is more reliable than generic simulator destination resolution on this machine
-- If you want to launch the app in Simulator UI, install a matching iOS `26.x` simulator runtime through Xcode Components first
+- If you see `iOS 26.4 Platform Not Installed`, run `make download-ios-platform` or install a matching iOS `26.x` simulator runtime through Xcode Components first
 - Release automation is optional and env-driven. Populate `fastlane/.env` from `fastlane/.env.example` only when you need the internal release lane
 - Keep repo-stored configuration open-source-safe. Do not commit tokens, signing keys, API key files, or private release metadata
 
