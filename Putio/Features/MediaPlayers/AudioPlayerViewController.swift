@@ -2,7 +2,6 @@ import UIKit
 import AVFoundation
 import MediaPlayer
 import RealmSwift
-import SwiftGifOrigin
 
 enum UIState {
     case loading, success, failure
@@ -144,7 +143,7 @@ class AudioPlayerViewController: UIViewController {
                 self?.controlPlayPause.setImage(UIImage(named: "iconPauseBorder"), for: .normal)
                 self?.activityIndicator.isHidden = true
                 self?.configurePlaybackControls(isEnabled: true)
-                self?.posterImage.loadGif(name: "discoball")
+                self?.posterImage.image = UIImage(named: "discoball")
             case .paused:
                 self?.controlPlayPause.setImage(UIImage(named: "iconPlayBorder"), for: .normal)
                 self?.posterImage.image = UIImage(named: "discoball")

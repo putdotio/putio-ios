@@ -21,7 +21,6 @@ PODS:
     - Sentry/Core (= 8.58.0)
   - Sentry/Core (8.58.0)
   - StatefulViewController (3.0)
-  - SwiftGifOrigin (1.6.1)
   - SwiftLint (0.53.0)
   - SwiftyBeaver (1.9.5)
   - SwiftyJSON (5.0.1)
@@ -40,7 +39,6 @@ DEPENDENCIES:
   - RealmSwift (= 10.54.6)
   - Sentry (from `https://github.com/getsentry/sentry-cocoa.git`, tag `8.58.0`)
   - StatefulViewController (~> 3.0)
-  - SwiftGifOrigin (~> 1.6.1)
   - SwiftLint
   - SwiftyBeaver
   - SwiftyJSON
@@ -59,7 +57,6 @@ SPEC REPOS:
     - RealmSwift
     - RoutableLogger
     - StatefulViewController
-    - SwiftGifOrigin
     - SwiftLint
     - SwiftyBeaver
     - SwiftyJSON
@@ -90,19 +87,18 @@ SPEC CHECKSUMS:
   KeychainAccess: c0c4f7f38f6fc7bbe58f5702e25f7bd2f65abf51
   NFDownloadButton: ea79486ae2c68acc8202eae1b07bacef4684c6cc
   Protobuf: 8d5596f7468be5400861a6bbfb2dfe9d0d1cde34
-  PutioAPI: 512188cc755f7f64f572de0497d5156caef0b917
+  PutioAPI: f4384b5459439b5535c2496d79529a747db29548
   Realm: b1b3bc68162fa242132eb7eefbf91d7c40f36a85
   RealmSwift: 456cfd82a4f23dff8e3456980999331ab69bbf3e
   RoutableLogger: ff5425f9ec26ec79241a591a1ed16a7a69d70b2f
   Sentry: d587a8fe91ca13503ecd69a1905f3e8a0fcf61be
   StatefulViewController: 4803bf900d44de26074344998e10e041113b5931
-  SwiftGifOrigin: d6679d3ebe9df2e049a84bc52582635107b581f6
   SwiftLint: 5ce4d6a8ff83f1b5fd5ad5dbf30965d35af65e44
   SwiftyBeaver: 84069991dd5dca07d7069100985badaca7f0ce82
   SwiftyJSON: 2f33a42c6fbc52764d96f13368585094bfd8aa5e
   ViewState: 2443ba39d84bf9780fad2f5cd8909c81c62d4de5
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: 2db8e21e375e120c378514f472cee6bdcda80873
+PODFILE CHECKSUM: 7470c4282f4857971d281f385547a0c4538f5b84
 
 COCOAPODS: 1.13.0
