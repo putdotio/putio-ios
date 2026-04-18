@@ -27,6 +27,9 @@
 - Fastlane release lanes use the same `PUTIO_*` environment variables from `fastlane/.env` and pass them through to Xcode
 - The repo also supports a 1Password-backed local flow via `scripts/op-local-config.sh` and `scripts/op-fastlane.sh`
 - The `op` helpers default to the shared `frontend-ci/putio-ios` item and accept either an interactive signed-in `op` session or `OP_SERVICE_ACCOUNT_TOKEN`
+- `.github/workflows/ci.yml` is verify-only and should stay aligned with `make verify`
+- `.github/workflows/beta.yml` is the intentional TestFlight path and uses `OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI` with the official 1Password GitHub Action
+- `.github/workflows/release.yml` reacts to published GitHub releases, checks out the release tag, and uses the same shared 1Password-backed signing flow
 - The checked-in app build should work without private release credentials
 - Unsigned local verification should prefer the repo `make verify` entrypoint
 - `make verify` prefers an Xcode-advertised iPhone simulator destination on iOS `26.0+` and falls back to the installed `iphonesimulator` SDK when Xcode is not exposing one yet

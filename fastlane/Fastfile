@@ -4,6 +4,23 @@ update_fastlane
 
 default_platform(:ios)
 
+def first_present(*values)
+  values.find { |value| !value.to_s.empty? }
+end
+
+def fastlane_bool(value, default:)
+  return default if value.to_s.empty?
+
+  %w[1 true yes on].include?(value.to_s.downcase)
+end
+
+def normalized_version(value)
+  candidate = value.to_s.strip
+  return nil if candidate.empty?
+
+  candidate.sub(/\Av/, "")
+end
+
 def xcode_build_settings_from_env(keys)
   keys.filter_map do |key|
     value = ENV[key].to_s
@@ -17,6 +34,14 @@ platform :ios do
   lane :beta do |options|
     setup_ci
 
+    beta_build_number = first_present(options[:build_number], ENV["PUTIO_BETA_BUILD_NUMBER"])
+    beta_changelog = first_present(options[:changelog], ENV["PUTIO_BETA_CHANGELOG"])
+    beta_groups = first_present(options[:groups], ENV["PUTIO_BETA_GROUPS"]).to_s.split(",").map(&:strip).reject(&:empty?)
+    distribute_external = fastlane_bool(
+      first_present(options[:distribute_external], ENV["PUTIO_BETA_DISTRIBUTE_EXTERNAL"]),
+      default: true
+    )
+
     app_store_connect_api_key(
       issuer_id: ENV["APPSTORE_CONNECT_ISSUER_ID"],
       key_id: ENV["APPSTORE_CONNECT_KEY_ID"],
@@ -24,7 +49,7 @@ platform :ios do
     )
 
     unless ENV["MATCH_GIT_URL"].to_s.empty?
-      match(type: ENV.fetch("MATCH_TYPE", "appstore"), platform: "ios")
+      match(type: ENV.fetch("MATCH_TYPE", "appstore"), platform: "ios", readonly: is_ci)
     end
 
     if options[:bump_type]
@@ -34,7 +59,11 @@ platform :ios do
       )
     end
 
-    increment_build_number
+    if beta_build_number.to_s.empty?
+      increment_build_number
+    else
+      increment_build_number(build_number: beta_build_number)
+    end
 
     build_app(
       workspace: "Putio.xcworkspace",
@@ -51,9 +80,67 @@ platform :ios do
     )
 
     pilot(
-      distribute_external: true,
-      groups: ["Beta"],
-      changelog: "Please visit put.io/beta for details."
+      distribute_external: distribute_external,
+      groups: beta_groups.empty? ? ["Beta"] : beta_groups,
+      changelog: beta_changelog.to_s.empty? ? "Please visit put.io/beta for details." : beta_changelog,
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  lane :release do |options|
+    setup_ci
+
+    release_version = normalized_version(first_present(options[:version], ENV["PUTIO_RELEASE_VERSION"]))
+    release_build_number = first_present(options[:build_number], ENV["PUTIO_RELEASE_BUILD_NUMBER"])
+    release_changelog = first_present(options[:changelog], ENV["PUTIO_RELEASE_CHANGELOG"])
+    release_groups = first_present(options[:groups], ENV["PUTIO_RELEASE_GROUPS"]).to_s.split(",").map(&:strip).reject(&:empty?)
+    distribute_external = fastlane_bool(
+      first_present(options[:distribute_external], ENV["PUTIO_RELEASE_DISTRIBUTE_EXTERNAL"]),
+      default: false
+    )
+
+    app_store_connect_api_key(
+      issuer_id: ENV["APPSTORE_CONNECT_ISSUER_ID"],
+      key_id: ENV["APPSTORE_CONNECT_KEY_ID"],
+      key_filepath: ENV["APPSTORE_CONNECT_KEY_FILEPATH"]
+    )
+
+    unless ENV["MATCH_GIT_URL"].to_s.empty?
+      match(type: ENV.fetch("MATCH_TYPE", "appstore"), platform: "ios", readonly: is_ci)
+    end
+
+    if release_version
+      increment_version_number_in_xcodeproj(
+        version_number: release_version,
+        scheme: "Putio"
+      )
+    end
+
+    if release_build_number.to_s.empty?
+      increment_build_number
+    else
+      increment_build_number(build_number: release_build_number)
+    end
+
+    build_app(
+      workspace: "Putio.xcworkspace",
+      scheme: "Putio",
+      xcargs: xcode_build_settings_from_env(%w[
+        PUTIO_APP_IDENTIFIER
+        PUTIO_DEVELOPMENT_TEAM
+        PUTIO_OAUTH_CLIENT_ID
+        PUTIO_CHROMECAST_RECEIVER_APP_ID
+        PUTIO_INTERCOM_API_KEY
+        PUTIO_INTERCOM_APP_ID
+        PUTIO_SENTRY_DSN
+      ])
+    )
+
+    pilot(
+      distribute_external: distribute_external,
+      groups: release_groups,
+      changelog: release_changelog.to_s.empty? ? "See the GitHub release notes for details." : release_changelog,
+      skip_waiting_for_build_processing: true
     )
   end
 end

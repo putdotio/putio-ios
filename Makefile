@@ -1,4 +1,4 @@
-.PHONY: bootstrap verify print-simulator-destination print-simulator-device run-simulator download-ios-platform op-local-config beta
+.PHONY: bootstrap verify print-simulator-destination print-simulator-device run-simulator download-ios-platform op-local-config beta release
 
 bootstrap:
 	bundle config set --local path vendor/bundle
@@ -33,3 +33,6 @@ op-local-config:
 
 beta:
 	@./scripts/op-fastlane.sh $(if $(VAULT),--vault "$(VAULT)") $(if $(ITEM),--item "$(ITEM)") beta
+
+release:
+	@./scripts/op-fastlane.sh $(if $(VAULT),--vault "$(VAULT)") $(if $(ITEM),--item "$(ITEM)") release

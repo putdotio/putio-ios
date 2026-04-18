@@ -23,6 +23,7 @@ If your team keeps iOS release secrets in 1Password, you can skip hand-editing l
 ```bash
 make op-local-config
 make beta
+make release
 ```
 
 You can still override the source item explicitly when needed:
@@ -52,6 +53,15 @@ That flow expects a single 1Password item with these text fields:
 Add the App Store Connect `.p8` key to that same item as a file attachment named `AuthKey.p8`.
 
 The committed templates at `Config/Local.1password.xcconfig.template` and `fastlane/.env.1password.template` are the source of truth for the expected field names.
+
+## CI and Beta Delivery
+
+- `.github/workflows/ci.yml` is verify-only. It runs `make bootstrap` and `make verify` on pull requests and `main` pushes
+- `.github/workflows/beta.yml` is the intentional TestFlight path. It runs only from `workflow_dispatch`, verifies the repo first, then loads the shared `frontend-ci/putio-ios` item through `OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI`, and uploads a beta build when you ask for one
+- `.github/workflows/release.yml` reacts to published GitHub releases, checks out the release tag, verifies the repo, and uploads a release build using the GitHub release version and notes by default
+- The repo intentionally does not upload a beta build on every push to `main`
+- Beta uploads use a CI-provided build number instead of committing build-version churn back into git
+- The fastlane `beta` and `release` lanes accept optional `build_number`, `changelog`, `groups`, and `distribute_external` inputs so local and CI-triggered uploads can share the same lane shape
 
 ## Run Locally
 
@@ -95,6 +105,7 @@ make print-simulator-device
 - Native app runtime settings come from build settings through `Config/Shared.xcconfig`, optional `Config/Local.xcconfig`, and `Info.plist` placeholders
 - Fastlane uses the same `PUTIO_*` environment variables from `fastlane/.env` and passes them through to Xcode during release builds
 - The `op` helper scripts default to `frontend-ci/putio-ios`, support either an interactive signed-in `op` session or `OP_SERVICE_ACCOUNT_TOKEN`, and materialize the App Store Connect key as a temporary local file only for the duration of the fastlane run
+- The GitHub Actions beta workflow uses the same shared `frontend-ci/putio-ios` item, but loads it through the official 1Password GitHub Action instead of shelling out to the local helper script
 - `make verify` prefers any Xcode-advertised iPhone simulator destination on iOS `26.0+` and falls back to the installed `iphonesimulator` SDK when Xcode is not exposing one yet
 - `make run-simulator` uses `simctl` to boot an available iPhone simulator on iOS `26.0+`, install the unsigned app bundle, and launch it when Xcode destination discovery is not enough for an interactive run
 - The exact simulator version does not need to be `26.4`; any iPhone simulator on iOS `26.0` or newer is fine for interactive local runs

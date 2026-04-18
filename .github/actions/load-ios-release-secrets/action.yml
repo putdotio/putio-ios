@@ -1,0 +1,48 @@
+name: Load iOS release secrets
+description: Load shared putio-ios release secrets from 1Password and materialize the App Store Connect key file
+
+inputs:
+  service-account-token:
+    description: 1Password service account token for frontend-ci
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Require shared 1Password CI token
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.service-account-token }}" ]; then
+          echo "OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI is not configured for this repository" >&2
+          exit 1
+        fi
+
+    - name: Load shared iOS secrets from 1Password
+      uses: 1password/load-secrets-action@v4
+      with:
+        export-env: true
+      env:
+        OP_SERVICE_ACCOUNT_TOKEN: ${{ inputs.service-account-token }}
+        APPSTORE_CONNECT_ISSUER_ID: op://frontend-ci/putio-ios/APPSTORE_CONNECT_ISSUER_ID
+        APPSTORE_CONNECT_KEY_ID: op://frontend-ci/putio-ios/APPSTORE_CONNECT_KEY_ID
+        APPSTORE_CONNECT_KEY_CONTENT: op://frontend-ci/putio-ios/AuthKey.p8
+        PUTIO_APP_IDENTIFIER: op://frontend-ci/putio-ios/PUTIO_APP_IDENTIFIER
+        PUTIO_APPLE_ID: op://frontend-ci/putio-ios/PUTIO_APPLE_ID
+        PUTIO_ITC_TEAM_ID: op://frontend-ci/putio-ios/PUTIO_ITC_TEAM_ID
+        PUTIO_DEVELOPMENT_TEAM: op://frontend-ci/putio-ios/PUTIO_DEVELOPMENT_TEAM
+        PUTIO_OAUTH_CLIENT_ID: op://frontend-ci/putio-ios/PUTIO_OAUTH_CLIENT_ID
+        PUTIO_CHROMECAST_RECEIVER_APP_ID: op://frontend-ci/putio-ios/PUTIO_CHROMECAST_RECEIVER_APP_ID
+        PUTIO_INTERCOM_API_KEY: op://frontend-ci/putio-ios/PUTIO_INTERCOM_API_KEY
+        PUTIO_INTERCOM_APP_ID: op://frontend-ci/putio-ios/PUTIO_INTERCOM_APP_ID
+        PUTIO_SENTRY_DSN: op://frontend-ci/putio-ios/PUTIO_SENTRY_DSN
+        MATCH_GIT_URL: op://frontend-ci/putio-ios/MATCH_GIT_URL
+        MATCH_TYPE: op://frontend-ci/putio-ios/MATCH_TYPE
+        MATCH_PASSWORD: op://frontend-ci/putio-ios/MATCH_PASSWORD
+
+    - name: Materialize App Store Connect key
+      shell: bash
+      run: |
+        key_path="$RUNNER_TEMP/AuthKey.p8"
+        printf '%s' "$APPSTORE_CONNECT_KEY_CONTENT" > "$key_path"
+        chmod 600 "$key_path"
+        echo "APPSTORE_CONNECT_KEY_FILEPATH=$key_path" >> "$GITHUB_ENV"
