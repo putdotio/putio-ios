@@ -33,7 +33,7 @@ make run-simulator
 
 - `make bootstrap` installs Bundler gems and CocoaPods dependencies
 - `make verify` builds the unsigned app for `iphonesimulator`
-- `make run-simulator` boots an available iPhone simulator on iOS `26.0+`, installs the app, and launches it
+- `make run-simulator` builds a normal signed Simulator app, boots an available iPhone simulator on iOS `26.0+`, installs the app, and launches it
 - `Config/Local.xcconfig` is the local override point for private runtime values
 - `.github/workflows/ci.yml` mirrors that same OSS-safe path on pull requests and `main` pushes
 

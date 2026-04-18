@@ -87,11 +87,13 @@ To see the concrete iPhone simulator destination Xcode is advertising to the rep
 make print-simulator-destination
 ```
 
-To boot an available iPhone simulator, install the unsigned app bundle, and launch it with `simctl`, run:
+To boot an available iPhone simulator, install the signed Simulator app bundle, and launch it with `simctl`, run:
 
 ```bash
 make run-simulator
 ```
+
+Unlike `make verify`, the interactive `make run-simulator` path keeps the normal signed Simulator build so local keychain-backed auth and other persistence behave the same way they do under Xcode
 
 To see the fallback simulator device id that run path will use, run:
 
@@ -109,7 +111,7 @@ make print-simulator-device
 - The `op` helper scripts default to `frontend-ci/putio-ios`, support either an interactive signed-in `op` session or `OP_SERVICE_ACCOUNT_TOKEN`, and materialize the App Store Connect key as a temporary local file only for the duration of the fastlane run
 - The GitHub Actions beta workflow uses the same shared `frontend-ci/putio-ios` item, but loads it through the official 1Password GitHub Action instead of shelling out to the local helper script
 - `make verify` prefers any Xcode-advertised iPhone simulator destination on iOS `26.0+` and falls back to the installed `iphonesimulator` SDK when Xcode is not exposing one yet
-- `make run-simulator` uses `simctl` to boot an available iPhone simulator on iOS `26.0+`, install the unsigned app bundle, and launch it when Xcode destination discovery is not enough for an interactive run
+- `make run-simulator` uses `simctl` to boot an available iPhone simulator on iOS `26.0+`, install the signed Simulator app bundle, and launch it when Xcode destination discovery is not enough for an interactive run
 - The exact simulator version does not need to be `26.4`; any iPhone simulator on iOS `26.0` or newer is fine for interactive local runs
 - If you see `iOS 26.4 Platform Not Installed`, that is an Xcode platform-component issue rather than a repo destination issue. Run `make download-ios-platform` or install the matching iOS `26.x` platform and simulator components through Xcode Settings first
 - Release automation is optional and env-driven. Populate `fastlane/.env` from `fastlane/.env.example` only when you need the internal release lane, or use the shared 1Password item instead
