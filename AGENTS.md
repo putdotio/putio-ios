@@ -3,13 +3,13 @@
 ## Repo
 
 - Native iOS app repository for put.io
-- Current stack: UIKit app, CocoaPods dependencies, Bundler-managed Ruby tooling, optional fastlane release lane
+- Stack: UIKit, CocoaPods, Bundler-managed Ruby, optional fastlane release lanes
 
 ## Start Here
 
-- product overview and repo navigation: [README.md](./README.md)
-- contributor workflow: [CONTRIBUTING.md](./CONTRIBUTING.md)
-- security policy: [SECURITY.md](./SECURITY.md)
+- [README.md](./README.md)
+- [CONTRIBUTING.md](./CONTRIBUTING.md)
+- [SECURITY.md](./SECURITY.md)
 
 ## Commands
 
@@ -20,24 +20,35 @@
 - `make run-simulator`
 - `make download-ios-platform`
 
-## Repo-Specific Guidance
+## Rules
 
-- Keep checked-in defaults open-source-safe. Private service keys stay out of git
-- Build-time app settings flow through `Config/Shared.xcconfig`, optional `Config/Local.xcconfig`, and `Info.plist` placeholders
-- Fastlane release lanes use the same `PUTIO_*` environment variables from `fastlane/.env` and pass them through to Xcode
-- The repo also supports a 1Password-backed local flow via `scripts/op-local-config.sh` and `scripts/op-fastlane.sh`
-- The `op` helpers default to the shared `frontend-ci/putio-ios` item and accept either an interactive signed-in `op` session or `OP_SERVICE_ACCOUNT_TOKEN`
-- `.github/workflows/ci.yml` is verify-only and should stay aligned with `make verify`
-- `.github/workflows/beta.yml` is the intentional TestFlight path and uses `OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI` with the official 1Password GitHub Action
-- `.github/workflows/release.yml` reacts to published GitHub releases, checks out the release tag, and uses the same shared 1Password-backed signing flow
-- Beta and release uploads should keep using one monotonic UTC timestamp build-number strategy across local and CI flows
-- The checked-in app build should work without private release credentials
-- Unsigned local verification should prefer the repo `make verify` entrypoint
-- `make verify` prefers an Xcode-advertised iPhone simulator destination on iOS `26.0+` and falls back to the installed `iphonesimulator` SDK when Xcode is not exposing one yet
-- `make print-simulator-destination` shows the concrete iPhone simulator destination the repo would use when Xcode can advertise one
-- `make print-simulator-device` shows the fallback iPhone simulator device id the repo can use for manual install and launch flows
-- `make run-simulator` uses the normal signed Simulator build so local auth and keychain persistence match a real interactive run, then boots an available iPhone simulator on iOS `26.0+`, installs the app, and launches it with `simctl`
-- Running the app in Simulator UI still depends on an installed iOS `26.x` platform and simulator runtime through Xcode Components
-- Treat `fastlane/.env.example` as the contract for optional release-time configuration
-- Prefer simulator-safe verification and unsigned builds in automation
+- Keep checked-in defaults open-source-safe
+- Private service keys stay out of git
 - Update docs when setup, validation, or release expectations change
+
+## Build And Config
+
+- Runtime config flows through `Config/Shared.xcconfig`, optional `Config/Local.xcconfig`, and `Info.plist` placeholders
+- Fastlane uses the same `PUTIO_*` values from `fastlane/.env`
+- Treat `fastlane/.env.example` as the contract for optional release-time config
+
+## Local Auth And Release Flow
+
+- `scripts/op-local-config.sh` and `scripts/op-fastlane.sh` are the local 1Password helpers
+- Default shared item: `frontend-ci/putio-ios`
+- Helpers accept either an interactive `op` session or `OP_SERVICE_ACCOUNT_TOKEN`
+- Beta and release uploads use one monotonic UTC timestamp build-number strategy
+
+## CI
+
+- `.github/workflows/ci.yml` is verify-only and should stay aligned with `make verify`
+- `.github/workflows/beta.yml` is the intentional TestFlight path
+- `.github/workflows/release.yml` runs from published GitHub releases
+- Use `OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI` for shared 1Password-backed CI flows
+
+## Simulator Notes
+
+- Prefer `make verify` for unsigned local verification
+- `make verify` prefers an advertised iPhone simulator destination on iOS `26.0+` and falls back to `iphonesimulator`
+- `make run-simulator` uses the normal signed Simulator build so auth and keychain persistence match a real interactive run
+- Simulator UI still depends on an installed iOS `26.x` platform and simulator runtime
