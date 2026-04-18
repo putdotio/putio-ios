@@ -16,21 +16,14 @@ class DeeplinkManager {
     }
 
     private func extractIDFromPath(pattern: String, path: String) -> Int? {
-        do {
-            let regex = try NSRegularExpression(pattern: pattern, options: .caseInsensitive)
-            let matches = regex.matches(in: path, options: [], range: NSRange(location: 0, length: path.utf16.count))
-            if let match = matches.first {
-                let range = match.range(at: 1)
-                if let swiftRange = Range(range, in: path) {
-                    let id = path[swiftRange]
-                    return Int(id)
-                }
-                return nil
-            }
-            return nil
-        } catch {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
             return nil
         }
+
+        let matches = regex.matches(in: path, options: [], range: NSRange(location: 0, length: path.utf16.count))
+        guard let match = matches.first,
+              let swiftRange = Range(match.range(at: 1), in: path) else { return nil }
+        return Int(path[swiftRange])
     }
 
     private func openLinkPage() {
@@ -79,50 +72,48 @@ class DeeplinkManager {
         guard isReadyToHandleURL else { return false }
 
         if url.path.starts(with: "/files") {
-            tabBarController?.setSelectedTab(title: .files)
-
-            guard let id = extractIDFromPath(pattern: "/files/(.*)", path: url.path) else {
-                return false
-            }
-
-            api.getFile(fileID: id) { result in
-                switch result {
-                case .success(let file):
-                    self.openFilePage(file: file)
-
-                case .failure:
-                    break
-                }
-            }
-
-            return true
+            return handleFileURL(path: url.path)
         }
 
         if url.path.starts(with: "/downloads") {
-            tabBarController?.setSelectedTab(title: .downloads)
-
-            guard let id = extractIDFromPath(pattern: "/downloads/(.*)", path: url.path) else {
-                return false
-            }
-
-            openDownloadedFile(fileID: id)
-            return true
+            return handleDownloadURL(path: url.path)
         }
 
-        switch url.path {
+        return handleStaticURL(path: url.path)
+    }
+
+    private func handleFileURL(path: String) -> Bool {
+        tabBarController?.setSelectedTab(title: .files)
+        guard let id = extractIDFromPath(pattern: "/files/(.*)", path: path) else { return false }
+
+        api.getFile(fileID: id) { result in
+            guard case .success(let file) = result else { return }
+            self.openFilePage(file: file)
+        }
+
+        return true
+    }
+
+    private func handleDownloadURL(path: String) -> Bool {
+        tabBarController?.setSelectedTab(title: .downloads)
+        guard let id = extractIDFromPath(pattern: "/downloads/(.*)", path: path) else { return false }
+
+        openDownloadedFile(fileID: id)
+        return true
+    }
+
+    private func handleStaticURL(path: String) -> Bool {
+        switch path {
         case "/history":
             tabBarController?.setSelectedTab(title: .history)
             return true
-
         case "/settings", "/account":
             tabBarController?.setSelectedTab(title: .account)
             return true
-
         case "/link":
             tabBarController?.setSelectedTab(title: .account)
             openLinkPage()
             return true
-
         default:
             return false
         }

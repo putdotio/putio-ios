@@ -12,7 +12,7 @@ extension FolderCreatorPresenter where Self: UIViewController {
             preferredStyle: .alert
         )
 
-        createFolderAlert.addTextField { (textField) -> Void in
+        createFolderAlert.addTextField { textField in
             textField.placeholder = "Folder Name"
             textField.autocorrectionType = .no
         }

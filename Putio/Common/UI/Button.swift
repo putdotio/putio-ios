@@ -1,4 +1,3 @@
-
 import UIKit
 
 class Button: UIButton {
@@ -23,20 +22,20 @@ class Button: UIButton {
     override func awakeFromNib() {
         super.awakeFromNib()
 
-        self.layer.cornerRadius = 4
+        layer.cornerRadius = 4
 
         switch _variant {
         case .primary:
-            self.backgroundColor = UIColor.Putio.yellow
-            self.setTitleColor(UIColor.Putio.black, for: .normal)
+            backgroundColor = UIColor.Putio.yellow
+            setTitleColor(UIColor.Putio.black, for: .normal)
 
         case .secondary:
-            self.backgroundColor = UIColor.Putio.blackTint
-            self.setTitleColor(.white, for: .normal)
+            backgroundColor = UIColor.Putio.blackTint
+            setTitleColor(.white, for: .normal)
 
         case .danger:
-            self.backgroundColor = UIColor.systemRed
-            self.setTitleColor(.white, for: .normal)
+            backgroundColor = UIColor.systemRed
+            setTitleColor(.white, for: .normal)
         }
     }
 }

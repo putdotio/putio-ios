@@ -21,10 +21,6 @@ class AboutTableViewController: UITableViewController {
         AboutItem(key: .privacy, title: "Privacy policy")
     ]
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
-    }
-
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return items.count
     }
@@ -79,8 +75,8 @@ class AboutTableViewController: UITableViewController {
         present(navController, animated: true)
     }
 
-    @objc func dismissWebView () {
-        self.dismiss(animated: true)
+    @objc func dismissWebView() {
+        dismiss(animated: true)
     }
 
     func showLicenses() {
