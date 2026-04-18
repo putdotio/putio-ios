@@ -75,7 +75,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         if INTERCOM_ENABLED {
-            Intercom.setDeviceToken(deviceToken)
+            Intercom.setDeviceToken(deviceToken, completion: nil)
         }
     }
 

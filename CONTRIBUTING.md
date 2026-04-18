@@ -10,6 +10,8 @@ Install Xcode `26.x` and the Ruby version from `.ruby-version`, then install the
 make bootstrap
 ```
 
+That bootstrap step installs Bundler gems, CocoaPods dependencies, and the current `PutioSDK` app dependency graph
+
 ## Run Locally
 
 Open the workspace and run the `Putio` scheme on any available iPhone simulator running iOS `26.0` or newer:
@@ -48,6 +50,7 @@ make print-simulator-device
 
 - The checked-in repo disables private support integrations by default. `PUTIO_INTERCOM_API_KEY`, `PUTIO_INTERCOM_APP_ID`, and `PUTIO_SENTRY_DSN` are blank in `Putio/Info.plist`
 - The OAuth client id is still configured by default so the existing browser-based login flow keeps working in local builds
+- The app depends on the `PutioSDK` pod for put.io API integration
 - `make verify` prefers any Xcode-advertised iPhone simulator destination on iOS `26.0+` and falls back to the installed `iphonesimulator` SDK when Xcode is not exposing one yet
 - `make run-simulator` uses `simctl` to boot an available iPhone simulator on iOS `26.0+`, install the unsigned app bundle, and launch it when Xcode destination discovery is not enough for an interactive run
 - The exact simulator version does not need to be `26.4`; any iPhone simulator on iOS `26.0` or newer is fine for interactive local runs
