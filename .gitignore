@@ -36,6 +36,9 @@ Pods/
 
 # fastlane
 fastlane/report.xml
+fastlane/.env
+fastlane/*.p8
+.bundle/
 
 ## Fastlane DSYM .zip
 *.zip

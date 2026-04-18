@@ -12,7 +12,6 @@ target 'Putio' do
   pod 'RealmSwift', '10.54.6'
   pod 'Sentry', :git => 'https://github.com/getsentry/sentry-cocoa.git', :tag => '8.58.0'
   pod 'StatefulViewController', '~> 3.0'
-  pod 'SwiftGifOrigin', '~> 1.6.1'
   pod 'SwiftLint'
   pod 'SwiftyBeaver'
   pod 'SwiftyJSON'

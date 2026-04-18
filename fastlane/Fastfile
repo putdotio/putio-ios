@@ -12,7 +12,9 @@ platform :ios do
       key_filepath: ENV["APPSTORE_CONNECT_KEY_FILEPATH"]
     )
 
-    match(type: "appstore", platform: "ios")
+    unless ENV["MATCH_GIT_URL"].to_s.empty?
+      match(type: ENV.fetch("MATCH_TYPE", "appstore"), platform: "ios")
+    end
 
     if options[:bump_type]
       increment_version_number_in_xcodeproj(

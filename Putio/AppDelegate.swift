@@ -31,13 +31,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func configureSDKs() {
         PutioRealm.setup()
 
-        SentrySDK.start { options in
-            options.dsn = SENTRY_DSN
-            options.enableAutoSessionTracking = true
-            options.sessionTrackingIntervalMillis = 60000
+        if SENTRY_ENABLED {
+            SentrySDK.start { options in
+                options.dsn = SENTRY_DSN
+                options.enableAutoSessionTracking = true
+                options.sessionTrackingIntervalMillis = 60000
+            }
         }
 
-        Intercom.setApiKey(INTERCOM_API_KEY, forAppId: INTERCOM_APP_ID)
+        if INTERCOM_ENABLED {
+            Intercom.setApiKey(INTERCOM_API_KEY, forAppId: INTERCOM_APP_ID)
+        }
     }
 
     func configureUI() {
@@ -70,17 +74,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        Intercom.setDeviceToken(deviceToken)
+        if INTERCOM_ENABLED {
+            Intercom.setDeviceToken(deviceToken)
+        }
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        SentrySDK.capture(error: error)
+        if SENTRY_ENABLED {
+            SentrySDK.capture(error: error)
+        }
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
 
-        if Intercom.isIntercomPushNotification(userInfo) {
+        if INTERCOM_ENABLED, Intercom.isIntercomPushNotification(userInfo) {
             Intercom.handlePushNotification(userInfo)
             completionHandler()
         }
@@ -163,10 +171,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         Utils.authorizeNotifications(application: UIApplication.shared)
 
-        let attributes = ICMUserAttributes()
-        attributes.userId = String(account.id)
-        Intercom.loginUser(with: attributes)
-        Intercom.setUserHash(account.hash)
+        if INTERCOM_ENABLED {
+            let attributes = ICMUserAttributes()
+            attributes.userId = String(account.id)
+            Intercom.loginUser(with: attributes)
+            Intercom.setUserHash(account.hash)
+        }
 
         self.presentMainScreen()
     }

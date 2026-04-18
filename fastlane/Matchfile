@@ -1,6 +1,8 @@
-git_url(ENV.fetch("MATCH_GIT_URL"))
-storage_mode("git")
-type("development")
+match_git_url = ENV["MATCH_GIT_URL"].to_s
+
+git_url(match_git_url) unless match_git_url.empty?
+storage_mode("git") unless match_git_url.empty?
+type(ENV.fetch("MATCH_TYPE", "development"))
 platform("ios")
-app_identifier("com.putio.tvOS")
-username("ui@put.io")
+app_identifier(ENV.fetch("PUTIO_APP_IDENTIFIER", "com.putio.tvOS"))
+username(ENV["PUTIO_APPLE_ID"]) unless ENV["PUTIO_APPLE_ID"].to_s.empty?
