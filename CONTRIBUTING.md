@@ -4,6 +4,8 @@ Thanks for contributing to `putio-ios`.
 
 ## Setup
 
+### OSS Contributors
+
 Install Xcode `26.x` and the Ruby version from `.ruby-version`, then install the repo dependencies:
 
 ```bash
@@ -14,11 +16,20 @@ That bootstrap step installs Bundler gems, CocoaPods dependencies, and the curre
 
 For private app configuration and signing overrides, copy `Config/Local.example.xcconfig` to `Config/Local.xcconfig` and fill in the values your team needs. Keep that local file out of git.
 
-If your team keeps iOS release secrets in 1Password, you can skip hand-editing local files and use the built-in 1Password flow instead:
+### put.io Teammates
+
+If your team keeps iOS release secrets in 1Password, you can skip hand-editing local files and use the built-in `op` flow instead. The repo defaults to the shared `frontend-ci/putio-ios` item, so the shortest path is:
 
 ```bash
-./scripts/sync-local-config-from-1password.sh --vault "<vault>" --item "putio-ios"
-./scripts/fastlane-with-1password.sh --vault "<vault>" --item "putio-ios" beta
+make op-local-config
+make beta
+```
+
+You can still override the source item explicitly when needed:
+
+```bash
+./scripts/op-local-config.sh --vault "frontend-ci" --item "putio-ios"
+./scripts/op-fastlane.sh --vault "frontend-ci" --item "putio-ios" beta
 ```
 
 That flow expects a single 1Password item with these text fields:
@@ -36,6 +47,7 @@ That flow expects a single 1Password item with these text fields:
 - `PUTIO_SENTRY_DSN`
 - `MATCH_GIT_URL`
 - `MATCH_TYPE`
+- `MATCH_PASSWORD`
 
 Add the App Store Connect `.p8` key to that same item as a file attachment named `AuthKey.p8`.
 
@@ -82,12 +94,12 @@ make print-simulator-device
 - The app depends on the `PutioSDK` pod for put.io API integration
 - Native app runtime settings come from build settings through `Config/Shared.xcconfig`, optional `Config/Local.xcconfig`, and `Info.plist` placeholders
 - Fastlane uses the same `PUTIO_*` environment variables from `fastlane/.env` and passes them through to Xcode during release builds
-- The 1Password helper scripts load those same values through `op inject` and `op run` from one shared item and materialize the App Store Connect key as a temporary local file only for the duration of the fastlane run
+- The `op` helper scripts default to `frontend-ci/putio-ios`, support either an interactive signed-in `op` session or `OP_SERVICE_ACCOUNT_TOKEN`, and materialize the App Store Connect key as a temporary local file only for the duration of the fastlane run
 - `make verify` prefers any Xcode-advertised iPhone simulator destination on iOS `26.0+` and falls back to the installed `iphonesimulator` SDK when Xcode is not exposing one yet
 - `make run-simulator` uses `simctl` to boot an available iPhone simulator on iOS `26.0+`, install the unsigned app bundle, and launch it when Xcode destination discovery is not enough for an interactive run
 - The exact simulator version does not need to be `26.4`; any iPhone simulator on iOS `26.0` or newer is fine for interactive local runs
 - If you see `iOS 26.4 Platform Not Installed`, that is an Xcode platform-component issue rather than a repo destination issue. Run `make download-ios-platform` or install the matching iOS `26.x` platform and simulator components through Xcode Settings first
-- Release automation is optional and env-driven. Populate `fastlane/.env` from `fastlane/.env.example` only when you need the internal release lane
+- Release automation is optional and env-driven. Populate `fastlane/.env` from `fastlane/.env.example` only when you need the internal release lane, or use the shared 1Password item instead
 - Keep repo-stored configuration open-source-safe. Do not commit tokens, signing keys, API key files, or private release metadata
 
 ## Pull Requests

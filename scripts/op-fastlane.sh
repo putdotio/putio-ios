@@ -2,14 +2,14 @@
 
 set -euo pipefail
 
-vault="${PUTIO_1PASSWORD_VAULT:-}"
-item="${PUTIO_1PASSWORD_ITEM:-}"
+vault="${PUTIO_1PASSWORD_VAULT:-frontend-ci}"
+item="${PUTIO_1PASSWORD_ITEM:-putio-ios}"
 env_template="fastlane/.env.1password.template"
 sync_local_config="true"
 
 usage() {
   cat <<'EOF' >&2
-Usage: scripts/fastlane-with-1password.sh --vault <vault> --item <item> [--env-template <path>] [--skip-local-config-sync] <lane> [fastlane args...]
+Usage: scripts/op-fastlane.sh --vault <vault> --item <item> [--env-template <path>] [--skip-local-config-sync] <lane> [fastlane args...]
 EOF
   exit 2
 }
@@ -54,13 +54,17 @@ if ! command -v op >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! op whoami >/dev/null 2>&1; then
+if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" && -n "${OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI:-}" ]]; then
+  export OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI"
+fi
+
+if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]] && ! op whoami >/dev/null 2>&1; then
   echo "1Password CLI is not signed in. Unlock 1Password or run 'op signin' first" >&2
   exit 1
 fi
 
 if [[ "$sync_local_config" == "true" ]]; then
-  ./scripts/sync-local-config-from-1password.sh --vault "$vault" --item "$item"
+  ./scripts/op-local-config.sh --vault "$vault" --item "$item"
 fi
 
 tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/putio-ios-fastlane.XXXXXX")"
@@ -79,6 +83,31 @@ if [[ -n "${APPSTORE_CONNECT_KEY_CONTENT:-}" ]]; then
 fi
 
 unset APPSTORE_CONNECT_KEY_CONTENT
+
+required_keys=(
+  APPSTORE_CONNECT_ISSUER_ID
+  APPSTORE_CONNECT_KEY_ID
+  APPSTORE_CONNECT_KEY_FILEPATH
+  PUTIO_APP_IDENTIFIER
+  PUTIO_APPLE_ID
+  PUTIO_ITC_TEAM_ID
+  PUTIO_DEVELOPMENT_TEAM
+  MATCH_GIT_URL
+  MATCH_TYPE
+  MATCH_PASSWORD
+)
+
+missing_keys=()
+for key in "${required_keys[@]}"; do
+  if [[ -z "${!key:-}" ]]; then
+    missing_keys+=("$key")
+  fi
+done
+
+if (( ${#missing_keys[@]} > 0 )); then
+  printf 'Missing required 1Password-backed fastlane settings: %s\n' "${missing_keys[*]}" >&2
+  exit 1
+fi
 
 exec bundle exec fastlane "$@"
 EOF

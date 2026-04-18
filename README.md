@@ -27,7 +27,7 @@ Install the public app from the [App Store](https://apps.apple.com/app/id1260479
 
 ## Local Development
 
-The standard workflow is:
+For open-source contributors, the standard workflow is:
 
 ```bash
 make bootstrap
@@ -40,10 +40,12 @@ make run-simulator
 - `make run-simulator` boots an available iPhone simulator on iOS `26.0+`, installs the app, and launches it
 - `Config/Local.xcconfig` is the local override point for private app ids, team ids, OAuth, Cast, Intercom, and Sentry values
 
-For teams using 1Password, the repo also includes:
+For put.io teammates, the same repo also supports an internal 1Password-backed flow using the shared `frontend-ci/putio-ios` item by default:
 
-- `scripts/sync-local-config-from-1password.sh` to render `Config/Local.xcconfig` from one 1Password item
-- `scripts/fastlane-with-1password.sh` to load fastlane and app build settings from that same item for local beta/testflight runs
+- `scripts/op-local-config.sh` to render `Config/Local.xcconfig` from one 1Password item
+- `scripts/op-fastlane.sh` to load fastlane and app build settings from that same item for local beta/testflight runs
+- `make op-local-config` to sync local config from the default `frontend-ci/putio-ios` item
+- `make beta` to build and upload a beta using the same default item
 
 For full setup, release-lane notes, and contributor workflow, use [CONTRIBUTING.md](./CONTRIBUTING.md)
 

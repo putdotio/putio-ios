@@ -2,14 +2,14 @@
 
 set -euo pipefail
 
-vault="${PUTIO_1PASSWORD_VAULT:-}"
-item="${PUTIO_1PASSWORD_ITEM:-}"
+vault="${PUTIO_1PASSWORD_VAULT:-frontend-ci}"
+item="${PUTIO_1PASSWORD_ITEM:-putio-ios}"
 template="Config/Local.1password.xcconfig.template"
 output="Config/Local.xcconfig"
 
 usage() {
   cat <<'EOF' >&2
-Usage: scripts/sync-local-config-from-1password.sh --vault <vault> --item <item> [--template <path>] [--output <path>]
+Usage: scripts/op-local-config.sh --vault <vault> --item <item> [--template <path>] [--output <path>]
 EOF
   exit 2
 }
@@ -47,7 +47,11 @@ if ! command -v op >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! op whoami >/dev/null 2>&1; then
+if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" && -n "${OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI:-}" ]]; then
+  export OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI"
+fi
+
+if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]] && ! op whoami >/dev/null 2>&1; then
   echo "1Password CLI is not signed in. Unlock 1Password or run 'op signin' first" >&2
   exit 1
 fi
