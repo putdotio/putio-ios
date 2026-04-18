@@ -32,8 +32,12 @@ end
 def setup_putio_ci_keychain
   return unless is_ci
 
-  keychain_name = first_present(ENV["PUTIO_CI_KEYCHAIN_NAME"], "putio-ios-ci.keychain")
-  keychain_password = first_present(ENV["PUTIO_CI_KEYCHAIN_PASSWORD"], "putio-ios-ci")
+  run_suffix = [ENV["GITHUB_RUN_ID"], ENV["GITHUB_RUN_ATTEMPT"]].reject(&:to_s.empty?).join("-")
+  default_keychain_name = run_suffix.empty? ? "putio-ios-ci.keychain" : "putio-ios-ci-#{run_suffix}.keychain"
+  default_keychain_password = run_suffix.empty? ? "putio-ios-ci" : "putio-ios-ci-#{run_suffix}"
+
+  keychain_name = first_present(ENV["PUTIO_CI_KEYCHAIN_NAME"], default_keychain_name)
+  keychain_password = first_present(ENV["PUTIO_CI_KEYCHAIN_PASSWORD"], default_keychain_password)
 
   create_keychain(
     name: keychain_name,
@@ -43,7 +47,8 @@ def setup_putio_ci_keychain
     timeout: 3600,
     lock_when_sleeps: true,
     lock_after_timeout: false,
-    add_to_search_list: true
+    add_to_search_list: true,
+    require_create: true
   )
 
   ENV["MATCH_KEYCHAIN_NAME"] = keychain_name
