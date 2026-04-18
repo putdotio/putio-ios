@@ -1,0 +1,3 @@
+#include "../Pods/Target Support Files/Pods-Putio/Pods-Putio.debug.xcconfig"
+#include "Shared.xcconfig"
+#include? "Local.xcconfig"

@@ -38,6 +38,7 @@ make run-simulator
 - `make bootstrap` installs Bundler gems and CocoaPods dependencies
 - `make verify` builds the unsigned app for `iphonesimulator`
 - `make run-simulator` boots an available iPhone simulator on iOS `26.0+`, installs the app, and launches it
+- `Config/Local.xcconfig` is the local override point for private app ids, team ids, OAuth, Cast, Intercom, and Sentry values
 
 For full setup, release-lane notes, and contributor workflow, use [CONTRIBUTING.md](./CONTRIBUTING.md)
 

@@ -226,6 +226,10 @@
 		ACF668DD282A783900A48879 /* Button.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Button.swift; sourceTree = "<group>"; };
 		ACF668DF282B828E00A48879 /* TwoFactorRecoveryCodesTableViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TwoFactorRecoveryCodesTableViewCell.swift; sourceTree = "<group>"; };
 		ACF668E7282BF05600A48879 /* DisableTwoFactorAuthViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisableTwoFactorAuthViewController.swift; sourceTree = "<group>"; };
+		ACF0C0012B0F000100C0F001 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
+		ACF0C0022B0F000100C0F001 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		ACF0C0032B0F000100C0F001 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
+		ACF0C0042B0F000100C0F001 /* Local.example.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.example.xcconfig; sourceTree = "<group>"; };
 		ACFA83741FF128FA008711B4 /* LoaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoaderView.swift; sourceTree = "<group>"; };
 		ACFA837A1FF12FA2008711B4 /* LoaderView.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = LoaderView.xib; sourceTree = "<group>"; };
 		ACFA837C1FF13141008711B4 /* UIView+InterfaceBuilderInstantiable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIView+InterfaceBuilderInstantiable.swift"; sourceTree = "<group>"; };
@@ -506,10 +510,22 @@
 			path = Appearance;
 			sourceTree = "<group>";
 		};
+		ACF0C0052B0F000100C0F001 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				ACF0C0012B0F000100C0F001 /* Debug.xcconfig */,
+				ACF0C0022B0F000100C0F001 /* Release.xcconfig */,
+				ACF0C0032B0F000100C0F001 /* Shared.xcconfig */,
+				ACF0C0042B0F000100C0F001 /* Local.example.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
 		ACEF62E11F9A26AA0026B25E = {
 			isa = PBXGroup;
 			children = (
 				AC88745F27C366EB00BC65E9 /* Pods-Putio-acknowledgements.plist */,
+				ACF0C0052B0F000100C0F001 /* Config */,
 				ACEF62EC1F9A26AA0026B25E /* Putio */,
 				ACEF62EB1F9A26AA0026B25E /* Products */,
 				B974269A3F8B6789D782EBF0 /* Pods */,
@@ -1000,7 +1016,7 @@
 		};
 		ACEF62FD1F9A26AA0026B25E /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 6B7455A8D5EF4A2CE24BA6F2 /* Pods-Putio.debug.xcconfig */;
+			baseConfigurationReference = ACF0C0012B0F000100C0F001 /* Debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconRetro;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
@@ -1084,7 +1100,6 @@
 					"-framework",
 					"\"WebKit\"",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.putio.tvOS;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1094,7 +1109,7 @@
 		};
 		ACEF62FE1F9A26AA0026B25E /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A273F236F62C981270AA634E /* Pods-Putio.release.xcconfig */;
+			baseConfigurationReference = ACF0C0022B0F000100C0F001 /* Release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconRetro;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
@@ -1178,7 +1193,6 @@
 					"-framework",
 					"\"WebKit\"",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.putio.tvOS;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

@@ -92,7 +92,7 @@
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_googlecast._tcp</string>
-		<string>_CC1AD845._googlecast._tcp</string>
+		<string>_$(PUTIO_CHROMECAST_RECEIVER_APP_ID)._googlecast._tcp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>${PRODUCT_NAME} uses the local network to discover Cast-enabled devices on your WiFi
@@ -102,15 +102,15 @@ network.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Send photos over support interface to help resolve app issues</string>
 	<key>PUTIO_CHROMECAST_RECEIVER_APP_ID</key>
-	<string>CC1AD845</string>
+	<string>$(PUTIO_CHROMECAST_RECEIVER_APP_ID)</string>
 	<key>PUTIO_INTERCOM_API_KEY</key>
-	<string></string>
+	<string>$(PUTIO_INTERCOM_API_KEY)</string>
 	<key>PUTIO_INTERCOM_APP_ID</key>
-	<string></string>
+	<string>$(PUTIO_INTERCOM_APP_ID)</string>
 	<key>PUTIO_OAUTH_CLIENT_ID</key>
-	<string>3001</string>
+	<string>$(PUTIO_OAUTH_CLIENT_ID)</string>
 	<key>PUTIO_SENTRY_DSN</key>
-	<string></string>
+	<string>$(PUTIO_SENTRY_DSN)</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
