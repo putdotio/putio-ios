@@ -12,12 +12,12 @@ class HistoryViewModel {
         case empty
         case loaded
         case refreshing
-        case failure(error: PutioAPIError)
+        case failure(error: PutioSDKError)
     }
 
     enum ActionResult {
         case success
-        case failure(error: PutioAPIError)
+        case failure(error: PutioSDKError)
     }
 
     typealias ActionCompletion = ((_ result: ActionResult) -> Void)

@@ -14,7 +14,7 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
     private var maskingViewHeightConstraint: NSLayoutConstraint!
 
     func installViewController(_ viewController: UIViewController, inContainerView containerView: UIView) {
-        addChildViewController(viewController)
+        addChild(viewController)
         viewController.view.translatesAutoresizingMaskIntoConstraints = false
         containerView.addSubview(viewController.view)
 
@@ -25,13 +25,13 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
             viewController.view.trailingAnchor.constraint(equalTo: containerView.trailingAnchor)
         ])
 
-        viewController.didMove(toParentViewController: self)
+        viewController.didMove(toParent: self)
     }
 
     func uninstallViewController(_ viewController: UIViewController) {
-        viewController.willMove(toParentViewController: nil)
+        viewController.willMove(toParent: nil)
         viewController.view.removeFromSuperview()
-        viewController.removeFromParentViewController()
+        viewController.removeFromParent()
     }
 
     func createMainTabBarControllerView() {
@@ -39,7 +39,7 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
         mainTabBarContainerView.translatesAutoresizingMaskIntoConstraints = false
 
         view.addSubview(mainTabBarContainerView)
-        view.bringSubview(toFront: mainTabBarContainerView)
+        view.bringSubviewToFront(mainTabBarContainerView)
 
         NSLayoutConstraint.activate([
             mainTabBarContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -60,7 +60,7 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
         miniMediaControlsContainerView.translatesAutoresizingMaskIntoConstraints = false
 
         view.addSubview(miniMediaControlsContainerView)
-        view.bringSubview(toFront: miniMediaControlsContainerView)
+        view.bringSubviewToFront(miniMediaControlsContainerView)
 
         NSLayoutConstraint.activate([
             miniMediaControlsContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),

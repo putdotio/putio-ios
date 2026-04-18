@@ -13,7 +13,7 @@ let log = SwiftyBeaver.self
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         configureLogger()
         configureSDKs()
         configureUI()
@@ -108,10 +108,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let dispatchGroup = DispatchGroup()
         
         var account: PutioAccount?
-        var accountError: PutioAPIError?
+        var accountError: PutioSDKError?
         
         var config: JSON?
-        var configError: PutioAPIError?
+        var configError: PutioSDKError?
         
         let accountInfoQuery: [String: Any] = [
             "download_token": 1,
@@ -181,7 +181,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         self.presentMainScreen()
     }
 
-    func fetchUserFailure(error: PutioAPIError) {
+    func fetchUserFailure(error: PutioSDKError) {
         let realm = try! Realm()
         let user = realm.objects(User.self).first
 

@@ -1,5 +1,5 @@
 PODS:
-  - Alamofire (5.5.0)
+  - Alamofire (5.11.2)
   - google-cast-sdk-no-bluetooth-xcframework (4.8.0):
     - Protobuf (~> 3.13)
   - Intercom (19.5.7)
@@ -7,15 +7,15 @@ PODS:
     - ViewState (>= 1.2.1)
   - KeychainAccess (4.2.2)
   - Protobuf (3.29.6)
-  - PutioSDK (1.6.1):
-    - Alamofire (~> 5.5.0)
+  - PutioSDK (2.0.0):
+    - Alamofire (~> 5.11)
     - SwiftyJSON (~> 5.0)
   - Realm (20.0.4):
     - Realm/Headers (= 20.0.4)
   - Realm/Headers (20.0.4)
   - RealmSwift (20.0.4):
     - Realm (= 20.0.4)
-  - RoutableLogger (12.3.3)
+  - RoutableLogger (13.0.0)
   - Sentry (9.10.0):
     - Sentry/Core (= 9.10.0)
   - Sentry/Core (9.10.0)
@@ -23,23 +23,27 @@ PODS:
   - SwiftLint (0.63.2)
   - SwiftyBeaver (2.1.1)
   - SwiftyJSON (5.0.2)
-  - ViewState (2.0.0):
+  - ViewState (3.0.0):
+    - ViewState/Core (= 3.0.0)
+  - ViewState/Core (3.0.0):
     - RoutableLogger (>= 9.1.11)
   - VTAcknowledgementsViewController (2.0.1)
 
 DEPENDENCIES:
-  - Alamofire (~> 5.5.0)
+  - Alamofire (~> 5.11)
   - google-cast-sdk-no-bluetooth-xcframework (= 4.8.0)
   - Intercom (= 19.5.7)
   - KeyboardAvoidingView (~> 5.2)
   - KeychainAccess
-  - PutioSDK (= 1.6.1)
+  - PutioSDK (from `https://github.com/putdotio/putio-sdk-swift.git`, tag `2.0.0`)
   - RealmSwift (= 20.0.4)
+  - RoutableLogger (= 13.0.0)
   - Sentry (= 9.10.0)
   - StatefulViewController (~> 3.0)
   - SwiftLint (~> 0.63)
   - SwiftyBeaver (~> 2.1)
   - SwiftyJSON (= 5.0.2)
+  - ViewState (= 3.0.0)
   - VTAcknowledgementsViewController
 
 SPEC REPOS:
@@ -50,7 +54,6 @@ SPEC REPOS:
     - KeyboardAvoidingView
     - KeychainAccess
     - Protobuf
-    - PutioSDK
     - Realm
     - RealmSwift
     - RoutableLogger
@@ -62,25 +65,35 @@ SPEC REPOS:
     - ViewState
     - VTAcknowledgementsViewController
 
+EXTERNAL SOURCES:
+  PutioSDK:
+    :git: https://github.com/putdotio/putio-sdk-swift.git
+    :tag: 2.0.0
+
+CHECKOUT OPTIONS:
+  PutioSDK:
+    :git: https://github.com/putdotio/putio-sdk-swift.git
+    :tag: 2.0.0
+
 SPEC CHECKSUMS:
-  Alamofire: 1c4fb5369c3fe93d2857c780d8bbe09f06f97e7c
+  Alamofire: 400275dd1c6d87d95a041861d2a59da4b520a203
   google-cast-sdk-no-bluetooth-xcframework: 1783f52a1b2dc0293ac3ae995db5435989a87da7
   Intercom: 74d4318a7275fa6f6a1466443f2af10ebd679d57
   KeyboardAvoidingView: acc530b2435bba760b2270e722cb7132cf1c4d31
   KeychainAccess: c0c4f7f38f6fc7bbe58f5702e25f7bd2f65abf51
   Protobuf: 8d5596f7468be5400861a6bbfb2dfe9d0d1cde34
-  PutioSDK: 354f4e87dc3e1b33cc0ccaf14c9499c51a557f18
+  PutioSDK: efc7fce0477bc46f0364d3827112dcb7cdd6bc43
   Realm: 1fca83c42ac1d5c7767974882c8de5a7abca4d89
   RealmSwift: 84f36320f6133dea78d05c55bb46bba4387d6828
-  RoutableLogger: ff5425f9ec26ec79241a591a1ed16a7a69d70b2f
+  RoutableLogger: 31ce799b16b4868c169ed68c36e25437dd0ca40e
   Sentry: 4e85b40e4b0235853f40f959d315a6b28e3148d8
   StatefulViewController: 4803bf900d44de26074344998e10e041113b5931
   SwiftLint: 4fa4a9b437ccc4fc72f6c0bc98556e8e9e05bccf
   SwiftyBeaver: ade157e4f857812e7d7f15f2e3396bb8733f8a1c
   SwiftyJSON: f5b1bf1cd8dd53cd25887ac0eabcfd92301c6a5a
-  ViewState: 2443ba39d84bf9780fad2f5cd8909c81c62d4de5
+  ViewState: 82f26f9b716f6673c19e491f8bf234c4ff519a0a
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: 071eb9e2b415444da1f89305699e315f0e8ab39d
+PODFILE CHECKSUM: fb2c22ad36de6393121c250dc53497279e497936
 
 COCOAPODS: 1.16.2

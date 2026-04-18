@@ -173,7 +173,7 @@ class VideoPlayerViewController: AVPlayerViewController {
 
         getInitialVideoTime { (startFrom) in
             self.isPlayerSetup = true
-            self.player?.seek(to: CMTimeMakeWithSeconds(Float64(startFrom), 600))
+            self.player?.seek(to: CMTimeMakeWithSeconds(Float64(startFrom), preferredTimescale: 600))
             self.registerPlayerTimeObserver()
             self.player?.play()
             self.onPlaybackStarted()
@@ -300,10 +300,10 @@ class VideoPlayerViewController: AVPlayerViewController {
     private func registerLifecycleObservers() {
         let notificationCenter = NotificationCenter.default
 
-        notificationCenter.addObserver(self, selector: #selector(handleApplicationDidEnterBackground), name: .UIApplicationDidEnterBackground, object: nil)
-        notificationCenter.addObserver(self, selector: #selector(handleApplicationWillTerminate), name: .UIApplicationWillTerminate, object: nil)
-        notificationCenter.addObserver(self, selector: #selector(handleAudioSessionInterruption(_:)), name: .AVAudioSessionInterruption, object: AVAudioSession.sharedInstance())
-        notificationCenter.addObserver(self, selector: #selector(handleMemoryWarning), name: .UIApplicationDidReceiveMemoryWarning, object: nil)
+        notificationCenter.addObserver(self, selector: #selector(handleApplicationDidEnterBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
+        notificationCenter.addObserver(self, selector: #selector(handleApplicationWillTerminate), name: UIApplication.willTerminateNotification, object: nil)
+        notificationCenter.addObserver(self, selector: #selector(handleAudioSessionInterruption(_:)), name: AVAudioSession.interruptionNotification, object: AVAudioSession.sharedInstance())
+        notificationCenter.addObserver(self, selector: #selector(handleMemoryWarning), name: UIApplication.didReceiveMemoryWarningNotification, object: nil)
         notificationCenter.addObserver(self, selector: #selector(handlePlaybackStalled(_:)), name: .AVPlayerItemPlaybackStalled, object: nil)
         notificationCenter.addObserver(self, selector: #selector(handlePlaybackFailed(_:)), name: .AVPlayerItemFailedToPlayToEndTime, object: nil)
         notificationCenter.addObserver(self, selector: #selector(handlePlaybackEnded(_:)), name: .AVPlayerItemDidPlayToEndTime, object: nil)
@@ -324,7 +324,7 @@ class VideoPlayerViewController: AVPlayerViewController {
     @objc private func handleAudioSessionInterruption(_ notification: Notification) {
         guard let userInfo = notification.userInfo,
             let interruptionType = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
-            interruptionType == AVAudioSessionInterruptionType.began.rawValue else { return }
+            interruptionType == AVAudioSession.InterruptionType.began.rawValue else { return }
 
         persistPlaybackPosition(shouldSyncRemoteInBackground: true)
     }
@@ -350,19 +350,19 @@ class VideoPlayerViewController: AVPlayerViewController {
     }
 
     private func syncRemotePlaybackPosition(_ startFrom: Int, shouldSyncRemoteInBackground: Bool) {
-        var backgroundTaskID: UIBackgroundTaskIdentifier = UIBackgroundTaskInvalid
+        var backgroundTaskID: UIBackgroundTaskIdentifier = .invalid
 
         if shouldSyncRemoteInBackground {
             backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "SaveVideoPlaybackPosition") {
                 UIApplication.shared.endBackgroundTask(backgroundTaskID)
-                backgroundTaskID = UIBackgroundTaskInvalid
+                backgroundTaskID = .invalid
             }
         }
 
-        let completion: PutioAPIBoolCompletion = { _ in
-            guard backgroundTaskID != UIBackgroundTaskInvalid else { return }
+        let completion: PutioSDKBoolCompletion = { _ in
+            guard backgroundTaskID != .invalid else { return }
             UIApplication.shared.endBackgroundTask(backgroundTaskID)
-            backgroundTaskID = UIBackgroundTaskInvalid
+            backgroundTaskID = .invalid
         }
 
         if startFrom == 0 {

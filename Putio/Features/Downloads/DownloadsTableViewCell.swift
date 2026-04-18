@@ -131,12 +131,12 @@ class DownloadStateButton: UIControl {
         trackLayer.fillColor = nil
         trackLayer.strokeColor = UIColor(white: 0.25, alpha: 1).cgColor
         trackLayer.lineWidth = 2
-        trackLayer.lineCap = kCALineCapRound
+        trackLayer.lineCap = .round
 
         progressLayer.fillColor = nil
         progressLayer.strokeColor = UIColor.Putio.yellow.cgColor
         progressLayer.lineWidth = 2
-        progressLayer.lineCap = kCALineCapRound
+        progressLayer.lineCap = .round
         progressLayer.strokeEnd = 0
 
         layer.addSublayer(trackLayer)
@@ -208,7 +208,7 @@ class DownloadStateButton: UIControl {
                 anim.fromValue = progressLayer.presentation()?.strokeEnd ?? progressLayer.strokeEnd
                 anim.toValue = clamped
                 anim.duration = 0.3
-                anim.timingFunction = CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseOut)
+                anim.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 progressLayer.strokeEnd = clamped
                 progressLayer.add(anim, forKey: "progress")
             } else {

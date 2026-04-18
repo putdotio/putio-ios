@@ -68,7 +68,7 @@ extension DownloadedFilePresenter where Self: UIViewController {
         }
     }
 
-    func presentRestartDownloadFailureMessage(for download: Download, with error: PutioAPIError) {
+    func presentRestartDownloadFailureMessage(for download: Download, with error: PutioSDKError) {
         var message: String
 
         switch error.type {

@@ -2,7 +2,7 @@ import Foundation
 import PutioSDK
 
 struct AuthErrors {
-    static func localizeLoginError(error: PutioAPIError) -> PutioLocalizedError {
+    static func localizeLoginError(error: PutioSDKError) -> PutioLocalizedError {
         return api.localizeError(error: error, localizers: [
             APIErrorLocalizer(matcher: .statusCode(401), localize: { error in
                 return PutioLocalizedError(
@@ -14,7 +14,7 @@ struct AuthErrors {
         ])
     }
 
-    static func localizeTwoFactorAuthError(error: PutioAPIError) -> PutioLocalizedError {
+    static func localizeTwoFactorAuthError(error: PutioSDKError) -> PutioLocalizedError {
         let invalidCodeErrorMessage = "The code you entered is invalid"
         let invalidCodeErrorRecoverySuggestion: PutioLocalizedErrorRecoverySuggestion = .instruction(description: "Please check your code and try again.")
 

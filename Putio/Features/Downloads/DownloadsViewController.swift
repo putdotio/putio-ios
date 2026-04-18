@@ -241,7 +241,7 @@ class DownloadsRecoveryView: UIView {
     }()
 
     private let spinner: UIActivityIndicatorView = {
-        let spinner = UIActivityIndicatorView(activityIndicatorStyle: .medium)
+        let spinner = UIActivityIndicatorView(style: .medium)
         spinner.color = .white
         spinner.hidesWhenStopped = true
         return spinner

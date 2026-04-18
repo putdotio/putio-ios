@@ -43,7 +43,7 @@ class Utils {
 
     static func configureAVSession() {
         do {
-            try AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback)
+            try AVAudioSession.sharedInstance().setCategory(.playback)
         } catch {}
     }
 }

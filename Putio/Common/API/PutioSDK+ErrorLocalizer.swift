@@ -33,7 +33,7 @@ enum PutioLocalizedErrorRecoverySuggestion {
 struct PutioLocalizedError {
     let message: String
     let recoverySuggestion: PutioLocalizedErrorRecoverySuggestion
-    let underlyingError: PutioAPIError
+    let underlyingError: PutioSDKError
 }
 
 struct APIErrorLocalizer {
@@ -44,7 +44,7 @@ struct APIErrorLocalizer {
     }
 
     let matcher: APIErrorLocalizer.APIErrorLocalizerMatcher
-    let localize: (_ error: PutioAPIError) -> PutioLocalizedError
+    let localize: (_ error: PutioSDKError) -> PutioLocalizedError
 }
 
 let unknownErrorLocalizer = APIErrorLocalizer(
@@ -69,8 +69,8 @@ let networkErrorLocalizer = APIErrorLocalizer(
     }
 )
 
-extension PutioAPI {
-    func localizeError(error: PutioAPIError, localizers: [APIErrorLocalizer] = []) -> PutioLocalizedError {
+extension PutioSDK {
+    func localizeError(error: PutioSDKError, localizers: [APIErrorLocalizer] = []) -> PutioLocalizedError {
         switch error.type {
         case .httpError(let statusCode, let errorType):
             let byStatusCode = localizers.first { localizer in

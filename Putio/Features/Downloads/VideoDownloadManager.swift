@@ -206,12 +206,7 @@ class VideoDownloadManager: NSObject {
                 return nil
             }
 
-            guard url != nil else {
-                log.error("VDM: Bookmark URL is nil")
-                return nil
-            }
-
-            log.debug(["VDM: Bookmark URL is valid!", url?.absoluteString])
+            log.debug(["VDM: Bookmark URL is valid!", url.absoluteString])
             return url
         } catch {
             log.error("VDM: Failed to create URL from bookmark with error: \(error)")
