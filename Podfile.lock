@@ -6,7 +6,6 @@ PODS:
   - KeyboardAvoidingView (5.2.0):
     - ViewState (>= 1.2.1)
   - KeychainAccess (4.2.2)
-  - NFDownloadButton (0.0.2)
   - Protobuf (3.29.6)
   - PutioAPI (1.5.0):
     - Alamofire (~> 5.5.0)
@@ -34,8 +33,7 @@ DEPENDENCIES:
   - Intercom (= 14.0.0)
   - KeyboardAvoidingView (~> 5.2)
   - KeychainAccess
-  - NFDownloadButton (= 0.0.2)
-  - PutioAPI (from `https://github.com/putdotio/putio-swift.git`, tag `1.5.0`)
+  - PutioAPI (from `https://github.com/putdotio/putio-sdk-swift.git`, tag `1.5.0`)
   - RealmSwift (= 10.54.6)
   - Sentry (from `https://github.com/getsentry/sentry-cocoa.git`, tag `8.58.0`)
   - StatefulViewController (~> 3.0)
@@ -51,7 +49,6 @@ SPEC REPOS:
     - Intercom
     - KeyboardAvoidingView
     - KeychainAccess
-    - NFDownloadButton
     - Protobuf
     - Realm
     - RealmSwift
@@ -65,7 +62,7 @@ SPEC REPOS:
 
 EXTERNAL SOURCES:
   PutioAPI:
-    :git: https://github.com/putdotio/putio-swift.git
+    :git: https://github.com/putdotio/putio-sdk-swift.git
     :tag: 1.5.0
   Sentry:
     :git: https://github.com/getsentry/sentry-cocoa.git
@@ -73,7 +70,7 @@ EXTERNAL SOURCES:
 
 CHECKOUT OPTIONS:
   PutioAPI:
-    :git: https://github.com/putdotio/putio-swift.git
+    :git: https://github.com/putdotio/putio-sdk-swift.git
     :tag: 1.5.0
   Sentry:
     :git: https://github.com/getsentry/sentry-cocoa.git
@@ -85,7 +82,6 @@ SPEC CHECKSUMS:
   Intercom: 4faacb977c2fbdb876f5b3813671167662c1b572
   KeyboardAvoidingView: acc530b2435bba760b2270e722cb7132cf1c4d31
   KeychainAccess: c0c4f7f38f6fc7bbe58f5702e25f7bd2f65abf51
-  NFDownloadButton: ea79486ae2c68acc8202eae1b07bacef4684c6cc
   Protobuf: 8d5596f7468be5400861a6bbfb2dfe9d0d1cde34
   PutioAPI: f4384b5459439b5535c2496d79529a747db29548
   Realm: b1b3bc68162fa242132eb7eefbf91d7c40f36a85
@@ -99,6 +95,6 @@ SPEC CHECKSUMS:
   ViewState: 2443ba39d84bf9780fad2f5cd8909c81c62d4de5
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: 7470c4282f4857971d281f385547a0c4538f5b84
+PODFILE CHECKSUM: a8ae8a080de1d2413cf43c17c67467e12505e068
 
-COCOAPODS: 1.13.0
+COCOAPODS: 1.16.2

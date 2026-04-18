@@ -4,7 +4,7 @@ Thanks for contributing to `putio-ios`.
 
 ## Setup
 
-Install Xcode `26.x`, Ruby `3.2.4`, and Bundler, then install the repo dependencies:
+Install Xcode `26.x` and the Ruby version from `.ruby-version`, then install the repo dependencies:
 
 ```bash
 make bootstrap
