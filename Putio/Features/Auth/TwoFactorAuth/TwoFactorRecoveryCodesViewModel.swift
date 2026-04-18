@@ -1,7 +1,7 @@
 import Foundation
 import PutioSDK
 
-protocol TwoFactorRecoveryCodesViewModelDelegate: class {
+protocol TwoFactorRecoveryCodesViewModelDelegate: AnyObject {
     func stateChanged()
 }
 

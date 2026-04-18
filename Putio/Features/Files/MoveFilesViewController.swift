@@ -2,7 +2,7 @@ import UIKit
 import StatefulViewController
 import PutioSDK
 
-protocol MoveFilesViewControllerDelegate: class {
+protocol MoveFilesViewControllerDelegate: AnyObject {
     func moveFilesCompleted(movedTo: PutioFile)
     func moveFilesCancelled()
 }

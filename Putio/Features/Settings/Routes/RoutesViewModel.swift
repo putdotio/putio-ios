@@ -2,7 +2,7 @@ import Foundation
 import PutioSDK
 import RealmSwift
 
-protocol RoutesViewModelDelegate: class {
+protocol RoutesViewModelDelegate: AnyObject {
     func stateChanged()
 }
 

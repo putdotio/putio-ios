@@ -1,6 +1,6 @@
 import UIKit
 
-protocol DownloadsEmptyStateViewDelegate: class {
+protocol DownloadsEmptyStateViewDelegate: AnyObject {
     func downloadTutorialButtonTapped()
 }
 

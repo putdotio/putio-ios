@@ -10,7 +10,7 @@
   </p>
 
   <p>
-    UIKit app powered by <code>PutioSDK</code>, Realm, Intercom, Google Cast, and Sentry
+    Native iOS app for put.io
   </p>
 
   <p>
@@ -21,7 +21,7 @@
 
 ## Overview
 
-`putio-ios` is the native iPhone and iPad app for put.io. The checked-in build is open-source-safe, works without private release credentials, and can be verified locally with the same repo commands CI uses.
+`putio-ios` is the native iPhone and iPad app for put.io. The checked-in build is open-source-safe, runs without private release credentials, and uses the same local commands as CI.
 
 Install the public app from the [App Store](https://apps.apple.com/app/id1260479699)
 
@@ -38,10 +38,10 @@ make run-simulator
 - `make bootstrap` installs Bundler gems and CocoaPods dependencies
 - `make verify` builds the unsigned app for `iphonesimulator`
 - `make run-simulator` boots an available iPhone simulator on iOS `26.0+`, installs the app, and launches it
-- `Config/Local.xcconfig` is the local override point for private app ids, team ids, OAuth, Cast, Intercom, and Sentry values
-- GitHub Actions mirrors that same OSS-safe path in `.github/workflows/ci.yml`, which only verifies the repo on pull requests and `main` pushes
+- `Config/Local.xcconfig` is the local override point for private runtime values
+- `.github/workflows/ci.yml` mirrors that same OSS-safe path on pull requests and `main` pushes
 
-For put.io teammates, the same repo also supports an internal 1Password-backed flow using the shared `frontend-ci/putio-ios` item by default:
+For put.io teammates, the repo also supports a shared 1Password-backed flow using `frontend-ci/putio-ios` by default:
 
 - `scripts/op-local-config.sh` to render `Config/Local.xcconfig` from one 1Password item
 - `scripts/op-fastlane.sh` to load fastlane and app build settings from that same item for local beta/testflight runs
@@ -58,13 +58,6 @@ For full setup, release-lane notes, and contributor workflow, use [CONTRIBUTING.
 - Xcode `26.x` with an installed iOS `26.x` simulator runtime
 - Ruby from `.ruby-version`
 - CocoaPods via Bundler
-
-## Tech Stack
-
-- UI: UIKit
-- Dependency manager: CocoaPods
-- SDK: `PutioSDK`
-- Tooling: Bundler, fastlane, Xcode `26.x`
 
 ## Docs
 

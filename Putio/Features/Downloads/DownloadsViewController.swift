@@ -40,9 +40,10 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
 
     func configureNavigationBarButton() {
         let button = UIButton(type: .system)
-        button.tintColor = UIColor.Putio.yellow
-        button.backgroundColor = .clear
-        button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 8, bottom: 8, right: 8)
+        var configuration = UIButton.Configuration.plain()
+        configuration.baseForegroundColor = UIColor.Putio.yellow
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8)
+        button.configuration = configuration
         button.accessibilityLabel = "Downloads tutorial"
         button.addTarget(self, action: #selector(tutorialButtonTapped), for: .touchUpInside)
 
@@ -231,12 +232,18 @@ class DownloadsRecoveryView: UIView {
 
     private let restoreButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("Restore Downloads", for: .normal)
-        button.setTitleColor(.black, for: .normal)
-        button.titleLabel?.font = .preferredFont(forTextStyle: .headline)
-        button.backgroundColor = UIColor.Putio.yellow
-        button.layer.cornerRadius = 12
-        button.contentEdgeInsets = UIEdgeInsets(top: 14, left: 32, bottom: 14, right: 32)
+        var configuration = UIButton.Configuration.filled()
+        configuration.title = "Restore Downloads"
+        configuration.baseForegroundColor = .black
+        configuration.baseBackgroundColor = UIColor.Putio.yellow
+        configuration.cornerStyle = .medium
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 32, bottom: 14, trailing: 32)
+        configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var outgoing = incoming
+            outgoing.font = .preferredFont(forTextStyle: .headline)
+            return outgoing
+        }
+        button.configuration = configuration
         return button
     }()
 

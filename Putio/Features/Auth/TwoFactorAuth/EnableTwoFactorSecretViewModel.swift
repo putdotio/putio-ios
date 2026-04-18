@@ -1,7 +1,7 @@
 import Foundation
 import PutioSDK
 
-protocol EnableTwoFactorSecretViewModelDelegate: class {
+protocol EnableTwoFactorSecretViewModelDelegate: AnyObject {
     func stateChanged()
 }
 

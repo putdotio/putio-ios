@@ -1,7 +1,7 @@
 import Foundation
 import PutioSDK
 
-protocol HistoryViewModelDelegate: class {
+protocol HistoryViewModelDelegate: AnyObject {
     func stateChanged()
 }
 

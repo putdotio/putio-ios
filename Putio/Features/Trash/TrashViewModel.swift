@@ -2,7 +2,7 @@ import Foundation
 import PutioSDK
 import RealmSwift
 
-protocol TrashViewModelDelegate: class {
+protocol TrashViewModelDelegate: AnyObject {
     func stateChanged()
 }
 
