@@ -30,6 +30,7 @@
 - `.github/workflows/ci.yml` is verify-only and should stay aligned with `make verify`
 - `.github/workflows/beta.yml` is the intentional TestFlight path and uses `OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI` with the official 1Password GitHub Action
 - `.github/workflows/release.yml` reacts to published GitHub releases, checks out the release tag, and uses the same shared 1Password-backed signing flow
+- Beta and release uploads should keep using one monotonic UTC timestamp build-number strategy across local and CI flows
 - The checked-in app build should work without private release credentials
 - Unsigned local verification should prefer the repo `make verify` entrypoint
 - `make verify` prefers an Xcode-advertised iPhone simulator destination on iOS `26.0+` and falls back to the installed `iphonesimulator` SDK when Xcode is not exposing one yet

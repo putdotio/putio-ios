@@ -10,10 +10,6 @@
   </p>
 
   <p>
-    Native iOS app for put.io
-  </p>
-
-  <p>
     <a href="https://github.com/putdotio/putio-ios/actions/workflows/ci.yml?query=branch%3Amain" style="text-decoration:none;"><img src="https://img.shields.io/github/actions/workflow/status/putdotio/putio-ios/ci.yml?branch=main&style=flat&label=ci&colorA=000000&colorB=000000" alt="CI"></a>
     <a href="https://github.com/putdotio/putio-ios/blob/main/LICENSE" style="text-decoration:none;"><img src="https://img.shields.io/github/license/putdotio/putio-ios?style=flat&colorA=000000&colorB=000000" alt="license"></a>
   </p>
@@ -48,6 +44,7 @@ For put.io teammates, the repo also supports a shared 1Password-backed flow usin
 - `make op-local-config` to sync local config from the default `frontend-ci/putio-ios` item
 - `make beta` to build and upload a beta using the same default item
 - `make release` to build and upload a release-tagged TestFlight build from the same default item
+- local and CI beta or release uploads both use a UTC timestamp build number so App Store Connect always sees one monotonic sequence
 - `.github/workflows/beta.yml` to upload a TestFlight build manually from GitHub Actions when you intentionally want one
 - `.github/workflows/release.yml` to react to published GitHub releases and upload a release build from the release tag
 
