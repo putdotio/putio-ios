@@ -27,7 +27,7 @@ Get the public app from the [App Store](https://apps.apple.com/app/id1260479699)
 
 This repository contains the current native iOS codebase as it is being extracted from the legacy frontend repository.
 
-For local setup, workspace bootstrapping, and validation commands, use [CONTRIBUTING.md](./CONTRIBUTING.md). The repo exposes `make bootstrap` and `make verify` entrypoints for the standard local workflow
+For local setup, workspace bootstrapping, and validation commands, use [CONTRIBUTING.md](./CONTRIBUTING.md). The repo exposes `make bootstrap`, `make verify`, and `make print-simulator-destination` entrypoints for the standard local workflow
 
 ## Docs
 

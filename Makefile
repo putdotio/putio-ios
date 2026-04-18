@@ -1,4 +1,4 @@
-.PHONY: bootstrap verify download-ios-platform
+.PHONY: bootstrap verify print-simulator-destination download-ios-platform
 
 bootstrap:
 	bundle install
@@ -6,7 +6,17 @@ bootstrap:
 
 verify:
 	xcodebuild -list -workspace Putio.xcworkspace
-	xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -sdk iphonesimulator build CODE_SIGNING_ALLOWED=NO
+	@destination="$$(./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio 2>/dev/null || true)"; \
+	if [ -n "$$destination" ]; then \
+		echo "Using Xcode iPhone simulator destination: $$destination"; \
+		xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -destination "$$destination" build CODE_SIGNING_ALLOWED=NO; \
+	else \
+		echo "No Xcode-advertised iPhone simulator destination on iOS 26.0 or newer. Falling back to the installed iphonesimulator SDK."; \
+		xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -sdk iphonesimulator build CODE_SIGNING_ALLOWED=NO; \
+	fi
+
+print-simulator-destination:
+	@./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio
 
 download-ios-platform:
 	xcodebuild -downloadPlatform iOS
