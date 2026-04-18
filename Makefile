@@ -1,4 +1,4 @@
-.PHONY: bootstrap verify print-simulator-destination download-ios-platform
+.PHONY: bootstrap verify print-simulator-destination print-simulator-device run-simulator download-ios-platform
 
 bootstrap:
 	bundle config set --local path vendor/bundle
@@ -18,6 +18,12 @@ verify:
 
 print-simulator-destination:
 	@./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio
+
+print-simulator-device:
+	@./scripts/simctl-iphone-device-id.sh
+
+run-simulator:
+	@./scripts/run-simulator-app.sh --workspace Putio.xcworkspace --scheme Putio
 
 download-ios-platform:
 	xcodebuild -downloadPlatform iOS
