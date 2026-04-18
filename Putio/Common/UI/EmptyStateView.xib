@@ -16,16 +16,16 @@
             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
             <subviews>
                 <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" spacing="5" translatesAutoresizingMaskIntoConstraints="NO" id="4JP-vT-nTB">
-                    <rect key="frame" x="0.0" y="295.5" width="375" height="56"/>
+                    <rect key="frame" x="24" y="295.5" width="327" height="56"/>
                     <subviews>
                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="No files whatsoever!" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="jgB-Pi-QWd">
-                            <rect key="frame" x="0.0" y="0.0" width="375" height="31.5"/>
+                            <rect key="frame" x="0.0" y="0.0" width="327" height="31.5"/>
                             <fontDescription key="fontDescription" style="UICTFontTextStyleTitle1"/>
                             <color key="textColor" cocoaTouchSystemColor="lightTextColor"/>
                             <nil key="highlightedColor"/>
                         </label>
                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="This folder is empty" textAlignment="center" lineBreakMode="tailTruncation" numberOfLines="2" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="KQQ-Sk-Ity">
-                            <rect key="frame" x="0.0" y="36.5" width="375" height="19.5"/>
+                            <rect key="frame" x="0.0" y="36.5" width="327" height="19.5"/>
                             <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
                             <color key="textColor" cocoaTouchSystemColor="lightTextColor"/>
                             <nil key="highlightedColor"/>
@@ -35,8 +35,8 @@
             </subviews>
             <color key="backgroundColor" red="0.1999788582" green="0.20001345870000001" blue="0.1999712884" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
             <constraints>
-                <constraint firstItem="vUN-kp-3ea" firstAttribute="trailing" secondItem="4JP-vT-nTB" secondAttribute="trailing" id="51y-bf-U1p"/>
-                <constraint firstItem="4JP-vT-nTB" firstAttribute="leading" secondItem="vUN-kp-3ea" secondAttribute="leading" id="VAh-Ns-9NW"/>
+                <constraint firstItem="vUN-kp-3ea" firstAttribute="trailing" secondItem="4JP-vT-nTB" secondAttribute="trailing" constant="24" id="51y-bf-U1p"/>
+                <constraint firstItem="4JP-vT-nTB" firstAttribute="leading" secondItem="vUN-kp-3ea" secondAttribute="leading" constant="24" id="VAh-Ns-9NW"/>
                 <constraint firstItem="4JP-vT-nTB" firstAttribute="centerY" secondItem="vUN-kp-3ea" secondAttribute="centerY" constant="-20" id="kaL-Ps-3Lq"/>
                 <constraint firstItem="4JP-vT-nTB" firstAttribute="centerX" secondItem="vUN-kp-3ea" secondAttribute="centerX" id="oex-gW-Nay"/>
             </constraints>
