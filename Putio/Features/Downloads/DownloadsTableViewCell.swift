@@ -2,7 +2,7 @@ import UIKit
 import PutioSDK
 import RealmSwift
 
-protocol DownloadsTableViewCellDelegate: class {
+protocol DownloadsTableViewCellDelegate: AnyObject {
     func downloadCellActionButtonTapped(download: Download, sender: DownloadsTableViewCell)
 }
 

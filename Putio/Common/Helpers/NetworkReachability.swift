@@ -1,29 +1,28 @@
 import Foundation
-import Alamofire
+import Network
 import NotificationCenter
 
 class NetworkReachability {
     static let sharedInstance = NetworkReachability()
     static let NOTIFICATION = Notification.Name("NETWORK_REACHABILITY_CHANGED")
 
-    let reachabilityManager = Alamofire.NetworkReachabilityManager()
+    private let monitor = NWPathMonitor()
+    private let queue = DispatchQueue(label: "io.put.network-reachability")
+    private var isReachable = false
 
     func setup() {
-        guard let reachabilityManager = reachabilityManager else {
-            return log.error("Failed to initialize reachability manager", context: nil)
-        }
+        monitor.pathUpdateHandler = { [weak self] path in
+            guard let self = self else { return }
 
-        reachabilityManager.startListening { status in
-            log.info("Network status changed: \(status)", context: nil)
+            self.isReachable = path.status == .satisfied
+            log.info("Network status changed: \(path.status)", context: nil)
             NotificationCenter.default.post(name: NetworkReachability.NOTIFICATION, object: nil)
         }
+
+        monitor.start(queue: queue)
     }
 
     func getIsReachable() -> Bool {
-        guard let reachabilityManager = reachabilityManager else {
-            return false
-        }
-
-        return reachabilityManager.isReachable
+        return isReachable
     }
 }

@@ -5,7 +5,7 @@ enum VideoConversionIntention {
     case play, download
 }
 
-protocol VideoConversionViewControllerDelegate: class {
+protocol VideoConversionViewControllerDelegate: AnyObject {
     func videoConversionFinished(for file: PutioFile, intention: VideoConversionIntention)
     func videoConversionControllerDismissedBeforeFinish()
 }

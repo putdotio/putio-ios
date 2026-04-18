@@ -63,12 +63,16 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
 
     func configureNavigationBarButton() {
         let button = UIButton(type: .system)
-        button.setTitle("Clear", for: .normal)
-        button.setTitleColor(UIColor.Putio.yellow, for: .normal)
-        button.setTitleColor(UIColor.Putio.listSubtitle, for: .disabled)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
-        button.backgroundColor = .clear
-        button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 12, bottom: 6, right: 12)
+        var configuration = UIButton.Configuration.plain()
+        configuration.title = "Clear"
+        configuration.baseForegroundColor = UIColor.Putio.yellow
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12)
+        configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var outgoing = incoming
+            outgoing.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+            return outgoing
+        }
+        button.configuration = configuration
         button.addTarget(self, action: #selector(clearAllButtonTapped(_:)), for: .touchUpInside)
         clearAllCustomButton = button
         navigationItem.rightBarButtonItem = UIBarButtonItem(customView: button)
@@ -78,6 +82,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
     func setClearAllButtonEnabled(_ isEnabled: Bool) {
         clearAllCustomButton?.isEnabled = isEnabled
         clearAllCustomButton?.alpha = isEnabled ? 1 : 0.45
+        clearAllCustomButton?.configuration?.baseForegroundColor = isEnabled ? UIColor.Putio.yellow : UIColor.Putio.listSubtitle
     }
 
     func configureStateMachine() {
