@@ -31,6 +31,16 @@ jobs:
           ruby-version: .ruby-version
           bundler-cache: true
 
+      - name: Restore CocoaPods cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            Pods
+            ~/Library/Caches/CocoaPods
+          key: ${{ runner.os }}-cocoapods-${{ github.workflow }}-${{ hashFiles('Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cocoapods-${{ github.workflow }}-
+
       - name: Install CocoaPods dependencies
         run: make bootstrap
 
