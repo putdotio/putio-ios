@@ -14,8 +14,8 @@
   </p>
 
   <p>
-    <a href="https://github.com/putdotio/putio-ios/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/putdotio/putio-ios/ci.yml?branch=main&style=flat&label=ci&colorA=000000&colorB=000000" alt="CI"></a>
-    <a href="https://github.com/putdotio/putio-ios/blob/main/LICENSE"><img src="https://img.shields.io/github/license/putdotio/putio-ios?style=flat&colorA=000000&colorB=000000" alt="license"></a>
+    <a href="https://github.com/putdotio/putio-ios/actions/workflows/ci.yml?query=branch%3Amain" style="text-decoration:none;"><img src="https://img.shields.io/github/actions/workflow/status/putdotio/putio-ios/ci.yml?branch=main&style=flat&label=ci&colorA=000000&colorB=000000" alt="CI"></a>
+    <a href="https://github.com/putdotio/putio-ios/blob/main/LICENSE" style="text-decoration:none;"><img src="https://img.shields.io/github/license/putdotio/putio-ios?style=flat&colorA=000000&colorB=000000" alt="license"></a>
   </p>
 </div>
 
