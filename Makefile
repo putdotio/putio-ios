@@ -1,4 +1,4 @@
-.PHONY: bootstrap verify print-simulator-destination print-simulator-device run-simulator download-ios-platform sync-local-config-from-1password
+.PHONY: bootstrap verify print-simulator-destination print-simulator-device run-simulator download-ios-platform op-local-config beta
 
 bootstrap:
 	bundle config set --local path vendor/bundle
@@ -28,5 +28,8 @@ run-simulator:
 download-ios-platform:
 	xcodebuild -downloadPlatform iOS
 
-sync-local-config-from-1password:
-	@./scripts/sync-local-config-from-1password.sh --vault "$(VAULT)" --item "$(ITEM)"
+op-local-config:
+	@./scripts/op-local-config.sh $(if $(VAULT),--vault "$(VAULT)") $(if $(ITEM),--item "$(ITEM)")
+
+beta:
+	@./scripts/op-fastlane.sh $(if $(VAULT),--vault "$(VAULT)") $(if $(ITEM),--item "$(ITEM)") beta
