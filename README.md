@@ -17,38 +17,15 @@
 
 ## Overview
 
-`putio-ios` is the native iPhone and iPad app for put.io. The checked-in repo is open-source-safe and the public contributor path works without private release credentials.
+`putio-ios` is the native iPhone and iPad app for put.io.
+
+## Install
 
 Install the public app from the [App Store](https://apps.apple.com/app/id1260479699)
 
-## Local Development
+## Use
 
-Quick start:
-
-```bash
-make bootstrap
-make verify
-make run-simulator
-```
-
-- `make bootstrap` installs Bundler gems and CocoaPods dependencies
-- `make verify` builds the unsigned app for `iphonesimulator`
-- `make run-simulator` builds a normal signed Simulator app, boots an available iPhone simulator on iOS `26.0+`, installs the app, and launches it
-- `Config/Local.xcconfig` is the local override point for private runtime values
-
-For internal beta and release workflows, use the 1Password-backed `op` flow described in [CONTRIBUTING.md](./CONTRIBUTING.md). The default source is `frontend-ci/putio-ios`.
-
-- `make op-local-config` to sync local config from the default `frontend-ci/putio-ios` item
-- `make beta` to build and upload a beta using the same default item
-- `make release` to build and upload a release-tagged TestFlight build from the same default item
-
-For setup details, CI behavior, and release notes, use [CONTRIBUTING.md](./CONTRIBUTING.md)
-
-## Requirements
-
-- Xcode `26.x` with an installed iOS `26.x` simulator runtime
-- Ruby from `.ruby-version`
-- CocoaPods via Bundler
+Sign in with your put.io account to browse files, view history, manage downloads, and stream supported media on iPhone and iPad
 
 ## Docs
 
@@ -59,7 +36,7 @@ For setup details, CI behavior, and release notes, use [CONTRIBUTING.md](./CONTR
 
 ## Contributing
 
-Contributions are welcome. Start with [CONTRIBUTING.md](./CONTRIBUTING.md) so local setup and validation stay aligned with CI
+Contributions are welcome. Start with [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## License
 
