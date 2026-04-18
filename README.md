@@ -10,7 +10,7 @@
   </p>
 
   <p>
-    UIKit-based today, being prepared for a broader open-source future
+    UIKit app powered by <code>PutioSDK</code>, Realm, Intercom, Google Cast, and Sentry
   </p>
 
   <p>
@@ -19,26 +19,51 @@
   </p>
 </div>
 
-## Install
+## Overview
 
-Get the public app from the [App Store](https://apps.apple.com/app/id1260479699)
+`putio-ios` is the native iPhone and iPad app for put.io. The checked-in build is open-source-safe, works without private release credentials, and can be verified locally with the same repo commands CI uses.
 
-## Source Build
+Install the public app from the [App Store](https://apps.apple.com/app/id1260479699)
 
-This repository contains the current native iOS codebase as it is being extracted from the legacy frontend repository.
+## Local Development
 
-For local setup, workspace bootstrapping, and validation commands, use [CONTRIBUTING.md](./CONTRIBUTING.md). The repo exposes `make bootstrap`, `make verify`, `make print-simulator-destination`, and `make run-simulator` entrypoints for the standard local workflow
+The standard workflow is:
+
+```bash
+make bootstrap
+make verify
+make run-simulator
+```
+
+- `make bootstrap` installs Bundler gems and CocoaPods dependencies
+- `make verify` builds the unsigned app for `iphonesimulator`
+- `make run-simulator` boots an available iPhone simulator on iOS `26.0+`, installs the app, and launches it
+
+For full setup, release-lane notes, and contributor workflow, use [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+## Requirements
+
+- Xcode `26.x` with an installed iOS `26.x` simulator runtime
+- Ruby from `.ruby-version`
+- CocoaPods via Bundler
+
+## Tech Stack
+
+- UI: UIKit
+- Dependency manager: CocoaPods
+- SDK: `PutioSDK`
+- Tooling: Bundler, fastlane, Xcode `26.x`
 
 ## Docs
 
-- [CONTRIBUTING.md](./CONTRIBUTING.md) for local setup, validation, and contributor workflow
+- [CONTRIBUTING.md](./CONTRIBUTING.md) for setup, verification, and release notes
 - [SECURITY.md](./SECURITY.md) for private vulnerability reporting
 - [AGENTS.md](./AGENTS.md) for repo-specific agent guidance
-- [fastlane/README.md](./fastlane/README.md) for the generated release-lane reference
+- [fastlane/README.md](./fastlane/README.md) for generated fastlane action docs
 
 ## Contributing
 
-Contributions are welcome. Start with [CONTRIBUTING.md](./CONTRIBUTING.md) so local setup and verification stay aligned with CI
+Contributions are welcome. Start with [CONTRIBUTING.md](./CONTRIBUTING.md) so local setup and validation stay aligned with CI
 
 ## License
 

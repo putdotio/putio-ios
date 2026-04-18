@@ -181,7 +181,7 @@ GEM
       xcodeproj (>= 1.13.0, < 2.0.0)
       xcpretty (~> 0.4.1)
       xcpretty-travis-formatter (>= 0.0.3, < 2.0.0)
-    fastlane-plugin-versioning (0.5.2)
+    fastlane-plugin-versioning (0.7.1)
     fastlane-sirp (1.0.0)
       sysrandom (~> 1.0)
     ffi (1.17.4-arm64-darwin)
@@ -312,7 +312,7 @@ PLATFORMS
 DEPENDENCIES
   cocoapods (~> 1.16.2)
   fastlane (~> 2.232)
-  fastlane-plugin-versioning
+  fastlane-plugin-versioning (~> 0.7.1)
 
 RUBY VERSION
    ruby 3.2.4p170

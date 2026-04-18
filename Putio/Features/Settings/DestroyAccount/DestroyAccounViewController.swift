@@ -4,7 +4,7 @@ import PutioSDK
 
 class DestroyAccounViewController: UIViewController {
     @IBAction func supportButtonTapped(_ sender: Any) {
-        Intercom.presentMessenger()
+        Intercom.present()
     }
 
     @IBAction func destroyButtonTapped(_ sender: Any) {
