@@ -67,10 +67,6 @@ if [[ "$sync_local_config" == "true" ]]; then
   ./scripts/op-local-config.sh --vault "$vault" --item "$item"
 fi
 
-if optional_match_git_basic_authorization="$(op read "op://$vault/$item/MATCH_GIT_BASIC_AUTHORIZATION" 2>/dev/null)"; then
-  export MATCH_GIT_BASIC_AUTHORIZATION="$optional_match_git_basic_authorization"
-fi
-
 if optional_match_git_private_key_content="$(op read "op://$vault/$item/MATCH_GIT_PRIVATE_KEY" 2>/dev/null)"; then
   export MATCH_GIT_PRIVATE_KEY_CONTENT="$optional_match_git_private_key_content"
 fi

@@ -39,15 +39,6 @@ runs:
         MATCH_TYPE: op://frontend-ci/putio-ios/MATCH_TYPE
         MATCH_PASSWORD: op://frontend-ci/putio-ios/MATCH_PASSWORD
 
-    - name: Load optional match Git HTTPS auth
-      continue-on-error: true
-      uses: 1password/load-secrets-action@v4
-      with:
-        export-env: true
-      env:
-        OP_SERVICE_ACCOUNT_TOKEN: ${{ inputs.service-account-token }}
-        MATCH_GIT_BASIC_AUTHORIZATION: op://frontend-ci/putio-ios/MATCH_GIT_BASIC_AUTHORIZATION
-
     - name: Load optional match Git SSH key
       continue-on-error: true
       uses: 1password/load-secrets-action@v4

@@ -1,11 +1,9 @@
 match_git_url = ENV["MATCH_GIT_URL"].to_s
 match_git_private_key = ENV["MATCH_GIT_PRIVATE_KEY"].to_s
-match_git_basic_authorization = ENV["MATCH_GIT_BASIC_AUTHORIZATION"].to_s
 
 git_url(match_git_url) unless match_git_url.empty?
 storage_mode("git") unless match_git_url.empty?
 git_private_key(match_git_private_key) unless match_git_private_key.empty?
-git_basic_authorization(match_git_basic_authorization) unless match_git_basic_authorization.empty?
 type(ENV.fetch("MATCH_TYPE", "development"))
 platform("ios")
 app_identifier(ENV.fetch("PUTIO_APP_IDENTIFIER", "com.putio.tvOS"))
