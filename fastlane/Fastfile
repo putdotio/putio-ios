@@ -22,7 +22,7 @@ def normalized_version(value)
 end
 
 def generated_build_number
-  Time.now.utc.strftime("%y.%m.%d.%H.%M")
+  Time.now.utc.strftime("%y%m%d%H%M")
 end
 
 def resolved_build_number(*values)
