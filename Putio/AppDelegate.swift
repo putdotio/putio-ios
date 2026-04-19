@@ -194,30 +194,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             InternalFailurePresenter.log("Unable to open Realm during fetchUserSuccess")
             return presentLoginScreen()
         }
-        let user = realm.objects(User.self).first
-        let userConfig = realm.objects(UserConfig.self).first
-
-        if let user = user {
-            _ = PutioRealm.write(realm, context: "fetchUserSuccess.deleteUser") {
-                realm.delete(user)
-            }
-        }
-
-        if let userConfig = userConfig {
-            _ = PutioRealm.write(realm, context: "fetchUserSuccess.deleteUserConfig") {
-                realm.delete(userConfig)
-            }
-        }
 
         guard let persistedUser = User(account: account), let persistedConfig = UserConfig(json: config) else {
             InternalFailurePresenter.log("Unable to construct persisted user/config models")
             return presentLoginScreen()
         }
 
-        let didPersist = PutioRealm.write(realm, context: "fetchUserSuccess.persist") {
-            realm.add(persistedUser, update: .all)
-            realm.add(persistedConfig, update: .all)
-        }
+        let didPersist = PutioRealm.replaceUserSession(
+            realm,
+            user: persistedUser,
+            config: persistedConfig,
+            context: "fetchUserSuccess.persist"
+        )
 
         guard didPersist else {
             return presentLoginScreen()
