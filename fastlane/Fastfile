@@ -354,43 +354,39 @@ platform :ios do
 
   lane :release do |options|
     require_ci!
-    setup_putio_ci_keychain
 
     release_version = normalized_version(first_present(options[:version], ENV["PUTIO_RELEASE_VERSION"]))
-    release_build_number = resolved_build_number(options[:build_number], ENV["PUTIO_RELEASE_BUILD_NUMBER"])
-    release_changelog = first_present(options[:changelog], ENV["PUTIO_RELEASE_CHANGELOG"])
-    release_groups = configured_testflight_groups(options[:groups], ENV["PUTIO_RELEASE_GROUPS"], default_group: "")
-    distribute_external = fastlane_bool(
-      first_present(options[:distribute_external], ENV["PUTIO_RELEASE_DISTRIBUTE_EXTERNAL"]),
-      default: false
-    )
+    UI.user_error!("Missing release version. Publish a tagged GitHub release or pass PUTIO_RELEASE_VERSION.") if release_version.to_s.empty?
+
+    release_build_number = first_present(options[:build_number], ENV["PUTIO_RELEASE_BUILD_NUMBER"])
+    release_app_identifier = ENV.fetch("PUTIO_APP_IDENTIFIER")
 
     configure_app_store_connect_api_key
 
-    match(type: ENV.fetch("MATCH_TYPE", "appstore"), platform: "ios", readonly: true)
-
-    with_temporary_file_state(%w[
-      Putio.xcodeproj/project.pbxproj
-      Putio/Info.plist
-    ]) do
-      if release_version
-        increment_version_number_in_xcodeproj(
-          version_number: release_version,
-          scheme: "Putio"
-        )
-      end
-
-      increment_build_number(build_number: release_build_number)
-      configure_release_distribution_signing
-      ipa_path = archive_and_export_ios_app
-
-      pilot(
-        ipa: ipa_path,
-        distribute_external: distribute_external,
-        groups: release_groups,
-        changelog: release_changelog.to_s.empty? ? "See the GitHub release notes for details." : release_changelog,
-        skip_waiting_for_build_processing: !distribute_external
-      )
+    if release_build_number.to_s.empty?
+      release_build_number = app_store_build_number(
+        live: false,
+        app_identifier: release_app_identifier,
+        version: release_version,
+        platform: "ios",
+        initial_build_number: nil
+      ).to_s
     end
+
+    UI.important("==> Release promotion: promoting App Store Connect build #{release_version} (#{release_build_number})")
+
+    upload_to_app_store(
+      app_identifier: release_app_identifier,
+      app_version: release_version,
+      build_number: release_build_number,
+      platform: "ios",
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: true,
+      submit_for_review: false,
+      force: true
+    )
+
+    UI.important("==> Release promotion complete: build #{release_version} (#{release_build_number}) is attached to the App Store release train")
   end
 end

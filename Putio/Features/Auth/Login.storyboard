@@ -17,7 +17,7 @@
                         <rect key="frame" x="0.0" y="0.0" width="375" height="812"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="logoRetro" translatesAutoresizingMaskIntoConstraints="NO" id="YWa-EU-CUQ">
+                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="logo" translatesAutoresizingMaskIntoConstraints="NO" id="YWa-EU-CUQ">
                                 <rect key="frame" x="67.666666666666686" y="342" width="240" height="144"/>
                                 <constraints>
                                     <constraint firstAttribute="width" constant="240" id="7dd-VH-TFN"/>
@@ -63,7 +63,7 @@
         </scene>
     </scenes>
     <resources>
-        <image name="logoRetro" width="564" height="144"/>
+        <image name="logo" width="564" height="144"/>
         <namedColor name="putio.background">
             <color red="0.20000000298023224" green="0.20000000298023224" blue="0.20000000298023224" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>

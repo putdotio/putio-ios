@@ -34,12 +34,12 @@ class NextMediaFinder {
             .filter("fileTypeRaw = %@", getMappedDownloadType(for: item).rawValue)
             .sorted(byKeyPath: "createdAt")
 
-        guard let currentItemIndex = downloads.index(where: { $0.id == item.id }) else { return findNextMediaFromAPI(for: item) }
+        guard let currentItemIndex = downloads.firstIndex(where: { $0.id == item.id }) else { return findNextMediaFromAPI(for: item) }
 
         let nextItemIndex = currentItemIndex + 1
         guard nextItemIndex < downloads.count else { return findNextMediaFromAPI(for: item) }
 
-        let download = downloads[currentItemIndex + 1]
+        let download = downloads[nextItemIndex]
 
         var media: MediaPlayerItem
 

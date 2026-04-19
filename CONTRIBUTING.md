@@ -19,6 +19,8 @@ make bootstrap
 - Optional private local overrides:
   - copy `Config/Local.example.xcconfig` to `Config/Local.xcconfig`
   - keep `Config/Local.xcconfig` out of git
+  - checked-in defaults already use the dedicated local dev app identity `io.put.dev`
+  - `Config/Local.xcconfig` is for secrets and team settings, not bundle-id overrides
 
 ### put.io Teammates
 
@@ -29,6 +31,13 @@ make bootstrap
 ```bash
 make op-local-config
 ```
+
+- Local teammate builds default to:
+  - bundle id `io.put.dev`
+  - display name `put.io`
+  - primary icon `AppIconDev`
+- `make op-local-config` only materializes private local credentials and the development team
+- CI beta builds still override app identity through secrets and fastlane
 
 - Required CI-only 1Password fields:
   - `APPSTORE_CONNECT_ISSUER_ID`
@@ -109,7 +118,7 @@ make download-ios-platform
   - `Config/Shared.xcconfig`
   - optional `Config/Local.xcconfig`
   - `Info.plist` placeholders
-- Fastlane passes the same `PUTIO_*` values through Xcode during release builds
+- Fastlane passes the same `PUTIO_*` values through Xcode during beta archive builds
 - Keep repo-stored configuration open-source-safe
   - do not commit tokens, signing keys, API key files, or private release metadata
 

@@ -54,15 +54,16 @@ class AboutTableViewController: UITableViewController {
     }
 
     func presentWebView(url: String) {
-        let myURL = URL(string: url)
-        let myRequest = URLRequest(url: myURL!)
+        guard let url = URL(string: url) else { return }
+        let myRequest = URLRequest(url: url)
 
-        webView = WKWebView.init(frame: UIScreen.main.bounds)
+        let controller = UIViewController()
+        webView = WKWebView(frame: controller.view.bounds)
+        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         webView.backgroundColor = UIColor.Putio.background
         webView.isOpaque = false
         webView.load(myRequest)
 
-        let controller = UIViewController()
         controller.view.addSubview(webView)
 
         let navController = UINavigationController(rootViewController: controller)

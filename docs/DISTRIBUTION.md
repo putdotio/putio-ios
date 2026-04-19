@@ -17,7 +17,8 @@ Distribution guidance for `putio-ios`.
   - uses a bounded App Store Connect processing timeout
 - `.github/workflows/release.yml`
   - runs on published GitHub releases
-  - builds from the release tag
+  - promotes an existing processed TestFlight build for the release tag version
+  - accepts an optional explicit build number override for manual dispatches
   - owns the `fastlane release` invocation
 
 ## CI Bootstrap
@@ -31,7 +32,8 @@ Distribution guidance for `putio-ios`.
 - `fastlane beta` and `fastlane release` are CI-only entrypoints
 - `make beta` and `make release` intentionally fail locally
 - shared 1Password loading and secret materialization live in `.github/actions/load-ios-release-secrets/action.yml`
-- uploaded beta and release builds use UTC timestamp build numbers in `YYMMDDHHMM` format
+- uploaded beta builds use UTC timestamp build numbers in `YYMMDDHHMM` format
+- release promotion reuses an existing processed TestFlight build instead of rebuilding
 - checked-in `CURRENT_PROJECT_VERSION` stays at `1` as a baseline
 - fastlane temporarily updates tracked version metadata during archive time and restores the files afterward
 
@@ -52,5 +54,6 @@ Distribution guidance for `putio-ios`.
 
 - App Store Connect upload success does not mean external distribution is complete
 - Apple processing failures may surface only after upload
+- release promotion only succeeds when App Store Connect already has a processed build for the target version
 - privacy usage strings in `Putio/Info.plist` must stay aligned with enabled SDK features
 - Blacksmith macOS minutes are normalized aggressively, so prefer local validation and Fastlane contract checks before rerunning full beta uploads

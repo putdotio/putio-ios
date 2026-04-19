@@ -1,4 +1,4 @@
-app_identifier(ENV.fetch("PUTIO_APP_IDENTIFIER", "com.putio.opensource.ios"))
+app_identifier(ENV.fetch("PUTIO_APP_IDENTIFIER", "io.put.dev"))
 
 apple_id(ENV["PUTIO_APPLE_ID"]) unless ENV["PUTIO_APPLE_ID"].to_s.empty?
 itc_team_id(ENV["PUTIO_ITC_TEAM_ID"]) unless ENV["PUTIO_ITC_TEAM_ID"].to_s.empty?

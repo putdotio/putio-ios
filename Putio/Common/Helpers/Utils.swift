@@ -37,6 +37,8 @@ class Utils {
                 log.info("Notification auth status is provisional")
             case .ephemeral:
                 log.info("Notification auth status is temporal for app clips")
+            @unknown default:
+                log.warning("Unhandled notification auth status: \(notificationSettings.authorizationStatus.rawValue)")
             }
         }
     }

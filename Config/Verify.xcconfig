@@ -2,5 +2,7 @@
 // Keep this file narrow so simulator verification cannot inherit private local
 // bundle identifiers, while embedded frameworks keep their own identifiers.
 
-PUTIO_APP_IDENTIFIER = com.putio.opensource.ios
+PUTIO_APP_IDENTIFIER = io.put.dev
+PUTIO_APP_DISPLAY_NAME = put.io
+PUTIO_PRIMARY_APP_ICON = AppIconDev
 PUTIO_DEVELOPMENT_TEAM =

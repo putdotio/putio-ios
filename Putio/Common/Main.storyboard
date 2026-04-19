@@ -18,7 +18,7 @@
                         <rect key="frame" x="0.0" y="0.0" width="375" height="812"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="logoRetro" translatesAutoresizingMaskIntoConstraints="NO" id="7bd-RM-OVc">
+                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="logo" translatesAutoresizingMaskIntoConstraints="NO" id="7bd-RM-OVc">
                                 <rect key="frame" x="67.666666666666686" y="342" width="239.99999999999994" height="144"/>
                                 <constraints>
                                     <constraint firstAttribute="width" constant="240" id="2Si-Gg-fBv"/>
@@ -244,7 +244,6 @@
                         <segue destination="5FJ-wX-ivL" kind="show" identifier="toTrash" id="QcP-xa-W2G"/>
                         <segue destination="kYA-9H-J8H" kind="show" identifier="toDestroyAccount" id="SOt-bY-qPu"/>
                         <segue destination="vsw-Zm-mff" kind="show" identifier="toClearData" id="nLn-4e-6Th"/>
-                        <segue destination="2QT-1h-cel" kind="show" identifier="toAppIconSettings" id="AWF-0o-G2o"/>
                     </connections>
                 </tableViewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="5e5-1G-hii" userLabel="First Responder" sceneMemberID="firstResponder"/>
@@ -1030,50 +1029,6 @@
             </objects>
             <point key="canvasLocation" x="5140" y="2224"/>
         </scene>
-        <!--Change app icon-->
-        <scene sceneID="clq-Rv-CRL">
-            <objects>
-                <tableViewController id="2QT-1h-cel" customClass="AppIconSettingsTableViewController" customModule="Putio" customModuleProvider="target" sceneMemberID="viewController">
-                    <tableView key="view" clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="28" estimatedSectionHeaderHeight="-1" sectionFooterHeight="28" estimatedSectionFooterHeight="-1" id="q7Q-0h-Ctg">
-                        <rect key="frame" x="0.0" y="0.0" width="375" height="635"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <color key="backgroundColor" name="putio.background"/>
-                        <color key="separatorColor" name="putio.listSeperator"/>
-                        <prototypes>
-                            <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="none" accessoryType="checkmark" indentationWidth="10" reuseIdentifier="appIconSettingsReuse" textLabel="xFl-Kj-sys" imageView="hid-5t-dyH" style="IBUITableViewCellStyleDefault" id="erk-4W-hpk">
-                                <rect key="frame" x="0.0" y="50" width="375" height="43.666667938232422"/>
-                                <autoresizingMask key="autoresizingMask"/>
-                                <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" preservesSuperviewLayoutMargins="YES" insetsLayoutMarginsFromSafeArea="NO" tableViewCell="erk-4W-hpk" id="qqx-fi-rcv">
-                                    <rect key="frame" x="0.0" y="0.0" width="331" height="43.666667938232422"/>
-                                    <autoresizingMask key="autoresizingMask"/>
-                                    <subviews>
-                                        <label opaque="NO" multipleTouchEnabled="YES" contentMode="left" insetsLayoutMarginsFromSafeArea="NO" text="Retro" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" id="xFl-Kj-sys">
-                                            <rect key="frame" x="78.666666666666686" y="0.0" width="244.33333333333331" height="43.666667938232422"/>
-                                            <autoresizingMask key="autoresizingMask"/>
-                                            <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                            <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-                                            <nil key="highlightedColor"/>
-                                        </label>
-                                        <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" image="appIconRetro" id="hid-5t-dyH">
-                                            <rect key="frame" x="20" y="0.0" width="43.666666666666686" height="43.666666666666664"/>
-                                            <autoresizingMask key="autoresizingMask"/>
-                                        </imageView>
-                                    </subviews>
-                                </tableViewCellContentView>
-                                <color key="backgroundColor" name="putio.background"/>
-                            </tableViewCell>
-                        </prototypes>
-                        <connections>
-                            <outlet property="dataSource" destination="2QT-1h-cel" id="X9O-yv-rPU"/>
-                            <outlet property="delegate" destination="2QT-1h-cel" id="1Z0-GC-h2z"/>
-                        </connections>
-                    </tableView>
-                    <navigationItem key="navigationItem" title="Change app icon" largeTitleDisplayMode="never" id="3Dz-XD-Cqj"/>
-                </tableViewController>
-                <placeholder placeholderIdentifier="IBFirstResponder" id="29u-hZ-tgT" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
-            </objects>
-            <point key="canvasLocation" x="5930" y="2212"/>
-        </scene>
         <!--Clear Your Data-->
         <scene sceneID="tXl-CZ-5JW">
             <objects>
@@ -1162,7 +1117,7 @@
         <image name="iconInfo" width="16" height="16"/>
         <image name="iconMediaGallery" width="22" height="22"/>
         <image name="iconVideo" width="23" height="20"/>
-        <image name="logoRetro" width="564" height="144"/>
+        <image name="logo" width="564" height="144"/>
         <image name="tabbarAccount" width="22" height="22"/>
         <image name="tabbarAccountPassive" width="22" height="22"/>
         <image name="tabbarDownloads" width="31" height="22"/>

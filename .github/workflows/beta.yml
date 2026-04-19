@@ -84,6 +84,8 @@ jobs:
           PUTIO_BETA_CHANGELOG: ${{ inputs.changelog }}
           PUTIO_BETA_GROUPS: ${{ inputs.groups }}
           PUTIO_BETA_REF: ${{ inputs.ref }}
+          PUTIO_APP_DISPLAY_NAME: put.io
+          PUTIO_PRIMARY_APP_ICON: AppIcon
         run: |
           export PUTIO_BETA_BUILD_NUMBER="$(date -u +%y%m%d%H%M)"
           export PUTIO_BETA_IPA_PATH="$RUNNER_TEMP/putio-ios-beta.ipa"
@@ -104,6 +106,9 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Archive and export beta ipa
+        env:
+          PUTIO_APP_DISPLAY_NAME: put.io
+          PUTIO_PRIMARY_APP_ICON: AppIcon
         run: bundle exec fastlane beta_archive
 
       - name: Read beta archive metadata
@@ -118,7 +123,13 @@ jobs:
           '
 
       - name: Upload ipa to TestFlight
+        env:
+          PUTIO_APP_DISPLAY_NAME: put.io
+          PUTIO_PRIMARY_APP_ICON: AppIcon
         run: bundle exec fastlane beta_upload
 
       - name: Wait for processing and distribute beta
+        env:
+          PUTIO_APP_DISPLAY_NAME: put.io
+          PUTIO_PRIMARY_APP_ICON: AppIcon
         run: bundle exec fastlane beta_distribute

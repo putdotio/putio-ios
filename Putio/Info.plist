@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>put.io</string>
+	<string>$(PUTIO_APP_DISPLAY_NAME)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 
@@ -40,22 +40,10 @@
     <dict>
         <key>CFBundleIconFiles</key>
         <array>
-            <string>AppIconRetro</string>
+            <string>$(PUTIO_PRIMARY_APP_ICON)</string>
         </array>
         <key>UIPrerenderedIcon</key>
         <false/>
-    </dict>
-    <key>CFBundleAlternateIcons</key>
-    <dict>
-        <key>AppIconRainbow</key>
-        <dict>
-            <key>CFBundleIconFiles</key>
-            <array>
-                <string>AppIconRainbow</string>
-            </array>
-            <key>UIPrerenderedIcon</key>
-            <false/>
-        </dict>
     </dict>
 </dict>
 	<key>CFBundleVersion</key>
