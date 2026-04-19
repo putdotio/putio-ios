@@ -114,9 +114,9 @@ make download-ios-platform
   - runs on published GitHub releases
   - builds from the release tag
 - Build numbering:
-  - uploaded beta and release builds use UTC timestamp build numbers
+  - uploaded beta and release builds use UTC timestamp build numbers in `YYYY.MM.DD.HH` format
   - checked-in `CURRENT_PROJECT_VERSION` stays at `1` as a baseline
-  - fastlane injects version and build overrides at archive time instead of rewriting tracked project files
+  - fastlane temporarily updates tracked version metadata during archive time and restores the files afterward
 
 ## Development Notes
 
