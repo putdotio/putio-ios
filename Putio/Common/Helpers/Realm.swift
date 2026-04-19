@@ -60,6 +60,16 @@ class PutioRealm {
         }
     }
 
+    @discardableResult
+    static func replaceUserSession(_ realm: Realm, user: User, config: UserConfig, context: String) -> Bool {
+        write(realm, context: context) {
+            realm.delete(realm.objects(User.self))
+            realm.delete(realm.objects(UserConfig.self))
+            realm.add(user, update: .all)
+            realm.add(config)
+        }
+    }
+
     static func setup() {
         let config = configuration()
 
