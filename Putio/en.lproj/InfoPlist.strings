@@ -1,0 +1,5 @@
+"NSCameraUsageDescription" = "Take photos in support conversations to help resolve app issues";
+"NSLocalNetworkUsageDescription" = "${PRODUCT_NAME} uses the local network to discover Cast-enabled devices on your WiFi network.";
+"NSLocationWhenInUseUsageDescription" = "Implement support messaging";
+"NSMicrophoneUsageDescription" = "Record audio in support videos to help resolve app issues";
+"NSPhotoLibraryUsageDescription" = "Send photos over support interface to help resolve app issues";

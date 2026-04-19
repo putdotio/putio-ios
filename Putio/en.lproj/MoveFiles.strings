@@ -1,0 +1,15 @@
+
+/* Class = "UIBarButtonItem"; title = "Create Folder"; ObjectID = "5Y9-eh-QJw"; */
+"5Y9-eh-QJw.title" = "Create Folder";
+
+/* Class = "UIViewController"; title = "Move File"; ObjectID = "RMh-cI-2cX"; */
+"RMh-cI-2cX.title" = "Move File";
+
+/* Class = "UIBarButtonItem"; title = "Move Here"; ObjectID = "SxY-eK-73E"; */
+"SxY-eK-73E.title" = "Move Here";
+
+/* Class = "UINavigationItem"; prompt = "Choose New Location"; ObjectID = "ptY-vw-Xdb"; */
+"ptY-vw-Xdb.prompt" = "Choose New Location";
+
+/* Class = "UINavigationItem"; title = "Your Files"; ObjectID = "ptY-vw-Xdb"; */
+"ptY-vw-Xdb.title" = "Your Files";

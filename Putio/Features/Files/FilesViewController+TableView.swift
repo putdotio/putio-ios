@@ -5,15 +5,23 @@ extension FilesViewController {
         let file = viewModel.files[indexPath.row]
         guard let cell = tableView.cellForRow(at: indexPath) else {
             InternalFailurePresenter.log("Unable to access file cell for delete action at row \(indexPath.row)")
-            return UIContextualAction(style: .destructive, title: userSettings.trashEnabled ? "Trash" : "Delete") { _, _, handler in
+            return UIContextualAction(
+                style: .destructive,
+                title: userSettings.trashEnabled ? NSLocalizedString("Trash", comment: "") : NSLocalizedString("Delete", comment: "")
+            ) { _, _, handler in
                 handler(false)
             }
         }
 
-        let action = UIContextualAction(style: .destructive, title: userSettings.trashEnabled ? "Trash" : "Delete") { _, _, handler in
+        let action = UIContextualAction(
+            style: .destructive,
+            title: userSettings.trashEnabled ? NSLocalizedString("Trash", comment: "") : NSLocalizedString("Delete", comment: "")
+        ) { _, _, handler in
             func deleteFile(_ completion: @escaping (Bool) -> Void) {
                 let loadingAlert = UIAlertController(
-                    title: self.userSettings.trashEnabled ? "Moving to trash..." : "Deleting...",
+                    title: self.userSettings.trashEnabled
+                        ? NSLocalizedString("Moving to trash...", comment: "")
+                        : NSLocalizedString("Deleting...", comment: ""),
                     message: "",
                     preferredStyle: .alert
                 )
@@ -30,12 +38,12 @@ extension FilesViewController {
 
                         case .failure(let error):
                             let errorAlert = UIAlertController(
-                                title: "Oops, an error occurred",
+                                title: NSLocalizedString("Oops, an error occurred", comment: ""),
                                 message: error.message,
                                 preferredStyle: .alert
                             )
 
-                            errorAlert.addAction(UIAlertAction(title: "Close", style: .cancel))
+                            errorAlert.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .cancel))
                             self.present(errorAlert, animated: true) { completion(false) }
                         }
                     }
@@ -48,13 +56,18 @@ extension FilesViewController {
             }
 
             let actionSheet = UIAlertController(
-                title: "Are you sure you want to delete \(file.name)?",
+                title: String(
+                    format: NSLocalizedString("Are you sure you want to delete %@?", comment: ""),
+                    file.name
+                ),
                 message: nil,
                 preferredStyle: .actionSheet
             )
 
-            let deleteButton = UIAlertAction(title: "Delete", style: .destructive) { _ in deleteFile { result in handler(result) } }
-            let cancelButton = UIAlertAction(title: "Cancel", style: .cancel) { _ in handler(false) }
+            let deleteButton = UIAlertAction(title: NSLocalizedString("Delete", comment: ""), style: .destructive) { _ in
+                deleteFile { result in handler(result) }
+            }
+            let cancelButton = UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel) { _ in handler(false) }
 
             actionSheet.addAction(deleteButton)
             actionSheet.addAction(cancelButton)
@@ -72,41 +85,44 @@ extension FilesViewController {
         let file = viewModel.files[indexPath.row]
         guard let cell = tableView.cellForRow(at: indexPath) else {
             InternalFailurePresenter.log("Unable to access file cell for more action at row \(indexPath.row)")
-            return UIContextualAction(style: .normal, title: "More") { _, _, handler in
+            return UIContextualAction(style: .normal, title: NSLocalizedString("More", comment: "")) { _, _, handler in
                 handler(false)
             }
         }
 
-        let action = UIContextualAction(style: .normal, title: "More") { _, _, handler in
+        let action = UIContextualAction(style: .normal, title: NSLocalizedString("More", comment: "")) { _, _, handler in
             let actionSheet = UIAlertController(title: file.name, message: nil, preferredStyle: .actionSheet)
 
-            let renameButton = UIAlertAction(title: "Rename", style: .default) { _ in
+            let renameButton = UIAlertAction(title: NSLocalizedString("Rename", comment: ""), style: .default) { _ in
                 handler(true)
 
                 let renameAlert = UIAlertController(
-                    title: "Rename \(file.name)",
+                    title: String(
+                        format: NSLocalizedString("Rename %@", comment: ""),
+                        file.name
+                    ),
                     message: nil,
                     preferredStyle: .alert
                 )
 
                 renameAlert.addTextField { textField in
-                    textField.placeholder = "New Name"
+                    textField.placeholder = NSLocalizedString("New Name", comment: "")
                     textField.text = file.name
                     textField.autocorrectionType = .no
                 }
 
-                renameAlert.addAction(UIAlertAction(title: "Save", style: .default) { _ in
+                renameAlert.addAction(UIAlertAction(title: NSLocalizedString("Save", comment: ""), style: .default) { _ in
                     let newName = renameAlert.textFields?.first?.text ?? file.name
                     api.renameFile(fileID: file.id, name: newName) { _ in }
                     self.viewModel.files[indexPath.row].name = newName
                     self.tableView.reloadData()
                 })
 
-                renameAlert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+                renameAlert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
                 self.present(renameAlert, animated: true)
             }
 
-            let moveButton = UIAlertAction(title: "Move", style: .default) { _ in
+            let moveButton = UIAlertAction(title: NSLocalizedString("Move", comment: ""), style: .default) { _ in
                 handler(true)
                 self.moveFiles([file])
             }
@@ -115,7 +131,7 @@ extension FilesViewController {
             actionSheet.addAction(moveButton)
 
             if file.type == .video || file.type == .audio {
-                let openInVLCButton = UIAlertAction(title: "Play original in VLC", style: .default) { _ in
+                let openInVLCButton = UIAlertAction(title: NSLocalizedString("Play original in VLC", comment: ""), style: .default) { _ in
                     handler(true)
                     self.openInVLC(file)
                 }
@@ -123,7 +139,7 @@ extension FilesViewController {
                 actionSheet.addAction(openInVLCButton)
             }
 
-            let cancelButton = UIAlertAction(title: "Cancel", style: .cancel) { _ in handler(false) }
+            let cancelButton = UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel) { _ in handler(false) }
             actionSheet.addAction(cancelButton)
 
             actionSheet.popoverPresentationController?.sourceView = cell
@@ -139,7 +155,7 @@ extension FilesViewController {
     func contextualCopyAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
         let file = viewModel.files[indexPath.row]
 
-        let action = UIContextualAction(style: .normal, title: "Copy") { _, _, handler in
+        let action = UIContextualAction(style: .normal, title: NSLocalizedString("Copy", comment: "")) { _, _, handler in
             handler(true)
             self.stateMachine.transitionToState(.view("loading"))
 
@@ -149,12 +165,12 @@ extension FilesViewController {
                 switch result {
                 case .failure(let error):
                     let errorAlert = UIAlertController(
-                        title: "Oops, an error occurred :(",
+                        title: NSLocalizedString("Oops, an error occurred :(", comment: ""),
                         message: error.localizedDescription,
                         preferredStyle: .alert
                     )
 
-                    errorAlert.addAction(UIAlertAction(title: "Close", style: .cancel))
+                    errorAlert.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .cancel))
                     self.present(errorAlert, animated: true)
 
                 case .success:
@@ -172,19 +188,19 @@ extension FilesViewController {
         let action: UIContextualAction
 
         if file.needConvert {
-            action = UIContextualAction(style: .normal, title: "Convert and Download") { _, _, handler in
+            action = UIContextualAction(style: .normal, title: NSLocalizedString("Convert and Download", comment: "")) { _, _, handler in
                 self.presentVideoConversionView(for: file, intention: VideoConversionIntention.download)
                 handler(true)
             }
         } else if let download = downloads?.first(where: { download in
             download.id == file.id && download.state == .completed
         }) {
-            action = UIContextualAction(style: .normal, title: "Play Downloaded") { _, _, handler in
+            action = UIContextualAction(style: .normal, title: NSLocalizedString("Play Downloaded", comment: "")) { _, _, handler in
                 self.presentDownloadedFile(download)
                 handler(true)
             }
         } else {
-            action = UIContextualAction(style: .normal, title: "Download") { _, _, handler in
+            action = UIContextualAction(style: .normal, title: NSLocalizedString("Download", comment: "")) { _, _, handler in
                 if file.type == .video {
                     VideoDownloadManager.sharedInstance.createDownload(from: file)
                 } else {

@@ -15,10 +15,10 @@ class AboutTableViewController: UITableViewController {
     }
 
     var items: [AboutItem] = [
-        AboutItem(key: .team, title: "About put.io"),
-        AboutItem(key: .licenses, title: "Libraries we use in put.io iOS"),
-        AboutItem(key: .terms, title: "Terms of service"),
-        AboutItem(key: .privacy, title: "Privacy policy")
+        AboutItem(key: .team, title: NSLocalizedString("About put.io", comment: "")),
+        AboutItem(key: .licenses, title: NSLocalizedString("Libraries we use in put.io iOS", comment: "")),
+        AboutItem(key: .terms, title: NSLocalizedString("Terms of service", comment: "")),
+        AboutItem(key: .privacy, title: NSLocalizedString("Privacy policy", comment: ""))
     ]
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -83,7 +83,7 @@ class AboutTableViewController: UITableViewController {
     func showLicenses() {
         let controller = VTAcknowledgementsViewController(fileNamed: "Pods-Putio-acknowledgements")
 
-        controller.title = "Libraries we use in put.io iOS"
+        controller.title = NSLocalizedString("Libraries we use in put.io iOS", comment: "")
         controller.headerText = ""
         controller.footerText = ""
 

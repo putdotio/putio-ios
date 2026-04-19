@@ -13,7 +13,7 @@ class SettingsTableViewController: UITableViewController, TwoFactorAuthPresenter
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationItem.title = "Account"
+        navigationItem.title = NSLocalizedString("Account", comment: "")
     }
 
     func configureAppearance() {

@@ -26,7 +26,7 @@ struct HistoryEventPresentation {
             return transferCallbackErrorPresentation(from: event)
         default:
             return HistoryEventPresentation(
-                text: "No title",
+                text: NSLocalizedString("No title", comment: ""),
                 detailText: "",
                 icon: "iconMediaGallery"
             )
@@ -37,7 +37,11 @@ struct HistoryEventPresentation {
         guard let event = event as? PutioUploadEvent else { return nil }
         return HistoryEventPresentation(
             text: event.fileName,
-            detailText: "\(event.fileSize.bytesToHumanReadable())  \(event.createdAt.timeAgoSinceDate())",
+            detailText: String(
+                format: NSLocalizedString("%@  %@", comment: ""),
+                event.fileSize.bytesToHumanReadable(),
+                event.createdAt.timeAgoSinceDate()
+            ),
             icon: "iconUpload"
         )
     }
@@ -46,7 +50,11 @@ struct HistoryEventPresentation {
         guard let event = event as? PutioFileSharedEvent else { return nil }
         return HistoryEventPresentation(
             text: event.fileName,
-            detailText: "\(event.createdAt.timeAgoSinceDate()) - Shared by \(event.sharingUserName)",
+            detailText: String(
+                format: NSLocalizedString("%@ - Shared by %@", comment: ""),
+                event.createdAt.timeAgoSinceDate(),
+                event.sharingUserName
+            ),
             icon: "iconCloudAdd"
         )
     }
@@ -55,7 +63,11 @@ struct HistoryEventPresentation {
         guard let event = event as? PutioTransferCompletedEvent else { return nil }
         return HistoryEventPresentation(
             text: event.transferName,
-            detailText: "\(event.transferSize.bytesToHumanReadable())  \(event.createdAt.timeAgoSinceDate())",
+            detailText: String(
+                format: NSLocalizedString("%@  %@", comment: ""),
+                event.transferSize.bytesToHumanReadable(),
+                event.createdAt.timeAgoSinceDate()
+            ),
             icon: "iconMediaGallery"
         )
     }
@@ -63,7 +75,10 @@ struct HistoryEventPresentation {
     private static func transferErrorPresentation(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
         guard let event = event as? PutioTransferErrorEvent else { return nil }
         return HistoryEventPresentation(
-            text: "Error in transfer \(event.transferName)",
+            text: String(
+                format: NSLocalizedString("Error in transfer %@", comment: ""),
+                event.transferName
+            ),
             detailText: event.createdAt.timeAgoSinceDate(),
             icon: "iconX"
         )
@@ -72,8 +87,15 @@ struct HistoryEventPresentation {
     private static func fileFromRSSDeletedErrorPresentation(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
         guard let event = event as? PutioFileFromRSSDeletedErrorEvent else { return nil }
         return HistoryEventPresentation(
-            text: "We had to delete \(event.fileName) per your instructions, since there wasn't enough free space.",
-            detailText: "\(event.fileSize.bytesToHumanReadable())  \(event.createdAt.timeAgoSinceDate())",
+            text: String(
+                format: NSLocalizedString("We had to delete %@ per your instructions, since there wasn't enough free space.", comment: ""),
+                event.fileName
+            ),
+            detailText: String(
+                format: NSLocalizedString("%@  %@", comment: ""),
+                event.fileSize.bytesToHumanReadable(),
+                event.createdAt.timeAgoSinceDate()
+            ),
             icon: "iconExclamationPoint"
         )
     }
@@ -81,7 +103,10 @@ struct HistoryEventPresentation {
     private static func rssFilterPausedPresentation(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
         guard let event = event as? PutioRSSFilterPausedEvent else { return nil }
         return HistoryEventPresentation(
-            text: "\(event.rssFilterTitle) is paused because we couldn't reach the source",
+            text: String(
+                format: NSLocalizedString("%@ is paused because we couldn't reach the source", comment: ""),
+                event.rssFilterTitle
+            ),
             detailText: event.createdAt.timeAgoSinceDate(),
             icon: "iconRSS"
         )
@@ -90,7 +115,10 @@ struct HistoryEventPresentation {
     private static func transferFromRSSErrorPresentation(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
         guard let event = event as? PutioTransferFromRSSErrorEvent else { return nil }
         return HistoryEventPresentation(
-            text: "Error in transfer from RSS for \(event.transferName)",
+            text: String(
+                format: NSLocalizedString("Error in transfer from RSS for %@", comment: ""),
+                event.transferName
+            ),
             detailText: event.createdAt.timeAgoSinceDate(),
             icon: "iconX"
         )
@@ -99,7 +127,10 @@ struct HistoryEventPresentation {
     private static func transferCallbackErrorPresentation(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
         guard let event = event as? PutioTransferCallbackErrorEvent else { return nil }
         return HistoryEventPresentation(
-            text: "Error in transfer callback for \(event.transferName)",
+            text: String(
+                format: NSLocalizedString("Error in transfer callback for %@", comment: ""),
+                event.transferName
+            ),
             detailText: event.createdAt.timeAgoSinceDate(),
             icon: "iconX"
         )
@@ -110,7 +141,7 @@ class HistoryTableViewCell: UITableViewCell {
     func configure(with event: PutioHistoryEvent) {
         guard let presentation = HistoryEventPresentation.build(from: event) else {
             InternalFailurePresenter.log("Unable to build history event presentation for event type: \(event.type)")
-            textLabel?.text = "No title"
+            textLabel?.text = NSLocalizedString("No title", comment: "")
             detailTextLabel?.text = ""
             imageView?.image = UIImage(named: "iconMediaGallery")
             return

@@ -26,16 +26,16 @@ extension DownloadedFilePresenter where Self: UIViewController {
 
     func presentFileNotReachableMessage(for download: Download) {
         let alert = UIAlertController(
-            title: "File Unavailable",
-            message: "We couldn't read this file from the disk. It may be corrupted during the download or auto deleted by the operating system to cleanup disk space.",
+            title: NSLocalizedString("File Unavailable", comment: ""),
+            message: NSLocalizedString("We couldn't read this file from the disk. It may be corrupted during the download or auto deleted by the operating system to cleanup disk space.", comment: ""),
             preferredStyle: .alert
         )
 
-        alert.addAction(UIAlertAction(title: "Re-download", style: .default, handler: { (_) in
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Re-download", comment: ""), style: .default, handler: { (_) in
             self.restartDownload(download)
         }))
 
-        alert.addAction(UIAlertAction(title: "Close", style: .cancel, handler: nil))
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .cancel, handler: nil))
 
         present(alert, animated: true) {
             self.updateDownloadStateAsNotReachable(download)
@@ -49,7 +49,7 @@ extension DownloadedFilePresenter where Self: UIViewController {
 
         _ = PutioRealm.write(realm, context: "DownloadedFilePresenter.updateDownloadStateAsNotReachable.write") {
             download.state = .failed
-            download.message = "File not reachable"
+            download.message = NSLocalizedString("File not reachable", comment: "")
         }
     }
 
@@ -75,18 +75,20 @@ extension DownloadedFilePresenter where Self: UIViewController {
 
         switch error.type {
         case .httpError(let statusCode, _):
-            message = statusCode == 404 ? "The original version of this file has been deleted from your put.io account." : error.localizedDescription
+            message = statusCode == 404
+                ? NSLocalizedString("The original version of this file has been deleted from your put.io account.", comment: "")
+                : error.localizedDescription
         default:
             message = error.localizedDescription
         }
 
         let alert = UIAlertController(
-            title: "Something went wrong",
+            title: NSLocalizedString("Something went wrong", comment: ""),
             message: message,
             preferredStyle: .alert
         )
 
-        alert.addAction(UIAlertAction(title: "Delete Download", style: .destructive, handler: { _ in
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Delete Download", comment: ""), style: .destructive, handler: { _ in
             if download.fileType == .video {
                 VideoDownloadManager.sharedInstance.deleteDownload(id: download.id)
             } else {
@@ -94,7 +96,7 @@ extension DownloadedFilePresenter where Self: UIViewController {
             }
         }))
 
-        alert.addAction(UIAlertAction(title: "Close", style: .cancel, handler: nil))
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .cancel, handler: nil))
 
         present(alert, animated: true)
     }

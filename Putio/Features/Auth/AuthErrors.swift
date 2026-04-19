@@ -6,8 +6,8 @@ struct AuthErrors {
         return api.localizeError(error: error, localizers: [
             APIErrorLocalizer(matcher: .statusCode(401), localize: { error in
                 return PutioLocalizedError(
-                    message: "Invalid username or password",
-                    recoverySuggestion: .instruction(description: "Please check your credentials and try again."),
+                    message: NSLocalizedString("Invalid username or password", comment: ""),
+                    recoverySuggestion: .instruction(description: NSLocalizedString("Please check your credentials and try again.", comment: "")),
                     underlyingError: error
                 )
             })
@@ -15,8 +15,8 @@ struct AuthErrors {
     }
 
     static func localizeTwoFactorAuthError(error: PutioSDKError) -> PutioLocalizedError {
-        let invalidCodeErrorMessage = "The code you entered is invalid"
-        let invalidCodeErrorRecoverySuggestion: PutioLocalizedErrorRecoverySuggestion = .instruction(description: "Please check your code and try again.")
+        let invalidCodeErrorMessage = NSLocalizedString("The code you entered is invalid", comment: "")
+        let invalidCodeErrorRecoverySuggestion: PutioLocalizedErrorRecoverySuggestion = .instruction(description: NSLocalizedString("Please check your code and try again.", comment: ""))
 
         return api.localizeError(error: error, localizers: [
             APIErrorLocalizer(matcher: .errorType("invalid_code"), localize: { error in

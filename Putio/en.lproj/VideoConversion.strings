@@ -1,0 +1,9 @@
+
+/* Class = "UILabel"; text = "This video is not in a format that can be played on this app yet. But since you're here, we'll start transcoding."; ObjectID = "DKi-6l-IEL"; */
+"DKi-6l-IEL.text" = "This video is not in a format that can be played on this app yet. But since you're here, we'll start transcoding.";
+
+/* Class = "UINavigationItem"; title = "Converting Video"; ObjectID = "KMX-7W-Hv3"; */
+"KMX-7W-Hv3.title" = "Converting Video";
+
+/* Class = "UILabel"; text = "Status"; ObjectID = "qSm-aY-0Cf"; */
+"qSm-aY-0Cf.text" = "Status";

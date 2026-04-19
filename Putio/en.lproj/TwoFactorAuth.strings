@@ -1,0 +1,57 @@
+
+/* Class = "UILabel"; text = "Enter the 6-digit code"; ObjectID = "6rK-GL-FnR"; */
+"6rK-GL-FnR.text" = "Enter the 6-digit code";
+
+/* Class = "UIButton"; configuration.title = "Disable"; ObjectID = "87x-Z2-iWq"; */
+"87x-Z2-iWq.configuration.title" = "Disable";
+
+/* Class = "UIButton"; normalTitle = "Disable"; ObjectID = "87x-Z2-iWq"; */
+"87x-Z2-iWq.normalTitle" = "Disable";
+
+/* Class = "UINavigationItem"; title = "Disable two-factor authentication"; ObjectID = "BlF-5M-1dR"; */
+"BlF-5M-1dR.title" = "Disable two-factor authentication";
+
+/* Class = "UIViewController"; title = "Disable two-factor auth"; ObjectID = "HXJ-bz-1gF"; */
+"HXJ-bz-1gF.title" = "Disable two-factor auth";
+
+/* Class = "UINavigationItem"; title = "Enable two-factor authentication"; ObjectID = "JBP-jh-6lf"; */
+"JBP-jh-6lf.title" = "Enable two-factor authentication";
+
+/* Class = "UINavigationItem"; title = "Enable two-factor authentication"; ObjectID = "Ln8-Hc-Jae"; */
+"Ln8-Hc-Jae.title" = "Enable two-factor authentication";
+
+/* Class = "UILabel"; text = "If you lose access to your authenticator, you can authenticate to put.io using your recovery codes."; ObjectID = "OLV-hw-YKU"; */
+"OLV-hw-YKU.text" = "If you lose access to your authenticator, you can authenticate to put.io using your recovery codes.";
+
+/* Class = "UIViewController"; title = "Disable two-factor auth"; ObjectID = "QYv-F3-275"; */
+"QYv-F3-275.title" = "Disable two-factor auth";
+
+/* Class = "UIViewController"; title = "Disable two-factor auth"; ObjectID = "Sc7-5S-mTQ"; */
+"Sc7-5S-mTQ.title" = "Disable two-factor auth";
+
+/* Class = "UIViewController"; title = "Two-factor recovery codes"; ObjectID = "Y6W-OH-hqX"; */
+"Y6W-OH-hqX.title" = "Two-factor recovery codes";
+
+/* Class = "UINavigationItem"; title = "Two-factor recovery codes"; ObjectID = "Z7S-Qm-866"; */
+"Z7S-Qm-866.title" = "Two-factor recovery codes";
+
+/* Class = "UIButton"; configuration.title = "Copy"; ObjectID = "Zq8-K5-StK"; */
+"Zq8-K5-StK.configuration.title" = "Copy";
+
+/* Class = "UITextField"; placeholder = "Authenticator or recovery code"; ObjectID = "chX-sm-jVE"; */
+"chX-sm-jVE.placeholder" = "Authenticator or recovery code";
+
+/* Class = "UILabel"; text = "Please enter the access code from your authenticator or one of your recovery codes."; ObjectID = "oNi-yH-kod"; */
+"oNi-yH-kod.text" = "Please enter the access code from your authenticator or one of your recovery codes.";
+
+/* Class = "UIButton"; configuration.title = "Next"; ObjectID = "rUO-X6-eVU"; */
+"rUO-X6-eVU.configuration.title" = "Next";
+
+/* Class = "UILabel"; text = "Open your authenticator and enter the code below."; ObjectID = "vXj-Va-h84"; */
+"vXj-Va-h84.text" = "Open your authenticator and enter the code below.";
+
+/* Class = "UITextField"; placeholder = "Authenticator code"; ObjectID = "vih-ax-O38"; */
+"vih-ax-O38.placeholder" = "Authenticator code";
+
+/* Class = "UIButton"; configuration.title = "Enable"; ObjectID = "xtZ-72-xrq"; */
+"xtZ-72-xrq.configuration.title" = "Enable";

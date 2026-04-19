@@ -35,7 +35,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationItem.title = "History"
+        navigationItem.title = NSLocalizedString("History", comment: "")
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -64,7 +64,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
     func configureNavigationBarButton() {
         let button = UIButton(type: .system)
         var configuration = UIButton.Configuration.plain()
-        configuration.title = "Clear"
+        configuration.title = NSLocalizedString("Clear", comment: "")
         configuration.baseForegroundColor = UIColor.Putio.yellow
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12)
         configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
@@ -90,7 +90,10 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
         stateMachine.addView(loaderView, forState: "loading")
 
         let emptyView = EmptyStateView.instantiateFromInterfaceBuilder()
-        emptyView.configure(heading: "Your history is empty", description: "There will be information when things start happening.")
+        emptyView.configure(
+            heading: NSLocalizedString("Your history is empty", comment: ""),
+            description: NSLocalizedString("There will be information when things start happening.", comment: "")
+        )
         stateMachine.addView(emptyView, forState: "empty")
 
         let offlineStatusView = OfflineStatusView.instantiateFromInterfaceBuilder()
@@ -104,16 +107,16 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
 
     @IBAction func clearAllButtonTapped(_ sender: Any) {
         let actionSheet = UIAlertController(
-            title: "Are you sure?",
+            title: NSLocalizedString("Are you sure?", comment: ""),
             message: nil,
             preferredStyle: .actionSheet
         )
 
-        let confirmButton = UIAlertAction(title: "Clear", style: .destructive, handler: { (_) in
+        let confirmButton = UIAlertAction(title: NSLocalizedString("Clear", comment: ""), style: .destructive, handler: { (_) in
             self.viewModel.removeAllEvents()
         })
 
-        let cancelButton = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
+        let cancelButton = UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel, handler: nil)
 
         actionSheet.addAction(confirmButton)
         actionSheet.addAction(cancelButton)
@@ -126,7 +129,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
     func contextualDeleteAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
         let event = viewModel.sections[indexPath.section].events[indexPath.row]
 
-        let action = UIContextualAction(style: .destructive, title: "Delete") { (_, _, handler) in
+        let action = UIContextualAction(style: .destructive, title: NSLocalizedString("Delete", comment: "")) { (_, _, handler) in
             self.viewModel.removeEvent(event) { result in
                 switch result {
                 case .success:

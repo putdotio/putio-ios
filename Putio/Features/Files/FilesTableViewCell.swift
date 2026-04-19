@@ -55,7 +55,11 @@ class FilesTableViewCell: UITableViewCell {
 
     func configure(with file: PutioFile, download: Download?, relativeDate: String) {
         title.text = file.name
-        subtitleText.text =  "\(file.size.bytesToHumanReadable()) - \(relativeDate)"
+        subtitleText.text = String(
+            format: NSLocalizedString("%@ - %@", comment: ""),
+            file.size.bytesToHumanReadable(),
+            relativeDate
+        )
         subtitleIcon.isHidden = true
         iconRight.isHidden = true
 

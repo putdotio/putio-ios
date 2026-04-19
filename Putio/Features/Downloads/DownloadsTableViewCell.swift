@@ -70,19 +70,22 @@ class DownloadsTableViewCell: UITableViewCell {
             switch download.state {
             case .queued:
                 stateButton.displayState = .queued
-                subtitleLabel?.text = "In Queue"
+                subtitleLabel?.text = NSLocalizedString("In Queue", comment: "")
             case .starting:
                 stateButton.displayState = .progress(0)
-                subtitleLabel?.text = "Starting..."
+                subtitleLabel?.text = NSLocalizedString("Starting...", comment: "")
             case .active:
                 stateButton.displayState = .progress(CGFloat((download.progress as NSString).floatValue))
-                subtitleLabel?.text = "Downloading..."
+                subtitleLabel?.text = NSLocalizedString("Downloading...", comment: "")
             case .stopped:
                 stateButton.displayState = .idle
-                subtitleLabel?.text = "Stopped"
+                subtitleLabel?.text = NSLocalizedString("Stopped", comment: "")
             case .failed:
                 stateButton.displayState = .idle
-                subtitleLabel?.text = "Failed: \(download.message)"
+                subtitleLabel?.text = String(
+                    format: NSLocalizedString("Failed: %@", comment: ""),
+                    download.message
+                )
             case .completed:
                 break
             }
@@ -90,8 +93,12 @@ class DownloadsTableViewCell: UITableViewCell {
             return
         }
 
-        let completedAtText = download.completedAt?.timeAgoSinceDate() ?? "recently"
-        subtitleLabel?.text = "\(download.size.bytesToHumanReadable()) - Downloaded \(completedAtText)"
+        let completedAtText = download.completedAt?.timeAgoSinceDate() ?? NSLocalizedString("recently", comment: "")
+        subtitleLabel?.text = String(
+            format: NSLocalizedString("%@ - Downloaded %@", comment: ""),
+            download.size.bytesToHumanReadable(),
+            completedAtText
+        )
         icon.image = download.fileType == .video ? UIImage.Putio.video : UIImage.Putio.audio
         stateButton.displayState = .completed
         selectionStyle = .default

@@ -1,0 +1,96 @@
+
+/* Class = "UINavigationItem"; title = "Destroy your account"; ObjectID = "0mR-sl-ydp"; */
+"0mR-sl-ydp.title" = "Destroy your account";
+
+/* Class = "UILabel"; text = "Heads up: Files in trash have an expiry date of 14 days."; ObjectID = "2n3-fq-Det"; */
+"2n3-fq-Det.text" = "Heads up: Files in trash have an expiry date of 14 days.";
+
+/* Class = "UIBarButtonItem"; title = "Clear"; ObjectID = "37J-wn-Hil"; */
+"37J-wn-Hil.title" = "Clear";
+
+/* Class = "UIButton"; normalTitle = "Destroy Account"; ObjectID = "3CK-oO-A8e"; */
+"3CK-oO-A8e.normalTitle" = "Destroy Account";
+
+/* Class = "UILabel"; text = "This feature allows you to store audio and video files in your device for offline consumption."; ObjectID = "4Vq-n9-QOl"; */
+"4Vq-n9-QOl.text" = "This feature allows you to store audio and video files in your device for offline consumption.";
+
+/* Class = "UITabBarItem"; title = "History"; ObjectID = "4cL-VA-bRX"; */
+"4cL-VA-bRX.title" = "History";
+
+/* Class = "UITabBarItem"; title = "Account"; ObjectID = "5Pv-Wd-lfR"; */
+"5Pv-Wd-lfR.title" = "Account";
+
+/* Class = "UIBarButtonItem"; title = "Done"; ObjectID = "ALk-q8-2K3"; */
+"ALk-q8-2K3.title" = "Done";
+
+/* Class = "UILabel"; text = "Enter the code shown on your device to link it to your put.io account."; ObjectID = "HXS-w2-HnI"; */
+"HXS-w2-HnI.text" = "Enter the code shown on your device to link it to your put.io account.";
+
+/* Class = "UINavigationItem"; title = "Select items to clean"; ObjectID = "Hu3-ND-kF7"; */
+"Hu3-ND-kF7.title" = "Select items to clean";
+
+/* Class = "UITabBarItem"; title = "Downloads"; ObjectID = "JPZ-4q-6Dh"; */
+"JPZ-4q-6Dh.title" = "Downloads";
+
+/* Class = "UINavigationItem"; title = "Account"; ObjectID = "K1a-XT-0ZW"; */
+"K1a-XT-0ZW.title" = "Account";
+
+/* Class = "UINavigationItem"; title = "About"; ObjectID = "N3K-jJ-iVr"; */
+"N3K-jJ-iVr.title" = "About";
+
+/* Class = "UINavigationItem"; title = "Choose your proxy"; ObjectID = "Pua-Wr-mhA"; */
+"Pua-Wr-mhA.title" = "Choose your proxy";
+
+/* Class = "UILabel"; text = "You can still talk to us if there is anything we can help with."; ObjectID = "QdE-Gm-j7S"; */
+"QdE-Gm-j7S.text" = "You can still talk to us if there is anything we can help with.";
+
+/* Class = "UINavigationItem"; title = "Link your account"; ObjectID = "U5B-hp-aFx"; */
+"U5B-hp-aFx.title" = "Link your account";
+
+/* Class = "UIButton"; normalTitle = "Talk To Us"; ObjectID = "WOS-gU-p24"; */
+"WOS-gU-p24.normalTitle" = "Talk To Us";
+
+/* Class = "UITableViewController"; title = "Routes"; ObjectID = "Xlg-Ia-jBZ"; */
+"Xlg-Ia-jBZ.title" = "Routes";
+
+/* Class = "UINavigationItem"; title = "File"; ObjectID = "c0f-Nh-yUd"; */
+"c0f-Nh-yUd.title" = "File";
+
+/* Class = "UINavigationItem"; title = "Downloads"; ObjectID = "gTe-Vr-29m"; */
+"gTe-Vr-29m.title" = "Downloads";
+
+/* Class = "UINavigationItem"; title = "Authorized apps"; ObjectID = "ga8-xq-d02"; */
+"ga8-xq-d02.title" = "Authorized apps";
+
+/* Class = "UILabel"; text = "Are you 100% sure you want to destroy your account? There is no turning back!!!"; ObjectID = "iEm-Pb-vGa"; */
+"iEm-Pb-vGa.text" = "Are you 100% sure you want to destroy your account? There is no turning back!!!";
+
+/* Class = "UINavigationItem"; title = "Your Files"; ObjectID = "klt-5x-7eX"; */
+"klt-5x-7eX.title" = "Your Files";
+
+/* Class = "UITableViewController"; title = "Account"; ObjectID = "lFO-9C-ht9"; */
+"lFO-9C-ht9.title" = "Account";
+
+/* Class = "UITableViewController"; title = "Authorized Apps"; ObjectID = "mH5-U2-ZvJ"; */
+"mH5-U2-ZvJ.title" = "Authorized Apps";
+
+/* Class = "UIViewController"; title = "Link Your Account"; ObjectID = "oZc-ox-W6e"; */
+"oZc-ox-W6e.title" = "Link Your Account";
+
+/* Class = "UIBarButtonItem"; title = "Cleanup"; ObjectID = "p5P-Pw-3hZ"; */
+"p5P-Pw-3hZ.title" = "Cleanup";
+
+/* Class = "UINavigationItem"; title = "History"; ObjectID = "pFy-kL-Qan"; */
+"pFy-kL-Qan.title" = "History";
+
+/* Class = "UINavigationItem"; title = "Trash"; ObjectID = "qFx-Mp-mrf"; */
+"qFx-Mp-mrf.title" = "Trash";
+
+/* Class = "UITableViewController"; title = "Clear Your Data"; ObjectID = "vsw-Zm-mff"; */
+"vsw-Zm-mff.title" = "Clear Your Data";
+
+/* Class = "UINavigationItem"; title = "Downloads: Mini Tutorial"; ObjectID = "wiF-8p-yTc"; */
+"wiF-8p-yTc.title" = "Downloads: Mini Tutorial";
+
+/* Class = "UITabBarItem"; title = "Files"; ObjectID = "yV7-6B-q7L"; */
+"yV7-6B-q7L.title" = "Files";

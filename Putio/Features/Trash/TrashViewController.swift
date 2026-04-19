@@ -48,11 +48,17 @@ class TrashViewController: UIViewController, StatefulViewController {
         stateMachine.addView(loadingView, forState: "loading")
 
         let emptyView = EmptyStateView.instantiateFromInterfaceBuilder()
-        emptyView.configure(heading: "Your trash is empty", description: "Items you move to trash will appear here.")
+        emptyView.configure(
+            heading: NSLocalizedString("Your trash is empty", comment: ""),
+            description: NSLocalizedString("Items you move to trash will appear here.", comment: "")
+        )
         stateMachine.addView(emptyView, forState: "empty")
 
         let errorView = EmptyStateView.instantiateFromInterfaceBuilder()
-        errorView.configure(heading: "Oops", description: "An error occurred, please try again :(")
+        errorView.configure(
+            heading: NSLocalizedString("Oops", comment: ""),
+            description: NSLocalizedString("An error occurred, please try again :(", comment: "")
+        )
         stateMachine.addView(errorView, forState: "error")
 
         let offlineStatusView = OfflineStatusView.instantiateFromInterfaceBuilder()
@@ -61,48 +67,48 @@ class TrashViewController: UIViewController, StatefulViewController {
         stateMachine.transitionToState(.view("loading"))
     }
 
-    func updateNavigationBarTitle(_ title: String = "Trash") {
+    func updateNavigationBarTitle(_ title: String = NSLocalizedString("Trash", comment: "")) {
         navigationItem.title = title
     }
 
     func configureNavigationBar(isEditing: Bool = false) {
         if isEditing {
-            updateNavigationBarTitle("Select Items")
+            updateNavigationBarTitle(NSLocalizedString("Select Items", comment: ""))
 
             navigationItem.setHidesBackButton(true, animated: true)
             navigationItem.leftBarButtonItem = UIBarButtonItem(
-                title: "Select All",
+                title: NSLocalizedString("Select All", comment: ""),
                 style: .plain,
                 target: self,
                 action: #selector(toggleSelectAll)
             )
 
             navigationItem.rightBarButtonItem = UIBarButtonItem(
-                title: "Done",
+                title: NSLocalizedString("Done", comment: ""),
                 style: .plain,
                 target: self,
                 action: #selector(toggleEditing)
             )
         } else {
-            updateNavigationBarTitle("Trash")
+            updateNavigationBarTitle(NSLocalizedString("Trash", comment: ""))
             navigationItem.setHidesBackButton(false, animated: true)
             navigationItem.leftBarButtonItem = nil
 
             let actions = [
                 UIAction(
-                    title: "Select",
+                    title: NSLocalizedString("Select", comment: ""),
                     image: UIImage(systemName: "checkmark.circle"),
                     identifier: nil,
                     handler: {  _ in self.toggleEditing() }
                 ),
                 UIAction(
-                    title: "Restore all",
+                    title: NSLocalizedString("Restore all", comment: ""),
                     image: UIImage(systemName: "trash.slash"),
                     identifier: nil,
                     handler: {  _ in self.restoreAllFiles() }
                 ),
                 UIAction(
-                    title: "Empty trash",
+                    title: NSLocalizedString("Empty trash", comment: ""),
                     image: UIImage(systemName: "trash"),
                     identifier: nil,
                     attributes: .destructive,
@@ -137,8 +143,18 @@ class TrashViewController: UIViewController, StatefulViewController {
         toolbar.standardAppearance = appearance
         toolbar.compactAppearance = appearance
 
-        let restoreBtn = UIBarButtonItem(title: "Restore", style: .plain, target: self, action: #selector(restoreSelectedFiles))
-        let deleteBtn = UIBarButtonItem(title: "Delete", style: .plain, target: self, action: #selector(deleteSelectedFiles))
+        let restoreBtn = UIBarButtonItem(
+            title: NSLocalizedString("Restore", comment: ""),
+            style: .plain,
+            target: self,
+            action: #selector(restoreSelectedFiles)
+        )
+        let deleteBtn = UIBarButtonItem(
+            title: NSLocalizedString("Delete", comment: ""),
+            style: .plain,
+            target: self,
+            action: #selector(deleteSelectedFiles)
+        )
 
         toolbar.items = [
             restoreBtn,
@@ -172,21 +188,21 @@ class TrashViewController: UIViewController, StatefulViewController {
         switch result {
         case .failure(let error):
             let errorAlert = UIAlertController(
-                title: "Oops, we couldn't restore those files :(",
+                title: NSLocalizedString("Oops, we couldn't restore those files :(", comment: ""),
                 message: error.localizedDescription,
                 preferredStyle: .alert
             )
 
-            errorAlert.addAction(UIAlertAction(title: "Close", style: .default, handler: nil))
+            errorAlert.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .default, handler: nil))
             present(errorAlert, animated: true, completion: nil)
         default:
             let restoreStartedAlert = UIAlertController(
-                title: "Restore started!",
-                message: "It may take a long time if there are too many files.",
+                title: NSLocalizedString("Restore started!", comment: ""),
+                message: NSLocalizedString("It may take a long time if there are too many files.", comment: ""),
                 preferredStyle: .alert
             )
 
-            restoreStartedAlert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
+            restoreStartedAlert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .default, handler: nil))
             present(restoreStartedAlert, animated: true, completion: nil)
         }
     }
@@ -206,12 +222,12 @@ class TrashViewController: UIViewController, StatefulViewController {
         switch result {
         case .failure(let error):
             let errorAlert = UIAlertController(
-                title: "Oops, we couldn't delete those files :(",
+                title: NSLocalizedString("Oops, we couldn't delete those files :(", comment: ""),
                 message: error.localizedDescription,
                 preferredStyle: .alert
             )
 
-            errorAlert.addAction(UIAlertAction(title: "Close", style: .default, handler: nil))
+            errorAlert.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .default, handler: nil))
             present(errorAlert, animated: true, completion: nil)
         default:
             break
@@ -220,13 +236,13 @@ class TrashViewController: UIViewController, StatefulViewController {
 
     func emptyTrash() {
         let confirmationAlert = UIAlertController(
-            title: "Are you sure to delete those files?",
+            title: NSLocalizedString("Are you sure to delete those files?", comment: ""),
             message: nil,
             preferredStyle: .alert
         )
 
-        let cancelButton = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
-        let confirmButton = UIAlertAction(title: "Yes, empty trash", style: .destructive, handler: { (_) in
+        let cancelButton = UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel, handler: nil)
+        let confirmButton = UIAlertAction(title: NSLocalizedString("Yes, empty trash", comment: ""), style: .destructive, handler: { (_) in
             self.viewModel.emptyTrash { result in self.handleDeleteResult(result) }
         })
 
@@ -269,17 +285,21 @@ class TrashViewController: UIViewController, StatefulViewController {
         let allSelected = selectedFiles.count == viewModel.files.count
 
         if selectedFiles.count > 0 {
-            updateNavigationBarTitle(selectedFiles.count == 1 ? "1 Item" : "\(selectedFiles.count) Items")
+            updateNavigationBarTitle(
+                selectedFiles.count == 1
+                    ? NSLocalizedString("1 Item", comment: "")
+                    : String(format: NSLocalizedString("%d Items", comment: ""), selectedFiles.count)
+            )
             updateToolbarButtonStates(isEnabled: true)
         } else {
-            updateNavigationBarTitle("Select Items")
+            updateNavigationBarTitle(NSLocalizedString("Select Items", comment: ""))
             updateToolbarButtonStates(isEnabled: false)
         }
 
         if allSelected {
-            navigationItem.leftBarButtonItem?.title = "Deselect All"
+            navigationItem.leftBarButtonItem?.title = NSLocalizedString("Deselect All", comment: "")
         } else {
-            navigationItem.leftBarButtonItem?.title = "Select All"
+            navigationItem.leftBarButtonItem?.title = NSLocalizedString("Select All", comment: "")
         }
     }
 
@@ -303,7 +323,7 @@ class TrashViewController: UIViewController, StatefulViewController {
     func contextualDeleteAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
         let file = viewModel.files[indexPath.row]
 
-        let action = UIContextualAction(style: .destructive, title: "Delete") { (_, _, handler) in
+        let action = UIContextualAction(style: .destructive, title: NSLocalizedString("Delete", comment: "")) { (_, _, handler) in
             self.viewModel.deleteFile(fileID: file.id) { result in
                 switch result {
                 case .success:

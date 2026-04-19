@@ -4,7 +4,7 @@ import PutioSDK
 import RealmSwift
 
 extension SettingsViewModel {
-    private func presentLoadingAlert(title: String = "Saving...") -> UIAlertController {
+    private func presentLoadingAlert(title: String = NSLocalizedString("Saving...", comment: "")) -> UIAlertController {
         let alert = UIAlertController(title: title, message: nil, preferredStyle: .alert)
         tableViewController?.present(alert, animated: true)
         return alert
@@ -17,13 +17,13 @@ extension SettingsViewModel {
             message: localizedError.recoverySuggestion.description,
             preferredStyle: .alert
         )
-        errorAlert.addAction(UIAlertAction(title: "OK", style: .cancel))
+        errorAlert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel))
         update()
         tableViewController?.present(errorAlert, animated: true)
     }
 
     private func performRemoteMutation(
-        title: String = "Saving...",
+        title: String = NSLocalizedString("Saving...", comment: ""),
         mutation: (@escaping (Result<Void, PutioSDKError>) -> Void) -> Void,
         onSuccess: @escaping (Realm) -> Void
     ) {
@@ -102,12 +102,14 @@ extension SettingsViewModel {
     func toggleTrashEnabled() {
         if settings.trashEnabled {
             let alert = UIAlertController(
-                title: "Are you sure?",
-                message: "Disabling trash will empty your trash first.",
+                title: NSLocalizedString("Are you sure?", comment: ""),
+                message: NSLocalizedString("Disabling trash will empty your trash first.", comment: ""),
                 preferredStyle: .alert
             )
-            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in self.update() })
-            alert.addAction(UIAlertAction(title: "Disable Trash", style: .default) { _ in self.saveTrashEnabled(isEnabled: false) })
+            alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel) { _ in self.update() })
+            alert.addAction(UIAlertAction(title: NSLocalizedString("Disable Trash", comment: ""), style: .default) { _ in
+                self.saveTrashEnabled(isEnabled: false)
+            })
 
             tableViewController?.present(alert, animated: true)
         } else {
@@ -122,12 +124,14 @@ extension SettingsViewModel {
     func toggleHistoryEnabled() {
         if settings.historyEnabled {
             let alert = UIAlertController(
-                title: "Are you sure?",
-                message: "Disabling history will also clear your current activities.",
+                title: NSLocalizedString("Are you sure?", comment: ""),
+                message: NSLocalizedString("Disabling history will also clear your current activities.", comment: ""),
                 preferredStyle: .alert
             )
-            alert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in self.update() })
-            alert.addAction(UIAlertAction(title: "Disable History", style: .default) { _ in self.saveHistoryEnabled(isEnabled: false) })
+            alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel) { _ in self.update() })
+            alert.addAction(UIAlertAction(title: NSLocalizedString("Disable History", comment: ""), style: .default) { _ in
+                self.saveHistoryEnabled(isEnabled: false)
+            })
 
             tableViewController?.present(alert, animated: true)
         } else {
@@ -137,7 +141,7 @@ extension SettingsViewModel {
 
     func presentSortSettings() {
         let actionSheet = UIAlertController(
-            title: "Default sort option for files",
+            title: NSLocalizedString("Default sort option for files", comment: ""),
             message: nil,
             preferredStyle: .alert
         )
@@ -158,7 +162,7 @@ extension SettingsViewModel {
             })
         }
 
-        actionSheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        actionSheet.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
         tableViewController?.present(actionSheet, animated: true)
     }
 
@@ -167,7 +171,7 @@ extension SettingsViewModel {
     }
 
     func resetSortSettings() {
-        let loadingAlert = presentLoadingAlert(title: "Resetting...")
+        let loadingAlert = presentLoadingAlert(title: NSLocalizedString("Resetting...", comment: ""))
 
         api.resetFileSpecificSortSettings { _ in
             loadingAlert.dismiss(animated: true)
@@ -175,9 +179,9 @@ extension SettingsViewModel {
     }
 
     func presentLogoutAlert() {
-        let alert = UIAlertController(title: "Are you sure?", message: "", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        alert.addAction(UIAlertAction(title: "Log out", style: .default) { _ in
+        let alert = UIAlertController(title: NSLocalizedString("Are you sure?", comment: ""), message: "", preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Log out", comment: ""), style: .default) { _ in
             guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
             appDelegate.logout()
         })

@@ -18,15 +18,15 @@ extension FilesViewController {
 
         navigationItem.setHidesBackButton(true, animated: true)
         navigationItem.leftBarButtonItem = UIBarButtonItem(
-            title: "Select All",
+            title: NSLocalizedString("Select All", comment: ""),
             style: .plain,
             target: self,
             action: #selector(toggleSelectAll)
         )
 
-        navigationItem.title = "Select Items"
+        navigationItem.title = NSLocalizedString("Select Items", comment: "")
         navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Done",
+            title: NSLocalizedString("Done", comment: ""),
             style: .plain,
             target: self,
             action: #selector(toggleTableEditing)
@@ -103,14 +103,19 @@ extension FilesViewController {
 
         let count = getSelectedFiles().count
         if count == 0 {
-            navigationItem.title = "Select Items"
+            navigationItem.title = NSLocalizedString("Select Items", comment: "")
         } else if count == 1 {
-            navigationItem.title = "1 Item"
+            navigationItem.title = NSLocalizedString("1 Item", comment: "")
         } else {
-            navigationItem.title = "\(count) Items"
+            navigationItem.title = String(
+                format: NSLocalizedString("%d Items", comment: ""),
+                count
+            )
         }
 
-        navigationItem.leftBarButtonItems?[0].title = allSelected ? "Deselect All" : "Select All"
+        navigationItem.leftBarButtonItems?[0].title = allSelected
+            ? NSLocalizedString("Deselect All", comment: "")
+            : NSLocalizedString("Select All", comment: "")
     }
 
     func updateToolbarActions() {
@@ -130,12 +135,12 @@ extension FilesViewController {
                 self.stateMachine.transitionToState(.none)
 
                 let errorAlert = UIAlertController(
-                    title: "Oops, an error occurred :(",
+                    title: NSLocalizedString("Oops, an error occurred :(", comment: ""),
                     message: error.message,
                     preferredStyle: .alert
                 )
 
-                errorAlert.addAction(UIAlertAction(title: "Close", style: .cancel))
+                errorAlert.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .cancel))
                 self.present(errorAlert, animated: true)
             }
         }
@@ -150,21 +155,26 @@ extension FilesViewController {
             return
         }
 
-        let messageItem = selectedFiles.count > 1 ? "\(selectedFiles.count) files" : selectedFiles[0].name
+        let messageItem = selectedFiles.count > 1
+            ? String(format: NSLocalizedString("%d files", comment: ""), selectedFiles.count)
+            : selectedFiles[0].name
 
         let actionSheet = UIAlertController(
-            title: "Are you sure you want to delete \(messageItem)?",
+            title: String(
+                format: NSLocalizedString("Are you sure you want to delete %@?", comment: ""),
+                messageItem
+            ),
             message: nil,
             preferredStyle: .actionSheet
         )
 
-        let deleteButton = UIAlertAction(title: "Delete", style: .destructive) { _ in
+        let deleteButton = UIAlertAction(title: NSLocalizedString("Delete", comment: ""), style: .destructive) { _ in
             self.stopEditing()
             self.deleteFiles(fileIDs: selectedFiles.map { $0.id })
         }
 
         actionSheet.addAction(deleteButton)
-        actionSheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        actionSheet.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
         actionSheet.popoverPresentationController?.sourceView = editingToolbar
 
         present(actionSheet, animated: true)

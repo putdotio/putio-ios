@@ -103,11 +103,17 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
         stateMachine.addView(offlineStatusView, forState: "offline")
 
         let errorNotFoundView = EmptyStateView.instantiateFromInterfaceBuilder()
-        errorNotFoundView.configure(heading: "File not found", description: "We couldn't find that file")
+        errorNotFoundView.configure(
+            heading: NSLocalizedString("File not found", comment: ""),
+            description: NSLocalizedString("We couldn't find that file", comment: "")
+        )
         stateMachine.addView(errorNotFoundView, forState: "404")
 
         let errorView = EmptyStateView.instantiateFromInterfaceBuilder()
-        errorView.configure(heading: "Oops", description: "An error occurred, please try again :(")
+        errorView.configure(
+            heading: NSLocalizedString("Oops", comment: ""),
+            description: NSLocalizedString("An error occurred, please try again :(", comment: "")
+        )
         stateMachine.addView(errorView, forState: "error")
 
         stateMachine.transitionToState(.view("loading"), animated: false, completion: nil)

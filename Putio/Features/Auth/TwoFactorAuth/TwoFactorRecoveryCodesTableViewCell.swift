@@ -12,14 +12,17 @@ class TwoFactorRecoveryCodesTableViewCell: UITableViewCell {
         if code.used_at != "" {
             guard let date = code.used_at else { return }
 
-            self.detailTextLabel?.text = "Used on \(date)"
+            self.detailTextLabel?.text = String(
+                format: NSLocalizedString("Used on %@", comment: ""),
+                date
+            )
         } else {
             self.detailTextLabel?.text = ""
         }
     }
 
     private func renderWithCopiedText() {
-        self.textLabel?.text = "Copied!"
+        self.textLabel?.text = NSLocalizedString("Copied!", comment: "")
 
         Utils.delayWithSeconds(1) {
             self.renderWithCode()

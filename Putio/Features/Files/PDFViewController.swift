@@ -54,11 +54,11 @@ class PDFViewController: UIViewController {
             }
 
             guard let data = response.data else {
-                return self.presentErrorMessage(message: "An error occurred while fetching the PDF")
+                return self.presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the PDF", comment: ""))
             }
 
             guard let pdfDocument = PDFDocument(data: data) else {
-                return self.presentErrorMessage(message: "An error occurred while displaying the PDF")
+                return self.presentErrorMessage(message: NSLocalizedString("An error occurred while displaying the PDF", comment: ""))
             }
 
             DispatchQueue.main.async {
@@ -70,12 +70,12 @@ class PDFViewController: UIViewController {
 
     func presentErrorMessage(message: String) {
         let alertController = UIAlertController(
-            title: "Oops!",
+            title: NSLocalizedString("Oops!", comment: ""),
             message: message,
             preferredStyle: .alert
         )
 
-        let goBackAction = UIAlertAction(title: "Go Back", style: .default) { (_) in
+        let goBackAction = UIAlertAction(title: NSLocalizedString("Go Back", comment: ""), style: .default) { (_) in
             self.navigationController?.popViewController(animated: true)
         }
 

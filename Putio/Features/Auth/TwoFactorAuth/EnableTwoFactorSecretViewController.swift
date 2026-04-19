@@ -22,7 +22,10 @@ class EnableTwoFactorSecretViewController: UIViewController, StatefulViewControl
         stateMachine.addView(loadingView, forState: "loading")
 
         let errorView = EmptyStateView.instantiateFromInterfaceBuilder()
-        errorView.configure(heading: "Oops", description: "An error occurred, please try again :(")
+        errorView.configure(
+            heading: NSLocalizedString("Oops", comment: ""),
+            description: NSLocalizedString("An error occurred, please try again :(", comment: "")
+        )
         stateMachine.addView(errorView, forState: "error")
     }
 
@@ -46,9 +49,9 @@ class EnableTwoFactorSecretViewController: UIViewController, StatefulViewControl
             let pasteboard = UIPasteboard.general
             pasteboard.string = data
 
-            copyButton.setTitle("Copied!", for: .normal)
+            copyButton.setTitle(NSLocalizedString("Copied!", comment: ""), for: .normal)
             Utils.delayWithSeconds(1) {
-                self.copyButton.setTitle("Copy", for: .normal)
+                self.copyButton.setTitle(NSLocalizedString("Copy", comment: ""), for: .normal)
             }
 
         default:

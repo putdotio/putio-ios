@@ -47,8 +47,12 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
     }
 
     func handleWebAuthCallbackFailure(error: Error) {
-        let alertController = UIAlertController(title: "Authentication failed", message: error.localizedDescription, preferredStyle: .alert)
-        let closeButton = UIAlertAction(title: "OK", style: .cancel, handler: nil)
+        let alertController = UIAlertController(
+            title: NSLocalizedString("Authentication failed", comment: ""),
+            message: error.localizedDescription,
+            preferredStyle: .alert
+        )
+        let closeButton = UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel, handler: nil)
         alertController.addAction(closeButton)
         present(alertController, animated: true, completion: nil)
     }
@@ -59,7 +63,11 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
         urlComponents.query = callbackURL.fragment
 
         guard let tokenFragment = urlComponents.queryItems?.first(where: { $0.name == "access_token" }), let token = tokenFragment.value else {
-            let error = NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: "Missing access_token in the callback URL."])
+            let error = NSError(
+                domain: "",
+                code: 0,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("Missing access_token in the callback URL.", comment: "")]
+            )
             return handleWebAuthCallbackFailure(error: error)
         }
 

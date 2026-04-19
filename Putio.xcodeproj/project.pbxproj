@@ -55,6 +55,7 @@
 		AC7863182052C69400E26106 /* DownloadsEmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC7863172052C69400E26106 /* DownloadsEmptyStateView.swift */; };
 		AC78631C2052C6FE00E26106 /* DownloadsEmptyStateView.xib in Resources */ = {isa = PBXBuildFile; fileRef = AC78631B2052C6FE00E26106 /* DownloadsEmptyStateView.xib */; };
 		AC79B68F2AF0E0FD00D47BAF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ACEF62F41F9A26AA0026B25E /* Assets.xcassets */; };
+		AC8F20012B10000100C0F001 /* en.lproj in Resources */ = {isa = PBXBuildFile; fileRef = AC8F20002B10000100C0F001 /* en.lproj */; };
 		AC7F4E881FD677FA001FFBA9 /* FilesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC7F4E871FD677FA001FFBA9 /* FilesViewModel.swift */; };
 		AC7F4E8A1FD67BB9001FFBA9 /* FilesTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC7F4E891FD67BB9001FFBA9 /* FilesTableViewCell.swift */; };
 		AC7F4E8C1FD691B7001FFBA9 /* FilesRootViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC7F4E8B1FD691B7001FFBA9 /* FilesRootViewController.swift */; };
@@ -195,6 +196,7 @@
 		AC76E0291FB4D6A100693A18 /* UITableViewCell+Dark.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UITableViewCell+Dark.swift"; sourceTree = "<group>"; };
 		AC7863172052C69400E26106 /* DownloadsEmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsEmptyStateView.swift; sourceTree = "<group>"; };
 		AC78631B2052C6FE00E26106 /* DownloadsEmptyStateView.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = DownloadsEmptyStateView.xib; sourceTree = "<group>"; };
+		AC8F20002B10000100C0F001 /* en.lproj */ = {isa = PBXFileReference; lastKnownFileType = folder; path = en.lproj; sourceTree = "<group>"; };
 		AC7F4E871FD677FA001FFBA9 /* FilesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesViewModel.swift; sourceTree = "<group>"; };
 		AC7F4E891FD67BB9001FFBA9 /* FilesTableViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesTableViewCell.swift; sourceTree = "<group>"; };
 		AC7F4E8B1FD691B7001FFBA9 /* FilesRootViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesRootViewController.swift; sourceTree = "<group>"; };
@@ -608,6 +610,7 @@
 			children = (
 				AC30947A1FF3DBD000CB3C7C /* Putio.entitlements */,
 				ACEF62F91F9A26AA0026B25E /* Info.plist */,
+				AC8F20002B10000100C0F001 /* en.lproj */,
 				AC2C4CA7202394070089DAD9 /* discoball.gif */,
 				ACB8168C20567A20008F1D3E /* downloadsTutorial.mov */,
 				AC328A3721988B500056D25B /* blank.pdf */,
@@ -783,6 +786,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AC79B68F2AF0E0FD00D47BAF /* Assets.xcassets in Resources */,
+				AC8F20012B10000100C0F001 /* en.lproj in Resources */,
 				ACAD072220E126D100C3FB5F /* Image.storyboard in Resources */,
 				ACFA837B1FF12FA2008711B4 /* LoaderView.xib in Resources */,
 				AC78631C2052C6FE00E26106 /* DownloadsEmptyStateView.xib in Resources */,

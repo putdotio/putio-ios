@@ -1,0 +1,585 @@
+/* No comment provided by engineer. */
+"%@  %@" = "%1$@  %2$@";
+
+/* No comment provided by engineer. */
+"%@ - %@" = "%1$@ - %2$@";
+
+/* No comment provided by engineer. */
+"%@ - Downloaded %@" = "%1$@ - Downloaded %2$@";
+
+/* No comment provided by engineer. */
+"%@ - Expires on %@" = "%1$@ - Expires on %2$@";
+
+/* No comment provided by engineer. */
+"%@ - Shared by %@" = "%1$@ - Shared by %2$@";
+
+/* No comment provided by engineer. */
+"%@ free of %@" = "%1$@ free of %2$@";
+
+/* No comment provided by engineer. */
+"%@ is paused because we couldn't reach the source" = "%@ is paused because we couldn't reach the source";
+
+/* No comment provided by engineer. */
+"%@ is ready to play." = "%@ is ready to play.";
+
+/* No comment provided by engineer. */
+"%@ of %@ used" = "%1$@ of %2$@ used";
+
+/* No comment provided by engineer. */
+"%d files" = "%d files";
+
+/* No comment provided by engineer. */
+"%d Items" = "%d Items";
+
+/* No comment provided by engineer. */
+"1 Item" = "1 Item";
+
+/* No comment provided by engineer. */
+"About" = "About";
+
+/* No comment provided by engineer. */
+"About put.io" = "About put.io";
+
+/* No comment provided by engineer. */
+"Account" = "Account";
+
+/* No comment provided by engineer. */
+"Amsterdam" = "Amsterdam";
+
+/* No comment provided by engineer. */
+"An error occurred while displaying the image" = "An error occurred while displaying the image";
+
+/* No comment provided by engineer. */
+"An error occurred while displaying the PDF" = "An error occurred while displaying the PDF";
+
+/* No comment provided by engineer. */
+"An error occurred while fetching the Image" = "An error occurred while fetching the Image";
+
+/* No comment provided by engineer. */
+"An error occurred while fetching the PDF" = "An error occurred while fetching the PDF";
+
+/* No comment provided by engineer. */
+"An error occurred while trying to cast this file. Please try again." = "An error occurred while trying to cast this file. Please try again.";
+
+/* No comment provided by engineer. */
+"An error occurred, please try again :(" = "An error occurred, please try again :(";
+
+/* No comment provided by engineer. */
+"Ancient Times" = "Ancient Times";
+
+/* No comment provided by engineer. */
+"Are you sure to delete those files?" = "Are you sure to delete those files?";
+
+/* No comment provided by engineer. */
+"Are you sure you want to delete %@?" = "Are you sure you want to delete %@?";
+
+/* No comment provided by engineer. */
+"Are you sure?" = "Are you sure?";
+
+/* No comment provided by engineer. */
+"Audio %d" = "Audio %d";
+
+/* No comment provided by engineer. */
+"Authentication failed" = "Authentication failed";
+
+/* No comment provided by engineer. */
+"Cancel" = "Cancel";
+
+/* No comment provided by engineer. */
+"Casting Error" = "Casting Error";
+
+/* No comment provided by engineer. */
+"Choose new location for %d files" = "Choose new location for %d files";
+
+/* No comment provided by engineer. */
+"Choose new location for 1 file" = "Choose new location for 1 file";
+
+/* No comment provided by engineer. */
+"Choose your proxy" = "Choose your proxy";
+
+/* No comment provided by engineer. */
+"Chromecast video playback type" = "Chromecast video playback type";
+
+/* No comment provided by engineer. */
+"Cleaning up..." = "Cleaning up...";
+
+/* No comment provided by engineer. */
+"Clear" = "Clear";
+
+/* No comment provided by engineer. */
+"Clear your data" = "Clear your data";
+
+/* No comment provided by engineer. */
+"Close" = "Close";
+
+/* No comment provided by engineer. */
+"Completed, video will automatically play!" = "Completed, video will automatically play!";
+
+/* No comment provided by engineer. */
+"Connected!" = "Connected!";
+
+/* No comment provided by engineer. */
+"Contact us" = "Contact us";
+
+/* No comment provided by engineer. */
+"Continue watching" = "Continue watching";
+
+/* No comment provided by engineer. */
+"Convert and Download" = "Convert and Download";
+
+/* No comment provided by engineer. */
+"Converting..." = "Converting...";
+
+/* No comment provided by engineer. */
+"Copied!" = "Copied!";
+
+/* No comment provided by engineer. */
+"Copy" = "Copy";
+
+/* No comment provided by engineer. */
+"Copy all" = "Copy all";
+
+/* No comment provided by engineer. */
+"Create" = "Create";
+
+/* No comment provided by engineer. */
+"Create New Folder" = "Create New Folder";
+
+/* No comment provided by engineer. */
+"Danger Zone" = "Danger Zone";
+
+/* No comment provided by engineer. */
+"Date Added" = "Date Added";
+
+/* No comment provided by engineer. */
+"Date Modified" = "Date Modified";
+
+/* No comment provided by engineer. */
+"Default sort option for files" = "Default sort option for files";
+
+/* No comment provided by engineer. */
+"Delete" = "Delete";
+
+/* No comment provided by engineer. */
+"Delete Download" = "Delete Download";
+
+/* No comment provided by engineer. */
+"Deleting..." = "Deleting...";
+
+/* No comment provided by engineer. */
+"Deselect All" = "Deselect All";
+
+/* No comment provided by engineer. */
+"Destroy Account" = "Destroy Account";
+
+/* No comment provided by engineer. */
+"Destroy your account" = "Destroy your account";
+
+/* No comment provided by engineer. */
+"Disable History" = "Disable History";
+
+/* No comment provided by engineer. */
+"Disable Trash" = "Disable Trash";
+
+/* No comment provided by engineer. */
+"Disabling history will also clear your current activities." = "Disabling history will also clear your current activities.";
+
+/* No comment provided by engineer. */
+"Disabling trash will empty your trash first." = "Disabling trash will empty your trash first.";
+
+/* No comment provided by engineer. */
+"Disabling..." = "Disabling...";
+
+/* No comment provided by engineer. */
+"Do not select subtitles by default" = "Do not select subtitles by default";
+
+/* No comment provided by engineer. */
+"Done" = "Done";
+
+/* No comment provided by engineer. */
+"Done!" = "Done!";
+
+/* No comment provided by engineer. */
+"Download" = "Download";
+
+/* No comment provided by engineer. */
+"Download Completed!" = "Download Completed!";
+
+/* No comment provided by engineer. */
+"Downloading..." = "Downloading...";
+
+/* No comment provided by engineer. */
+"Downloads" = "Downloads";
+
+/* No comment provided by engineer. */
+"Downloads tutorial" = "Downloads tutorial";
+
+/* No comment provided by engineer. */
+"Email address" = "Email address";
+
+/* No comment provided by engineer. */
+"Empty trash" = "Empty trash";
+
+/* No comment provided by engineer. */
+"Enabling..." = "Enabling...";
+
+/* No comment provided by engineer. */
+"Error" = "Error";
+
+/* No comment provided by engineer. */
+"Error in transfer %@" = "Error in transfer %@";
+
+/* No comment provided by engineer. */
+"Error in transfer callback for %@" = "Error in transfer callback for %@";
+
+/* No comment provided by engineer. */
+"Error in transfer from RSS for %@" = "Error in transfer from RSS for %@";
+
+/* No comment provided by engineer. */
+"Failed: %@" = "Failed: %@";
+
+/* No comment provided by engineer. */
+"File not found" = "File not found";
+
+/* No comment provided by engineer. */
+"File not reachable" = "File not reachable";
+
+/* No comment provided by engineer. */
+"File Unavailable" = "File Unavailable";
+
+/* No comment provided by engineer. */
+"Files" = "Files";
+
+/* No comment provided by engineer. */
+"Folder Name" = "Folder Name";
+
+/* No comment provided by engineer. */
+"Go Back" = "Go Back";
+
+/* No comment provided by engineer. */
+"History" = "History";
+
+/* No comment provided by engineer. */
+"I have saved my recovery codes" = "I have saved my recovery codes";
+
+/* No comment provided by engineer. */
+"In Queue" = "In Queue";
+
+/* No comment provided by engineer. */
+"Information" = "Information";
+
+/* No comment provided by engineer. */
+"Invalid username or password" = "Invalid username or password";
+
+/* No comment provided by engineer. */
+"It may take a long time if there are too many files." = "It may take a long time if there are too many files.";
+
+/* No comment provided by engineer. */
+"Items you move to trash will appear here." = "Items you move to trash will appear here.";
+
+/* No comment provided by engineer. */
+"Keep populating history" = "Keep populating history";
+
+/* No comment provided by engineer. */
+"Last saved timestamp for this video is %@" = "Last saved timestamp for this video is %@";
+
+/* No comment provided by engineer. */
+"Last Week" = "Last Week";
+
+/* No comment provided by engineer. */
+"Libraries we use in put.io iOS" = "Libraries we use in put.io iOS";
+
+/* No comment provided by engineer. */
+"Link your account" = "Link your account";
+
+/* No comment provided by engineer. */
+"Log out" = "Log out";
+
+/* No comment provided by engineer. */
+"Manage your trash" = "Manage your trash";
+
+/* No comment provided by engineer. */
+"Media playback" = "Media playback";
+
+/* No comment provided by engineer. */
+"Missing access_token in the callback URL." = "Missing access_token in the callback URL.";
+
+/* No comment provided by engineer. */
+"More" = "More";
+
+/* No comment provided by engineer. */
+"Move" = "Move";
+
+/* No comment provided by engineer. */
+"Move deleted files to trash" = "Move deleted files to trash";
+
+/* No comment provided by engineer. */
+"Moving to trash..." = "Moving to trash...";
+
+/* No comment provided by engineer. */
+"Moving..." = "Moving...";
+
+/* No comment provided by engineer. */
+"Name" = "Name";
+
+/* No comment provided by engineer. */
+"Network error" = "Network error";
+
+/* No comment provided by engineer. */
+"New Name" = "New Name";
+
+/* No comment provided by engineer. */
+"No folders whatsoever" = "No folders whatsoever";
+
+/* No comment provided by engineer. */
+"No search result" = "No search result";
+
+/* No comment provided by engineer. */
+"No title" = "No title";
+
+/* No comment provided by engineer. */
+"OK" = "OK";
+
+/* No comment provided by engineer. */
+"One last step" = "One last step";
+
+/* No comment provided by engineer. */
+"Oops" = "Oops";
+
+/* No comment provided by engineer. */
+"Oops!" = "Oops!";
+
+/* No comment provided by engineer. */
+"Oops, an error occurred" = "Oops, an error occurred";
+
+/* No comment provided by engineer. */
+"Oops, an error occurred :(" = "Oops, an error occurred :(";
+
+/* No comment provided by engineer. */
+"Oops, we couldn't delete those files :(" = "Oops, we couldn't delete those files :(";
+
+/* No comment provided by engineer. */
+"Oops, we couldn't restore those files :(" = "Oops, we couldn't restore those files :(";
+
+/* No comment provided by engineer. */
+"Play Downloaded" = "Play Downloaded";
+
+/* No comment provided by engineer. */
+"Play original in VLC" = "Play original in VLC";
+
+/* No comment provided by engineer. */
+"Please check your code and try again." = "Please check your code and try again.";
+
+/* No comment provided by engineer. */
+"Please check your credentials and try again." = "Please check your credentials and try again.";
+
+/* No comment provided by engineer. */
+"Please check your internet connection and try again." = "Please check your internet connection and try again.";
+
+/* No comment provided by engineer. */
+"Please check your password and try again." = "Please check your password and try again.";
+
+/* No comment provided by engineer. */
+"Please enter your password for confirmation." = "Please enter your password for confirmation.";
+
+/* No comment provided by engineer. */
+"Please try again later" = "Please try again later";
+
+/* No comment provided by engineer. */
+"Privacy and safety" = "Privacy and safety";
+
+/* No comment provided by engineer. */
+"Privacy policy" = "Privacy policy";
+
+/* No comment provided by engineer. */
+"Processing..." = "Processing...";
+
+/* No comment provided by engineer. */
+"Rate put.io on App Store" = "Rate put.io on App Store";
+
+/* No comment provided by engineer. */
+"Re-download" = "Re-download";
+
+/* No comment provided by engineer. */
+"recently" = "recently";
+
+/* No comment provided by engineer. */
+"Recovering..." = "Recovering...";
+
+/* No comment provided by engineer. */
+"Regenerate" = "Regenerate";
+
+/* No comment provided by engineer. */
+"Rename" = "Rename";
+
+/* No comment provided by engineer. */
+"Rename %@" = "Rename %@";
+
+/* No comment provided by engineer. */
+"Reset all sort settings" = "Reset all sort settings";
+
+/* No comment provided by engineer. */
+"Resetting..." = "Resetting...";
+
+/* No comment provided by engineer. */
+"Restore" = "Restore";
+
+/* No comment provided by engineer. */
+"Restore all" = "Restore all";
+
+/* No comment provided by engineer. */
+"Restore Downloads" = "Restore Downloads";
+
+/* No comment provided by engineer. */
+"Restore started!" = "Restore started!";
+
+/* No comment provided by engineer. */
+"Restore Your Downloads" = "Restore Your Downloads";
+
+/* No comment provided by engineer. */
+"Restoring..." = "Restoring...";
+
+/* No comment provided by engineer. */
+"Save" = "Save";
+
+/* No comment provided by engineer. */
+"Saving..." = "Saving...";
+
+/* No comment provided by engineer. */
+"Security" = "Security";
+
+/* No comment provided by engineer. */
+"Select" = "Select";
+
+/* No comment provided by engineer. */
+"Select All" = "Select All";
+
+/* No comment provided by engineer. */
+"Select Items" = "Select Items";
+
+/* No comment provided by engineer. */
+"Show subtitles" = "Show subtitles";
+
+/* No comment provided by engineer. */
+"Size" = "Size";
+
+/* No comment provided by engineer. */
+"Something unexpected happened. Please try again." = "Something unexpected happened. Please try again.";
+
+/* No comment provided by engineer. */
+"Something went wrong" = "Something went wrong";
+
+/* No comment provided by engineer. */
+"Start from the beginning" = "Start from the beginning";
+
+/* No comment provided by engineer. */
+"Starting..." = "Starting...";
+
+/* No comment provided by engineer. */
+"Stopped" = "Stopped";
+
+/* No comment provided by engineer. */
+"Storage" = "Storage";
+
+/* No comment provided by engineer. */
+"Support" = "Support";
+
+/* No comment provided by engineer. */
+"Terms of service" = "Terms of service";
+
+/* No comment provided by engineer. */
+"The code you entered is invalid" = "The code you entered is invalid";
+
+/* No comment provided by engineer. */
+"The original version of this file has been deleted from your put.io account." = "The original version of this file has been deleted from your put.io account.";
+
+/* No comment provided by engineer. */
+"The password you entered doesn't match the one in our records" = "The password you entered doesn't match the one in our records";
+
+/* No comment provided by engineer. */
+"There will be information when things start happening." = "There will be information when things start happening.";
+
+/* No comment provided by engineer. */
+"This directory doesn't contain any folder" = "This directory doesn't contain any folder";
+
+/* No comment provided by engineer. */
+"Today" = "Today";
+
+/* No comment provided by engineer. */
+"Trash" = "Trash";
+
+/* No comment provided by engineer. */
+"Two-factor authentication" = "Two-factor authentication";
+
+/* No comment provided by engineer. */
+"Type" = "Type";
+
+/* No comment provided by engineer. */
+"Unsupported File" = "Unsupported File";
+
+/* No comment provided by engineer. */
+"Usage" = "Usage";
+
+/* No comment provided by engineer. */
+"Used on %@" = "Used on %@";
+
+/* No comment provided by engineer. */
+"Username" = "Username";
+
+/* No comment provided by engineer. */
+"Video %d" = "Video %d";
+
+/* No comment provided by engineer. */
+"View your two-factor recovery codes" = "View your two-factor recovery codes";
+
+/* No comment provided by engineer. */
+"Waiting..." = "Waiting...";
+
+/* No comment provided by engineer. */
+"Watch Status" = "Watch Status";
+
+/* No comment provided by engineer. */
+"We couldn't find anything for that." = "We couldn't find anything for that.";
+
+/* No comment provided by engineer. */
+"We couldn't find anything to play" = "We couldn't find anything to play";
+
+/* No comment provided by engineer. */
+"We couldn't find that file" = "We couldn't find that file";
+
+/* No comment provided by engineer. */
+"We couldn't read this file from the disk. It may be corrupted during the download or auto deleted by the operating system to cleanup disk space." = "We couldn't read this file from the disk. It may be corrupted during the download or auto deleted by the operating system to cleanup disk space.";
+
+/* No comment provided by engineer. */
+"We had to delete %@ per your instructions, since there wasn't enough free space." = "We had to delete %@ per your instructions, since there wasn't enough free space.";
+
+/* No comment provided by engineer. */
+"We're unable to show this kind of file in the app yet." = "We're unable to show this kind of file in the app yet.";
+
+/* No comment provided by engineer. */
+"Where would you like to start?" = "Where would you like to start?";
+
+/* No comment provided by engineer. */
+"Where you are logged in" = "Where you are logged in";
+
+/* No comment provided by engineer. */
+"Yes, empty trash" = "Yes, empty trash";
+
+/* No comment provided by engineer. */
+"Yesterday" = "Yesterday";
+
+/* No comment provided by engineer. */
+"You have successfully linked to %@" = "You have successfully linked to %@";
+
+/* No comment provided by engineer. */
+"Your Files" = "Your Files";
+
+/* No comment provided by engineer. */
+"Your files are still on this device but need to be restored after an app update.\n\nA stable internet connection is recommended." = "Your files are still on this device but need to be restored after an app update.\n\nA stable internet connection is recommended.";
+
+/* No comment provided by engineer. */
+"Your history is empty" = "Your history is empty";
+
+/* No comment provided by engineer. */
+"Your trash is empty" = "Your trash is empty";
+

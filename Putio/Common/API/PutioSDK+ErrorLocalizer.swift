@@ -61,8 +61,8 @@ let unknownErrorLocalizer = APIErrorLocalizer(
     matcher: .unknown,
     localize: { error in
         return PutioLocalizedError(
-            message: "Something went wrong",
-            recoverySuggestion: .instruction(description: "Please try again later"),
+            message: NSLocalizedString("Something went wrong", comment: ""),
+            recoverySuggestion: .instruction(description: NSLocalizedString("Please try again later", comment: "")),
             underlyingError: error
         )
     }
@@ -72,8 +72,8 @@ let networkErrorLocalizer = APIErrorLocalizer(
     matcher: .statusCode(0),
     localize: { error in
         return PutioLocalizedError(
-            message: "Network error",
-            recoverySuggestion: .instruction(description: "Please check your internet connection and try again."),
+            message: NSLocalizedString("Network error", comment: ""),
+            recoverySuggestion: .instruction(description: NSLocalizedString("Please check your internet connection and try again.", comment: "")),
             underlyingError: error
         )
     }
