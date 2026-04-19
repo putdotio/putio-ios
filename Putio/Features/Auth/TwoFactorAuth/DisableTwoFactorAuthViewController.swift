@@ -12,7 +12,7 @@ class DisableTwoFactorAuthViewController: UIViewController {
 
     func handleSubmit(code: String) {
         let loadingAlert = UIAlertController(
-            title: "Disabling...",
+            title: NSLocalizedString("Disabling...", comment: ""),
             message: "",
             preferredStyle: .alert
         )
@@ -40,7 +40,7 @@ class DisableTwoFactorAuthViewController: UIViewController {
                         message: localizedError.recoverySuggestion.description,
                         preferredStyle: .alert
                     )
-                    errorAlert.addAction(UIAlertAction(title: "OK", style: .cancel, handler: nil))
+                    errorAlert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel, handler: nil))
 
                     return self.present(errorAlert, animated: true, completion: nil)
                 }

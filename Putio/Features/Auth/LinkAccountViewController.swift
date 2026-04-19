@@ -15,12 +15,15 @@ class LinkAccountViewController: UIViewController, UITextFieldDelegate {
             switch result {
             case .success(let connectedApp):
                 let alert = UIAlertController(
-                    title: "Connected!",
-                    message: "You have successfully linked to \(connectedApp.name)",
+                    title: NSLocalizedString("Connected!", comment: ""),
+                    message: String(
+                        format: NSLocalizedString("You have successfully linked to %@", comment: ""),
+                        connectedApp.name
+                    ),
                     preferredStyle: .alert
                 )
 
-                alert.addAction(UIAlertAction(title: "OK", style: .cancel, handler: { (_) in
+                alert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel, handler: { (_) in
                     self.navigationController?.popViewController(animated: true)
                 }))
 
@@ -28,12 +31,12 @@ class LinkAccountViewController: UIViewController, UITextFieldDelegate {
 
             case .failure(let error):
                 let alert = UIAlertController(
-                    title: "Oops, an error occurred",
+                    title: NSLocalizedString("Oops, an error occurred", comment: ""),
                     message: error.message,
                     preferredStyle: .alert
                 )
 
-                alert.addAction(UIAlertAction(title: "OK", style: .cancel, handler: { (_) in
+                alert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel, handler: { (_) in
                     self.codeTextField.text = ""
                 }))
 

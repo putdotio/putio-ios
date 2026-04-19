@@ -36,11 +36,11 @@ class ImageViewController: UIViewController {
             }
 
             guard let data = response.data else {
-                return self.presentErrorMessage(message: "An error occurred while fetching the Image")
+                return self.presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the Image", comment: ""))
             }
 
             guard let image = UIImage(data: data) else {
-                return self.presentErrorMessage(message: "An error occurred while displaying the image")
+                return self.presentErrorMessage(message: NSLocalizedString("An error occurred while displaying the image", comment: ""))
             }
 
             DispatchQueue.main.async {
@@ -51,12 +51,12 @@ class ImageViewController: UIViewController {
 
     func presentErrorMessage(message: String) {
         let errorAlert = UIAlertController(
-            title: "Oops!",
+            title: NSLocalizedString("Oops!", comment: ""),
             message: message,
             preferredStyle: .alert
         )
 
-        let goBackAction = UIAlertAction(title: "Go Back", style: .default) { (_) in
+        let goBackAction = UIAlertAction(title: NSLocalizedString("Go Back", comment: ""), style: .default) { (_) in
             self.navigationController?.popViewController(animated: true)
         }
 

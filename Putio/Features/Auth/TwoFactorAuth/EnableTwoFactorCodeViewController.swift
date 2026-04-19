@@ -12,7 +12,7 @@ class EnableTwoFactorCodeViewController: UIViewController {
 
     func handleSubmit(code: String) {
         let loadingAlert = UIAlertController(
-            title: "Enabling...",
+            title: NSLocalizedString("Enabling...", comment: ""),
             message: "",
             preferredStyle: .alert
         )
@@ -40,7 +40,7 @@ class EnableTwoFactorCodeViewController: UIViewController {
                         message: localizedError.recoverySuggestion.description,
                         preferredStyle: .alert
                     )
-                    errorAlert.addAction(UIAlertAction(title: "OK", style: .cancel, handler: nil))
+                    errorAlert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel, handler: nil))
 
                     return self.present(errorAlert, animated: true, completion: nil)
                 }

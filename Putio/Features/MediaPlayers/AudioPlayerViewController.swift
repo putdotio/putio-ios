@@ -97,7 +97,7 @@ class AudioPlayerViewController: UIViewController {
             nextItemActionButton.tintColor = UIColor.Putio.yellow
 
         case .failure:
-            nextItemLabel.text =  "We couldn't find anything to play"
+            nextItemLabel.text = NSLocalizedString("We couldn't find anything to play", comment: "")
             nextItemLabel.isHidden = false
             nextItemLoadingView.isHidden = true
             nextItemActionButton.isEnabled = false

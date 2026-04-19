@@ -158,9 +158,16 @@ class VideoPlayerViewController: AVPlayerViewController {
 
         guard let timestamp = formatter.string(from: Double(startFrom)) else { return completion(0) }
 
-        let alert = UIAlertController(title: "Where would you like to start?", message: "Last saved timestamp for this video is \(timestamp)", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "Continue watching", style: .default, handler: { (_) in completion(startFrom) }))
-        alert.addAction(UIAlertAction(title: "Start from the beginning", style: .default, handler: { (_) in completion(0) }))
+        let alert = UIAlertController(
+            title: NSLocalizedString("Where would you like to start?", comment: ""),
+            message: String(
+                format: NSLocalizedString("Last saved timestamp for this video is %@", comment: ""),
+                timestamp
+            ),
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Continue watching", comment: ""), style: .default, handler: { (_) in completion(startFrom) }))
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Start from the beginning", comment: ""), style: .default, handler: { (_) in completion(0) }))
 
         present(alert, animated: true, completion: nil)
     }

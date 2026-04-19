@@ -42,13 +42,13 @@ class TwoFactorRecoveryCodesViewController: UIViewController, StatefulViewContro
     func configureAppearance() {
         switch action {
         case .confirmSave:
-            primaryButton.setTitle("I have saved my recovery codes", for: .normal)
+            primaryButton.setTitle(NSLocalizedString("I have saved my recovery codes", comment: ""), for: .normal)
             navigationItem.hidesBackButton = true
         case .regenerateCodes:
-            primaryButton.setTitle("Regenerate", for: .normal)
+            primaryButton.setTitle(NSLocalizedString("Regenerate", comment: ""), for: .normal)
         }
 
-        secondaryButton.setTitle("Copy all", for: .normal)
+        secondaryButton.setTitle(NSLocalizedString("Copy all", comment: ""), for: .normal)
 
         bannerView.isHidden = true
         tableView.isHidden = true
@@ -60,7 +60,10 @@ class TwoFactorRecoveryCodesViewController: UIViewController, StatefulViewContro
         stateMachine.addView(loadingView, forState: "loading")
 
         let errorView = EmptyStateView.instantiateFromInterfaceBuilder()
-        errorView.configure(heading: "Oops", description: "An error occurred, please try again :(")
+        errorView.configure(
+            heading: NSLocalizedString("Oops", comment: ""),
+            description: NSLocalizedString("An error occurred, please try again :(", comment: "")
+        )
         stateMachine.addView(errorView, forState: "error")
 
         let offlineStatusView = OfflineStatusView.instantiateFromInterfaceBuilder()
@@ -89,9 +92,9 @@ class TwoFactorRecoveryCodesViewController: UIViewController, StatefulViewContro
             let pasteboard = UIPasteboard.general
             pasteboard.string = codes
 
-            secondaryButton.setTitle("Copied!", for: .normal)
+            secondaryButton.setTitle(NSLocalizedString("Copied!", comment: ""), for: .normal)
             Utils.delayWithSeconds(3) {
-                self.secondaryButton.setTitle("Copy all", for: .normal)
+                self.secondaryButton.setTitle(NSLocalizedString("Copy all", comment: ""), for: .normal)
             }
 
         default:

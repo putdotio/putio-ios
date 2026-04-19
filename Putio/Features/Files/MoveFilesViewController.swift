@@ -47,9 +47,11 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
         tableView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: 56, right: 0)
         tableView.scrollIndicatorInsets = tableView.contentInset
 
-        let message = filesToMove.count > 1 ? "files" : "file"
-        navigationItem.prompt = "Choose new location for \(filesToMove.count) \(message)"
-        navigationItem.title = file?.name ?? "Your Files"
+        let prompt = filesToMove.count > 1
+            ? String(format: NSLocalizedString("Choose new location for %d files", comment: ""), filesToMove.count)
+            : NSLocalizedString("Choose new location for 1 file", comment: "")
+        navigationItem.prompt = prompt
+        navigationItem.title = file?.name ?? NSLocalizedString("Your Files", comment: "")
     }
 
     func canMove(to file: PutioFile) -> Bool {
@@ -79,7 +81,10 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
 
                 if self.files.count == 0 {
                     let emptyView = EmptyStateView.instantiateFromInterfaceBuilder()
-                    emptyView.configure(heading: "No folders whatsoever", description: "This directory doesn't contain any folder")
+                    emptyView.configure(
+                        heading: NSLocalizedString("No folders whatsoever", comment: ""),
+                        description: NSLocalizedString("This directory doesn't contain any folder", comment: "")
+                    )
                     self.tableView.backgroundView = emptyView
                 } else {
                     self.tableView.backgroundView = nil
@@ -100,7 +105,11 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
     }
 
     @IBAction func moveButtonPressed(_ sender: Any) {
-        let loadingAlert = UIAlertController(title: "Moving...", message: "", preferredStyle: .alert)
+        let loadingAlert = UIAlertController(
+            title: NSLocalizedString("Moving...", comment: ""),
+            message: "",
+            preferredStyle: .alert
+        )
         self.present(loadingAlert, animated: true, completion: nil)
 
         api.moveFiles(fileIDs: filesToMove.map {$0.id}, parentID: file!.id) { result in
@@ -112,12 +121,12 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
 
                 case .failure(let error):
                     let errorAlert = UIAlertController(
-                        title: "Oops, an error occurred :(",
+                        title: NSLocalizedString("Oops, an error occurred :(", comment: ""),
                         message: error.message,
                         preferredStyle: .alert
                     )
 
-                    errorAlert.addAction(UIAlertAction(title: "Close", style: .cancel, handler: nil))
+                    errorAlert.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .cancel, handler: nil))
                     self.present(errorAlert, animated: true, completion: nil)
                 }
             })

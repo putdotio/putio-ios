@@ -20,14 +20,17 @@ class FilesRootViewController: FilesViewController {
     override func configureStateMachine() {
         super.configureStateMachine()
         let emptySearchResultsView = EmptyStateView.instantiateFromInterfaceBuilder()
-        emptySearchResultsView.configure(heading: "No search result", description: "We couldn't find anything for that.")
+        emptySearchResultsView.configure(
+            heading: NSLocalizedString("No search result", comment: ""),
+            description: NSLocalizedString("We couldn't find anything for that.", comment: "")
+        )
         stateMachine.addView(emptySearchResultsView, forState: "emptySearchResults")
     }
 
     override func configureAppearance() {
         super.configureAppearance()
 
-        navigationItem.title = "Your Files"
+        navigationItem.title = NSLocalizedString("Your Files", comment: "")
 
         configureSearchbar()
     }
@@ -51,7 +54,7 @@ class FilesRootViewController: FilesViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationItem.title = "Your Files"
+        navigationItem.title = NSLocalizedString("Your Files", comment: "")
         navigationItem.searchController = searchController
         navigationItem.hidesSearchBarWhenScrolling = false
     }

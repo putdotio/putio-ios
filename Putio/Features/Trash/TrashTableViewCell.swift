@@ -21,6 +21,10 @@ class TrashTableViewCell: UITableViewCell {
 
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM d"
-        detailTextLabel?.text = "\(trashFile.size.bytesToHumanReadable()) - Expires on \(formatter.string(from: trashFile.expiresOn))"
+        detailTextLabel?.text = String(
+            format: NSLocalizedString("%@ - Expires on %@", comment: ""),
+            trashFile.size.bytesToHumanReadable(),
+            formatter.string(from: trashFile.expiresOn)
+        )
     }
 }

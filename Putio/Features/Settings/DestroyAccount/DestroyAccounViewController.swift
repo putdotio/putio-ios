@@ -9,17 +9,17 @@ class DestroyAccounViewController: UIViewController {
 
     @IBAction func destroyButtonTapped(_ sender: Any) {
         let alertController = UIAlertController(
-            title: "One last step",
-            message: "Please enter your password for confirmation.",
+            title: NSLocalizedString("One last step", comment: ""),
+            message: NSLocalizedString("Please enter your password for confirmation.", comment: ""),
             preferredStyle: .alert
         )
 
-        let submitAction = UIAlertAction(title: "Destroy Account", style: .destructive) { [unowned alertController] _ in
+        let submitAction = UIAlertAction(title: NSLocalizedString("Destroy Account", comment: ""), style: .destructive) { [unowned alertController] _ in
             guard let password = alertController.textFields![0].text else { return }
             self.destroyAccount(password: password)
         }
 
-        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
+        let cancelAction = UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel, handler: nil)
 
         alertController.addTextField { $0.isSecureTextEntry = true }
         alertController.addAction(submitAction)
@@ -29,7 +29,11 @@ class DestroyAccounViewController: UIViewController {
     }
 
     func destroyAccount(password: String) {
-        let loadingAlert = UIAlertController(title: "Processing...", message: nil, preferredStyle: .alert)
+        let loadingAlert = UIAlertController(
+            title: NSLocalizedString("Processing...", comment: ""),
+            message: nil,
+            preferredStyle: .alert
+        )
 
         present(loadingAlert, animated: true) {
             api.destroyAccount(currentPassword: password) { result in
@@ -53,15 +57,15 @@ class DestroyAccounViewController: UIViewController {
                 matcher: .errorType("INVALID_CURRENT_PASSWORD"),
                 localize: { error in
                     return PutioLocalizedError(
-                        message: "The password you entered doesn't match the one in our records",
-                        recoverySuggestion: .instruction(description: "Please check your password and try again."),
+                        message: NSLocalizedString("The password you entered doesn't match the one in our records", comment: ""),
+                        recoverySuggestion: .instruction(description: NSLocalizedString("Please check your password and try again.", comment: "")),
                         underlyingError: error
                     )
             })
         ])
 
         let errorAlert = UIAlertController(title: localizedError.message, message: localizedError.recoverySuggestion.description, preferredStyle: .alert)
-        errorAlert.addAction(UIAlertAction(title: "OK", style: .cancel, handler: nil))
+        errorAlert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel, handler: nil))
 
         present(errorAlert, animated: true, completion: nil)
     }

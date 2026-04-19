@@ -258,7 +258,7 @@ class PutioRealm {
     private static func buildRecoveredDownload(fileId: Int, isVideo: Bool) -> Download {
         let download = Download()
         download.id = fileId
-        download.name = "Recovering..."
+        download.name = localizedRecoveringPlaceholder
         download.stateRaw = Download.State.completed.rawValue
         download.fileTypeRaw = isVideo ? Download.FileType.video.rawValue : Download.FileType.audio.rawValue
         download.completedAt = Date()
@@ -298,7 +298,12 @@ class PutioRealm {
         guard let realm = realm ?? (try? Realm()) else { return }
 
         let placeholders = realm.objects(Download.self).filter(
-            "name == 'Recovering...' OR name BEGINSWITH 'Video ' OR name BEGINSWITH 'Audio '"
+            NSPredicate(
+                format: "name == %@ OR name BEGINSWITH %@ OR name BEGINSWITH %@",
+                localizedRecoveringPlaceholder,
+                localizedVideoPlaceholderPrefix,
+                localizedAudioPlaceholderPrefix
+            )
         )
         guard !placeholders.isEmpty else { return }
 
@@ -318,8 +323,10 @@ class PutioRealm {
                     log.info("[PutioRealm] Enriched download \(fileId): \(file.name)")
                 case .failure:
                     // Only replace "Recovering..." with a fallback - keep existing "Video/Audio X" as-is
-                    if download.name == "Recovering..." {
-                        let fallbackName = isVideo ? "Video \(fileId)" : "Audio \(fileId)"
+                    if download.name == localizedRecoveringPlaceholder {
+                        let fallbackName = isVideo
+                            ? String(format: localizedVideoPlaceholderFormat, fileId)
+                            : String(format: localizedAudioPlaceholderFormat, fileId)
                         try? realm.write {
                             download.name = fallbackName
                         }
@@ -328,5 +335,25 @@ class PutioRealm {
                 }
             }
         }
+    }
+
+    private static var localizedRecoveringPlaceholder: String {
+        NSLocalizedString("Recovering...", comment: "")
+    }
+
+    private static var localizedVideoPlaceholderFormat: String {
+        NSLocalizedString("Video %d", comment: "")
+    }
+
+    private static var localizedAudioPlaceholderFormat: String {
+        NSLocalizedString("Audio %d", comment: "")
+    }
+
+    private static var localizedVideoPlaceholderPrefix: String {
+        String(format: localizedVideoPlaceholderFormat, 0).replacingOccurrences(of: "0", with: "")
+    }
+
+    private static var localizedAudioPlaceholderPrefix: String {
+        String(format: localizedAudioPlaceholderFormat, 0).replacingOccurrences(of: "0", with: "")
     }
 }

@@ -19,10 +19,10 @@ extension SettingsViewModel {
 
     private func informationSection() -> SettingsModel.Section {
         SettingsModel.Section(
-            title: "Information",
+            title: NSLocalizedString("Information", comment: ""),
             items: [
                 SettingsModel.SectionItem(
-                    title: "Username",
+                    title: NSLocalizedString("Username", comment: ""),
                     type: .text,
                     icon: "iconUser",
                     value: user.username,
@@ -30,7 +30,7 @@ extension SettingsViewModel {
                     visible: true
                 ),
                 SettingsModel.SectionItem(
-                    title: "Email address",
+                    title: NSLocalizedString("Email address", comment: ""),
                     type: .text,
                     icon: "iconMail",
                     value: user.mail,
@@ -43,10 +43,10 @@ extension SettingsViewModel {
 
     private func storageSection() -> SettingsModel.Section {
         SettingsModel.Section(
-            title: "Storage",
+            title: NSLocalizedString("Storage", comment: ""),
             items: [
                 SettingsModel.SectionItem(
-                    title: "Usage",
+                    title: NSLocalizedString("Usage", comment: ""),
                     type: .button,
                     icon: "iconServer",
                     value: storageUsageText(),
@@ -54,7 +54,7 @@ extension SettingsViewModel {
                     visible: true
                 ),
                 SettingsModel.SectionItem(
-                    title: "Move deleted files to trash",
+                    title: NSLocalizedString("Move deleted files to trash", comment: ""),
                     type: .toggle,
                     icon: "iconRecycle",
                     value: settings.trashEnabled,
@@ -62,7 +62,7 @@ extension SettingsViewModel {
                     visible: true
                 ),
                 SettingsModel.SectionItem(
-                    title: "Manage your trash",
+                    title: NSLocalizedString("Manage your trash", comment: ""),
                     type: .link,
                     icon: "iconTrash",
                     value: user.trashSize > 0 ? user.trashSize.bytesToHumanReadable() : "",
@@ -75,10 +75,10 @@ extension SettingsViewModel {
 
     private func filesSection() -> SettingsModel.Section {
         SettingsModel.Section(
-            title: "Files",
+            title: NSLocalizedString("Files", comment: ""),
             items: [
                 SettingsModel.SectionItem(
-                    title: "Default sort option for files",
+                    title: NSLocalizedString("Default sort option for files", comment: ""),
                     type: .button,
                     icon: "iconAlignLeft",
                     value: "\(selectedSortByKey.label) \(selectedSortByDirection.label)",
@@ -86,7 +86,7 @@ extension SettingsViewModel {
                     visible: true
                 ),
                 SettingsModel.SectionItem(
-                    title: "Reset all sort settings",
+                    title: NSLocalizedString("Reset all sort settings", comment: ""),
                     type: .button,
                     icon: "iconRefresh",
                     value: "",
@@ -99,18 +99,18 @@ extension SettingsViewModel {
 
     private func mediaPlaybackSection() -> SettingsModel.Section {
         SettingsModel.Section(
-            title: "Media playback",
+            title: NSLocalizedString("Media playback", comment: ""),
             items: [
                 SettingsModel.SectionItem(
-                    title: "Choose your proxy",
+                    title: NSLocalizedString("Choose your proxy", comment: ""),
                     type: .link,
                     icon: "iconRoute",
-                    value: settings.routeName == "default" ? "Amsterdam" : settings.routeName,
+                    value: settings.routeName == "default" ? NSLocalizedString("Amsterdam", comment: "") : settings.routeName,
                     action: { self.tableViewController?.performSegue(withIdentifier: "toRoutes", sender: nil) },
                     visible: true
                 ),
                 SettingsModel.SectionItem(
-                    title: "Chromecast video playback type",
+                    title: NSLocalizedString("Chromecast video playback type", comment: ""),
                     type: .link,
                     icon: "iconVideo",
                     value: config.chromecastPlaybackType.uppercased(with: .autoupdatingCurrent),
@@ -121,7 +121,7 @@ extension SettingsViewModel {
                     visible: true
                 ),
                 SettingsModel.SectionItem(
-                    title: "Show subtitles",
+                    title: NSLocalizedString("Show subtitles", comment: ""),
                     type: .toggle,
                     icon: "iconFile",
                     value: !settings.hideSubtitles,
@@ -131,7 +131,7 @@ extension SettingsViewModel {
                     visible: true
                 ),
                 SettingsModel.SectionItem(
-                    title: "Do not select subtitles by default",
+                    title: NSLocalizedString("Do not select subtitles by default", comment: ""),
                     type: .toggle,
                     icon: "iconFile",
                     value: settings.dontAutoSelectSubtitles,
@@ -150,10 +150,10 @@ extension SettingsViewModel {
 
     private func securitySection() -> SettingsModel.Section {
         SettingsModel.Section(
-            title: "Security",
+            title: NSLocalizedString("Security", comment: ""),
             items: [
                 SettingsModel.SectionItem(
-                    title: "Two-factor authentication",
+                    title: NSLocalizedString("Two-factor authentication", comment: ""),
                     type: .toggle,
                     icon: "iconLock",
                     value: settings.twoFactorEnabled,
@@ -167,7 +167,7 @@ extension SettingsViewModel {
                     visible: true
                 ),
                 SettingsModel.SectionItem(
-                    title: "View your two-factor recovery codes",
+                    title: NSLocalizedString("View your two-factor recovery codes", comment: ""),
                     type: .link,
                     icon: "iconFile",
                     value: "",
@@ -177,7 +177,7 @@ extension SettingsViewModel {
                     visible: settings.twoFactorEnabled
                 ),
                 SettingsModel.SectionItem(
-                    title: "Where you are logged in",
+                    title: NSLocalizedString("Where you are logged in", comment: ""),
                     type: .link,
                     icon: "iconGlobe",
                     value: "",
@@ -185,7 +185,7 @@ extension SettingsViewModel {
                     visible: true
                 ),
                 SettingsModel.SectionItem(
-                    title: "Link your account",
+                    title: NSLocalizedString("Link your account", comment: ""),
                     type: .link,
                     icon: "iconTV",
                     value: "",
@@ -198,10 +198,10 @@ extension SettingsViewModel {
 
     private func privacySection() -> SettingsModel.Section {
         SettingsModel.Section(
-            title: "Privacy and safety",
+            title: NSLocalizedString("Privacy and safety", comment: ""),
             items: [
                 SettingsModel.SectionItem(
-                    title: "Keep populating history",
+                    title: NSLocalizedString("Keep populating history", comment: ""),
                     type: .toggle,
                     icon: "iconHistory",
                     value: settings.historyEnabled,
@@ -214,10 +214,10 @@ extension SettingsViewModel {
 
     private func supportSection() -> SettingsModel.Section {
         SettingsModel.Section(
-            title: "Support",
+            title: NSLocalizedString("Support", comment: ""),
             items: [
                 SettingsModel.SectionItem(
-                    title: "About",
+                    title: NSLocalizedString("About", comment: ""),
                     type: .link,
                     icon: "iconInfo",
                     value: "\(Bundle.main.versionNumber)+\(Bundle.main.buildNumber)",
@@ -225,7 +225,7 @@ extension SettingsViewModel {
                     visible: true
                 ),
                 SettingsModel.SectionItem(
-                    title: "Rate put.io on App Store",
+                    title: NSLocalizedString("Rate put.io on App Store", comment: ""),
                     type: .button,
                     icon: "iconStar",
                     value: "",
@@ -233,7 +233,7 @@ extension SettingsViewModel {
                     visible: true
                 ),
                 SettingsModel.SectionItem(
-                    title: "Contact us",
+                    title: NSLocalizedString("Contact us", comment: ""),
                     type: .button,
                     icon: Intercom.unreadConversationCount() > 0 ? "iconChatBadge" : "iconChat",
                     value: "",
@@ -246,10 +246,10 @@ extension SettingsViewModel {
 
     private func dangerZoneSection() -> SettingsModel.Section {
         SettingsModel.Section(
-            title: "Danger Zone",
+            title: NSLocalizedString("Danger Zone", comment: ""),
             items: [
                 SettingsModel.SectionItem(
-                    title: "Clear your data",
+                    title: NSLocalizedString("Clear your data", comment: ""),
                     type: .link,
                     icon: "iconRemoveFolder",
                     value: "",
@@ -257,7 +257,7 @@ extension SettingsViewModel {
                     visible: true
                 ),
                 SettingsModel.SectionItem(
-                    title: "Destroy your account",
+                    title: NSLocalizedString("Destroy your account", comment: ""),
                     type: .link,
                     icon: "iconX",
                     value: "",
@@ -273,7 +273,7 @@ extension SettingsViewModel {
             title: "",
             items: [
                 SettingsModel.SectionItem(
-                    title: "Log out",
+                    title: NSLocalizedString("Log out", comment: ""),
                     type: .button,
                     icon: "iconLogout",
                     value: "",
@@ -287,9 +287,17 @@ extension SettingsViewModel {
     private func storageUsageText() -> String {
         let disk = user.disk ?? UserDisk()
         if settings.showOptimisticUsage {
-            return "\(disk.available.bytesToHumanReadable()) free of \(disk.size.bytesToHumanReadable())"
+            return String(
+                format: NSLocalizedString("%@ free of %@", comment: ""),
+                disk.available.bytesToHumanReadable(),
+                disk.size.bytesToHumanReadable()
+            )
         }
 
-        return "\(disk.used.bytesToHumanReadable()) of \(disk.size.bytesToHumanReadable()) used"
+        return String(
+            format: NSLocalizedString("%@ of %@ used", comment: ""),
+            disk.used.bytesToHumanReadable(),
+            disk.size.bytesToHumanReadable()
+        )
     }
 }

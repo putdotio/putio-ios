@@ -9,7 +9,11 @@ extension FilesViewController {
         }
 
         if UIApplication.shared.canOpenURL(vlcURL) {
-            let loadingAlert = UIAlertController(title: "Processing...", message: "", preferredStyle: .alert)
+            let loadingAlert = UIAlertController(
+                title: NSLocalizedString("Processing...", comment: ""),
+                message: "",
+                preferredStyle: .alert
+            )
             present(loadingAlert, animated: true)
 
             api.getFile(fileID: file.id) { result in
@@ -31,12 +35,12 @@ extension FilesViewController {
 
                     case .failure(let error):
                         let errorAlert = UIAlertController(
-                            title: "Oops, an error occurred :(",
+                            title: NSLocalizedString("Oops, an error occurred :(", comment: ""),
                             message: error.message,
                             preferredStyle: .alert
                         )
 
-                        errorAlert.addAction(UIAlertAction(title: "Close", style: .cancel))
+                        errorAlert.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .cancel))
                         self.present(errorAlert, animated: true)
                     }
                 }

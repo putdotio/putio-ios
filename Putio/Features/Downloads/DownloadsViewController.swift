@@ -30,7 +30,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationItem.title = "Downloads"
+        navigationItem.title = NSLocalizedString("Downloads", comment: "")
         PutioRealm.enrichPlaceholderDownloads()
     }
 
@@ -48,7 +48,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
         configuration.baseForegroundColor = UIColor.Putio.yellow
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8)
         button.configuration = configuration
-        button.accessibilityLabel = "Downloads tutorial"
+        button.accessibilityLabel = NSLocalizedString("Downloads tutorial", comment: "")
         button.addTarget(self, action: #selector(tutorialButtonTapped), for: .touchUpInside)
 
         if let image = UIImage(named: "iconInfo") {
@@ -135,19 +135,22 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
         guard let download = downloads?[indexPath.row],
               let cell = tableView.cellForRow(at: indexPath) else {
             InternalFailurePresenter.log("Unable to access download row \(indexPath.row) for delete action")
-            return UIContextualAction(style: .destructive, title: "Delete") { _, _, handler in
+            return UIContextualAction(style: .destructive, title: NSLocalizedString("Delete", comment: "")) { _, _, handler in
                 handler(false)
             }
         }
 
-        let action = UIContextualAction(style: .destructive, title: "Delete") { (_, _, handler) in
+        let action = UIContextualAction(style: .destructive, title: NSLocalizedString("Delete", comment: "")) { (_, _, handler) in
             let actionSheet = UIAlertController(
-                title: "Are you sure you want to delete \(download.name)?",
+                title: String(
+                    format: NSLocalizedString("Are you sure you want to delete %@?", comment: ""),
+                    download.name
+                ),
                 message: nil,
                 preferredStyle: .actionSheet
             )
 
-            let deleteButton = UIAlertAction(title: "Delete", style: .destructive, handler: { (_) in
+            let deleteButton = UIAlertAction(title: NSLocalizedString("Delete", comment: ""), style: .destructive, handler: { (_) in
                 if download.fileType == .video {
                     VideoDownloadManager.sharedInstance.deleteDownload(id: download.id)
                 } else {
@@ -157,7 +160,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
                 handler(true)
             })
 
-            let cancelButton = UIAlertAction(title: "Cancel", style: .cancel, handler: { (_) in
+            let cancelButton = UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel, handler: { (_) in
                 handler(false)
             })
 
@@ -265,7 +268,7 @@ class DownloadsRecoveryView: UIView {
     private let restoreButton: UIButton = {
         let button = UIButton(type: .system)
         var configuration = UIButton.Configuration.filled()
-        configuration.title = "Restore Downloads"
+        configuration.title = NSLocalizedString("Restore Downloads", comment: "")
         configuration.baseForegroundColor = .black
         configuration.baseBackgroundColor = UIColor.Putio.yellow
         configuration.cornerStyle = .medium
@@ -301,13 +304,13 @@ class DownloadsRecoveryView: UIView {
         autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
         let titleLabel = UILabel()
-        titleLabel.text = "Restore Your Downloads"
+        titleLabel.text = NSLocalizedString("Restore Your Downloads", comment: "")
         titleLabel.font = .preferredFont(forTextStyle: .title1)
         titleLabel.textColor = .white
         titleLabel.textAlignment = .center
 
         let bodyLabel = UILabel()
-        bodyLabel.text = "Your files are still on this device but need to be restored after an app update.\n\nA stable internet connection is recommended."
+        bodyLabel.text = NSLocalizedString("Your files are still on this device but need to be restored after an app update.\n\nA stable internet connection is recommended.", comment: "")
         bodyLabel.font = .preferredFont(forTextStyle: .body)
         bodyLabel.textColor = .lightGray
         bodyLabel.textAlignment = .center
@@ -332,7 +335,7 @@ class DownloadsRecoveryView: UIView {
 
     @objc private func restoreTapped() {
         restoreButton.isEnabled = false
-        restoreButton.setTitle("Restoring...", for: .normal)
+        restoreButton.setTitle(NSLocalizedString("Restoring...", comment: ""), for: .normal)
         spinner.startAnimating()
         onRestore?()
     }

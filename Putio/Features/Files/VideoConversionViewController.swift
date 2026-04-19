@@ -21,20 +21,20 @@ class VideoConversionViewController: UIViewController {
     var intention: VideoConversionIntention!
     var status = PutioMp4Conversion.Status.queued {
         didSet {
-            var label = "Waiting..."
+            var label = NSLocalizedString("Waiting...", comment: "")
 
             switch self.status {
             case PutioMp4Conversion.Status.queued:
-                label = "In Queue"
+                label = NSLocalizedString("In Queue", comment: "")
 
             case PutioMp4Conversion.Status.converting:
-                label = "Converting..."
+                label = NSLocalizedString("Converting...", comment: "")
 
             case PutioMp4Conversion.Status.completed:
-                label = "Completed, video will automatically play!"
+                label = NSLocalizedString("Completed, video will automatically play!", comment: "")
 
             case PutioMp4Conversion.Status.error, PutioMp4Conversion.Status.notAvailable:
-                label = "Error"
+                label = NSLocalizedString("Error", comment: "")
             }
 
             statusLabel.text = label
@@ -59,7 +59,7 @@ class VideoConversionViewController: UIViewController {
 
     func configureApperance() {
         navigationItem.title = file.name.truncate(length: 24)
-        statusLabel.text = "Waiting..."
+        statusLabel.text = NSLocalizedString("Waiting...", comment: "")
         progressView.progress = percentDone
     }
 

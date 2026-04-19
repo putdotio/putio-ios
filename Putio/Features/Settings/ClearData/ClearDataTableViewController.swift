@@ -4,7 +4,11 @@ class ClearDataTableViewController: UITableViewController {
     let viewModel = ClearDataViewModel()
 
     @IBAction func cleanUpButtonPressed(_ sender: Any) {
-        let loadingAlert = UIAlertController(title: "Cleaning up...", message: nil, preferredStyle: .alert)
+        let loadingAlert = UIAlertController(
+            title: NSLocalizedString("Cleaning up...", comment: ""),
+            message: nil,
+            preferredStyle: .alert
+        )
 
         present(loadingAlert, animated: true) {
             self.viewModel.startCleanUp { result in
@@ -17,12 +21,12 @@ class ClearDataTableViewController: UITableViewController {
                             message: localizedError.recoverySuggestion.description,
                             preferredStyle: .alert
                         )
-                        errorAlert.addAction(UIAlertAction(title: "OK", style: .cancel, handler: nil))
+                        errorAlert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel, handler: nil))
                         self.present(errorAlert, animated: true, completion: nil)
 
                     case .success:
                         let successAlert = UIAlertController(
-                            title: "Done!",
+                            title: NSLocalizedString("Done!", comment: ""),
                             message: nil,
                             preferredStyle: .alert
                         )

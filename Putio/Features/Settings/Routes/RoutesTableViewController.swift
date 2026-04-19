@@ -60,7 +60,7 @@ class RoutesTableViewController: UITableViewController {
                     preferredStyle: .alert
                 )
 
-                errorAlert.addAction(UIAlertAction(title: "Close", style: .default, handler: nil))
+                errorAlert.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .default, handler: nil))
                 self.present(errorAlert, animated: true, completion: nil)
             }
         }

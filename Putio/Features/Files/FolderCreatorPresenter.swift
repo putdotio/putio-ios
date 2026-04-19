@@ -7,19 +7,19 @@ protocol FolderCreatorPresenter {}
 extension FolderCreatorPresenter where Self: UIViewController {
     func createFolderCreatorAlert(parentID: Int, completion: @escaping (Bool, Error?) -> Void) -> UIAlertController {
         let createFolderAlert = UIAlertController(
-            title: "Create New Folder",
+            title: NSLocalizedString("Create New Folder", comment: ""),
             message: nil,
             preferredStyle: .alert
         )
 
         createFolderAlert.addTextField { textField in
-            textField.placeholder = "Folder Name"
+            textField.placeholder = NSLocalizedString("Folder Name", comment: "")
             textField.autocorrectionType = .no
         }
 
-        createFolderAlert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+        createFolderAlert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel, handler: nil))
 
-        createFolderAlert.addAction(UIAlertAction(title: "Create", style: .default, handler: { (_) in
+        createFolderAlert.addAction(UIAlertAction(title: NSLocalizedString("Create", comment: ""), style: .default, handler: { (_) in
             let folderName = createFolderAlert.textFields![0].text!
 
             api.createFolder(name: folderName, parentID: parentID, completion: { result in

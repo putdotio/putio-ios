@@ -17,12 +17,12 @@ class SettingsModel {
     }
 
     static let sortByKeys = [
-        SortByKey(key: "NAME", label: "Name"),
-        SortByKey(key: "SIZE", label: "Size"),
-        SortByKey(key: "DATE", label: "Date Added"),
-        SortByKey(key: "MODIFIED", label: "Date Modified"),
-        SortByKey(key: "TYPE", label: "Type"),
-        SortByKey(key: "WATCH", label: "Watch Status")
+        SortByKey(key: "NAME", label: NSLocalizedString("Name", comment: "")),
+        SortByKey(key: "SIZE", label: NSLocalizedString("Size", comment: "")),
+        SortByKey(key: "DATE", label: NSLocalizedString("Date Added", comment: "")),
+        SortByKey(key: "MODIFIED", label: NSLocalizedString("Date Modified", comment: "")),
+        SortByKey(key: "TYPE", label: NSLocalizedString("Type", comment: "")),
+        SortByKey(key: "WATCH", label: NSLocalizedString("Watch Status", comment: ""))
     ]
 
     enum SectionItemType: Int {

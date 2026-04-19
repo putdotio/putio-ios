@@ -47,8 +47,11 @@ enum DownloadSupport {
 
     static func enqueueCompletedDownloadNotification(for downloadName: String) {
         let notificationContent = UNMutableNotificationContent()
-        notificationContent.title = "Download Completed!"
-        notificationContent.body = "\(downloadName) is ready to play."
+        notificationContent.title = NSLocalizedString("Download Completed!", comment: "")
+        notificationContent.body = String(
+            format: NSLocalizedString("%@ is ready to play.", comment: ""),
+            downloadName
+        )
 
         let notificationTrigger = UNTimeIntervalNotificationTrigger(timeInterval: 1.0, repeats: false)
         let notificationRequest = UNNotificationRequest(

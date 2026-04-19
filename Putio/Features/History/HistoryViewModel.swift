@@ -47,10 +47,10 @@ class HistoryViewModel {
     }
 
     static let BASE_SECTIONS = [
-        HistorySection(title: "Today", events: []),
-        HistorySection(title: "Yesterday", events: []),
-        HistorySection(title: "Last Week", events: []),
-        HistorySection(title: "Ancient Times", events: [])
+        HistorySection(title: NSLocalizedString("Today", comment: ""), events: []),
+        HistorySection(title: NSLocalizedString("Yesterday", comment: ""), events: []),
+        HistorySection(title: NSLocalizedString("Last Week", comment: ""), events: []),
+        HistorySection(title: NSLocalizedString("Ancient Times", comment: ""), events: [])
     ]
 
     typealias FetchEventsRequest = (@escaping (Result<[PutioHistoryEvent], PutioSDKError>) -> Void) -> Void
@@ -110,10 +110,10 @@ class HistoryViewModel {
         guard !events.isEmpty else { return [] }
 
         var summaries = [
-            HistorySectionSummary(title: "Today", eventIDs: []),
-            HistorySectionSummary(title: "Yesterday", eventIDs: []),
-            HistorySectionSummary(title: "Last Week", eventIDs: []),
-            HistorySectionSummary(title: "Ancient Times", eventIDs: [])
+            HistorySectionSummary(title: NSLocalizedString("Today", comment: ""), eventIDs: []),
+            HistorySectionSummary(title: NSLocalizedString("Yesterday", comment: ""), eventIDs: []),
+            HistorySectionSummary(title: NSLocalizedString("Last Week", comment: ""), eventIDs: []),
+            HistorySectionSummary(title: NSLocalizedString("Ancient Times", comment: ""), eventIDs: [])
         ]
 
         let eventsToDisplay = events.filter {
