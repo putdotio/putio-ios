@@ -16,7 +16,7 @@ class Stylize {
 
         navigationBarAppearance.buttonAppearance = buttonAppearance
         navigationBarAppearance.backButtonAppearance = buttonAppearance
-        navigationBarAppearance.doneButtonAppearance = buttonAppearance
+        navigationBarAppearance.prominentButtonAppearance = buttonAppearance
 
         return navigationBarAppearance
     }

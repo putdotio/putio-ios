@@ -1,8 +1,9 @@
-// Checked-in defaults for open-source-safe local builds.
-// Override these in Config/Local.xcconfig for developer machines or via xcodebuild
-// build settings in CI and fastlane.
+// Checked-in defaults for local development and unsigned verification.
+// Beta and release workflows override the public app identity in CI.
 
-PUTIO_APP_IDENTIFIER = com.putio.opensource.ios
+PUTIO_APP_IDENTIFIER = io.put.dev
+PUTIO_APP_DISPLAY_NAME = put.io
+PUTIO_PRIMARY_APP_ICON = AppIconDev
 PUTIO_DEVELOPMENT_TEAM =
 
 PUTIO_OAUTH_CLIENT_ID = 3001

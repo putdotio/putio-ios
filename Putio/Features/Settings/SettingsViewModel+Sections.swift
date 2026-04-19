@@ -225,14 +225,6 @@ extension SettingsViewModel {
                     visible: true
                 ),
                 SettingsModel.SectionItem(
-                    title: "Change app icon",
-                    type: .button,
-                    icon: "iconImage",
-                    value: "",
-                    action: { self.tableViewController?.performSegue(withIdentifier: "toAppIconSettings", sender: nil) },
-                    visible: true
-                ),
-                SettingsModel.SectionItem(
                     title: "Rate put.io on App Store",
                     type: .button,
                     icon: "iconStar",

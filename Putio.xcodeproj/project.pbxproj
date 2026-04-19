@@ -94,7 +94,6 @@
 		ACCD39E027BBF6BB00C13DA4 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = ACCD39DF27BBF6BB00C13DA4 /* LaunchScreen.storyboard */; };
 		ACCD39E427BC05CD00C13DA4 /* Localizable.stringsdict in Resources */ = {isa = PBXBuildFile; fileRef = ACCD39E327BC05CD00C13DA4 /* Localizable.stringsdict */; };
 		ACCD39E627BC061000C13DA4 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = ACCD39E527BC061000C13DA4 /* Localizable.strings */; };
-		ACCD39F127BD2DC200C13DA4 /* AppIconSettingsTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCD39F027BD2DC200C13DA4 /* AppIconSettingsTableViewController.swift */; };
 		ACCE333A1FD5559F0006793D /* HistoryViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCE33391FD5559F0006793D /* HistoryViewController.swift */; };
 		ACCE33421FD560790006793D /* HistoryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCE33411FD560790006793D /* HistoryViewModel.swift */; };
 		ACCE33441FD5806E0006793D /* HistoryTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCE33431FD5806E0006793D /* HistoryTableViewCell.swift */; };
@@ -237,7 +236,6 @@
 		ACCD39DF27BBF6BB00C13DA4 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = SOURCE_ROOT; };
 		ACCD39E327BC05CD00C13DA4 /* Localizable.stringsdict */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.stringsdict; path = Localizable.stringsdict; sourceTree = "<group>"; };
 		ACCD39E527BC061000C13DA4 /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = Localizable.strings; sourceTree = "<group>"; };
-		ACCD39F027BD2DC200C13DA4 /* AppIconSettingsTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconSettingsTableViewController.swift; sourceTree = "<group>"; };
 		ACCE33391FD5559F0006793D /* HistoryViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewController.swift; sourceTree = "<group>"; };
 		ACCE33411FD560790006793D /* HistoryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryViewModel.swift; sourceTree = "<group>"; };
 		ACCE33431FD5806E0006793D /* HistoryTableViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryTableViewCell.swift; sourceTree = "<group>"; };
@@ -583,7 +581,6 @@
 		ACCD39EF27BD2DA700C13DA4 /* Appearance */ = {
 			isa = PBXGroup;
 			children = (
-				ACCD39F027BD2DC200C13DA4 /* AppIconSettingsTableViewController.swift */,
 			);
 			path = Appearance;
 			sourceTree = "<group>";
@@ -1007,7 +1004,6 @@
 				ACF668E0282B828E00A48879 /* TwoFactorRecoveryCodesTableViewCell.swift in Sources */,
 				AC8796A8249DDFE6001FFBC1 /* AppStoreReviewManager.swift in Sources */,
 				ACABA8921FB47CB50015B86D /* AuthAppsTableViewController.swift in Sources */,
-				ACCD39F127BD2DC200C13DA4 /* AppIconSettingsTableViewController.swift in Sources */,
 				AC11C72620444E650001CD89 /* MediaPlayerItemModel.swift in Sources */,
 				ACAD072020E1260500C3FB5F /* ImageViewController.swift in Sources */,
 				ACF43FD627A2B6AE00E523D1 /* ClearDataTableViewController.swift in Sources */,
@@ -1082,7 +1078,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.putio.opensource.ios.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.put.dev.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1103,7 +1099,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.putio.opensource.ios.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = io.put.dev.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1228,7 +1224,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = ACF0C0012B0F000100C0F001 /* Debug.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconRetro;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "$(PUTIO_PRIMARY_APP_ICON)";
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Putio/Putio.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
@@ -1324,7 +1320,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = ACF0C0022B0F000100C0F001 /* Release.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconRetro;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "$(PUTIO_PRIMARY_APP_ICON)";
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Putio/Putio.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";

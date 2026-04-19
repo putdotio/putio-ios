@@ -64,7 +64,7 @@ class AudioPlayerViewController: UIViewController {
     func setupPlayer() {
         guard let media = mediaItems.first else { return }
 
-        let asset = AVAsset(url: media.url)
+        let asset = AVURLAsset(url: media.url)
         let playerItem = AVPlayerItem.init(asset: asset)
 
         player = AVQueuePlayer()
@@ -151,6 +151,8 @@ class AudioPlayerViewController: UIViewController {
                 self?.posterImage.image = UIImage(named: "discoball")
                 self?.activityIndicator.isHidden = false
                 self?.configurePlaybackControls(isEnabled: false)
+            @unknown default:
+                log.warning("Unhandled player time control status: \(player.timeControlStatus.rawValue)")
             }
         })
     }
@@ -345,7 +347,7 @@ extension AudioPlayerViewController: NextMediaFinderDelegate {
         mediaItems.append(nextMedia)
         configureStateMachine(for: .success, with: nextMedia)
 
-        let asset = AVAsset(url: nextMedia.url)
+        let asset = AVURLAsset(url: nextMedia.url)
         let playerItem = AVPlayerItem.init(asset: asset)
         player?.insert(playerItem, after: player?.currentItem)
     }

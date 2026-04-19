@@ -9,7 +9,7 @@ private func appSetting(_ key: String, fallback: String = "") -> String {
 }
 
 let APP_STORE_APP_ID = "id1260479699"
-let APP_RUNTIME_IDENTIFIER = appSetting("PUTIO_APP_IDENTIFIER", fallback: "com.putio.opensource.ios")
+let APP_RUNTIME_IDENTIFIER = appSetting("PUTIO_APP_IDENTIFIER", fallback: "io.put.dev")
 let PUTIOKIT_CLIENT_ID = appSetting("PUTIO_OAUTH_CLIENT_ID", fallback: "3001")
 let CHROMECAST_RECEIVER_APP_ID = appSetting("PUTIO_CHROMECAST_RECEIVER_APP_ID", fallback: "CC1AD845")
 let INTERCOM_API_KEY = appSetting("PUTIO_INTERCOM_API_KEY")
