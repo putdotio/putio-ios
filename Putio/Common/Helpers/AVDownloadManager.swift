@@ -1,15 +1,13 @@
 import Foundation
 import AVFoundation
-import Alamofire
 import RealmSwift
 import UserNotifications
-import Crashlytics
+import Sentry
 import NotificationCenter
 
 class DownloadManager: NSObject {
     static let sharedInstance = DownloadManager()
     static let NOTIFICATION = Notification.Name("DOWNLOAD_MANAGER_QUEUE_UPDATED")
-    let realm = try! Realm()
 
     var queue: [Int] = [] {
         didSet {
@@ -20,20 +18,25 @@ class DownloadManager: NSObject {
     var task: AVAggregateAssetDownloadTask?
 
     lazy var session: AVAssetDownloadURLSession = {
-        let configuration = URLSessionConfiguration.background(withIdentifier: "com.putio.tvOS.background")
+        let configuration = URLSessionConfiguration.background(withIdentifier: DOWNLOAD_LEGACY_BACKGROUND_SESSION_IDENTIFIER)
         configuration.sessionSendsLaunchEvents = true
         configuration.shouldUseExtendedBackgroundIdleMode = true
         return AVAssetDownloadURLSession(configuration: configuration, assetDownloadDelegate: self, delegateQueue: OperationQueue.main)
     }()
 
+    private func realm(context: String) -> Realm? {
+        DownloadSupport.realm(context: context)
+    }
+
     func setup() {
         session.getAllTasks { (tasks) in
             tasks.forEach({ (task) in
-                let realm = try! Realm()
-                let id = Int(task.taskDescription!)
+                guard let realm = self.realm(context: "DownloadManager.setup"),
+                      let taskDescription = task.taskDescription,
+                      let id = Int(taskDescription) else { return }
                 guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
 
-                print(task, download)
+                log.debug(["DownloadManager.setup restoring task", task.taskIdentifier, download.id])
 
                 if download.state.rawValue < Download.State.active.rawValue {
                     task.resume()
@@ -43,10 +46,13 @@ class DownloadManager: NSObject {
     }
 
     func persistTask(download: Download) {
-        try! realm.write {
+        guard let realm = realm(context: "DownloadManager.persistTask") else { return }
+
+        let didWrite = DownloadSupport.write(realm, context: "DownloadManager.persistTask.write") {
             realm.add(download, update: true)
             download.state = .queued
         }
+        guard didWrite else { return }
 
         queue.append(download.id)
 
@@ -56,12 +62,14 @@ class DownloadManager: NSObject {
     }
 
     func createTask(file: File) {
-        let download = Download(file: file)!
+        guard let download = Download(file: file),
+              let realm = realm(context: "DownloadManager.createTask") else { return }
 
-        try! realm.write {
+        let didWrite = DownloadSupport.write(realm, context: "DownloadManager.createTask.write") {
             realm.add(download, update: true)
             download.state = .queued
         }
+        guard didWrite else { return }
 
         queue.append(download.id)
 
@@ -71,7 +79,8 @@ class DownloadManager: NSObject {
     }
 
     func deleteTask(id: Int) {
-        let download = realm.object(ofType: Download.self, forPrimaryKey: id)!
+        guard let realm = realm(context: "DownloadManager.deleteTask"),
+              let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
 
         switch download.state {
         case .queued, .starting, .active:
@@ -80,12 +89,13 @@ class DownloadManager: NSObject {
             deleteDownloadedAssetFromDisk(for: download)
         }
 
-        try! realm.write {
+        _ = DownloadSupport.write(realm, context: "DownloadManager.deleteTask.write") {
             realm.delete(download)
         }
     }
 
     func stopTask(id: Int) {
+        guard let realm = realm(context: "DownloadManager.stopTask") else { return }
         let download = realm.object(ofType: Download.self, forPrimaryKey: id)
 
         guard download?.state != .active else {
@@ -93,7 +103,7 @@ class DownloadManager: NSObject {
             return
         }
 
-        try! realm.write {
+        _ = DownloadSupport.write(realm, context: "DownloadManager.stopTask.write") {
             download?.state = .stopped
         }
 
@@ -101,9 +111,10 @@ class DownloadManager: NSObject {
     }
 
     func restartTask(id: Int) {
+        guard let realm = realm(context: "DownloadManager.restartTask") else { return }
         let download = realm.object(ofType: Download.self, forPrimaryKey: id)
 
-        try! realm.write {
+        _ = DownloadSupport.write(realm, context: "DownloadManager.restartTask.write") {
             download?.state = .queued
         }
 
@@ -115,9 +126,10 @@ class DownloadManager: NSObject {
     }
 
     func onTaskCompleted(id: Int) {
+        guard let realm = realm(context: "DownloadManager.onTaskCompleted") else { return }
         let download = realm.object(ofType: Download.self, forPrimaryKey: id)
 
-        try! realm.write {
+        _ = DownloadSupport.write(realm, context: "DownloadManager.onTaskCompleted.write") {
             download?.state = .completed
             download?.completedAt = Date()
         }
@@ -128,9 +140,10 @@ class DownloadManager: NSObject {
     }
 
     func onTaskCancelled(id: Int, error: NSError) {
+        guard let realm = realm(context: "DownloadManager.onTaskCancelled") else { return }
         let download = realm.object(ofType: Download.self, forPrimaryKey: id)
 
-        try! realm.write {
+        _ = DownloadSupport.write(realm, context: "DownloadManager.onTaskCancelled.write") {
             download?.state = .failed
             download?.message = error.localizedDescription
         }
@@ -141,19 +154,21 @@ class DownloadManager: NSObject {
     }
 
     func startNextTask() {
-        guard !queue.isEmpty else { return }
-        startTask(id: queue.first!)
+        guard let nextDownloadID = queue.first else { return }
+        startTask(id: nextDownloadID)
     }
 
     func startTask(id: Int) {
-        guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
+        guard let realm = realm(context: "DownloadManager.startTask"),
+              let download = realm.object(ofType: Download.self, forPrimaryKey: id),
+              let url = DownloadSupport.url(from: download.url, context: "DownloadManager.startTask") else { return }
 
-        try! realm.write {
+        _ = DownloadSupport.write(realm, context: "DownloadManager.startTask.write") {
             download.state = .starting
             download.progress = "0"
         }
 
-        let urlAsset = AVURLAsset(url: URL(string: (download.url))!)
+        let urlAsset = AVURLAsset(url: url)
 
         task = session.aggregateAssetDownloadTask(
             with: urlAsset,
@@ -170,53 +185,50 @@ class DownloadManager: NSObject {
     func deleteDownloadedAssetFromDisk(for download: Download?) {
         guard let download = download else { return }
 
-        do {
-            try FileManager.default.removeItem(at: URL(string: download.path)!)
-        } catch {
-            Crashlytics.sharedInstance().recordError(error)
+        guard let url = DownloadSupport.url(from: download.path, context: "DownloadManager.deleteDownloadedAssetFromDisk") else { return }
+        guard DownloadSupport.deleteItemIfPresent(at: url, context: "DownloadManager.deleteDownloadedAssetFromDisk.remove") else {
+            SentrySDK.capture(error: NSError(
+                domain: "DownloadManager",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Unable to delete downloaded asset at \(url.path)"]
+            ))
+            return
         }
     }
 
     func wipe() {
+        guard let realm = realm(context: "DownloadManager.wipe") else { return }
         realm.objects(Download.self).forEach({ (download) in
             self.deleteDownloadedAssetFromDisk(for: download)
         })
     }
 
     func notifyUser(for id: Int) {
-        let download = realm.object(ofType: Download.self, forPrimaryKey: id)
+        guard let realm = realm(context: "DownloadManager.notifyUser"),
+              let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
 
-        let notificationContent = UNMutableNotificationContent()
-        notificationContent.title = "Download Completed!"
-        notificationContent.body = "\(download!.name) is ready to play."
-
-        let notificationTrigger = UNTimeIntervalNotificationTrigger(timeInterval: 1.0, repeats: false)
-        let notificationRequest = UNNotificationRequest(
-            identifier: "com.putio.tvOS.local_notification",
-            content: notificationContent,
-            trigger: notificationTrigger
-        )
-
-        UNUserNotificationCenter.current().add(notificationRequest, withCompletionHandler: nil)
+        DownloadSupport.enqueueCompletedDownloadNotification(for: download.name)
     }
 }
 
 extension DownloadManager: AVAssetDownloadDelegate {
     func urlSession(_ session: URLSession, aggregateAssetDownloadTask: AVAggregateAssetDownloadTask, willDownloadTo location: URL) {
-        let id = Int(aggregateAssetDownloadTask.taskDescription!)
+        guard let taskDescription = aggregateAssetDownloadTask.taskDescription,
+              let id = Int(taskDescription),
+              let realm = realm(context: "DownloadManager.willDownloadTo"),
+              let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
 
-        guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
-
-        try! realm.write {
+        _ = DownloadSupport.write(realm, context: "DownloadManager.willDownloadTo.write") {
             download.path = location.absoluteString
         }
     }
 
     // swiftlint:disable:next line_length function_parameter_count
     func urlSession(_ session: URLSession, aggregateAssetDownloadTask: AVAggregateAssetDownloadTask, didLoad timeRange: CMTimeRange, totalTimeRangesLoaded loadedTimeRanges: [NSValue], timeRangeExpectedToLoad: CMTimeRange, for mediaSelection: AVMediaSelection) {
-        let id = Int(aggregateAssetDownloadTask.taskDescription!)
-
-        guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
+        guard let taskDescription = aggregateAssetDownloadTask.taskDescription,
+              let id = Int(taskDescription),
+              let realm = realm(context: "DownloadManager.didLoad"),
+              let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
 
         var progressPercent = 0.0
 
@@ -229,14 +241,15 @@ extension DownloadManager: AVAssetDownloadDelegate {
 
         guard progress != download.progress else { return }
 
-        try! realm.write {
+        _ = DownloadSupport.write(realm, context: "DownloadManager.didLoad.write") {
             download.progress = progress
             download.state = .active
         }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        let id = Int(task.taskDescription!)!
+        guard let taskDescription = task.taskDescription,
+              let id = Int(taskDescription) else { return }
 
         if let error = error as NSError? {
             self.onTaskCancelled(id: id, error: error)

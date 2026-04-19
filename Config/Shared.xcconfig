@@ -2,7 +2,7 @@
 // Override these in Config/Local.xcconfig for developer machines or via xcodebuild
 // build settings in CI and fastlane.
 
-PUTIO_APP_IDENTIFIER = com.putio.tvOS
+PUTIO_APP_IDENTIFIER = com.putio.opensource.ios
 PUTIO_DEVELOPMENT_TEAM =
 
 PUTIO_OAUTH_CLIENT_ID = 3001

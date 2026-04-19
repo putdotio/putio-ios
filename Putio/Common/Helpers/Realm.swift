@@ -3,18 +3,65 @@ import RealmSwift
 
 class PutioRealm {
     private static let needsDownloadRecoveryKey = "PutioRealm.needsDownloadRecovery"
+    static let latestSchemaVersion: UInt64 = 12
 
     static var needsDownloadRecovery: Bool {
-        return UserDefaults.standard.bool(forKey: needsDownloadRecoveryKey)
+        return needsDownloadRecovery(defaults: .standard)
     }
 
-    static func setup() {
-        let latestSchemaVersion: UInt64 = 12
+    static func needsDownloadRecovery(defaults: UserDefaults) -> Bool {
+        defaults.bool(forKey: needsDownloadRecoveryKey)
+    }
 
-        let config = Realm.Configuration(
+    static func setNeedsDownloadRecovery(_ value: Bool, defaults: UserDefaults = .standard) {
+        if value {
+            defaults.set(true, forKey: needsDownloadRecoveryKey)
+        } else {
+            defaults.removeObject(forKey: needsDownloadRecoveryKey)
+        }
+    }
+
+    static func logFailure(_ context: String, error: Error) {
+        log.error("[PutioRealm] \(context): \(error.localizedDescription)")
+    }
+
+    static func configuration(fileURL: URL? = nil) -> Realm.Configuration {
+        var configuration = Realm.Configuration(
             schemaVersion: latestSchemaVersion,
             migrationBlock: migrate
         )
+
+        if let fileURL {
+            configuration.fileURL = fileURL
+        }
+
+        return configuration
+    }
+
+    static func open(context: String, configuration: Realm.Configuration? = nil) -> Realm? {
+        let resolvedConfiguration = configuration ?? Realm.Configuration.defaultConfiguration
+
+        do {
+            return try Realm(configuration: resolvedConfiguration)
+        } catch {
+            logFailure(context, error: error)
+            return nil
+        }
+    }
+
+    @discardableResult
+    static func write(_ realm: Realm, context: String, updates: () -> Void) -> Bool {
+        do {
+            try realm.write(updates)
+            return true
+        } catch {
+            logFailure(context, error: error)
+            return false
+        }
+    }
+
+    static func setup() {
+        let config = configuration()
 
         Realm.Configuration.defaultConfiguration = config
 
@@ -26,7 +73,7 @@ class PutioRealm {
         } catch {
             let nsError = error as NSError
             if nsError.domain == "io.realm" && nsError.code == 16 {
-                print("[PutioRealm] Incompatible Realm file format — deleting old database")
+                log.warning("[PutioRealm] Incompatible Realm file format, deleting old database")
                 if let realmURL = config.fileURL {
                     let realmURLs = [
                         realmURL,
@@ -38,7 +85,7 @@ class PutioRealm {
                         try? FileManager.default.removeItem(at: url)
                     }
                 }
-                UserDefaults.standard.set(true, forKey: needsDownloadRecoveryKey)
+                setNeedsDownloadRecovery(true)
             }
         }
     }
@@ -123,12 +170,16 @@ class PutioRealm {
     /// Video downloads are stored as bookmark Data, audio as relative path Strings.
     /// Also scans the Documents directory for audio files whose UserDefaults entries were lost.
     /// Fetches real file names from the put.io API.
-    static func recoverDownloadsIfNeeded() {
-        guard UserDefaults.standard.bool(forKey: needsDownloadRecoveryKey) else { return }
+    static func recoverDownloadsIfNeeded(
+        defaults: UserDefaults = .standard,
+        documentsURL: URL = documentsURL,
+        realm: Realm? = nil,
+        shouldEnrichPlaceholders: Bool = true
+    ) {
+        guard needsDownloadRecovery(defaults: defaults) else { return }
 
-        guard let realm = try? Realm() else { return }
+        guard let realm = realm ?? open(context: "recoverDownloadsIfNeeded") else { return }
 
-        let defaults = UserDefaults.standard
         let allKeys = defaults.dictionaryRepresentation().keys
 
         var recovered = 0
@@ -168,12 +219,14 @@ class PutioRealm {
 
         // Clear recovery flag after all records are created.
         // API enrichment below is fire-and-forget - don't block flag clearing on it.
-        UserDefaults.standard.removeObject(forKey: needsDownloadRecoveryKey)
+        setNeedsDownloadRecovery(false, defaults: defaults)
 
-        print("[PutioRealm] Recovered \(recovered) download record(s)")
+        log.info("[PutioRealm] Recovered \(recovered) download record(s)")
 
         // Enrich all recovered downloads with real names from the API
-        enrichPlaceholderDownloads(in: realm)
+        if shouldEnrichPlaceholders {
+            enrichPlaceholderDownloads(in: realm)
+        }
     }
 
     private static var documentsURL: URL {
@@ -239,7 +292,7 @@ class PutioRealm {
         )
         guard !placeholders.isEmpty else { return }
 
-        print("[PutioRealm] Enriching \(placeholders.count) download(s) with placeholder names")
+        log.info("[PutioRealm] Enriching \(placeholders.count) download(s) with placeholder names")
 
         for download in placeholders {
             let fileId = download.id
@@ -252,7 +305,7 @@ class PutioRealm {
                         download.name = file.name
                         download.size = file.size
                     }
-                    print("[PutioRealm] Enriched download \(fileId): \(file.name)")
+                    log.info("[PutioRealm] Enriched download \(fileId): \(file.name)")
                 case .failure:
                     // Only replace "Recovering..." with a fallback - keep existing "Video/Audio X" as-is
                     if download.name == "Recovering..." {
@@ -261,7 +314,7 @@ class PutioRealm {
                             download.name = fallbackName
                         }
                     }
-                    print("[PutioRealm] Could not fetch file info for \(fileId)")
+                    log.warning("[PutioRealm] Could not fetch file info for \(fileId)")
                 }
             }
         }

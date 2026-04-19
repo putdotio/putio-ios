@@ -12,9 +12,29 @@ let log = SwiftyBeaver.self
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
+    private var isRunningUnitTests: Bool {
+        let environment = ProcessInfo.processInfo.environment
+        return [
+            "XCTestConfigurationFilePath",
+            "XCTestBundlePath",
+            "XCTestSessionIdentifier"
+        ].contains { key in
+            guard let value = environment[key] else {
+                return false
+            }
+
+            return value.isEmpty == false
+        }
+    }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         configureLogger()
+
+        if isRunningUnitTests {
+            prepareForUnitTests(application: application)
+            return true
+        }
+
         configureSDKs()
         configureUI()
         authenticate()
@@ -49,6 +69,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         Stylize.UIKit(window: window)
         NetworkReachability.sharedInstance.setup()
         Utils.configureAVSession()
+    }
+
+    func prepareForUnitTests(application: UIApplication) {
+        guard let windowScene = application.connectedScenes.compactMap({ $0 as? UIWindowScene }).first else {
+            window = nil
+            return
+        }
+
+        let testWindow = UIWindow(windowScene: windowScene)
+        testWindow.rootViewController = UIViewController()
+        window = testWindow
+        applyWindowAppearance()
+        testWindow.makeKeyAndVisible()
     }
 
     func applyWindowAppearance() {
@@ -157,16 +190,37 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func fetchUserSuccess(account: PutioAccount, config: JSON) {
-        let realm = try! Realm()
+        guard let realm = PutioRealm.open(context: "fetchUserSuccess") else {
+            InternalFailurePresenter.log("Unable to open Realm during fetchUserSuccess")
+            return presentLoginScreen()
+        }
         let user = realm.objects(User.self).first
         let userConfig = realm.objects(UserConfig.self).first
 
-        if let user = user { try! realm.write { realm.delete(user) } }
-        if let userConfig = userConfig { try! realm.write { realm.delete(userConfig) } }
-    
-        try! realm.write {
-            realm.add(User(account: account)!, update: .all)
-            realm.add(UserConfig(json: config)!)
+        if let user = user {
+            _ = PutioRealm.write(realm, context: "fetchUserSuccess.deleteUser") {
+                realm.delete(user)
+            }
+        }
+
+        if let userConfig = userConfig {
+            _ = PutioRealm.write(realm, context: "fetchUserSuccess.deleteUserConfig") {
+                realm.delete(userConfig)
+            }
+        }
+
+        guard let persistedUser = User(account: account), let persistedConfig = UserConfig(json: config) else {
+            InternalFailurePresenter.log("Unable to construct persisted user/config models")
+            return presentLoginScreen()
+        }
+
+        let didPersist = PutioRealm.write(realm, context: "fetchUserSuccess.persist") {
+            realm.add(persistedUser, update: .all)
+            realm.add(persistedConfig, update: .all)
+        }
+
+        guard didPersist else {
+            return presentLoginScreen()
         }
 
         Utils.authorizeNotifications(application: UIApplication.shared)
@@ -182,7 +236,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func fetchUserFailure(error: PutioSDKError) {
-        let realm = try! Realm()
+        guard let realm = PutioRealm.open(context: "fetchUserFailure") else {
+            return presentLoginScreen()
+        }
         let user = realm.objects(User.self).first
 
         switch error.type {
@@ -215,7 +271,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func presentLoginScreen() {
         applyWindowAppearance()
-        window?.rootViewController = UIStoryboard(name: "Login", bundle: nil).instantiateViewController(withIdentifier: "LoginVC")
+        let storyboard = UIStoryboard(name: "Login", bundle: nil)
+        guard let loginViewController = storyboard.instantiateViewController(withIdentifier: "LoginVC", as: UIViewController.self) else {
+            InternalFailurePresenter.log("Unable to instantiate LoginVC")
+            return
+        }
+        window?.rootViewController = loginViewController
         window?.makeKeyAndVisible()
     }
 

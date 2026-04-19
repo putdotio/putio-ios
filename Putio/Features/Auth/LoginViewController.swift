@@ -69,6 +69,14 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
 
 extension LoginViewController: ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        return view.window ?? ASPresentationAnchor()
+        guard let window = view.window
+            ?? UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .flatMap(\.windows)
+                .first else {
+            preconditionFailure("Expected an application window for web authentication presentation")
+        }
+
+        return window
     }
 }

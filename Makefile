@@ -11,13 +11,19 @@ bootstrap-ci:
 verify:
 	xcodebuild -list -workspace Putio.xcworkspace
 	@destination="$$(./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio 2>/dev/null || true)"; \
-	if [ -n "$$destination" ]; then \
-		echo "Using Xcode iPhone simulator destination: $$destination"; \
-		xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -destination "$$destination" build CODE_SIGNING_ALLOWED=NO; \
-	else \
-		echo "No Xcode-advertised iPhone simulator destination on iOS 26.0 or newer. Falling back to the installed iphonesimulator SDK."; \
-		xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -sdk iphonesimulator build CODE_SIGNING_ALLOWED=NO; \
-	fi
+	if [ -z "$$destination" ]; then \
+		device_id="$$(./scripts/simctl-iphone-device-id.sh 2>/dev/null || true)"; \
+		if [ -n "$$device_id" ]; then \
+			destination="platform=iOS Simulator,id=$$device_id"; \
+		fi; \
+	fi; \
+	if [ -z "$$destination" ]; then \
+		echo "No iPhone simulator destination available. Install the iOS simulator runtime or run make download-ios-platform." >&2; \
+		exit 1; \
+	fi; \
+	echo "Using iPhone simulator destination: $$destination"; \
+	xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" build-for-testing -quiet; \
+	xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -quiet
 
 print-simulator-destination:
 	@./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio

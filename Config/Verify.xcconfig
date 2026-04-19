@@ -1,0 +1,6 @@
+// Verification-only overrides.
+// Keep this file narrow so simulator verification cannot inherit private local
+// bundle identifiers, while embedded frameworks keep their own identifiers.
+
+PUTIO_APP_IDENTIFIER = com.putio.opensource.ios
+PUTIO_DEVELOPMENT_TEAM =

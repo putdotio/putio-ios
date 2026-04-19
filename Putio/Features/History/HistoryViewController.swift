@@ -197,7 +197,11 @@ extension HistoryViewController: UITableViewDataSource {
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "historyReuse", for: indexPath) as! HistoryTableViewCell
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: "historyReuse", for: indexPath) as? HistoryTableViewCell else {
+            InternalFailurePresenter.log("Unable to dequeue HistoryTableViewCell")
+            return UITableViewCell()
+        }
+
         cell.configure(with: viewModel.sections[indexPath.section].events[indexPath.row])
         return cell
     }
@@ -227,12 +231,22 @@ extension HistoryViewController: UITableViewDelegate {
 
 extension HistoryViewController: AVPlayerViewControllerDelegate {
     func playerViewControllerDidStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
-        (playerViewController as! VideoPlayerViewController).handlePictureInPictureDidStart()
+        guard let videoPlayerViewController = playerViewController as? VideoPlayerViewController else {
+            return InternalFailurePresenter.log("PiP start received for unexpected player controller")
+        }
+
+        videoPlayerViewController.handlePictureInPictureDidStart()
     }
 
     func playerViewController(_ playerViewController: AVPlayerViewController, restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) {
-        present(playerViewController, animated: true) {
-            (playerViewController as! VideoPlayerViewController).handlePictureInPictureDidStop()
+        guard let videoPlayerViewController = playerViewController as? VideoPlayerViewController else {
+            InternalFailurePresenter.log("PiP restore received for unexpected player controller")
+            completionHandler(false)
+            return
+        }
+
+        present(videoPlayerViewController, animated: true) {
+            videoPlayerViewController.handlePictureInPictureDidStop()
             completionHandler(true)
         }
     }

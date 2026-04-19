@@ -9,10 +9,7 @@ class MainTabBarController: UITabBarController {
 
     var cachedViewControllers: [UIViewController]? = []
 
-    var userSettings: UserSettings = {
-        let realm = try! Realm()
-        return realm.objects(User.self).first!.settings!
-    }()
+    private(set) var userSettings: UserSettings?
 
     var notificationToken: NotificationToken?
 
@@ -20,6 +17,7 @@ class MainTabBarController: UITabBarController {
         super.viewDidLoad()
         view.backgroundColor = UIColor.Putio.background
         overrideUserInterfaceStyle = .dark
+        userSettings = loadUserSettings()
         configureNavigationControllers()
         DeeplinkManager.sharedInstance.setup(with: self)
         cachedViewControllers = viewControllers
@@ -31,6 +29,17 @@ class MainTabBarController: UITabBarController {
 
     deinit {
         notificationToken?.invalidate()
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    private func loadUserSettings() -> UserSettings? {
+        guard let realm = PutioRealm.open(context: "MainTabBarController.loadUserSettings"),
+              let userSettings = realm.objects(User.self).first?.settings else {
+            InternalFailurePresenter.log("Unable to load UserSettings for MainTabBarController")
+            return nil
+        }
+
+        return userSettings
     }
 
     func getTabBarItem(of title: TabbarItemTitle) -> UITabBarItem? {
@@ -40,7 +49,7 @@ class MainTabBarController: UITabBarController {
     }
 
     func getTabBarItemIndex(of title: TabbarItemTitle) -> Int? {
-        return tabBar.items?.index(where: { (item) -> Bool in
+        return tabBar.items?.firstIndex(where: { (item) -> Bool in
             return item.title == title.rawValue
         })
     }
@@ -59,6 +68,8 @@ class MainTabBarController: UITabBarController {
             name: NSNotification.Name.IntercomUnreadConversationCountDidChange,
             object: nil
         )
+
+        guard let userSettings else { return }
 
         notificationToken = userSettings.observe({ (change) in
             switch change {
@@ -85,7 +96,7 @@ class MainTabBarController: UITabBarController {
     func updateHistoryTabVisibility() {
         var viewControllers = cachedViewControllers
 
-        if !userSettings.historyEnabled {
+        if userSettings?.historyEnabled == false {
             guard let historyTabIndex = getTabBarItemIndex(of: .history) else { return }
             viewControllers?.remove(at: historyTabIndex)
         }
