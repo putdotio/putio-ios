@@ -2,9 +2,27 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE'
+      - 'README.md'
+      - 'SECURITY.md'
+      - 'docs/**'
+      - 'fastlane/README.md'
   push:
     branches:
       - main
+    paths-ignore:
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE'
+      - 'README.md'
+      - 'SECURITY.md'
+      - 'docs/**'
+      - 'fastlane/README.md'
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}

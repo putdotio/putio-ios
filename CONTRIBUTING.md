@@ -94,32 +94,12 @@ make download-ios-platform
 
 ## CI And Delivery
 
-- `.github/workflows/ci.yml`
-  - verify only
-  - runs `make bootstrap-ci` and `make verify`
-- `make bootstrap-ci`
-  - reuses `Pods` when `Pods/Manifest.lock` matches `Podfile.lock`
-  - falls back to `pod install` when the cache is stale
-- `.github/workflows/beta.yml`
-  - manual TestFlight path
-  - verifies first
-  - loads secrets through `OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI`
-  - owns the `fastlane beta` invocation
-  - always distributes to the external TestFlight groups configured for the run
-  - splits the delivery flow into archive, upload, and distribute steps
-  - uses a bounded App Store Connect processing timeout instead of waiting forever
-- `.github/workflows/release.yml`
-  - runs on published GitHub releases
-  - builds from the release tag
-  - owns the `fastlane release` invocation
-- Build numbering:
-  - uploaded beta and release builds use UTC timestamp build numbers in `YYMMDDHHMM` format
-  - checked-in `CURRENT_PROJECT_VERSION` stays at `1` as a baseline
-  - fastlane temporarily updates tracked version metadata during archive time and restores the files afterward
-- Fastlane contract:
-  - release lanes are CI-only
-  - `make beta` and `make release` intentionally fail locally
-  - shared 1Password loading and secret materialization live in `.github/actions/load-ios-release-secrets/action.yml`
+- See [docs/DISTRIBUTION.md](./docs/DISTRIBUTION.md) for:
+  - workflow roles
+  - CI bootstrap behavior
+  - fastlane release contract
+  - TestFlight distribution notes
+  - signing and App Store Connect gotchas
 
 ## Development Notes
 
