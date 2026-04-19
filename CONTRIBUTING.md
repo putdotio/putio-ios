@@ -113,6 +113,20 @@ make download-ios-platform
 - Keep repo-stored configuration open-source-safe
   - do not commit tokens, signing keys, API key files, or private release metadata
 
+## Known Debt
+
+- The app is still a legacy UIKit and storyboard codebase
+- Some large feature areas, especially Files and Settings, have been split into smaller units but still carry historical complexity
+- Localization coverage is incomplete and should be treated as follow-up work, not a blocker for OSS
+- Beta and release delivery are CI-only and intentionally documented in [docs/DISTRIBUTION.md](./docs/DISTRIBUTION.md)
+
+## Good First Contributions
+
+- Add focused unit coverage around pure logic and model parsing
+- Continue shrinking legacy UIKit hotspots without changing behavior
+- Improve light mode and visual polish without changing release infrastructure
+- Tackle localization and copy consistency in isolated follow-up pull requests
+
 ## Pull Requests
 
 - Keep changes focused and explicit

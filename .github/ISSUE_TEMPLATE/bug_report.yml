@@ -1,0 +1,47 @@
+name: Bug report
+description: Report a reproducible problem in putio-ios
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include concrete steps, sample data, or media if useful.
+      placeholder: |
+        1. Launch the app
+        2. Sign in
+        3. Open ...
+        4. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: App version, iOS version, device or simulator, and any relevant config notes.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Paste any relevant logs, console output, or screenshots.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched for existing issues covering the same problem
+          required: true
+        - label: I removed secrets, tokens, and private account data from the report
+          required: true
