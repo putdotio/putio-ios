@@ -44,7 +44,7 @@ extension FilesViewController {
         let children = viewModel.files
 
         let selectButton = UIAction(
-            title: "Select",
+            title: NSLocalizedString("Select", comment: ""),
             image: UIImage(systemName: "checkmark.circle")
         ) { _ in
             self.toggleTableEditing()
@@ -52,7 +52,7 @@ extension FilesViewController {
         if children.isEmpty { selectButton.attributes = .disabled }
 
         let newFolderButton = UIAction(
-            title: "New Folder",
+            title: NSLocalizedString("New Folder", comment: ""),
             image: UIImage(systemName: "folder.badge.plus")
         ) { _ in
             let createFolderAlert = self.createFolderCreatorAlert(parentID: parent.id) { _, error in
@@ -85,7 +85,9 @@ extension FilesViewController {
 
             if sortKey == selectedSortKey {
                 item.state = .on
-                item.subtitle = selectedSortDirection == "ASC" ? "Ascending" : "Descending"
+                item.subtitle = selectedSortDirection == "ASC"
+                    ? NSLocalizedString("Ascending", comment: "")
+                    : NSLocalizedString("Descending", comment: "")
             }
 
             return item
@@ -112,8 +114,15 @@ extension FilesViewController {
         toolbar.standardAppearance = appearance
         toolbar.compactAppearance = appearance
 
-        let deleteTitle = userSettings.trashEnabled ? "Trash" : "Delete"
-        let moveBtn = UIBarButtonItem(title: "Move", style: .plain, target: self, action: #selector(moveSelectedFiles))
+        let deleteTitle = userSettings.trashEnabled
+            ? NSLocalizedString("Trash", comment: "")
+            : NSLocalizedString("Delete", comment: "")
+        let moveBtn = UIBarButtonItem(
+            title: NSLocalizedString("Move", comment: ""),
+            style: .plain,
+            target: self,
+            action: #selector(moveSelectedFiles)
+        )
         moveBtn.isEnabled = false
         let deleteBtn = UIBarButtonItem(title: deleteTitle, style: .plain, target: self, action: #selector(deleteSelectedFiles))
         deleteBtn.isEnabled = false

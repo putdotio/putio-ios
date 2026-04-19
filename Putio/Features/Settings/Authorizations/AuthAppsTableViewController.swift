@@ -28,7 +28,10 @@ class AuthAppsTableViewController: UITableViewController {
 
     // MARK: Swipe Actions
     func contextualDeleteAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
-        let action = UIContextualAction(style: .destructive, title: "Revoke") { (_, _, handler) in
+        let action = UIContextualAction(
+            style: .destructive,
+            title: NSLocalizedString("Revoke", comment: "")
+        ) { (_, _, handler) in
             api.revokeGrant(id: self.apps[indexPath.row].id) { result in
                 switch result {
                 case .success:
