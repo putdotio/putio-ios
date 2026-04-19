@@ -35,7 +35,9 @@ op-local-config:
 	@./scripts/op-local-config.sh $(if $(VAULT),--vault "$(VAULT)") $(if $(ITEM),--item "$(ITEM)")
 
 beta:
-	@./scripts/op-fastlane.sh $(if $(VAULT),--vault "$(VAULT)") $(if $(ITEM),--item "$(ITEM)") beta
+	@echo "make beta is CI-only. Use .github/workflows/beta.yml via GitHub Actions." >&2
+	@exit 1
 
 release:
-	@./scripts/op-fastlane.sh $(if $(VAULT),--vault "$(VAULT)") $(if $(ITEM),--item "$(ITEM)") release
+	@echo "make release is CI-only. Use .github/workflows/release.yml via GitHub Actions." >&2
+	@exit 1

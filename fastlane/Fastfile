@@ -1,8 +1,14 @@
 require "shellwords"
-
-update_fastlane
+require "fileutils"
+require "tmpdir"
+require "json"
 
 default_platform(:ios)
+opt_out_usage
+
+def require_ci!
+  UI.user_error!("This fastlane setup is CI-only. Use the GitHub Actions beta or release workflow.") unless is_ci
+end
 
 def first_present(*values)
   values.find { |value| !value.to_s.empty? }
@@ -22,57 +28,164 @@ def normalized_version(value)
 end
 
 def generated_build_number
-  Time.now.utc.strftime("%Y%m%d%H%M%S")
+  Time.now.utc.strftime("%y%m%d%H%M")
 end
 
 def resolved_build_number(*values)
   first_present(*values, generated_build_number)
 end
 
-def xcode_build_settings_from_env(keys)
-  keys.filter_map do |key|
-    value = ENV[key].to_s
-    next if value.empty?
+def resolved_wait_timeout(*values)
+  raw_value = first_present(*values)
+  return nil if raw_value.to_s.empty?
 
-    %(#{key}=#{Shellwords.escape(value)})
-  end.join(" ")
+  Integer(raw_value, 10)
+rescue ArgumentError
+  UI.user_error!("Wait timeout must be an integer number of seconds")
 end
 
-platform :ios do
-  lane :beta do |options|
-    setup_ci
+def configured_testflight_groups(*values, default_group: "Beta")
+  groups = first_present(*values).to_s.split(",").map(&:strip).reject(&:empty?)
+  groups.empty? ? [default_group] : groups
+end
 
-    beta_build_number = resolved_build_number(options[:build_number], ENV["PUTIO_BETA_BUILD_NUMBER"])
-    beta_changelog = first_present(options[:changelog], ENV["PUTIO_BETA_CHANGELOG"])
-    beta_groups = first_present(options[:groups], ENV["PUTIO_BETA_GROUPS"]).to_s.split(",").map(&:strip).reject(&:empty?)
-    distribute_external = fastlane_bool(
-      first_present(options[:distribute_external], ENV["PUTIO_BETA_DISTRIBUTE_EXTERNAL"]),
-      default: true
+def configure_app_store_connect_api_key
+  app_store_connect_api_key(
+    issuer_id: ENV["APPSTORE_CONNECT_ISSUER_ID"],
+    key_id: ENV["APPSTORE_CONNECT_KEY_ID"],
+    key_filepath: ENV["APPSTORE_CONNECT_KEY_FILEPATH"]
+  )
+end
+
+def setup_putio_ci_keychain
+  run_suffix = [ENV["GITHUB_RUN_ID"], ENV["GITHUB_RUN_ATTEMPT"]]
+    .reject { |value| value.to_s.empty? }
+    .join("-")
+  default_keychain_name = run_suffix.empty? ? "putio-ios-ci.keychain" : "putio-ios-ci-#{run_suffix}.keychain"
+  default_keychain_password = run_suffix.empty? ? "putio-ios-ci" : "putio-ios-ci-#{run_suffix}"
+
+  keychain_name = first_present(ENV["PUTIO_CI_KEYCHAIN_NAME"], default_keychain_name)
+  keychain_password = first_present(ENV["PUTIO_CI_KEYCHAIN_PASSWORD"], default_keychain_password)
+
+  create_keychain(
+    name: keychain_name,
+    password: keychain_password,
+    default_keychain: true,
+    unlock: true,
+    timeout: 3600,
+    lock_when_sleeps: true,
+    lock_after_timeout: false,
+    add_to_search_list: true,
+    require_create: true
+  )
+
+  ENV["MATCH_KEYCHAIN_NAME"] = keychain_name
+  ENV["MATCH_KEYCHAIN_PASSWORD"] = keychain_password
+end
+
+def with_temporary_file_state(paths)
+  snapshots = paths.to_h do |path|
+    absolute_path = File.expand_path(path, File.expand_path("..", __dir__))
+    [absolute_path, File.binread(absolute_path)]
+  end
+
+  yield
+ensure
+  snapshots&.each do |path, contents|
+    File.binwrite(path, contents)
+  end
+end
+
+def xcode_build_settings_arguments(keys, extras: {})
+  values = keys.to_h do |key|
+    [key, ENV[key]]
+  end
+
+  values.merge(extras).filter_map do |key, raw_value|
+    value = raw_value.to_s
+    next if value.empty?
+
+    "#{key}=#{value}"
+  end
+end
+
+def plist_escape(value)
+  value.to_s
+    .gsub("&", "&amp;")
+    .gsub("<", "&lt;")
+    .gsub(">", "&gt;")
+    .gsub('"', "&quot;")
+end
+
+def write_export_options_plist(path:, method:, team_id:, provisioning_profiles:)
+  provisioning_entries = provisioning_profiles.map do |bundle_identifier, profile_name|
+    <<~ENTRY
+      <key>#{plist_escape(bundle_identifier)}</key>
+      <string>#{plist_escape(profile_name)}</string>
+    ENTRY
+  end.join
+
+  File.write(path, <<~PLIST)
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>method</key>
+      <string>#{plist_escape(method)}</string>
+      <key>signingStyle</key>
+      <string>manual</string>
+      <key>teamID</key>
+      <string>#{plist_escape(team_id)}</string>
+      <key>provisioningProfiles</key>
+      <dict>
+    #{provisioning_entries.chomp}
+      </dict>
+    </dict>
+    </plist>
+  PLIST
+end
+
+def configure_release_distribution_signing
+  app_identifier = ENV["PUTIO_APP_IDENTIFIER"].to_s
+  development_team = ENV["PUTIO_DEVELOPMENT_TEAM"].to_s
+  return if app_identifier.empty? || development_team.empty?
+
+  update_code_signing_settings(
+    path: "Putio.xcodeproj",
+    use_automatic_signing: false,
+    sdk: "iphoneos*",
+    team_id: development_team,
+    targets: ["Putio"],
+    build_configurations: ["Release"],
+    code_sign_identity: "Apple Distribution",
+    profile_name: "match AppStore #{app_identifier}",
+    bundle_identifier: app_identifier
+  )
+end
+
+def archive_and_export_ios_app(output_path: nil)
+  repo_root = File.expand_path("..", __dir__)
+  app_identifier = ENV.fetch("PUTIO_APP_IDENTIFIER")
+  development_team = ENV.fetch("PUTIO_DEVELOPMENT_TEAM")
+  profile_name = "match AppStore #{app_identifier}"
+
+  Dir.mktmpdir("putio-ios-build-") do |tmpdir|
+    archive_path = File.join(tmpdir, "Putio.xcarchive")
+    export_path = File.join(tmpdir, "export")
+    export_options_path = File.join(tmpdir, "ExportOptions.plist")
+
+    FileUtils.mkdir_p(export_path)
+    write_export_options_plist(
+      path: export_options_path,
+      method: "app-store",
+      team_id: development_team,
+      provisioning_profiles: {
+        app_identifier => profile_name
+      }
     )
 
-    app_store_connect_api_key(
-      issuer_id: ENV["APPSTORE_CONNECT_ISSUER_ID"],
-      key_id: ENV["APPSTORE_CONNECT_KEY_ID"],
-      key_filepath: ENV["APPSTORE_CONNECT_KEY_FILEPATH"]
-    )
-
-    unless ENV["MATCH_GIT_URL"].to_s.empty?
-      match(type: ENV.fetch("MATCH_TYPE", "appstore"), platform: "ios", readonly: is_ci)
-    end
-
-    if options[:bump_type]
-      increment_version_number_in_xcodeproj(
-        bump_type: options[:bump_type],
-        scheme: "Putio"
-      )
-    end
-
-    increment_build_number(build_number: beta_build_number)
-
-    build_app(
-      workspace: "Putio.xcworkspace",
-      scheme: "Putio",
-      xcargs: xcode_build_settings_from_env(%w[
+    build_settings = xcode_build_settings_arguments(
+      %w[
         PUTIO_APP_IDENTIFIER
         PUTIO_DEVELOPMENT_TEAM
         PUTIO_OAUTH_CLIENT_ID
@@ -80,67 +193,204 @@ platform :ios do
         PUTIO_INTERCOM_API_KEY
         PUTIO_INTERCOM_APP_ID
         PUTIO_SENTRY_DSN
-      ])
+      ],
+      extras: {
+        "CODE_SIGN_STYLE" => "Manual",
+        "CODE_SIGN_IDENTITY" => "Apple Distribution",
+        "PROVISIONING_PROFILE_SPECIFIER" => profile_name
+      }
+    ).map { |argument| Shellwords.escape(argument) }.join(" ")
+
+    archive_command = [
+      "set -o pipefail &&",
+      "xcodebuild",
+      "-workspace", Shellwords.escape("Putio.xcworkspace"),
+      "-scheme", Shellwords.escape("Putio"),
+      "-configuration", Shellwords.escape("Release"),
+      "-sdk", Shellwords.escape("iphoneos"),
+      "-quiet",
+      "-archivePath", Shellwords.escape(archive_path),
+      build_settings,
+      "archive"
+    ].reject(&:empty?).join(" ")
+
+    export_command = [
+      "/usr/bin/xcodebuild",
+      "-exportArchive",
+      "-archivePath", Shellwords.escape(archive_path),
+      "-exportOptionsPlist", Shellwords.escape(export_options_path),
+      "-exportPath", Shellwords.escape(export_path),
+      "-quiet"
+    ].join(" ")
+
+    Dir.chdir(repo_root) do
+      sh(archive_command)
+      sh(export_command)
+    end
+
+    ipa_path = Dir[File.join(export_path, "*.ipa")].first
+    UI.user_error!("Expected an exported ipa in #{export_path}, found none") if ipa_path.to_s.empty?
+
+    preserved_ipa_path = output_path.to_s.empty? ? File.join(Dir.tmpdir, "putio-ios-#{Time.now.utc.strftime('%Y%m%d%H%M%S')}.ipa") : output_path
+    FileUtils.cp(ipa_path, preserved_ipa_path)
+
+    return preserved_ipa_path
+  end
+end
+
+platform :ios do
+  lane :beta_archive do |options|
+    require_ci!
+    setup_putio_ci_keychain
+
+    beta_build_number = resolved_build_number(options[:build_number], ENV["PUTIO_BETA_BUILD_NUMBER"])
+    ipa_output_path = first_present(options[:ipa_path], ENV["PUTIO_BETA_IPA_PATH"])
+    metadata_output_path = first_present(options[:metadata_path], ENV["PUTIO_BETA_METADATA_PATH"])
+    UI.user_error!("Missing ipa output path for beta archive") if ipa_output_path.to_s.empty?
+    UI.user_error!("Missing metadata output path for beta archive") if metadata_output_path.to_s.empty?
+
+    configure_app_store_connect_api_key
+
+    match(type: ENV.fetch("MATCH_TYPE", "appstore"), platform: "ios", readonly: true)
+
+    with_temporary_file_state(%w[
+      Putio.xcodeproj/project.pbxproj
+      Putio/Info.plist
+    ]) do
+      UI.important("==> Beta archive: preparing signed archive")
+      increment_build_number(build_number: beta_build_number)
+      configure_release_distribution_signing
+      ipa_path = archive_and_export_ios_app(output_path: ipa_output_path)
+      app_version = FastlaneCore::IpaFileAnalyser.fetch_app_version(ipa_path)
+      archived_build_number = FastlaneCore::IpaFileAnalyser.fetch_app_build(ipa_path)
+
+      File.write(
+        metadata_output_path,
+        JSON.pretty_generate(
+          {
+            "app_version" => app_version,
+            "build_number" => archived_build_number,
+            "ipa_path" => ipa_path
+          }
+        )
+      )
+
+      UI.important("==> Beta archive complete: #{ipa_path}")
+      UI.important("==> Beta build metadata: version #{app_version}, build #{archived_build_number}")
+    end
+  end
+
+  lane :beta_upload do |options|
+    require_ci!
+
+    ipa_path = first_present(options[:ipa_path], ENV["PUTIO_BETA_IPA_PATH"])
+    UI.user_error!("Missing ipa path for beta upload") if ipa_path.to_s.empty?
+
+    configure_app_store_connect_api_key
+
+    UI.important("==> TestFlight upload: starting transporter upload")
+    pilot(
+      ipa: ipa_path,
+      skip_waiting_for_build_processing: true
+    )
+    UI.important("==> TestFlight upload: upload finished")
+  end
+
+  lane :beta_distribute do |options|
+    require_ci!
+
+    beta_app_identifier = ENV.fetch("PUTIO_APP_IDENTIFIER")
+    beta_changelog = first_present(options[:changelog], ENV["PUTIO_BETA_CHANGELOG"]).to_s.strip
+    beta_groups = configured_testflight_groups(options[:groups], ENV["PUTIO_BETA_GROUPS"])
+    beta_app_version = first_present(options[:app_version], ENV["PUTIO_BETA_APP_VERSION"])
+    beta_build_number = first_present(options[:build_number], ENV["PUTIO_BETA_BUILD_NUMBER"])
+    wait_timeout = resolved_wait_timeout(options[:wait_timeout], ENV["PUTIO_BETA_WAIT_TIMEOUT_DURATION"])
+
+    UI.user_error!("Missing app version for beta distribution") if beta_app_version.to_s.empty?
+    UI.user_error!("Missing build number for beta distribution") if beta_build_number.to_s.empty?
+
+    configure_app_store_connect_api_key
+
+    effective_changelog = beta_changelog.empty? ? "Manual beta build #{beta_build_number}" : beta_changelog
+
+    UI.important("==> TestFlight distribution: waiting for App Store Connect processing")
+    pilot(
+      distribute_only: true,
+      app_identifier: beta_app_identifier,
+      app_platform: "ios",
+      app_version: beta_app_version,
+      build_number: beta_build_number,
+      distribute_external: true,
+      groups: beta_groups,
+      changelog: effective_changelog,
+      wait_processing_timeout_duration: wait_timeout
+    )
+    UI.important("==> TestFlight distribution: external rollout finished")
+  end
+
+  lane :beta do |options|
+    require_ci!
+
+    ipa_output_path = first_present(options[:ipa_path], ENV["PUTIO_BETA_IPA_PATH"], File.join(Dir.tmpdir, "putio-ios-beta.ipa"))
+    metadata_output_path = first_present(options[:metadata_path], ENV["PUTIO_BETA_METADATA_PATH"], File.join(Dir.tmpdir, "putio-ios-beta.json"))
+
+    beta_archive(
+      build_number: first_present(options[:build_number], ENV["PUTIO_BETA_BUILD_NUMBER"]),
+      ipa_path: ipa_output_path,
+      metadata_path: metadata_output_path
     )
 
-    pilot(
-      distribute_external: distribute_external,
-      groups: beta_groups.empty? ? ["Beta"] : beta_groups,
-      changelog: beta_changelog.to_s.empty? ? "Please visit put.io/beta for details." : beta_changelog,
-      skip_waiting_for_build_processing: true
+    metadata = JSON.parse(File.read(metadata_output_path))
+
+    beta_upload(ipa_path: metadata.fetch("ipa_path"))
+    beta_distribute(
+      app_version: metadata.fetch("app_version"),
+      build_number: metadata.fetch("build_number"),
+      changelog: first_present(options[:changelog], ENV["PUTIO_BETA_CHANGELOG"]),
+      groups: first_present(options[:groups], ENV["PUTIO_BETA_GROUPS"]),
+      wait_timeout: first_present(options[:wait_timeout], ENV["PUTIO_BETA_WAIT_TIMEOUT_DURATION"])
     )
   end
 
   lane :release do |options|
-    setup_ci
+    require_ci!
+    setup_putio_ci_keychain
 
     release_version = normalized_version(first_present(options[:version], ENV["PUTIO_RELEASE_VERSION"]))
     release_build_number = resolved_build_number(options[:build_number], ENV["PUTIO_RELEASE_BUILD_NUMBER"])
     release_changelog = first_present(options[:changelog], ENV["PUTIO_RELEASE_CHANGELOG"])
-    release_groups = first_present(options[:groups], ENV["PUTIO_RELEASE_GROUPS"]).to_s.split(",").map(&:strip).reject(&:empty?)
+    release_groups = configured_testflight_groups(options[:groups], ENV["PUTIO_RELEASE_GROUPS"], default_group: "")
     distribute_external = fastlane_bool(
       first_present(options[:distribute_external], ENV["PUTIO_RELEASE_DISTRIBUTE_EXTERNAL"]),
       default: false
     )
 
-    app_store_connect_api_key(
-      issuer_id: ENV["APPSTORE_CONNECT_ISSUER_ID"],
-      key_id: ENV["APPSTORE_CONNECT_KEY_ID"],
-      key_filepath: ENV["APPSTORE_CONNECT_KEY_FILEPATH"]
-    )
+    configure_app_store_connect_api_key
 
-    unless ENV["MATCH_GIT_URL"].to_s.empty?
-      match(type: ENV.fetch("MATCH_TYPE", "appstore"), platform: "ios", readonly: is_ci)
-    end
+    match(type: ENV.fetch("MATCH_TYPE", "appstore"), platform: "ios", readonly: true)
 
-    if release_version
-      increment_version_number_in_xcodeproj(
-        version_number: release_version,
-        scheme: "Putio"
+    with_temporary_file_state(%w[
+      Putio.xcodeproj/project.pbxproj
+      Putio/Info.plist
+    ]) do
+      if release_version
+        increment_version_number_in_xcodeproj(
+          version_number: release_version,
+          scheme: "Putio"
+        )
+      end
+
+      increment_build_number(build_number: release_build_number)
+      configure_release_distribution_signing
+      ipa_path = archive_and_export_ios_app
+
+      pilot(
+        ipa: ipa_path,
+        distribute_external: distribute_external,
+        groups: release_groups,
+        changelog: release_changelog.to_s.empty? ? "See the GitHub release notes for details." : release_changelog,
+        skip_waiting_for_build_processing: !distribute_external
       )
     end
-
-    increment_build_number(build_number: release_build_number)
-
-    build_app(
-      workspace: "Putio.xcworkspace",
-      scheme: "Putio",
-      xcargs: xcode_build_settings_from_env(%w[
-        PUTIO_APP_IDENTIFIER
-        PUTIO_DEVELOPMENT_TEAM
-        PUTIO_OAUTH_CLIENT_ID
-        PUTIO_CHROMECAST_RECEIVER_APP_ID
-        PUTIO_INTERCOM_API_KEY
-        PUTIO_INTERCOM_APP_ID
-        PUTIO_SENTRY_DSN
-      ])
-    )
-
-    pilot(
-      distribute_external: distribute_external,
-      groups: release_groups,
-      changelog: release_changelog.to_s.empty? ? "See the GitHub release notes for details." : release_changelog,
-      skip_waiting_for_build_processing: true
-    )
   end
 end

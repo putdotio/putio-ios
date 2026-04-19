@@ -59,7 +59,7 @@
     </dict>
 </dict>
 	<key>CFBundleVersion</key>
-	<string>218</string>
+	<string>1</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>IntercomAutoIntegratePushNotifications</key>
@@ -97,8 +97,12 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>${PRODUCT_NAME} uses the local network to discover Cast-enabled devices on your WiFi
 network.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take photos in support conversations to help resolve app issues</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Implement support messaging</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Record audio in support videos to help resolve app issues</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Send photos over support interface to help resolve app issues</string>
 	<key>PUTIO_CHROMECAST_RECEIVER_APP_ID</key>

@@ -24,22 +24,13 @@ make bootstrap
 
 - Default shared item:
   - `frontend-ci/putio-ios`
-- Fast path:
+- Local private config helper:
 
 ```bash
 make op-local-config
-make beta
-make release
 ```
 
-- Explicit override:
-
-```bash
-./scripts/op-local-config.sh --vault "frontend-ci" --item "putio-ios"
-./scripts/op-fastlane.sh --vault "frontend-ci" --item "putio-ios" beta
-```
-
-- Required 1Password fields:
+- Required CI-only 1Password fields:
   - `APPSTORE_CONNECT_ISSUER_ID`
   - `APPSTORE_CONNECT_KEY_ID`
   - `PUTIO_APP_IDENTIFIER`
@@ -54,14 +45,11 @@ make release
   - `MATCH_GIT_URL`
   - `MATCH_TYPE`
   - `MATCH_PASSWORD`
-- Optional 1Password fields:
   - `MATCH_GIT_PRIVATE_KEY`
-    - preferred for private `match` repos on GitHub
-    - store the SSH private key that matches a read-only deploy key on the certificates repo
-  - `MATCH_GIT_BASIC_AUTHORIZATION`
-    - fallback for private HTTPS Git repos when SSH is not available
-    - use this when `MATCH_GIT_URL` points at a private HTTPS Git repo
-    - format: Base64 of `github_username:personal_access_token`
+    - store the SSH private key that matches the read-only deploy key on the certificates repo
+- Match repo notes:
+  - `putdotio/apple-certificates` is pinned to the `main` branch in `fastlane/Matchfile`
+  - only the repo URL, password, and SSH key live in 1Password
 - Required 1Password attachment:
   - `AuthKey.p8`
 - Field-name contracts:
@@ -116,12 +104,22 @@ make download-ios-platform
   - manual TestFlight path
   - verifies first
   - loads secrets through `OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI`
+  - owns the `fastlane beta` invocation
+  - always distributes to the external TestFlight groups configured for the run
+  - splits the delivery flow into archive, upload, and distribute steps
+  - uses a bounded App Store Connect processing timeout instead of waiting forever
 - `.github/workflows/release.yml`
   - runs on published GitHub releases
   - builds from the release tag
+  - owns the `fastlane release` invocation
 - Build numbering:
-  - uploaded beta and release builds use UTC timestamp build numbers
+  - uploaded beta and release builds use UTC timestamp build numbers in `YYMMDDHHMM` format
   - checked-in `CURRENT_PROJECT_VERSION` stays at `1` as a baseline
+  - fastlane temporarily updates tracked version metadata during archive time and restores the files afterward
+- Fastlane contract:
+  - release lanes are CI-only
+  - `make beta` and `make release` intentionally fail locally
+  - shared 1Password loading and secret materialization live in `.github/actions/load-ios-release-secrets/action.yml`
 
 ## Development Notes
 
@@ -132,9 +130,6 @@ make download-ios-platform
   - optional `Config/Local.xcconfig`
   - `Info.plist` placeholders
 - Fastlane passes the same `PUTIO_*` values through Xcode during release builds
-- `op` helpers accept either:
-  - an interactive signed-in `op` session
-  - `OP_SERVICE_ACCOUNT_TOKEN`
 - Keep repo-stored configuration open-source-safe
   - do not commit tokens, signing keys, API key files, or private release metadata
 
