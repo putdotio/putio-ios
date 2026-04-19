@@ -288,43 +288,6 @@
             <point key="canvasLocation" x="1273" y="2232"/>
         </scene>
         <!--Navigation Controller-->
-        <scene sceneID="sWZ-mI-6zZ">
-            <objects>
-                <navigationController interfaceStyle="dark" id="WQP-4E-9K7" sceneMemberID="viewController">
-                    <navigationBar key="navigationBar" contentMode="scaleToFill" id="fK3-PF-vtK">
-                        <rect key="frame" x="0.0" y="44" width="375" height="44"/>
-                        <autoresizingMask key="autoresizingMask"/>
-                    </navigationBar>
-                    <connections>
-                        <segue destination="nTT-wF-9WO" kind="relationship" relationship="rootViewController" id="b7n-rP-ZdY"/>
-                    </connections>
-                </navigationController>
-                <placeholder placeholderIdentifier="IBFirstResponder" id="LIR-m9-mu1" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
-            </objects>
-            <point key="canvasLocation" x="-1470" y="1295"/>
-        </scene>
-        <!--Two-factor root-->
-        <scene sceneID="4HL-I6-Tgf">
-            <objects>
-                <viewController id="nTT-wF-9WO" sceneMemberID="viewController">
-                    <view key="view" contentMode="scaleToFill" id="vQg-jY-5iq">
-                        <rect key="frame" x="0.0" y="0.0" width="375" height="812"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <viewLayoutGuide key="safeArea" id="CBI-D4-Sax"/>
-                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
-                    </view>
-                    <navigationItem key="navigationItem" title="Two-factor root" id="bsp-xf-olx"/>
-                    <connections>
-                        <segue destination="Y6W-OH-hqX" kind="show" identifier="toTwoFactorRecoveryCodesVC" id="f2o-99-f4q"/>
-                        <segue destination="WFm-QP-RXT" kind="presentation" identifier="toDisableTwoFactorAuthNC" id="cPo-oI-8Xw"/>
-                        <segue destination="S1T-ZI-wXZ" kind="presentation" identifier="toEnableTwoFactorAuthNC" id="4wH-Nj-k6o"/>
-                    </connections>
-                </viewController>
-                <placeholder placeholderIdentifier="IBFirstResponder" id="wmj-DK-RLe" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
-            </objects>
-            <point key="canvasLocation" x="-721" y="1295"/>
-        </scene>
-        <!--Navigation Controller-->
         <scene sceneID="p1M-jx-n9E">
             <objects>
                 <navigationController storyboardIdentifier="EnableTwoFactorNC" id="S1T-ZI-wXZ" sceneMemberID="viewController">
