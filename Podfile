@@ -26,53 +26,56 @@ end
 
 def patch_keyboard_avoiding_view_loader!
   file_path = File.join(__dir__, "Pods", "KeyboardAvoidingView", "KeyboardAvoidingView", "Classes", "KeyboardAvoidingViewLoader.m")
+  contents = <<~'OBJC'
+    #import "KeyboardAvoidingViewLoader.h"
 
-  File.write(
-    file_path,
-    <<~'OBJC'
-      #import "KeyboardAvoidingViewLoader.h"
+    @import Foundation;
 
-      @import Foundation;
+    static BOOL KeyboardAvoidingViewIsRunningUnderXCTest(void) {
+        NSDictionary<NSString *, NSString *> *environment = NSProcessInfo.processInfo.environment;
+        NSArray<NSString *> *keys = @[
+            @"XCTestBundlePath",
+            @"XCTestConfigurationFilePath",
+            @"XCTestSessionIdentifier",
+        ];
 
-      static BOOL KeyboardAvoidingViewIsRunningUnderXCTest(void) {
-          NSDictionary<NSString *, NSString *> *environment = NSProcessInfo.processInfo.environment;
-          NSArray<NSString *> *keys = @[
-              @"XCTestBundlePath",
-              @"XCTestConfigurationFilePath",
-              @"XCTestSessionIdentifier",
-          ];
+        for (NSString *key in keys) {
+            if (environment[key].length > 0) {
+                return YES;
+            }
+        }
 
-          for (NSString *key in keys) {
-              if (environment[key].length > 0) {
-                  return YES;
-              }
-          }
+        return NO;
+    }
 
-          return NO;
-      }
+    @implementation KeyboardAvoidingViewLoader
 
-      @implementation KeyboardAvoidingViewLoader
+    + (void)load {
+        if (KeyboardAvoidingViewIsRunningUnderXCTest()) {
+            return;
+        }
 
-      + (void)load {
-          if (KeyboardAvoidingViewIsRunningUnderXCTest()) {
-              return;
-          }
+        Class keyboardManagerClass = NSClassFromString(@"KeyboardManager");
+        SEL sharedSelector = NSSelectorFromString(@"shared");
+        if (keyboardManagerClass == Nil || ![keyboardManagerClass respondsToSelector:sharedSelector]) {
+            return;
+        }
 
-          Class keyboardManagerClass = NSClassFromString(@"KeyboardManager");
-          SEL sharedSelector = NSSelectorFromString(@"shared");
-          if (keyboardManagerClass == Nil || ![keyboardManagerClass respondsToSelector:sharedSelector]) {
-              return;
-          }
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        [keyboardManagerClass performSelector:sharedSelector];
+    #pragma clang diagnostic pop
+    }
 
-      #pragma clang diagnostic push
-      #pragma clang diagnostic ignored "-Warc-performSelector-leaks"
-          [keyboardManagerClass performSelector:sharedSelector];
-      #pragma clang diagnostic pop
-      }
+    @end
+  OBJC
 
-      @end
-    OBJC
-  )
+  return unless File.exist?(file_path)
+  return if File.read(file_path) == contents
+
+  # CocoaPods may restore pod sources as read-only in CI caches.
+  File.chmod(0o644, file_path)
+  File.write(file_path, contents)
 end
 
 post_install do |installer|
