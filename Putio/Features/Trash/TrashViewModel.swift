@@ -1,6 +1,5 @@
 import Foundation
 import PutioSDK
-import RealmSwift
 
 protocol TrashViewModelDelegate: AnyObject {
     func stateChanged()
@@ -45,9 +44,10 @@ class TrashViewModel {
 
     var trashSize: Int64 = 0 {
         didSet {
-            let realm = try! Realm()
-            let user = realm.objects(User.self).first!
-            try! realm.write {
+            guard let realm = PutioRealm.open(context: "TrashViewModel.trashSize"),
+                let user = realm.objects(User.self).first else { return }
+
+            _ = PutioRealm.write(realm, context: "TrashViewModel.trashSize") {
                 user.trashSize = self.trashSize
             }
         }

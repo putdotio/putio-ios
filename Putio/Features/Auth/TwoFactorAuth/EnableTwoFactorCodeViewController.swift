@@ -1,5 +1,4 @@
 import UIKit
-import RealmSwift
 
 class EnableTwoFactorCodeViewController: UIViewController {
     @IBOutlet weak var textField: UITextField!
@@ -24,11 +23,11 @@ class EnableTwoFactorCodeViewController: UIViewController {
             loadingAlert.dismiss(animated: true) {
                 switch result {
                 case .success:
-                    let realm = try! Realm()
-                    let settings = realm.objects(User.self).first!.settings!
-
-                    try! realm.write {
-                        settings.twoFactorEnabled = true
+                    if let realm = PutioRealm.open(context: "EnableTwoFactorCodeViewController.handleSubmit"),
+                        let settings = realm.objects(User.self).first?.settings {
+                        _ = PutioRealm.write(realm, context: "EnableTwoFactorCodeViewController.handleSubmit") {
+                            settings.twoFactorEnabled = true
+                        }
                     }
 
                     self.performSegue(withIdentifier: "toTwoFactorRecoveryCodesVC", sender: nil)

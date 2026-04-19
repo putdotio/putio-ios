@@ -8,7 +8,7 @@ protocol NextMediaFinderDelegate: AnyObject {
 }
 
 class NextMediaFinder {
-    let realm = try! Realm()
+    private lazy var realm: Realm? = PutioRealm.open(context: "NextMediaFinder.realm")
 
     weak var delegate: NextMediaFinderDelegate?
 
@@ -30,6 +30,8 @@ class NextMediaFinder {
     }
 
     private func findNextMediaFromDownloads(for item: MediaPlayerItem) {
+        guard let realm = realm else { return findNextMediaFromAPI(for: item) }
+
         let downloads = realm.objects(Download.self)
             .filter("fileTypeRaw = %@", getMappedDownloadType(for: item).rawValue)
             .sorted(byKeyPath: "createdAt")

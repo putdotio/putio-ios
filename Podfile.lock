@@ -37,13 +37,11 @@ DEPENDENCIES:
   - KeychainAccess
   - PutioSDK (from `https://github.com/putdotio/putio-sdk-swift.git`, tag `2.0.0`)
   - RealmSwift (= 20.0.4)
-  - RoutableLogger (= 13.0.0)
   - Sentry (= 9.10.0)
   - StatefulViewController (~> 3.0)
   - SwiftLint (~> 0.63)
   - SwiftyBeaver (~> 2.1)
   - SwiftyJSON (= 5.0.2)
-  - ViewState (= 3.0.0)
   - VTAcknowledgementsViewController
 
 SPEC REPOS:
@@ -94,6 +92,6 @@ SPEC CHECKSUMS:
   ViewState: 82f26f9b716f6673c19e491f8bf234c4ff519a0a
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: 16636c50f33f91fab0fc7e75be256cc819796948
+PODFILE CHECKSUM: bbfd8b572d0354945ad0ec7972bc236af5b5ef21
 
 COCOAPODS: 1.16.2

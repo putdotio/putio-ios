@@ -1,5 +1,4 @@
 import UIKit
-import RealmSwift
 
 class DisableTwoFactorAuthViewController: UIViewController {
     @IBOutlet weak var textField: UITextField!
@@ -24,11 +23,11 @@ class DisableTwoFactorAuthViewController: UIViewController {
             loadingAlert.dismiss(animated: true) {
                 switch result {
                 case .success:
-                    let realm = try! Realm()
-                    let settings = realm.objects(User.self).first!.settings!
-
-                    try! realm.write {
-                        settings.twoFactorEnabled = false
+                    if let realm = PutioRealm.open(context: "DisableTwoFactorAuthViewController.handleSubmit"),
+                        let settings = realm.objects(User.self).first?.settings {
+                        _ = PutioRealm.write(realm, context: "DisableTwoFactorAuthViewController.handleSubmit") {
+                            settings.twoFactorEnabled = false
+                        }
                     }
 
                     self.dismiss(animated: true)
