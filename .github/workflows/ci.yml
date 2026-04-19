@@ -1,18 +1,16 @@
 name: CI
 
-x-docs-only-ignore: &docs_only_ignore
-  - 'AGENTS.md'
-  - 'CLAUDE.md'
-  - 'CONTRIBUTING.md'
-  - 'LICENSE'
-  - 'README.md'
-  - 'SECURITY.md'
-  - 'docs/**'
-  - 'fastlane/README.md'
-
 on:
   pull_request:
-    paths-ignore: *docs_only_ignore
+    paths-ignore: &docs_only_ignore
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE'
+      - 'README.md'
+      - 'SECURITY.md'
+      - 'docs/**'
+      - 'fastlane/README.md'
   push:
     branches:
       - main
