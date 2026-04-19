@@ -20,6 +20,20 @@
                ReferencedContainer = "container:Putio.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "456D1D7E4FCBDF0C748CA31C"
+               BuildableName = "PutioTests.xctest"
+               BlueprintName = "PutioTests"
+               ReferencedContainer = "container:Putio.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -27,7 +41,26 @@
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES">
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "ACEF62E91F9A26AA0026B25E"
+            BuildableName = "Putio.app"
+            BlueprintName = "Putio"
+            ReferencedContainer = "container:Putio.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
       <Testables>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "456D1D7E4FCBDF0C748CA31C"
+               BuildableName = "PutioTests.xctest"
+               BlueprintName = "PutioTests"
+               ReferencedContainer = "container:Putio.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

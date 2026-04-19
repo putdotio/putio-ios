@@ -45,7 +45,11 @@ class SettingsTableViewController: UITableViewController, TwoFactorAuthPresenter
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "settingsReuse", for: indexPath) as! SettingsTableViewCell
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: "settingsReuse", for: indexPath) as? SettingsTableViewCell else {
+            InternalFailurePresenter.log("Unable to dequeue SettingsTableViewCell")
+            return UITableViewCell()
+        }
+
         let item = viewModel.sections[indexPath.section].items.filter { $0.visible }[indexPath.row]
         cell.configure(with: item)
         return cell

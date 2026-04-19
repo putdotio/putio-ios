@@ -8,8 +8,12 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
     @IBOutlet weak var tableView: UITableView!
     var notificationToken: NotificationToken?
     var tutorialButton: UIButton?
-    var downloads: Results<Download> = {
-        let realm = try! Realm()
+    lazy var downloads: Results<Download>? = {
+        guard let realm = PutioRealm.open(context: "DownloadsViewController.downloads") else {
+            InternalFailurePresenter.log("Unable to load downloads collection")
+            return nil
+        }
+
         return realm.objects(Download.self).sorted(byKeyPath: "createdAt")
     }()
 
@@ -47,7 +51,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
         button.accessibilityLabel = "Downloads tutorial"
         button.addTarget(self, action: #selector(tutorialButtonTapped), for: .touchUpInside)
 
-        if let image = UIImage(named: "flaticons-stroke-info-2") {
+        if let image = UIImage(named: "iconInfo") {
             button.setImage(image.withRenderingMode(.alwaysTemplate), for: .normal)
         } else {
             button.setImage(UIImage(systemName: "info.circle"), for: .normal)
@@ -67,7 +71,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
             recoveryView.onRestore = { [weak self] in self?.runRecovery() }
             stateMachine.addView(recoveryView, forState: "recovery")
             stateMachine.transitionToState(.view("recovery"), animated: false, completion: nil)
-        } else if downloads.count == 0 {
+        } else if (downloads?.count ?? 0) == 0 {
             stateMachine.transitionToState(.view("empty"), animated: false, completion: nil)
         }
     }
@@ -75,7 +79,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
     func runRecovery() {
         PutioRealm.recoverDownloadsIfNeeded()
 
-        if downloads.count == 0 {
+        if (downloads?.count ?? 0) == 0 {
             stateMachine.transitionToState(.view("empty"))
         } else {
             stateMachine.transitionToState(.none)
@@ -83,10 +87,17 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
     }
 
     func registerDataObserver() {
-        notificationToken = downloads.observe({ (change) in
-            if self.downloads.count == 0 && !PutioRealm.needsDownloadRecovery {
+        guard let downloads else {
+            stateMachine.transitionToState(.view("empty"))
+            return
+        }
+
+        notificationToken = downloads.observe({ change in
+            let downloadCount = self.downloads?.count ?? 0
+
+            if downloadCount == 0 && !PutioRealm.needsDownloadRecovery {
                 self.stateMachine.transitionToState(.view("empty"))
-            } else if self.downloads.count > 0 {
+            } else if downloadCount > 0 {
                 self.stateMachine.transitionToState(.none)
             }
 
@@ -101,7 +112,8 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
                 for index in modifications {
                     let indexPath = IndexPath(row: index, section: 0)
                     if let cell = self.tableView.cellForRow(at: indexPath) as? DownloadsTableViewCell {
-                        cell.configure(with: self.downloads[index].id)
+                        guard let download = self.downloads?[index] else { continue }
+                        cell.configure(with: download.id)
                     }
                 }
             case .error(let error):
@@ -120,8 +132,13 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
 
     // MARK: Swipe Actions
     func contextualDeleteAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
-        let download = downloads[indexPath.row]
-        let cell = tableView.cellForRow(at: indexPath)!
+        guard let download = downloads?[indexPath.row],
+              let cell = tableView.cellForRow(at: indexPath) else {
+            InternalFailurePresenter.log("Unable to access download row \(indexPath.row) for delete action")
+            return UIContextualAction(style: .destructive, title: "Delete") { _, _, handler in
+                handler(false)
+            }
+        }
 
         let action = UIContextualAction(style: .destructive, title: "Delete") { (_, _, handler) in
             let actionSheet = UIAlertController(
@@ -179,12 +196,17 @@ extension DownloadsViewController: DownloadsTableViewCellDelegate {
 
 extension DownloadsViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return downloads.count
+        return downloads?.count ?? 0
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "downloadsReuse", for: indexPath) as! DownloadsTableViewCell
-        cell.configure(with: downloads[indexPath.row].id)
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: "downloadsReuse", for: indexPath) as? DownloadsTableViewCell,
+              let download = downloads?[indexPath.row] else {
+            InternalFailurePresenter.log("Unable to dequeue DownloadsTableViewCell")
+            return UITableViewCell()
+        }
+
+        cell.configure(with: download.id)
         cell.delegate = self
         return cell
     }
@@ -192,7 +214,7 @@ extension DownloadsViewController: UITableViewDataSource {
 
 extension DownloadsViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let download = downloads[indexPath.row]
+        guard let download = downloads?[indexPath.row] else { return }
         tableView.deselectRow(at: indexPath, animated: false)
         guard download.state == .completed else { return }
         presentDownloadedFile(download)
@@ -208,12 +230,22 @@ extension DownloadsViewController: UITableViewDelegate {
 
 extension DownloadsViewController: AVPlayerViewControllerDelegate {
     func playerViewControllerDidStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
-        (playerViewController as! VideoPlayerViewController).handlePictureInPictureDidStart()
+        guard let videoPlayerViewController = playerViewController as? VideoPlayerViewController else {
+            return InternalFailurePresenter.log("PiP start received for unexpected player controller")
+        }
+
+        videoPlayerViewController.handlePictureInPictureDidStart()
     }
 
     func playerViewController(_ playerViewController: AVPlayerViewController, restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) {
-        present(playerViewController, animated: true) {
-            (playerViewController as! VideoPlayerViewController).handlePictureInPictureDidStop()
+        guard let videoPlayerViewController = playerViewController as? VideoPlayerViewController else {
+            InternalFailurePresenter.log("PiP restore received for unexpected player controller")
+            completionHandler(false)
+            return
+        }
+
+        present(videoPlayerViewController, animated: true) {
+            videoPlayerViewController.handlePictureInPictureDidStop()
             completionHandler(true)
         }
     }

@@ -29,15 +29,25 @@ class RoutesViewModel {
         }
     }
 
-    private var userSettings: UserSettings = {
-        let realm = try! Realm()
-        return realm.objects(User.self).first!.settings!
-    }()
+    private var userSettings = UserSettings()
+
+    init() {
+        reloadPersistedState()
+    }
 
     var routes: [PutioRoute] = []
 
     func getSelectedRouteName() -> String {
         return userSettings.routeName
+    }
+
+    private func reloadPersistedState() {
+        guard let realm = PutioRealm.open(context: "RoutesViewModel.reloadPersistedState"),
+              let persistedSettings = realm.objects(User.self).first?.settings else {
+            return
+        }
+
+        userSettings = persistedSettings
     }
 
     func fetchRoutes() {
@@ -61,9 +71,13 @@ class RoutesViewModel {
         api.saveAccountSettings(body: ["tunnel_route_name": route.name]) { result in
             switch result {
             case .success:
-                let realm = try! Realm()
-                try! realm.write {
+                if let realm = self.userSettings.realm ?? PutioRealm.open(context: "RoutesViewModel.setRoute") {
+                    _ = PutioRealm.write(realm, context: "RoutesViewModel.setRoute.write") {
+                        self.userSettings.routeName = route.name
+                    }
+                } else {
                     self.userSettings.routeName = route.name
+                    InternalFailurePresenter.log("Unable to load Realm while persisting selected route")
                 }
 
                 completion(.success)

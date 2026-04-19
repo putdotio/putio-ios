@@ -6,7 +6,6 @@ import PutioSDK
 class DeeplinkManager {
     static let sharedInstance = DeeplinkManager()
 
-    let realm = try! Realm()
     var tabBarController: MainTabBarController?
     var isReadyToHandleURL: Bool = false
 
@@ -28,14 +27,19 @@ class DeeplinkManager {
 
     private func openLinkPage() {
         let storyboard = UIStoryboard(name: "Main", bundle: nil)
-        let linkAccountVC = storyboard.instantiateViewController(withIdentifier: "LinkAccount") as! LinkAccountViewController
-        let settingsNC = tabBarController?.selectedViewController as! UINavigationController
+        guard let linkAccountVC = storyboard.instantiateViewController(withIdentifier: "LinkAccount", as: LinkAccountViewController.self) else {
+            return InternalFailurePresenter.log("Unable to instantiate LinkAccountViewController")
+        }
+
+        guard let settingsNC = tabBarController?.selectedViewController as? UINavigationController else {
+            return InternalFailurePresenter.log("Unable to access settings navigation controller for deeplink")
+        }
         settingsNC.pushViewController(linkAccountVC, animated: true)
     }
 
     private func openFilePage(file: PutioFile) {
         guard let filesNC = tabBarController?.selectedViewController as? UINavigationController else {
-            return print("DeeplinkManager - Open File Page -> Unable to cast filesNC")
+            return InternalFailurePresenter.log("Open File Page: unable to access files navigation controller")
         }
 
         if let presentedFileVC = filesNC.presentedViewController {
@@ -45,14 +49,15 @@ class DeeplinkManager {
         }
 
         guard let visibleFileVC = filesNC.visibleViewController as? FilesViewController else {
-            return print("DeeplinkManager - Open File Page -> Unable to cast visibleFileVC")
+            return InternalFailurePresenter.log("Open File Page: visible controller is not FilesViewController")
         }
 
         return visibleFileVC.presentFile(file)
     }
 
     private func openDownloadedFile(fileID: Int) {
-        guard let download = realm.object(ofType: Download.self, forPrimaryKey: fileID),
+        guard let realm = PutioRealm.open(context: "DeeplinkManager.openDownloadedFile"),
+              let download = realm.object(ofType: Download.self, forPrimaryKey: fileID),
             let downloadsNC = tabBarController?.selectedViewController as? UINavigationController else { return }
 
         if let presentedDownloadVC = downloadsNC.presentedViewController {
@@ -62,7 +67,7 @@ class DeeplinkManager {
         }
 
         guard let visibleDownloadVC = downloadsNC.visibleViewController as? DownloadsViewController else {
-            return print("DeeplinkManager - Open Downloaded File -> Unable to cast visibleDownloadVC")
+            return InternalFailurePresenter.log("Open Downloaded File: visible controller is not DownloadsViewController")
         }
 
         visibleDownloadVC.presentDownloadedFile(download)

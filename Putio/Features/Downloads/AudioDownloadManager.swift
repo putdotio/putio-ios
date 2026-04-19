@@ -1,6 +1,5 @@
 import Foundation
 import AVFoundation
-import Alamofire
 import RealmSwift
 import UserNotifications
 import NotificationCenter
@@ -9,8 +8,6 @@ import PutioSDK
 class AudioDownloadManager: NSObject {
     static let sharedInstance = AudioDownloadManager()
     static let NOTIFICATION = Notification.Name("DOWNLOAD_MANAGER_QUEUE_UPDATED")
-
-    let realm = try! Realm()
 
     fileprivate var urlSession: URLSession!
     fileprivate var activeDownloadsMap = [URLSessionTask: Int]()
@@ -23,7 +20,7 @@ class AudioDownloadManager: NSObject {
     override private init() {
         super.init()
 
-        let backgroundConfiguration = URLSessionConfiguration.background(withIdentifier: "com.putio.tvOS.background.url")
+        let backgroundConfiguration = URLSessionConfiguration.background(withIdentifier: DOWNLOAD_AUDIO_BACKGROUND_SESSION_IDENTIFIER)
         backgroundConfiguration.sessionSendsLaunchEvents = true
 
         urlSession = URLSession(
@@ -56,33 +53,22 @@ class AudioDownloadManager: NSObject {
 
     private func notifyUser(for id: Int) {
         guard let download = getDownloadFromDatabase(id: id) else { return }
-
-        let notificationContent = UNMutableNotificationContent()
-        notificationContent.title = "Download Completed!"
-        notificationContent.body = "\(download.name) is ready to play."
-
-        let notificationTrigger = UNTimeIntervalNotificationTrigger(timeInterval: 1.0, repeats: false)
-        let notificationRequest = UNNotificationRequest(
-            identifier: "com.putio.tvOS.local_notification",
-            content: notificationContent,
-            trigger: notificationTrigger
-        )
-
-        UNUserNotificationCenter.current().add(notificationRequest, withCompletionHandler: nil)
+        DownloadSupport.enqueueCompletedDownloadNotification(for: download.name)
     }
 
     private func getDownloadFromDatabase(id: Int) -> Download? {
-        if let download = realm.object(ofType: Download.self, forPrimaryKey: id) {
-            return download
+        guard let realm = DownloadSupport.realm(context: "AudioDownloadManager.getDownloadFromDatabase") else {
+            return nil
         }
 
-        return nil
+        return realm.object(ofType: Download.self, forPrimaryKey: id)
     }
 
     private func startDownload(id: Int) {
         guard let download = getDownloadFromDatabase(id: id) else { return }
+        guard let url = DownloadSupport.url(from: download.url, context: "AudioDownloadManager.startDownload") else { return }
 
-        let task = urlSession.downloadTask(with: URL(string: (download.url))!)
+        let task = urlSession.downloadTask(with: url)
 
         activeDownloadsMap[task] = id
 
@@ -99,10 +85,12 @@ class AudioDownloadManager: NSObject {
         log.debug("ADM: createDownload url: \(url)")
 
         guard let download = Download(file: file, url: url) else { return }
+        guard let realm = DownloadSupport.realm(context: "AudioDownloadManager.createDownload") else { return }
 
-        try! realm.write {
+        let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.createDownload.write") {
             realm.add(download, update: .all)
         }
+        guard didWrite else { return }
 
         startDownload(id: download.id)
     }
@@ -114,7 +102,8 @@ class AudioDownloadManager: NSObject {
             task.key.cancel()
         }
 
-        try! realm.write {
+        guard let realm = download.realm else { return }
+        _ = DownloadSupport.write(realm, context: "AudioDownloadManager.cancelDownload.write") {
             download.state = .stopped
         }
     }
@@ -129,7 +118,8 @@ class AudioDownloadManager: NSObject {
             deleteLocalFile(for: id)
         }
 
-        try! realm.write {
+        guard let realm = download.realm else { return }
+        _ = DownloadSupport.write(realm, context: "AudioDownloadManager.deleteDownload.write") {
             realm.delete(download)
         }
     }
@@ -141,19 +131,15 @@ class AudioDownloadManager: NSObject {
         cancelDownload(id: id)
         startDownload(id: id)
 
-        try! realm.write {
+        guard let realm = download.realm else { return }
+        _ = DownloadSupport.write(realm, context: "AudioDownloadManager.restartDownload.write") {
             download.progress = "0"
             download.state = .queued
         }
     }
 
-    private func getAbsoluteURL(for relativePath: String) -> URL {
-        let url = FileManager.default.urls(
-            for: .documentDirectory,
-            in: .userDomainMask
-        ).first!.appendingPathComponent(relativePath)
-
-        return url
+    private func getAbsoluteURL(for relativePath: String) -> URL? {
+        DownloadSupport.absoluteDocumentsURL(for: relativePath)
     }
 
     func getLocalFileURL(for downloadId: Int) -> URL? {
@@ -162,7 +148,7 @@ class AudioDownloadManager: NSObject {
             return nil
         }
 
-        let url = getAbsoluteURL(for: filePath)
+        guard let url = getAbsoluteURL(for: filePath) else { return nil }
         log.debug("ADM: getLocalFileURL found: \(url.absoluteString)")
         return url
     }
@@ -170,12 +156,8 @@ class AudioDownloadManager: NSObject {
     private func deleteLocalFile(for downloadId: Int) {
         guard let url = getLocalFileURL(for: downloadId) else { return }
 
-        do {
-            try FileManager.default.removeItem(at: url)
-            UserDefaults.standard.removeObject(forKey: String(downloadId))
-        } catch {
-            log.error("ADM: deleteLocalFile error: \(downloadId): \(error)")
-        }
+        guard DownloadSupport.deleteItemIfPresent(at: url, context: "AudioDownloadManager.deleteLocalFile") else { return }
+        UserDefaults.standard.removeObject(forKey: String(downloadId))
     }
 
     private func deriveFileExtensionFromResponse(response: URLResponse?) -> String {
@@ -225,7 +207,8 @@ extension AudioDownloadManager: URLSessionTaskDelegate {
             message = error.localizedDescription
         }
 
-        try! realm.write {
+        guard let realm = download.realm else { return }
+        _ = DownloadSupport.write(realm, context: "AudioDownloadManager.didComplete.write") {
             download.state = state
             download.message = message
             download.completedAt = Date()
@@ -259,7 +242,8 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
             log.verbose(["ADM: downloadTask-didWriteData progress:", currentProgress, "oldProgress", oldProgress])
             lastProgressUpdateTime[downloadId] = now
 
-            try! realm.write {
+            guard let realm = download.realm else { return }
+            _ = DownloadSupport.write(realm, context: "AudioDownloadManager.progress.write") {
                 download.progress = String(format: "%.2f", currentProgress)
                 if download.state != .active {
                     download.state = .active
@@ -276,9 +260,9 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
 
         let fileExtension = deriveFileExtensionFromResponse(response: downloadTask.response)
         let destinationPath = "putio_adm_\(String(download.id))_\(download.name.slugify()).\(fileExtension)"
-        let destinationURL = getAbsoluteURL(for: destinationPath)
+        guard let destinationURL = getAbsoluteURL(for: destinationPath) else { return }
 
-        try? FileManager.default.removeItem(at: destinationURL)
+        _ = DownloadSupport.deleteItemIfPresent(at: destinationURL, context: "AudioDownloadManager.didFinishDownloadingTo.removeExisting")
 
         do {
             log.verbose(["ADM: downloadTask-didFinishDownloadingTo saving file to:", destinationURL])

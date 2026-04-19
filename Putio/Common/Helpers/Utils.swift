@@ -31,12 +31,12 @@ class Utils {
                 }
 
             case .denied:
-                print("Application Not Allowed to Display Notifications")
+                log.warning("Application Not Allowed to Display Notifications")
 
             case .provisional:
-                print("Notification auth status is provisional")
+                log.info("Notification auth status is provisional")
             case .ephemeral:
-                print("Notification auth status is temporal for app clips")
+                log.info("Notification auth status is temporal for app clips")
             }
         }
     }

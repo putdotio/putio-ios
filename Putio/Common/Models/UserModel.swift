@@ -74,8 +74,6 @@ class UserConfig: Object {
 
     convenience init?(json: JSON) {
         self.init()
-        
-        log.debug(json)
 
         let chromecastPlaybackType = json["chromecast_playback_type"].stringValue
 

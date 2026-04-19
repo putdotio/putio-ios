@@ -35,6 +35,27 @@ function version_gte(current, minimum) {
   return 1
 }
 
+function version_gt(current, candidate) {
+  if (candidate == "") {
+    return 1
+  }
+
+  split(current, current_parts, ".")
+  split(candidate, candidate_parts, ".")
+
+  for (part = 1; part <= 3; part++) {
+    if ((current_parts[part] + 0) > (candidate_parts[part] + 0)) {
+      return 1
+    }
+
+    if ((current_parts[part] + 0) < (candidate_parts[part] + 0)) {
+      return 0
+    }
+  }
+
+  return 0
+}
+
 /^-- iOS / {
   current_os = $3
   sub(/ --$/, "", current_os)
@@ -47,15 +68,20 @@ function version_gte(current, minimum) {
   }
 
   if (match($0, /\(([0-9A-F-]+)\)/)) {
-    found = 1
-    print substr($0, RSTART + 1, RLENGTH - 2)
-    exit 0
+    if (version_gt(current_os, best_os)) {
+      found = 1
+      best_os = current_os
+      best_id = substr($0, RSTART + 1, RLENGTH - 2)
+    }
   }
 }
 
 END {
-  if (!found) {
-    exit 1
+  if (found) {
+    print best_id
+    exit 0
   }
+
+  exit 1
 }
 '

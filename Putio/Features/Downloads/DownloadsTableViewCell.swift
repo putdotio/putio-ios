@@ -9,7 +9,7 @@ protocol DownloadsTableViewCellDelegate: AnyObject {
 class DownloadsTableViewCell: UITableViewCell {
     weak var delegate: DownloadsTableViewCellDelegate?
 
-    let realm = try! Realm()
+    lazy var realm: Realm? = PutioRealm.open(context: "DownloadsTableViewCell.realm")
     var id: Int?
 
     @IBOutlet weak var icon: UIImageView!
@@ -37,7 +37,9 @@ class DownloadsTableViewCell: UITableViewCell {
     }
 
     @IBAction func downloadButtonTapped(_ sender: Any) {
-        guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else {
+        guard let realm,
+              let id,
+              let download = realm.object(ofType: Download.self, forPrimaryKey: id) else {
             return log.error("DownloadsTableViewCell - downloadButtonTapped - invalid download")
         }
 
@@ -53,7 +55,8 @@ class DownloadsTableViewCell: UITableViewCell {
     }
 
     func configure(with downloadId: Int) {
-        guard let download = realm.object(ofType: Download.self, forPrimaryKey: downloadId) else {
+        guard let realm,
+              let download = realm.object(ofType: Download.self, forPrimaryKey: downloadId) else {
             return log.error(["configure failed", id as Any, downloadId])
         }
 
@@ -87,7 +90,8 @@ class DownloadsTableViewCell: UITableViewCell {
             return
         }
 
-        subtitleLabel?.text = "\(download.size.bytesToHumanReadable()) - Downloaded \(download.completedAt!.timeAgoSinceDate())"
+        let completedAtText = download.completedAt?.timeAgoSinceDate() ?? "recently"
+        subtitleLabel?.text = "\(download.size.bytesToHumanReadable()) - Downloaded \(completedAtText)"
         icon.image = download.fileType == .video ? UIImage.Putio.video : UIImage.Putio.audio
         stateButton.displayState = .completed
         selectionStyle = .default

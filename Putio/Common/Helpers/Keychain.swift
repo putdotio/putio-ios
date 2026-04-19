@@ -4,11 +4,12 @@ import KeychainAccess
 class PutioKeychain {
     static let sharedInstance = PutioKeychain()
 
-    let serviceKey: String = "com.putio.tvOS"
+    let serviceKey: String
     let tokenKey: String = "access_token"
     let keychain: Keychain
 
-    init() {
+    init(serviceKey: String = APP_KEYCHAIN_SERVICE) {
+        self.serviceKey = serviceKey
         keychain = Keychain(service: serviceKey)
     }
 

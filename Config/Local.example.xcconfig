@@ -1,7 +1,7 @@
 // Copy this file to Config/Local.xcconfig for local development or private team builds.
 // Keep Config/Local.xcconfig out of git.
 
-PUTIO_APP_IDENTIFIER = com.putio.tvOS
+PUTIO_APP_IDENTIFIER = com.putio.opensource.ios
 PUTIO_DEVELOPMENT_TEAM =
 
 PUTIO_OAUTH_CLIENT_ID = 3001

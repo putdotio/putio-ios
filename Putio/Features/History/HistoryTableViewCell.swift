@@ -1,59 +1,123 @@
 import UIKit
 import PutioSDK
 
-class HistoryTableViewCell: UITableViewCell {
-    func configure(with event: PutioHistoryEvent) {
-        var text = "No title"
-        var detailText = ""
-        var icon = "iconMediaGallery"
+struct HistoryEventPresentation {
+    let text: String
+    let detailText: String
+    let icon: String
 
+    static func build(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
         switch event.type {
         case .upload:
-            let e = event as! PutioUploadEvent
-            text = e.fileName
-            detailText = "\(e.fileSize.bytesToHumanReadable())  \(e.createdAt.timeAgoSinceDate())"
-            icon = "iconUpload"
+            return uploadPresentation(from: event)
         case .fileShared:
-            let e = event as! PutioFileSharedEvent
-            text = e.fileName
-            detailText = "\(e.createdAt.timeAgoSinceDate()) - Shared by \(e.sharingUserName)"
-            icon = "iconCloudAdd"
+            return fileSharedPresentation(from: event)
         case .transferCompleted:
-            let e = event as! PutioTransferCompletedEvent
-            text = e.transferName
-            detailText = "\(e.transferSize.bytesToHumanReadable())  \(e.createdAt.timeAgoSinceDate())"
-            icon = "iconMediaGallery"
+            return transferCompletedPresentation(from: event)
         case .transferError:
-            let e = event as! PutioTransferErrorEvent
-            text = "Error in transfer \(e.transferName)"
-            detailText = e.createdAt.timeAgoSinceDate()
-            icon = "iconX"
+            return transferErrorPresentation(from: event)
         case .fileFromRSSDeletedError:
-            let e = event as! PutioFileFromRSSDeletedErrorEvent
-            text = "We had to delete \(e.fileName) per your instructions, since there wasn't enough free space."
-            detailText = "\(e.fileSize.bytesToHumanReadable())  \(e.createdAt.timeAgoSinceDate())"
-            icon = "iconExclamationPoint"
+            return fileFromRSSDeletedErrorPresentation(from: event)
         case .rssFilterPaused:
-            let e = event as! PutioRSSFilterPausedEvent
-            text = "\(e.rssFilterTitle) is paused because we couldn't reach the source"
-            detailText = e.createdAt.timeAgoSinceDate()
-            icon = "iconRSS"
+            return rssFilterPausedPresentation(from: event)
         case .transferFromRSSError:
-            let e = event as! PutioTransferFromRSSErrorEvent
-            text = "Error in transfer from RSS for \(e.transferName)"
-            detailText = e.createdAt.timeAgoSinceDate()
-            icon = "iconX"
+            return transferFromRSSErrorPresentation(from: event)
         case .transferCallbackError:
-            let e = event as! PutioTransferCallbackErrorEvent
-            text = "Error in transfer callback for \(e.transferName)"
-            detailText = e.createdAt.timeAgoSinceDate()
-            icon = "iconX"
+            return transferCallbackErrorPresentation(from: event)
         default:
-            break
+            return HistoryEventPresentation(
+                text: "No title",
+                detailText: "",
+                icon: "iconMediaGallery"
+            )
+        }
+    }
+
+    private static func uploadPresentation(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
+        guard let event = event as? PutioUploadEvent else { return nil }
+        return HistoryEventPresentation(
+            text: event.fileName,
+            detailText: "\(event.fileSize.bytesToHumanReadable())  \(event.createdAt.timeAgoSinceDate())",
+            icon: "iconUpload"
+        )
+    }
+
+    private static func fileSharedPresentation(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
+        guard let event = event as? PutioFileSharedEvent else { return nil }
+        return HistoryEventPresentation(
+            text: event.fileName,
+            detailText: "\(event.createdAt.timeAgoSinceDate()) - Shared by \(event.sharingUserName)",
+            icon: "iconCloudAdd"
+        )
+    }
+
+    private static func transferCompletedPresentation(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
+        guard let event = event as? PutioTransferCompletedEvent else { return nil }
+        return HistoryEventPresentation(
+            text: event.transferName,
+            detailText: "\(event.transferSize.bytesToHumanReadable())  \(event.createdAt.timeAgoSinceDate())",
+            icon: "iconMediaGallery"
+        )
+    }
+
+    private static func transferErrorPresentation(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
+        guard let event = event as? PutioTransferErrorEvent else { return nil }
+        return HistoryEventPresentation(
+            text: "Error in transfer \(event.transferName)",
+            detailText: event.createdAt.timeAgoSinceDate(),
+            icon: "iconX"
+        )
+    }
+
+    private static func fileFromRSSDeletedErrorPresentation(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
+        guard let event = event as? PutioFileFromRSSDeletedErrorEvent else { return nil }
+        return HistoryEventPresentation(
+            text: "We had to delete \(event.fileName) per your instructions, since there wasn't enough free space.",
+            detailText: "\(event.fileSize.bytesToHumanReadable())  \(event.createdAt.timeAgoSinceDate())",
+            icon: "iconExclamationPoint"
+        )
+    }
+
+    private static func rssFilterPausedPresentation(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
+        guard let event = event as? PutioRSSFilterPausedEvent else { return nil }
+        return HistoryEventPresentation(
+            text: "\(event.rssFilterTitle) is paused because we couldn't reach the source",
+            detailText: event.createdAt.timeAgoSinceDate(),
+            icon: "iconRSS"
+        )
+    }
+
+    private static func transferFromRSSErrorPresentation(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
+        guard let event = event as? PutioTransferFromRSSErrorEvent else { return nil }
+        return HistoryEventPresentation(
+            text: "Error in transfer from RSS for \(event.transferName)",
+            detailText: event.createdAt.timeAgoSinceDate(),
+            icon: "iconX"
+        )
+    }
+
+    private static func transferCallbackErrorPresentation(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
+        guard let event = event as? PutioTransferCallbackErrorEvent else { return nil }
+        return HistoryEventPresentation(
+            text: "Error in transfer callback for \(event.transferName)",
+            detailText: event.createdAt.timeAgoSinceDate(),
+            icon: "iconX"
+        )
+    }
+}
+
+class HistoryTableViewCell: UITableViewCell {
+    func configure(with event: PutioHistoryEvent) {
+        guard let presentation = HistoryEventPresentation.build(from: event) else {
+            InternalFailurePresenter.log("Unable to build history event presentation for event type: \(event.type)")
+            textLabel?.text = "No title"
+            detailTextLabel?.text = ""
+            imageView?.image = UIImage(named: "iconMediaGallery")
+            return
         }
 
-        textLabel?.text = text
-        detailTextLabel?.text = detailText
-        imageView?.image = UIImage(named: icon)
+        textLabel?.text = presentation.text
+        detailTextLabel?.text = presentation.detailText
+        imageView?.image = UIImage(named: presentation.icon)
     }
 }

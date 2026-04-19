@@ -9,8 +9,6 @@ class VideoDownloadManager: NSObject {
     static let sharedInstance = VideoDownloadManager()
     static let NOTIFICATION = Notification.Name("DOWNLOAD_MANAGER_QUEUE_UPDATED")
 
-    let realm = try! Realm()
-
     fileprivate var assetDownloadURLSession: AVAssetDownloadURLSession?
     fileprivate var activeDownloadsMap = [AVAssetDownloadTask: Int]()
     fileprivate var willDownloadToURLMap = [AVAssetDownloadTask: URL]()
@@ -24,9 +22,8 @@ class VideoDownloadManager: NSObject {
     override private init() {
         super.init()
 
-        let backgroundConfiguration = URLSessionConfiguration.background(withIdentifier: "com.putio.tvOS.background.av")
+        let backgroundConfiguration = URLSessionConfiguration.background(withIdentifier: DOWNLOAD_VIDEO_BACKGROUND_SESSION_IDENTIFIER)
         backgroundConfiguration.sessionSendsLaunchEvents = true
-        backgroundConfiguration.shouldUseExtendedBackgroundIdleMode = true
 
         log.verbose("VDM: init")
 
@@ -64,49 +61,36 @@ class VideoDownloadManager: NSObject {
         log.verbose(["VDM: notifyUser", id])
 
         guard let download = getDownloadFromDatabase(id: id) else { return }
-
-        let notificationContent = UNMutableNotificationContent()
-        notificationContent.title = "Download Completed!"
-        notificationContent.body = "\(download.name) is ready to play."
-
-        let notificationTrigger = UNTimeIntervalNotificationTrigger(timeInterval: 1.0, repeats: false)
-        let notificationRequest = UNNotificationRequest(
-            identifier: "com.putio.tvOS.local_notification",
-            content: notificationContent,
-            trigger: notificationTrigger
-        )
-
-        UNUserNotificationCenter.current().add(notificationRequest, withCompletionHandler: nil)
+        DownloadSupport.enqueueCompletedDownloadNotification(for: download.name)
     }
 
     private func getDownloadFromDatabase(id: Int) -> Download? {
         log.verbose(["VDM: getDownloadFromDatabase", id])
-
-        if let download = realm.object(ofType: Download.self, forPrimaryKey: id) {
-            return download
+        guard let realm = DownloadSupport.realm(context: "VideoDownloadManager.getDownloadFromDatabase") else {
+            return nil
         }
 
-        return nil
+        return realm.object(ofType: Download.self, forPrimaryKey: id)
     }
 
-    private func getRemoteStreamURL(for download: Download, completion: @escaping (_ url: URL) -> Void) {
+    private func getRemoteStreamURL(for download: Download, completion: @escaping (_ url: URL?) -> Void) {
         var url = "\(api.config.baseURL)/files/\(download.id)/hls/media.m3u8?oauth_token=\(api.config.token)"
 
         api.getSubtitles(fileID: download.id) { result in
             switch result {
             case .failure:
                 log.verbose(["VDM: getRemoteStreamURL, subtitle fetch failed", url])
-                completion(URL(string: url)!)
+                completion(DownloadSupport.url(from: url, context: "VideoDownloadManager.getRemoteStreamURL.noSubtitles"))
 
             case .success(let subtitles):
                 guard let firstSubtitle = subtitles.first else {
                     log.verbose(["VDM: getRemoteStreamURL, no subtitles", url])
-                    return completion(URL(string: url)!)
+                    return completion(DownloadSupport.url(from: url, context: "VideoDownloadManager.getRemoteStreamURL.firstSubtitle"))
                 }
 
                 url = "\(url)&subtitle_key=\(firstSubtitle.key)"
                 log.verbose(["VDM: getRemoteStreamURL, with subtitle", url])
-                completion(URL(string: url)!)
+                completion(DownloadSupport.url(from: url, context: "VideoDownloadManager.getRemoteStreamURL.withSubtitle"))
             }
         }
     }
@@ -115,8 +99,9 @@ class VideoDownloadManager: NSObject {
         log.verbose(["VDM: startDownload", id])
         guard let download = getDownloadFromDatabase(id: id) else { return }
 
-        getRemoteStreamURL(for: download, completion: {url in
+        getRemoteStreamURL(for: download, completion: { url in
             guard let assetDownloadURLSession = self.assetDownloadURLSession else { return }
+            guard let url else { return }
 
             guard let task = assetDownloadURLSession.makeAssetDownloadTask(
                 asset: AVURLAsset(url: url),
@@ -137,10 +122,12 @@ class VideoDownloadManager: NSObject {
     func createDownload(from file: PutioFile) {
         log.verbose(["VDM: createDownload", file.id])
         guard let download = Download(file: file, url: "") else { return }
+        guard let realm = DownloadSupport.realm(context: "VideoDownloadManager.createDownload") else { return }
 
-        try! realm.write {
+        let didWrite = DownloadSupport.write(realm, context: "VideoDownloadManager.createDownload.write") {
             realm.add(download, update: .all)
         }
+        guard didWrite else { return }
 
         startDownload(id: download.id)
     }
@@ -154,7 +141,8 @@ class VideoDownloadManager: NSObject {
             task.cancel()
         }
 
-        try! realm.write {
+        guard let realm = download.realm else { return }
+        _ = DownloadSupport.write(realm, context: "VideoDownloadManager.cancelDownload.write") {
             download.progress = "0"
             download.state = .stopped
         }
@@ -171,7 +159,8 @@ class VideoDownloadManager: NSObject {
             deleteLocalFile(for: id)
         }
 
-        try! realm.write {
+        guard let realm = download.realm else { return }
+        _ = DownloadSupport.write(realm, context: "VideoDownloadManager.deleteDownload.write") {
             realm.delete(download)
         }
     }
@@ -183,7 +172,8 @@ class VideoDownloadManager: NSObject {
         cancelDownload(id: id)
         startDownload(id: id)
 
-        try! realm.write {
+        guard let realm = download.realm else { return }
+        _ = DownloadSupport.write(realm, context: "VideoDownloadManager.restartDownload.write") {
             download.state = .queued
         }
     }
@@ -219,13 +209,9 @@ class VideoDownloadManager: NSObject {
 
         guard let url = getLocalFileURL(for: downloadId) else { return }
 
-        do {
-            try FileManager.default.removeItem(at: url)
-            UserDefaults.standard.removeObject(forKey: String(downloadId))
-            log.verbose(["VDM: local file deleted", downloadId])
-        } catch {
-            log.error("VDM: error while deleting local file \(downloadId): \(error)")
-        }
+        guard DownloadSupport.deleteItemIfPresent(at: url, context: "VideoDownloadManager.deleteLocalFile") else { return }
+        UserDefaults.standard.removeObject(forKey: String(downloadId))
+        log.verbose(["VDM: local file deleted", downloadId])
     }
 }
 
@@ -262,7 +248,8 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
             log.verbose(["VDM: assetDownloadTask-progress percent: ", currentProgress, "oldProgress", oldProgress])
             lastProgressUpdateTime[downloadId] = now
 
-            try! realm.write {
+            guard let realm = download.realm else { return }
+            _ = DownloadSupport.write(realm, context: "VideoDownloadManager.progress.write") {
                 download.progress = String(format: "%.2f", currentProgress)
                 if download.state != .active {
                     download.state = .active
@@ -317,7 +304,8 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
         }
 
         log.verbose("VDM: didCompleteWithError: writing to realm")
-        try! realm.write {
+        guard let realm = download.realm else { return }
+        _ = DownloadSupport.write(realm, context: "VideoDownloadManager.didComplete.write") {
             download.state = state
             download.message = message
             download.completedAt = Date()
