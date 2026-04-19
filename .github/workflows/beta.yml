@@ -15,6 +15,10 @@ on:
         description: Comma-separated TestFlight groups
         required: false
         default: Beta
+      processing_timeout_minutes:
+        description: Minutes to wait for App Store Connect processing before failing
+        required: false
+        default: '20'
 
 permissions:
   contents: read
@@ -26,8 +30,16 @@ concurrency:
 jobs:
   beta:
     name: Upload beta build
-    runs-on: macos-26
-    timeout-minutes: 45
+    runs-on: blacksmith-6vcpu-macos-26
+    timeout-minutes: 60
+    env:
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_HIDE_PLUGINS_TABLE: '1'
+      FASTLANE_SKIP_ACTION_SUMMARY: '1'
+      FASTLANE_SKIP_ALL_LANE_SUMMARIES: '1'
+      FASTLANE_HIDE_TIMESTAMP: '1'
+      FASTLANE_DISABLE_COLORS: '1'
+      FASTLANE_SKIP_DOCS: '1'
 
     steps:
       - name: Check out repository
@@ -67,17 +79,46 @@ jobs:
         with:
           service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI }}
 
-      - name: Upload beta build
+      - name: Prepare beta metadata
         env:
           PUTIO_BETA_CHANGELOG: ${{ inputs.changelog }}
           PUTIO_BETA_GROUPS: ${{ inputs.groups }}
           PUTIO_BETA_REF: ${{ inputs.ref }}
         run: |
-          export PUTIO_BETA_BUILD_NUMBER="$(date -u +%Y%m%d%H%M%S)"
+          export PUTIO_BETA_BUILD_NUMBER="$(date -u +%y%m%d%H%M)"
+          export PUTIO_BETA_IPA_PATH="$RUNNER_TEMP/putio-ios-beta.ipa"
+          export PUTIO_BETA_METADATA_PATH="$RUNNER_TEMP/putio-ios-beta.json"
+          export PUTIO_BETA_WAIT_TIMEOUT_DURATION="$(( ${{ inputs.processing_timeout_minutes }} * 60 ))"
 
           if [ -z "$PUTIO_BETA_CHANGELOG" ]; then
             short_sha="$(git rev-parse --short HEAD)"
             export PUTIO_BETA_CHANGELOG="Manual beta build ${PUTIO_BETA_BUILD_NUMBER} from ${PUTIO_BETA_REF} (${short_sha})"
           fi
 
-          bundle exec fastlane beta
+          {
+            echo "PUTIO_BETA_BUILD_NUMBER=$PUTIO_BETA_BUILD_NUMBER"
+            echo "PUTIO_BETA_IPA_PATH=$PUTIO_BETA_IPA_PATH"
+            echo "PUTIO_BETA_METADATA_PATH=$PUTIO_BETA_METADATA_PATH"
+            echo "PUTIO_BETA_WAIT_TIMEOUT_DURATION=$PUTIO_BETA_WAIT_TIMEOUT_DURATION"
+            echo "PUTIO_BETA_CHANGELOG=$PUTIO_BETA_CHANGELOG"
+          } >> "$GITHUB_ENV"
+
+      - name: Archive and export beta ipa
+        run: bundle exec fastlane beta_archive
+
+      - name: Read beta archive metadata
+        run: |
+          ruby -rjson -e '
+            metadata = JSON.parse(File.read(ENV.fetch("PUTIO_BETA_METADATA_PATH")))
+            File.open(ENV.fetch("GITHUB_ENV"), "a") do |env|
+              env.puts("PUTIO_BETA_APP_VERSION=#{metadata.fetch("app_version")}")
+              env.puts("PUTIO_BETA_BUILD_NUMBER=#{metadata.fetch("build_number")}")
+              env.puts("PUTIO_BETA_IPA_PATH=#{metadata.fetch("ipa_path")}")
+            end
+          '
+
+      - name: Upload ipa to TestFlight
+        run: bundle exec fastlane beta_upload
+
+      - name: Wait for processing and distribute beta
+        run: bundle exec fastlane beta_distribute

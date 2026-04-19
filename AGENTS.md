@@ -3,7 +3,7 @@
 ## Repo
 
 - Native iOS app repository for put.io
-- Stack: UIKit, CocoaPods, Bundler-managed Ruby, optional fastlane release lanes
+- Stack: UIKit, CocoaPods, Bundler-managed Ruby, CI-only fastlane release lanes
 
 ## Start Here
 
@@ -34,9 +34,9 @@
 
 ## Local Auth And Release Flow
 
-- `scripts/op-local-config.sh` and `scripts/op-fastlane.sh` are the local 1Password helpers
+- `scripts/op-local-config.sh` is the only local 1Password helper
 - Default shared item: `frontend-ci/putio-ios`
-- Helpers accept either an interactive `op` session or `OP_SERVICE_ACCOUNT_TOKEN`
+- `fastlane beta` and `fastlane release` are CI-only entrypoints
 - Beta and release uploads use one monotonic UTC timestamp build-number strategy
 
 ## CI

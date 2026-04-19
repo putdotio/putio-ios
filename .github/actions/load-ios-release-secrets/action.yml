@@ -38,56 +38,42 @@ runs:
         MATCH_GIT_URL: op://frontend-ci/putio-ios/MATCH_GIT_URL
         MATCH_TYPE: op://frontend-ci/putio-ios/MATCH_TYPE
         MATCH_PASSWORD: op://frontend-ci/putio-ios/MATCH_PASSWORD
-
-    - name: Load optional match Git HTTPS auth
-      continue-on-error: true
-      uses: 1password/load-secrets-action@v4
-      with:
-        export-env: true
-      env:
-        OP_SERVICE_ACCOUNT_TOKEN: ${{ inputs.service-account-token }}
-        MATCH_GIT_BASIC_AUTHORIZATION: op://frontend-ci/putio-ios/MATCH_GIT_BASIC_AUTHORIZATION
-
-    - name: Load optional match Git SSH key
-      continue-on-error: true
-      uses: 1password/load-secrets-action@v4
-      with:
-        export-env: true
-      env:
-        OP_SERVICE_ACCOUNT_TOKEN: ${{ inputs.service-account-token }}
         MATCH_GIT_PRIVATE_KEY_CONTENT: op://frontend-ci/putio-ios/MATCH_GIT_PRIVATE_KEY
 
     - name: Materialize App Store Connect key
       shell: bash
       run: |
         key_path="$RUNNER_TEMP/AuthKey.p8"
-        printf '%s' "$APPSTORE_CONNECT_KEY_CONTENT" > "$key_path"
+        printf '%s\n' "$APPSTORE_CONNECT_KEY_CONTENT" > "$key_path"
         chmod 600 "$key_path"
         echo "APPSTORE_CONNECT_KEY_FILEPATH=$key_path" >> "$GITHUB_ENV"
 
-        if [ -n "${MATCH_GIT_PRIVATE_KEY_CONTENT:-}" ]; then
-          match_git_private_key_path="$RUNNER_TEMP/match-git-private-key"
-          printf '%s' "$MATCH_GIT_PRIVATE_KEY_CONTENT" > "$match_git_private_key_path"
-          chmod 600 "$match_git_private_key_path"
-          echo "MATCH_GIT_PRIVATE_KEY=$match_git_private_key_path" >> "$GITHUB_ENV"
+        if [ -z "${MATCH_GIT_PRIVATE_KEY_CONTENT:-}" ]; then
+          echo "MATCH_GIT_PRIVATE_KEY is not configured in frontend-ci/putio-ios" >&2
+          exit 1
+        fi
 
-          match_git_host=""
-          case "${MATCH_GIT_URL:-}" in
-            git@*:*)
-              match_git_host="${MATCH_GIT_URL#git@}"
-              match_git_host="${match_git_host%%:*}"
-              ;;
-            ssh://*)
-              match_git_host="${MATCH_GIT_URL#ssh://}"
-              match_git_host="${match_git_host%%/*}"
-              ;;
-          esac
+        match_git_private_key_path="$RUNNER_TEMP/match-git-private-key"
+        printf '%s\n' "$MATCH_GIT_PRIVATE_KEY_CONTENT" > "$match_git_private_key_path"
+        chmod 600 "$match_git_private_key_path"
+        echo "MATCH_GIT_PRIVATE_KEY=$match_git_private_key_path" >> "$GITHUB_ENV"
 
-          if [ -n "$match_git_host" ]; then
-            mkdir -p "$HOME/.ssh"
-            chmod 700 "$HOME/.ssh"
-            touch "$HOME/.ssh/known_hosts"
-            ssh-keyscan -H "$match_git_host" >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
-            chmod 600 "$HOME/.ssh/known_hosts"
-          fi
+        match_git_host=""
+        case "${MATCH_GIT_URL:-}" in
+          git@*:*)
+            match_git_host="${MATCH_GIT_URL#git@}"
+            match_git_host="${match_git_host%%:*}"
+            ;;
+          ssh://*)
+            match_git_host="${MATCH_GIT_URL#ssh://}"
+            match_git_host="${match_git_host%%/*}"
+            ;;
+        esac
+
+        if [ -n "$match_git_host" ]; then
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          touch "$HOME/.ssh/known_hosts"
+          ssh-keyscan -H "$match_git_host" >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
+          chmod 600 "$HOME/.ssh/known_hosts"
         fi
