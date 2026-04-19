@@ -1,6 +1,5 @@
 import Foundation
 import GoogleCast
-import RealmSwift
 import PutioSDK
 import Sentry
 
@@ -22,13 +21,11 @@ class ChromecastManager: NSObject {
     var debug: Bool = false
 
     var userSettings: UserSettings? = {
-        let realm = try! Realm()
-        return realm.objects(User.self).first?.settings
+        PutioRealm.open(context: "ChromecastManager.userSettings")?.objects(User.self).first?.settings
     }()
 
     var userConfig: UserConfig? = {
-        let realm = try! Realm()
-        return realm.objects(UserConfig.self).first
+        PutioRealm.open(context: "ChromecastManager.userConfig")?.objects(UserConfig.self).first
     }()
 
     func setup() {
@@ -219,10 +216,8 @@ class ChromecastManager: NSObject {
     }
 
     @objc private func saveVideoTime() {
-        let realm = try! Realm()
-        guard let user = realm.objects(User.self).first,
-            user.settings != nil,
-            user.settings?.rememberVideoTime == true,
+        guard let userSettings = PutioRealm.open(context: "ChromecastManager.saveVideoTime")?.objects(User.self).first?.settings,
+            userSettings.rememberVideoTime,
             let id = castingFileId,
             let time = GCKCastContext.sharedInstance().sessionManager.currentCastSession?.remoteMediaClient?.approximateStreamPosition() else { return }
 

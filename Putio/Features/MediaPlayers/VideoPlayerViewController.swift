@@ -70,12 +70,9 @@ private final class VideoPlaybackPositionStore {
 }
 
 class VideoPlayerViewController: AVPlayerViewController {
-    let realm = try! Realm()
+    private lazy var realm: Realm? = PutioRealm.open(context: "VideoPlayerViewController.realm")
     var item: MediaPlayerItem!
-    var user: User = {
-        let realm = try! Realm()
-        return realm.objects(User.self).first!
-    }()
+    private lazy var user: User? = realm?.objects(User.self).first
 
     var isPlayerSetup: Bool = false
     var isPlayingInPictureOnPictureMode: Bool = false
@@ -220,7 +217,7 @@ class VideoPlayerViewController: AVPlayerViewController {
     }
 
     private func persistPlaybackPosition(shouldSyncRemoteInBackground: Bool) {
-        guard user.settings != nil, user.settings?.rememberVideoTime == true else { return }
+        guard user?.settings?.rememberVideoTime == true else { return }
         guard let (currentTime, duration) = getCurrentTimeAndDuration() else { return }
         let startFrom = (currentTime >= duration - 10) ? 0 : currentTime
 
@@ -230,9 +227,10 @@ class VideoPlayerViewController: AVPlayerViewController {
             return
         }
 
-        guard let download = realm.object(ofType: Download.self, forPrimaryKey: item.id) else { return }
+        guard let realm = realm,
+            let download = realm.object(ofType: Download.self, forPrimaryKey: item.id) else { return }
 
-        try! realm.write {
+        _ = PutioRealm.write(realm, context: "VideoPlayerViewController.persistPlaybackPosition") {
             download.startFrom = startFrom
         }
     }

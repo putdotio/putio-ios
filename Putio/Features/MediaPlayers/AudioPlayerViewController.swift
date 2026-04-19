@@ -8,12 +8,8 @@ enum UIState {
 }
 
 class AudioPlayerViewController: UIViewController {
-    let realm = try! Realm()
-
-    var user: User = {
-        let realm = try! Realm()
-        return realm.objects(User.self).first!
-    }()
+    private lazy var realm: Realm? = PutioRealm.open(context: "AudioPlayerViewController.realm")
+    private lazy var user: User? = realm?.objects(User.self).first
 
     var mediaItems: [MediaPlayerItem]!
     var nextMediaFinder = NextMediaFinder()
@@ -243,7 +239,7 @@ class AudioPlayerViewController: UIViewController {
     }
 
     func saveAudioTime(for item: MediaPlayerItem, currentTime: Double, duration: Double) {
-        guard let userSettings = user.settings, userSettings.rememberVideoTime else { return }
+        guard let userSettings = user?.settings, userSettings.rememberVideoTime else { return }
 
         let startFrom = Int((currentTime >= duration - 15.0) ? 0 : currentTime)
 
@@ -259,8 +255,11 @@ class AudioPlayerViewController: UIViewController {
             return api.setStartFrom(fileID: item.id, time: startFrom, completion: { _ in })
         }
 
-        if let download = realm.object(ofType: Download.self, forPrimaryKey: item.id) {
-            try! realm.write { download.startFrom = startFrom }
+        if let realm = realm,
+            let download = realm.object(ofType: Download.self, forPrimaryKey: item.id) {
+            _ = PutioRealm.write(realm, context: "AudioPlayerViewController.saveAudioTime") {
+                download.startFrom = startFrom
+            }
         }
     }
 
