@@ -57,13 +57,21 @@ def setup_putio_ci_keychain
   ENV["MATCH_KEYCHAIN_PASSWORD"] = keychain_password
 end
 
-def xcode_build_settings_from_env(keys)
-  keys.filter_map do |key|
-    value = ENV[key].to_s
+def xcode_build_settings_from_values(values)
+  values.filter_map do |key, raw_value|
+    value = raw_value.to_s
     next if value.empty?
 
     %(#{key}=#{Shellwords.escape(value)})
   end.join(" ")
+end
+
+def xcode_build_settings_from_env(keys, extras: {})
+  values = keys.to_h do |key|
+    [key, ENV[key]]
+  end
+
+  xcode_build_settings_from_values(values.merge(extras))
 end
 
 platform :ios do
@@ -88,15 +96,6 @@ platform :ios do
       match(type: ENV.fetch("MATCH_TYPE", "appstore"), platform: "ios", readonly: is_ci)
     end
 
-    if options[:bump_type]
-      increment_version_number_in_xcodeproj(
-        bump_type: options[:bump_type],
-        scheme: "Putio"
-      )
-    end
-
-    increment_build_number(build_number: beta_build_number)
-
     build_app(
       workspace: "Putio.xcworkspace",
       scheme: "Putio",
@@ -108,7 +107,9 @@ platform :ios do
         PUTIO_INTERCOM_API_KEY
         PUTIO_INTERCOM_APP_ID
         PUTIO_SENTRY_DSN
-      ])
+      ], extras: {
+        "CURRENT_PROJECT_VERSION" => beta_build_number
+      })
     )
 
     pilot(
@@ -141,15 +142,6 @@ platform :ios do
       match(type: ENV.fetch("MATCH_TYPE", "appstore"), platform: "ios", readonly: is_ci)
     end
 
-    if release_version
-      increment_version_number_in_xcodeproj(
-        version_number: release_version,
-        scheme: "Putio"
-      )
-    end
-
-    increment_build_number(build_number: release_build_number)
-
     build_app(
       workspace: "Putio.xcworkspace",
       scheme: "Putio",
@@ -161,7 +153,10 @@ platform :ios do
         PUTIO_INTERCOM_API_KEY
         PUTIO_INTERCOM_APP_ID
         PUTIO_SENTRY_DSN
-      ])
+      ], extras: {
+        "CURRENT_PROJECT_VERSION" => release_build_number,
+        "MARKETING_VERSION" => release_version
+      })
     )
 
     pilot(
