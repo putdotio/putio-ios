@@ -906,11 +906,13 @@
 		};
 		ACCA91A01FB460430036F5CD /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
 			);
+			name = SwiftLint;
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1240,10 +1242,6 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
-					"-l\"c++\"",
-					"-l\"icucore\"",
-					"-l\"xml2\"",
-					"-l\"z\"",
 					"-weak_framework",
 					"\"AVFoundation\"",
 					"-framework",
@@ -1335,10 +1333,6 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
-					"-l\"c++\"",
-					"-l\"icucore\"",
-					"-l\"xml2\"",
-					"-l\"z\"",
 					"-weak_framework",
 					"\"AVFoundation\"",
 					"-framework",
