@@ -30,6 +30,7 @@ Sign in with your put.io account to browse files, view history, manage downloads
 ## Docs
 
 - [CONTRIBUTING.md](./CONTRIBUTING.md) for setup, verification, and release notes
+- [docs/DISTRIBUTION.md](./docs/DISTRIBUTION.md) for CI, TestFlight, and release delivery details
 - [SECURITY.md](./SECURITY.md) for private vulnerability reporting
 - [AGENTS.md](./AGENTS.md) for repo-specific agent guidance
 - [fastlane/README.md](./fastlane/README.md) for generated fastlane action docs

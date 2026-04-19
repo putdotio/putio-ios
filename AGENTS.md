@@ -9,6 +9,7 @@
 
 - [README.md](./README.md)
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
+- [docs/DISTRIBUTION.md](./docs/DISTRIBUTION.md)
 - [SECURITY.md](./SECURITY.md)
 
 ## Commands
@@ -38,6 +39,7 @@
 - Default shared item: `frontend-ci/putio-ios`
 - `fastlane beta` and `fastlane release` are CI-only entrypoints
 - Beta and release uploads use one monotonic UTC timestamp build-number strategy
+- `PUTIO_APPLE_ID` is the Apple login email for `Appfile` and `match`, not the numeric App Store Connect app Apple ID expected by `pilot apple_id`
 
 ## CI
 
@@ -45,6 +47,7 @@
 - `.github/workflows/beta.yml` is the intentional TestFlight path
 - `.github/workflows/release.yml` runs from published GitHub releases
 - Use `OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI` for shared 1Password-backed CI flows
+- See `docs/DISTRIBUTION.md` for fastlane/TestFlight/App Store Connect edge cases and cost notes
 
 ## Simulator Notes
 
