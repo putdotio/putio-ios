@@ -29,15 +29,17 @@ Sign in with your put.io account to browse files, view history, manage downloads
 
 ## Docs
 
-- [CONTRIBUTING.md](./CONTRIBUTING.md) for setup and local validation
-- [docs/DISTRIBUTION.md](./docs/DISTRIBUTION.md) for CI, TestFlight, and release delivery details
-- [SECURITY.md](./SECURITY.md) for private vulnerability reporting
-- [AGENTS.md](./AGENTS.md) for repo-specific agent guidance
-- [fastlane/README.md](./fastlane/README.md) for generated fastlane action docs
+- [Distribution](./docs/DISTRIBUTION.md) for CI, TestFlight, and release delivery details
+- [Security](./SECURITY.md) for private vulnerability reporting
+
+## Repo Internals
+
+- [Agent guide](./AGENTS.md) for repo-specific agent guidance
+- [Fastlane action docs](./fastlane/README.md) for generated fastlane action docs
 
 ## Contributing
 
-Contributions are welcome. Start with [CONTRIBUTING.md](./CONTRIBUTING.md)
+Contributions are welcome. Start with [Contributing](./CONTRIBUTING.md)
 
 ## License
 
