@@ -3,7 +3,7 @@
 ## Repo
 
 - Native iOS app repository for put.io
-- Stack: UIKit, CocoaPods, Bundler-managed Ruby, CI-only fastlane release lanes
+- Stack: UIKit, CocoaPods, Bundler-managed Ruby
 
 ## Start Here
 
@@ -16,10 +16,7 @@
 
 - `make bootstrap`
 - `make verify`
-- `make print-simulator-destination`
-- `make print-simulator-device`
 - `make run-simulator`
-- `make download-ios-platform`
 
 ## Rules
 
@@ -27,31 +24,14 @@
 - Private service keys stay out of git
 - Update docs when setup, validation, or release expectations change
 
-## Build And Config
+## Agent Checks
 
-- Runtime config flows through `Config/Shared.xcconfig`, optional `Config/Local.xcconfig`, and `Info.plist` placeholders
-- Fastlane uses the same `PUTIO_*` values from `fastlane/.env`
-- Treat `fastlane/.env.example` as the contract for optional release-time config
+- Use [CONTRIBUTING.md](./CONTRIBUTING.md) for setup, local validation, teammate-only 1Password flow, and localization workflow
+- Use [docs/DISTRIBUTION.md](./docs/DISTRIBUTION.md) for CI, TestFlight, and release-promotion rules
+- When auth, keychain, or signed-in persistence changes, run both `make verify` and `make run-simulator`
+- When user-facing copy changes, update the matching files under `Putio/en.lproj` and lint them with `plutil -lint Putio/en.lproj/*.strings`
 
-## Local Auth And Release Flow
+## Regression Hotspots
 
-- `scripts/op-local-config.sh` is the only local 1Password helper
-- Default shared item: `frontend-ci/putio-ios`
-- `fastlane beta` and `fastlane release` are CI-only entrypoints
-- Beta and release uploads use one monotonic UTC timestamp build-number strategy
-- `PUTIO_APPLE_ID` is the Apple login email for `Appfile` and `match`, not the numeric App Store Connect app Apple ID expected by `pilot apple_id`
-
-## CI
-
-- `.github/workflows/ci.yml` is verify-only and should stay aligned with `make verify`
-- `.github/workflows/beta.yml` is the intentional TestFlight path
-- `.github/workflows/release.yml` runs from published GitHub releases
-- Use `OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI` for shared 1Password-backed CI flows
-- See `docs/DISTRIBUTION.md` for fastlane/TestFlight/App Store Connect edge cases and cost notes
-
-## Simulator Notes
-
-- Prefer `make verify` for unsigned local verification
-- `make verify` prefers an advertised iPhone simulator destination on iOS `26.0+` and falls back to `iphonesimulator`
-- `make run-simulator` uses the normal signed Simulator build so auth and keychain persistence match a real interactive run
-- Simulator UI still depends on an installed iOS `26.x` platform and simulator runtime
+- Auth callback handling, post-login persistence, and user-facing recovery copy are covered by `PutioTests/ErrorPresentationTests.swift` and `PutioTests/PutioRealmTests.swift`
+- Files action labels and related localization expectations are covered by `PutioTests/NavigationLocalizationTests.swift`
