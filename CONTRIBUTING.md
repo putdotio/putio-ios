@@ -122,5 +122,10 @@ plutil -lint Putio/en.lproj/*.strings
 
 - Keep changes focused and explicit
 - Add or update verification when behavior changes
+- Include the most helpful review evidence for the kind of change you made
+  - screenshots or screen recordings for UI, layout, animation, onboarding, or copy changes
+  - sanity checks for risky or user-visible flows
+  - before and after benchmark numbers for performance-sensitive changes
+  - risk, rollout, or follow-up notes when touching auth, persistence, release flow, or external integrations
 - Update docs when setup, CI, or release expectations change
 - Prefer follow-up pull requests over mixing unrelated cleanup into the same branch
