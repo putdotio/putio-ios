@@ -30,6 +30,7 @@
 - Use [docs/DISTRIBUTION.md](./docs/DISTRIBUTION.md) for CI, TestFlight, and release-promotion rules
 - When auth, keychain, or signed-in persistence changes, run both `make verify` and `make run-simulator`
 - When user-facing copy changes, update the matching files under `Putio/en.lproj` and lint them with `plutil -lint Putio/en.lproj/*.strings`
+- When preparing a PR or handoff, include the most helpful evidence for review: visual aids for UI changes, sanity checks for risky flows, and before or after benchmarks for performance-sensitive work
 
 ## Regression Hotspots
 
