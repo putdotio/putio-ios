@@ -86,6 +86,9 @@
 "Authentication failed" = "Authentication failed";
 
 /* No comment provided by engineer. */
+"The authentication session did not return a callback URL." = "The authentication session did not return a callback URL.";
+
+/* No comment provided by engineer. */
 "Cancel" = "Cancel";
 
 /* No comment provided by engineer. */
@@ -429,6 +432,12 @@
 
 /* No comment provided by engineer. */
 "Resetting..." = "Resetting...";
+
+/* No comment provided by engineer. */
+"Settings updated" = "Settings updated";
+
+/* No comment provided by engineer. */
+"The change was saved on put.io, but the app could not refresh local data. Please reopen Account settings." = "The change was saved on put.io, but the app could not refresh local data. Please reopen Account settings.";
 
 /* No comment provided by engineer. */
 "Restore" = "Restore";

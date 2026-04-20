@@ -38,12 +38,28 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
         let url = api.getAuthURL(redirectURI: "\(scheme)://auth")
 
         session = ASWebAuthenticationSession(url: url, callbackURLScheme: scheme) { callbackURL, error in
-            guard error == nil, let callbackURL = callbackURL else { return }
-            return self.handleWebAuthCallbackSuccess(callbackURL: callbackURL)
+            self.handleWebAuthResult(callbackURL: callbackURL, error: error)
         }
 
         session?.presentationContextProvider = self
         session?.start()
+    }
+
+    func handleWebAuthResult(callbackURL: URL?, error: Error?) {
+        if let error = error {
+            return handleWebAuthCallbackFailure(error: error)
+        }
+
+        guard let callbackURL = callbackURL else {
+            let error = NSError(
+                domain: "",
+                code: 0,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("The authentication session did not return a callback URL.", comment: "")]
+            )
+            return handleWebAuthCallbackFailure(error: error)
+        }
+
+        return handleWebAuthCallbackSuccess(callbackURL: callbackURL)
     }
 
     func handleWebAuthCallbackFailure(error: Error) {

@@ -43,9 +43,16 @@ class Utils {
         }
     }
 
-    static func configureAVSession() {
+    static func configureAVSession(
+        setCategory: () throws -> Void = { try AVAudioSession.sharedInstance().setCategory(.playback) },
+        onFailure: (Error) -> Void = { error in
+            log.error("AVAudioSession configuration failed: \(error.localizedDescription)")
+        }
+    ) {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback)
-        } catch {}
+            try setCategory()
+        } catch {
+            onFailure(error)
+        }
     }
 }

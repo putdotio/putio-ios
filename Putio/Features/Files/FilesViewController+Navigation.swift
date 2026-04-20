@@ -63,13 +63,13 @@ extension FilesViewController {
             self.present(createFolderAlert, animated: true)
         }
 
-        let sortKeys: KeyValuePairs = [
-            "NAME": "Name",
-            "SIZE": "Size",
-            "DATE": "Date Added",
-            "MODIFIED": "Date Modified",
-            "TYPE": "Type",
-            "WATCH": "Watch Status"
+        let sortKeys: KeyValuePairs<String, String> = [
+            "NAME": NSLocalizedString("Name", comment: ""),
+            "SIZE": NSLocalizedString("Size", comment: ""),
+            "DATE": NSLocalizedString("Date Added", comment: ""),
+            "MODIFIED": NSLocalizedString("Date Modified", comment: ""),
+            "TYPE": NSLocalizedString("Type", comment: ""),
+            "WATCH": NSLocalizedString("Watch Status", comment: "")
         ]
 
         let selectedSortKey = parent.sortBy.split(separator: "_")[0]
