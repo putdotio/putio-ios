@@ -98,7 +98,7 @@ plutil -lint Putio/en.lproj/*.strings
 
 ## CI And Delivery
 
-- See [docs/DISTRIBUTION.md](./docs/DISTRIBUTION.md) for:
+- See [Distribution](./docs/DISTRIBUTION.md) for:
   - workflow roles
   - CI bootstrap behavior
   - fastlane release contract
