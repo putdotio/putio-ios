@@ -29,7 +29,7 @@ Sign in with your put.io account to browse files, view history, manage downloads
 
 ## Docs
 
-- [CONTRIBUTING.md](./CONTRIBUTING.md) for setup, verification, and release notes
+- [CONTRIBUTING.md](./CONTRIBUTING.md) for setup and local validation
 - [docs/DISTRIBUTION.md](./docs/DISTRIBUTION.md) for CI, TestFlight, and release delivery details
 - [SECURITY.md](./SECURITY.md) for private vulnerability reporting
 - [AGENTS.md](./AGENTS.md) for repo-specific agent guidance

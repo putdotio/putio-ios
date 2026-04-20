@@ -24,8 +24,7 @@ make bootstrap
 
 ### put.io Teammates
 
-- Default shared item:
-  - `frontend-ci/putio-ios`
+- Shared 1Password item: `frontend-ci/putio-ios`
 - Local private config helper:
 
 ```bash
@@ -38,34 +37,12 @@ make op-local-config
   - primary icon `AppIconDev`
 - `make op-local-config` only materializes private local credentials and the development team
 - CI beta builds still override app identity through secrets and fastlane
-
-- Required CI-only 1Password fields:
-  - `APPSTORE_CONNECT_ISSUER_ID`
-  - `APPSTORE_CONNECT_KEY_ID`
-  - `PUTIO_APP_IDENTIFIER`
-  - `PUTIO_APPLE_ID`
-  - `PUTIO_ITC_TEAM_ID`
-  - `PUTIO_DEVELOPMENT_TEAM`
-  - `PUTIO_OAUTH_CLIENT_ID`
-  - `PUTIO_CHROMECAST_RECEIVER_APP_ID`
-  - `PUTIO_INTERCOM_API_KEY`
-  - `PUTIO_INTERCOM_APP_ID`
-  - `PUTIO_SENTRY_DSN`
-  - `MATCH_GIT_URL`
-  - `MATCH_TYPE`
-  - `MATCH_PASSWORD`
-  - `MATCH_GIT_PRIVATE_KEY`
-    - store the SSH private key that matches the read-only deploy key on the certificates repo
-- Match repo notes:
-  - `putdotio/apple-certificates` is pinned to the `main` branch in `fastlane/Matchfile`
-  - only the repo URL, password, and SSH key live in 1Password
-- Required 1Password attachment:
-  - `AuthKey.p8`
-- Field-name contracts:
+- Keep the shared item aligned with:
   - `Config/Local.1password.xcconfig.template`
   - `fastlane/.env.1password.template`
+- Release automation also expects the `AuthKey.p8` attachment and the match repo SSH key material
 
-## Run Locally
+## Run And Validate
 
 - Open the workspace in Xcode:
 
@@ -80,26 +57,44 @@ make verify
 make run-simulator
 ```
 
-## Validation
-
-- Repo verify:
-
-```bash
-make verify
-```
-
 - Useful helpers:
 
 ```bash
 make print-simulator-destination
 make print-simulator-device
 make download-ios-platform
+plutil -lint Putio/en.lproj/*.strings
 ```
 
 - Notes:
   - `make verify` uses an unsigned simulator build
   - `make run-simulator` uses a normal signed Simulator build so auth and keychain persistence behave like a real interactive run
   - any iPhone simulator on iOS `26.0+` is fine
+  - when auth, keychain, or signed-in persistence changes, use both `make verify` and `make run-simulator`
+
+## Targeted Regression Checks
+
+- Focused xcodebuild runs are fine while iterating, but treat `make verify` as the repo gate before handoff
+- Useful targeted suites after recent cleanup work:
+  - `PutioTests/APIErrorLocalizerTests`
+  - `PutioTests/ErrorPresentationTests`
+  - `PutioTests/NavigationLocalizationTests`
+  - `PutioTests/PutioRealmTests`
+
+## Configuration Notes
+
+- Private support integrations are disabled by default in `Putio/Info.plist`
+- OAuth client id stays configured in local builds so browser-based login still works
+- Runtime app config flows through:
+  - `Config/Shared.xcconfig`
+  - optional `Config/Local.xcconfig`
+  - `Info.plist` placeholders
+- Fastlane passes the same `PUTIO_*` values through Xcode during beta archive builds
+- User-facing copy now has an English base under `Putio/en.lproj`
+  - when changing copy in Swift, update `Putio/en.lproj/Localizable.strings`
+  - when changing storyboard or xib copy, update the matching `Putio/en.lproj/*.strings` file
+- Keep repo-stored configuration open-source-safe
+  - do not commit tokens, signing keys, API key files, or private release metadata
 
 ## CI And Delivery
 
@@ -110,24 +105,11 @@ make download-ios-platform
   - TestFlight distribution notes
   - signing and App Store Connect gotchas
 
-## Development Notes
-
-- Private support integrations are disabled by default in `Putio/Info.plist`
-- OAuth client id stays configured in local builds so browser-based login still works
-- Runtime app config flows through:
-  - `Config/Shared.xcconfig`
-  - optional `Config/Local.xcconfig`
-  - `Info.plist` placeholders
-- Fastlane passes the same `PUTIO_*` values through Xcode during beta archive builds
-- Keep repo-stored configuration open-source-safe
-  - do not commit tokens, signing keys, API key files, or private release metadata
-
 ## Known Debt
 
 - The app is still a legacy UIKit and storyboard codebase
 - Some large feature areas, especially Files and Settings, have been split into smaller units but still carry historical complexity
-- Localization coverage is incomplete and should be treated as follow-up work, not a blocker for OSS
-- Beta and release delivery are CI-only and intentionally documented in [docs/DISTRIBUTION.md](./docs/DISTRIBUTION.md)
+- English localization is extracted, but additional locale coverage is still follow-up work
 
 ## Good First Contributions
 
