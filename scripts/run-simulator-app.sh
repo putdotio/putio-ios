@@ -32,8 +32,11 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+device_id="$(./scripts/simctl-iphone-device-id.sh --minimum-os "$minimum_os")"
+destination="platform=iOS Simulator,id=$device_id"
+
 build_settings="$(
-  xcodebuild -showBuildSettings -workspace "$workspace" -scheme "$scheme" -configuration "$configuration" -sdk iphonesimulator 2>/dev/null
+  xcodebuild -showBuildSettings -workspace "$workspace" -scheme "$scheme" -configuration "$configuration" -destination "$destination" 2>/dev/null
 )"
 
 target_build_dir="$(printf '%s\n' "$build_settings" | awk -F ' = ' '/^[[:space:]]*TARGET_BUILD_DIR = / { print $2; exit }')"
@@ -46,10 +49,9 @@ if [ -z "$target_build_dir" ] || [ -z "$full_product_name" ] || [ -z "$bundle_id
 fi
 
 app_path="$target_build_dir/$full_product_name"
-device_id="$(./scripts/simctl-iphone-device-id.sh --minimum-os "$minimum_os")"
 
-echo "Building $scheme for iphonesimulator"
-xcodebuild -workspace "$workspace" -scheme "$scheme" -configuration "$configuration" -sdk iphonesimulator build >/dev/null
+echo "Building $scheme for $destination"
+xcodebuild -workspace "$workspace" -scheme "$scheme" -configuration "$configuration" -destination "$destination" build >/dev/null
 
 echo "Booting simulator: $device_id"
 xcrun simctl boot "$device_id" >/dev/null 2>&1 || true

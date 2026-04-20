@@ -13,6 +13,8 @@
 		49366D1A1B213117EB390D4E /* FilesViewController+Playback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67587EFA32AA04C84BD5E5F5 /* FilesViewController+Playback.swift */; };
 		4F3388A6DA2720DACF20446B /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EEE14DC43F881736BEDFD030 /* Foundation.framework */; };
 		51D9E494DFC76AF375536663 /* HistoryViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2B1049C9B1A0CA9C66F6CD2 /* HistoryViewModelTests.swift */; };
+		7A112233445566778899AABB /* NavigationLocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A112233445566778899AABC /* NavigationLocalizationTests.swift */; };
+		8B5C2D1E4F60718293A4B5C6 /* ErrorPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */; };
 		66592A832C92EA206BAB25BF /* DownloadSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15797E9117171E8D87F34F1C /* DownloadSupport.swift */; };
 		78CA18B245AAA93D97689C6F /* SettingsViewModel+Sections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38466C37F620EDDBF46BFEF7 /* SettingsViewModel+Sections.swift */; };
 		7F88FAC086E3EACC35AEAD10 /* UIStoryboard+TypedInstantiation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A452CE0D5CE4073B61D5F4C /* UIStoryboard+TypedInstantiation.swift */; };
@@ -272,6 +274,8 @@
 		ACFA83801FF1338A008711B4 /* EmptyStateView.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = EmptyStateView.xib; sourceTree = "<group>"; };
 		BB87A77E7CBC8A2FFDF88298 /* Pods-PutioTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PutioTests.debug.xcconfig"; path = "Target Support Files/Pods-PutioTests/Pods-PutioTests.debug.xcconfig"; sourceTree = "<group>"; };
 		C2B1049C9B1A0CA9C66F6CD2 /* HistoryViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryViewModelTests.swift; sourceTree = "<group>"; };
+		7A112233445566778899AABC /* NavigationLocalizationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NavigationLocalizationTests.swift; sourceTree = "<group>"; };
+		8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ErrorPresentationTests.swift; sourceTree = "<group>"; };
 		D4FA3E925494F09D83976E4D /* Pods-PutioTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PutioTests.release.xcconfig"; path = "Target Support Files/Pods-PutioTests/Pods-PutioTests.release.xcconfig"; sourceTree = "<group>"; };
 		D6621E70422BFD153917AB79 /* SettingsViewModel+Persistence.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "SettingsViewModel+Persistence.swift"; sourceTree = "<group>"; };
 		E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioRealmTests.swift; sourceTree = "<group>"; };
@@ -303,7 +307,9 @@
 			isa = PBXGroup;
 			children = (
 				333E41E81298A2E8796ACE97 /* APIErrorLocalizerTests.swift */,
+				8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */,
 				C2B1049C9B1A0CA9C66F6CD2 /* HistoryViewModelTests.swift */,
+				7A112233445566778899AABC /* NavigationLocalizationTests.swift */,
 				9061977704DB05372D01A172 /* PutioKeychainTests.swift */,
 				E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */,
 				293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */,
@@ -945,7 +951,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				0E4F147822C01DF9814EE2C9 /* APIErrorLocalizerTests.swift in Sources */,
+				8B5C2D1E4F60718293A4B5C6 /* ErrorPresentationTests.swift in Sources */,
 				51D9E494DFC76AF375536663 /* HistoryViewModelTests.swift in Sources */,
+				7A112233445566778899AABB /* NavigationLocalizationTests.swift in Sources */,
 				B5E0A31A3EECB199CBAC08D0 /* PutioKeychainTests.swift in Sources */,
 				F5F55CEFFA917A837390DE86 /* PutioRealmTests.swift in Sources */,
 				20CA6ABE176EC66E70EC090E /* UserConfigTests.swift in Sources */,

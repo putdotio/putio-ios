@@ -47,8 +47,12 @@ class TrashViewModel {
             guard let realm = PutioRealm.open(context: "TrashViewModel.trashSize"),
                 let user = realm.objects(User.self).first else { return }
 
-            _ = PutioRealm.write(realm, context: "TrashViewModel.trashSize") {
+            let didWrite = PutioRealm.write(realm, context: "TrashViewModel.trashSize") {
                 user.trashSize = self.trashSize
+            }
+
+            guard didWrite else {
+                return InternalFailurePresenter.log("Unable to persist trash size update")
             }
         }
     }

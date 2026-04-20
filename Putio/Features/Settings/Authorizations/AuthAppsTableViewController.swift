@@ -13,6 +13,17 @@ class AuthAppsTableViewController: UITableViewController {
     func configureApperance() {
     }
 
+    func presentAuthAppsError(_ error: PutioErrorLocalizableInput) {
+        let localizedError = api.localizeError(error: error)
+        let errorAlert = UIAlertController(
+            title: localizedError.message,
+            message: localizedError.recoverySuggestion.description,
+            preferredStyle: .alert
+        )
+        errorAlert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel))
+        present(errorAlert, animated: true)
+    }
+
     func fetchData() {
         api.getGrants { result in
             switch result {
@@ -20,8 +31,8 @@ class AuthAppsTableViewController: UITableViewController {
                 self.apps = apps
                 self.tableView.reloadData()
 
-            case .failure:
-                break
+            case .failure(let error):
+                self.presentAuthAppsError(error)
             }
         }
     }
@@ -39,7 +50,8 @@ class AuthAppsTableViewController: UITableViewController {
                     self.tableView.deleteRows(at: [indexPath], with: .automatic)
                     handler(true)
 
-                case .failure:
+                case .failure(let error):
+                    self.presentAuthAppsError(error)
                     handler(false)
                 }
             }

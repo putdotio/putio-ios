@@ -10,7 +10,7 @@ extension SettingsViewModel {
         return alert
     }
 
-    private func presentRemoteMutationError(_ error: PutioSDKError) {
+    func presentRemoteMutationError(_ error: PutioErrorLocalizableInput) {
         let localizedError = api.localizeError(error: error)
         let errorAlert = UIAlertController(
             title: localizedError.message,
@@ -20,6 +20,26 @@ extension SettingsViewModel {
         errorAlert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel))
         update()
         tableViewController?.present(errorAlert, animated: true)
+    }
+
+    func presentSettingsRefreshError(_ error: PutioErrorLocalizableInput) {
+        let localizedError = api.localizeError(error: error)
+        let errorAlert = UIAlertController(
+            title: localizedError.message,
+            message: localizedError.recoverySuggestion.description,
+            preferredStyle: .alert
+        )
+        errorAlert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel))
+        tableViewController?.present(errorAlert, animated: true)
+    }
+
+    func presentPersistenceFailure() {
+        update()
+        InternalFailurePresenter.present(
+            on: tableViewController,
+            title: NSLocalizedString("Settings updated", comment: ""),
+            message: NSLocalizedString("The change was saved on put.io, but the app could not refresh local data. Please reopen Account settings.", comment: "")
+        )
     }
 
     private func performRemoteMutation(
@@ -33,11 +53,15 @@ extension SettingsViewModel {
             loadingAlert.dismiss(animated: true) {
                 switch result {
                 case .success:
-                    guard let realm = PutioRealm.open(context: "SettingsViewModel.performRemoteMutation") else { return }
+                    guard let realm = PutioRealm.open(context: "SettingsViewModel.performRemoteMutation") else {
+                        return self.presentPersistenceFailure()
+                    }
                     let didWrite = PutioRealm.write(realm, context: "SettingsViewModel.performRemoteMutation.write") {
                         onSuccess(realm)
                     }
-                    guard didWrite else { return }
+                    guard didWrite else {
+                        return self.presentPersistenceFailure()
+                    }
                     self.reloadPersistedState()
                     self.update()
 

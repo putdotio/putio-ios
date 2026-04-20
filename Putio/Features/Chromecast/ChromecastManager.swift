@@ -102,8 +102,21 @@ class ChromecastManager: NSObject {
         let metadata = GCKMediaMetadata(metadataType: GCKMediaMetadataType.movie)
         metadata.setString(file.name, forKey: kGCKMetadataKeyTitle)
         metadata.setString("put.io/files/\(file.id)", forKey: kGCKMetadataKeySubtitle)
-        metadata.addImage(GCKImage(url: URL(string: file.screenshot)!, width: 640, height: 360))
+
+        if let image = createMetadataImage(for: file) {
+            metadata.addImage(image)
+        }
+
         return metadata
+    }
+
+    func createMetadataImage(for file: PutioFile) -> GCKImage? {
+        guard let imageURL = URL(string: file.screenshot) else {
+            InternalFailurePresenter.log("Unable to construct Chromecast screenshot URL for file \(file.id)")
+            return nil
+        }
+
+        return GCKImage(url: imageURL, width: 640, height: 360)
     }
 
     func createGCKMediaLoadOptions(for file: PutioFile) -> GCKMediaLoadOptions {

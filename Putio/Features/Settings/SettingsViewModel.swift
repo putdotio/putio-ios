@@ -109,8 +109,8 @@ class SettingsViewModel {
                 self.reloadPersistedState()
                 self.update()
 
-            case .failure:
-                break
+            case .failure(let error):
+                self.presentSettingsRefreshError(error)
             }
         }
     }

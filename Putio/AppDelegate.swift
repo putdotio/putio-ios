@@ -123,8 +123,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         if INTERCOM_ENABLED, Intercom.isIntercomPushNotification(userInfo) {
             Intercom.handlePushNotification(userInfo)
-            completionHandler()
         }
+
+        completionHandler()
     }
 
     func authenticate(token: String? = nil) {
