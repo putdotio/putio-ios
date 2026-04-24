@@ -19,6 +19,11 @@ final class PlaybackSmokeUITests: XCTestCase {
 
         resumeDialog.buttons["Continue watching"].tap()
 
-        XCTAssertTrue(app.otherElements["putio-video-player"].waitForExistence(timeout: 5))
+        let player = app.otherElements["putio-video-player"]
+        XCTAssertTrue(player.waitForExistence(timeout: 5))
+
+        let playerReady = NSPredicate(format: "value == %@", "ready")
+        expectation(for: playerReady, evaluatedWith: player)
+        waitForExpectations(timeout: 10)
     }
 }

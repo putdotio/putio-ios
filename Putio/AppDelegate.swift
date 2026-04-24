@@ -97,6 +97,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         guard ProcessInfo.processInfo.environment["PUTIO_E2E_RESET_STATE"] == "1" else { return }
 
         PutioKeychain.sharedInstance.clearToken()
+        if let bundleIdentifier = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: bundleIdentifier)
+        }
         if let realm = PutioRealm.open(context: "prepareForE2ETests") {
             _ = PutioRealm.write(realm, context: "prepareForE2ETests.clearRealm") {
                 realm.deleteAll()

@@ -38,7 +38,8 @@ struct MediaPlayerItem {
     init(file: PutioFile) {
         self.id = file.id
         self.name = file.name
-        self.url = file.type == PutioFileType.video ? file.getHlsStreamURL(token: api.config.token) : file.getAudioStreamURL(token: api.config.token)
+        self.url = PutioE2EPlaybackAsset.url(for: file)
+            ?? (file.type == PutioFileType.video ? file.getHlsStreamURL(token: api.config.token) : file.getAudioStreamURL(token: api.config.token))
         self.fileType = file.type == PutioFileType.video ? .video : .audio
         self.consumptionType = .online
         self.startFrom = file.startFrom
@@ -51,5 +52,22 @@ struct MediaPlayerItem {
         self.fileType = file.type == PutioNextFileType.video ? .video : .audio
         self.consumptionType = .online
         self.startFrom = 0
+    }
+}
+
+private enum PutioE2EPlaybackAsset {
+    static func url(for file: PutioFile) -> URL? {
+        #if DEBUG
+        guard ProcessInfo.processInfo.environment["PUTIO_E2E_MOCK_API"] == "1" else {
+            return nil
+        }
+        guard file.type == PutioFileType.video else {
+            return nil
+        }
+
+        return Bundle.main.url(forResource: "downloadsTutorial", withExtension: "mov")
+        #else
+        return nil
+        #endif
     }
 }
