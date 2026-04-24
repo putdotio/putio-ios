@@ -154,7 +154,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
                 self.tableView.reloadData()
                 self.configureFileActionsButtonMenuItems()
                 UIView.performWithoutAnimation {
-                    self.setFileActionsEnabled(!(data.parent?.isShared ?? false))
+                    self.setFileActionsEnabled(data.parent.map { !$0.isShared } ?? false)
                 }
 
                 if data.children.isEmpty {

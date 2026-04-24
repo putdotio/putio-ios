@@ -85,7 +85,7 @@ class TwoFactorRecoveryCodesViewController: UIViewController, StatefulViewContro
         switch viewModel.state {
         case .success(data: let data):
             let codes = data.codes
-                .filter { $0.usedAt == "" }
+                .filter { $0.usedAt?.isEmpty ?? true }
                 .map { $0.code }
                 .joined(separator: "\n")
 
@@ -148,7 +148,7 @@ extension TwoFactorRecoveryCodesViewController: UITableViewDataSource {
         case .success(data: let data):
             let code = data.codes[indexPath.row]
 
-            cell.isUserInteractionEnabled = code.usedAt == ""
+            cell.isUserInteractionEnabled = code.usedAt?.isEmpty ?? true
             cell.configure(with: code)
 
             return cell

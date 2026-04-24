@@ -6,8 +6,8 @@ final class NavigationLocalizationTests: XCTestCase {
     func testConfigureFileActionsButtonMenuItemsUsesLocalizedTitles() throws {
         let viewController = FilesViewController()
         viewController.fileActionsButton = viewController.createNavigationBarFileActionsButton()
-        viewController.viewModel.file = makeFolder(id: 1, name: "Folder", sortBy: "NAME_ASC")
-        viewController.viewModel.files = [makeFile(id: 2, name: "Video", type: "VIDEO")]
+        viewController.viewModel.file = try makeFolder(id: 1, name: "Folder", sortBy: "NAME_ASC")
+        viewController.viewModel.files = [try makeFile(id: 2, name: "Video", type: "VIDEO")]
 
         viewController.configureFileActionsButtonMenuItems()
 
@@ -62,8 +62,8 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(action.backgroundColor, .systemRed)
     }
 
-    private func makeFolder(id: Int, name: String, sortBy: String) -> PutioFile {
-        return makePutioFile([
+    private func makeFolder(id: Int, name: String, sortBy: String) throws -> PutioFile {
+        return try makePutioFile([
                 "id": id,
                 "name": name,
                 "icon": "folder",
@@ -79,8 +79,8 @@ final class NavigationLocalizationTests: XCTestCase {
         )
     }
 
-    private func makeFile(id: Int, name: String, type: String) -> PutioFile {
-        return makePutioFile([
+    private func makeFile(id: Int, name: String, type: String) throws -> PutioFile {
+        return try makePutioFile([
                 "id": id,
                 "name": name,
                 "icon": "file",
@@ -94,8 +94,8 @@ final class NavigationLocalizationTests: XCTestCase {
         )
     }
 
-    private func makePutioFile(_ payload: [String: Any]) -> PutioFile {
-        let data = try! JSONSerialization.data(withJSONObject: payload)
-        return try! JSONDecoder().decode(PutioFile.self, from: data)
+    private func makePutioFile(_ payload: [String: Any]) throws -> PutioFile {
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        return try JSONDecoder().decode(PutioFile.self, from: data)
     }
 }

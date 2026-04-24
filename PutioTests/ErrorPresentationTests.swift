@@ -69,8 +69,8 @@ final class ErrorPresentationTests: XCTestCase {
         XCTAssertEqual(alert.message, NSLocalizedString("Please try again later", comment: ""))
     }
 
-    func testChromecastManagerSkipsInvalidScreenshotURL() {
-        let file = makePutioFile([
+    func testChromecastManagerSkipsInvalidScreenshotURL() throws {
+        let file = try makePutioFile([
                 "id": 42,
                 "name": "Episode",
                 "icon": "video",
@@ -104,9 +104,9 @@ final class ErrorPresentationTests: XCTestCase {
         XCTAssertEqual((receivedError as NSError?)?.code, expectedError.code)
     }
 
-    private func makePutioFile(_ payload: [String: Any]) -> PutioFile {
-        let data = try! JSONSerialization.data(withJSONObject: payload)
-        return try! JSONDecoder().decode(PutioFile.self, from: data)
+    private func makePutioFile(_ payload: [String: Any]) throws -> PutioFile {
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        return try JSONDecoder().decode(PutioFile.self, from: data)
     }
 
     private final class LoginViewControllerSpy: LoginViewController {
