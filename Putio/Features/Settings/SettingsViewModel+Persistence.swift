@@ -44,7 +44,7 @@ extension SettingsViewModel {
 
     private func performRemoteMutation(
         title: String = NSLocalizedString("Saving...", comment: ""),
-        mutation: (@escaping (Result<Void, PutioSDKError>) -> Void) -> Void,
+        mutation: (@escaping (Result<Void, PutioAppAPIError>) -> Void) -> Void,
         onSuccess: @escaping (Realm) -> Void
     ) {
         let loadingAlert = presentLoadingAlert(title: title)
@@ -80,7 +80,7 @@ extension SettingsViewModel {
                     case .success:
                         completion(.success(()))
                     case .failure(let error):
-                        completion(.failure(error))
+                        completion(.failure(.sdk(error)))
                     }
                 }
             },
@@ -98,7 +98,7 @@ extension SettingsViewModel {
                     case .success:
                         completion(.success(()))
                     case .failure(let error):
-                        completion(.failure(error))
+                        completion(.failure(.raw(error)))
                     }
                 }
             },

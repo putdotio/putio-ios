@@ -153,7 +153,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
                 self.tableView.reloadData()
                 self.configureFileActionsButtonMenuItems()
                 UIView.performWithoutAnimation {
-                    self.setFileActionsEnabled(!data.parent.isShared)
+                    self.setFileActionsEnabled(!(data.parent?.isShared ?? false))
                 }
 
                 if data.children.isEmpty {
@@ -175,7 +175,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
                     self.setFileActionsEnabled(false)
                     self.stateMachine.transitionToState(.view("offline"))
 
-                case .unknownError:
+                case .decodingError, .unknownError:
                     self.stateMachine.transitionToState(.view("error"))
                 }
             }

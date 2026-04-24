@@ -9,8 +9,8 @@ class TwoFactorRecoveryCodesTableViewCell: UITableViewCell {
 
         self.textLabel?.text = code.code
 
-        if code.used_at != "" {
-            guard let date = code.used_at else { return }
+        if code.usedAt != "" {
+            guard let date = code.usedAt else { return }
 
             self.detailTextLabel?.text = String(
                 format: NSLocalizedString("Used on %@", comment: ""),

@@ -123,7 +123,7 @@ class FilesRootViewController: FilesViewController {
                 case .networkError:
                     self.stateMachine.transitionToState(.view("offline"))
 
-                case .unknownError:
+                case .decodingError, .unknownError:
                     self.stateMachine.transitionToState(.view("error"))
                 }
             }

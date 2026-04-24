@@ -35,6 +35,9 @@ class VideoConversionViewController: UIViewController {
 
             case PutioMp4Conversion.Status.error, PutioMp4Conversion.Status.notAvailable:
                 label = NSLocalizedString("Error", comment: "")
+
+            default:
+                label = NSLocalizedString("Error", comment: "")
             }
 
             statusLabel.text = label

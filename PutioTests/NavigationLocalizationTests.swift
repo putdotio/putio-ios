@@ -1,7 +1,6 @@
 import XCTest
 @testable import Putio
 @testable import PutioSDK
-import SwiftyJSON
 
 final class NavigationLocalizationTests: XCTestCase {
     func testConfigureFileActionsButtonMenuItemsUsesLocalizedTitles() throws {
@@ -64,8 +63,7 @@ final class NavigationLocalizationTests: XCTestCase {
     }
 
     private func makeFolder(id: Int, name: String, sortBy: String) -> PutioFile {
-        return PutioFile(
-            json: JSON([
+        return makePutioFile([
                 "id": id,
                 "name": name,
                 "icon": "folder",
@@ -77,13 +75,12 @@ final class NavigationLocalizationTests: XCTestCase {
                 "is_shared": false,
                 "folder_type": "REGULAR",
                 "sort_by": sortBy
-            ])
+            ]
         )
     }
 
     private func makeFile(id: Int, name: String, type: String) -> PutioFile {
-        return PutioFile(
-            json: JSON([
+        return makePutioFile([
                 "id": id,
                 "name": name,
                 "icon": "file",
@@ -93,7 +90,12 @@ final class NavigationLocalizationTests: XCTestCase {
                 "created_at": "2026-04-20T00:00:00Z",
                 "updated_at": "2026-04-20T00:00:00Z",
                 "is_shared": false
-            ])
+            ]
         )
+    }
+
+    private func makePutioFile(_ payload: [String: Any]) -> PutioFile {
+        let data = try! JSONSerialization.data(withJSONObject: payload)
+        return try! JSONDecoder().decode(PutioFile.self, from: data)
     }
 }

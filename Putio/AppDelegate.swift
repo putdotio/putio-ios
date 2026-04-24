@@ -145,13 +145,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         var accountError: PutioSDKError?
         
         var config: JSON?
-        var configError: PutioSDKError?
+        var configError: PutioRawAPIError?
         
-        let accountInfoQuery: [String: Any] = [
-            "download_token": 1,
-            "intercom": 1,
-            "platform": "ios"
-        ]
+        let accountInfoQuery = PutioAccountInfoQuery(
+            downloadToken: true,
+            intercom: true,
+            platform: "ios"
+        )
 
         dispatchGroup.enter()
         api.getAccountInfo(query: accountInfoQuery) { result in
@@ -224,14 +224,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         self.presentMainScreen()
     }
 
-    func fetchUserFailure(error: PutioSDKError) {
+    func fetchUserFailure(error: any PutioErrorLocalizableInput) {
         guard let realm = PutioRealm.open(context: "fetchUserFailure") else {
             return presentLoginScreen()
         }
         let user = realm.objects(User.self).first
 
-        switch error.type {
-        case .unknownError, .networkError:
+        switch error.localizerType {
+        case .decodingError, .unknownError, .networkError:
             if user != nil {
                 return self.presentMainScreen()
             }
