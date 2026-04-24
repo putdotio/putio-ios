@@ -1,6 +1,7 @@
 import Foundation
 import UIKit
 import Intercom
+import PutioSDK
 
 extension SettingsViewModel {
     func buildSections() -> [SettingsModel.Section] {
@@ -115,8 +116,8 @@ extension SettingsViewModel {
                     icon: "iconVideo",
                     value: config.chromecastPlaybackType.uppercased(with: .autoupdatingCurrent),
                     action: {
-                        let value = self.config.chromecastPlaybackType == "hls" ? "mp4" : "hls"
-                        self.saveConfig(key: "chromecast_playback_type", realmKey: "chromecastPlaybackType", value: value)
+                        let playbackType: PutioChromecastPlaybackType = self.config.chromecastPlaybackType == "hls" ? .mp4 : .hls
+                        self.saveChromecastPlaybackType(playbackType)
                     },
                     visible: true
                 ),
@@ -126,7 +127,10 @@ extension SettingsViewModel {
                     icon: "iconFile",
                     value: !settings.hideSubtitles,
                     action: {
-                        self.saveSetting(key: "hide_subtitles", realmKey: "hideSubtitles", value: !self.settings.hideSubtitles)
+                        let value = !self.settings.hideSubtitles
+                        self.saveAccountSettings(.patch(PutioAccountSettingsPatch(hideSubtitles: value))) {
+                            self.settings.hideSubtitles = value
+                        }
                     },
                     visible: true
                 ),
@@ -136,11 +140,10 @@ extension SettingsViewModel {
                     icon: "iconFile",
                     value: settings.dontAutoSelectSubtitles,
                     action: {
-                        self.saveSetting(
-                            key: "dont_autoselect_subtitles",
-                            realmKey: "dontAutoSelectSubtitles",
-                            value: !self.settings.dontAutoSelectSubtitles
-                        )
+                        let value = !self.settings.dontAutoSelectSubtitles
+                        self.saveAccountSettings(.patch(PutioAccountSettingsPatch(dontAutoSelectSubtitles: value))) {
+                            self.settings.dontAutoSelectSubtitles = value
+                        }
                     },
                     visible: !settings.hideSubtitles
                 )

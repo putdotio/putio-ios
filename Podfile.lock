@@ -7,9 +7,7 @@ PODS:
     - ViewState (>= 1.2.1)
   - KeychainAccess (4.2.2)
   - Protobuf (3.29.6)
-  - PutioSDK (2.0.0):
-    - Alamofire (~> 5.11)
-    - SwiftyJSON (~> 5.0)
+  - PutioSDK (3.1.0)
   - Realm (20.0.4):
     - Realm/Headers (= 20.0.4)
   - Realm/Headers (20.0.4)
@@ -22,7 +20,6 @@ PODS:
   - StatefulViewController (3.0)
   - SwiftLint (0.63.2)
   - SwiftyBeaver (2.1.1)
-  - SwiftyJSON (5.0.2)
   - ViewState (3.0.0):
     - ViewState/Core (= 3.0.0)
   - ViewState/Core (3.0.0):
@@ -35,13 +32,12 @@ DEPENDENCIES:
   - Intercom (= 19.5.7)
   - KeyboardAvoidingView (~> 5.2)
   - KeychainAccess
-  - PutioSDK (from `https://github.com/putdotio/putio-sdk-swift.git`, tag `2.0.0`)
+  - PutioSDK (from `https://github.com/putdotio/putio-sdk-swift.git`, tag `3.1.0`)
   - RealmSwift (= 20.0.4)
   - Sentry (= 9.10.0)
   - StatefulViewController (~> 3.0)
   - SwiftLint (~> 0.63)
   - SwiftyBeaver (~> 2.1)
-  - SwiftyJSON (= 5.0.2)
   - VTAcknowledgementsViewController
 
 SPEC REPOS:
@@ -59,19 +55,18 @@ SPEC REPOS:
     - StatefulViewController
     - SwiftLint
     - SwiftyBeaver
-    - SwiftyJSON
     - ViewState
     - VTAcknowledgementsViewController
 
 EXTERNAL SOURCES:
   PutioSDK:
     :git: https://github.com/putdotio/putio-sdk-swift.git
-    :tag: 2.0.0
+    :tag: 3.1.0
 
 CHECKOUT OPTIONS:
   PutioSDK:
     :git: https://github.com/putdotio/putio-sdk-swift.git
-    :tag: 2.0.0
+    :tag: 3.1.0
 
 SPEC CHECKSUMS:
   Alamofire: 400275dd1c6d87d95a041861d2a59da4b520a203
@@ -80,7 +75,7 @@ SPEC CHECKSUMS:
   KeyboardAvoidingView: acc530b2435bba760b2270e722cb7132cf1c4d31
   KeychainAccess: c0c4f7f38f6fc7bbe58f5702e25f7bd2f65abf51
   Protobuf: 8d5596f7468be5400861a6bbfb2dfe9d0d1cde34
-  PutioSDK: efc7fce0477bc46f0364d3827112dcb7cdd6bc43
+  PutioSDK: 1c35596d70be4b14932593ef898f48112a0a4143
   Realm: 1fca83c42ac1d5c7767974882c8de5a7abca4d89
   RealmSwift: 84f36320f6133dea78d05c55bb46bba4387d6828
   RoutableLogger: 31ce799b16b4868c169ed68c36e25437dd0ca40e
@@ -88,10 +83,9 @@ SPEC CHECKSUMS:
   StatefulViewController: 4803bf900d44de26074344998e10e041113b5931
   SwiftLint: 4fa4a9b437ccc4fc72f6c0bc98556e8e9e05bccf
   SwiftyBeaver: ade157e4f857812e7d7f15f2e3396bb8733f8a1c
-  SwiftyJSON: f5b1bf1cd8dd53cd25887ac0eabcfd92301c6a5a
   ViewState: 82f26f9b716f6673c19e491f8bf234c4ff519a0a
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: bbfd8b572d0354945ad0ec7972bc236af5b5ef21
+PODFILE CHECKSUM: 207f8b5e0d22f5ccfbe981b6ef15dcb7611c6d13
 
 COCOAPODS: 1.16.2

@@ -116,7 +116,7 @@ extension PutioSDK {
         case .networkError:
             return networkErrorLocalizer.localize(error)
 
-        case .unknownError:
+        case .decodingError, .unknownError:
             return unknownErrorLocalizer.localize(error)
         }
     }

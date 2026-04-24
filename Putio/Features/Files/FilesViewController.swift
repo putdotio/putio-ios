@@ -36,6 +36,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        tableView.accessibilityIdentifier = "putio-files-table"
         tableView.delegate = self
         tableView.dataSource = self
 
@@ -142,7 +143,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
             stateMachine.transitionToState(.view("loading"))
         }
 
-        api.getFiles(parentID: viewModel.fileID, query: ["mp4_status": true]) { result in
+        api.getFiles(parentID: viewModel.fileID, query: PutioFilesListQuery(mp4Status: true)) { result in
             self.tableView.refreshControl?.endRefreshing()
 
             switch result {
@@ -153,7 +154,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
                 self.tableView.reloadData()
                 self.configureFileActionsButtonMenuItems()
                 UIView.performWithoutAnimation {
-                    self.setFileActionsEnabled(!data.parent.isShared)
+                    self.setFileActionsEnabled(data.parent.map { !$0.isShared } ?? false)
                 }
 
                 if data.children.isEmpty {
@@ -175,7 +176,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
                     self.setFileActionsEnabled(false)
                     self.stateMachine.transitionToState(.view("offline"))
 
-                case .unknownError:
+                case .decodingError, .unknownError:
                     self.stateMachine.transitionToState(.view("error"))
                 }
             }

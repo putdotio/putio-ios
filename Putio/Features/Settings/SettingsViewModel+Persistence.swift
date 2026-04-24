@@ -72,10 +72,13 @@ extension SettingsViewModel {
         }
     }
 
-    func saveSetting(key: String, realmKey: String, value: Any) {
+    func saveAccountSettings(
+        _ update: PutioAccountSettingsUpdate,
+        onSuccess: @escaping () -> Void
+    ) {
         performRemoteMutation(
             mutation: { completion in
-                api.saveAccountSettings(body: [key: value]) { result in
+                api.saveAccountSettings(update) { result in
                     switch result {
                     case .success:
                         completion(.success(()))
@@ -85,15 +88,15 @@ extension SettingsViewModel {
                 }
             },
             onSuccess: { _ in
-                self.settings[realmKey] = value
+                onSuccess()
             }
         )
     }
 
-    func saveConfig(key: String, realmKey: String, value: Any) {
+    func saveChromecastPlaybackType(_ playbackType: PutioChromecastPlaybackType) {
         performRemoteMutation(
             mutation: { completion in
-                api.put("/config/\(key)", body: ["value": value]) { result in
+                api.setChromecastPlaybackType(playbackType) { result in
                     switch result {
                     case .success:
                         completion(.success(()))
@@ -103,13 +106,16 @@ extension SettingsViewModel {
                 }
             },
             onSuccess: { _ in
-                self.config[realmKey] = value
+                self.config.chromecastPlaybackType = playbackType.rawValue
             }
         )
     }
 
     func toggleOptimisticUsage() {
-        saveSetting(key: "show_optimistic_usage", realmKey: "showOptimisticUsage", value: !settings.showOptimisticUsage)
+        let value = !settings.showOptimisticUsage
+        saveAccountSettings(.patch(PutioAccountSettingsPatch(showOptimisticUsage: value))) {
+            self.settings.showOptimisticUsage = value
+        }
     }
 
     func saveTrashEnabled(isEnabled: Bool) {
@@ -120,7 +126,9 @@ extension SettingsViewModel {
             return update()
         }
 
-        saveSetting(key: "trash_enabled", realmKey: "trashEnabled", value: nextValue)
+        saveAccountSettings(.patch(PutioAccountSettingsPatch(trashEnabled: nextValue))) {
+            self.settings.trashEnabled = nextValue
+        }
     }
 
     func toggleTrashEnabled() {
@@ -142,7 +150,9 @@ extension SettingsViewModel {
     }
 
     func saveHistoryEnabled(isEnabled: Bool) {
-        saveSetting(key: "history_enabled", realmKey: "historyEnabled", value: isEnabled)
+        saveAccountSettings(.patch(PutioAccountSettingsPatch(historyEnabled: isEnabled))) {
+            self.settings.historyEnabled = isEnabled
+        }
     }
 
     func toggleHistoryEnabled() {
@@ -191,7 +201,9 @@ extension SettingsViewModel {
     }
 
     func saveSortSettings(_ sortBy: String) {
-        saveSetting(key: "sort_by", realmKey: "sortBy", value: sortBy)
+        saveAccountSettings(.patch(PutioAccountSettingsPatch(sortBy: sortBy))) {
+            self.settings.sortBy = sortBy
+        }
     }
 
     func resetSortSettings() {

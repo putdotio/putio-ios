@@ -79,6 +79,7 @@ class VideoPlayerViewController: AVPlayerViewController {
 
     private let playbackPositionStore = VideoPlaybackPositionStore.shared
     private var playerTimeObserver: Any?
+    private var playerStatusObserver: NSKeyValueObservation?
     private var hasStoppedPlayback = false
     private var hasDisposedPlayer = false
 
@@ -88,6 +89,8 @@ class VideoPlayerViewController: AVPlayerViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        view.accessibilityIdentifier = "putio-video-player"
+        view.accessibilityValue = "loading"
         registerLifecycleObservers()
     }
 
@@ -174,6 +177,8 @@ class VideoPlayerViewController: AVPlayerViewController {
 
     func setupPlayer() {
         if isPlayerSetup { return }
+
+        observePlayerReadiness()
 
         getInitialVideoTime { (startFrom) in
             self.isPlayerSetup = true
@@ -300,6 +305,24 @@ class VideoPlayerViewController: AVPlayerViewController {
         guard let playerTimeObserver = playerTimeObserver else { return }
         player?.removeTimeObserver(playerTimeObserver)
         self.playerTimeObserver = nil
+    }
+
+    private func observePlayerReadiness() {
+        guard playerStatusObserver == nil else { return }
+
+        guard let playerItem = player?.currentItem else {
+            view.accessibilityValue = "loading"
+            return
+        }
+
+        playerStatusObserver = playerItem.observe(\.status, options: [.initial, .new]) { [weak self] playerItem, _ in
+            DispatchQueue.main.async {
+                let accessibilityValue = playerItem.status == .readyToPlay
+                    ? "ready"
+                    : (playerItem.status == .failed ? "failed" : "loading")
+                self?.view.accessibilityValue = accessibilityValue
+            }
+        }
     }
 
     private func registerLifecycleObservers() {
