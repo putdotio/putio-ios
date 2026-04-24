@@ -1,14 +1,13 @@
 import XCTest
 @testable import Putio
 @testable import PutioSDK
-import SwiftyJSON
 
 final class NavigationLocalizationTests: XCTestCase {
     func testConfigureFileActionsButtonMenuItemsUsesLocalizedTitles() throws {
         let viewController = FilesViewController()
         viewController.fileActionsButton = viewController.createNavigationBarFileActionsButton()
-        viewController.viewModel.file = makeFolder(id: 1, name: "Folder", sortBy: "NAME_ASC")
-        viewController.viewModel.files = [makeFile(id: 2, name: "Video", type: "VIDEO")]
+        viewController.viewModel.file = try makeFolder(id: 1, name: "Folder", sortBy: "NAME_ASC")
+        viewController.viewModel.files = [try makeFile(id: 2, name: "Video", type: "VIDEO")]
 
         viewController.configureFileActionsButtonMenuItems()
 
@@ -63,9 +62,8 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(action.backgroundColor, .systemRed)
     }
 
-    private func makeFolder(id: Int, name: String, sortBy: String) -> PutioFile {
-        return PutioFile(
-            json: JSON([
+    private func makeFolder(id: Int, name: String, sortBy: String) throws -> PutioFile {
+        return try makePutioFile([
                 "id": id,
                 "name": name,
                 "icon": "folder",
@@ -77,13 +75,12 @@ final class NavigationLocalizationTests: XCTestCase {
                 "is_shared": false,
                 "folder_type": "REGULAR",
                 "sort_by": sortBy
-            ])
+            ]
         )
     }
 
-    private func makeFile(id: Int, name: String, type: String) -> PutioFile {
-        return PutioFile(
-            json: JSON([
+    private func makeFile(id: Int, name: String, type: String) throws -> PutioFile {
+        return try makePutioFile([
                 "id": id,
                 "name": name,
                 "icon": "file",
@@ -93,7 +90,12 @@ final class NavigationLocalizationTests: XCTestCase {
                 "created_at": "2026-04-20T00:00:00Z",
                 "updated_at": "2026-04-20T00:00:00Z",
                 "is_shared": false
-            ])
+            ]
         )
+    }
+
+    private func makePutioFile(_ payload: [String: Any]) throws -> PutioFile {
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        return try JSONDecoder().decode(PutioFile.self, from: data)
     }
 }

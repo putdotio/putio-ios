@@ -1,4 +1,5 @@
 import UIKit
+import PutioSDK
 
 class DisableTwoFactorAuthViewController: UIViewController {
     @IBOutlet weak var textField: UITextField!
@@ -19,7 +20,7 @@ class DisableTwoFactorAuthViewController: UIViewController {
 
         self.present(loadingAlert, animated: true, completion: nil)
 
-        api.saveAccountSettings(body: ["two_factor_enabled": ["enable": false, "code": code]]) { result in
+        api.saveAccountSettings(.twoFactor(PutioTwoFactorSettings(code: code, enable: false))) { result in
             loadingAlert.dismiss(animated: true) {
                 switch result {
                 case .success:

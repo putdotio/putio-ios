@@ -1,6 +1,5 @@
 import UIKit
 import Intercom
-import SwiftyJSON
 import RealmSwift
 import PutioSDK
 import SwiftyBeaver
@@ -27,6 +26,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
+    private var e2eAccessToken: String? {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["PUTIO_E2E_ACCESS_TOKEN"]
+        #else
+        return nil
+        #endif
+    }
+
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         configureLogger()
 
@@ -36,8 +43,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
 
         configureSDKs()
+        prepareForE2ETestsIfNeeded()
         configureUI()
-        authenticate()
+        authenticate(token: e2eAccessToken)
         return true
     }
 
@@ -82,6 +90,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window = testWindow
         applyWindowAppearance()
         testWindow.makeKeyAndVisible()
+    }
+
+    func prepareForE2ETestsIfNeeded() {
+        #if DEBUG
+        guard ProcessInfo.processInfo.environment["PUTIO_E2E_RESET_STATE"] == "1" else { return }
+
+        PutioKeychain.sharedInstance.clearToken()
+        if let bundleIdentifier = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: bundleIdentifier)
+        }
+        if let realm = PutioRealm.open(context: "prepareForE2ETests") {
+            _ = PutioRealm.write(realm, context: "prepareForE2ETests.clearRealm") {
+                realm.deleteAll()
+            }
+        }
+        #endif
     }
 
     func applyWindowAppearance() {
@@ -144,14 +168,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         var account: PutioAccount?
         var accountError: PutioSDKError?
         
-        var config: JSON?
+        var config: PutioConfig?
         var configError: PutioSDKError?
         
-        let accountInfoQuery: [String: Any] = [
-            "download_token": 1,
-            "intercom": 1,
-            "platform": "ios"
-        ]
+        let accountInfoQuery = PutioAccountInfoQuery(
+            downloadToken: true,
+            intercom: true,
+            platform: "ios"
+        )
 
         dispatchGroup.enter()
         api.getAccountInfo(query: accountInfoQuery) { result in
@@ -165,10 +189,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         dispatchGroup.enter()
-        api.get("/config") { result in
+        api.getConfig { result in
             switch result {
-            case .success(let json):
-                config = json["config"]
+            case .success(let value):
+                config = value
             case .failure(let error):
                 configError = error
             }
@@ -190,13 +214,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
-    func fetchUserSuccess(account: PutioAccount, config: JSON) {
+    func fetchUserSuccess(account: PutioAccount, config: PutioConfig) {
         guard let realm = PutioRealm.open(context: "fetchUserSuccess") else {
             InternalFailurePresenter.log("Unable to open Realm during fetchUserSuccess")
             return presentLoginScreen()
         }
 
-        guard let persistedUser = User(account: account), let persistedConfig = UserConfig(json: config) else {
+        guard let persistedUser = User(account: account), let persistedConfig = UserConfig(config: config) else {
             InternalFailurePresenter.log("Unable to construct persisted user/config models")
             return presentLoginScreen()
         }
@@ -224,14 +248,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         self.presentMainScreen()
     }
 
-    func fetchUserFailure(error: PutioSDKError) {
+    func fetchUserFailure(error: any PutioErrorLocalizableInput) {
         guard let realm = PutioRealm.open(context: "fetchUserFailure") else {
             return presentLoginScreen()
         }
         let user = realm.objects(User.self).first
 
-        switch error.type {
-        case .unknownError, .networkError:
+        switch error.localizerType {
+        case .decodingError, .unknownError, .networkError:
             if user != nil {
                 return self.presentMainScreen()
             }

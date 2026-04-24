@@ -54,6 +54,7 @@ open Putio.xcworkspace
 
 ```bash
 make verify
+make e2e-simulator
 make run-simulator
 ```
 
@@ -68,6 +69,8 @@ plutil -lint Putio/en.lproj/*.strings
 
 - Notes:
   - `make verify` uses an unsigned simulator build
+  - `make e2e-simulator` runs fast mocked XCUITests against fixture-backed SDK responses
+  - GitHub Actions exposes `E2E Simulator` as a manual workflow for PRs or SDK-backed flow changes that need simulator confidence
   - `make run-simulator` uses a normal signed Simulator build so auth and keychain persistence behave like a real interactive run
   - any iPhone simulator on iOS `26.0+` is fine
   - when auth, keychain, or signed-in persistence changes, use both `make verify` and `make run-simulator`

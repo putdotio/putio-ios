@@ -16,6 +16,7 @@
 
 - `make bootstrap`
 - `make verify`
+- `make e2e-simulator`
 - `make run-simulator`
 
 ## Rules
@@ -29,6 +30,7 @@
 - Use [Contributing](./CONTRIBUTING.md) for setup, local validation, teammate-only 1Password flow, and localization workflow
 - Use [Distribution](./docs/DISTRIBUTION.md) for CI, TestFlight, and release-promotion rules
 - When auth, keychain, or signed-in persistence changes, run both `make verify` and `make run-simulator`
+- When SDK-backed app flows change, prefer `make e2e-simulator` for fast mocked simulator coverage before live-account checks
 - When user-facing copy changes, update the matching files under `Putio/en.lproj` and lint them with `plutil -lint Putio/en.lproj/*.strings`
 - When preparing a PR or handoff, include the most helpful evidence for review: visual aids for UI changes, sanity checks for risky flows, and before or after benchmarks for performance-sensitive work
 

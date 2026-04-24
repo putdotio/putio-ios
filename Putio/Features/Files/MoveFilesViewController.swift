@@ -66,12 +66,12 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
     }
 
     func fetchData() {
-        let fileID = file != nil ? file!.id : 0
+        let fileID = file?.id ?? 0
 
         stateMachine.transitionToState(.view("loading"))
         updateActionButtonStates(isEnabled: false)
 
-        api.getFiles(parentID: fileID, query: ["content_type": "application/x-directory"], completion: { result in
+        api.getFiles(parentID: fileID, query: PutioFilesListQuery(contentType: "application/x-directory"), completion: { result in
             switch result {
             case .success(let data):
                 self.file = data.parent
@@ -90,7 +90,7 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
                     self.tableView.backgroundView = nil
                 }
 
-                self.updateActionButtonStates(isEnabled: true)
+                self.updateActionButtonStates(isEnabled: data.parent != nil)
                 self.tableView.reloadData()
 
             case .failure:
@@ -105,6 +105,11 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
     }
 
     @IBAction func moveButtonPressed(_ sender: Any) {
+        guard let destination = file else {
+            updateActionButtonStates(isEnabled: false)
+            return
+        }
+
         let loadingAlert = UIAlertController(
             title: NSLocalizedString("Moving...", comment: ""),
             message: "",
@@ -112,12 +117,12 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
         )
         self.present(loadingAlert, animated: true, completion: nil)
 
-        api.moveFiles(fileIDs: filesToMove.map {$0.id}, parentID: file!.id) { result in
+        api.moveFiles(fileIDs: filesToMove.map {$0.id}, parentID: destination.id) { result in
             loadingAlert.dismiss(animated: true, completion: {
                 switch result {
                 case .success:
                     self.dismiss(animated: true, completion: nil)
-                    self.delegate?.moveFilesCompleted(movedTo: self.file!)
+                    self.delegate?.moveFilesCompleted(movedTo: destination)
 
                 case .failure(let error):
                     let errorAlert = UIAlertController(
@@ -134,7 +139,12 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
     }
 
     @IBAction func createFolderButtonPressed(_ sender: Any) {
-        let createFolderAlert = self.createFolderCreatorAlert(parentID: self.file!.id) { (_, error) in
+        guard let destination = file else {
+            updateActionButtonStates(isEnabled: false)
+            return
+        }
+
+        let createFolderAlert = self.createFolderCreatorAlert(parentID: destination.id) { (_, error) in
             guard error == nil else { return }
             self.fetchData()
         }

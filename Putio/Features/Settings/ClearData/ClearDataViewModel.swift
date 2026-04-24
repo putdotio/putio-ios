@@ -18,7 +18,16 @@ class ClearDataViewModel {
     }
 
     func startCleanUp(completion: @escaping ActionCompletion) {
-        api.clearAccountData(options: options) { result in
+        api.clearAccountData(options: PutioAccountClearOptions(
+            files: options["files"] ?? false,
+            finishedTransfers: options["finished_transfers"] ?? false,
+            activeTransfers: options["active_transfers"] ?? false,
+            rssFeeds: options["rss_feeds"] ?? false,
+            rssLogs: options["rss_logs"] ?? false,
+            history: options["history"] ?? false,
+            trash: options["trash"] ?? false,
+            friends: options["friends"] ?? false
+        )) { result in
             switch result {
             case .success:
                 completion(.success)

@@ -199,7 +199,9 @@ class ChromecastManager: NSObject {
         api.getFiles(parentID: fileID) { result in
             switch result {
             case .success(let data):
-                let file = data.parent
+                guard let file = data.parent else {
+                    return completion(false, CastError(fileID: fileID, reason: .fileNotFound))
+                }
 
                 if file.needConvert && file.metaData?.codec != "h264" {
                     return completion(false, CastError(fileID: fileID, reason: .fileNeedsConvert))

@@ -2,7 +2,6 @@ import XCTest
 @testable import Putio
 import GoogleCast
 @testable import PutioSDK
-import SwiftyJSON
 
 private struct MockPutioError: PutioErrorLocalizableInput {
     let localizerType: PutioSDKErrorType
@@ -70,9 +69,8 @@ final class ErrorPresentationTests: XCTestCase {
         XCTAssertEqual(alert.message, NSLocalizedString("Please try again later", comment: ""))
     }
 
-    func testChromecastManagerSkipsInvalidScreenshotURL() {
-        let file = PutioFile(
-            json: JSON([
+    func testChromecastManagerSkipsInvalidScreenshotURL() throws {
+        let file = try makePutioFile([
                 "id": 42,
                 "name": "Episode",
                 "icon": "video",
@@ -84,7 +82,7 @@ final class ErrorPresentationTests: XCTestCase {
                 "is_shared": false,
                 "screenshot": "http://[invalid",
                 "start_from": 0
-            ])
+            ]
         )
 
         let metadata = ChromecastManager.sharedInstance.createGCKMediaMetadata(for: file)
@@ -104,6 +102,11 @@ final class ErrorPresentationTests: XCTestCase {
 
         XCTAssertEqual((receivedError as NSError?)?.domain, expectedError.domain)
         XCTAssertEqual((receivedError as NSError?)?.code, expectedError.code)
+    }
+
+    private func makePutioFile(_ payload: [String: Any]) throws -> PutioFile {
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        return try JSONDecoder().decode(PutioFile.self, from: data)
     }
 
     private final class LoginViewControllerSpy: LoginViewController {

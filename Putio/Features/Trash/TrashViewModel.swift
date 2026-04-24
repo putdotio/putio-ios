@@ -61,7 +61,7 @@ class TrashViewModel {
         api.listTrash { result in
             switch result {
             case .success(let data):
-                self.cursor = data.cursor
+                self.cursor = data.cursor ?? ""
                 self.files = data.files
                 self.trashSize = data.trash_size
 

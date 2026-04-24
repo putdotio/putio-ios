@@ -1,34 +1,31 @@
-name: CI
+name: E2E Simulator
 
 on:
-  pull_request:
-    paths-ignore: &docs_only_ignore
-      - 'AGENTS.md'
-      - 'CLAUDE.md'
-      - 'CONTRIBUTING.md'
-      - 'LICENSE'
-      - 'README.md'
-      - 'SECURITY.md'
-      - 'docs/**'
-      - 'fastlane/README.md'
-  push:
-    branches:
-      - main
-    paths-ignore: *docs_only_ignore
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to test
+        required: false
+        default: ''
+
+permissions:
+  contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: e2e-simulator-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: Verify iOS app
+  e2e-simulator:
+    name: Run mocked simulator e2e
     runs-on: macos-26
     timeout-minutes: 30
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
 
       - name: Select latest stable Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -54,5 +51,5 @@ jobs:
       - name: Install CocoaPods dependencies
         run: make bootstrap-ci
 
-      - name: Verify repository
-        run: make verify
+      - name: Run mocked simulator e2e
+        run: make e2e-simulator

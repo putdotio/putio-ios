@@ -54,6 +54,8 @@ class FilesTableViewCell: UITableViewCell {
     }
 
     func configure(with file: PutioFile, download: Download?, relativeDate: String) {
+        accessibilityIdentifier = "putio-file-\(file.id)"
+        accessibilityLabel = file.name
         title.text = file.name
         subtitleText.text = String(
             format: NSLocalizedString("%@ - %@", comment: ""),
