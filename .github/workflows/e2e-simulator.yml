@@ -1,0 +1,55 @@
+name: E2E Simulator
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to test
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-simulator-${{ inputs.ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-simulator:
+    name: Run mocked simulator e2e
+    runs-on: blacksmith-6vcpu-macos-26
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+
+      - name: Restore CocoaPods cache
+        uses: actions/cache@v5
+        with:
+          path: |
+            Pods
+            ~/Library/Caches/CocoaPods
+          key: ${{ runner.os }}-cocoapods-${{ hashFiles('Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cocoapods-
+
+      - name: Install CocoaPods dependencies
+        run: make bootstrap-ci
+
+      - name: Run mocked simulator e2e
+        run: make e2e-simulator

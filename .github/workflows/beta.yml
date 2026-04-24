@@ -87,10 +87,14 @@ jobs:
           PUTIO_APP_DISPLAY_NAME: put.io
           PUTIO_PRIMARY_APP_ICON: AppIcon
         run: |
-          export PUTIO_BETA_BUILD_NUMBER="$(date -u +%y%m%d%H%M)"
-          export PUTIO_BETA_IPA_PATH="$RUNNER_TEMP/putio-ios-beta.ipa"
-          export PUTIO_BETA_METADATA_PATH="$RUNNER_TEMP/putio-ios-beta.json"
-          export PUTIO_BETA_WAIT_TIMEOUT_DURATION="$(( ${{ inputs.processing_timeout_minutes }} * 60 ))"
+          PUTIO_BETA_BUILD_NUMBER="$(date -u +%y%m%d%H%M)"
+          PUTIO_BETA_IPA_PATH="$RUNNER_TEMP/putio-ios-beta.ipa"
+          PUTIO_BETA_METADATA_PATH="$RUNNER_TEMP/putio-ios-beta.json"
+          PUTIO_BETA_WAIT_TIMEOUT_DURATION="$(( ${{ inputs.processing_timeout_minutes }} * 60 ))"
+          export PUTIO_BETA_BUILD_NUMBER
+          export PUTIO_BETA_IPA_PATH
+          export PUTIO_BETA_METADATA_PATH
+          export PUTIO_BETA_WAIT_TIMEOUT_DURATION
 
           if [ -z "$PUTIO_BETA_CHANGELOG" ]; then
             short_sha="$(git rev-parse --short HEAD)"
