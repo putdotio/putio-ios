@@ -26,6 +26,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
+    private var e2eAccessToken: String? {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["PUTIO_E2E_ACCESS_TOKEN"]
+        #else
+        return nil
+        #endif
+    }
+
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         configureLogger()
 
@@ -35,8 +43,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
 
         configureSDKs()
+        prepareForE2ETestsIfNeeded()
         configureUI()
-        authenticate()
+        authenticate(token: e2eAccessToken)
         return true
     }
 
@@ -81,6 +90,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window = testWindow
         applyWindowAppearance()
         testWindow.makeKeyAndVisible()
+    }
+
+    func prepareForE2ETestsIfNeeded() {
+        #if DEBUG
+        guard ProcessInfo.processInfo.environment["PUTIO_E2E_RESET_STATE"] == "1" else { return }
+
+        PutioKeychain.sharedInstance.clearToken()
+        if let realm = PutioRealm.open(context: "prepareForE2ETests") {
+            _ = PutioRealm.write(realm, context: "prepareForE2ETests.clearRealm") {
+                realm.deleteAll()
+            }
+        }
+        #endif
     }
 
     func applyWindowAppearance() {

@@ -88,6 +88,7 @@ class VideoPlayerViewController: AVPlayerViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        view.accessibilityIdentifier = "putio-video-player"
         registerLifecycleObservers()
     }
 

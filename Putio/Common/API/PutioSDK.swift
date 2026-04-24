@@ -1,10 +1,29 @@
 import Foundation
 import PutioSDK
 
-let api = PutioSDK(config: PutioSDKConfig(
-    clientID: PUTIOKIT_CLIENT_ID,
-    clientName: UIDevice.current.name)
-)
+let api = PutioSDKFactory.make()
+
+enum PutioSDKFactory {
+    static func make(environment: [String: String] = ProcessInfo.processInfo.environment) -> PutioSDK {
+        let config = PutioSDKConfig(
+            clientID: PUTIOKIT_CLIENT_ID,
+            clientName: UIDevice.current.name,
+            token: environment["PUTIO_E2E_ACCESS_TOKEN"] ?? ""
+        )
+
+        #if DEBUG
+        if environment["PUTIO_E2E_MOCK_API"] == "1" {
+            let sessionConfiguration = URLSessionConfiguration.ephemeral
+            sessionConfiguration.protocolClasses = [PutioE2EMockURLProtocol.self]
+            sessionConfiguration.timeoutIntervalForRequest = 2
+            sessionConfiguration.timeoutIntervalForResource = 2
+            return PutioSDK(config: config, urlSession: URLSession(configuration: sessionConfiguration))
+        }
+        #endif
+
+        return PutioSDK(config: config)
+    }
+}
 
 typealias PutioSDKBoolCompletion = (Result<PutioOKResponse, PutioSDKError>) -> Void
 

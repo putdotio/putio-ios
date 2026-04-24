@@ -36,6 +36,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        tableView.accessibilityIdentifier = "putio-files-table"
         tableView.delegate = self
         tableView.dataSource = self
 
