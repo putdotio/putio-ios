@@ -3,7 +3,6 @@ platform :ios, '26.0'
 target 'Putio' do
   use_frameworks!
 
-  pod 'Alamofire', '~> 5.11'
   pod 'google-cast-sdk-no-bluetooth-xcframework', '4.8.0'
   pod 'Intercom', '19.5.7'
   pod 'KeychainAccess'

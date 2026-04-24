@@ -1,10 +1,9 @@
 import UIKit
-import Alamofire
 import PutioSDK
 
 class ImageViewController: UIViewController {
     var file: PutioFile?
-    private var request: DataRequest?
+    private var request: URLSessionDataTask?
 
     @IBOutlet weak var imageView: UIImageView!
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
@@ -19,34 +18,47 @@ class ImageViewController: UIViewController {
         }
     }
 
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        request?.cancel()
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+
+        if isMovingFromParent || isBeingDismissed || navigationController?.isBeingDismissed == true {
+            request?.cancel()
+            request = nil
+        }
     }
 
     func loadImage() {
         let url = file!.getDownloadURL(token: api.config.token)
 
-        request = AF.request(url.absoluteString).responseData { [weak self] (response) in
+        request = URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
             guard let self = self else { return }
+            if (error as? URLError)?.code == .cancelled { return }
 
-            DispatchQueue.main.async {
-                self.activityIndicator.stopAnimating()
-                self.loadingText.isHidden = true
-            }
-
-            guard let data = response.data else {
-                return self.presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the Image", comment: ""))
+            guard let data = data else {
+                return DispatchQueue.main.async {
+                    self.finishLoading()
+                    self.presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the image", comment: ""))
+                }
             }
 
             guard let image = UIImage(data: data) else {
-                return self.presentErrorMessage(message: NSLocalizedString("An error occurred while displaying the image", comment: ""))
+                return DispatchQueue.main.async {
+                    self.finishLoading()
+                    self.presentErrorMessage(message: NSLocalizedString("An error occurred while displaying the image", comment: ""))
+                }
             }
 
             DispatchQueue.main.async {
+                self.finishLoading()
                 self.imageView.image = image
             }
         }
+        request?.resume()
+    }
+
+    private func finishLoading() {
+        activityIndicator.stopAnimating()
+        loadingText.isHidden = true
     }
 
     func presentErrorMessage(message: String) {
