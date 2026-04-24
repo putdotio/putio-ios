@@ -91,7 +91,6 @@ class VideoPlayerViewController: AVPlayerViewController {
         super.viewDidLoad()
         view.accessibilityIdentifier = "putio-video-player"
         view.accessibilityValue = "loading"
-        observePlayerReadiness()
         registerLifecycleObservers()
     }
 
@@ -178,6 +177,8 @@ class VideoPlayerViewController: AVPlayerViewController {
 
     func setupPlayer() {
         if isPlayerSetup { return }
+
+        observePlayerReadiness()
 
         getInitialVideoTime { (startFrom) in
             self.isPlayerSetup = true
@@ -307,8 +308,10 @@ class VideoPlayerViewController: AVPlayerViewController {
     }
 
     private func observePlayerReadiness() {
+        guard playerStatusObserver == nil else { return }
+
         guard let playerItem = player?.currentItem else {
-            view.accessibilityValue = "missing-player-item"
+            view.accessibilityValue = "loading"
             return
         }
 
