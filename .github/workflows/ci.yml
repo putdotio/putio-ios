@@ -23,7 +23,7 @@ concurrency:
 jobs:
   verify:
     name: Verify iOS app
-    runs-on: blacksmith-6vcpu-macos-26
+    runs-on: macos-26
     timeout-minutes: 30
 
     steps:
