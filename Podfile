@@ -13,7 +13,6 @@ target 'Putio' do
   pod 'StatefulViewController', '~> 3.0'
   pod 'SwiftLint', '~> 0.63'
   pod 'SwiftyBeaver', '~> 2.1'
-  pod 'SwiftyJSON', '5.0.2'
   pod 'VTAcknowledgementsViewController'
   pod "KeyboardAvoidingView", '~> 5.2'
   

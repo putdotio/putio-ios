@@ -1,6 +1,5 @@
 import UIKit
 import Intercom
-import SwiftyJSON
 import RealmSwift
 import PutioSDK
 import SwiftyBeaver
@@ -144,8 +143,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         var account: PutioAccount?
         var accountError: PutioSDKError?
         
-        var config: JSON?
-        var configError: PutioRawAPIError?
+        var config: PutioConfig?
+        var configError: PutioSDKError?
         
         let accountInfoQuery = PutioAccountInfoQuery(
             downloadToken: true,
@@ -165,10 +164,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         dispatchGroup.enter()
-        api.get("/config") { result in
+        api.getConfig { result in
             switch result {
-            case .success(let json):
-                config = json["config"]
+            case .success(let value):
+                config = value
             case .failure(let error):
                 configError = error
             }
@@ -190,13 +189,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
-    func fetchUserSuccess(account: PutioAccount, config: JSON) {
+    func fetchUserSuccess(account: PutioAccount, config: PutioConfig) {
         guard let realm = PutioRealm.open(context: "fetchUserSuccess") else {
             InternalFailurePresenter.log("Unable to open Realm during fetchUserSuccess")
             return presentLoginScreen()
         }
 
-        guard let persistedUser = User(account: account), let persistedConfig = UserConfig(json: config) else {
+        guard let persistedUser = User(account: account), let persistedConfig = UserConfig(config: config) else {
             InternalFailurePresenter.log("Unable to construct persisted user/config models")
             return presentLoginScreen()
         }

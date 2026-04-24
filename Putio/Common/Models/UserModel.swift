@@ -1,7 +1,6 @@
 import Foundation
 import RealmSwift
 import PutioSDK
-import SwiftyJSON
 
 class User: Object {
     @objc dynamic var id: Int = 0
@@ -72,15 +71,8 @@ class UserSettings: Object {
 class UserConfig: Object {
     @objc dynamic var chromecastPlaybackType: String = "hls"
 
-    convenience init?(json: JSON) {
+    convenience init?(config: PutioConfig) {
         self.init()
-
-        let chromecastPlaybackType = json["chromecast_playback_type"].stringValue
-
-        if chromecastPlaybackType.isEmpty || (chromecastPlaybackType != "hls" && chromecastPlaybackType != "mp4") {
-            self.chromecastPlaybackType = "hls"
-        } else {
-            self.chromecastPlaybackType = chromecastPlaybackType
-        }
+        self.chromecastPlaybackType = config.chromecastPlaybackType.rawValue
     }
 }

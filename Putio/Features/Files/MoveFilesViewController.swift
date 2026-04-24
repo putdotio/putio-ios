@@ -71,7 +71,7 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
         stateMachine.transitionToState(.view("loading"))
         updateActionButtonStates(isEnabled: false)
 
-        api.getFiles(parentID: fileID, query: ["content_type": "application/x-directory"], completion: { result in
+        api.getFiles(parentID: fileID, query: PutioFilesListQuery(contentType: "application/x-directory"), completion: { result in
             switch result {
             case .success(let data):
                 self.file = data.parent

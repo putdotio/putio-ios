@@ -20,7 +20,6 @@ PODS:
   - StatefulViewController (3.0)
   - SwiftLint (0.63.2)
   - SwiftyBeaver (2.1.1)
-  - SwiftyJSON (5.0.2)
   - ViewState (3.0.0):
     - ViewState/Core (= 3.0.0)
   - ViewState/Core (3.0.0):
@@ -39,7 +38,6 @@ DEPENDENCIES:
   - StatefulViewController (~> 3.0)
   - SwiftLint (~> 0.63)
   - SwiftyBeaver (~> 2.1)
-  - SwiftyJSON (= 5.0.2)
   - VTAcknowledgementsViewController
 
 SPEC REPOS:
@@ -57,7 +55,6 @@ SPEC REPOS:
     - StatefulViewController
     - SwiftLint
     - SwiftyBeaver
-    - SwiftyJSON
     - ViewState
     - VTAcknowledgementsViewController
 
@@ -68,7 +65,7 @@ EXTERNAL SOURCES:
 
 CHECKOUT OPTIONS:
   PutioSDK:
-    :commit: 062ca5715c35a21f24b82550a6e60194b02391fa
+    :commit: 810eb32cd3cff616513093c06cb420fd02c120c2
     :git: https://github.com/putdotio/putio-sdk-swift.git
 
 SPEC CHECKSUMS:
@@ -86,10 +83,9 @@ SPEC CHECKSUMS:
   StatefulViewController: 4803bf900d44de26074344998e10e041113b5931
   SwiftLint: 4fa4a9b437ccc4fc72f6c0bc98556e8e9e05bccf
   SwiftyBeaver: ade157e4f857812e7d7f15f2e3396bb8733f8a1c
-  SwiftyJSON: f5b1bf1cd8dd53cd25887ac0eabcfd92301c6a5a
   ViewState: 82f26f9b716f6673c19e491f8bf234c4ff519a0a
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: 57401a49fe325b7d2f6eb750d21b2fa300d77ab5
+PODFILE CHECKSUM: 7a8a13daaf024d9e38204719dd96e38eff938b93
 
 COCOAPODS: 1.16.2

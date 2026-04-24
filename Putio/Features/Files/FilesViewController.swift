@@ -142,7 +142,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
             stateMachine.transitionToState(.view("loading"))
         }
 
-        api.getFiles(parentID: viewModel.fileID, query: ["mp4_status": true]) { result in
+        api.getFiles(parentID: viewModel.fileID, query: PutioFilesListQuery(mp4Status: true)) { result in
             self.tableView.refreshControl?.endRefreshing()
 
             switch result {

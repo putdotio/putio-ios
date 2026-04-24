@@ -1,6 +1,5 @@
 import Foundation
 import PutioSDK
-import SwiftyJSON
 
 let api = PutioSDK(config: PutioSDKConfig(
     clientID: PUTIOKIT_CLIENT_ID,
@@ -8,35 +7,6 @@ let api = PutioSDK(config: PutioSDKConfig(
 )
 
 typealias PutioSDKBoolCompletion = (Result<PutioOKResponse, PutioSDKError>) -> Void
-
-struct PutioRawAPIError: PutioErrorLocalizableInput {
-    let localizerType: PutioSDKErrorType
-    let localizerMessage: String
-    let underlyingError: Error
-}
-
-enum PutioAppAPIError: PutioErrorLocalizableInput {
-    case sdk(PutioSDKError)
-    case raw(PutioRawAPIError)
-
-    var localizerType: PutioSDKErrorType {
-        switch self {
-        case .sdk(let error):
-            return error.localizerType
-        case .raw(let error):
-            return error.localizerType
-        }
-    }
-
-    var localizerMessage: String {
-        switch self {
-        case .sdk(let error):
-            return error.localizerMessage
-        case .raw(let error):
-            return error.localizerMessage
-        }
-    }
-}
 
 extension PutioMp4Conversion {
     typealias Status = PutioMp4ConversionStatus
@@ -67,93 +37,6 @@ extension PutioSDK {
         }
     }
 
-    func get(_ path: String, _ completion: @escaping (Result<JSON, PutioRawAPIError>) -> Void) {
-        rawJSONRequest(path, method: "GET", completion: completion)
-    }
-
-    func put(_ path: String, body: [String: Any], _ completion: @escaping (Result<JSON, PutioRawAPIError>) -> Void) {
-        rawJSONRequest(path, method: "PUT", body: body, completion: completion)
-    }
-
-    private func rawJSONRequest(
-        _ path: String,
-        method: String,
-        body: [String: Any]? = nil,
-        completion: @escaping (Result<JSON, PutioRawAPIError>) -> Void
-    ) {
-        let trimmedBaseURL = config.baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let trimmedPath = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        guard let url = URL(string: "\(trimmedBaseURL)/\(trimmedPath)") else {
-            completion(.failure(PutioRawAPIError(
-                localizerType: .unknownError,
-                localizerMessage: NSLocalizedString("Unable to build put.io request URL.", comment: ""),
-                underlyingError: URLError(.badURL)
-            )))
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.timeoutInterval = config.timeoutInterval
-        if !config.token.isEmpty {
-            request.setValue("token \(config.token)", forHTTPHeaderField: "Authorization")
-        }
-
-        if let body {
-            do {
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            } catch {
-                completion(.failure(PutioRawAPIError(
-                    localizerType: .unknownError,
-                    localizerMessage: error.localizedDescription,
-                    underlyingError: error
-                )))
-                return
-            }
-        }
-
-        Task {
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    await MainActor.run {
-                        completion(.failure(PutioRawAPIError(
-                            localizerType: .unknownError,
-                            localizerMessage: NSLocalizedString("put.io returned an invalid response.", comment: ""),
-                            underlyingError: URLError(.badServerResponse)
-                        )))
-                    }
-                    return
-                }
-
-                let json = try JSON(data: data)
-                guard (200..<300).contains(httpResponse.statusCode) else {
-                    await MainActor.run {
-                        completion(.failure(PutioRawAPIError(
-                            localizerType: .httpError(statusCode: httpResponse.statusCode, errorType: json["error_type"].string),
-                            localizerMessage: json["message"].string ?? json["error_message"].string ?? "put.io returned HTTP \(httpResponse.statusCode)",
-                            underlyingError: URLError(.badServerResponse)
-                        )))
-                    }
-                    return
-                }
-
-                await MainActor.run {
-                    completion(.success(json))
-                }
-            } catch {
-                await MainActor.run {
-                    completion(.failure(PutioRawAPIError(
-                        localizerType: .networkError,
-                        localizerMessage: error.localizedDescription,
-                        underlyingError: error
-                    )))
-                }
-            }
-        }
-    }
-
     func getAccountInfo(
         query: PutioAccountInfoQuery = PutioAccountInfoQuery(),
         _ completion: @escaping (Result<PutioAccount, PutioSDKError>) -> Void
@@ -173,13 +56,28 @@ extension PutioSDK {
         }
     }
 
+    func getConfig(_ completion: @escaping (Result<PutioConfig, PutioSDKError>) -> Void) {
+        complete(completion) {
+            try await self.getConfig()
+        }
+    }
+
+    func setChromecastPlaybackType(
+        _ playbackType: PutioChromecastPlaybackType,
+        _ completion: @escaping (Result<PutioOKResponse, PutioSDKError>) -> Void
+    ) {
+        complete(completion) {
+            try await self.setChromecastPlaybackType(playbackType)
+        }
+    }
+
     func getFiles(
         parentID: Int,
-        query: [String: Any] = [:],
+        query: PutioFilesListQuery = PutioFilesListQuery(),
         completion: @escaping (Result<PutioFilesListResult, PutioSDKError>) -> Void
     ) {
         complete(completion) {
-            try await self.getFiles(parentID: parentID, query: PutioFilesListQuery(contentType: query["content_type"] as? String))
+            try await self.getFiles(parentID: parentID, query: query)
         }
     }
 
@@ -297,30 +195,18 @@ extension PutioSDK {
         }
     }
 
-    func saveAccountSettings(
-        body: [String: Any],
-        _ completion: @escaping (Result<PutioOKResponse, PutioSDKError>) -> Void
-    ) {
+    func saveAccountSettings(_ update: PutioAccountSettingsUpdate, _ completion: @escaping (Result<PutioOKResponse, PutioSDKError>) -> Void) {
         complete(completion) {
-            try await self.saveAccountSettings(accountSettingsUpdate(from: body))
+            try await self.saveAccountSettings(update)
         }
     }
 
     func clearAccountData(
-        options: [String: Bool],
+        options: PutioAccountClearOptions,
         _ completion: @escaping (Result<PutioOKResponse, PutioSDKError>) -> Void
     ) {
         complete(completion) {
-            try await self.clearAccountData(options: PutioAccountClearOptions(
-                files: options["files"] ?? false,
-                finishedTransfers: options["finished_transfers"] ?? false,
-                activeTransfers: options["active_transfers"] ?? false,
-                rssFeeds: options["rss_feeds"] ?? false,
-                rssLogs: options["rss_logs"] ?? false,
-                history: options["history"] ?? false,
-                trash: options["trash"] ?? false,
-                friends: options["friends"] ?? false
-            ))
+            try await self.clearAccountData(options: options)
         }
     }
 
@@ -430,34 +316,4 @@ extension PutioSDK {
             try await self.regenerateRecoveryCodes()
         }
     }
-}
-
-private func accountSettingsUpdate(from body: [String: Any]) -> PutioAccountSettingsUpdate {
-    if let twoFactor = body["two_factor_enabled"] as? [String: Any],
-       let code = twoFactor["code"] as? String,
-       let enable = boolValue(twoFactor, key: "enable") {
-        return .twoFactor(PutioTwoFactorSettings(code: code, enable: enable))
-    }
-
-    return .patch(PutioAccountSettingsPatch(
-        historyEnabled: boolValue(body, key: "history_enabled"),
-        trashEnabled: boolValue(body, key: "trash_enabled"),
-        hideSubtitles: boolValue(body, key: "hide_subtitles"),
-        dontAutoSelectSubtitles: boolValue(body, key: "dont_autoselect_subtitles"),
-        tunnelRouteName: body["tunnel_route_name"] as? String,
-        showOptimisticUsage: boolValue(body, key: "show_optimistic_usage"),
-        sortBy: body["sort_by"] as? String
-    ))
-}
-
-private func boolValue(_ body: [String: Any], key: String) -> Bool? {
-    if let value = body[key] as? Bool {
-        return value
-    }
-
-    if let value = body[key] as? NSNumber {
-        return value.boolValue
-    }
-
-    return nil
 }
