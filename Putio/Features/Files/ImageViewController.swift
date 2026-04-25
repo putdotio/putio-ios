@@ -9,6 +9,10 @@ class ImageViewController: UIViewController {
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
     @IBOutlet weak var loadingText: UILabel!
 
+    deinit {
+        cancelRequest()
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -22,13 +26,17 @@ class ImageViewController: UIViewController {
         super.viewDidDisappear(animated)
 
         if isMovingFromParent || isBeingDismissed || navigationController?.isBeingDismissed == true {
-            request?.cancel()
-            request = nil
+            cancelRequest()
         }
     }
 
     func loadImage() {
-        let url = file!.getDownloadURL(token: api.config.token)
+        guard let file = file else {
+            finishLoading()
+            return presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the image", comment: ""))
+        }
+
+        let url = file.getDownloadURL(token: api.config.token)
 
         request = URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
             guard let self = self else { return }
@@ -54,6 +62,11 @@ class ImageViewController: UIViewController {
             }
         }
         request?.resume()
+    }
+
+    private func cancelRequest() {
+        request?.cancel()
+        request = nil
     }
 
     private func finishLoading() {
