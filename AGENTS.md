@@ -1,7 +1,5 @@
 # Agent Guide
 
-## Repo Map
-
 - Native iOS app repository for put.io
 - Stack: UIKit, CocoaPods, Bundler-managed Ruby
 - App code lives under `Putio/Features` and shared helpers live under `Putio/Common`
