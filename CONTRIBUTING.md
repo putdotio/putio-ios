@@ -24,11 +24,24 @@ make bootstrap
 
 ### put.io Teammates
 
-- Shared 1Password item: `frontend-ci/putio-ios`
+- Store the shared vault and item selectors outside git, for example in a local shell env or ignored env file:
+
+```bash
+export PUTIO_1PASSWORD_VAULT="<vault>"
+export PUTIO_1PASSWORD_ITEM="<item>"
+```
+
+- If using service-account access, expose it through `OP_SERVICE_ACCOUNT_TOKEN`
 - Local private config helper:
 
 ```bash
 make op-local-config
+```
+
+- You can also pass selectors for one run:
+
+```bash
+make op-local-config VAULT="<vault>" ITEM="<item>"
 ```
 
 - Local teammate builds default to:
@@ -37,7 +50,7 @@ make op-local-config
   - primary icon `AppIconDev`
 - `make op-local-config` only materializes private local credentials and the development team
 - CI beta builds still override app identity through secrets and fastlane
-- Keep the shared item aligned with:
+- Keep the selected 1Password item aligned with:
   - `Config/Local.1password.xcconfig.template`
   - `fastlane/.env.1password.template`
 - Release automation also expects the `AuthKey.p8` attachment and the match repo SSH key material

@@ -2,14 +2,16 @@
 
 set -euo pipefail
 
-vault="${PUTIO_1PASSWORD_VAULT:-frontend-ci}"
-item="${PUTIO_1PASSWORD_ITEM:-putio-ios}"
+vault="${PUTIO_1PASSWORD_VAULT:-}"
+item="${PUTIO_1PASSWORD_ITEM:-}"
 template="Config/Local.1password.xcconfig.template"
 output="Config/Local.xcconfig"
 
 usage() {
   cat <<'EOF' >&2
 Usage: scripts/op-local-config.sh --vault <vault> --item <item> [--template <path>] [--output <path>]
+
+You can also set PUTIO_1PASSWORD_VAULT and PUTIO_1PASSWORD_ITEM in your local shell.
 EOF
   exit 2
 }
@@ -45,10 +47,6 @@ fi
 if ! command -v op >/dev/null 2>&1; then
   echo "1Password CLI 'op' is required" >&2
   exit 1
-fi
-
-if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" && -n "${OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI:-}" ]]; then
-  export OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI"
 fi
 
 if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]] && ! op whoami >/dev/null 2>&1; then
