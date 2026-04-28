@@ -4,7 +4,7 @@ Thanks for contributing to `putio-ios`.
 
 ## Setup
 
-### OSS Contributors
+Public contributors only need the normal local toolchain and the checked-in development defaults.
 
 - Prerequisites:
   - Xcode `26.x`
@@ -22,7 +22,9 @@ make bootstrap
   - checked-in defaults already use the dedicated local dev app identity `io.put.dev`
   - `Config/Local.xcconfig` is for secrets and team settings, not bundle-id overrides
 
-### put.io Teammates
+## Local Private Config
+
+This path is for put.io teammates who need signed local builds or private support integrations.
 
 - Store the shared vault and item selectors outside git, for example in a local shell env or ignored env file:
 
@@ -49,11 +51,10 @@ make op-local-config VAULT="<vault>" ITEM="<item>"
   - display name `put.io`
   - primary icon `AppIconDev`
 - `make op-local-config` only materializes private local credentials and the development team
-- CI beta builds still override app identity through secrets and fastlane
 - Keep the selected 1Password item aligned with:
   - `Config/Local.1password.xcconfig.template`
   - `fastlane/.env.1password.template`
-- Release automation also expects the `AuthKey.p8` attachment and the match repo SSH key material
+- CI beta and release builds use the release-secret contract in [Distribution](./docs/DISTRIBUTION.md)
 
 ## Run And Validate
 
@@ -97,7 +98,7 @@ plutil -lint Putio/en.lproj/*.strings
   - `PutioTests/NavigationLocalizationTests`
   - `PutioTests/PutioRealmTests`
 
-## Configuration Notes
+## Configuration
 
 - Private support integrations are disabled by default in `Putio/Info.plist`
 - OAuth client id stays configured in local builds so browser-based login still works

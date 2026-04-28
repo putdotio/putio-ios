@@ -4,22 +4,9 @@ Distribution guidance for `putio-ios`.
 
 ## Workflows
 
-- `.github/workflows/ci.yml`
-  - verify only
-  - runs `make bootstrap-ci` and `make verify`
-  - skips docs-only pushes and pull requests
-- `.github/workflows/beta.yml`
-  - manual TestFlight path
-  - verifies first
-  - loads secrets through `OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI`
-  - always targets external TestFlight groups
-  - splits delivery into archive, upload, and distribute steps
-  - uses a bounded App Store Connect processing timeout
-- `.github/workflows/release.yml`
-  - runs on published GitHub releases
-  - promotes an existing processed TestFlight build for the release tag version
-  - accepts an optional explicit build number override for manual dispatches
-  - owns the `fastlane release` invocation
+- [CI](../.github/workflows/ci.yml) verifies pushes and pull requests with `make bootstrap-ci` and `make verify`. It skips docs-only changes.
+- [Beta](../.github/workflows/beta.yml) is the manual TestFlight path. It verifies first, loads release secrets, then splits delivery into archive, upload, and distribute steps.
+- [Release](../.github/workflows/release.yml) runs on published GitHub releases and promotes an existing processed TestFlight build for the release tag version. Manual dispatches may pass an explicit build number.
 
 ## CI Bootstrap
 
@@ -31,13 +18,48 @@ Distribution guidance for `putio-ios`.
 
 - `fastlane beta` and `fastlane release` are CI-only entrypoints
 - `make beta` and `make release` intentionally fail locally
-- shared 1Password loading and secret materialization live in `.github/actions/load-ios-release-secrets/action.yml`
+- 1Password loading and secret materialization live in [Load iOS release secrets](../.github/actions/load-ios-release-secrets/action.yml)
 - uploaded beta builds use UTC timestamp build numbers in `YYMMDDHHMM` format
 - release promotion reuses an existing processed TestFlight build instead of rebuilding
 - checked-in `CURRENT_PROJECT_VERSION` stays at `1` as a baseline
 - fastlane temporarily updates tracked version metadata during archive time and restores the files afterward
 
-## Secrets And IDs
+## Release Secret Contract
+
+Beta and release workflows pass generic selectors to the release-secret action:
+
+- secret `OP_SERVICE_ACCOUNT_TOKEN`
+  - 1Password service account token with access to the selected item
+- variable `PUTIO_1PASSWORD_VAULT`
+  - vault selector for the release item
+- variable `PUTIO_1PASSWORD_ITEM`
+  - item selector for the release item
+
+The selected 1Password item must provide:
+
+- App Store Connect API fields:
+  - `APPSTORE_CONNECT_ISSUER_ID`
+  - `APPSTORE_CONNECT_KEY_ID`
+  - `AuthKey.p8`
+- App metadata and runtime fields:
+  - `PUTIO_APP_IDENTIFIER`
+  - `PUTIO_APPLE_ID`
+  - `PUTIO_ITC_TEAM_ID`
+  - `PUTIO_DEVELOPMENT_TEAM`
+  - `PUTIO_OAUTH_CLIENT_ID`
+  - `PUTIO_CHROMECAST_RECEIVER_APP_ID`
+  - `PUTIO_INTERCOM_API_KEY`
+  - `PUTIO_INTERCOM_APP_ID`
+  - `PUTIO_SENTRY_DSN`
+- Signing fields:
+  - `MATCH_GIT_URL`
+  - `MATCH_TYPE`
+  - `MATCH_PASSWORD`
+  - `MATCH_GIT_PRIVATE_KEY`
+
+Keep concrete vault names, item names, item IDs, service-account tokens, and private key material out of git.
+
+## App Store IDs
 
 - `PUTIO_APPLE_ID`
   - Apple login email used by `fastlane/Appfile` and `match`

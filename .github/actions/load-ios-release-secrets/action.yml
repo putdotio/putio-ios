@@ -1,19 +1,29 @@
 name: Load iOS release secrets
-description: Load shared putio-ios release secrets from 1Password and materialize the App Store Connect key file
+description: Load putio-ios release secrets from 1Password and materialize the App Store Connect key file
 
 inputs:
   service-account-token:
-    description: 1Password service account token for frontend-ci
+    description: 1Password service account token
+    required: true
+  vault:
+    description: 1Password vault selector
+    required: true
+  item:
+    description: 1Password item selector
     required: true
 
 runs:
   using: composite
   steps:
-    - name: Require shared 1Password CI token
+    - name: Require release secret inputs
       shell: bash
       run: |
         if [ -z "${{ inputs.service-account-token }}" ]; then
-          echo "OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI is not configured for this repository" >&2
+          echo "OP_SERVICE_ACCOUNT_TOKEN is not configured for this repository" >&2
+          exit 1
+        fi
+        if [ -z "${{ inputs.vault }}" ] || [ -z "${{ inputs.item }}" ]; then
+          echo "PUTIO_1PASSWORD_VAULT and PUTIO_1PASSWORD_ITEM must be configured as repository variables" >&2
           exit 1
         fi
 
@@ -23,22 +33,22 @@ runs:
         export-env: true
       env:
         OP_SERVICE_ACCOUNT_TOKEN: ${{ inputs.service-account-token }}
-        APPSTORE_CONNECT_ISSUER_ID: op://frontend-ci/putio-ios/APPSTORE_CONNECT_ISSUER_ID
-        APPSTORE_CONNECT_KEY_ID: op://frontend-ci/putio-ios/APPSTORE_CONNECT_KEY_ID
-        APPSTORE_CONNECT_KEY_CONTENT: op://frontend-ci/putio-ios/AuthKey.p8
-        PUTIO_APP_IDENTIFIER: op://frontend-ci/putio-ios/PUTIO_APP_IDENTIFIER
-        PUTIO_APPLE_ID: op://frontend-ci/putio-ios/PUTIO_APPLE_ID
-        PUTIO_ITC_TEAM_ID: op://frontend-ci/putio-ios/PUTIO_ITC_TEAM_ID
-        PUTIO_DEVELOPMENT_TEAM: op://frontend-ci/putio-ios/PUTIO_DEVELOPMENT_TEAM
-        PUTIO_OAUTH_CLIENT_ID: op://frontend-ci/putio-ios/PUTIO_OAUTH_CLIENT_ID
-        PUTIO_CHROMECAST_RECEIVER_APP_ID: op://frontend-ci/putio-ios/PUTIO_CHROMECAST_RECEIVER_APP_ID
-        PUTIO_INTERCOM_API_KEY: op://frontend-ci/putio-ios/PUTIO_INTERCOM_API_KEY
-        PUTIO_INTERCOM_APP_ID: op://frontend-ci/putio-ios/PUTIO_INTERCOM_APP_ID
-        PUTIO_SENTRY_DSN: op://frontend-ci/putio-ios/PUTIO_SENTRY_DSN
-        MATCH_GIT_URL: op://frontend-ci/putio-ios/MATCH_GIT_URL
-        MATCH_TYPE: op://frontend-ci/putio-ios/MATCH_TYPE
-        MATCH_PASSWORD: op://frontend-ci/putio-ios/MATCH_PASSWORD
-        MATCH_GIT_PRIVATE_KEY_CONTENT: op://frontend-ci/putio-ios/MATCH_GIT_PRIVATE_KEY
+        APPSTORE_CONNECT_ISSUER_ID: op://${{ inputs.vault }}/${{ inputs.item }}/APPSTORE_CONNECT_ISSUER_ID
+        APPSTORE_CONNECT_KEY_ID: op://${{ inputs.vault }}/${{ inputs.item }}/APPSTORE_CONNECT_KEY_ID
+        APPSTORE_CONNECT_KEY_CONTENT: op://${{ inputs.vault }}/${{ inputs.item }}/AuthKey.p8
+        PUTIO_APP_IDENTIFIER: op://${{ inputs.vault }}/${{ inputs.item }}/PUTIO_APP_IDENTIFIER
+        PUTIO_APPLE_ID: op://${{ inputs.vault }}/${{ inputs.item }}/PUTIO_APPLE_ID
+        PUTIO_ITC_TEAM_ID: op://${{ inputs.vault }}/${{ inputs.item }}/PUTIO_ITC_TEAM_ID
+        PUTIO_DEVELOPMENT_TEAM: op://${{ inputs.vault }}/${{ inputs.item }}/PUTIO_DEVELOPMENT_TEAM
+        PUTIO_OAUTH_CLIENT_ID: op://${{ inputs.vault }}/${{ inputs.item }}/PUTIO_OAUTH_CLIENT_ID
+        PUTIO_CHROMECAST_RECEIVER_APP_ID: op://${{ inputs.vault }}/${{ inputs.item }}/PUTIO_CHROMECAST_RECEIVER_APP_ID
+        PUTIO_INTERCOM_API_KEY: op://${{ inputs.vault }}/${{ inputs.item }}/PUTIO_INTERCOM_API_KEY
+        PUTIO_INTERCOM_APP_ID: op://${{ inputs.vault }}/${{ inputs.item }}/PUTIO_INTERCOM_APP_ID
+        PUTIO_SENTRY_DSN: op://${{ inputs.vault }}/${{ inputs.item }}/PUTIO_SENTRY_DSN
+        MATCH_GIT_URL: op://${{ inputs.vault }}/${{ inputs.item }}/MATCH_GIT_URL
+        MATCH_TYPE: op://${{ inputs.vault }}/${{ inputs.item }}/MATCH_TYPE
+        MATCH_PASSWORD: op://${{ inputs.vault }}/${{ inputs.item }}/MATCH_PASSWORD
+        MATCH_GIT_PRIVATE_KEY_CONTENT: op://${{ inputs.vault }}/${{ inputs.item }}/MATCH_GIT_PRIVATE_KEY
 
     - name: Materialize App Store Connect key
       shell: bash
@@ -49,7 +59,7 @@ runs:
         echo "APPSTORE_CONNECT_KEY_FILEPATH=$key_path" >> "$GITHUB_ENV"
 
         if [ -z "${MATCH_GIT_PRIVATE_KEY_CONTENT:-}" ]; then
-          echo "MATCH_GIT_PRIVATE_KEY is not configured in frontend-ci/putio-ios" >&2
+          echo "MATCH_GIT_PRIVATE_KEY is not configured in the selected 1Password item" >&2
           exit 1
         fi
 

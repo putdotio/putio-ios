@@ -77,7 +77,9 @@ jobs:
       - name: Load shared release secrets
         uses: ./.github/actions/load-ios-release-secrets
         with:
-          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_PUTIO_FRONTEND_CI }}
+          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          vault: ${{ vars.PUTIO_1PASSWORD_VAULT }}
+          item: ${{ vars.PUTIO_1PASSWORD_ITEM }}
 
       - name: Prepare beta metadata
         env:
