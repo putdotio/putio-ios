@@ -33,7 +33,7 @@ export PUTIO_1PASSWORD_VAULT="<vault>"
 export PUTIO_1PASSWORD_ITEM="<item>"
 ```
 
-- Export `OP_SERVICE_ACCOUNT_TOKEN` in your shell (or in an ignored operator env file you source manually) before running `make op-local-config`. Personal `op signin` sessions are not used for this helper
+- Sign in to 1Password via the desktop app and enable CLI integration (Settings → Developer → "Integrate with 1Password CLI"). `OP_SERVICE_ACCOUNT_TOKEN` is only required on shared devboxes / CI
 - Local private config helper:
 
 ```bash
