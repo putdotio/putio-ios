@@ -49,8 +49,8 @@ if ! command -v op >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]] && ! op whoami >/dev/null 2>&1; then
-  echo "1Password CLI is not signed in. Unlock 1Password or run 'op signin' first" >&2
+if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]]; then
+  echo "OP_SERVICE_ACCOUNT_TOKEN is required for 1Password-backed local config" >&2
   exit 1
 fi
 

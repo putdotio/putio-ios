@@ -29,11 +29,12 @@ This path is for put.io teammates who need signed local builds or private suppor
 - Store the shared vault and item selectors outside git, for example in a local shell env or ignored env file:
 
 ```bash
+direnv allow
 export PUTIO_1PASSWORD_VAULT="<vault>"
 export PUTIO_1PASSWORD_ITEM="<item>"
 ```
 
-- If using service-account access, expose it through `OP_SERVICE_ACCOUNT_TOKEN`
+- The tracked `.envrc` loads `OP_SERVICE_ACCOUNT_TOKEN` from the private `putio-frontend` 1Password Environment mount; personal `op signin` sessions are not used for this helper
 - Local private config helper:
 
 ```bash
