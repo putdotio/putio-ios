@@ -6,6 +6,7 @@ vault="${PUTIO_1PASSWORD_VAULT:-}"
 item="${PUTIO_1PASSWORD_ITEM:-}"
 template="Config/Local.1password.xcconfig.template"
 output="Config/Local.xcconfig"
+op_account="putdotio.1password.com"
 
 usage() {
   cat <<'EOF' >&2
@@ -49,16 +50,16 @@ if ! command -v op >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! OP_ACCOUNT=putdotio.1password.com op whoami >/dev/null 2>&1; then
-  echo "1Password CLI session not found. Either:" >&2
-  echo "  - Sign in via the 1Password desktop app and enable CLI integration, OR" >&2
+if ! OP_ACCOUNT="$op_account" op whoami >/dev/null 2>&1; then
+  echo "1Password CLI session not found for account $op_account. Either:" >&2
+  echo "  - Sign in to $op_account in the 1Password desktop app and enable CLI integration, OR" >&2
   echo "  - Export OP_SERVICE_ACCOUNT_TOKEN (shared devboxes / CI)" >&2
   exit 1
 fi
 
 mkdir -p "$(dirname "$output")"
 
-OP_ACCOUNT=putdotio.1password.com \
+OP_ACCOUNT="$op_account" \
 PUTIO_1PASSWORD_VAULT="$vault" \
 PUTIO_1PASSWORD_ITEM="$item" \
 op inject --in-file "$template" --out-file "$output" --force --file-mode 0600

@@ -33,7 +33,7 @@ export PUTIO_1PASSWORD_VAULT="<vault>"
 export PUTIO_1PASSWORD_ITEM="<item>"
 ```
 
-- Sign in to 1Password via the desktop app and enable CLI integration (Settings → Developer → "Integrate with 1Password CLI"). `OP_SERVICE_ACCOUNT_TOKEN` is only required on shared devboxes / CI
+- Sign in to the `putdotio.1password.com` account in the 1Password desktop app and enable CLI integration (Settings → Developer → "Integrate with 1Password CLI") — the helper is pinned to that account. `OP_SERVICE_ACCOUNT_TOKEN` is only required on shared devboxes / CI
 - Local private config helper:
 
 ```bash
