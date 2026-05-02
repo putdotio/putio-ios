@@ -33,7 +33,7 @@ export PUTIO_1PASSWORD_VAULT="<vault>"
 export PUTIO_1PASSWORD_ITEM="<item>"
 ```
 
-- If using service-account access, expose it through `OP_SERVICE_ACCOUNT_TOKEN`
+- Export `OP_SERVICE_ACCOUNT_TOKEN` in your shell (or in an ignored operator env file you source manually) before running `make op-local-config`. Personal `op signin` sessions are not used for this helper
 - Local private config helper:
 
 ```bash

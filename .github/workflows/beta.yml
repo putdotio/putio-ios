@@ -31,6 +31,7 @@ jobs:
   beta:
     name: Upload beta build
     runs-on: macos-26
+    environment: release
     timeout-minutes: 60
     env:
       FASTLANE_SKIP_UPDATE_CHECK: '1'
