@@ -33,7 +33,7 @@ export PUTIO_1PASSWORD_VAULT="<vault>"
 export PUTIO_1PASSWORD_ITEM="<item>"
 ```
 
-- Export `OP_SERVICE_ACCOUNT_TOKEN` in your shell (or in an ignored operator env file you source manually) before running `make op-local-config`. Personal `op signin` sessions are not used for this helper
+- Sign in to the `putdotio.1password.com` account in the 1Password desktop app and enable CLI integration (Settings → Developer → "Integrate with 1Password CLI") — the helper is pinned to that account. `OP_SERVICE_ACCOUNT_TOKEN` is only required on shared devboxes / CI
 - Local private config helper:
 
 ```bash
@@ -50,7 +50,6 @@ make op-local-config VAULT="<vault>" ITEM="<item>"
   - bundle id `io.put.dev`
   - display name `put.io`
   - primary icon `AppIconDev`
-- `make op-local-config` only materializes private local credentials and the development team
 - Keep the selected 1Password item aligned with:
   - `Config/Local.1password.xcconfig.template`
   - `fastlane/.env.1password.template`
