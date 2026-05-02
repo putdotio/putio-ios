@@ -30,6 +30,7 @@ jobs:
   release:
     name: Promote release build
     runs-on: macos-26
+    environment: release
     timeout-minutes: 20
 
     steps:
