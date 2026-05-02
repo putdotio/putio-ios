@@ -51,9 +51,13 @@ if ! command -v op >/dev/null 2>&1; then
 fi
 
 if ! OP_ACCOUNT="$op_account" op whoami >/dev/null 2>&1; then
-  echo "1Password CLI session not found for account $op_account. Either:" >&2
-  echo "  - Sign in to $op_account in the 1Password desktop app and enable CLI integration, OR" >&2
-  echo "  - Export OP_SERVICE_ACCOUNT_TOKEN (shared devboxes / CI)" >&2
+  if [[ -n "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]]; then
+    echo "1Password service account authentication failed. Verify OP_SERVICE_ACCOUNT_TOKEN is valid and not expired or revoked." >&2
+  else
+    echo "1Password CLI session not found for account $op_account. Either:" >&2
+    echo "  - Sign in to $op_account in the 1Password desktop app and enable CLI integration, OR" >&2
+    echo "  - Export OP_SERVICE_ACCOUNT_TOKEN (shared devboxes / CI)" >&2
+  fi
   exit 1
 fi
 

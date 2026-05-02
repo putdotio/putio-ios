@@ -50,7 +50,6 @@ make op-local-config VAULT="<vault>" ITEM="<item>"
   - bundle id `io.put.dev`
   - display name `put.io`
   - primary icon `AppIconDev`
-- `make op-local-config` only materializes private local credentials and the development team
 - Keep the selected 1Password item aligned with:
   - `Config/Local.1password.xcconfig.template`
   - `fastlane/.env.1password.template`
