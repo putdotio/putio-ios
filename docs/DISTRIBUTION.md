@@ -26,16 +26,9 @@ Distribution guidance for `putio-ios`.
 
 ## Release Secret Contract
 
-Beta and release workflows pass generic selectors to the release-secret action:
+Beta and release workflows authenticate via the `OP_SERVICE_ACCOUNT_TOKEN` Environment-scoped secret. The release-secret action reads from the hardcoded `frontend-ci/putio-ios` 1Password item.
 
-- secret `OP_SERVICE_ACCOUNT_TOKEN`
-  - 1Password service account token with access to the selected item
-- variable `PUTIO_1PASSWORD_VAULT`
-  - vault selector for the release item
-- variable `PUTIO_1PASSWORD_ITEM`
-  - item selector for the release item
-
-The selected 1Password item must provide:
+The 1Password item must provide:
 
 - App Store Connect API fields:
   - `APPSTORE_CONNECT_ISSUER_ID`
