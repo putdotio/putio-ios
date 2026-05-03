@@ -37,13 +37,13 @@ export PUTIO_1PASSWORD_ITEM="<item>"
 - Local private config helper:
 
 ```bash
-make op-local-config
+make secrets-setup
 ```
 
 - You can also pass selectors for one run:
 
 ```bash
-make op-local-config VAULT="<vault>" ITEM="<item>"
+make secrets-setup VAULT="<vault>" ITEM="<item>"
 ```
 
 - Local teammate builds default to:
