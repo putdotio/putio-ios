@@ -50,7 +50,7 @@ The 1Password item must provide:
   - `MATCH_PASSWORD`
   - `MATCH_GIT_PRIVATE_KEY`
 
-Keep concrete vault names, item names, item IDs, service-account tokens, and private key material out of git.
+Keep item IDs, service-account tokens, and private key material out of git.
 
 ## App Store IDs
 
