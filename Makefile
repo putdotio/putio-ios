@@ -1,4 +1,4 @@
-.PHONY: bootstrap bootstrap-ci verify e2e-simulator print-simulator-destination print-simulator-device run-simulator download-ios-platform op-local-config beta release
+.PHONY: bootstrap bootstrap-ci verify e2e-simulator print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean beta release
 
 bootstrap:
 	bundle config set --local path vendor/bundle
@@ -53,8 +53,11 @@ run-simulator:
 download-ios-platform:
 	xcodebuild -downloadPlatform iOS
 
-op-local-config:
+secrets-setup:
 	@./scripts/op-local-config.sh $(if $(VAULT),--vault "$(VAULT)") $(if $(ITEM),--item "$(ITEM)")
+
+secrets-clean:
+	rm -f Config/Local.xcconfig
 
 beta:
 	@echo "make beta is CI-only. Use .github/workflows/beta.yml via GitHub Actions." >&2
