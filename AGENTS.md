@@ -33,7 +33,7 @@
 Xcode + Fastlane carry their own config and signing flow; this repo does not use a `.envrc` / `secrets` task-runner pattern.
 
 - A fresh worktree only needs `make bootstrap`; `make verify` and `make e2e-simulator` run without 1Password access
-- Run `make secrets-setup VAULT=<vault> ITEM=<item>` only when the task needs signed local builds or private support integrations. The helper writes `Config/Local.xcconfig` per-worktree (gitignored). `make secrets-clean` removes it before `git worktree remove`
+- Run `make secrets-setup` only when the task needs signed local builds or private support integrations. The helper writes `Config/Local.xcconfig` per-worktree from the hardcoded `frontend-ci/putio-ios` item (gitignored). `make secrets-clean` removes it before `git worktree remove`
 - The helper accepts either auth path: 1Password desktop with CLI integration on the `putdotio.1password.com` account, or `OP_SERVICE_ACCOUNT_TOKEN` exported in the shell (devbox / CI)
 - If the helper fails with a missing-session error, surface and stop. Do not retry; do not export ambient tokens to work around it
 

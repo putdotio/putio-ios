@@ -49,8 +49,6 @@ jobs:
         uses: ./.github/actions/load-ios-release-secrets
         with:
           service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          vault: ${{ vars.PUTIO_1PASSWORD_VAULT }}
-          item: ${{ vars.PUTIO_1PASSWORD_ITEM }}
 
       - name: Promote existing App Store Connect build
         env:

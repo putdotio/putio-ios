@@ -26,25 +26,14 @@ make bootstrap
 
 This path is for put.io teammates who need signed local builds or private support integrations.
 
-- Store the shared vault and item selectors outside git, for example in a local shell env or ignored env file:
-
-```bash
-export PUTIO_1PASSWORD_VAULT="<vault>"
-export PUTIO_1PASSWORD_ITEM="<item>"
-```
-
 - Sign in to the `putdotio.1password.com` account in the 1Password desktop app and enable CLI integration (Settings → Developer → "Integrate with 1Password CLI") — the helper is pinned to that account. `OP_SERVICE_ACCOUNT_TOKEN` is only required on shared devboxes / CI
-- Local private config helper:
+- Materialize the local config:
 
 ```bash
 make secrets-setup
 ```
 
-- You can also pass selectors for one run:
-
-```bash
-make secrets-setup VAULT="<vault>" ITEM="<item>"
-```
+This renders `Config/Local.xcconfig` from `Config/Local.1password.xcconfig.template`. Run `make secrets-clean` to remove it.
 
 - Local teammate builds default to:
   - bundle id `io.put.dev`

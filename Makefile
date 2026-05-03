@@ -54,7 +54,7 @@ download-ios-platform:
 	xcodebuild -downloadPlatform iOS
 
 secrets-setup:
-	@./scripts/op-local-config.sh $(if $(VAULT),--vault "$(VAULT)") $(if $(ITEM),--item "$(ITEM)")
+	@./scripts/secrets-setup.sh
 
 secrets-clean:
 	rm -f Config/Local.xcconfig
