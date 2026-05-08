@@ -82,8 +82,8 @@ jobs:
             release_version="$RELEASE_VERSION_INPUT"
           fi
 
-          if ! [[ "$release_version" =~ ^[0-9]+(\.[0-9]+){1,3}([-+][0-9A-Za-z.-]+)?$ ]]; then
-            echo "Release version must look like an app version, for example 1.2.3" >&2
+          if ! [[ "$release_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release version must be three period-separated integers, for example 1.2.3" >&2
             exit 1
           fi
 
