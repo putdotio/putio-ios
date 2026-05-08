@@ -18,7 +18,7 @@ runs:
         fi
 
     - name: Load shared iOS secrets from 1Password
-      uses: 1password/load-secrets-action@v4
+      uses: 1password/load-secrets-action@92467eb28f72e8255933372f1e0707c567ce2259 # v4
       with:
         export-env: true
       env:

@@ -7,6 +7,7 @@ Distribution guidance for `putio-ios`.
 - [CI](../.github/workflows/ci.yml) verifies pushes and pull requests with `make bootstrap-ci` and `make verify`. It skips docs-only changes.
 - [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. It verifies first, prepares metadata, loads release secrets, then splits delivery into archive, upload, and distribute steps.
 - [Release](../.github/workflows/release.yml) runs on published GitHub releases and builds the release artifact from the release tag. Manual dispatch builds from `main` for the supplied version.
+- Beta, release, and shared release-secret third-party actions are pinned to full commit SHAs with a trailing comment for the human version tag. Update the SHA and comment together after reviewing upstream release notes.
 
 ## CI Bootstrap
 
@@ -52,6 +53,14 @@ The 1Password item must provide:
   - `MATCH_GIT_PRIVATE_KEY`
 
 Keep item IDs, service-account tokens, and private key material out of git.
+
+## GitHub Release Settings
+
+Repository admins must keep these settings aligned with the workflow trust model:
+
+- protect `main` for trusted team direct push; do not allow force-pushes or branch deletion
+- protect `v*` release tags so only release automation or release admins can create or update them
+- configure the `release` Environment with required reviewers and prevent self-review
 
 ## App Store IDs
 
