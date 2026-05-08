@@ -278,6 +278,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func logout() {
         PutioKeychain.sharedInstance.clearToken()
         api.clearToken()
+        VideoPlaybackPositionStore.shared.clearAllPositions()
         Intercom.logout()
         presentLoginScreen()
     }

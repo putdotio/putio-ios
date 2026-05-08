@@ -6,7 +6,7 @@ target 'Putio' do
   pod 'google-cast-sdk-no-bluetooth-xcframework', '4.8.0'
   pod 'Intercom', '19.5.7'
   pod 'KeychainAccess'
-  pod 'PutioSDK', :git => 'https://github.com/putdotio/putio-sdk-swift.git', :tag => '3.1.0'
+  pod 'PutioSDK', :git => 'https://github.com/putdotio/putio-sdk-swift.git', :commit => '8192763563951797672c8101d6765dac3ec7e2df' # 3.1.0
   pod 'RealmSwift', '20.0.4'
   pod 'Sentry', '9.10.0'
   pod 'StatefulViewController', '~> 3.0'

@@ -60,20 +60,35 @@ runs:
 
         match_git_host=""
         case "${MATCH_GIT_URL:-}" in
-          git@*:*)
-            match_git_host="${MATCH_GIT_URL#git@}"
-            match_git_host="${match_git_host%%:*}"
+          git@github.com:*)
+            match_git_host="github.com"
             ;;
-          ssh://*)
-            match_git_host="${MATCH_GIT_URL#ssh://}"
-            match_git_host="${match_git_host%%/*}"
+          ssh://git@github.com/* | ssh://github.com/*)
+            match_git_host="github.com"
             ;;
         esac
 
-        if [ -n "$match_git_host" ]; then
-          mkdir -p "$HOME/.ssh"
-          chmod 700 "$HOME/.ssh"
-          touch "$HOME/.ssh/known_hosts"
-          ssh-keyscan -H "$match_git_host" >> "$HOME/.ssh/known_hosts" 2>/dev/null || true
-          chmod 600 "$HOME/.ssh/known_hosts"
+        if [ -z "$match_git_host" ]; then
+          echo "MATCH_GIT_URL must use a github.com SSH URL when MATCH_GIT_PRIVATE_KEY is used" >&2
+          exit 1
         fi
+
+        host_key_path="$RUNNER_TEMP/github-ed25519-known-hosts"
+        ssh-keyscan -T 10 -t ed25519 "$match_git_host" > "$host_key_path" 2>/dev/null
+        if [ ! -s "$host_key_path" ]; then
+          echo "No SSH host key was returned for $match_git_host" >&2
+          exit 1
+        fi
+
+        fingerprints="$(ssh-keygen -lf "$host_key_path" -E sha256 | awk '{print $2}' | sort -u)"
+        fingerprint_count="$(printf '%s\n' "$fingerprints" | wc -l | tr -d ' ')"
+
+        if [ "$fingerprint_count" != "1" ] || [ "$fingerprints" != "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU" ]; then
+          echo "Unexpected SSH host key for $match_git_host: $fingerprints" >&2
+          exit 1
+        fi
+
+        mkdir -p "$HOME/.ssh"
+        chmod 700 "$HOME/.ssh"
+        cat "$host_key_path" >> "$HOME/.ssh/known_hosts"
+        chmod 600 "$HOME/.ssh/known_hosts"

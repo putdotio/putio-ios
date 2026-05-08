@@ -30,7 +30,7 @@ DEPENDENCIES:
   - Intercom (= 19.5.7)
   - KeyboardAvoidingView (~> 5.2)
   - KeychainAccess
-  - PutioSDK (from `https://github.com/putdotio/putio-sdk-swift.git`, tag `3.1.0`)
+  - PutioSDK (from `https://github.com/putdotio/putio-sdk-swift.git`, commit `8192763563951797672c8101d6765dac3ec7e2df`)
   - RealmSwift (= 20.0.4)
   - Sentry (= 9.10.0)
   - StatefulViewController (~> 3.0)
@@ -57,13 +57,13 @@ SPEC REPOS:
 
 EXTERNAL SOURCES:
   PutioSDK:
+    :commit: 8192763563951797672c8101d6765dac3ec7e2df
     :git: https://github.com/putdotio/putio-sdk-swift.git
-    :tag: 3.1.0
 
 CHECKOUT OPTIONS:
   PutioSDK:
+    :commit: 8192763563951797672c8101d6765dac3ec7e2df
     :git: https://github.com/putdotio/putio-sdk-swift.git
-    :tag: 3.1.0
 
 SPEC CHECKSUMS:
   google-cast-sdk-no-bluetooth-xcframework: 1783f52a1b2dc0293ac3ae995db5435989a87da7
@@ -82,6 +82,6 @@ SPEC CHECKSUMS:
   ViewState: 82f26f9b716f6673c19e491f8bf234c4ff519a0a
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: 25e3bf2ed172db3661af3bd121d5675a4210b8ae
+PODFILE CHECKSUM: 903fdb6e713fb10751161ca56c5898d12a8e8180
 
 COCOAPODS: 1.16.2
