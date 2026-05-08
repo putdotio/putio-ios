@@ -6,16 +6,8 @@ on:
       - published
   workflow_dispatch:
     inputs:
-      ref:
-        description: Git ref to build and upload
-        required: false
-        default: main
       version:
-        description: Release version to promote
-        required: false
-        default: ''
-      build_number:
-        description: Optional existing TestFlight build number to promote
+        description: Release version to build and upload from main
         required: false
         default: ''
 
@@ -23,21 +15,34 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.event.release.tag_name || inputs.ref || 'main' }}
+  group: release-${{ github.event.release.tag_name || inputs.version || 'main' }}
   cancel-in-progress: false
 
 jobs:
   release:
-    name: Promote release build
+    name: Build release artifact
     runs-on: macos-26
     environment: release
-    timeout-minutes: 20
+    timeout-minutes: 60
+    env:
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_HIDE_PLUGINS_TABLE: '1'
+      FASTLANE_SKIP_ACTION_SUMMARY: '1'
+      FASTLANE_SKIP_ALL_LANE_SUMMARIES: '1'
+      FASTLANE_HIDE_TIMESTAMP: '1'
+      FASTLANE_DISABLE_COLORS: '1'
+      FASTLANE_SKIP_DOCS: '1'
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.release.tag_name || inputs.ref }}
+          ref: ${{ github.event.release.tag_name || 'main' }}
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -45,14 +50,53 @@ jobs:
           ruby-version: .ruby-version
           bundler-cache: true
 
+      - name: Restore CocoaPods cache
+        uses: actions/cache@v5
+        with:
+          path: ~/Library/Caches/CocoaPods
+          key: ${{ runner.os }}-cocoapods-downloads-${{ github.workflow }}-${{ hashFiles('Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cocoapods-downloads-${{ github.workflow }}-
+
+      - name: Install CocoaPods dependencies
+        run: make bootstrap-ci
+
+      - name: Verify repository
+        run: make verify
+
+      - name: Prepare release metadata
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_VERSION_INPUT: ${{ inputs.version }}
+        run: |
+          if [ -n "$RELEASE_TAG" ]; then
+            case "$RELEASE_TAG" in
+              v*) release_version="${RELEASE_TAG#v}" ;;
+              *)
+                echo "Release tags must start with v" >&2
+                exit 1
+                ;;
+            esac
+          else
+            release_version="$RELEASE_VERSION_INPUT"
+          fi
+
+          if ! [[ "$release_version" =~ ^[0-9]+(\.[0-9]+){1,3}([-+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release version must look like an app version, for example 1.2.3" >&2
+            exit 1
+          fi
+
+          echo "PUTIO_RELEASE_VERSION=$release_version" >> "$GITHUB_ENV"
+
       - name: Load shared release secrets
         uses: ./.github/actions/load-ios-release-secrets
         with:
           service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
 
-      - name: Promote existing App Store Connect build
+      - name: Build and upload release artifact
         env:
-          PUTIO_RELEASE_VERSION: ${{ inputs.version || github.event.release.tag_name }}
-          PUTIO_RELEASE_BUILD_NUMBER: ${{ inputs.build_number }}
+          PUTIO_APP_DISPLAY_NAME: put.io
+          PUTIO_PRIMARY_APP_ICON: AppIcon
         run: |
           bundle exec fastlane release

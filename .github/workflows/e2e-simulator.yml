@@ -41,12 +41,10 @@ jobs:
       - name: Restore CocoaPods cache
         uses: actions/cache@v5
         with:
-          path: |
-            Pods
-            ~/Library/Caches/CocoaPods
-          key: ${{ runner.os }}-cocoapods-${{ hashFiles('Podfile.lock') }}
+          path: ~/Library/Caches/CocoaPods
+          key: ${{ runner.os }}-cocoapods-downloads-${{ github.workflow }}-${{ hashFiles('Podfile.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cocoapods-
+            ${{ runner.os }}-cocoapods-downloads-${{ github.workflow }}-
 
       - name: Install CocoaPods dependencies
         run: make bootstrap-ci
