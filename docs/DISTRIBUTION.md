@@ -5,14 +5,16 @@ Distribution guidance for `putio-ios`.
 ## Workflows
 
 - [CI](../.github/workflows/ci.yml) verifies pushes and pull requests with `make bootstrap-ci` and `make verify`. It skips docs-only changes.
-- [Beta](../.github/workflows/beta.yml) is the manual TestFlight path. It verifies first, loads release secrets, then splits delivery into archive, upload, and distribute steps.
-- [Release](../.github/workflows/release.yml) runs on published GitHub releases and promotes an existing processed TestFlight build for the release tag version. Manual dispatches may pass an explicit build number.
+- [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. It verifies first, prepares metadata, loads release secrets, then splits delivery into archive, upload, and distribute steps.
+- [Release](../.github/workflows/release.yml) runs on published GitHub releases and builds the release artifact from the release tag. Manual dispatch builds from `main` for the supplied version.
+- Beta, release, and shared release-secret third-party actions are pinned to full commit SHAs with a trailing comment for the human version tag. Update the SHA and comment together after reviewing upstream release notes.
 
 ## CI Bootstrap
 
 - `make bootstrap-ci`
-  - reuses `Pods` when `Pods/Manifest.lock` matches `Podfile.lock`
+  - reuses an existing local `Pods` sandbox only when `Pods/Manifest.lock` matches `Podfile.lock`
   - falls back to `pod install` when the cache is stale
+- GitHub Actions caches CocoaPods download artifacts only; signed beta/release jobs do not restore a generated `Pods` tree from Actions cache
 
 ## Fastlane Contract
 
@@ -20,7 +22,7 @@ Distribution guidance for `putio-ios`.
 - `make beta` and `make release` intentionally fail locally
 - 1Password loading and secret materialization live in [Load iOS release secrets](../.github/actions/load-ios-release-secrets/action.yml)
 - uploaded beta builds use UTC timestamp build numbers in `YYMMDDHHMM` format
-- release promotion reuses an existing processed TestFlight build instead of rebuilding
+- release builds use UTC timestamp build numbers in `YYMMDDHHMM` format and upload the IPA produced from the checked-out source
 - checked-in `CURRENT_PROJECT_VERSION` stays at `1` as a baseline
 - fastlane temporarily updates tracked version metadata during archive time and restores the files afterward
 
@@ -52,6 +54,14 @@ The 1Password item must provide:
 
 Keep item IDs, service-account tokens, and private key material out of git.
 
+## GitHub Release Settings
+
+Repository admins must keep these settings aligned with the workflow trust model:
+
+- protect `main` for trusted team direct push; do not allow force-pushes or branch deletion
+- protect `v*` release tags so only release automation or release admins can create or update them
+- configure the `release` Environment with required reviewers and prevent self-review
+
 ## App Store IDs
 
 - `PUTIO_APPLE_ID`
@@ -69,6 +79,6 @@ Keep item IDs, service-account tokens, and private key material out of git.
 
 - App Store Connect upload success does not mean external distribution is complete
 - Apple processing failures may surface only after upload
-- release promotion only succeeds when App Store Connect already has a processed build for the target version
+- release uploads must complete App Store Connect processing before promotion or submission can continue
 - privacy usage strings in `Putio/Info.plist` must stay aligned with enabled SDK features
 - Blacksmith macOS minutes are normalized aggressively, so prefer local validation and Fastlane contract checks before rerunning full beta uploads
