@@ -99,7 +99,7 @@ plutil -lint Putio/en.lproj/*.strings
   - when changing copy in Swift, update `Putio/en.lproj/Localizable.strings`
   - when changing storyboard or xib copy, update the matching `Putio/en.lproj/*.strings` file
 - Keep repo-stored configuration open-source-safe
-  - do not commit tokens, signing keys, API key files, or private release metadata
+  - keep tokens, signing keys, API key files, and private release metadata out of commits
 
 ## CI And Delivery
 

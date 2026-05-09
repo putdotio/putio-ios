@@ -35,7 +35,7 @@ Xcode + Fastlane carry their own config and signing flow; this repo does not use
 - A fresh worktree only needs `make bootstrap`; `make verify` and `make e2e-simulator` run without 1Password access
 - Run `make secrets-setup` only when the task needs signed local builds or private support integrations. The helper writes `Config/Local.xcconfig` per-worktree from the hardcoded `frontend-ci/putio-ios` item (gitignored). `make secrets-clean` removes it before `git worktree remove`
 - The helper accepts either auth path: 1Password desktop with CLI integration on the `putdotio.1password.com` account, or `OP_SERVICE_ACCOUNT_TOKEN` exported in the shell (devbox / CI)
-- If the helper fails with a missing-session error, surface and stop. Do not retry; do not export ambient tokens to work around it
+- If the helper fails with a missing-session error, surface and stop. Keep tokens in the supported 1Password paths.
 
 Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-config).
 
@@ -49,7 +49,7 @@ Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-
 - Update UI on the main thread, but keep expensive network response parsing, image decoding, and PDF parsing off the main thread
 - Make every async loading path finish cleanly on success, failure, cancellation, and back navigation
 - Put user-facing copy in localized strings; when Swift copy changes, update `Putio/en.lproj/Localizable.strings`
-- Avoid adding dependencies unless the repo already has no good platform or SDK option
+- Add dependencies only when the repo has no good platform or SDK option
 
 ## Verification Matrix
 
