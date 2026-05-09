@@ -4,6 +4,7 @@ import AuthenticationServices
 
 class LoginViewController: UIViewController, UITextFieldDelegate {
     var session: ASWebAuthenticationSession?
+    var currentOAuthState: String?
 
     @IBOutlet weak var loginButton: UIButton!
     
@@ -35,7 +36,9 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
         api.clearToken()
         
         let scheme = "putio"
-        let url = api.getAuthURL(redirectURI: "\(scheme)://auth")
+        let state = UUID().uuidString
+        currentOAuthState = state
+        let url = api.getAuthURL(redirectURI: "\(scheme)://auth", state: state)
 
         session = ASWebAuthenticationSession(url: url, callbackURLScheme: scheme) { callbackURL, error in
             self.handleWebAuthResult(callbackURL: callbackURL, error: error)
@@ -63,6 +66,8 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
     }
 
     func handleWebAuthCallbackFailure(error: Error) {
+        currentOAuthState = nil
+
         let alertController = UIAlertController(
             title: NSLocalizedString("Authentication failed", comment: ""),
             message: error.localizedDescription,
@@ -75,6 +80,19 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
 
     // Callback URL: putio://auth#access_token={TOKEN}
     func handleWebAuthCallbackSuccess(callbackURL: URL) {
+        defer { currentOAuthState = nil }
+
+        guard callbackURL.scheme == "putio",
+              callbackURL.host == "auth",
+              callbackURL.path.isEmpty || callbackURL.path == "/" else {
+            let error = NSError(
+                domain: "",
+                code: 0,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("Unexpected authentication callback URL.", comment: "")]
+            )
+            return handleWebAuthCallbackFailure(error: error)
+        }
+
         var urlComponents = URLComponents()
         urlComponents.query = callbackURL.fragment
 
@@ -83,6 +101,16 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
                 domain: "",
                 code: 0,
                 userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("Missing access_token in the callback URL.", comment: "")]
+            )
+            return handleWebAuthCallbackFailure(error: error)
+        }
+
+        guard let returnedState = urlComponents.queryItems?.first(where: { $0.name == "state" })?.value,
+              returnedState == currentOAuthState else {
+            let error = NSError(
+                domain: "",
+                code: 0,
+                userInfo: [NSLocalizedDescriptionKey: NSLocalizedString("Authentication state did not match the current session.", comment: "")]
             )
             return handleWebAuthCallbackFailure(error: error)
         }

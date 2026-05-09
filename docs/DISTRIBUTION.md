@@ -51,6 +51,7 @@ The 1Password item must provide:
   - `MATCH_TYPE`
   - `MATCH_PASSWORD`
   - `MATCH_GIT_PRIVATE_KEY`
+  - `MATCH_GIT_URL` must use a `github.com` SSH URL; CI verifies GitHub's ed25519 host-key fingerprint before updating `known_hosts`
 
 Keep item IDs, service-account tokens, and private key material out of git.
 
@@ -73,7 +74,7 @@ Repository admins must keep these settings aligned with the workflow trust model
   - `app_identifier`
   - `app_platform`
   - numeric app Apple ID only when explicitly available
-- `putdotio/apple-certificates` is pinned to the `main` branch in `fastlane/Matchfile`
+- `putdotio/putio-code-signing-apple` is pinned to the `main` branch in `fastlane/Matchfile`
 
 ## Operational Notes
 

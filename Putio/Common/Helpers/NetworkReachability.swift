@@ -14,9 +14,13 @@ class NetworkReachability {
         monitor.pathUpdateHandler = { [weak self] path in
             guard let self = self else { return }
 
-            self.isReachable = path.status == .satisfied
-            log.info("Network status changed: \(path.status)", context: nil)
-            NotificationCenter.default.post(name: NetworkReachability.NOTIFICATION, object: nil)
+            let isReachable = path.status == .satisfied
+            let status = path.status
+            DispatchQueue.main.async {
+                self.isReachable = isReachable
+                log.info("Network status changed: \(status)", context: nil)
+                NotificationCenter.default.post(name: NetworkReachability.NOTIFICATION, object: nil)
+            }
         }
 
         monitor.start(queue: queue)

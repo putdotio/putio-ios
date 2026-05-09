@@ -86,7 +86,13 @@
 "Authentication failed" = "Authentication failed";
 
 /* No comment provided by engineer. */
+"Authentication state did not match the current session." = "Authentication state did not match the current session.";
+
+/* No comment provided by engineer. */
 "The authentication session did not return a callback URL." = "The authentication session did not return a callback URL.";
+
+/* No comment provided by engineer. */
+"Unexpected authentication callback URL." = "Unexpected authentication callback URL.";
 
 /* No comment provided by engineer. */
 "Cancel" = "Cancel";

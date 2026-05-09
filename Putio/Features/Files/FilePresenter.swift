@@ -46,13 +46,6 @@ extension FilePresenter where Self: UIViewController {
         filesVC.viewModel.file = file
         filesVC.navigationItem.title = file.name
 
-        // Share the same bar button items so UIKit doesn't cross-fade during push
-        if let selfVC = self as? FilesViewController {
-            filesVC.fileActionsButton = selfVC.fileActionsButton
-            filesVC.chromecastButton = selfVC.chromecastButton
-            filesVC.navigationItem.rightBarButtonItems = navigationItem.rightBarButtonItems
-        }
-
         navigationController?.pushViewController(filesVC, animated: true)
     }
 

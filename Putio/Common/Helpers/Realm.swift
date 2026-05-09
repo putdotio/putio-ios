@@ -106,7 +106,7 @@ class PutioRealm {
     private static func migrate(_ migration: Migration, _ oldSchemaVersion: UInt64) {
         if oldSchemaVersion < 1 {
             migration.enumerateObjects(ofType: Download.className()) { _, newDownload in
-                newDownload!["fileType"] = 1
+                newDownload!["fileTypeRaw"] = Download.FileType.audio.rawValue
             }
         }
 
@@ -134,7 +134,7 @@ class PutioRealm {
                 newAppUserSettings!["showOptimisticUsage"] = false
             }
 
-            migration.enumerateObjects(ofType: User.className()) { newAppUser, _ in
+            migration.enumerateObjects(ofType: User.className()) { _, newAppUser in
                 migration.enumerateObjects(ofType: UserDisk.className()) { _, newAppUserDisk in
                     newAppUserDisk!["used"] = 0
                     newAppUser!["disk"] = newAppUserDisk
@@ -161,10 +161,39 @@ class PutioRealm {
             }
         }
 
-        // Schema 12: Download columns renamed from state/fileType to
-        // stateRaw/fileTypeRaw. No migration needed — old format v9
-        // databases are deleted before this runs, and fresh databases
-        // get the new column names automatically.
+        if oldSchemaVersion < 12 {
+            migrateDownloadRawColumns(migration)
+        }
+    }
+
+    private static func migrateDownloadRawColumns(_ migration: Migration) {
+        let hasLegacyState = migration.oldSchema[Download.className()]?["state"] != nil
+        let hasLegacyFileType = migration.oldSchema[Download.className()]?["fileType"] != nil
+
+        migration.enumerateObjects(ofType: Download.className()) { oldDownload, newDownload in
+            let rawValues = legacyDownloadRawValues(
+                state: hasLegacyState ? oldDownload?["state"] : nil,
+                fileType: hasLegacyFileType ? oldDownload?["fileType"] : nil
+            )
+
+            if let stateRaw = rawValues.stateRaw {
+                newDownload!["stateRaw"] = stateRaw
+            }
+
+            if let fileTypeRaw = rawValues.fileTypeRaw {
+                newDownload!["fileTypeRaw"] = fileTypeRaw
+            }
+        }
+    }
+
+    static func legacyDownloadRawValues(state: Any?, fileType: Any?) -> (stateRaw: Int?, fileTypeRaw: Int?) {
+        return (legacyIntValue(state), legacyIntValue(fileType))
+    }
+
+    private static func legacyIntValue(_ value: Any?) -> Int? {
+        if let value = value as? Int { return value }
+        if let value = value as? NSNumber { return value.intValue }
+        return nil
     }
 
     private static func updateUserSettings(_ migration: Migration, updates: @escaping (MigrationObject?) -> Void) {
@@ -212,16 +241,15 @@ class PutioRealm {
         // Fallback: scan Documents directory for audio files whose UserDefaults entries were lost
         if let contents = try? FileManager.default.contentsOfDirectory(atPath: documentsURL.path) {
             for filename in contents where filename.hasPrefix("putio_adm_") {
-                // Extract file ID from "putio_adm_{id}.ext" or "putio_adm_{id}"
-                let stripped = filename
-                    .replacingOccurrences(of: "putio_adm_", with: "")
-                    .components(separatedBy: ".").first ?? ""
-                guard let fileId = Int(stripped), fileId > 0, !recoveredFileIds.contains(fileId) else { continue }
+                guard let fileId = recoveredAudioFileId(from: filename),
+                      fileId > 0,
+                      !recoveredFileIds.contains(fileId) else { continue }
 
                 let fileURL = documentsURL.appendingPathComponent(filename)
                 guard FileManager.default.fileExists(atPath: fileURL.path) else { continue }
 
                 addRecoveredDownload(buildRecoveredDownload(fileId: fileId, isVideo: false), to: realm)
+                defaults.set(filename, forKey: String(fileId))
                 recovered += 1
                 recoveredFileIds.insert(fileId)
             }
@@ -241,6 +269,16 @@ class PutioRealm {
 
     private static var documentsURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+    }
+
+    static func recoveredAudioFileId(from filename: String) -> Int? {
+        let prefix = "putio_adm_"
+        guard filename.hasPrefix(prefix) else { return nil }
+
+        let filenameWithoutExtension = (filename as NSString).deletingPathExtension
+        let idAndSlug = String(filenameWithoutExtension.dropFirst(prefix.count))
+        let id = idAndSlug.split(separator: "_", maxSplits: 1).first.map(String.init) ?? idAndSlug
+        return Int(id)
     }
 
     private static func buildRecoveredDownload(fileId: Int, defaults: UserDefaults, documentsURL: URL) -> Download? {

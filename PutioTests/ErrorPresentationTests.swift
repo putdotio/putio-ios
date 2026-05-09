@@ -22,14 +22,44 @@ final class ErrorPresentationTests: XCTestCase {
 
     func testLoginViewControllerAuthenticatesWithAccessTokenOnSuccess() {
         let viewController = LoginViewControllerSpy()
+        viewController.currentOAuthState = "oauth-state"
 
         viewController.handleWebAuthResult(
-            callbackURL: URL(string: "putio://auth#access_token=test-token"),
+            callbackURL: URL(string: "putio://auth#access_token=test-token&state=oauth-state"),
             error: nil
         )
 
         XCTAssertEqual(viewController.authenticatedToken, "test-token")
         XCTAssertNil(viewController.presentedAlert)
+        XCTAssertNil(viewController.currentOAuthState)
+    }
+
+    func testLoginViewControllerRejectsUnexpectedCallbackEndpoint() throws {
+        let viewController = LoginViewControllerSpy()
+        viewController.currentOAuthState = "oauth-state"
+
+        viewController.handleWebAuthResult(
+            callbackURL: URL(string: "putio://evil#access_token=test-token&state=oauth-state"),
+            error: nil
+        )
+
+        XCTAssertNil(viewController.authenticatedToken)
+        XCTAssertNotNil(viewController.presentedAlert)
+        XCTAssertNil(viewController.currentOAuthState)
+    }
+
+    func testLoginViewControllerRejectsMismatchedState() throws {
+        let viewController = LoginViewControllerSpy()
+        viewController.currentOAuthState = "oauth-state"
+
+        viewController.handleWebAuthResult(
+            callbackURL: URL(string: "putio://auth#access_token=test-token&state=wrong-state"),
+            error: nil
+        )
+
+        XCTAssertNil(viewController.authenticatedToken)
+        XCTAssertNotNil(viewController.presentedAlert)
+        XCTAssertNil(viewController.currentOAuthState)
     }
 
     func testSettingsViewModelPresentsRefreshErrorUsingLocalizedCopy() throws {

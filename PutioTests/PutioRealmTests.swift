@@ -76,7 +76,8 @@ final class PutioRealmTests: XCTestCase {
         let configuration = PutioRealm.configuration(fileURL: realmURL)
         let realm = try XCTUnwrap(PutioRealm.open(context: "PutioRealmTests.testRecoverDownloadsIfNeededRebuildsAudioDownloadsFromDocumentsDirectory", configuration: configuration))
 
-        let recoveredAudioURL = temporaryDirectory.appendingPathComponent("putio_adm_123.mp3")
+        let recoveredAudioFilename = "putio_adm_123_some-audio.mp3"
+        let recoveredAudioURL = temporaryDirectory.appendingPathComponent(recoveredAudioFilename)
         FileManager.default.createFile(atPath: recoveredAudioURL.path, contents: Data("audio".utf8))
 
         PutioRealm.setNeedsDownloadRecovery(true, defaults: defaults)
@@ -92,7 +93,38 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertEqual(recoveredDownload.fileType, .audio)
         XCTAssertEqual(recoveredDownload.state, .completed)
         XCTAssertEqual(recoveredDownload.name, "Recovering...")
+        XCTAssertEqual(defaults.string(forKey: "123"), recoveredAudioFilename)
         XCTAssertFalse(PutioRealm.needsDownloadRecovery(defaults: defaults))
+    }
+
+    func testRecoveredAudioFileIdParsesLegacyAndNormalAudioFilenames() {
+        XCTAssertEqual(PutioRealm.recoveredAudioFileId(from: "putio_adm_123.mp3"), 123)
+        XCTAssertEqual(PutioRealm.recoveredAudioFileId(from: "putio_adm_123_some-audio.mp3"), 123)
+        XCTAssertNil(PutioRealm.recoveredAudioFileId(from: "putio_adm_not-a-number.mp3"))
+        XCTAssertNil(PutioRealm.recoveredAudioFileId(from: "other_123.mp3"))
+    }
+
+    func testLegacyDownloadRawValuesPreserveStateAndFileType() {
+        let rawValues = PutioRealm.legacyDownloadRawValues(
+            state: Download.State.completed.rawValue,
+            fileType: Download.FileType.audio.rawValue
+        )
+
+        XCTAssertEqual(rawValues.stateRaw, Download.State.completed.rawValue)
+        XCTAssertEqual(rawValues.fileTypeRaw, Download.FileType.audio.rawValue)
+    }
+
+    func testVideoPlaybackPositionStoreClearsOnlyPlaybackPositionEntries() {
+        let store = VideoPlaybackPositionStore(userDefaults: defaults)
+        store.saveLocalPosition(for: 42, position: 120)
+        defaults.set("keep", forKey: "other-key")
+
+        XCTAssertNotNil(store.entry(for: 42))
+
+        store.clearAllPositions()
+
+        XCTAssertNil(store.entry(for: 42))
+        XCTAssertEqual(defaults.string(forKey: "other-key"), "keep")
     }
 
     func testReplaceUserSessionPersistsSingletonUserAndConfig() throws {
