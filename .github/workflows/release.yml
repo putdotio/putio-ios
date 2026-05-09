@@ -21,7 +21,7 @@ concurrency:
 jobs:
   release:
     name: Build release artifact
-    runs-on: macos-26
+    runs-on: macos-latest
     environment: release
     timeout-minutes: 60
     env:
