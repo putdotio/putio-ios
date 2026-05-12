@@ -15,6 +15,7 @@ Distribution guidance for `putio-ios`.
   - reuses an existing local `Pods` sandbox only when `Pods/Manifest.lock` matches `Podfile.lock`
   - falls back to `pod install` when the cache is stale
 - GitHub Actions caches CocoaPods download artifacts only; signed beta/release jobs do not restore a generated `Pods` tree from Actions cache
+- Signed beta/release jobs install Ruby gems fresh with Bundler caching disabled before loading App Store Connect and signing secrets
 
 ## Fastlane Contract
 
