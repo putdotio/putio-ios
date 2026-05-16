@@ -17,7 +17,6 @@ struct SearchView: View {
     var body: some View {
         @Bindable var vm = viewModel
         content
-            .navigationTitle("Search")
             .searchable(text: $vm.keyword, prompt: Text("Search your files"))
     }
 

@@ -17,7 +17,6 @@ struct HistoryView: View {
 
     var body: some View {
         content
-            .navigationTitle("History")
             .toolbar { toolbarItems }
             .confirmationDialog(
                 "Clear watch history?",

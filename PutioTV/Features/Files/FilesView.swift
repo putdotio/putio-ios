@@ -35,7 +35,8 @@ struct FilesView: View {
                 PutErrorState(failure: failure)
             }
         }
-        .navigationTitle(navigationTitle)
+        .navigationTitle(viewModel.parentID == 0 ? "" : navigationTitle)
+        .toolbarTitleDisplayMode(viewModel.parentID == 0 ? .automatic : .inline)
         .toolbar { trailingActions }
         .onAppear { viewModel.load() }
     }

@@ -24,7 +24,6 @@ struct AccountView: View {
 
     var body: some View {
         content
-            .navigationTitle("Account")
             .toolbar { toolbarItems }
             .confirmationDialog(
                 "Sign out of put.io?",
@@ -181,7 +180,7 @@ private struct AccountHeader: View {
     let account: PutioAccount
 
     var body: some View {
-        HStack(alignment: .center, spacing: 32) {
+        HStack(alignment: .center, spacing: 24) {
             AsyncImage(url: URL(string: account.avatarURL.replacingOccurrences(of: "s=50", with: "s=200"))) { phase in
                 switch phase {
                 case let .success(image):
@@ -190,26 +189,26 @@ private struct AccountHeader: View {
                     Color.secondary.opacity(0.2)
                 }
             }
-            .frame(width: 140, height: 140)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .frame(width: 96, height: 96)
+            .clipShape(Circle())
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(account.username)
-                    .font(.title)
+                    .font(.title2)
                     .foregroundStyle(.primary)
                     .textCase(nil)
                 ProgressView(value: usageFraction)
                     .tint(.accentColor)
-                    .frame(maxWidth: 560)
+                    .frame(maxWidth: 440)
                 Text(usageString)
-                    .font(.body)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
                     .textCase(nil)
             }
 
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 16)
+        .padding(.vertical, 12)
     }
 
     private var usageFraction: Double {

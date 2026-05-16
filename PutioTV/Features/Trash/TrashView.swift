@@ -74,6 +74,7 @@ struct TrashView: View {
     var body: some View {
         content
             .navigationTitle("Trash")
+            .toolbarTitleDisplayMode(.inline)
             .toolbar { toolbarItems }
             .confirmationDialog(
                 "Empty Trash?",
