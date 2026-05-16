@@ -1,9 +1,8 @@
 import SwiftUI
 import PutioSDK
 
-/// Folder listing. Matches the exported `04-files-root` and `05-files-folder`
-/// screenshots: list rows, top-right Sort + Refresh controls, watched
-/// indicators on the row.
+/// Folder listing rendered with the system `List` + `.navigationTitle` +
+/// `.toolbar` so tvOS owns layout, focus, materials, and the title chrome.
 struct FilesView: View {
     let container: AppContainer
     @Binding var path: [HomeDestination]
@@ -16,103 +15,133 @@ struct FilesView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-
+        Group {
             switch viewModel.state {
             case .loading:
-                PutLoadingState()
+                ProgressView()
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .loaded(_, children):
-                ScrollView {
-                    LazyVStack(spacing: PutSpacing.xs) {
-                        ForEach(children, id: \.id) { file in
-                            row(for: file)
-                        }
-                    }
-                    .padding(.horizontal, PutSpacing.xl)
-                    .padding(.bottom, PutSpacing.xl)
+                List(children, id: \.id) { file in
+                    row(for: file)
                 }
             case .empty:
-                PutEmptyState(icon: "folder", title: "Empty folder", message: "Add files at put.io to fill this one up.")
+                ContentUnavailableView(
+                    "Empty folder",
+                    systemImage: "folder",
+                    description: Text("Add files at put.io to fill this one up.")
+                )
             case let .failed(failure):
                 PutErrorState(failure: failure)
             }
         }
-        .background(Color.put.bg)
+        .navigationTitle(navigationTitle)
+        .toolbar { trailingActions }
         .onAppear { viewModel.load() }
     }
 
-    private var header: some View {
-        PutScreenHeader {
-            Text(headerTitle)
-        } trailing: {
-            PutGlassToolbar {
-                Menu {
-                    ForEach(FileSort.allCases) { sort in
-                        Button(sort.label) { viewModel.setSort(sort.rawValue) }
-                    }
-                } label: {
-                    Label("Sort", systemImage: "arrow.up.arrow.down")
-                        .labelStyle(.titleAndIcon)
-                }
+    @ToolbarContentBuilder
+    private var trailingActions: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button {
+                viewModel.refresh()
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+            }
 
-                Button { viewModel.refresh() } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                        .labelStyle(.titleAndIcon)
+            Menu {
+                Picker("Sort", selection: sortBinding) {
+                    ForEach(FileSort.allCases) { sort in
+                        Text(sort.label).tag(sort.rawValue as String?)
+                    }
                 }
+            } label: {
+                Label(sortLabel, systemImage: "arrow.up.arrow.down")
             }
         }
     }
 
-    private var headerTitle: String {
-        switch viewModel.state {
-        case let .loaded(parent, _):
-            return parent?.name.isEmpty == false ? parent!.name : "Your Files"
-        default:
-            return viewModel.parentID == 0 ? "Your Files" : "Folder"
-        }
+    private var sortBinding: Binding<String?> {
+        Binding(
+            get: { viewModel.currentSort },
+            set: { newValue in
+                if let newValue { viewModel.setSort(newValue) }
+            }
+        )
     }
 
+    private var sortLabel: String {
+        guard let raw = viewModel.currentSort,
+              let match = FileSort(rawValue: raw) else { return "Sort" }
+        return match.label
+    }
+
+    private var navigationTitle: String {
+        if case let .loaded(parent, _) = viewModel.state,
+           let parent, !parent.name.isEmpty {
+            return parent.name
+        }
+        return viewModel.parentID == 0 ? "Your Files" : "Folder"
+    }
+
+    @ViewBuilder
     private func row(for file: PutioFile) -> some View {
         let isFolder = file.type == .folder
         let isVideo = file.type == .video
 
-        return Button {
+        Button {
             if isFolder {
                 path.append(HomeDestination(route: .files(parentID: file.id)))
-            } else if isVideo {
-                container.player.present(fileID: file.id)
             } else {
-                // Non-video file: leaf that the player view will render the
-                // unsupported-file state for.
                 container.player.present(fileID: file.id)
             }
         } label: {
-            PutListRow(
-                icon: icon(for: file),
-                title: file.name,
-                subtitle: subtitle(for: file),
-                watched: isVideo && file.startFrom > 0
-            )
+            FileRowLabel(file: file)
         }
-        .buttonStyle(PutFocusableRowStyle())
+    }
+}
+
+struct FileRowLabel: View {
+    let file: PutioFile
+
+    var body: some View {
+        HStack(spacing: PutSpacing.md) {
+            Image(systemName: icon)
+                .font(.system(size: 36))
+                .foregroundStyle(Color.put.yellowSolid)
+                .frame(width: 48, height: 48)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(file.name)
+                    .lineLimit(1)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: PutSpacing.md)
+            if file.type == .video && file.startFrom > 0 {
+                Image(systemName: "eye.fill")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, PutSpacing.xs)
     }
 
-    private func icon(for file: PutioFile) -> String {
+    private var icon: String {
         switch file.type {
-        case .folder: return "folder-closed"
-        case .video: return "video"
-        case .audio: return "music"
-        case .image: return "image"
-        case .pdf: return "file-text"
-        default: return "file"
+        case .folder: return "folder.fill"
+        case .video: return "film.fill"
+        case .audio: return "music.note"
+        case .image: return "photo.fill"
+        case .pdf: return "doc.text.fill"
+        default: return "doc.fill"
         }
     }
 
-    private func subtitle(for file: PutioFile) -> String? {
-        if file.type == .folder { return nil }
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: file.size)
+    private var subtitle: String? {
+        guard file.type != .folder else { return nil }
+        return ByteCountFormatter.string(fromByteCount: file.size, countStyle: .file)
     }
 }

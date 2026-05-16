@@ -2,9 +2,6 @@ import SwiftUI
 import Observation
 import PutioSDK
 
-/// Trash screen. Matches `13-trash-empty`: empty-state copy reinforces the
-/// 14-day retention rule; non-empty trash shows a list with Restore + Empty
-/// Trash actions.
 @MainActor
 @Observable
 final class TrashViewModel {
@@ -58,10 +55,15 @@ final class TrashViewModel {
     }
 }
 
+/// Trash rendered with `List` + `.navigationTitle`. Empty state and the
+/// 14-day retention copy live in `ContentUnavailableView`. The `Empty trash`
+/// action is in the toolbar and confirmed via `.confirmationDialog`.
 struct TrashView: View {
     let container: AppContainer
     @Binding var path: [HomeDestination]
     @State private var viewModel: TrashViewModel
+    @State private var confirmEmpty = false
+    @State private var pendingFile: PutioTrashFile?
 
     init(container: AppContainer, path: Binding<[HomeDestination]>) {
         self.container = container
@@ -70,65 +72,97 @@ struct TrashView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            PutScreenHeader {
-                Text("Trash")
-            } trailing: {
-                if case .loaded = viewModel.state {
-                    PutGlassToolbar {
-                        Button(role: .destructive) {
-                            viewModel.empty()
-                        } label: {
-                            Label("Empty trash", systemImage: "trash.slash")
-                                .labelStyle(.titleAndIcon)
-                        }
+        content
+            .navigationTitle("Trash")
+            .toolbar { toolbarItems }
+            .confirmationDialog(
+                "Empty Trash?",
+                isPresented: $confirmEmpty,
+                titleVisibility: .visible
+            ) {
+                Button("Empty Trash", role: .destructive) { viewModel.empty() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Everything in Trash will be permanently deleted.")
+            }
+            .confirmationDialog(
+                pendingFile?.name ?? "",
+                isPresented: Binding(get: { pendingFile != nil }, set: { if !$0 { pendingFile = nil } }),
+                titleVisibility: .visible
+            ) {
+                if let file = pendingFile {
+                    Button("Restore") {
+                        viewModel.restore(fileID: file.id)
+                        pendingFile = nil
                     }
+                    Button("Cancel", role: .cancel) { pendingFile = nil }
                 }
             }
+            .onAppear { viewModel.load() }
+    }
 
-            content
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            if case .loaded = viewModel.state {
+                Button(role: .destructive) {
+                    confirmEmpty = true
+                } label: {
+                    Label("Empty Trash", systemImage: "trash.slash")
+                }
+            }
         }
-        .background(Color.put.bg)
-        .onAppear { viewModel.load() }
     }
 
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
         case .loading:
-            PutLoadingState()
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         case let .loaded(files):
-            ScrollView {
-                LazyVStack(spacing: PutSpacing.xs) {
-                    ForEach(files, id: \.id) { file in
-                        Button {
-                            viewModel.restore(fileID: file.id)
-                        } label: {
-                            PutListRow(
-                                icon: "rotate-ccw",
-                                title: file.name,
-                                subtitle: subtitle(for: file),
-                                trailing: "Restore"
-                            )
-                        }
-                        .buttonStyle(PutFocusableRowStyle())
-                    }
+            List(files, id: \.id) { file in
+                Button {
+                    pendingFile = file
+                } label: {
+                    TrashRowLabel(file: file)
                 }
-                .padding(.horizontal, PutSpacing.xl)
-                .padding(.bottom, PutSpacing.xl)
             }
         case .empty:
-            PutEmptyState(
-                icon: "trash",
-                title: "Trash is empty",
-                message: "Deleted files stay in Trash for 14 days, then put.io removes them automatically."
+            ContentUnavailableView(
+                "Your Trash is empty",
+                systemImage: "trash",
+                description: Text("When you send files to Trash, we keep them here for 14 days.")
             )
         case let .failed(failure):
             PutErrorState(failure: failure)
         }
     }
+}
 
-    private func subtitle(for file: PutioTrashFile) -> String {
+private struct TrashRowLabel: View {
+    let file: PutioTrashFile
+
+    var body: some View {
+        HStack(spacing: PutSpacing.md) {
+            Image(systemName: "trash")
+                .font(.system(size: 36))
+                .foregroundStyle(Color.put.yellowSolid)
+                .frame(width: 48, height: 48)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(file.name).lineLimit(1)
+                Text(expiryText)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: PutSpacing.md)
+        }
+        .padding(.vertical, PutSpacing.xs)
+    }
+
+    private var expiryText: String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
         return "Expires \(formatter.localizedString(for: file.expiresOn, relativeTo: .now))"

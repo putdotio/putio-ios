@@ -5,14 +5,14 @@ import PutioSDK
 import UIKit
 #endif
 
-/// Account screen. Matches `09-account-playback-top`, `10-account-proxy-picker`,
-/// `12-account-storage`, and `14-account-app-device`. Android-only Playback
-/// type and buffer-size rows are deliberately omitted (tvOS forces HLS in
-/// `PlaybackSourceResolver`).
+/// Account screen built around the native `Form` + `Section` + `Toggle` +
+/// `Picker` primitives. Sign out lives in the navigation toolbar. The
+/// disk-usage progress sits in the form header.
 struct AccountView: View {
     let container: AppContainer
     @Binding var path: [HomeDestination]
     @State private var viewModel: AccountViewModel
+    @State private var confirmSignOut = false
 
     init(container: AppContainer, path: Binding<[HomeDestination]>) {
         self.container = container
@@ -21,221 +21,107 @@ struct AccountView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            PutScreenHeader {
-                Text("Account")
-            } trailing: {
-                Button {
+        content
+            .navigationTitle("Account")
+            .toolbar { toolbarItems }
+            .confirmationDialog(
+                "Sign out of put.io?",
+                isPresented: $confirmSignOut,
+                titleVisibility: .visible
+            ) {
+                Button("Sign out", role: .destructive) {
                     container.authSession.signOut()
-                } label: {
-                    Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
-                        .labelStyle(.titleAndIcon)
                 }
-                .buttonStyle(.bordered)
-                .tint(Color.put.text)
+                Button("Cancel", role: .cancel) {}
             }
+            .onAppear { viewModel.load() }
+    }
 
-            content
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button(role: .destructive) {
+                confirmSignOut = true
+            } label: {
+                Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+            }
         }
-        .background(Color.put.bg)
-        .onAppear { viewModel.load() }
     }
 
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
         case .loading:
-            PutLoadingState()
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         case let .ready(snapshot):
-            ScrollView {
-                VStack(alignment: .leading, spacing: PutSpacing.lg) {
-                    header(snapshot: snapshot)
+            Form {
+                Section {
+                    AccountHeader(account: snapshot.account)
+                }
 
-                    section("Playback settings") {
-                        proxyRow(snapshot: snapshot)
+                Section("Playback") {
+                    proxyPicker(snapshot: snapshot)
 
-                        toggleRow(
-                            icon: "rotate-ccw",
-                            title: "Remember where I left off",
-                            isOn: snapshot.settings.rememberVideoTime
-                        ) { isOn in
-                            viewModel.updateSettings(
-                                PutioAccountSettingsPatch(rememberVideoTime: isOn)
-                            )
-                        }
+                    Toggle("Remember playback position", isOn: Binding(
+                        get: { snapshot.settings.rememberVideoTime },
+                        set: { viewModel.updateSettings(PutioAccountSettingsPatch(rememberVideoTime: $0)) }
+                    ))
 
-                        toggleRow(
-                            icon: "subtitles",
-                            title: "Auto-select subtitles",
-                            isOn: !snapshot.settings.dontAutoSelectSubtitles
-                        ) { isOn in
-                            viewModel.updateSettings(
-                                PutioAccountSettingsPatch(dontAutoSelectSubtitles: !isOn)
-                            )
-                        }
+                    Toggle("Auto-select subtitles", isOn: Binding(
+                        get: { !snapshot.settings.dontAutoSelectSubtitles },
+                        set: { viewModel.updateSettings(PutioAccountSettingsPatch(dontAutoSelectSubtitles: !$0)) }
+                    ))
 
-                        toggleRow(
-                            icon: "eye",
-                            title: "Hide subtitles by default",
-                            isOn: snapshot.settings.hideSubtitles
-                        ) { isOn in
-                            viewModel.updateSettings(
-                                PutioAccountSettingsPatch(hideSubtitles: isOn)
-                            )
-                        }
+                    Toggle("Hide subtitles by default", isOn: Binding(
+                        get: { snapshot.settings.hideSubtitles },
+                        set: { viewModel.updateSettings(PutioAccountSettingsPatch(hideSubtitles: $0)) }
+                    ))
 
-                        toggleRow(
-                            icon: "history",
-                            title: "Track watch history",
-                            isOn: snapshot.settings.historyEnabled
-                        ) { isOn in
-                            viewModel.updateSettings(
-                                PutioAccountSettingsPatch(historyEnabled: isOn)
-                            )
-                        }
-                    }
+                    Toggle("Track watch history", isOn: Binding(
+                        get: { snapshot.settings.historyEnabled },
+                        set: { viewModel.updateSettings(PutioAccountSettingsPatch(historyEnabled: $0)) }
+                    ))
+                }
 
-                    section("Storage settings") {
-                        toggleRow(
-                            icon: "trash",
-                            title: "Move deleted files to Trash",
-                            isOn: snapshot.settings.trashEnabled
-                        ) { isOn in
-                            viewModel.updateSettings(
-                                PutioAccountSettingsPatch(trashEnabled: isOn)
-                            )
-                        }
+                Section("Storage") {
+                    Toggle("Move deleted files to Trash", isOn: Binding(
+                        get: { snapshot.settings.trashEnabled },
+                        set: { viewModel.updateSettings(PutioAccountSettingsPatch(trashEnabled: $0)) }
+                    ))
 
-                        Button {
-                            path.append(HomeDestination(route: .trash))
-                        } label: {
-                            PutListRow(icon: "trash", title: "Manage your trash")
-                        }
-                        .buttonStyle(PutFocusableRowStyle())
-
-                        storageRow(snapshot: snapshot)
-                    }
-
-                    section("App and device information") {
-                        infoRow(icon: "monitor", title: "App", value: appVersion)
-                        infoRow(icon: "smartphone", title: "Device", value: deviceName)
-                        infoRow(icon: "tv", title: "OS", value: osVersion)
-                        Button {
-                            path.append(HomeDestination(route: .diagnostics))
-                        } label: {
-                            PutListRow(icon: "wrench", title: "Diagnostics")
-                        }
-                        .buttonStyle(PutFocusableRowStyle())
+                    NavigationLink(value: HomeDestination(route: .trash)) {
+                        Label("Manage your Trash", systemImage: "trash")
                     }
                 }
-                .padding(.horizontal, PutSpacing.xl)
-                .padding(.bottom, PutSpacing.xl)
+
+                Section("App") {
+                    LabeledContent("App version", value: appVersion)
+                    LabeledContent("Device", value: deviceName)
+                    LabeledContent("Operating system", value: osVersion)
+                    NavigationLink(value: HomeDestination(route: .diagnostics)) {
+                        Label("Diagnostics", systemImage: "stethoscope")
+                    }
+                }
             }
         case let .failed(failure):
             PutErrorState(failure: failure)
         }
     }
 
-    private func header(snapshot: AccountViewModel.Snapshot) -> some View {
-        HStack(spacing: PutSpacing.md) {
-            AsyncImage(url: URL(string: snapshot.account.avatarURL.replacingOccurrences(of: "s=50", with: "s=200"))) { phase in
-                switch phase {
-                case let .success(image):
-                    image.resizable().scaledToFill()
-                default:
-                    Color.put.bgSecondary
-                }
+    private func proxyPicker(snapshot: AccountViewModel.Snapshot) -> some View {
+        Picker("Tunnel route", selection: Binding(
+            get: { snapshot.settings.routeName },
+            set: { newName in
+                guard newName != snapshot.settings.routeName else { return }
+                viewModel.updateSettings(PutioAccountSettingsPatch(tunnelRouteName: newName))
             }
-            .frame(width: 120, height: 120)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-
-            VStack(alignment: .leading, spacing: PutSpacing.xs) {
-                Text(snapshot.account.username)
-                    .font(.put.label)
-                    .foregroundStyle(Color.put.text)
-                let used = snapshot.account.disk.used
-                let total = snapshot.account.disk.size
-                Text(usageString(used: used, total: total))
-                    .font(.put.caption)
-                    .foregroundStyle(Color.put.textSecondary)
-            }
-            Spacer()
-        }
-    }
-
-    private func proxyRow(snapshot: AccountViewModel.Snapshot) -> some View {
-        Menu {
+        )) {
             ForEach(snapshot.routes, id: \.name) { route in
-                Button(route.description.isEmpty ? route.name : route.description) {
-                    viewModel.updateSettings(
-                        PutioAccountSettingsPatch(tunnelRouteName: route.name)
-                    )
-                }
+                Text(route.description.isEmpty ? route.name : route.description)
+                    .tag(route.name)
             }
-        } label: {
-            PutListRow(
-                icon: "network",
-                title: "Tunnel route",
-                subtitle: snapshot.settings.routeName,
-                trailing: "Change"
-            )
-        }
-        .buttonStyle(PutFocusableRowStyle())
-    }
-
-    private func toggleRow(
-        icon: String,
-        title: String,
-        isOn: Bool,
-        action: @escaping (Bool) -> Void
-    ) -> some View {
-        Button {
-            action(!isOn)
-        } label: {
-            PutListRow(
-                icon: icon,
-                title: title,
-                trailing: isOn ? "On" : "Off"
-            )
-        }
-        .buttonStyle(PutFocusableRowStyle())
-    }
-
-    private func storageRow(snapshot: AccountViewModel.Snapshot) -> some View {
-        let used = snapshot.account.disk.used
-        let total = snapshot.account.disk.size
-        return PutListRow(
-            icon: "package-open",
-            title: "Storage",
-            subtitle: usageString(used: used, total: total),
-            trailing: ""
-        )
-        .padding(.horizontal, PutSpacing.md)
-        .padding(.vertical, PutSpacing.xs)
-    }
-
-    private func usageString(used: Int64, total: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .file
-        let usedString = formatter.string(fromByteCount: used)
-        let totalString = formatter.string(fromByteCount: total)
-        return "\(usedString) of \(totalString) used"
-    }
-
-    private func infoRow(icon: String, title: String, value: String) -> some View {
-        PutListRow(icon: icon, title: title, subtitle: value, trailing: "")
-            .padding(.horizontal, PutSpacing.md)
-            .padding(.vertical, PutSpacing.xs)
-    }
-
-    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: PutSpacing.xs) {
-            Text(title)
-                .font(.put.body)
-                .foregroundStyle(Color.put.textSecondary)
-                .padding(.horizontal, PutSpacing.md)
-                .padding(.top, PutSpacing.md)
-            content()
         }
     }
 
@@ -257,5 +143,52 @@ struct AccountView: View {
     private var osVersion: String {
         let v = ProcessInfo.processInfo.operatingSystemVersion
         return "tvOS \(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"
+    }
+}
+
+private struct AccountHeader: View {
+    let account: PutioAccount
+
+    var body: some View {
+        HStack(spacing: PutSpacing.md) {
+            AsyncImage(url: URL(string: account.avatarURL.replacingOccurrences(of: "s=50", with: "s=200"))) { phase in
+                switch phase {
+                case let .success(image):
+                    image.resizable().scaledToFill()
+                default:
+                    Color.secondary.opacity(0.2)
+                }
+            }
+            .frame(width: 120, height: 120)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            VStack(alignment: .leading, spacing: PutSpacing.xs) {
+                Text(account.username)
+                    .font(.title2)
+                    .foregroundStyle(.primary)
+                ProgressView(value: usageFraction)
+                    .tint(Color.put.yellowSolid)
+                    .frame(maxWidth: 480)
+                Text(usageString)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, PutSpacing.xs)
+    }
+
+    private var usageFraction: Double {
+        let size = max(account.disk.size, 1)
+        return min(1, Double(account.disk.used) / Double(size))
+    }
+
+    private var usageString: String {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        let used = formatter.string(fromByteCount: account.disk.used)
+        let total = formatter.string(fromByteCount: account.disk.size)
+        return "\(used) of \(total) used"
     }
 }

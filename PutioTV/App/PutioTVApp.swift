@@ -8,8 +8,6 @@ struct PutioTVApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(container: container)
-                .preferredColorScheme(.dark)
-                .background(Color.put.bg.ignoresSafeArea())
                 .onAppear { container.authSession.restore() }
         }
     }
@@ -141,8 +139,6 @@ struct MainTabs: View {
     }
 }
 
-/// Per-tab navigation destination. Same shape as the old `HomeDestination`
-/// (renamed for the tab-shell era).
 struct TabDestination: Hashable {
     enum Route: Hashable {
         case files(parentID: Int)
@@ -157,7 +153,4 @@ struct TabDestination: Hashable {
     let route: Route
 }
 
-/// Compatibility alias. Existing feature views accept `Binding<[HomeDestination]>`
-/// — keep that signature working by aliasing the type rather than touching
-/// every call site.
 typealias HomeDestination = TabDestination

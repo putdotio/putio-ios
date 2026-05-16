@@ -20,13 +20,11 @@ struct HistoryRepository: HistoryRepositoryProtocol {
 
 /// Wraps an event with the derived presentation it needs in the TV history
 /// list. Mirrors the React Native `getFilteredEventsForTV` + `groupEventsByDate`
-/// helpers.
+/// helpers — `tv-native` only surfaces `file_shared` and `transfer_completed`.
 struct HistoryEventViewItem: Identifiable, Hashable {
     enum Kind: Hashable {
         case completedTransfer
         case sharedFile
-        case zipCreated
-        case uploaded
     }
 
     let id: Int
@@ -95,32 +93,22 @@ enum HistoryGrouping {
             return HistoryEventViewItem(
                 id: event.id,
                 title: event.fileName.isEmpty ? "Shared file" : event.fileName,
-                subtitle: event.sharingUserName.isEmpty ? nil : "Shared by \(event.sharingUserName)",
+                subtitle: sharedSubtitle(event),
                 date: event.createdAt,
                 fileID: event.fileID > 0 ? event.fileID : nil,
                 kind: .sharedFile
             )
-        case let event as PutioUploadEvent:
-            return HistoryEventViewItem(
-                id: event.id,
-                title: event.fileName.isEmpty ? "Uploaded file" : event.fileName,
-                subtitle: subtitleForBytes(event.fileSize, source: nil),
-                date: event.createdAt,
-                fileID: event.fileID > 0 ? event.fileID : nil,
-                kind: .uploaded
-            )
-        case let event as PutioZipCreatedEvent:
-            return HistoryEventViewItem(
-                id: event.id,
-                title: "Zip ready",
-                subtitle: nil,
-                date: event.createdAt,
-                fileID: nil,
-                kind: .zipCreated
-            )
         default:
             return nil
         }
+    }
+
+    private static func sharedSubtitle(_ event: PutioFileSharedEvent) -> String? {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        let relative = formatter.localizedString(for: event.createdAt, relativeTo: .now)
+        if event.sharingUserName.isEmpty { return relative }
+        return "\(relative) · Shared by \(event.sharingUserName)"
     }
 
     private static func subtitleForBytes(_ bytes: Int64, source: String?) -> String? {

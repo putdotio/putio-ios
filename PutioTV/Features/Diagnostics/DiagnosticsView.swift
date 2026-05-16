@@ -1,8 +1,8 @@
 import SwiftUI
 import AVKit
 
-/// Diagnostics screen. Matches `15-diagnostics-list` and `16-diagnostics-player`.
-/// No Android-style debug JSON overlay — tvOS uses the AVPlayer chrome only.
+/// Diagnostics screen. A native `List` of test streams; tap to launch the
+/// system AVPlayerViewController.
 struct TestStream: Identifiable, Hashable {
     let id: String
     let title: String
@@ -43,29 +43,25 @@ struct DiagnosticsView: View {
     @State private var selected: TestStream?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            PutScreenHeader {
-                Text("Diagnostics")
-            }
-
-            ScrollView {
-                LazyVStack(spacing: PutSpacing.xs) {
-                    ForEach(TestStream.all) { stream in
-                        Button { selected = stream } label: {
-                            PutListRow(
-                                icon: stream.kind == .hls ? "play" : "video",
-                                title: stream.title,
-                                subtitle: stream.kind == .hls ? "HLS" : "MP4"
-                            )
-                        }
-                        .buttonStyle(PutFocusableRowStyle())
+        List(TestStream.all) { stream in
+            Button {
+                selected = stream
+            } label: {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(stream.title)
+                        Text(stream.kind == .hls ? "HLS" : "MP4")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
                     }
+                } icon: {
+                    Image(systemName: "play.rectangle.fill")
+                        .foregroundStyle(Color.put.yellowSolid)
                 }
-                .padding(.horizontal, PutSpacing.xl)
-                .padding(.bottom, PutSpacing.xl)
+                .padding(.vertical, PutSpacing.xs)
             }
         }
-        .background(Color.put.bg)
+        .navigationTitle("Diagnostics")
         .fullScreenCover(item: $selected) { stream in
             DiagnosticsPlayerView(url: stream.url)
         }
@@ -74,7 +70,6 @@ struct DiagnosticsView: View {
 
 struct DiagnosticsPlayerView: View {
     let url: URL
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         SystemPlayerView(url: url, startAt: 0)

@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// History screen. Matches `08-history`: TV-filtered events grouped by date,
-/// `CLEAR` button in the top right.
+/// History rendered with a sectioned `List`. Native group headers handle the
+/// "Today / Yesterday / Last week / Earlier" buckets. The `CLEAR` action lives
+/// in the navigation toolbar and is guarded by a confirmation dialog.
 struct HistoryView: View {
     let container: AppContainer
     @Binding var path: [HomeDestination]
     @State private var viewModel: HistoryViewModel
+    @State private var confirmClear = false
 
     init(container: AppContainer, path: Binding<[HomeDestination]>) {
         self.container = container
@@ -14,74 +16,104 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            PutScreenHeader {
-                Text("History")
-            } trailing: {
-                PutGlassToolbar {
-                    Button { viewModel.clear() } label: {
-                        Label("Clear", systemImage: "trash")
-                            .labelStyle(.titleAndIcon)
-                    }
+        content
+            .navigationTitle("History")
+            .toolbar { toolbarItems }
+            .confirmationDialog(
+                "Clear watch history?",
+                isPresented: $confirmClear,
+                titleVisibility: .visible
+            ) {
+                Button("Clear history", role: .destructive) { viewModel.clear() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("You can't undo this.")
+            }
+            .onAppear { viewModel.load() }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            if case .loaded = viewModel.state {
+                Button(role: .destructive) {
+                    confirmClear = true
+                } label: {
+                    Label("Clear", systemImage: "trash")
                 }
             }
-
-            content
         }
-        .background(Color.put.bg)
-        .onAppear { viewModel.load() }
     }
 
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
         case .loading:
-            PutLoadingState()
+            ProgressView()
+                .controlSize(.large)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         case let .loaded(groups):
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: PutSpacing.md) {
-                    ForEach(groups) { group in
-                        Text(group.bucket.rawValue)
-                            .font(.put.body)
-                            .foregroundStyle(Color.put.textSecondary)
-                            .padding(.horizontal, PutSpacing.md)
-                            .padding(.top, PutSpacing.md)
-
-                        VStack(spacing: PutSpacing.xs) {
-                            ForEach(group.items) { item in
-                                Button {
-                                    if let fileID = item.fileID {
-                                        container.player.present(fileID: fileID)
-                                    }
-                                } label: {
-                                    PutListRow(
-                                        icon: icon(for: item.kind),
-                                        title: item.title,
-                                        subtitle: item.subtitle
-                                    )
-                                }
-                                .buttonStyle(PutFocusableRowStyle())
-                                .disabled(item.fileID == nil)
-                            }
+            List {
+                ForEach(groups) { group in
+                    Section(group.bucket.rawValue) {
+                        ForEach(group.items) { item in
+                            historyRow(item: item)
                         }
                     }
                 }
-                .padding(.horizontal, PutSpacing.xl)
-                .padding(.bottom, PutSpacing.xl)
             }
         case .empty:
-            PutEmptyState(icon: "history", title: "No recent activity")
+            ContentUnavailableView(
+                "No recent activity",
+                systemImage: "clock",
+                description: Text("Files you watch and shares you receive show up here.")
+            )
         case let .failed(failure):
             PutErrorState(failure: failure)
         }
     }
 
-    private func icon(for kind: HistoryEventViewItem.Kind) -> String {
-        switch kind {
-        case .completedTransfer: return "circle-check"
-        case .sharedFile: return "user"
-        case .zipCreated: return "package-open"
-        case .uploaded: return "file"
+    @ViewBuilder
+    private func historyRow(item: HistoryEventViewItem) -> some View {
+        if let fileID = item.fileID {
+            Button {
+                container.player.present(fileID: fileID)
+            } label: {
+                HistoryRowLabel(item: item)
+            }
+        } else {
+            HistoryRowLabel(item: item)
+        }
+    }
+}
+
+private struct HistoryRowLabel: View {
+    let item: HistoryEventViewItem
+
+    var body: some View {
+        HStack(spacing: PutSpacing.md) {
+            Image(systemName: icon)
+                .font(.system(size: 36))
+                .foregroundStyle(Color.put.yellowSolid)
+                .frame(width: 48, height: 48)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title).lineLimit(1)
+                if let subtitle = item.subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer(minLength: PutSpacing.md)
+        }
+        .padding(.vertical, PutSpacing.xs)
+    }
+
+    private var icon: String {
+        switch item.kind {
+        case .completedTransfer: return "checkmark.circle.fill"
+        case .sharedFile: return "person.crop.circle.fill.badge.plus"
         }
     }
 }
