@@ -81,11 +81,11 @@ struct FilesView: View {
             if isFolder {
                 path.append(HomeDestination(route: .files(parentID: file.id)))
             } else if isVideo {
-                path.append(HomeDestination(route: .player(fileID: file.id)))
+                container.player.present(fileID: file.id)
             } else {
                 // Non-video file: leaf that the player view will render the
                 // unsupported-file state for.
-                path.append(HomeDestination(route: .player(fileID: file.id)))
+                container.player.present(fileID: file.id)
             }
         } label: {
             PutListRow(

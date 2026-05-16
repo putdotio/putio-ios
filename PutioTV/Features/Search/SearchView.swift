@@ -50,7 +50,7 @@ struct SearchView: View {
                             if file.type == .folder {
                                 path.append(HomeDestination(route: .files(parentID: file.id)))
                             } else {
-                                path.append(HomeDestination(route: .player(fileID: file.id)))
+                                container.player.present(fileID: file.id)
                             }
                         } label: {
                             PutListRow(

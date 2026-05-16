@@ -51,7 +51,7 @@ struct HistoryView: View {
                             ForEach(group.items) { item in
                                 Button {
                                     if let fileID = item.fileID {
-                                        path.append(HomeDestination(route: .player(fileID: fileID)))
+                                        container.player.present(fileID: fileID)
                                     }
                                 } label: {
                                     PutListRow(

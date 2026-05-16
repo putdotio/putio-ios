@@ -7,6 +7,7 @@ import PutioSDK
 ///
 /// Created once in `PutioTVApp` and never replaced.
 @MainActor
+@Observable
 final class AppContainer {
     let api: PutioSDK
     let tokenStore: TokenStoring
@@ -17,6 +18,7 @@ final class AppContainer {
     let trash: TrashRepositoryProtocol
     let media: MediaRepositoryProtocol
     let playback: PlaybackSession
+    let player: PlayerPresenter
 
     init() {
         let api = PutioClient.make()
@@ -44,5 +46,27 @@ final class AppContainer {
             media: media,
             tokenProvider: { [weak auth] in auth?.state.token }
         )
+        self.player = PlayerPresenter()
     }
+}
+
+/// Coordinator for the full-screen player presentation. Sits above the
+/// `TabView` shell so the system tab strip stops drawing over video.
+@MainActor
+@Observable
+final class PlayerPresenter {
+    var presented: PlayerRequest?
+
+    func present(fileID: Int) {
+        presented = PlayerRequest(fileID: fileID)
+    }
+
+    func dismiss() {
+        presented = nil
+    }
+}
+
+struct PlayerRequest: Identifiable, Hashable {
+    let fileID: Int
+    var id: Int { fileID }
 }

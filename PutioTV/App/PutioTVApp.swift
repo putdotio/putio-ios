@@ -104,6 +104,11 @@ struct MainTabs: View {
             .tabItem { Label("Account", systemImage: "person.crop.circle") }
             .tag(Tab.account)
         }
+        .fullScreenCover(item: Bindable(container.player).presented) { request in
+            PlayerView(container: container, fileID: request.fileID)
+                .background(Color.black.ignoresSafeArea())
+                .onDisappear { container.player.dismiss() }
+        }
     }
 
     @ViewBuilder

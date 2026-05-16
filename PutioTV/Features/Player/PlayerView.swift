@@ -37,6 +37,8 @@ struct PlayerView: View {
         }
         .onAppear { session.open(fileID: fileID) }
         .onDisappear { session.reset() }
+        .toolbar(.hidden, for: .navigationBar)
+        .persistentSystemOverlays(.hidden)
     }
 
     private func playerSurface(source: PlaybackSourceResolver.Source, startAt: Int) -> some View {
