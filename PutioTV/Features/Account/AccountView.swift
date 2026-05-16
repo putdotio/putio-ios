@@ -7,7 +7,9 @@ import UIKit
 
 /// Account screen built around the native `Form` + `Section` + `Toggle` +
 /// `Picker` primitives. Sign out lives in the navigation toolbar. The
-/// disk-usage progress sits in the form header.
+/// account header sits as a section header above the Playback section so the
+/// avatar / username / disk usage block reads as a screen header, not a list
+/// row.
 struct AccountView: View {
     let container: AppContainer
     @Binding var path: [HomeDestination]
@@ -58,12 +60,9 @@ struct AccountView: View {
         case let .ready(snapshot):
             Form {
                 Section {
-                    AccountHeader(account: snapshot.account)
-                        .listRowBackground(Color.clear)
-                }
-
-                Section("Playback") {
-                    proxyPicker(snapshot: snapshot)
+                    NavigationLink(value: HomeDestination(route: .tunnelPicker)) {
+                        LabeledContent("Tunnel route", value: snapshot.settings.routeName)
+                    }
 
                     Toggle("Remember playback position", isOn: Binding(
                         get: { snapshot.settings.rememberVideoTime },
@@ -84,6 +83,9 @@ struct AccountView: View {
                         get: { snapshot.settings.historyEnabled },
                         set: { viewModel.updateSettings(PutioAccountSettingsPatch(historyEnabled: $0)) }
                     ))
+                } header: {
+                    AccountHeader(account: snapshot.account)
+                        .padding(.bottom, 16)
                 }
 
                 Section("Storage") {
@@ -107,22 +109,7 @@ struct AccountView: View {
                 }
             }
         case let .failed(failure):
-            PutErrorState(failure: failure)
-        }
-    }
-
-    private func proxyPicker(snapshot: AccountViewModel.Snapshot) -> some View {
-        Picker("Tunnel route", selection: Binding(
-            get: { snapshot.settings.routeName },
-            set: { newName in
-                guard newName != snapshot.settings.routeName else { return }
-                viewModel.updateSettings(PutioAccountSettingsPatch(tunnelRouteName: newName))
-            }
-        )) {
-            ForEach(snapshot.routes, id: \.name) { route in
-                Text(route.description.isEmpty ? route.name : route.description)
-                    .tag(route.name)
-            }
+            FailureView(failure: failure)
         }
     }
 
@@ -151,7 +138,7 @@ private struct AccountHeader: View {
     let account: PutioAccount
 
     var body: some View {
-        HStack(spacing: PutSpacing.md) {
+        HStack(alignment: .center, spacing: 32) {
             AsyncImage(url: URL(string: account.avatarURL.replacingOccurrences(of: "s=50", with: "s=200"))) { phase in
                 switch phase {
                 case let .success(image):
@@ -160,24 +147,26 @@ private struct AccountHeader: View {
                     Color.secondary.opacity(0.2)
                 }
             }
-            .frame(width: 120, height: 120)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .frame(width: 140, height: 140)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
-            VStack(alignment: .leading, spacing: PutSpacing.xs) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text(account.username)
-                    .font(.title2)
+                    .font(.title)
                     .foregroundStyle(.primary)
+                    .textCase(nil)
                 ProgressView(value: usageFraction)
-                    .tint(Color.put.yellowSolid)
-                    .frame(maxWidth: 480)
+                    .tint(.accentColor)
+                    .frame(maxWidth: 560)
                 Text(usageString)
-                    .font(.callout)
+                    .font(.body)
                     .foregroundStyle(.secondary)
+                    .textCase(nil)
             }
 
             Spacer(minLength: 0)
         }
-        .padding(.vertical, PutSpacing.xs)
+        .padding(.vertical, 16)
     }
 
     private var usageFraction: Double {
@@ -191,5 +180,52 @@ private struct AccountHeader: View {
         let used = formatter.string(fromByteCount: account.disk.used)
         let total = formatter.string(fromByteCount: account.disk.size)
         return "\(used) of \(total) used"
+    }
+}
+
+/// Full-screen tunnel-route picker. Pushed from the Account screen so users
+/// can scan the full list. Mirrors the React Native `tunnel.tsx` screen with
+/// check-circle indicators on the active row.
+struct TunnelPickerView: View {
+    let container: AppContainer
+    @State private var viewModel: AccountViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    init(container: AppContainer) {
+        self.container = container
+        _viewModel = State(initialValue: AccountViewModel(repository: container.account))
+    }
+
+    var body: some View {
+        Group {
+            switch viewModel.state {
+            case .loading:
+                ProgressView()
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case let .ready(snapshot):
+                List(snapshot.routes, id: \.name) { route in
+                    Button {
+                        if route.name != snapshot.settings.routeName {
+                            viewModel.updateSettings(PutioAccountSettingsPatch(tunnelRouteName: route.name))
+                        }
+                        dismiss()
+                    } label: {
+                        HStack {
+                            Text(route.description.isEmpty ? route.name : route.description)
+                            Spacer()
+                            if route.name == snapshot.settings.routeName {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.tint)
+                            }
+                        }
+                    }
+                }
+            case let .failed(failure):
+                FailureView(failure: failure)
+            }
+        }
+        .navigationTitle("Choose your proxy")
+        .onAppear { viewModel.load() }
     }
 }

@@ -64,9 +64,9 @@ struct HistoryView: View {
             }
         case .empty:
             ContentUnavailableView(
-                "No recent activity",
+                "This is your history. It's currently empty.",
                 systemImage: "clock",
-                description: Text("Files you watch and shares you receive show up here.")
+                description: Text("You will see information here once things start happening.")
             )
         case let .failed(failure):
             PutErrorState(failure: failure)

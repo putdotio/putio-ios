@@ -1,123 +1,73 @@
 import SwiftUI
 
-/// Loading screen. Mirrors `apps/tv-native/src/components/loading-screen.tsx`.
+/// Loading-state placeholder for the player full-screen surface. Other screens
+/// use `ProgressView()` inline; this one keeps a black background so it reads
+/// against `Color.black.ignoresSafeArea()` in the player cover.
 struct PutLoadingState: View {
     var title: String = "Loading"
 
     var body: some View {
-        VStack(spacing: PutSpacing.md) {
+        VStack(spacing: 24) {
             ProgressView()
                 .controlSize(.large)
-                .scaleEffect(2)
-                .tint(Color.put.text)
+                .tint(.white)
             Text(title)
-                .font(.put.body)
-                .foregroundStyle(Color.put.textSecondary)
+                .font(.body)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.put.bg)
+        .background(.black)
     }
 }
 
-/// Empty state. Mirrors `apps/tv-native/src/components/empty-state.tsx`:
-/// centered icon (heading size), heading title, secondary message.
-struct PutEmptyState: View {
-    let icon: String
-    let title: String
-    var message: String?
-
-    var body: some View {
-        VStack(spacing: PutSpacing.md) {
-            LucideIcon(name: icon, size: 64)
-                .foregroundStyle(Color.put.textSecondary)
-            Text(title)
-                .font(.put.heading)
-                .foregroundStyle(Color.put.text)
-                .multilineTextAlignment(.center)
-            if let message {
-                Text(message)
-                    .font(.put.body)
-                    .foregroundStyle(Color.put.textSecondary)
-                    .multilineTextAlignment(.center)
-            }
-        }
-        .padding(.horizontal, PutSpacing.xxl)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-/// Error state. Mirrors `apps/tv-native/src/components/error-state.tsx`.
-struct PutErrorState: View {
+/// Native error surface built on `ContentUnavailableView`. Used inside list
+/// content (loaded-state failures) and on the player when something fails.
+struct FailureView: View {
     let failure: LocalizedFailure
-    var retryLabel: String = "Try again"
 
     var body: some View {
-        VStack(spacing: PutSpacing.md) {
-            LucideIcon(name: "circle-x", size: 64)
-                .foregroundStyle(Color.put.text)
-            Text(failure.message)
-                .font(.put.heading)
-                .foregroundStyle(Color.put.text)
-                .multilineTextAlignment(.center)
+        ContentUnavailableView {
+            Label(failure.message, systemImage: "exclamationmark.triangle")
+        } description: {
             if let recovery = failure.recovery {
                 Text(recovery)
-                    .font(.put.body)
-                    .foregroundStyle(Color.put.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, PutSpacing.xxl)
             }
+        } actions: {
             if let retry = failure.retry {
-                PutButton(title: retryLabel, icon: "refresh-ccw", action: retry)
-                    .padding(.top, PutSpacing.sm)
+                Button {
+                    retry()
+                } label: {
+                    Label("Try again", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
-/// Standalone button matching `apps/tv-native/src/components/ui/button.tsx`:
-/// uppercase label, white text, optional icon, focused = component-bg-active,
-/// blurred = component-bg, border = border / border-hover.
+/// Back-compat alias so existing call sites compile while feature files migrate.
+typealias PutErrorState = FailureView
+
+/// Auth-only branded button. The auth screen is a pre-sign-in surface so the
+/// custom yellow look stays — feature views use system buttons.
 struct PutButton: View {
     let title: String
     var icon: String? = nil
     var hasTVPreferredFocus: Bool = false
     let action: () -> Void
 
-    @Environment(\.isFocused) private var isFocused
-
     var body: some View {
         Button(action: action) {
-            HStack(spacing: PutSpacing.sm) {
+            HStack(spacing: 12) {
                 if let icon {
-                    LucideIcon(name: icon, size: 36)
-                        .foregroundStyle(Color.put.text)
+                    Image(systemName: LucideIcon.symbol(for: icon))
                 }
-                Text(title.uppercased())
-                    .font(.put.caption)
-                    .foregroundStyle(Color.put.text)
+                Text(title)
             }
-            .padding(.horizontal, PutSpacing.md)
-            .padding(.vertical, PutSpacing.sm)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
         }
-        .buttonStyle(PutSecondaryButtonStyle())
-    }
-}
-
-struct PutSecondaryButtonStyle: ButtonStyle {
-    @Environment(\.isFocused) private var isFocused
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(
-                RoundedRectangle(cornerRadius: PutRadius.default, style: .continuous)
-                    .fill(isFocused ? Color.put.componentBgActive : Color.put.componentBg)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: PutRadius.default, style: .continuous)
-                    .strokeBorder(isFocused ? Color.put.borderHover : Color.put.border, lineWidth: 1)
-            )
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.snappy(duration: 0.12), value: isFocused)
+        .buttonStyle(.borderedProminent)
+        .tint(Color.put.yellowSolid)
     }
 }

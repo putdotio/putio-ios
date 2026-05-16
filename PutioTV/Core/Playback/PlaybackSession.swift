@@ -99,6 +99,11 @@ final class PlaybackSession {
         state = .idle
     }
 
+    func fail(with error: Error) {
+        cancelTasks()
+        state = .failed(ErrorMapping.localize(error, retry: nil))
+    }
+
     private func cancelTasks() {
         conversionTask?.cancel()
         conversionTask = nil

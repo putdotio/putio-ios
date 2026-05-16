@@ -126,6 +126,8 @@ struct MainTabs: View {
             DiagnosticsView()
         case let .player(fileID):
             PlayerView(container: container, fileID: fileID)
+        case .tunnelPicker:
+            TunnelPickerView(container: container)
         }
     }
 
@@ -148,6 +150,7 @@ struct TabDestination: Hashable {
         case trash
         case diagnostics
         case player(fileID: Int)
+        case tunnelPicker
     }
 
     let route: Route

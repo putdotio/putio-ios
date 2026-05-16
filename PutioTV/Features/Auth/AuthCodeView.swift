@@ -40,7 +40,7 @@ struct AuthCodeView: View {
             PutLoadingState(title: "Signed in")
 
         case let .failed(failure):
-            PutErrorState(failure: failure, retryLabel: "Get new code")
+            FailureView(failure: failure)
         }
     }
 

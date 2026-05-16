@@ -131,9 +131,9 @@ struct TrashView: View {
             }
         case .empty:
             ContentUnavailableView(
-                "Your Trash is empty",
+                "Your trash is empty",
                 systemImage: "trash",
-                description: Text("When you send files to Trash, we keep them here for 14 days.")
+                description: Text("When you send files to trash, we keep them here for 14 days.")
             )
         case let .failed(failure):
             PutErrorState(failure: failure)
