@@ -112,7 +112,7 @@ struct TrashView: View {
                     Label("Empty Trash", systemImage: "trash.slash")
                         .labelStyle(.iconOnly)
                 }
-                .help("Empty Trash")
+                .accessibilityLabel("Empty Trash")
             }
         }
     }

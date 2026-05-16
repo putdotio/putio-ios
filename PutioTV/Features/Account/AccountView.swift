@@ -47,7 +47,7 @@ struct AccountView: View {
                 Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
                     .labelStyle(.iconOnly)
             }
-            .help("Sign out")
+            .accessibilityLabel("Sign out")
         }
     }
 
@@ -211,8 +211,9 @@ struct TunnelPickerView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .ready(snapshot):
                 List(snapshot.routes, id: \.name) { route in
+                    let isSelected = route.name == snapshot.settings.routeName
                     Button {
-                        if route.name != snapshot.settings.routeName {
+                        if !isSelected {
                             viewModel.updateSettings(PutioAccountSettingsPatch(tunnelRouteName: route.name))
                         }
                         dismiss()
@@ -220,12 +221,14 @@ struct TunnelPickerView: View {
                         HStack {
                             Text(route.description.isEmpty ? route.name : route.description)
                             Spacer()
-                            if route.name == snapshot.settings.routeName {
+                            if isSelected {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundStyle(.tint)
+                                    .accessibilityHidden(true)
                             }
                         }
                     }
+                    .accessibilityAddTraits(isSelected ? [.isSelected] : [])
                 }
             case let .failed(failure):
                 FailureView(failure: failure)

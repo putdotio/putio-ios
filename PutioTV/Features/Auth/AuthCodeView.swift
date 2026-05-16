@@ -99,6 +99,8 @@ struct ActivationCode: View {
                     )
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Activation code: \(code.map { String($0) }.joined(separator: " "))")
     }
 }
 

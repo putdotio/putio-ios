@@ -50,7 +50,7 @@ struct FilesView: View {
                 Label("Refresh", systemImage: "arrow.clockwise")
                     .labelStyle(.iconOnly)
             }
-            .help("Refresh")
+            .accessibilityLabel("Refresh")
 
             Menu {
                 ForEach(FileSort.allCases) { sort in
@@ -68,7 +68,7 @@ struct FilesView: View {
                 Label("Sort", systemImage: "arrow.up.arrow.down")
                     .labelStyle(.iconOnly)
             }
-            .help("Sort")
+            .accessibilityLabel("Sort")
         }
     }
 
