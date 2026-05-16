@@ -106,7 +106,16 @@ struct MainTabs: View {
         .fullScreenCover(item: Bindable(container.player).presented) { request in
             PlayerView(container: container, fileID: request.fileID)
                 .background(Color.black.ignoresSafeArea())
-                .onDisappear { container.player.dismiss() }
+                .onDisappear {
+                    // Single source of truth for player teardown. Runs
+                    // whether the user dismissed via Menu (SwiftUI set
+                    // `presented = nil` itself) or the playback session
+                    // called `container.player.dismiss()` from an error
+                    // handler. PlayerView no longer resets on its own
+                    // disappear — this hook is the only cleanup path.
+                    container.player.dismiss()
+                    container.playback.reset()
+                }
         }
     }
 

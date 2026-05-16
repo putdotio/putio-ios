@@ -51,7 +51,10 @@ final class AppContainer {
 }
 
 /// Coordinator for the full-screen player presentation. Sits above the
-/// `TabView` shell so the system tab strip stops drawing over video.
+/// `TabView` shell so the system tab strip stops drawing over video. The
+/// cover host owns cleanup via its `onDisappear` — see
+/// `MainTabs.fullScreenCover` — so a single dismissal path runs
+/// `playback.reset()` exactly once regardless of who triggered the close.
 @MainActor
 @Observable
 final class PlayerPresenter {

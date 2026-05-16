@@ -41,7 +41,9 @@ struct PlayerView: View {
             }
         }
         .onAppear { session.open(fileID: fileID) }
-        .onDisappear { session.reset() }
+        // No `session.reset()` here — `PlayerPresenter.dismiss()` owns the
+        // cleanup path so a single dismissal isn't fighting the cover's
+        // own teardown.
         .task { await loadSubtitlePreference() }
     }
 
