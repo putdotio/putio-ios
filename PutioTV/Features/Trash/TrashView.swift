@@ -110,7 +110,9 @@ struct TrashView: View {
                     confirmEmpty = true
                 } label: {
                     Label("Empty Trash", systemImage: "trash.slash")
+                        .labelStyle(.iconOnly)
                 }
+                .help("Empty Trash")
             }
         }
     }

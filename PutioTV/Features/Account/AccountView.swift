@@ -45,7 +45,9 @@ struct AccountView: View {
                 confirmSignOut = true
             } label: {
                 Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+                    .labelStyle(.iconOnly)
             }
+            .help("Sign out")
         }
     }
 
@@ -57,91 +59,57 @@ struct AccountView: View {
                 .controlSize(.large)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case let .ready(snapshot):
+            // The form ships with `.tint(.primary)` so interactive-row labels
+            // render white instead of inheriting the put.io yellow accent.
+            // Per-control accents (disk-usage progress, route checkmarks) opt
+            // back into yellow via explicit `.tint(.accentColor)`.
             Form {
-                // The form lives with .tint(.primary) so row labels stay
-                // white; per-control accents (ProgressView, checkmarks) opt
-                // back into yellow via explicit `.tint(.accentColor)`.
                 Section {
                     NavigationLink(value: HomeDestination(route: .tunnelPicker)) {
-                        LabeledContent {
-                            Text(snapshot.settings.routeName)
-                                .foregroundStyle(.secondary)
-                        } label: {
-                            primaryLabel("Tunnel route")
-                        }
+                        LabeledContent("Tunnel route", value: snapshot.settings.routeName)
                     }
 
-                    Toggle(isOn: Binding(
+                    Toggle("Remember playback position", isOn: Binding(
                         get: { snapshot.settings.rememberVideoTime },
                         set: { viewModel.updateSettings(PutioAccountSettingsPatch(rememberVideoTime: $0)) }
-                    )) {
-                        primaryLabel("Remember playback position")
-                    }
+                    ))
 
-                    Toggle(isOn: Binding(
+                    Toggle("Auto-select subtitles", isOn: Binding(
                         get: { !snapshot.settings.dontAutoSelectSubtitles },
                         set: { viewModel.updateSettings(PutioAccountSettingsPatch(dontAutoSelectSubtitles: !$0)) }
-                    )) {
-                        primaryLabel("Auto-select subtitles")
-                    }
+                    ))
 
-                    Toggle(isOn: Binding(
+                    Toggle("Hide subtitles by default", isOn: Binding(
                         get: { snapshot.settings.hideSubtitles },
                         set: { viewModel.updateSettings(PutioAccountSettingsPatch(hideSubtitles: $0)) }
-                    )) {
-                        primaryLabel("Hide subtitles by default")
-                    }
+                    ))
 
-                    Toggle(isOn: Binding(
+                    Toggle("Track watch history", isOn: Binding(
                         get: { snapshot.settings.historyEnabled },
                         set: { viewModel.updateSettings(PutioAccountSettingsPatch(historyEnabled: $0)) }
-                    )) {
-                        primaryLabel("Track watch history")
-                    }
+                    ))
                 } header: {
                     AccountHeader(account: snapshot.account)
                         .padding(.bottom, 16)
                 }
 
                 Section("Storage") {
-                    Toggle(isOn: Binding(
+                    Toggle("Move deleted files to Trash", isOn: Binding(
                         get: { snapshot.settings.trashEnabled },
                         set: { viewModel.updateSettings(PutioAccountSettingsPatch(trashEnabled: $0)) }
-                    )) {
-                        primaryLabel("Move deleted files to Trash")
-                    }
+                    ))
 
                     NavigationLink(value: HomeDestination(route: .trash)) {
-                        Label {
-                            primaryLabel("Manage your Trash")
-                        } icon: {
-                            Image(systemName: "trash").foregroundStyle(.tint)
-                        }
+                        Label("Manage your Trash", systemImage: "trash")
                     }
                 }
 
                 Section("App") {
-                    LabeledContent {
-                        Text(appVersion).foregroundStyle(.secondary)
-                    } label: {
-                        primaryLabel("App version")
-                    }
-                    LabeledContent {
-                        Text(deviceName).foregroundStyle(.secondary)
-                    } label: {
-                        primaryLabel("Device")
-                    }
-                    LabeledContent {
-                        Text(osVersion).foregroundStyle(.secondary)
-                    } label: {
-                        primaryLabel("Operating system")
-                    }
+                    LabeledContent("App version", value: appVersion)
+                    LabeledContent("Device", value: deviceName)
+                    LabeledContent("Operating system", value: osVersion)
                     NavigationLink(value: HomeDestination(route: .diagnostics)) {
-                        Label {
-                            primaryLabel("Diagnostics")
-                        } icon: {
-                            Image(systemName: "ladybug").foregroundStyle(.tint)
-                        }
+                        Label("Diagnostics", systemImage: "ladybug")
                     }
                 }
             }
@@ -149,10 +117,6 @@ struct AccountView: View {
         case let .failed(failure):
             FailureView(failure: failure)
         }
-    }
-
-    private func primaryLabel(_ title: String) -> some View {
-        Text(title).foregroundStyle(.primary)
     }
 
     private var appVersion: String {

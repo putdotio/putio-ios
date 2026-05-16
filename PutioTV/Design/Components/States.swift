@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Loading-state placeholder for the player full-screen surface. Other screens
-/// use `ProgressView()` inline; this one keeps a black background so it reads
-/// against `Color.black.ignoresSafeArea()` in the player cover.
+/// Branded loading screen for the auth flow. Other screens use inline
+/// `ProgressView()`; this one paints a black background so it reads against
+/// `Color.put.bg.ignoresSafeArea()` on the welcome surface.
 struct PutLoadingState: View {
     var title: String = "Loading"
 
@@ -39,7 +39,6 @@ struct FailureView: View {
                 } label: {
                     Label("Try again", systemImage: "arrow.clockwise")
                 }
-                .buttonStyle(.bordered)
             }
         }
     }
@@ -47,27 +46,3 @@ struct FailureView: View {
 
 /// Back-compat alias so existing call sites compile while feature files migrate.
 typealias PutErrorState = FailureView
-
-/// Auth-only branded button. The auth screen is a pre-sign-in surface so the
-/// custom yellow look stays — feature views use system buttons.
-struct PutButton: View {
-    let title: String
-    var icon: String? = nil
-    var hasTVPreferredFocus: Bool = false
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                if let icon {
-                    Image(systemName: LucideIcon.symbol(for: icon))
-                }
-                Text(title)
-            }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 12)
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(Color.put.yellowSolid)
-    }
-}

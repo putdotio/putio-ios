@@ -48,7 +48,9 @@ struct FilesView: View {
                 viewModel.refresh()
             } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")
+                    .labelStyle(.iconOnly)
             }
+            .help("Refresh")
 
             Menu {
                 ForEach(FileSort.allCases) { sort in
@@ -63,8 +65,10 @@ struct FilesView: View {
                     }
                 }
             } label: {
-                Label(sortLabel, systemImage: "arrow.up.arrow.down")
+                Label("Sort", systemImage: "arrow.up.arrow.down")
+                    .labelStyle(.iconOnly)
             }
+            .help("Sort")
         }
     }
 

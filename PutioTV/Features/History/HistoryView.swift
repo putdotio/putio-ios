@@ -39,7 +39,9 @@ struct HistoryView: View {
                     confirmClear = true
                 } label: {
                     Label("Clear", systemImage: "trash")
+                        .labelStyle(.iconOnly)
                 }
+                .help("Clear history")
             }
         }
     }

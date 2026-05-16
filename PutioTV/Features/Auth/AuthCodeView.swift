@@ -76,7 +76,6 @@ struct AuthCodeView: View {
             .buttonStyle(.borderedProminent)
             .tint(Color.put.yellowSolid)
             .foregroundStyle(.black)
-            .id(code)
         }
         .padding(80)
     }
