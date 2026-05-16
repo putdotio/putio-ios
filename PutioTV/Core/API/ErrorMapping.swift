@@ -3,10 +3,10 @@ import PutioSDK
 
 /// Plain-value representation of a feature-level failure. Carries enough state
 /// for `ErrorState` to render an actionable retry surface.
-struct LocalizedFailure: Equatable {
+struct LocalizedFailure: Equatable, Sendable {
     var message: String
     var recovery: String?
-    var retry: (@MainActor () -> Void)?
+    var retry: (@MainActor @Sendable () -> Void)?
 
     static func == (lhs: LocalizedFailure, rhs: LocalizedFailure) -> Bool {
         lhs.message == rhs.message && lhs.recovery == rhs.recovery
@@ -16,7 +16,7 @@ struct LocalizedFailure: Equatable {
 enum ErrorMapping {
     static func localize(
         _ error: Error,
-        retry: (@MainActor () -> Void)? = nil
+        retry: (@MainActor @Sendable () -> Void)? = nil
     ) -> LocalizedFailure {
         if let sdkError = error as? PutioSDKError {
             return mapSDK(sdkError, retry: retry)
@@ -31,7 +31,7 @@ enum ErrorMapping {
         )
     }
 
-    private static func mapSDK(_ error: PutioSDKError, retry: (@MainActor () -> Void)?) -> LocalizedFailure {
+    private static func mapSDK(_ error: PutioSDKError, retry: (@MainActor @Sendable () -> Void)?) -> LocalizedFailure {
         if error.isNetworkFailure {
             return LocalizedFailure(
                 message: "Can't reach put.io right now.",

@@ -12,7 +12,7 @@ protocol TokenStoring: Sendable {
     func clear() throws
 }
 
-struct KeychainTokenStore: TokenStoring {
+struct KeychainTokenStore: TokenStoring, @unchecked Sendable {
     let service: String
     let account: String
     let defaults: UserDefaults

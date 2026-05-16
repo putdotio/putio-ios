@@ -70,7 +70,7 @@ final class AuthSession {
         cancelActive()
         Task { try? await api.logout() }
         try? tokenStore.clear()
-        api.config.token = ""
+        api.clearToken()
         state = .idle
     }
 
@@ -98,7 +98,7 @@ final class AuthSession {
                 }
 
                 try tokenStore.save(token)
-                api.config.token = token
+                api.setToken(token: token)
                 state = .linked(token: token, account: AuthLinkedAccount(userID: userID, tokenID: result.tokenID))
             } catch is CancellationError {
                 return
