@@ -25,7 +25,11 @@ struct SearchView: View {
     private var content: some View {
         switch viewModel.state {
         case .idle:
-            ContentUnavailableView.search
+            ContentUnavailableView(
+                "Search your files",
+                systemImage: "magnifyingglass",
+                description: Text("Find anything in your put.io library.")
+            )
         case .searching:
             ProgressView()
                 .controlSize(.large)
