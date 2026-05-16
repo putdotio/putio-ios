@@ -1,0 +1,54 @@
+name: PutioTV
+options:
+  bundleIdPrefix: io.put.tvos
+  deploymentTarget:
+    tvOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGNING_ALLOWED: NO
+    CODE_SIGN_IDENTITY: ""
+    CODE_SIGN_STYLE: Manual
+    ENABLE_PREVIEWS: YES
+    SWIFT_STRICT_CONCURRENCY: minimal
+packages:
+  PutioSDK:
+    path: ../../putio-sdk-swift-tvos
+targets:
+  PutioTV:
+    type: application
+    platform: tvOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: App
+      - path: Core
+      - path: Design
+      - path: Features
+      - path: Resources/Assets.xcassets
+      - path: Resources/Fonts
+        buildPhase: resources
+    info:
+      path: Resources/Info.plist
+      properties:
+        CFBundleDisplayName: put.io
+        UIRequiresFullScreen: true
+        UIUserInterfaceStyle: Dark
+        PUTIO_OAUTH_CLIENT_ID: "2951"
+        PUTIO_APP_IDENTIFIER: $(PRODUCT_BUNDLE_IDENTIFIER)
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoadsInMedia: true
+        UIAppFonts:
+          - GTAmerica-Rg.ttf
+          - GTAmerica-Md.ttf
+          - GTAmerica-Bd.ttf
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.put.tvos.dev
+        TARGETED_DEVICE_FAMILY: "3"
+        ASSETCATALOG_COMPILER_APPICON_NAME: "App Icon & Top Shelf Image"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: "AccentColor"
+        GENERATE_INFOPLIST_FILE: NO
+    dependencies:
+      - package: PutioSDK

@@ -69,8 +69,8 @@ struct ResumePromptView: View {
     var body: some View {
         VStack(spacing: PutSpacing.lg) {
             Text(file.name)
-                .font(.put.title)
-                .foregroundStyle(Color.put.textPrimary)
+                .font(.put.label)
+                .foregroundStyle(Color.put.text)
                 .multilineTextAlignment(.center)
 
             VStack(spacing: PutSpacing.sm) {
@@ -79,21 +79,21 @@ struct ResumePromptView: View {
                         "Continue playing from \(formattedResumeOffset)",
                         systemImage: "play.fill"
                     )
-                    .font(.put.headline)
+                    .font(.put.body)
                     .padding(.horizontal, PutSpacing.lg)
                     .padding(.vertical, PutSpacing.sm)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color.put.accentYellow)
+                .tint(Color.put.yellowSolid)
 
                 Button(action: onStartOver) {
                     Label("Start from the beginning", systemImage: "backward.end")
-                        .font(.put.headline)
+                        .font(.put.body)
                         .padding(.horizontal, PutSpacing.lg)
                         .padding(.vertical, PutSpacing.sm)
                 }
                 .buttonStyle(.bordered)
-                .tint(Color.put.textPrimary)
+                .tint(Color.put.text)
             }
         }
         .padding(PutSpacing.xxl)
@@ -113,8 +113,8 @@ struct ConversionStatusView: View {
     var body: some View {
         VStack(spacing: PutSpacing.lg) {
             Text(file.name)
-                .font(.put.title)
-                .foregroundStyle(Color.put.textPrimary)
+                .font(.put.label)
+                .foregroundStyle(Color.put.text)
                 .multilineTextAlignment(.center)
             ProgressView(value: max(0, min(1, Double(progress))))
                 .controlSize(.large)

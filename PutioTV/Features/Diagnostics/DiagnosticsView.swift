@@ -65,7 +65,7 @@ struct DiagnosticsView: View {
                 .padding(.bottom, PutSpacing.xl)
             }
         }
-        .background(Color.put.surface)
+        .background(Color.put.bg)
         .fullScreenCover(item: $selected) { stream in
             DiagnosticsPlayerView(url: stream.url)
         }

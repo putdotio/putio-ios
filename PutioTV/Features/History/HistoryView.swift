@@ -28,7 +28,7 @@ struct HistoryView: View {
 
             content
         }
-        .background(Color.put.surface)
+        .background(Color.put.bg)
         .onAppear { viewModel.load() }
     }
 
@@ -42,7 +42,7 @@ struct HistoryView: View {
                 LazyVStack(alignment: .leading, spacing: PutSpacing.md) {
                     ForEach(groups) { group in
                         Text(group.bucket.rawValue)
-                            .font(.put.headline)
+                            .font(.put.body)
                             .foregroundStyle(Color.put.textSecondary)
                             .padding(.horizontal, PutSpacing.md)
                             .padding(.top, PutSpacing.md)

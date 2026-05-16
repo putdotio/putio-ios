@@ -24,14 +24,14 @@ struct SearchView: View {
 
             TextField("Search your files", text: $viewModel.keyword)
                 .textFieldStyle(.plain)
-                .font(.put.title)
+                .font(.put.label)
                 .padding(.horizontal, PutSpacing.xl)
                 .focused($keyboardFocused)
                 .submitLabel(.search)
 
             content
         }
-        .background(Color.put.surface)
+        .background(Color.put.bg)
         .onAppear { keyboardFocused = true }
     }
 

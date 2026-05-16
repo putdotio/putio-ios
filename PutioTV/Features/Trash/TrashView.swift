@@ -8,7 +8,7 @@ import PutioSDK
 @MainActor
 @Observable
 final class TrashViewModel {
-    enum State: Equatable {
+    enum State {
         case loading
         case loaded([PutioTrashFile])
         case empty
@@ -88,7 +88,7 @@ struct TrashView: View {
 
             content
         }
-        .background(Color.put.surface)
+        .background(Color.put.bg)
         .onAppear { viewModel.load() }
     }
 

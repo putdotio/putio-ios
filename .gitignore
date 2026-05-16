@@ -50,3 +50,9 @@ fastlane/.env.1password.local
 
 ## Fastlane DSYM .zip
 *.zip
+
+# Local secrets / tooling
+.env.local
+
+# Generated from PutioTV/project.yml via xcodegen
+PutioTV/PutioTV.xcodeproj/

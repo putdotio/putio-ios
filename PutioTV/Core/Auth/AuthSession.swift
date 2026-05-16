@@ -23,6 +23,17 @@ final class AuthSession {
     }
 
     func restore() {
+        #if DEBUG
+        // DEBUG hook: lets `xcrun simctl launch ... --setenv PUTIO_INJECT_TOKEN=...`
+        // drive the simulator straight into the linked surfaces during parity
+        // capture without OCR'ing the device code from the auth screen.
+        if let injected = ProcessInfo.processInfo.environment["PUTIO_INJECT_TOKEN"],
+           !injected.isEmpty {
+            try? tokenStore.save(injected)
+            validate(token: injected)
+            return
+        }
+        #endif
         guard let token = tokenStore.load(), !token.isEmpty else { return }
         validate(token: token)
     }

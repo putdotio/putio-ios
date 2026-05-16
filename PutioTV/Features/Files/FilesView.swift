@@ -38,7 +38,7 @@ struct FilesView: View {
                 PutErrorState(failure: failure)
             }
         }
-        .background(Color.put.surface)
+        .background(Color.put.bg)
         .onAppear { viewModel.load() }
     }
 

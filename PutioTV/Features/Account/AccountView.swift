@@ -32,12 +32,12 @@ struct AccountView: View {
                         .labelStyle(.titleAndIcon)
                 }
                 .buttonStyle(.bordered)
-                .tint(Color.put.textPrimary)
+                .tint(Color.put.text)
             }
 
             content
         }
-        .background(Color.put.surface)
+        .background(Color.put.bg)
         .onAppear { viewModel.load() }
     }
 
@@ -143,7 +143,7 @@ struct AccountView: View {
                 case let .success(image):
                     image.resizable().scaledToFill()
                 default:
-                    Color.put.surfaceElevated
+                    Color.put.bgSecondary
                 }
             }
             .frame(width: 120, height: 120)
@@ -151,12 +151,12 @@ struct AccountView: View {
 
             VStack(alignment: .leading, spacing: PutSpacing.xs) {
                 Text(snapshot.account.username)
-                    .font(.put.title)
-                    .foregroundStyle(Color.put.textPrimary)
+                    .font(.put.label)
+                    .foregroundStyle(Color.put.text)
                 let used = snapshot.account.disk.used
                 let total = snapshot.account.disk.size
                 Text(usageString(used: used, total: total))
-                    .font(.put.secondary)
+                    .font(.put.caption)
                     .foregroundStyle(Color.put.textSecondary)
             }
             Spacer()
@@ -231,7 +231,7 @@ struct AccountView: View {
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: PutSpacing.xs) {
             Text(title)
-                .font(.put.headline)
+                .font(.put.body)
                 .foregroundStyle(Color.put.textSecondary)
                 .padding(.horizontal, PutSpacing.md)
                 .padding(.top, PutSpacing.md)

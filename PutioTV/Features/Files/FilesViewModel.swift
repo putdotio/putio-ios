@@ -5,7 +5,7 @@ import PutioSDK
 @MainActor
 @Observable
 final class FilesViewModel {
-    enum State: Equatable {
+    enum State {
         case loading
         case loaded(parent: PutioFile?, children: [PutioFile])
         case empty

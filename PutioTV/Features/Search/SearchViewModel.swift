@@ -5,7 +5,7 @@ import PutioSDK
 @MainActor
 @Observable
 final class SearchViewModel {
-    enum State: Equatable {
+    enum State {
         case idle
         case searching
         case results([PutioFile])
