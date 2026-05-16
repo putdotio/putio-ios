@@ -14,7 +14,7 @@ struct AuthCodeView: View {
             VStack {
                 Spacer()
                 AppInfoFooter()
-                    .padding(.bottom, PutSpacing.md + PutSafe.vertical)
+                    .padding(.bottom, 48)
             }
         }
         .onAppear {
@@ -45,33 +45,40 @@ struct AuthCodeView: View {
     }
 
     private func codeView(code: String) -> some View {
-        VStack(spacing: PutSpacing.lg) {
-            Text("┌( ಠ‿ಠ)┘ welcome!")
-                .font(.put.heading)
-                .foregroundStyle(Color.put.text)
-
-            VStack(spacing: PutSpacing.sm) {
-                Text("use this activation code to log in")
-                    .font(.put.body)
-                    .foregroundStyle(Color.put.text)
-                ActivationCode(code: code)
+        VStack(spacing: 56) {
+            VStack(spacing: 16) {
+                Text("Welcome to put.io")
+                    .font(.system(size: 64, weight: .semibold))
+                    .foregroundStyle(.white)
+                Text("Enter this code to sign in to your account")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.secondary)
             }
 
-            VStack(spacing: PutSpacing.xs) {
-                Text("follow the steps at the website below")
-                    .font(.put.body)
-                    .foregroundStyle(Color.put.text)
+            ActivationCode(code: code)
+
+            VStack(spacing: 8) {
+                Text("Visit the URL below from any device:")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.secondary)
                 Text(PutioTV.Constants.appLinkURL)
-                    .font(.put.label)
+                    .font(.system(size: 48, weight: .semibold, design: .rounded))
                     .foregroundStyle(Color.put.yellowSolid)
             }
 
-            PutButton(title: "Get new code", icon: "refresh-ccw", hasTVPreferredFocus: true) {
+            Button {
                 session.start()
+            } label: {
+                Label("Get new code", systemImage: "arrow.clockwise")
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 12)
             }
+            .buttonStyle(.borderedProminent)
+            .tint(Color.put.yellowSolid)
+            .foregroundStyle(.black)
             .id(code)
         }
-        .padding(PutSpacing.xxl)
+        .padding(80)
     }
 }
 
@@ -81,15 +88,15 @@ struct ActivationCode: View {
     let code: String
 
     var body: some View {
-        HStack(spacing: PutSpacing.sm) {
+        HStack(spacing: 24) {
             ForEach(Array(code.enumerated()), id: \.offset) { _, ch in
                 Text(String(ch))
-                    .font(.put.label)
-                    .foregroundStyle(Color.put.loContrast)
-                    .frame(width: 96, height: 96)
+                    .font(.system(size: 120, weight: .bold, design: .rounded))
+                    .foregroundStyle(.black)
+                    .frame(width: 160, height: 180)
                     .background(
-                        RoundedRectangle(cornerRadius: PutRadius.default, style: .continuous)
-                            .fill(Color.put.hiContrast)
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(.white)
                     )
             }
         }
@@ -99,12 +106,11 @@ struct ActivationCode: View {
 struct AppInfoFooter: View {
     var body: some View {
         let info = Bundle.main.infoDictionary
-        let bundleID = info?["CFBundleIdentifier"] as? String ?? "io.put.tvos"
         let short = info?["CFBundleShortVersionString"] as? String ?? "0.0"
         let build = info?["CFBundleVersion"] as? String ?? "0"
-        Text("\(bundleID)@\(short)+\(build)")
-            .font(.put.smol)
-            .foregroundStyle(Color.put.textSecondary)
+        Text("Version \(short) (\(build))")
+            .font(.system(size: 22))
+            .foregroundStyle(.tertiary)
             .frame(maxWidth: .infinity)
     }
 }

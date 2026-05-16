@@ -88,7 +88,7 @@ struct ResumePromptView: View {
     var body: some View {
         VStack(spacing: 48) {
             Text(file.name)
-                .font(.title)
+                .font(.system(size: 44, weight: .semibold))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 128)
@@ -98,16 +98,23 @@ struct ResumePromptView: View {
                     onResume()
                 } label: {
                     Label("Resume from \(formattedResumeOffset)", systemImage: "play.fill")
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
                 }
                 .buttonStyle(.borderedProminent)
+                .tint(Color.put.yellowSolid)
+                .foregroundStyle(.black)
                 .focused($resumeFocused)
 
                 Button {
                     onStartOver()
                 } label: {
                     Label("Start from beginning", systemImage: "backward.end.fill")
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
                 }
                 .buttonStyle(.bordered)
+                .foregroundStyle(.white)
             }
         }
         .onAppear { resumeFocused = true }

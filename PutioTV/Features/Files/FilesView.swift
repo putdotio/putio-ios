@@ -50,24 +50,21 @@ struct FilesView: View {
             }
 
             Menu {
-                Picker("Sort", selection: sortBinding) {
-                    ForEach(FileSort.allCases) { sort in
-                        Text(sort.label).tag(sort.rawValue as String?)
+                ForEach(FileSort.allCases) { sort in
+                    Button {
+                        viewModel.setSort(sort.rawValue)
+                    } label: {
+                        if sort.rawValue == viewModel.currentSort {
+                            Label(sort.label, systemImage: "checkmark")
+                        } else {
+                            Text(sort.label)
+                        }
                     }
                 }
             } label: {
                 Label(sortLabel, systemImage: "arrow.up.arrow.down")
             }
         }
-    }
-
-    private var sortBinding: Binding<String?> {
-        Binding(
-            get: { viewModel.currentSort },
-            set: { newValue in
-                if let newValue { viewModel.setSort(newValue) }
-            }
-        )
     }
 
     private var sortLabel: String {
