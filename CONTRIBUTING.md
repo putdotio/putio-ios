@@ -41,7 +41,7 @@ This renders `Config/Local.xcconfig` from `Config/Local.1password.xcconfig.templ
   - primary icon `AppIconDev`
 - Keep the selected 1Password item aligned with:
   - `Config/Local.1password.xcconfig.template`
-  - `fastlane/.env.1password.template`
+  - `.github/actions/load-ios-release-secrets/action.yml`
 - CI beta and release builds use the release-secret contract in [Distribution](./docs/DISTRIBUTION.md)
 
 ## Run And Validate
