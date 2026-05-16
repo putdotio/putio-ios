@@ -148,7 +148,7 @@ private struct TrashRowLabel: View {
         HStack(spacing: PutSpacing.md) {
             Image(systemName: "trash")
                 .font(.system(size: 36))
-                .foregroundStyle(Color.put.yellowSolid)
+                .foregroundStyle(.tint)
                 .frame(width: 48, height: 48)
             VStack(alignment: .leading, spacing: 2) {
                 Text(file.name).lineLimit(1)

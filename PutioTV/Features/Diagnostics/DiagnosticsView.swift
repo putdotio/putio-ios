@@ -56,7 +56,7 @@ struct DiagnosticsView: View {
                     }
                 } icon: {
                     Image(systemName: "play.rectangle.fill")
-                        .foregroundStyle(Color.put.yellowSolid)
+                        .foregroundStyle(.tint)
                 }
                 .padding(.vertical, PutSpacing.xs)
             }
