@@ -99,11 +99,12 @@ struct ActivationCode: View {
 struct AppInfoFooter: View {
     var body: some View {
         let info = Bundle.main.infoDictionary
-        let short = info?["CFBundleShortVersionString"] as? String ?? "—"
-        let build = info?["CFBundleVersion"] as? String ?? "—"
-        Text("put.io tvOS \(short) (\(build))")
+        let bundleID = info?["CFBundleIdentifier"] as? String ?? "io.put.tvos"
+        let short = info?["CFBundleShortVersionString"] as? String ?? "0.0"
+        let build = info?["CFBundleVersion"] as? String ?? "0"
+        Text("\(bundleID)@\(short)+\(build)")
             .font(.put.smol)
-            .foregroundStyle(Color.put.textSecondary.opacity(0.33))
+            .foregroundStyle(Color.put.textSecondary)
             .frame(maxWidth: .infinity)
     }
 }

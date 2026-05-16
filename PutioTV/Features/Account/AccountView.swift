@@ -59,6 +59,7 @@ struct AccountView: View {
             Form {
                 Section {
                     AccountHeader(account: snapshot.account)
+                        .listRowBackground(Color.clear)
                 }
 
                 Section("Playback") {

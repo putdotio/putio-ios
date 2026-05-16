@@ -7,7 +7,6 @@ struct SearchView: View {
     let container: AppContainer
     @Binding var path: [HomeDestination]
     @State private var viewModel: SearchViewModel
-    @State private var query: String = ""
 
     init(container: AppContainer, path: Binding<[HomeDestination]>) {
         self.container = container
@@ -16,12 +15,10 @@ struct SearchView: View {
     }
 
     var body: some View {
+        @Bindable var vm = viewModel
         content
             .navigationTitle("Search")
-            .searchable(text: $query, prompt: Text("Search your files"))
-            .onChange(of: query) { _, newValue in
-                viewModel.keyword = newValue
-            }
+            .searchable(text: $vm.keyword, prompt: Text("Search your files"))
     }
 
     @ViewBuilder
