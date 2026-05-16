@@ -1,123 +1,100 @@
 # Native tvOS Target Setup
 
-This document captures the Xcode steps needed to wire the new SwiftUI tvOS
-sources under `PutioTV/` into the existing `Putio.xcodeproj` workspace.
+The SwiftUI tvOS app lives in `PutioTV/` and is wired through an
+XcodeGen `project.yml`. The Xcode project is generated on demand; the
+project file itself is not checked in.
 
-Status: source-complete. The current local machine has Command Line Tools
-only (no full Xcode install), so the steps below need a developer machine
-with Xcode 26+ and the tvOS 26 SDK to land. See "Blockers" at the end.
+## Tooling prerequisites
 
-## 1. Add the tvOS app target
+- Xcode 26.4 or newer with the tvOS 26 SDK.
+- `xcodegen` (Homebrew: `brew install xcodegen`).
+- `op` (1Password CLI) only if you want to drive the simulator parity
+  captures against the shared `frontend-ci/putio-sdk-testing` token.
 
-In `Putio.xcworkspace`:
+The xcode-select path on the host can point at Command Line Tools;
+`DEVELOPER_DIR=/Applications/Xcode-26.4.1.app/Contents/Developer` keeps
+the iOS app's existing CocoaPods workflow intact for the rest of the
+repo.
 
-1. **File → New → Target → tvOS → App**
-2. Product name: `PutioTV`. Interface: **SwiftUI**. Language: **Swift**.
-3. Bundle identifier suggestion: `io.put.tvos.dev` (or your signing-config
-   equivalent). The `Local.xcconfig` already used by the iOS target can
-   set `PRODUCT_BUNDLE_IDENTIFIER` per configuration.
-4. **Don't** check "Include Tests" yet; add `PutioTVTests` later from
-   File → New → Target → tvOS → Unit Testing Bundle when test wiring lands.
-
-## 2. Add the existing source tree to the target
-
-After Xcode creates the target's default `App.swift` + `ContentView.swift`,
-**delete those two files** and instead add this repository's `PutioTV/`
-folder reference to the new target:
-
-1. Right-click `PutioTV` in the navigator → **Add Files to "Putio"…**
-2. Pick the repository-root `PutioTV/` folder.
-3. Choose **Create groups**, target membership: **PutioTV only**.
-4. Set `PutioTV/Resources/Info.plist` as the target's Info.plist
-   (Target → Build Settings → `INFOPLIST_FILE`).
-
-## 3. Hook up PutioSDK
-
-The tvOS target needs the `PutioSDK` Swift package or pod.
-
-### Option A — Swift Package (recommended)
-
-Project → Package Dependencies → `+` →
-`https://github.com/putdotio/putio-sdk-swift` and pin the same commit the
-iOS Podfile currently uses (`8192763563951797672c8101d6765dac3ec7e2df` at
-the time of writing). Add `PutioSDK` as a framework dependency on
-`PutioTV` only.
-
-### Option B — CocoaPods alongside the iOS target
-
-Add a `PutioTV` target block in the `Podfile`:
-
-```ruby
-target 'PutioTV' do
-  platform :tvos, '26.0'
-  use_frameworks!
-
-  pod 'PutioSDK', :git => 'https://github.com/putdotio/putio-sdk-swift.git', :commit => '<same commit as iOS target>'
-end
-```
-
-Then `bundle exec pod install`. The tvOS podspec helper has been updated
-to expose `tvos.deployment_target = '26.0'` (see
-`../putio-sdk-swift/podspec_helper.rb`).
-
-## 4. Asset catalog + launch image
-
-The default tvOS target creates an empty `Assets.xcassets`. Populate the
-following slots before TestFlight:
-
-- App Icon (`Brand Assets` → `App Icon - App Store` and `App Icon - Home Screen`)
-- Top Shelf image (16:5)
-- Launch image (or keep the storyboard-free SwiftUI launch by leaving the
-  `UILaunchStoryboardName` key out of `Info.plist`)
-
-The repo's `LaunchScreen.storyboard` is iOS-only — do not reuse it on
-tvOS.
-
-## 5. Schemes + signing
-
-- Create a `PutioTV` scheme (Xcode auto-generates it when the target is
-  added).
-- Reuse the existing `Local.xcconfig` pattern for `DEVELOPMENT_TEAM`,
-  `PRODUCT_BUNDLE_IDENTIFIER`, and other signing-sensitive values
-  (`make secrets-setup` already provisions the iOS variant; mirror the
-  same keys for tvOS).
-
-## 6. Verify
-
-After adding the target, run:
+## Generate + build
 
 ```
-make verify          # iOS target should remain green
-xcodebuild build \
-  -workspace Putio.xcworkspace \
+cd PutioTV
+xcodegen generate --spec project.yml
+
+DEVELOPER_DIR=/Applications/Xcode-26.4.1.app/Contents/Developer \
+  xcodebuild build \
+  -project PutioTV.xcodeproj \
   -scheme PutioTV \
-  -destination 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation),OS=26.0'
+  -destination 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation),OS=26.4' \
+  CODE_SIGNING_ALLOWED=NO
 ```
 
-If your Xcode is current (Xcode 26+) the tvOS Simulator listed above will
-build. Add `-only-active-arch NO` for App Store-style validation.
+The target depends on `PutioSDK` as a local Swift Package via
+`packages.PutioSDK.path` in `project.yml`. Update that path if you
+move the SDK worktree.
 
-## Blockers from the current dev environment
-
-The Codex worktree this was authored in had only Command Line Tools
-installed:
+## Run + drive the simulator
 
 ```
-$ xcodebuild -version
-xcode-select: error: tool 'xcodebuild' requires Xcode, but active developer
-directory '/Library/Developer/CommandLineTools' is a command line tools instance
+xcrun simctl boot "Apple TV 4K (3rd generation)"
+open -a /Applications/Xcode-26.4.1.app/Contents/Developer/Applications/Simulator.app
 
-$ xcrun --sdk appletvsimulator --show-sdk-path
-xcrun: error: SDK "appletvsimulator" cannot be located
+APP="$(xcodebuild -project PutioTV.xcodeproj -scheme PutioTV \
+       -destination 'platform=tvOS Simulator,name=Apple TV 4K (3rd generation),OS=26.4' \
+       -showBuildSettings 2>/dev/null | awk -F' = ' '/^[[:space:]]+BUILT_PRODUCTS_DIR/ {print $2; exit}')/PutioTV.app"
+xcrun simctl install booted "$APP"
+xcrun simctl launch booted io.put.tvos.dev
 ```
 
-That blocks:
+## DEBUG helpers
 
-- `xcodebuild` for either iOS or tvOS targets.
-- Simulator screenshots for parity comparison against
-  `../putio-frontend-handbook/docs/specs/tv-native/tvos/`.
-- Adding the target / asset catalog inside the `Putio.xcodeproj` file
-  itself (manual `.pbxproj` editing is too risky for the iOS target).
+The Debug build honors two `SIMCTL_CHILD_*` env vars so parity captures
+can skip the device-code flow and land directly on a specific tab:
 
-The SDK's `swift build` (used as a smoke check for tvOS platform support)
-succeeded with the macOS toolchain (`Build complete! 18.62s`).
+- `PUTIO_INJECT_TOKEN` — write a token straight into the keychain (and
+  the UserDefaults fallback on simulator) before the auth state
+  machine runs.
+- `PUTIO_INITIAL_TAB` — one of `files | search | history | account`.
+
+Token convenience (cached to `.env.local`, gitignored):
+
+```
+op read 'op://frontend-ci/putio-sdk-testing/first_party/access_token' \
+  --account putdotio.1password.com > .env.local
+chmod 600 .env.local
+
+TOKEN=$(cat .env.local)
+SIMCTL_CHILD_PUTIO_INJECT_TOKEN="$TOKEN" \
+SIMCTL_CHILD_PUTIO_INITIAL_TAB=account \
+  xcrun simctl launch --terminate-running-process booted io.put.tvos.dev
+```
+
+## Apple TV Remote key codes
+
+```
+osascript -e 'tell application "System Events" to key code N'
+```
+
+| Action | Key code |
+| --- | --- |
+| Up    | 126 |
+| Down  | 125 |
+| Left  | 123 |
+| Right | 124 |
+| Select | 36 |
+| Menu  | 53 |
+
+## Screenshots
+
+```
+xcrun simctl io booted screenshot path/to/file.png
+```
+
+## Adding to the existing iOS workspace
+
+The tvOS target is currently a standalone `.xcodeproj`. Bringing it
+into `Putio.xcworkspace` is a follow-up (see
+[`docs/tvOS-parity-checklist.md`](tvOS-parity-checklist.md) for the
+open items). The iOS app and the tvOS app share the SDK
+(`putio-sdk-swift`); nothing else is shared today.

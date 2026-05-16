@@ -7,6 +7,7 @@ import PutioSDK
 struct PlayerView: View {
     let container: AppContainer
     let fileID: Int
+    @State private var subtitlePreference: SystemPlayerView.SubtitlePreference = .systemDefault
 
     var body: some View {
         let session = container.playback
@@ -41,6 +42,19 @@ struct PlayerView: View {
         }
         .onAppear { session.open(fileID: fileID) }
         .onDisappear { session.reset() }
+        .task { await loadSubtitlePreference() }
+    }
+
+    private func loadSubtitlePreference() async {
+        do {
+            let settings = try await container.account.settings()
+            subtitlePreference = SystemPlayerView.SubtitlePreference(
+                hideSubtitles: settings.hideSubtitles,
+                dontAutoSelect: settings.dontAutoSelectSubtitles
+            )
+        } catch {
+            subtitlePreference = .systemDefault
+        }
     }
 
     private func playerSurface(source: PlaybackSourceResolver.Source, startAt: Int) -> some View {
@@ -54,6 +68,7 @@ struct PlayerView: View {
         return SystemPlayerView(
             url: url,
             startAt: startAt,
+            subtitlePreference: subtitlePreference,
             onProgress: { seconds in container.playback.reportProgress(seconds: seconds) },
             onFinish: { seconds in container.playback.finish(durationSeconds: seconds) },
             onError: { error in container.playback.fail(with: error) }
