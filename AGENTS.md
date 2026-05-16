@@ -1,8 +1,11 @@
 # Agent Guide
 
-- Native iOS app repository for put.io
-- Stack: UIKit, CocoaPods, Bundler-managed Ruby
-- App code lives under `Putio/Features` and shared helpers live under `Putio/Common`
+- Native Apple repository for put.io
+- iOS app: UIKit, CocoaPods, Bundler-managed Ruby; sources under `Putio/`
+- tvOS app: SwiftUI, depends on `PutioSDK`; sources under `PutioTV/`
+- Shared rules in `.patterns/` apply to both targets; the UIKit iOS app keeps
+  its prior conventions (UIKit, Realm, Storyboards) and the SwiftUI tvOS
+  target adopts the `.patterns/` defaults from day one
 - Tests live under `PutioTests`
 
 ## Start Here
@@ -11,6 +14,9 @@
 - [Contributing](./CONTRIBUTING.md)
 - [Distribution](./docs/DISTRIBUTION.md)
 - [Security](./SECURITY.md)
+- [PutioTV target setup](./docs/tvOS-native-target.md)
+- [tvOS parity checklist](./docs/tvOS-parity-checklist.md)
+- [Repo patterns](./.patterns/README.md)
 
 ## Core Commands
 
@@ -39,6 +45,8 @@ Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-
 
 ## Coding Patterns
 
+### iOS target (`Putio/`)
+
 - Prefer existing UIKit, storyboard, presenter, and view-model patterns before introducing new abstractions
 - Keep feature behavior in the matching `Putio/Features/<Area>` folder and move only genuinely shared code into `Putio/Common`
 - Route put.io API behavior through the local SDK wrapper in `Putio/Common/API` unless a focused system API is the smaller choice
@@ -49,12 +57,22 @@ Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-
 - Put user-facing copy in localized strings; when Swift copy changes, update `Putio/en.lproj/Localizable.strings`
 - Add dependencies only when the repo has no good platform or SDK option
 
+### tvOS target (`PutioTV/`)
+
+- SwiftUI primitives + the design tokens in `PutioTV/Design`. Liquid Glass material on toolbars and transient panels only — never as a content background
+- One repository per SDK domain (`PutioTV/Core/Repositories/*`); view-models depend on the protocol, not the SDK directly
+- Bug-sensitive flows (auth linking, playback, conversion) are modelled as explicit Swift enums; see `.patterns/state-machines.md`
+- AVPlayer chrome is platform-owned — no custom video controls in phase one
+- Lucide icons via `PutioTV/Design/Components/LucideIcon.swift`. Add new icon names there with an SF Symbol fallback rather than ad-hoc symbols at call sites
+- Keep `PutioSDK` as the only network boundary; don't open `URLSession` directly
+
 ## Verification Matrix
 
-- Any behavior change: run `make verify`
-- SDK-backed app flow: run `make e2e-simulator` before live-account checks
-- When auth, keychain, or signed-in persistence changes, run both `make verify` and `make run-simulator`
+- Any iOS behavior change: run `make verify`
+- SDK-backed iOS flow: run `make e2e-simulator` before live-account checks
+- When auth, keychain, or signed-in persistence changes on iOS, run both `make verify` and `make run-simulator`
 - When user-facing copy changes, update the matching files under `Putio/en.lproj` and lint them with `plutil -lint Putio/en.lproj/*.strings`
+- tvOS behavior change: build the `PutioTV` scheme against a tvOS 26 simulator destination (see [docs/tvOS-native-target.md](./docs/tvOS-native-target.md)) and capture a comparable screenshot for each affected row in [docs/tvOS-parity-checklist.md](./docs/tvOS-parity-checklist.md)
 - When preparing a PR or handoff, include the most helpful evidence for review: visual aids for UI changes, sanity checks for risky flows, and before or after benchmarks for performance-sensitive work
 
 ## Regression Hotspots
