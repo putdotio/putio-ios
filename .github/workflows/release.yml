@@ -91,8 +91,23 @@ jobs:
 
       - name: Load shared release secrets
         uses: ./.github/actions/load-ios-release-secrets
-        with:
-          service-account-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+        env:
+          APPSTORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          APPSTORE_CONNECT_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          APPSTORE_CONNECT_KEY_CONTENT: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          PUTIO_APP_IDENTIFIER: ${{ secrets.PUTIO_APP_IDENTIFIER }}
+          PUTIO_APPLE_ID: ${{ secrets.PUTIO_APPLE_ID }}
+          PUTIO_ITC_TEAM_ID: ${{ secrets.PUTIO_ITC_TEAM_ID }}
+          PUTIO_DEVELOPMENT_TEAM: ${{ secrets.PUTIO_DEVELOPMENT_TEAM }}
+          PUTIO_OAUTH_CLIENT_ID: ${{ secrets.PUTIO_OAUTH_CLIENT_ID }}
+          PUTIO_CHROMECAST_RECEIVER_APP_ID: ${{ secrets.PUTIO_CHROMECAST_RECEIVER_APP_ID }}
+          PUTIO_INTERCOM_API_KEY: ${{ secrets.PUTIO_INTERCOM_API_KEY }}
+          PUTIO_INTERCOM_APP_ID: ${{ secrets.PUTIO_INTERCOM_APP_ID }}
+          PUTIO_SENTRY_DSN: ${{ secrets.PUTIO_SENTRY_DSN }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_TYPE: ${{ secrets.MATCH_TYPE }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_PRIVATE_KEY_CONTENT: ${{ secrets.MATCH_GIT_PRIVATE_KEY_CONTENT }}
 
       - name: Build and upload release artifact
         env:

@@ -26,22 +26,20 @@ make bootstrap
 
 This path is for put.io teammates who need signed local builds or private support integrations.
 
-- Sign in to the `putdotio.1password.com` account in the 1Password desktop app and enable CLI integration (Settings → Developer → "Integrate with 1Password CLI") — the helper is pinned to that account. `OP_SERVICE_ACCOUNT_TOKEN` is only required on shared devboxes / CI
+- Sign in to Infisical and make sure workspace onboarding has granted access to the `frontend` project and Development environment
 - Materialize the local config:
 
 ```bash
 make secrets-setup
 ```
 
-This renders `Config/Local.xcconfig` from `Config/Local.1password.xcconfig.template`. Run `make secrets-clean` to remove it.
+This renders `Config/Local.xcconfig` from the Infisical `/ios` path. Run `make secrets-clean` to remove it.
 
 - Local teammate builds default to:
   - bundle id `io.put.dev`
   - display name `put.io`
   - primary icon `AppIconDev`
-- Keep the selected 1Password item aligned with:
-  - `Config/Local.1password.xcconfig.template`
-  - `.github/actions/load-ios-release-secrets/action.yml`
+- Keep the Infisical `/ios` path aligned with `Config/Local.example.xcconfig`
 - CI beta and release builds use the release-secret contract in [Distribution](./docs/DISTRIBUTION.md)
 
 ## Run And Validate

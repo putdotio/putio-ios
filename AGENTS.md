@@ -25,7 +25,7 @@
 - Private service keys stay out of git
 - Update docs when setup, validation, or release expectations change
 - Keep branches focused; prefer follow-up PRs over unrelated cleanup
-- Use [Contributing](./CONTRIBUTING.md) for setup, local validation, teammate-only 1Password flow, and localization workflow
+- Use [Contributing](./CONTRIBUTING.md) for setup, local validation, teammate-only private config, and localization workflow
 - Use [Distribution](./docs/DISTRIBUTION.md) for CI, TestFlight, and release-promotion rules
 
 ## Local Environment
@@ -33,9 +33,8 @@
 Xcode + Fastlane carry their own config and signing flow; this repo does not use a `.envrc` / `secrets` task-runner pattern.
 
 - A fresh worktree only needs `make bootstrap`; `make verify` and `make e2e-simulator` run without 1Password access
-- Run `make secrets-setup` only when the task needs signed local builds or private support integrations. The helper writes `Config/Local.xcconfig` per-worktree from the hardcoded `frontend-ci/putio-ios` item (gitignored). `make secrets-clean` removes it before `git worktree remove`
-- The helper accepts either auth path: 1Password desktop with CLI integration on the `putdotio.1password.com` account, or `OP_SERVICE_ACCOUNT_TOKEN` exported in the shell (devbox / CI)
-- If the helper fails with a missing-session error, surface and stop. Keep tokens in the supported 1Password paths.
+- Run `make secrets-setup` only when the task needs signed local builds or private support integrations. The helper writes `Config/Local.xcconfig` per-worktree from the Infisical `/ios` path (gitignored). `make secrets-clean` removes it before `git worktree remove`
+- The helper requires Infisical access to the workspace `frontend` project and Development environment. If access is missing, surface and stop rather than falling back to 1Password.
 
 Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-config).
 

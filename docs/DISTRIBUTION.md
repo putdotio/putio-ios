@@ -21,7 +21,7 @@ Distribution guidance for `putio-ios`.
 
 - `fastlane beta` and `fastlane release` are CI-only entrypoints
 - `make beta` and `make release` intentionally fail locally
-- 1Password loading and secret materialization live in [Load iOS release secrets](../.github/actions/load-ios-release-secrets/action.yml)
+- Release secret validation and key-file materialization live in [Load iOS release secrets](../.github/actions/load-ios-release-secrets/action.yml)
 - uploaded beta builds use UTC timestamp build numbers in `YYMMDDHHMM` format
 - release builds use UTC timestamp build numbers in `YYMMDDHHMM` format and upload the IPA produced from the checked-out source
 - checked-in `CURRENT_PROJECT_VERSION` stays at `1` as a baseline
@@ -29,14 +29,17 @@ Distribution guidance for `putio-ios`.
 
 ## Release Secret Contract
 
-Beta and release workflows authenticate via the `OP_SERVICE_ACCOUNT_TOKEN` Environment-scoped secret. The release-secret action reads from the hardcoded `frontend-ci/putio-ios` 1Password item.
+Beta and release workflows read GitHub `release` Environment secrets directly.
+The canonical source copy for those values stays in the 1Password CI/restricted
+vault for human administration and rotation, but CI must not call 1Password or
+use `OP_SERVICE_ACCOUNT_TOKEN` at runtime.
 
-The 1Password item must provide:
+The `release` Environment must provide:
 
 - App Store Connect API fields:
   - `APPSTORE_CONNECT_ISSUER_ID`
   - `APPSTORE_CONNECT_KEY_ID`
-  - `AuthKey.p8`
+  - `APPSTORE_CONNECT_KEY_CONTENT`
 - App metadata and runtime fields:
   - `PUTIO_APP_IDENTIFIER`
   - `PUTIO_APPLE_ID`
@@ -44,6 +47,7 @@ The 1Password item must provide:
   - `PUTIO_DEVELOPMENT_TEAM`
   - `PUTIO_OAUTH_CLIENT_ID`
   - `PUTIO_CHROMECAST_RECEIVER_APP_ID`
+- Optional support and telemetry fields:
   - `PUTIO_INTERCOM_API_KEY`
   - `PUTIO_INTERCOM_APP_ID`
   - `PUTIO_SENTRY_DSN`
@@ -51,7 +55,7 @@ The 1Password item must provide:
   - `MATCH_GIT_URL`
   - `MATCH_TYPE`
   - `MATCH_PASSWORD`
-  - `MATCH_GIT_PRIVATE_KEY`
+  - `MATCH_GIT_PRIVATE_KEY_CONTENT`
   - `MATCH_GIT_URL` must use a `github.com` SSH URL; CI verifies GitHub's ed25519 host-key fingerprint before updating `known_hosts`
 
 Keep item IDs, service-account tokens, and private key material out of git.
