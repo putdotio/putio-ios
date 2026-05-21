@@ -32,9 +32,8 @@
 
 Xcode + Fastlane carry their own config and signing flow; this repo does not use a `.envrc` / `secrets` task-runner pattern.
 
-- A fresh worktree only needs `make bootstrap`; `make verify` and `make e2e-simulator` run without 1Password access
-- Run `make secrets-setup` only when the task needs signed local builds or private support integrations. The helper writes `Config/Local.xcconfig` per-worktree from the Infisical `/ios` path (gitignored). `make secrets-clean` removes it before `git worktree remove`
-- The helper requires Infisical access to the workspace `frontend` project and Development environment. If access is missing, surface and stop rather than falling back to 1Password.
+- A fresh worktree only needs `make bootstrap`; `make verify` and `make e2e-simulator` run without local secrets
+- Use `make secrets-setup` only for signed local builds or private support integrations; it writes ignored `Config/Local.xcconfig` from maintainer-supplied `PUTIO_IOS_INFISICAL_*` values
 
 Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-config).
 

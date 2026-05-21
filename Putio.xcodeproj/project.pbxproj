@@ -788,7 +788,7 @@
 			attributes = {
 				LastSwiftUpdateCheck = 0900;
 				LastUpgradeCheck = 1320;
-				ORGANIZATIONNAME = Put.io;
+				ORGANIZATIONNAME = put.io;
 				TargetAttributes = {
 					ACEF62E91F9A26AA0026B25E = {
 						CreatedOnToolsVersion = 9.0.1;

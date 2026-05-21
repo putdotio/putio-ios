@@ -1,12 +1,13 @@
 #!/bin/bash
 
 set -euo pipefail
+umask 077
 
 output="${SECRETS_OUTPUT:-Config/Local.xcconfig}"
-infisical_domain="${INFISICAL_API_URL:-https://eu.infisical.com/api}"
-infisical_project_id="${INFISICAL_PROJECT_ID:-b2fcfbd7-19e0-4b87-a797-93d125c432ce}"
-infisical_env="${INFISICAL_ENV:-dev}"
-infisical_path="${INFISICAL_PATH:-/ios}"
+infisical_domain="${PUTIO_INFISICAL_DOMAIN:-https://eu.infisical.com/api}"
+infisical_project_id="${PUTIO_IOS_INFISICAL_PROJECT_ID:?Set PUTIO_IOS_INFISICAL_PROJECT_ID for this repo}"
+infisical_env="${PUTIO_IOS_INFISICAL_ENV:-dev}"
+infisical_path="${PUTIO_IOS_INFISICAL_PATH:?Set PUTIO_IOS_INFISICAL_PATH for this repo}"
 
 if ! command -v infisical >/dev/null 2>&1; then
   echo "Infisical CLI is required. Install it with: brew install infisical" >&2

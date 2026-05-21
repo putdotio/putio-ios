@@ -4,7 +4,7 @@ Thanks for contributing to `putio-ios`.
 
 ## Setup
 
-Public contributors only need the normal local toolchain and the checked-in development defaults.
+Most local work only needs the normal toolchain and the checked-in development defaults.
 
 - Prerequisites:
   - Xcode `26.x`
@@ -24,7 +24,8 @@ make bootstrap
 
 ## Local Private Config
 
-This path is for put.io teammates who need signed local builds or private support integrations.
+Use this path when your work needs signed local builds or private support
+integrations.
 
 - Sign in to Infisical and make sure workspace onboarding has granted access to the `frontend` project and Development environment
 - Materialize the local config:
@@ -33,13 +34,16 @@ This path is for put.io teammates who need signed local builds or private suppor
 make secrets-setup
 ```
 
-This renders `Config/Local.xcconfig` from the Infisical `/ios` path. Run `make secrets-clean` to remove it.
+This renders `Config/Local.xcconfig` from the repo-owned Infisical path. Set
+the onboarding-provided `PUTIO_IOS_INFISICAL_*` variables in this repo or
+worktree shell before running the command. Run `make secrets-clean` to remove
+the generated file.
 
-- Local teammate builds default to:
+- Local signed builds default to:
   - bundle id `io.put.dev`
   - display name `put.io`
   - primary icon `AppIconDev`
-- Keep the Infisical `/ios` path aligned with `Config/Local.example.xcconfig`
+- Keep the repo-owned Infisical path aligned with `Config/Local.example.xcconfig`
 - CI beta and release builds use the release-secret contract in [Distribution](./docs/DISTRIBUTION.md)
 
 ## Run And Validate
