@@ -6,7 +6,7 @@ PODS:
     - ViewState (>= 1.2.1)
   - KeychainAccess (4.2.2)
   - Protobuf (3.29.6)
-  - PutioSDK (3.1.0)
+  - PutioSDK (3.1.1)
   - Realm (20.0.4):
     - Realm/Headers (= 20.0.4)
   - Realm/Headers (20.0.4)
@@ -30,7 +30,7 @@ DEPENDENCIES:
   - Intercom (= 19.5.7)
   - KeyboardAvoidingView (~> 5.2)
   - KeychainAccess
-  - PutioSDK (from `https://github.com/putdotio/putio-sdk-swift.git`, commit `8192763563951797672c8101d6765dac3ec7e2df`)
+  - PutioSDK (from `https://github.com/putdotio/putio-sdk-swift.git`, commit `0ee27ab353dee96072f3629072aec289c43987c6`)
   - RealmSwift (= 20.0.4)
   - Sentry (= 9.10.0)
   - StatefulViewController (~> 3.0)
@@ -57,12 +57,12 @@ SPEC REPOS:
 
 EXTERNAL SOURCES:
   PutioSDK:
-    :commit: 8192763563951797672c8101d6765dac3ec7e2df
+    :commit: 0ee27ab353dee96072f3629072aec289c43987c6
     :git: https://github.com/putdotio/putio-sdk-swift.git
 
 CHECKOUT OPTIONS:
   PutioSDK:
-    :commit: 8192763563951797672c8101d6765dac3ec7e2df
+    :commit: 0ee27ab353dee96072f3629072aec289c43987c6
     :git: https://github.com/putdotio/putio-sdk-swift.git
 
 SPEC CHECKSUMS:
@@ -71,7 +71,7 @@ SPEC CHECKSUMS:
   KeyboardAvoidingView: acc530b2435bba760b2270e722cb7132cf1c4d31
   KeychainAccess: c0c4f7f38f6fc7bbe58f5702e25f7bd2f65abf51
   Protobuf: 8d5596f7468be5400861a6bbfb2dfe9d0d1cde34
-  PutioSDK: 1c35596d70be4b14932593ef898f48112a0a4143
+  PutioSDK: ab903c297beba9945f4d48f28482d57dd4f1ca71
   Realm: 1fca83c42ac1d5c7767974882c8de5a7abca4d89
   RealmSwift: 84f36320f6133dea78d05c55bb46bba4387d6828
   RoutableLogger: 31ce799b16b4868c169ed68c36e25437dd0ca40e
@@ -82,6 +82,6 @@ SPEC CHECKSUMS:
   ViewState: 82f26f9b716f6673c19e491f8bf234c4ff519a0a
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: 903fdb6e713fb10751161ca56c5898d12a8e8180
+PODFILE CHECKSUM: cd226b5509aed7e2bd07a673b9359ade2aced7a4
 
-COCOAPODS: 1.16.2
+COCOAPODS: 1.17.0
