@@ -54,7 +54,7 @@
 		AC5B4209282CCCCD0025064D /* EnableTwoFactorSecretViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5B4208282CCCCD0025064D /* EnableTwoFactorSecretViewController.swift */; };
 		AC5B420B282CCF9E0025064D /* EnableTwoFactorSecretViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5B420A282CCF9E0025064D /* EnableTwoFactorSecretViewModel.swift */; };
 		AC5B420D282CD6BC0025064D /* LabelContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5B420C282CD6BC0025064D /* LabelContainerView.swift */; };
-		AC5D60B61FAB43D6004C1274 /* UITextField+Dark.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5D60B51FAB43D6004C1274 /* UITextField+Dark.swift */; };
+		AC5D60B61FAB43D6004C1274 /* UITextField+Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5D60B51FAB43D6004C1274 /* UITextField+Appearance.swift */; };
 		AC6546531FAB2CF100E278EE /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6546521FAB2CF100E278EE /* Keychain.swift */; };
 		AC6E26071FD9A43200BC9AEC /* DownloadedFilePresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6E26061FD9A43200BC9AEC /* DownloadedFilePresenter.swift */; };
 		AC6F75A11FB33312000EF423 /* UIImage+Putio.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6F75A01FB33312000EF423 /* UIImage+Putio.swift */; };
@@ -62,7 +62,7 @@
 		AC6F939D1FD6D53300B2E79F /* DownloadModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6F939C1FD6D53300B2E79F /* DownloadModel.swift */; };
 		AC6F939F1FD6F20F00B2E79F /* DownloadsTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6F939E1FD6F20F00B2E79F /* DownloadsTableViewCell.swift */; };
 		AC76E0281FB4D68800693A18 /* UITableView+HeaderFooter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC76E0271FB4D68800693A18 /* UITableView+HeaderFooter.swift */; };
-		AC76E02A1FB4D6A100693A18 /* UITableViewCell+Dark.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC76E0291FB4D6A100693A18 /* UITableViewCell+Dark.swift */; };
+		AC76E02A1FB4D6A100693A18 /* UITableViewCell+Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC76E0291FB4D6A100693A18 /* UITableViewCell+Appearance.swift */; };
 		AC7863182052C69400E26106 /* DownloadsEmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC7863172052C69400E26106 /* DownloadsEmptyStateView.swift */; };
 		AC78631C2052C6FE00E26106 /* DownloadsEmptyStateView.xib in Resources */ = {isa = PBXBuildFile; fileRef = AC78631B2052C6FE00E26106 /* DownloadsEmptyStateView.xib */; };
 		AC79B68F2AF0E0FD00D47BAF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = ACEF62F41F9A26AA0026B25E /* Assets.xcassets */; };
@@ -218,7 +218,7 @@
 		AC5B4208282CCCCD0025064D /* EnableTwoFactorSecretViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnableTwoFactorSecretViewController.swift; sourceTree = "<group>"; };
 		AC5B420A282CCF9E0025064D /* EnableTwoFactorSecretViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnableTwoFactorSecretViewModel.swift; sourceTree = "<group>"; };
 		AC5B420C282CD6BC0025064D /* LabelContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelContainerView.swift; sourceTree = "<group>"; };
-		AC5D60B51FAB43D6004C1274 /* UITextField+Dark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UITextField+Dark.swift"; sourceTree = "<group>"; };
+		AC5D60B51FAB43D6004C1274 /* UITextField+Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UITextField+Appearance.swift"; sourceTree = "<group>"; };
 		AC6546521FAB2CF100E278EE /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		AC6E26061FD9A43200BC9AEC /* DownloadedFilePresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadedFilePresenter.swift; sourceTree = "<group>"; };
 		AC6F75A01FB33312000EF423 /* UIImage+Putio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+Putio.swift"; sourceTree = "<group>"; };
@@ -226,7 +226,7 @@
 		AC6F939C1FD6D53300B2E79F /* DownloadModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadModel.swift; sourceTree = "<group>"; };
 		AC6F939E1FD6F20F00B2E79F /* DownloadsTableViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsTableViewCell.swift; sourceTree = "<group>"; };
 		AC76E0271FB4D68800693A18 /* UITableView+HeaderFooter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UITableView+HeaderFooter.swift"; sourceTree = "<group>"; };
-		AC76E0291FB4D6A100693A18 /* UITableViewCell+Dark.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UITableViewCell+Dark.swift"; sourceTree = "<group>"; };
+		AC76E0291FB4D6A100693A18 /* UITableViewCell+Appearance.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UITableViewCell+Appearance.swift"; sourceTree = "<group>"; };
 		AC7863172052C69400E26106 /* DownloadsEmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsEmptyStateView.swift; sourceTree = "<group>"; };
 		AC78631B2052C6FE00E26106 /* DownloadsEmptyStateView.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = DownloadsEmptyStateView.xib; sourceTree = "<group>"; };
 		AC7F4E871FD677FA001FFBA9 /* FilesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesViewModel.swift; sourceTree = "<group>"; };
@@ -468,9 +468,9 @@
 			isa = PBXGroup;
 			children = (
 				ACFA837C1FF13141008711B4 /* UIView+InterfaceBuilderInstantiable.swift */,
-				AC5D60B51FAB43D6004C1274 /* UITextField+Dark.swift */,
+				AC5D60B51FAB43D6004C1274 /* UITextField+Appearance.swift */,
 				AC76E0271FB4D68800693A18 /* UITableView+HeaderFooter.swift */,
-				AC76E0291FB4D6A100693A18 /* UITableViewCell+Dark.swift */,
+				AC76E0291FB4D6A100693A18 /* UITableViewCell+Appearance.swift */,
 				AC9F15EB23B98A5700C09BAB /* UIView+FindSubView.swift */,
 				ACB8E04A1FC45926003DFF4F /* Bundle+Info.swift */,
 				AC0FC8BC1FC2D18B002E775B /* String+Truncate.swift */,
@@ -1151,7 +1151,7 @@
 				ACE636D31F9A29DB00AFB921 /* LoginViewController.swift in Sources */,
 				ACCE5D2B1FF11067007E811B /* NetworkReachability.swift in Sources */,
 				ACD159AF2099E5B1001241BC /* MediaPlaybackManager.swift in Sources */,
-				AC76E02A1FB4D6A100693A18 /* UITableViewCell+Dark.swift in Sources */,
+				AC76E02A1FB4D6A100693A18 /* UITableViewCell+Appearance.swift in Sources */,
 				AC34D74C27841B71000DD4CA /* SettingsModel.swift in Sources */,
 				ACF5FEC91FBDD8B1000F83CB /* MoveFilesViewController.swift in Sources */,
 				AC5AF8771FBF16E8003B8C3C /* VideoConversionViewController.swift in Sources */,
@@ -1196,7 +1196,7 @@
 				AC5B420B282CCF9E0025064D /* EnableTwoFactorSecretViewModel.swift in Sources */,
 				AC6546531FAB2CF100E278EE /* Keychain.swift in Sources */,
 				ACBAF5991FB0B1FF00BEDE1D /* SettingsTableViewController.swift in Sources */,
-				AC5D60B61FAB43D6004C1274 /* UITextField+Dark.swift in Sources */,
+				AC5D60B61FAB43D6004C1274 /* UITextField+Appearance.swift in Sources */,
 				AC8CA4FE1FECE78200262B2A /* ChromecastManager.swift in Sources */,
 				ACF568162785A4A500A84B88 /* TrashViewController.swift in Sources */,
 				ACABA8941FB47CCB0015B86D /* LinkAccountViewController.swift in Sources */,

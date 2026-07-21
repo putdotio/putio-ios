@@ -25,6 +25,10 @@ tokens-verify:
 	@ruby scripts/sync-design-tokens.rb --check
 
 verify-fast: icons-verify tokens-verify
+	@if git ls-files | grep -iE '\.(otf|ttf|ttc)$$'; then \
+		echo "verify-fast: licensed font binaries must never be committed (see CONTRIBUTING.md)." >&2; \
+		exit 1; \
+	fi
 	plutil -lint Putio/en.lproj/*.strings
 	xcodebuild -list -workspace Putio.xcworkspace
 
