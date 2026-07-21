@@ -52,10 +52,10 @@ class DesignTokenSync
     end
 
     LEGACY_ALIASES.each do |name, token_path|
-      token = color_tokens.find { |t| "#{t.fetch(:group)}.#{t.fetch(:key)}" == token_path }
-      raise "Legacy alias #{name} points at unknown token #{token_path}" unless token
+      mapped = color_tokens.find { |t| "#{t.fetch(:group)}.#{t.fetch(:key)}" == token_path }
+      raise "Legacy alias #{name} points at unknown token #{token_path}" unless mapped
 
-      write_colorset(name, token)
+      write_colorset(name, mapped)
     end
 
     remove_unlisted_colorsets(color_tokens)
