@@ -3,16 +3,35 @@ import GoogleCast
 import PutioSDK
 
 extension FilesViewController {
-    func createNavigationBarFileActionsButton() -> UIBarButtonItem {
-        let imageConfig = UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)
-        let button = UIBarButtonItem(
-            image: UIImage(systemName: "ellipsis.circle", withConfiguration: imageConfig),
-            style: .plain,
-            target: nil,
-            action: nil
-        )
+    func createNavigationBarFileActionsButton() -> UIButton {
+        let button = UIButton(type: .system)
+        button.setImage(PutioIcon.dotsThreeCircle.image(for: .navigationBar), for: .normal)
         button.tintColor = UIColor.Putio.yellow
+        button.accessibilityLabel = NSLocalizedString("More", comment: "")
+        button.showsMenuAsPrimaryAction = true
         return button
+    }
+
+    func createNavigationBarActionGroup(
+        chromecastButton: UIView,
+        fileActionsButton: UIView
+    ) -> UIBarButtonItem {
+        let targetSize: CGFloat = 44
+        [chromecastButton, fileActionsButton].forEach { button in
+            button.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                button.widthAnchor.constraint(equalToConstant: targetSize),
+                button.heightAnchor.constraint(equalToConstant: targetSize)
+            ])
+        }
+
+        let stackView = UIStackView(arrangedSubviews: [chromecastButton, fileActionsButton])
+        stackView.axis = .horizontal
+        stackView.alignment = .center
+        stackView.distribution = .fillEqually
+        stackView.spacing = 0
+        stackView.frame = CGRect(x: 0, y: 0, width: targetSize * 2, height: targetSize)
+        return UIBarButtonItem(customView: stackView)
     }
 
     func configureNavigationBarRightButtons() {
@@ -22,7 +41,6 @@ extension FilesViewController {
 
             let castButton = GCKUICastButton(frame: .zero)
             castButton.tintColor = UIColor.Putio.yellow
-            castButton.frame = CGRect(x: 0, y: 0, width: 24, height: 24)
             chromecastButton = castButton
         }
 
@@ -31,8 +49,13 @@ extension FilesViewController {
             return
         }
 
-        let castBarButtonItem = UIBarButtonItem(customView: chromecastButton)
-        navigationItem.rightBarButtonItems = [fileActionsButton, castBarButtonItem]
+        if navigationActionsBarButtonItem == nil {
+            navigationActionsBarButtonItem = createNavigationBarActionGroup(
+                chromecastButton: chromecastButton,
+                fileActionsButton: fileActionsButton
+            )
+        }
+        navigationItem.rightBarButtonItem = navigationActionsBarButtonItem
     }
 
     func setFileActionsEnabled(_ isEnabled: Bool) {
@@ -45,7 +68,7 @@ extension FilesViewController {
 
         let selectButton = UIAction(
             title: NSLocalizedString("Select", comment: ""),
-            image: UIImage(systemName: "checkmark.circle")
+            image: PutioIcon.checkCircle.image
         ) { _ in
             self.toggleTableEditing()
         }
@@ -53,7 +76,7 @@ extension FilesViewController {
 
         let newFolderButton = UIAction(
             title: NSLocalizedString("New Folder", comment: ""),
-            image: UIImage(systemName: "folder.badge.plus")
+            image: PutioIcon.folderPlus.image
         ) { _ in
             let createFolderAlert = self.createFolderCreatorAlert(parentID: parent.id) { _, error in
                 guard error == nil else { return }

@@ -64,30 +64,39 @@ class FilesTableViewCell: UITableViewCell {
         )
         subtitleIcon.isHidden = true
         iconRight.isHidden = true
+        icon.tintColor = UIColor.Putio.listSubtitle
+        iconRight.tintColor = UIColor.Putio.yellow
+        subtitleIcon.tintColor = UIColor.Putio.listSubtitle
 
         switch file.type {
         case .folder:
-            icon.image = UIImage.Putio.folder
+            icon.image = PutioIcon.folderFill.image
+            icon.tintColor = UIColor.Putio.yellow
             iconRight.isHidden = false
-            iconRight.image = UIImage.Putio.chevronLeft
+            iconRight.image = PutioIcon.caretRight.image
 
         case .video:
-            icon.image = UIImage.Putio.video
+            icon.image = PutioIcon.fileVideo.image
             if file.startFrom > 0 {
                 iconRight.isHidden = false
-                iconRight.image = UIImage.Putio.watchedEye
+                iconRight.image = PutioIcon.eye.image
             }
 
         case .audio:
-            icon.image = UIImage.Putio.audio
+            icon.image = PutioIcon.fileAudio.image
 
         default:
-            icon.image = UIImage.Putio.file
+            icon.image = PutioIcon.file.image
         }
 
         if let download = download {
             subtitleIcon.isHidden = false
-            subtitleIcon.image = download.state == .completed ? UIImage.Putio.download : UIImage.Putio.downloadPassive
+            subtitleIcon.image = download.state == .completed
+                ? PutioIcon.downloadSimpleFill.image
+                : PutioIcon.downloadSimple.image
+            subtitleIcon.tintColor = download.state == .completed
+                ? UIColor.Putio.yellow
+                : UIColor.Putio.listSubtitle
         }
     }
 }

@@ -1,4 +1,4 @@
-.PHONY: bootstrap bootstrap-ci verify e2e-simulator print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean beta release
+.PHONY: bootstrap bootstrap-ci icons-sync icons-verify verify e2e-simulator print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean beta release
 
 bootstrap:
 	bundle config set --local path vendor/bundle
@@ -8,7 +8,13 @@ bootstrap:
 bootstrap-ci:
 	@./scripts/bootstrap-ci.sh
 
-verify:
+icons-sync:
+	@ruby scripts/sync-phosphor-icons.rb
+
+icons-verify:
+	@ruby scripts/sync-phosphor-icons.rb --check
+
+verify: icons-verify
 	xcodebuild -list -workspace Putio.xcworkspace
 	@destination="$$(./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio 2>/dev/null || true)"; \
 	if [ -z "$$destination" ]; then \

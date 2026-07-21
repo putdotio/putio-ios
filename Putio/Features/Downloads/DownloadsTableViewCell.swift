@@ -62,7 +62,8 @@ class DownloadsTableViewCell: UITableViewCell {
 
         id = download.id
         titleLabel?.text = download.name
-        icon.image = download.fileType == .video ? UIImage.Putio.videoPassive : UIImage.Putio.audioPassive
+        icon.image = download.fileType == .video ? PutioIcon.fileVideo.image : PutioIcon.fileAudio.image
+        icon.tintColor = UIColor.Putio.listSubtitle
         selectionStyle = .none
         downloadButtonContainer.isHidden = false
 
@@ -99,7 +100,8 @@ class DownloadsTableViewCell: UITableViewCell {
             download.size.bytesToHumanReadable(),
             completedAtText
         )
-        icon.image = download.fileType == .video ? UIImage.Putio.video : UIImage.Putio.audio
+        icon.image = download.fileType == .video ? PutioIcon.fileVideo.image : PutioIcon.fileAudio.image
+        icon.tintColor = UIColor.Putio.yellow
         stateButton.displayState = .completed
         selectionStyle = .default
     }
@@ -195,21 +197,21 @@ class DownloadStateButton: UIControl {
             trackLayer.isHidden = true
             progressLayer.isHidden = true
             setIconSize(20)
-            iconView.image = UIImage(systemName: "arrow.down.circle")
+            iconView.image = PutioIcon.downloadSimple.image(pointSize: 20)
             iconView.tintColor = gray
 
         case .queued:
             trackLayer.isHidden = true
             progressLayer.isHidden = true
             setIconSize(20)
-            iconView.image = UIImage(systemName: "clock")
+            iconView.image = PutioIcon.clock.image(pointSize: 20)
             iconView.tintColor = gray
 
         case .progress(let value):
             trackLayer.isHidden = false
             progressLayer.isHidden = false
             setIconSize(14)
-            iconView.image = UIImage(systemName: "stop.fill")
+            iconView.image = PutioIcon.stopFill.image(pointSize: 14)
             iconView.tintColor = gray
 
             let clamped = min(max(value, 0), 1)
@@ -232,7 +234,7 @@ class DownloadStateButton: UIControl {
             trackLayer.isHidden = true
             progressLayer.isHidden = true
             setIconSize(20)
-            iconView.image = UIImage(systemName: "checkmark.circle.fill")
+            iconView.image = PutioIcon.checkCircleFill.image(pointSize: 20)
             iconView.tintColor = UIColor.Putio.yellow
         }
     }

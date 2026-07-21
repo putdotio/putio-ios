@@ -47,6 +47,10 @@ class AudioPlayerViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        controlRewind.setImage(PutioIcon.rewindFill.image(pointSize: 32), for: .normal)
+        controlPlayPause.setImage(PutioIcon.playCircleFill.image(pointSize: 66), for: .normal)
+        controlFastForward.setImage(PutioIcon.fastForwardFill.image(pointSize: 32), for: .normal)
+        nextItemActionButton.setImage(PutioIcon.playFill.image(pointSize: 20), for: .normal)
         nextMediaFinder.delegate = self
         configureStateMachine(for: .loading)
         setupPlayer()
@@ -136,12 +140,12 @@ class AudioPlayerViewController: UIViewController {
         playerTimeControlStatusObserver = player?.observe(\.timeControlStatus, options: [.new, .old], changeHandler: { [weak self] (player, _) in
             switch player.timeControlStatus {
             case .playing:
-                self?.controlPlayPause.setImage(UIImage(named: "iconPauseBorder"), for: .normal)
+                self?.controlPlayPause.setImage(PutioIcon.pauseCircleFill.image(pointSize: 66), for: .normal)
                 self?.activityIndicator.isHidden = true
                 self?.configurePlaybackControls(isEnabled: true)
                 self?.posterImage.image = UIImage(named: "discoball")
             case .paused:
-                self?.controlPlayPause.setImage(UIImage(named: "iconPlayBorder"), for: .normal)
+                self?.controlPlayPause.setImage(PutioIcon.playCircleFill.image(pointSize: 66), for: .normal)
                 self?.posterImage.image = UIImage(named: "discoball")
             case .waitingToPlayAtSpecifiedRate:
                 self?.posterImage.image = UIImage(named: "discoball")

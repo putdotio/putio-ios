@@ -58,8 +58,8 @@
                                                     <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                     <nil key="highlightedColor"/>
                                                 </label>
-                                                <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" image="iconFolder" id="qeN-PI-1uZ">
-                                                    <rect key="frame" x="16" y="11.666666666666664" width="22" height="20"/>
+                                                <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleAspectFit" insetsLayoutMarginsFromSafeArea="NO" image="Phosphor/folder-fill" id="qeN-PI-1uZ">
+                                                    <rect key="frame" x="16" y="11.666666666666664" width="20" height="20"/>
                                                     <autoresizingMask key="autoresizingMask"/>
                                                 </imageView>
                                             </subviews>
@@ -121,7 +121,7 @@
         </scene>
     </scenes>
     <resources>
-        <image name="iconFolder" width="22" height="20"/>
+        <image name="Phosphor/folder-fill" width="16" height="16"/>
         <namedColor name="putio.background">
             <color red="0.20000000298023224" green="0.20000000298023224" blue="0.20000000298023224" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>

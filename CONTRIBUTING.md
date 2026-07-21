@@ -68,6 +68,7 @@ make run-simulator
 make print-simulator-destination
 make print-simulator-device
 make download-ios-platform
+make icons-verify
 plutil -lint Putio/en.lproj/*.strings
 ```
 
@@ -100,6 +101,9 @@ plutil -lint Putio/en.lproj/*.strings
 - User-facing copy now has an English base under `Putio/en.lproj`
   - when changing copy in Swift, update `Putio/en.lproj/Localizable.strings`
   - when changing storyboard or xib copy, update the matching `Putio/en.lproj/*.strings` file
+- Product UI glyphs use the pinned Phosphor asset workflow in [Icon system](./docs/ICONS.md)
+  - edit `Config/PhosphorIcons.json` and run `make icons-sync` when adding or updating icons
+  - do not hand-edit generated files under `Putio/Assets.xcassets/Phosphor`
 - Keep repo-stored configuration open-source-safe
   - keep tokens, signing keys, API key files, and private release metadata out of commits
 

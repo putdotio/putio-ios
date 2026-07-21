@@ -4,7 +4,7 @@ import PutioSDK
 struct HistoryEventPresentation {
     let text: String
     let detailText: String
-    let icon: String
+    let icon: PutioIcon
 
     static func build(from event: PutioHistoryEvent) -> HistoryEventPresentation? {
         switch event.type {
@@ -28,7 +28,7 @@ struct HistoryEventPresentation {
             return HistoryEventPresentation(
                 text: NSLocalizedString("No title", comment: ""),
                 detailText: "",
-                icon: "iconMediaGallery"
+                icon: .imageIcon
             )
         }
     }
@@ -42,7 +42,7 @@ struct HistoryEventPresentation {
                 event.fileSize.bytesToHumanReadable(),
                 event.createdAt.timeAgoSinceDate()
             ),
-            icon: "iconUpload"
+            icon: .uploadSimple
         )
     }
 
@@ -55,7 +55,7 @@ struct HistoryEventPresentation {
                 event.createdAt.timeAgoSinceDate(),
                 event.sharingUserName
             ),
-            icon: "iconCloudAdd"
+            icon: .cloudArrowUp
         )
     }
 
@@ -68,7 +68,7 @@ struct HistoryEventPresentation {
                 event.transferSize.bytesToHumanReadable(),
                 event.createdAt.timeAgoSinceDate()
             ),
-            icon: "iconMediaGallery"
+            icon: .checkCircle
         )
     }
 
@@ -80,7 +80,7 @@ struct HistoryEventPresentation {
                 event.transferName
             ),
             detailText: event.createdAt.timeAgoSinceDate(),
-            icon: "iconX"
+            icon: .xCircle
         )
     }
 
@@ -96,7 +96,7 @@ struct HistoryEventPresentation {
                 event.fileSize.bytesToHumanReadable(),
                 event.createdAt.timeAgoSinceDate()
             ),
-            icon: "iconExclamationPoint"
+            icon: .warningCircle
         )
     }
 
@@ -108,7 +108,7 @@ struct HistoryEventPresentation {
                 event.rssFilterTitle
             ),
             detailText: event.createdAt.timeAgoSinceDate(),
-            icon: "iconRSS"
+            icon: .rss
         )
     }
 
@@ -120,7 +120,7 @@ struct HistoryEventPresentation {
                 event.transferName
             ),
             detailText: event.createdAt.timeAgoSinceDate(),
-            icon: "iconX"
+            icon: .xCircle
         )
     }
 
@@ -132,23 +132,27 @@ struct HistoryEventPresentation {
                 event.transferName
             ),
             detailText: event.createdAt.timeAgoSinceDate(),
-            icon: "iconX"
+            icon: .xCircle
         )
     }
 }
 
 class HistoryTableViewCell: UITableViewCell {
     func configure(with event: PutioHistoryEvent) {
+        imageView?.contentMode = .scaleAspectFit
+
         guard let presentation = HistoryEventPresentation.build(from: event) else {
             InternalFailurePresenter.log("Unable to build history event presentation for event type: \(event.type)")
             textLabel?.text = NSLocalizedString("No title", comment: "")
             detailTextLabel?.text = ""
-            imageView?.image = UIImage(named: "iconMediaGallery")
+            imageView?.image = PutioIcon.imageIcon.image(pointSize: 20)
+            imageView?.tintColor = UIColor.Putio.listSubtitle
             return
         }
 
         textLabel?.text = presentation.text
         detailTextLabel?.text = presentation.detailText
-        imageView?.image = UIImage(named: presentation.icon)
+        imageView?.image = presentation.icon.image(pointSize: 20)
+        imageView?.tintColor = UIColor.Putio.listSubtitle
     }
 }

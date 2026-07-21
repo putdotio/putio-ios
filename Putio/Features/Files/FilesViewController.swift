@@ -8,8 +8,9 @@ import RealmSwift
 class FilesViewController: UIViewController, StatefulViewController, FilePresenter, DownloadedFilePresenter, FolderCreatorPresenter {
     var viewModel = FilesViewModel()
     var allSelected = false
-    var fileActionsButton: UIBarButtonItem?
+    var fileActionsButton: UIButton?
     var chromecastButton: GCKUICastButton?
+    var navigationActionsBarButtonItem: UIBarButtonItem?
     var editingToolbar: UIToolbar?
 
     lazy var downloads: Results<Download>? = {

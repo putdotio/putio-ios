@@ -51,11 +51,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
         button.accessibilityLabel = NSLocalizedString("Downloads tutorial", comment: "")
         button.addTarget(self, action: #selector(tutorialButtonTapped), for: .touchUpInside)
 
-        if let image = UIImage(named: "iconInfo") {
-            button.setImage(image.withRenderingMode(.alwaysTemplate), for: .normal)
-        } else {
-            button.setImage(UIImage(systemName: "info.circle"), for: .normal)
-        }
+        button.setImage(PutioIcon.info.image(pointSize: 20), for: .normal)
 
         tutorialButton = button
         navigationItem.rightBarButtonItem = UIBarButtonItem(customView: button)

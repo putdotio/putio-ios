@@ -81,7 +81,7 @@
                                                 <stackView opaque="NO" contentMode="scaleToFill" alignment="center" spacing="12" translatesAutoresizingMaskIntoConstraints="NO" id="Hu7-Ll-6wY">
                                                     <rect key="frame" x="12" y="0.0" width="351" height="55"/>
                                                     <subviews>
-                                                        <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="iconFolder" translatesAutoresizingMaskIntoConstraints="NO" id="Ofc-Bo-Y27">
+                                                        <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Phosphor/folder-fill" translatesAutoresizingMaskIntoConstraints="NO" id="Ofc-Bo-Y27">
                                                             <rect key="frame" x="0.0" y="17.666666666666668" width="20" height="20.000000000000004"/>
                                                             <constraints>
                                                                 <constraint firstAttribute="width" constant="20" id="IJT-bY-EJP"/>
@@ -100,7 +100,7 @@
                                                                 <stackView opaque="NO" contentMode="scaleToFill" alignment="center" spacing="5" translatesAutoresizingMaskIntoConstraints="NO" id="wT1-5V-Hsw">
                                                                     <rect key="frame" x="0.0" y="24.333333333333329" width="291" height="14.333333333333336"/>
                                                                     <subviews>
-                                                                        <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="eye" translatesAutoresizingMaskIntoConstraints="NO" id="wH4-mU-YWZ">
+                                                                        <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Phosphor/eye-regular" translatesAutoresizingMaskIntoConstraints="NO" id="wH4-mU-YWZ">
                                                                             <rect key="frame" x="0.0" y="1" width="12" height="12"/>
                                                                             <constraints>
                                                                                 <constraint firstAttribute="width" constant="12" id="aMm-VY-Fsl"/>
@@ -117,7 +117,7 @@
                                                                 </stackView>
                                                             </subviews>
                                                         </stackView>
-                                                        <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="chevronLeft" translatesAutoresizingMaskIntoConstraints="NO" id="ESo-Dp-z2I">
+                                                        <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Phosphor/caret-right-regular" translatesAutoresizingMaskIntoConstraints="NO" id="ESo-Dp-z2I">
                                                             <rect key="frame" x="335" y="19.666666666666668" width="16" height="16.000000000000004"/>
                                                             <constraints>
                                                                 <constraint firstAttribute="width" constant="16" id="5ud-0w-NbM"/>
@@ -171,7 +171,7 @@
         <scene sceneID="YlU-r2-NFt">
             <objects>
                 <navigationController id="MHF-Ak-52j" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Files" image="tabbarFilesPassive" selectedImage="tabbarFiles" id="yV7-6B-q7L"/>
+                    <tabBarItem key="tabBarItem" title="Files" tag="0" id="yV7-6B-q7L"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="WVt-RB-6XK">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
@@ -220,7 +220,7 @@
                                             <color key="textColor" systemColor="lightTextColor"/>
                                             <nil key="highlightedColor"/>
                                         </label>
-                                        <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" image="iconInfo" id="dEN-pQ-QkI">
+                                        <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" image="Phosphor/info-regular" id="dEN-pQ-QkI">
                                             <rect key="frame" x="20" y="13.666666666666664" width="16" height="16"/>
                                             <autoresizingMask key="autoresizingMask"/>
                                         </imageView>
@@ -254,7 +254,7 @@
         <scene sceneID="h9i-LO-YIk">
             <objects>
                 <navigationController id="be8-15-Bj9" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="History" image="tabbarHistoryPassive" selectedImage="tabbarHistory" id="4cL-VA-bRX"/>
+                    <tabBarItem key="tabBarItem" title="History" tag="1" id="4cL-VA-bRX"/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="vyO-b2-uiX">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
                         <autoresizingMask key="autoresizingMask"/>
@@ -300,8 +300,8 @@
                                                     <color key="textColor" white="0.66666666669999997" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                     <nil key="highlightedColor"/>
                                                 </label>
-                                                <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" image="iconMediaGallery" id="7aB-ZU-mtB">
-                                                    <rect key="frame" x="20" y="14.666666666666664" width="22" height="22"/>
+                                                <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleAspectFit" insetsLayoutMarginsFromSafeArea="NO" image="Phosphor/image-regular" id="7aB-ZU-mtB">
+                                                    <rect key="frame" x="21" y="15.666666666666664" width="20" height="20"/>
                                                     <autoresizingMask key="autoresizingMask"/>
                                                 </imageView>
                                             </subviews>
@@ -342,7 +342,7 @@
         <scene sceneID="4KT-cf-7Nt">
             <objects>
                 <navigationController id="Z21-bC-ht7" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Downloads" image="tabbarDownloadsPassive" selectedImage="tabbarDownloads" id="JPZ-4q-6Dh"/>
+                    <tabBarItem key="tabBarItem" title="Downloads" tag="2" id="JPZ-4q-6Dh"/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="byd-hg-sjU">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
                         <autoresizingMask key="autoresizingMask"/>
@@ -377,7 +377,7 @@
                                                 <stackView opaque="NO" contentMode="scaleToFill" alignment="center" spacing="12" translatesAutoresizingMaskIntoConstraints="NO" id="QOu-rD-oBu">
                                                     <rect key="frame" x="12" y="0.0" width="363" height="60"/>
                                                     <subviews>
-                                                        <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="iconVideo" translatesAutoresizingMaskIntoConstraints="NO" id="zCe-f3-81n" userLabel="icon">
+                                                        <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Phosphor/file-video-regular" translatesAutoresizingMaskIntoConstraints="NO" id="zCe-f3-81n" userLabel="icon">
                                                             <rect key="frame" x="0.0" y="20" width="20" height="20"/>
                                                             <constraints>
                                                                 <constraint firstAttribute="height" constant="20" id="kcZ-wj-Cne"/>
@@ -450,7 +450,7 @@
                         </constraints>
                     </view>
                     <navigationItem key="navigationItem" title="Downloads" largeTitleDisplayMode="always" id="gTe-Vr-29m">
-                        <barButtonItem key="rightBarButtonItem" image="iconInfo" id="iR1-09-4CX">
+                        <barButtonItem key="rightBarButtonItem" image="Phosphor/info-regular" id="iR1-09-4CX">
                             <color key="tintColor" name="putio.yellow"/>
                             <connections>
                                 <segue destination="GNp-KK-Nh2" kind="presentation" identifier="toDownloadsTutorial" id="Aa0-Is-Y4w"/>
@@ -542,14 +542,13 @@
                                     <constraint firstAttribute="width" constant="240" id="FsJ-bZ-6Wd"/>
                                 </constraints>
                             </stackView>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="iconTV" translatesAutoresizingMaskIntoConstraints="NO" id="l89-oD-hSD">
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Phosphor/television-simple-regular" translatesAutoresizingMaskIntoConstraints="NO" id="l89-oD-hSD">
                                 <rect key="frame" x="163.66666666666666" y="16" width="48" height="48"/>
                                 <color key="tintColor" name="putio.listSubtitle"/>
                                 <constraints>
                                     <constraint firstAttribute="height" constant="48" id="MxT-eM-vUN"/>
                                     <constraint firstAttribute="width" constant="48" id="gT4-8w-yt4"/>
                                 </constraints>
-                                <preferredSymbolConfiguration key="preferredSymbolConfiguration" scale="default"/>
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="jyw-LO-sFL"/>
@@ -621,7 +620,7 @@
         <scene sceneID="0hz-Ca-M6g">
             <objects>
                 <navigationController id="Y67-xk-8xV" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Account" image="tabbarAccountPassive" selectedImage="tabbarAccount" id="5Pv-Wd-lfR"/>
+                    <tabBarItem key="tabBarItem" title="Account" tag="3" id="5Pv-Wd-lfR"/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="HVy-fW-jQo">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
                         <autoresizingMask key="autoresizingMask"/>
@@ -656,7 +655,7 @@
                                                 <stackView opaque="NO" contentMode="scaleToFill" alignment="center" spacing="12" translatesAutoresizingMaskIntoConstraints="NO" id="16e-po-JL2">
                                                     <rect key="frame" x="12" y="0.0" width="351" height="55"/>
                                                     <subviews>
-                                                        <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="iconFolder" translatesAutoresizingMaskIntoConstraints="NO" id="6Um-6Z-Yow">
+                                                        <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Phosphor/folder-fill" translatesAutoresizingMaskIntoConstraints="NO" id="6Um-6Z-Yow">
                                                             <rect key="frame" x="0.0" y="17.666666666666668" width="20" height="20.000000000000004"/>
                                                             <constraints>
                                                                 <constraint firstAttribute="height" constant="20" id="nw4-Ko-BPk"/>
@@ -675,7 +674,7 @@
                                                                 <stackView opaque="NO" contentMode="scaleToFill" alignment="center" spacing="5" translatesAutoresizingMaskIntoConstraints="NO" id="Ift-kw-tJq">
                                                                     <rect key="frame" x="0.0" y="24.333333333333329" width="291" height="14.333333333333336"/>
                                                                     <subviews>
-                                                                        <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="eye" translatesAutoresizingMaskIntoConstraints="NO" id="v37-NK-iU3">
+                                                                        <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Phosphor/eye-regular" translatesAutoresizingMaskIntoConstraints="NO" id="v37-NK-iU3">
                                                                             <rect key="frame" x="0.0" y="1" width="12" height="12"/>
                                                                             <constraints>
                                                                                 <constraint firstAttribute="height" constant="12" id="ace-hZ-d5U"/>
@@ -692,7 +691,7 @@
                                                                 </stackView>
                                                             </subviews>
                                                         </stackView>
-                                                        <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="chevronLeft" translatesAutoresizingMaskIntoConstraints="NO" id="Hyk-0g-YKf">
+                                                        <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Phosphor/caret-right-regular" translatesAutoresizingMaskIntoConstraints="NO" id="Hyk-0g-YKf">
                                                             <rect key="frame" x="335" y="19.666666666666668" width="16" height="16.000000000000004"/>
                                                             <constraints>
                                                                 <constraint firstAttribute="height" constant="16" id="1xx-iL-j18"/>
@@ -897,10 +896,9 @@
                                                             <color key="textColor" white="0.66666666666666663" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                             <nil key="highlightedColor"/>
                                                         </label>
-                                                        <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" image="iconFolder" id="sBR-Xh-95c">
-                                                            <rect key="frame" x="20" y="17.333333333333332" width="22" height="20"/>
+                                                        <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleAspectFit" insetsLayoutMarginsFromSafeArea="NO" image="Phosphor/folder-fill" id="sBR-Xh-95c">
+                                                            <rect key="frame" x="21" y="17.5" width="20" height="20"/>
                                                             <autoresizingMask key="autoresizingMask"/>
-                                                            <preferredSymbolConfiguration key="preferredSymbolConfiguration" scale="default"/>
                                                         </imageView>
                                                     </subviews>
                                                 </tableViewCellContentView>
@@ -1108,24 +1106,15 @@
     </designables>
     <color key="tintColor" name="putio.yellow"/>
     <resources>
-        <image name="chevronLeft" width="10" height="15"/>
-        <image name="eye" width="15" height="10"/>
-        <image name="iconInfo" width="29" height="29"/>
-        <image name="iconTV" width="25" height="20"/>
+        <image name="Phosphor/caret-right-regular" width="16" height="16"/>
+        <image name="Phosphor/eye-regular" width="16" height="16"/>
+        <image name="Phosphor/file-video-regular" width="16" height="16"/>
+        <image name="Phosphor/folder-fill" width="16" height="16"/>
+        <image name="Phosphor/image-regular" width="16" height="16"/>
+        <image name="Phosphor/info-regular" width="16" height="16"/>
+        <image name="Phosphor/television-simple-regular" width="16" height="16"/>
         <image name="icon" width="128" height="128"/>
-        <image name="iconFolder" width="22" height="20"/>
-        <image name="iconInfo" width="16" height="16"/>
-        <image name="iconMediaGallery" width="22" height="22"/>
-        <image name="iconVideo" width="23" height="20"/>
         <image name="logo" width="564" height="144"/>
-        <image name="tabbarAccount" width="22" height="22"/>
-        <image name="tabbarAccountPassive" width="22" height="22"/>
-        <image name="tabbarDownloads" width="31" height="22"/>
-        <image name="tabbarDownloadsPassive" width="31" height="22"/>
-        <image name="tabbarFiles" width="24" height="22"/>
-        <image name="tabbarFilesPassive" width="24" height="22"/>
-        <image name="tabbarHistory" width="24" height="24"/>
-        <image name="tabbarHistoryPassive" width="24" height="24"/>
         <namedColor name="putio.background">
             <color red="0.20000000298023224" green="0.20000000298023224" blue="0.20000000298023224" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>

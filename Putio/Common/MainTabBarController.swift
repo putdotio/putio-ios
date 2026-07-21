@@ -3,8 +3,24 @@ import Intercom
 import RealmSwift
 
 class MainTabBarController: UITabBarController {
-    enum TabbarItemTitle: String {
-        case files = "Files", history = "History", downloads = "Downloads", account = "Account"
+    enum Tab: Int {
+        case files
+        case history
+        case downloads
+        case account
+
+        var icons: (regular: PutioIcon, fill: PutioIcon) {
+            switch self {
+            case .files:
+                return (.folder, .folderFill)
+            case .history:
+                return (.clockCounterClockwise, .clockCounterClockwiseFill)
+            case .downloads:
+                return (.cloudArrowDown, .cloudArrowDownFill)
+            case .account:
+                return (.userCircle, .userCircleFill)
+            }
+        }
     }
 
     var cachedViewControllers: [UIViewController]? = []
@@ -18,6 +34,7 @@ class MainTabBarController: UITabBarController {
         view.backgroundColor = UIColor.Putio.background
         overrideUserInterfaceStyle = .dark
         userSettings = loadUserSettings()
+        configureTabBarIcons()
         configureNavigationControllers()
         DeeplinkManager.sharedInstance.setup(with: self)
         cachedViewControllers = viewControllers
@@ -25,6 +42,16 @@ class MainTabBarController: UITabBarController {
         updateUnreadConversationCount()
         updateHistoryTabVisibility()
         addObservers()
+    }
+
+    func configureTabBarIcons() {
+        tabBar.items?.forEach { item in
+            guard let tab = Tab(rawValue: item.tag) else {
+                return InternalFailurePresenter.log("Unknown tab bar item tag: \(item.tag)")
+            }
+            item.image = tab.icons.regular.image(for: .tabBar)
+            item.selectedImage = tab.icons.fill.image(for: .tabBar)
+        }
     }
 
     deinit {
@@ -42,15 +69,15 @@ class MainTabBarController: UITabBarController {
         return userSettings
     }
 
-    func getTabBarItem(of title: TabbarItemTitle) -> UITabBarItem? {
+    func getTabBarItem(for tab: Tab) -> UITabBarItem? {
         return tabBar.items?.first(where: { (item) -> Bool in
-            return item.title == title.rawValue
+            return item.tag == tab.rawValue
         })
     }
 
-    func getTabBarItemIndex(of title: TabbarItemTitle) -> Int? {
+    func getTabBarItemIndex(for tab: Tab) -> Int? {
         return tabBar.items?.firstIndex(where: { (item) -> Bool in
-            return item.title == title.rawValue
+            return item.tag == tab.rawValue
         })
     }
 
@@ -88,8 +115,8 @@ class MainTabBarController: UITabBarController {
         }
     }
 
-    func setSelectedTab(title: TabbarItemTitle) {
-        guard let index = getTabBarItemIndex(of: title) else { return }
+    func setSelectedTab(_ tab: Tab) {
+        guard let index = getTabBarItemIndex(for: tab) else { return }
         selectedIndex = index
     }
 
@@ -97,7 +124,7 @@ class MainTabBarController: UITabBarController {
         var viewControllers = cachedViewControllers
 
         if userSettings?.historyEnabled == false {
-            guard let historyTabIndex = getTabBarItemIndex(of: .history) else { return }
+            guard let historyTabIndex = getTabBarItemIndex(for: .history) else { return }
             viewControllers?.remove(at: historyTabIndex)
         }
 
@@ -105,13 +132,13 @@ class MainTabBarController: UITabBarController {
     }
 
     @objc func updateDownloadQueueCount() {
-        guard let downloadsTab = getTabBarItem(of: .downloads) else { return }
+        guard let downloadsTab = getTabBarItem(for: .downloads) else { return }
         let count = VideoDownloadManager.sharedInstance.activeDownloadCount + AudioDownloadManager.sharedInstance.activeDownloadCount
         downloadsTab.badgeValue = count > 0 ? String(count) : nil
     }
 
     @objc func updateUnreadConversationCount() {
-        guard let accountTab = getTabBarItem(of: .account) else { return }
+        guard let accountTab = getTabBarItem(for: .account) else { return }
         let count = Intercom.unreadConversationCount()
         accountTab.badgeValue = count > 0 ? String(count) : nil
     }

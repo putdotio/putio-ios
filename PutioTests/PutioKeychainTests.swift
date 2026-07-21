@@ -126,21 +126,33 @@ final class DeeplinkManagerTests: XCTestCase {
         XCTAssertEqual(tabBarController.selectedIndex, 3)
     }
 
+    func testTabIconsDoNotDependOnLocalizedTitles() throws {
+        let tabBarController = makeTabBarController()
+        let items = try XCTUnwrap(tabBarController.tabBar.items)
+
+        XCTAssertEqual(items.count, 4)
+        for item in items {
+            XCTAssertEqual(item.image?.size, CGSize(width: 24, height: 24))
+            XCTAssertEqual(item.selectedImage?.size, CGSize(width: 24, height: 24))
+        }
+    }
+
     private func makeTabBarController() -> MainTabBarController {
         let tabBarController = MainTabBarController()
         tabBarController.viewControllers = [
-            makeNavigationController(title: MainTabBarController.TabbarItemTitle.files.rawValue),
-            makeNavigationController(title: MainTabBarController.TabbarItemTitle.history.rawValue),
-            makeNavigationController(title: MainTabBarController.TabbarItemTitle.downloads.rawValue),
-            makeNavigationController(title: MainTabBarController.TabbarItemTitle.account.rawValue)
+            makeNavigationController(tab: .files, title: "Dateien"),
+            makeNavigationController(tab: .history, title: "Verlauf"),
+            makeNavigationController(tab: .downloads, title: "Downloads"),
+            makeNavigationController(tab: .account, title: "Konto")
         ]
         _ = tabBarController.view
+        tabBarController.configureTabBarIcons()
         return tabBarController
     }
 
-    private func makeNavigationController(title: String) -> UINavigationController {
+    private func makeNavigationController(tab: MainTabBarController.Tab, title: String) -> UINavigationController {
         let navigationController = UINavigationController(rootViewController: UIViewController())
-        navigationController.tabBarItem = UITabBarItem(title: title, image: nil, tag: 0)
+        navigationController.tabBarItem = UITabBarItem(title: title, image: nil, tag: tab.rawValue)
         return navigationController
     }
 }
