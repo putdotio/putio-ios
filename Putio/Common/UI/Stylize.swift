@@ -10,9 +10,14 @@ class Stylize {
 
         var titleAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: UIColor.Putio.Neutral.text]
         // Brand type only when the licensed faces are bundled; otherwise the
-        // system styling stays byte-identical for snapshot baselines.
+        // system styling stays byte-identical for snapshot baselines. Large
+        // titles (Files/Account/History/Downloads) style through their own
+        // attribute set, at the system large-title metrics (34pt bold).
         if let brandTitleFont = BrandFont.sansIfAvailable(size: 17, weight: .bold) {
             titleAttributes[.font] = brandTitleFont
+        }
+        if let brandLargeTitleFont = BrandFont.sansIfAvailable(size: 34, weight: .bold) {
+            navigationBarAppearance.largeTitleTextAttributes = [.font: brandLargeTitleFont]
         }
         navigationBarAppearance.titleTextAttributes = titleAttributes
 

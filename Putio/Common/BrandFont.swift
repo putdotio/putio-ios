@@ -1,3 +1,4 @@
+import CoreText
 import UIKit
 
 // Licensed brand fonts are optional: fetched at dev time via
@@ -13,7 +14,11 @@ enum BrandFont {
     static func registerIfAvailable() {
         guard !isRegistered else { return }
 
-        let urls = Bundle.main.urls(forResourcesWithExtension: "otf", subdirectory: nil) ?? []
+        // Scoped to the synced brand set (mirrors the build phase's
+        // gt-america-*.otf glob) so a stray OTF from another resource
+        // bundle never gets registered as a side effect.
+        let urls = (Bundle.main.urls(forResourcesWithExtension: "otf", subdirectory: nil) ?? [])
+            .filter { $0.lastPathComponent.hasPrefix("gt-america-") }
         guard !urls.isEmpty else { return }
 
         CTFontManagerRegisterFontURLs(urls as CFArray, .process, true, nil)
