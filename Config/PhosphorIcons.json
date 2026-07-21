@@ -1,0 +1,33 @@
+{
+  "package": {
+    "name": "@phosphor-icons/core",
+    "version": "2.1.1",
+    "tarball": "https://registry.npmjs.org/@phosphor-icons/core/-/core-2.1.1.tgz",
+    "integrity": "sha512-v4ARvrip4qBCImOE5rmPUylOEK4iiED9ZyKjcvzuezqMaiRASCHKcRIuvvxL/twvLpkfnEODCOJp5dM4eZilxQ=="
+  },
+  "icons": [
+    { "name": "user-circle", "weight": "regular" },
+    { "name": "envelope-simple", "weight": "regular" },
+    { "name": "hard-drives", "weight": "regular" },
+    { "name": "recycle", "weight": "regular" },
+    { "name": "trash", "weight": "regular" },
+    { "name": "sort-ascending", "weight": "regular" },
+    { "name": "arrow-counter-clockwise", "weight": "regular" },
+    { "name": "network", "weight": "regular" },
+    { "name": "screencast", "weight": "regular" },
+    { "name": "closed-captioning", "weight": "regular" },
+    { "name": "subtitles", "weight": "regular" },
+    { "name": "shield-check", "weight": "regular" },
+    { "name": "key", "weight": "regular" },
+    { "name": "devices", "weight": "regular" },
+    { "name": "television-simple", "weight": "regular" },
+    { "name": "clock-counter-clockwise", "weight": "regular" },
+    { "name": "info", "weight": "regular" },
+    { "name": "star", "weight": "regular" },
+    { "name": "chat-circle-dots", "weight": "regular" },
+    { "name": "chat-circle-dots", "weight": "fill" },
+    { "name": "folder-minus", "weight": "regular" },
+    { "name": "user-circle-minus", "weight": "regular" },
+    { "name": "sign-out", "weight": "regular" }
+  ]
+}

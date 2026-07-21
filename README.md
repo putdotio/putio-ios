@@ -30,6 +30,7 @@ Sign in with your put.io account to browse files, view history, manage downloads
 ## Docs
 
 - [Distribution](./docs/DISTRIBUTION.md) for CI, TestFlight, and release delivery details
+- [Icon system](./docs/ICONS.md) for the Phosphor asset and UIKit integration contract
 - [Security](./SECURITY.md) for private vulnerability reporting
 
 ## Repo Internals
