@@ -27,10 +27,31 @@ final class NavigationLocalizationTests: XCTestCase {
 
     func testFileActionsButtonUsesNavigationBarIconPresentation() throws {
         let button = FilesViewController().createNavigationBarFileActionsButton()
-        let image = try XCTUnwrap(button.image)
+        let image = try XCTUnwrap(button.image(for: .normal))
 
         XCTAssertEqual(image.size, CGSize(width: 24, height: 24))
         XCTAssertEqual(image.renderingMode, .alwaysTemplate)
+        XCTAssertEqual(button.accessibilityLabel, NSLocalizedString("More", comment: ""))
+        XCTAssertTrue(button.showsMenuAsPrimaryAction)
+    }
+
+    func testNavigationBarActionGroupUsesAdjacent44PointTargets() throws {
+        let viewController = FilesViewController()
+        let castButton = UIButton(type: .system)
+        let fileActionsButton = viewController.createNavigationBarFileActionsButton()
+        let item = viewController.createNavigationBarActionGroup(
+            chromecastButton: castButton,
+            fileActionsButton: fileActionsButton
+        )
+        let stackView = try XCTUnwrap(item.customView as? UIStackView)
+
+        stackView.layoutIfNeeded()
+
+        XCTAssertEqual(stackView.spacing, 0)
+        XCTAssertEqual(stackView.frame.size, CGSize(width: 88, height: 44))
+        XCTAssertEqual(castButton.frame.size, CGSize(width: 44, height: 44))
+        XCTAssertEqual(fileActionsButton.frame.size, CGSize(width: 44, height: 44))
+        XCTAssertEqual(fileActionsButton.center.x - castButton.center.x, 44)
     }
 
     func testAccountSettingsUseSemanticPhosphorIcons() throws {
