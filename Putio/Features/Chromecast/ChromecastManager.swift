@@ -64,9 +64,11 @@ class ChromecastManager: NSObject {
         let castStyle = GCKUIStyle.sharedInstance()
         let castViews = castStyle.castViews
 
-        castViews.backgroundColor = UIColor.Putio.background
-        castViews.deviceControl.sliderProgressColor = UIColor.Putio.yellow
+        castViews.backgroundColor = UIColor.Putio.Surface.appBg
+        castViews.deviceControl.sliderProgressColor = UIColor.Putio.Yellow.solid
 
+        // Cast expanded controller text/icons render over media artwork:
+        // fixed colors by token policy (over-media exception).
         castViews.headingTextColor = .white
         castViews.headingTextShadowColor = .clear
 
@@ -76,19 +78,19 @@ class ChromecastManager: NSObject {
         castViews.bodyTextColor = .white
         castViews.bodyTextShadowColor = .clear
 
-        castViews.buttonTextColor = UIColor.Putio.yellow
+        castViews.buttonTextColor = UIColor.Putio.Yellow.solid
         castViews.buttonTextShadowColor = .clear
 
         castViews.iconTintColor = .white
 
-        castViews.sliderProgressColor = UIColor.Putio.yellow
-        castViews.sliderSecondaryProgressColor = UIColor.Putio.background
-        castViews.sliderUnseekableProgressColor = UIColor.Putio.black
-        castViews.sliderTooltipBackgroundColor = UIColor.Putio.black
+        castViews.sliderProgressColor = UIColor.Putio.Yellow.solid
+        castViews.sliderSecondaryProgressColor = UIColor.Putio.Surface.appBg
+        castViews.sliderUnseekableProgressColor = UIColor.Putio.Neutral.line
+        castViews.sliderTooltipBackgroundColor = UIColor.Putio.Neutral.componentBg
 
-        castViews.mediaControl.backgroundColor = UIColor.Putio.black
+        castViews.mediaControl.backgroundColor = UIColor.Putio.Neutral.componentBg
         castViews.mediaControl.headingTextFont = .systemFont(ofSize: 18.0)
-        castViews.mediaControl.iconTintColor = UIColor.Putio.yellow
+        castViews.mediaControl.iconTintColor = UIColor.Putio.Yellow.solid
         castViews.mediaControl.miniController.headingTextFont = .systemFont(ofSize: 14.0)
 
         castStyle.apply()

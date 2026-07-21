@@ -57,7 +57,7 @@ class AuthAppsTableViewController: UITableViewController {
             }
         }
 
-        action.backgroundColor = .systemRed
+        action.backgroundColor = UIColor.Putio.Red.solid
 
         return action
     }

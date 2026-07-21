@@ -43,7 +43,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
 
         tableView.refreshControl = UIRefreshControl()
         tableView.refreshControl?.transform = CGAffineTransform(scaleX: 0.75, y: 0.75)
-        tableView.refreshControl?.tintColor = UIColor.lightGray
+        tableView.refreshControl?.tintColor = UIColor.Putio.Neutral.textSecondary
         tableView.refreshControl?.addTarget(self, action: #selector(fetchData), for: .valueChanged)
 
         configureStateMachine()

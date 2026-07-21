@@ -4,12 +4,12 @@ import PutioSDK
 class TrashTableViewCell: UITableViewCell {
     func configure(with trashFile: PutioTrashFile) {
         imageView?.contentMode = .scaleAspectFit
-        imageView?.tintColor = UIColor.Putio.listSubtitle
+        imageView?.tintColor = UIColor.Putio.Neutral.textSecondary
 
         switch trashFile.type {
         case .folder:
             imageView?.image = PutioIcon.folderFill.image(pointSize: 20)
-            imageView?.tintColor = UIColor.Putio.yellow
+            imageView?.tintColor = UIColor.Putio.Yellow.solid
 
         case .video:
             imageView?.image = PutioIcon.fileVideo.image(pointSize: 20)

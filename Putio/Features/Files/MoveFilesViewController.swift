@@ -164,12 +164,12 @@ extension MoveFilesViewController: UITableViewDataSource {
 
         cell.imageView?.image = PutioIcon.folderFill.image(pointSize: 20)
         cell.imageView?.contentMode = .scaleAspectFit
-        cell.imageView?.tintColor = UIColor.Putio.yellow
+        cell.imageView?.tintColor = UIColor.Putio.Yellow.solid
         cell.textLabel?.text = file.name
 
         if canMove(to: file) {
             let accessoryImageView = UIImageView(image: PutioIcon.caretRight.image)
-            accessoryImageView.tintColor = UIColor.Putio.yellow
+            accessoryImageView.tintColor = UIColor.Putio.Yellow.solid
             cell.accessoryView = accessoryImageView
         } else {
             cell.selectionStyle = .none

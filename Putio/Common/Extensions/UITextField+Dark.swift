@@ -8,13 +8,13 @@ extension UITextField {
 
         attributedPlaceholder = NSAttributedString(
             string: self.placeholder != nil ? self.placeholder! : "",
-            attributes: [NSAttributedString.Key.foregroundColor: UIColor(red: 1, green: 1, blue: 1, alpha: 0.2)]
+            attributes: [NSAttributedString.Key.foregroundColor: UIColor.Putio.Neutral.textSecondary]
         )
 
         if let clearButton = value(forKey: "_clearButton") as? UIButton {
             let templateImage = clearButton.imageView?.image?.withRenderingMode(.alwaysTemplate)
             clearButton.setImage(templateImage, for: .normal)
-            clearButton.tintColor = .darkGray
+            clearButton.tintColor = UIColor.Putio.Neutral.solid
         }
     }
 }

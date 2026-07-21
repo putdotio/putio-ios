@@ -12,10 +12,10 @@ class SettingsTableViewCell: UITableViewCell {
     func configure(with item: SettingsModel.SectionItem) {
         self.item = item
 
-        self.backgroundColor = UIColor.Putio.black
+        self.backgroundColor = UIColor.Putio.Neutral.componentBg
         self.imageView?.image = item.icon.image(for: .navigationList)
         self.imageView?.contentMode = .center
-        self.imageView?.tintColor = UIColor.Putio.listSubtitle
+        self.imageView?.tintColor = UIColor.Putio.Neutral.textSecondary
         self.textLabel?.text = item.title
 
         switch item.type {
@@ -27,7 +27,7 @@ class SettingsTableViewCell: UITableViewCell {
         case .button, .link:
             self.accessoryType = .disclosureIndicator
             let accessoryImageView = UIImageView(image: PutioIcon.caretRight.image)
-            accessoryImageView.tintColor = UIColor.Putio.yellow
+            accessoryImageView.tintColor = UIColor.Putio.Yellow.solid
             self.accessoryView = accessoryImageView
 
             if let text = item.value as? String {

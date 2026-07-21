@@ -109,8 +109,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applyWindowAppearance() {
-        window?.backgroundColor = UIColor.Putio.black
-        window?.tintColor = UIColor.Putio.yellow
+        window?.backgroundColor = UIColor.Putio.Surface.appBg
+        window?.tintColor = UIColor.Putio.Yellow.solid
         window?.overrideUserInterfaceStyle = .dark
     }
 

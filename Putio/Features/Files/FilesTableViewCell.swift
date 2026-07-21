@@ -17,7 +17,7 @@ class FilesTableViewCell: UITableViewCell {
     override func awakeFromNib() {
         super.awakeFromNib()
         let colorView = UIView()
-        colorView.backgroundColor = UIColor.Putio.black
+        colorView.backgroundColor = UIColor.Putio.Surface.listItemBgActive
         self.selectedBackgroundView = colorView
         self.multipleSelectionBackgroundView = colorView
     }
@@ -26,9 +26,9 @@ class FilesTableViewCell: UITableViewCell {
         super.setHighlighted(highlighted, animated: animated)
 
         if highlighted {
-            contentView.backgroundColor = UIColor.Putio.black
+            contentView.backgroundColor = UIColor.Putio.Surface.listItemBgActive
         } else {
-            contentView.backgroundColor = UIColor.Putio.background
+            contentView.backgroundColor = UIColor.Putio.Surface.appBg
         }
     }
 
@@ -36,9 +36,9 @@ class FilesTableViewCell: UITableViewCell {
         super.setSelected(selected, animated: animated)
 
         if selected {
-            contentView.backgroundColor = UIColor.Putio.black
+            contentView.backgroundColor = UIColor.Putio.Surface.listItemBgActive
         } else {
-            contentView.backgroundColor = UIColor.Putio.background
+            contentView.backgroundColor = UIColor.Putio.Surface.appBg
         }
     }
 
@@ -64,14 +64,14 @@ class FilesTableViewCell: UITableViewCell {
         )
         subtitleIcon.isHidden = true
         iconRight.isHidden = true
-        icon.tintColor = UIColor.Putio.listSubtitle
-        iconRight.tintColor = UIColor.Putio.yellow
-        subtitleIcon.tintColor = UIColor.Putio.listSubtitle
+        icon.tintColor = UIColor.Putio.Neutral.textSecondary
+        iconRight.tintColor = UIColor.Putio.Yellow.solid
+        subtitleIcon.tintColor = UIColor.Putio.Neutral.textSecondary
 
         switch file.type {
         case .folder:
             icon.image = PutioIcon.folderFill.image
-            icon.tintColor = UIColor.Putio.yellow
+            icon.tintColor = UIColor.Putio.Yellow.solid
             iconRight.isHidden = false
             iconRight.image = PutioIcon.caretRight.image
 
@@ -95,8 +95,8 @@ class FilesTableViewCell: UITableViewCell {
                 ? PutioIcon.downloadSimpleFill.image
                 : PutioIcon.downloadSimple.image
             subtitleIcon.tintColor = download.state == .completed
-                ? UIColor.Putio.yellow
-                : UIColor.Putio.listSubtitle
+                ? UIColor.Putio.Yellow.solid
+                : UIColor.Putio.Neutral.textSecondary
         }
     }
 }

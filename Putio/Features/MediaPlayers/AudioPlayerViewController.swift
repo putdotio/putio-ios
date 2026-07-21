@@ -91,21 +91,21 @@ class AudioPlayerViewController: UIViewController {
             nextItemLoadingView.isHidden = false
             nextItemLabel.isHidden = true
             nextItemActionButton.isEnabled = false
-            nextItemActionButton.tintColor = .gray
+            nextItemActionButton.tintColor = UIColor.Putio.Neutral.solid
 
         case .success:
             nextItemLabel.text = item?.name
             nextItemLabel.isHidden = false
             nextItemLoadingView.isHidden = true
             nextItemActionButton.isEnabled = true
-            nextItemActionButton.tintColor = UIColor.Putio.yellow
+            nextItemActionButton.tintColor = UIColor.Putio.Yellow.solid
 
         case .failure:
             nextItemLabel.text = NSLocalizedString("We couldn't find anything to play", comment: "")
             nextItemLabel.isHidden = false
             nextItemLoadingView.isHidden = true
             nextItemActionButton.isEnabled = false
-            nextItemActionButton.tintColor = .gray
+            nextItemActionButton.tintColor = UIColor.Putio.Neutral.solid
         }
     }
 

@@ -63,7 +63,7 @@ class DownloadsTableViewCell: UITableViewCell {
         id = download.id
         titleLabel?.text = download.name
         icon.image = download.fileType == .video ? PutioIcon.fileVideo.image : PutioIcon.fileAudio.image
-        icon.tintColor = UIColor.Putio.listSubtitle
+        icon.tintColor = UIColor.Putio.Neutral.textSecondary
         selectionStyle = .none
         downloadButtonContainer.isHidden = false
 
@@ -101,7 +101,7 @@ class DownloadsTableViewCell: UITableViewCell {
             completedAtText
         )
         icon.image = download.fileType == .video ? PutioIcon.fileVideo.image : PutioIcon.fileAudio.image
-        icon.tintColor = UIColor.Putio.yellow
+        icon.tintColor = UIColor.Putio.Yellow.solid
         stateButton.displayState = .completed
         selectionStyle = .default
     }
@@ -126,7 +126,7 @@ class DownloadStateButton: UIControl {
     private let iconView = UIImageView()
     private var iconSizeConstraints = [NSLayoutConstraint]()
 
-    private let gray = UIColor(white: 0.5, alpha: 1)
+    private let gray = UIColor.Putio.Neutral.solid
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -142,12 +142,12 @@ class DownloadStateButton: UIControl {
         backgroundColor = .clear
 
         trackLayer.fillColor = nil
-        trackLayer.strokeColor = UIColor(white: 0.25, alpha: 1).cgColor
+        trackLayer.strokeColor = UIColor.Putio.Neutral.line.cgColor
         trackLayer.lineWidth = 2
         trackLayer.lineCap = .round
 
         progressLayer.fillColor = nil
-        progressLayer.strokeColor = UIColor.Putio.yellow.cgColor
+        progressLayer.strokeColor = UIColor.Putio.Yellow.solid.cgColor
         progressLayer.lineWidth = 2
         progressLayer.lineCap = .round
         progressLayer.strokeEnd = 0
@@ -235,7 +235,7 @@ class DownloadStateButton: UIControl {
             progressLayer.isHidden = true
             setIconSize(20)
             iconView.image = PutioIcon.checkCircleFill.image(pointSize: 20)
-            iconView.tintColor = UIColor.Putio.yellow
+            iconView.tintColor = UIColor.Putio.Yellow.solid
         }
     }
 }

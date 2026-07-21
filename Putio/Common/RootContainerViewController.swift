@@ -88,7 +88,7 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
     func createMaskingView() {
         maskingView = UIView()
         maskingView.translatesAutoresizingMaskIntoConstraints = false
-        maskingView.backgroundColor = UIColor.Putio.black
+        maskingView.backgroundColor = UIColor.Putio.Neutral.componentBg
 
         view.addSubview(maskingView)
 
@@ -111,7 +111,7 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor.Putio.background
+        view.backgroundColor = UIColor.Putio.Surface.appBg
         overrideUserInterfaceStyle = .dark
         createMainTabBarControllerView()
         createMiniMediaControllerView()

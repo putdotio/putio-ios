@@ -12,7 +12,7 @@ extension UITableViewCell {
     }
 
     func configureGlobalAppearance() {
-        textLabel?.textColor = UIColor.white
-        detailTextLabel?.textColor = UIColor.Putio.listSubtitle
+        textLabel?.textColor = UIColor.Putio.Neutral.text
+        detailTextLabel?.textColor = UIColor.Putio.Neutral.textSecondary
     }
 }

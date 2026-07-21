@@ -22,7 +22,7 @@ class TrashViewController: UIViewController, StatefulViewController {
         tableView.dataSource = self
         tableView.refreshControl = UIRefreshControl()
         tableView.refreshControl?.transform = CGAffineTransform(scaleX: 0.75, y: 0.75)
-        tableView.refreshControl?.tintColor = UIColor.lightGray
+        tableView.refreshControl?.tintColor = UIColor.Putio.Neutral.textSecondary
         tableView.refreshControl?.addTarget(self, action: #selector(refresh), for: .valueChanged)
 
         viewModel.delegate = self
@@ -136,7 +136,7 @@ class TrashViewController: UIViewController, StatefulViewController {
     func configureToolbar() {
         let toolbar = UIToolbar()
         toolbar.translatesAutoresizingMaskIntoConstraints = false
-        toolbar.tintColor = UIColor.Putio.yellow
+        toolbar.tintColor = UIColor.Putio.Yellow.solid
 
         let appearance = UIToolbarAppearance()
         appearance.configureWithTransparentBackground()
@@ -334,7 +334,7 @@ class TrashViewController: UIViewController, StatefulViewController {
             }
         }
 
-        action.backgroundColor = .systemRed
+        action.backgroundColor = UIColor.Putio.Red.solid
 
         return action
     }

@@ -17,7 +17,7 @@ class SettingsTableViewController: UITableViewController, TwoFactorAuthPresenter
     }
 
     func configureAppearance() {
-        tableView.backgroundColor = UIColor.Putio.background
+        tableView.backgroundColor = UIColor.Putio.Surface.appBg
         tableView.contentInsetAdjustmentBehavior = .automatic
 
     }
@@ -41,7 +41,7 @@ class SettingsTableViewController: UITableViewController, TwoFactorAuthPresenter
 
     override func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int) {
         guard let headerView = view as? UITableViewHeaderFooterView else { return }
-        headerView.textLabel?.textColor = UIColor.Putio.listSubtitle
+        headerView.textLabel?.textColor = UIColor.Putio.Neutral.textSecondary
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
