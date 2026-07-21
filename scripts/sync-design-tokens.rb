@@ -35,6 +35,8 @@ class DesignTokenSync
     write_swift(color_tokens)
 
     if @check_only
+      check_interface_builder_references(color_tokens)
+
       unless @drift.empty?
         warn "Design tokens are out of sync. Run: make tokens-sync"
         @drift.each { |path| warn "  drift: #{path}" }
@@ -47,6 +49,21 @@ class DesignTokenSync
   end
 
   private
+
+  # Swift misuse of a dropped token fails at compile time, but a storyboard/xib
+  # namedColor reference to a token whose colorset was removed degrades
+  # silently at runtime — gate those references here.
+  def check_interface_builder_references(color_tokens)
+    known = color_tokens.map { |t| "putio.#{t.fetch(:group)}.#{t.fetch(:key)}" }.to_set
+
+    Dir.glob(File.join(ROOT, "Putio", "**", "*.{storyboard,xib}")).each do |path|
+      File.read(path).scan(/name="(putio\.[^"]+)"/).flatten.uniq.each do |name|
+        next if known.include?(name)
+
+        @drift << "#{path.delete_prefix("#{ROOT}/")} references unknown color #{name}"
+      end
+    end
+  end
 
   def collect_color_tokens
     tokens = []

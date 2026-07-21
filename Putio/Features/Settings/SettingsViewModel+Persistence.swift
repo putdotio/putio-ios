@@ -212,15 +212,24 @@ extension SettingsViewModel {
             let title = isSelected ? "\(appearance.label) ✓" : appearance.label
 
             actionSheet.addAction(UIAlertAction(title: title, style: .default) { _ in
-                AppearanceManager.current = appearance
-                AppearanceManager.apply(to: self.tableViewController?.view.window)
-                ChromecastManager.sharedInstance.applyAppearanceStyling()
-                self.update()
+                self.selectAppearance(appearance)
             })
         }
 
         actionSheet.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
         tableViewController?.present(actionSheet, animated: true)
+    }
+
+    // Downstream appearance side effects (Cast chrome restyling) follow from
+    // the trait change this triggers; see RootContainerViewController.
+    func selectAppearance(_ appearance: AppAppearance) {
+        AppearanceManager.current = appearance
+
+        let window = tableViewController?.view.window
+            ?? (UIApplication.shared.delegate as? AppDelegate)?.window
+        AppearanceManager.apply(to: window)
+
+        update()
     }
 
     func saveSortSettings(_ sortBy: String) {

@@ -78,13 +78,13 @@
                                                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="--:--" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="zoz-f1-rTr">
                                                         <rect key="frame" x="0.0" y="0.0" width="26.333333333333332" height="14.333333333333334"/>
                                                         <fontDescription key="fontDescription" style="UICTFontTextStyleCaption1"/>
-                                                        <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                        <color key="textColor" name="putio.neutral.text-secondary"/>
                                                         <nil key="highlightedColor"/>
                                                     </label>
                                                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="--:--" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Tjt-Xv-UFh">
                                                         <rect key="frame" x="307.66666666666669" y="0.0" width="26.333333333333314" height="14.333333333333334"/>
                                                         <fontDescription key="fontDescription" style="UICTFontTextStyleCaption1"/>
-                                                        <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                        <color key="textColor" name="putio.neutral.text-secondary"/>
                                                         <nil key="highlightedColor"/>
                                                     </label>
                                                 </subviews>
@@ -169,8 +169,9 @@
                                                             <stackView opaque="NO" contentMode="scaleToFill" alignment="top" spacing="4" translatesAutoresizingMaskIntoConstraints="NO" id="vEk-T9-V1S" userLabel="LoaderView">
                                                                 <rect key="frame" x="0.0" y="5.6666666666666288" width="94.666666666666671" height="20"/>
                                                                 <subviews>
-                                                                    <activityIndicatorView opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" animating="YES" style="white" translatesAutoresizingMaskIntoConstraints="NO" id="cEW-T5-6nZ">
+                                                                    <activityIndicatorView opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" animating="YES" style="medium" translatesAutoresizingMaskIntoConstraints="NO" id="cEW-T5-6nZ">
                                                                         <rect key="frame" x="0.0" y="0.0" width="20" height="20"/>
+                                                                        <color key="color" name="putio.neutral.text"/>
                                                                     </activityIndicatorView>
                                                                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Looking..." textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="F4y-3M-sbM">
                                                                         <rect key="frame" x="24" y="0.0" width="70.666666666666671" height="19.333333333333332"/>
@@ -183,7 +184,7 @@
                                                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Found File Name (04:30) Found File Name (04:30)" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="baS-cA-ANE" userLabel="NextItemLabel">
                                                                 <rect key="frame" x="0.0" y="6" width="346" height="19.333333333333332"/>
                                                                 <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
-                                                                <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                                <color key="textColor" name="putio.neutral.text"/>
                                                                 <nil key="highlightedColor"/>
                                                             </label>
                                                         </subviews>
@@ -277,6 +278,9 @@
         </namedColor>
         <namedColor name="putio.neutral.solid">
             <color red="0.439" green="0.439" blue="0.439" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.neutral.text">
+            <color red="0.930" green="0.930" blue="0.930" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>
         <namedColor name="putio.neutral.text-secondary">
             <color red="0.628" green="0.628" blue="0.628" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>

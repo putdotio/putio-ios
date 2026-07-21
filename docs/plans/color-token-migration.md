@@ -73,6 +73,17 @@ Recorded deviations (Phase 2):
 - Known cosmetic follow-up: `yellow.solid` used as link text on light
   backgrounds (Downloads empty state) is low-contrast; consider
   `yellow.text-secondary` for text-on-background roles in a follow-up.
+- The wordmark logo gained a light-appearance variant (dark ink, same yellow
+  shadow) generated from the original asset; Login and LaunchScreen pick it
+  up via the imageset.
+- The audio player, image viewer, and PDF viewer are *not* over-media
+  surfaces: their time labels, next-item label, and loading spinners use
+  adaptive neutral tokens. The over-media exception is limited to the video
+  player, the Cast expanded controller, and the audio poster spinner over
+  the black artwork well.
+- Cast chrome restyling happens in `RootContainerViewController`'s trait
+  change hook, so OS-level light/dark flips under the System theme restyle
+  Cast too — not just picker selections.
 
 ## Non-Goals
 
