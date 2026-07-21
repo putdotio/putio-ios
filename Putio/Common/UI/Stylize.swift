@@ -17,7 +17,13 @@ class Stylize {
             titleAttributes[.font] = brandTitleFont
         }
         if let brandLargeTitleFont = BrandFont.sansIfAvailable(size: 34, weight: .bold) {
-            navigationBarAppearance.largeTitleTextAttributes = [.font: brandLargeTitleFont]
+            // Assigning the attribute dictionary replaces the configured
+            // defaults, so carry the title color large titles should share
+            // with the inline title.
+            navigationBarAppearance.largeTitleTextAttributes = [
+                .font: brandLargeTitleFont,
+                .foregroundColor: UIColor.Putio.Neutral.text
+            ]
         }
         navigationBarAppearance.titleTextAttributes = titleAttributes
 

@@ -9,20 +9,33 @@ enum BrandFont {
     private static let sansFamily = "GT America"
     private static let monoFamily = "GT America Mono"
 
-    private static var isRegistered = false
+    private static var didAttemptRegistration = false
 
     static func registerIfAvailable() {
-        guard !isRegistered else { return }
+        guard !didAttemptRegistration else { return }
+        didAttemptRegistration = true
 
         // Scoped to the synced brand set (mirrors the build phase's
-        // gt-america-*.otf glob) so a stray OTF from another resource
-        // bundle never gets registered as a side effect.
+        // gt-america-*.otf copy/clean glob) so a stray OTF from another
+        // resource bundle never gets registered as a side effect.
         let urls = (Bundle.main.urls(forResourcesWithExtension: "otf", subdirectory: nil) ?? [])
             .filter { $0.lastPathComponent.hasPrefix("gt-america-") }
         guard !urls.isEmpty else { return }
 
-        CTFontManagerRegisterFontURLs(urls as CFArray, .process, true, nil)
-        isRegistered = true
+        CTFontManagerRegisterFontURLs(urls as CFArray, .process, true) { errors, _ in
+            // Fonts present but broken must be distinguishable from the
+            // accepted fonts-absent degradation: log which faces failed so
+            // a corrupt file or registration conflict leaves a trace.
+            for case let error as NSError in errors as NSArray as? [Error] ?? [] {
+                let failed = (error.userInfo[kCTFontManagerErrorFontURLsKey as String] as? [URL] ?? [])
+                    .map(\.lastPathComponent)
+                    .joined(separator: ", ")
+                InternalFailurePresenter.log(
+                    "BrandFont: registration failed for [\(failed)]: \(error.localizedDescription)"
+                )
+            }
+            return true // keep registering the remaining faces
+        }
     }
 
     static func sans(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
@@ -47,6 +60,10 @@ enum BrandFont {
     }
 
     private static func brandFont(family: String, size: CGFloat, weight: UIFont.Weight) -> UIFont? {
+        // Accessors must not depend on AppDelegate call order; registration
+        // is attempted at most once, so this is a cheap guard thereafter.
+        registerIfAvailable()
+
         let face: String
         switch weight {
         case .black, .heavy:

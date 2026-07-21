@@ -30,17 +30,12 @@ class BrandFontSync
   end
 
   def run
-    missing = @files.reject { |name, sha| current?(name, sha) }.keys
-
     if @check_only
-      if missing.empty?
-        puts "Brand fonts present (#{@files.size} files)."
-      else
-        puts "Brand fonts missing or stale (run: make fonts-setup):"
-        missing.each { |name| puts "  #{name}" }
-      end
+      check!
       return
     end
+
+    missing = @files.reject { |name, sha| current?(name, sha) }.keys
 
     remove_unlisted!
 
@@ -66,6 +61,41 @@ class BrandFontSync
   end
 
   private
+
+  # Absent fonts are the accepted optional state (exit 0), but fonts that are
+  # present and wrong — stale checksum, or an unlisted OTF the build phase
+  # would happily bundle — are a real failure (exit 1): nothing else in the
+  # pipeline checksums what ships in signed builds.
+  def check!
+    absent = []
+    stale = []
+
+    @files.each do |name, sha|
+      path = File.join(@directory, name)
+      if !File.exist?(path)
+        absent << name
+      elsif Digest::SHA256.file(path).hexdigest != sha
+        stale << name
+      end
+    end
+
+    unlisted = Dir.glob(File.join(@directory, "*.otf"))
+      .map { |path| File.basename(path) }
+      .reject { |name| @files.key?(name) }
+
+    if stale.any? || unlisted.any?
+      warn "Brand font directory does not match the manifest (run: make fonts-setup):"
+      stale.each { |name| warn "  stale checksum: #{name}" }
+      unlisted.each { |name| warn "  unlisted: #{name}" }
+      exit 1
+    end
+
+    if absent.any?
+      puts "Brand fonts not synced (optional): #{absent.size} of #{@files.size} files absent; run make fonts-setup to fetch them."
+    else
+      puts "Brand fonts present and verified (#{@files.size} files)."
+    end
+  end
 
   def current?(name, sha)
     path = File.join(@directory, name)

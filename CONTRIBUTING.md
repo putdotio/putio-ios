@@ -55,12 +55,25 @@ make fonts-setup   # sync into gitignored Putio/Fonts/
 make fonts-check   # report presence without writing
 ```
 
-`Config/BrandFonts.json` pins the source commit and per-file checksums.
-When fonts are present they are bundled into normal builds and registered at
-launch; when absent every surface falls back to system fonts. Verification
-builds never bundle them (`PUTIO_BUNDLE_BRAND_FONTS = NO` in
-`Config/Verify.xcconfig`), so snapshot baselines are always recorded and
-compared on system fonts.
+`Config/BrandFonts.json` pins the source commit and per-file checksums;
+`make fonts-check` fails only when the directory contradicts the manifest
+(stale checksum or unlisted font file) — absent fonts are the accepted
+optional state. When fonts are present they are bundled into normal local
+builds and registered at launch; when absent every surface falls back to
+system fonts. Verification builds never bundle them
+(`PUTIO_BUNDLE_BRAND_FONTS = NO` in `Config/Verify.xcconfig`), so snapshot
+baselines are always recorded and compared on system fonts.
+
+Two boundaries to know about:
+
+- CI beta and release archives do not sync fonts, so TestFlight and App
+  Store builds intentionally ship system typography for now; wiring a
+  token-based font sync into the release lanes is tracked follow-up work.
+- The Verify exclusion is applied via `-xcconfig` in the make targets, not
+  in the Xcode project. Always record baselines through
+  `make screenshots-record`: recording from Xcode directly with fonts
+  synced would bake brand-font pixels into baselines (the BrandFontTests
+  suite fails loudly in that configuration as a guard).
 
 - Local signed builds default to:
   - bundle id `io.put.dev`
