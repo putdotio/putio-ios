@@ -171,7 +171,7 @@
         <scene sceneID="YlU-r2-NFt">
             <objects>
                 <navigationController id="MHF-Ak-52j" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Files" image="Phosphor/folder-regular" selectedImage="Phosphor/folder-fill" id="yV7-6B-q7L"/>
+                    <tabBarItem key="tabBarItem" title="Files" id="yV7-6B-q7L"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="WVt-RB-6XK">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
@@ -254,7 +254,7 @@
         <scene sceneID="h9i-LO-YIk">
             <objects>
                 <navigationController id="be8-15-Bj9" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="History" image="Phosphor/clock-counter-clockwise-regular" selectedImage="Phosphor/clock-counter-clockwise-fill" id="4cL-VA-bRX"/>
+                    <tabBarItem key="tabBarItem" title="History" id="4cL-VA-bRX"/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="vyO-b2-uiX">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
                         <autoresizingMask key="autoresizingMask"/>
@@ -342,7 +342,7 @@
         <scene sceneID="4KT-cf-7Nt">
             <objects>
                 <navigationController id="Z21-bC-ht7" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Downloads" image="Phosphor/cloud-arrow-down-regular" selectedImage="Phosphor/cloud-arrow-down-fill" id="JPZ-4q-6Dh"/>
+                    <tabBarItem key="tabBarItem" title="Downloads" id="JPZ-4q-6Dh"/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="byd-hg-sjU">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
                         <autoresizingMask key="autoresizingMask"/>
@@ -621,7 +621,7 @@
         <scene sceneID="0hz-Ca-M6g">
             <objects>
                 <navigationController id="Y67-xk-8xV" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Account" image="Phosphor/user-circle-regular" selectedImage="Phosphor/user-circle-fill" id="5Pv-Wd-lfR"/>
+                    <tabBarItem key="tabBarItem" title="Account" id="5Pv-Wd-lfR"/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="HVy-fW-jQo">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
                         <autoresizingMask key="autoresizingMask"/>
@@ -1109,19 +1109,12 @@
     <color key="tintColor" name="putio.yellow"/>
     <resources>
         <image name="Phosphor/caret-right-regular" width="16" height="16"/>
-        <image name="Phosphor/clock-counter-clockwise-fill" width="16" height="16"/>
-        <image name="Phosphor/clock-counter-clockwise-regular" width="16" height="16"/>
-        <image name="Phosphor/cloud-arrow-down-fill" width="16" height="16"/>
-        <image name="Phosphor/cloud-arrow-down-regular" width="16" height="16"/>
         <image name="Phosphor/eye-regular" width="16" height="16"/>
         <image name="Phosphor/file-video-regular" width="16" height="16"/>
         <image name="Phosphor/folder-fill" width="16" height="16"/>
-        <image name="Phosphor/folder-regular" width="16" height="16"/>
         <image name="Phosphor/image-regular" width="16" height="16"/>
         <image name="Phosphor/info-regular" width="16" height="16"/>
         <image name="Phosphor/television-simple-regular" width="16" height="16"/>
-        <image name="Phosphor/user-circle-fill" width="16" height="16"/>
-        <image name="Phosphor/user-circle-regular" width="16" height="16"/>
         <image name="icon" width="128" height="128"/>
         <image name="logo" width="564" height="144"/>
         <namedColor name="putio.background">
