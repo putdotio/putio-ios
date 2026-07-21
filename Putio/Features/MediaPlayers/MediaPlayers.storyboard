@@ -106,7 +106,7 @@
                                             <button opaque="NO" contentMode="scaleToFill" enabled="NO" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ZxL-Qn-rZf">
                                                 <rect key="frame" x="0.0" y="15.666666666666686" width="66" height="35"/>
                                                 <color key="tintColor" red="0.9712814689" green="0.84450584650000005" blue="0.42341130970000002" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
-                                                <state key="normal" image="iconRewind15">
+                                                <state key="normal">
                                                     <color key="titleColor" red="0.99215686270000003" green="0.80784313730000001" blue="0.27058823529999998" alpha="1" colorSpace="calibratedRGB"/>
                                                     <preferredSymbolConfiguration key="preferredSymbolConfiguration" configurationType="pointSize" pointSize="32"/>
                                                 </state>
@@ -117,7 +117,7 @@
                                             <button opaque="NO" contentMode="scaleToFill" enabled="NO" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="dgD-Wz-CeE">
                                                 <rect key="frame" x="74" y="0.0" width="66" height="66"/>
                                                 <color key="tintColor" red="0.9712814689" green="0.84450584650000005" blue="0.42341130970000002" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
-                                                <state key="normal" image="iconPlayBorder">
+                                                <state key="normal">
                                                     <color key="titleColor" red="0.99215686270000003" green="0.80784313730000001" blue="0.27058823529999998" alpha="1" colorSpace="calibratedRGB"/>
                                                     <preferredSymbolConfiguration key="preferredSymbolConfiguration" weight="light"/>
                                                 </state>
@@ -128,7 +128,7 @@
                                             <button opaque="NO" contentMode="scaleToFill" enabled="NO" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="02N-L3-eIY">
                                                 <rect key="frame" x="148" y="15.666666666666686" width="66" height="35"/>
                                                 <color key="tintColor" red="0.9712814689" green="0.84450584650000005" blue="0.42341130970000002" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
-                                                <state key="normal" image="iconFastForward15">
+                                                <state key="normal">
                                                     <color key="titleColor" red="0.99215686270000003" green="0.80784313730000001" blue="0.27058823529999998" alpha="1" colorSpace="calibratedRGB"/>
                                                     <preferredSymbolConfiguration key="preferredSymbolConfiguration" configurationType="pointSize" pointSize="32" scale="default"/>
                                                 </state>
@@ -205,7 +205,7 @@
                                                         </constraints>
                                                         <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
                                                         <color key="tintColor" red="0.9712814689" green="0.84450584650000005" blue="0.42341130970000002" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
-                                                        <state key="normal" image="iconPlay">
+                                                        <state key="normal">
                                                             <preferredSymbolConfiguration key="preferredSymbolConfiguration" configurationType="pointSize" pointSize="1"/>
                                                         </state>
                                                         <connections>
@@ -276,9 +276,5 @@
     </scenes>
     <resources>
         <image name="discoball" width="250" height="250"/>
-        <image name="iconFastForward15" width="32" height="35"/>
-        <image name="iconPlay" width="20" height="24"/>
-        <image name="iconPlayBorder" width="66" height="66"/>
-        <image name="iconRewind15" width="32" height="35"/>
     </resources>
 </document>
