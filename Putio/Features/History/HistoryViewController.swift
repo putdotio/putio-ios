@@ -18,6 +18,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
 
         tableView.dataSource = self
         tableView.delegate = self
+        tableView.accessibilityIdentifier = "putio-history-table"
         tableView.refreshControl = UIRefreshControl()
         tableView.refreshControl?.transform = CGAffineTransform(scaleX: 0.75, y: 0.75)
         tableView.refreshControl?.tintColor = UIColor.lightGray

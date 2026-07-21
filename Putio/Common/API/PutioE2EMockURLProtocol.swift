@@ -86,7 +86,8 @@ private enum PutioE2EMockAPI {
         "GET /v2/files/42/next-file": Fixture(body: nextFile),
         "GET /v2/files/42/mp4": Fixture(body: mp4Status),
         "POST /v2/files/42/mp4": Fixture(body: ok),
-        "POST /v2/ifttt-client/event": Fixture(body: ok)
+        "POST /v2/ifttt-client/event": Fixture(body: ok),
+        "GET /v2/events/list": Fixture(body: historyEvents)
     ]
 
     private static let accountInfo = """
@@ -233,5 +234,52 @@ private enum PutioE2EMockAPI {
     #EXT-X-TARGETDURATION:1
     #EXT-X-ENDLIST
     """
+
+    // Dates are computed at first access so the fixture events always land in the
+    // Today / Yesterday / Ancient Times buckets regardless of when tests run.
+    private static let historyEvents: String = {
+        let formatter = ISO8601DateFormatter()
+        let now = Date()
+        let today = formatter.string(from: now.addingTimeInterval(-60 * 60))
+        let yesterday = formatter.string(from: now.addingTimeInterval(-60 * 60 * 25))
+        let ancient = formatter.string(from: now.addingTimeInterval(-60 * 60 * 24 * 30))
+
+        return """
+        {
+          "status": "OK",
+          "has_more": false,
+          "events": [
+            {
+              "id": 9001,
+              "user_id": 1001,
+              "type": "upload",
+              "created_at": "\(today)",
+              "file_id": 42,
+              "file_name": "E2E Upload.mp4",
+              "file_size": 7340032
+            },
+            {
+              "id": 9002,
+              "user_id": 1001,
+              "type": "transfer_completed",
+              "created_at": "\(yesterday)",
+              "file_id": 42,
+              "transfer_name": "E2E Transfer",
+              "transfer_size": 7340032,
+              "source": "magnet"
+            },
+            {
+              "id": 9003,
+              "user_id": 1001,
+              "type": "file_shared",
+              "created_at": "\(ancient)",
+              "file_id": 42,
+              "file_name": "E2E Shared File.mp4",
+              "sharing_user_name": "e2e-friend"
+            }
+          ]
+        }
+        """
+    }()
 }
 #endif
