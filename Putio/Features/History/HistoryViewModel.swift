@@ -69,8 +69,7 @@ class HistoryViewModel {
 
     var events: [PutioHistoryEvent] = [] {
         didSet {
-            let summaries = applyStateAndSummaries(for: events)
-            updateSections(using: summaries)
+            updateSections()
         }
     }
 
@@ -142,22 +141,18 @@ class HistoryViewModel {
         return summaries.filter { !$0.eventIDs.isEmpty }
     }
 
-    @discardableResult
-    func applyStateAndSummaries(for events: [HistoryEventRepresentable], now: Date = Date()) -> [HistorySectionSummary] {
+    func updateSections(now: Date = Date()) {
         let summaries = HistoryViewModel.summarizeSections(for: events, now: now)
+
+        // Rebuild sections before publishing the state change: the delegate reloads
+        // the table synchronously on .loaded, reading whatever sections holds.
+        updateSections(using: summaries)
 
         if events.isEmpty {
             state = .empty
         } else {
             state = .loaded
         }
-
-        return summaries
-    }
-
-    func updateSections(now: Date = Date()) {
-        let summaries = applyStateAndSummaries(for: events, now: now)
-        updateSections(using: summaries)
     }
 
     private func updateSections(using summaries: [HistorySectionSummary]) {

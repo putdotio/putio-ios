@@ -15,6 +15,7 @@
 		4F3388A6DA2720DACF20446B /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EEE14DC43F881736BEDFD030 /* Foundation.framework */; };
 		51D9E494DFC76AF375536663 /* HistoryViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2B1049C9B1A0CA9C66F6CD2 /* HistoryViewModelTests.swift */; };
 		53457AFE39DF68A6E14E3AA9 /* PlaybackSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6152DB33E9792260A66491D4 /* PlaybackSmokeUITests.swift */; };
+		7A1C9E4B2D6F8A0C3E5B7D9F /* HistorySmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F8E2A6C0B3D7F1A5C9E3B6D /* HistorySmokeUITests.swift */; };
 		66592A832C92EA206BAB25BF /* DownloadSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15797E9117171E8D87F34F1C /* DownloadSupport.swift */; };
 		78CA18B245AAA93D97689C6F /* SettingsViewModel+Sections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38466C37F620EDDBF46BFEF7 /* SettingsViewModel+Sections.swift */; };
 		7A112233445566778899AABB /* NavigationLocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A112233445566778899AABC /* NavigationLocalizationTests.swift */; };
@@ -166,6 +167,7 @@
 		54B45BFE24B989083E180F82 /* InternalFailurePresenter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InternalFailurePresenter.swift; sourceTree = "<group>"; };
 		5A452CE0D5CE4073B61D5F4C /* UIStoryboard+TypedInstantiation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "UIStoryboard+TypedInstantiation.swift"; sourceTree = "<group>"; };
 		6152DB33E9792260A66491D4 /* PlaybackSmokeUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlaybackSmokeUITests.swift; sourceTree = "<group>"; };
+		4F8E2A6C0B3D7F1A5C9E3B6D /* HistorySmokeUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistorySmokeUITests.swift; sourceTree = "<group>"; };
 		651F74BAFDB08F5826583B32 /* PutioUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PutioUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		67587EFA32AA04C84BD5E5F5 /* FilesViewController+Playback.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "FilesViewController+Playback.swift"; sourceTree = "<group>"; };
 		6B7455A8D5EF4A2CE24BA6F2 /* Pods-Putio.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Putio.debug.xcconfig"; path = "Target Support Files/Pods-Putio/Pods-Putio.debug.xcconfig"; sourceTree = "<group>"; };
@@ -353,6 +355,7 @@
 			isa = PBXGroup;
 			children = (
 				6152DB33E9792260A66491D4 /* PlaybackSmokeUITests.swift */,
+				4F8E2A6C0B3D7F1A5C9E3B6D /* HistorySmokeUITests.swift */,
 			);
 			name = PutioUITests;
 			path = PutioUITests;
@@ -1020,6 +1023,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				53457AFE39DF68A6E14E3AA9 /* PlaybackSmokeUITests.swift in Sources */,
+				7A1C9E4B2D6F8A0C3E5B7D9F /* HistorySmokeUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
