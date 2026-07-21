@@ -142,15 +142,15 @@ class DownloadStateButton: UIControl {
         backgroundColor = .clear
 
         trackLayer.fillColor = nil
-        trackLayer.strokeColor = UIColor.Putio.Neutral.line.cgColor
         trackLayer.lineWidth = 2
         trackLayer.lineCap = .round
 
         progressLayer.fillColor = nil
-        progressLayer.strokeColor = UIColor.Putio.Yellow.solid.cgColor
         progressLayer.lineWidth = 2
         progressLayer.lineCap = .round
         progressLayer.strokeEnd = 0
+
+        resolveLayerColors()
 
         layer.addSublayer(trackLayer)
         layer.addSublayer(progressLayer)
@@ -170,6 +170,20 @@ class DownloadStateButton: UIControl {
         ] + iconSizeConstraints)
 
         update(from: nil)
+    }
+
+    // CALayer colors don't track appearance changes; re-resolve on trait change.
+    private func resolveLayerColors() {
+        trackLayer.strokeColor = UIColor.Putio.Neutral.line.resolvedColor(with: traitCollection).cgColor
+        progressLayer.strokeColor = UIColor.Putio.Yellow.solid.resolvedColor(with: traitCollection).cgColor
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+
+        if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
+            resolveLayerColors()
+        }
     }
 
     override func layoutSubviews() {
