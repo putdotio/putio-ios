@@ -98,11 +98,15 @@ final class ScreenshotWalkUITests: XCTestCase {
         XCTAssertTrue(song.waitForExistence(timeout: 10))
         song.tap()
         XCTAssertTrue(app.staticTexts["E2E Song.mp3"].waitForExistence(timeout: 10))
+        // The empty fixture playlist keeps the player in its loading state;
+        // waiting on the placeholder time labels pins the captured state.
+        XCTAssertTrue(app.staticTexts["--:--"].firstMatch.waitForExistence(timeout: 10))
         settle()
         capture(app, named: "walk-\(appearance)-audio-player")
         let closeButton = app.navigationBars.buttons["Stop"]
         XCTAssertTrue(closeButton.waitForExistence(timeout: 5), "audio player close button should exist")
         closeButton.tap()
+        settle()
 
         // Move-files sheet via selection mode (Select lives in the More menu).
         XCTAssertTrue(app.tables["putio-files-table"].cells["putio-file-42"].waitForExistence(timeout: 5))
@@ -113,9 +117,11 @@ final class ScreenshotWalkUITests: XCTestCase {
         app.tables["putio-files-table"].cells["putio-file-42"].tap()
         app.buttons["Move"].tap()
         XCTAssertTrue(app.navigationBars["Your Files"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["E2E Movie.mp4"].firstMatch.waitForExistence(timeout: 10), "move sheet content should render")
         settle()
         capture(app, named: "walk-\(appearance)-move-files")
         app.buttons["Cancel"].firstMatch.tap()
+        settle()
 
         // Downloads tutorial sheet.
         app.tabBars.buttons["Downloads"].tap()
@@ -126,6 +132,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         settle()
         capture(app, named: "walk-\(appearance)-downloads-tutorial")
         app.swipeDown(velocity: .fast)
+        XCTAssertTrue(app.staticTexts["Downloads: Mini Tutorial"].waitForNonExistence(timeout: 5), "tutorial sheet should dismiss")
 
         // Routes and sessions from the Account screen.
         app.tabBars.buttons["Account"].tap()

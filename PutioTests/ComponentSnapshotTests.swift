@@ -88,7 +88,10 @@ final class ComponentSnapshotTests: XCTestCase {
     }
 
     func testHistoryCell() throws {
-        let json = #"{"id": 1, "user_id": 1, "type": "upload", "created_at": "2026-07-20T09:00:00Z", "file_id": 42, "file_name": "E2E Upload.mp4", "file_size": 7340032}"#
+        // Two hours back renders "2 hours ago" in every calendar; a fixed
+        // date would drift through timeAgoSinceDate buckets over time.
+        let createdAt = ISO8601DateFormatter().string(from: Date().addingTimeInterval(-60 * 60 * 2))
+        let json = #"{"id": 1, "user_id": 1, "type": "upload", "created_at": "\#(createdAt)", "file_id": 42, "file_name": "E2E Upload.mp4", "file_size": 7340032}"#
         let event = try JSONDecoder().decode(PutioHistoryEvent.self, from: Data(json.utf8))
 
         let cell = HistoryTableViewCell(style: .subtitle, reuseIdentifier: "historyReuse")

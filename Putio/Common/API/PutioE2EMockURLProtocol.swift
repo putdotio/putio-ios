@@ -65,7 +65,7 @@ private enum PutioE2EMockAPI {
             """)
         }
 
-        if routeKey == "GET /v2/files/42/hls/media.m3u8" {
+        if routeKey == "GET /v2/files/42/hls/media.m3u8" || routeKey == "GET /v2/files/43/hls/media.m3u8" {
             return Fixture(contentType: "application/vnd.apple.mpegurl", body: hlsPlaylist)
         }
 
@@ -259,8 +259,8 @@ private enum PutioE2EMockAPI {
       "file_type": "AUDIO",
       "is_shared": false,
       "sort_by": "NAME_ASC",
-      "stream_url": "https://api.put.io/v2/files/42/hls/media.m3u8",
-      "mp4_stream_url": "https://api.put.io/v2/files/42/hls/media.m3u8"
+      "stream_url": "https://api.put.io/v2/files/43/hls/media.m3u8",
+      "mp4_stream_url": "https://api.put.io/v2/files/43/hls/media.m3u8"
     }
     """
 
