@@ -20,14 +20,14 @@
                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="No downloads" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="jgB-Pi-QWd">
                             <rect key="frame" x="0.0" y="0.0" width="375" height="33.5"/>
                             <fontDescription key="fontDescription" style="UICTFontTextStyleTitle1"/>
-                            <color key="textColor" cocoaTouchSystemColor="lightTextColor"/>
+                            <color key="textColor" name="putio.neutral.text"/>
                             <nil key="highlightedColor"/>
                         </label>
                         <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="SQQ-TG-0Sk">
                             <rect key="frame" x="0.0" y="38.5" width="375" height="32"/>
                             <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
                             <state key="normal" title="Not sure how it works? Tap to find out.">
-                                <color key="titleColor" red="0.99215686270000003" green="0.80784313730000001" blue="0.27058823529999998" alpha="1" colorSpace="calibratedRGB"/>
+                                <color key="titleColor" name="putio.yellow.solid"/>
                             </state>
                             <connections>
                                 <action selector="buttonTapped:" destination="iN0-l3-epB" eventType="touchUpInside" id="Vja-fg-SxJ"/>
@@ -36,7 +36,7 @@
                     </subviews>
                 </stackView>
             </subviews>
-            <color key="backgroundColor" red="0.1999788582" green="0.20001345870000001" blue="0.1999712884" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <color key="backgroundColor" name="putio.surface.app-bg"/>
             <constraints>
                 <constraint firstItem="vUN-kp-3ea" firstAttribute="trailing" secondItem="4JP-vT-nTB" secondAttribute="trailing" id="51y-bf-U1p"/>
                 <constraint firstItem="4JP-vT-nTB" firstAttribute="leading" secondItem="vUN-kp-3ea" secondAttribute="leading" id="VAh-Ns-9NW"/>
@@ -51,4 +51,15 @@
             <point key="canvasLocation" x="33.5" y="54.5"/>
         </view>
     </objects>
+    <resources>
+        <namedColor name="putio.neutral.text">
+            <color red="0.930" green="0.930" blue="0.930" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.surface.app-bg">
+            <color red="0.085" green="0.085" blue="0.085" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.yellow.solid">
+            <color red="0.992" green="0.808" blue="0.270" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+    </resources>
 </document>

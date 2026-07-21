@@ -19,7 +19,7 @@
                     <rect key="frame" x="178" y="36" width="20" height="20"/>
                 </activityIndicatorView>
             </subviews>
-            <color key="backgroundColor" red="0.1999788582" green="0.20001345870000001" blue="0.1999712884" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <color key="backgroundColor" name="putio.surface.app-bg"/>
             <constraints>
                 <constraint firstItem="BjF-e8-Ssg" firstAttribute="top" secondItem="vUN-kp-3ea" secondAttribute="top" constant="16" id="9En-07-pGU"/>
                 <constraint firstItem="BjF-e8-Ssg" firstAttribute="centerX" secondItem="iN0-l3-epB" secondAttribute="centerX" id="bTD-Rs-J4v"/>
@@ -27,4 +27,9 @@
             <viewLayoutGuide key="safeArea" id="vUN-kp-3ea"/>
         </view>
     </objects>
+    <resources>
+        <namedColor name="putio.surface.app-bg">
+            <color red="0.085" green="0.085" blue="0.085" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+    </resources>
 </document>

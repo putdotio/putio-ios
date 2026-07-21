@@ -55,6 +55,15 @@ light and dark modes. Fonts are explicitly out of scope (see Non-Goals).
 Mappings are verified against real usage during migration; deviations are
 recorded here.
 
+Recorded deviations (Phase 1):
+
+- Nav bars use `surface.nav-bg`; selected/highlighted list rows use
+  `surface.list-item-bg-active`; primary-button titles use
+  `fg.primary-foreground` — refined from the coarse legacy mapping above.
+- Media players keep literal black backdrops and white now-playing labels
+  (over-media exception), as does the Cast expanded controller.
+- Fully transparent inline colors stay literal; they are mode-independent.
+
 ## Non-Goals
 
 - Fonts. The design system's brand families are licensed and must not enter

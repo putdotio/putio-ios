@@ -16,8 +16,8 @@
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" id="3Ue-GB-aK4">
                         <rect key="frame" x="0.0" y="44" width="375" height="44"/>
                         <autoresizingMask key="autoresizingMask"/>
-                        <color key="backgroundColor" name="putio.black"/>
-                        <color key="tintColor" name="putio.yellow"/>
+                        <color key="backgroundColor" name="putio.neutral.component-bg"/>
+                        <color key="tintColor" name="putio.yellow.solid"/>
                     </navigationBar>
                     <toolbar key="toolbar" opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" id="uSU-cy-gVe">
                         <autoresizingMask key="autoresizingMask"/>
@@ -40,9 +40,9 @@
                         <subviews>
                             <tableView clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="28" sectionFooterHeight="28" translatesAutoresizingMaskIntoConstraints="NO" id="4iO-KU-SwN">
                                 <rect key="frame" x="0.0" y="0.0" width="375" height="607"/>
-                                <color key="backgroundColor" name="putio.background"/>
-                                <color key="tintColor" name="putio.yellow"/>
-                                <color key="separatorColor" name="putio.listSeperator"/>
+                                <color key="backgroundColor" name="putio.surface.app-bg"/>
+                                <color key="tintColor" name="putio.yellow.solid"/>
+                                <color key="separatorColor" name="putio.surface.list-item-border"/>
                                 <prototypes>
                                     <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="gray" indentationWidth="10" reuseIdentifier="moveFileReuse" textLabel="v6O-hB-0PW" imageView="qeN-PI-1uZ" style="IBUITableViewCellStyleDefault" id="9ny-2I-qGJ">
                                         <rect key="frame" x="0.0" y="44.666666030883789" width="375" height="43.666667938232422"/>
@@ -55,7 +55,7 @@
                                                     <rect key="frame" x="53" y="0.0" width="306" height="43.666667938232422"/>
                                                     <autoresizingMask key="autoresizingMask"/>
                                                     <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                                    <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                    <color key="textColor" name="putio.neutral.text"/>
                                                     <nil key="highlightedColor"/>
                                                 </label>
                                                 <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleAspectFit" insetsLayoutMarginsFromSafeArea="NO" image="Phosphor/folder-fill" id="qeN-PI-1uZ">
@@ -64,8 +64,8 @@
                                                 </imageView>
                                             </subviews>
                                         </tableViewCellContentView>
-                                        <color key="backgroundColor" name="putio.background"/>
-                                        <color key="tintColor" name="putio.yellow"/>
+                                        <color key="backgroundColor" name="putio.surface.app-bg"/>
+                                        <color key="tintColor" name="putio.yellow.solid"/>
                                     </tableViewCell>
                                 </prototypes>
                             </tableView>
@@ -84,12 +84,12 @@
                                         </connections>
                                     </barButtonItem>
                                 </items>
-                                <color key="tintColor" name="putio.yellow"/>
+                                <color key="tintColor" name="putio.yellow.solid"/>
                             </toolbar>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="ZRg-44-cKX"/>
-                        <color key="backgroundColor" name="putio.background"/>
-                        <color key="tintColor" name="putio.yellow"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
+                        <color key="tintColor" name="putio.yellow.solid"/>
                         <constraints>
                             <constraint firstItem="4iO-KU-SwN" firstAttribute="leading" secondItem="ZRg-44-cKX" secondAttribute="leading" id="4QW-2A-bdK"/>
                             <constraint firstItem="ZRg-44-cKX" firstAttribute="trailing" secondItem="4iO-KU-SwN" secondAttribute="trailing" id="HPD-hh-zqd"/>
@@ -102,7 +102,7 @@
                     </view>
                     <navigationItem key="navigationItem" title="Your Files" prompt="Choose New Location" id="ptY-vw-Xdb">
                         <barButtonItem key="rightBarButtonItem" systemItem="cancel" id="aQy-cW-2yG">
-                            <color key="tintColor" name="putio.yellow"/>
+                            <color key="tintColor" name="putio.yellow.solid"/>
                             <connections>
                                 <action selector="cancelButtonPressed:" destination="RMh-cI-2cX" id="ap1-C4-pfR"/>
                             </connections>
@@ -121,21 +121,21 @@
         </scene>
     </scenes>
     <resources>
+        <namedColor name="putio.neutral.component-bg">
+            <color red="0.136" green="0.136" blue="0.136" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.neutral.text">
+            <color red="0.930" green="0.930" blue="0.930" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.surface.app-bg">
+            <color red="0.085" green="0.085" blue="0.085" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.surface.list-item-border">
+            <color red="0.179" green="0.179" blue="0.179" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.yellow.solid">
+            <color red="0.992" green="0.808" blue="0.270" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
         <image name="Phosphor/folder-fill" width="16" height="16"/>
-        <namedColor name="putio.background">
-            <color red="0.20000000298023224" green="0.20000000298023224" blue="0.20000000298023224" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </namedColor>
-        <namedColor name="putio.black">
-            <color red="0.12999999523162842" green="0.12999999523162842" blue="0.12999999523162842" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </namedColor>
-        <namedColor name="putio.black.tint">
-            <color red="0.059999998658895493" green="0.059999998658895493" blue="0.059999998658895493" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </namedColor>
-        <namedColor name="putio.listSeperator">
-            <color red="0.15000000596046448" green="0.15000000596046448" blue="0.15000000596046448" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </namedColor>
-        <namedColor name="putio.yellow">
-            <color red="0.99199998378753662" green="0.80800002813339233" blue="0.27099999785423279" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </namedColor>
     </resources>
 </document>

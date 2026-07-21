@@ -21,19 +21,19 @@
                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="No files whatsoever!" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="jgB-Pi-QWd">
                             <rect key="frame" x="0.0" y="0.0" width="327" height="31.5"/>
                             <fontDescription key="fontDescription" style="UICTFontTextStyleTitle1"/>
-                            <color key="textColor" cocoaTouchSystemColor="lightTextColor"/>
+                            <color key="textColor" name="putio.neutral.text"/>
                             <nil key="highlightedColor"/>
                         </label>
                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="This folder is empty" textAlignment="center" lineBreakMode="tailTruncation" numberOfLines="2" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="KQQ-Sk-Ity">
                             <rect key="frame" x="0.0" y="36.5" width="327" height="19.5"/>
                             <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
-                            <color key="textColor" cocoaTouchSystemColor="lightTextColor"/>
+                            <color key="textColor" name="putio.neutral.text"/>
                             <nil key="highlightedColor"/>
                         </label>
                     </subviews>
                 </stackView>
             </subviews>
-            <color key="backgroundColor" red="0.1999788582" green="0.20001345870000001" blue="0.1999712884" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+            <color key="backgroundColor" name="putio.surface.app-bg"/>
             <constraints>
                 <constraint firstItem="vUN-kp-3ea" firstAttribute="trailing" secondItem="4JP-vT-nTB" secondAttribute="trailing" constant="24" id="51y-bf-U1p"/>
                 <constraint firstItem="4JP-vT-nTB" firstAttribute="leading" secondItem="vUN-kp-3ea" secondAttribute="leading" constant="24" id="VAh-Ns-9NW"/>
@@ -48,4 +48,12 @@
             <point key="canvasLocation" x="33.5" y="54.5"/>
         </view>
     </objects>
+    <resources>
+        <namedColor name="putio.neutral.text">
+            <color red="0.930" green="0.930" blue="0.930" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.surface.app-bg">
+            <color red="0.085" green="0.085" blue="0.085" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+    </resources>
 </document>

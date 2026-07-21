@@ -18,7 +18,7 @@
                         <subviews>
                             <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="44y-6v-5YL" userLabel="PDF" customClass="PDFView">
                                 <rect key="frame" x="0.0" y="44" width="375" height="734"/>
-                                <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <color key="backgroundColor" name="putio.surface.app-bg"/>
                             </view>
                             <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" alignment="center" spacing="10" translatesAutoresizingMaskIntoConstraints="NO" id="IGb-rv-flo">
                                 <rect key="frame" x="141.33333333333334" y="378" width="92.333333333333343" height="66.333333333333314"/>
@@ -29,13 +29,13 @@
                                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Fetching File" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="7QB-eS-o3u">
                                         <rect key="frame" x="0.0" y="47" width="92.333333333333329" height="19.333333333333329"/>
                                         <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
-                                        <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <color key="textColor" name="putio.neutral.text"/>
                                         <nil key="highlightedColor"/>
                                     </label>
                                 </subviews>
                             </stackView>
                         </subviews>
-                        <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <constraints>
                             <constraint firstItem="IGb-rv-flo" firstAttribute="centerX" secondItem="c1c-Pb-Fhh" secondAttribute="centerX" id="KQ0-dN-uvu"/>
                             <constraint firstItem="IGb-rv-flo" firstAttribute="centerY" secondItem="c1c-Pb-Fhh" secondAttribute="centerY" id="QVg-90-T6d"/>
@@ -57,4 +57,12 @@
             <point key="canvasLocation" x="140" y="137"/>
         </scene>
     </scenes>
+    <resources>
+        <namedColor name="putio.neutral.text">
+            <color red="0.930" green="0.930" blue="0.930" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.surface.app-bg">
+            <color red="0.085" green="0.085" blue="0.085" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+    </resources>
 </document>
