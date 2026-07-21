@@ -67,6 +67,14 @@ e2e-simulator:
 screenshots-record:
 	@rm -rf PutioUITests/__Snapshots__; \
 	PUTIO_RECORD_SNAPSHOTS=1 $(MAKE) e2e-simulator; status=$$?; \
+	if [ ! -d build/e2e-simulator.xcresult ]; then \
+		echo "screenshots-record: no result bundle was produced; the run failed before testing (exit $$status)." >&2; \
+		exit 1; \
+	fi; \
+	if ! xcrun xcresulttool get test-results tests --path build/e2e-simulator.xcresult | ruby scripts/verify-snapshot-recording.rb; then \
+		echo "screenshots-record: the run had failures beyond record-mode snapshot assertions; baselines may be incomplete." >&2; \
+		exit 1; \
+	fi; \
 	count="$$(find PutioUITests/__Snapshots__ -name '*.png' 2>/dev/null | wc -l | tr -d ' ')"; \
 	if [ "$$count" -eq 0 ]; then \
 		echo "screenshots-record: no baselines were written; the run failed before recording (exit $$status)." >&2; \
