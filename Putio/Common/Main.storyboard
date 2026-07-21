@@ -171,7 +171,7 @@
         <scene sceneID="YlU-r2-NFt">
             <objects>
                 <navigationController id="MHF-Ak-52j" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Files" id="yV7-6B-q7L"/>
+                    <tabBarItem key="tabBarItem" title="Files" tag="0" id="yV7-6B-q7L"/>
                     <toolbarItems/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="WVt-RB-6XK">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
@@ -254,7 +254,7 @@
         <scene sceneID="h9i-LO-YIk">
             <objects>
                 <navigationController id="be8-15-Bj9" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="History" id="4cL-VA-bRX"/>
+                    <tabBarItem key="tabBarItem" title="History" tag="1" id="4cL-VA-bRX"/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="vyO-b2-uiX">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
                         <autoresizingMask key="autoresizingMask"/>
@@ -342,7 +342,7 @@
         <scene sceneID="4KT-cf-7Nt">
             <objects>
                 <navigationController id="Z21-bC-ht7" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Downloads" id="JPZ-4q-6Dh"/>
+                    <tabBarItem key="tabBarItem" title="Downloads" tag="2" id="JPZ-4q-6Dh"/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="byd-hg-sjU">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
                         <autoresizingMask key="autoresizingMask"/>
@@ -621,7 +621,7 @@
         <scene sceneID="0hz-Ca-M6g">
             <objects>
                 <navigationController id="Y67-xk-8xV" sceneMemberID="viewController">
-                    <tabBarItem key="tabBarItem" title="Account" id="5Pv-Wd-lfR"/>
+                    <tabBarItem key="tabBarItem" title="Account" tag="3" id="5Pv-Wd-lfR"/>
                     <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" largeTitles="YES" id="HVy-fW-jQo">
                         <rect key="frame" x="0.0" y="50" width="375" height="96"/>
                         <autoresizingMask key="autoresizingMask"/>

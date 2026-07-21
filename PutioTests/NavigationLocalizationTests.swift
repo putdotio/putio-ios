@@ -25,6 +25,14 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(image.renderingMode, .alwaysTemplate)
     }
 
+    func testFileActionsButtonUsesNavigationBarIconPresentation() throws {
+        let button = FilesViewController().createNavigationBarFileActionsButton()
+        let image = try XCTUnwrap(button.image)
+
+        XCTAssertEqual(image.size, CGSize(width: 24, height: 24))
+        XCTAssertEqual(image.renderingMode, .alwaysTemplate)
+    }
+
     func testAccountSettingsUseSemanticPhosphorIcons() throws {
         let items = SettingsViewModel().buildSections().flatMap(\.items)
 

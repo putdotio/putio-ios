@@ -5,7 +5,7 @@ import PutioSDK
 extension FilesViewController {
     func createNavigationBarFileActionsButton() -> UIBarButtonItem {
         let button = UIBarButtonItem(
-            image: PutioIcon.dotsThreeCircle.image(pointSize: 18),
+            image: PutioIcon.dotsThreeCircle.image(for: .navigationBar),
             style: .plain,
             target: nil,
             action: nil

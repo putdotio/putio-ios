@@ -1,6 +1,7 @@
 import UIKit
 
 enum PutioIconPresentation {
+    case navigationBar
     case navigationList
     case tabBar
 
@@ -8,14 +9,14 @@ enum PutioIconPresentation {
         switch self {
         case .navigationList:
             return 20
-        case .tabBar:
+        case .navigationBar, .tabBar:
             return 24
         }
     }
 
     var canvasPointSize: CGFloat {
         switch self {
-        case .navigationList, .tabBar:
+        case .navigationBar, .navigationList, .tabBar:
             return 24
         }
     }

@@ -88,7 +88,7 @@ class DeeplinkManager {
     }
 
     private func handleFileURL(path: String) -> Bool {
-        tabBarController?.setSelectedTab(title: .files)
+        tabBarController?.setSelectedTab(.files)
         guard let id = extractIDFromPath(pattern: "/files/(.*)", path: path) else { return false }
 
         api.getFile(fileID: id) { result in
@@ -100,7 +100,7 @@ class DeeplinkManager {
     }
 
     private func handleDownloadURL(path: String) -> Bool {
-        tabBarController?.setSelectedTab(title: .downloads)
+        tabBarController?.setSelectedTab(.downloads)
         guard let id = extractIDFromPath(pattern: "/downloads/(.*)", path: path) else { return false }
 
         openDownloadedFile(fileID: id)
@@ -110,13 +110,13 @@ class DeeplinkManager {
     private func handleStaticURL(path: String) -> Bool {
         switch path {
         case "/history":
-            tabBarController?.setSelectedTab(title: .history)
+            tabBarController?.setSelectedTab(.history)
             return true
         case "/settings", "/account":
-            tabBarController?.setSelectedTab(title: .account)
+            tabBarController?.setSelectedTab(.account)
             return true
         case "/link":
-            tabBarController?.setSelectedTab(title: .account)
+            tabBarController?.setSelectedTab(.account)
             openLinkPage()
             return true
         default:
