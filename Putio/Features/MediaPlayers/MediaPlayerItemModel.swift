@@ -136,13 +136,58 @@ private enum PutioE2EPlaybackAsset {
         guard ProcessInfo.processInfo.environment["PUTIO_E2E_MOCK_API"] == "1" else {
             return nil
         }
-        guard file.type == PutioFileType.video else {
+
+        // Stream URLs are built from the file id + token, so the mocked API
+        // never sees them — and AVFoundation's own networking would escape
+        // the mock URLProtocol anyway. Local assets keep playback hermetic.
+        switch file.type {
+        case PutioFileType.video:
+            return Bundle.main.url(forResource: "downloadsTutorial", withExtension: "mov")
+        case PutioFileType.audio:
+            return silentAudioURL
+        default:
             return nil
         }
-
-        return Bundle.main.url(forResource: "downloadsTutorial", withExtension: "mov")
         #else
         return nil
         #endif
     }
+
+    #if DEBUG
+    // A generated ten-minute silent WAV: long enough that the duration label
+    // is stable ("10:00") and the slider thumb barely moves across the walk's
+    // capture window, so elapsed-tick drift stays far inside the snapshot
+    // comparison's pixel tolerance.
+    private static let silentAudioURL: URL? = {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("putio-e2e-audio-fixture.wav")
+
+        let sampleRate: UInt32 = 8000
+        let dataSize = sampleRate * 600 * 2 // ten minutes, mono, 16-bit PCM
+
+        var wav = Data()
+        func append(_ ascii: String) { wav.append(contentsOf: ascii.utf8) }
+        func append32(_ value: UInt32) { withUnsafeBytes(of: value.littleEndian) { wav.append(contentsOf: $0) } }
+        func append16(_ value: UInt16) { withUnsafeBytes(of: value.littleEndian) { wav.append(contentsOf: $0) } }
+
+        append("RIFF"); append32(36 + dataSize); append("WAVE")
+        append("fmt "); append32(16)
+        append16(1)              // PCM
+        append16(1)              // mono
+        append32(sampleRate)
+        append32(sampleRate * 2) // byte rate
+        append16(2)              // block align
+        append16(16)             // bits per sample
+        append("data"); append32(dataSize)
+        wav.append(Data(count: Int(dataSize)))
+
+        do {
+            try wav.write(to: url, options: .atomic)
+            return url
+        } catch {
+            InternalFailurePresenter.log("PutioE2EPlaybackAsset: cannot write audio fixture: \(error)")
+            return nil
+        }
+    }()
+    #endif
 }

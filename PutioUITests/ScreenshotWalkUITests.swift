@@ -34,10 +34,9 @@ final class ScreenshotWalkUITests: XCTestCase {
     private func capture(_ app: XCUIApplication, named name: String) {
         let screenshot = app.screenshot()
 
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
+        // No manual XCTAttachment: SnapshotTesting already attaches the
+        // recorded image and the failure diff when an assertion fails, and
+        // result bundles are only uploaded on failure.
 
         // precision tolerates a small share of outlier pixels; perceptual
         // precision absorbs antialiasing drift across Xcode/simulator builds.
@@ -98,9 +97,20 @@ final class ScreenshotWalkUITests: XCTestCase {
         XCTAssertTrue(song.waitForExistence(timeout: 10))
         song.tap()
         XCTAssertTrue(app.staticTexts["E2E Song.mp3"].waitForExistence(timeout: 10))
-        // The empty fixture playlist keeps the player in its loading state;
-        // waiting on the placeholder time labels pins the captured state.
-        XCTAssertTrue(app.staticTexts["--:--"].firstMatch.waitForExistence(timeout: 10))
+        // The player loads a local ten-minute silent WAV (see
+        // PutioE2EPlaybackAsset), so it reaches a real ready state
+        // hermetically: the duration label proves the asset loaded and the
+        // next-item lookup settles on its deterministic empty result. Should
+        // playback advance before capture, the elapsed glyphs and the slider
+        // thumb's sub-percent crawl sit far inside the snapshot tolerance.
+        XCTAssertTrue(
+            app.staticTexts["10:00"].waitForExistence(timeout: 15),
+            "duration label should show the loaded fixture length"
+        )
+        XCTAssertTrue(
+            app.staticTexts["We couldn't find anything to play"].waitForExistence(timeout: 10),
+            "next-item lookup should settle on the empty fixture result"
+        )
         settle()
         capture(app, named: "walk-\(appearance)-audio-player")
         let closeButton = app.navigationBars.buttons["Stop"]

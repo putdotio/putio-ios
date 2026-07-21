@@ -92,10 +92,14 @@ final class ComponentSnapshotTests: XCTestCase {
         // date would drift through timeAgoSinceDate buckets over time.
         let createdAt = ISO8601DateFormatter().string(from: Date().addingTimeInterval(-60 * 60 * 2))
         let json = #"{"id": 1, "user_id": 1, "type": "upload", "created_at": "\#(createdAt)", "file_id": 42, "file_name": "E2E Upload.mp4", "file_size": 7340032}"#
-        let event = try JSONDecoder().decode(PutioHistoryEvent.self, from: Data(json.utf8))
+        // The upload presentation requires the concrete subtype; decoding the
+        // base PutioHistoryEvent would snapshot the No-title fallback instead
+        // of a real upload row.
+        let event = try JSONDecoder().decode(PutioUploadEvent.self, from: Data(json.utf8))
 
         let cell = HistoryTableViewCell(style: .subtitle, reuseIdentifier: "historyReuse")
         cell.configure(with: event)
+        XCTAssertEqual(cell.textLabel?.text, "E2E Upload.mp4", "cell should render the upload, not the fallback")
         assertComponent(cell, size: CGSize(width: 375, height: 64), named: "history-cell-upload")
     }
 

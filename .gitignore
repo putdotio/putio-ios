@@ -51,5 +51,5 @@ fastlane/.env.1password.local
 ## Fastlane DSYM .zip
 *.zip
 
-# Licensed brand fonts, synced at dev time; never committed.
+## Licensed brand fonts (synced via make fonts-setup; never committed)
 Putio/Fonts/

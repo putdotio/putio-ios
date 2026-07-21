@@ -118,6 +118,16 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
         updateControlBarsVisibility(shouldAppear: false)
     }
 
+    // GCKUIStyle resolves colors eagerly, so Cast chrome must be restyled on
+    // every effective appearance change — whether from the in-app theme picker
+    // or an OS-level light/dark flip while the theme is System.
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
+            ChromecastManager.sharedInstance.applyAppearanceStyling()
+        }
+    }
+
     func miniMediaControlsViewController(_ miniMediaControlsViewController: GCKUIMiniMediaControlsViewController, shouldAppear: Bool) {
         updateControlBarsVisibility(shouldAppear: shouldAppear)
     }
