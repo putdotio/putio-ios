@@ -41,6 +41,8 @@ class BrandFontSync
       return
     end
 
+    remove_unlisted!
+
     if missing.empty?
       puts "Brand fonts already up to date (#{@files.size} files)."
       return
@@ -57,6 +59,17 @@ class BrandFontSync
   def current?(name, sha)
     path = File.join(@directory, name)
     File.exist?(path) && Digest::SHA256.file(path).hexdigest == sha
+  end
+
+  # Fonts renamed or dropped from the manifest must not linger: the build
+  # phase bundles every OTF in the directory.
+  def remove_unlisted!
+    Dir.glob(File.join(@directory, "*.otf")).each do |path|
+      next if @files.key?(File.basename(path))
+
+      File.delete(path)
+      puts "  removed unlisted #{File.basename(path)}"
+    end
   end
 
   def require_gh!

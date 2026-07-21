@@ -921,7 +921,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "if [ \"${PUTIO_BUNDLE_BRAND_FONTS}\" = \"NO\" ]; then\n  echo \"Brand fonts excluded from this configuration.\"\n  exit 0\nfi\nshopt -s nullglob\nfonts=(\"$SRCROOT\"/Putio/Fonts/*.otf)\nif [ ${#fonts[@]} -eq 0 ]; then\n  echo \"No brand fonts present (optional); run make fonts-setup to sync them.\"\n  exit 0\nfi\ndest=\"$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nmkdir -p \"$dest\"\ncp \"${fonts[@]}\" \"$dest/\"\necho \"Bundled ${#fonts[@]} brand font files.\"\n";
+			shellScript = "dest=\"$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\n# Remove previously copied faces first so incremental builds cannot leak\n# licensed fonts into configurations that exclude them.\nrm -f \"$dest\"/gt-america-*.otf\nif [ \"${PUTIO_BUNDLE_BRAND_FONTS}\" = \"NO\" ]; then\n  echo \"Brand fonts excluded from this configuration.\"\n  exit 0\nfi\nshopt -s nullglob\nfonts=(\"$SRCROOT\"/Putio/Fonts/*.otf)\nif [ ${#fonts[@]} -eq 0 ]; then\n  echo \"No brand fonts present (optional); run make fonts-setup to sync them.\"\n  exit 0\nfi\nmkdir -p \"$dest\"\ncp \"${fonts[@]}\" \"$dest/\"\necho \"Bundled ${#fonts[@]} brand font files.\"\n";
 		};
 		26118BC7F607871A1782580D /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
