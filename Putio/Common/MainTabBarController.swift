@@ -18,6 +18,7 @@ class MainTabBarController: UITabBarController {
         view.backgroundColor = UIColor.Putio.background
         overrideUserInterfaceStyle = .dark
         userSettings = loadUserSettings()
+        configureTabBarIcons()
         configureNavigationControllers()
         DeeplinkManager.sharedInstance.setup(with: self)
         cachedViewControllers = viewControllers
@@ -25,6 +26,23 @@ class MainTabBarController: UITabBarController {
         updateUnreadConversationCount()
         updateHistoryTabVisibility()
         addObservers()
+    }
+
+    private func configureTabBarIcons() {
+        let icons: [TabbarItemTitle: (regular: PutioIcon, fill: PutioIcon)] = [
+            .files: (.folder, .folderFill),
+            .history: (.clockCounterClockwise, .clockCounterClockwiseFill),
+            .downloads: (.cloudArrowDown, .cloudArrowDownFill),
+            .account: (.userCircle, .userCircleFill)
+        ]
+
+        tabBar.items?.forEach { item in
+            guard let title = item.title,
+                  let tab = TabbarItemTitle(rawValue: title),
+                  let icon = icons[tab] else { return }
+            item.image = icon.regular.image(pointSize: 24)
+            item.selectedImage = icon.fill.image(pointSize: 24)
+        }
     }
 
     deinit {

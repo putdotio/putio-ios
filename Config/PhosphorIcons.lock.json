@@ -14,6 +14,83 @@
       "sha256": "a6a6dda6c3589c66bb694e29d0951063a468c396b97583b1fb8e815e635a0547"
     },
     {
+      "name": "user-circle",
+      "weight": "fill",
+      "asset_name": "user-circle-fill",
+      "source_path": "package/assets/fill/user-circle-fill.svg",
+      "sha256": "e043d8efc10b1f6d00c6534eafae53a3b3a0400c81f75d5abc3179c88fb2299b"
+    },
+    {
+      "name": "folder",
+      "weight": "regular",
+      "asset_name": "folder-regular",
+      "source_path": "package/assets/regular/folder.svg",
+      "sha256": "b69e48ae10a22f30e7401346f6659a2d89566d54aba4d8b3f7b3daf7cd6cb967"
+    },
+    {
+      "name": "folder",
+      "weight": "fill",
+      "asset_name": "folder-fill",
+      "source_path": "package/assets/fill/folder-fill.svg",
+      "sha256": "926e3b705d6fb8bcd8c2520a5a7028d56a75caf4cb40ac63a015df5904f9d886"
+    },
+    {
+      "name": "file",
+      "weight": "regular",
+      "asset_name": "file-regular",
+      "source_path": "package/assets/regular/file.svg",
+      "sha256": "d42bd25554b849a90a1b1e4afa63fc9029a2b0717e02184a881ce59f6b433b63"
+    },
+    {
+      "name": "file-video",
+      "weight": "regular",
+      "asset_name": "file-video-regular",
+      "source_path": "package/assets/regular/file-video.svg",
+      "sha256": "561595428558f2cefe05033f5b2e674135efc7579bbf8e441905004af3c1fc1d"
+    },
+    {
+      "name": "file-audio",
+      "weight": "regular",
+      "asset_name": "file-audio-regular",
+      "source_path": "package/assets/regular/file-audio.svg",
+      "sha256": "e789bd26579ac457d3b8a1277ced68f060842e17659d276ae837812fe4f51702"
+    },
+    {
+      "name": "eye",
+      "weight": "regular",
+      "asset_name": "eye-regular",
+      "source_path": "package/assets/regular/eye.svg",
+      "sha256": "76421492d1c41c4ff90efaf2bbd537d25733b53bd195ee36a5ae4dd31ad0ce03"
+    },
+    {
+      "name": "download-simple",
+      "weight": "regular",
+      "asset_name": "download-simple-regular",
+      "source_path": "package/assets/regular/download-simple.svg",
+      "sha256": "3d3b57098cb669319b8013f331b66316a5bdf3a9ec4b5297dffd8b6a2b18784b"
+    },
+    {
+      "name": "download-simple",
+      "weight": "fill",
+      "asset_name": "download-simple-fill",
+      "source_path": "package/assets/fill/download-simple-fill.svg",
+      "sha256": "c19eed0b3972dcd86ef99411bccf18ddd26af676757e8bd5c31cc7a80f154c8f"
+    },
+    {
+      "name": "cloud-arrow-down",
+      "weight": "regular",
+      "asset_name": "cloud-arrow-down-regular",
+      "source_path": "package/assets/regular/cloud-arrow-down.svg",
+      "sha256": "3b38aa1dea1c45747b0af134873161e7a1368515df9f8bedeab81bee7636720e"
+    },
+    {
+      "name": "cloud-arrow-down",
+      "weight": "fill",
+      "asset_name": "cloud-arrow-down-fill",
+      "source_path": "package/assets/fill/cloud-arrow-down-fill.svg",
+      "sha256": "b3140791ba6fea5b29ccef290d3748297daaa1c4aca3bcf1ccce2a397b690caa"
+    },
+    {
       "name": "envelope-simple",
       "weight": "regular",
       "asset_name": "envelope-simple-regular",
@@ -124,6 +201,13 @@
       "asset_name": "clock-counter-clockwise-regular",
       "source_path": "package/assets/regular/clock-counter-clockwise.svg",
       "sha256": "ecdd5077ad18ee1fd7acaf8008e687366efc9ca26c65b2281331298de0deb42d"
+    },
+    {
+      "name": "clock-counter-clockwise",
+      "weight": "fill",
+      "asset_name": "clock-counter-clockwise-fill",
+      "source_path": "package/assets/fill/clock-counter-clockwise-fill.svg",
+      "sha256": "1a8194d19d0d0a119da579e56ba8a1c19b38935a2bc3053758508091b9b21657"
     },
     {
       "name": "info",

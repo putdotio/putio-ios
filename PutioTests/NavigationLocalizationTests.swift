@@ -10,6 +10,12 @@ final class NavigationLocalizationTests: XCTestCase {
         }
     }
 
+    func testPutioIconCanRenderAtTabBarSize() throws {
+        let image = try XCTUnwrap(PutioIcon.folder.image(pointSize: 24))
+        XCTAssertEqual(image.size, CGSize(width: 24, height: 24))
+        XCTAssertEqual(image.renderingMode, .alwaysTemplate)
+    }
+
     func testAccountSettingsUseSemanticPhosphorIcons() throws {
         let items = SettingsViewModel().buildSections().flatMap(\.items)
 

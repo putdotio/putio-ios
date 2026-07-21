@@ -32,6 +32,17 @@ final class PlaybackSmokeUITests: XCTestCase {
         waitForExpectations(timeout: 10)
     }
 
+    func testFilesScreenLoadsWithFixtureData() {
+        let app = launchFixtureApp()
+        let movie = app.tables["putio-files-table"].cells["putio-file-42"]
+        XCTAssertTrue(movie.waitForExistence(timeout: 10))
+
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Files Phosphor icons"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
     func testAccountScreenLoadsWithFixtureData() {
         let app = launchFixtureApp()
         let accountTab = app.tabBars.buttons["Account"]
