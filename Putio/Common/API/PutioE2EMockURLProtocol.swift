@@ -112,30 +112,36 @@ private enum PutioE2EMockAPI {
         "GET /v2/trash/list": Fixture(body: trashList)
     ]
 
-    private static let trashList = """
-    {
-      "status": "OK",
-      "cursor": null,
-      "total": 1,
-      "trash_size": 7340032,
-      "files": [
+    private static let trashList: String = {
+        let formatter = ISO8601DateFormatter()
+        let deleted = formatter.string(from: Date().addingTimeInterval(-60 * 60 * 24 * 7))
+        let expires = formatter.string(from: Date().addingTimeInterval(60 * 60 * 24 * 23))
+
+        return """
         {
-          "id": 77,
-          "name": "E2E Trashed Movie.mp4",
-          "icon": "video",
-          "parent_id": 0,
-          "size": 7340032,
-          "created_at": "2026-04-24T10:00:00Z",
-          "updated_at": "2026-04-24T10:00:00Z",
-          "file_type": "VIDEO",
-          "is_shared": false,
-          "sort_by": "NAME_ASC",
-          "deleted_at": "2026-07-14T10:00:00Z",
-          "expiration_date": "2026-08-14T10:00:00Z"
+          "status": "OK",
+          "cursor": null,
+          "total": 1,
+          "trash_size": 7340032,
+          "files": [
+            {
+              "id": 77,
+              "name": "E2E Trashed Movie.mp4",
+              "icon": "video",
+              "parent_id": 0,
+              "size": 7340032,
+              "created_at": "\(fixtureFileDate)",
+              "updated_at": "\(fixtureFileDate)",
+              "file_type": "VIDEO",
+              "is_shared": false,
+              "sort_by": "NAME_ASC",
+              "deleted_at": "\(deleted)",
+              "expiration_date": "\(expires)"
+            }
+          ]
         }
-      ]
-    }
-    """
+        """
+    }()
 
     private static let accountInfo = """
     {
@@ -208,6 +214,12 @@ private enum PutioE2EMockAPI {
     }
     """
 
+    // Dates are computed relative to now so labels like "2 months ago" stay
+    // stable for snapshot baselines regardless of when tests run.
+    private static let fixtureFileDate: String = {
+        ISO8601DateFormatter().string(from: Date().addingTimeInterval(-60 * 60 * 24 * 61))
+    }()
+
     private static let videoFile = """
     {
       "id": 42,
@@ -215,8 +227,8 @@ private enum PutioE2EMockAPI {
       "icon": "video",
       "parent_id": 0,
       "size": 7340032,
-      "created_at": "2026-04-24T10:00:00Z",
-      "updated_at": "2026-04-24T10:00:00Z",
+      "created_at": "\(fixtureFileDate)",
+      "updated_at": "\(fixtureFileDate)",
       "file_type": "VIDEO",
       "is_shared": false,
       "sort_by": "NAME_ASC",

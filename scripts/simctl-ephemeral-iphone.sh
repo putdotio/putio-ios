@@ -49,4 +49,14 @@ runtime="${device_type_and_runtime#* }"
 
 device_name="putio-$label-$(date +%Y%m%d%H%M%S)-$$"
 
-xcrun simctl create "$device_name" "$device_type" "$runtime"
+device_id="$(xcrun simctl create "$device_name" "$device_type" "$runtime")"
+
+# Boot and pin the status bar so screenshots are deterministic for
+# snapshot baselines (fixed clock, full battery and signal).
+xcrun simctl bootstatus "$device_id" -b >/dev/null
+xcrun simctl status_bar "$device_id" override \
+  --time "9:41" \
+  --batteryState charged --batteryLevel 100 \
+  --cellularBars 4 --wifiBars 3 --operatorName "" >&2
+
+echo "$device_id"

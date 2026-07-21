@@ -1,9 +1,15 @@
+import SnapshotTesting
 import XCTest
 
 // Captures labeled screenshots of every main screen into the result bundle,
-// in both appearance modes. The grids extracted from
-// build/e2e-simulator.xcresult are the review aids for theme work.
+// in both appearance modes, and asserts them against committed baselines in
+// PutioUITests/__Snapshots__/. Re-record intentionally with
+// `make screenshots-record`, then review the image diff in the PR.
+// The ephemeral simulator pins the status bar so pixels are deterministic.
 final class ScreenshotWalkUITests: XCTestCase {
+    private var isRecording: Bool {
+        ProcessInfo.processInfo.environment["PUTIO_RECORD_SNAPSHOTS"] == "1"
+    }
     private func launchFixtureApp(appearance: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["PUTIO_E2E_MOCK_API"] = "1"
@@ -15,10 +21,22 @@ final class ScreenshotWalkUITests: XCTestCase {
     }
 
     private func capture(_ app: XCUIApplication, named name: String) {
-        let screenshot = XCTAttachment(screenshot: app.screenshot())
-        screenshot.name = name
-        screenshot.lifetime = .keepAlways
-        add(screenshot)
+        let screenshot = app.screenshot()
+
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        // precision tolerates a small share of outlier pixels; perceptual
+        // precision absorbs antialiasing drift across Xcode/simulator builds.
+        assertSnapshot(
+            of: screenshot.image,
+            as: .image(precision: 0.995, perceptualPrecision: 0.98),
+            named: String(name.dropFirst("walk-".count)),
+            record: isRecording,
+            testName: "walk"
+        )
     }
 
     private func walkMainScreens(appearance: String) {
