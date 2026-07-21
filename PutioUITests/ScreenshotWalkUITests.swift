@@ -45,12 +45,19 @@ final class ScreenshotWalkUITests: XCTestCase {
         XCTAssertTrue(app.tables["putio-files-table"].cells["putio-file-42"].waitForExistence(timeout: 10))
         capture(app, named: "walk-\(appearance)-files")
 
+        // Wait for tab-specific content so captures never race the fixture
+        // load; a generic nav-bar wait is satisfiable before rendering ends.
+        let readiness: [String: XCUIElement] = [
+            "Downloads": app.staticTexts["No downloads"],
+            "History": app.tables["putio-history-table"].staticTexts["E2E Upload.mp4"],
+            "Account": app.tables.staticTexts["Manage your trash"]
+        ]
+
         for tab in ["Downloads", "History", "Account"] {
             let button = app.tabBars.buttons[tab]
             XCTAssertTrue(button.waitForExistence(timeout: 5), "\(tab) tab should exist")
             button.tap()
-            // Let the screen settle before capturing.
-            _ = app.navigationBars.firstMatch.waitForExistence(timeout: 5)
+            XCTAssertTrue(readiness[tab]!.waitForExistence(timeout: 10), "\(tab) content should render")
             capture(app, named: "walk-\(appearance)-\(tab.lowercased())")
         }
 
