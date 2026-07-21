@@ -77,6 +77,13 @@
       "sha256": "c19eed0b3972dcd86ef99411bccf18ddd26af676757e8bd5c31cc7a80f154c8f"
     },
     {
+      "name": "upload-simple",
+      "weight": "regular",
+      "asset_name": "upload-simple-regular",
+      "source_path": "package/assets/regular/upload-simple.svg",
+      "sha256": "e533ae82429b94ad925044ee7387fec6b8e5aee587e66502c8cd40c936766ce7"
+    },
+    {
       "name": "cloud-arrow-down",
       "weight": "regular",
       "asset_name": "cloud-arrow-down-regular",
@@ -89,6 +96,62 @@
       "asset_name": "cloud-arrow-down-fill",
       "source_path": "package/assets/fill/cloud-arrow-down-fill.svg",
       "sha256": "b3140791ba6fea5b29ccef290d3748297daaa1c4aca3bcf1ccce2a397b690caa"
+    },
+    {
+      "name": "cloud-arrow-up",
+      "weight": "regular",
+      "asset_name": "cloud-arrow-up-regular",
+      "source_path": "package/assets/regular/cloud-arrow-up.svg",
+      "sha256": "6acd280ada16c8c94640229580d022a28609c5283c48921c1a5b22770cc674ae"
+    },
+    {
+      "name": "clock",
+      "weight": "regular",
+      "asset_name": "clock-regular",
+      "source_path": "package/assets/regular/clock.svg",
+      "sha256": "6ca1e0cd577e720f1a039060acf86ed1d24922442d223af8ecd09a35613377d8"
+    },
+    {
+      "name": "check-circle",
+      "weight": "regular",
+      "asset_name": "check-circle-regular",
+      "source_path": "package/assets/regular/check-circle.svg",
+      "sha256": "38c2ca75d103cea5d4f8f01efd6c0bd1161d1f68420aa30a1edae2fa78b8daf9"
+    },
+    {
+      "name": "check-circle",
+      "weight": "fill",
+      "asset_name": "check-circle-fill",
+      "source_path": "package/assets/fill/check-circle-fill.svg",
+      "sha256": "3ddb580fb92bc90fd177e1d81a93963c97759586b2aa9c393160196b9e5a8ff1"
+    },
+    {
+      "name": "stop",
+      "weight": "fill",
+      "asset_name": "stop-fill",
+      "source_path": "package/assets/fill/stop-fill.svg",
+      "sha256": "476e7a0e1b4c5606a52e7b23fac4534430a46dd53517b5f63f2a39fb0944dacb"
+    },
+    {
+      "name": "x-circle",
+      "weight": "regular",
+      "asset_name": "x-circle-regular",
+      "source_path": "package/assets/regular/x-circle.svg",
+      "sha256": "d35380d1c32c9ae547e7d67e7673155d744a930cabdc03793b12cbdd2434d443"
+    },
+    {
+      "name": "warning-circle",
+      "weight": "regular",
+      "asset_name": "warning-circle-regular",
+      "source_path": "package/assets/regular/warning-circle.svg",
+      "sha256": "469e856f63fdb0f9fe8a97337000169ab02d6d2511e67f396bc3debaa94e8a75"
+    },
+    {
+      "name": "rss",
+      "weight": "regular",
+      "asset_name": "rss-regular",
+      "source_path": "package/assets/regular/rss.svg",
+      "sha256": "3ecb657bc2be7cd3d58cc5c1d6032822c248abfa2c9d90c946ca45b3690586b6"
     },
     {
       "name": "envelope-simple",
@@ -215,6 +278,13 @@
       "asset_name": "info-regular",
       "source_path": "package/assets/regular/info.svg",
       "sha256": "bc3d7ae5db8be8c60822027735a062ec929a6129a218f3c03607f4c5af826c1b"
+    },
+    {
+      "name": "image",
+      "weight": "regular",
+      "asset_name": "image-regular",
+      "source_path": "package/assets/regular/image.svg",
+      "sha256": "208d03bf31c7df374592c511800598ed44ee577668b8a4a20f57eda25be08373"
     },
     {
       "name": "star",
