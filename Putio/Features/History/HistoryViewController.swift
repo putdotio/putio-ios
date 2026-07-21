@@ -99,6 +99,13 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
 
         let offlineStatusView = OfflineStatusView.instantiateFromInterfaceBuilder()
         stateMachine.addView(offlineStatusView, forState: "offline")
+
+        let errorView = EmptyStateView.instantiateFromInterfaceBuilder()
+        errorView.configure(
+            heading: NSLocalizedString("Oops", comment: ""),
+            description: NSLocalizedString("An error occurred, please try again :(", comment: "")
+        )
+        stateMachine.addView(errorView, forState: "error")
     }
 
     // MARK: Actions
