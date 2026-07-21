@@ -1081,7 +1081,7 @@
             <objects>
                 <navigationController automaticallyAdjustsScrollViewInsets="NO" id="GNp-KK-Nh2" sceneMemberID="viewController">
                     <toolbarItems/>
-                    <navigationBar key="navigationBar" contentMode="scaleToFill" barStyle="black" id="avn-AD-X0e">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" id="avn-AD-X0e">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="56"/>
                         <autoresizingMask key="autoresizingMask"/>
                         <color key="backgroundColor" name="putio.neutral.component-bg"/>

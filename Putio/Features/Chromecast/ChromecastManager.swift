@@ -67,21 +67,28 @@ class ChromecastManager: NSObject {
         castViews.backgroundColor = UIColor.Putio.Surface.appBg
         castViews.deviceControl.sliderProgressColor = UIColor.Putio.Yellow.solid
 
-        // Cast expanded controller text/icons render over media artwork:
-        // fixed colors by token policy (over-media exception).
-        castViews.headingTextColor = .white
+        castViews.headingTextColor = UIColor.Putio.Neutral.text
         castViews.headingTextShadowColor = .clear
 
-        castViews.captionTextColor = .gray
+        castViews.captionTextColor = UIColor.Putio.Neutral.textSecondary
         castViews.captionTextShadowColor = .clear
 
-        castViews.bodyTextColor = .white
+        castViews.bodyTextColor = UIColor.Putio.Neutral.text
         castViews.bodyTextShadowColor = .clear
 
         castViews.buttonTextColor = UIColor.Putio.Yellow.textSecondary
         castViews.buttonTextShadowColor = .clear
 
-        castViews.iconTintColor = .white
+        castViews.iconTintColor = UIColor.Putio.Neutral.text
+
+        // The expanded controller renders over media artwork: fixed colors
+        // by token policy (over-media exception).
+        let expandedController = castViews.mediaControl.expandedController
+        expandedController.backgroundColor = .black
+        expandedController.headingTextColor = .white
+        expandedController.captionTextColor = .gray
+        expandedController.bodyTextColor = .white
+        expandedController.iconTintColor = .white
 
         castViews.sliderProgressColor = UIColor.Putio.Yellow.solid
         castViews.sliderSecondaryProgressColor = UIColor.Putio.Surface.appBg

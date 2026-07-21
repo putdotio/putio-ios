@@ -15,7 +15,7 @@
             <objects>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="8Xo-kQ-4l2" userLabel="First Responder" sceneMemberID="firstResponder"/>
                 <navigationController storyboardIdentifier="VideoConversionNC" id="voc-CE-KyK" sceneMemberID="viewController">
-                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" id="v0q-UG-mlk">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" translucent="NO" id="v0q-UG-mlk">
                         <rect key="frame" x="0.0" y="44" width="414" height="44"/>
                         <autoresizingMask key="autoresizingMask"/>
                         <color key="tintColor" name="putio.yellow.text-secondary"/>

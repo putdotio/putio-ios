@@ -13,13 +13,13 @@
         <scene sceneID="ZIk-mB-VWi">
             <objects>
                 <navigationController storyboardIdentifier="MoveNC" id="0sv-ax-ZLf" sceneMemberID="viewController">
-                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" id="3Ue-GB-aK4">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" translucent="NO" id="3Ue-GB-aK4">
                         <rect key="frame" x="0.0" y="44" width="375" height="44"/>
                         <autoresizingMask key="autoresizingMask"/>
                         <color key="backgroundColor" name="putio.neutral.component-bg"/>
                         <color key="tintColor" name="putio.yellow.text-secondary"/>
                     </navigationBar>
-                    <toolbar key="toolbar" opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" id="uSU-cy-gVe">
+                    <toolbar key="toolbar" opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" translucent="NO" id="uSU-cy-gVe">
                         <autoresizingMask key="autoresizingMask"/>
                     </toolbar>
                     <connections>
