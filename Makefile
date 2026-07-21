@@ -1,9 +1,13 @@
-.PHONY: bootstrap bootstrap-ci icons-sync icons-verify verify e2e-simulator print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean beta release
+.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify verify verify-fast e2e-simulator print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean beta release
 
-bootstrap:
+bootstrap: doctor
 	bundle config set --local path vendor/bundle
 	bundle install
 	bundle exec pod install
+	git config core.hooksPath .githooks
+
+doctor:
+	@./scripts/doctor.sh
 
 bootstrap-ci:
 	@./scripts/bootstrap-ci.sh
@@ -14,38 +18,45 @@ icons-sync:
 icons-verify:
 	@ruby scripts/sync-phosphor-icons.rb --check
 
-verify: icons-verify
+verify-fast: icons-verify
+	plutil -lint Putio/en.lproj/*.strings
 	xcodebuild -list -workspace Putio.xcworkspace
-	@destination="$$(./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio 2>/dev/null || true)"; \
-	if [ -z "$$destination" ]; then \
-		device_id="$$(./scripts/simctl-iphone-device-id.sh 2>/dev/null || true)"; \
-		if [ -n "$$device_id" ]; then \
-			destination="platform=iOS Simulator,id=$$device_id"; \
-		fi; \
+
+verify: verify-fast
+	@set -e; ephemeral_id=""; \
+	if [ -n "$${PUTIO_SIMULATOR_ID:-}" ]; then \
+		device_id="$$PUTIO_SIMULATOR_ID"; \
+		echo "Using simulator from PUTIO_SIMULATOR_ID: $$device_id"; \
+	else \
+		device_id="$$(./scripts/simctl-ephemeral-iphone.sh --label verify)" || exit 1; \
+		ephemeral_id="$$device_id"; \
+		echo "Using ephemeral simulator: $$device_id"; \
 	fi; \
-	if [ -z "$$destination" ]; then \
-		echo "No iPhone simulator destination available. Install the iOS simulator runtime or run make download-ios-platform." >&2; \
-		exit 1; \
-	fi; \
+	trap 'if [ -n "$$ephemeral_id" ]; then xcrun simctl shutdown "$$ephemeral_id" >/dev/null 2>&1 || true; xcrun simctl delete "$$ephemeral_id" >/dev/null 2>&1 || true; fi' EXIT; \
+	destination="platform=iOS Simulator,id=$$device_id"; \
 	echo "Using iPhone simulator destination: $$destination"; \
+	rm -rf build/verify.xcresult; \
 	xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" build-for-testing -quiet; \
-	xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -quiet
+	echo "Test results will be written to build/verify.xcresult"; \
+	xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -resultBundlePath build/verify.xcresult -quiet
 
 e2e-simulator:
-	@destination="$$(./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme PutioE2E 2>/dev/null || true)"; \
-	if [ -z "$$destination" ]; then \
-		device_id="$$(./scripts/simctl-iphone-device-id.sh 2>/dev/null || true)"; \
-		if [ -n "$$device_id" ]; then \
-			destination="platform=iOS Simulator,id=$$device_id"; \
-		fi; \
+	@set -e; ephemeral_id=""; \
+	if [ -n "$${PUTIO_SIMULATOR_ID:-}" ]; then \
+		device_id="$$PUTIO_SIMULATOR_ID"; \
+		echo "Using simulator from PUTIO_SIMULATOR_ID: $$device_id"; \
+	else \
+		device_id="$$(./scripts/simctl-ephemeral-iphone.sh --label e2e)" || exit 1; \
+		ephemeral_id="$$device_id"; \
+		echo "Using ephemeral simulator: $$device_id"; \
 	fi; \
-	if [ -z "$$destination" ]; then \
-		echo "No iPhone simulator destination available. Install the iOS simulator runtime or run make download-ios-platform." >&2; \
-		exit 1; \
-	fi; \
+	trap 'if [ -n "$$ephemeral_id" ]; then xcrun simctl shutdown "$$ephemeral_id" >/dev/null 2>&1 || true; xcrun simctl delete "$$ephemeral_id" >/dev/null 2>&1 || true; fi' EXIT; \
+	destination="platform=iOS Simulator,id=$$device_id"; \
 	echo "Using iPhone simulator destination: $$destination"; \
+	rm -rf build/e2e-simulator.xcresult; \
 	xcodebuild -workspace Putio.xcworkspace -scheme PutioE2E -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" build-for-testing -quiet; \
-	xcodebuild -workspace Putio.xcworkspace -scheme PutioE2E -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -quiet
+	echo "Test results will be written to build/e2e-simulator.xcresult"; \
+	xcodebuild -workspace Putio.xcworkspace -scheme PutioE2E -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -resultBundlePath build/e2e-simulator.xcresult -quiet
 
 print-simulator-destination:
 	@./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio

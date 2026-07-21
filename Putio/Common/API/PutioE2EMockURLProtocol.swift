@@ -54,6 +54,17 @@ private enum PutioE2EMockAPI {
     static func fixture(for request: URLRequest, url: URL) -> Fixture {
         let routeKey = "\(request.httpMethod ?? "GET") \(url.path)"
 
+        if failRoutes.contains(routeKey) {
+            return Fixture(statusCode: 500, body: """
+            {
+              "status": "ERROR",
+              "status_code": 500,
+              "error_type": "E2E_FORCED_FAILURE",
+              "message": "Forced failure for \(routeKey)"
+            }
+            """)
+        }
+
         if routeKey == "GET /v2/files/42/hls/media.m3u8" {
             return Fixture(contentType: "application/vnd.apple.mpegurl", body: hlsPlaylist)
         }
@@ -71,6 +82,16 @@ private enum PutioE2EMockAPI {
         }
         """)
     }
+
+    // Route keys ("METHOD /path", comma-separated) that return a 500 error
+    // fixture, so tests can exercise failure states.
+    private static let failRoutes: Set<String> = {
+        guard let raw = ProcessInfo.processInfo.environment["PUTIO_E2E_FAIL_ROUTES"] else {
+            return []
+        }
+
+        return Set(raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
+    }()
 
     private static let ok = #"{"status":"OK"}"#
 

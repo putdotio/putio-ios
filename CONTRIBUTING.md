@@ -16,6 +16,12 @@ Most local work only needs the normal toolchain and the checked-in development d
 make bootstrap
 ```
 
+`make bootstrap` starts with a `make doctor` preflight that checks your active
+Ruby against `.ruby-version` and your Xcode developer directory, printing
+copy-pasteable fixes when either is wrong. It also installs the repo pre-push
+hook (`.githooks/pre-push` via `core.hooksPath`), which runs the sub-second
+`make verify-fast` gate before every push.
+
 - Optional private local overrides:
   - copy `Config/Local.example.xcconfig` to `Config/Local.xcconfig`
   - keep `Config/Local.xcconfig` out of git
@@ -57,6 +63,7 @@ open Putio.xcworkspace
 - Quick local path:
 
 ```bash
+make verify-fast
 make verify
 make e2e-simulator
 make run-simulator
@@ -65,6 +72,7 @@ make run-simulator
 - Useful helpers:
 
 ```bash
+make doctor
 make print-simulator-destination
 make print-simulator-device
 make download-ios-platform
@@ -73,9 +81,12 @@ plutil -lint Putio/en.lproj/*.strings
 ```
 
 - Notes:
+  - `make verify-fast` is the sub-second gate (icon sync check, strings lint, workspace sanity); the pre-push hook runs it automatically
   - `make verify` uses an unsigned simulator build
-  - `make e2e-simulator` runs fast mocked XCUITests against fixture-backed SDK responses
-  - GitHub Actions exposes `E2E Simulator` as a manual workflow for PRs or SDK-backed flow changes that need simulator confidence
+  - `make verify` and `make e2e-simulator` write result bundles to `build/verify.xcresult` and `build/e2e-simulator.xcresult`; CI uploads them as artifacts when a run fails
+  - `make e2e-simulator` runs fast mocked XCUITests against fixture-backed SDK responses; set `PUTIO_E2E_MOCK_API=1` plus `PUTIO_E2E_FAIL_ROUTES` (comma-separated `METHOD /path` keys) in a test's launch environment to force 500 responses for failure-path coverage
+  - `make verify` and `make e2e-simulator` each create an ephemeral simulator and delete it on exit, so parallel worktrees and agents never collide; set `PUTIO_SIMULATOR_ID=<udid>` to reuse a specific device instead
+  - GitHub Actions exposes `E2E Simulator` as a manual workflow for PRs or SDK-backed flow changes that need simulator confidence, and runs it weekly against `main` (Mondays 06:00 UTC)
   - `make run-simulator` uses a normal signed Simulator build so auth and keychain persistence behave like a real interactive run
   - any iPhone simulator on iOS `26.0+` is fine
   - when auth, keychain, or signed-in persistence changes, use both `make verify` and `make run-simulator`

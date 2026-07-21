@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Fast pre-push gate: icon sync check, localized strings lint, and
+# workspace sanity. Installed by `make bootstrap` via core.hooksPath.
+# Bypass with `git push --no-verify` only when you know why.
+
+set -eu
+
+if ! make verify-fast; then
+  echo "" >&2
+  echo "pre-push: make verify-fast failed; push aborted." >&2
+  echo "pre-push: run 'make doctor' if your environment looks off." >&2
+  exit 1
+fi

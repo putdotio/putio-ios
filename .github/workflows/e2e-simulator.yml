@@ -7,6 +7,9 @@ on:
         description: Git ref to test
         required: false
         default: ''
+  schedule:
+    # Weekly run against main, Mondays 06:00 UTC.
+    - cron: '0 6 * * 1'
 
 permissions:
   contents: read
@@ -51,3 +54,11 @@ jobs:
 
       - name: Run mocked simulator e2e
         run: make e2e-simulator
+
+      - name: Upload test result bundle
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-simulator-xcresult
+          path: build/e2e-simulator.xcresult
+          if-no-files-found: ignore
