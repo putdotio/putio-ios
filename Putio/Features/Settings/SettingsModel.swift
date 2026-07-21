@@ -32,7 +32,7 @@ class SettingsModel {
     struct SectionItem {
         let title: String
         let type: SectionItemType
-        let icon: String
+        let icon: PutioIcon
         let value: Any
         let action: (() -> Void)?
         let visible: Bool

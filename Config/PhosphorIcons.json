@@ -13,6 +13,7 @@
     { "name": "trash", "weight": "regular" },
     { "name": "sort-ascending", "weight": "regular" },
     { "name": "arrow-counter-clockwise", "weight": "regular" },
+    { "name": "caret-right", "weight": "regular" },
     { "name": "network", "weight": "regular" },
     { "name": "screencast", "weight": "regular" },
     { "name": "closed-captioning", "weight": "regular" },

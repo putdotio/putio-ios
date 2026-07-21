@@ -3,6 +3,30 @@ import XCTest
 @testable import PutioSDK
 
 final class NavigationLocalizationTests: XCTestCase {
+    func testEveryPutioIconResolvesToA16PointTemplateAsset() throws {
+        for icon in PutioIcon.allCases {
+            let image = try XCTUnwrap(icon.image, "Missing asset for \(icon.assetName)")
+            XCTAssertEqual(image.size, CGSize(width: 16, height: 16), icon.assetName)
+        }
+    }
+
+    func testAccountSettingsUseSemanticPhosphorIcons() throws {
+        let items = SettingsViewModel().buildSections().flatMap(\.items)
+
+        XCTAssertEqual(
+            items.first { $0.title == NSLocalizedString("Show subtitles", comment: "") }?.icon,
+            .closedCaptioning
+        )
+        XCTAssertEqual(
+            items.first { $0.title == NSLocalizedString("View your two-factor recovery codes", comment: "") }?.icon,
+            .key
+        )
+        XCTAssertEqual(
+            items.first { $0.title == NSLocalizedString("Where you are logged in", comment: "") }?.icon,
+            .devices
+        )
+    }
+
     func testConfigureFileActionsButtonMenuItemsUsesLocalizedTitles() throws {
         let viewController = FilesViewController()
         viewController.fileActionsButton = viewController.createNavigationBarFileActionsButton()

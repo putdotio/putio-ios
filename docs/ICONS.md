@@ -6,6 +6,7 @@ Product interface glyphs use [Phosphor Icons](https://github.com/phosphor-icons/
 
 - Use regular-weight Phosphor icons in neutral gray by default
 - Use fill weight for selected or active states
+- Keep the intrinsic SVG canvas at 16 points and scale it with UIKit view constraints where a larger control needs it
 - Keep the filled folder yellow as the signature file-browser icon
 - Keep save-to-put.io, download-to-device, and stream/play as distinct metaphors
 - Do not replace brand artwork, app icons, media artwork, or other non-glyph imagery with Phosphor

@@ -25,7 +25,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Username", comment: ""),
                     type: .text,
-                    icon: "iconUser",
+                    icon: .userCircle,
                     value: user.username,
                     action: nil,
                     visible: true
@@ -33,7 +33,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Email address", comment: ""),
                     type: .text,
-                    icon: "iconMail",
+                    icon: .envelopeSimple,
                     value: user.mail,
                     action: nil,
                     visible: true
@@ -49,7 +49,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Usage", comment: ""),
                     type: .button,
-                    icon: "iconServer",
+                    icon: .hardDrives,
                     value: storageUsageText(),
                     action: { self.toggleOptimisticUsage() },
                     visible: true
@@ -57,7 +57,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Move deleted files to trash", comment: ""),
                     type: .toggle,
-                    icon: "iconRecycle",
+                    icon: .recycle,
                     value: settings.trashEnabled,
                     action: { self.toggleTrashEnabled() },
                     visible: true
@@ -65,7 +65,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Manage your trash", comment: ""),
                     type: .link,
-                    icon: "iconTrash",
+                    icon: .trash,
                     value: user.trashSize > 0 ? user.trashSize.bytesToHumanReadable() : "",
                     action: { self.tableViewController?.performSegue(withIdentifier: "toTrash", sender: nil) },
                     visible: settings.trashEnabled
@@ -81,7 +81,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Default sort option for files", comment: ""),
                     type: .button,
-                    icon: "iconAlignLeft",
+                    icon: .sortAscending,
                     value: "\(selectedSortByKey.label) \(selectedSortByDirection.label)",
                     action: { self.presentSortSettings() },
                     visible: true
@@ -89,7 +89,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Reset all sort settings", comment: ""),
                     type: .button,
-                    icon: "iconRefresh",
+                    icon: .arrowCounterClockwise,
                     value: "",
                     action: { self.resetSortSettings() },
                     visible: true
@@ -105,7 +105,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Choose your proxy", comment: ""),
                     type: .link,
-                    icon: "iconRoute",
+                    icon: .network,
                     value: settings.routeName == "default" ? NSLocalizedString("Amsterdam", comment: "") : settings.routeName,
                     action: { self.tableViewController?.performSegue(withIdentifier: "toRoutes", sender: nil) },
                     visible: true
@@ -113,7 +113,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Chromecast video playback type", comment: ""),
                     type: .link,
-                    icon: "iconVideo",
+                    icon: .screencast,
                     value: config.chromecastPlaybackType.uppercased(with: .autoupdatingCurrent),
                     action: {
                         let playbackType: PutioChromecastPlaybackType = self.config.chromecastPlaybackType == "hls" ? .mp4 : .hls
@@ -124,7 +124,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Show subtitles", comment: ""),
                     type: .toggle,
-                    icon: "iconFile",
+                    icon: .closedCaptioning,
                     value: !settings.hideSubtitles,
                     action: {
                         let value = !self.settings.hideSubtitles
@@ -137,7 +137,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Do not select subtitles by default", comment: ""),
                     type: .toggle,
-                    icon: "iconFile",
+                    icon: .subtitles,
                     value: settings.dontAutoSelectSubtitles,
                     action: {
                         let value = !self.settings.dontAutoSelectSubtitles
@@ -158,7 +158,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Two-factor authentication", comment: ""),
                     type: .toggle,
-                    icon: "iconLock",
+                    icon: .shieldCheck,
                     value: settings.twoFactorEnabled,
                     action: {
                         if self.settings.twoFactorEnabled {
@@ -172,7 +172,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("View your two-factor recovery codes", comment: ""),
                     type: .link,
-                    icon: "iconFile",
+                    icon: .key,
                     value: "",
                     action: {
                         self.tableViewController?.toTwoFactorRecoveryCodes(action: .regenerateCodes)
@@ -182,7 +182,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Where you are logged in", comment: ""),
                     type: .link,
-                    icon: "iconGlobe",
+                    icon: .devices,
                     value: "",
                     action: { self.tableViewController?.performSegue(withIdentifier: "toAuthApps", sender: nil) },
                     visible: true
@@ -190,7 +190,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Link your account", comment: ""),
                     type: .link,
-                    icon: "iconTV",
+                    icon: .televisionSimple,
                     value: "",
                     action: { self.tableViewController?.performSegue(withIdentifier: "toLinkDevice", sender: nil) },
                     visible: true
@@ -206,7 +206,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Keep populating history", comment: ""),
                     type: .toggle,
-                    icon: "iconHistory",
+                    icon: .clockCounterClockwise,
                     value: settings.historyEnabled,
                     action: { self.toggleHistoryEnabled() },
                     visible: true
@@ -222,7 +222,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("About", comment: ""),
                     type: .link,
-                    icon: "iconInfo",
+                    icon: .info,
                     value: "\(Bundle.main.versionNumber)+\(Bundle.main.buildNumber)",
                     action: { self.tableViewController?.performSegue(withIdentifier: "toAbout", sender: nil) },
                     visible: true
@@ -230,7 +230,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Rate put.io on App Store", comment: ""),
                     type: .button,
-                    icon: "iconStar",
+                    icon: .star,
                     value: "",
                     action: { AppStoreReviewManager.sharedInstance.requestReviewManually() },
                     visible: true
@@ -238,7 +238,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Contact us", comment: ""),
                     type: .button,
-                    icon: Intercom.unreadConversationCount() > 0 ? "iconChatBadge" : "iconChat",
+                    icon: Intercom.unreadConversationCount() > 0 ? .chatCircleDotsFill : .chatCircleDots,
                     value: "",
                     action: { Intercom.present() },
                     visible: true
@@ -254,7 +254,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Clear your data", comment: ""),
                     type: .link,
-                    icon: "iconRemoveFolder",
+                    icon: .folderMinus,
                     value: "",
                     action: { self.tableViewController?.performSegue(withIdentifier: "toClearData", sender: nil) },
                     visible: true
@@ -262,7 +262,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Destroy your account", comment: ""),
                     type: .link,
-                    icon: "iconX",
+                    icon: .userCircleMinus,
                     value: "",
                     action: { self.tableViewController?.performSegue(withIdentifier: "toDestroyAccount", sender: nil) },
                     visible: true
@@ -278,7 +278,7 @@ extension SettingsViewModel {
                 SettingsModel.SectionItem(
                     title: NSLocalizedString("Log out", comment: ""),
                     type: .button,
-                    icon: "iconLogout",
+                    icon: .signOut,
                     value: "",
                     action: { self.presentLogoutAlert() },
                     visible: true

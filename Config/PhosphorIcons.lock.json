@@ -11,161 +11,168 @@
       "weight": "regular",
       "asset_name": "user-circle-regular",
       "source_path": "package/assets/regular/user-circle.svg",
-      "sha256": "364744ad1fffa70f2ead16afc9ee187e879611c57a26237c77ef0380d28f1cb8"
+      "sha256": "a6a6dda6c3589c66bb694e29d0951063a468c396b97583b1fb8e815e635a0547"
     },
     {
       "name": "envelope-simple",
       "weight": "regular",
       "asset_name": "envelope-simple-regular",
       "source_path": "package/assets/regular/envelope-simple.svg",
-      "sha256": "c39d651784d5f534614dbba35bd6ecc434c04ac616a31f402726402e3a695fb3"
+      "sha256": "09696d3227e4b39e2368e751c028c71cb4c0d28fc5c4a21ffac844fd18cd8f8e"
     },
     {
       "name": "hard-drives",
       "weight": "regular",
       "asset_name": "hard-drives-regular",
       "source_path": "package/assets/regular/hard-drives.svg",
-      "sha256": "d70847e96771d04f0ce8d4f5c9013792e3b3e08d48bfcf6e109f025aebe3825b"
+      "sha256": "1fd97bd22562676f39770ef30d5a57b591b0a2a588206e9e4be88c923dea49f5"
     },
     {
       "name": "recycle",
       "weight": "regular",
       "asset_name": "recycle-regular",
       "source_path": "package/assets/regular/recycle.svg",
-      "sha256": "c686bc48ed55b8f4e21842c6e598269eab59e3b519caf4c2d5fe34fa24101c4c"
+      "sha256": "a0a90ff37843fc18a1d6fdc4447913729957e6bae1aab2023ab7ea96bbf7989f"
     },
     {
       "name": "trash",
       "weight": "regular",
       "asset_name": "trash-regular",
       "source_path": "package/assets/regular/trash.svg",
-      "sha256": "2c0b96342610df1a804edf2615168e615488a4565232dca8abe6355641ef8f0e"
+      "sha256": "81d4c58aa4b22f3ede8407a115549bca652a0ae920fcfffed4ed61bcde2d08e5"
     },
     {
       "name": "sort-ascending",
       "weight": "regular",
       "asset_name": "sort-ascending-regular",
       "source_path": "package/assets/regular/sort-ascending.svg",
-      "sha256": "68c7ed0c747402f4a190706c2a4756cd3070a7e5f1f05d84414d4ad2ac5bcd22"
+      "sha256": "a719b53a0cfbe6c7b7b2389aa8bce9beaa364d8d5ab7225da4bbe0933148a420"
     },
     {
       "name": "arrow-counter-clockwise",
       "weight": "regular",
       "asset_name": "arrow-counter-clockwise-regular",
       "source_path": "package/assets/regular/arrow-counter-clockwise.svg",
-      "sha256": "b6433242804b41880f6c36a3a44068baa14a50dca184fb0147093e4f4c51c42a"
+      "sha256": "86a2a378dc4e02eb6c8a9cd463784817b5cfa50bc4268a81851868b21ac06772"
+    },
+    {
+      "name": "caret-right",
+      "weight": "regular",
+      "asset_name": "caret-right-regular",
+      "source_path": "package/assets/regular/caret-right.svg",
+      "sha256": "84cec190dd793a944a98f61dad293b42334d6ea3bbc1d4e8f0eb4492d90f0084"
     },
     {
       "name": "network",
       "weight": "regular",
       "asset_name": "network-regular",
       "source_path": "package/assets/regular/network.svg",
-      "sha256": "4c52440d283e4388f115173ebfb579aca88887ca1323f8716c19c62cba8bbc4d"
+      "sha256": "22cc7ce842c436b53fab871cae3d82df0ef5f8317c706a311e34a8eaf020329d"
     },
     {
       "name": "screencast",
       "weight": "regular",
       "asset_name": "screencast-regular",
       "source_path": "package/assets/regular/screencast.svg",
-      "sha256": "6b4af9aa714238da75a6c0dfc65b6dc91ea00f2edf36bdc8400eee7113d9beaa"
+      "sha256": "8d1dbb7e10ccbbba9a0995b3909dfdc9a264912880232b41d0b1c02d40d3b659"
     },
     {
       "name": "closed-captioning",
       "weight": "regular",
       "asset_name": "closed-captioning-regular",
       "source_path": "package/assets/regular/closed-captioning.svg",
-      "sha256": "37804c660be95700358402976e1e4bd25810dc0e7fe1108118f3f59498e5fcd9"
+      "sha256": "fce30c4f0b75aafe36ad442755aea826031164a41ef4eab1022705a8ac4f0ba4"
     },
     {
       "name": "subtitles",
       "weight": "regular",
       "asset_name": "subtitles-regular",
       "source_path": "package/assets/regular/subtitles.svg",
-      "sha256": "93c1ae56d847440788e678bd2388f1c03641d432072843c960c58c918dda968f"
+      "sha256": "e8e91a91a76323afb5c96d20319bfab0d17579e9f320d8d6cea774a2d06f2c3a"
     },
     {
       "name": "shield-check",
       "weight": "regular",
       "asset_name": "shield-check-regular",
       "source_path": "package/assets/regular/shield-check.svg",
-      "sha256": "7bb9a7a0fab88861881d100d34a57a5b13ab15499816f9d58f9c7a8f9a49e1b0"
+      "sha256": "936ca05fb4830a81d02170ecaf5a1e422f45403871bcd567bb7efa90f4e10226"
     },
     {
       "name": "key",
       "weight": "regular",
       "asset_name": "key-regular",
       "source_path": "package/assets/regular/key.svg",
-      "sha256": "f9c7121910fa5b6d82842adc4c31d3cb45d03bc476adadcdcf1f79ff5fad5a35"
+      "sha256": "f76f6984bde45d80527d53089f9430d65f8e03df890c22f8d409b205a6077b83"
     },
     {
       "name": "devices",
       "weight": "regular",
       "asset_name": "devices-regular",
       "source_path": "package/assets/regular/devices.svg",
-      "sha256": "47841963914c1c0b04c2671a42cbb107dc2e69cc6309ec6f20f6ebb811abae9e"
+      "sha256": "bb5b1fc8b7fe0d1641a33760c64c1e6926d2594684fdf339bbe712ad5a92e251"
     },
     {
       "name": "television-simple",
       "weight": "regular",
       "asset_name": "television-simple-regular",
       "source_path": "package/assets/regular/television-simple.svg",
-      "sha256": "a27fe60a9bf89b1587c3f49a6a0415c44aa7c2d436edbf33de4cc44b6a875a75"
+      "sha256": "1d369a7924b8d55d7e2b82c725285867171d8e699ac406c8f5f0262ab9a26028"
     },
     {
       "name": "clock-counter-clockwise",
       "weight": "regular",
       "asset_name": "clock-counter-clockwise-regular",
       "source_path": "package/assets/regular/clock-counter-clockwise.svg",
-      "sha256": "23591352e9c5aa1cab76d97868569c6f7780b80ffcbc3a6c7d8588369896d5b3"
+      "sha256": "ecdd5077ad18ee1fd7acaf8008e687366efc9ca26c65b2281331298de0deb42d"
     },
     {
       "name": "info",
       "weight": "regular",
       "asset_name": "info-regular",
       "source_path": "package/assets/regular/info.svg",
-      "sha256": "f55e16754a1f09f7fe3c7042c6a23e0a961c6907b09bf9ea2d23e1dbde45cd55"
+      "sha256": "bc3d7ae5db8be8c60822027735a062ec929a6129a218f3c03607f4c5af826c1b"
     },
     {
       "name": "star",
       "weight": "regular",
       "asset_name": "star-regular",
       "source_path": "package/assets/regular/star.svg",
-      "sha256": "9928bb29aacec6ca3826d56f5f1f337ea5c9f48e5323e170f81d12df2c52735d"
+      "sha256": "6ff7d0b6ba92db58da9ce5f50731d9a6a1da2bb26fe19ce6ada92244c05dc65a"
     },
     {
       "name": "chat-circle-dots",
       "weight": "regular",
       "asset_name": "chat-circle-dots-regular",
       "source_path": "package/assets/regular/chat-circle-dots.svg",
-      "sha256": "ca08b1021dabff477163f30e8eb977a22c0444087b0259e4cefddd88d1cd42b9"
+      "sha256": "75d435c8d651f76e4632c8d933007cc0c76aef9a72638c2c4e1d177506f8e76a"
     },
     {
       "name": "chat-circle-dots",
       "weight": "fill",
       "asset_name": "chat-circle-dots-fill",
       "source_path": "package/assets/fill/chat-circle-dots-fill.svg",
-      "sha256": "5ba24c94ead514a23d8df64ec9828b3aa642a843dd0a06c138e097d13afac01a"
+      "sha256": "12060bf51000686a2d2158c8f79bb3005d42567c4615e21bd02ead7ca5a0ac37"
     },
     {
       "name": "folder-minus",
       "weight": "regular",
       "asset_name": "folder-minus-regular",
       "source_path": "package/assets/regular/folder-minus.svg",
-      "sha256": "442101e0dd6cb7e193ab81c3c675ed2e31e9ce41e1ea861a19abeae85c67db04"
+      "sha256": "6e931f5208ea4833dc8693cadf376f83a7d1a114db4463c1581efcd864db5617"
     },
     {
       "name": "user-circle-minus",
       "weight": "regular",
       "asset_name": "user-circle-minus-regular",
       "source_path": "package/assets/regular/user-circle-minus.svg",
-      "sha256": "0bc3bb1701d9b0574dde2b9b3039ef638de4b1e56e3c76c8144e3e160980b43c"
+      "sha256": "ee85770e69baeb8381bf2208b3380686d14c4b8f835415f338bae9e018c192ce"
     },
     {
       "name": "sign-out",
       "weight": "regular",
       "asset_name": "sign-out-regular",
       "source_path": "package/assets/regular/sign-out.svg",
-      "sha256": "9c3fa695045ad8daf868c2c179f7d2f11b3246fc665c9c588605cbec229c7b08"
+      "sha256": "352de9bfd0e0fb0142f4f075629c4e6a47e389a99ce820d947ebc4dcac2685a5"
     }
   ]
 }

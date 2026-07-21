@@ -13,8 +13,8 @@ class SettingsTableViewCell: UITableViewCell {
         self.item = item
 
         self.backgroundColor = UIColor.Putio.black
-        self.imageView?.image = UIImage(named: item.icon)
-        self.imageView?.tintColor = UIColor(red: 0.53, green: 0.53, blue: 0.53, alpha: 1.00)
+        self.imageView?.image = item.icon.image
+        self.imageView?.tintColor = UIColor.Putio.listSubtitle
         self.textLabel?.text = item.title
 
         switch item.type {
@@ -25,7 +25,9 @@ class SettingsTableViewCell: UITableViewCell {
 
         case .button, .link:
             self.accessoryType = .disclosureIndicator
-            self.accessoryView = UIImageView(image: UIImage(named: "chevronLeft")!)
+            let accessoryImageView = UIImageView(image: PutioIcon.caretRight.image)
+            accessoryImageView.tintColor = UIColor.Putio.yellow
+            self.accessoryView = accessoryImageView
 
             if let text = item.value as? String {
                 self.detailTextLabel?.text = text

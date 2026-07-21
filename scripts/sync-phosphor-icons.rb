@@ -141,7 +141,8 @@ class PhosphorIconSync
     asset_name = asset_name(icon)
     directory = File.join(ASSET_ROOT, "#{asset_name}.imageset")
     filename = "#{asset_name}.svg"
-    svg = source.gsub("currentColor", "#000000")
+    svg = source.sub("<svg ", "<svg width=\"16\" height=\"16\" ")
+      .gsub("currentColor", "#000000")
     svg = "#{svg.rstrip}\n"
 
     FileUtils.mkdir_p(directory)
