@@ -66,7 +66,9 @@ final class ScreenshotWalkUITests: XCTestCase {
         trashRow.tap()
         XCTAssertTrue(app.staticTexts["E2E Trashed Movie.mp4"].waitForExistence(timeout: 5))
         capture(app, named: "walk-\(appearance)-trash")
-        app.navigationBars.buttons.firstMatch.tap()
+        let backButton = app.navigationBars.buttons["Account"]
+        XCTAssertTrue(backButton.waitForExistence(timeout: 5), "back button should be labeled after the presenting screen")
+        backButton.tap()
 
         let themeRow = app.tables.staticTexts["Theme"]
         XCTAssertTrue(themeRow.waitForExistence(timeout: 5))

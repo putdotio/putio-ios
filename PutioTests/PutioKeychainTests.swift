@@ -104,6 +104,21 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedSortByKey.key, "DATE")
         XCTAssertEqual(viewModel.selectedSortByDirection.key, "DESC")
     }
+
+    func testBuildSectionsIncludesAppearanceThemeItem() throws {
+        UserDefaults.standard.set(AppAppearance.light.rawValue, forKey: AppearanceManager.defaultsKey)
+        defer { UserDefaults.standard.removeObject(forKey: AppearanceManager.defaultsKey) }
+
+        let viewModel = SettingsViewModel()
+        viewModel.update()
+
+        let appearanceSection = try XCTUnwrap(viewModel.sections.first(where: { $0.title == "Appearance" }))
+        let themeItem = try XCTUnwrap(appearanceSection.items.first(where: { $0.title == "Theme" }))
+
+        XCTAssertEqual(themeItem.value as? String, "Light")
+        XCTAssertTrue(themeItem.visible)
+        XCTAssertNotNil(themeItem.action)
+    }
 }
 
 final class DeeplinkManagerTests: XCTestCase {

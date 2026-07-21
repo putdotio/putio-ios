@@ -66,7 +66,10 @@ Recorded deviations (Phase 1):
 
 Recorded deviations (Phase 2):
 
-- `LaunchScreen.storyboard` (repo root) also migrated to token named colors.
+- `LaunchScreen.storyboard` (repo root) uses system adaptive colors
+  (`systemBackground` / `systemGray5`) rather than tokens: launch screens
+  have known named-color caching quirks, and the system values sit within a
+  hair of `surface.app-bg` / `neutral.component-bg` in both modes.
 - Known cosmetic follow-up: `yellow.solid` used as link text on light
   backgrounds (Downloads empty state) is low-contrast; consider
   `yellow.text-secondary` for text-on-background roles in a follow-up.

@@ -52,6 +52,7 @@ enum AppearanceManager {
         }
     }
 
+    @MainActor
     static func apply(to window: UIWindow?) {
         window?.overrideUserInterfaceStyle = current.style
     }
