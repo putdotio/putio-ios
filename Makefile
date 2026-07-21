@@ -1,4 +1,4 @@
-.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify verify verify-fast e2e-simulator print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean beta release
+.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify verify verify-fast e2e-simulator print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean beta release
 
 bootstrap: doctor
 	bundle config set --local path vendor/bundle
@@ -18,7 +18,13 @@ icons-sync:
 icons-verify:
 	@ruby scripts/sync-phosphor-icons.rb --check
 
-verify-fast: icons-verify
+tokens-sync:
+	@ruby scripts/sync-design-tokens.rb
+
+tokens-verify:
+	@ruby scripts/sync-design-tokens.rb --check
+
+verify-fast: icons-verify tokens-verify
 	plutil -lint Putio/en.lproj/*.strings
 	xcodebuild -list -workspace Putio.xcworkspace
 
