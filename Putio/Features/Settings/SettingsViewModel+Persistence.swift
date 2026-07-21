@@ -214,6 +214,7 @@ extension SettingsViewModel {
             actionSheet.addAction(UIAlertAction(title: title, style: .default) { _ in
                 AppearanceManager.current = appearance
                 AppearanceManager.apply(to: self.tableViewController?.view.window)
+                ChromecastManager.sharedInstance.applyAppearanceStyling()
                 self.update()
             })
         }
