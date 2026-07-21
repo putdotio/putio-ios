@@ -10,11 +10,10 @@ private struct MockHistoryEvent: HistoryEventRepresentable {
 }
 
 final class HistoryViewModelTests: XCTestCase {
-    func testApplyStateAndSummariesBucketsSupportedEventsByDateWindow() {
+    func testSummarizeSectionsBucketsSupportedEventsByDateWindow() {
         let now = Date(timeIntervalSince1970: 1_712_000_000)
-        let viewModel = HistoryViewModel()
 
-        let summaries = viewModel.applyStateAndSummaries(for: [
+        let summaries = HistoryViewModel.summarizeSections(for: [
             MockHistoryEvent(historyEventID: 1, historyEventType: .upload, historyEventCreatedAt: now),
             MockHistoryEvent(historyEventID: 2, historyEventType: .fileShared, historyEventCreatedAt: Calendar.current.date(byAdding: .day, value: -1, to: now)!),
             MockHistoryEvent(historyEventID: 3, historyEventType: .transferCompleted, historyEventCreatedAt: Calendar.current.date(byAdding: .day, value: -3, to: now)!),
@@ -22,18 +21,25 @@ final class HistoryViewModelTests: XCTestCase {
             MockHistoryEvent(historyEventID: 5, historyEventType: .voucher, historyEventCreatedAt: now)
         ], now: now)
 
-        assertLoaded(viewModel.state)
         XCTAssertEqual(summaries.map(\.title), ["Today", "Yesterday", "Last Week", "Ancient Times"])
         XCTAssertEqual(summaries.map(\.eventIDs), [[1], [2], [3], [4]])
     }
 
-    func testApplyStateAndSummariesWithNoEventsTransitionsToEmpty() {
-        let viewModel = HistoryViewModel()
+    func testSummarizeSectionsWithNoEventsIsEmpty() {
+        let summaries = HistoryViewModel.summarizeSections(for: [], now: Date(timeIntervalSince1970: 1_712_000_000))
 
-        let summaries = viewModel.applyStateAndSummaries(for: [], now: Date(timeIntervalSince1970: 1_712_000_000))
+        XCTAssertTrue(summaries.isEmpty)
+    }
+
+    func testEmptyFetchTransitionsToEmptyAndClearsSections() {
+        var fetchCompletion: ((Result<[PutioHistoryEvent], PutioSDKError>) -> Void)?
+        let viewModel = HistoryViewModel(fetchEventsRequest: { completion in fetchCompletion = completion })
+
+        viewModel.fetchEvents()
+        fetchCompletion?(.success([]))
 
         assertEmpty(viewModel.state)
-        XCTAssertTrue(summaries.isEmpty)
+        XCTAssertTrue(viewModel.sections.isEmpty)
     }
 
     func testRemoveEventByIDUsesInjectedRequest() {
@@ -117,6 +123,7 @@ private final class HistoryTableHarness: NSObject, UITableViewDataSource, Histor
 
 // Regression coverage for the first-load-renders-empty bug: sections must be
 // rebuilt before .loaded is published, otherwise the table renders one fetch behind.
+@MainActor
 final class HistoryFirstLoadRenderTests: XCTestCase {
     private func makeEvent(id: Int) throws -> PutioHistoryEvent {
         let json = #"{"id": \#(id), "user_id": 1, "type": "upload", "created_at": "2026-07-21T09:00:00Z"}"#
