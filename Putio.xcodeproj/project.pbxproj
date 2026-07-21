@@ -28,6 +28,7 @@
 		8B5C2D1E4F60718293A4B5C6 /* ErrorPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */; };
 		9554916755C204A76581CC3A /* Pods_PutioTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7010BA68B2C5ECA69752D4D4 /* Pods_PutioTests.framework */; };
 		9C3E5A7B2D4F6A8C0E1B3D5F /* HistoryErrorUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B2D4F6A1C3E5A7B9D0F2A4C /* HistoryErrorUITests.swift */; };
+		3A5C7E9B1D2F4A6C8E0B3D5A /* ThemeSelectionUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B4D6F8A0C1E3A5C7E9B1D2F /* ThemeSelectionUITests.swift */; };
 		AC0EACEA1FDEA76C00A728CB /* Realm.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0EACE91FDEA76C00A728CB /* Realm.swift */; };
 		AC0FC8BD1FC2D18B002E775B /* String+Truncate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0FC8BC1FC2D18B002E775B /* String+Truncate.swift */; };
 		AC0FC8BF1FC2D6DF002E775B /* Utils.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0FC8BE1FC2D6DF002E775B /* Utils.swift */; };
@@ -185,6 +186,7 @@
 		7A112233445566778899AABC /* NavigationLocalizationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NavigationLocalizationTests.swift; sourceTree = "<group>"; };
 		7AD1192F6A523D03D09DF523 /* Pods_PutioUITests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_PutioUITests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		8B2D4F6A1C3E5A7B9D0F2A4C /* HistoryErrorUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryErrorUITests.swift; sourceTree = "<group>"; };
+		2B4D6F8A0C1E3A5C7E9B1D2F /* ThemeSelectionUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ThemeSelectionUITests.swift; sourceTree = "<group>"; };
 		8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ErrorPresentationTests.swift; sourceTree = "<group>"; };
 		8D5E6F7A8B9C0D1E2F3A4B5C /* AppearanceManagerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppearanceManagerTests.swift; sourceTree = "<group>"; };
 		3B4C5D6E7F8A9B0C1D2E3F4A /* ComponentSnapshotTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ComponentSnapshotTests.swift; sourceTree = "<group>"; };
@@ -375,6 +377,7 @@
 				6152DB33E9792260A66491D4 /* PlaybackSmokeUITests.swift */,
 				4F8E2A6C0B3D7F1A5C9E3B6D /* HistorySmokeUITests.swift */,
 				8B2D4F6A1C3E5A7B9D0F2A4C /* HistoryErrorUITests.swift */,
+				2B4D6F8A0C1E3A5C7E9B1D2F /* ThemeSelectionUITests.swift */,
 				3D7E2A6C0B4D7F1A5C9E3B6E /* ScreenshotWalkUITests.swift */,
 			);
 			name = PutioUITests;
@@ -1111,6 +1114,7 @@
 				53457AFE39DF68A6E14E3AA9 /* PlaybackSmokeUITests.swift in Sources */,
 				7A1C9E4B2D6F8A0C3E5B7D9F /* HistorySmokeUITests.swift in Sources */,
 				9C3E5A7B2D4F6A8C0E1B3D5F /* HistoryErrorUITests.swift in Sources */,
+				3A5C7E9B1D2F4A6C8E0B3D5A /* ThemeSelectionUITests.swift in Sources */,
 				4E8F2B6D0C3E7F1A5C9E3B7F /* ScreenshotWalkUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -1,5 +1,15 @@
 .PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify verify verify-fast e2e-simulator screenshots-record print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean beta release
 
+# Result bundle paths shared by verify / e2e-simulator / screenshots-record.
+VERIFY_RESULT_BUNDLE := build/verify.xcresult
+E2E_RESULT_BUNDLE := build/e2e-simulator.xcresult
+
+# Exact baseline counts screenshots-record must produce. Update these when
+# adding or removing snapshot tests — an unexpected count means a walk was
+# skipped, crashed, or silently dropped baselines.
+EXPECTED_COMPONENT_BASELINES := 22
+EXPECTED_WALK_BASELINES := 26
+
 bootstrap: doctor
 	bundle config set --local path vendor/bundle
 	bundle install
@@ -45,10 +55,10 @@ verify: verify-fast
 	trap 'if [ -n "$$ephemeral_id" ]; then xcrun simctl shutdown "$$ephemeral_id" >/dev/null 2>&1 || true; xcrun simctl delete "$$ephemeral_id" >/dev/null 2>&1 || true; fi' EXIT; \
 	destination="platform=iOS Simulator,id=$$device_id"; \
 	echo "Using iPhone simulator destination: $$destination"; \
-	rm -rf build/verify.xcresult; \
+	rm -rf $(VERIFY_RESULT_BUNDLE); \
 	xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" build-for-testing -quiet; \
-	echo "Test results will be written to build/verify.xcresult"; \
-	TEST_RUNNER_PUTIO_RECORD_SNAPSHOTS="$${PUTIO_RECORD_SNAPSHOTS:-0}" xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -resultBundlePath build/verify.xcresult -quiet
+	echo "Test results will be written to $(VERIFY_RESULT_BUNDLE)"; \
+	TEST_RUNNER_PUTIO_RECORD_SNAPSHOTS="$${PUTIO_RECORD_SNAPSHOTS:-0}" xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -resultBundlePath $(VERIFY_RESULT_BUNDLE) -quiet
 
 e2e-simulator:
 	@set -e; ephemeral_id=""; \
@@ -63,18 +73,18 @@ e2e-simulator:
 	trap 'if [ -n "$$ephemeral_id" ]; then xcrun simctl shutdown "$$ephemeral_id" >/dev/null 2>&1 || true; xcrun simctl delete "$$ephemeral_id" >/dev/null 2>&1 || true; fi' EXIT; \
 	destination="platform=iOS Simulator,id=$$device_id"; \
 	echo "Using iPhone simulator destination: $$destination"; \
-	rm -rf build/e2e-simulator.xcresult; \
+	rm -rf $(E2E_RESULT_BUNDLE); \
 	xcodebuild -workspace Putio.xcworkspace -scheme PutioE2E -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" build-for-testing -quiet; \
-	echo "Test results will be written to build/e2e-simulator.xcresult"; \
-	TEST_RUNNER_PUTIO_RECORD_SNAPSHOTS="$${PUTIO_RECORD_SNAPSHOTS:-0}" xcodebuild -workspace Putio.xcworkspace -scheme PutioE2E -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -resultBundlePath build/e2e-simulator.xcresult -quiet
+	echo "Test results will be written to $(E2E_RESULT_BUNDLE)"; \
+	TEST_RUNNER_PUTIO_RECORD_SNAPSHOTS="$${PUTIO_RECORD_SNAPSHOTS:-0}" xcodebuild -workspace Putio.xcworkspace -scheme PutioE2E -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -resultBundlePath $(E2E_RESULT_BUNDLE) -quiet
 
 screenshots-record:
 	@rm -rf PutioUITests/__Snapshots__ PutioTests/__Snapshots__; \
 	overall=0; \
 	for target in verify e2e-simulator; do \
 		case "$$target" in \
-			verify) bundle=build/verify.xcresult; snapshots=PutioTests/__Snapshots__;; \
-			*) bundle=build/e2e-simulator.xcresult; snapshots=PutioUITests/__Snapshots__;; \
+			verify) bundle=$(VERIFY_RESULT_BUNDLE); snapshots=PutioTests/__Snapshots__; expected=$(EXPECTED_COMPONENT_BASELINES);; \
+			*) bundle=$(E2E_RESULT_BUNDLE); snapshots=PutioUITests/__Snapshots__; expected=$(EXPECTED_WALK_BASELINES);; \
 		esac; \
 		PUTIO_RECORD_SNAPSHOTS=1 $(MAKE) $$target; status=$$?; \
 		if [ ! -d "$$bundle" ]; then \
@@ -86,8 +96,9 @@ screenshots-record:
 			overall=1; continue; \
 		fi; \
 		count="$$(find $$snapshots -name '*.png' 2>/dev/null | wc -l | tr -d ' ')"; \
-		if [ "$$count" -eq 0 ]; then \
-			echo "screenshots-record: $$target wrote no baselines (exit $$status)." >&2; \
+		if [ "$$count" -ne "$$expected" ]; then \
+			echo "screenshots-record: $$target wrote $$count baselines, expected $$expected (exit $$status)." >&2; \
+			echo "If you intentionally added or removed snapshot tests, update the EXPECTED_*_BASELINES constants in the Makefile." >&2; \
 			overall=1; continue; \
 		fi; \
 		echo "Recorded $$count baselines under $$snapshots/."; \
