@@ -45,7 +45,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
     func configureNavigationBarButton() {
         let button = UIButton(type: .system)
         var configuration = UIButton.Configuration.plain()
-        configuration.baseForegroundColor = UIColor.Putio.Yellow.solid
+        configuration.baseForegroundColor = UIColor.Putio.Yellow.textSecondary
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8)
         button.configuration = configuration
         button.accessibilityLabel = NSLocalizedString("Downloads tutorial", comment: "")

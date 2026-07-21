@@ -27,7 +27,7 @@
                             <rect key="frame" x="0.0" y="38.5" width="375" height="32"/>
                             <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
                             <state key="normal" title="Not sure how it works? Tap to find out.">
-                                <color key="titleColor" name="putio.yellow.solid"/>
+                                <color key="titleColor" name="putio.yellow.text-secondary"/>
                             </state>
                             <connections>
                                 <action selector="buttonTapped:" destination="iN0-l3-epB" eventType="touchUpInside" id="Vja-fg-SxJ"/>
@@ -52,6 +52,9 @@
         </view>
     </objects>
     <resources>
+        <namedColor name="putio.yellow.text-secondary">
+            <color red="1.000" green="0.820" blue="0.280" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
         <namedColor name="putio.neutral.text">
             <color red="0.930" green="0.930" blue="0.930" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>

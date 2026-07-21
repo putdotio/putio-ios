@@ -136,7 +136,7 @@ class TrashViewController: UIViewController, StatefulViewController {
     func configureToolbar() {
         let toolbar = UIToolbar()
         toolbar.translatesAutoresizingMaskIntoConstraints = false
-        toolbar.tintColor = UIColor.Putio.Yellow.solid
+        toolbar.tintColor = UIColor.Putio.Yellow.textSecondary
 
         let appearance = UIToolbarAppearance()
         appearance.configureWithTransparentBackground()

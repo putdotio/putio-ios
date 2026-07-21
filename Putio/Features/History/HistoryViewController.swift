@@ -66,7 +66,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
         let button = UIButton(type: .system)
         var configuration = UIButton.Configuration.plain()
         configuration.title = NSLocalizedString("Clear", comment: "")
-        configuration.baseForegroundColor = UIColor.Putio.Yellow.solid
+        configuration.baseForegroundColor = UIColor.Putio.Yellow.textSecondary
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12)
         configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var outgoing = incoming
@@ -83,7 +83,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
     func setClearAllButtonEnabled(_ isEnabled: Bool) {
         clearAllCustomButton?.isEnabled = isEnabled
         clearAllCustomButton?.alpha = isEnabled ? 1 : 0.45
-        clearAllCustomButton?.configuration?.baseForegroundColor = isEnabled ? UIColor.Putio.Yellow.solid : UIColor.Putio.Neutral.textSecondary
+        clearAllCustomButton?.configuration?.baseForegroundColor = isEnabled ? UIColor.Putio.Yellow.textSecondary : UIColor.Putio.Neutral.textSecondary
     }
 
     func configureStateMachine() {

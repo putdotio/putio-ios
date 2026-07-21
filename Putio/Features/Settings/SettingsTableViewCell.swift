@@ -27,7 +27,7 @@ class SettingsTableViewCell: UITableViewCell {
         case .button, .link:
             self.accessoryType = .disclosureIndicator
             let accessoryImageView = UIImageView(image: PutioIcon.caretRight.image)
-            accessoryImageView.tintColor = UIColor.Putio.Yellow.solid
+            accessoryImageView.tintColor = UIColor.Putio.Yellow.textSecondary
             self.accessoryView = accessoryImageView
 
             if let text = item.value as? String {

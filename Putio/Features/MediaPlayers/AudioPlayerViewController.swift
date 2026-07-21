@@ -98,7 +98,7 @@ class AudioPlayerViewController: UIViewController {
             nextItemLabel.isHidden = false
             nextItemLoadingView.isHidden = true
             nextItemActionButton.isEnabled = true
-            nextItemActionButton.tintColor = UIColor.Putio.Yellow.solid
+            nextItemActionButton.tintColor = UIColor.Putio.Yellow.textSecondary
 
         case .failure:
             nextItemLabel.text = NSLocalizedString("We couldn't find anything to play", comment: "")

@@ -17,7 +17,7 @@
                         <rect key="frame" x="0.0" y="44" width="375" height="44"/>
                         <autoresizingMask key="autoresizingMask"/>
                         <color key="backgroundColor" name="putio.neutral.component-bg"/>
-                        <color key="tintColor" name="putio.yellow.solid"/>
+                        <color key="tintColor" name="putio.yellow.text-secondary"/>
                     </navigationBar>
                     <toolbar key="toolbar" opaque="NO" clearsContextBeforeDrawing="NO" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" id="uSU-cy-gVe">
                         <autoresizingMask key="autoresizingMask"/>
@@ -41,7 +41,7 @@
                             <tableView clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="28" sectionFooterHeight="28" translatesAutoresizingMaskIntoConstraints="NO" id="4iO-KU-SwN">
                                 <rect key="frame" x="0.0" y="0.0" width="375" height="607"/>
                                 <color key="backgroundColor" name="putio.surface.app-bg"/>
-                                <color key="tintColor" name="putio.yellow.solid"/>
+                                <color key="tintColor" name="putio.yellow.text-secondary"/>
                                 <color key="separatorColor" name="putio.surface.list-item-border"/>
                                 <prototypes>
                                     <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="gray" indentationWidth="10" reuseIdentifier="moveFileReuse" textLabel="v6O-hB-0PW" imageView="qeN-PI-1uZ" style="IBUITableViewCellStyleDefault" id="9ny-2I-qGJ">
@@ -65,7 +65,7 @@
                                             </subviews>
                                         </tableViewCellContentView>
                                         <color key="backgroundColor" name="putio.surface.app-bg"/>
-                                        <color key="tintColor" name="putio.yellow.solid"/>
+                                        <color key="tintColor" name="putio.yellow.text-secondary"/>
                                     </tableViewCell>
                                 </prototypes>
                             </tableView>
@@ -84,12 +84,12 @@
                                         </connections>
                                     </barButtonItem>
                                 </items>
-                                <color key="tintColor" name="putio.yellow.solid"/>
+                                <color key="tintColor" name="putio.yellow.text-secondary"/>
                             </toolbar>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="ZRg-44-cKX"/>
                         <color key="backgroundColor" name="putio.surface.app-bg"/>
-                        <color key="tintColor" name="putio.yellow.solid"/>
+                        <color key="tintColor" name="putio.yellow.text-secondary"/>
                         <constraints>
                             <constraint firstItem="4iO-KU-SwN" firstAttribute="leading" secondItem="ZRg-44-cKX" secondAttribute="leading" id="4QW-2A-bdK"/>
                             <constraint firstItem="ZRg-44-cKX" firstAttribute="trailing" secondItem="4iO-KU-SwN" secondAttribute="trailing" id="HPD-hh-zqd"/>
@@ -102,7 +102,7 @@
                     </view>
                     <navigationItem key="navigationItem" title="Your Files" prompt="Choose New Location" id="ptY-vw-Xdb">
                         <barButtonItem key="rightBarButtonItem" systemItem="cancel" id="aQy-cW-2yG">
-                            <color key="tintColor" name="putio.yellow.solid"/>
+                            <color key="tintColor" name="putio.yellow.text-secondary"/>
                             <connections>
                                 <action selector="cancelButtonPressed:" destination="RMh-cI-2cX" id="ap1-C4-pfR"/>
                             </connections>
@@ -121,6 +121,9 @@
         </scene>
     </scenes>
     <resources>
+        <namedColor name="putio.yellow.text-secondary">
+            <color red="1.000" green="0.820" blue="0.280" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
         <namedColor name="putio.neutral.component-bg">
             <color red="0.136" green="0.136" blue="0.136" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>

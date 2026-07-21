@@ -95,7 +95,7 @@ class FilesTableViewCell: UITableViewCell {
                 ? PutioIcon.downloadSimpleFill.image
                 : PutioIcon.downloadSimple.image
             subtitleIcon.tintColor = download.state == .completed
-                ? UIColor.Putio.Yellow.solid
+                ? UIColor.Putio.Yellow.textSecondary
                 : UIColor.Putio.Neutral.textSecondary
         }
     }

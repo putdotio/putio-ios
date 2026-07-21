@@ -10,9 +10,9 @@ class Stylize {
         navigationBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.Putio.Neutral.text]
 
         let buttonAppearance = UIBarButtonItemAppearance(style: .plain)
-        buttonAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.Putio.Yellow.solid]
-        buttonAppearance.highlighted.titleTextAttributes = [.foregroundColor: UIColor.Putio.Yellow.solid]
-        buttonAppearance.disabled.titleTextAttributes = [.foregroundColor: UIColor.Putio.Yellow.solid.withAlphaComponent(0.5)]
+        buttonAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.Putio.Yellow.textSecondary]
+        buttonAppearance.highlighted.titleTextAttributes = [.foregroundColor: UIColor.Putio.Yellow.textSecondary]
+        buttonAppearance.disabled.titleTextAttributes = [.foregroundColor: UIColor.Putio.Yellow.textSecondary.withAlphaComponent(0.5)]
 
         navigationBarAppearance.buttonAppearance = buttonAppearance
         navigationBarAppearance.backButtonAppearance = buttonAppearance
@@ -25,7 +25,7 @@ class Stylize {
         window?.backgroundColor = UIColor.Putio.Surface.appBg
 
         let navigationBar = UINavigationBar.appearance()
-        navigationBar.tintColor = UIColor.Putio.Yellow.solid
+        navigationBar.tintColor = UIColor.Putio.Yellow.textSecondary
         navigationBar.titleTextAttributes = [.foregroundColor: UIColor.Putio.Neutral.text]
         navigationBar.isTranslucent = false
         navigationBar.barTintColor = UIColor.Putio.Surface.navBg
@@ -36,7 +36,7 @@ class Stylize {
         navigationBar.scrollEdgeAppearance = navigationBarAppearance
         navigationBar.compactScrollEdgeAppearance = navigationBarAppearance
 
-        UITabBar.appearance().tintColor = UIColor.Putio.Yellow.solid
+        UITabBar.appearance().tintColor = UIColor.Putio.Yellow.textSecondary
         UITabBar.appearance().unselectedItemTintColor = UIColor.Putio.Neutral.solid
 
         UITableView.appearance().backgroundColor = UIColor.Putio.Surface.appBg
@@ -45,7 +45,7 @@ class Stylize {
         UITableView.appearance().sectionHeaderTopPadding = 0
 
         UITableViewCell.appearance().backgroundColor = UIColor.Putio.Surface.appBg
-        UITableViewCell.appearance().tintColor = UIColor.Putio.Yellow.solid
+        UITableViewCell.appearance().tintColor = UIColor.Putio.Yellow.textSecondary
 
         let uiTableViewCellColorView = UIView()
         uiTableViewCellColorView.backgroundColor = UIColor.Putio.Surface.listItemBgActive
@@ -53,12 +53,12 @@ class Stylize {
         UITableViewCell.appearance().multipleSelectionBackgroundView = uiTableViewCellColorView
 
         let toolbar = UIToolbar.appearance()
-        toolbar.tintColor = UIColor.Putio.Yellow.solid
+        toolbar.tintColor = UIColor.Putio.Yellow.textSecondary
 
     }
 
     static func searchBar(_ searchBar: UISearchBar) {
-        searchBar.tintColor = UIColor.Putio.Yellow.solid
+        searchBar.tintColor = UIColor.Putio.Yellow.textSecondary
         searchBar.keyboardType = .default
         searchBar.returnKeyType = .done
         searchBar.autocorrectionType = .no

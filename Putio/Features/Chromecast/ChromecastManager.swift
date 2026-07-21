@@ -78,7 +78,7 @@ class ChromecastManager: NSObject {
         castViews.bodyTextColor = .white
         castViews.bodyTextShadowColor = .clear
 
-        castViews.buttonTextColor = UIColor.Putio.Yellow.solid
+        castViews.buttonTextColor = UIColor.Putio.Yellow.textSecondary
         castViews.buttonTextShadowColor = .clear
 
         castViews.iconTintColor = .white
@@ -90,7 +90,7 @@ class ChromecastManager: NSObject {
 
         castViews.mediaControl.backgroundColor = UIColor.Putio.Neutral.componentBg
         castViews.mediaControl.headingTextFont = .systemFont(ofSize: 18.0)
-        castViews.mediaControl.iconTintColor = UIColor.Putio.Yellow.solid
+        castViews.mediaControl.iconTintColor = UIColor.Putio.Yellow.textSecondary
         castViews.mediaControl.miniController.headingTextFont = .systemFont(ofSize: 14.0)
 
         castStyle.apply()

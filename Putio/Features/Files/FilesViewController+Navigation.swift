@@ -6,7 +6,7 @@ extension FilesViewController {
     func createNavigationBarFileActionsButton() -> UIButton {
         let button = UIButton(type: .system)
         button.setImage(PutioIcon.dotsThreeCircle.image(for: .navigationBar), for: .normal)
-        button.tintColor = UIColor.Putio.Yellow.solid
+        button.tintColor = UIColor.Putio.Yellow.textSecondary
         button.accessibilityLabel = NSLocalizedString("More", comment: "")
         button.showsMenuAsPrimaryAction = true
         return button
@@ -40,7 +40,7 @@ extension FilesViewController {
             fileActionsButton = button
 
             let castButton = GCKUICastButton(frame: .zero)
-            castButton.tintColor = UIColor.Putio.Yellow.solid
+            castButton.tintColor = UIColor.Putio.Yellow.textSecondary
             chromecastButton = castButton
         }
 
@@ -130,7 +130,7 @@ extension FilesViewController {
     func configureToolbar() {
         let toolbar = UIToolbar()
         toolbar.translatesAutoresizingMaskIntoConstraints = false
-        toolbar.tintColor = UIColor.Putio.Yellow.solid
+        toolbar.tintColor = UIColor.Putio.Yellow.textSecondary
 
         let appearance = UIToolbarAppearance()
         appearance.configureWithTransparentBackground()

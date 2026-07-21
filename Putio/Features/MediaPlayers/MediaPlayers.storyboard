@@ -105,9 +105,9 @@
                                         <subviews>
                                             <button opaque="NO" contentMode="scaleToFill" enabled="NO" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ZxL-Qn-rZf">
                                                 <rect key="frame" x="0.0" y="15.666666666666686" width="66" height="35"/>
-                                                <color key="tintColor" name="putio.yellow.solid"/>
+                                                <color key="tintColor" name="putio.yellow.text-secondary"/>
                                                 <state key="normal">
-                                                    <color key="titleColor" name="putio.yellow.solid"/>
+                                                    <color key="titleColor" name="putio.yellow.text-secondary"/>
                                                 </state>
                                                 <connections>
                                                     <action selector="rewindButtonTapped:" destination="ndE-L3-azT" eventType="touchUpInside" id="ZTH-ny-TF2"/>
@@ -115,9 +115,9 @@
                                             </button>
                                             <button opaque="NO" contentMode="scaleToFill" enabled="NO" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="dgD-Wz-CeE">
                                                 <rect key="frame" x="74" y="0.0" width="66" height="66"/>
-                                                <color key="tintColor" name="putio.yellow.solid"/>
+                                                <color key="tintColor" name="putio.yellow.text-secondary"/>
                                                 <state key="normal">
-                                                    <color key="titleColor" name="putio.yellow.solid"/>
+                                                    <color key="titleColor" name="putio.yellow.text-secondary"/>
                                                 </state>
                                                 <connections>
                                                     <action selector="playPauseButtonTapped:" destination="ndE-L3-azT" eventType="touchUpInside" id="a5n-au-ssV"/>
@@ -125,9 +125,9 @@
                                             </button>
                                             <button opaque="NO" contentMode="scaleToFill" enabled="NO" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="02N-L3-eIY">
                                                 <rect key="frame" x="148" y="15.666666666666686" width="66" height="35"/>
-                                                <color key="tintColor" name="putio.yellow.solid"/>
+                                                <color key="tintColor" name="putio.yellow.text-secondary"/>
                                                 <state key="normal">
-                                                    <color key="titleColor" name="putio.yellow.solid"/>
+                                                    <color key="titleColor" name="putio.yellow.text-secondary"/>
                                                 </state>
                                                 <connections>
                                                     <action selector="fastForwardButtonTapped:" destination="ndE-L3-azT" eventType="touchUpInside" id="Oyi-pD-Tix"/>
@@ -157,7 +157,7 @@
                                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="UP NEXT" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="ApZ-Pi-uWy">
                                                 <rect key="frame" x="0.0" y="0.0" width="61" height="17"/>
                                                 <fontDescription key="fontDescription" type="system" weight="semibold" pointSize="14"/>
-                                                <color key="textColor" name="putio.yellow.solid"/>
+                                                <color key="textColor" name="putio.yellow.text-secondary"/>
                                                 <nil key="highlightedColor"/>
                                             </label>
                                             <stackView opaque="NO" contentMode="scaleAspectFit" alignment="center" spacing="4" translatesAutoresizingMaskIntoConstraints="NO" id="YUf-jW-fQT">
@@ -201,7 +201,7 @@
                                                             <constraint firstAttribute="width" constant="32" id="t3S-21-pWp"/>
                                                         </constraints>
                                                         <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                                        <color key="tintColor" name="putio.yellow.solid"/>
+                                                        <color key="tintColor" name="putio.yellow.text-secondary"/>
                                                         <connections>
                                                             <action selector="nextItemActionButtonTapped:" destination="ndE-L3-azT" eventType="touchUpInside" id="ypw-bK-oGg"/>
                                                         </connections>
@@ -243,7 +243,7 @@
                     </view>
                     <navigationItem key="navigationItem" title="Audio Player" id="y9f-Mf-UuS">
                         <barButtonItem key="leftBarButtonItem" systemItem="stop" id="Kts-a9-mEb">
-                            <color key="tintColor" name="putio.yellow.solid"/>
+                            <color key="tintColor" name="putio.yellow.text-secondary"/>
                             <connections>
                                 <action selector="closeButtonTapped:" destination="ndE-L3-azT" id="w7K-gp-Exg"/>
                             </connections>
@@ -269,6 +269,9 @@
         </scene>
     </scenes>
     <resources>
+        <namedColor name="putio.yellow.text-secondary">
+            <color red="1.000" green="0.820" blue="0.280" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
         <namedColor name="putio.neutral.component-bg">
             <color red="0.136" green="0.136" blue="0.136" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>

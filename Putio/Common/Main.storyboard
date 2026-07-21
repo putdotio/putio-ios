@@ -46,7 +46,7 @@
                     <tabBar key="tabBar" opaque="NO" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" id="XRm-7X-eGE">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="49"/>
                         <autoresizingMask key="autoresizingMask"/>
-                        <color key="tintColor" name="putio.yellow.solid"/>
+                        <color key="tintColor" name="putio.yellow.text-secondary"/>
                     </tabBar>
                     <connections>
                         <segue destination="MHF-Ak-52j" kind="relationship" relationship="viewControllers" id="MWI-jv-7QX"/>
@@ -135,7 +135,7 @@
                                             </constraints>
                                         </tableViewCellContentView>
                                         <color key="backgroundColor" name="putio.surface.app-bg"/>
-                                        <color key="tintColor" name="putio.yellow.solid"/>
+                                        <color key="tintColor" name="putio.yellow.text-secondary"/>
                                         <inset key="separatorInset" minX="44" minY="0.0" maxX="0.0" maxY="0.0"/>
                                         <connections>
                                             <outlet property="icon" destination="Ofc-Bo-Y27" id="jmz-v3-ikn"/>
@@ -307,7 +307,7 @@
                                             </subviews>
                                         </tableViewCellContentView>
                                         <color key="backgroundColor" name="putio.surface.app-bg"/>
-                                        <color key="tintColor" name="putio.yellow.solid"/>
+                                        <color key="tintColor" name="putio.yellow.text-secondary"/>
                                     </tableViewCell>
                                 </prototypes>
                             </tableView>
@@ -323,7 +323,7 @@
                     </view>
                     <navigationItem key="navigationItem" title="History" largeTitleDisplayMode="always" id="pFy-kL-Qan">
                         <barButtonItem key="rightBarButtonItem" title="Clear" id="37J-wn-Hil">
-                            <color key="tintColor" name="putio.yellow.solid"/>
+                            <color key="tintColor" name="putio.yellow.text-secondary"/>
                             <connections>
                                 <action selector="clearAllButtonTapped:" destination="Zvy-0D-ZY0" id="2Zs-Ul-D1s"/>
                             </connections>
@@ -451,7 +451,7 @@
                     </view>
                     <navigationItem key="navigationItem" title="Downloads" largeTitleDisplayMode="always" id="gTe-Vr-29m">
                         <barButtonItem key="rightBarButtonItem" image="Phosphor/info-regular" id="iR1-09-4CX">
-                            <color key="tintColor" name="putio.yellow.solid"/>
+                            <color key="tintColor" name="putio.yellow.text-secondary"/>
                             <connections>
                                 <segue destination="GNp-KK-Nh2" kind="presentation" identifier="toDownloadsTutorial" id="Aa0-Is-Y4w"/>
                             </connections>
@@ -709,7 +709,7 @@
                                             </constraints>
                                         </tableViewCellContentView>
                                         <color key="backgroundColor" name="putio.surface.app-bg"/>
-                                        <color key="tintColor" name="putio.yellow.solid"/>
+                                        <color key="tintColor" name="putio.yellow.text-secondary"/>
                                         <inset key="separatorInset" minX="44" minY="0.0" maxX="0.0" maxY="0.0"/>
                                         <connections>
                                             <outlet property="icon" destination="6Um-6Z-Yow" id="oB5-pD-oDr"/>
@@ -788,7 +788,7 @@
                     </view>
                     <navigationItem key="navigationItem" title="Downloads: Mini Tutorial" largeTitleDisplayMode="never" id="wiF-8p-yTc">
                         <barButtonItem key="rightBarButtonItem" title="Done" id="ALk-q8-2K3">
-                            <color key="tintColor" name="putio.yellow.solid"/>
+                            <color key="tintColor" name="putio.yellow.text-secondary"/>
                             <connections>
                                 <action selector="dismissButtonTapped:" destination="WMo-G5-Llo" id="mEK-ph-gq4"/>
                             </connections>
@@ -1065,7 +1065,7 @@
                     </tableView>
                     <navigationItem key="navigationItem" title="Select items to clean" largeTitleDisplayMode="never" id="Hu3-ND-kF7">
                         <barButtonItem key="rightBarButtonItem" title="Cleanup" style="done" id="p5P-Pw-3hZ">
-                            <color key="tintColor" name="putio.yellow.solid"/>
+                            <color key="tintColor" name="putio.yellow.text-secondary"/>
                             <connections>
                                 <action selector="cleanUpButtonPressed:" destination="vsw-Zm-mff" id="ino-6C-FyA"/>
                             </connections>
@@ -1104,8 +1104,11 @@
             <size key="intrinsicContentSize" width="30" height="34"/>
         </designable>
     </designables>
-    <color key="tintColor" name="putio.yellow.solid"/>
+    <color key="tintColor" name="putio.yellow.text-secondary"/>
     <resources>
+        <namedColor name="putio.yellow.text-secondary">
+            <color red="1.000" green="0.820" blue="0.280" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
         <namedColor name="putio.neutral.component-bg">
             <color red="0.136" green="0.136" blue="0.136" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>

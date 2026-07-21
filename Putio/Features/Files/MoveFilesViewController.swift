@@ -169,7 +169,7 @@ extension MoveFilesViewController: UITableViewDataSource {
 
         if canMove(to: file) {
             let accessoryImageView = UIImageView(image: PutioIcon.caretRight.image)
-            accessoryImageView.tintColor = UIColor.Putio.Yellow.solid
+            accessoryImageView.tintColor = UIColor.Putio.Yellow.textSecondary
             cell.accessoryView = accessoryImageView
         } else {
             cell.selectionStyle = .none
