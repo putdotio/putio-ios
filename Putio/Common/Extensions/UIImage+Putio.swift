@@ -1,5 +1,26 @@
 import UIKit
 
+enum PutioIconPresentation {
+    case navigationList
+    case tabBar
+
+    var glyphPointSize: CGFloat {
+        switch self {
+        case .navigationList:
+            return 20
+        case .tabBar:
+            return 24
+        }
+    }
+
+    var canvasPointSize: CGFloat {
+        switch self {
+        case .navigationList, .tabBar:
+            return 24
+        }
+    }
+}
+
 enum PutioIcon: String, CaseIterable {
     case arrowCounterClockwise = "arrow-counter-clockwise-regular"
     case caretRight = "caret-right-regular"
@@ -69,10 +90,27 @@ enum PutioIcon: String, CaseIterable {
     }
 
     func image(pointSize: CGFloat) -> UIImage? {
+        renderedImage(glyphPointSize: pointSize, canvasPointSize: pointSize)
+    }
+
+    func image(for presentation: PutioIconPresentation) -> UIImage? {
+        renderedImage(
+            glyphPointSize: presentation.glyphPointSize,
+            canvasPointSize: presentation.canvasPointSize
+        )
+    }
+
+    private func renderedImage(glyphPointSize: CGFloat, canvasPointSize: CGFloat) -> UIImage? {
         guard let image else { return nil }
-        let size = CGSize(width: pointSize, height: pointSize)
-        return UIGraphicsImageRenderer(size: size).image { _ in
-            image.draw(in: CGRect(origin: .zero, size: size))
+        let canvasSize = CGSize(width: canvasPointSize, height: canvasPointSize)
+        let glyphOrigin = CGPoint(
+            x: (canvasPointSize - glyphPointSize) / 2,
+            y: (canvasPointSize - glyphPointSize) / 2
+        )
+        let glyphSize = CGSize(width: glyphPointSize, height: glyphPointSize)
+
+        return UIGraphicsImageRenderer(size: canvasSize).image { _ in
+            image.draw(in: CGRect(origin: glyphOrigin, size: glyphSize))
         }.withRenderingMode(.alwaysTemplate)
     }
 }

@@ -40,8 +40,8 @@ class MainTabBarController: UITabBarController {
             guard let title = item.title,
                   let tab = TabbarItemTitle(rawValue: title),
                   let icon = icons[tab] else { return }
-            item.image = icon.regular.image(pointSize: 24)
-            item.selectedImage = icon.fill.image(pointSize: 24)
+            item.image = icon.regular.image(for: .tabBar)
+            item.selectedImage = icon.fill.image(for: .tabBar)
         }
     }
 

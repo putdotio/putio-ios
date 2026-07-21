@@ -13,7 +13,8 @@ class SettingsTableViewCell: UITableViewCell {
         self.item = item
 
         self.backgroundColor = UIColor.Putio.black
-        self.imageView?.image = item.icon.image
+        self.imageView?.image = item.icon.image(for: .navigationList)
+        self.imageView?.contentMode = .center
         self.imageView?.tintColor = UIColor.Putio.listSubtitle
         self.textLabel?.text = item.title
 

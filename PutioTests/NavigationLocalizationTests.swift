@@ -10,8 +10,17 @@ final class NavigationLocalizationTests: XCTestCase {
         }
     }
 
-    func testPutioIconCanRenderAtTabBarSize() throws {
-        let image = try XCTUnwrap(PutioIcon.folder.image(pointSize: 24))
+    func testPutioIconCanRenderForTabBarPresentation() throws {
+        let image = try XCTUnwrap(PutioIcon.folder.image(for: .tabBar))
+        XCTAssertEqual(image.size, CGSize(width: 24, height: 24))
+        XCTAssertEqual(image.renderingMode, .alwaysTemplate)
+    }
+
+    func testNavigationListPresentationUses20PointGlyphIn24PointCanvas() throws {
+        XCTAssertEqual(PutioIconPresentation.navigationList.glyphPointSize, 20)
+        XCTAssertEqual(PutioIconPresentation.navigationList.canvasPointSize, 24)
+
+        let image = try XCTUnwrap(PutioIcon.folder.image(for: .navigationList))
         XCTAssertEqual(image.size, CGSize(width: 24, height: 24))
         XCTAssertEqual(image.renderingMode, .alwaysTemplate)
     }

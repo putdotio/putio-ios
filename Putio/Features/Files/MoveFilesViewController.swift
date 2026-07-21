@@ -162,7 +162,8 @@ extension MoveFilesViewController: UITableViewDataSource {
         let cell = tableView.dequeueReusableCell(withIdentifier: "moveFileReuse", for: indexPath)
         let file = files[indexPath.row]
 
-        cell.imageView?.image = PutioIcon.folderFill.image
+        cell.imageView?.image = PutioIcon.folderFill.image(pointSize: 20)
+        cell.imageView?.contentMode = .scaleAspectFit
         cell.imageView?.tintColor = UIColor.Putio.yellow
         cell.textLabel?.text = file.name
 
