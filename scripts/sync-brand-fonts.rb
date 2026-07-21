@@ -13,6 +13,7 @@ require "digest"
 require "fileutils"
 require "json"
 require "open3"
+require "tmpdir"
 
 class BrandFontSync
   ROOT = File.expand_path("..", __dir__)
@@ -49,8 +50,18 @@ class BrandFontSync
     end
 
     require_gh!
-    FileUtils.mkdir_p(@directory)
-    missing.each { |name| fetch(name, @files.fetch(name)) }
+
+    # Stage the complete set first so a mid-sync failure can never leave a
+    # mixture of new and stale files for the build phase to bundle.
+    Dir.mktmpdir("brand-fonts") do |staging|
+      missing.each { |name| fetch(name, @files.fetch(name), into: staging) }
+
+      FileUtils.mkdir_p(@directory)
+      missing.each do |name|
+        FileUtils.mv(File.join(staging, name), File.join(@directory, name))
+      end
+    end
+
     puts "Synced #{missing.size} brand font files into #{@manifest.fetch("directory")}/."
   end
 
@@ -84,7 +95,7 @@ class BrandFontSync
     abort "sync-brand-fonts: gh CLI not found. fix: install it from https://cli.github.com and run: gh auth login"
   end
 
-  def fetch(name, expected_sha)
+  def fetch(name, expected_sha, into:)
     body, status = Open3.capture2(
       "gh", "api",
       "repos/#{@repository}/contents/#{@base_path}/#{name}?ref=#{@ref}",
@@ -97,7 +108,7 @@ class BrandFontSync
       raise "#{name}: checksum mismatch (expected #{expected_sha}, got #{actual}); refusing to write"
     end
 
-    File.binwrite(File.join(@directory, name), body)
+    File.binwrite(File.join(into, name), body)
     puts "  synced #{name}"
   end
 end
