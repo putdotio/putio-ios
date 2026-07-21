@@ -10,6 +10,7 @@
 		00B1394779C26A8412502962 /* PutioE2EMockURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42113E74CF811CB4E40A41C6 /* PutioE2EMockURLProtocol.swift */; };
 		0E4F147822C01DF9814EE2C9 /* APIErrorLocalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333E41E81298A2E8796ACE97 /* APIErrorLocalizerTests.swift */; };
 		20CA6ABE176EC66E70EC090E /* UserConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */; };
+		7C4D5E6F7A8B9C0D1E2F3A4B /* AppearanceManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D5E6F7A8B9C0D1E2F3A4B5C /* AppearanceManagerTests.swift */; };
 		48A3319779B5E73F59983FC9 /* FilesViewController+Selection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46A8E3AED9C75CAB1221EDFD /* FilesViewController+Selection.swift */; };
 		49366D1A1B213117EB390D4E /* FilesViewController+Playback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67587EFA32AA04C84BD5E5F5 /* FilesViewController+Playback.swift */; };
 		4F3388A6DA2720DACF20446B /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EEE14DC43F881736BEDFD030 /* Foundation.framework */; };
@@ -72,6 +73,7 @@
 		AC8CA4FE1FECE78200262B2A /* ChromecastManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8CA4FD1FECE78200262B2A /* ChromecastManager.swift */; };
 		AC8F20012B10000100C0F001 /* en.lproj in Resources */ = {isa = PBXBuildFile; fileRef = AC8F20002B10000100C0F001 /* en.lproj */; };
 		AC918F6E2AF128920082BFAF /* RootContainerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC918F6D2AF128920082BFAF /* RootContainerViewController.swift */; };
+		5A2B3C4D5E6F7A8B9C0D1E2F /* AppearanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B3C4D5E6F7A8B9C0D1E2F3A /* AppearanceManager.swift */; };
 		AC9E11FA27A7DFFB00E50966 /* DestroyAccounViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC9E11F927A7DFFB00E50966 /* DestroyAccounViewController.swift */; };
 		AC9F15EC23B98A5700C09BAB /* UIView+FindSubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC9F15EB23B98A5700C09BAB /* UIView+FindSubView.swift */; };
 		ACA0E003282CF66A00184DF7 /* EnableTwoFactorCodeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACA0E002282CF66A00184DF7 /* EnableTwoFactorCodeViewController.swift */; };
@@ -160,6 +162,7 @@
 		15797E9117171E8D87F34F1C /* DownloadSupport.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DownloadSupport.swift; sourceTree = "<group>"; };
 		28B31D9D86843A740051235A /* FilesViewController+TableView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "FilesViewController+TableView.swift"; sourceTree = "<group>"; };
 		293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UserConfigTests.swift; sourceTree = "<group>"; };
+		8D5E6F7A8B9C0D1E2F3A4B5C /* AppearanceManagerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppearanceManagerTests.swift; sourceTree = "<group>"; };
 		333E41E81298A2E8796ACE97 /* APIErrorLocalizerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = APIErrorLocalizerTests.swift; sourceTree = "<group>"; };
 		36936FB5AD6D469F9B2F9E4A /* Pods_Putio.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Putio.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		38466C37F620EDDBF46BFEF7 /* SettingsViewModel+Sections.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "SettingsViewModel+Sections.swift"; sourceTree = "<group>"; };
@@ -229,6 +232,7 @@
 		AC8CA4FD1FECE78200262B2A /* ChromecastManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromecastManager.swift; sourceTree = "<group>"; };
 		AC8F20002B10000100C0F001 /* en.lproj */ = {isa = PBXFileReference; lastKnownFileType = folder; path = en.lproj; sourceTree = "<group>"; };
 		AC918F6D2AF128920082BFAF /* RootContainerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootContainerViewController.swift; sourceTree = "<group>"; };
+		6B3C4D5E6F7A8B9C0D1E2F3A /* AppearanceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceManager.swift; sourceTree = "<group>"; };
 		AC9E11F927A7DFFB00E50966 /* DestroyAccounViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestroyAccounViewController.swift; sourceTree = "<group>"; };
 		AC9F15EB23B98A5700C09BAB /* UIView+FindSubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIView+FindSubView.swift"; sourceTree = "<group>"; };
 		ACA0E002282CF66A00184DF7 /* EnableTwoFactorCodeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnableTwoFactorCodeViewController.swift; sourceTree = "<group>"; };
@@ -340,6 +344,7 @@
 				9061977704DB05372D01A172 /* PutioKeychainTests.swift */,
 				E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */,
 				293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */,
+				8D5E6F7A8B9C0D1E2F3A4B5C /* AppearanceManagerTests.swift */,
 			);
 			name = PutioTests;
 			path = PutioTests;
@@ -478,6 +483,7 @@
 				AC19C7CF1FA9FBA400248748 /* Main.storyboard */,
 				AC45968A1FE7FB2C006E44DA /* MainTabBarController.swift */,
 				AC918F6D2AF128920082BFAF /* RootContainerViewController.swift */,
+				6B3C4D5E6F7A8B9C0D1E2F3A /* AppearanceManager.swift */,
 				ACED3B5B1FEBC1BA0066F41A /* Constants.swift */,
 				ACCAE1CD27A90E3D007DA85F /* API */,
 				ACAA622323BD033C0043458C /* Models */,
@@ -1021,6 +1027,7 @@
 				B5E0A31A3EECB199CBAC08D0 /* PutioKeychainTests.swift in Sources */,
 				F5F55CEFFA917A837390DE86 /* PutioRealmTests.swift in Sources */,
 				20CA6ABE176EC66E70EC090E /* UserConfigTests.swift in Sources */,
+				7C4D5E6F7A8B9C0D1E2F3A4B /* AppearanceManagerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1045,6 +1052,7 @@
 				ACB7637124B3B439007289DA /* Debouncer.swift in Sources */,
 				AC6F93951FD6C22D00B2E79F /* DownloadsViewController.swift in Sources */,
 				AC918F6E2AF128920082BFAF /* RootContainerViewController.swift in Sources */,
+				5A2B3C4D5E6F7A8B9C0D1E2F /* AppearanceManager.swift in Sources */,
 				ACF5681427856EC100A84B88 /* TrashTableViewCell.swift in Sources */,
 				ACDA73E22787362000C59611 /* TrashViewModel.swift in Sources */,
 				ACCBBB351FF0DB4600A44F9C /* SettingsViewModel.swift in Sources */,

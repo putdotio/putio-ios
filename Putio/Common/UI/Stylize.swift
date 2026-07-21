@@ -27,7 +27,6 @@ class Stylize {
         let navigationBar = UINavigationBar.appearance()
         navigationBar.tintColor = UIColor.Putio.Yellow.solid
         navigationBar.titleTextAttributes = [.foregroundColor: UIColor.Putio.Neutral.text]
-        navigationBar.barStyle = .black
         navigationBar.isTranslucent = false
         navigationBar.barTintColor = UIColor.Putio.Surface.navBg
 
@@ -56,14 +55,11 @@ class Stylize {
         let toolbar = UIToolbar.appearance()
         toolbar.tintColor = UIColor.Putio.Yellow.solid
 
-        UITextField.appearance().keyboardAppearance = .dark
     }
 
     static func searchBar(_ searchBar: UISearchBar) {
-        searchBar.barStyle = .black
         searchBar.tintColor = UIColor.Putio.Yellow.solid
         searchBar.keyboardType = .default
-        searchBar.keyboardAppearance = .dark
         searchBar.returnKeyType = .done
         searchBar.autocorrectionType = .no
     }

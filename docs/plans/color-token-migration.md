@@ -64,6 +64,13 @@ Recorded deviations (Phase 1):
   (over-media exception), as does the Cast expanded controller.
 - Fully transparent inline colors stay literal; they are mode-independent.
 
+Recorded deviations (Phase 2):
+
+- `LaunchScreen.storyboard` (repo root) also migrated to token named colors.
+- Known cosmetic follow-up: `yellow.solid` used as link text on light
+  backgrounds (Downloads empty state) is low-contrast; consider
+  `yellow.text-secondary` for text-on-background roles in a follow-up.
+
 ## Non-Goals
 
 - Fonts. The design system's brand families are licensed and must not enter

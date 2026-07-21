@@ -106,18 +106,5 @@ extension UIColor {
             static let textSecondary = UIColor(named: "putio.yellow.text-secondary")!
         }
 
-        // Legacy aliases — removed when light mode ships (Phase 2).
-        @available(*, deprecated, renamed: "Putio.Surface.appBg")
-        static let background = Surface.appBg
-        @available(*, deprecated, renamed: "Putio.Surface.htmlBg")
-        static let blackTint = Surface.htmlBg
-        @available(*, deprecated, renamed: "Putio.Neutral.componentBg")
-        static let black = Neutral.componentBg
-        @available(*, deprecated, renamed: "Putio.Yellow.solid")
-        static let yellow = Yellow.solid
-        @available(*, deprecated, renamed: "Putio.Surface.listItemBorder")
-        static let listSeperator = Surface.listItemBorder
-        @available(*, deprecated, renamed: "Putio.Neutral.textSecondary")
-        static let listSubtitle = Neutral.textSecondary
     }
 }

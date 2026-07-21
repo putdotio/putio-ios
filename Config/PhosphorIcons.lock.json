@@ -245,6 +245,13 @@
       "sha256": "a719b53a0cfbe6c7b7b2389aa8bce9beaa364d8d5ab7225da4bbe0933148a420"
     },
     {
+      "name": "moon",
+      "weight": "regular",
+      "asset_name": "moon-regular",
+      "source_path": "package/assets/regular/moon.svg",
+      "sha256": "449c3ad0d6bdef7cb4a3b933ae7daceaab731a98146dedf42391cdc29edea076"
+    },
+    {
       "name": "arrow-counter-clockwise",
       "weight": "regular",
       "asset_name": "arrow-counter-clockwise-regular",

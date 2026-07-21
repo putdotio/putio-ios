@@ -18,26 +18,6 @@ class DesignTokenSync
   COLORS_ROOT = File.join(ROOT, "Putio", "Assets.xcassets", "Colors")
   SWIFT_PATH = File.join(ROOT, "Putio", "Common", "Extensions", "UIColor+Putio.swift")
 
-  # Legacy colorset names stay until light mode ships so in-flight branches
-  # keep resolving; their values mirror the mapped token.
-  LEGACY_ALIASES = {
-    "putio.background" => "surface.app-bg",
-    "putio.black" => "neutral.component-bg",
-    "putio.black.tint" => "surface.html-bg",
-    "putio.listSeperator" => "surface.list-item-border",
-    "putio.listSubtitle" => "neutral.text-secondary",
-    "putio.yellow" => "yellow.solid"
-  }.freeze
-
-  LEGACY_SWIFT_ALIASES = {
-    "background" => ["Surface.appBg", "putio.background"],
-    "blackTint" => ["Surface.htmlBg", "putio.black.tint"],
-    "black" => ["Neutral.componentBg", "putio.black"],
-    "yellow" => ["Yellow.solid", "putio.yellow"],
-    "listSeperator" => ["Surface.listItemBorder", "putio.listSeperator"],
-    "listSubtitle" => ["Neutral.textSecondary", "putio.listSubtitle"]
-  }.freeze
-
   def initialize(check_only:)
     @check_only = check_only
     @tokens = JSON.parse(File.read(TOKENS_PATH))
@@ -51,13 +31,6 @@ class DesignTokenSync
       write_colorset("putio.#{token.fetch(:group)}.#{token.fetch(:key)}", token)
     end
 
-    LEGACY_ALIASES.each do |name, token_path|
-      mapped = color_tokens.find { |t| "#{t.fetch(:group)}.#{t.fetch(:key)}" == token_path }
-      raise "Legacy alias #{name} points at unknown token #{token_path}" unless mapped
-
-      write_colorset(name, mapped)
-    end
-
     remove_unlisted_colorsets(color_tokens)
     write_swift(color_tokens)
 
@@ -67,9 +40,9 @@ class DesignTokenSync
         @drift.each { |path| warn "  drift: #{path}" }
         exit 1
       end
-      puts "Verified #{color_tokens.size} design tokens (+#{LEGACY_ALIASES.size} legacy aliases)."
+      puts "Verified #{color_tokens.size} design tokens."
     else
-      puts "Generated #{color_tokens.size} colorsets (+#{LEGACY_ALIASES.size} legacy aliases) and UIColor+Putio.swift."
+      puts "Generated #{color_tokens.size} colorsets and UIColor+Putio.swift."
     end
   end
 
@@ -164,7 +137,6 @@ class DesignTokenSync
 
   def remove_unlisted_colorsets(color_tokens)
     expected = color_tokens.map { |t| "putio.#{t.fetch(:group)}.#{t.fetch(:key)}.colorset" }
-    expected += LEGACY_ALIASES.keys.map { |name| "#{name}.colorset" }
 
     Dir.glob(File.join(COLORS_ROOT, "*.colorset")).each do |dir|
       basename = File.basename(dir)
@@ -207,11 +179,6 @@ class DesignTokenSync
       lines << ""
     end
 
-    lines << "        // Legacy aliases — removed when light mode ships (Phase 2)."
-    LEGACY_SWIFT_ALIASES.each do |legacy, (replacement, _asset)|
-      lines << "        @available(*, deprecated, renamed: \"Putio.#{replacement}\")"
-      lines << "        static let #{legacy} = #{replacement}"
-    end
     lines << "    }"
     lines << "}"
 

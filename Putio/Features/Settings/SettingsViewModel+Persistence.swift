@@ -200,6 +200,28 @@ extension SettingsViewModel {
         tableViewController?.present(actionSheet, animated: true)
     }
 
+    func presentAppearanceSettings() {
+        let actionSheet = UIAlertController(
+            title: NSLocalizedString("Theme", comment: ""),
+            message: nil,
+            preferredStyle: .alert
+        )
+
+        AppAppearance.allCases.forEach { appearance in
+            let isSelected = appearance == AppearanceManager.current
+            let title = isSelected ? "\(appearance.label) ✓" : appearance.label
+
+            actionSheet.addAction(UIAlertAction(title: title, style: .default) { _ in
+                AppearanceManager.current = appearance
+                AppearanceManager.apply(to: self.tableViewController?.view.window)
+                self.update()
+            })
+        }
+
+        actionSheet.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
+        tableViewController?.present(actionSheet, animated: true)
+    }
+
     func saveSortSettings(_ sortBy: String) {
         saveAccountSettings(.patch(PutioAccountSettingsPatch(sortBy: sortBy))) {
             self.settings.sortBy = sortBy

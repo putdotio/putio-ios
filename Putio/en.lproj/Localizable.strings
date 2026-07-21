@@ -161,7 +161,12 @@
 "Danger Zone" = "Danger Zone";
 
 /* No comment provided by engineer. */
-"Date Added" = "Date Added";
+"Appearance" = "Appearance";
+"Theme" = "Theme";
+"System" = "System";
+"Light" = "Light";
+"Dark" = "Dark";
+\0
 
 /* No comment provided by engineer. */
 "Date Modified" = "Date Modified";

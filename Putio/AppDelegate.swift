@@ -111,7 +111,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func applyWindowAppearance() {
         window?.backgroundColor = UIColor.Putio.Surface.appBg
         window?.tintColor = UIColor.Putio.Yellow.solid
-        window?.overrideUserInterfaceStyle = .dark
+        AppearanceManager.apply(to: window)
     }
 
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {

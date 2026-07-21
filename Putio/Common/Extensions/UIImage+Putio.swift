@@ -54,6 +54,7 @@ enum PutioIcon: String, CaseIterable {
     case info = "info-regular"
     case imageIcon = "image-regular"
     case key = "key-regular"
+    case moon = "moon-regular"
     case network = "network-regular"
     case pauseCircleFill = "pause-circle-fill"
     case playFill = "play-fill"
