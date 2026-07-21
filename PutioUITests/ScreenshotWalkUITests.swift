@@ -35,6 +35,21 @@ final class ScreenshotWalkUITests: XCTestCase {
             _ = app.navigationBars.firstMatch.waitForExistence(timeout: 5)
             capture(app, named: "walk-\(appearance)-\(tab.lowercased())")
         }
+
+        let trashRow = app.tables.staticTexts["Manage your trash"]
+        XCTAssertTrue(trashRow.waitForExistence(timeout: 5))
+        trashRow.tap()
+        XCTAssertTrue(app.staticTexts["E2E Trashed Movie.mp4"].waitForExistence(timeout: 5))
+        capture(app, named: "walk-\(appearance)-trash")
+        app.navigationBars.buttons.firstMatch.tap()
+
+        let themeRow = app.tables.staticTexts["Theme"]
+        XCTAssertTrue(themeRow.waitForExistence(timeout: 5))
+        themeRow.tap()
+        let themeAlert = app.alerts["Theme"]
+        XCTAssertTrue(themeAlert.waitForExistence(timeout: 5))
+        capture(app, named: "walk-\(appearance)-theme-picker")
+        themeAlert.buttons["Cancel"].tap()
     }
 
     func testMainScreensScreenshotWalkDark() {

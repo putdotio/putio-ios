@@ -108,8 +108,34 @@ private enum PutioE2EMockAPI {
         "GET /v2/files/42/mp4": Fixture(body: mp4Status),
         "POST /v2/files/42/mp4": Fixture(body: ok),
         "POST /v2/ifttt-client/event": Fixture(body: ok),
-        "GET /v2/events/list": Fixture(body: historyEvents)
+        "GET /v2/events/list": Fixture(body: historyEvents),
+        "GET /v2/trash/list": Fixture(body: trashList)
     ]
+
+    private static let trashList = """
+    {
+      "status": "OK",
+      "cursor": null,
+      "total": 1,
+      "trash_size": 7340032,
+      "files": [
+        {
+          "id": 77,
+          "name": "E2E Trashed Movie.mp4",
+          "icon": "video",
+          "parent_id": 0,
+          "size": 7340032,
+          "created_at": "2026-04-24T10:00:00Z",
+          "updated_at": "2026-04-24T10:00:00Z",
+          "file_type": "VIDEO",
+          "is_shared": false,
+          "sort_by": "NAME_ASC",
+          "deleted_at": "2026-07-14T10:00:00Z",
+          "expiration_date": "2026-08-14T10:00:00Z"
+        }
+      ]
+    }
+    """
 
     private static let accountInfo = """
     {
