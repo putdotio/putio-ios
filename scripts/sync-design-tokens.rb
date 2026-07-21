@@ -56,7 +56,10 @@ class DesignTokenSync
   def check_interface_builder_references(color_tokens)
     known = color_tokens.map { |t| "putio.#{t.fetch(:group)}.#{t.fetch(:key)}" }.to_set
 
-    Dir.glob(File.join(ROOT, "Putio", "**", "*.{storyboard,xib}")).each do |path|
+    ib_files = Dir.glob(File.join(ROOT, "Putio", "**", "*.{storyboard,xib}")) +
+      Dir.glob(File.join(ROOT, "*.storyboard")) # LaunchScreen lives at the root
+
+    ib_files.each do |path|
       File.read(path).scan(/name="(putio\.[^"]+)"/).flatten.uniq.each do |name|
         next if known.include?(name)
 
