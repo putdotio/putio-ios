@@ -222,6 +222,7 @@ extension SettingsViewModel {
 
     // Downstream appearance side effects (Cast chrome restyling) follow from
     // the trait change this triggers; see RootContainerViewController.
+    @MainActor
     func selectAppearance(_ appearance: AppAppearance) {
         AppearanceManager.current = appearance
 
