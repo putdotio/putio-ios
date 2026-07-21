@@ -4,9 +4,8 @@ import PutioSDK
 
 extension FilesViewController {
     func createNavigationBarFileActionsButton() -> UIBarButtonItem {
-        let imageConfig = UIImage.SymbolConfiguration(pointSize: 18, weight: .regular)
         let button = UIBarButtonItem(
-            image: UIImage(systemName: "ellipsis.circle", withConfiguration: imageConfig),
+            image: PutioIcon.dotsThreeCircle.image(pointSize: 18),
             style: .plain,
             target: nil,
             action: nil
@@ -45,7 +44,7 @@ extension FilesViewController {
 
         let selectButton = UIAction(
             title: NSLocalizedString("Select", comment: ""),
-            image: UIImage(systemName: "checkmark.circle")
+            image: PutioIcon.checkCircle.image
         ) { _ in
             self.toggleTableEditing()
         }
@@ -53,7 +52,7 @@ extension FilesViewController {
 
         let newFolderButton = UIAction(
             title: NSLocalizedString("New Folder", comment: ""),
-            image: UIImage(systemName: "folder.badge.plus")
+            image: PutioIcon.folderPlus.image
         ) { _ in
             let createFolderAlert = self.createFolderCreatorAlert(parentID: parent.id) { _, error in
                 guard error == nil else { return }

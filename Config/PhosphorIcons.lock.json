@@ -35,6 +35,13 @@
       "sha256": "926e3b705d6fb8bcd8c2520a5a7028d56a75caf4cb40ac63a015df5904f9d886"
     },
     {
+      "name": "folder-plus",
+      "weight": "regular",
+      "asset_name": "folder-plus-regular",
+      "source_path": "package/assets/regular/folder-plus.svg",
+      "sha256": "71f9ef542960db0c247872420566644a7aaa9e44add8c8f0cef4dfe2c50d0944"
+    },
+    {
       "name": "file",
       "weight": "regular",
       "asset_name": "file-regular",
@@ -154,6 +161,13 @@
       "sha256": "3ecb657bc2be7cd3d58cc5c1d6032822c248abfa2c9d90c946ca45b3690586b6"
     },
     {
+      "name": "dots-three-circle",
+      "weight": "regular",
+      "asset_name": "dots-three-circle-regular",
+      "source_path": "package/assets/regular/dots-three-circle.svg",
+      "sha256": "7e2d242701369ae0599b2ef7a285c000f4de4f5ea47d88e28d48eff86126082a"
+    },
+    {
       "name": "envelope-simple",
       "weight": "regular",
       "asset_name": "envelope-simple-regular",
@@ -180,6 +194,13 @@
       "asset_name": "trash-regular",
       "source_path": "package/assets/regular/trash.svg",
       "sha256": "81d4c58aa4b22f3ede8407a115549bca652a0ae920fcfffed4ed61bcde2d08e5"
+    },
+    {
+      "name": "trash-simple",
+      "weight": "regular",
+      "asset_name": "trash-simple-regular",
+      "source_path": "package/assets/regular/trash-simple.svg",
+      "sha256": "4fdab425deaaf2eb4a6d93671beb89bb6c94da63fca199710e883abc654752e2"
     },
     {
       "name": "sort-ascending",

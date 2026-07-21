@@ -97,19 +97,19 @@ class TrashViewController: UIViewController, StatefulViewController {
             let actions = [
                 UIAction(
                     title: NSLocalizedString("Select", comment: ""),
-                    image: UIImage(systemName: "checkmark.circle"),
+                    image: PutioIcon.checkCircle.image,
                     identifier: nil,
                     handler: {  _ in self.toggleEditing() }
                 ),
                 UIAction(
                     title: NSLocalizedString("Restore all", comment: ""),
-                    image: UIImage(systemName: "trash.slash"),
+                    image: PutioIcon.recycle.image,
                     identifier: nil,
                     handler: {  _ in self.restoreAllFiles() }
                 ),
                 UIAction(
                     title: NSLocalizedString("Empty trash", comment: ""),
-                    image: UIImage(systemName: "trash"),
+                    image: PutioIcon.trashSimple.image,
                     identifier: nil,
                     attributes: .destructive,
                     handler: {  _ in self.emptyTrash() }
@@ -118,7 +118,7 @@ class TrashViewController: UIViewController, StatefulViewController {
 
             let rightBarButton = UIBarButtonItem(
                 title: "",
-                image: UIImage(systemName: "ellipsis.circle"),
+                image: PutioIcon.dotsThreeCircle.image(pointSize: 18),
                 menu: UIMenu(title: "", children: actions)
             )
 
