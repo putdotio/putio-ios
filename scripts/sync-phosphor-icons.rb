@@ -63,6 +63,7 @@ class PhosphorIconSync
     check_group_contents(errors)
     check_license(lock, errors)
     check_icons(lock, errors)
+    check_source_policy(errors)
 
     unless errors.empty?
       warn errors.map { |error| "- #{error}" }.join("\n")
@@ -227,6 +228,25 @@ class PhosphorIconSync
       .sort
     unless actual_asset_names == expected_asset_names.sort
       errors << "Phosphor asset catalog contains unlisted image sets"
+    end
+  end
+
+  def check_source_policy(errors)
+    swift_files = Dir.glob(File.join(ROOT, "Putio", "**", "*.swift"))
+    symbol_files = swift_files.select { |path| File.read(path).include?("UIImage(systemName:") }
+    unless symbol_files.empty?
+      errors << "SF Symbols are not allowed: #{symbol_files.map { |path| relative(path) }.join(", ")}"
+    end
+
+    assets_root = File.join(ROOT, "Putio", "Assets.xcassets")
+    legacy_assets = Dir.glob(File.join(assets_root, "*.imageset")).select do |path|
+      name = File.basename(path, ".imageset")
+      (name.start_with?("icon") && name != "iconOffline") || %w[chevronLeft eye].include?(name)
+    end
+    tabbar_assets = File.join(assets_root, "tabbarIcons")
+    legacy_assets << tabbar_assets if Dir.exist?(tabbar_assets)
+    unless legacy_assets.empty?
+      errors << "Legacy icon catalogs are not allowed: #{legacy_assets.map { |path| relative(path) }.join(", ")}"
     end
   end
 
