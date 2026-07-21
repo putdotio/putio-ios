@@ -276,10 +276,10 @@ private enum PutioE2EMockAPI {
     }
     """
 
-    // Dates are computed relative to now so labels like "2 months ago" stay
-    // stable for snapshot baselines regardless of when tests run.
+    // Two hours back renders "2 hours ago" in every calendar; day-scale
+    // offsets can straddle month buckets and destabilize snapshot baselines.
     private static let fixtureFileDate: String = {
-        ISO8601DateFormatter().string(from: Date().addingTimeInterval(-60 * 60 * 24 * 61))
+        ISO8601DateFormatter().string(from: Date().addingTimeInterval(-60 * 60 * 2))
     }()
 
     private static let videoFile = """
