@@ -84,7 +84,7 @@ plutil -lint Putio/en.lproj/*.strings
   - `make verify-fast` is the sub-second gate (icon sync check, strings lint, workspace sanity); the pre-push hook runs it automatically
   - `make verify` uses an unsigned simulator build
   - `make verify` and `make e2e-simulator` write result bundles to `build/verify.xcresult` and `build/e2e-simulator.xcresult`; CI uploads them as artifacts when a run fails
-  - `make e2e-simulator` runs fast mocked XCUITests against fixture-backed SDK responses; set `PUTIO_E2E_FAIL_ROUTES` (comma-separated `METHOD /path` keys) in a test's launch environment to force 500 responses for failure-path coverage
+  - `make e2e-simulator` runs fast mocked XCUITests against fixture-backed SDK responses; set `PUTIO_E2E_MOCK_API=1` plus `PUTIO_E2E_FAIL_ROUTES` (comma-separated `METHOD /path` keys) in a test's launch environment to force 500 responses for failure-path coverage
   - `make verify` and `make e2e-simulator` each create an ephemeral simulator and delete it on exit, so parallel worktrees and agents never collide; set `PUTIO_SIMULATOR_ID=<udid>` to reuse a specific device instead
   - GitHub Actions exposes `E2E Simulator` as a manual workflow for PRs or SDK-backed flow changes that need simulator confidence, and runs it weekly against `main` (Mondays 06:00 UTC)
   - `make run-simulator` uses a normal signed Simulator build so auth and keychain persistence behave like a real interactive run

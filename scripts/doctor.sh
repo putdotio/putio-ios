@@ -44,7 +44,7 @@ else
   xcode_app="$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -n 1 || true)"
   if [ -n "$xcode_app" ]; then
     echo "doctor: fix: export DEVELOPER_DIR=\"$xcode_app/Contents/Developer\"" >&2
-    echo "doctor: fix (persistent): sudo xcode-select -s \"$xcode_app\"" >&2
+    echo "doctor: fix (persistent): sudo xcode-select -s \"$xcode_app/Contents/Developer\"" >&2
   else
     echo "doctor: fix: install Xcode from the App Store or https://developer.apple.com/download/" >&2
   fi

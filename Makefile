@@ -23,7 +23,7 @@ verify-fast: icons-verify
 	xcodebuild -list -workspace Putio.xcworkspace
 
 verify: verify-fast
-	@ephemeral_id=""; \
+	@set -e; ephemeral_id=""; \
 	if [ -n "$${PUTIO_SIMULATOR_ID:-}" ]; then \
 		device_id="$$PUTIO_SIMULATOR_ID"; \
 		echo "Using simulator from PUTIO_SIMULATOR_ID: $$device_id"; \
@@ -41,7 +41,7 @@ verify: verify-fast
 	xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -resultBundlePath build/verify.xcresult -quiet
 
 e2e-simulator:
-	@ephemeral_id=""; \
+	@set -e; ephemeral_id=""; \
 	if [ -n "$${PUTIO_SIMULATOR_ID:-}" ]; then \
 		device_id="$$PUTIO_SIMULATOR_ID"; \
 		echo "Using simulator from PUTIO_SIMULATOR_ID: $$device_id"; \
