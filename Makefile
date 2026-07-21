@@ -65,9 +65,15 @@ e2e-simulator:
 	TEST_RUNNER_PUTIO_RECORD_SNAPSHOTS="$${PUTIO_RECORD_SNAPSHOTS:-0}" xcodebuild -workspace Putio.xcworkspace -scheme PutioE2E -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -resultBundlePath build/e2e-simulator.xcresult -quiet
 
 screenshots-record:
-	@PUTIO_RECORD_SNAPSHOTS=1 $(MAKE) e2e-simulator || true
-	@echo "Baselines recorded under PutioUITests/__Snapshots__/. Review the image diff and commit deliberately."
-	@echo "(The recording run reports test failures by design; rerun make e2e-simulator to verify against the new baselines.)"
+	@rm -rf PutioUITests/__Snapshots__; \
+	PUTIO_RECORD_SNAPSHOTS=1 $(MAKE) e2e-simulator; status=$$?; \
+	count="$$(find PutioUITests/__Snapshots__ -name '*.png' 2>/dev/null | wc -l | tr -d ' ')"; \
+	if [ "$$count" -eq 0 ]; then \
+		echo "screenshots-record: no baselines were written; the run failed before recording (exit $$status)." >&2; \
+		exit 1; \
+	fi; \
+	echo "Recorded $$count baselines under PutioUITests/__Snapshots__/. Review the image diff and commit deliberately."; \
+	echo "(Recording runs report snapshot-test failures by design; rerun make e2e-simulator to verify against the new baselines.)"
 
 print-simulator-destination:
 	@./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio
