@@ -300,8 +300,8 @@
                                                     <color key="textColor" white="0.66666666669999997" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                     <nil key="highlightedColor"/>
                                                 </label>
-                                                <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" image="Phosphor/image-regular" id="7aB-ZU-mtB">
-                                                    <rect key="frame" x="20" y="14.666666666666664" width="22" height="22"/>
+                                                <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleAspectFit" insetsLayoutMarginsFromSafeArea="NO" image="Phosphor/image-regular" id="7aB-ZU-mtB">
+                                                    <rect key="frame" x="21" y="15.666666666666664" width="20" height="20"/>
                                                     <autoresizingMask key="autoresizingMask"/>
                                                 </imageView>
                                             </subviews>
@@ -549,7 +549,6 @@
                                     <constraint firstAttribute="height" constant="48" id="MxT-eM-vUN"/>
                                     <constraint firstAttribute="width" constant="48" id="gT4-8w-yt4"/>
                                 </constraints>
-                                <preferredSymbolConfiguration key="preferredSymbolConfiguration" scale="default"/>
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="jyw-LO-sFL"/>
@@ -897,10 +896,9 @@
                                                             <color key="textColor" white="0.66666666666666663" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                                             <nil key="highlightedColor"/>
                                                         </label>
-                                                        <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" image="Phosphor/folder-fill" id="sBR-Xh-95c">
-                                                            <rect key="frame" x="20" y="17.333333333333332" width="22" height="20"/>
+                                                        <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleAspectFit" insetsLayoutMarginsFromSafeArea="NO" image="Phosphor/folder-fill" id="sBR-Xh-95c">
+                                                            <rect key="frame" x="21" y="17.5" width="20" height="20"/>
                                                             <autoresizingMask key="autoresizingMask"/>
-                                                            <preferredSymbolConfiguration key="preferredSymbolConfiguration" scale="default"/>
                                                         </imageView>
                                                     </subviews>
                                                 </tableViewCellContentView>

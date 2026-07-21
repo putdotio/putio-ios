@@ -139,18 +139,20 @@ struct HistoryEventPresentation {
 
 class HistoryTableViewCell: UITableViewCell {
     func configure(with event: PutioHistoryEvent) {
+        imageView?.contentMode = .scaleAspectFit
+
         guard let presentation = HistoryEventPresentation.build(from: event) else {
             InternalFailurePresenter.log("Unable to build history event presentation for event type: \(event.type)")
             textLabel?.text = NSLocalizedString("No title", comment: "")
             detailTextLabel?.text = ""
-            imageView?.image = PutioIcon.imageIcon.image
+            imageView?.image = PutioIcon.imageIcon.image(pointSize: 20)
             imageView?.tintColor = UIColor.Putio.listSubtitle
             return
         }
 
         textLabel?.text = presentation.text
         detailTextLabel?.text = presentation.detailText
-        imageView?.image = presentation.icon.image
+        imageView?.image = presentation.icon.image(pointSize: 20)
         imageView?.tintColor = UIColor.Putio.listSubtitle
     }
 }
