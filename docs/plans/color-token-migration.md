@@ -76,10 +76,12 @@ Recorded deviations (Phase 2):
 
 ## Non-Goals
 
-- Fonts. The design system's brand families are licensed and must not enter
-  this public repository. A later change adds a download script that fetches
-  them from private static hosting into an ignored directory, with a
-  system-font fallback when absent.
+- Full brand typography adoption. The font *infrastructure* now exists
+  (`make fonts-setup` syncs licensed faces from the private putio-static
+  repository into gitignored `Putio/Fonts/`; optional bundling + runtime
+  registration with system-font fallback; verification builds always use
+  system fonts). Applying brand type beyond navigation titles across every
+  label and storyboard remains follow-up work.
 - TV/web parity work; those live in their own repositories.
 
 ## Verification

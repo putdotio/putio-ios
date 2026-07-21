@@ -45,6 +45,23 @@ the onboarding-provided `PUTIO_IOS_INFISICAL_*` variables in this repo or
 worktree shell before running the command. Run `make secrets-clean` to remove
 the generated file.
 
+### Brand fonts (optional, maintainers)
+
+The licensed GT America families are never committed. Sync them from the
+private putio-static repository (requires `gh auth login` with access):
+
+```bash
+make fonts-setup   # sync into gitignored Putio/Fonts/
+make fonts-check   # report presence without writing
+```
+
+`Config/BrandFonts.json` pins the source commit and per-file checksums.
+When fonts are present they are bundled into normal builds and registered at
+launch; when absent every surface falls back to system fonts. Verification
+builds never bundle them (`PUTIO_BUNDLE_BRAND_FONTS = NO` in
+`Config/Verify.xcconfig`), so snapshot baselines are always recorded and
+compared on system fonts.
+
 - Local signed builds default to:
   - bundle id `io.put.dev`
   - display name `put.io`

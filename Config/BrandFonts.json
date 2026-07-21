@@ -1,0 +1,16 @@
+{
+  "$description": "Licensed brand font files synced at dev time from the private putio-static repository. Never committed here; builds fall back to system fonts when absent. Bump ref and hashes together when fonts change upstream.",
+  "repository": "putdotio/putio-static",
+  "ref": "a6cf3ca8d51a3288e22f07fcc6710270df934522",
+  "basePath": "public/fonts/gt-america/desktop/otf",
+  "directory": "Putio/Fonts",
+  "files": {
+    "gt-america-standard-regular.otf": "6b1eb2a461e5c827ac615bc8aca268ec6b67250d61fc87f100671aca3db82515",
+    "gt-america-standard-medium.otf": "9938e387bbf094e02daf2f8f577f39537e2ff1133da5746be190c1ec4a43d73d",
+    "gt-america-standard-bold.otf": "988b273ddc1d85ad9d2065e40999611f477cc6c855062a2c1f2aa665bc6e6a8c",
+    "gt-america-standard-black.otf": "f7aac29fad864d90f2acd39169a39c75be12db5447a5f2f5024a1820ac325e9e",
+    "gt-america-mono-regular.otf": "6c1ae5e6a01538ebaca0ee1e518b661709dd8a9fca43221b2610a89a7b1e022c",
+    "gt-america-mono-medium.otf": "7c97aea2a222cd619e72b4e4d3fa626a629281210a709086635e3d6333989a97",
+    "gt-america-mono-bold.otf": "7a06964b5287ee6256d856ace8eb9a49f1c203212a9a69d7051113f2d4b38ac6"
+  }
+}

@@ -6,3 +6,7 @@ PUTIO_APP_IDENTIFIER = io.put.dev
 PUTIO_APP_DISPLAY_NAME = put.io
 PUTIO_PRIMARY_APP_ICON = AppIconDev
 PUTIO_DEVELOPMENT_TEAM =
+
+// Snapshot baselines are recorded on system fonts; never bundle the
+// licensed brand fonts into verification builds.
+PUTIO_BUNDLE_BRAND_FONTS = NO
