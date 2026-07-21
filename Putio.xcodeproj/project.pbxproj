@@ -23,6 +23,7 @@
 		7A112233445566778899AABB /* NavigationLocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A112233445566778899AABC /* NavigationLocalizationTests.swift */; };
 		7A1C9E4B2D6F8A0C3E5B7D9F /* HistorySmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F8E2A6C0B3D7F1A5C9E3B6D /* HistorySmokeUITests.swift */; };
 		7C4D5E6F7A8B9C0D1E2F3A4B /* AppearanceManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D5E6F7A8B9C0D1E2F3A4B5C /* AppearanceManagerTests.swift */; };
+		2A3B4C5D6E7F8A9B0C1D2E3F /* ComponentSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B4C5D6E7F8A9B0C1D2E3F4A /* ComponentSnapshotTests.swift */; };
 		7F88FAC086E3EACC35AEAD10 /* UIStoryboard+TypedInstantiation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A452CE0D5CE4073B61D5F4C /* UIStoryboard+TypedInstantiation.swift */; };
 		8B5C2D1E4F60718293A4B5C6 /* ErrorPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */; };
 		9554916755C204A76581CC3A /* Pods_PutioTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7010BA68B2C5ECA69752D4D4 /* Pods_PutioTests.framework */; };
@@ -186,6 +187,7 @@
 		8B2D4F6A1C3E5A7B9D0F2A4C /* HistoryErrorUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryErrorUITests.swift; sourceTree = "<group>"; };
 		8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ErrorPresentationTests.swift; sourceTree = "<group>"; };
 		8D5E6F7A8B9C0D1E2F3A4B5C /* AppearanceManagerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppearanceManagerTests.swift; sourceTree = "<group>"; };
+		3B4C5D6E7F8A9B0C1D2E3F4A /* ComponentSnapshotTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ComponentSnapshotTests.swift; sourceTree = "<group>"; };
 		9061977704DB05372D01A172 /* PutioKeychainTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioKeychainTests.swift; sourceTree = "<group>"; };
 		969D8492C4F12034E0FD0421 /* FilesViewController+Navigation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "FilesViewController+Navigation.swift"; sourceTree = "<group>"; };
 		A273F236F62C981270AA634E /* Pods-Putio.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Putio.release.xcconfig"; path = "Target Support Files/Pods-Putio/Pods-Putio.release.xcconfig"; sourceTree = "<group>"; };
@@ -350,6 +352,7 @@
 				E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */,
 				293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */,
 				8D5E6F7A8B9C0D1E2F3A4B5C /* AppearanceManagerTests.swift */,
+				3B4C5D6E7F8A9B0C1D2E3F4A /* ComponentSnapshotTests.swift */,
 			);
 			name = PutioTests;
 			path = PutioTests;
@@ -753,6 +756,7 @@
 				43EFF5EEB74189FAD36ED431 /* Sources */,
 				BAB612E5D594B429C5B37041 /* Frameworks */,
 				8CC9F8B2CF6613BDCCF7B37C /* Resources */,
+				D69FC027844146F7FE80225E /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -1045,6 +1049,24 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
+		D69FC027844146F7FE80225E /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-PutioTests/Pods-PutioTests-frameworks.sh",
+				"${BUILT_PRODUCTS_DIR}/SnapshotTesting/SnapshotTesting.framework",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/SnapshotTesting.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-PutioTests/Pods-PutioTests-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 		EEC7FCC755F3D6FD96EB038D /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -1078,6 +1100,7 @@
 				F5F55CEFFA917A837390DE86 /* PutioRealmTests.swift in Sources */,
 				20CA6ABE176EC66E70EC090E /* UserConfigTests.swift in Sources */,
 				7C4D5E6F7A8B9C0D1E2F3A4B /* AppearanceManagerTests.swift in Sources */,
+				2A3B4C5D6E7F8A9B0C1D2E3F /* ComponentSnapshotTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

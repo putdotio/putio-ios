@@ -17,6 +17,8 @@ target 'Putio' do
   
   target 'PutioTests' do
     inherit! :search_paths
+
+    pod 'SnapshotTesting', :podspec => 'ThirdParty/SnapshotTesting/SnapshotTesting.podspec'
   end
 end
 

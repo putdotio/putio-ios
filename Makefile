@@ -44,7 +44,7 @@ verify: verify-fast
 	rm -rf build/verify.xcresult; \
 	xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" build-for-testing -quiet; \
 	echo "Test results will be written to build/verify.xcresult"; \
-	xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -resultBundlePath build/verify.xcresult -quiet
+	TEST_RUNNER_PUTIO_RECORD_SNAPSHOTS="$${PUTIO_RECORD_SNAPSHOTS:-0}" xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -resultBundlePath build/verify.xcresult -quiet
 
 e2e-simulator:
 	@set -e; ephemeral_id=""; \
@@ -65,23 +65,32 @@ e2e-simulator:
 	TEST_RUNNER_PUTIO_RECORD_SNAPSHOTS="$${PUTIO_RECORD_SNAPSHOTS:-0}" xcodebuild -workspace Putio.xcworkspace -scheme PutioE2E -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -resultBundlePath build/e2e-simulator.xcresult -quiet
 
 screenshots-record:
-	@rm -rf PutioUITests/__Snapshots__; \
-	PUTIO_RECORD_SNAPSHOTS=1 $(MAKE) e2e-simulator; status=$$?; \
-	if [ ! -d build/e2e-simulator.xcresult ]; then \
-		echo "screenshots-record: no result bundle was produced; the run failed before testing (exit $$status)." >&2; \
-		exit 1; \
-	fi; \
-	if ! xcrun xcresulttool get test-results tests --path build/e2e-simulator.xcresult | ruby scripts/verify-snapshot-recording.rb; then \
-		echo "screenshots-record: the run had failures beyond record-mode snapshot assertions; baselines may be incomplete." >&2; \
-		exit 1; \
-	fi; \
-	count="$$(find PutioUITests/__Snapshots__ -name '*.png' 2>/dev/null | wc -l | tr -d ' ')"; \
-	if [ "$$count" -eq 0 ]; then \
-		echo "screenshots-record: no baselines were written; the run failed before recording (exit $$status)." >&2; \
-		exit 1; \
-	fi; \
-	echo "Recorded $$count baselines under PutioUITests/__Snapshots__/. Review the image diff and commit deliberately."; \
-	echo "(Recording runs report snapshot-test failures by design; rerun make e2e-simulator to verify against the new baselines.)"
+	@rm -rf PutioUITests/__Snapshots__ PutioTests/__Snapshots__; \
+	overall=0; \
+	for target in verify e2e-simulator; do \
+		case "$$target" in \
+			verify) bundle=build/verify.xcresult; snapshots=PutioTests/__Snapshots__;; \
+			*) bundle=build/e2e-simulator.xcresult; snapshots=PutioUITests/__Snapshots__;; \
+		esac; \
+		PUTIO_RECORD_SNAPSHOTS=1 $(MAKE) $$target; status=$$?; \
+		if [ ! -d "$$bundle" ]; then \
+			echo "screenshots-record: $$target produced no result bundle; the run failed before testing (exit $$status)." >&2; \
+			overall=1; continue; \
+		fi; \
+		if ! xcrun xcresulttool get test-results tests --path "$$bundle" | ruby scripts/verify-snapshot-recording.rb; then \
+			echo "screenshots-record: $$target had failures beyond record-mode snapshot assertions; baselines may be incomplete." >&2; \
+			overall=1; continue; \
+		fi; \
+		count="$$(find $$snapshots -name '*.png' 2>/dev/null | wc -l | tr -d ' ')"; \
+		if [ "$$count" -eq 0 ]; then \
+			echo "screenshots-record: $$target wrote no baselines (exit $$status)." >&2; \
+			overall=1; continue; \
+		fi; \
+		echo "Recorded $$count baselines under $$snapshots/."; \
+	done; \
+	[ "$$overall" -eq 0 ] || exit 1; \
+	echo "Review the image diffs and commit deliberately."; \
+	echo "(Recording runs report snapshot-test failures by design; rerun make verify and make e2e-simulator to verify.)"
 
 print-simulator-destination:
 	@./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio
