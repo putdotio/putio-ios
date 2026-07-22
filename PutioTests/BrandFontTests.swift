@@ -30,4 +30,15 @@ final class BrandFontTests: XCTestCase {
         XCTAssertEqual(BrandFont.sans(size: 17, weight: .bold), .systemFont(ofSize: 17, weight: .bold))
         XCTAssertEqual(BrandFont.mono(size: 13), .monospacedSystemFont(ofSize: 13, weight: .regular))
     }
+
+    func testTypographyRolesResolveToNilWithoutBundledFonts() {
+        BrandFont.registerIfAvailable()
+        // Verify builds bundle no faces, so every design-system role must
+        // resolve to nil and let callers fall back to their original font —
+        // which is exactly what keeps snapshot baselines on system fonts.
+        let roles: [BrandTypography.Role] = [.display, .h1, .h2, .h3, .h4, .body, .small, .label, .numeric, .code]
+        for role in roles {
+            XCTAssertNil(BrandTypography.styleIfAvailable(role), "\(role) must be nil without bundled fonts")
+        }
+    }
 }
