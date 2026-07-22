@@ -31,8 +31,7 @@ class MainTabBarController: UITabBarController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor.Putio.background
-        overrideUserInterfaceStyle = .dark
+        view.backgroundColor = UIColor.Putio.Surface.appBg
         userSettings = loadUserSettings()
         configureTabBarIcons()
         configureNavigationControllers()

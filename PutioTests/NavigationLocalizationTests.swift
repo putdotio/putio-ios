@@ -127,7 +127,7 @@ final class NavigationLocalizationTests: XCTestCase {
         let action = viewController.contextualDeleteAction(forRowAtIndexPath: IndexPath(row: 0, section: 0))
 
         XCTAssertEqual(action.title, NSLocalizedString("Revoke", comment: ""))
-        XCTAssertEqual(action.backgroundColor, .systemRed)
+        XCTAssertEqual(action.backgroundColor, UIColor.Putio.Red.solid)
     }
 
     private func makeFolder(id: Int, name: String, sortBy: String) throws -> PutioFile {

@@ -32,7 +32,7 @@ class AboutTableViewController: UITableViewController {
         cell.textLabel?.text = item.title
         cell.accessoryType = .disclosureIndicator
         let accessoryImageView = UIImageView(image: PutioIcon.caretRight.image)
-        accessoryImageView.tintColor = UIColor.Putio.yellow
+        accessoryImageView.tintColor = UIColor.Putio.Yellow.textSecondary
         cell.accessoryView = accessoryImageView
 
         return cell
@@ -62,7 +62,7 @@ class AboutTableViewController: UITableViewController {
         let controller = UIViewController()
         webView = WKWebView(frame: controller.view.bounds)
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        webView.backgroundColor = UIColor.Putio.background
+        webView.backgroundColor = UIColor.Putio.Surface.appBg
         webView.isOpaque = false
         webView.load(myRequest)
 

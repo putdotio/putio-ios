@@ -60,35 +60,50 @@ class ChromecastManager: NSObject {
         GCKLogger.sharedInstance().delegate = self
     }
 
+    // Cast chrome is styled once at setup; re-run after a theme change so
+    // already-configured Cast views pick up the new appearance.
+    func applyAppearanceStyling() {
+        stylize()
+    }
+
     private func stylize() {
         let castStyle = GCKUIStyle.sharedInstance()
         let castViews = castStyle.castViews
 
-        castViews.backgroundColor = UIColor.Putio.background
-        castViews.deviceControl.sliderProgressColor = UIColor.Putio.yellow
+        castViews.backgroundColor = UIColor.Putio.Surface.appBg
+        castViews.deviceControl.sliderProgressColor = UIColor.Putio.Yellow.solid
 
-        castViews.headingTextColor = .white
+        castViews.headingTextColor = UIColor.Putio.Neutral.text
         castViews.headingTextShadowColor = .clear
 
-        castViews.captionTextColor = .gray
+        castViews.captionTextColor = UIColor.Putio.Neutral.textSecondary
         castViews.captionTextShadowColor = .clear
 
-        castViews.bodyTextColor = .white
+        castViews.bodyTextColor = UIColor.Putio.Neutral.text
         castViews.bodyTextShadowColor = .clear
 
-        castViews.buttonTextColor = UIColor.Putio.yellow
+        castViews.buttonTextColor = UIColor.Putio.Yellow.textSecondary
         castViews.buttonTextShadowColor = .clear
 
-        castViews.iconTintColor = .white
+        castViews.iconTintColor = UIColor.Putio.Neutral.text
 
-        castViews.sliderProgressColor = UIColor.Putio.yellow
-        castViews.sliderSecondaryProgressColor = UIColor.Putio.background
-        castViews.sliderUnseekableProgressColor = UIColor.Putio.black
-        castViews.sliderTooltipBackgroundColor = UIColor.Putio.black
+        // The expanded controller renders over media artwork: fixed colors
+        // by token policy (over-media exception).
+        let expandedController = castViews.mediaControl.expandedController
+        expandedController.backgroundColor = .black
+        expandedController.headingTextColor = .white
+        expandedController.captionTextColor = .gray
+        expandedController.bodyTextColor = .white
+        expandedController.iconTintColor = .white
 
-        castViews.mediaControl.backgroundColor = UIColor.Putio.black
+        castViews.sliderProgressColor = UIColor.Putio.Yellow.solid
+        castViews.sliderSecondaryProgressColor = UIColor.Putio.Surface.appBg
+        castViews.sliderUnseekableProgressColor = UIColor.Putio.Neutral.line
+        castViews.sliderTooltipBackgroundColor = UIColor.Putio.Neutral.componentBg
+
+        castViews.mediaControl.backgroundColor = UIColor.Putio.Neutral.componentBg
         castViews.mediaControl.headingTextFont = .systemFont(ofSize: 18.0)
-        castViews.mediaControl.iconTintColor = UIColor.Putio.yellow
+        castViews.mediaControl.iconTintColor = UIColor.Putio.Yellow.textSecondary
         castViews.mediaControl.miniController.headingTextFont = .systemFont(ofSize: 14.0)
 
         castStyle.apply()

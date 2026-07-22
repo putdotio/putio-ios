@@ -38,7 +38,8 @@ Xcode + Fastlane carry their own config and signing flow; this repo does not use
 - `make doctor` (also a `bootstrap` preflight) checks the active Ruby against `.ruby-version` and the Xcode developer directory, and prints copy-pasteable fixes when either is wrong
 - `make bootstrap` installs the repo pre-push hook (`.githooks/pre-push`), which runs `make verify-fast` — icon sync check, localized strings lint, and workspace sanity — in under a second
 - `make verify` and `make e2e-simulator` write test result bundles to `build/verify.xcresult` and `build/e2e-simulator.xcresult`; CI uploads them as artifacts on failure
-- `make verify` and `make e2e-simulator` each create an ephemeral simulator and delete it on exit, so parallel worktrees never collide; set `PUTIO_SIMULATOR_ID=<udid>` to target a specific device instead (`make run-simulator` keeps using the shared visible simulator)
+- `make verify` and `make e2e-simulator` each create an ephemeral simulator (booted with a pinned status bar for deterministic screenshots) and delete it on exit, so parallel worktrees never collide; set `PUTIO_SIMULATOR_ID=<udid>` to target a specific device instead (`make run-simulator` keeps using the shared visible simulator)
+- The e2e screenshot walk asserts against committed baselines in `PutioUITests/__Snapshots__/` (SnapshotTesting, perceptual tolerance); after an intentional visual change run `make screenshots-record`, review the image diff, and commit the new baselines
 - E2e also runs weekly in CI (Mondays 06:00 UTC) via `.github/workflows/e2e-simulator.yml`
 - Use `make secrets-setup` only for signed local builds or private support integrations; it writes ignored `Config/Local.xcconfig` from maintainer-supplied `PUTIO_IOS_INFISICAL_*` values
 

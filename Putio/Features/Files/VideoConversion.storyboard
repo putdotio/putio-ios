@@ -15,10 +15,10 @@
             <objects>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="8Xo-kQ-4l2" userLabel="First Responder" sceneMemberID="firstResponder"/>
                 <navigationController storyboardIdentifier="VideoConversionNC" id="voc-CE-KyK" sceneMemberID="viewController">
-                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" barStyle="black" translucent="NO" id="v0q-UG-mlk">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" translucent="NO" id="v0q-UG-mlk">
                         <rect key="frame" x="0.0" y="44" width="414" height="44"/>
                         <autoresizingMask key="autoresizingMask"/>
-                        <color key="tintColor" red="0.99215686270000003" green="0.80784313730000001" blue="0.27058823529999998" alpha="1" colorSpace="calibratedRGB"/>
+                        <color key="tintColor" name="putio.yellow.text-secondary"/>
                     </navigationBar>
                     <connections>
                         <segue destination="JLK-4X-reK" kind="relationship" relationship="rootViewController" id="PqJ-wa-5ij"/>
@@ -39,7 +39,7 @@
                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="This video is not in a format that can be played on this app yet. But since you're here, we'll start transcoding." textAlignment="center" lineBreakMode="wordWrap" numberOfLines="10" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="DKi-6l-IEL">
                                 <rect key="frame" x="32" y="48" width="350" height="138.5"/>
                                 <fontDescription key="fontDescription" style="UICTFontTextStyleTitle2"/>
-                                <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="calibratedRGB"/>
+                                <color key="textColor" name="putio.neutral.text"/>
                                 <nil key="highlightedColor"/>
                             </label>
                             <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" spacing="24" translatesAutoresizingMaskIntoConstraints="NO" id="r1J-e6-fT2">
@@ -48,19 +48,18 @@
                                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Status" textAlignment="center" lineBreakMode="wordWrap" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="qSm-aY-0Cf">
                                         <rect key="frame" x="0.0" y="0.0" width="294" height="20.5"/>
                                         <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                        <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="calibratedRGB"/>
+                                        <color key="textColor" name="putio.neutral.text"/>
                                         <nil key="highlightedColor"/>
                                     </label>
                                     <progressView opaque="NO" contentMode="scaleToFill" verticalHuggingPriority="750" progress="0.5" translatesAutoresizingMaskIntoConstraints="NO" id="Vnd-3f-EGm">
                                         <rect key="frame" x="0.0" y="44.5" width="294" height="2"/>
-                                        <color key="tintColor" red="0.99215686270000003" green="0.80784313730000001" blue="0.27058823529999998" alpha="1" colorSpace="calibratedRGB"/>
-                                        <color key="progressTintColor" red="0.99215686270000003" green="0.80784313730000001" blue="0.27058823529999998" alpha="1" colorSpace="calibratedRGB"/>
-                                        <color key="trackTintColor" red="0.062745098040000002" green="0.062745098040000002" blue="0.062745098040000002" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                        <color key="progressTintColor" name="putio.yellow.solid"/>
+                                        <color key="trackTintColor" name="putio.neutral.line"/>
                                     </progressView>
                                 </subviews>
                             </stackView>
                         </subviews>
-                        <color key="backgroundColor" red="0.1999788582" green="0.20001345870000001" blue="0.1999712884" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <constraints>
                             <constraint firstItem="DKi-6l-IEL" firstAttribute="top" secondItem="RkN-FY-yGs" secondAttribute="top" constant="48" id="1tS-u6-mKn"/>
                             <constraint firstItem="r1J-e6-fT2" firstAttribute="top" secondItem="DKi-6l-IEL" secondAttribute="bottom" constant="80" id="7mw-Dx-KVL"/>
@@ -87,4 +86,21 @@
             <point key="canvasLocation" x="2290" y="-1675"/>
         </scene>
     </scenes>
+    <resources>
+        <namedColor name="putio.yellow.text-secondary">
+            <color red="1.000" green="0.820" blue="0.280" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.neutral.line">
+            <color red="0.205" green="0.205" blue="0.205" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.neutral.text">
+            <color red="0.930" green="0.930" blue="0.930" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.surface.app-bg">
+            <color red="0.085" green="0.085" blue="0.085" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.yellow.solid">
+            <color red="0.992" green="0.808" blue="0.270" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+    </resources>
 </document>

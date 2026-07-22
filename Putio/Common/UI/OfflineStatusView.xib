@@ -24,20 +24,20 @@
                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Network Error" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="ZxO-EO-Kni">
                             <rect key="frame" x="0.0" y="100" width="311" height="30"/>
                             <fontDescription key="fontDescription" style="UICTFontTextStyleTitle1"/>
-                            <color key="textColor" systemColor="lightTextColor"/>
+                            <color key="textColor" name="putio.neutral.text"/>
                             <nil key="highlightedColor"/>
                         </label>
                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="This feature requires a stable internet connection. Please check your connection and try again." textAlignment="center" lineBreakMode="wordWrap" numberOfLines="6" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="khH-FR-xgx">
                             <rect key="frame" x="0.0" y="140" width="311" height="52"/>
                             <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
-                            <color key="textColor" systemColor="lightTextColor"/>
+                            <color key="textColor" name="putio.neutral.text"/>
                             <nil key="highlightedColor"/>
                         </label>
                     </subviews>
                 </stackView>
             </subviews>
             <viewLayoutGuide key="safeArea" id="uRA-yM-Icg"/>
-            <color key="backgroundColor" name="putio.background"/>
+            <color key="backgroundColor" name="putio.surface.app-bg"/>
             <constraints>
                 <constraint firstItem="KbS-Zb-PS3" firstAttribute="centerY" secondItem="uRA-yM-Icg" secondAttribute="centerY" constant="-20" id="IO3-YY-3M1"/>
                 <constraint firstItem="uRA-yM-Icg" firstAttribute="trailing" secondItem="KbS-Zb-PS3" secondAttribute="trailing" constant="32" id="T5w-uO-AW8"/>
@@ -52,10 +52,13 @@
         </view>
     </objects>
     <resources>
-        <image name="iconOffline" width="98" height="90"/>
-        <namedColor name="putio.background">
-            <color red="0.20000000298023224" green="0.20000000298023224" blue="0.20000000298023224" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+        <namedColor name="putio.neutral.text">
+            <color red="0.930" green="0.930" blue="0.930" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
         </namedColor>
+        <namedColor name="putio.surface.app-bg">
+            <color red="0.085" green="0.085" blue="0.085" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <image name="iconOffline" width="98" height="90"/>
         <systemColor name="lightTextColor">
             <color white="1" alpha="0.59999999999999998" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>

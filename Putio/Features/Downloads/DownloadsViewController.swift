@@ -35,7 +35,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
     }
 
     func configureAppearance() {
-        tableView.backgroundColor = UIColor.Putio.background
+        tableView.backgroundColor = UIColor.Putio.Surface.appBg
         tableView.contentInsetAdjustmentBehavior = .automatic
         tableView.tableHeaderView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNormalMagnitude))
 
@@ -45,7 +45,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
     func configureNavigationBarButton() {
         let button = UIButton(type: .system)
         var configuration = UIButton.Configuration.plain()
-        configuration.baseForegroundColor = UIColor.Putio.yellow
+        configuration.baseForegroundColor = UIColor.Putio.Yellow.textSecondary
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8)
         button.configuration = configuration
         button.accessibilityLabel = NSLocalizedString("Downloads tutorial", comment: "")
@@ -168,7 +168,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
             self.present(actionSheet, animated: true, completion: nil)
         }
 
-        action.backgroundColor = .systemRed
+        action.backgroundColor = UIColor.Putio.Red.solid
 
         return action
     }
@@ -266,7 +266,7 @@ class DownloadsRecoveryView: UIView {
         var configuration = UIButton.Configuration.filled()
         configuration.title = NSLocalizedString("Restore Downloads", comment: "")
         configuration.baseForegroundColor = .black
-        configuration.baseBackgroundColor = UIColor.Putio.yellow
+        configuration.baseBackgroundColor = UIColor.Putio.Yellow.solid
         configuration.cornerStyle = .medium
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 32, bottom: 14, trailing: 32)
         configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
@@ -280,7 +280,7 @@ class DownloadsRecoveryView: UIView {
 
     private let spinner: UIActivityIndicatorView = {
         let spinner = UIActivityIndicatorView(style: .medium)
-        spinner.color = .white
+        spinner.color = UIColor.Putio.Neutral.text
         spinner.hidesWhenStopped = true
         return spinner
     }()
@@ -296,19 +296,19 @@ class DownloadsRecoveryView: UIView {
     }
 
     private func setup() {
-        backgroundColor = UIColor.Putio.background
+        backgroundColor = UIColor.Putio.Surface.appBg
         autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
         let titleLabel = UILabel()
         titleLabel.text = NSLocalizedString("Restore Your Downloads", comment: "")
         titleLabel.font = .preferredFont(forTextStyle: .title1)
-        titleLabel.textColor = .white
+        titleLabel.textColor = UIColor.Putio.Neutral.text
         titleLabel.textAlignment = .center
 
         let bodyLabel = UILabel()
         bodyLabel.text = NSLocalizedString("Your files are still on this device but need to be restored after an app update.\n\nA stable internet connection is recommended.", comment: "")
         bodyLabel.font = .preferredFont(forTextStyle: .body)
-        bodyLabel.textColor = .lightGray
+        bodyLabel.textColor = UIColor.Putio.Neutral.textSecondary
         bodyLabel.textAlignment = .center
         bodyLabel.numberOfLines = 0
 

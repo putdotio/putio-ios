@@ -25,7 +25,7 @@
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="PNG-UM-mRx"/>
-                        <color key="backgroundColor" name="putio.background"/>
+                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
                             <constraint firstItem="eeN-YX-ucr" firstAttribute="centerX" secondItem="PNG-UM-mRx" secondAttribute="centerX" id="DpZ-Ag-7Nf"/>
                             <constraint firstItem="eeN-YX-ucr" firstAttribute="centerY" secondItem="PNG-UM-mRx" secondAttribute="centerY" id="mrQ-LO-wS3"/>
@@ -37,14 +37,8 @@
             <point key="canvasLocation" x="53" y="375"/>
         </scene>
     </scenes>
-    <color key="tintColor" name="putio.black"/>
+    <color key="tintColor" systemColor="systemGray5Color"/>
     <resources>
         <image name="logo" width="564" height="144"/>
-        <namedColor name="putio.background">
-            <color red="0.20000000298023224" green="0.20000000298023224" blue="0.20000000298023224" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </namedColor>
-        <namedColor name="putio.black">
-            <color red="0.12999999523162842" green="0.12999999523162842" blue="0.12999999523162842" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </namedColor>
     </resources>
 </document>

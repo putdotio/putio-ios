@@ -3,6 +3,6 @@ import UIKit
 extension UITableView {
     open override func awakeFromNib() {
         tableFooterView = UITableViewHeaderFooterView()
-        tableFooterView?.backgroundColor = UIColor.Putio.background
+        tableFooterView?.backgroundColor = UIColor.Putio.Surface.appBg
     }
 }

@@ -26,16 +26,16 @@ class Button: UIButton {
 
         switch _variant {
         case .primary:
-            backgroundColor = UIColor.Putio.yellow
-            setTitleColor(UIColor.Putio.black, for: .normal)
+            backgroundColor = UIColor.Putio.Yellow.solid
+            setTitleColor(UIColor.Putio.Fg.primaryForeground, for: .normal)
 
         case .secondary:
-            backgroundColor = UIColor.Putio.blackTint
-            setTitleColor(.white, for: .normal)
+            backgroundColor = UIColor.Putio.Neutral.componentBg
+            setTitleColor(UIColor.Putio.Neutral.text, for: .normal)
 
         case .danger:
-            backgroundColor = UIColor.systemRed
-            setTitleColor(.white, for: .normal)
+            backgroundColor = UIColor.Putio.Red.solid
+            setTitleColor(UIColor.Putio.Fg.destructiveForeground, for: .normal)
         }
     }
 }

@@ -88,7 +88,7 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
     func createMaskingView() {
         maskingView = UIView()
         maskingView.translatesAutoresizingMaskIntoConstraints = false
-        maskingView.backgroundColor = UIColor.Putio.black
+        maskingView.backgroundColor = UIColor.Putio.Neutral.componentBg
 
         view.addSubview(maskingView)
 
@@ -111,12 +111,21 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor.Putio.background
-        overrideUserInterfaceStyle = .dark
+        view.backgroundColor = UIColor.Putio.Surface.appBg
         createMainTabBarControllerView()
         createMiniMediaControllerView()
         createMaskingView()
         updateControlBarsVisibility(shouldAppear: false)
+    }
+
+    // GCKUIStyle resolves colors eagerly, so Cast chrome must be restyled on
+    // every effective appearance change — whether from the in-app theme picker
+    // or an OS-level light/dark flip while the theme is System.
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
+            ChromecastManager.sharedInstance.applyAppearanceStyling()
+        }
     }
 
     func miniMediaControlsViewController(_ miniMediaControlsViewController: GCKUIMiniMediaControlsViewController, shouldAppear: Bool) {

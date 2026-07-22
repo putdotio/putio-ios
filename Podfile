@@ -20,6 +20,13 @@ target 'Putio' do
   end
 end
 
+target 'PutioUITests' do
+  use_frameworks!
+
+  # Upstream dropped CocoaPods after 1.9; ThirdParty/ carries a pinned podspec.
+  pod 'SnapshotTesting', :podspec => 'ThirdParty/SnapshotTesting/SnapshotTesting.podspec'
+end
+
 def patch_keyboard_avoiding_view_loader!
   file_path = File.join(__dir__, "Pods", "KeyboardAvoidingView", "KeyboardAvoidingView", "Classes", "KeyboardAvoidingViewLoader.m")
   contents = <<~'OBJC'
@@ -74,6 +81,33 @@ def patch_keyboard_avoiding_view_loader!
   File.write(file_path, contents)
 end
 
+def patch_snapshot_testing_record_issue!
+  file_path = File.join(__dir__, "Pods", "SnapshotTesting", "Sources", "SnapshotTesting", "Internal", "RecordIssue.swift")
+  contents = <<~'SWIFT'
+    import XCTest
+
+    // Patched by Podfile post_install: the upstream Swift Testing branch does
+    // not compile in a CocoaPods framework target, and XCTest is the only
+    // runner used in this repository.
+    @_spi(Internals)
+    public func recordIssue(
+      _ message: @autoclosure () -> String,
+      fileID: StaticString,
+      filePath: StaticString,
+      line: UInt,
+      column: UInt
+    ) {
+      XCTFail(message(), file: filePath, line: line)
+    }
+  SWIFT
+
+  return unless File.exist?(file_path)
+  return if File.read(file_path) == contents
+
+  File.chmod(0o644, file_path)
+  File.write(file_path, contents)
+end
+
 def remove_flag_from_xcconfig!(file_path, flag)
   return unless File.exist?(file_path)
 
@@ -95,6 +129,7 @@ end
 
 post_install do |installer|
   patch_keyboard_avoiding_view_loader!
+  patch_snapshot_testing_record_issue!
   patch_realm_linker_flags!
   installer.pods_project.targets.each do |target|
     if target.name == "Realm"

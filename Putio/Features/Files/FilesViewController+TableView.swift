@@ -77,7 +77,7 @@ extension FilesViewController {
             self.present(actionSheet, animated: true)
         }
 
-        action.backgroundColor = .systemRed
+        action.backgroundColor = UIColor.Putio.Red.solid
         return action
     }
 
@@ -148,7 +148,7 @@ extension FilesViewController {
             self.present(actionSheet, animated: true)
         }
 
-        action.backgroundColor = UIColor.Putio.black
+        action.backgroundColor = UIColor.Putio.Neutral.componentBg
         return action
     }
 
@@ -179,7 +179,7 @@ extension FilesViewController {
             }
         }
 
-        action.backgroundColor = UIColor.Putio.black
+        action.backgroundColor = UIColor.Putio.Neutral.componentBg
         return action
     }
 
@@ -211,7 +211,7 @@ extension FilesViewController {
             }
         }
 
-        action.backgroundColor = UIColor.darkGray
+        action.backgroundColor = UIColor.Putio.Neutral.solid
         return action
     }
 }

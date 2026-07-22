@@ -26,7 +26,7 @@
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="3K9-YG-ZUb"/>
-                        <color key="backgroundColor" name="putio.background"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <constraints>
                             <constraint firstItem="7bd-RM-OVc" firstAttribute="centerX" secondItem="3K9-YG-ZUb" secondAttribute="centerX" id="V8s-q9-bAj"/>
                             <constraint firstItem="7bd-RM-OVc" firstAttribute="centerY" secondItem="3K9-YG-ZUb" secondAttribute="centerY" id="xw9-pm-qbe"/>
@@ -46,7 +46,7 @@
                     <tabBar key="tabBar" opaque="NO" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" id="XRm-7X-eGE">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="49"/>
                         <autoresizingMask key="autoresizingMask"/>
-                        <color key="tintColor" name="putio.yellow"/>
+                        <color key="tintColor" name="putio.yellow.text-secondary"/>
                     </tabBar>
                     <connections>
                         <segue destination="MHF-Ak-52j" kind="relationship" relationship="viewControllers" id="MWI-jv-7QX"/>
@@ -69,7 +69,7 @@
                         <subviews>
                             <tableView clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="default" allowsSelectionDuringEditing="YES" allowsMultipleSelection="YES" allowsMultipleSelectionDuringEditing="YES" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="28" sectionFooterHeight="28" translatesAutoresizingMaskIntoConstraints="NO" id="1nE-6N-TDe">
                                 <rect key="frame" x="0.0" y="0.0" width="375" height="635"/>
-                                <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                                <color key="backgroundColor" name="putio.surface.app-bg"/>
                                 <prototypes>
                                     <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="gray" indentationWidth="0.0" reuseIdentifier="fileReuse" rowHeight="55" id="LXM-nW-BbH" customClass="FilesTableViewCell" customModule="Putio" customModuleProvider="target">
                                         <rect key="frame" x="0.0" y="50" width="375" height="55"/>
@@ -94,7 +94,7 @@
                                                                 <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="CKZ-aP-GD7">
                                                                     <rect key="frame" x="0.0" y="0.0" width="291" height="20.333333333333332"/>
                                                                     <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                                                    <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                                    <color key="textColor" name="putio.neutral.text"/>
                                                                     <nil key="highlightedColor"/>
                                                                 </label>
                                                                 <stackView opaque="NO" contentMode="scaleToFill" alignment="center" spacing="5" translatesAutoresizingMaskIntoConstraints="NO" id="wT1-5V-Hsw">
@@ -110,7 +110,7 @@
                                                                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="rf4-qx-cP2">
                                                                             <rect key="frame" x="17" y="0.0" width="274" height="14.333333333333334"/>
                                                                             <fontDescription key="fontDescription" style="UICTFontTextStyleCaption1"/>
-                                                                            <color key="textColor" white="0.66666666669999997" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                                            <color key="textColor" name="putio.neutral.text-secondary"/>
                                                                             <nil key="highlightedColor"/>
                                                                         </label>
                                                                     </subviews>
@@ -134,8 +134,8 @@
                                                 <constraint firstAttribute="trailing" secondItem="Hu7-Ll-6wY" secondAttribute="trailing" constant="12" id="xhw-tT-VlO"/>
                                             </constraints>
                                         </tableViewCellContentView>
-                                        <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-                                        <color key="tintColor" red="0.9712814689" green="0.84450584650000005" blue="0.42341130970000002" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
+                                        <color key="backgroundColor" name="putio.surface.app-bg"/>
+                                        <color key="tintColor" name="putio.yellow.text-secondary"/>
                                         <inset key="separatorInset" minX="44" minY="0.0" maxX="0.0" maxY="0.0"/>
                                         <connections>
                                             <outlet property="icon" destination="Ofc-Bo-Y27" id="jmz-v3-ikn"/>
@@ -149,7 +149,7 @@
                             </tableView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="f3C-1u-sId"/>
-                        <color key="backgroundColor" name="putio.background"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <constraints>
                             <constraint firstItem="1nE-6N-TDe" firstAttribute="trailing" secondItem="f3C-1u-sId" secondAttribute="trailing" id="HcM-g2-RFd"/>
                             <constraint firstItem="1nE-6N-TDe" firstAttribute="leading" secondItem="f3C-1u-sId" secondAttribute="leading" id="SSV-co-5fp"/>
@@ -195,7 +195,7 @@
                     <tableView key="view" clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="grouped" separatorStyle="default" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="18" sectionFooterHeight="18" id="29c-ug-Eha">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="635"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <color key="backgroundColor" red="0.94901960784313721" green="0.94901960784313721" blue="0.96862745098039216" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <prototypes>
                             <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="none" indentationWidth="10" reuseIdentifier="settingsReuse" textLabel="9JB-00-HW0" detailTextLabel="SY1-bK-jC7" imageView="dEN-pQ-QkI" style="IBUITableViewCellStyleValue1" id="eqe-Mn-Dwz" customClass="SettingsTableViewCell" customModule="Putio" customModuleProvider="target">
                                 <rect key="frame" x="0.0" y="55.333332061767578" width="375" height="43.666667938232422"/>
@@ -209,7 +209,7 @@
                                             <autoresizingMask key="autoresizingMask"/>
                                             <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                             <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                            <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                            <color key="textColor" name="putio.neutral.text"/>
                                             <nil key="highlightedColor"/>
                                         </label>
                                         <label opaque="NO" multipleTouchEnabled="YES" contentMode="left" insetsLayoutMarginsFromSafeArea="NO" text="" textAlignment="right" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" id="SY1-bK-jC7">
@@ -217,7 +217,7 @@
                                             <autoresizingMask key="autoresizingMask"/>
                                             <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                             <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
-                                            <color key="textColor" systemColor="lightTextColor"/>
+                                            <color key="textColor" name="putio.neutral.text"/>
                                             <nil key="highlightedColor"/>
                                         </label>
                                         <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" image="Phosphor/info-regular" id="dEN-pQ-QkI">
@@ -226,7 +226,7 @@
                                         </imageView>
                                     </subviews>
                                 </tableViewCellContentView>
-                                <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <color key="backgroundColor" name="putio.surface.app-bg"/>
                             </tableViewCell>
                         </prototypes>
                         <sections/>
@@ -277,7 +277,7 @@
                         <subviews>
                             <tableView clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="grouped" separatorStyle="default" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="18" sectionFooterHeight="18" translatesAutoresizingMaskIntoConstraints="NO" id="lbr-cK-lDD">
                                 <rect key="frame" x="0.0" y="0.0" width="375" height="635"/>
-                                <color key="backgroundColor" red="0.94901960784313721" green="0.94901960784313721" blue="0.96862745098039216" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                <color key="backgroundColor" name="putio.surface.app-bg"/>
                                 <prototypes>
                                     <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" selectionStyle="default" hidesAccessoryWhenEditing="NO" indentationLevel="1" indentationWidth="0.0" reuseIdentifier="historyReuse" textLabel="pWc-hd-yyp" detailTextLabel="3xR-9E-F7d" imageView="7aB-ZU-mtB" style="IBUITableViewCellStyleSubtitle" id="7Lf-6e-8Ys" customClass="HistoryTableViewCell" customModule="Putio" customModuleProvider="target">
                                         <rect key="frame" x="0.0" y="55.333332061767578" width="375" height="51.666667938232422"/>
@@ -290,14 +290,14 @@
                                                     <rect key="frame" x="57" y="8.3333333333333357" width="30" height="18"/>
                                                     <autoresizingMask key="autoresizingMask"/>
                                                     <fontDescription key="fontDescription" style="UICTFontTextStyleSubhead"/>
-                                                    <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                    <color key="textColor" name="putio.neutral.text"/>
                                                     <nil key="highlightedColor"/>
                                                 </label>
                                                 <label opaque="NO" multipleTouchEnabled="YES" contentMode="left" insetsLayoutMarginsFromSafeArea="NO" text="Subtitle" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" id="3xR-9E-F7d">
                                                     <rect key="frame" x="57" y="28.999999999999996" width="40.666666666666664" height="13.333333333333334"/>
                                                     <autoresizingMask key="autoresizingMask"/>
                                                     <fontDescription key="fontDescription" style="UICTFontTextStyleCaption2"/>
-                                                    <color key="textColor" white="0.66666666669999997" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                    <color key="textColor" name="putio.neutral.text-secondary"/>
                                                     <nil key="highlightedColor"/>
                                                 </label>
                                                 <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleAspectFit" insetsLayoutMarginsFromSafeArea="NO" image="Phosphor/image-regular" id="7aB-ZU-mtB">
@@ -306,14 +306,14 @@
                                                 </imageView>
                                             </subviews>
                                         </tableViewCellContentView>
-                                        <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-                                        <color key="tintColor" red="0.99215686270000003" green="0.80784313730000001" blue="0.27058823529999998" alpha="1" colorSpace="calibratedRGB"/>
+                                        <color key="backgroundColor" name="putio.surface.app-bg"/>
+                                        <color key="tintColor" name="putio.yellow.text-secondary"/>
                                     </tableViewCell>
                                 </prototypes>
                             </tableView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="fhz-dt-l1o"/>
-                        <color key="backgroundColor" red="0.1999788582" green="0.20001345870000001" blue="0.1999712884" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <constraints>
                             <constraint firstItem="lbr-cK-lDD" firstAttribute="top" secondItem="fhz-dt-l1o" secondAttribute="top" id="KbQ-tA-4SB"/>
                             <constraint firstItem="fhz-dt-l1o" firstAttribute="bottom" secondItem="lbr-cK-lDD" secondAttribute="bottom" id="U9S-Vg-yts"/>
@@ -323,7 +323,7 @@
                     </view>
                     <navigationItem key="navigationItem" title="History" largeTitleDisplayMode="always" id="pFy-kL-Qan">
                         <barButtonItem key="rightBarButtonItem" title="Clear" id="37J-wn-Hil">
-                            <color key="tintColor" name="putio.yellow"/>
+                            <color key="tintColor" name="putio.yellow.text-secondary"/>
                             <connections>
                                 <action selector="clearAllButtonTapped:" destination="Zvy-0D-ZY0" id="2Zs-Ul-D1s"/>
                             </connections>
@@ -365,7 +365,7 @@
                         <subviews>
                             <tableView clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="default" rowHeight="60" estimatedRowHeight="60" sectionHeaderHeight="28" sectionFooterHeight="28" translatesAutoresizingMaskIntoConstraints="NO" id="ovi-P9-nFV">
                                 <rect key="frame" x="0.0" y="0.0" width="375" height="635"/>
-                                <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                                <color key="backgroundColor" name="putio.surface.app-bg"/>
                                 <prototypes>
                                     <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" insetsLayoutMarginsFromSafeArea="NO" selectionStyle="default" hidesAccessoryWhenEditing="NO" indentationLevel="1" indentationWidth="0.0" reuseIdentifier="downloadsReuse" rowHeight="60" id="UcW-nK-dlL" customClass="DownloadsTableViewCell" customModule="Putio" customModuleProvider="target">
                                         <rect key="frame" x="0.0" y="50" width="375" height="60"/>
@@ -393,13 +393,13 @@
                                                                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="c9K-cp-KEs">
                                                                             <rect key="frame" x="0.0" y="0.0" width="269" height="20.333333333333332"/>
                                                                             <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                                                            <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                                            <color key="textColor" name="putio.neutral.text"/>
                                                                             <nil key="highlightedColor"/>
                                                                         </label>
                                                                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="tko-lc-Zpw">
                                                                             <rect key="frame" x="0.0" y="22.333333333333336" width="269" height="14.333333333333336"/>
                                                                             <fontDescription key="fontDescription" style="UICTFontTextStyleCaption1"/>
-                                                                            <color key="textColor" white="0.66666666669999997" alpha="1" colorSpace="calibratedWhite"/>
+                                                                            <color key="textColor" name="putio.neutral.text-secondary"/>
                                                                             <nil key="highlightedColor"/>
                                                                         </label>
                                                                     </subviews>
@@ -428,7 +428,7 @@
                                                 <constraint firstAttribute="bottom" secondItem="QOu-rD-oBu" secondAttribute="bottom" id="zS9-if-8po"/>
                                             </constraints>
                                         </tableViewCellContentView>
-                                        <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                                         <inset key="separatorInset" minX="44" minY="0.0" maxX="0.0" maxY="0.0"/>
                                         <connections>
                                             <outlet property="downloadButtonContainer" destination="X1r-qC-0bE" id="MKx-4b-tE8"/>
@@ -441,7 +441,7 @@
                             </tableView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="Kbm-cV-J9Q"/>
-                        <color key="backgroundColor" red="0.1999788582" green="0.20001345870000001" blue="0.1999712884" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <constraints>
                             <constraint firstItem="ovi-P9-nFV" firstAttribute="leading" secondItem="Kbm-cV-J9Q" secondAttribute="leading" id="3Hp-qP-b84"/>
                             <constraint firstItem="Kbm-cV-J9Q" firstAttribute="bottom" secondItem="ovi-P9-nFV" secondAttribute="bottom" id="9Jt-Pv-RHy"/>
@@ -451,7 +451,7 @@
                     </view>
                     <navigationItem key="navigationItem" title="Downloads" largeTitleDisplayMode="always" id="gTe-Vr-29m">
                         <barButtonItem key="rightBarButtonItem" image="Phosphor/info-regular" id="iR1-09-4CX">
-                            <color key="tintColor" name="putio.yellow"/>
+                            <color key="tintColor" name="putio.yellow.text-secondary"/>
                             <connections>
                                 <segue destination="GNp-KK-Nh2" kind="presentation" identifier="toDownloadsTutorial" id="Aa0-Is-Y4w"/>
                             </connections>
@@ -472,7 +472,7 @@
                     <tableView key="view" clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="default" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="28" sectionFooterHeight="28" id="uE9-D9-vot">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="635"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <prototypes>
                             <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="none" indentationWidth="10" reuseIdentifier="RouteListCell" textLabel="Wm0-jb-sic" style="IBUITableViewCellStyleDefault" id="Oj7-uz-eBA">
                                 <rect key="frame" x="0.0" y="50" width="375" height="43.666667938232422"/>
@@ -485,12 +485,12 @@
                                             <rect key="frame" x="20" y="0.0" width="335" height="43.666667938232422"/>
                                             <autoresizingMask key="autoresizingMask"/>
                                             <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                            <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="calibratedRGB"/>
+                                            <color key="textColor" name="putio.neutral.text"/>
                                             <nil key="highlightedColor"/>
                                         </label>
                                     </subviews>
                                 </tableViewCellContentView>
-                                <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <color key="backgroundColor" name="putio.surface.app-bg"/>
                             </tableViewCell>
                         </prototypes>
                         <connections>
@@ -518,23 +518,23 @@
                                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Activation Code" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="LkJ-gJ-F6R">
                                         <rect key="frame" x="0.0" y="0.0" width="240" height="19.333333333333332"/>
                                         <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
-                                        <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <color key="textColor" name="putio.neutral.text"/>
                                         <nil key="highlightedColor"/>
                                     </label>
                                     <textField opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" borderStyle="roundedRect" minimumFontSize="16" clearButtonMode="whileEditing" translatesAutoresizingMaskIntoConstraints="NO" id="7Ie-bi-rUL">
                                         <rect key="frame" x="0.0" y="27.333333333333343" width="240" height="44"/>
-                                        <color key="backgroundColor" name="putio.black"/>
+                                        <color key="backgroundColor" name="putio.neutral.component-bg"/>
                                         <constraints>
                                             <constraint firstAttribute="height" constant="44" id="pHm-Ks-vSC"/>
                                         </constraints>
-                                        <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <color key="textColor" name="putio.neutral.text"/>
                                         <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                        <textInputTraits key="textInputTraits" autocapitalizationType="allCharacters" autocorrectionType="no" spellCheckingType="no" keyboardAppearance="alert" returnKeyType="go" smartDashesType="no" smartInsertDeleteType="no" smartQuotesType="no"/>
+                                        <textInputTraits key="textInputTraits" autocapitalizationType="allCharacters" autocorrectionType="no" spellCheckingType="no" returnKeyType="go" smartDashesType="no" smartInsertDeleteType="no" smartQuotesType="no"/>
                                     </textField>
                                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Enter the code shown on your device to link it to your put.io account." textAlignment="center" lineBreakMode="tailTruncation" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="HXS-w2-HnI">
                                         <rect key="frame" x="0.0" y="79.333333333333343" width="240" height="30.333333333333329"/>
                                         <fontDescription key="fontDescription" style="UICTFontTextStyleCaption1"/>
-                                        <color key="textColor" white="0.66666666666666663" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <color key="textColor" name="putio.neutral.text-secondary"/>
                                         <nil key="highlightedColor"/>
                                     </label>
                                 </subviews>
@@ -544,7 +544,7 @@
                             </stackView>
                             <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Phosphor/television-simple-regular" translatesAutoresizingMaskIntoConstraints="NO" id="l89-oD-hSD">
                                 <rect key="frame" x="163.66666666666666" y="16" width="48" height="48"/>
-                                <color key="tintColor" name="putio.listSubtitle"/>
+                                <color key="tintColor" name="putio.neutral.text-secondary"/>
                                 <constraints>
                                     <constraint firstAttribute="height" constant="48" id="MxT-eM-vUN"/>
                                     <constraint firstAttribute="width" constant="48" id="gT4-8w-yt4"/>
@@ -552,7 +552,7 @@
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="jyw-LO-sFL"/>
-                        <color key="backgroundColor" name="putio.background"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <constraints>
                             <constraint firstItem="UXm-oh-rVB" firstAttribute="centerX" secondItem="jyw-LO-sFL" secondAttribute="centerX" id="0Xt-L3-gUD"/>
                             <constraint firstItem="UXm-oh-rVB" firstAttribute="top" secondItem="l89-oD-hSD" secondAttribute="bottom" constant="16" id="EIP-kJ-TIt"/>
@@ -576,7 +576,7 @@
                     <tableView key="view" clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="default" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="28" sectionFooterHeight="28" id="UmZ-WP-m2H">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="635"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <prototypes>
                             <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="none" indentationWidth="10" reuseIdentifier="AuthAppsListCell" textLabel="mwX-3F-RAk" detailTextLabel="MQo-m7-wXk" style="IBUITableViewCellStyleSubtitle" id="Koh-FA-64b">
                                 <rect key="frame" x="0.0" y="50" width="375" height="56.666667938232422"/>
@@ -590,19 +590,19 @@
                                             <autoresizingMask key="autoresizingMask"/>
                                             <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                             <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                            <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="calibratedRGB"/>
+                                            <color key="textColor" name="putio.neutral.text"/>
                                             <nil key="highlightedColor"/>
                                         </label>
                                         <label opaque="NO" multipleTouchEnabled="YES" contentMode="left" insetsLayoutMarginsFromSafeArea="NO" text="Subtitle" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" id="MQo-m7-wXk">
                                             <rect key="frame" x="19.999999999999996" y="32.333333333333329" width="43.666666666666664" height="14.333333333333334"/>
                                             <autoresizingMask key="autoresizingMask"/>
                                             <fontDescription key="fontDescription" style="UICTFontTextStyleCaption1"/>
-                                            <color key="textColor" white="0.66666666669999997" alpha="1" colorSpace="calibratedWhite"/>
+                                            <color key="textColor" name="putio.neutral.text-secondary"/>
                                             <nil key="highlightedColor"/>
                                         </label>
                                     </subviews>
                                 </tableViewCellContentView>
-                                <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <color key="backgroundColor" name="putio.surface.app-bg"/>
                             </tableViewCell>
                         </prototypes>
                         <connections>
@@ -643,7 +643,7 @@
                         <subviews>
                             <tableView clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="default" allowsSelectionDuringEditing="YES" allowsMultipleSelection="YES" allowsMultipleSelectionDuringEditing="YES" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="28" sectionFooterHeight="28" translatesAutoresizingMaskIntoConstraints="NO" id="zlX-eG-J0L">
                                 <rect key="frame" x="0.0" y="0.0" width="375" height="635"/>
-                                <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                                <color key="backgroundColor" name="putio.surface.app-bg"/>
                                 <prototypes>
                                     <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="gray" indentationWidth="0.0" reuseIdentifier="fileReuse" rowHeight="55" id="LaU-YP-W4u" customClass="FilesTableViewCell" customModule="Putio" customModuleProvider="target">
                                         <rect key="frame" x="0.0" y="50" width="375" height="55"/>
@@ -668,7 +668,7 @@
                                                                 <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="lBX-9c-Vjb">
                                                                     <rect key="frame" x="0.0" y="0.0" width="291" height="20.333333333333332"/>
                                                                     <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                                                    <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                                    <color key="textColor" name="putio.neutral.text"/>
                                                                     <nil key="highlightedColor"/>
                                                                 </label>
                                                                 <stackView opaque="NO" contentMode="scaleToFill" alignment="center" spacing="5" translatesAutoresizingMaskIntoConstraints="NO" id="Ift-kw-tJq">
@@ -684,7 +684,7 @@
                                                                         <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="dwD-VX-9dK">
                                                                             <rect key="frame" x="17" y="0.0" width="274" height="14.333333333333334"/>
                                                                             <fontDescription key="fontDescription" style="UICTFontTextStyleCaption1"/>
-                                                                            <color key="textColor" white="0.66666666669999997" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                                            <color key="textColor" name="putio.neutral.text-secondary"/>
                                                                             <nil key="highlightedColor"/>
                                                                         </label>
                                                                     </subviews>
@@ -708,8 +708,8 @@
                                                 <constraint firstAttribute="bottom" secondItem="16e-po-JL2" secondAttribute="bottom" id="h33-VS-Omd"/>
                                             </constraints>
                                         </tableViewCellContentView>
-                                        <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-                                        <color key="tintColor" red="0.9712814689" green="0.84450584650000005" blue="0.42341130970000002" alpha="1" colorSpace="custom" customColorSpace="displayP3"/>
+                                        <color key="backgroundColor" name="putio.surface.app-bg"/>
+                                        <color key="tintColor" name="putio.yellow.text-secondary"/>
                                         <inset key="separatorInset" minX="44" minY="0.0" maxX="0.0" maxY="0.0"/>
                                         <connections>
                                             <outlet property="icon" destination="6Um-6Z-Yow" id="oB5-pD-oDr"/>
@@ -723,7 +723,7 @@
                             </tableView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="Zlc-p5-nX2"/>
-                        <color key="backgroundColor" red="0.1999788582" green="0.20001345870000001" blue="0.1999712884" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <constraints>
                             <constraint firstItem="zlX-eG-J0L" firstAttribute="leading" secondItem="Zlc-p5-nX2" secondAttribute="leading" id="0Su-4m-DzW"/>
                             <constraint firstItem="zlX-eG-J0L" firstAttribute="trailing" secondItem="Zlc-p5-nX2" secondAttribute="trailing" id="Jx7-8v-4ek"/>
@@ -756,10 +756,10 @@
                                         <subviews>
                                             <view opaque="NO" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="OMn-s3-c7r">
                                                 <rect key="frame" x="0.0" y="4" width="335" height="644.33333333333337"/>
-                                                <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                <color key="backgroundColor" name="putio.surface.app-bg"/>
                                             </view>
                                         </subviews>
-                                        <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                                         <constraints>
                                             <constraint firstItem="OMn-s3-c7r" firstAttribute="leading" secondItem="wZw-i4-EP2" secondAttribute="leading" id="5Pc-Fh-cer"/>
                                             <constraint firstAttribute="trailing" secondItem="OMn-s3-c7r" secondAttribute="trailing" id="GAd-bm-ymd"/>
@@ -770,14 +770,14 @@
                                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="This feature allows you to store audio and video files in your device for offline consumption." textAlignment="center" lineBreakMode="tailTruncation" numberOfLines="6" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="4Vq-n9-QOl">
                                         <rect key="frame" x="0.0" y="672.33333333333337" width="335" height="33.666666666666629"/>
                                         <fontDescription key="fontDescription" style="UICTFontTextStyleFootnote"/>
-                                        <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <color key="textColor" name="putio.neutral.text"/>
                                         <nil key="highlightedColor"/>
                                     </label>
                                 </subviews>
                             </stackView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="uU0-BE-TiQ"/>
-                        <color key="backgroundColor" name="putio.background"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <constraints>
                             <constraint firstItem="MRi-et-Hnz" firstAttribute="centerY" secondItem="uU0-BE-TiQ" secondAttribute="centerY" id="Idr-HB-k5o"/>
                             <constraint firstItem="MRi-et-Hnz" firstAttribute="leading" secondItem="uU0-BE-TiQ" secondAttribute="leading" constant="20" id="NXb-vK-Jcf"/>
@@ -788,7 +788,7 @@
                     </view>
                     <navigationItem key="navigationItem" title="Downloads: Mini Tutorial" largeTitleDisplayMode="never" id="wiF-8p-yTc">
                         <barButtonItem key="rightBarButtonItem" title="Done" id="ALk-q8-2K3">
-                            <color key="tintColor" name="putio.yellow"/>
+                            <color key="tintColor" name="putio.yellow.text-secondary"/>
                             <connections>
                                 <action selector="dismissButtonTapped:" destination="WMo-G5-Llo" id="mEK-ph-gq4"/>
                             </connections>
@@ -809,7 +809,7 @@
                     <tableView key="view" clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="default" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="28" sectionFooterHeight="28" id="umh-hk-hgm">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="635"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <prototypes>
                             <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="default" indentationWidth="10" reuseIdentifier="AboutListCell" textLabel="4jH-DF-emp" style="IBUITableViewCellStyleDefault" id="NJL-q8-8Ys">
                                 <rect key="frame" x="0.0" y="50" width="375" height="43.666667938232422"/>
@@ -822,12 +822,12 @@
                                             <rect key="frame" x="20" y="0.0" width="335" height="43.666667938232422"/>
                                             <autoresizingMask key="autoresizingMask"/>
                                             <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                            <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                            <color key="textColor" name="putio.neutral.text"/>
                                             <nil key="highlightedColor"/>
                                         </label>
                                     </subviews>
                                 </tableViewCellContentView>
-                                <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <color key="backgroundColor" name="putio.surface.app-bg"/>
                             </tableViewCell>
                         </prototypes>
                         <connections>
@@ -858,11 +858,11 @@
                                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Heads up: Files in trash have an expiry date of 14 days." lineBreakMode="wordWrap" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="2n3-fq-Det" userLabel="text">
                                                 <rect key="frame" x="12" y="12" width="351" height="26"/>
                                                 <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
-                                                <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                <color key="textColor" name="putio.neutral.text"/>
                                                 <nil key="highlightedColor"/>
                                             </label>
                                         </subviews>
-                                        <color key="backgroundColor" name="putio.black.tint"/>
+                                        <color key="backgroundColor" name="putio.surface.html-bg"/>
                                         <constraints>
                                             <constraint firstItem="2n3-fq-Det" firstAttribute="leading" secondItem="TqH-RM-yqf" secondAttribute="leading" constant="12" id="61b-0i-ZWm"/>
                                             <constraint firstAttribute="height" relation="greaterThanOrEqual" id="6m8-dE-d9e"/>
@@ -873,7 +873,7 @@
                                     </view>
                                     <tableView clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="default" allowsSelection="NO" allowsSelectionDuringEditing="YES" allowsMultipleSelectionDuringEditing="YES" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="-1" estimatedSectionHeaderHeight="-1" sectionFooterHeight="-1" estimatedSectionFooterHeight="-1" translatesAutoresizingMaskIntoConstraints="NO" id="ie4-Ck-DNL">
                                         <rect key="frame" x="0.0" y="50" width="375" height="585"/>
-                                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                                         <prototypes>
                                             <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="gray" indentationWidth="0.0" reuseIdentifier="trashReuse" textLabel="ASS-vO-IRn" detailTextLabel="Hda-ZC-gIl" imageView="sBR-Xh-95c" rowHeight="55" style="IBUITableViewCellStyleSubtitle" id="LhW-O8-SWJ" customClass="TrashTableViewCell" customModule="Putio" customModuleProvider="target">
                                                 <rect key="frame" x="0.0" y="50" width="375" height="55"/>
@@ -886,14 +886,14 @@
                                                             <rect key="frame" x="57.000000000000007" y="9.9999999999999982" width="75.666666666666671" height="20.333333333333332"/>
                                                             <autoresizingMask key="autoresizingMask"/>
                                                             <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                                            <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                            <color key="textColor" name="putio.neutral.text"/>
                                                             <nil key="highlightedColor"/>
                                                         </label>
                                                         <label opaque="NO" multipleTouchEnabled="YES" contentMode="left" insetsLayoutMarginsFromSafeArea="NO" text="Subtitle" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" id="Hda-ZC-gIl">
                                                             <rect key="frame" x="57" y="31.333333333333332" width="43.666666666666664" height="14.333333333333334"/>
                                                             <autoresizingMask key="autoresizingMask"/>
                                                             <fontDescription key="fontDescription" style="UICTFontTextStyleCaption1"/>
-                                                            <color key="textColor" white="0.66666666666666663" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                            <color key="textColor" name="putio.neutral.text-secondary"/>
                                                             <nil key="highlightedColor"/>
                                                         </label>
                                                         <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleAspectFit" insetsLayoutMarginsFromSafeArea="NO" image="Phosphor/folder-fill" id="sBR-Xh-95c">
@@ -902,7 +902,7 @@
                                                         </imageView>
                                                     </subviews>
                                                 </tableViewCellContentView>
-                                                <color key="backgroundColor" white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                                <color key="backgroundColor" name="putio.surface.app-bg"/>
                                                 <inset key="separatorInset" minX="44" minY="0.0" maxX="0.0" maxY="0.0"/>
                                             </tableViewCell>
                                         </prototypes>
@@ -948,7 +948,7 @@
                                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Are you 100% sure you want to destroy your account? There is no turning back!!!" textAlignment="center" lineBreakMode="wordWrap" numberOfLines="3" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="iEm-Pb-vGa">
                                         <rect key="frame" x="0.0" y="0.0" width="343" height="42.333333333333336"/>
                                         <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                        <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <color key="textColor" name="putio.neutral.text"/>
                                         <nil key="highlightedColor"/>
                                     </label>
                                 </subviews>
@@ -967,7 +967,7 @@
                                     <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="You can still talk to us if there is anything we can help with." textAlignment="center" lineBreakMode="wordWrap" numberOfLines="3" baselineAdjustment="alignBaselines" adjustsFontForContentSizeCategory="YES" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="QdE-Gm-j7S">
                                         <rect key="frame" x="0.0" y="0.0" width="343" height="42.333333333333336"/>
                                         <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                        <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                        <color key="textColor" name="putio.neutral.text"/>
                                         <nil key="highlightedColor"/>
                                     </label>
                                 </subviews>
@@ -996,7 +996,7 @@
                                         <rect key="frame" x="179.66666666666663" y="0.0" width="163.33333333333337" height="30"/>
                                         <inset key="imageEdgeInsets" minX="0.0" minY="0.0" maxX="2.2250738585072014e-308" maxY="0.0"/>
                                         <state key="normal" title="Destroy Account">
-                                            <color key="titleColor" systemColor="systemRedColor"/>
+                                            <color key="titleColor" name="putio.red.solid"/>
                                         </state>
                                         <connections>
                                             <action selector="destroyButtonTapped:" destination="kYA-9H-J8H" eventType="touchUpInside" id="8WU-rq-rWg"/>
@@ -1007,7 +1007,7 @@
                             </stackView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="Aof-AG-vGQ"/>
-                        <color key="backgroundColor" name="putio.background"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <constraints>
                             <constraint firstItem="UEx-DX-x4v" firstAttribute="top" secondItem="Aof-AG-vGQ" secondAttribute="top" constant="16" id="It2-zU-1ia"/>
                             <constraint firstItem="Aof-AG-vGQ" firstAttribute="trailing" secondItem="Z8r-Cd-tcd" secondAttribute="trailing" constant="16" id="QHx-ul-A4E"/>
@@ -1034,8 +1034,8 @@
                     <tableView key="view" clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="default" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="-1" estimatedSectionHeaderHeight="-1" sectionFooterHeight="-1" estimatedSectionFooterHeight="-1" id="rTB-sL-06p">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="635"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <color key="backgroundColor" name="putio.background"/>
-                        <color key="separatorColor" name="putio.listSeperator"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
+                        <color key="separatorColor" name="putio.surface.list-item-border"/>
                         <prototypes>
                             <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" preservesSuperviewLayoutMargins="YES" selectionStyle="none" accessoryType="checkmark" indentationWidth="10" reuseIdentifier="clearDataReuse" textLabel="17s-r1-UY5" style="IBUITableViewCellStyleDefault" id="ZGh-n7-8DB">
                                 <rect key="frame" x="0.0" y="50" width="375" height="43.666667938232422"/>
@@ -1048,13 +1048,13 @@
                                             <rect key="frame" x="20" y="0.0" width="303" height="43.666667938232422"/>
                                             <autoresizingMask key="autoresizingMask"/>
                                             <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
-                                            <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                            <color key="textColor" name="putio.neutral.text"/>
                                             <nil key="highlightedColor"/>
                                         </label>
                                     </subviews>
-                                    <color key="backgroundColor" name="putio.background"/>
+                                    <color key="backgroundColor" name="putio.surface.app-bg"/>
                                 </tableViewCellContentView>
-                                <color key="backgroundColor" name="putio.background"/>
+                                <color key="backgroundColor" name="putio.surface.app-bg"/>
                             </tableViewCell>
                         </prototypes>
                         <sections/>
@@ -1065,7 +1065,7 @@
                     </tableView>
                     <navigationItem key="navigationItem" title="Select items to clean" largeTitleDisplayMode="never" id="Hu3-ND-kF7">
                         <barButtonItem key="rightBarButtonItem" title="Cleanup" style="done" id="p5P-Pw-3hZ">
-                            <color key="tintColor" name="putio.yellow"/>
+                            <color key="tintColor" name="putio.yellow.text-secondary"/>
                             <connections>
                                 <action selector="cleanUpButtonPressed:" destination="vsw-Zm-mff" id="ino-6C-FyA"/>
                             </connections>
@@ -1081,10 +1081,10 @@
             <objects>
                 <navigationController automaticallyAdjustsScrollViewInsets="NO" id="GNp-KK-Nh2" sceneMemberID="viewController">
                     <toolbarItems/>
-                    <navigationBar key="navigationBar" contentMode="scaleToFill" barStyle="black" id="avn-AD-X0e">
+                    <navigationBar key="navigationBar" contentMode="scaleToFill" id="avn-AD-X0e">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="56"/>
                         <autoresizingMask key="autoresizingMask"/>
-                        <color key="backgroundColor" name="putio.black"/>
+                        <color key="backgroundColor" name="putio.neutral.component-bg"/>
                     </navigationBar>
                     <nil name="viewControllers"/>
                     <connections>
@@ -1104,8 +1104,35 @@
             <size key="intrinsicContentSize" width="30" height="34"/>
         </designable>
     </designables>
-    <color key="tintColor" name="putio.yellow"/>
+    <color key="tintColor" name="putio.yellow.text-secondary"/>
     <resources>
+        <namedColor name="putio.yellow.text-secondary">
+            <color red="1.000" green="0.820" blue="0.280" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.neutral.component-bg">
+            <color red="0.136" green="0.136" blue="0.136" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.neutral.text">
+            <color red="0.930" green="0.930" blue="0.930" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.neutral.text-secondary">
+            <color red="0.628" green="0.628" blue="0.628" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.red.solid">
+            <color red="0.898" green="0.282" blue="0.303" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.surface.app-bg">
+            <color red="0.085" green="0.085" blue="0.085" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.surface.html-bg">
+            <color red="0.000" green="0.000" blue="0.000" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.surface.list-item-border">
+            <color red="0.179" green="0.179" blue="0.179" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
+        <namedColor name="putio.yellow.solid">
+            <color red="0.992" green="0.808" blue="0.270" alpha="1.000" colorSpace="custom" customColorSpace="sRGB"/>
+        </namedColor>
         <image name="Phosphor/caret-right-regular" width="16" height="16"/>
         <image name="Phosphor/eye-regular" width="16" height="16"/>
         <image name="Phosphor/file-video-regular" width="16" height="16"/>
@@ -1115,24 +1142,6 @@
         <image name="Phosphor/television-simple-regular" width="16" height="16"/>
         <image name="icon" width="128" height="128"/>
         <image name="logo" width="564" height="144"/>
-        <namedColor name="putio.background">
-            <color red="0.20000000298023224" green="0.20000000298023224" blue="0.20000000298023224" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </namedColor>
-        <namedColor name="putio.black">
-            <color red="0.12999999523162842" green="0.12999999523162842" blue="0.12999999523162842" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </namedColor>
-        <namedColor name="putio.black.tint">
-            <color red="0.059999998658895493" green="0.059999998658895493" blue="0.059999998658895493" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </namedColor>
-        <namedColor name="putio.listSeperator">
-            <color red="0.15000000596046448" green="0.15000000596046448" blue="0.15000000596046448" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </namedColor>
-        <namedColor name="putio.listSubtitle">
-            <color red="0.60000002384185791" green="0.60000002384185791" blue="0.60000002384185791" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </namedColor>
-        <namedColor name="putio.yellow">
-            <color red="0.99199998378753662" green="0.80800002813339233" blue="0.27099999785423279" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </namedColor>
         <systemColor name="lightTextColor">
             <color white="1" alpha="0.59999999999999998" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>

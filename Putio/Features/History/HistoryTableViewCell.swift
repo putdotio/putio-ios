@@ -146,13 +146,13 @@ class HistoryTableViewCell: UITableViewCell {
             textLabel?.text = NSLocalizedString("No title", comment: "")
             detailTextLabel?.text = ""
             imageView?.image = PutioIcon.imageIcon.image(pointSize: 20)
-            imageView?.tintColor = UIColor.Putio.listSubtitle
+            imageView?.tintColor = UIColor.Putio.Neutral.textSecondary
             return
         }
 
         textLabel?.text = presentation.text
         detailTextLabel?.text = presentation.detailText
         imageView?.image = presentation.icon.image(pointSize: 20)
-        imageView?.tintColor = UIColor.Putio.listSubtitle
+        imageView?.tintColor = UIColor.Putio.Neutral.textSecondary
     }
 }

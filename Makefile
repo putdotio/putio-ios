@@ -1,4 +1,4 @@
-.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify verify verify-fast e2e-simulator print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean beta release
+.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify verify verify-fast e2e-simulator screenshots-record print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean beta release
 
 bootstrap: doctor
 	bundle config set --local path vendor/bundle
@@ -18,7 +18,17 @@ icons-sync:
 icons-verify:
 	@ruby scripts/sync-phosphor-icons.rb --check
 
-verify-fast: icons-verify
+tokens-sync:
+	@ruby scripts/sync-design-tokens.rb
+
+tokens-verify:
+	@ruby scripts/sync-design-tokens.rb --check
+
+verify-fast: icons-verify tokens-verify
+	@if git ls-files | grep -iE '\.(otf|ttf|ttc)$$'; then \
+		echo "verify-fast: licensed font binaries must never be committed (see CONTRIBUTING.md)." >&2; \
+		exit 1; \
+	fi
 	plutil -lint Putio/en.lproj/*.strings
 	xcodebuild -list -workspace Putio.xcworkspace
 
@@ -56,7 +66,26 @@ e2e-simulator:
 	rm -rf build/e2e-simulator.xcresult; \
 	xcodebuild -workspace Putio.xcworkspace -scheme PutioE2E -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" build-for-testing -quiet; \
 	echo "Test results will be written to build/e2e-simulator.xcresult"; \
-	xcodebuild -workspace Putio.xcworkspace -scheme PutioE2E -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -resultBundlePath build/e2e-simulator.xcresult -quiet
+	TEST_RUNNER_PUTIO_RECORD_SNAPSHOTS="$${PUTIO_RECORD_SNAPSHOTS:-0}" xcodebuild -workspace Putio.xcworkspace -scheme PutioE2E -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -resultBundlePath build/e2e-simulator.xcresult -quiet
+
+screenshots-record:
+	@rm -rf PutioUITests/__Snapshots__; \
+	PUTIO_RECORD_SNAPSHOTS=1 $(MAKE) e2e-simulator; status=$$?; \
+	if [ ! -d build/e2e-simulator.xcresult ]; then \
+		echo "screenshots-record: no result bundle was produced; the run failed before testing (exit $$status)." >&2; \
+		exit 1; \
+	fi; \
+	if ! xcrun xcresulttool get test-results tests --path build/e2e-simulator.xcresult | ruby scripts/verify-snapshot-recording.rb; then \
+		echo "screenshots-record: the run had failures beyond record-mode snapshot assertions; baselines may be incomplete." >&2; \
+		exit 1; \
+	fi; \
+	count="$$(find PutioUITests/__Snapshots__ -name '*.png' 2>/dev/null | wc -l | tr -d ' ')"; \
+	if [ "$$count" -eq 0 ]; then \
+		echo "screenshots-record: no baselines were written; the run failed before recording (exit $$status)." >&2; \
+		exit 1; \
+	fi; \
+	echo "Recorded $$count baselines under PutioUITests/__Snapshots__/. Review the image diff and commit deliberately."; \
+	echo "(Recording runs report snapshot-test failures by design; rerun make e2e-simulator to verify against the new baselines.)"
 
 print-simulator-destination:
 	@./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio

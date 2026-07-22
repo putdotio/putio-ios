@@ -21,7 +21,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
         tableView.accessibilityIdentifier = "putio-history-table"
         tableView.refreshControl = UIRefreshControl()
         tableView.refreshControl?.transform = CGAffineTransform(scaleX: 0.75, y: 0.75)
-        tableView.refreshControl?.tintColor = UIColor.lightGray
+        tableView.refreshControl?.tintColor = UIColor.Putio.Neutral.textSecondary
         tableView.refreshControl?.addTarget(self, action: #selector(refresh), for: .valueChanged)
 
         viewModel.delegate = self
@@ -55,7 +55,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
     }
 
     func configureAppearance() {
-        tableView.backgroundColor = UIColor.Putio.background
+        tableView.backgroundColor = UIColor.Putio.Surface.appBg
         tableView.contentInsetAdjustmentBehavior = .automatic
         tableView.tableHeaderView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNormalMagnitude))
 
@@ -66,7 +66,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
         let button = UIButton(type: .system)
         var configuration = UIButton.Configuration.plain()
         configuration.title = NSLocalizedString("Clear", comment: "")
-        configuration.baseForegroundColor = UIColor.Putio.yellow
+        configuration.baseForegroundColor = UIColor.Putio.Yellow.textSecondary
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12)
         configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var outgoing = incoming
@@ -83,7 +83,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
     func setClearAllButtonEnabled(_ isEnabled: Bool) {
         clearAllCustomButton?.isEnabled = isEnabled
         clearAllCustomButton?.alpha = isEnabled ? 1 : 0.45
-        clearAllCustomButton?.configuration?.baseForegroundColor = isEnabled ? UIColor.Putio.yellow : UIColor.Putio.listSubtitle
+        clearAllCustomButton?.configuration?.baseForegroundColor = isEnabled ? UIColor.Putio.Yellow.textSecondary : UIColor.Putio.Neutral.textSecondary
     }
 
     func configureStateMachine() {
@@ -148,7 +148,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
             }
         }
 
-        action.backgroundColor = .systemRed
+        action.backgroundColor = UIColor.Putio.Red.solid
 
         return action
     }
@@ -204,7 +204,7 @@ extension HistoryViewController: UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int) {
         guard let headerView = view as? UITableViewHeaderFooterView else { return }
-        headerView.textLabel?.textColor = UIColor.Putio.listSubtitle
+        headerView.textLabel?.textColor = UIColor.Putio.Neutral.textSecondary
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
