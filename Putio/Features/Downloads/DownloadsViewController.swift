@@ -271,7 +271,8 @@ class DownloadsRecoveryView: UIView {
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 32, bottom: 14, trailing: 32)
         configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var outgoing = incoming
-            outgoing.font = .preferredFont(forTextStyle: .headline)
+            outgoing.font = BrandFont.scaledSansIfAvailable(textStyle: .headline, weight: .semibold)
+                ?? .preferredFont(forTextStyle: .headline)
             return outgoing
         }
         button.configuration = configuration
@@ -301,13 +302,15 @@ class DownloadsRecoveryView: UIView {
 
         let titleLabel = UILabel()
         titleLabel.text = NSLocalizedString("Restore Your Downloads", comment: "")
-        titleLabel.font = .preferredFont(forTextStyle: .title1)
+        titleLabel.font = BrandFont.scaledSansIfAvailable(textStyle: .title1)
+            ?? .preferredFont(forTextStyle: .title1)
         titleLabel.textColor = UIColor.Putio.Neutral.text
         titleLabel.textAlignment = .center
 
         let bodyLabel = UILabel()
         bodyLabel.text = NSLocalizedString("Your files are still on this device but need to be restored after an app update.\n\nA stable internet connection is recommended.", comment: "")
-        bodyLabel.font = .preferredFont(forTextStyle: .body)
+        bodyLabel.font = BrandFont.scaledSansIfAvailable(textStyle: .body)
+            ?? .preferredFont(forTextStyle: .body)
         bodyLabel.textColor = UIColor.Putio.Neutral.textSecondary
         bodyLabel.textAlignment = .center
         bodyLabel.numberOfLines = 0

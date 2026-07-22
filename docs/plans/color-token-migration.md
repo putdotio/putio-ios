@@ -91,8 +91,8 @@ Recorded deviations (Phase 2):
   (`make fonts-setup` syncs licensed faces from the private putio-static
   repository into gitignored `Putio/Fonts/`; optional bundling + runtime
   registration with system-font fallback; verification builds always use
-  system fonts). Applying brand type beyond navigation titles across every
-  label and storyboard remains follow-up work.
+  system fonts). Applying brand type beyond navigation titles is tracked
+  separately in [brand-typography.md](./brand-typography.md).
 - TV/web parity work; those live in their own repositories.
 
 ## Verification

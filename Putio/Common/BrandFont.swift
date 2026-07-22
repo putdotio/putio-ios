@@ -55,6 +55,19 @@ enum BrandFont {
         brandFont(family: sansFamily, size: size, weight: weight)
     }
 
+    // Dynamic-Type-aware sans: GT America sized at the text style's default
+    // point size, then rescaled for the current content size category so the
+    // brand face tracks accessibility text sizing exactly like the system
+    // font it replaces. Returns nil when the faces are absent, so callers can
+    // fall back to their original font expression and keep verification
+    // builds byte-identical.
+    static func scaledSansIfAvailable(textStyle: UIFont.TextStyle, weight: UIFont.Weight = .regular) -> UIFont? {
+        let defaultTraits = UITraitCollection(preferredContentSizeCategory: .large)
+        let baseSize = UIFont.preferredFont(forTextStyle: textStyle, compatibleWith: defaultTraits).pointSize
+        guard let brand = sansIfAvailable(size: baseSize, weight: weight) else { return nil }
+        return UIFontMetrics(forTextStyle: textStyle).scaledFont(for: brand)
+    }
+
     static func monoIfAvailable(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont? {
         brandFont(family: monoFamily, size: size, weight: weight)
     }

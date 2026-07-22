@@ -70,7 +70,8 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12)
         configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var outgoing = incoming
-            outgoing.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+            outgoing.font = BrandFont.sansIfAvailable(size: 14, weight: .semibold)
+                ?? UIFont.systemFont(ofSize: 14, weight: .semibold)
             return outgoing
         }
         button.configuration = configuration

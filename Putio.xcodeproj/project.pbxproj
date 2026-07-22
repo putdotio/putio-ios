@@ -58,6 +58,7 @@
 		AC5B420B282CCF9E0025064D /* EnableTwoFactorSecretViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5B420A282CCF9E0025064D /* EnableTwoFactorSecretViewModel.swift */; };
 		AC5B420D282CD6BC0025064D /* LabelContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5B420C282CD6BC0025064D /* LabelContainerView.swift */; };
 		AC5D60B61FAB43D6004C1274 /* UITextField+Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5D60B51FAB43D6004C1274 /* UITextField+Appearance.swift */; };
+		3C5E7A9B1D2F4A6C8E0B3D5F /* UILabel+Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4F6A8C0E1B3D5F7A9C1E3B /* UILabel+Appearance.swift */; };
 		AC6546531FAB2CF100E278EE /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6546521FAB2CF100E278EE /* Keychain.swift */; };
 		AC6E26071FD9A43200BC9AEC /* DownloadedFilePresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6E26061FD9A43200BC9AEC /* DownloadedFilePresenter.swift */; };
 		AC6F75A11FB33312000EF423 /* UIImage+Putio.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6F75A01FB33312000EF423 /* UIImage+Putio.swift */; };
@@ -225,6 +226,7 @@
 		AC5B420A282CCF9E0025064D /* EnableTwoFactorSecretViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnableTwoFactorSecretViewModel.swift; sourceTree = "<group>"; };
 		AC5B420C282CD6BC0025064D /* LabelContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelContainerView.swift; sourceTree = "<group>"; };
 		AC5D60B51FAB43D6004C1274 /* UITextField+Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UITextField+Appearance.swift"; sourceTree = "<group>"; };
+		2D4F6A8C0E1B3D5F7A9C1E3B /* UILabel+Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UILabel+Appearance.swift"; sourceTree = "<group>"; };
 		AC6546521FAB2CF100E278EE /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
 		AC6E26061FD9A43200BC9AEC /* DownloadedFilePresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadedFilePresenter.swift; sourceTree = "<group>"; };
 		AC6F75A01FB33312000EF423 /* UIImage+Putio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+Putio.swift"; sourceTree = "<group>"; };
@@ -477,6 +479,7 @@
 			children = (
 				ACFA837C1FF13141008711B4 /* UIView+InterfaceBuilderInstantiable.swift */,
 				AC5D60B51FAB43D6004C1274 /* UITextField+Appearance.swift */,
+				2D4F6A8C0E1B3D5F7A9C1E3B /* UILabel+Appearance.swift */,
 				AC76E0271FB4D68800693A18 /* UITableView+HeaderFooter.swift */,
 				AC76E0291FB4D6A100693A18 /* UITableViewCell+Appearance.swift */,
 				AC9F15EB23B98A5700C09BAB /* UIView+FindSubView.swift */,
@@ -1225,6 +1228,7 @@
 				AC6546531FAB2CF100E278EE /* Keychain.swift in Sources */,
 				ACBAF5991FB0B1FF00BEDE1D /* SettingsTableViewController.swift in Sources */,
 				AC5D60B61FAB43D6004C1274 /* UITextField+Appearance.swift in Sources */,
+				3C5E7A9B1D2F4A6C8E0B3D5F /* UILabel+Appearance.swift in Sources */,
 				AC8CA4FE1FECE78200262B2A /* ChromecastManager.swift in Sources */,
 				ACF568162785A4A500A84B88 /* TrashViewController.swift in Sources */,
 				ACABA8941FB47CCB0015B86D /* LinkAccountViewController.swift in Sources */,
