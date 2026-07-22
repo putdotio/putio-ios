@@ -7,7 +7,25 @@ class Stylize {
         navigationBarAppearance.configureWithOpaqueBackground()
         navigationBarAppearance.backgroundColor = UIColor.Putio.Surface.navBg
         navigationBarAppearance.shadowColor = .clear
-        navigationBarAppearance.titleTextAttributes = [.foregroundColor: UIColor.Putio.Neutral.text]
+
+        var titleAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: UIColor.Putio.Neutral.text]
+        // Brand type only when the licensed faces are bundled; otherwise the
+        // system styling stays byte-identical for snapshot baselines. Large
+        // titles (Files/Account/History/Downloads) style through their own
+        // attribute set, at the system large-title metrics (34pt bold).
+        if let brandTitleFont = BrandFont.sansIfAvailable(size: 17, weight: .bold) {
+            titleAttributes[.font] = brandTitleFont
+        }
+        if let brandLargeTitleFont = BrandFont.sansIfAvailable(size: 34, weight: .bold) {
+            // Assigning the attribute dictionary replaces the configured
+            // defaults, so carry the title color large titles should share
+            // with the inline title.
+            navigationBarAppearance.largeTitleTextAttributes = [
+                .font: brandLargeTitleFont,
+                .foregroundColor: UIColor.Putio.Neutral.text
+            ]
+        }
+        navigationBarAppearance.titleTextAttributes = titleAttributes
 
         let buttonAppearance = UIBarButtonItemAppearance(style: .plain)
         buttonAppearance.normal.titleTextAttributes = [.foregroundColor: UIColor.Putio.Yellow.textSecondary]

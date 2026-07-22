@@ -45,6 +45,34 @@ the onboarding-provided `PUTIO_IOS_INFISICAL_*` variables in this repo or
 worktree shell before running the command. Run `make secrets-clean` to remove
 the generated file.
 
+### Brand fonts (optional, maintainers)
+
+The licensed GT America families are never committed. Sync them from the
+private putio-static repository (requires `gh auth login` with access):
+
+```bash
+make fonts-setup   # sync into gitignored Putio/Fonts/
+make fonts-check   # report presence without writing
+```
+
+`Config/BrandFonts.json` pins the source commit and per-file checksums;
+`make fonts-check` fails only when the directory contradicts the manifest
+(stale checksum or unlisted font file) — absent fonts are the accepted
+optional state for local work. When fonts are present they are bundled into
+normal builds and registered at launch; when absent every surface falls
+back to system fonts. CI beta and release archives sync them with a
+`putio-release-bot` installation token (downscoped to read-only Contents
+on `putdotio/putio-static`) and fail loudly if the sync cannot run, so
+TestFlight and App Store builds always ship brand typography (see
+[Distribution](./docs/DISTRIBUTION.md)).
+
+Verification builds never bundle fonts (`PUTIO_BUNDLE_BRAND_FONTS = NO` in
+`Config/Verify.xcconfig`), so snapshot baselines are always recorded and
+compared on system fonts. That exclusion is applied via `-xcconfig` in the
+make targets, not in the Xcode project — record baselines through
+`make screenshots-record`, never from Xcode directly with fonts synced
+(the BrandFontTests suite fails loudly in that configuration as a guard).
+
 - Local signed builds default to:
   - bundle id `io.put.dev`
   - display name `put.io`

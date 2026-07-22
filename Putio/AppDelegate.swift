@@ -73,6 +73,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func configureUI() {
+        BrandFont.registerIfAvailable()
         applyWindowAppearance()
         Stylize.UIKit(window: window)
         NetworkReachability.sharedInstance.setup()

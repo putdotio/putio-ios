@@ -42,6 +42,7 @@ Xcode + Fastlane carry their own config and signing flow; this repo does not use
 - Visual baselines live in two tiers, both asserted with SnapshotTesting (perceptual tolerance): component-level snapshots in `PutioTests/__Snapshots__/` (buttons, cells, state views, both modes) and full-screen walk captures in `PutioUITests/__Snapshots__/` (13 screens × 2 modes); after an intentional visual change run `make screenshots-record` (re-records both tiers, fails on partial runs), review the image diff, and commit the new baselines
 - E2e also runs weekly in CI (Mondays 06:00 UTC) via `.github/workflows/e2e-simulator.yml`
 - Use `make secrets-setup` only for signed local builds or private support integrations; it writes ignored `Config/Local.xcconfig` from maintainer-supplied `PUTIO_IOS_INFISICAL_*` values
+- `make fonts-setup` (optional, maintainers) syncs the licensed brand fonts from the private putio-static repository into gitignored `Putio/Fonts/` via `gh` auth, pinned by commit and checksum; local builds fall back to system fonts when absent, CI beta/release archives sync them via a downscoped `putio-release-bot` installation token (failing loudly if they can't), and Verify builds never bundle them so snapshot baselines stay on system fonts
 
 Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-config).
 

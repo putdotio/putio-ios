@@ -1,4 +1,4 @@
-.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify verify verify-fast e2e-simulator screenshots-record print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean beta release
+.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify fonts-setup fonts-check verify verify-fast e2e-simulator screenshots-record print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean beta release
 
 # Result bundle paths shared by verify / e2e-simulator / screenshots-record.
 VERIFY_RESULT_BUNDLE := build/verify.xcresult
@@ -33,6 +33,12 @@ tokens-sync:
 
 tokens-verify:
 	@ruby scripts/sync-design-tokens.rb --check
+
+fonts-setup:
+	@ruby scripts/sync-brand-fonts.rb
+
+fonts-check:
+	@ruby scripts/sync-brand-fonts.rb --check
 
 verify-fast: icons-verify tokens-verify
 	@if git ls-files | grep -iE '\.(otf|ttf|ttc)$$'; then \

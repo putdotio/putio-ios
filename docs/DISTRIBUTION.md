@@ -57,6 +57,15 @@ The `release` Environment must provide:
   - `MATCH_PASSWORD`
   - `MATCH_GIT_PRIVATE_KEY_CONTENT`
   - `MATCH_GIT_URL` must use a `github.com` SSH URL; CI verifies GitHub's ed25519 host-key fingerprint before updating `known_hosts`
+- Release-bot fields (org-standard `putio-release-bot` GitHub App):
+  - `PUTIO_RELEASE_BOT_PRIVATE_KEY` secret and `PUTIO_RELEASE_BOT_CLIENT_ID`
+    variable, matching the shared release-bot contract used across
+    frontend-owned repos
+  - the "Sync licensed brand fonts" step mints an installation token
+    downscoped to read-only Contents on `putdotio/putio-static` so
+    distributed builds ship brand typography; minting fails the workflow
+    when the credentials are missing, so a system-font build cannot ship
+    silently
 
 Keep item IDs, service-account tokens, and private key material out of git.
 
