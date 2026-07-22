@@ -31,6 +31,22 @@ final class BrandFontTests: XCTestCase {
         XCTAssertEqual(BrandFont.mono(size: 13), .monospacedSystemFont(ofSize: 13, weight: .regular))
     }
 
+    // Pins the fixed-size-label weight fix: the descriptor's weight trait is
+    // an NSNumber, so a direct `as? CGFloat` cast fails and silently drops the
+    // label to regular. This runs without bundled fonts (pure descriptor math).
+    func testFixedSizeWeightIsRecoveredFromNSNumberTrait() {
+        let semibold = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        let recovered = UILabel.brandWeight(from: semibold.fontDescriptor)
+        XCTAssertEqual(recovered.rawValue, UIFont.Weight.semibold.rawValue, accuracy: 0.001,
+                       "weight must be read via NSNumber, not dropped to regular")
+        XCTAssertNotEqual(recovered.rawValue, UIFont.Weight.regular.rawValue,
+                          "a semibold font must not silently resolve to regular")
+
+        let regular = UIFont.systemFont(ofSize: 14, weight: .regular)
+        XCTAssertEqual(UILabel.brandWeight(from: regular.fontDescriptor).rawValue,
+                       UIFont.Weight.regular.rawValue, accuracy: 0.001)
+    }
+
     func testTypographyRolesResolveToNilWithoutBundledFonts() {
         BrandFont.registerIfAvailable()
         // Verify builds bundle no faces, so every design-system role must

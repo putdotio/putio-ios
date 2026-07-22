@@ -29,16 +29,20 @@ extension UILabel {
         } else {
             // Fixed-size labels (a UIButton's default title label, or a
             // fixed-point storyboard label) carry no text style, so match
-            // their current point size on the brand face. The weight trait is
-            // an NSNumber in the descriptor dictionary — read it as such
-            // (a direct `as? CGFloat` cast fails and would drop every fixed
-            // label to regular).
-            let traits = descriptor.object(forKey: .traits) as? [UIFontDescriptor.TraitKey: Any]
-            let weightValue = (traits?[.weight] as? NSNumber)?.doubleValue ?? Double(UIFont.Weight.regular.rawValue)
-            let weight = UIFont.Weight(rawValue: CGFloat(weightValue))
+            // their current point size and weight on the brand face.
+            let weight = Self.brandWeight(from: descriptor)
             guard let brandFont = BrandFont.sansIfAvailable(size: font.pointSize, weight: weight) else { return }
             font = brandFont
         }
+    }
+
+    // Reads a font's weight from its descriptor. The weight trait is stored
+    // as an NSNumber in the traits dictionary; a direct `as? CGFloat` cast
+    // fails and would silently drop every fixed-size label to regular.
+    static func brandWeight(from descriptor: UIFontDescriptor) -> UIFont.Weight {
+        let traits = descriptor.object(forKey: .traits) as? [UIFontDescriptor.TraitKey: Any]
+        let raw = (traits?[.weight] as? NSNumber)?.doubleValue ?? Double(UIFont.Weight.regular.rawValue)
+        return UIFont.Weight(rawValue: CGFloat(raw))
     }
 
     // Apple text style → design-system role. Every iOS text style is mapped
