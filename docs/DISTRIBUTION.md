@@ -57,6 +57,11 @@ The `release` Environment must provide:
   - `MATCH_PASSWORD`
   - `MATCH_GIT_PRIVATE_KEY_CONTENT`
   - `MATCH_GIT_URL` must use a `github.com` SSH URL; CI verifies GitHub's ed25519 host-key fingerprint before updating `known_hosts`
+- Brand assets:
+  - `PUTIO_STATIC_READ_TOKEN` — fine-grained PAT with read-only Contents
+    access to `putdotio/putio-static`, used by the "Sync licensed brand
+    fonts" step so distributed builds ship brand typography; the step fails
+    the workflow when the secret is missing or the sync cannot complete
 
 Keep item IDs, service-account tokens, and private key material out of git.
 

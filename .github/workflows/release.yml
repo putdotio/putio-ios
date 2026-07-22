@@ -64,6 +64,21 @@ jobs:
       - name: Verify repository
         run: make verify
 
+      # Distributed builds ship brand typography. Verification above stays on
+      # system fonts by design (PUTIO_BUNDLE_BRAND_FONTS=NO in Verify.xcconfig);
+      # the archive step below bundles whatever this sync fetched.
+      - name: Sync licensed brand fonts
+        env:
+          GH_TOKEN: ${{ secrets.PUTIO_STATIC_READ_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "PUTIO_STATIC_READ_TOKEN is missing from the release environment; distributed builds must not silently ship system typography." >&2
+            echo "Add a fine-grained PAT with read-only Contents access to putdotio/putio-static (see docs/DISTRIBUTION.md)." >&2
+            exit 1
+          fi
+          make fonts-setup
+          make fonts-check
+
       - name: Prepare release metadata
         shell: bash
         env:
