@@ -62,10 +62,11 @@ class BrandFontSync
 
   private
 
-  # Absent fonts are the accepted optional state (exit 0), but fonts that are
-  # present and wrong — stale checksum, or an unlisted OTF the build phase
-  # would happily bundle — are a real failure (exit 1): nothing else in the
-  # pipeline checksums what ships in signed builds.
+  # Absent fonts are the accepted optional state (exit 0), but fonts that
+  # are present and wrong are a real failure (exit 1): a stale checksum, an
+  # unlisted gt-america-*.otf the build phase's scoped glob would still
+  # bundle, or any other stray OTF polluting the managed directory. Nothing
+  # else in the pipeline checksums what ships in signed builds.
   def check!
     absent = []
     stale = []
