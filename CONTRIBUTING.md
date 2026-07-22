@@ -60,10 +60,11 @@ make fonts-check   # report presence without writing
 (stale checksum or unlisted font file) — absent fonts are the accepted
 optional state for local work. When fonts are present they are bundled into
 normal builds and registered at launch; when absent every surface falls
-back to system fonts. CI beta and release archives sync them via the
-`PUTIO_STATIC_READ_TOKEN` release secret and fail loudly if the sync
-cannot run, so TestFlight and App Store builds always ship brand
-typography (see [Distribution](./docs/DISTRIBUTION.md)).
+back to system fonts. CI beta and release archives sync them with a
+`putio-release-bot` installation token (downscoped to read-only Contents
+on `putdotio/putio-static`) and fail loudly if the sync cannot run, so
+TestFlight and App Store builds always ship brand typography (see
+[Distribution](./docs/DISTRIBUTION.md)).
 
 Verification builds never bundle fonts (`PUTIO_BUNDLE_BRAND_FONTS = NO` in
 `Config/Verify.xcconfig`), so snapshot baselines are always recorded and

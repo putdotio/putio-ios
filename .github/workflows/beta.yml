@@ -71,16 +71,23 @@ jobs:
 
       # Distributed builds ship brand typography. Verification above stays on
       # system fonts by design (PUTIO_BUNDLE_BRAND_FONTS=NO in Verify.xcconfig);
-      # the archive step below bundles whatever this sync fetched.
+      # the archive step below bundles whatever this sync fetched. The mint
+      # step fails loudly when the release-bot credentials are absent, so a
+      # system-font build can never ship silently.
+      - name: Mint putio-static read token
+        id: putio-static-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.PUTIO_RELEASE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.PUTIO_RELEASE_BOT_PRIVATE_KEY }}
+          owner: putdotio
+          repositories: putio-static
+          permission-contents: read
+
       - name: Sync licensed brand fonts
         env:
-          GH_TOKEN: ${{ secrets.PUTIO_STATIC_READ_TOKEN }}
+          GH_TOKEN: ${{ steps.putio-static-token.outputs.token }}
         run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "PUTIO_STATIC_READ_TOKEN is missing from the release environment; distributed builds must not silently ship system typography." >&2
-            echo "Add a fine-grained PAT with read-only Contents access to putdotio/putio-static (see docs/DISTRIBUTION.md)." >&2
-            exit 1
-          fi
           make fonts-setup
           make fonts-check
 
