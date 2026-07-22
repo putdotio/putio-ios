@@ -27,8 +27,11 @@ class TypeScaleSync
   def run
     swift = render_swift
     if @check_only
-      current = File.exist?(SWIFT_PATH) ? File.read(SWIFT_PATH) : ""
-      if current != swift
+      # Compare bytes, not strings: the generated Swift contains non-ASCII
+      # characters, and under a POSIX/C locale File.read would return a
+      # differently-encoded string and falsely report drift.
+      current = File.exist?(SWIFT_PATH) ? File.binread(SWIFT_PATH) : "".b
+      if current != swift.b
         warn "BrandTypography.swift is out of sync with Config/TypeScale.json. Run: make type-scale-sync"
         exit 1
       end
