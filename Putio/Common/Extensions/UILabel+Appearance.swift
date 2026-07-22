@@ -21,8 +21,9 @@ extension UILabel {
         if let styleName = descriptor.object(forKey: .textStyle) as? String {
             // Map the label's Apple text style onto the nearest design-system
             // role and adopt that role's font (size + weight + Dynamic Type).
-            let role = Self.brandRole(for: UIFont.TextStyle(rawValue: styleName))
-            guard let brandFont = BrandTypography.fontIfAvailable(role) else { return }
+            // An unrecognized style is left untouched rather than collapsed.
+            guard let role = Self.brandRole(for: UIFont.TextStyle(rawValue: styleName)),
+                  let brandFont = BrandTypography.fontIfAvailable(role) else { return }
             font = brandFont
             adjustsFontForContentSizeCategory = true
         } else {
@@ -37,17 +38,21 @@ extension UILabel {
         }
     }
 
-    // Apple text style → design-system role. The auto hook never resolves to
-    // the `label` role, whose uppercase treatment must be applied deliberately
-    // rather than swept across every caption.
-    private static func brandRole(for style: UIFont.TextStyle) -> BrandTypography.Role {
+    // Apple text style → design-system role. Every iOS text style is mapped
+    // explicitly; an unrecognized (e.g. future) style returns nil so the label
+    // is left untouched rather than collapsed onto body. The auto hook never
+    // resolves to the `label` role, whose uppercase treatment must be applied
+    // deliberately rather than swept across every caption.
+    private static func brandRole(for style: UIFont.TextStyle) -> BrandTypography.Role? {
         switch style {
+        case .extraLargeTitle, .extraLargeTitle2: return .display
         case .largeTitle: return .h1
         case .title1: return .h2
         case .title2: return .h3
         case .title3, .headline: return .h4
+        case .body, .callout, .subheadline: return .body
         case .footnote, .caption1, .caption2: return .small
-        default: return .body // body, callout, subheadline, and any future style
+        default: return nil
         }
     }
 }
