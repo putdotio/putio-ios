@@ -15,7 +15,7 @@ Type and the system-font fallback. Follows up on the Non-Goal noted in
 | Fallback | Every call site uses a `…IfAvailable` accessor with the *original* font expression as the `?? fallback`, so a build without fonts renders byte-identically |
 | Verify baselines | Unchanged. Verify builds never bundle fonts, so all paths take the system fallback and snapshot baselines stay on system fonts |
 | Non-nib text | The custom `Button`, tab-bar item titles, and the few programmatic `.font` sites (History/Downloads) are branded explicitly at their existing style points |
-| Fixed-size system labels | Left as-is when a label carries no text style (only one such label); brand adoption keys off Dynamic Type styles |
+| Fixed-size labels | Labels without a Dynamic Type text style (a UIButton's default title label, or a fixed-point storyboard label such as the audio player's "UP NEXT") match their current point size on the brand face — same helper, no `UIFontMetrics` scaling |
 
 ## Surface (from the audit)
 

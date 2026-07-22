@@ -19,18 +19,24 @@ extension UILabel {
     func applyBrandFontIfAvailable() {
         let descriptor = font.fontDescriptor
 
-        // Brand adoption keys off Dynamic Type styles; labels pinned to a
-        // fixed system size carry no text style and are left untouched.
-        guard let styleName = descriptor.object(forKey: .textStyle) as? String else { return }
-        let textStyle = UIFont.TextStyle(rawValue: styleName)
-
         let traits = descriptor.object(forKey: .traits) as? [UIFontDescriptor.TraitKey: Any]
         let weightValue = (traits?[.weight] as? CGFloat) ?? UIFont.Weight.regular.rawValue
         let weight = UIFont.Weight(rawValue: weightValue)
 
-        guard let brandFont = BrandFont.scaledSansIfAvailable(textStyle: textStyle, weight: weight) else { return }
-
-        font = brandFont
-        adjustsFontForContentSizeCategory = true
+        // Dynamic Type labels remap to the brand face scaled for their text
+        // style. Labels pinned to a fixed size — a UIButton's default title
+        // label, or a fixed-point storyboard label — carry no text style, so
+        // they match their current point size instead. Both branches are a
+        // no-op when the licensed faces are absent, keeping verification
+        // builds byte-identical.
+        if let styleName = descriptor.object(forKey: .textStyle) as? String {
+            let textStyle = UIFont.TextStyle(rawValue: styleName)
+            guard let brandFont = BrandFont.scaledSansIfAvailable(textStyle: textStyle, weight: weight) else { return }
+            font = brandFont
+            adjustsFontForContentSizeCategory = true
+        } else {
+            guard let brandFont = BrandFont.sansIfAvailable(size: font.pointSize, weight: weight) else { return }
+            font = brandFont
+        }
     }
 }
