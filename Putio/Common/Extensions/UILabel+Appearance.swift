@@ -1,6 +1,6 @@
 import UIKit
 
-// Retro-fits every nib-loaded label onto the design-system type scale while
+// Retrofits every nib-loaded label onto the design-system type scale while
 // keeping iOS Dynamic Type. Mirrors the awakeFromNib appearance convention
 // used by UITableViewCell+Appearance and UITextField+Appearance.
 //
@@ -29,10 +29,13 @@ extension UILabel {
         } else {
             // Fixed-size labels (a UIButton's default title label, or a
             // fixed-point storyboard label) carry no text style, so match
-            // their current point size on the brand face.
+            // their current point size on the brand face. The weight trait is
+            // an NSNumber in the descriptor dictionary — read it as such
+            // (a direct `as? CGFloat` cast fails and would drop every fixed
+            // label to regular).
             let traits = descriptor.object(forKey: .traits) as? [UIFontDescriptor.TraitKey: Any]
-            let weightValue = (traits?[.weight] as? CGFloat) ?? UIFont.Weight.regular.rawValue
-            let weight = UIFont.Weight(rawValue: weightValue)
+            let weightValue = (traits?[.weight] as? NSNumber)?.doubleValue ?? Double(UIFont.Weight.regular.rawValue)
+            let weight = UIFont.Weight(rawValue: CGFloat(weightValue))
             guard let brandFont = BrandFont.sansIfAvailable(size: font.pointSize, weight: weight) else { return }
             font = brandFont
         }

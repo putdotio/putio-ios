@@ -304,6 +304,7 @@ class DownloadsRecoveryView: UIView {
         titleLabel.text = NSLocalizedString("Restore Your Downloads", comment: "")
         titleLabel.font = BrandTypography.fontIfAvailable(.h2)
             ?? .preferredFont(forTextStyle: .title1)
+        titleLabel.adjustsFontForContentSizeCategory = true
         titleLabel.textColor = UIColor.Putio.Neutral.text
         titleLabel.textAlignment = .center
 
@@ -311,6 +312,7 @@ class DownloadsRecoveryView: UIView {
         bodyLabel.text = NSLocalizedString("Your files are still on this device but need to be restored after an app update.\n\nA stable internet connection is recommended.", comment: "")
         bodyLabel.font = BrandTypography.fontIfAvailable(.body)
             ?? .preferredFont(forTextStyle: .body)
+        bodyLabel.adjustsFontForContentSizeCategory = true
         bodyLabel.textColor = UIColor.Putio.Neutral.textSecondary
         bodyLabel.textAlignment = .center
         bodyLabel.numberOfLines = 0
