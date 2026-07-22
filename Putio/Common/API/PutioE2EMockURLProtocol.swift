@@ -65,7 +65,7 @@ private enum PutioE2EMockAPI {
             """)
         }
 
-        if routeKey == "GET /v2/files/42/hls/media.m3u8" {
+        if routeKey == "GET /v2/files/42/hls/media.m3u8" || routeKey == "GET /v2/files/43/hls/media.m3u8" {
             return Fixture(contentType: "application/vnd.apple.mpegurl", body: hlsPlaylist)
         }
 
@@ -109,8 +109,47 @@ private enum PutioE2EMockAPI {
         "POST /v2/files/42/mp4": Fixture(body: ok),
         "POST /v2/ifttt-client/event": Fixture(body: ok),
         "GET /v2/events/list": Fixture(body: historyEvents),
-        "GET /v2/trash/list": Fixture(body: trashList)
+        "GET /v2/trash/list": Fixture(body: trashList),
+        "GET /v2/tunnel/routes": Fixture(body: tunnelRoutes),
+        "GET /v2/oauth/grants": Fixture(body: grants),
+        "GET /v2/files/43": Fixture(body: audioFileDetails),
+        "GET /v2/files/43/start-from": Fixture(body: #"{"start_from":0}"#),
+        "GET /v2/files/43/next-file": Fixture(body: #"{"next_file":null}"#),
+        "GET /v2/files/43/subtitles": Fixture(body: #"{"default":null,"subtitles":[]}"#)
     ]
+
+    private static let tunnelRoutes = """
+    {
+      "status": "OK",
+      "routes": [
+        { "name": "default", "description": "Fastest route for your location", "hosts": [] },
+        { "name": "ams", "description": "Amsterdam", "hosts": [] },
+        { "name": "fra", "description": "Frankfurt", "hosts": [] }
+      ]
+    }
+    """
+
+    private static let grants = """
+    {
+      "status": "OK",
+      "apps": [
+        {
+          "id": 5001,
+          "name": "E2E Web App",
+          "description": "Browser session",
+          "website": "https://app.put.io",
+          "has_icon": false
+        },
+        {
+          "id": 5002,
+          "name": "E2E TV App",
+          "description": "Living room",
+          "website": "https://put.io",
+          "has_icon": false
+        }
+      ]
+    }
+    """
 
     // The trash row renders expiration_date as an absolute "Expires on
     // <month day>" label, so these stay fixed — a relative date would shift
@@ -198,10 +237,36 @@ private enum PutioE2EMockAPI {
         "sort_by": "NAME_ASC"
       },
       "files": [
-        \(videoFile)
+        \(videoFile),
+        \(audioFile)
       ],
       "cursor": null,
-      "total": 1
+      "total": 2
+    }
+    """
+
+    // Streams point at the HLS playlist fixture so AVPlayer reaches a ready
+    // state without real media bytes.
+    private static let audioFile = """
+    {
+      "id": 43,
+      "name": "E2E Song.mp3",
+      "icon": "audio",
+      "parent_id": 0,
+      "size": 4194304,
+      "created_at": "\(fixtureFileDate)",
+      "updated_at": "\(fixtureFileDate)",
+      "file_type": "AUDIO",
+      "is_shared": false,
+      "sort_by": "NAME_ASC",
+      "stream_url": "https://api.put.io/v2/files/43/hls/media.m3u8",
+      "mp4_stream_url": "https://api.put.io/v2/files/43/hls/media.m3u8"
+    }
+    """
+
+    private static let audioFileDetails = """
+    {
+      "file": \(audioFile)
     }
     """
 

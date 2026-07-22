@@ -21,7 +21,10 @@ class Button: UIButton {
 
     override func awakeFromNib() {
         super.awakeFromNib()
+        applyVariantStyle()
+    }
 
+    func applyVariantStyle() {
         layer.cornerRadius = 4
 
         switch _variant {
