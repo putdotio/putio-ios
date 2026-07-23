@@ -1,3 +1,4 @@
+import ObjectiveC
 import UIKit
 
 // Retrofits every nib-loaded label onto the design-system type scale while
@@ -47,20 +48,30 @@ extension UILabel {
     // A no-op when the licensed faces are absent (verification builds): the
     // label keeps exactly what the caller configured, so snapshot baselines
     // stay on their system fonts.
+    private static var brandTraitRegistrationKey: UInt8 = 0
+
     func applyBrandStyle(_ role: BrandTypography.Role) {
         // No-op without the licensed faces, so the label keeps what the caller
         // configured and verification baselines stay on their system fonts.
         guard BrandTypography.styleIfAvailable(role) != nil, text?.isEmpty == false else { return }
 
+        // Drop any registration from an earlier applyBrandStyle so only the most
+        // recent role drives Dynamic Type updates — a reused label reconfigured
+        // with a different role must not keep re-applying the old one.
+        if let prior = objc_getAssociatedObject(self, &UILabel.brandTraitRegistrationKey) as? UITraitChangeRegistration {
+            unregisterForTraitChanges(prior)
+        }
+
         applyBrandStyleAttributes(role)
         // The role is resolved against the label's own trait collection, so the
         // scaled font *and* the absolute kern derived from the scaled size are
         // both correct for the current content size category. UIKit rescales
-        // neither inside an attributed string on its own, so recompute the whole
-        // thing whenever the category changes.
-        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (label: UILabel, _: UITraitCollection) in
+        // neither inside an attributed string on its own, so recompute whenever
+        // the category changes.
+        let registration = registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (label: UILabel, _: UITraitCollection) in
             label.applyBrandStyleAttributes(role)
         }
+        objc_setAssociatedObject(self, &UILabel.brandTraitRegistrationKey, registration, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     }
 
     private func applyBrandStyleAttributes(_ role: BrandTypography.Role) {
