@@ -51,16 +51,18 @@ extension UILabel {
     private static var brandTraitRegistrationKey: UInt8 = 0
 
     func applyBrandStyle(_ role: BrandTypography.Role) {
+        // Always drop any registration from an earlier applyBrandStyle FIRST —
+        // before the guard below — so a reused label never keeps re-applying a
+        // prior role on later Dynamic Type changes, even when this call
+        // early-returns (empty text, or the licensed faces absent).
+        if let prior = objc_getAssociatedObject(self, &UILabel.brandTraitRegistrationKey) as? UITraitChangeRegistration {
+            unregisterForTraitChanges(prior)
+            objc_setAssociatedObject(self, &UILabel.brandTraitRegistrationKey, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        }
+
         // No-op without the licensed faces, so the label keeps what the caller
         // configured and verification baselines stay on their system fonts.
         guard BrandTypography.styleIfAvailable(role) != nil, text?.isEmpty == false else { return }
-
-        // Drop any registration from an earlier applyBrandStyle so only the most
-        // recent role drives Dynamic Type updates — a reused label reconfigured
-        // with a different role must not keep re-applying the old one.
-        if let prior = objc_getAssociatedObject(self, &UILabel.brandTraitRegistrationKey) as? UITraitChangeRegistration {
-            unregisterForTraitChanges(prior)
-        }
 
         applyBrandStyleAttributes(role)
         // The role is resolved against the label's own trait collection, so the
