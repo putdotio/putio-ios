@@ -184,9 +184,15 @@ def archive_and_export_ios_app(output_path: nil)
       }
     )
 
+    # These env values are passed as `xcodebuild NAME=value` command-line build
+    # settings, which override the xcconfig default — unlike a plain env var,
+    # which does not. PUTIO_PRIMARY_APP_ICON lives here so beta (AppIconDev) and
+    # release (AppIcon) select their channel icon instead of falling back to
+    # Shared.xcconfig's AppIconDev.
     build_settings = xcode_build_settings_arguments(
       %w[
         PUTIO_APP_IDENTIFIER
+        PUTIO_PRIMARY_APP_ICON
         PUTIO_DEVELOPMENT_TEAM
         PUTIO_OAUTH_CLIENT_ID
         PUTIO_CHROMECAST_RECEIVER_APP_ID
