@@ -55,17 +55,22 @@ extension UILabel {
         adjustsFontForContentSizeCategory = true
 
         let paragraph = NSMutableParagraphStyle()
+        // A multiple (not an absolute height), so it scales with the font under
+        // Dynamic Type without any recomputation.
         paragraph.lineHeightMultiple = style.lineHeightMultiple
         paragraph.alignment = textAlignment
         paragraph.lineBreakMode = lineBreakMode
 
-        var attributes: [NSAttributedString.Key: Any] = [
+        let attributes: [NSAttributedString.Key: Any] = [
             .font: style.font,
-            .paragraphStyle: paragraph
+            .paragraphStyle: paragraph,
+            .foregroundColor: textColor as Any
         ]
-        if style.tracking != 0 { attributes[.kern] = style.tracking }
-        if let textColor { attributes[.foregroundColor] = textColor }
-
+        // The role's em-based tracking is deliberately NOT applied here: an
+        // NSAttributedString kern is an absolute point value, and UIKit does not
+        // rescale it when the content size category changes, so it would drift
+        // out of proportion under Dynamic Type. Family, weight, size (scaled),
+        // line height (a multiple), and uppercasing all track the size safely.
         let display = style.isUppercase ? source.localizedUppercase : source
         attributedText = NSAttributedString(string: display, attributes: attributes)
     }
