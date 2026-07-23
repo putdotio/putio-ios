@@ -21,6 +21,12 @@
 - `make e2e-simulator`
 - `make run-simulator`
 
+## Worktrees
+
+`.worktreeinclude` carries local env, Bundler, Xcode, and font config into
+Codex and Claude worktrees. Run `make bootstrap`; use `make secrets-setup` or
+`make fonts-setup` only when a required local file is missing.
+
 ## Workflow
 
 - Keep checked-in defaults open-source-safe
