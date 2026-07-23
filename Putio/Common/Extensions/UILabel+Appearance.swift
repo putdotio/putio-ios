@@ -36,6 +36,40 @@ extension UILabel {
         }
     }
 
+    // Applies a design-system role's *full* styling to the label's current
+    // text — font + Dynamic Type + tracking (kerning) + line height + optional
+    // uppercasing — rather than the font alone. Because kerning and line height
+    // live on attributedText, this must be called AFTER the text, colour, and
+    // alignment are set: a later `text =` assignment would drop the styling.
+    // Use it for labels whose text is set once in code (the nib hook stays
+    // font-only, since nib text is typically replaced at runtime).
+    //
+    // A no-op when the licensed faces are absent (verification builds): the
+    // label keeps exactly what the caller configured, so snapshot baselines
+    // stay on their system fonts.
+    func applyBrandStyle(_ role: BrandTypography.Role) {
+        guard let style = BrandTypography.styleIfAvailable(role),
+              let source = text, !source.isEmpty else { return }
+
+        font = style.font
+        adjustsFontForContentSizeCategory = true
+
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineHeightMultiple = style.lineHeightMultiple
+        paragraph.alignment = textAlignment
+        paragraph.lineBreakMode = lineBreakMode
+
+        var attributes: [NSAttributedString.Key: Any] = [
+            .font: style.font,
+            .paragraphStyle: paragraph
+        ]
+        if style.tracking != 0 { attributes[.kern] = style.tracking }
+        if let textColor { attributes[.foregroundColor] = textColor }
+
+        let display = style.isUppercase ? source.localizedUppercase : source
+        attributedText = NSAttributedString(string: display, attributes: attributes)
+    }
+
     // Reads a font's weight from its descriptor. The weight trait is stored
     // as an NSNumber in the traits dictionary; a direct `as? CGFloat` cast
     // fails and would silently drop every fixed-size label to regular.

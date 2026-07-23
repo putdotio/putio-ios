@@ -302,20 +302,23 @@ class DownloadsRecoveryView: UIView {
 
         let titleLabel = UILabel()
         titleLabel.text = NSLocalizedString("Restore Your Downloads", comment: "")
-        titleLabel.font = BrandTypography.fontIfAvailable(.h2)
-            ?? .preferredFont(forTextStyle: .title1)
-        titleLabel.adjustsFontForContentSizeCategory = true
         titleLabel.textColor = UIColor.Putio.Neutral.text
         titleLabel.textAlignment = .center
+        titleLabel.font = .preferredFont(forTextStyle: .title1)
+        titleLabel.adjustsFontForContentSizeCategory = true
+        // Upgrades to the brand h2 role (font + tracking + line height) when the
+        // licensed faces are present; a no-op that keeps the system font above
+        // otherwise. Called after text/colour/alignment so they are preserved.
+        titleLabel.applyBrandStyle(.h2)
 
         let bodyLabel = UILabel()
         bodyLabel.text = NSLocalizedString("Your files are still on this device but need to be restored after an app update.\n\nA stable internet connection is recommended.", comment: "")
-        bodyLabel.font = BrandTypography.fontIfAvailable(.body)
-            ?? .preferredFont(forTextStyle: .body)
-        bodyLabel.adjustsFontForContentSizeCategory = true
         bodyLabel.textColor = UIColor.Putio.Neutral.textSecondary
         bodyLabel.textAlignment = .center
         bodyLabel.numberOfLines = 0
+        bodyLabel.font = .preferredFont(forTextStyle: .body)
+        bodyLabel.adjustsFontForContentSizeCategory = true
+        bodyLabel.applyBrandStyle(.body)
 
         restoreButton.addTarget(self, action: #selector(restoreTapped), for: .touchUpInside)
 

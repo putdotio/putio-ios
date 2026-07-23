@@ -47,6 +47,22 @@ final class BrandFontTests: XCTestCase {
                        UIFont.Weight.regular.rawValue, accuracy: 0.001)
     }
 
+    // The full-style application (font + tracking + line height + uppercasing)
+    // must also degrade to nothing without the faces: text unchanged (not
+    // uppercased) and the caller's system font intact, so baselines never move.
+    func testApplyBrandStyleIsNoOpWithoutBundledFonts() {
+        BrandFont.registerIfAvailable()
+        let label = UILabel()
+        label.text = "Restore Your Downloads"
+        let systemFont = UIFont.preferredFont(forTextStyle: .title1)
+        label.font = systemFont
+
+        label.applyBrandStyle(.h2)
+
+        XCTAssertEqual(label.text, "Restore Your Downloads", "text must be untouched without bundled fonts")
+        XCTAssertEqual(label.font, systemFont, "font must stay the caller's system font without bundled fonts")
+    }
+
     func testTypographyRolesResolveToNilWithoutBundledFonts() {
         BrandFont.registerIfAvailable()
         // Verify builds bundle no faces, so every design-system role must
