@@ -57,6 +57,15 @@ class Stylize {
         UITabBar.appearance().tintColor = UIColor.Putio.Yellow.textSecondary
         UITabBar.appearance().unselectedItemTintColor = UIColor.Putio.Neutral.solid
 
+        // Brand the tab-bar item titles when the licensed faces are bundled;
+        // otherwise leave the system default so verification builds are
+        // unchanged. Tab bar labels use a fixed ~10pt, matching the system.
+        if let tabBarItemFont = BrandFont.sansIfAvailable(size: 10, weight: .medium) {
+            let attributes: [NSAttributedString.Key: Any] = [.font: tabBarItemFont]
+            UITabBarItem.appearance().setTitleTextAttributes(attributes, for: .normal)
+            UITabBarItem.appearance().setTitleTextAttributes(attributes, for: .selected)
+        }
+
         UITableView.appearance().backgroundColor = UIColor.Putio.Surface.appBg
         UITableView.appearance().separatorColor = UIColor.Putio.Surface.listItemBorder
         UITableView.appearance().separatorInset = UIEdgeInsets(top: 0, left: 44, bottom: 0, right: 0)

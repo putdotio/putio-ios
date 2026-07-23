@@ -271,7 +271,8 @@ class DownloadsRecoveryView: UIView {
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 32, bottom: 14, trailing: 32)
         configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var outgoing = incoming
-            outgoing.font = .preferredFont(forTextStyle: .headline)
+            outgoing.font = BrandTypography.fontIfAvailable(.h4)
+                ?? .preferredFont(forTextStyle: .headline)
             return outgoing
         }
         button.configuration = configuration
@@ -301,16 +302,23 @@ class DownloadsRecoveryView: UIView {
 
         let titleLabel = UILabel()
         titleLabel.text = NSLocalizedString("Restore Your Downloads", comment: "")
-        titleLabel.font = .preferredFont(forTextStyle: .title1)
         titleLabel.textColor = UIColor.Putio.Neutral.text
         titleLabel.textAlignment = .center
+        titleLabel.font = .preferredFont(forTextStyle: .title1)
+        titleLabel.adjustsFontForContentSizeCategory = true
+        // Upgrades to the brand h2 role (font + tracking + line height) when the
+        // licensed faces are present; a no-op that keeps the system font above
+        // otherwise. Called after text/colour/alignment so they are preserved.
+        titleLabel.applyBrandStyle(.h2)
 
         let bodyLabel = UILabel()
         bodyLabel.text = NSLocalizedString("Your files are still on this device but need to be restored after an app update.\n\nA stable internet connection is recommended.", comment: "")
-        bodyLabel.font = .preferredFont(forTextStyle: .body)
         bodyLabel.textColor = UIColor.Putio.Neutral.textSecondary
         bodyLabel.textAlignment = .center
         bodyLabel.numberOfLines = 0
+        bodyLabel.font = .preferredFont(forTextStyle: .body)
+        bodyLabel.adjustsFontForContentSizeCategory = true
+        bodyLabel.applyBrandStyle(.body)
 
         restoreButton.addTarget(self, action: #selector(restoreTapped), for: .touchUpInside)
 

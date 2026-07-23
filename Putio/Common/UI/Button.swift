@@ -27,6 +27,11 @@ class Button: UIButton {
     func applyVariantStyle() {
         layer.cornerRadius = 4
 
+        // The title label is created by UIKit, so it never receives
+        // awakeFromNib; brand it explicitly using the same helper (a no-op
+        // when the licensed faces are absent).
+        titleLabel?.applyBrandFontIfAvailable()
+
         switch _variant {
         case .primary:
             backgroundColor = UIColor.Putio.Yellow.solid

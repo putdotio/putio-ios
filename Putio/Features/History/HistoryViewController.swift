@@ -70,7 +70,8 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12)
         configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var outgoing = incoming
-            outgoing.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+            outgoing.font = BrandFont.sansIfAvailable(size: 14, weight: .semibold)
+                ?? UIFont.systemFont(ofSize: 14, weight: .semibold)
             return outgoing
         }
         button.configuration = configuration
@@ -205,6 +206,12 @@ extension HistoryViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int) {
         guard let headerView = view as? UITableViewHeaderFooterView else { return }
         headerView.textLabel?.textColor = UIColor.Putio.Neutral.textSecondary
+        // Section headers are UIKit-created, so the nib font hook never reaches
+        // them; brand them here when the licensed faces are bundled.
+        if let brandFont = BrandTypography.fontIfAvailable(.small) {
+            headerView.textLabel?.font = brandFont
+            headerView.textLabel?.adjustsFontForContentSizeCategory = true
+        }
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
