@@ -78,13 +78,15 @@ final class TypeScaleRampArtifactTests: XCTestCase {
             let sample = UILabel()
             sample.numberOfLines = 0
             sample.textColor = ink
-            if styled, let style = BrandTypography.styleIfAvailable(row.role) {
+            let traits = UITraitCollection(preferredContentSizeCategory: category)
+            if styled, let style = BrandTypography.styleIfAvailable(row.role, compatibleWith: traits) {
                 let display = style.isUppercase ? row.sample.localizedUppercase : row.sample
                 let paragraph = NSMutableParagraphStyle()
                 paragraph.lineHeightMultiple = style.lineHeightMultiple
                 var attributes: [NSAttributedString.Key: Any] = [.font: font, .paragraphStyle: paragraph, .foregroundColor: ink]
-                // At the default size the sample equals the role's base size, so
-                // the style's point-based tracking applies directly.
+                // Resolve the style against the same requested category as `font`
+                // so the kern (from the trait-scaled size) matches the rendered
+                // size regardless of the simulator's ambient content-size setting.
                 if style.tracking != 0 { attributes[.kern] = style.tracking }
                 sample.attributedText = NSAttributedString(string: display, attributes: attributes)
             } else {
