@@ -29,28 +29,32 @@ enum BrandTypography {
         let isUppercase: Bool
     }
 
-    static func styleIfAvailable(_ role: Role) -> Style? {
+    // Pass `traits` to resolve a role against a specific content size
+    // category (e.g. a label's own trait collection) so tracking and size
+    // stay in proportion; omit it (nil) to resolve for the current
+    // environment, which is what the font-only call sites use.
+    static func styleIfAvailable(_ role: Role, compatibleWith traits: UITraitCollection? = nil) -> Style? {
         switch role {
         case .display:
-            return sans(.black, .largeTitle, tracking: -0.025, lineHeight: 0.92, uppercase: false)
+            return sans(.black, .largeTitle, tracking: -0.025, lineHeight: 0.92, uppercase: false, traits: traits)
         case .h1:
-            return sans(.bold, .largeTitle, tracking: -0.02, lineHeight: 1.05, uppercase: false)
+            return sans(.bold, .largeTitle, tracking: -0.02, lineHeight: 1.05, uppercase: false, traits: traits)
         case .h2:
-            return sans(.bold, .title1, tracking: -0.015, lineHeight: 1.1, uppercase: false)
+            return sans(.bold, .title1, tracking: -0.015, lineHeight: 1.1, uppercase: false, traits: traits)
         case .h3:
-            return sans(.medium, .title2, tracking: 0, lineHeight: 1.2, uppercase: false)
+            return sans(.medium, .title2, tracking: 0, lineHeight: 1.2, uppercase: false, traits: traits)
         case .h4:
-            return sans(.medium, .title3, tracking: 0, lineHeight: 1.25, uppercase: false)
+            return sans(.medium, .title3, tracking: 0, lineHeight: 1.25, uppercase: false, traits: traits)
         case .body:
-            return sans(.regular, .body, tracking: 0, lineHeight: 1.5, uppercase: false)
+            return sans(.regular, .body, tracking: 0, lineHeight: 1.5, uppercase: false, traits: traits)
         case .small:
-            return sans(.regular, .footnote, tracking: 0, lineHeight: 1.45, uppercase: false)
+            return sans(.regular, .footnote, tracking: 0, lineHeight: 1.45, uppercase: false, traits: traits)
         case .label:
-            return sans(.medium, .caption1, tracking: 0.08, lineHeight: 1.25, uppercase: true)
+            return sans(.medium, .caption1, tracking: 0.08, lineHeight: 1.25, uppercase: true, traits: traits)
         case .numeric:
-            return mono(.medium, .title3, tracking: 0, lineHeight: 1.2, uppercase: false)
+            return mono(.medium, .title3, tracking: 0, lineHeight: 1.2, uppercase: false, traits: traits)
         case .code:
-            return mono(.regular, .footnote, tracking: 0, lineHeight: 1.45, uppercase: false)
+            return mono(.regular, .footnote, tracking: 0, lineHeight: 1.45, uppercase: false, traits: traits)
         }
     }
 
@@ -59,15 +63,17 @@ enum BrandTypography {
     }
 
     private static func sans(_ weight: UIFont.Weight, _ anchor: UIFont.TextStyle,
-                             tracking: CGFloat, lineHeight: CGFloat, uppercase: Bool) -> Style? {
+                             tracking: CGFloat, lineHeight: CGFloat, uppercase: Bool,
+                             traits: UITraitCollection?) -> Style? {
         guard let brand = BrandFont.sansIfAvailable(size: nativeSize(anchor), weight: weight) else { return nil }
-        return make(brand, anchor, tracking: tracking, lineHeight: lineHeight, uppercase: uppercase)
+        return make(brand, anchor, tracking: tracking, lineHeight: lineHeight, uppercase: uppercase, traits: traits)
     }
 
     private static func mono(_ weight: UIFont.Weight, _ anchor: UIFont.TextStyle,
-                             tracking: CGFloat, lineHeight: CGFloat, uppercase: Bool) -> Style? {
+                             tracking: CGFloat, lineHeight: CGFloat, uppercase: Bool,
+                             traits: UITraitCollection?) -> Style? {
         guard let brand = BrandFont.monoIfAvailable(size: nativeSize(anchor), weight: weight) else { return nil }
-        return make(brand, anchor, tracking: tracking, lineHeight: lineHeight, uppercase: uppercase)
+        return make(brand, anchor, tracking: tracking, lineHeight: lineHeight, uppercase: uppercase, traits: traits)
     }
 
     // Each role's base point size is the anchor text style's native iOS
@@ -81,10 +87,13 @@ enum BrandTypography {
     }
 
     private static func make(_ brand: UIFont, _ anchor: UIFont.TextStyle,
-                             tracking: CGFloat, lineHeight: CGFloat, uppercase: Bool) -> Style {
-        let scaled = UIFontMetrics(forTextStyle: anchor).scaledFont(for: brand)
+                             tracking: CGFloat, lineHeight: CGFloat, uppercase: Bool,
+                             traits: UITraitCollection?) -> Style {
+        let scaled = UIFontMetrics(forTextStyle: anchor).scaledFont(for: brand, compatibleWith: traits)
         return Style(
             font: scaled,
+            // tracking is em; multiplying by the trait-scaled point size
+            // yields an absolute kern that stays in proportion at any size.
             tracking: tracking * scaled.pointSize,
             lineHeightMultiple: lineHeight,
             isUppercase: uppercase

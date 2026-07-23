@@ -48,29 +48,43 @@ extension UILabel {
     // label keeps exactly what the caller configured, so snapshot baselines
     // stay on their system fonts.
     func applyBrandStyle(_ role: BrandTypography.Role) {
-        guard let style = BrandTypography.styleIfAvailable(role),
-              let source = text, !source.isEmpty else { return }
+        // No-op without the licensed faces, so the label keeps what the caller
+        // configured and verification baselines stay on their system fonts.
+        guard BrandTypography.styleIfAvailable(role) != nil, text?.isEmpty == false else { return }
+
+        applyBrandStyleAttributes(role)
+        // The role is resolved against the label's own trait collection, so the
+        // scaled font *and* the absolute kern derived from the scaled size are
+        // both correct for the current content size category. UIKit rescales
+        // neither inside an attributed string on its own, so recompute the whole
+        // thing whenever the category changes.
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (label: UILabel, _: UITraitCollection) in
+            label.applyBrandStyleAttributes(role)
+        }
+    }
+
+    private func applyBrandStyleAttributes(_ role: BrandTypography.Role) {
+        guard let style = BrandTypography.styleIfAvailable(role, compatibleWith: traitCollection),
+              let source = attributedText?.string ?? text, !source.isEmpty else { return }
 
         font = style.font
-        adjustsFontForContentSizeCategory = true
+        // Scaling is owned here (recomputed per content-size change via
+        // registerForTraitChanges), so UIKit's own auto-adjust is off to avoid
+        // double-scaling.
+        adjustsFontForContentSizeCategory = false
 
         let paragraph = NSMutableParagraphStyle()
-        // A multiple (not an absolute height), so it scales with the font under
-        // Dynamic Type without any recomputation.
         paragraph.lineHeightMultiple = style.lineHeightMultiple
         paragraph.alignment = textAlignment
         paragraph.lineBreakMode = lineBreakMode
 
-        let attributes: [NSAttributedString.Key: Any] = [
+        var attributes: [NSAttributedString.Key: Any] = [
             .font: style.font,
-            .paragraphStyle: paragraph,
-            .foregroundColor: textColor as Any
+            .paragraphStyle: paragraph
         ]
-        // The role's em-based tracking is deliberately NOT applied here: an
-        // NSAttributedString kern is an absolute point value, and UIKit does not
-        // rescale it when the content size category changes, so it would drift
-        // out of proportion under Dynamic Type. Family, weight, size (scaled),
-        // line height (a multiple), and uppercasing all track the size safely.
+        if style.tracking != 0 { attributes[.kern] = style.tracking }
+        if let textColor { attributes[.foregroundColor] = textColor }
+
         let display = style.isUppercase ? source.localizedUppercase : source
         attributedText = NSAttributedString(string: display, attributes: attributes)
     }

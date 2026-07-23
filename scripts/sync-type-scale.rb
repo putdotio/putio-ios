@@ -71,7 +71,11 @@ class TypeScaleSync
               let isUppercase: Bool
           }
 
-          static func styleIfAvailable(_ role: Role) -> Style? {
+          // Pass `traits` to resolve a role against a specific content size
+          // category (e.g. a label's own trait collection) so tracking and size
+          // stay in proportion; omit it (nil) to resolve for the current
+          // environment, which is what the font-only call sites use.
+          static func styleIfAvailable(_ role: Role, compatibleWith traits: UITraitCollection? = nil) -> Style? {
               switch role {
       #{resolvers}
               }
@@ -82,15 +86,17 @@ class TypeScaleSync
           }
 
           private static func sans(_ weight: UIFont.Weight, _ anchor: UIFont.TextStyle,
-                                   tracking: CGFloat, lineHeight: CGFloat, uppercase: Bool) -> Style? {
+                                   tracking: CGFloat, lineHeight: CGFloat, uppercase: Bool,
+                                   traits: UITraitCollection?) -> Style? {
               guard let brand = BrandFont.sansIfAvailable(size: nativeSize(anchor), weight: weight) else { return nil }
-              return make(brand, anchor, tracking: tracking, lineHeight: lineHeight, uppercase: uppercase)
+              return make(brand, anchor, tracking: tracking, lineHeight: lineHeight, uppercase: uppercase, traits: traits)
           }
 
           private static func mono(_ weight: UIFont.Weight, _ anchor: UIFont.TextStyle,
-                                   tracking: CGFloat, lineHeight: CGFloat, uppercase: Bool) -> Style? {
+                                   tracking: CGFloat, lineHeight: CGFloat, uppercase: Bool,
+                                   traits: UITraitCollection?) -> Style? {
               guard let brand = BrandFont.monoIfAvailable(size: nativeSize(anchor), weight: weight) else { return nil }
-              return make(brand, anchor, tracking: tracking, lineHeight: lineHeight, uppercase: uppercase)
+              return make(brand, anchor, tracking: tracking, lineHeight: lineHeight, uppercase: uppercase, traits: traits)
           }
 
           // Each role's base point size is the anchor text style's native iOS
@@ -104,10 +110,13 @@ class TypeScaleSync
           }
 
           private static func make(_ brand: UIFont, _ anchor: UIFont.TextStyle,
-                                   tracking: CGFloat, lineHeight: CGFloat, uppercase: Bool) -> Style {
-              let scaled = UIFontMetrics(forTextStyle: anchor).scaledFont(for: brand)
+                                   tracking: CGFloat, lineHeight: CGFloat, uppercase: Bool,
+                                   traits: UITraitCollection?) -> Style {
+              let scaled = UIFontMetrics(forTextStyle: anchor).scaledFont(for: brand, compatibleWith: traits)
               return Style(
                   font: scaled,
+                  // tracking is em; multiplying by the trait-scaled point size
+                  // yields an absolute kern that stays in proportion at any size.
                   tracking: tracking * scaled.pointSize,
                   lineHeightMultiple: lineHeight,
                   isUppercase: uppercase
@@ -131,7 +140,7 @@ class TypeScaleSync
     upper = role.fetch("uppercase") ? "true" : "false"
 
     "        case .#{name}:\n" \
-      "            return #{family}(#{weight}, .#{anchor}, tracking: #{track}, lineHeight: #{line}, uppercase: #{upper})"
+      "            return #{family}(#{weight}, .#{anchor}, tracking: #{track}, lineHeight: #{line}, uppercase: #{upper}, traits: traits)"
   end
 
   def format_number(value)
