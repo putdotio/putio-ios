@@ -78,7 +78,7 @@ enum BrandFont {
 
         let descriptor = UIFontDescriptor(fontAttributes: [
             .family: codeMonoFamily,
-            .traits: [UIFontDescriptor.TraitKey.weight: weight]
+            .traits: [UIFontDescriptor.TraitKey.weight: weight.rawValue]
         ])
         let font = UIFont(descriptor: descriptor, size: size)
         // UIFont(descriptor:) falls back silently; confirm the family resolved.
