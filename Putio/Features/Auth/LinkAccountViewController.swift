@@ -8,6 +8,8 @@ class LinkAccountViewController: UIViewController, UITextFieldDelegate {
         super.viewDidLoad()
         codeTextField.delegate = self
         codeTextField.becomeFirstResponder()
+        // A machine-readable code, so render it in the design system's code face.
+        codeTextField.applyCodeFont()
     }
 
     func link() {

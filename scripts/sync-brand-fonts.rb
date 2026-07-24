@@ -24,7 +24,6 @@ class BrandFontSync
     @manifest = JSON.parse(File.read(MANIFEST_PATH))
     @repository = @manifest.fetch("repository")
     @ref = @manifest.fetch("ref")
-    @base_path = @manifest.fetch("basePath")
     @directory = File.join(ROOT, @manifest.fetch("directory"))
     @files = @manifest.fetch("files")
   end
@@ -35,7 +34,7 @@ class BrandFontSync
       return
     end
 
-    missing = @files.reject { |name, sha| current?(name, sha) }.keys
+    missing = @files.reject { |name, entry| current?(name, entry.fetch("sha256")) }.keys
 
     remove_unlisted!
 
@@ -71,11 +70,11 @@ class BrandFontSync
     absent = []
     stale = []
 
-    @files.each do |name, sha|
+    @files.each do |name, entry|
       path = File.join(@directory, name)
       if !File.exist?(path)
         absent << name
-      elsif Digest::SHA256.file(path).hexdigest != sha
+      elsif Digest::SHA256.file(path).hexdigest != entry.fetch("sha256")
         stale << name
       end
     end
@@ -126,10 +125,12 @@ class BrandFontSync
     abort "sync-brand-fonts: gh CLI not found. fix: install it from https://cli.github.com and run: gh auth login"
   end
 
-  def fetch(name, expected_sha, into:)
+  def fetch(name, entry, into:)
+    path = entry.fetch("path")
+    expected_sha = entry.fetch("sha256")
     body, status = Open3.capture2(
       "gh", "api",
-      "repos/#{@repository}/contents/#{@base_path}/#{name}?ref=#{@ref}",
+      "repos/#{@repository}/contents/#{path}?ref=#{@ref}",
       "--header", "Accept: application/vnd.github.raw"
     )
     raise "#{name}: gh api failed (#{status.exitstatus}); check access to #{@repository}" unless status.success?

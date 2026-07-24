@@ -11,7 +11,7 @@ import XCTest
 final class BrandFontTests: XCTestCase {
     func testVerifyBuildsBundleNoBrandFonts() {
         let bundled = (Bundle.main.urls(forResourcesWithExtension: "otf", subdirectory: nil) ?? [])
-            .filter { $0.lastPathComponent.hasPrefix("gt-america-") }
+            .filter { $0.lastPathComponent.hasPrefix("gt-america-") || $0.lastPathComponent.hasPrefix("berkeley-mono-") }
 
         XCTAssertEqual(
             bundled, [],
@@ -24,11 +24,13 @@ final class BrandFontTests: XCTestCase {
 
         XCTAssertNil(BrandFont.sansIfAvailable(size: 17, weight: .bold))
         XCTAssertNil(BrandFont.monoIfAvailable(size: 13))
+        XCTAssertNil(BrandFont.codeMonoIfAvailable(size: 13))
     }
 
     func testNonOptionalAccessorsFallBackToSystemFonts() {
         XCTAssertEqual(BrandFont.sans(size: 17, weight: .bold), .systemFont(ofSize: 17, weight: .bold))
         XCTAssertEqual(BrandFont.mono(size: 13), .monospacedSystemFont(ofSize: 13, weight: .regular))
+        XCTAssertEqual(BrandFont.codeMono(size: 13), .monospacedSystemFont(ofSize: 13, weight: .regular))
     }
 
     // Pins the fixed-size-label weight fix: the descriptor's weight trait is
