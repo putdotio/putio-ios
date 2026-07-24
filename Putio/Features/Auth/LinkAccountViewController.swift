@@ -8,6 +8,12 @@ class LinkAccountViewController: UIViewController, UITextFieldDelegate {
         super.viewDidLoad()
         codeTextField.delegate = self
         codeTextField.becomeFirstResponder()
+        // The device-link code is a machine-readable string, so type/show it in
+        // the design system's code face. Font-only (keeps the field's size) and
+        // a no-op when the licensed face is absent.
+        if let codeFont = BrandTypography.fontIfAvailable(.code) {
+            codeTextField.font = codeFont
+        }
     }
 
     func link() {
