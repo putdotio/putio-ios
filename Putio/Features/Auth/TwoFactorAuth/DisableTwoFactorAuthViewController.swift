@@ -9,6 +9,11 @@ class DisableTwoFactorAuthViewController: UIViewController {
         super.viewDidLoad()
         textField.delegate = self
         textField.becomeFirstResponder()
+        // The authenticator code is a machine-readable string, so type it in
+        // the design system's code face. Font-only; no-op when the face is absent.
+        if let codeFont = BrandTypography.fontIfAvailable(.code) {
+            textField.font = codeFont
+        }
     }
 
     func handleSubmit(code: String) {
