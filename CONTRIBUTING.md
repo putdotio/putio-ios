@@ -110,7 +110,7 @@ plutil -lint Putio/en.lproj/*.strings
 
 - Notes:
   - `make verify-fast` is the sub-second gate (icon sync check, strings lint, workspace sanity); the pre-push hook runs it automatically
-  - visual baselines cover reusable components (`PutioTests/__Snapshots__/`, rendered directly in unit tests) and 13 full screens in both appearance modes (`PutioUITests/__Snapshots__/`, captured by the e2e walk); after an intentional visual change run `make screenshots-record` and commit the resulting image diff (GitHub renders before/after in review)
+  - visual baselines cover reusable components (`PutioTests/__Snapshots__/`, rendered directly in unit tests) and 12 full screens (`PutioUITests/__Snapshots__/`, captured by the e2e walk); the app is dark-only, so baselines capture dark mode only; after an intentional visual change run `make screenshots-record` and commit the resulting image diff (GitHub renders before/after in review)
   - `make verify` uses an unsigned simulator build
   - `make verify` and `make e2e-simulator` write result bundles to `build/verify.xcresult` and `build/e2e-simulator.xcresult`; CI uploads them as artifacts when a run fails
   - `make e2e-simulator` runs fast mocked XCUITests against fixture-backed SDK responses; set `PUTIO_E2E_MOCK_API=1` plus `PUTIO_E2E_FAIL_ROUTES` (comma-separated `METHOD /path` keys) in a test's launch environment to force 500 responses for failure-path coverage

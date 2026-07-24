@@ -112,7 +112,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func applyWindowAppearance() {
         window?.backgroundColor = UIColor.Putio.Surface.appBg
         window?.tintColor = UIColor.Putio.Yellow.textSecondary
-        AppearanceManager.apply(to: window)
     }
 
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {

@@ -3,8 +3,8 @@ import PutioSDK
 import XCTest
 @testable import Putio
 
-// View-level visual baselines for reusable components, both appearance
-// modes, stored under PutioTests/__Snapshots__/. Re-record intentionally
+// View-level visual baselines for reusable components in the app's dark-only
+// appearance, stored under PutioTests/__Snapshots__/. Re-record intentionally
 // with `make screenshots-record` and review the image diff.
 @MainActor
 final class ComponentSnapshotTests: XCTestCase {
@@ -20,7 +20,7 @@ final class ComponentSnapshotTests: XCTestCase {
         testName: String = "component",
         line: UInt = #line
     ) {
-        for (label, style) in [("dark", UIUserInterfaceStyle.dark), ("light", .light)] {
+        for (label, style) in [("dark", UIUserInterfaceStyle.dark)] {
             let window = UIWindow(frame: CGRect(origin: .zero, size: size))
             window.overrideUserInterfaceStyle = style
             window.backgroundColor = UIColor.Putio.Surface.appBg
