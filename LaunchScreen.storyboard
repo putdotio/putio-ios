@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="22505" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
-    <device id="retina5_9" orientation="portrait" appearance="light"/>
+    <device id="retina5_9" orientation="portrait" appearance="dark"/>
     <dependencies>
         <deployment identifier="iOS"/>
         <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="22504"/>
@@ -25,7 +25,7 @@
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="PNG-UM-mRx"/>
-                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <constraints>
                             <constraint firstItem="eeN-YX-ucr" firstAttribute="centerX" secondItem="PNG-UM-mRx" secondAttribute="centerX" id="DpZ-Ag-7Nf"/>
                             <constraint firstItem="eeN-YX-ucr" firstAttribute="centerY" secondItem="PNG-UM-mRx" secondAttribute="centerY" id="mrQ-LO-wS3"/>

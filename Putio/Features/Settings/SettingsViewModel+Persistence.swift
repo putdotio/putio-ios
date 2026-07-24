@@ -200,39 +200,6 @@ extension SettingsViewModel {
         tableViewController?.present(actionSheet, animated: true)
     }
 
-    func presentAppearanceSettings() {
-        let actionSheet = UIAlertController(
-            title: NSLocalizedString("Theme", comment: ""),
-            message: nil,
-            preferredStyle: .alert
-        )
-
-        AppAppearance.allCases.forEach { appearance in
-            let isSelected = appearance == AppearanceManager.current
-            let title = isSelected ? "\(appearance.label) ✓" : appearance.label
-
-            actionSheet.addAction(UIAlertAction(title: title, style: .default) { _ in
-                self.selectAppearance(appearance)
-            })
-        }
-
-        actionSheet.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
-        tableViewController?.present(actionSheet, animated: true)
-    }
-
-    // Downstream appearance side effects (Cast chrome restyling) follow from
-    // the trait change this triggers; see RootContainerViewController.
-    @MainActor
-    func selectAppearance(_ appearance: AppAppearance) {
-        AppearanceManager.current = appearance
-
-        let window = tableViewController?.view.window
-            ?? (UIApplication.shared.delegate as? AppDelegate)?.window
-        AppearanceManager.apply(to: window)
-
-        update()
-    }
-
     func saveSortSettings(_ sortBy: String) {
         saveAccountSettings(.patch(PutioAccountSettingsPatch(sortBy: sortBy))) {
             self.settings.sortBy = sortBy

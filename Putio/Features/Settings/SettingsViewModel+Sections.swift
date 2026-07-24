@@ -9,7 +9,6 @@ extension SettingsViewModel {
             informationSection(),
             storageSection(),
             filesSection(),
-            appearanceSection(),
             mediaPlaybackSection(),
             securitySection(),
             privacySection(),
@@ -93,22 +92,6 @@ extension SettingsViewModel {
                     icon: .arrowCounterClockwise,
                     value: "",
                     action: { self.resetSortSettings() },
-                    visible: true
-                )
-            ]
-        )
-    }
-
-    private func appearanceSection() -> SettingsModel.Section {
-        SettingsModel.Section(
-            title: NSLocalizedString("Appearance", comment: ""),
-            items: [
-                SettingsModel.SectionItem(
-                    title: NSLocalizedString("Theme", comment: ""),
-                    type: .button,
-                    icon: .moon,
-                    value: AppearanceManager.current.label,
-                    action: { self.presentAppearanceSettings() },
                     visible: true
                 )
             ]

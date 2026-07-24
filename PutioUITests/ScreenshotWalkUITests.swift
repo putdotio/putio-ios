@@ -1,23 +1,23 @@
 import SnapshotTesting
 import XCTest
 
-// Captures labeled screenshots of every main screen into the result bundle,
-// in both appearance modes, and asserts them against committed baselines in
-// PutioUITests/__Snapshots__/. Re-record intentionally with
-// `make screenshots-record`, then review the image diff in the PR.
-// The ephemeral simulator pins the status bar so pixels are deterministic.
+// Captures labeled screenshots of every main screen into the result bundle
+// and asserts them against committed baselines in PutioUITests/__Snapshots__/.
+// The app is dark-only, so the walk captures a single appearance. Re-record
+// intentionally with `make screenshots-record`, then review the image diff in
+// the PR. The ephemeral simulator pins the status bar so pixels are
+// deterministic.
 final class ScreenshotWalkUITests: XCTestCase {
     private var isRecording: Bool {
         ProcessInfo.processInfo.environment["PUTIO_RECORD_SNAPSHOTS"] == "1"
     }
-    private func launchFixtureApp(appearance: String, loggedIn: Bool = true, failRoutes: String? = nil) -> XCUIApplication {
+    private func launchFixtureApp(loggedIn: Bool = true, failRoutes: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["PUTIO_E2E_MOCK_API"] = "1"
         if loggedIn {
             app.launchEnvironment["PUTIO_E2E_ACCESS_TOKEN"] = "e2e-token"
         }
         app.launchEnvironment["PUTIO_E2E_RESET_STATE"] = "1"
-        app.launchEnvironment["PUTIO_E2E_APPEARANCE"] = appearance
         if let failRoutes {
             app.launchEnvironment["PUTIO_E2E_FAIL_ROUTES"] = failRoutes
         }
@@ -49,11 +49,11 @@ final class ScreenshotWalkUITests: XCTestCase {
         )
     }
 
-    private func walkMainScreens(appearance: String) {
-        let app = launchFixtureApp(appearance: appearance)
+    private func walkMainScreens() {
+        let app = launchFixtureApp()
 
         XCTAssertTrue(app.tables["putio-files-table"].cells["putio-file-42"].waitForExistence(timeout: 10))
-        capture(app, named: "walk-\(appearance)-files")
+        capture(app, named: "walk-dark-files")
 
         // Wait for tab-specific content so captures never race the fixture
         // load; a generic nav-bar wait is satisfiable before rendering ends.
@@ -68,29 +68,18 @@ final class ScreenshotWalkUITests: XCTestCase {
             XCTAssertTrue(button.waitForExistence(timeout: 5), "\(tab) tab should exist")
             button.tap()
             XCTAssertTrue(readiness[tab]!.waitForExistence(timeout: 10), "\(tab) content should render")
-            capture(app, named: "walk-\(appearance)-\(tab.lowercased())")
+            capture(app, named: "walk-dark-\(tab.lowercased())")
         }
 
         let trashRow = app.tables.staticTexts["Manage your trash"]
         XCTAssertTrue(trashRow.waitForExistence(timeout: 5))
         trashRow.tap()
         XCTAssertTrue(app.staticTexts["E2E Trashed Movie.mp4"].waitForExistence(timeout: 5))
-        capture(app, named: "walk-\(appearance)-trash")
-        let backButton = app.navigationBars.buttons["Account"]
-        XCTAssertTrue(backButton.waitForExistence(timeout: 5), "back button should be labeled after the presenting screen")
-        backButton.tap()
-
-        let themeRow = app.tables.staticTexts["Theme"]
-        XCTAssertTrue(themeRow.waitForExistence(timeout: 5))
-        themeRow.tap()
-        let themeAlert = app.alerts["Theme"]
-        XCTAssertTrue(themeAlert.waitForExistence(timeout: 5))
-        capture(app, named: "walk-\(appearance)-theme-picker")
-        themeAlert.buttons["Cancel"].tap()
+        capture(app, named: "walk-dark-trash")
     }
 
-    private func walkSecondaryScreens(appearance: String) {
-        let app = launchFixtureApp(appearance: appearance)
+    private func walkSecondaryScreens() {
+        let app = launchFixtureApp()
 
         // Audio player, reached from the files list.
         let song = app.tables["putio-files-table"].cells["putio-file-43"]
@@ -112,7 +101,7 @@ final class ScreenshotWalkUITests: XCTestCase {
             "next-item lookup should settle on the empty fixture result"
         )
         settle()
-        capture(app, named: "walk-\(appearance)-audio-player")
+        capture(app, named: "walk-dark-audio-player")
         let closeButton = app.navigationBars.buttons["Stop"]
         XCTAssertTrue(closeButton.waitForExistence(timeout: 5), "audio player close button should exist")
         closeButton.tap()
@@ -129,7 +118,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Your Files"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["E2E Movie.mp4"].firstMatch.waitForExistence(timeout: 10), "move sheet content should render")
         settle()
-        capture(app, named: "walk-\(appearance)-move-files")
+        capture(app, named: "walk-dark-move-files")
         app.buttons["Cancel"].firstMatch.tap()
         settle()
 
@@ -140,7 +129,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         tutorialButton.tap()
         XCTAssertTrue(app.staticTexts["Downloads: Mini Tutorial"].waitForExistence(timeout: 5))
         settle()
-        capture(app, named: "walk-\(appearance)-downloads-tutorial")
+        capture(app, named: "walk-dark-downloads-tutorial")
         app.swipeDown(velocity: .fast)
         XCTAssertTrue(app.staticTexts["Downloads: Mini Tutorial"].waitForNonExistence(timeout: 5), "tutorial sheet should dismiss")
 
@@ -151,7 +140,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         routesRow.tap()
         XCTAssertTrue(app.staticTexts["Amsterdam"].waitForExistence(timeout: 10))
         settle()
-        capture(app, named: "walk-\(appearance)-routes")
+        capture(app, named: "walk-dark-routes")
         app.navigationBars.buttons["Account"].tap()
 
         let sessionsRow = app.tables.staticTexts["Where you are logged in"]
@@ -159,11 +148,11 @@ final class ScreenshotWalkUITests: XCTestCase {
         sessionsRow.tap()
         XCTAssertTrue(app.staticTexts["E2E Web App"].waitForExistence(timeout: 10))
         settle()
-        capture(app, named: "walk-\(appearance)-sessions")
+        capture(app, named: "walk-dark-sessions")
     }
 
-    private func walkUnhappyPaths(appearance: String) {
-        let loginApp = launchFixtureApp(appearance: appearance, loggedIn: false)
+    private func walkUnhappyPaths() {
+        let loginApp = launchFixtureApp(loggedIn: false)
         XCTAssertTrue(loginApp.buttons["Log in"].waitForExistence(timeout: 10))
 
         // The login screen auto-starts web auth, which pops a system consent
@@ -183,38 +172,26 @@ final class ScreenshotWalkUITests: XCTestCase {
             XCTAssertTrue(failureAlert.waitForNonExistence(timeout: 5), "failure alert should dismiss")
         }
         settle()
-        capture(loginApp, named: "walk-\(appearance)-login")
+        capture(loginApp, named: "walk-dark-login")
         loginApp.terminate()
 
-        let errorApp = launchFixtureApp(appearance: appearance, failRoutes: "GET /v2/events/list")
+        let errorApp = launchFixtureApp(failRoutes: "GET /v2/events/list")
         let historyTab = errorApp.tabBars.buttons["History"]
         XCTAssertTrue(historyTab.waitForExistence(timeout: 10))
         historyTab.tap()
         XCTAssertTrue(errorApp.staticTexts["Oops"].waitForExistence(timeout: 10))
-        capture(errorApp, named: "walk-\(appearance)-history-error")
+        capture(errorApp, named: "walk-dark-history-error")
     }
 
-    func testMainScreensScreenshotWalkDark() {
-        walkMainScreens(appearance: "dark")
+    func testMainScreensScreenshotWalk() {
+        walkMainScreens()
     }
 
-    func testMainScreensScreenshotWalkLight() {
-        walkMainScreens(appearance: "light")
+    func testSecondaryScreensScreenshotWalk() {
+        walkSecondaryScreens()
     }
 
-    func testSecondaryScreensScreenshotWalkDark() {
-        walkSecondaryScreens(appearance: "dark")
-    }
-
-    func testSecondaryScreensScreenshotWalkLight() {
-        walkSecondaryScreens(appearance: "light")
-    }
-
-    func testUnhappyPathsScreenshotWalkDark() {
-        walkUnhappyPaths(appearance: "dark")
-    }
-
-    func testUnhappyPathsScreenshotWalkLight() {
-        walkUnhappyPaths(appearance: "light")
+    func testUnhappyPathsScreenshotWalk() {
+        walkUnhappyPaths()
     }
 }

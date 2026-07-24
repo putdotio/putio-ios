@@ -7,8 +7,8 @@ E2E_RESULT_BUNDLE := build/e2e-simulator.xcresult
 # Exact baseline counts screenshots-record must produce. Update these when
 # adding or removing snapshot tests — an unexpected count means a walk was
 # skipped, crashed, or silently dropped baselines.
-EXPECTED_COMPONENT_BASELINES := 22
-EXPECTED_WALK_BASELINES := 26
+EXPECTED_COMPONENT_BASELINES := 11
+EXPECTED_WALK_BASELINES := 12
 
 bootstrap: doctor
 	bundle config set --local path vendor/bundle
