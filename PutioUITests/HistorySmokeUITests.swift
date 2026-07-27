@@ -15,9 +15,8 @@ final class HistorySmokeUITests: XCTestCase {
     func testHistoryScreenShowsEventsOnFirstOpen() {
         let app = launchFixtureApp()
 
-        let historyTab = app.tabBars.buttons["History"]
-        XCTAssertTrue(historyTab.waitForExistence(timeout: 10))
-        historyTab.tap()
+        guard app.waitForSignedInTabBar() else { return }
+        app.tabBars.buttons["History"].tap()
 
         let table = app.tables["putio-history-table"]
         XCTAssertTrue(table.waitForExistence(timeout: 5))

@@ -54,6 +54,25 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(fileActionsButton.center.x - castButton.center.x, 44)
     }
 
+    // The mocked e2e run leaves the cast button out, since it only appears when
+    // the Cast SDK finds a receiver on the LAN. The group has to collapse to the
+    // single remaining target rather than reserve the empty half.
+    func testNavigationBarActionGroupCollapsesWithoutCastButton() throws {
+        let viewController = FilesViewController()
+        let fileActionsButton = viewController.createNavigationBarFileActionsButton()
+        let item = viewController.createNavigationBarActionGroup(
+            chromecastButton: nil,
+            fileActionsButton: fileActionsButton
+        )
+        let stackView = try XCTUnwrap(item.customView as? UIStackView)
+
+        stackView.layoutIfNeeded()
+
+        XCTAssertEqual(stackView.arrangedSubviews.count, 1)
+        XCTAssertEqual(stackView.frame.size, CGSize(width: 44, height: 44))
+        XCTAssertEqual(fileActionsButton.frame.size, CGSize(width: 44, height: 44))
+    }
+
     func testAccountSettingsUseSemanticPhosphorIcons() throws {
         let items = SettingsViewModel().buildSections().flatMap(\.items)
 

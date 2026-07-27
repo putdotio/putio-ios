@@ -15,8 +15,14 @@ enum PutioSDKFactory {
         if environment["PUTIO_E2E_MOCK_API"] == "1" {
             let sessionConfiguration = URLSessionConfiguration.ephemeral
             sessionConfiguration.protocolClasses = [PutioE2EMockURLProtocol.self]
-            sessionConfiguration.timeoutIntervalForRequest = 2
-            sessionConfiguration.timeoutIntervalForResource = 2
+            // Mocked responses are served in-process and return immediately, so
+            // these timeouts only bound stray requests to hosts the mock does
+            // not claim. They used to be 2s, which a loaded CI runner could
+            // blow through on an instant response and turn into a spurious
+            // network error — and a sign-in bootstrap that fails that way drops
+            // the app back to the login screen mid-suite.
+            sessionConfiguration.timeoutIntervalForRequest = 10
+            sessionConfiguration.timeoutIntervalForResource = 10
             return PutioSDK(config: config, urlSession: URLSession(configuration: sessionConfiguration))
         }
         #endif

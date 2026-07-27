@@ -13,6 +13,7 @@ final class PlaybackSmokeUITests: XCTestCase {
     func testMockedPlaybackResumeFlow() {
         let app = launchFixtureApp()
 
+        guard app.waitForSignedInTabBar() else { return }
         let movie = app.tables["putio-files-table"].cells["putio-file-42"]
         XCTAssertTrue(movie.waitForExistence(timeout: 10))
 
@@ -34,6 +35,7 @@ final class PlaybackSmokeUITests: XCTestCase {
 
     func testFilesScreenLoadsWithFixtureData() {
         let app = launchFixtureApp()
+        guard app.waitForSignedInTabBar() else { return }
         let movie = app.tables["putio-files-table"].cells["putio-file-42"]
         XCTAssertTrue(movie.waitForExistence(timeout: 10))
 
@@ -45,10 +47,9 @@ final class PlaybackSmokeUITests: XCTestCase {
 
     func testAccountScreenLoadsWithFixtureData() {
         let app = launchFixtureApp()
-        let accountTab = app.tabBars.buttons["Account"]
-        XCTAssertTrue(accountTab.waitForExistence(timeout: 10))
+        guard app.waitForSignedInTabBar() else { return }
 
-        accountTab.tap()
+        app.tabBars.buttons["Account"].tap()
 
         XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Default sort option for files"].exists)

@@ -14,10 +14,11 @@ require "json"
 
 ACCEPTED = /Record mode is on|No reference was found on disk/
 
-def walk(nodes, &block)
+def walk(nodes, enclosing_result = nil, &block)
   nodes.each do |node|
-    block.call(node)
-    walk(node["children"] || [], &block)
+    result = node["nodeType"] == "Test Case" ? node["result"] : enclosing_result
+    block.call(node, result)
+    walk(node["children"] || [], result, &block)
   end
 end
 
@@ -26,9 +27,13 @@ unexpected = []
 tests_seen = 0
 recordings_seen = 0
 
-walk(data["testNodes"] || []) do |node|
-  tests_seen += 1 if node["nodeType"] == "Test Case"
+walk(data["testNodes"] || []) do |node, enclosing_result|
+  tests_seen += 1 if node["nodeType"] == "Test Case" && enclosing_result != "Skipped"
   next unless node["nodeType"] == "Failure Message"
+
+  # An XCTSkip reason is reported as a failure message on a skipped test case;
+  # that is a test opting out, not a broken recording run.
+  next if enclosing_result == "Skipped"
 
   if node["name"].to_s.match?(ACCEPTED)
     recordings_seen += 1

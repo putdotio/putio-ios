@@ -13,11 +13,12 @@ extension FilesViewController {
     }
 
     func createNavigationBarActionGroup(
-        chromecastButton: UIView,
+        chromecastButton: UIView?,
         fileActionsButton: UIView
     ) -> UIBarButtonItem {
         let targetSize: CGFloat = 44
-        [chromecastButton, fileActionsButton].forEach { button in
+        let buttons = [chromecastButton, fileActionsButton].compactMap { $0 }
+        buttons.forEach { button in
             button.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
                 button.widthAnchor.constraint(equalToConstant: targetSize),
@@ -25,12 +26,12 @@ extension FilesViewController {
             ])
         }
 
-        let stackView = UIStackView(arrangedSubviews: [chromecastButton, fileActionsButton])
+        let stackView = UIStackView(arrangedSubviews: buttons)
         stackView.axis = .horizontal
         stackView.alignment = .center
         stackView.distribution = .fillEqually
         stackView.spacing = 0
-        stackView.frame = CGRect(x: 0, y: 0, width: targetSize * 2, height: targetSize)
+        stackView.frame = CGRect(x: 0, y: 0, width: targetSize * CGFloat(buttons.count), height: targetSize)
         return UIBarButtonItem(customView: stackView)
     }
 
@@ -39,12 +40,18 @@ extension FilesViewController {
             let button = createNavigationBarFileActionsButton()
             fileActionsButton = button
 
-            let castButton = GCKUICastButton(frame: .zero)
-            castButton.tintColor = UIColor.Putio.Yellow.textSecondary
-            chromecastButton = castButton
+            // GCKUICastButton shows itself only once the Cast SDK discovers a
+            // receiver, so on a mocked run the nav bar depends on what happens
+            // to be on the LAN — a maintainer's Mac finds one, CI does not.
+            // Leave it out entirely there so the screen is the same either way.
+            if PutioE2EEnvironment.isMockAPIEnabled == false {
+                let castButton = GCKUICastButton(frame: .zero)
+                castButton.tintColor = UIColor.Putio.Yellow.textSecondary
+                chromecastButton = castButton
+            }
         }
 
-        guard let fileActionsButton, let chromecastButton else {
+        guard let fileActionsButton else {
             InternalFailurePresenter.log("Unable to configure navigation bar right buttons")
             return
         }

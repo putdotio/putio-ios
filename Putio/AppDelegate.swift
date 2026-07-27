@@ -217,12 +217,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func fetchUserSuccess(account: PutioAccount, config: PutioConfig) {
         guard let realm = PutioRealm.open(context: "fetchUserSuccess") else {
             InternalFailurePresenter.log("Unable to open Realm during fetchUserSuccess")
-            return presentLoginScreen()
+            return presentLoginScreen(afterBootstrapFailure: "Realm unavailable in fetchUserSuccess")
         }
 
         guard let persistedUser = User(account: account), let persistedConfig = UserConfig(config: config) else {
             InternalFailurePresenter.log("Unable to construct persisted user/config models")
-            return presentLoginScreen()
+            return presentLoginScreen(afterBootstrapFailure: "user/config models could not be constructed")
         }
 
         let didPersist = PutioRealm.replaceUserSession(
@@ -233,7 +233,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         )
 
         guard didPersist else {
-            return presentLoginScreen()
+            return presentLoginScreen(afterBootstrapFailure: "user session could not be persisted")
         }
 
         Utils.authorizeNotifications(application: UIApplication.shared)
@@ -250,7 +250,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func fetchUserFailure(error: any PutioErrorLocalizableInput) {
         guard let realm = PutioRealm.open(context: "fetchUserFailure") else {
-            return presentLoginScreen()
+            return presentLoginScreen(afterBootstrapFailure: "Realm unavailable in fetchUserFailure")
         }
         let user = realm.objects(User.self).first
 
@@ -260,18 +260,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 return self.presentMainScreen()
             }
 
-            self.presentLoginScreen()
+            self.presentLoginScreen(afterBootstrapFailure: "account fetch failed: \(error.localizerType)")
 
         case .httpError(let statusCode, let errorType):
             if statusCode == 401 || errorType == "Unauthorized" {
-                return self.presentLoginScreen()
+                return self.presentLoginScreen(afterBootstrapFailure: "account fetch rejected the token (\(statusCode))")
             }
 
             if user != nil {
                 return self.presentMainScreen()
             }
 
-            return self.presentLoginScreen()
+            return self.presentLoginScreen(afterBootstrapFailure: "account fetch failed with HTTP \(statusCode)")
         }
     }
 
@@ -280,6 +280,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         api.clearToken()
         VideoPlaybackPositionStore.shared.clearAllPositions()
         Intercom.logout()
+        presentLoginScreen()
+    }
+
+    // Falling back to login is normal for a signed-out launch, but when the e2e
+    // suite injected a token it means the mocked sign-in path broke. Say so
+    // instead of leaving a bare login screen for the test to interpret.
+    private func presentLoginScreen(afterBootstrapFailure reason: String) {
+        if e2eAccessToken != nil {
+            InternalFailurePresenter.log("E2E sign-in bootstrap fell back to the login screen: \(reason)")
+        }
+
         presentLoginScreen()
     }
 

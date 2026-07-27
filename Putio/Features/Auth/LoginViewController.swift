@@ -21,6 +21,14 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+
+        // Web auth can't complete against the mocked API, and its system
+        // consent alert sits above the whole simulator until something
+        // dismisses it — enough to strand an unrelated test that only landed
+        // here because its sign-in bootstrap failed. Tapping "Log in" still
+        // starts the flow.
+        guard PutioE2EEnvironment.isMockAPIEnabled == false else { return }
+
         startWebAuthFlow()
     }
 

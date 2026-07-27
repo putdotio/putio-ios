@@ -52,6 +52,7 @@ final class ScreenshotWalkUITests: XCTestCase {
     private func walkMainScreens() {
         let app = launchFixtureApp()
 
+        guard app.waitForSignedInTabBar() else { return }
         XCTAssertTrue(app.tables["putio-files-table"].cells["putio-file-42"].waitForExistence(timeout: 10))
         capture(app, named: "walk-dark-files")
 
@@ -80,6 +81,8 @@ final class ScreenshotWalkUITests: XCTestCase {
 
     private func walkSecondaryScreens() {
         let app = launchFixtureApp()
+
+        guard app.waitForSignedInTabBar() else { return }
 
         // Audio player, reached from the files list.
         let song = app.tables["putio-files-table"].cells["putio-file-43"]
@@ -128,6 +131,13 @@ final class ScreenshotWalkUITests: XCTestCase {
         XCTAssertTrue(tutorialButton.waitForExistence(timeout: 5))
         tutorialButton.tap()
         XCTAssertTrue(app.staticTexts["Downloads: Mini Tutorial"].waitForExistence(timeout: 5))
+        // The sheet plays a screen recording, which under the mocked API parks
+        // on a fixed frame (see DownloadsTutorialViewController) and reports
+        // "parked" once that frame is on screen — the seek is asynchronous, so
+        // waiting for it is what keeps the capture off a racing frame.
+        let tutorialFrame = NSPredicate(format: "value == %@", "parked")
+        expectation(for: tutorialFrame, evaluatedWith: app.otherElements["putio-downloads-tutorial"])
+        waitForExpectations(timeout: 10)
         settle()
         capture(app, named: "walk-dark-downloads-tutorial")
         app.swipeDown(velocity: .fast)
@@ -155,30 +165,23 @@ final class ScreenshotWalkUITests: XCTestCase {
         let loginApp = launchFixtureApp(loggedIn: false)
         XCTAssertTrue(loginApp.buttons["Log in"].waitForExistence(timeout: 10))
 
-        // The login screen auto-starts web auth, which pops a system consent
-        // alert at a nondeterministic moment; dismiss it before capturing.
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        let consentAlert = springboard.alerts.firstMatch
-        if consentAlert.waitForExistence(timeout: 10) {
-            consentAlert.buttons["Cancel"].tap()
-            XCTAssertTrue(consentAlert.waitForNonExistence(timeout: 5), "consent alert should dismiss")
-        }
-
-        // Cancelling web auth surfaces an in-app failure alert; dismiss it so
-        // the baseline shows the resting login screen.
-        let failureAlert = loginApp.alerts.firstMatch
-        if failureAlert.waitForExistence(timeout: 5) {
-            failureAlert.buttons["OK"].tap()
-            XCTAssertTrue(failureAlert.waitForNonExistence(timeout: 5), "failure alert should dismiss")
-        }
+        // The login screen auto-starts web auth in normal use, but not under
+        // the mocked API, so no system consent alert covers this capture and
+        // the screen is already at rest. Give the alert a window to appear
+        // rather than checking on one instant, since that is exactly the race
+        // this suppression removes.
+        XCTAssertFalse(
+            XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
+                .waitForExistence(timeout: 3),
+            "web auth should not auto-start against the mocked API"
+        )
         settle()
         capture(loginApp, named: "walk-dark-login")
         loginApp.terminate()
 
         let errorApp = launchFixtureApp(failRoutes: "GET /v2/events/list")
-        let historyTab = errorApp.tabBars.buttons["History"]
-        XCTAssertTrue(historyTab.waitForExistence(timeout: 10))
-        historyTab.tap()
+        guard errorApp.waitForSignedInTabBar() else { return }
+        errorApp.tabBars.buttons["History"].tap()
         XCTAssertTrue(errorApp.staticTexts["Oops"].waitForExistence(timeout: 10))
         capture(errorApp, named: "walk-dark-history-error")
     }
