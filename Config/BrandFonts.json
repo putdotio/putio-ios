@@ -8,9 +8,6 @@
     "gt-america-standard-medium.otf": { "path": "public/fonts/gt-america/desktop/otf/gt-america-standard-medium.otf", "sha256": "9938e387bbf094e02daf2f8f577f39537e2ff1133da5746be190c1ec4a43d73d" },
     "gt-america-standard-bold.otf": { "path": "public/fonts/gt-america/desktop/otf/gt-america-standard-bold.otf", "sha256": "988b273ddc1d85ad9d2065e40999611f477cc6c855062a2c1f2aa665bc6e6a8c" },
     "gt-america-standard-black.otf": { "path": "public/fonts/gt-america/desktop/otf/gt-america-standard-black.otf", "sha256": "f7aac29fad864d90f2acd39169a39c75be12db5447a5f2f5024a1820ac325e9e" },
-    "gt-america-mono-regular.otf": { "path": "public/fonts/gt-america/desktop/otf/gt-america-mono-regular.otf", "sha256": "6c1ae5e6a01538ebaca0ee1e518b661709dd8a9fca43221b2610a89a7b1e022c" },
-    "gt-america-mono-medium.otf": { "path": "public/fonts/gt-america/desktop/otf/gt-america-mono-medium.otf", "sha256": "7c97aea2a222cd619e72b4e4d3fa626a629281210a709086635e3d6333989a97" },
-    "gt-america-mono-bold.otf": { "path": "public/fonts/gt-america/desktop/otf/gt-america-mono-bold.otf", "sha256": "7a06964b5287ee6256d856ace8eb9a49f1c203212a9a69d7051113f2d4b38ac6" },
     "berkeley-mono-variable.otf": { "path": "public/fonts/berkeley-mono/variable/otf/berkeley-mono-variable.otf", "sha256": "32386a75d675d497f11f9514779fbd4555574f3f8635a807e4d9530f71b7a569" }
   }
 }
