@@ -131,9 +131,13 @@ final class ScreenshotWalkUITests: XCTestCase {
         XCTAssertTrue(tutorialButton.waitForExistence(timeout: 5))
         tutorialButton.tap()
         XCTAssertTrue(app.staticTexts["Downloads: Mini Tutorial"].waitForExistence(timeout: 5))
-        // The sheet plays a screen recording, which under the mocked API is
-        // parked on a fixed frame (see DownloadsTutorialViewController) so the
-        // capture cannot race playback. settle() still covers the presentation.
+        // The sheet plays a screen recording, which under the mocked API parks
+        // on a fixed frame (see DownloadsTutorialViewController) and reports
+        // "parked" once that frame is on screen — the seek is asynchronous, so
+        // waiting for it is what keeps the capture off a racing frame.
+        let tutorialFrame = NSPredicate(format: "value == %@", "parked")
+        expectation(for: tutorialFrame, evaluatedWith: app.otherElements["putio-downloads-tutorial"])
+        waitForExpectations(timeout: 10)
         settle()
         capture(app, named: "walk-dark-downloads-tutorial")
         app.swipeDown(velocity: .fast)
@@ -163,13 +167,15 @@ final class ScreenshotWalkUITests: XCTestCase {
 
         // The login screen auto-starts web auth in normal use, but not under
         // the mocked API, so no system consent alert covers this capture and
-        // the screen is already at rest. Assert after settling: the alert would
-        // appear on the same beat as the screen it covers.
-        settle()
+        // the screen is already at rest. Give the alert a window to appear
+        // rather than checking on one instant, since that is exactly the race
+        // this suppression removes.
         XCTAssertFalse(
-            XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch.exists,
+            XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
+                .waitForExistence(timeout: 3),
             "web auth should not auto-start against the mocked API"
         )
+        settle()
         capture(loginApp, named: "walk-dark-login")
         loginApp.terminate()
 

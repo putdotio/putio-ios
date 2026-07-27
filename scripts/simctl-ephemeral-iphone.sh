@@ -51,6 +51,10 @@ device_name="putio-$label-$(date +%Y%m%d%H%M%S)-$$"
 
 device_id="$(xcrun simctl create "$device_name" "$device_type" "$runtime")"
 
+# Callers can only clean up a device whose id they were given, so anything that
+# fails between here and the final echo has to delete it itself.
+trap 'status=$?; if [ "$status" -ne 0 ]; then xcrun simctl delete "$device_id" >/dev/null 2>&1 || true; fi; exit "$status"' EXIT
+
 # A new device inherits the host Mac's region, and the region decides how the
 # pinned clock renders: a 24-hour host shows "09:41" where a 12-hour host shows
 # "9:41". That is enough pixel drift to fail a baseline recorded on the other
