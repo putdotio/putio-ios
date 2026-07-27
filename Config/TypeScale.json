@@ -1,5 +1,5 @@
 {
-  "$description": "The put.io design system's Type · Scale roles (family + weight + tracking + line-height), mapped onto iOS. Sizes are NOT the design system's web px values — each role anchors to an iOS Dynamic Type text style and takes that style's native point size, so text matches iOS norms and scales with the system accessibility setting. The design system informs family (GT America), the per-role weight, and tracking; iOS owns the base sizes. Mirror of the DS Type·Scale; re-run scripts/sync-type-scale.rb after editing.",
+  "$description": "The put.io design system's Type · Scale roles (family + weight + tracking + line-height), mapped onto iOS. Sizes are NOT the design system's web px values — each role anchors to an iOS Dynamic Type text style and takes that style's native point size, so text matches iOS norms and scales with the system accessibility setting. The design system informs family (GT America for sans, Berkeley Mono for mono), the per-role weight, and tracking; iOS owns the base sizes. Mirror of the DS Type·Scale; re-run scripts/sync-type-scale.rb after editing.",
   "roles": [
     { "name": "display", "family": "sans", "weight": "black",   "anchor": "largeTitle", "lineHeight": 0.92, "tracking": -0.025, "uppercase": false },
     { "name": "h1",      "family": "sans", "weight": "bold",    "anchor": "largeTitle", "lineHeight": 1.05, "tracking": -0.02,  "uppercase": false },
@@ -10,6 +10,6 @@
     { "name": "small",   "family": "sans", "weight": "regular", "anchor": "footnote",   "lineHeight": 1.45, "tracking": 0.0,    "uppercase": false },
     { "name": "label",   "family": "sans", "weight": "medium",  "anchor": "caption1",   "lineHeight": 1.25, "tracking": 0.08,   "uppercase": true },
     { "name": "numeric", "family": "mono", "weight": "medium",  "anchor": "title3",     "lineHeight": 1.2,  "tracking": 0.0,    "uppercase": false },
-    { "name": "code",    "family": "codemono", "weight": "regular", "anchor": "footnote",   "lineHeight": 1.45, "tracking": 0.0,    "uppercase": false }
+    { "name": "code",    "family": "mono", "weight": "regular", "anchor": "footnote",   "lineHeight": 1.45, "tracking": 0.0,    "uppercase": false }
   ]
 }

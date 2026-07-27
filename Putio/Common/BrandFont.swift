@@ -7,10 +7,9 @@ import UIKit
 // Every accessor falls back to the system font when the face is absent.
 enum BrandFont {
     private static let sansFamily = "GT America"
-    private static let monoFamily = "GT America Mono"
     // iOS registers the variable OTF under its internal family name; the web
     // @font-face aliases it to "Berkeley Mono", but CoreText uses the real name.
-    private static let codeMonoFamily = "Berkeley Mono Variable"
+    private static let monoFamily = "Berkeley Mono Variable"
 
     private static var didAttemptRegistration = false
 
@@ -61,28 +60,20 @@ enum BrandFont {
         brandFont(family: sansFamily, size: size, weight: weight)
     }
 
-    static func monoIfAvailable(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont? {
-        brandFont(family: monoFamily, size: size, weight: weight)
-    }
-
-    static func codeMono(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
-        codeMonoIfAvailable(size: size, weight: weight)
-            ?? .monospacedSystemFont(ofSize: size, weight: weight)
-    }
-
-    // Berkeley Mono is the design system's code face — identifiers, tokens, and
-    // other machine-readable strings. It ships as a single variable OTF, so the
+    // Berkeley Mono is the design system's only mono face: every numeric
+    // (sizes, ETAs, counts) plus identifiers, tokens, and other
+    // machine-readable strings. It ships as a single variable OTF, so the
     // weight comes from the weight trait (the wght axis), not a named face.
-    static func codeMonoIfAvailable(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont? {
+    static func monoIfAvailable(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont? {
         registerIfAvailable()
 
         let descriptor = UIFontDescriptor(fontAttributes: [
-            .family: codeMonoFamily,
+            .family: monoFamily,
             .traits: [UIFontDescriptor.TraitKey.weight: weight.rawValue]
         ])
         let font = UIFont(descriptor: descriptor, size: size)
         // UIFont(descriptor:) falls back silently; confirm the family resolved.
-        return font.familyName == codeMonoFamily ? font : nil
+        return font.familyName == monoFamily ? font : nil
     }
 
     private static func brandFont(family: String, size: CGFloat, weight: UIFont.Weight) -> UIFont? {

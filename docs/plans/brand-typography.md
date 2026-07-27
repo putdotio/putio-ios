@@ -16,8 +16,9 @@ The design system's ramp is a **web** scale (px, ~15px body, no Dynamic
 Type). Rather than port those absolute sizes — too small and non-native for a
 touch UI — each role **anchors to an iOS Dynamic Type text style and takes
 that style's native point size**, so text matches iOS norms and scales with
-the accessibility setting. The design system contributes the family (GT
-America), the per-role **weight**, and tracking; iOS owns the base sizes.
+the accessibility setting. The design system contributes the families (GT
+America for sans, Berkeley Mono for mono), the per-role **weight**, and
+tracking; iOS owns the base sizes.
 
 | Role | DS weight / tracking | Anchor (→ native size) |
 | --- | --- | --- |
@@ -29,8 +30,8 @@ America), the per-role **weight**, and tracking; iOS owns the base sizes.
 | body | Regular 400 | body (~17) |
 | small | Regular 400 | footnote (~13) |
 | label | Medium 500 / +.08em (UPPERCASE) | caption1 (~12) |
-| numeric | Mono Medium 500 | title3 (~20) |
-| code | Mono Regular 400 (Berkeley → GT America Mono) | footnote (~13) |
+| numeric | Berkeley Mono Medium 500 | title3 (~20) |
+| code | Berkeley Mono Regular 400 | footnote (~13) |
 
 Native sizes shown are the iOS defaults at the Large content size; they grow
 and shrink with the user's accessibility setting, so the table lists the
@@ -48,7 +49,7 @@ anchor rather than a fixed point size.
 | Tracking / line-height | This pass applies family + size + weight + Dynamic Type (the visible bulk of the scale). Tracking and line-height are carried on `BrandTypography.Style` and adopted incrementally at owned attributed-text sites; the global font hook sets the font only |
 | Uppercase (`label` role) | Carried on the style, applied only to text explicitly designated `label` — never blanket-applied (would change content casing). The auto hook never resolves to `label` |
 | Verify baselines | Unchanged. Verify excludes fonts → every path takes the system fallback → baselines stay on system fonts, zero drift |
-| Mono `code` | Berkeley Mono is not synced; `code` falls back to GT America Mono via the existing mono accessor |
+| Mono family | Berkeley Mono is the design system's only mono face — it carries both `numeric` and `code`. GT America Mono is not used |
 
 ## Apple text style → DS role map (auto hook)
 
@@ -72,5 +73,5 @@ brand face.
 ## Non-Goals
 
 - Re-recording committed baselines on brand fonts.
-- Bundling Berkeley Mono (code falls back to GT America Mono).
+- Applying the `numeric` role at call sites (the role exists; no screen uses it yet).
 - Blanket uppercasing; per-role letter-spacing beyond the owned sites above.
