@@ -114,7 +114,8 @@ plutil -lint Putio/en.lproj/*.strings
   - `make verify` uses an unsigned simulator build
   - `make verify` and `make e2e-simulator` write result bundles to `build/verify.xcresult` and `build/e2e-simulator.xcresult`; CI uploads them as artifacts when a run fails
   - `make e2e-simulator` runs fast mocked XCUITests against fixture-backed SDK responses; set `PUTIO_E2E_MOCK_API=1` plus `PUTIO_E2E_FAIL_ROUTES` (comma-separated `METHOD /path` keys) in a test's launch environment to force 500 responses for failure-path coverage
-  - `make verify` and `make e2e-simulator` each create an ephemeral simulator and delete it on exit, so parallel worktrees and agents never collide; set `PUTIO_SIMULATOR_ID=<udid>` to reuse a specific device instead
+  - `PUTIO_E2E_MOCK_API=1` also holds back app behavior that a screenshot cannot capture deterministically: the downloads tutorial parks its clip on a fixed frame instead of playing it, and the login screen does not auto-start web auth (whose system consent alert would otherwise sit above the simulator). Tapping `Log in` still starts the flow
+  - `make verify` and `make e2e-simulator` each create an ephemeral simulator (pinned status bar and `en_US` locale, so the clock and number formats do not drift between a maintainer's Mac and CI) and delete it on exit, so parallel worktrees and agents never collide; set `PUTIO_SIMULATOR_ID=<udid>` to reuse a specific device instead — note that a reused device keeps its own locale, so baselines should be recorded on the ephemeral one
   - GitHub Actions exposes `E2E Simulator` as a manual workflow for PRs or SDK-backed flow changes that need simulator confidence, and runs it weekly against `main` (Mondays 06:00 UTC)
   - `make run-simulator` uses a normal signed Simulator build so auth and keychain persistence behave like a real interactive run
   - any iPhone simulator on iOS `26.0+` is fine

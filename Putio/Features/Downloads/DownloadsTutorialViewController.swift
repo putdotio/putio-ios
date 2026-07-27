@@ -2,6 +2,10 @@ import UIKit
 import AVKit
 
 class DownloadsTutorialViewController: UIViewController {
+    // Where the clip is parked for snapshot captures: far enough in that the
+    // recording shows its loaded file list rather than a spinner.
+    private static let snapshotFrameSeconds = 2.0
+
     @IBOutlet weak var videoContainerView: UIView!
     var player: AVPlayer?
 
@@ -14,6 +18,15 @@ class DownloadsTutorialViewController: UIViewController {
         let playerLayer = AVPlayerLayer(player: player)
         playerLayer.frame = videoContainerView.bounds
         videoContainerView.layer.addSublayer(playerLayer)
+
+        // A playing clip makes the screenshot depend on when the capture lands,
+        // so the e2e walk holds one frame instead of racing playback.
+        guard PutioE2EEnvironment.isMockAPIEnabled == false else {
+            let frame = CMTime(seconds: Self.snapshotFrameSeconds, preferredTimescale: 600)
+            player?.seek(to: frame, toleranceBefore: .zero, toleranceAfter: .zero)
+            return
+        }
+
         player?.play()
     }
 

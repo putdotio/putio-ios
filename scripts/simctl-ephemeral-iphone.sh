@@ -51,6 +51,35 @@ device_name="putio-$label-$(date +%Y%m%d%H%M%S)-$$"
 
 device_id="$(xcrun simctl create "$device_name" "$device_type" "$runtime")"
 
+# A new device inherits the host Mac's region, and the region decides how the
+# pinned clock renders: a 24-hour host shows "09:41" where a 12-hour host shows
+# "9:41". That is enough pixel drift to fail a baseline recorded on the other
+# machine, so pin the locale before first boot.
+data_path="$(xcrun simctl list -j devices | ruby -rjson -e '
+  target = ARGV[0]
+  JSON.parse($stdin.read)["devices"].each_value do |devices|
+    devices.each do |device|
+      if device["udid"] == target
+        puts device["dataPath"]
+        exit
+      end
+    end
+  end
+  abort "no device with udid #{target}"
+' "$device_id")"
+
+if [ -z "$data_path" ] || [ ! -d "$data_path" ]; then
+  echo "Created device $device_id has no data directory; refusing to guess a preferences path." >&2
+  exit 1
+fi
+
+global_preferences="$data_path/Library/Preferences/.GlobalPreferences.plist"
+mkdir -p "$(dirname "$global_preferences")"
+[ -f "$global_preferences" ] || plutil -create xml1 "$global_preferences"
+plutil -replace AppleLocale -string "en_US" "$global_preferences"
+plutil -replace AppleLanguages -json '["en-US"]' "$global_preferences"
+plutil -replace AppleICUForce24HourTime -bool false "$global_preferences"
+
 # Boot and pin the status bar so screenshots are deterministic for
 # snapshot baselines (fixed clock, full battery and signal).
 xcrun simctl bootstatus "$device_id" -b >/dev/null
