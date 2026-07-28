@@ -1,0 +1,86 @@
+name: Screenshots
+
+# Publishing the product page is a separate act from shipping a build, so this
+# is dispatch-only and never runs on a push. The images it uploads are already
+# committed and were reviewed as an image diff; this workflow only moves them.
+on:
+  workflow_dispatch:
+    inputs:
+      app_version:
+        description: App Store version the screenshots attach to, for example 3.0.0
+        required: true
+        type: string
+      dry_run:
+        description: Validate the set and stop before uploading
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: screenshots-main
+  cancel-in-progress: false
+
+jobs:
+  screenshots:
+    name: Upload App Store screenshots
+    runs-on: macos-latest
+    environment: release
+    # Must exceed SCREENSHOT_PROCESSING_TIMEOUT in the Fastfile (30 min) plus
+    # setup. overwrite_screenshots deletes before uploading, so fastlane has to
+    # be allowed to fail on its own terms rather than being killed mid-replace.
+    timeout-minutes: 45
+    env:
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_HIDE_PLUGINS_TABLE: '1'
+      FASTLANE_SKIP_ACTION_SUMMARY: '1'
+      FASTLANE_SKIP_ALL_LANE_SUMMARIES: '1'
+      FASTLANE_HIDE_TIMESTAMP: '1'
+      FASTLANE_DISABLE_COLORS: '1'
+      FASTLANE_SKIP_DOCS: '1'
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: main
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@6e5d382445ae5590b7449d8b3bc8cb1c2c27f617 # v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: false
+
+      - name: Install Ruby dependencies
+        run: bundle install --jobs 4 --retry 3
+
+      # No Xcode, no CocoaPods, no simulator: this lane uploads committed images
+      # and never builds the app.
+      # Deliberately not using load-ios-release-secrets: it requires the whole
+      # release secret set and writes the Match signing key to disk. This lane
+      # uploads images and never builds or signs anything, so it takes only the
+      # App Store Connect credentials and the app identifier.
+      - name: Materialize App Store Connect key
+        env:
+          APPSTORE_CONNECT_KEY_CONTENT: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APPSTORE_CONNECT_KEY_CONTENT:-}" ]; then
+            echo "APPSTORE_CONNECT_KEY_CONTENT is not configured in the release Environment" >&2
+            exit 1
+          fi
+          key_path="$RUNNER_TEMP/appstore_connect_key.p8"
+          printf '%s\n' "$APPSTORE_CONNECT_KEY_CONTENT" > "$key_path"
+          chmod 600 "$key_path"
+          echo "APPSTORE_CONNECT_KEY_FILEPATH=$key_path" >> "$GITHUB_ENV"
+
+      - name: Upload screenshots
+        env:
+          APPSTORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          APPSTORE_CONNECT_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          PUTIO_APP_IDENTIFIER: ${{ secrets.PUTIO_APP_IDENTIFIER }}
+          PUTIO_SCREENSHOTS_DRY_RUN: ${{ inputs.dry_run }}
+          PUTIO_SCREENSHOTS_APP_VERSION: ${{ inputs.app_version }}
+        run: bundle exec fastlane screenshots

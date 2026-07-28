@@ -7,6 +7,9 @@ Distribution guidance for `putio-ios`.
 - [CI](../.github/workflows/ci.yml) verifies pushes and pull requests with `make bootstrap-ci` and `make verify`. It skips docs-only changes.
 - [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. It verifies first, prepares metadata, loads release secrets, then splits delivery into archive, upload, and distribute steps.
 - [Release](../.github/workflows/release.yml) runs on published GitHub releases and builds the release artifact from the release tag. Manual dispatch builds from `main` for the supplied version.
+- [Screenshots](../.github/workflows/screenshots.yml) is a dispatch-only lane that uploads the committed App Store images from `fastlane/screenshots/` and nothing else. It defaults to a dry run. It builds no app: no Xcode, no CocoaPods, no simulator.
+  - The release lane keeps `skip_screenshots: true` on purpose. Shipping a build and changing the product page are separate decisions, and coupling them means every release either silently republishes the listing or silently does not.
+  - `overwrite_screenshots: true` is required: App Store Connect appends otherwise, which would leave the 2024 images beside the new ones.
 - Beta, release, and shared release-secret third-party actions are pinned to full commit SHAs with a trailing comment for the human version tag. Update the SHA and comment together after reviewing upstream release notes.
 
 ## CI Bootstrap

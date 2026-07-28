@@ -6,6 +6,38 @@ require "json"
 default_platform(:ios)
 opt_out_usage
 
+# Apple caps each locale/display-type screenshot set at 10.
+APP_STORE_SCREENSHOT_LIMIT = 10
+
+# Deliver's own wait for App Store Connect to process the upload. Deliberately
+# well under the workflow's job timeout: overwrite_screenshots deletes the
+# existing set first, so a hard kill part way through leaves a blank listing.
+SCREENSHOT_PROCESSING_TIMEOUT = 1800
+
+# The version string App Store Connect currently has open for editing, or nil.
+# Screenshots always attach to this version regardless of what is passed to
+# upload_to_app_store, so the screenshots lane compares against it rather than
+# trusting its own input.
+def resolve_editable_app_store_version(app_identifier)
+  require "spaceship"
+
+  api_key = lane_context[SharedValues::APP_STORE_CONNECT_API_KEY]
+  UI.user_error!("App Store Connect API key is not configured.") if api_key.nil?
+
+  Spaceship::ConnectAPI.auth(
+    key_id: api_key[:key_id],
+    issuer_id: api_key[:issuer_id],
+    key: api_key[:key],
+    duration: api_key[:duration],
+    in_house: api_key[:in_house]
+  )
+
+  app = Spaceship::ConnectAPI::App.find(app_identifier)
+  UI.user_error!("No App Store Connect app found for #{app_identifier}.") if app.nil?
+
+  app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)&.version_string
+end
+
 def require_ci!
   UI.user_error!("This fastlane setup is CI-only. Use the GitHub Actions beta or release workflow.") unless is_ci
 end
@@ -398,5 +430,153 @@ platform :ios do
 
       UI.important("==> Release upload complete: build #{release_version} (#{archived_build_number}) is attached to the App Store release train")
     end
+  end
+
+  # Uploads the committed marketing images and nothing else.
+  #
+  # Deliberately separate from `release`, which keeps skip_screenshots: true.
+  # Shipping a build and changing the product page are different decisions with
+  # different review consequences, and coupling them means every release either
+  # silently republishes the listing or silently does not.
+  #
+  # The images come from `make store-images` and are reviewed as an image diff
+  # before they land, so by the time this runs the artwork has already been seen
+  # by a human. This step only moves it.
+  lane :screenshots do |options|
+    require_ci!
+
+    app_identifier = ENV.fetch("PUTIO_APP_IDENTIFIER")
+    screenshots_path = File.expand_path("screenshots", __dir__)
+
+    UI.user_error!(
+      "No screenshots at fastlane/screenshots. Run `make store-images` and commit the result."
+    ) unless Dir.exist?(screenshots_path)
+
+    locales = Dir.children(screenshots_path).select { |entry| File.directory?(File.join(screenshots_path, entry)) }
+    UI.user_error!("fastlane/screenshots has no locale directories.") if locales.empty?
+
+    # A dry run must reject what the real upload would. An unsupported folder
+    # name — `en_US` with an underscore, say — holds perfectly valid PNGs and
+    # would sail through image validation before deliver rejects the directory.
+    require "deliver/languages"
+    unsupported = locales.reject { |locale| Deliver::Languages::ALL_LANGUAGES.include?(locale) }
+    unless unsupported.empty?
+      UI.user_error!(
+        "Unsupported locale director#{unsupported.length == 1 ? 'y' : 'ies'}: #{unsupported.sort.join(', ')}. " \
+        "App Store Connect expects names like en-US or pt-BR."
+      )
+    end
+
+    counts = locales.to_h do |locale|
+      [locale, Dir.glob(File.join(screenshots_path, locale, "*.{png,jpg,jpeg}")).length]
+    end
+
+    empty = counts.select { |_, count| count.zero? }.keys
+    UI.user_error!("These locales have no images: #{empty.join(', ')}") unless empty.empty?
+
+    counts.each { |locale, count| UI.important("==> Screenshots: #{locale} has #{count} image(s)") }
+
+    # Counting files with image extensions proves almost nothing: a corrupt PNG
+    # or an off-spec size passes that and is only rejected mid-upload. Run
+    # deliver's own validator so a green dry run means the set is uploadable.
+    require "deliver/app_screenshot"
+    require "deliver/app_screenshot_validator"
+
+    errors = []
+    per_display_type = Hash.new(0)
+
+    locales.sort.each do |locale|
+      Dir.glob(File.join(screenshots_path, locale, "*.{png,jpg,jpeg}")).sort.each do |path|
+        screenshot = Deliver::AppScreenshot.new(path, locale)
+        Deliver::AppScreenshotValidator.validate(screenshot, errors)
+        per_display_type[[locale, screenshot.display_type]] += 1 if screenshot.display_type
+      end
+    end
+
+    unless errors.empty?
+      errors.each { |error| UI.error("#{error.type}: #{error.path} — #{error.debug_info}") }
+      UI.user_error!("#{errors.length} screenshot(s) would be rejected by App Store Connect. Re-run `make store-images`.")
+    end
+
+    # Apple caps a locale/display-type set at 10, and deliver silently skips the
+    # rest — a success message over a partially published listing.
+    over_limit = per_display_type.select { |_, count| count > APP_STORE_SCREENSHOT_LIMIT }
+    unless over_limit.empty?
+      over_limit.each do |(locale, display_type), count|
+        UI.error("#{locale} / #{display_type}: #{count} screenshots, limit is #{APP_STORE_SCREENSHOT_LIMIT}")
+      end
+      UI.user_error!("A screenshot set exceeds App Store Connect's per-locale limit; the extras would be dropped silently.")
+    end
+
+    UI.important("==> Screenshots: #{counts.values.sum} image(s) validated against App Store Connect specs")
+
+    # The lane defaults to a dry run, not to uploading. An omitted or empty flag
+    # must never mean "change the live listing".
+    dry_run = fastlane_bool(first_present(options[:dry_run], ENV["PUTIO_SCREENSHOTS_DRY_RUN"]), default: true)
+
+    if dry_run
+      UI.important("==> Screenshots: dry run, nothing uploaded")
+      next
+    end
+
+    # Without an explicit version deliver picks whichever edit version it finds,
+    # and the live listing (2.58.0) is far behind what the app now builds. Being
+    # implicit here risks publishing artwork against the wrong version.
+    # Normalized the same way the release lane does, so `v3.0.0` or a padded
+    # workflow input does not fail the guard below against an identical version.
+    app_version = normalized_version(first_present(options[:app_version], ENV["PUTIO_SCREENSHOTS_APP_VERSION"]))
+    UI.user_error!(
+      "Missing app version. Pass app_version: or set PUTIO_SCREENSHOTS_APP_VERSION so the screenshots attach to a known App Store version."
+    ) if app_version.to_s.empty?
+
+    configure_app_store_connect_api_key
+
+    # deliver's screenshot uploader ignores app_version entirely — it resolves
+    # the editable version itself (upload_screenshots.rb calls
+    # get_edit_app_store_version). Combined with overwrite_screenshots, passing a
+    # version that is merely *logged* is actively dangerous: a typo would wipe
+    # the editable version's artwork while reporting success against another.
+    #
+    # So resolve the editable version ourselves and require it to match what the
+    # operator asked for. The requested version is then a real assertion rather
+    # than a label.
+    editable_version = normalized_version(resolve_editable_app_store_version(app_identifier))
+
+    UI.user_error!(
+      "App Store Connect has no editable iOS version for #{app_identifier}. " \
+      "Create the version in App Store Connect first, then re-run."
+    ) if editable_version.nil?
+
+    UI.user_error!(
+      "Requested #{app_version} but the editable App Store version is #{editable_version}. " \
+      "Screenshots always attach to the editable version, so this would have replaced #{editable_version}'s artwork. " \
+      "Re-run with app_version: #{editable_version} if that is what you intend."
+    ) unless editable_version == app_version
+
+    UI.important("==> Screenshots: uploading #{counts.values.sum} image(s) for #{app_identifier} v#{app_version}")
+
+    upload_to_app_store(
+      app_identifier: app_identifier,
+      app_version: app_version,
+      platform: "ios",
+      screenshots_path: screenshots_path,
+      # Screenshots only: never touch the binary, the metadata, or the review
+      # queue from this lane.
+      skip_binary_upload: true,
+      skip_metadata: true,
+      skip_app_version_update: true,
+      submit_for_review: false,
+      # Apple appends rather than replaces unless told otherwise, which would
+      # leave the 2024 screenshots sitting alongside the new ones.
+      overwrite_screenshots: true,
+      # Deliver waits an hour by default. overwrite_screenshots deletes before it
+      # uploads, so being killed mid-run leaves the listing blank — this keeps
+      # fastlane's window comfortably inside the job timeout, so it fails
+      # cleanly on its own terms instead of being terminated.
+      screenshot_processing_timeout: SCREENSHOT_PROCESSING_TIMEOUT,
+      force: true
+    )
+
+    UI.important("==> Screenshots: upload complete")
   end
 end
