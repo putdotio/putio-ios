@@ -165,11 +165,17 @@ class BrandFontSync
     File.join(@directory, name)
   end
 
+  # Mirrors the copy glob in the "Bundle brand fonts" build phase, which takes
+  # gt-america-*.otf and berkeley-mono-*.otf and nothing else. Keeping the two
+  # in step means this reports exactly the files that could reach a build, so an
+  # unrelated face sitting in the directory is inert rather than a hard failure.
+  BUNDLED_FONT_PATTERN = /\A(?:gt-america|berkeley-mono)-.*\.otf\z/i
+
   def unlisted_font_files
     return [] unless Dir.exist?(@directory)
 
     Dir.children(@directory)
-       .select { |name| name.match?(/\.(otf|ttf|ttc)\z/i) }
+       .select { |name| name.match?(BUNDLED_FONT_PATTERN) }
        .reject { |name| @files.key?(name) }
        .sort
   end
