@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Brand tokens come from the published design system rather than being
+         retyped here, so a palette change flows through without editing markup.
+         Injected by store-images.mjs. -->
+    <style id="design-tokens"></style>
+    <style id="brand-fonts"></style>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        /* Exact device pixels. Playwright renders at deviceScaleFactor 1 into a
+           viewport of this size, so what is laid out here is what Apple gets. */
+        width: var(--frame-width);
+        height: var(--frame-height);
+        background: var(--yellow-solid);
+        display: grid;
+        /* Caption takes what it needs; the device fills the rest and is clipped
+           at the bottom edge, the way the Apple TV and Android TV shots do it. */
+        grid-template-rows: auto 1fr;
+        overflow: hidden;
+        font-family: "GT America", -apple-system, system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .caption {
+        padding: var(--caption-padding-block) var(--caption-padding-inline) 0;
+        text-align: center;
+        color: #000;
+        font-size: var(--caption-size);
+        line-height: 1.1;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        /* Captions are sentence case by contract (see Config/StoreCaptions.json);
+           this guards a stray all-caps string from shouting. */
+        text-transform: none;
+        text-wrap: balance;
+      }
+
+      .device {
+        justify-self: center;
+        align-self: end;
+        width: var(--device-width);
+        /* Only the top corners round: the device runs off the bottom edge. */
+        border-radius: var(--device-radius) var(--device-radius) 0 0;
+        background: #000;
+        padding: var(--device-bezel) var(--device-bezel) 0;
+        overflow: hidden;
+      }
+
+      .device img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: var(--screen-radius) var(--screen-radius) 0 0;
+      }
+    </style>
+  </head>
+  <body>
+    <p class="caption" id="caption"></p>
+    <div class="device">
+      <img id="screenshot" alt="" />
+    </div>
+  </body>
+</html>

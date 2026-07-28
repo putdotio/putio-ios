@@ -1,0 +1,12 @@
+{
+  "$description": "Caption copy for the App Store screenshots, keyed by the captionKey in Config/StoreScreenshots.json. Voice is matched to put.io's existing surfaces — the landing page ('We grab files from public sources and stash them in your personal cloud'), the app itself ('No files whatsoever!'), and the Apple TV listing ('Link up your account', 'Enjoy your stuff'). Three or four words, sentence case, no full stop, no superlatives. Settled in #51.",
+  "locales": {
+    "en-US": {
+      "files": "Everything you stashed",
+      "player": "Play it right here",
+      "downloads": "Take it offline",
+      "history": "See what landed",
+      "account": "Knobs and dials"
+    }
+  }
+}

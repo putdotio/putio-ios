@@ -8,9 +8,15 @@ importers:
 
   .:
     devDependencies:
+      '@putdotio/design':
+        specifier: ^1.5.0
+        version: 1.5.0
       '@putdotio/vref':
         specifier: ^1.1.1
         version: 1.1.1
+      playwright:
+        specifier: ^1.62.0
+        version: 1.62.0
 
 packages:
 
@@ -44,6 +50,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@putdotio/design@1.5.0':
+    resolution: {integrity: sha512-lYCaf9svlXxoJKBe2gPcWDnkU3GGYLyV7QADQR2l2QIHvDOa87rYEHZWBGiPfbZffceyrBahrfGXbT1rZ1mjwA==}
+
   '@putdotio/vref@1.1.1':
     resolution: {integrity: sha512-0g2fzA3oHQ5qcYD71B0Z4PgihzPHWKRb5JqGu8FmjKsB5nO5y/br3Z2b9LpApgn7eyodmXN2viZ47eKf/6SLXQ==}
     engines: {node: '>=24.18.0'}
@@ -66,6 +75,11 @@ packages:
   find-my-way-ts@0.1.6:
     resolution: {integrity: sha512-a85L9ZoXtNAey3Y6Z+eBWW658kO/MwR7zIafkIUPUMf3isZG0NCs2pjW2wtjxAKuJPxMAsHUIP4ZPGv0o5gyTA==}
 
+  fsevents@2.3.2:
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
+
   ini@7.0.0:
     resolution: {integrity: sha512-ifK0CgjALofS5bkrcTy4RaQ9Vx2Knf/eLeIO+NaswQEpH1UblrtTSCIvN71qQDMq0PeQ/SSPojvEJp9vvvfr+w==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
@@ -85,6 +99,16 @@ packages:
 
   node-gyp-build-optional-packages@5.2.2:
     resolution: {integrity: sha512-s+w+rBWnpTMwSFbaE0UXsRlg7hU4FjekKU4eyAih5T8nJuNZT1nNsskXpxmeqSK9UzkBl6UgRlnKc8hz8IEqOw==}
+    hasBin: true
+
+  playwright-core@1.62.0:
+    resolution: {integrity: sha512-nsNRyq0r2zsG8AcRHWknc9QRA5XCueC7gWMrs+Gx2tlZn9hcl8zudfh00lhJPY1DE7NmZ6bDsT9g2yey8mXljA==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright@1.62.0:
+    resolution: {integrity: sha512-Z14dG305dgaLu6foB1TXQagFiW8JfSUIUaUuPaKQ6NtBPKF1P/qXcqfh6c6K/icPqdy37JmjbiBXf6JNg6Sylw==}
+    engines: {node: '>=20'}
     hasBin: true
 
   pure-rand@8.4.2:
@@ -123,6 +147,8 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.4':
     optional: true
 
+  '@putdotio/design@1.5.0': {}
+
   '@putdotio/vref@1.1.1':
     dependencies:
       effect: 4.0.0-beta.102
@@ -151,6 +177,9 @@ snapshots:
 
   find-my-way-ts@0.1.6: {}
 
+  fsevents@2.3.2:
+    optional: true
+
   ini@7.0.0: {}
 
   kubernetes-types@1.30.0: {}
@@ -177,6 +206,14 @@ snapshots:
     dependencies:
       detect-libc: 2.1.2
     optional: true
+
+  playwright-core@1.62.0: {}
+
+  playwright@1.62.0:
+    dependencies:
+      playwright-core: 1.62.0
+    optionalDependencies:
+      fsevents: 2.3.2
 
   pure-rand@8.4.2: {}
 
