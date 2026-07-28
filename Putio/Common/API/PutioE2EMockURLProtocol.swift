@@ -237,13 +237,37 @@ private enum PutioE2EMockAPI {
         "sort_by": "NAME_ASC"
       },
       "files": [
+        \(folder(id: 101, name: "Downloads", size: 3_221_225_472)),
+        \(folder(id: 102, name: "Movies", size: 8_589_934_592)),
+        \(folder(id: 103, name: "Music", size: 1_073_741_824)),
+        \(folder(id: 104, name: "Pictures", size: 268_435_456)),
+        \(folder(id: 105, name: "Series", size: 12_884_901_888)),
+        \(folder(id: 106, name: "Items shared with you", size: 4_294_967_296)),
         \(videoFile),
         \(audioFile)
       ],
       "cursor": null,
-      "total": 2
+      "total": 8
     }
     """
+
+    private static func folder(id: Int, name: String, size: Int) -> String {
+      """
+      {
+        "id": \(id),
+        "name": "\(name)",
+        "icon": "folder",
+        "parent_id": 0,
+        "size": \(size),
+        "created_at": "\(fixtureFileDate)",
+        "updated_at": "\(fixtureFileDate)",
+        "file_type": "FOLDER",
+        "is_shared": false,
+        "sort_by": "NAME_ASC"
+      }
+      """
+    }
+
 
     // Streams point at the HLS playlist fixture so AVPlayer reaches a ready
     // state without real media bytes.
