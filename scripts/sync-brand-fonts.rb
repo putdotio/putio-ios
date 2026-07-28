@@ -20,11 +20,18 @@ require "uri"
 class BrandFontSync
   MAX_REDIRECTS = 3
 
+  # Anchored on the script's own location, not the working directory, so the
+  # script can be invoked by absolute path from anywhere without reading the
+  # wrong manifest or writing to the wrong Putio/Fonts.
+  ROOT = File.expand_path("..", __dir__)
+  MANIFEST_PATH = File.join(ROOT, "Config", "BrandFonts.json")
+
   def initialize(check_only:)
     @check_only = check_only
-    @manifest = JSON.parse(File.read("Config/BrandFonts.json"))
+    @manifest = JSON.parse(File.read(MANIFEST_PATH))
     @base_url = @manifest.fetch("baseUrl")
-    @directory = @manifest.fetch("directory")
+    @directory_label = @manifest.fetch("directory")
+    @directory = File.join(ROOT, @directory_label)
     @files = @manifest.fetch("files")
   end
 
@@ -48,9 +55,9 @@ class BrandFontSync
       details << "  unlisted: #{unlisted.join(', ')}" unless unlisted.empty?
 
       abort [
-        "sync-brand-fonts: #{@directory} contradicts Config/BrandFonts.json.",
+        "sync-brand-fonts: #{@directory_label} contradicts Config/BrandFonts.json.",
         *details,
-        "  fix: rm -rf #{@directory} && make fonts-setup",
+        "  fix: rm -rf #{@directory_label} && make fonts-setup",
       ].join("\n")
     end
 
@@ -82,7 +89,7 @@ class BrandFontSync
       download(name, entry)
     end
 
-    puts "sync-brand-fonts: #{@files.size} brand fonts ready in #{@directory}."
+    puts "sync-brand-fonts: #{@files.size} brand fonts ready in #{@directory_label}."
   end
 
   def download(name, entry)
