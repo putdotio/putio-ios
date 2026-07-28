@@ -142,7 +142,13 @@ private enum PutioE2EPlaybackAsset {
         // the mock URLProtocol anyway. Local assets keep playback hermetic.
         switch file.type {
         case PutioFileType.video:
-            return Bundle.main.url(forResource: "downloadsTutorial", withExtension: "mov")
+            // A Big Buck Bunny still frame held for 9:50, bundled only when
+            // PUTIO_BUNDLE_E2E_MEDIA is YES. It gives the player a real decoded
+            // frame, which the App Store screenshot in slot 2 depends on — the
+            // downloads tutorial clip used here previously is a screen recording
+            // of an old build and shows filenames no listing should carry.
+            return Bundle.main.url(forResource: "big-buck-bunny", withExtension: "mp4")
+                ?? Bundle.main.url(forResource: "downloadsTutorial", withExtension: "mov")
         case PutioFileType.audio:
             return silentAudioURL
         default:

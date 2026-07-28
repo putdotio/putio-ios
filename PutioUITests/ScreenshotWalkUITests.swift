@@ -59,7 +59,10 @@ final class ScreenshotWalkUITests: XCTestCase {
         // Wait for tab-specific content so captures never race the fixture
         // load; a generic nav-bar wait is satisfiable before rendering ends.
         let readiness: [String: XCUIElement] = [
-            "Downloads": app.staticTexts["No downloads"],
+            // Sintel.mp4 is seeded only into the downloads table (see
+            // PutioE2EDownloadFixtures), so waiting on it cannot be satisfied
+            // by a row left behind on another tab.
+            "Downloads": app.staticTexts["Sintel.mp4"],
             "History": app.tables["putio-history-table"].staticTexts["Tears of Steel.mp4"],
             "Account": app.tables.staticTexts["Manage your trash"]
         ]
@@ -77,6 +80,39 @@ final class ScreenshotWalkUITests: XCTestCase {
         trashRow.tap()
         XCTAssertTrue(app.staticTexts["Elephants Dream.mp4"].waitForExistence(timeout: 5))
         capture(app, named: "walk-dark-trash")
+    }
+
+    private func walkVideoPlayer() {
+        let app = launchFixtureApp()
+
+        guard app.waitForSignedInTabBar() else { return }
+
+        // The video player is the App Store set's second slot, so this capture
+        // is marketing-facing as well as a regression baseline. It plays a
+        // bundled Big Buck Bunny still frame (Putio/E2EMedia), so the frame is
+        // real and identical on every run.
+        let movie = app.tables["putio-files-table"].cells["putio-file-42"]
+        XCTAssertTrue(movie.waitForExistence(timeout: 10))
+        movie.tap()
+
+        // File 42 carries a saved position (125s), so the app asks before
+        // playing. Start from the beginning rather than resuming: resuming
+        // seeks, and the capture can land before the seek settles.
+        let resumeDialog = app.alerts["Where would you like to start?"]
+        XCTAssertTrue(resumeDialog.waitForExistence(timeout: 10), "resume prompt should appear for a file with a start position")
+        resumeDialog.buttons["Start from the beginning"].tap()
+
+        let player = app.otherElements["putio-video-player"]
+        XCTAssertTrue(player.waitForExistence(timeout: 10))
+
+        // Wait for the player to report ready rather than sleeping: the frame
+        // is only decoded once it is, and capturing earlier yields black.
+        let ready = NSPredicate(format: "value == %@", "ready")
+        expectation(for: ready, evaluatedWith: player)
+        waitForExpectations(timeout: 20)
+
+        settle()
+        capture(app, named: "walk-dark-video-player")
     }
 
     private func walkSecondaryScreens() {
@@ -188,6 +224,10 @@ final class ScreenshotWalkUITests: XCTestCase {
 
     func testMainScreensScreenshotWalk() {
         walkMainScreens()
+    }
+
+    func testVideoPlayerScreenshotWalk() {
+        walkVideoPlayer()
     }
 
     func testSecondaryScreensScreenshotWalk() {

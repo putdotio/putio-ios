@@ -8,7 +8,7 @@ E2E_RESULT_BUNDLE := build/e2e-simulator.xcresult
 # adding or removing snapshot tests — an unexpected count means a walk was
 # skipped, crashed, or silently dropped baselines.
 EXPECTED_COMPONENT_BASELINES := 11
-EXPECTED_WALK_BASELINES := 12
+EXPECTED_WALK_BASELINES := 13
 
 bootstrap: doctor
 	bundle config set --local path vendor/bundle

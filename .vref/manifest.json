@@ -79,12 +79,13 @@
       },
       "file": "screenshots/screens/screens-downloads.png",
       "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 119952,
+      "sizeBytes": 223158,
       "tags": [
         "downloads"
       ],
       "notes": [
-        "Local downloads list."
+        "Local downloads list, seeded by PutioE2EDownloadFixtures — downloads are Realm state with no API route, so the mocked walk cannot reach them any other way.",
+        "Covers the completed, in-progress, and audio variants of the cell in one capture."
       ]
     },
     {
@@ -148,6 +149,28 @@
       ],
       "notes": [
         "Deleted files awaiting restore or permanent removal."
+      ]
+    },
+    {
+      "id": "screens-video-player",
+      "title": "Video player",
+      "group": "Screens",
+      "platform": "iOS",
+      "device": "iPhone 17 Pro Max",
+      "viewport": {
+        "width": 1320,
+        "height": 2868
+      },
+      "file": "screenshots/screens/screens-video-player.png",
+      "capturedAt": "1970-01-01T00:00:00.000Z",
+      "sizeBytes": 1712033,
+      "tags": [
+        "player",
+        "video"
+      ],
+      "notes": [
+        "Playing a bundled Big Buck Bunny frame from Putio/E2EMedia, so the capture is hermetic and the frame is identical on every run.",
+        "Second slot of the App Store set, so this one is marketing-facing as well as a regression baseline."
       ]
     },
     {

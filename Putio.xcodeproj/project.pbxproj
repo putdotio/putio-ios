@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		00B1394779C26A8412502962 /* PutioE2EMockURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42113E74CF811CB4E40A41C6 /* PutioE2EMockURLProtocol.swift */; };
+		17DD2CCF4F2FFD056E0D7D36 /* PutioE2EDownloadFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E37FB6D557730098AC8864 /* PutioE2EDownloadFixtures.swift */; };
 		9F3A1C7D2E4B6A8C0D1E2F31 /* PutioE2EEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F3A1C7D2E4B6A8C0D1E2F30 /* PutioE2EEnvironment.swift */; };
 		9F3A1C7D2E4B6A8C0D1E2F33 /* SignedInLaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F3A1C7D2E4B6A8C0D1E2F32 /* SignedInLaunch.swift */; };
 		0E4F147822C01DF9814EE2C9 /* APIErrorLocalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333E41E81298A2E8796ACE97 /* APIErrorLocalizerTests.swift */; };
@@ -180,6 +181,7 @@
 		3B4C5D6E7F8A9B0C1D2E3F4A /* ComponentSnapshotTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ComponentSnapshotTests.swift; sourceTree = "<group>"; };
 		3D7E2A6C0B4D7F1A5C9E3B6E /* ScreenshotWalkUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ScreenshotWalkUITests.swift; sourceTree = "<group>"; };
 		42113E74CF811CB4E40A41C6 /* PutioE2EMockURLProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioE2EMockURLProtocol.swift; sourceTree = "<group>"; };
+		C4E37FB6D557730098AC8864 /* PutioE2EDownloadFixtures.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioE2EDownloadFixtures.swift; sourceTree = "<group>"; };
 		9F3A1C7D2E4B6A8C0D1E2F30 /* PutioE2EEnvironment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioE2EEnvironment.swift; sourceTree = "<group>"; };
 		9F3A1C7D2E4B6A8C0D1E2F32 /* SignedInLaunch.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SignedInLaunch.swift; sourceTree = "<group>"; };
 		465A7CDCD9D300C8BA947448 /* TypeScaleSpecimen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TypeScaleSpecimen.swift; sourceTree = "<group>"; };
@@ -653,6 +655,7 @@
 				ACCAE1CE27A90E56007DA85F /* PutioSDK.swift */,
 				ACCAE1D027A91A14007DA85F /* PutioSDK+ErrorLocalizer.swift */,
 				42113E74CF811CB4E40A41C6 /* PutioE2EMockURLProtocol.swift */,
+				C4E37FB6D557730098AC8864 /* PutioE2EDownloadFixtures.swift */,
 				9F3A1C7D2E4B6A8C0D1E2F30 /* PutioE2EEnvironment.swift */,
 			);
 			path = API;
@@ -818,7 +821,7 @@
 				ACEF62E61F9A26AA0026B25E /* Sources */,
 				ACEF62E71F9A26AA0026B25E /* Frameworks */,
 				ACEF62E81F9A26AA0026B25E /* Resources */,
-				5D6E7F8A9B0C1D2E3F4A5B6C /* Bundle Brand Fonts */,
+				5D6E7F8A9B0C1D2E3F4A5B6C /* Bundle Conditional Resources */,
 				26118BC7F607871A1782580D /* [CP] Embed Pods Frameworks */,
 				454247F29E81ADB810CBAE89 /* [CP] Copy Pods Resources */,
 			);
@@ -990,7 +993,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Putio/Pods-Putio-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		5D6E7F8A9B0C1D2E3F4A5B6C /* Bundle Brand Fonts */ = {
+		5D6E7F8A9B0C1D2E3F4A5B6C /* Bundle Conditional Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -998,12 +1001,12 @@
 			);
 			inputPaths = (
 			);
-			name = "Bundle Brand Fonts";
+			name = "Bundle Conditional Resources";
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "set -euo pipefail\ndest=\"$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\n# Remove previously copied faces first so incremental builds cannot leak\n# licensed fonts into configurations that exclude them.\nrm -f \"$dest\"/gt-america-*.otf \"$dest\"/berkeley-mono-*.otf\nif [ \"${PUTIO_BUNDLE_BRAND_FONTS:-YES}\" = \"NO\" ]; then\n  echo \"Brand fonts excluded from this configuration.\"\n  exit 0\nfi\n# The copy glob matches the clean glob above and the runtime registration\n# filter: font files outside the gt-america-/berkeley-mono- prefixes are never bundled.\nshopt -s nullglob\nfonts=(\"$SRCROOT\"/Putio/Fonts/gt-america-*.otf \"$SRCROOT\"/Putio/Fonts/berkeley-mono-*.otf)\nif [ ${#fonts[@]} -eq 0 ]; then\n  echo \"No brand fonts present (optional); run make fonts-setup to sync them.\"\n  exit 0\nfi\nmkdir -p \"$dest\"\ncp \"${fonts[@]}\" \"$dest/\"\necho \"Bundled ${#fonts[@]} brand font files.\"\n";
+			shellScript = "set -euo pipefail\ndest=\"$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\n\n# --- Brand fonts -----------------------------------------------------------\n# Remove previously copied faces first so incremental builds cannot leak\n# licensed fonts into configurations that exclude them.\nrm -f \"$dest\"/gt-america-*.otf \"$dest\"/berkeley-mono-*.otf\nif [ \"${PUTIO_BUNDLE_BRAND_FONTS:-YES}\" = \"NO\" ]; then\n  echo \"Brand fonts excluded from this configuration.\"\nelse\n  # The copy glob matches the clean glob above and the runtime registration\n  # filter: font files outside the gt-america-/berkeley-mono- prefixes are never bundled.\n  shopt -s nullglob\n  fonts=(\"$SRCROOT\"/Putio/Fonts/gt-america-*.otf \"$SRCROOT\"/Putio/Fonts/berkeley-mono-*.otf)\n  if [ ${#fonts[@]} -eq 0 ]; then\n    echo \"No brand fonts present (optional); run make fonts-setup to sync them.\"\n  else\n    mkdir -p \"$dest\"\n    cp \"${fonts[@]}\" \"$dest/\"\n    echo \"Bundled ${#fonts[@]} brand font files.\"\n  fi\nfi\n\n# --- E2E media -------------------------------------------------------------\n# Playback fixtures for the mocked e2e walk. Cleaned first for the same reason\n# as the fonts: an incremental build must not leave them in a configuration\n# that excludes them. Only Config/Verify.xcconfig opts in, so a distributed\n# build never carries them.\nrm -f \"$dest\"/big-buck-bunny.mp4\nif [ \"${PUTIO_BUNDLE_E2E_MEDIA:-NO}\" = \"YES\" ]; then\n  if [ -f \"$SRCROOT/Putio/E2EMedia/big-buck-bunny.mp4\" ]; then\n    mkdir -p \"$dest\"\n    cp \"$SRCROOT/Putio/E2EMedia/big-buck-bunny.mp4\" \"$dest/\"\n    echo \"Bundled e2e playback media.\"\n  else\n    echo \"error: PUTIO_BUNDLE_E2E_MEDIA=YES but Putio/E2EMedia/big-buck-bunny.mp4 is missing.\" >&2\n    exit 1\n  fi\nfi\n";
 		};
 		7F96DF93B60CD61CECD60C6F /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1259,6 +1262,7 @@
 				BD88F29F86DB1FF2928003F1 /* SettingsViewModel+Persistence.swift in Sources */,
 				78CA18B245AAA93D97689C6F /* SettingsViewModel+Sections.swift in Sources */,
 				00B1394779C26A8412502962 /* PutioE2EMockURLProtocol.swift in Sources */,
+				17DD2CCF4F2FFD056E0D7D36 /* PutioE2EDownloadFixtures.swift in Sources */,
 				9F3A1C7D2E4B6A8C0D1E2F31 /* PutioE2EEnvironment.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

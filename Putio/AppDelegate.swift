@@ -105,6 +105,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             _ = PutioRealm.write(realm, context: "prepareForE2ETests.clearRealm") {
                 realm.deleteAll()
             }
+            // Downloads have no API route to mock, so the fixture set is
+            // written straight into the realm we just cleared.
+            PutioE2EDownloadFixtures.install(into: realm)
         }
         #endif
     }
