@@ -45,26 +45,29 @@ the onboarding-provided `PUTIO_IOS_INFISICAL_*` variables in this repo or
 worktree shell before running the command. Run `make secrets-clean` to remove
 the generated file.
 
-### Brand fonts (optional, maintainers)
+### Brand fonts
 
-The licensed GT America families are never committed. Sync them from the
-private putio-static repository (requires `gh auth login` with access):
+The licensed GT America and Berkeley Mono files are never committed —
+`make verify-fast` fails if any font binary is tracked. They are downloaded from
+`static.put.io`, the same files the web app already serves to browsers, so **no
+credentials are needed**:
 
 ```bash
-make fonts-setup   # sync into gitignored Putio/Fonts/
-make fonts-check   # report presence without writing
+make fonts-setup   # download into gitignored Putio/Fonts/
+make fonts-check   # report status without writing
 ```
 
-`Config/BrandFonts.json` pins the source commit and per-file checksums;
-`make fonts-check` fails only when the directory contradicts the manifest
-(stale checksum or unlisted font file) — absent fonts are the accepted
-optional state for local work. When fonts are present they are bundled into
-normal builds and registered at launch; when absent every surface falls
-back to system fonts. CI beta and release archives sync them with a
-`putio-release-bot` installation token (downscoped to read-only Contents
-on `putdotio/putio-static`) and fail loudly if the sync cannot run, so
-TestFlight and App Store builds always ship brand typography (see
-[Distribution](./docs/DISTRIBUTION.md)).
+`Config/BrandFonts.json` lists each file's path under `static.put.io` and its
+sha256. The hash is there because these fonts feed pixel-compared snapshot
+baselines: if a font is re-uploaded, you get one clear error naming the file
+instead of 23 unexplained image diffs. Bump a hash only alongside a deliberate
+`make screenshots-record`.
+
+`make fonts-check` treats absent fonts as a normal state — the app falls back to
+system faces — but fails when the directory contradicts the manifest, which
+means a stale or hand-placed file. CI syncs the fonts the same way, with no
+credentials, and fails loudly on a bad download, so a system-font build cannot
+ship silently (see [Distribution](./docs/DISTRIBUTION.md)).
 
 Verification builds never bundle fonts (`PUTIO_BUNDLE_BRAND_FONTS = NO` in
 `Config/Verify.xcconfig`), so snapshot baselines are always recorded and
