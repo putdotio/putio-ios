@@ -43,7 +43,18 @@ const LAYOUT = {
   captionSize: ["width", 0.082],
   captionPaddingBlock: ["height", 0.042],
   captionPaddingInline: ["width", 0.09],
-  deviceWidth: ["width", 0.8],
+  // The caption row is a fixed height rather than auto, so a one-line caption
+  // and a two-line one place the device at exactly the same y. Sized for the
+  // top padding plus two lines: 373px against the 366px GT America Black
+  // actually occupies at this size — its ascent and descent make the line box
+  // taller than the 1.1 line height, so this cannot be derived from the two
+  // ratios above. A third line overflows, which render() refuses rather than
+  // clipping.
+  captionBlock: ["height", 0.13],
+  // Wide enough that the bottom-aligned device reaches up close under the
+  // caption. At 0.8 it is only 2234px tall on a 2868px canvas and leaves ~294px
+  // of dead yellow between the two.
+  deviceWidth: ["width", 0.86],
   deviceBezel: ["width", 0.014],
   deviceRadius: ["width", 0.075],
   screenRadius: ["width", 0.062],
@@ -103,8 +114,26 @@ async function main() {
     await browser.close();
   }
 
-  await rm(OUTPUT_DIR, { recursive: true, force: true });
-  await rename(staging, OUTPUT_DIR);
+  // Move the committed set aside rather than deleting it: a rename that fails
+  // after an rm would leave the listing path gone with the new images stranded
+  // under .staging, which is worse than the mid-loop failure staging prevents.
+  const previous = `${OUTPUT_DIR}.previous`;
+  await rm(previous, { recursive: true, force: true });
+
+  if (existsSync(OUTPUT_DIR)) {
+    await rename(OUTPUT_DIR, previous);
+  }
+
+  try {
+    await rename(staging, OUTPUT_DIR);
+  } catch (error) {
+    if (existsSync(previous)) {
+      await rename(previous, OUTPUT_DIR);
+    }
+    throw error;
+  }
+
+  await rm(previous, { recursive: true, force: true });
 
   console.log(`rendered ${plan.length} store images into fastlane/screenshots/`);
 }
@@ -293,6 +322,21 @@ async function render(browser, item, css, fontFaces, outputDir) {
         img.addEventListener("error", () => { clearTimeout(timer); reject(new Error("screenshot failed to decode")); }, { once: true });
       }),
   );
+
+  // The caption row is a fixed two-line height, so a longer string would be
+  // silently clipped by the body's overflow: hidden. Refuse instead — a
+  // half-visible caption in a store listing is worse than a failed render.
+  const captionOverflow = await page.evaluate(() => {
+    const caption = document.querySelector("#caption");
+    return caption.scrollHeight - caption.clientHeight;
+  });
+
+  if (captionOverflow > 1) {
+    fail(
+      `${item.deviceId} slot ${item.slot}: "${item.caption}" needs more than the two lines the caption row reserves.`,
+      "Shorten it in Config/StoreCaptions.json, or raise captionBlock in the LAYOUT table for every image.",
+    );
+  }
 
   const destination = join(outputDir, item.locale, `${String(item.slot).padStart(2, "0")}-${item.id}.jpg`);
   await mkdir(dirname(destination), { recursive: true });

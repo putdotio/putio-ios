@@ -1,5 +1,5 @@
 {
-  "$description": "Which committed baselines become App Store screenshots, and in what order. The iPhone set needs no capture of its own: the regression walk is pinned to iPhone 17 Pro Max, whose 1320x2868 output is exactly Apple's required 6.9 inch size, so these are the same images CI already pixel-compares. Order is the order Apple displays them, and slot 1 carries the most weight because most people never swipe past slot 2. Captions are composed downstream in #51 and are not settled — treat the keys here as slots, not final copy.",
+  "$description": "Which committed baselines become App Store screenshots, and in what order. The iPhone set needs no capture of its own: the regression walk is pinned to iPhone 17 Pro Max, whose 1320x2868 output is exactly Apple's required 6.9 inch size, so these are the same images CI already pixel-compares. Order is the order Apple displays them, and slot 1 carries the most weight because most people never swipe past slot 2.",
   "devices": {
     "iphone-6.9": {
       "label": "iPhone 6.9\"",
@@ -15,10 +15,9 @@
         },
         {
           "slot": 2,
-          "baseline": "walk.dark-audio-player.png",
+          "baseline": "walk.dark-video-player.png",
           "id": "player",
-          "captionKey": "player",
-          "$standIn": "Should be the video player — put.io is a video product and a video frame sells better than an audio one. No video baseline exists yet: the walk never captures the player, and the HLS fixture is an empty playlist, so a capture today would render a black surface. Tracked in #59; swap the baseline here once it lands."
+          "captionKey": "player"
         },
         {
           "slot": 3,

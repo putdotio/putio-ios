@@ -27,16 +27,22 @@
         height: var(--frame-height);
         background: var(--yellow-solid);
         display: grid;
-        /* Caption takes what it needs; the device fills the rest and is clipped
-           at the bottom edge, the way the Apple TV and Android TV shots do it. */
-        grid-template-rows: auto 1fr;
+        /* The caption row is a fixed height so the device sits at the same y in
+           every image regardless of how many lines the caption runs to; the
+           device fills the rest and meets the bottom edge, the way the Apple TV
+           and Android TV shots do it. */
+        grid-template-rows: var(--caption-block) 1fr;
         overflow: hidden;
         font-family: "GT America", -apple-system, system-ui, sans-serif;
         -webkit-font-smoothing: antialiased;
       }
 
       .caption {
+        margin: 0;
         padding: var(--caption-padding-block) var(--caption-padding-inline) 0;
+        /* Reserved space, not a clip: store-images.mjs fails the render when a
+           caption exceeds it, so this never silently truncates. */
+        overflow: hidden;
         text-align: center;
         color: #000;
         font-size: var(--caption-size);
