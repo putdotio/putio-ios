@@ -135,14 +135,14 @@ private enum PutioE2EMockAPI {
       "apps": [
         {
           "id": 5001,
-          "name": "E2E Web App",
+          "name": "put.io Web",
           "description": "Browser session",
           "website": "https://app.put.io",
           "has_icon": false
         },
         {
           "id": 5002,
-          "name": "E2E TV App",
+          "name": "put.io for Apple TV",
           "description": "Living room",
           "website": "https://put.io",
           "has_icon": false
@@ -163,10 +163,10 @@ private enum PutioE2EMockAPI {
       "files": [
         {
           "id": 77,
-          "name": "E2E Trashed Movie.mp4",
+          "name": "Elephants Dream.mp4",
           "icon": "video",
           "parent_id": 0,
-          "size": 7340032,
+          "size": 189792256,
           "created_at": "2026-04-24T10:00:00Z",
           "updated_at": "2026-04-24T10:00:00Z",
           "file_type": "VIDEO",
@@ -183,7 +183,7 @@ private enum PutioE2EMockAPI {
     {
       "info": {
         "user_id": 1001,
-        "username": "e2e-user",
+        "username": "moviebuff",
         "mail": "e2e@example.com",
         "avatar_url": "https://static.put.io/e2e-avatar.png",
         "user_hash": "e2e-hash",
@@ -250,10 +250,10 @@ private enum PutioE2EMockAPI {
     private static let audioFile = """
     {
       "id": 43,
-      "name": "E2E Song.mp3",
+      "name": "Sintel Theme.mp3",
       "icon": "audio",
       "parent_id": 0,
-      "size": 4194304,
+      "size": 8388608,
       "created_at": "\(fixtureFileDate)",
       "updated_at": "\(fixtureFileDate)",
       "file_type": "AUDIO",
@@ -285,10 +285,10 @@ private enum PutioE2EMockAPI {
     private static let videoFile = """
     {
       "id": 42,
-      "name": "E2E Movie.mp4",
+      "name": "Big Buck Bunny.mp4",
       "icon": "video",
       "parent_id": 0,
-      "size": 7340032,
+      "size": 276205568,
       "created_at": "\(fixtureFileDate)",
       "updated_at": "\(fixtureFileDate)",
       "file_type": "VIDEO",
@@ -331,8 +331,8 @@ private enum PutioE2EMockAPI {
     private static let nextFile = """
     {
       "next_file": {
-        "id": 43,
-        "name": "E2E Movie Part 2.mp4",
+        "id": 44,
+        "name": "Sintel.mp4",
         "parent_id": 0,
         "file_type": "VIDEO"
       }
@@ -376,7 +376,7 @@ private enum PutioE2EMockAPI {
               "type": "upload",
               "created_at": "\(today)",
               "file_id": 42,
-              "file_name": "E2E Upload.mp4",
+              "file_name": "Tears of Steel.mp4",
               "file_size": 7340032
             },
             {
@@ -385,7 +385,7 @@ private enum PutioE2EMockAPI {
               "type": "transfer_completed",
               "created_at": "\(yesterday)",
               "file_id": 42,
-              "transfer_name": "E2E Transfer",
+              "transfer_name": "Cosmos Laundromat",
               "transfer_size": 7340032,
               "source": "magnet"
             },
@@ -395,8 +395,8 @@ private enum PutioE2EMockAPI {
               "type": "file_shared",
               "created_at": "\(ancient)",
               "file_id": 42,
-              "file_name": "E2E Shared File.mp4",
-              "sharing_user_name": "e2e-friend"
+              "file_name": "Caminandes - Llama Drama.mp4",
+              "sharing_user_name": "sam"
             }
           ]
         }

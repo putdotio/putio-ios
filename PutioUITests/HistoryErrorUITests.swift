@@ -25,7 +25,7 @@ final class HistoryErrorUITests: XCTestCase {
             "a failed history load should show the error state view"
         )
         XCTAssertTrue(app.staticTexts["An error occurred, please try again :("].exists)
-        XCTAssertFalse(app.tables["putio-history-table"].staticTexts["E2E Upload.mp4"].exists)
+        XCTAssertFalse(app.tables["putio-history-table"].staticTexts["Tears of Steel.mp4"].exists)
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "History load failure"

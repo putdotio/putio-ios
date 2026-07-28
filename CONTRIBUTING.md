@@ -51,7 +51,7 @@ the onboarding-provided `PUTIO_IOS_INFISICAL_*` variables in this repo or
 worktree shell before running the command. Run `make secrets-clean` to remove
 the generated file.
 
-### Brand fonts
+### Brand fonts (required)
 
 The licensed GT America and Berkeley Mono files are never committed —
 `make verify-fast` fails if any font binary is tracked. They are downloaded from
@@ -69,18 +69,25 @@ baselines: if a font is re-uploaded, you get one clear error naming the file
 instead of 23 unexplained image diffs. Bump a hash only alongside a deliberate
 `make screenshots-record`.
 
-`make fonts-check` treats absent fonts as a normal state — the app falls back to
-system faces — but fails when the directory contradicts the manifest, which
-means a stale or hand-placed file. CI syncs the fonts the same way, with no
-credentials, and fails loudly on a bad download, so a system-font build cannot
-ship silently (see [Distribution](./docs/DISTRIBUTION.md)).
+`make fonts-check` fails when the directory contradicts the manifest, which
+means a stale or hand-placed file. Every CI workflow syncs the fonts before
+running verify — no credentials involved — and fails loudly on a bad download,
+so neither a system-font build nor a font-less verify can pass silently (see
+[Distribution](./docs/DISTRIBUTION.md)).
 
-Verification builds never bundle fonts (`PUTIO_BUNDLE_BRAND_FONTS = NO` in
-`Config/Verify.xcconfig`), so snapshot baselines are always recorded and
-compared on system fonts. That exclusion is applied via `-xcconfig` in the
-make targets, not in the Xcode project — record baselines through
-`make screenshots-record`, never from Xcode directly with fonts synced
-(the BrandFontTests suite fails loudly in that configuration as a guard).
+Verification builds **do** bundle the fonts (`PUTIO_BUNDLE_BRAND_FONTS = YES`
+in `Config/Verify.xcconfig`), so baselines are recorded and compared with real
+brand typography. They were excluded until 2026-07 and the visual suite was
+blind to type as a result — #37, #42, and #43 all changed typography and moved
+zero baselines.
+
+The practical consequence: **`make verify`, `make e2e-simulator`, and
+`make screenshots-record` all require the fonts.** Run `make fonts-setup` first.
+`PutioTests/BrandFontTests.swift` pins the contract, so a build that loses the
+faces reports a named failure rather than 23 pixel diffs.
+
+Because the fonts need no credentials, every pull request gets the full snapshot
+suite — Dependabot and forks included.
 
 - Local signed builds default to:
   - bundle id `io.put.dev`
@@ -127,7 +134,7 @@ plutil -lint Putio/en.lproj/*.strings
   - `make verify` and `make e2e-simulator` each create an ephemeral simulator (pinned status bar and `en_US` locale, so the clock and number formats do not drift between a maintainer's Mac and CI) and delete it on exit, so parallel worktrees and agents never collide; set `PUTIO_SIMULATOR_ID=<udid>` to reuse a specific device instead — note that a reused device keeps its own locale, so baselines should be recorded on the ephemeral one
   - GitHub Actions exposes `E2E Simulator` as a manual workflow for PRs or SDK-backed flow changes that need simulator confidence, and runs it weekly against `main` (Mondays 06:00 UTC)
   - `make run-simulator` uses a normal signed Simulator build so auth and keychain persistence behave like a real interactive run
-  - any iPhone simulator on iOS `26.0+` is fine
+  - the simulator device is pinned to **iPhone 17 Pro Max** on iOS `26.0+` (`scripts/simctl-iphone-device-id.sh`); baselines are pixel-compared, so an unpinned device made their dimensions depend on which simulators a machine had installed. 1320x2868 is also Apple's required 6.9" App Store screenshot size
   - when auth, keychain, or signed-in persistence changes, use both `make verify` and `make run-simulator`
 
 ## Targeted Regression Checks

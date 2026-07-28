@@ -52,6 +52,15 @@ jobs:
       - name: Install CocoaPods dependencies
         run: make bootstrap-ci
 
+      # Visual baselines are recorded with the brand faces bundled, so verify
+      # needs them too or every snapshot assertion fails on typography. The
+      # fonts come from static.put.io and need no credentials, so this works
+      # identically for forks and Dependabot.
+      - name: Sync licensed brand fonts
+        run: |
+          make fonts-setup
+          make fonts-check
+
       - name: Verify repository
         run: make verify
 

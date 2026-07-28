@@ -61,17 +61,19 @@ jobs:
       - name: Install CocoaPods dependencies
         run: make bootstrap-ci
 
-      - name: Verify repository
-        run: make verify
-
-      # Distributed builds ship brand typography. The fonts come from
-      # static.put.io, which needs no credentials, and the sync fails loudly on
-      # a bad download or a checksum mismatch, so a system-font build can never
-      # ship silently.
+      # Must precede `make verify`: baselines are recorded with the brand faces
+      # bundled (PUTIO_BUNDLE_BRAND_FONTS=YES in Verify.xcconfig), so a
+      # font-less verify fails every snapshot assertion. The archive step later
+      # bundles whatever this sync fetched. The fonts come from static.put.io
+      # and need no credentials; the sync fails loudly on a bad download or a
+      # checksum mismatch, so a system-font build can never ship silently.
       - name: Sync licensed brand fonts
         run: |
           make fonts-setup
           make fonts-check
+
+      - name: Verify repository
+        run: make verify
 
       - name: Prepare release metadata
         shell: bash
