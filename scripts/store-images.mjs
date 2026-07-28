@@ -18,7 +18,7 @@
 //   node scripts/store-images.mjs --check  # verify inputs without rendering
 
 import { existsSync } from "node:fs";
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
@@ -31,6 +31,9 @@ const TEMPLATE = join(ROOT, "scripts/store-images/template.html");
 const RAW_DIR = join(ROOT, "dist/store-screenshots");
 const OUTPUT_DIR = join(ROOT, "fastlane/screenshots");
 const FONTS_DIR = join(ROOT, "Putio/Fonts");
+
+// The weight the caption is set in; template.html must agree.
+const CAPTION_WEIGHT = 900;
 
 // Proportional layout, so the same template holds for any device size Apple
 // introduces. Each value declares which axis it scales against: widths against
@@ -59,6 +62,21 @@ async function main() {
 
   const plan = await buildPlan(config, strings, locale);
 
+  // An empty plan is always a config mistake, never an intent to publish zero
+  // screenshots. Without this the swap below deletes the committed set and then
+  // fails, because nothing ever created the staging directory.
+  if (plan.length === 0) {
+    fail(
+      "the plan is empty — no device declares any screenshots.",
+      "Check the devices block in Config/StoreScreenshots.json. Refusing rather than replacing the committed set with nothing.",
+    );
+  }
+
+  // Every render prerequisite is validated in both modes, so --check is a real
+  // preflight rather than a partial one that passes and then fails on render.
+  const css = await designTokens();
+  const fontFaces = await brandFontFaces();
+
   if (checkOnly) {
     for (const item of plan) {
       console.log(`${item.deviceId} slot ${item.slot}: "${item.caption}" over ${item.rawName}`);
@@ -67,21 +85,41 @@ async function main() {
     return;
   }
 
-  const css = await readFile(join(ROOT, "node_modules/@putdotio/design/dist/css/tokens.css"), "utf8");
-  const fontFaces = await brandFontFaces();
-
-  await rm(OUTPUT_DIR, { recursive: true, force: true });
+  // Render into a staging directory and swap on success. Wiping the committed
+  // set up front would leave a half-written listing behind if the browser died
+  // mid-loop, and the missing images would look intentional in a diff.
+  const staging = `${OUTPUT_DIR}.staging`;
+  await rm(staging, { recursive: true, force: true });
 
   const browser = await chromium.launch();
   try {
     for (const item of plan) {
-      await render(browser, item, css, fontFaces);
+      await render(browser, item, css, fontFaces, staging);
     }
+  } catch (error) {
+    await rm(staging, { recursive: true, force: true });
+    throw error;
   } finally {
     await browser.close();
   }
 
+  await rm(OUTPUT_DIR, { recursive: true, force: true });
+  await rename(staging, OUTPUT_DIR);
+
   console.log(`rendered ${plan.length} store images into fastlane/screenshots/`);
+}
+
+async function designTokens() {
+  const path = join(ROOT, "node_modules/@putdotio/design/dist/css/tokens.css");
+
+  if (!existsSync(path)) {
+    fail(
+      "@putdotio/design is not installed, so brand tokens are unavailable.",
+      "Run pnpm install. Rendering without tokens would produce off-brand images.",
+    );
+  }
+
+  return readFile(path, "utf8");
 }
 
 async function buildPlan(config, strings, locale) {
@@ -156,6 +194,7 @@ async function brandFontFaces() {
 
   const weights = { regular: 400, medium: 500, bold: 700, black: 900 };
   const faces = [];
+  const loaded = new Set();
 
   for (const file of files) {
     const weightName = /gt-america-standard-([a-z]+)\.otf$/u.exec(file)?.[1];
@@ -165,16 +204,37 @@ async function brandFontFaces() {
     }
 
     const data = await readFile(join(FONTS_DIR, file));
+    loaded.add(weight);
     faces.push(
       `@font-face { font-family: "GT America"; font-weight: ${weight}; font-style: normal; ` +
         `src: url(data:font/otf;base64,${data.toString("base64")}) format("opentype"); }`,
     );
   }
 
+  // Files existing is not the same as usable faces existing: a rename or a new
+  // naming scheme would leave this empty, and an empty @font-face block falls
+  // back to a system font — the exact outcome this function exists to prevent.
+  if (faces.length === 0) {
+    fail(
+      `found ${files.length} GT America file(s) in Putio/Fonts but none matched gt-america-standard-<weight>.otf.`,
+      "Run make fonts-setup. If the upstream naming changed, update the weight map in this script.",
+    );
+  }
+
+  // Having *a* face is not enough. The template sets captions in 900, so a
+  // partial install holding only, say, the regular weight would render every
+  // caption in a system font while this function reported success.
+  if (!loaded.has(CAPTION_WEIGHT)) {
+    fail(
+      `GT America ${CAPTION_WEIGHT} (black) is missing from Putio/Fonts; found ${[...loaded].sort().join(", ") || "nothing usable"}.`,
+      "Run make fonts-setup. Captions are set in the black weight, so a partial install would silently fall back.",
+    );
+  }
+
   return faces.join("\n");
 }
 
-async function render(browser, item, css, fontFaces) {
+async function render(browser, item, css, fontFaces, outputDir) {
   const page = await browser.newPage({
     viewport: { width: item.width, height: item.height },
     deviceScaleFactor: 1,
@@ -211,19 +271,30 @@ async function render(browser, item, css, fontFaces) {
   // Fonts and the embedded screenshot must be decoded before capture, or the
   // first image renders in a fallback face.
   await page.evaluate(() => document.fonts.ready);
+  // Resolving only on `load` means a decode failure never settles and the run
+  // hangs rather than failing. Reject on error, and cap the wait.
   await page.evaluate(
     () =>
-      new Promise((resolve) => {
+      new Promise((resolve, reject) => {
         const img = document.querySelector("#screenshot");
         if (img.complete) {
-          resolve();
+          // A completed load with no intrinsic size already failed, and its
+          // error event fired before this ran — waiting would burn the whole
+          // timeout to reach the same conclusion.
+          if (img.naturalWidth > 0) {
+            resolve();
+          } else {
+            reject(new Error("screenshot failed to decode"));
+          }
           return;
         }
-        img.addEventListener("load", resolve, { once: true });
+        const timer = setTimeout(() => reject(new Error("screenshot did not decode within 10s")), 10_000);
+        img.addEventListener("load", () => { clearTimeout(timer); resolve(); }, { once: true });
+        img.addEventListener("error", () => { clearTimeout(timer); reject(new Error("screenshot failed to decode")); }, { once: true });
       }),
   );
 
-  const destination = join(OUTPUT_DIR, item.locale, `${String(item.slot).padStart(2, "0")}-${item.id}.jpg`);
+  const destination = join(outputDir, item.locale, `${String(item.slot).padStart(2, "0")}-${item.id}.jpg`);
   await mkdir(dirname(destination), { recursive: true });
 
   // JPEG, not PNG: Apple accepts both, and the framed output is ~5MB as JPEG

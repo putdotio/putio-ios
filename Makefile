@@ -164,5 +164,5 @@ store-screenshots-check:
 store-images: store-screenshots
 	node scripts/store-images.mjs
 
-store-images-check:
+store-images-check: store-screenshots
 	node scripts/store-images.mjs --check
