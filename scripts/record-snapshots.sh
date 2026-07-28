@@ -40,6 +40,10 @@ fatal() {
 }
 
 tiers="components screens"
+tier_explicit=""
+# Whether the filter selects less than a whole tier. A bare target name runs the
+# entire tier, so the baseline tripwires still apply to it.
+scoped=""
 # Read from the environment rather than interpolated into a shell command by the
 # Makefile: a filter containing a space, a glob, or a quote would otherwise be
 # word-split or executed.
@@ -50,6 +54,7 @@ while [ $# -gt 0 ]; do
         --tier)
             [ $# -ge 2 ] || fatal "--tier needs a value (components or screens)"
             tiers="$2"
+            tier_explicit=1
             shift 2
             ;;
         --only)
@@ -88,12 +93,27 @@ for tier in $tiers; do
 done
 
 # --only names a test target, and that target decides which tier can run it.
-# Deriving the tier rather than asking for it keeps the two from disagreeing.
 if [ -n "$only" ]; then
     case "$only" in
-        PutioTests/*|PutioTests) tiers=components ;;
-        PutioUITests/*|PutioUITests) tiers=screens ;;
+        PutioTests/*|PutioTests) derived=components ;;
+        PutioUITests/*|PutioUITests) derived=screens ;;
         *) fatal "--only must start with PutioTests or PutioUITests; got '$only'" ;;
+    esac
+
+    # Say so rather than silently preferring one. ONLY arrives from the
+    # environment, so a value left over from an earlier scoped run would
+    # otherwise make `make screenshots-record-screens` quietly record components.
+    if [ -n "$tier_explicit" ] && [ "$tiers" != "$derived" ]; then
+        fatal "--tier $tiers and --only $only disagree: that filter belongs to the $derived tier."
+    fi
+
+    tiers="$derived"
+
+    # `PutioUITests/SomeTest/someMethod` is a subset; a bare `PutioUITests` runs
+    # the whole target, which is the same breadth as a full tier run — so it
+    # keeps the count and orphan checks rather than skipping them.
+    case "$only" in
+        */*) scoped=1 ;;
     esac
 fi
 
@@ -179,7 +199,7 @@ run_tier() {
     xcrun xcresulttool get test-results tests --path "$bundle" | ruby scripts/verify-snapshot-recording.rb \
         || fatal "$tier had failures beyond record-mode snapshot assertions; baselines may be incomplete."
 
-    if [ -z "$only" ]; then
+    if [ -z "$scoped" ]; then
         [ -n "$expected" ] || fatal "$tier has no expected baseline count; pass --expect-$tier (the Makefile does)."
 
         # Counting alone cannot see a deleted test: its orphaned PNG stays on
