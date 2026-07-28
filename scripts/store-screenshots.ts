@@ -116,19 +116,43 @@ async function main(): Promise<void> {
  * dimension comparison; now it is named here.
  */
 async function readConfig(): Promise<Config> {
-  const parsed: unknown = JSON.parse(await readFile(CONFIG, "utf8"));
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(CONFIG, "utf8"));
+  } catch (error) {
+    // Otherwise a hand-edited trailing comma exits with a raw SyntaxError stack
+    // that never names the file — the one thing the reader needs.
+    fail(
+      `Config/StoreScreenshots.json could not be read: ${(error as Error).message}`,
+      "Fix the JSON, or restore the file from git.",
+    );
+  }
 
-  if (typeof parsed !== "object" || parsed === null) {
+  if (!isPlainObject(parsed)) {
     fail("Config/StoreScreenshots.json is not an object.", "Restore it from git.");
   }
 
   const config = parsed as Partial<Config>;
 
-  if (typeof config.devices !== "object" || config.devices === null) {
+  // Arrays are objects, so a `"devices": []` typo would pass a bare typeof
+  // check and then produce an empty store set without complaint.
+  if (!isPlainObject(config.devices)) {
     fail("Config/StoreScreenshots.json has no devices object.", "Add a devices block keyed by device id.");
   }
 
-  for (const [deviceId, device] of Object.entries(config.devices as Record<string, Partial<Device>>)) {
+  const devices = Object.entries(config.devices as Record<string, unknown>);
+
+  if (devices.length === 0) {
+    fail("Config/StoreScreenshots.json declares no devices.", "Add at least one device; an empty set cannot become a listing.");
+  }
+
+  for (const [deviceId, candidate] of devices) {
+    if (!isPlainObject(candidate)) {
+      fail(`${deviceId}: must be an object describing the device.`, "Give it width, height, source and screenshots.");
+    }
+
+    const device = candidate as Partial<Device>;
+
     for (const field of ["width", "height"] as const) {
       if (!Number.isInteger(device[field])) {
         fail(`${deviceId}: "${field}" must be an integer.`, "Set it to the store size Apple expects for this device.");
@@ -204,6 +228,15 @@ function pixelSize(path: string, label: string): { width: number; height: number
   }
 
   return { width, height };
+}
+
+/**
+ * A JSON object, excluding arrays and null — both of which `typeof` calls
+ * "object", and both of which would otherwise slip through a shape check and
+ * fail later somewhere less informative.
+ */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**

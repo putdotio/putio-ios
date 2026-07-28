@@ -124,9 +124,16 @@ async function main(): Promise<void> {
  * property read on undefined.
  */
 async function readManifest(): Promise<Manifest> {
-  const parsed: unknown = JSON.parse(await readFile(MANIFEST, "utf8"));
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(MANIFEST, "utf8"));
+  } catch (error) {
+    // A raw SyntaxError never names the file it came from, which is the one
+    // thing worth knowing when the manifest is hand-edited.
+    throw new Error(`${MANIFEST} could not be read: ${(error as Error).message}`);
+  }
 
-  if (typeof parsed !== "object" || parsed === null) {
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
     throw new Error(`${MANIFEST} is not an object.`);
   }
 
