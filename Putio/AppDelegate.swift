@@ -102,12 +102,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             UserDefaults.standard.removePersistentDomain(forName: bundleIdentifier)
         }
         if let realm = PutioRealm.open(context: "prepareForE2ETests") {
-            _ = PutioRealm.write(realm, context: "prepareForE2ETests.clearRealm") {
+            let cleared = PutioRealm.write(realm, context: "prepareForE2ETests.clearRealm") {
                 realm.deleteAll()
             }
             // Downloads have no API route to mock, so the fixture set is
-            // written straight into the realm we just cleared.
-            PutioE2EDownloadFixtures.install(into: realm)
+            // written straight into the realm we just cleared. Only if it did
+            // clear: seeding on top of surviving rows produces a list that is
+            // neither the fixture set nor the old state, and the walk would
+            // capture it as though it were intended.
+            if cleared {
+                PutioE2EDownloadFixtures.install(into: realm)
+            }
         }
         #endif
     }
