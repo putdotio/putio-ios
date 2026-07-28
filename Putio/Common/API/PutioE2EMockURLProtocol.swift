@@ -159,7 +159,7 @@ private enum PutioE2EMockAPI {
       "status": "OK",
       "cursor": null,
       "total": 1,
-      "trash_size": 7340032,
+      "trash_size": 189792256,
       "files": [
         {
           "id": 77,
@@ -189,14 +189,14 @@ private enum PutioE2EMockAPI {
         "user_hash": "e2e-hash",
         "features": {},
         "download_token": "e2e-download-token",
-        "trash_size": 0,
+        "trash_size": 189792256,
         "account_active": true,
         "files_will_be_deleted_at": "",
         "password_last_changed_at": "",
         "disk": {
-          "avail": 1024,
-          "size": 2048,
-          "used": 1024
+          "avail": 1068893827072,
+          "size": 1099511627776,
+          "used": 30617800704
         },
         "settings": {
           "tunnel_route_name": "default",
@@ -399,18 +399,18 @@ private enum PutioE2EMockAPI {
               "user_id": 1001,
               "type": "upload",
               "created_at": "\(today)",
-              "file_id": 42,
+              "file_id": 78,
               "file_name": "Tears of Steel.mp4",
-              "file_size": 7340032
+              "file_size": 734003200
             },
             {
               "id": 9002,
               "user_id": 1001,
               "type": "transfer_completed",
               "created_at": "\(yesterday)",
-              "file_id": 42,
+              "file_id": 79,
               "transfer_name": "Cosmos Laundromat",
-              "transfer_size": 7340032,
+              "transfer_size": 1073741824,
               "source": "magnet"
             },
             {
@@ -418,7 +418,7 @@ private enum PutioE2EMockAPI {
               "user_id": 1001,
               "type": "file_shared",
               "created_at": "\(ancient)",
-              "file_id": 42,
+              "file_id": 80,
               "file_name": "Caminandes - Llama Drama.mp4",
               "sharing_user_name": "sam"
             }
