@@ -21,10 +21,11 @@ final class BrandTypographyCoverageTests: XCTestCase {
         BrandFont.registerIfAvailable()
     }
 
-    // Mirrors ComponentSnapshotTests.assertComponent: a detached view is never
-    // laid out, so a cell only reaches layoutSubviews — where the appearance
-    // hooks run — once it is in a window. Checking the font without this would
-    // measure a state the app never renders.
+    // Mirrors ComponentSnapshotTests.assertComponent, so these assertions
+    // measure the same state the visual baselines capture rather than a
+    // detached view the app never renders. Branding itself does not depend on
+    // this: the cells call configureGlobalAppearance from configure(_:), and a
+    // nib-loaded view gets it from awakeFromNib.
     private func render(_ view: UIView, size: CGSize) {
         let window = UIWindow(frame: CGRect(origin: .zero, size: size))
         window.overrideUserInterfaceStyle = .dark
