@@ -74,7 +74,14 @@ class BrandFontSync
       return
     end
 
-    puts "sync-brand-fonts: #{present.size} of #{@files.size} brand fonts present; run `make fonts-setup` for the rest."
+    # A partial set is neither of the two good states. It means a sync failed
+    # part way, and the build would bundle some faces while falling back to
+    # system fonts for the rest — the one outcome nothing else detects.
+    abort [
+      "sync-brand-fonts: #{@directory_label} has #{present.size} of #{@files.size} brand fonts.",
+      "  missing: #{stale.sort.join(', ')}",
+      "  fix: make fonts-setup",
+    ].join("\n")
   end
 
   def sync
@@ -87,6 +94,18 @@ class BrandFontSync
       end
 
       download(name, entry)
+    end
+
+    # The Xcode build phase globs this directory, so an unlisted face would be
+    # bundled. Report it here too rather than only in --check, so a bare
+    # `make fonts-setup` cannot claim success over a contradictory directory.
+    unlisted = unlisted_font_files
+    unless unlisted.empty?
+      abort [
+        "sync-brand-fonts: #{@directory_label} contains fonts that are not in the manifest.",
+        "  unlisted: #{unlisted.join(', ')}",
+        "  fix: rm -rf #{@directory_label} && make fonts-setup",
+      ].join("\n")
     end
 
     puts "sync-brand-fonts: #{@files.size} brand fonts ready in #{@directory_label}."
@@ -125,7 +144,11 @@ class BrandFontSync
       response.body
     when Net::HTTPRedirection
       abort "sync-brand-fonts: too many redirects fetching #{url}" if redirects_left.zero?
-      fetch(response["location"], redirects_left - 1)
+      location = response["location"]
+      abort "sync-brand-fonts: #{url} redirected without a Location header" if location.nil?
+      # A Location may legally be relative, so resolve it against the URL that
+      # produced it rather than parsing it standalone.
+      fetch(URI.join(url, location).to_s, redirects_left - 1)
     else
       abort "sync-brand-fonts: #{url} returned #{response.code} #{response.message}"
     end

@@ -88,8 +88,8 @@ Recorded deviations (Phase 2):
 ## Non-Goals
 
 - Full brand typography adoption. The font *infrastructure* now exists
-  (`make fonts-setup` syncs licensed faces from the private putio-static
-  repository into gitignored `Putio/Fonts/`; optional bundling + runtime
+  (`make fonts-setup` downloads licensed faces from `static.put.io`
+  into gitignored `Putio/Fonts/`; optional bundling + runtime
   registration with system-font fallback; verification builds always use
   system fonts). Applying brand type beyond navigation titles is tracked
   separately in [brand-typography.md](./brand-typography.md).
