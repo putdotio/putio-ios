@@ -1,0 +1,6 @@
+packages:
+  - "."
+# Transitive native build (effect -> msgpackr -> msgpackr-extract). vref runs
+# fine on the JS fallback, so skip the native compile.
+allowBuilds:
+  msgpackr-extract: false

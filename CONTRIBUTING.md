@@ -10,6 +10,7 @@ Most local work only needs the normal toolchain and the checked-in development d
   - Xcode `26.x`
   - iOS `26.x` simulator runtime
   - Ruby from `.ruby-version`
+  - Node from `.node-version`, with pnpm via `corepack enable`
 - Install dependencies:
 
 ```bash
@@ -17,10 +18,15 @@ make bootstrap
 ```
 
 `make bootstrap` starts with a `make doctor` preflight that checks your active
-Ruby against `.ruby-version` and your Xcode developer directory, printing
-copy-pasteable fixes when either is wrong. It also installs the repo pre-push
-hook (`.githooks/pre-push` via `core.hooksPath`), which runs the sub-second
-`make verify-fast` gate before every push.
+Ruby against `.ruby-version`, Node against `.node-version`, that pnpm is on
+PATH, and your Xcode developer directory, printing copy-pasteable fixes for each.
+It also installs the repo pre-push hook (`.githooks/pre-push` via
+`core.hooksPath`), which runs the sub-second `make verify-fast` gate before
+every push.
+
+Node is repo tooling only — it builds the visual reference gallery and, later,
+App Store images. The app itself builds and tests without it, so `make verify`
+and `make e2e-simulator` do not need `pnpm install` to have run.
 
 - Optional private local overrides:
   - copy `Config/Local.example.xcconfig` to `Config/Local.xcconfig`

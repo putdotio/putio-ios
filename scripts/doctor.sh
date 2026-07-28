@@ -24,6 +24,32 @@ else
   fi
 fi
 
+expected_node="$(cat .node-version)"
+actual_node="$(node -e 'process.stdout.write(process.versions.node)' 2>/dev/null || echo "missing")"
+
+if [ "$actual_node" = "$expected_node" ]; then
+  echo "doctor: node $actual_node matches .node-version"
+else
+  status=1
+  echo "doctor: active node is $actual_node but .node-version wants $expected_node" >&2
+  mise_node_bin="$HOME/.local/share/mise/installs/node/$expected_node/bin"
+  if [ -d "$mise_node_bin" ]; then
+    echo "doctor: fix: export PATH=\"$mise_node_bin:\$PATH\"" >&2
+  else
+    echo "doctor: fix: install node $expected_node (e.g. mise install node@$expected_node) and put it first in PATH" >&2
+  fi
+fi
+
+# pnpm ships via corepack, which is bundled with node; the version comes from
+# packageManager in package.json.
+if command -v pnpm >/dev/null 2>&1; then
+  echo "doctor: pnpm $(pnpm --version 2>/dev/null || echo "unknown") is available"
+else
+  status=1
+  echo "doctor: pnpm is not on PATH" >&2
+  echo "doctor: fix: corepack enable" >&2
+fi
+
 developer_dir="${DEVELOPER_DIR:-$(xcode-select -p 2>/dev/null || echo "missing")}"
 
 developer_dir_ok=0

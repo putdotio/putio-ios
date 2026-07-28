@@ -1,7 +1,7 @@
 # Agent Guide
 
 - Native iOS app repository for put.io
-- Stack: UIKit, CocoaPods, Bundler-managed Ruby
+- Stack: UIKit, CocoaPods, Bundler-managed Ruby, and pnpm-managed Node for repo tooling (not app code)
 - App code lives under `Putio/Features` and shared helpers live under `Putio/Common`
 - Tests live under `PutioTests`
 
@@ -41,7 +41,8 @@ Codex and Claude worktrees. Run `make bootstrap`; use `make secrets-setup` or
 Xcode + Fastlane carry their own config and signing flow; this repo does not use a `.envrc` / `secrets` task-runner pattern.
 
 - A fresh worktree only needs `make bootstrap`; `make verify` and `make e2e-simulator` run without local secrets
-- `make doctor` (also a `bootstrap` preflight) checks the active Ruby against `.ruby-version` and the Xcode developer directory, and prints copy-pasteable fixes when either is wrong
+- `make doctor` (also a `bootstrap` preflight) checks the active Ruby against `.ruby-version`, Node against `.node-version`, that pnpm is on PATH, and the Xcode developer directory, and prints copy-pasteable fixes for each
+- Node is repo tooling only — the app builds and tests with no Node involvement, so `verify`, `e2e-simulator`, and the archive lanes never touch it. `node_modules/` is gitignored and reinstalled by `make bootstrap`, so it is deliberately absent from `.worktreeinclude`
 - `make bootstrap` installs the repo pre-push hook (`.githooks/pre-push`), which runs `make verify-fast` — icon sync check, localized strings lint, and workspace sanity — in under a second
 - `make verify` and `make e2e-simulator` write test result bundles to `build/verify.xcresult` and `build/e2e-simulator.xcresult`; CI uploads them as artifacts on failure
 - `make verify` and `make e2e-simulator` each create an ephemeral simulator (pinned status bar and `en_US` locale, so the clock and number formats match between a maintainer's Mac and CI) and delete it on exit, so parallel worktrees never collide; set `PUTIO_SIMULATOR_ID=<udid>` to target a specific device instead (`make run-simulator` keeps using the shared visible simulator)
