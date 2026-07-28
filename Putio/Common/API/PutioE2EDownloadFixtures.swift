@@ -74,9 +74,10 @@ enum PutioE2EDownloadFixtures {
                 download.fileType = seed.fileType
                 download.state = seed.state
                 download.progress = seed.progress
-                // Spaced a minute apart purely to fix the sort order; the cell
-                // never shows createdAt, so the exact values do not surface.
-                download.createdAt = now.addingTimeInterval(TimeInterval(index * 60))
+                // Spaced a minute apart purely to fix the sort order, and kept
+                // in the past: nothing shows createdAt today, but a future date
+                // is a trap for anything that later formats or prunes on it.
+                download.createdAt = now.addingTimeInterval(TimeInterval((index - seeds.count) * 60))
                 download.completedAt = seed.completedHoursAgo.map {
                     now.addingTimeInterval(TimeInterval(-3600 * $0))
                 }

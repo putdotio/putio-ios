@@ -59,10 +59,10 @@ final class ScreenshotWalkUITests: XCTestCase {
         // Wait for tab-specific content so captures never race the fixture
         // load; a generic nav-bar wait is satisfiable before rendering ends.
         let readiness: [String: XCUIElement] = [
-            // Sintel.mp4 is seeded only into the downloads table (see
-            // PutioE2EDownloadFixtures), so waiting on it cannot be satisfied
-            // by a row left behind on another tab.
-            "Downloads": app.staticTexts["Sintel.mp4"],
+            // Scoped to the downloads table rather than the whole app: the
+            // fixture library is shared, so a bare title can be matched by a
+            // row on another tab or by an API fixture that names the same file.
+            "Downloads": app.tables["putio-downloads-table"].staticTexts["Caminandes - Llamigos.mp4"],
             "History": app.tables["putio-history-table"].staticTexts["Tears of Steel.mp4"],
             "Account": app.tables.staticTexts["Manage your trash"]
         ]
