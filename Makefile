@@ -1,4 +1,4 @@
-.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify type-scale-sync type-scale-verify fonts-setup fonts-check verify verify-fast e2e-simulator screenshots-record print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean beta release
+.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify type-scale-sync type-scale-verify fonts-setup fonts-check verify verify-fast e2e-simulator screenshots-record print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean vref vref-validate vref-serve beta release
 
 # Result bundle paths shared by verify / e2e-simulator / screenshots-record.
 VERIFY_RESULT_BUNDLE := build/verify.xcresult
@@ -145,3 +145,12 @@ beta:
 release:
 	@echo "make release is CI-only. Use .github/workflows/release.yml via GitHub Actions." >&2
 	@exit 1
+
+vref:
+	node scripts/vref.mjs build
+
+vref-validate:
+	node scripts/vref.mjs validate
+
+vref-serve:
+	node scripts/vref.mjs serve

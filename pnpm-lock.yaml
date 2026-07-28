@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       '@putdotio/vref':
-        specifier: ^1.1.0
-        version: 1.1.0
+        specifier: ^1.1.1
+        version: 1.1.1
 
 packages:
 
@@ -44,9 +44,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@putdotio/vref@1.1.0':
-    resolution: {integrity: sha512-tRBuXoKDqGNu5dmhNux9NOC95t/+Wa3+nzgsG0rULb3oA613EefP8PNfGMvqvuoRn57C35oBun4LLvL1WCMPhQ==}
-    engines: {node: '>=24.14.0'}
+  '@putdotio/vref@1.1.1':
+    resolution: {integrity: sha512-0g2fzA3oHQ5qcYD71B0Z4PgihzPHWKRb5JqGu8FmjKsB5nO5y/br3Z2b9LpApgn7eyodmXN2viZ47eKf/6SLXQ==}
+    engines: {node: '>=24.18.0'}
     hasBin: true
 
   '@standard-schema/spec@1.1.0':
@@ -123,7 +123,7 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.4':
     optional: true
 
-  '@putdotio/vref@1.1.0':
+  '@putdotio/vref@1.1.1':
     dependencies:
       effect: 4.0.0-beta.102
 

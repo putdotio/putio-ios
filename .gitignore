@@ -57,3 +57,9 @@ Putio/Fonts/
 
 ## Node tooling; reinstalled by `make bootstrap`
 node_modules/
+
+# Visual reference gallery: the manifest is committed, but the screenshot copies
+# and the rendered gallery are regenerated from the committed baselines by
+# `make vref`, so they would only ever drift.
+.vref/screenshots/
+.vref/index.html

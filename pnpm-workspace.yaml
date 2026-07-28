@@ -4,3 +4,8 @@ packages:
 # fine on the JS fallback, so skip the native compile.
 allowBuilds:
   msgpackr-extract: false
+# @putdotio/vref 1.1.1 is ours and was published the same day this landed, so it
+# trips the minimum-release-age gate. Drop this entry once the version has aged
+# past the threshold; it is a timing carve-out, not a standing exception.
+minimumReleaseAgeExclude:
+  - '@putdotio/vref@1.1.1'

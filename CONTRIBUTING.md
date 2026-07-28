@@ -126,6 +126,7 @@ plutil -lint Putio/en.lproj/*.strings
 
 - Notes:
   - `make verify-fast` is the sub-second gate (icon sync check, strings lint, workspace sanity); the pre-push hook runs it automatically
+  - `make vref` renders `.vref/index.html` from the committed baselines for design review, and `make vref-serve` serves it on `127.0.0.1:4173`. It is deliberately **not** part of `verify-fast`: validating it needs Node and the regenerated copies, and `verify-fast` is a sub-second gate that runs without Node. Baseline/manifest drift is caught when `make vref` runs, which today means locally; publishing the gallery, and checking it in CI, is future work in #49
   - visual baselines cover reusable components (`PutioTests/__Snapshots__/`, rendered directly in unit tests) and 12 full screens (`PutioUITests/__Snapshots__/`, captured by the e2e walk); the app is dark-only, so baselines capture dark mode only; after an intentional visual change run `make screenshots-record` and commit the resulting image diff (GitHub renders before/after in review)
   - `make verify` uses an unsigned simulator build
   - `make verify` and `make e2e-simulator` write result bundles to `build/verify.xcresult` and `build/e2e-simulator.xcresult`; CI uploads them as artifacts when a run fails
