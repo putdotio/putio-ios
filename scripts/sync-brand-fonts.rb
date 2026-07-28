@@ -1,148 +1,144 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
-# Syncs the licensed brand fonts from the private putio-static repository
-# into the gitignored Putio/Fonts/ directory, using the maintainer's `gh`
-# CLI auth. The fonts are optional: builds fall back to system fonts when
-# absent, and Verify builds never bundle them so snapshot baselines stay
-# deterministic.
+# Syncs the licensed brand fonts from static.put.io into gitignored
+# Putio/Fonts/. The same files the web app already serves to browsers, so no
+# credentials, no private repository access, and no GitHub CLI.
 #
-#   ruby scripts/sync-brand-fonts.rb           # fetch missing/changed files
+# The fonts are licensed and must never be committed here — `make verify-fast`
+# fails if any font binary is tracked.
+#
+# Usage:
+#   ruby scripts/sync-brand-fonts.rb           # download any missing or stale font
 #   ruby scripts/sync-brand-fonts.rb --check   # report status, no writes
 
 require "digest"
-require "fileutils"
 require "json"
-require "open3"
-require "tmpdir"
+require "net/http"
+require "uri"
 
 class BrandFontSync
-  ROOT = File.expand_path("..", __dir__)
-  MANIFEST_PATH = File.join(ROOT, "Config", "BrandFonts.json")
+  MAX_REDIRECTS = 3
 
   def initialize(check_only:)
     @check_only = check_only
-    @manifest = JSON.parse(File.read(MANIFEST_PATH))
-    @repository = @manifest.fetch("repository")
-    @ref = @manifest.fetch("ref")
-    @directory = File.join(ROOT, @manifest.fetch("directory"))
+    @manifest = JSON.parse(File.read("Config/BrandFonts.json"))
+    @base_url = @manifest.fetch("baseUrl")
+    @directory = @manifest.fetch("directory")
     @files = @manifest.fetch("files")
   end
 
   def run
-    if @check_only
-      check!
-      return
-    end
-
-    missing = @files.reject { |name, entry| current?(name, entry.fetch("sha256")) }.keys
-
-    remove_unlisted!
-
-    if missing.empty?
-      puts "Brand fonts already up to date (#{@files.size} files)."
-      return
-    end
-
-    require_gh!
-
-    # Stage the complete set first so a mid-sync failure can never leave a
-    # mixture of new and stale files for the build phase to bundle.
-    Dir.mktmpdir("brand-fonts") do |staging|
-      missing.each { |name| fetch(name, @files.fetch(name), into: staging) }
-
-      FileUtils.mkdir_p(@directory)
-      missing.each do |name|
-        FileUtils.mv(File.join(staging, name), File.join(@directory, name))
-      end
-    end
-
-    puts "Synced #{missing.size} brand font files into #{@manifest.fetch("directory")}/."
+    @check_only ? check : sync
   end
 
   private
 
-  # Absent fonts are the accepted optional state (exit 0), but fonts that
-  # are present and wrong are a real failure (exit 1): a stale checksum, an
-  # unlisted gt-america-*.otf the build phase's scoped glob would still
-  # bundle, or any other stray OTF polluting the managed directory. Nothing
-  # else in the pipeline checksums what ships in signed builds.
-  def check!
-    absent = []
-    stale = []
+  def check
+    stale = @files.reject { |name, entry| current?(name, entry.fetch("sha256")) }.keys
+
+    if stale.empty?
+      puts "sync-brand-fonts: #{@files.size} brand fonts present and matching the manifest."
+      return
+    end
+
+    present = @files.keys - stale
+    unlisted = unlisted_font_files
+
+    # Absent fonts are a normal state: the app falls back to system faces. A
+    # font that is present but does not match the manifest is not — it means a
+    # stale or hand-placed file, which would move every snapshot baseline.
+    if present.empty? && unlisted.empty?
+      puts "sync-brand-fonts: no brand fonts present; run `make fonts-setup` to download them."
+      return
+    end
+
+    mismatched = stale.select { |name| File.exist?(font_path(name)) }
+    abort <<~MESSAGE unless mismatched.empty? && unlisted.empty?
+      sync-brand-fonts: #{@directory} contradicts Config/BrandFonts.json.
+      #{"mismatched: #{mismatched.join(', ')}" unless mismatched.empty?}
+      #{"unlisted: #{unlisted.join(', ')}" unless unlisted.empty?}
+      fix: rm -rf #{@directory} && make fonts-setup
+    MESSAGE
+
+    puts "sync-brand-fonts: #{present.size} of #{@files.size} brand fonts present; run `make fonts-setup` for the rest."
+  end
+
+  def sync
+    FileUtils.mkdir_p(@directory)
 
     @files.each do |name, entry|
-      path = File.join(@directory, name)
-      if !File.exist?(path)
-        absent << name
-      elsif Digest::SHA256.file(path).hexdigest != entry.fetch("sha256")
-        stale << name
+      if current?(name, entry.fetch("sha256"))
+        puts "sync-brand-fonts: #{name} already current"
+        next
       end
+
+      download(name, entry)
     end
 
-    unlisted = Dir.glob(File.join(@directory, "*.otf"))
-      .map { |path| File.basename(path) }
-      .reject { |name| @files.key?(name) }
+    puts "sync-brand-fonts: #{@files.size} brand fonts ready in #{@directory}."
+  end
 
-    if stale.any? || unlisted.any?
-      warn "Brand font directory does not match the manifest (run: make fonts-setup):"
-      stale.each { |name| warn "  stale checksum: #{name}" }
-      unlisted.each { |name| warn "  unlisted: #{name}" }
-      exit 1
+  def download(name, entry)
+    url = "#{@base_url}/#{entry.fetch('path')}"
+    body = fetch(url)
+    actual = Digest::SHA256.hexdigest(body)
+    expected = entry.fetch("sha256")
+
+    # These files feed pixel-compared snapshot baselines, so a silently
+    # re-uploaded font would surface as 23 unexplained image diffs. Checking the
+    # hash turns that into one clear message.
+    unless actual == expected
+      abort <<~MESSAGE
+        sync-brand-fonts: #{name} does not match the manifest.
+          url:      #{url}
+          expected: #{expected}
+          actual:   #{actual}
+        The hosted font changed. Confirm the new file is intended, update its
+        sha256 in Config/BrandFonts.json, then re-record baselines with
+        `make screenshots-record`.
+      MESSAGE
     end
 
-    if absent.any?
-      puts "Brand fonts not synced (optional): #{absent.size} of #{@files.size} files absent; run make fonts-setup to fetch them."
+    File.binwrite(font_path(name), body)
+    puts "sync-brand-fonts: downloaded #{name} (#{body.bytesize} bytes)"
+  end
+
+  def fetch(url, redirects_left = MAX_REDIRECTS)
+    response = Net::HTTP.get_response(URI.parse(url))
+
+    case response
+    when Net::HTTPSuccess
+      response.body
+    when Net::HTTPRedirection
+      abort "sync-brand-fonts: too many redirects fetching #{url}" if redirects_left.zero?
+      fetch(response["location"], redirects_left - 1)
     else
-      puts "Brand fonts present and verified (#{@files.size} files)."
+      abort "sync-brand-fonts: #{url} returned #{response.code} #{response.message}"
     end
+  rescue SocketError, Errno::ECONNREFUSED, Net::OpenTimeout => e
+    abort "sync-brand-fonts: could not reach #{url} (#{e.class}). Check your network."
   end
 
   def current?(name, sha)
-    path = File.join(@directory, name)
+    path = font_path(name)
     File.exist?(path) && Digest::SHA256.file(path).hexdigest == sha
   end
 
-  # Fonts renamed or dropped from the manifest must not linger: the build
-  # phase bundles every OTF in the directory.
-  def remove_unlisted!
-    Dir.glob(File.join(@directory, "*.otf")).each do |path|
-      next if @files.key?(File.basename(path))
-
-      File.delete(path)
-      puts "  removed unlisted #{File.basename(path)}"
-    end
+  def font_path(name)
+    File.join(@directory, name)
   end
 
-  def require_gh!
-    _, status = Open3.capture2e("gh", "auth", "status")
-    return if status.success?
+  def unlisted_font_files
+    return [] unless Dir.exist?(@directory)
 
-    abort <<~MSG
-      sync-brand-fonts: authenticated GitHub CLI access to #{@repository} is required.
-      fix: install gh (https://cli.github.com) and run: gh auth login
-    MSG
-  rescue Errno::ENOENT
-    abort "sync-brand-fonts: gh CLI not found. fix: install it from https://cli.github.com and run: gh auth login"
-  end
-
-  def fetch(name, entry, into:)
-    path = entry.fetch("path")
-    expected_sha = entry.fetch("sha256")
-    body, status = Open3.capture2(
-      "gh", "api",
-      "repos/#{@repository}/contents/#{path}?ref=#{@ref}",
-      "--header", "Accept: application/vnd.github.raw"
-    )
-    raise "#{name}: gh api failed (#{status.exitstatus}); check access to #{@repository}" unless status.success?
-
-    actual = Digest::SHA256.hexdigest(body)
-    unless actual == expected_sha
-      raise "#{name}: checksum mismatch (expected #{expected_sha}, got #{actual}); refusing to write"
-    end
-
-    File.binwrite(File.join(into, name), body)
-    puts "  synced #{name}"
+    Dir.children(@directory)
+       .select { |name| name.match?(/\.(otf|ttf|ttc)\z/i) }
+       .reject { |name| @files.key?(name) }
+       .sort
   end
 end
+
+require "fileutils"
 
 BrandFontSync.new(check_only: ARGV.include?("--check")).run
