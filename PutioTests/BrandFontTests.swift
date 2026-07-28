@@ -1,39 +1,76 @@
 import XCTest
 @testable import Putio
 
-// Verification builds never bundle the licensed fonts
-// (PUTIO_BUNDLE_BRAND_FONTS = NO in Config/Verify.xcconfig), so every snapshot
-// baseline is recorded and compared on system fonts. These tests pin that
-// contract: a font leak into the Verify configuration becomes a named failure
-// here instead of a mysterious pixel diff — and if you run them from Xcode
-// with fonts synced (a configuration without the exclusion), the first test
-// failing is the signal that snapshot work needs `make screenshots-record`.
+// Verification builds bundle the licensed faces
+// (PUTIO_BUNDLE_BRAND_FONTS = YES in Config/Verify.xcconfig) so the visual
+// suite can see typography regressions — it could not while they were
+// excluded, which is why #37, #42, and #43 all moved zero baselines. These
+// tests pin that contract: a build that loses the faces becomes a named
+// failure here instead of 23 mysterious pixel diffs.
+//
+// Recording therefore requires the fonts. Run `make fonts-setup` before
+// `make screenshots-record`.
 final class BrandFontTests: XCTestCase {
-    func testVerifyBuildsBundleNoBrandFonts() {
-        let bundled = (Bundle.main.urls(forResourcesWithExtension: "otf", subdirectory: nil) ?? [])
-            .filter { $0.lastPathComponent.hasPrefix("gt-america-") || $0.lastPathComponent.hasPrefix("berkeley-mono-") }
+    private static let sansFamily = "GT America"
+    private static let monoFamily = "Berkeley Mono Variable"
 
-        XCTAssertEqual(
-            bundled, [],
-            "brand fonts must never be bundled into verification builds; baselines depend on system fonts"
+    func testVerifyBuildsBundleBrandFonts() {
+        let bundled = (Bundle.main.urls(forResourcesWithExtension: "otf", subdirectory: nil) ?? [])
+            .map(\.lastPathComponent)
+            .filter { $0.hasPrefix("gt-america-") || $0.hasPrefix("berkeley-mono-") }
+            .sorted()
+
+        XCTAssertFalse(
+            bundled.isEmpty,
+            """
+            verification builds must bundle the brand fonts; baselines are recorded with them. \
+            Run `make fonts-setup`, and check PUTIO_BUNDLE_BRAND_FONTS in Config/Verify.xcconfig.
+            """
+        )
+        XCTAssertTrue(
+            bundled.contains { $0.hasPrefix("berkeley-mono-") },
+            "the mono face is the code/numeric role and must be bundled too"
         )
     }
 
-    func testOptionalAccessorsResolveToNilWithoutBundledFonts() {
+    func testOptionalAccessorsResolveToBrandFaces() {
         BrandFont.registerIfAvailable()
 
-        XCTAssertNil(BrandFont.sansIfAvailable(size: 17, weight: .bold))
-        XCTAssertNil(BrandFont.monoIfAvailable(size: 13))
+        let sans = BrandFont.sansIfAvailable(size: 17, weight: .bold)
+        let mono = BrandFont.monoIfAvailable(size: 13)
+
+        XCTAssertEqual(sans?.familyName, Self.sansFamily)
+        XCTAssertEqual(mono?.familyName, Self.monoFamily)
     }
 
-    func testNonOptionalAccessorsFallBackToSystemFonts() {
-        XCTAssertEqual(BrandFont.sans(size: 17, weight: .bold), .systemFont(ofSize: 17, weight: .bold))
-        XCTAssertEqual(BrandFont.mono(size: 13), .monospacedSystemFont(ofSize: 13, weight: .regular))
+    func testNonOptionalAccessorsReturnBrandFacesRatherThanSystem() {
+        BrandFont.registerIfAvailable()
+
+        let sans = BrandFont.sans(size: 17, weight: .bold)
+        let mono = BrandFont.mono(size: 13)
+
+        XCTAssertEqual(sans.familyName, Self.sansFamily)
+        XCTAssertEqual(mono.familyName, Self.monoFamily)
+        XCTAssertNotEqual(sans, .systemFont(ofSize: 17, weight: .bold))
+        XCTAssertNotEqual(mono, .monospacedSystemFont(ofSize: 13, weight: .regular))
+    }
+
+    // Pins the wiring of the system-font fallback without depending on the
+    // faces being absent: `sans` is `sansIfAvailable` plus a fallback, so when
+    // a face resolves the two must agree. The absent-fonts branch itself is
+    // only reachable in builds without the licensed fonts — a contributor
+    // without font access, or any non-Verify build that skipped the sync — and
+    // is covered there by the app simply rendering in system fonts.
+    func testNonOptionalAccessorsDeferToTheOptionalOnesWhenFacesResolve() {
+        BrandFont.registerIfAvailable()
+
+        XCTAssertEqual(BrandFont.sans(size: 17, weight: .bold), BrandFont.sansIfAvailable(size: 17, weight: .bold))
+        XCTAssertEqual(BrandFont.mono(size: 13), BrandFont.monoIfAvailable(size: 13))
     }
 
     // Pins the fixed-size-label weight fix: the descriptor's weight trait is
     // an NSNumber, so a direct `as? CGFloat` cast fails and silently drops the
-    // label to regular. This runs without bundled fonts (pure descriptor math).
+    // label to regular. Pure descriptor math — independent of bundled fonts.
     func testFixedSizeWeightIsRecoveredFromNSNumberTrait() {
         let semibold = UIFont.systemFont(ofSize: 14, weight: .semibold)
         let recovered = UILabel.brandWeight(from: semibold.fontDescriptor)
@@ -48,29 +85,55 @@ final class BrandFontTests: XCTestCase {
     }
 
     // The full-style application (font + tracking + line height + uppercasing)
-    // must also degrade to nothing without the faces: text unchanged (not
-    // uppercased) and the caller's system font intact, so baselines never move.
-    func testApplyBrandStyleIsNoOpWithoutBundledFonts() {
+    // must actually take effect now that the faces ship in Verify.
+    func testApplyBrandStyleAppliesTheBrandFace() {
         BrandFont.registerIfAvailable()
         let label = UILabel()
         label.text = "Restore Your Downloads"
-        let systemFont = UIFont.preferredFont(forTextStyle: .title1)
-        label.font = systemFont
+        label.font = UIFont.preferredFont(forTextStyle: .title1)
 
         label.applyBrandStyle(.h2)
 
-        XCTAssertEqual(label.text, "Restore Your Downloads", "text must be untouched without bundled fonts")
-        XCTAssertEqual(label.font, systemFont, "font must stay the caller's system font without bundled fonts")
+        XCTAssertEqual(label.font.familyName, Self.sansFamily, "h2 must resolve to the brand sans face")
+        XCTAssertEqual(label.text, "Restore Your Downloads", "h2 does not uppercase")
     }
 
-    func testTypographyRolesResolveToNilWithoutBundledFonts() {
+    // `.label` is the one role that uppercases, so it pins that the style is
+    // applied whole rather than just the font being swapped.
+    func testApplyBrandStyleUppercasesTheLabelRole() {
         BrandFont.registerIfAvailable()
-        // Verify builds bundle no faces, so every design-system role must
-        // resolve to nil and let callers fall back to their original font —
-        // which is exactly what keeps snapshot baselines on system fonts.
-        let roles: [BrandTypography.Role] = [.display, .h1, .h2, .h3, .h4, .body, .small, .label, .numeric, .code]
+        let label = UILabel()
+        label.text = "Restore Your Downloads"
+
+        label.applyBrandStyle(.label)
+
+        XCTAssertEqual(label.text, "RESTORE YOUR DOWNLOADS")
+    }
+
+    func testTypographyRolesResolveWithBundledFonts() {
+        BrandFont.registerIfAvailable()
+
+        let roles: [BrandTypography.Role] = [
+            .display, .h1, .h2, .h3, .h4, .body, .small, .label, .numeric, .code
+        ]
         for role in roles {
-            XCTAssertNil(BrandTypography.styleIfAvailable(role), "\(role) must be nil without bundled fonts")
+            XCTAssertNotNil(BrandTypography.styleIfAvailable(role), "\(role) must resolve with bundled fonts")
+        }
+    }
+
+    // The two mono roles must use the mono face and everything else the sans
+    // face — the split #42 and #43 established.
+    func testMonoRolesUseTheMonoFaceAndTheRestUseSans() {
+        BrandFont.registerIfAvailable()
+
+        for role in [BrandTypography.Role.numeric, .code] {
+            XCTAssertEqual(BrandTypography.styleIfAvailable(role)?.font.familyName, Self.monoFamily,
+                           "\(role) must use the mono face")
+        }
+
+        for role in [BrandTypography.Role.display, .h1, .h2, .h3, .h4, .body, .small, .label] {
+            XCTAssertEqual(BrandTypography.styleIfAvailable(role)?.font.familyName, Self.sansFamily,
+                           "\(role) must use the sans face")
         }
     }
 }

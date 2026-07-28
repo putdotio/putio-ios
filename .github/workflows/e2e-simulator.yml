@@ -52,6 +52,15 @@ jobs:
       - name: Install CocoaPods dependencies
         run: make bootstrap-ci
 
+      # The walk asserts committed baselines recorded with the brand faces
+      # bundled (PUTIO_BUNDLE_BRAND_FONTS=YES in Verify.xcconfig), so a
+      # font-less run fails every screen. The fonts come from static.put.io and
+      # need no credentials.
+      - name: Sync licensed brand fonts
+        run: |
+          make fonts-setup
+          make fonts-check
+
       - name: Run mocked simulator e2e
         run: make e2e-simulator
 

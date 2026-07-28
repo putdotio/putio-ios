@@ -2,12 +2,23 @@
 
 set -eu
 
+# Baselines are pixel-compared, so the device model has to be pinned. Picking
+# "whichever iPhone is listed first on the newest runtime" made baseline
+# dimensions depend on which simulators a machine happened to have installed.
+#
+# iPhone 17 Pro Max is 1320x2868, which is also Apple's required 6.9" App Store
+# screenshot size, so the store capture lane can reuse this device.
+device_name="iPhone 17 Pro Max"
 minimum_os="26.0"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --minimum-os)
       minimum_os="$2"
+      shift 2
+      ;;
+    --device-name)
+      device_name="$2"
       shift 2
       ;;
     *)
@@ -17,7 +28,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-xcrun simctl list devices available | awk -v minimum_os="$minimum_os" '
+device_id="$(xcrun simctl list devices available | awk -v minimum_os="$minimum_os" -v want="$device_name" '
 function version_gte(current, minimum) {
   split(current, current_parts, ".")
   split(minimum, minimum_parts, ".")
@@ -62,8 +73,16 @@ function version_gt(current, candidate) {
   next
 }
 
-/^[[:space:]]+iPhone/ {
-  if (!version_gte(current_os, minimum_os)) {
+{
+  if (current_os == "" || !version_gte(current_os, minimum_os)) {
+    next
+  }
+
+  # Match the name exactly up to the " (UDID)" suffix, so "iPhone 17 Pro" can
+  # never match the line for "iPhone 17 Pro Max".
+  line = $0
+  sub(/^[[:space:]]+/, "", line)
+  if (index(line, want " (") != 1) {
     next
   }
 
@@ -84,4 +103,11 @@ END {
 
   exit 1
 }
-'
+')" || {
+  echo "No available \"$device_name\" simulator on iOS $minimum_os or newer." >&2
+  echo "Baselines are pinned to this device: create it in Xcode, or run make download-ios-platform." >&2
+  echo "Pass --device-name only when you do not intend to record baselines." >&2
+  exit 1
+}
+
+printf '%s\n' "$device_id"

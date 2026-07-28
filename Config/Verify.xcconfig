@@ -7,6 +7,8 @@ PUTIO_APP_DISPLAY_NAME = put.io
 PUTIO_PRIMARY_APP_ICON = AppIconDev
 PUTIO_DEVELOPMENT_TEAM =
 
-// Snapshot baselines are recorded on system fonts; never bundle the
-// licensed brand fonts into verification builds.
-PUTIO_BUNDLE_BRAND_FONTS = NO
+// Baselines are recorded with the brand faces bundled, so the visual suite can
+// see typography regressions — it could not while these were excluded, which is
+// why three consecutive type PRs (#37, #42, #43) moved no baseline. Recording
+// therefore requires the licensed fonts: run `make fonts-setup` first.
+PUTIO_BUNDLE_BRAND_FONTS = YES

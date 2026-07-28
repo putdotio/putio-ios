@@ -21,12 +21,12 @@ final class HistorySmokeUITests: XCTestCase {
         let table = app.tables["putio-history-table"]
         XCTAssertTrue(table.waitForExistence(timeout: 5))
 
-        let uploadCell = table.staticTexts["E2E Upload.mp4"]
+        let uploadCell = table.staticTexts["Tears of Steel.mp4"]
         XCTAssertTrue(
             uploadCell.waitForExistence(timeout: 5),
             "history events should render on first open without pull-to-refresh"
         )
-        XCTAssertTrue(table.staticTexts["E2E Transfer"].exists)
+        XCTAssertTrue(table.staticTexts["Cosmos Laundromat"].exists)
         XCTAssertTrue(table.staticTexts["Today"].exists)
         XCTAssertTrue(table.staticTexts["Yesterday"].exists)
         XCTAssertTrue(table.staticTexts["Ancient Times"].exists)

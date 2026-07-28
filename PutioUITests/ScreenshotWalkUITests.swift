@@ -60,7 +60,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         // load; a generic nav-bar wait is satisfiable before rendering ends.
         let readiness: [String: XCUIElement] = [
             "Downloads": app.staticTexts["No downloads"],
-            "History": app.tables["putio-history-table"].staticTexts["E2E Upload.mp4"],
+            "History": app.tables["putio-history-table"].staticTexts["Tears of Steel.mp4"],
             "Account": app.tables.staticTexts["Manage your trash"]
         ]
 
@@ -75,7 +75,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         let trashRow = app.tables.staticTexts["Manage your trash"]
         XCTAssertTrue(trashRow.waitForExistence(timeout: 5))
         trashRow.tap()
-        XCTAssertTrue(app.staticTexts["E2E Trashed Movie.mp4"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Elephants Dream.mp4"].waitForExistence(timeout: 5))
         capture(app, named: "walk-dark-trash")
     }
 
@@ -88,7 +88,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         let song = app.tables["putio-files-table"].cells["putio-file-43"]
         XCTAssertTrue(song.waitForExistence(timeout: 10))
         song.tap()
-        XCTAssertTrue(app.staticTexts["E2E Song.mp3"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Sintel Theme.mp3"].waitForExistence(timeout: 10))
         // The player loads a local ten-minute silent WAV (see
         // PutioE2EPlaybackAsset), so it reaches a real ready state
         // hermetically: the duration label proves the asset loaded and the
@@ -119,7 +119,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         app.tables["putio-files-table"].cells["putio-file-42"].tap()
         app.buttons["Move"].tap()
         XCTAssertTrue(app.navigationBars["Your Files"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["E2E Movie.mp4"].firstMatch.waitForExistence(timeout: 10), "move sheet content should render")
+        XCTAssertTrue(app.staticTexts["Big Buck Bunny.mp4"].firstMatch.waitForExistence(timeout: 10), "move sheet content should render")
         settle()
         capture(app, named: "walk-dark-move-files")
         app.buttons["Cancel"].firstMatch.tap()
@@ -156,7 +156,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         let sessionsRow = app.tables.staticTexts["Where you are logged in"]
         XCTAssertTrue(sessionsRow.waitForExistence(timeout: 5))
         sessionsRow.tap()
-        XCTAssertTrue(app.staticTexts["E2E Web App"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["put.io Web"].waitForExistence(timeout: 10))
         settle()
         capture(app, named: "walk-dark-sessions")
     }
