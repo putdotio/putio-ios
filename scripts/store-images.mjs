@@ -318,7 +318,16 @@ async function render(browser, item, css, fontFaces, outputDir) {
           return;
         }
         const timer = setTimeout(() => reject(new Error("screenshot did not decode within 10s")), 10_000);
-        img.addEventListener("load", () => { clearTimeout(timer); resolve(); }, { once: true });
+        // `load` can fire on an image with no intrinsic size, which renders as
+        // a blank device screen — so the same check guards both paths.
+        img.addEventListener("load", () => {
+          clearTimeout(timer);
+          if (img.naturalWidth > 0) {
+            resolve();
+          } else {
+            reject(new Error("screenshot loaded with no intrinsic size"));
+          }
+        }, { once: true });
         img.addEventListener("error", () => { clearTimeout(timer); reject(new Error("screenshot failed to decode")); }, { once: true });
       }),
   );
@@ -332,7 +341,9 @@ async function render(browser, item, css, fontFaces, outputDir) {
   });
 
   if (captionOverflow > 1) {
-    fail(
+    // Thrown rather than fail()ed: fail() exits the process, which would skip
+    // main's finally and leave Chromium running and .staging on disk.
+    throw new RenderError(
       `${item.deviceId} slot ${item.slot}: "${item.caption}" needs more than the two lines the caption row reserves.`,
       "Shorten it in Config/StoreCaptions.json, or raise captionBlock in the LAYOUT table for every image.",
     );
@@ -359,4 +370,25 @@ function fail(message, remedy) {
   process.exit(1);
 }
 
-await main();
+/**
+ * A failure raised from inside the render loop, where exiting the process
+ * directly would skip the cleanup that closes Chromium and removes the staging
+ * directory. Carries the same message and remedy fail() prints.
+ */
+class RenderError extends Error {
+  constructor(message, remedy) {
+    super(message);
+    this.name = "RenderError";
+    this.remedy = remedy;
+  }
+}
+
+try {
+  await main();
+} catch (error) {
+  if (error instanceof RenderError) {
+    fail(error.message, error.remedy);
+  }
+
+  throw error;
+}
