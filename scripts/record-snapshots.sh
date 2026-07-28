@@ -109,9 +109,16 @@ if [ -n "$only" ]; then
 
     tiers="$derived"
 
-    # `PutioUITests/SomeTest/someMethod` is a subset; a bare `PutioUITests` runs
-    # the whole target, which is the same breadth as a full tier run — so it
-    # keeps the count and orphan checks rather than skipping them.
+    # A bare target name runs everything in that target, which is the same
+    # breadth as a full tier run, so it keeps the count and orphan checks.
+    #
+    # Anything deeper is treated as a subset. A class-level filter sometimes is
+    # not — PutioUITests/ScreenshotWalkUITests happens to own all 12 walk
+    # baselines today — but that is a fact about the current test layout, not a
+    # rule: add a second baseline-producing class to the target and the same
+    # filter becomes a subset while the tripwires still believe it is complete.
+    # Failing to check is recoverable; checking against the wrong expectation
+    # and failing a correct run is not.
     case "$only" in
         */*) scoped=1 ;;
     esac
@@ -219,7 +226,7 @@ run_tier() {
         fi
         echo "== $tier: recorded $count baselines under $snapshots/"
     else
-        echo "== $tier: recorded a scoped subset under $snapshots/ (count not checked)"
+        echo "== $tier: recorded a scoped subset under $snapshots/ (count and orphan checks skipped; run the full target before committing)"
     fi
 
     # Assert against what was just written, reusing the build products and the
