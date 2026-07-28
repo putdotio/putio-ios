@@ -170,7 +170,7 @@
       ],
       "notes": [
         "Playing a bundled Big Buck Bunny frame from Putio/E2EMedia, so the capture is hermetic and the frame is identical on every run.",
-        "Second slot of the App Store set, so this one is marketing-facing as well as a regression baseline."
+        "Captured for the App Store set as well as for regression; Config/StoreScreenshots.json selects it in #60."
       ]
     },
     {
