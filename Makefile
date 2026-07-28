@@ -101,7 +101,12 @@ e2e-simulator:
 # ONLY takes xcodebuild's -only-testing: syntax; the leading test target picks
 # the tier. screenshots-record-components and -screens cover the common case of
 # wanting one whole tier.
-RECORD_ARGS := --expect-components $(EXPECTED_COMPONENT_BASELINES) --expect-screens $(EXPECTED_WALK_BASELINES) $(if $(ONLY),--only $(ONLY))
+#
+# It reaches the script through the environment rather than the command line, so
+# a filter containing a space or a shell metacharacter is passed through intact
+# instead of being word-split or executed.
+export ONLY
+RECORD_ARGS := --expect-components $(EXPECTED_COMPONENT_BASELINES) --expect-screens $(EXPECTED_WALK_BASELINES)
 
 screenshots-record:
 	@./scripts/record-snapshots.sh $(RECORD_ARGS)

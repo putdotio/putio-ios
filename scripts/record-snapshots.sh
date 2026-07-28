@@ -13,7 +13,7 @@
 #
 # --only takes xcodebuild's own -only-testing: syntax. The leading test target
 # selects the tier, so scoping to one test skips the other scheme entirely —
-# which is the difference between three minutes and fourteen.
+# about one minute against five for the full set.
 #
 # One simulator serves the whole run, and each tier builds once: the assert pass
 # reuses the record pass's build products and the same booted device.
@@ -40,7 +40,10 @@ fatal() {
 }
 
 tiers="components screens"
-only=""
+# Read from the environment rather than interpolated into a shell command by the
+# Makefile: a filter containing a space, a glob, or a quote would otherwise be
+# word-split or executed.
+only="${ONLY:-}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -75,6 +78,8 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+[ -n "$tiers" ] || fatal "--tier needs a value (components or screens)"
+
 for tier in $tiers; do
     case "$tier" in
         components|screens) ;;
@@ -92,6 +97,12 @@ if [ -n "$only" ]; then
     esac
 fi
 
+# Baselines are recorded with the licensed faces bundled, and a scoped screens
+# run never reaches BrandFontTests — so nothing else would stop it writing a set
+# of system-font captures that then become the committed reference.
+ruby scripts/sync-brand-fonts.rb --check >/dev/null 2>&1 \
+    || fatal "brand fonts are missing or do not match Config/BrandFonts.json. Run make fonts-setup before recording."
+
 # One simulator for every tier in this run. The ephemeral script pins the status
 # bar and locale so captures match between a maintainer's Mac and CI; an
 # explicit PUTIO_SIMULATOR_ID skips creation and is never deleted.
@@ -105,7 +116,11 @@ else
     echo "Using ephemeral simulator: $device_id"
 fi
 
+run_marker=""
+
 cleanup() {
+    [ -z "$run_marker" ] || rm -f "$run_marker"
+
     if [ -n "$ephemeral_id" ]; then
         xcrun simctl shutdown "$ephemeral_id" >/dev/null 2>&1 || true
         xcrun simctl delete "$ephemeral_id" >/dev/null 2>&1 || true
@@ -151,6 +166,9 @@ run_tier() {
     # one. verify-snapshot-recording.rb is what distinguishes that from a real
     # failure, so the exit status here is deliberately not checked.
     echo "== $tier: recording${only:+ ($only)}"
+    # Written before the pass so `find ! -newer` can separate the baselines this
+    # run produced from ones left behind by a test that no longer exists.
+    run_marker="$(mktemp)"
     rm -rf "$bundle"
     TEST_RUNNER_PUTIO_RECORD_SNAPSHOTS=1 xcodebuild -workspace "$WORKSPACE" -scheme "$scheme" \
         -configuration Debug -xcconfig "$XCCONFIG" -destination "$destination" \
@@ -163,6 +181,16 @@ run_tier() {
 
     if [ -z "$only" ]; then
         [ -n "$expected" ] || fatal "$tier has no expected baseline count; pass --expect-$tier (the Makefile does)."
+
+        # Counting alone cannot see a deleted test: its orphaned PNG stays on
+        # disk and fills the slot the missing one left, so the total still
+        # matches. Anything not written by this run is an orphan by definition.
+        stale="$(find "$snapshots" -name '*.png' ! -newer "$run_marker" 2>/dev/null)"
+        if [ -n "$stale" ]; then
+            echo "record-snapshots: $tier left baselines this run did not write:" >&2
+            echo "$stale" >&2
+            fatal "A snapshot test was renamed or deleted. Remove the orphans and update the EXPECTED_*_BASELINES constants in the Makefile."
+        fi
 
         count="$(find "$snapshots" -name '*.png' 2>/dev/null | wc -l | tr -d ' ')"
         if [ "$count" -ne "$expected" ]; then
