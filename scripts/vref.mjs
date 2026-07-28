@@ -1,0 +1,205 @@
+#!/usr/bin/env node
+
+// Visual reference gallery driver.
+//
+// build and validate use @putdotio/vref's library API; serve goes through its
+// CLI, because serve is not exported from the package. Both paths need vref
+// 1.1.1 or newer — the bin in 1.1.0 exited 0 having done nothing under pnpm's
+// symlinked layout (putdotio/vref#21).
+//
+// Either way this driver has to copy baselines and refresh the manifest first,
+// so the work below is ours regardless of which entry point vref offers.
+//
+// Commands:
+//   sync      copy committed baselines into .vref/screenshots/ and refresh the
+//             manifest's mechanical fields, preserving curated text
+//   build     sync, then write .vref/index.html
+//   validate  check the manifest and that every referenced asset exists
+//   serve     serve the gallery locally
+
+import { execFileSync } from "node:child_process";
+import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { dirname, join, sep } from "node:path";
+import process from "node:process";
+import { buildGallery, validateGallery } from "@putdotio/vref";
+
+const VREF_DIR = ".vref";
+const MANIFEST = join(VREF_DIR, "manifest.json");
+const OUTPUT = join(VREF_DIR, "index.html");
+
+// Where each group's baselines come from, and the id prefix stripped from the
+// filename. Screens come from the e2e walk; components render directly in unit
+// tests, so they are not device-sized and carry their own viewport.
+const SOURCES = [
+  {
+    group: "Screens",
+    dir: "PutioUITests/__Snapshots__/ScreenshotWalkUITests",
+    prefix: "walk.dark-",
+    subdir: "screens",
+    device: "iPhone 17 Pro Max",
+  },
+  {
+    group: "Components",
+    dir: "PutioTests/__Snapshots__/ComponentSnapshotTests",
+    prefix: "component.dark-",
+    subdir: "components",
+    device: "Rendered directly",
+  },
+];
+
+async function main() {
+  const command = process.argv[2] ?? "build";
+
+  switch (command) {
+    case "sync":
+      await sync();
+      return;
+    case "build": {
+      await sync();
+      const result = await buildGallery({ cwd: process.cwd(), manifestPath: MANIFEST, outputPath: OUTPUT });
+      console.log(`wrote ${OUTPUT} (${result.screenshotCount} references, ${result.groupCount} groups)`);
+      return;
+    }
+    case "validate": {
+      // Syncs first, like build and serve: the assets validateGallery checks for
+      // are the gitignored copies, so validating without regenerating them would
+      // fail on every clean checkout.
+      await sync();
+      const result = await validateGallery({ cwd: process.cwd(), manifestPath: MANIFEST });
+      console.log(`validated ${result.screenshotCount} references in ${result.groupCount} groups`);
+      return;
+    }
+    case "serve": {
+      await sync();
+      await buildGallery({ cwd: process.cwd(), manifestPath: MANIFEST, outputPath: OUTPUT });
+      // Unlike build and validate, serve is not part of vref's library exports,
+      // so this one goes through the CLI. Safe as of vref 1.1.1, which fixed the
+      // bin that previously exited 0 without doing anything under pnpm.
+      execFileSync("pnpm", ["exec", "vref", "serve", "--dir", VREF_DIR], { stdio: "inherit" });
+      return;
+    }
+    default:
+      console.error("usage: node scripts/vref.mjs [sync|build|validate|serve]");
+      process.exitCode = 1;
+  }
+}
+
+/**
+ * Copy the committed baselines into `.vref/screenshots/` and refresh the
+ * manifest's mechanical fields against them.
+ *
+ * The copies are gitignored and regenerated from the committed baselines every
+ * run, so they cannot drift. Curated text — title, tags, notes — lives in the
+ * committed manifest and is preserved; only sizeBytes, viewport and capturedAt
+ * are rewritten, and a baseline with no manifest entry is reported rather than
+ * silently added with a placeholder title.
+ */
+async function sync() {
+  const manifest = JSON.parse(await readFile(MANIFEST, "utf8"));
+  const byId = new Map(manifest.screenshots.map((entry) => [entry.id, entry]));
+  const seen = new Set();
+
+  await rm(join(VREF_DIR, "screenshots"), { recursive: true, force: true });
+
+  for (const source of SOURCES) {
+    const names = listBaselines(source.dir);
+
+    for (const name of names) {
+      const id = `${source.subdir}-${name.slice(source.prefix.length, -".png".length)}`;
+      const sourcePath = join(source.dir, name);
+      const relative = join("screenshots", source.subdir, `${id}.png`);
+      const destination = join(VREF_DIR, relative);
+
+      await mkdir(dirname(destination), { recursive: true });
+      await copyFile(sourcePath, destination);
+
+      const entry = byId.get(id);
+      if (!entry) {
+        throw new Error(
+          `no manifest entry for baseline ${sourcePath} (expected id "${id}"). ` +
+            `Add one to ${MANIFEST} with a title, tags and notes, then rerun.`,
+        );
+      }
+
+      const { size } = await stat(destination);
+      const { width, height } = pixelSize(destination);
+
+      // Manifest paths are POSIX by contract, and join() uses the platform
+      // separator, so convert rather than assume. (`split("/").join("/")` — what
+      // this used to do — is a no-op that only looks like normalization.)
+      entry.file = relative.split(sep).join("/");
+      entry.group = source.group;
+      entry.platform = "iOS";
+      entry.device = source.device;
+      entry.viewport = { width, height };
+      entry.sizeBytes = size;
+      entry.capturedAt = lastCommitDate(sourcePath);
+      seen.add(id);
+    }
+  }
+
+  const orphans = manifest.screenshots.filter((entry) => !seen.has(entry.id)).map((entry) => entry.id);
+  if (orphans.length > 0) {
+    throw new Error(
+      `manifest entries have no baseline: ${orphans.join(", ")}. ` +
+        `Remove them from ${MANIFEST}, or re-record with make screenshots-record.`,
+    );
+  }
+
+  manifest.updatedAt = newestCaptureDate(manifest.screenshots);
+  await writeFile(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`);
+  console.log(`synced ${seen.size} baselines into ${VREF_DIR}/screenshots/`);
+}
+
+function listBaselines(dir) {
+  return execFileSync("git", ["ls-files", dir], { encoding: "utf8" })
+    .split("\n")
+    .filter((line) => line.endsWith(".png"))
+    .map((line) => line.slice(dir.length + 1))
+    .sort();
+}
+
+function pixelSize(path) {
+  // sips ships with macOS and this repo is macOS-only; avoids adding an image
+  // dependency just to read two integers.
+  const output = execFileSync("sips", ["-g", "pixelWidth", "-g", "pixelHeight", path], {
+    encoding: "utf8",
+  });
+  const width = Number(/pixelWidth:\s*(\d+)/u.exec(output)?.[1]);
+  const height = Number(/pixelHeight:\s*(\d+)/u.exec(output)?.[1]);
+
+  if (!Number.isInteger(width) || !Number.isInteger(height)) {
+    throw new Error(`could not read pixel dimensions from ${path}`);
+  }
+
+  return { width, height };
+}
+
+/**
+ * When the baseline was last recorded, taken from git rather than the
+ * filesystem: mtime changes on every checkout, which would make the manifest
+ * dirty for no reason.
+ *
+ * Author date (%aI), not committer date (%cI). Rebasing rewrites the committer
+ * date, so a stacked branch being restacked would change every capturedAt and
+ * dirty the manifest for reasons that have nothing to do with the images. Author
+ * date survives rebase and cherry-pick.
+ */
+function lastCommitDate(path) {
+  const output = execFileSync("git", ["log", "-1", "--format=%aI", "--", path], {
+    encoding: "utf8",
+  }).trim();
+
+  return output === "" ? new Date(0).toISOString() : new Date(output).toISOString();
+}
+
+function newestCaptureDate(screenshots) {
+  const newest = screenshots
+    .map((entry) => Date.parse(entry.capturedAt))
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => b - a)[0];
+
+  return new Date(newest ?? 0).toISOString();
+}
+
+await main();
