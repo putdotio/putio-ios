@@ -76,6 +76,13 @@ enum BrandFont {
         return font.familyName == monoFamily ? font : nil
     }
 
+    // Whether a font is already one of the licensed faces. Lets the appearance
+    // hooks stay idempotent: they run more than once per label, and re-deriving
+    // size and weight from an already-branded descriptor loses the weight trait.
+    static func isBrandFace(_ font: UIFont) -> Bool {
+        font.familyName == sansFamily || font.familyName == monoFamily
+    }
+
     private static func brandFont(family: String, size: CGFloat, weight: UIFont.Weight) -> UIFont? {
         // Accessors must not depend on AppDelegate call order; registration
         // is attempted at most once, so this is a cheap guard thereafter.

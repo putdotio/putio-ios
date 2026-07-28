@@ -20,6 +20,7 @@
 		48A3319779B5E73F59983FC9 /* FilesViewController+Selection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46A8E3AED9C75CAB1221EDFD /* FilesViewController+Selection.swift */; };
 		49366D1A1B213117EB390D4E /* FilesViewController+Playback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67587EFA32AA04C84BD5E5F5 /* FilesViewController+Playback.swift */; };
 		4B6D8F0A2C3E5A7C9E1B4D6F /* BrandFontTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C7E9B1D3F4A6C8E0B2D5F7A /* BrandFontTests.swift */; };
+		7B88F60D63D668CD54205A98 /* BrandTypographyCoverageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5928D8EE387188412DBE6925 /* BrandTypographyCoverageTests.swift */; };
 		4E8F2B6D0C3E7F1A5C9E3B7F /* ScreenshotWalkUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D7E2A6C0B4D7F1A5C9E3B6E /* ScreenshotWalkUITests.swift */; };
 		4F3388A6DA2720DACF20446B /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EEE14DC43F881736BEDFD030 /* Foundation.framework */; };
 		51D9E494DFC76AF375536663 /* HistoryViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2B1049C9B1A0CA9C66F6CD2 /* HistoryViewModelTests.swift */; };
@@ -191,6 +192,7 @@
 		54B45BFE24B989083E180F82 /* InternalFailurePresenter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InternalFailurePresenter.swift; sourceTree = "<group>"; };
 		5A452CE0D5CE4073B61D5F4C /* UIStoryboard+TypedInstantiation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "UIStoryboard+TypedInstantiation.swift"; sourceTree = "<group>"; };
 		5C7E9B1D3F4A6C8E0B2D5F7A /* BrandFontTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrandFontTests.swift; sourceTree = "<group>"; };
+		5928D8EE387188412DBE6925 /* BrandTypographyCoverageTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrandTypographyCoverageTests.swift; sourceTree = "<group>"; };
 		6152DB33E9792260A66491D4 /* PlaybackSmokeUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlaybackSmokeUITests.swift; sourceTree = "<group>"; };
 		651F74BAFDB08F5826583B32 /* PutioUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PutioUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		67587EFA32AA04C84BD5E5F5 /* FilesViewController+Playback.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "FilesViewController+Playback.swift"; sourceTree = "<group>"; };
@@ -368,6 +370,7 @@
 				E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */,
 				293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */,
 				5C7E9B1D3F4A6C8E0B2D5F7A /* BrandFontTests.swift */,
+				5928D8EE387188412DBE6925 /* BrandTypographyCoverageTests.swift */,
 				3B4C5D6E7F8A9B0C1D2E3F4A /* ComponentSnapshotTests.swift */,
 				465A7CDCD9D300C8BA947448 /* TypeScaleSpecimen.swift */,
 				E00971069F13C4F9912DC53A /* TypeScaleScalingTests.swift */,
@@ -1140,6 +1143,7 @@
 				F5F55CEFFA917A837390DE86 /* PutioRealmTests.swift in Sources */,
 				20CA6ABE176EC66E70EC090E /* UserConfigTests.swift in Sources */,
 				4B6D8F0A2C3E5A7C9E1B4D6F /* BrandFontTests.swift in Sources */,
+				7B88F60D63D668CD54205A98 /* BrandTypographyCoverageTests.swift in Sources */,
 				2A3B4C5D6E7F8A9B0C1D2E3F /* ComponentSnapshotTests.swift in Sources */,
 				103DAFDBBC962819703ED902 /* TypeScaleSpecimen.swift in Sources */,
 				41AB3FE13EB3BC9EF0CAF188 /* TypeScaleScalingTests.swift in Sources */,
