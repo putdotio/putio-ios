@@ -63,3 +63,8 @@ node_modules/
 # `make vref`, so they would only ever drift.
 .vref/screenshots/
 .vref/index.html
+
+# Raw App Store screenshots assembled from the committed baselines by
+# `make store-screenshots`. Intermediate: #51 frames these into the finished
+# marketing images, and those get committed.
+dist/

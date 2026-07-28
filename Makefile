@@ -1,4 +1,4 @@
-.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify type-scale-sync type-scale-verify fonts-setup fonts-check verify verify-fast e2e-simulator screenshots-record print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean vref vref-validate vref-serve beta release
+.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify type-scale-sync type-scale-verify fonts-setup fonts-check verify verify-fast e2e-simulator screenshots-record print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean vref vref-validate vref-serve beta release store-screenshots store-screenshots-check
 
 # Result bundle paths shared by verify / e2e-simulator / screenshots-record.
 VERIFY_RESULT_BUNDLE := build/verify.xcresult
@@ -154,3 +154,9 @@ vref-validate:
 
 vref-serve:
 	node scripts/vref.mjs serve
+
+store-screenshots:
+	node scripts/store-screenshots.mjs
+
+store-screenshots-check:
+	node scripts/store-screenshots.mjs --check
