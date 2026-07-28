@@ -24,6 +24,44 @@ else
   fi
 fi
 
+expected_node="$(cat .node-version)"
+actual_node="$(node -e 'process.stdout.write(process.versions.node)' 2>/dev/null || echo "missing")"
+
+if [ "$actual_node" = "$expected_node" ]; then
+  echo "doctor: node $actual_node matches .node-version"
+else
+  status=1
+  echo "doctor: active node is $actual_node but .node-version wants $expected_node" >&2
+  mise_node_bin="$HOME/.local/share/mise/installs/node/$expected_node/bin"
+  if [ -d "$mise_node_bin" ]; then
+    echo "doctor: fix: export PATH=\"$mise_node_bin:\$PATH\"" >&2
+  else
+    echo "doctor: fix: install node $expected_node (e.g. mise install node@$expected_node) and put it first in PATH" >&2
+  fi
+fi
+
+# pnpm ships via corepack, which is bundled with node. Pin the version the same
+# way Ruby and Node are pinned: corepack normally honours packageManager on its
+# own, but a standalone pnpm on PATH silently wins and can resolve dependencies
+# differently from the lockfile.
+expected_pnpm="$(sed -n 's/.*"packageManager"[[:space:]]*:[[:space:]]*"pnpm@\([^"]*\)".*/\1/p' package.json)"
+actual_pnpm="$(pnpm --version 2>/dev/null || echo "missing")"
+
+if [ -z "$expected_pnpm" ]; then
+  status=1
+  echo "doctor: package.json has no \"packageManager\": \"pnpm@<version>\" entry" >&2
+elif [ "$actual_pnpm" = "$expected_pnpm" ]; then
+  echo "doctor: pnpm $actual_pnpm matches packageManager"
+elif [ "$actual_pnpm" = "missing" ]; then
+  status=1
+  echo "doctor: pnpm is not on PATH but package.json wants pnpm@$expected_pnpm" >&2
+  echo "doctor: fix: corepack enable" >&2
+else
+  status=1
+  echo "doctor: active pnpm is $actual_pnpm but package.json pins pnpm@$expected_pnpm" >&2
+  echo "doctor: fix: corepack enable && corepack prepare pnpm@$expected_pnpm --activate" >&2
+fi
+
 developer_dir="${DEVELOPER_DIR:-$(xcode-select -p 2>/dev/null || echo "missing")}"
 
 developer_dir_ok=0

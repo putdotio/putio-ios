@@ -14,6 +14,7 @@ bootstrap: doctor
 	bundle config set --local path vendor/bundle
 	bundle install
 	bundle exec pod install
+	pnpm install --frozen-lockfile
 	git config core.hooksPath .githooks
 
 doctor:

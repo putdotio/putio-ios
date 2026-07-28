@@ -54,3 +54,6 @@ fastlane/.env.1password.local
 
 ## Licensed brand fonts; never committed
 Putio/Fonts/
+
+## Node tooling; reinstalled by `make bootstrap`
+node_modules/
