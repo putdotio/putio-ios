@@ -36,30 +36,36 @@ class BrandFontSync
 
   def check
     stale = @files.reject { |name, entry| current?(name, entry.fetch("sha256")) }.keys
+    mismatched = stale.select { |name| File.exist?(font_path(name)) }
+    # Checked even when every manifest font is current: the build bundles
+    # whatever sits in this directory, so an unlisted face would otherwise reach
+    # a distributed build unnoticed.
+    unlisted = unlisted_font_files
+
+    unless mismatched.empty? && unlisted.empty?
+      details = []
+      details << "  mismatched: #{mismatched.join(', ')}" unless mismatched.empty?
+      details << "  unlisted: #{unlisted.join(', ')}" unless unlisted.empty?
+
+      abort [
+        "sync-brand-fonts: #{@directory} contradicts Config/BrandFonts.json.",
+        *details,
+        "  fix: rm -rf #{@directory} && make fonts-setup",
+      ].join("\n")
+    end
 
     if stale.empty?
       puts "sync-brand-fonts: #{@files.size} brand fonts present and matching the manifest."
       return
     end
 
+    # Absent fonts are a normal state: the app falls back to system faces, and
+    # only the snapshot suites require them.
     present = @files.keys - stale
-    unlisted = unlisted_font_files
-
-    # Absent fonts are a normal state: the app falls back to system faces. A
-    # font that is present but does not match the manifest is not — it means a
-    # stale or hand-placed file, which would move every snapshot baseline.
-    if present.empty? && unlisted.empty?
+    if present.empty?
       puts "sync-brand-fonts: no brand fonts present; run `make fonts-setup` to download them."
       return
     end
-
-    mismatched = stale.select { |name| File.exist?(font_path(name)) }
-    abort <<~MESSAGE unless mismatched.empty? && unlisted.empty?
-      sync-brand-fonts: #{@directory} contradicts Config/BrandFonts.json.
-      #{"mismatched: #{mismatched.join(', ')}" unless mismatched.empty?}
-      #{"unlisted: #{unlisted.join(', ')}" unless unlisted.empty?}
-      fix: rm -rf #{@directory} && make fonts-setup
-    MESSAGE
 
     puts "sync-brand-fonts: #{present.size} of #{@files.size} brand fonts present; run `make fonts-setup` for the rest."
   end
