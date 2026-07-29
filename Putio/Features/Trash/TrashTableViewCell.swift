@@ -4,6 +4,9 @@ import PutioSDK
 class TrashTableViewCell: UITableViewCell {
     func configure(with trashFile: PutioTrashFile) {
         imageView?.contentMode = .scaleAspectFit
+        // Built from code, so awakeFromNib never runs and textLabel /
+        // detailTextLabel would keep the system face.
+        configureGlobalAppearance()
         imageView?.tintColor = UIColor.Putio.Neutral.textSecondary
 
         switch trashFile.type {

@@ -16,25 +16,47 @@ extension UILabel {
 
     // Also called for labels UIKit creates for us (e.g. a UIButton's
     // titleLabel), which never receive awakeFromNib.
-    func applyBrandFontIfAvailable() {
+    //
+    // `weight` overrides what the label's own descriptor reports. A UIButton's
+    // title label carries a plain system font, whose descriptor says regular —
+    // so deriving the weight from it puts button titles in GT America Regular,
+    // which is lighter than a button label should be. Callers that know the
+    // intended weight pass it; everything else keeps deriving.
+    func applyBrandFontIfAvailable(weight: UIFont.Weight? = nil) {
+        // Idempotent: configureGlobalAppearance calls this from draw(_:), and a
+        // second pass would re-derive the weight from a descriptor that no
+        // longer carries the trait — quietly demoting a bold label to regular.
+        guard !BrandFont.isBrandFace(font) else { return }
+
         let descriptor = font.fontDescriptor
 
-        if let styleName = descriptor.object(forKey: .textStyle) as? String {
-            // Map the label's Apple text style onto the nearest design-system
-            // role and adopt that role's font (size + weight + Dynamic Type).
-            // An unrecognized style is left untouched rather than collapsed.
-            guard let role = Self.brandRole(for: UIFont.TextStyle(rawValue: styleName)),
-                  let brandFont = BrandTypography.fontIfAvailable(role) else { return }
+        // Map the label's Dynamic Type style onto the nearest design-system role
+        // and adopt that role's font (size + weight + Dynamic Type). Skipped
+        // when the caller named a weight, since a role carries its own.
+        if weight == nil,
+           let styleName = descriptor.object(forKey: .textStyle) as? String,
+           let role = Self.brandRole(for: UIFont.TextStyle(rawValue: styleName)),
+           let brandFont = BrandTypography.fontIfAvailable(role) {
             font = brandFont
             adjustsFontForContentSizeCategory = true
-        } else {
-            // Fixed-size labels (a UIButton's default title label, or a
-            // fixed-point storyboard label) carry no text style, so match
-            // their current point size and weight on the brand face.
-            let weight = Self.brandWeight(from: descriptor)
-            guard let brandFont = BrandFont.sansIfAvailable(size: font.pointSize, weight: weight) else { return }
-            font = brandFont
+            return
         }
+
+        // Everything else: no text style at all (a fixed-point storyboard
+        // label), or a token that is not a Dynamic Type style. UIKit stamps
+        // plain system fonts with CoreText usage tokens like
+        // `CTFontRegularUsage`, and a UIButton's title label carries exactly
+        // that — which is how buttons, and every built-in-style table cell,
+        // kept the system face through three typography releases while this
+        // helper reported success.
+        //
+        // Matching the current point size and weight on the brand face gives up
+        // Dynamic Type for these labels, which is the smaller loss: the
+        // alternative is shipping the system face next to GT America on the
+        // same screen.
+        let resolved = weight ?? Self.brandWeight(from: descriptor)
+        guard let brandFont = BrandFont.sansIfAvailable(size: font.pointSize, weight: resolved) else { return }
+        font = brandFont
     }
 
     // Applies a design-system role's *full* styling to the label's current
