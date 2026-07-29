@@ -44,7 +44,10 @@ while [ $# -gt 0 ]; do
             shift 2
             ;;
         -h|--help)
-            sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+            # Print the comment header and stop at the first line that is not
+            # one, rather than a fixed range that trimming the header turns into
+            # a dump of the script's shell setup.
+            awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"
             exit 0
             ;;
         *)
@@ -57,6 +60,17 @@ done
 [ -n "$scheme" ] || fatal "--scheme is required"
 [ -n "$bundle" ] || fatal "--result-bundle is required"
 [ -n "$label" ] || fatal "--label is required"
+
+# The Makefile hardcoded this path; a flag can be mistyped, and the run starts by
+# rm -rf'ing whatever it names. Only accept a relative .xcresult path.
+case "$bundle" in
+    *.xcresult) ;;
+    *) fatal "--result-bundle must name a .xcresult path; got '$bundle'" ;;
+esac
+case "$bundle" in
+    /*|~*) fatal "--result-bundle must be relative to the repo; got '$bundle'" ;;
+    *..*) fatal "--result-bundle must not traverse upward; got '$bundle'" ;;
+esac
 
 ephemeral_id=""
 if [ -n "${PUTIO_SIMULATOR_ID:-}" ]; then

@@ -2,9 +2,11 @@ import CoreText
 import UIKit
 
 // Licensed brand fonts are optional: fetched at dev time via
-// `mise run fonts-setup`, bundled by a build phase (never in Verify builds so
-// snapshot baselines stay on system fonts), and registered here at launch.
-// Every accessor falls back to the system font when the face is absent.
+// `mise run fonts-setup`, bundled by a build phase, and registered here at
+// launch. Every accessor falls back to the system font when the face is absent.
+// Verify builds do bundle them (`PUTIO_BUNDLE_BRAND_FONTS = YES` in
+// Config/Verify.xcconfig), so snapshot baselines are recorded and compared with
+// real brand typography.
 enum BrandFont {
     private static let sansFamily = "GT America"
     // iOS registers the variable OTF under its internal family name; the web
