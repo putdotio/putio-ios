@@ -89,6 +89,13 @@ async function main() {
   const fontFaces = await brandFontFaces();
   assertBrowserInstalled();
 
+  if (!existsSync(TEMPLATE)) {
+    fail(
+      `the render template is missing at ${TEMPLATE}.`,
+      "Restore scripts/store-images/template.html — without it every render fails at page.goto.",
+    );
+  }
+
   if (checkOnly) {
     for (const item of plan) {
       console.log(`${item.deviceId} slot ${item.slot}: "${item.caption}" over ${item.rawName}`);
@@ -323,7 +330,40 @@ async function render(browser, item, css, fontFaces, outputDir) {
 
   // Fonts and the embedded screenshot must be decoded before capture, or the
   // first image renders in a fallback face.
-  await page.evaluate(() => document.fonts.ready);
+  //
+  // `fonts.ready` settling is not the same as the faces having loaded: it
+  // resolves once every attempt has finished, failures included, so a corrupt
+  // OTF would paint the caption in the template's system-ui fallback and still
+  // report success. Ask the font set what actually happened.
+  const fontProblem = await page.evaluate(async (weight) => {
+    await document.fonts.ready;
+    const faces = [...document.fonts].filter((face) => face.family === "GT America");
+    const errored = faces.filter((face) => face.status === "error").map((face) => face.weight);
+
+    if (errored.length > 0) {
+      return `Chromium could not parse these GT America faces: ${errored.join(", ")}`;
+    }
+
+    // Unused weights stay "unloaded" and that is fine — only the caption weight
+    // has to be live, because it is the only one the template paints with.
+    const caption = faces.find((face) => Number(face.weight) === weight);
+    if (!caption) {
+      return `no GT America face was declared at weight ${weight}`;
+    }
+    if (caption.status !== "loaded") {
+      return `the GT America ${weight} face is "${caption.status}" after fonts.ready`;
+    }
+
+    return null;
+  }, CAPTION_WEIGHT);
+
+  if (fontProblem) {
+    // Thrown, not fail()ed, for the same reason as the caption check below.
+    throw new RenderError(
+      `${item.deviceId} slot ${item.slot}: ${fontProblem}.`,
+      "Run make fonts-setup to reinstall the licensed faces; make fonts-check verifies them against Config/BrandFonts.json.",
+    );
+  }
   // Resolving only on `load` means a decode failure never settles and the run
   // hangs rather than failing. Reject on error, and cap the wait.
   await page.evaluate(
