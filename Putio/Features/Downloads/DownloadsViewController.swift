@@ -35,6 +35,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
     }
 
     func configureAppearance() {
+        tableView.accessibilityIdentifier = "putio-downloads-table"
         tableView.backgroundColor = UIColor.Putio.Surface.appBg
         tableView.contentInsetAdjustmentBehavior = .automatic
         tableView.tableHeaderView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNormalMagnitude))

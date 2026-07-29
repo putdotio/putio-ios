@@ -2,7 +2,7 @@
   "version": 1,
   "title": "put.io iOS visual reference",
   "description": "Committed snapshot baselines for the put.io iOS app. Dark mode only — the app is dark-only. Screens come from the mocked e2e walk on a pinned iPhone 17 Pro Max; components render directly in unit tests.",
-  "updatedAt": "2026-07-28T15:25:09.000Z",
+  "updatedAt": "2026-07-28T20:00:34.000Z",
   "screenshots": [
     {
       "id": "screens-files",
@@ -78,13 +78,14 @@
         "height": 2868
       },
       "file": "screenshots/screens/screens-downloads.png",
-      "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 119952,
+      "capturedAt": "2026-07-28T20:00:34.000Z",
+      "sizeBytes": 223158,
       "tags": [
         "downloads"
       ],
       "notes": [
-        "Local downloads list."
+        "Local downloads list, seeded by PutioE2EDownloadFixtures — downloads are Realm state with no API route, so the mocked walk cannot reach them any other way.",
+        "Covers the completed, in-progress, and audio variants of the cell in one capture."
       ]
     },
     {
@@ -148,6 +149,28 @@
       ],
       "notes": [
         "Deleted files awaiting restore or permanent removal."
+      ]
+    },
+    {
+      "id": "screens-video-player",
+      "title": "Video player",
+      "group": "Screens",
+      "platform": "iOS",
+      "device": "iPhone 17 Pro Max",
+      "viewport": {
+        "width": 1320,
+        "height": 2868
+      },
+      "file": "screenshots/screens/screens-video-player.png",
+      "capturedAt": "2026-07-28T20:00:34.000Z",
+      "sizeBytes": 1712033,
+      "tags": [
+        "player",
+        "video"
+      ],
+      "notes": [
+        "Playing a bundled Big Buck Bunny frame from Putio/E2EMedia, so the capture is hermetic and the frame is identical on every run.",
+        "Captured for the App Store set as well as for regression; Config/StoreScreenshots.json selects it in #60."
       ]
     },
     {
