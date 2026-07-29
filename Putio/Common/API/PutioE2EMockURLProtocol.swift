@@ -237,20 +237,27 @@ private enum PutioE2EMockAPI {
         "sort_by": "NAME_ASC"
       },
       "files": [
-        \(folder(id: 101, name: "Downloads", size: 3_221_225_472)),
-        \(folder(id: 102, name: "Movies", size: 8_589_934_592)),
-        \(folder(id: 103, name: "Music", size: 1_073_741_824)),
-        \(folder(id: 104, name: "Pictures", size: 268_435_456)),
-        \(folder(id: 105, name: "Series", size: 12_884_901_888)),
-        \(folder(id: 106, name: "Items shared with you", size: 4_294_967_296)),
-        \(videoFile),
-        \(audioFile),
-        \(libraryFiles)
+        \(rootFiles.joined(separator: ",\n"))
       ],
       "cursor": null,
-      "total": \(6 + 2 + libraryTitles.count)
+      "total": \(rootFiles.count)
     }
     """
+
+    // One array so `total` is counted rather than tallied by hand. It was
+    // `6 + 2 + libraryTitles.count`, which would have gone quietly wrong the
+    // first time someone added a folder.
+    private static let rootFiles: [String] =
+        [
+            folder(id: 101, name: "Downloads", size: 3_221_225_472),
+            folder(id: 102, name: "Movies", size: 8_589_934_592),
+            folder(id: 103, name: "Music", size: 1_073_741_824),
+            folder(id: 104, name: "Pictures", size: 268_435_456),
+            folder(id: 105, name: "Series", size: 12_884_901_888),
+            folder(id: 106, name: "Items shared with you", size: 4_294_967_296),
+            videoFile,
+            audioFile
+        ] + libraryFiles
 
     // Rows past the eight the walk actually interacts with. They exist so the
     // list reaches the bottom of a 13-inch iPad, which is what the App Store set
@@ -279,7 +286,7 @@ private enum PutioE2EMockAPI {
         "Wing It!"
     ]
 
-    private static let libraryFiles = libraryTitles
+    private static let libraryFiles: [String] = libraryTitles
         .enumerated()
         .map { index, title in
             // Sizes vary so the subtitle column does not read as a repeated
@@ -287,7 +294,6 @@ private enum PutioE2EMockAPI {
             // runs — a random size would move pixels in a compared baseline.
             libraryFile(id: 200 + index, name: "\(title).mp4", size: 314_572_800 + index * 41_943_040)
         }
-        .joined(separator: ",\n")
 
     private static func libraryFile(id: Int, name: String, size: Int) -> String {
       """
