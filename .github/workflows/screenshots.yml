@@ -28,10 +28,15 @@ jobs:
     name: Upload App Store screenshots
     runs-on: macos-latest
     environment: release
-    # Must exceed SCREENSHOT_PROCESSING_TIMEOUT in the Fastfile (30 min) plus
-    # setup. overwrite_screenshots deletes before uploading, so fastlane has to
-    # be allowed to fail on its own terms rather than being killed mid-replace.
-    timeout-minutes: 45
+    # Must cover deliver's *whole* retry budget, not one attempt:
+    # Deliver::UploadScreenshots retries five times and gives each attempt the
+    # full SCREENSHOT_PROCESSING_TIMEOUT, so the worst case is 5 x 900s = 75
+    # minutes, plus checkout and bundle install.
+    #
+    # overwrite_screenshots deletes the existing set before uploading, so a job
+    # killed mid-replacement leaves the live listing blank. Fastlane has to be
+    # allowed to fail on its own terms rather than be killed part way through.
+    timeout-minutes: 90
     env:
       FASTLANE_SKIP_UPDATE_CHECK: '1'
       FASTLANE_HIDE_PLUGINS_TABLE: '1'

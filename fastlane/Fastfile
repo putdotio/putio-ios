@@ -9,10 +9,17 @@ opt_out_usage
 # Apple caps each locale/display-type screenshot set at 10.
 APP_STORE_SCREENSHOT_LIMIT = 10
 
-# Deliver's own wait for App Store Connect to process the upload. Deliberately
-# well under the workflow's job timeout: overwrite_screenshots deletes the
-# existing set first, so a hard kill part way through leaves a blank listing.
-SCREENSHOT_PROCESSING_TIMEOUT = 1800
+# Deliver's own wait for App Store Connect to process the upload — per attempt,
+# not per run. Deliver::UploadScreenshots#upload_screenshots recurses with
+# `tries: 5` and hands each attempt the full timeout, so the real worst case is
+# five times this number.
+#
+# That matters because overwrite_screenshots deletes the existing set before
+# uploading: a job killed part way through leaves the live listing blank. The
+# workflow's timeout-minutes must therefore cover 5 x this plus setup, and the
+# two are documented against each other. At 900s that is 75 minutes of upload
+# against a 90 minute job.
+SCREENSHOT_PROCESSING_TIMEOUT = 900
 
 # The version string App Store Connect currently has open for editing, or nil.
 # Screenshots always attach to this version regardless of what is passed to
