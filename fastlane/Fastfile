@@ -446,7 +446,7 @@ platform :ios do
   # different review consequences, and coupling them means every release either
   # silently republishes the listing or silently does not.
   #
-  # The images come from `make store-images` and are reviewed as an image diff
+  # The images come from `mise run store-images` and are reviewed as an image diff
   # before they land, so by the time this runs the artwork has already been seen
   # by a human. This step only moves it.
   lane :screenshots do |options|
@@ -456,7 +456,7 @@ platform :ios do
     screenshots_path = File.expand_path("screenshots", __dir__)
 
     UI.user_error!(
-      "No screenshots at fastlane/screenshots. Run `make store-images` and commit the result."
+      "No screenshots at fastlane/screenshots. Run `mise run store-images` and commit the result."
     ) unless Dir.exist?(screenshots_path)
 
     locales = Dir.children(screenshots_path).select { |entry| File.directory?(File.join(screenshots_path, entry)) }
@@ -502,7 +502,7 @@ platform :ios do
 
     unless errors.empty?
       errors.each { |error| UI.error("#{error.type}: #{error.path} — #{error.debug_info}") }
-      UI.user_error!("#{errors.length} screenshot(s) would be rejected by App Store Connect. Re-run `make store-images`.")
+      UI.user_error!("#{errors.length} screenshot(s) would be rejected by App Store Connect. Re-run `mise run store-images`.")
     end
 
     # Apple caps a locale/display-type set at 10, and deliver silently skips the

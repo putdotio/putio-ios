@@ -59,16 +59,16 @@ mise.local.toml
 ## Licensed brand fonts; never committed
 Putio/Fonts/
 
-## Node tooling; reinstalled by `make bootstrap`
+## Node tooling; reinstalled by `mise run bootstrap`
 node_modules/
 
 # Visual reference gallery: the manifest is committed, but the screenshot copies
 # and the rendered gallery are regenerated from the committed baselines by
-# `make vref`, so they would only ever drift.
+# `mise run vref`, so they would only ever drift.
 .vref/screenshots/
 .vref/index.html
 
 # Raw App Store screenshots assembled from the committed baselines by
-# `make store-screenshots`. Intermediate: #51 frames these into the finished
+# `mise run store-screenshots`. Intermediate: #51 frames these into the finished
 # marketing images, and those get committed.
 dist/

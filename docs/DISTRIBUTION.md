@@ -4,7 +4,7 @@ Distribution guidance for `putio-ios`.
 
 ## Workflows
 
-- [CI](../.github/workflows/ci.yml) verifies pushes and pull requests with `make bootstrap-ci` and `make verify`. It skips docs-only changes.
+- [CI](../.github/workflows/ci.yml) verifies pushes and pull requests with `mise run bootstrap-ci` and `mise run verify`. It skips docs-only changes.
 - [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. It verifies first, prepares metadata, loads release secrets, then splits delivery into archive, upload, and distribute steps.
 - [Release](../.github/workflows/release.yml) runs on published GitHub releases and builds the release artifact from the release tag. Manual dispatch builds from `main` for the supplied version.
 - [Screenshots](../.github/workflows/screenshots.yml) is a dispatch-only lane that uploads the committed App Store images from `fastlane/screenshots/` and nothing else. It defaults to a dry run. It builds no app: no Xcode, no CocoaPods, no simulator.
@@ -14,7 +14,7 @@ Distribution guidance for `putio-ios`.
 
 ## CI Bootstrap
 
-- `make bootstrap-ci`
+- `mise run bootstrap-ci`
   - reuses an existing local `Pods` sandbox only when `Pods/Manifest.lock` matches `Podfile.lock`
   - falls back to `pod install` when the cache is stale
 - GitHub Actions caches CocoaPods download artifacts only; signed beta/release jobs do not restore a generated `Pods` tree from Actions cache
@@ -23,7 +23,7 @@ Distribution guidance for `putio-ios`.
 ## Fastlane Contract
 
 - `fastlane beta` and `fastlane release` are CI-only entrypoints
-- `make beta` and `make release` intentionally fail locally
+- `mise run beta` and `mise run release` intentionally fail locally
 - Release secret validation and key-file materialization live in [Load iOS release secrets](../.github/actions/load-ios-release-secrets/action.yml)
 - uploaded beta builds use UTC timestamp build numbers in `YYMMDDHHMM` format
 - release builds use UTC timestamp build numbers in `YYMMDDHHMM` format and upload the IPA produced from the checked-out source

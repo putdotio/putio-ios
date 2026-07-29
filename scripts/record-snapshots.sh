@@ -6,12 +6,12 @@
 #   components  scheme Putio      target PutioTests    fixed-size view snapshots
 #   screens     scheme PutioE2E   target PutioUITests  full-screen walk captures
 #
-# Prefer the Make targets: they supply the expected baseline counts, which an
+# Prefer the mise tasks: they supply the expected baseline counts, which an
 # unscoped run needs and this script deliberately does not hardcode.
 #
-#   make screenshots-record
-#   make screenshots-record-screens
-#   make screenshots-record ONLY=PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk
+#   mise run screenshots-record
+#   mise run screenshots-record-screens
+#   mise run screenshots-record -- --only PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk
 #
 # Direct, if you are supplying the counts yourself:
 #   scripts/record-snapshots.sh --expect-components 11 --expect-screens 13
@@ -34,10 +34,10 @@ cd "$ROOT"
 WORKSPACE=Putio.xcworkspace
 XCCONFIG=Config/Verify.xcconfig
 
-# Exact baseline counts a full tier run must produce, supplied by the Makefile
-# so the tripwire numbers stay next to the rest of the build config. An
-# unexpected count means a walk was skipped, crashed, or silently dropped
-# baselines. Not checked for a scoped run, which writes a subset by definition.
+# Exact baseline counts a full tier run must produce, supplied by mise.toml so
+# the tripwire numbers stay next to the rest of the build config. An unexpected
+# count means a walk was skipped, crashed, or silently dropped baselines. Not
+# checked for a scoped run, which writes a subset by definition.
 expected_components=""
 expected_screens=""
 
@@ -51,9 +51,8 @@ tier_explicit=""
 # Whether the filter selects less than a whole tier. A bare target name runs the
 # entire tier, so the baseline tripwires still apply to it.
 scoped=""
-# Read from the environment rather than interpolated into a shell command by the
-# Makefile: a filter containing a space, a glob, or a quote would otherwise be
-# word-split or executed.
+# ONLY is a leftover from the Makefile, which would have word-split a filter
+# passed on the command line. mise passes --only through quoted, so prefer that.
 only="${ONLY:-}"
 
 while [ $# -gt 0 ]; do
@@ -109,7 +108,7 @@ if [ -n "$only" ]; then
 
     # Say so rather than silently preferring one. ONLY arrives from the
     # environment, so a value left over from an earlier scoped run would
-    # otherwise make `make screenshots-record-screens` quietly record components.
+    # otherwise make `mise run screenshots-record-screens` quietly record components.
     if [ -n "$tier_explicit" ] && [ "$tiers" != "$derived" ]; then
         fatal "--tier $tiers and --only $only disagree: that filter belongs to the $derived tier."
     fi
@@ -137,8 +136,8 @@ fi
 if [ -z "$scoped" ]; then
     for tier in $tiers; do
         case "$tier" in
-            components) [ -n "$expected_components" ] || fatal "an unscoped components run needs --expect-components (make screenshots-record supplies it)." ;;
-            screens) [ -n "$expected_screens" ] || fatal "an unscoped screens run needs --expect-screens (make screenshots-record supplies it)." ;;
+            components) [ -n "$expected_components" ] || fatal "an unscoped components run needs --expect-components (mise run screenshots-record supplies it)." ;;
+            screens) [ -n "$expected_screens" ] || fatal "an unscoped screens run needs --expect-screens (mise run screenshots-record supplies it)." ;;
         esac
     done
 fi
@@ -147,7 +146,7 @@ fi
 # run never reaches BrandFontTests — so nothing else would stop it writing a set
 # of system-font captures that then become the committed reference.
 ruby scripts/sync-brand-fonts.rb --check >/dev/null 2>&1 \
-    || fatal "brand fonts are missing or do not match Config/BrandFonts.json. Run make fonts-setup before recording."
+    || fatal "brand fonts are missing or do not match Config/BrandFonts.json. Run mise run fonts-setup before recording."
 
 # One simulator for every tier in this run. The ephemeral script pins the status
 # bar and locale so captures match between a maintainer's Mac and CI; an
@@ -240,13 +239,13 @@ run_tier() {
         if [ -n "$stale" ]; then
             echo "record-snapshots: $tier left baselines this run did not write:" >&2
             echo "$stale" >&2
-            fatal "A snapshot test was renamed or deleted. Remove the orphans and update the EXPECTED_*_BASELINES constants in the Makefile."
+            fatal "A snapshot test was renamed or deleted. Remove the orphans and update the expected counts in mise.toml."
         fi
 
         count="$(find "$snapshots" -name '*.png' 2>/dev/null | wc -l | tr -d ' ')"
         if [ "$count" -ne "$expected" ]; then
             echo "record-snapshots: $tier wrote $count baselines, expected $expected." >&2
-            fatal "If you intentionally added or removed snapshot tests, update the EXPECTED_*_BASELINES constants in the Makefile."
+            fatal "If you intentionally added or removed snapshot tests, update the expected counts in mise.toml."
         fi
         echo "== $tier: recorded $count baselines under $snapshots/"
     else

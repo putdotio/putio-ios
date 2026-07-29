@@ -2,7 +2,7 @@
 
 # Reads `xcresulttool get test-results tests` JSON on stdin and exits nonzero
 # if the run contains any failure other than the intentional record-mode
-# snapshot assertions, so `make screenshots-record` cannot report success
+# snapshot assertions, so `mise run screenshots-record` cannot report success
 # after a crash or partial walk.
 #
 # Fails closed: a payload with no test nodes (schema drift, empty bundle) or

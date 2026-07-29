@@ -105,7 +105,7 @@ END {
 }
 ')" || {
   echo "No available \"$device_name\" simulator on iOS $minimum_os or newer." >&2
-  echo "Baselines are pinned to this device: create it in Xcode, or run make download-ios-platform." >&2
+  echo "Baselines are pinned to this device: create it in Xcode, or run 'mise run download-ios-platform'." >&2
   echo "Pass --device-name only when you do not intend to record baselines." >&2
   exit 1
 }

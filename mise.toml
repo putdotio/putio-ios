@@ -1,20 +1,175 @@
-# Single source of truth for the toolchain versions this repo pins.
+# Toolchain pins and task runner. `mise tasks` lists every task below.
 #
-# `ruby/setup-ruby` reads this file directly, so CI and a local checkout agree
-# without a second pin to keep in step. `make doctor` reads the [tools] block
-# below to report drift when the active Ruby or Node is not the pinned one.
+# No [env] and no [vars]: mise demands `mise trust` before reading a config with
+# either, and a trust prompt before `mise run verify` works on a fresh clone is
+# not worth the two literals it would save.
 #
-# pnpm is deliberately absent. It is pinned by "packageManager" in package.json
-# and installed by corepack, which ships with Node — pinning it here as well
-# would create two versions that have to be bumped together.
-#
-# Note that `mise install` builds Ruby from source (mise has no prebuilt Ruby
-# for macOS yet), so CI installs Ruby through `ruby/setup-ruby`, which serves a
-# prebuilt one, and only reads the pin from here.
-#
-# Keep [tools] first. `ruby/setup-ruby` matches the first `ruby = "…"` line in
-# this file without looking at which table it sits in, so a later table
-# declaring one would quietly become the version CI builds against.
+# Keep [tools] first — `ruby/setup-ruby` reads the first `ruby = "…"` line in
+# this file without caring which table it is in.
 [tools]
 ruby = "3.2.4"
+# CI installs Ruby via ruby/setup-ruby instead: mise would compile it from
+# source on macOS. mise owns the pin, setup-ruby owns the install.
 node = "24.18.0"
+
+[tasks.doctor]
+description = "Check Ruby, Node, pnpm and Xcode against this repo's pins"
+run = "./scripts/doctor.sh"
+
+[tasks.bootstrap]
+description = "Install every dependency and the pre-push hook"
+depends = ["doctor"]
+run = [
+    "bundle config set --local path vendor/bundle",
+    "bundle install",
+    "bundle exec pod install",
+    "pnpm install --frozen-lockfile",
+    "git config core.hooksPath .githooks",
+]
+
+[tasks.bootstrap-ci]
+description = "Install Ruby gems and Pods only (CI)"
+run = "./scripts/bootstrap-ci.sh"
+
+[tasks.icons-sync]
+description = "Regenerate the pinned Phosphor icon assets"
+run = "ruby scripts/sync-phosphor-icons.rb"
+
+[tasks.icons-verify]
+description = "Check the Phosphor icon assets are in sync"
+run = "ruby scripts/sync-phosphor-icons.rb --check"
+
+[tasks.tokens-sync]
+description = "Regenerate the design tokens from Config/DesignTokens.json"
+run = "ruby scripts/sync-design-tokens.rb"
+
+[tasks.tokens-verify]
+description = "Check the generated design tokens are in sync"
+run = "ruby scripts/sync-design-tokens.rb --check"
+
+[tasks.type-scale-sync]
+description = "Regenerate BrandTypography.swift from Config/TypeScale.json"
+run = "ruby scripts/sync-type-scale.rb"
+
+[tasks.type-scale-verify]
+description = "Check BrandTypography.swift is in sync"
+run = "ruby scripts/sync-type-scale.rb --check"
+
+[tasks.fonts-setup]
+description = "Download the licensed brand fonts into Putio/Fonts"
+run = "ruby scripts/sync-brand-fonts.rb"
+
+[tasks.fonts-check]
+description = "Verify Putio/Fonts against Config/BrandFonts.json"
+run = "ruby scripts/sync-brand-fonts.rb --check"
+
+[tasks.verify-fast]
+description = "Sub-second gate: generated assets, strings, workspace sanity"
+depends = ["icons-verify", "tokens-verify", "type-scale-verify"]
+run = "./scripts/verify-fast.sh"
+
+[tasks.verify]
+description = "Build and run the unit test suite on an ephemeral simulator"
+depends = ["verify-fast"]
+run = "./scripts/xcodebuild-test.sh --scheme Putio --result-bundle build/verify.xcresult --label verify"
+
+[tasks.e2e-simulator]
+description = "Build and run the mocked end-to-end suite"
+run = "./scripts/xcodebuild-test.sh --scheme PutioE2E --result-bundle build/e2e-simulator.xcresult --label e2e"
+
+# The counts are the tripwire for a walk that silently dropped baselines. They
+# live here once; the tier tasks delegate. Scope a run by appending the script's
+# own flags — mise passes them through quoted:
+#
+#   mise run screenshots-record -- --only PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk
+[tasks.screenshots-record]
+description = "Record both baseline tiers, then assert against what was written"
+run = "./scripts/record-snapshots.sh --expect-components 11 --expect-screens 13"
+
+[tasks.screenshots-record-components]
+description = "Record the component baselines only"
+run = "mise run screenshots-record -- --tier components"
+
+[tasks.screenshots-record-screens]
+description = "Record the full-screen walk baselines only"
+run = "mise run screenshots-record -- --tier screens"
+
+[tasks.scripts-typecheck]
+description = "Type-check the repo's TypeScript tooling"
+run = "pnpm exec tsc --noEmit"
+
+[tasks.print-simulator-destination]
+description = "Print the xcodebuild destination for the shared simulator"
+run = "./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio"
+
+[tasks.print-simulator-device]
+description = "Print the shared simulator's device id"
+run = "./scripts/simctl-iphone-device-id.sh"
+
+[tasks.run-simulator]
+description = "Build and launch the app on the shared visible simulator"
+run = "./scripts/run-simulator-app.sh --workspace Putio.xcworkspace --scheme Putio"
+
+[tasks.download-ios-platform]
+description = "Download the iOS simulator runtime"
+run = "xcodebuild -downloadPlatform iOS"
+
+[tasks.secrets-setup]
+description = "Write Config/Local.xcconfig from maintainer-supplied values"
+run = "./scripts/secrets-setup.sh"
+
+[tasks.secrets-clean]
+description = "Remove Config/Local.xcconfig"
+run = "rm -f Config/Local.xcconfig"
+
+[tasks.vref]
+description = "Build the browsable gallery of committed visual baselines"
+run = "node scripts/vref.ts build"
+
+[tasks.vref-validate]
+description = "Check every baseline has a manifest entry and vice versa"
+run = "node scripts/vref.ts validate"
+
+[tasks.vref-serve]
+description = "Serve the visual reference gallery locally"
+run = "node scripts/vref.ts serve"
+
+[tasks.store-screenshots]
+description = "Assemble the App Store screenshot set from the baselines"
+run = "node scripts/store-screenshots.ts"
+
+[tasks.store-screenshots-check]
+description = "Check the App Store screenshot slots without writing them"
+run = "node scripts/store-screenshots.ts --check"
+
+# pnpm 10+ blocks postinstall scripts unless a package is allowlisted, so
+# `pnpm install` leaves the playwright package without a browser to drive.
+# Installing here rather than allowlisting keeps bootstrap from pulling ~150MB of
+# Chromium for everyone who never renders store images. A no-op once present.
+[tasks.playwright-chromium]
+description = "Install the Chromium the store-image renderer drives"
+run = "pnpm exec playwright install chromium"
+
+[tasks.store-images]
+description = "Frame the store screenshots into finished marketing images"
+depends = ["store-screenshots", "playwright-chromium"]
+run = "node scripts/store-images.mjs"
+
+[tasks.store-images-check]
+description = "Verify the store-image inputs without rendering"
+depends = ["store-screenshots", "playwright-chromium"]
+run = "node scripts/store-images.mjs --check"
+
+[tasks.beta]
+description = "CI-only. Use .github/workflows/beta.yml via GitHub Actions"
+run = '''
+echo "beta is CI-only. Use .github/workflows/beta.yml via GitHub Actions." >&2
+exit 1
+'''
+
+[tasks.release]
+description = "CI-only. Use .github/workflows/release.yml via GitHub Actions"
+run = '''
+echo "release is CI-only. Use .github/workflows/release.yml via GitHub Actions." >&2
+exit 1
+'''

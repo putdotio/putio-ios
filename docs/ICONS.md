@@ -16,10 +16,10 @@ Product interface glyphs use [Phosphor Icons](https://github.com/phosphor-icons/
 `Config/PhosphorIcons.json` pins the upstream npm tarball, its Subresource Integrity checksum, and the selected icon names and weights. Generated asset catalogs and source hashes are recorded in `Config/PhosphorIcons.lock.json`.
 
 1. Edit the selected icon list in `Config/PhosphorIcons.json`
-2. Run `make icons-sync`
+2. Run `mise run icons-sync`
 3. Inspect the generated SVG image sets and lock-file diff
-4. Run `make verify`
+4. Run `mise run verify`
 
-`make icons-verify` is offline and fails when generated assets, their metadata, the lock file, or the checked-in MIT license drift from the manifest. It also rejects SF Symbol call sites and legacy icon catalogs. Product artwork such as the logo, offline illustration, disco ball, and slider thumb remains outside this icon system. `make verify` runs this check before building the app.
+`mise run icons-verify` is offline and fails when generated assets, their metadata, the lock file, or the checked-in MIT license drift from the manifest. It also rejects SF Symbol call sites and legacy icon catalogs. Product artwork such as the logo, offline illustration, disco ball, and slider thumb remains outside this icon system. `mise run verify` runs this check before building the app.
 
 Phosphor Icons is distributed under the MIT license. The pinned upstream license is checked in at `ThirdParty/PhosphorIcons/LICENSE`.

@@ -15,9 +15,9 @@
 
 ## Validation
 
-- [ ] `make verify`
+- [ ] `mise run verify`
 - [ ] Manual runtime check when behavior changed
-- [ ] `make run-simulator` when auth, keychain, or signed-in persistence changed
+- [ ] `mise run run-simulator` when auth, keychain, or signed-in persistence changed
 - Additional targeted checks:
   -
 

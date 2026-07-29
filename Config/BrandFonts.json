@@ -1,5 +1,5 @@
 {
-  "$description": "Licensed brand fonts, downloaded at dev time from static.put.io — the same files the web app already serves to browsers, so no credentials are needed. Never committed here; make verify-fast fails if any font binary is tracked. Builds fall back to system fonts when absent, but the snapshot suites need them. The sha256 values guard pixel-compared baselines against a silently re-uploaded font; bump one only alongside a deliberate re-record.",
+  "$description": "Licensed brand fonts, downloaded at dev time from static.put.io — the same files the web app already serves to browsers, so no credentials are needed. Never committed here; `mise run verify-fast` fails if any font binary is tracked. Builds fall back to system fonts when absent, but the snapshot suites need them. The sha256 values guard pixel-compared baselines against a silently re-uploaded font; bump one only alongside a deliberate re-record.",
   "baseUrl": "https://static.put.io",
   "directory": "Putio/Fonts",
   "files": {

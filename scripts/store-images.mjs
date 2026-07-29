@@ -5,7 +5,7 @@
 // runs off the bottom edge — the treatment the Apple TV and Android TV listings
 // already use.
 //
-// Input comes from `make store-screenshots` (gitignored, intermediate). Output
+// Input comes from `mise run store-screenshots` (gitignored, intermediate). Output
 // is committed, so the images get reviewed as an image diff in the PR before
 // #52 uploads them.
 //
@@ -164,7 +164,7 @@ function assertBrowserInstalled() {
   if (!executable || !existsSync(executable)) {
     fail(
       "Playwright has no Chromium to drive.",
-      "Run pnpm exec playwright install chromium — or use make store-images, which does it for you.",
+      "Run pnpm exec playwright install chromium — or use mise run store-images, which does it for you.",
     );
   }
 }
@@ -191,7 +191,7 @@ async function buildPlan(config, strings, locale) {
     if (!existsSync(rawDir)) {
       fail(
         `${deviceId}: no raw screenshots at dist/store-screenshots/${deviceId}/.`,
-        "Run make store-screenshots first — this step frames its output, it does not capture.",
+        "Run mise run store-screenshots first — this step frames its output, it does not capture.",
       );
     }
 
@@ -211,7 +211,7 @@ async function buildPlan(config, strings, locale) {
       if (!existsSync(rawPath)) {
         fail(
           `${deviceId} slot ${entry.slot}: ${rawName} is missing from dist/store-screenshots/${deviceId}/.`,
-          "Re-run make store-screenshots; the two configs may have drifted.",
+          "Re-run mise run store-screenshots; the two configs may have drifted.",
         );
       }
 
@@ -242,14 +242,14 @@ async function brandFontFaces() {
   if (!existsSync(FONTS_DIR)) {
     fail(
       "brand fonts are not present.",
-      "Run make fonts-setup. Store images must use GT America; a system-font fallback would ship the wrong typography.",
+      "Run mise run fonts-setup. Store images must use GT America; a system-font fallback would ship the wrong typography.",
     );
   }
 
   const files = (await readdir(FONTS_DIR)).filter((name) => name.startsWith("gt-america-") && name.endsWith(".otf"));
 
   if (files.length === 0) {
-    fail("no GT America faces found in Putio/Fonts.", "Run make fonts-setup.");
+    fail("no GT America faces found in Putio/Fonts.", "Run mise run fonts-setup.");
   }
 
   const weights = { regular: 400, medium: 500, bold: 700, black: 900 };
@@ -277,7 +277,7 @@ async function brandFontFaces() {
   if (faces.length === 0) {
     fail(
       `found ${files.length} GT America file(s) in Putio/Fonts but none matched gt-america-standard-<weight>.otf.`,
-      "Run make fonts-setup. If the upstream naming changed, update the weight map in this script.",
+      "Run mise run fonts-setup. If the upstream naming changed, update the weight map in this script.",
     );
   }
 
@@ -287,7 +287,7 @@ async function brandFontFaces() {
   if (!loaded.has(CAPTION_WEIGHT)) {
     fail(
       `GT America ${CAPTION_WEIGHT} (black) is missing from Putio/Fonts; found ${[...loaded].sort().join(", ") || "nothing usable"}.`,
-      "Run make fonts-setup. Captions are set in the black weight, so a partial install would silently fall back.",
+      "Run mise run fonts-setup. Captions are set in the black weight, so a partial install would silently fall back.",
     );
   }
 
@@ -361,7 +361,7 @@ async function render(browser, item, css, fontFaces, outputDir) {
     // Thrown, not fail()ed, for the same reason as the caption check below.
     throw new RenderError(
       `${item.deviceId} slot ${item.slot}: ${fontProblem}.`,
-      "Run make fonts-setup to reinstall the licensed faces; make fonts-check verifies them against Config/BrandFonts.json.",
+      "Run mise run fonts-setup to reinstall the licensed faces; mise run fonts-check verifies them against Config/BrandFonts.json.",
     );
   }
   // Resolving only on `load` means a decode failure never settles and the run

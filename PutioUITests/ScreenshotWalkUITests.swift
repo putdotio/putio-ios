@@ -4,7 +4,7 @@ import XCTest
 // Captures labeled screenshots of every main screen into the result bundle
 // and asserts them against committed baselines in PutioUITests/__Snapshots__/.
 // The app is dark-only, so the walk captures a single appearance. Re-record
-// intentionally with `make screenshots-record`, then review the image diff in
+// intentionally with `mise run screenshots-record`, then review the image diff in
 // the PR. The ephemeral simulator pins the status bar so pixels are
 // deterministic.
 final class ScreenshotWalkUITests: XCTestCase {

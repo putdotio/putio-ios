@@ -20,6 +20,11 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# mise must never install a tool here: it would compile Ruby from source.
+# ruby/setup-ruby provides the prebuilt one each job runs against.
+env:
+  MISE_AUTO_INSTALL: "false"
+
 jobs:
   verify:
     name: Verify iOS app
@@ -41,6 +46,15 @@ jobs:
           ruby-version: mise.toml
           bundler-cache: true
 
+      # Task runner only. install: false and MISE_AUTO_INSTALL keep mise from
+      # building its own Ruby from source; the prebuilt one above is what tasks
+      # run against.
+      - name: Install mise
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+        with:
+          install: false
+          cache: false
+
       - name: Restore CocoaPods cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         with:
@@ -50,7 +64,7 @@ jobs:
             ${{ runner.os }}-cocoapods-downloads-${{ github.workflow }}-
 
       - name: Install CocoaPods dependencies
-        run: make bootstrap-ci
+        run: mise run bootstrap-ci
 
       # Visual baselines are recorded with the brand faces bundled, so verify
       # needs them too or every snapshot assertion fails on typography. The
@@ -58,11 +72,11 @@ jobs:
       # identically for forks and Dependabot.
       - name: Sync licensed brand fonts
         run: |
-          make fonts-setup
-          make fonts-check
+          mise run fonts-setup
+          mise run fonts-check
 
       - name: Verify repository
-        run: make verify
+        run: mise run verify
 
       - name: Upload test result bundle
         if: failure()

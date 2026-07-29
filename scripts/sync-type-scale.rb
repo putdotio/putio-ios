@@ -32,7 +32,7 @@ class TypeScaleSync
       # differently-encoded string and falsely report drift.
       current = File.exist?(SWIFT_PATH) ? File.binread(SWIFT_PATH) : "".b
       if current != swift.b
-        warn "BrandTypography.swift is out of sync with Config/TypeScale.json. Run: make type-scale-sync"
+        warn "BrandTypography.swift is out of sync with Config/TypeScale.json. Run: mise run type-scale-sync"
         exit 1
       end
       puts "Verified #{@roles.size} type-scale roles."

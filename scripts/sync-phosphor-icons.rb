@@ -68,7 +68,7 @@ class PhosphorIconSync
 
     unless errors.empty?
       warn errors.map { |error| "- #{error}" }.join("\n")
-      warn "Run make icons-sync to regenerate the pinned Phosphor assets."
+      warn "Run mise run icons-sync to regenerate the pinned Phosphor assets."
       exit 1
     end
 

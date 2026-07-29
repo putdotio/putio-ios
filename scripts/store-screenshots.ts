@@ -73,7 +73,7 @@ async function main(): Promise<void> {
       if (!existsSync(source)) {
         fail(
           `${deviceId} slot ${entry.slot}: baseline not found at ${device.source}/${entry.baseline}.`,
-          "A baseline was renamed or removed. Update Config/StoreScreenshots.json, or re-record with make screenshots-record.",
+          "A baseline was renamed or removed. Update Config/StoreScreenshots.json, or re-record with mise run screenshots-record.",
         );
       }
 

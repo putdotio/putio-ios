@@ -8,8 +8,8 @@ import XCTest
 // tests pin that contract: a build that loses the faces becomes a named
 // failure here instead of 23 mysterious pixel diffs.
 //
-// Recording therefore requires the fonts. Run `make fonts-setup` before
-// `make screenshots-record`.
+// Recording therefore requires the fonts. Run `mise run fonts-setup` before
+// `mise run screenshots-record`.
 final class BrandFontTests: XCTestCase {
     private static let sansFamily = "GT America"
     private static let monoFamily = "Berkeley Mono Variable"
@@ -24,7 +24,7 @@ final class BrandFontTests: XCTestCase {
             bundled.isEmpty,
             """
             verification builds must bundle the brand fonts; baselines are recorded with them. \
-            Run `make fonts-setup`, and check PUTIO_BUNDLE_BRAND_FONTS in Config/Verify.xcconfig.
+            Run `mise run fonts-setup`, and check PUTIO_BUNDLE_BRAND_FONTS in Config/Verify.xcconfig.
             """
         )
         XCTAssertTrue(

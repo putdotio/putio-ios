@@ -18,6 +18,11 @@ concurrency:
   group: release-${{ github.event.release.tag_name || inputs.version || 'main' }}
   cancel-in-progress: false
 
+# mise must never install a tool here: it would compile Ruby from source.
+# ruby/setup-ruby provides the prebuilt one each job runs against.
+env:
+  MISE_AUTO_INSTALL: "false"
+
 jobs:
   release:
     name: Build release artifact
@@ -50,6 +55,15 @@ jobs:
           ruby-version: mise.toml
           bundler-cache: false
 
+      # Task runner only. install: false and MISE_AUTO_INSTALL keep mise from
+      # building its own Ruby from source; the prebuilt one above is what tasks
+      # run against.
+      - name: Install mise
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+        with:
+          install: false
+          cache: false
+
       - name: Restore CocoaPods cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
         with:
@@ -59,9 +73,9 @@ jobs:
             ${{ runner.os }}-cocoapods-downloads-${{ github.workflow }}-
 
       - name: Install CocoaPods dependencies
-        run: make bootstrap-ci
+        run: mise run bootstrap-ci
 
-      # Must precede `make verify`: baselines are recorded with the brand faces
+      # Must precede `mise run verify`: baselines are recorded with the brand faces
       # bundled (PUTIO_BUNDLE_BRAND_FONTS=YES in Verify.xcconfig), so a
       # font-less verify fails every snapshot assertion. The archive step later
       # bundles whatever this sync fetched. The fonts come from static.put.io
@@ -69,11 +83,11 @@ jobs:
       # checksum mismatch, so a system-font build can never ship silently.
       - name: Sync licensed brand fonts
         run: |
-          make fonts-setup
-          make fonts-check
+          mise run fonts-setup
+          mise run fonts-check
 
       - name: Verify repository
-        run: make verify
+        run: mise run verify
 
       - name: Prepare release metadata
         shell: bash
