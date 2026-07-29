@@ -25,6 +25,8 @@ import { dirname, join, sep } from "node:path";
 import process from "node:process";
 import { buildGallery, validateGallery } from "@putdotio/vref";
 
+import { resolveCapturedAt } from "./vref-manifest.ts";
+
 const VREF_DIR = ".vref";
 const MANIFEST = join(VREF_DIR, "manifest.json");
 const OUTPUT = join(VREF_DIR, "index.html");
@@ -214,21 +216,17 @@ async function sync(): Promise<void> {
       // dirty the manifest.
       //
       // Validated rather than trusted, because preserving a value means
-      // preserving a bad one: updatedAt is the newest capturedAt, and an
-      // unparseable date there would silently drag the whole gallery's timestamp
-      // back to the epoch.
-      const captured = typeof entry.capturedAt === "string" ? entry.capturedAt.trim() : "";
-
-      if (captured === "") {
-        entry.capturedAt = lastCommitDate(sourcePath);
-      } else if (Number.isNaN(Date.parse(captured))) {
-        throw new Error(
-          `${MANIFEST} entry "${id}" has an unparseable capturedAt (${JSON.stringify(entry.capturedAt)}). ` +
-            "Use an ISO 8601 timestamp, or remove the field to have it filled in.",
-        );
-      } else {
-        entry.capturedAt = captured;
-      }
+      // preserving a bad one, and updatedAt is the newest capturedAt — so one bad
+      // entry moves the whole gallery's timestamp. scripts/vref-manifest.ts
+      // explains why Date.parse cannot be the gate.
+      entry.capturedAt = resolveCapturedAt(
+        entry.capturedAt,
+        () => lastCommitDate(sourcePath),
+        (value) =>
+          `${MANIFEST} entry "${id}" has an invalid capturedAt (${value}). ` +
+          "Use an ISO 8601 UTC timestamp such as 2026-07-29T09:29:31.000Z, " +
+          "or remove the field to have it filled in.",
+      );
 
       seen.add(id);
     }
