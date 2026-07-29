@@ -98,6 +98,14 @@ run = "mise run screenshots-record -- --tier screens"
 description = "Type-check the repo's TypeScript tooling"
 run = "pnpm exec tsc --noEmit"
 
+# Node runs the .ts tests directly, so this needs no framework and no build
+# step — the same reason the scripts themselves are not compiled. The pattern is
+# quoted for Node to expand: passing a bare directory makes it try to load
+# `scripts` as a module instead of searching it.
+[tasks.scripts-test]
+description = "Run the unit tests for the repo TypeScript tooling"
+run = "node --test 'scripts/**/*.test.ts'"
+
 [tasks.print-simulator-destination]
 description = "Print the xcodebuild destination for the shared simulator"
 run = "./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio"

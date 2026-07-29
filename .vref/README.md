@@ -33,18 +33,23 @@ mise run vref-validate   # regenerate, then check the manifest and every asset
 ## Editing the manifest
 
 `mise run vref` rewrites only the mechanical fields — `file`, `group`, `platform`,
-`device`, `viewport`, `sizeBytes`, `capturedAt`, and the top-level `updatedAt`.
-Curated text is yours:
+`device`, `viewport`, `sizeBytes`, and the top-level `updatedAt`. Curated text is
+yours:
 
 - `title` — what the screen is called
 - `tags` — used by the filter rows
 - `notes` — what a reviewer should look at
+- `capturedAt` — when the baseline was recorded
 
-`capturedAt` comes from the baseline's last commit **author** date rather than its
-mtime, so a fresh checkout does not dirty the manifest. Author date rather than
-committer date specifically because rebasing rewrites the latter, and a stacked
-branch gets restacked often — using it would churn every entry for reasons that
-have nothing to do with the images.
+`capturedAt` is **written once and then left alone**. A new entry that arrives
+without one gets the baseline's last commit **author** date, or the current time
+if the baseline is not committed yet; after that it is yours like the text above.
+
+It used to be recomputed on every run. Author date rather than committer date
+already kept a rebase from churning it, but a squash merge writes a new commit
+with a new author date, so every squashed pull request touching a baseline left
+the manifest stale on `main` — #75 exists solely to have refreshed it. The field
+is required by `@putdotio/vref`, so it stays; only its ownership moved.
 
 Adding or removing a baseline is a deliberate step: a baseline with no manifest
 entry fails the sync rather than being added with a placeholder title, and a
