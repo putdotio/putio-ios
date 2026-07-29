@@ -14,8 +14,8 @@
 #   make screenshots-record ONLY=PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk
 #
 # Direct, if you are supplying the counts yourself:
-#   scripts/record-snapshots.sh --expect-components 11 --expect-screens 12
-#   scripts/record-snapshots.sh --tier screens --expect-screens 12
+#   scripts/record-snapshots.sh --expect-components 11 --expect-screens 13
+#   scripts/record-snapshots.sh --tier screens --expect-screens 13
 #   scripts/record-snapshots.sh --only PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk
 #
 # --only takes xcodebuild's own -only-testing: syntax. The leading test target
