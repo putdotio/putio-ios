@@ -184,8 +184,8 @@
         "height": 2868
       },
       "file": "screenshots/screens/screens-audio-player.png",
-      "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 743725,
+      "capturedAt": "2026-07-28T20:52:50.000Z",
+      "sizeBytes": 743655,
       "tags": [
         "player",
         "audio"
@@ -288,8 +288,8 @@
         "height": 132
       },
       "file": "screenshots/components/components-button-primary.png",
-      "capturedAt": "2026-07-22T09:29:06.000Z",
-      "sizeBytes": 6524,
+      "capturedAt": "2026-07-28T20:52:50.000Z",
+      "sizeBytes": 6547,
       "tags": [
         "button"
       ],
@@ -308,8 +308,8 @@
         "height": 132
       },
       "file": "screenshots/components/components-button-secondary.png",
-      "capturedAt": "2026-07-22T09:29:06.000Z",
-      "sizeBytes": 6268,
+      "capturedAt": "2026-07-28T20:52:50.000Z",
+      "sizeBytes": 6308,
       "tags": [
         "button"
       ],
@@ -328,8 +328,8 @@
         "height": 132
       },
       "file": "screenshots/components/components-button-danger.png",
-      "capturedAt": "2026-07-22T09:29:06.000Z",
-      "sizeBytes": 6395,
+      "capturedAt": "2026-07-28T20:52:50.000Z",
+      "sizeBytes": 6464,
       "tags": [
         "button"
       ],
@@ -472,8 +472,8 @@
         "height": 192
       },
       "file": "screenshots/components/components-history-cell-upload.png",
-      "capturedAt": "2026-07-22T09:29:06.000Z",
-      "sizeBytes": 17928,
+      "capturedAt": "2026-07-28T20:52:50.000Z",
+      "sizeBytes": 18725,
       "tags": [
         "history",
         "cell"
@@ -493,8 +493,8 @@
         "height": 192
       },
       "file": "screenshots/components/components-trash-cell.png",
-      "capturedAt": "2026-07-22T09:29:06.000Z",
-      "sizeBytes": 20154,
+      "capturedAt": "2026-07-28T20:52:50.000Z",
+      "sizeBytes": 20420,
       "tags": [
         "trash",
         "cell"
