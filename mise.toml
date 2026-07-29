@@ -35,7 +35,7 @@ run = "./scripts/bootstrap-ci.sh"
 description = "Regenerate the pinned Phosphor icon assets"
 run = "ruby scripts/sync-phosphor-icons.rb"
 
-[tasks.icons-verify]
+[tasks.verify-icons]
 description = "Check the Phosphor icon assets are in sync"
 run = "ruby scripts/sync-phosphor-icons.rb --check"
 
@@ -43,7 +43,7 @@ run = "ruby scripts/sync-phosphor-icons.rb --check"
 description = "Regenerate the design tokens from Config/DesignTokens.json"
 run = "ruby scripts/sync-design-tokens.rb"
 
-[tasks.tokens-verify]
+[tasks.verify-tokens]
 description = "Check the generated design tokens are in sync"
 run = "ruby scripts/sync-design-tokens.rb --check"
 
@@ -51,7 +51,7 @@ run = "ruby scripts/sync-design-tokens.rb --check"
 description = "Regenerate BrandTypography.swift from Config/TypeScale.json"
 run = "ruby scripts/sync-type-scale.rb"
 
-[tasks.type-scale-verify]
+[tasks.verify-type-scale]
 description = "Check BrandTypography.swift is in sync"
 run = "ruby scripts/sync-type-scale.rb --check"
 
@@ -59,13 +59,13 @@ run = "ruby scripts/sync-type-scale.rb --check"
 description = "Download the licensed brand fonts into Putio/Fonts"
 run = "ruby scripts/sync-brand-fonts.rb"
 
-[tasks.fonts-check]
+[tasks.verify-fonts]
 description = "Verify Putio/Fonts against Config/BrandFonts.json"
 run = "ruby scripts/sync-brand-fonts.rb --check"
 
 [tasks.verify-fast]
 description = "Sub-second gate: generated assets, strings, workspace sanity"
-depends = ["icons-verify", "tokens-verify", "type-scale-verify"]
+depends = ["verify-icons", "verify-tokens", "verify-type-scale"]
 run = "./scripts/verify-fast.sh"
 
 [tasks.verify]
@@ -94,7 +94,7 @@ run = "mise run screenshots-record -- --tier components"
 description = "Record the full-screen walk baselines only"
 run = "mise run screenshots-record -- --tier screens"
 
-[tasks.scripts-typecheck]
+[tasks.verify-scripts-types]
 description = "Type-check the repo's TypeScript tooling"
 run = "pnpm exec tsc --noEmit"
 
@@ -102,7 +102,7 @@ run = "pnpm exec tsc --noEmit"
 # step — the same reason the scripts themselves are not compiled. The pattern is
 # quoted for Node to expand: passing a bare directory makes it try to load
 # `scripts` as a module instead of searching it.
-[tasks.scripts-test]
+[tasks.verify-scripts-tests]
 description = "Run the unit tests for the repo TypeScript tooling"
 run = "node --test 'scripts/**/*.test.ts'"
 
@@ -134,7 +134,7 @@ run = "rm -f Config/Local.xcconfig"
 description = "Build the browsable gallery of committed visual baselines"
 run = "node scripts/vref.ts build"
 
-[tasks.vref-validate]
+[tasks.verify-vref]
 description = "Check every baseline has a manifest entry and vice versa"
 run = "node scripts/vref.ts validate"
 
@@ -150,7 +150,7 @@ run = "./scripts/capture-store-ipad.sh"
 description = "Assemble the App Store screenshot set from the baselines"
 run = "node scripts/store-screenshots.ts"
 
-[tasks.store-screenshots-check]
+[tasks.verify-store-screenshots]
 description = "Check the App Store screenshot slots without writing them"
 run = "node scripts/store-screenshots.ts --check"
 
@@ -169,11 +169,11 @@ run = "node scripts/store-images.ts"
 
 # No browser and no dist/: it hashes the committed baselines and configs, so it
 # runs on Linux in CI. store-images writes the lock this compares against.
-[tasks.store-images-verify]
+[tasks.verify-store-images]
 description = "Check the committed marketing images against the inputs they came from"
 run = "node scripts/store-images-lock.ts verify"
 
-[tasks.store-images-check]
+[tasks.verify-store-image-inputs]
 description = "Verify the store-image inputs without rendering"
 depends = ["store-screenshots", "playwright-chromium"]
 run = "node scripts/store-images.ts --check"

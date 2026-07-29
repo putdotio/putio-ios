@@ -1,4 +1,4 @@
-// Run with `mise run scripts-test`. Node's built-in runner executes TypeScript
+// Run with `mise run verify-scripts-tests`. Node's built-in runner executes TypeScript
 // directly by stripping types, so this needs no test framework and no build step —
 // the same reason the scripts themselves are run rather than compiled.
 

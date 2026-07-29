@@ -27,7 +27,7 @@ regenerate them first, so any of them works immediately after cloning.
 ```sh
 mise run vref            # copy baselines, refresh the manifest, write index.html
 mise run vref-serve      # the above, then serve on 127.0.0.1:4173
-mise run vref-validate   # regenerate, then check the manifest and every asset
+mise run verify-vref   # regenerate, then check the manifest and every asset
 ```
 
 ## Editing the manifest

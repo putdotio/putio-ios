@@ -65,7 +65,7 @@ credentials are needed**:
 
 ```bash
 mise run fonts-setup   # download into gitignored Putio/Fonts/
-mise run fonts-check   # report status without writing
+mise run verify-fonts   # report status without writing
 ```
 
 `Config/BrandFonts.json` lists each file's path under `static.put.io` and its
@@ -74,7 +74,7 @@ baselines: if a font is re-uploaded, you get one clear error naming the file
 instead of 23 unexplained image diffs. Bump a hash only alongside a deliberate
 `mise run screenshots-record`.
 
-`mise run fonts-check` fails when the directory contradicts the manifest, which
+`mise run verify-fonts` fails when the directory contradicts the manifest, which
 means a stale or hand-placed file. Every CI workflow syncs the fonts before
 running verify — no credentials involved — and fails loudly on a bad download,
 so neither a system-font build nor a font-less verify can pass silently (see
@@ -125,18 +125,18 @@ mise run doctor
 mise run print-simulator-destination
 mise run print-simulator-device
 mise run download-ios-platform
-mise run icons-verify
+mise run verify-icons
 plutil -lint Putio/en.lproj/*.strings
 ```
 
 - Notes:
   - `mise run verify-fast` is the sub-second gate (icon sync check, strings lint, workspace sanity); the pre-push hook runs it automatically
-  - `mise run scripts-typecheck` type-checks the repo's TypeScript tooling with `tsc --noEmit`. The scripts run directly — Node strips types, so there is no build step — but stripping is not checking, and an unchecked annotation drifts into a lie. Kept out of `verify-fast` so that gate keeps running without Node; CI runs it in the `verify-tooling` job instead
+  - `mise run verify-scripts-types` type-checks the repo's TypeScript tooling with `tsc --noEmit`. The scripts run directly — Node strips types, so there is no build step — but stripping is not checking, and an unchecked annotation drifts into a lie. Kept out of `verify-fast` so that gate keeps running without Node; CI runs it in the `verify-tooling` job instead
   - `mise run vref` renders `.vref/index.html` from the committed baselines for design review, and `mise run vref-serve` serves it on `127.0.0.1:4173`. It is deliberately **not** part of `verify-fast`: validating it needs Node and the regenerated copies, and `verify-fast` is a sub-second gate that runs without Node. Baseline/manifest drift is caught when `mise run vref` runs, which today means locally; publishing the gallery, and checking it in CI, is future work in #49
 
-  - `mise run store-screenshots` writes the App Store set to gitignored `dist/store-screenshots/<device>/`, numbered in the order Apple displays them. It copies committed images rather than capturing, and `mise run store-screenshots-check` validates without writing. Changing the set means editing `Config/StoreScreenshots.json`
+  - `mise run store-screenshots` writes the App Store set to gitignored `dist/store-screenshots/<device>/`, numbered in the order Apple displays them. It copies committed images rather than capturing, and `mise run verify-store-screenshots` validates without writing. Changing the set means editing `Config/StoreScreenshots.json`
   - the two devices get there differently. **iPhone** needs no capture: the pinned simulator's 1320x2868 walk output is already Apple's 6.9" size, so those store images are the ones CI pixel-compares. **iPad** has no walk in that suite, so `mise run store-capture-ipad` records one on demand — the same walk on an ephemeral iPad Pro 13-inch (M5), five marketing screens at 2064x2752, into `PutioUITests/__Captures__/ipad-13/`. The `__Captures__` name is the tell: nothing asserts these, because putting a second device in the pixel-compared suite would exercise the same code paths for roughly double the job time. They are committed anyway so `store-screenshots` needs no capture step, and the image diff on the rendered marketing images is what gets reviewed. Run it after a visual change that affects a store slot; it takes about 2 minutes
-  - `mise run store-images-verify` checks the committed marketing images against the baselines and configs they came from, using `Config/StoreImages.lock.json`. It hashes inputs instead of re-rendering, so it needs neither Chromium nor a capture — which is why CI can run it on Linux. If it fails, run `mise run store-images`, review the image diff, and commit the images and the lock together. Prose keys (anything starting with `$`) are excluded from the hashes, so improving a comment does not mark the set stale
+  - `mise run verify-store-images` checks the committed marketing images against the baselines and configs they came from, using `Config/StoreImages.lock.json`. It hashes inputs instead of re-rendering, so it needs neither Chromium nor a capture — which is why CI can run it on Linux. If it fails, run `mise run store-images`, review the image diff, and commit the images and the lock together. Prose keys (anything starting with `$`) are excluded from the hashes, so improving a comment does not mark the set stale
   - visual baselines cover reusable components (`PutioTests/__Snapshots__/`, rendered directly in unit tests) and 13 full screens (`PutioUITests/__Snapshots__/`, captured by the e2e walk); the app is dark-only, so baselines capture dark mode only; after an intentional visual change run `mise run screenshots-record` and commit the resulting image diff (GitHub renders before/after in review)
   - `mise run screenshots-record` records **and then asserts against what it wrote**, in one run and on one simulator, so a green exit means the recording is self-consistent — there is no second pass to remember. Scope it when you changed one screen: `mise run screenshots-record -- --only PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk` takes about a minute against about five for the full set. `--only` takes xcodebuild's `-only-testing:` syntax and its leading test target picks the tier, so the scheme you did not touch is never built. `mise run screenshots-record-components` and `mise run screenshots-record-screens` run one whole tier
   - a scoped run writes a subset, so the baseline-count tripwire is skipped for it; run the full target before committing if you added or removed a snapshot test

@@ -133,7 +133,7 @@ jobs:
       - name: Sync licensed brand fonts
         run: |
           mise run fonts-setup
-          mise run fonts-check
+          mise run verify-fonts
 
       - name: Verify repository
         run: mise run verify
@@ -147,7 +147,7 @@ jobs:
           if-no-files-found: ignore
 
   # Linux, because nothing here needs Xcode and macOS minutes bill at 10x. This
-  # is also where scripts-typecheck first runs in CI at all: it is kept out of
+  # is also where verify-scripts-types first runs in CI at all: it is kept out of
   # verify-fast so that gate needs no Node, which left it running nowhere.
   verify-tooling:
     name: Verify repo tooling
@@ -178,13 +178,13 @@ jobs:
         run: mise exec -- pnpm install --frozen-lockfile
 
       - name: Type-check repo tooling
-        run: mise run scripts-typecheck
+        run: mise run verify-scripts-types
 
       - name: Test repo tooling
-        run: mise run scripts-test
+        run: mise run verify-scripts-tests
 
       # No browser: this hashes the committed baselines and configs rather than
       # re-rendering, so a stale marketing image fails by name here instead of
       # reaching the App Store.
       - name: Check the marketing images against their inputs
-        run: mise run store-images-verify
+        run: mise run verify-store-images

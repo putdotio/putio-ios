@@ -20,6 +20,6 @@ Product interface glyphs use [Phosphor Icons](https://github.com/phosphor-icons/
 3. Inspect the generated SVG image sets and lock-file diff
 4. Run `mise run verify`
 
-`mise run icons-verify` is offline and fails when generated assets, their metadata, the lock file, or the checked-in MIT license drift from the manifest. It also rejects SF Symbol call sites and legacy icon catalogs. Product artwork such as the logo, offline illustration, disco ball, and slider thumb remains outside this icon system. `mise run verify` runs this check before building the app.
+`mise run verify-icons` is offline and fails when generated assets, their metadata, the lock file, or the checked-in MIT license drift from the manifest. It also rejects SF Symbol call sites and legacy icon catalogs. Product artwork such as the logo, offline illustration, disco ball, and slider thumb remains outside this icon system. `mise run verify` runs this check before building the app.
 
 Phosphor Icons is distributed under the MIT license. The pinned upstream license is checked in at `ThirdParty/PhosphorIcons/LICENSE`.
