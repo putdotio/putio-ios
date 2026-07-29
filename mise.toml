@@ -134,6 +134,10 @@ run = "node scripts/vref.ts validate"
 description = "Serve the visual reference gallery locally"
 run = "node scripts/vref.ts serve"
 
+[tasks.store-capture-ipad]
+description = "Capture the iPad App Store screenshots (iPhone needs no capture)"
+run = "./scripts/capture-store-ipad.sh"
+
 [tasks.store-screenshots]
 description = "Assemble the App Store screenshot set from the baselines"
 run = "node scripts/store-screenshots.ts"

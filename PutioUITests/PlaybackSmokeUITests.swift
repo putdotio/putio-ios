@@ -49,7 +49,7 @@ final class PlaybackSmokeUITests: XCTestCase {
         let app = launchFixtureApp()
         guard app.waitForSignedInTabBar() else { return }
 
-        app.tabBars.buttons["Account"].tap()
+        app.tabItem("Account").tap()
 
         XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Default sort option for files"].exists)

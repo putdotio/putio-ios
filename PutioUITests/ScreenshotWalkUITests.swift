@@ -11,6 +11,14 @@ final class ScreenshotWalkUITests: XCTestCase {
     private var isRecording: Bool {
         ProcessInfo.processInfo.environment["PUTIO_RECORD_SNAPSHOTS"] == "1"
     }
+
+    // Sends the images somewhere other than __Snapshots__/, for the iPad
+    // store-capture lane: those captures are marketing input, not a pixel
+    // baseline, and writing them here would overwrite the iPhone set that CI
+    // compares — SnapshotTesting names a file after the test, not the device.
+    private var snapshotDirectoryOverride: String? {
+        ProcessInfo.processInfo.environment["PUTIO_SNAPSHOT_DIR"]
+    }
     private func launchFixtureApp(loggedIn: Bool = true, failRoutes: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["PUTIO_E2E_MOCK_API"] = "1"
@@ -38,15 +46,26 @@ final class ScreenshotWalkUITests: XCTestCase {
         // recorded image and the failure diff when an assertion fails, and
         // result bundles are only uploaded on failure.
 
+        // verifySnapshot rather than assertSnapshot: only the former takes a
+        // snapshotDirectory, and the failure text it returns is what
+        // verify-snapshot-recording.rb matches to tell a record-mode failure
+        // from a real one. With no override this resolves to exactly the
+        // directory assertSnapshot would have used.
+        //
         // precision tolerates a small share of outlier pixels; perceptual
         // precision absorbs antialiasing drift across Xcode/simulator builds.
-        assertSnapshot(
+        let failure = verifySnapshot(
             of: screenshot.image,
             as: .image(precision: 0.995, perceptualPrecision: 0.98),
             named: String(name.dropFirst("walk-".count)),
             record: isRecording,
+            snapshotDirectory: snapshotDirectoryOverride,
             testName: "walk"
         )
+
+        if let failure {
+            XCTFail(failure)
+        }
     }
 
     private func walkMainScreens() {
@@ -68,7 +87,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         ]
 
         for tab in ["Downloads", "History", "Account"] {
-            let button = app.tabBars.buttons[tab]
+            let button = app.tabItem(tab)
             XCTAssertTrue(button.waitForExistence(timeout: 5), "\(tab) tab should exist")
             button.tap()
             XCTAssertTrue(readiness[tab]!.waitForExistence(timeout: 10), "\(tab) content should render")
@@ -162,7 +181,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         settle()
 
         // Downloads tutorial sheet.
-        app.tabBars.buttons["Downloads"].tap()
+        app.tabItem("Downloads").tap()
         let tutorialButton = app.buttons["Downloads tutorial"]
         XCTAssertTrue(tutorialButton.waitForExistence(timeout: 5))
         tutorialButton.tap()
@@ -180,7 +199,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Downloads: Mini Tutorial"].waitForNonExistence(timeout: 5), "tutorial sheet should dismiss")
 
         // Routes and sessions from the Account screen.
-        app.tabBars.buttons["Account"].tap()
+        app.tabItem("Account").tap()
         let routesRow = app.tables.staticTexts["Choose your proxy"]
         XCTAssertTrue(routesRow.waitForExistence(timeout: 5))
         routesRow.tap()
@@ -217,7 +236,7 @@ final class ScreenshotWalkUITests: XCTestCase {
 
         let errorApp = launchFixtureApp(failRoutes: "GET /v2/events/list")
         guard errorApp.waitForSignedInTabBar() else { return }
-        errorApp.tabBars.buttons["History"].tap()
+        errorApp.tabItem("History").tap()
         XCTAssertTrue(errorApp.staticTexts["Oops"].waitForExistence(timeout: 10))
         capture(errorApp, named: "walk-dark-history-error")
     }

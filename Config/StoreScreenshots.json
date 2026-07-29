@@ -38,8 +38,53 @@
           "captionKey": "account"
         }
       ]
+    },
+    "ipad-13": {
+      "label": "iPad 13\"",
+      "width": 2064,
+      "height": 2752,
+      "$source": "Captured by mise run store-capture-ipad, not asserted anywhere. iPad is deliberately outside the pixel-compared suite: a second device exercises the same code paths and would roughly double a 15 minute job. These live under __Captures__ rather than __Snapshots__ so the difference is visible from the path, and their review gate is the image diff on the marketing images rendered from them.",
+      "source": "PutioUITests/__Captures__/ipad-13",
+      "$layout": "Ratio overrides for the LAYOUT table in scripts/store-images.mjs, which was tuned on a 0.46 aspect phone. Two things break on a 0.75 aspect tablet. captionSize scales with width so the text grows while captionBlock scales with height so its box shrinks, and a two line caption stops fitting — captionBlock covers that. The device is then far taller for its width, and because it is bottom aligned in the row below the caption it grows upward over the caption instead of off the bottom edge; deviceWidth is set so its height fills that row. At these numbers that is 29px bezel plus a 1650x2200 screen against a 2752-523 row, so a caption change wants a deviceWidth change with it — the renderer measures the gap between caption and device and refuses either an overlap or a visible band of yellow, so getting it wrong fails the render.",
+      "layout": {
+        "captionBlock": 0.19,
+        "deviceWidth": 0.8275,
+        "screenRadius": 0.0175,
+        "deviceRadius": 0.0315
+      },
+      "screenshots": [
+        {
+          "slot": 1,
+          "baseline": "walk.dark-files.png",
+          "id": "files",
+          "captionKey": "files"
+        },
+        {
+          "slot": 2,
+          "baseline": "walk.dark-video-player.png",
+          "id": "player",
+          "captionKey": "player"
+        },
+        {
+          "slot": 3,
+          "baseline": "walk.dark-downloads.png",
+          "id": "downloads",
+          "captionKey": "downloads"
+        },
+        {
+          "slot": 4,
+          "baseline": "walk.dark-history.png",
+          "id": "history",
+          "captionKey": "history"
+        },
+        {
+          "slot": 5,
+          "baseline": "walk.dark-account.png",
+          "id": "account",
+          "captionKey": "account"
+        }
+      ]
     }
   },
-  "$notInStoreSet": "walk.dark-trash, walk.dark-move-files, walk.dark-downloads-tutorial, walk.dark-routes, walk.dark-sessions, walk.dark-login, walk.dark-history-error. These are captured for regression coverage but are not marketing material — an error state or a settings list does not sell the app.",
-  "$missing": "iPad. The app is TARGETED_DEVICE_FAMILY 1,2 so App Store Connect wants a 13 inch set (2064x2752) too. That needs a real capture lane rather than a selection, because there is no iPad walk yet."
+  "$notInStoreSet": "walk.dark-trash, walk.dark-move-files, walk.dark-downloads-tutorial, walk.dark-routes, walk.dark-sessions, walk.dark-login, walk.dark-history-error. These are captured for regression coverage but are not marketing material — an error state or a settings list does not sell the app."
 }

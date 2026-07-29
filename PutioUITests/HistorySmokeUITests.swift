@@ -16,7 +16,7 @@ final class HistorySmokeUITests: XCTestCase {
         let app = launchFixtureApp()
 
         guard app.waitForSignedInTabBar() else { return }
-        app.tabBars.buttons["History"].tap()
+        app.tabItem("History").tap()
 
         let table = app.tables["putio-history-table"]
         XCTAssertTrue(table.waitForExistence(timeout: 5))

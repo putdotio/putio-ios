@@ -35,10 +35,16 @@ const FONTS_DIR = join(ROOT, "Putio/Fonts");
 // The weight the caption is set in; template.html must agree.
 const CAPTION_WEIGHT = 900;
 
-// Proportional layout, so the same template holds for any device size Apple
-// introduces. Each value declares which axis it scales against: widths against
-// width, vertical rhythm against height. Scaling everything off one axis makes
-// the device wider than the canvas on a tall phone.
+// Proportional layout: each value declares which axis it scales against, widths
+// against width and vertical rhythm against height. Scaling everything off one
+// axis makes the device wider than the canvas on a tall phone.
+//
+// The ratios below are iPhone's, and the two radii are the ones that do NOT
+// generalize — a corner radius is physical device geometry, not a proportion of
+// the screen. A phone's corners are far rounder relative to its width than a
+// tablet's, so reusing 0.062 on iPad gave it a 128px screen radius that ate the
+// status bar clock. A device whose corners differ declares its own; see the
+// layout block for ipad-13 in Config/StoreScreenshots.json.
 const LAYOUT = {
   captionSize: ["width", 0.082],
   captionPaddingBlock: ["height", 0.042],
@@ -224,6 +230,13 @@ async function buildPlan(config, strings, locale) {
         rawPath,
         width: device.width,
         height: device.height,
+        // Per-device ratio overrides for the LAYOUT table. The ratios below were
+        // tuned on a 0.46-aspect phone, and two of them fight on a 0.75-aspect
+        // tablet: captionSize scales with width so the text grows, captionBlock
+        // scales with height so its box shrinks. Rather than rebalance the axes
+        // and re-render every committed iPhone image over it, a device declares
+        // the ratios its shape needs.
+        layout: device.layout,
         locale,
       });
     }
@@ -304,7 +317,8 @@ async function render(browser, item, css, fontFaces, outputDir) {
   const variables = Object.entries(LAYOUT)
     .map(([name, [axis, ratio]]) => {
       const basis = axis === "width" ? item.width : item.height;
-      return `--${kebab(name)}: ${Math.round(ratio * basis)}px;`;
+      const resolved = item.layout?.[name] ?? ratio;
+      return `--${kebab(name)}: ${Math.round(resolved * basis)}px;`;
     })
     .join("\n");
 
@@ -413,7 +427,36 @@ async function render(browser, item, css, fontFaces, outputDir) {
     );
   }
 
-  const destination = join(outputDir, item.locale, `${String(item.slot).padStart(2, "0")}-${item.id}.jpg`);
+  // The device's height is intrinsic — deviceWidth divided by the screenshot's
+  // aspect — so it can miss the space under the caption in either direction, and
+  // the caption check above sees neither. Too tall and it grows *upward* over the
+  // caption, because align-self: end pins its bottom to the canvas. Too short
+  // and it leaves a band of yellow between caption and device.
+  //
+  // Only the top edge can be measured for this: that same bottom alignment keeps
+  // the bottom flush at every size, so a bottom measurement is always zero and
+  // would prove nothing.
+  const captionToDevice = await page.evaluate(() => {
+    const device = document.querySelector(".device").getBoundingClientRect();
+    const caption = document.querySelector("#caption").getBoundingClientRect();
+    return device.top - caption.bottom;
+  });
+
+  // Measured, not guessed: the shipped iPhone layout leaves 89px on a 2868px
+  // canvas (3.11%) and iPad's fitted one leaves 0. Four percent accepts both
+  // with headroom while still catching a band anyone would notice.
+  const slack = item.height * 0.04;
+
+  if (captionToDevice < 0 || captionToDevice > slack) {
+    throw new RenderError(
+      captionToDevice < 0
+        ? `${item.deviceId} slot ${item.slot}: the device overlaps the caption by ${Math.abs(Math.round(captionToDevice))}px.`
+        : `${item.deviceId} slot ${item.slot}: ${Math.round(captionToDevice)}px of empty yellow sits between the caption and the device, over the ${Math.round(slack)}px allowed.`,
+      "Adjust deviceWidth for this device in Config/StoreScreenshots.json so the device height fills the row under the caption.",
+    );
+  }
+
+  const destination = join(outputDir, item.locale, storeImageName(item));
   await mkdir(dirname(destination), { recursive: true });
 
   // JPEG, not PNG: Apple accepts both, and the framed output is ~5MB as JPEG
@@ -422,7 +465,16 @@ async function render(browser, item, css, fontFaces, outputDir) {
   await writeFile(destination, buffer);
   await page.close();
 
-  console.log(`  ${item.deviceId} slot ${item.slot}: "${item.caption}" -> ${item.locale}/${String(item.slot).padStart(2, "0")}-${item.id}.jpg`);
+  console.log(`  ${item.deviceId} slot ${item.slot}: "${item.caption}" -> ${item.locale}/${storeImageName(item)}`);
+}
+
+// Device-scoped, because every device declares the same slots and ids: without
+// it the iPad render would overwrite the iPhone one in the same locale
+// directory. deliver reads the display type from the image's pixel size rather
+// than its name, so the prefix is free — it only has to sort each device's own
+// slots in order, which a zero-padded slot does.
+function storeImageName(item) {
+  return `${item.deviceId}-${String(item.slot).padStart(2, "0")}-${item.id}.jpg`;
 }
 
 function kebab(value) {
