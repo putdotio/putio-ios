@@ -15,14 +15,21 @@ cd -- "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 
 status=0
 
-# Reads one pin out of mise.toml's [tools] table. Scoped to that table so a
-# task or setting sharing a tool's name cannot answer in its place.
+# Reads one pin out of mise.toml's [tools] table, scoped to that table so a task
+# or setting sharing a tool's name cannot answer in its place.
+#
+# Accepts either TOML quote style and any spacing around the `=`, matching what
+# ruby/setup-ruby's own parser accepts. The two read the same file, so a form one
+# understands and the other does not would put CI on a version doctor calls
+# missing.
 mise_tool_version() {
-  awk -v tool="$1" '
+  awk -v tool="$1" -v q="\"'" '
     /^[[:space:]]*\[/ { in_tools = ($0 ~ /^[[:space:]]*\[tools\][[:space:]]*$/); next }
-    in_tools && $1 == tool && match($0, /"[^"]*"/) {
-      print substr($0, RSTART + 1, RLENGTH - 2)
-      exit
+    in_tools && $0 ~ ("^[[:space:]]*" tool "[[:space:]]*=") {
+      if (match($0, "[" q "][^" q "]+[" q "]")) {
+        print substr($0, RSTART + 1, RLENGTH - 2)
+        exit
+      }
     }
   ' mise.toml
 }
