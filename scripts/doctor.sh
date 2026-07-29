@@ -6,44 +6,61 @@
 
 set -eu
 
+# Run in the repo rather than wherever doctor was invoked from. Both halves of
+# every check have to agree on which checkout they mean: corepack resolves pnpm
+# against the nearest package.json, so reading the pin here while probing the
+# version there would compare this repo's expectation to another directory's
+# toolchain.
+cd -- "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+
 status=0
 
-expected_ruby="$(cat .ruby-version)"
-actual_ruby="$(ruby -e 'print RUBY_VERSION' 2>/dev/null || echo "missing")"
+# Reads one pin out of mise.toml's [tools] table. Scoped to that table so a
+# task or setting sharing a tool's name cannot answer in its place.
+mise_tool_version() {
+  awk -v tool="$1" '
+    /^[[:space:]]*\[/ { in_tools = ($0 ~ /^[[:space:]]*\[tools\][[:space:]]*$/); next }
+    in_tools && $1 == tool && match($0, /"[^"]*"/) {
+      print substr($0, RSTART + 1, RLENGTH - 2)
+      exit
+    }
+  ' mise.toml
+}
 
-if [ "$actual_ruby" = "$expected_ruby" ]; then
-  echo "doctor: ruby $actual_ruby matches .ruby-version"
-else
-  status=1
-  echo "doctor: active ruby is $actual_ruby but .ruby-version wants $expected_ruby" >&2
-  mise_ruby_bin="$HOME/.local/share/mise/installs/ruby/$expected_ruby/bin"
-  if [ -d "$mise_ruby_bin" ]; then
-    echo "doctor: fix: export PATH=\"$mise_ruby_bin:\$PATH\"" >&2
-  else
-    echo "doctor: fix: install ruby $expected_ruby (e.g. mise install ruby@$expected_ruby) and put it first in PATH" >&2
+check_tool() {
+  tool="$1"
+  actual="$2"
+  expected="$(mise_tool_version "$tool")"
+
+  if [ -z "$expected" ]; then
+    status=1
+    echo "doctor: mise.toml has no [tools] entry for $tool" >&2
+    return
   fi
-fi
 
-expected_node="$(cat .node-version)"
-actual_node="$(node -e 'process.stdout.write(process.versions.node)' 2>/dev/null || echo "missing")"
-
-if [ "$actual_node" = "$expected_node" ]; then
-  echo "doctor: node $actual_node matches .node-version"
-else
-  status=1
-  echo "doctor: active node is $actual_node but .node-version wants $expected_node" >&2
-  mise_node_bin="$HOME/.local/share/mise/installs/node/$expected_node/bin"
-  if [ -d "$mise_node_bin" ]; then
-    echo "doctor: fix: export PATH=\"$mise_node_bin:\$PATH\"" >&2
-  else
-    echo "doctor: fix: install node $expected_node (e.g. mise install node@$expected_node) and put it first in PATH" >&2
+  if [ "$actual" = "$expected" ]; then
+    echo "doctor: $tool $actual matches mise.toml"
+    return
   fi
-fi
 
-# pnpm ships via corepack, which is bundled with node. Pin the version the same
-# way Ruby and Node are pinned: corepack normally honours packageManager on its
-# own, but a standalone pnpm on PATH silently wins and can resolve dependencies
-# differently from the lockfile.
+  status=1
+  echo "doctor: active $tool is $actual but mise.toml wants $expected" >&2
+  mise_bin="$HOME/.local/share/mise/installs/$tool/$expected/bin"
+  if [ -d "$mise_bin" ]; then
+    echo "doctor: fix: export PATH=\"$mise_bin:\$PATH\"" >&2
+  else
+    echo "doctor: fix: mise install, then put $tool $expected first in PATH" >&2
+  fi
+}
+
+check_tool ruby "$(ruby -e 'print RUBY_VERSION' 2>/dev/null || echo "missing")"
+check_tool node "$(node -e 'process.stdout.write(process.versions.node)' 2>/dev/null || echo "missing")"
+
+# pnpm ships via corepack, which is bundled with node, so package.json's
+# packageManager field stays its single pin rather than moving to mise.toml —
+# two pins would have to be bumped together. Checked all the same, because
+# corepack honours that field only when a standalone pnpm on PATH is not
+# silently winning and resolving dependencies differently from the lockfile.
 expected_pnpm="$(sed -n 's/.*"packageManager"[[:space:]]*:[[:space:]]*"pnpm@\([^"]*\)".*/\1/p' package.json)"
 actual_pnpm="$(pnpm --version 2>/dev/null || echo "missing")"
 
