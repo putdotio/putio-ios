@@ -11,12 +11,13 @@ class VideoDownloadManager: NSObject {
 
     fileprivate var assetDownloadURLSession: AVAssetDownloadURLSession?
     fileprivate var activeDownloadsMap = [AVAssetDownloadTask: Int]()
+    private let activeDownloadsLock = NSLock()
     fileprivate var willDownloadToURLMap = [AVAssetDownloadTask: URL]()
     fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
     fileprivate var didRestore = false
 
     var activeDownloadCount: Int {
-        return activeDownloadsMap.count
+        withActiveDownloadsMap { $0.count }
     }
 
     override private init() {
@@ -51,7 +52,7 @@ class VideoDownloadManager: NSObject {
                     return log.error("VDM: restore - could not cast taskDescription: \(taskDescription)")
                 }
 
-                self.activeDownloadsMap[task] = downloadId
+                self.withActiveDownloadsMap { $0[task] = downloadId }
                 self.cancelDownload(id: downloadId)
             }
         }
@@ -110,7 +111,7 @@ class VideoDownloadManager: NSObject {
                 options: nil
             ) else { return }
 
-            self.activeDownloadsMap[task] = id
+            self.withActiveDownloadsMap { $0[task] = id }
 
             task.taskDescription = String(id)
             task.resume()
@@ -136,8 +137,7 @@ class VideoDownloadManager: NSObject {
         log.verbose(["VDM: cancelDownload", id])
         guard let download = getDownloadFromDatabase(id: id) else { return }
 
-        if let activeDownload = activeDownloadsMap.first(where: { $0.value == id }) {
-            let task = activeDownload.key
+        if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
             task.cancel()
         }
 
@@ -171,8 +171,8 @@ class VideoDownloadManager: NSObject {
 
     @discardableResult
     func removeDownloadRecord(id: Int) -> Bool {
-        if let task = activeDownloadsMap.first(where: { $0.value == id }) {
-            task.key.cancel()
+        if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
+            task.cancel()
         }
 
         guard DownloadSupport.deleteRecord(
@@ -184,6 +184,14 @@ class VideoDownloadManager: NSObject {
 
         UserDefaults.standard.removeObject(forKey: String(id))
         return true
+    }
+
+    private func withActiveDownloadsMap<Result>(
+        _ body: (inout [AVAssetDownloadTask: Int]) -> Result
+    ) -> Result {
+        activeDownloadsLock.lock()
+        defer { activeDownloadsLock.unlock() }
+        return body(&activeDownloadsMap)
     }
 
     func restartDownload(id: Int) {
@@ -272,7 +280,7 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
     func urlSession(_ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didLoad timeRange: CMTimeRange, totalTimeRangesLoaded loadedTimeRanges: [NSValue], timeRangeExpectedToLoad: CMTimeRange) {
         log.verbose(["VDM: assetDownloadTask-progress task: ", assetDownloadTask.taskIdentifier])
 
-        guard let downloadId = activeDownloadsMap[assetDownloadTask] else { return }
+        guard let downloadId = withActiveDownloadsMap({ $0[assetDownloadTask] }) else { return }
         guard let download = getDownloadFromDatabase(id: downloadId) else { return }
 
         log.verbose(["VDM: assetDownloadTask-progress download: ", downloadId])
@@ -307,7 +315,7 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
         guard let task = task as? AVAssetDownloadTask else { return }
         log.verbose(["VDM: didCompleteWithError task: ", task.taskIdentifier])
 
-        guard let id = activeDownloadsMap.removeValue(forKey: task) else { return }
+        guard let id = withActiveDownloadsMap({ $0.removeValue(forKey: task) }) else { return }
         lastProgressUpdateTime.removeValue(forKey: id)
         log.verbose(["VDM: didCompleteWithError task.id: ", id])
 

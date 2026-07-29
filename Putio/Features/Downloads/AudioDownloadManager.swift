@@ -11,10 +11,11 @@ class AudioDownloadManager: NSObject {
 
     fileprivate var urlSession: URLSession!
     fileprivate var activeDownloadsMap = [URLSessionTask: Int]()
+    private let activeDownloadsLock = NSLock()
     fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
 
     var activeDownloadCount: Int {
-        return activeDownloadsMap.count
+        withActiveDownloadsMap { $0.count }
     }
 
     override private init() {
@@ -45,7 +46,7 @@ class AudioDownloadManager: NSObject {
                     return log.error("ADM: restore - could not cast taskDescription: \(taskDescription)")
                 }
 
-                self.activeDownloadsMap[task] = downloadId
+                self.withActiveDownloadsMap { $0[task] = downloadId }
                 self.cancelDownload(id: downloadId)
             }
         }
@@ -70,7 +71,7 @@ class AudioDownloadManager: NSObject {
 
         let task = urlSession.downloadTask(with: url)
 
-        activeDownloadsMap[task] = id
+        withActiveDownloadsMap { $0[task] = id }
 
         task.taskDescription = String(id)
         task.resume()
@@ -98,8 +99,8 @@ class AudioDownloadManager: NSObject {
     func cancelDownload(id: Int) {
         guard let download = getDownloadFromDatabase(id: id) else { return }
 
-        if let task = activeDownloadsMap.first(where: { $0.value == id }) {
-            task.key.cancel()
+        if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
+            task.cancel()
         }
 
         guard let realm = download.realm else { return }
@@ -130,8 +131,8 @@ class AudioDownloadManager: NSObject {
 
     @discardableResult
     func removeDownloadRecord(id: Int) -> Bool {
-        if let task = activeDownloadsMap.first(where: { $0.value == id }) {
-            task.key.cancel()
+        if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
+            task.cancel()
         }
 
         guard DownloadSupport.deleteRecord(
@@ -143,6 +144,14 @@ class AudioDownloadManager: NSObject {
 
         UserDefaults.standard.removeObject(forKey: String(id))
         return true
+    }
+
+    private func withActiveDownloadsMap<Result>(
+        _ body: (inout [URLSessionTask: Int]) -> Result
+    ) -> Result {
+        activeDownloadsLock.lock()
+        defer { activeDownloadsLock.unlock() }
+        return body(&activeDownloadsMap)
     }
 
     func restartDownload(id: Int) {
@@ -225,7 +234,7 @@ class AudioDownloadManager: NSObject {
 
 extension AudioDownloadManager: URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        guard let id = activeDownloadsMap.removeValue(forKey: task) else { return }
+        guard let id = withActiveDownloadsMap({ $0.removeValue(forKey: task) }) else { return }
         lastProgressUpdateTime.removeValue(forKey: id)
         guard let download = getDownloadFromDatabase(id: id) else { return }
 
@@ -263,7 +272,7 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
         log.verbose(["ADM: downloadTask-didWriteData task:", downloadTask.taskIdentifier])
 
-        guard let downloadId = activeDownloadsMap[downloadTask] else { return }
+        guard let downloadId = withActiveDownloadsMap({ $0[downloadTask] }) else { return }
         guard let download = getDownloadFromDatabase(id: downloadId) else { return }
 
         log.verbose(["ADM: downloadTask-didWriteData download:", downloadId])
@@ -292,7 +301,7 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         log.verbose(["ADM: downloadTask-didFinishDownloadingTo task:", downloadTask.taskIdentifier])
 
-        guard let id = activeDownloadsMap[downloadTask] else { return }
+        guard let id = withActiveDownloadsMap({ $0[downloadTask] }) else { return }
         guard let download = getDownloadFromDatabase(id: id) else { return }
 
         let fileExtension = deriveFileExtensionFromResponse(response: downloadTask.response)
