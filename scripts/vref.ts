@@ -157,10 +157,11 @@ async function readManifest(): Promise<Manifest> {
  * manifest's mechanical fields against them.
  *
  * The copies are gitignored and regenerated from the committed baselines every
- * run, so they cannot drift. Curated text — title, tags, notes — lives in the
- * committed manifest and is preserved; only sizeBytes and viewport are
- * rewritten, and a baseline with no manifest entry is reported rather than
- * silently added with a placeholder title.
+ * run, so they cannot drift. Everything derivable from the baseline itself is
+ * rewritten — file, group, platform, device, viewport, sizeBytes — and curated
+ * text — title, tags, notes — lives in the committed manifest and is preserved.
+ * A baseline with no manifest entry is reported rather than silently added with a
+ * placeholder title.
  *
  * capturedAt is set once, when an entry is first created, and preserved after
  * that. It used to be recomputed from git on every run, which meant every squash
@@ -211,8 +212,22 @@ async function sync(): Promise<void> {
       // Filled in once, for an entry that arrives without one, and left alone
       // after that. Recomputing it on every run is what made a squash merge
       // dirty the manifest.
-      if (typeof entry.capturedAt !== "string" || entry.capturedAt === "") {
+      //
+      // Validated rather than trusted, because preserving a value means
+      // preserving a bad one: updatedAt is the newest capturedAt, and an
+      // unparseable date there would silently drag the whole gallery's timestamp
+      // back to the epoch.
+      const captured = typeof entry.capturedAt === "string" ? entry.capturedAt.trim() : "";
+
+      if (captured === "") {
         entry.capturedAt = lastCommitDate(sourcePath);
+      } else if (Number.isNaN(Date.parse(captured))) {
+        throw new Error(
+          `${MANIFEST} entry "${id}" has an unparseable capturedAt (${JSON.stringify(entry.capturedAt)}). ` +
+            "Use an ISO 8601 timestamp, or remove the field to have it filled in.",
+        );
+      } else {
+        entry.capturedAt = captured;
       }
 
       seen.add(id);
