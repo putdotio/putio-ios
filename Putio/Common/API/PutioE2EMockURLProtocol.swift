@@ -237,19 +237,82 @@ private enum PutioE2EMockAPI {
         "sort_by": "NAME_ASC"
       },
       "files": [
-        \(folder(id: 101, name: "Downloads", size: 3_221_225_472)),
-        \(folder(id: 102, name: "Movies", size: 8_589_934_592)),
-        \(folder(id: 103, name: "Music", size: 1_073_741_824)),
-        \(folder(id: 104, name: "Pictures", size: 268_435_456)),
-        \(folder(id: 105, name: "Series", size: 12_884_901_888)),
-        \(folder(id: 106, name: "Items shared with you", size: 4_294_967_296)),
-        \(videoFile),
-        \(audioFile)
+        \(rootFiles.joined(separator: ",\n"))
       ],
       "cursor": null,
-      "total": 8
+      "total": \(rootFiles.count)
     }
     """
+
+    // One array so `total` is counted rather than tallied by hand. It was
+    // `6 + 2 + libraryTitles.count`, which would have gone quietly wrong the
+    // first time someone added a folder.
+    private static let rootFiles: [String] =
+        [
+            folder(id: 101, name: "Downloads", size: 3_221_225_472),
+            folder(id: 102, name: "Movies", size: 8_589_934_592),
+            folder(id: 103, name: "Music", size: 1_073_741_824),
+            folder(id: 104, name: "Pictures", size: 268_435_456),
+            folder(id: 105, name: "Series", size: 12_884_901_888),
+            folder(id: 106, name: "Items shared with you", size: 4_294_967_296),
+            videoFile,
+            audioFile
+        ] + libraryFiles
+
+    // Rows past the eight the walk actually interacts with. They exist so the
+    // list reaches the bottom of a 13-inch iPad, which is what the App Store set
+    // is cropped from — eight rows left the lower half of slot 1 black (#86).
+    //
+    // Appended rather than interleaved: ids 42 and 43 stay at positions 7 and 8,
+    // so every element the walk looks up is where it was, and no navigation
+    // changes.
+    //
+    // All Blender Studio open movies, like the fixtures above. These names reach
+    // the App Store listing, so they are deliberately free content rather than
+    // titles that would imply a catalogue put.io does not have.
+    private static let libraryTitles = [
+        "Agent 327 - Operation Barbershop",
+        "Caminandes - Gran Dillama",
+        "Charge",
+        "Coffee Run",
+        "Dogwalk",
+        "Glass Half",
+        "Hero",
+        "Nina",
+        "Pets",
+        "Settlers",
+        "Sprite Fright",
+        "The Daily Dweebs",
+        "Wing It!"
+    ]
+
+    private static let libraryFiles: [String] = libraryTitles
+        .enumerated()
+        .map { index, title in
+            // Sizes vary so the subtitle column does not read as a repeated
+            // string, and are derived from the index so they stay fixed across
+            // runs — a random size would move pixels in a compared baseline.
+            libraryFile(id: 200 + index, name: "\(title).mp4", size: 314_572_800 + index * 41_943_040)
+        }
+
+    private static func libraryFile(id: Int, name: String, size: Int) -> String {
+      """
+      {
+        "id": \(id),
+        "name": "\(name)",
+        "icon": "video",
+        "parent_id": 0,
+        "size": \(size),
+        "created_at": "\(fixtureFileDate)",
+        "updated_at": "\(fixtureFileDate)",
+        "file_type": "VIDEO",
+        "is_shared": false,
+        "sort_by": "NAME_ASC",
+        "need_convert": false,
+        "is_mp4_available": true
+      }
+      """
+    }
 
     private static func folder(id: Int, name: String, size: Int) -> String {
       """

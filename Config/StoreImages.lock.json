@@ -1,7 +1,7 @@
 {
   "$comment": "Written by mise run store-images. Ties each committed marketing image to the baseline it was rendered from, so a baseline change without a re-render fails mise run store-images-verify instead of shipping stale artwork. Do not hand-edit.",
   "inputs": {
-    "storeScreenshots": "7bdb977dc6458e0efe5d63851ec530b981a3a8e2c02a3a635d8579a23e5b1598",
+    "storeScreenshots": "942cbd58fdf307dce196e212a7e6718b06d0ca44b78f49e4c04307d53707ff6b",
     "storeCaptions": "5c0b2821e73bfb8c89dc9ac609758f7884b5bf8dbd74c86994c2b39222492244",
     "template": "cce7b52110abab174b9fea360244c6a07691cd64d19e444936df283384848f60",
     "designTokens": "e77ac7f23dd9b77beaa43b2cd7ca6db009b389f01d9a541b634a0a99611fa1ea"
@@ -9,7 +9,7 @@
   "images": {
     "en-US/iphone-6.9-01-files.jpg": {
       "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-files.png",
-      "sha256": "70e84a9fc07774c46f9c1eb7cf5cd4bcc1e0f6ff75687a9c17b440c57ecb8d32"
+      "sha256": "dd2fc2f0e7f418d05261ba70f840926e96478f2a179c18ef06038ae82b4cd90f"
     },
     "en-US/iphone-6.9-02-player.jpg": {
       "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-video-player.png",
@@ -29,7 +29,7 @@
     },
     "en-US/ipad-13-01-files.jpg": {
       "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-files.png",
-      "sha256": "64bee29c7d106d9a8d166264efaa96ccd3597d678f174216bbaf15626c8c78e5"
+      "sha256": "4663463e7ae8f486202d4d23d783100f6e18c526c9e439b44b64bf3fac29bb69"
     },
     "en-US/ipad-13-02-player.jpg": {
       "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-video-player.png",
