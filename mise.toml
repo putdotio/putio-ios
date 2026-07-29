@@ -157,12 +157,12 @@ run = "pnpm exec playwright install chromium"
 [tasks.store-images]
 description = "Frame the store screenshots into finished marketing images"
 depends = ["store-screenshots", "playwright-chromium"]
-run = "node scripts/store-images.mjs"
+run = "node scripts/store-images.ts"
 
 [tasks.store-images-check]
 description = "Verify the store-image inputs without rendering"
 depends = ["store-screenshots", "playwright-chromium"]
-run = "node scripts/store-images.mjs --check"
+run = "node scripts/store-images.ts --check"
 
 [tasks.beta]
 description = "CI-only. Use .github/workflows/beta.yml via GitHub Actions"

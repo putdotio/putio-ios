@@ -2,7 +2,12 @@
   "$comment": "Type-checking only. Node runs the .ts files directly by stripping types, so nothing here emits — this config exists so the annotations are checked rather than decorative.",
   "compilerOptions": {
     "target": "es2023",
-    "lib": ["es2023"],
+    // DOM is here for store-images.ts alone, whose page.evaluate callbacks are
+    // checked here but run inside Chromium. It does mean a Node-only script
+    // could reference document and still type-check; that fails immediately and
+    // obviously at runtime, which beats leaving the one script that genuinely
+    // needs the lib unchecked.
+    "lib": ["es2023", "dom"],
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "types": ["node"],
