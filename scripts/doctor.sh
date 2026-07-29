@@ -24,7 +24,7 @@ status=0
 # missing.
 mise_tool_version() {
   awk -v tool="$1" -v q="\"'" '
-    /^[[:space:]]*\[/ { in_tools = ($0 ~ /^[[:space:]]*\[tools\][[:space:]]*$/); next }
+    /^[[:space:]]*\[/ { in_tools = ($0 ~ /^[[:space:]]*\[tools\][[:space:]]*(#.*)?$/); next }
     in_tools && $0 ~ ("^[[:space:]]*" tool "[[:space:]]*=") {
       if (match($0, "[" q "][^" q "]+[" q "]")) {
         print substr($0, RSTART + 1, RLENGTH - 2)
