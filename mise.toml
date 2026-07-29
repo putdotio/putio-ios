@@ -7,7 +7,7 @@
 # Keep [tools] first — `ruby/setup-ruby` reads the first `ruby = "…"` line in
 # this file without caring which table it is in.
 [tools]
-ruby = "3.2.4"
+ruby = "4.0.6"
 # CI installs Ruby via ruby/setup-ruby instead: mise would compile it from
 # source on macOS. mise owns the pin, setup-ruby owns the install.
 node = "24.18.0"
