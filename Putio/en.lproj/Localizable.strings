@@ -23,6 +23,12 @@
 "%@ is ready to play." = "%@ is ready to play.";
 
 /* No comment provided by engineer. */
+"%@ couldn't be deleted. The failed downloads remain selected so you can retry." = "%@ couldn't be deleted. The failed downloads remain selected so you can retry.";
+
+/* No comment provided by engineer. */
+"%@ couldn't be deleted. Please try again." = "%@ couldn't be deleted. Please try again.";
+
+/* No comment provided by engineer. */
 "%@ of %@ used" = "%1$@ of %2$@ used";
 
 /* No comment provided by engineer. */
@@ -173,6 +179,18 @@
 "Delete" = "Delete";
 
 /* No comment provided by engineer. */
+"Delete %d Downloads?" = "Delete %d Downloads?";
+
+/* No comment provided by engineer. */
+"Delete %d selected downloads" = "Delete %d selected downloads";
+
+/* No comment provided by engineer. */
+"Delete 1 Download?" = "Delete 1 Download?";
+
+/* No comment provided by engineer. */
+"Delete 1 selected download" = "Delete 1 selected download";
+
+/* No comment provided by engineer. */
 "Delete Download" = "Delete Download";
 
 /* No comment provided by engineer. */
@@ -228,6 +246,15 @@
 
 /* No comment provided by engineer. */
 "Downloads tutorial" = "Downloads tutorial";
+
+/* No comment provided by engineer. */
+"Double tap to deselect this download." = "Double tap to deselect this download.";
+
+/* No comment provided by engineer. */
+"Double tap to select this download." = "Double tap to select this download.";
+
+/* No comment provided by engineer. */
+"Enters selection mode for completed downloads." = "Enters selection mode for completed downloads.";
 
 /* No comment provided by engineer. */
 "Email address" = "Email address";
@@ -350,6 +377,9 @@
 "No folders whatsoever" = "No folders whatsoever";
 
 /* No comment provided by engineer. */
+"No completed downloads are available to select." = "No completed downloads are available to select.";
+
+/* No comment provided by engineer. */
 "No search result" = "No search result";
 
 /* No comment provided by engineer. */
@@ -378,6 +408,9 @@
 
 /* No comment provided by engineer. */
 "Oops, we couldn't restore those files :(" = "Oops, we couldn't restore those files :(";
+
+/* No comment provided by engineer. */
+"Only completed downloads can be selected." = "Only completed downloads can be selected.";
 
 /* No comment provided by engineer. */
 "Play Downloaded" = "Play Downloaded";
@@ -440,6 +473,9 @@
 "Resetting..." = "Resetting...";
 
 /* No comment provided by engineer. */
+"Retry" = "Retry";
+
+/* No comment provided by engineer. */
 "Settings updated" = "Settings updated";
 
 /* No comment provided by engineer. */
@@ -485,6 +521,15 @@
 "Select Items" = "Select Items";
 
 /* No comment provided by engineer. */
+"Select completed downloads" = "Select completed downloads";
+
+/* No comment provided by engineer. */
+"Selected" = "Selected";
+
+/* No comment provided by engineer. */
+"Not selected" = "Not selected";
+
+/* No comment provided by engineer. */
 "Show subtitles" = "Show subtitles";
 
 /* No comment provided by engineer. */
@@ -513,6 +558,15 @@
 
 /* No comment provided by engineer. */
 "Terms of service" = "Terms of service";
+
+/* No comment provided by engineer. */
+"The selected downloads will be removed from this device." = "The selected downloads will be removed from this device.";
+
+/* No comment provided by engineer. */
+"Couldn't Delete %d Downloads" = "Couldn't Delete %d Downloads";
+
+/* No comment provided by engineer. */
+"Couldn't Delete 1 Download" = "Couldn't Delete 1 Download";
 
 /* No comment provided by engineer. */
 "The code you entered is invalid" = "The code you entered is invalid";

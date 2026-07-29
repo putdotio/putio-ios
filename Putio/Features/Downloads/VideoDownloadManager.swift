@@ -148,19 +148,20 @@ class VideoDownloadManager: NSObject {
         }
     }
 
-    func deleteDownload(id: Int) {
+    @discardableResult
+    func deleteDownload(id: Int) -> Bool {
         log.verbose(["VDM: deleteDownload", id])
-        guard let download = getDownloadFromDatabase(id: id) else { return }
+        guard let download = getDownloadFromDatabase(id: id) else { return false }
 
         switch download.state {
         case .queued, .starting, .active:
             cancelDownload(id: id)
         case .completed, .failed, .stopped:
-            deleteLocalFile(for: id)
+            guard deleteLocalFile(for: id) else { return false }
         }
 
-        guard let realm = download.realm else { return }
-        _ = DownloadSupport.write(realm, context: "VideoDownloadManager.deleteDownload.write") {
+        guard let realm = download.realm else { return false }
+        return DownloadSupport.write(realm, context: "VideoDownloadManager.deleteDownload.write") {
             realm.delete(download)
         }
     }
@@ -204,14 +205,18 @@ class VideoDownloadManager: NSObject {
         }
     }
 
-    private func deleteLocalFile(for downloadId: Int) {
+    @discardableResult
+    private func deleteLocalFile(for downloadId: Int) -> Bool {
         log.verbose(["VDM: deleteLocalFile", downloadId])
 
-        guard let url = getLocalFileURL(for: downloadId) else { return }
+        guard let url = getLocalFileURL(for: downloadId) else { return true }
 
-        guard DownloadSupport.deleteItemIfPresent(at: url, context: "VideoDownloadManager.deleteLocalFile") else { return }
+        guard DownloadSupport.deleteItemIfPresent(at: url, context: "VideoDownloadManager.deleteLocalFile") else {
+            return false
+        }
         UserDefaults.standard.removeObject(forKey: String(downloadId))
         log.verbose(["VDM: local file deleted", downloadId])
+        return true
     }
 }
 

@@ -99,6 +99,32 @@ final class ErrorPresentationTests: XCTestCase {
         XCTAssertEqual(alert.message, NSLocalizedString("Please try again later", comment: ""))
     }
 
+    func testDownloadsPartialDeletionFailureNamesItemsAndOffersRetry() throws {
+        let viewController = DownloadsViewControllerSpy()
+        let tableView = UITableView()
+        viewController.view.addSubview(tableView)
+        viewController.tableView = tableView
+        tableView.setEditing(true, animated: false)
+
+        viewController.presentDeletionFailure(for: [
+            DownloadDeletionItem(id: 11, name: "First Episode", fileType: .video),
+            DownloadDeletionItem(id: 12, name: "Second Episode", fileType: .audio)
+        ])
+
+        let alert = try XCTUnwrap(viewController.presentedAlert)
+        XCTAssertEqual(
+            alert.title,
+            String(format: NSLocalizedString("Couldn't Delete %d Downloads", comment: ""), 2)
+        )
+        XCTAssertTrue(alert.message?.contains("First Episode") == true)
+        XCTAssertTrue(alert.message?.contains("Second Episode") == true)
+        XCTAssertTrue(alert.message?.contains("remain selected") == true)
+        XCTAssertEqual(
+            alert.actions.map(\.title),
+            [NSLocalizedString("Retry", comment: ""), NSLocalizedString("Close", comment: "")]
+        )
+    }
+
     func testChromecastManagerSkipsInvalidScreenshotURL() throws {
         let file = try makePutioFile([
                 "id": 42,
@@ -166,6 +192,21 @@ final class ErrorPresentationTests: XCTestCase {
         var presentedAlert: UIAlertController?
 
         override func present(_ viewControllerToPresent: UIViewController, animated flag: Bool, completion: (() -> Void)? = nil) {
+            presentedAlert = viewControllerToPresent as? UIAlertController
+            completion?()
+        }
+    }
+
+    private final class DownloadsViewControllerSpy: DownloadsViewController {
+        var presentedAlert: UIAlertController?
+
+        override func viewDidLoad() {}
+
+        override func present(
+            _ viewControllerToPresent: UIViewController,
+            animated flag: Bool,
+            completion: (() -> Void)? = nil
+        ) {
             presentedAlert = viewControllerToPresent as? UIAlertController
             completion?()
         }

@@ -17,7 +17,7 @@
     },
     "en-US/iphone-6.9-03-downloads.jpg": {
       "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-downloads.png",
-      "sha256": "54fa76ce4c0b5fefe93928051ff210f544dab7282cd8bffe5b11029a614bc979"
+      "sha256": "ebbbbee6846fc3b752f6bd01d8d4b637885e5a5071303bf3c54e9ad63eca80b1"
     },
     "en-US/iphone-6.9-04-history.jpg": {
       "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-history.png",

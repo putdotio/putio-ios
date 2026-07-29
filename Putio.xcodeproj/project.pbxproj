@@ -33,6 +33,8 @@
 		7A1C9E4B2D6F8A0C3E5B7D9F /* HistorySmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F8E2A6C0B3D7F1A5C9E3B6D /* HistorySmokeUITests.swift */; };
 		7A8B9C0D1E2F3A4B5C6D7E8F /* BrandTypography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C0D1E2F3A4B5C6D7E8F90 /* BrandTypography.swift */; };
 		7F88FAC086E3EACC35AEAD10 /* UIStoryboard+TypedInstantiation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A452CE0D5CE4073B61D5F4C /* UIStoryboard+TypedInstantiation.swift */; };
+		810000000000000000000001 /* DownloadsViewController+Selection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 810000000000000000000003 /* DownloadsViewController+Selection.swift */; };
+		810000000000000000000002 /* DownloadsViewController+TableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 810000000000000000000004 /* DownloadsViewController+TableView.swift */; };
 		8B5C2D1E4F60718293A4B5C6 /* ErrorPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */; };
 		9554916755C204A76581CC3A /* Pods_PutioTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7010BA68B2C5ECA69752D4D4 /* Pods_PutioTests.framework */; };
 		9C3E5A7B2D4F6A8C0E1B3D5F /* HistoryErrorUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B2D4F6A1C3E5A7B9D0F2A4C /* HistoryErrorUITests.swift */; };
@@ -242,6 +244,8 @@
 		AC6F93941FD6C22D00B2E79F /* DownloadsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsViewController.swift; sourceTree = "<group>"; };
 		AC6F939C1FD6D53300B2E79F /* DownloadModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadModel.swift; sourceTree = "<group>"; };
 		AC6F939E1FD6F20F00B2E79F /* DownloadsTableViewCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsTableViewCell.swift; sourceTree = "<group>"; };
+		810000000000000000000003 /* DownloadsViewController+Selection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DownloadsViewController+Selection.swift"; sourceTree = "<group>"; };
+		810000000000000000000004 /* DownloadsViewController+TableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DownloadsViewController+TableView.swift"; sourceTree = "<group>"; };
 		AC76E0271FB4D68800693A18 /* UITableView+HeaderFooter.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UITableView+HeaderFooter.swift"; sourceTree = "<group>"; };
 		AC76E0291FB4D6A100693A18 /* UITableViewCell+Appearance.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UITableViewCell+Appearance.swift"; sourceTree = "<group>"; };
 		AC7863172052C69400E26106 /* DownloadsEmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsEmptyStateView.swift; sourceTree = "<group>"; };
@@ -589,6 +593,8 @@
 				AC6F939C1FD6D53300B2E79F /* DownloadModel.swift */,
 				AC6F939E1FD6F20F00B2E79F /* DownloadsTableViewCell.swift */,
 				AC6F93941FD6C22D00B2E79F /* DownloadsViewController.swift */,
+				810000000000000000000003 /* DownloadsViewController+Selection.swift */,
+				810000000000000000000004 /* DownloadsViewController+TableView.swift */,
 				ACB8168820566475008F1D3E /* DownloadsTutorialViewController.swift */,
 				AC6E26061FD9A43200BC9AEC /* DownloadedFilePresenter.swift */,
 				ACE4603F230811A0003C6C0A /* VideoDownloadManager.swift */,
@@ -1172,6 +1178,8 @@
 				AC9F15EC23B98A5700C09BAB /* UIView+FindSubView.swift in Sources */,
 				ACB7637124B3B439007289DA /* Debouncer.swift in Sources */,
 				AC6F93951FD6C22D00B2E79F /* DownloadsViewController.swift in Sources */,
+				810000000000000000000001 /* DownloadsViewController+Selection.swift in Sources */,
+				810000000000000000000002 /* DownloadsViewController+TableView.swift in Sources */,
 				AC918F6E2AF128920082BFAF /* RootContainerViewController.swift in Sources */,
 				6E7F8A9B0C1D2E3F4A5B6C7D /* BrandFont.swift in Sources */,
 				7A8B9C0D1E2F3A4B5C6D7E8F /* BrandTypography.swift in Sources */,

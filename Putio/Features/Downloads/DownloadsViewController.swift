@@ -1,5 +1,4 @@
 import UIKit
-import AVKit
 import RealmSwift
 import StatefulViewController
 import Sentry
@@ -8,6 +7,20 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
     @IBOutlet weak var tableView: UITableView!
     var notificationToken: NotificationToken?
     var tutorialButton: UIButton?
+    var selectButton: UIBarButtonItem?
+    var editingToolbar: UIToolbar?
+    var bulkDeleteButton: UIBarButtonItem?
+    var selectionState = DownloadsSelectionState()
+    var isDeletingSelectedDownloads = false
+    var deleteDownload: (Int, Download.FileType) -> Bool = { id, fileType in
+        switch fileType {
+        case .video:
+            return VideoDownloadManager.sharedInstance.deleteDownload(id: id)
+        case .audio:
+            return AudioDownloadManager.sharedInstance.deleteDownload(id: id)
+        }
+    }
+
     lazy var downloads: Results<Download>? = {
         guard let realm = PutioRealm.open(context: "DownloadsViewController.downloads") else {
             InternalFailurePresenter.log("Unable to load downloads collection")
@@ -28,9 +41,18 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
         registerDataObserver()
     }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        updateTableInsets()
+    }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        navigationItem.title = NSLocalizedString("Downloads", comment: "")
+        if tableView.isEditing {
+            updateSelectionUI()
+        } else {
+            navigationItem.title = NSLocalizedString("Downloads", comment: "")
+        }
         PutioRealm.enrichPlaceholderDownloads()
     }
 
@@ -38,12 +60,16 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
         tableView.accessibilityIdentifier = "putio-downloads-table"
         tableView.backgroundColor = UIColor.Putio.Surface.appBg
         tableView.contentInsetAdjustmentBehavior = .automatic
-        tableView.tableHeaderView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNormalMagnitude))
+        tableView.tableHeaderView = UIView(
+            frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNormalMagnitude)
+        )
+        tableView.allowsMultipleSelectionDuringEditing = true
 
-        configureNavigationBarButton()
+        configureEditingToolbar()
+        configureNavigationBarButtons()
     }
 
-    func configureNavigationBarButton() {
+    func configureNavigationBarButtons() {
         let button = UIButton(type: .system)
         var configuration = UIButton.Configuration.plain()
         configuration.baseForegroundColor = UIColor.Putio.Yellow.textSecondary
@@ -51,11 +77,21 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
         button.configuration = configuration
         button.accessibilityLabel = NSLocalizedString("Downloads tutorial", comment: "")
         button.addTarget(self, action: #selector(tutorialButtonTapped), for: .touchUpInside)
-
         button.setImage(PutioIcon.info.image(pointSize: 20), for: .normal)
 
         tutorialButton = button
-        navigationItem.rightBarButtonItem = UIBarButtonItem(customView: button)
+        selectButton = UIBarButtonItem(
+            title: NSLocalizedString("Select", comment: ""),
+            style: .plain,
+            target: self,
+            action: #selector(startSelectingDownloads)
+        )
+        selectButton?.accessibilityLabel = NSLocalizedString("Select completed downloads", comment: "")
+        navigationItem.rightBarButtonItems = [
+            UIBarButtonItem(customView: button),
+            selectButton
+        ].compactMap { $0 }
+        updateSelectionAvailability()
     }
 
     func configureStateMachine() {
@@ -89,7 +125,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
             return
         }
 
-        notificationToken = downloads.observe({ change in
+        notificationToken = downloads.observe { change in
             let downloadCount = self.downloads?.count ?? 0
 
             if downloadCount == 0 && !PutioRealm.needsDownloadRecovery {
@@ -97,26 +133,37 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
             } else if downloadCount > 0 {
                 self.stateMachine.transitionToState(.none)
             }
+            self.reconcileSelectionAfterDownloadsChange()
+            self.updateSelectionAvailability()
 
             switch change {
             case .initial:
                 self.tableView.reloadData()
             case .update(_, let deletions, let insertions, let modifications):
                 self.tableView.beginUpdates()
-                self.tableView.insertRows(at: insertions.map({ IndexPath(row: $0, section: 0) }), with: .automatic)
-                self.tableView.deleteRows(at: deletions.map({ IndexPath(row: $0, section: 0) }), with: .automatic)
+                self.tableView.insertRows(
+                    at: insertions.map { IndexPath(row: $0, section: 0) },
+                    with: .automatic
+                )
+                self.tableView.deleteRows(
+                    at: deletions.map { IndexPath(row: $0, section: 0) },
+                    with: .automatic
+                )
                 self.tableView.endUpdates()
                 for index in modifications {
                     let indexPath = IndexPath(row: index, section: 0)
                     if let cell = self.tableView.cellForRow(at: indexPath) as? DownloadsTableViewCell {
                         guard let download = self.downloads?[index] else { continue }
                         cell.configure(with: download.id)
+                        self.configureSelectionAccessibility(for: cell, download: download)
                     }
                 }
             case .error(let error):
                 SentrySDK.capture(error: error)
             }
-        })
+
+            self.restoreSelectedRows()
+        }
     }
 
     deinit {
@@ -125,129 +172,6 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
 
     @objc func tutorialButtonTapped() {
         performSegue(withIdentifier: "toDownloadsTutorial", sender: nil)
-    }
-
-    // MARK: Swipe Actions
-    func contextualDeleteAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
-        guard let download = downloads?[indexPath.row],
-              let cell = tableView.cellForRow(at: indexPath) else {
-            InternalFailurePresenter.log("Unable to access download row \(indexPath.row) for delete action")
-            return UIContextualAction(style: .destructive, title: NSLocalizedString("Delete", comment: "")) { _, _, handler in
-                handler(false)
-            }
-        }
-
-        let action = UIContextualAction(style: .destructive, title: NSLocalizedString("Delete", comment: "")) { (_, _, handler) in
-            let actionSheet = UIAlertController(
-                title: String(
-                    format: NSLocalizedString("Are you sure you want to delete %@?", comment: ""),
-                    download.name
-                ),
-                message: nil,
-                preferredStyle: .actionSheet
-            )
-
-            let deleteButton = UIAlertAction(title: NSLocalizedString("Delete", comment: ""), style: .destructive, handler: { (_) in
-                if download.fileType == .video {
-                    VideoDownloadManager.sharedInstance.deleteDownload(id: download.id)
-                } else {
-                    AudioDownloadManager.sharedInstance.deleteDownload(id: download.id)
-                }
-
-                handler(true)
-            })
-
-            let cancelButton = UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel, handler: { (_) in
-                handler(false)
-            })
-
-            actionSheet.addAction(deleteButton)
-            actionSheet.addAction(cancelButton)
-            actionSheet.popoverPresentationController?.sourceView = cell
-            actionSheet.popoverPresentationController?.sourceRect = CGRect(x: cell.frame.width + 65, y: 0, width: 80, height: cell.frame.height)
-
-            self.present(actionSheet, animated: true, completion: nil)
-        }
-
-        action.backgroundColor = UIColor.Putio.Red.solid
-
-        return action
-    }
-}
-
-extension DownloadsViewController: DownloadsTableViewCellDelegate {
-    func downloadCellActionButtonTapped(download: Download, sender: DownloadsTableViewCell) {
-        switch download.state {
-        case .queued, .starting, .active:
-            if download.fileType == .audio {
-                return AudioDownloadManager.sharedInstance.cancelDownload(id: download.id)
-            }
-
-            return VideoDownloadManager.sharedInstance.cancelDownload(id: download.id)
-
-        case .stopped, .failed:
-            restartDownload(download)
-
-        case .completed:
-            presentDownloadedFile(download)
-        }
-    }
-}
-
-extension DownloadsViewController: UITableViewDataSource {
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return downloads?.count ?? 0
-    }
-
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        guard let cell = tableView.dequeueReusableCell(withIdentifier: "downloadsReuse", for: indexPath) as? DownloadsTableViewCell,
-              let download = downloads?[indexPath.row] else {
-            InternalFailurePresenter.log("Unable to dequeue DownloadsTableViewCell")
-            return UITableViewCell()
-        }
-
-        cell.configure(with: download.id)
-        cell.delegate = self
-        return cell
-    }
-}
-
-extension DownloadsViewController: UITableViewDelegate {
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        guard let download = downloads?[indexPath.row] else { return }
-        tableView.deselectRow(at: indexPath, animated: false)
-        guard download.state == .completed else { return }
-        presentDownloadedFile(download)
-    }
-
-    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        let actions = [contextualDeleteAction(forRowAtIndexPath: indexPath)]
-        let configuration = UISwipeActionsConfiguration(actions: actions)
-        configuration.performsFirstActionWithFullSwipe = false
-        return configuration
-    }
-}
-
-extension DownloadsViewController: AVPlayerViewControllerDelegate {
-    func playerViewControllerDidStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
-        guard let videoPlayerViewController = playerViewController as? VideoPlayerViewController else {
-            return InternalFailurePresenter.log("PiP start received for unexpected player controller")
-        }
-
-        videoPlayerViewController.handlePictureInPictureDidStart()
-    }
-
-    func playerViewController(_ playerViewController: AVPlayerViewController, restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) {
-        guard let videoPlayerViewController = playerViewController as? VideoPlayerViewController else {
-            InternalFailurePresenter.log("PiP restore received for unexpected player controller")
-            completionHandler(false)
-            return
-        }
-
-        present(videoPlayerViewController, animated: true) {
-            videoPlayerViewController.handlePictureInPictureDidStop()
-            completionHandler(true)
-        }
     }
 }
 
@@ -259,7 +183,7 @@ extension DownloadsViewController: DownloadsEmptyStateViewDelegate {
 
 // MARK: - Recovery View
 
-class DownloadsRecoveryView: UIView {
+final class DownloadsRecoveryView: UIView {
     var onRestore: (() -> Void)?
 
     private let restoreButton: UIButton = {

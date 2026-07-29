@@ -149,6 +149,84 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(action.backgroundColor, UIColor.Putio.Red.solid)
     }
 
+    func testDownloadsSelectionStateOnlySelectsCompletedDownloads() {
+        var selection = DownloadsSelectionState()
+
+        selection.select(11, isCompleted: true)
+        selection.select(12, isCompleted: false)
+
+        XCTAssertEqual(selection.selectedIDs, Set([11]))
+        XCTAssertTrue(selection.hasSelectedAll([11]))
+        XCTAssertFalse(selection.hasSelectedAll([11, 12]))
+
+        selection.selectAll([11, 13])
+        XCTAssertEqual(selection.selectedIDs, Set([11, 13]))
+
+        selection.retain([13])
+        XCTAssertEqual(selection.selectedIDs, Set([13]))
+    }
+
+    func testDownloadsBulkDeletionAttemptsEveryItemAndReturnsOnlyFailures() {
+        let items = [
+            DownloadDeletionItem(id: 11, name: "First", fileType: .video),
+            DownloadDeletionItem(id: 12, name: "Second", fileType: .audio),
+            DownloadDeletionItem(id: 13, name: "Third", fileType: .video)
+        ]
+        var attemptedIDs = [Int]()
+
+        let failures = DownloadsBulkDeletion.failures(deleting: items) { id, _ in
+            attemptedIDs.append(id)
+            return id != 12
+        }
+
+        XCTAssertEqual(attemptedIDs, [11, 12, 13])
+        XCTAssertEqual(failures, [items[1]])
+    }
+
+    func testDownloadsBulkDeleteAccessibilityLabelDescribesSelectedCount() {
+        let viewController = DownloadsViewController()
+
+        XCTAssertEqual(
+            viewController.bulkDeleteAccessibilityLabel(count: 1),
+            NSLocalizedString("Delete 1 selected download", comment: "")
+        )
+        XCTAssertEqual(
+            viewController.bulkDeleteAccessibilityLabel(count: 3),
+            String(format: NSLocalizedString("Delete %d selected downloads", comment: ""), 3)
+        )
+    }
+
+    func testDownloadCellAccessibilityDescribesSelectionAndUnavailableState() {
+        let cell = DownloadsTableViewCell()
+        let titleLabel = UILabel()
+        let subtitleLabel = UILabel()
+        let container = UIView()
+        cell.contentView.addSubview(titleLabel)
+        cell.contentView.addSubview(subtitleLabel)
+        cell.contentView.addSubview(container)
+        cell.titleLabel = titleLabel
+        cell.subtitleLabel = subtitleLabel
+        cell.downloadButtonContainer = container
+        titleLabel.text = "Episode"
+        subtitleLabel.text = "Downloading..."
+
+        cell.configureSelectionAccessibility(isSelecting: true, isSelected: true, isSelectable: true)
+
+        XCTAssertTrue(cell.isAccessibilityElement)
+        XCTAssertEqual(cell.accessibilityLabel, "Episode")
+        XCTAssertEqual(cell.accessibilityValue, NSLocalizedString("Selected", comment: ""))
+        XCTAssertTrue(cell.accessibilityTraits.contains(.selected))
+
+        cell.configureSelectionAccessibility(isSelecting: true, isSelected: false, isSelectable: false)
+
+        XCTAssertEqual(cell.accessibilityValue, "Downloading...")
+        XCTAssertEqual(
+            cell.accessibilityHint,
+            NSLocalizedString("Only completed downloads can be selected.", comment: "")
+        )
+        XCTAssertFalse(cell.accessibilityTraits.contains(.selected))
+    }
+
     private func makeFolder(id: Int, name: String, sortBy: String) throws -> PutioFile {
         return try makePutioFile([
                 "id": id,
