@@ -110,19 +110,19 @@ class AudioDownloadManager: NSObject {
 
     @discardableResult
     func deleteDownload(id: Int) -> Bool {
-        guard let download = getDownloadFromDatabase(id: id) else { return false }
+        let download = getDownloadFromDatabase(id: id)
 
-        switch download.state {
-        case .queued, .starting, .active:
-            cancelDownload(id: id)
-        case .completed, .failed, .stopped:
-            guard deleteLocalFile(for: id) else { return false }
-        }
-
-        guard let realm = download.realm else { return false }
-        return DownloadSupport.write(realm, context: "AudioDownloadManager.deleteDownload.write") {
-            realm.delete(download)
-        }
+        return DownloadSupport.performDeletion(
+            state: download?.state,
+            cancelActiveDownload: { self.cancelDownload(id: id) },
+            deleteLocalFile: { self.deleteLocalFile(for: id) },
+            deleteRecord: {
+                guard let download, let realm = download.realm else { return false }
+                return DownloadSupport.write(realm, context: "AudioDownloadManager.deleteDownload.write") {
+                    realm.delete(download)
+                }
+            }
+        )
     }
 
     func restartDownload(id: Int) {
@@ -155,14 +155,15 @@ class AudioDownloadManager: NSObject {
     }
 
     @discardableResult
-    private func deleteLocalFile(for downloadId: Int) -> Bool {
-        guard let url = getLocalFileURL(for: downloadId) else { return true }
-
-        guard DownloadSupport.deleteItemIfPresent(at: url, context: "AudioDownloadManager.deleteLocalFile") else {
-            return false
+    private func deleteLocalFile(for downloadId: Int) -> DownloadSupport.LocalFileDeletionResult {
+        let result = DownloadSupport.deleteLocalFile(
+            at: getLocalFileURL(for: downloadId),
+            context: "AudioDownloadManager.deleteLocalFile"
+        )
+        if result == .removed {
+            UserDefaults.standard.removeObject(forKey: String(downloadId))
         }
-        UserDefaults.standard.removeObject(forKey: String(downloadId))
-        return true
+        return result
     }
 
     private func deriveFileExtensionFromResponse(response: URLResponse?) -> String {

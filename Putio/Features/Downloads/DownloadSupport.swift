@@ -3,6 +3,12 @@ import RealmSwift
 import UserNotifications
 
 enum DownloadSupport {
+    enum LocalFileDeletionResult: Equatable {
+        case missing
+        case removed
+        case failed
+    }
+
     static func realm(context: String) -> Realm? {
         PutioRealm.open(context: context)
     }
@@ -43,6 +49,40 @@ enum DownloadSupport {
             log.error("[DownloadSupport] \(context): \(error.localizedDescription)")
             return false
         }
+    }
+
+    static func deleteLocalFile(at url: URL?, context: String) -> LocalFileDeletionResult {
+        guard let url else { return .missing }
+
+        do {
+            try FileManager.default.removeItem(at: url)
+            return .removed
+        } catch let error as CocoaError where error.code == .fileNoSuchFile {
+            return .missing
+        } catch {
+            log.error("[DownloadSupport] \(context): \(error.localizedDescription)")
+            return .failed
+        }
+    }
+
+    static func performDeletion(
+        state: Download.State?,
+        cancelActiveDownload: () -> Void,
+        deleteLocalFile: () -> LocalFileDeletionResult,
+        deleteRecord: () -> Bool
+    ) -> Bool {
+        guard let state else { return false }
+
+        switch state {
+        case .queued, .starting, .active:
+            cancelActiveDownload()
+        case .completed:
+            guard deleteLocalFile() == .removed else { return false }
+        case .failed, .stopped:
+            guard deleteLocalFile() != .failed else { return false }
+        }
+
+        return deleteRecord()
     }
 
     static func enqueueCompletedDownloadNotification(for downloadName: String) {

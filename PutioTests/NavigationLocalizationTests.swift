@@ -196,6 +196,164 @@ final class NavigationLocalizationTests: XCTestCase {
         )
     }
 
+    func testDownloadDeletionReturnsFalseWhenDownloadIsMissing() {
+        XCTAssertFalse(
+            DownloadSupport.performDeletion(
+                state: nil,
+                cancelActiveDownload: { XCTFail("Missing downloads cannot be cancelled") },
+                deleteLocalFile: {
+                    XCTFail("Missing downloads cannot have local files deleted")
+                    return .removed
+                },
+                deleteRecord: {
+                    XCTFail("Missing downloads cannot have records deleted")
+                    return true
+                }
+            )
+        )
+    }
+
+    func testCompletedDownloadDeletionPreservesRecordWhenLocalFileDeletionFails() {
+        var didDeleteRecord = false
+
+        let didDelete = DownloadSupport.performDeletion(
+            state: .completed,
+            cancelActiveDownload: { XCTFail("Completed downloads do not need cancellation") },
+            deleteLocalFile: { .failed },
+            deleteRecord: {
+                didDeleteRecord = true
+                return true
+            }
+        )
+
+        XCTAssertFalse(didDelete)
+        XCTAssertFalse(didDeleteRecord)
+    }
+
+    func testCompletedDownloadDeletionPropagatesRecordFailure() {
+        let didDelete = DownloadSupport.performDeletion(
+            state: .completed,
+            cancelActiveDownload: { XCTFail("Completed downloads do not need cancellation") },
+            deleteLocalFile: { .removed },
+            deleteRecord: { false }
+        )
+
+        XCTAssertFalse(didDelete)
+    }
+
+    func testCompletedDownloadDeletionSucceedsAfterFileAndRecordDeletion() {
+        var operations = [String]()
+
+        let didDelete = DownloadSupport.performDeletion(
+            state: .completed,
+            cancelActiveDownload: { XCTFail("Completed downloads do not need cancellation") },
+            deleteLocalFile: {
+                operations.append("file")
+                return .removed
+            },
+            deleteRecord: {
+                operations.append("record")
+                return true
+            }
+        )
+
+        XCTAssertTrue(didDelete)
+        XCTAssertEqual(operations, ["file", "record"])
+    }
+
+    func testActiveDownloadDeletionCancelsBeforeDeletingRecord() {
+        var operations = [String]()
+
+        let didDelete = DownloadSupport.performDeletion(
+            state: .active,
+            cancelActiveDownload: { operations.append("cancel") },
+            deleteLocalFile: {
+                XCTFail("Active downloads do not have completed files to delete")
+                return .failed
+            },
+            deleteRecord: {
+                operations.append("record")
+                return true
+            }
+        )
+
+        XCTAssertTrue(didDelete)
+        XCTAssertEqual(operations, ["cancel", "record"])
+    }
+
+    func testLocalFileDeletionReportsMissingWhenLocationCannotBeResolved() {
+        XCTAssertEqual(DownloadSupport.deleteLocalFile(at: nil, context: #function), .missing)
+    }
+
+    func testLocalFileDeletionReportsMissingWhenResolvedFileDoesNotExist() {
+        let missingURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("missing-\(UUID().uuidString)")
+
+        XCTAssertEqual(
+            DownloadSupport.deleteLocalFile(at: missingURL, context: #function),
+            .missing
+        )
+    }
+
+    func testLocalFileDeletionRemovesExistingFile() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("download-\(UUID().uuidString)")
+        try Data("offline".utf8).write(to: fileURL)
+
+        XCTAssertEqual(
+            DownloadSupport.deleteLocalFile(at: fileURL, context: #function),
+            .removed
+        )
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fileURL.path))
+    }
+
+    func testCompletedDownloadDeletionPreservesRecordWhenLocationCannotBeResolved() {
+        var didDeleteRecord = false
+
+        let didDelete = DownloadSupport.performDeletion(
+            state: .completed,
+            cancelActiveDownload: { XCTFail("Completed downloads do not need cancellation") },
+            deleteLocalFile: { .missing },
+            deleteRecord: {
+                didDeleteRecord = true
+                return true
+            }
+        )
+
+        XCTAssertFalse(didDelete)
+        XCTAssertFalse(didDeleteRecord)
+    }
+
+    func testFailedDownloadWithoutLocalFileCanDeleteItsRecord() {
+        XCTAssertTrue(
+            DownloadSupport.performDeletion(
+                state: .failed,
+                cancelActiveDownload: { XCTFail("Failed downloads do not need cancellation") },
+                deleteLocalFile: { .missing },
+                deleteRecord: { true }
+            )
+        )
+    }
+
+    func testDownloadSelectionAvailabilityHintExplainsRecovery() {
+        let viewController = DownloadsViewController()
+
+        XCTAssertEqual(
+            viewController.selectionAvailabilityAccessibilityHint(
+                hasCompletedDownloads: true,
+                needsRecovery: true
+            ),
+            NSLocalizedString("Restore offline downloads before selecting items.", comment: "")
+        )
+        XCTAssertEqual(
+            viewController.selectionAvailabilityAccessibilityHint(
+                hasCompletedDownloads: false,
+                needsRecovery: false
+            ),
+            NSLocalizedString("No completed downloads are available to select.", comment: "")
+        )
+    }
+
     func testDownloadCellAccessibilityDescribesSelectionAndUnavailableState() {
         let cell = DownloadsTableViewCell()
         let titleLabel = UILabel()
@@ -225,6 +383,11 @@ final class NavigationLocalizationTests: XCTestCase {
             NSLocalizedString("Only completed downloads can be selected.", comment: "")
         )
         XCTAssertFalse(cell.accessibilityTraits.contains(.selected))
+        XCTAssertTrue(cell.accessibilityTraits.contains(.notEnabled))
+
+        cell.configureSelectionAccessibility(isSelecting: true, isSelected: false, isSelectable: true)
+
+        XCTAssertFalse(cell.accessibilityTraits.contains(.notEnabled))
     }
 
     private func makeFolder(id: Int, name: String, sortBy: String) throws -> PutioFile {

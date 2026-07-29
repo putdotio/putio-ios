@@ -196,11 +196,29 @@ extension DownloadsViewController {
     }
 
     func updateSelectionAvailability() {
-        let canSelect = !completedDownloadIDs.isEmpty && !PutioRealm.needsDownloadRecovery
+        let hasCompletedDownloads = !completedDownloadIDs.isEmpty
+        let needsRecovery = PutioRealm.needsDownloadRecovery
+        let canSelect = hasCompletedDownloads && !needsRecovery
         selectButton?.isEnabled = canSelect
-        selectButton?.accessibilityHint = canSelect
-            ? NSLocalizedString("Enters selection mode for completed downloads.", comment: "")
-            : NSLocalizedString("No completed downloads are available to select.", comment: "")
+        selectButton?.accessibilityHint = selectionAvailabilityAccessibilityHint(
+            hasCompletedDownloads: hasCompletedDownloads,
+            needsRecovery: needsRecovery
+        )
+    }
+
+    func selectionAvailabilityAccessibilityHint(
+        hasCompletedDownloads: Bool,
+        needsRecovery: Bool
+    ) -> String {
+        if needsRecovery {
+            return NSLocalizedString("Restore offline downloads before selecting items.", comment: "")
+        }
+
+        if hasCompletedDownloads {
+            return NSLocalizedString("Enters selection mode for completed downloads.", comment: "")
+        }
+
+        return NSLocalizedString("No completed downloads are available to select.", comment: "")
     }
 
     func reconcileSelectionAfterDownloadsChange() {

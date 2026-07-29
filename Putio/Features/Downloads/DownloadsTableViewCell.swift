@@ -126,12 +126,13 @@ class DownloadsTableViewCell: UITableViewCell {
             accessibilityLabel = nil
             accessibilityValue = nil
             accessibilityHint = nil
-            accessibilityTraits.remove(.selected)
+            accessibilityTraits.remove([.selected, .notEnabled])
             return
         }
 
         accessibilityLabel = titleLabel.text
         if isSelectable {
+            accessibilityTraits.remove(.notEnabled)
             accessibilityValue = isSelected
                 ? NSLocalizedString("Selected", comment: "")
                 : NSLocalizedString("Not selected", comment: "")
@@ -148,6 +149,7 @@ class DownloadsTableViewCell: UITableViewCell {
             accessibilityValue = subtitleLabel.text
             accessibilityHint = NSLocalizedString("Only completed downloads can be selected.", comment: "")
             accessibilityTraits.remove(.selected)
+            accessibilityTraits.insert(.notEnabled)
         }
     }
 }

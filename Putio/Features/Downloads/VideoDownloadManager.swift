@@ -151,19 +151,19 @@ class VideoDownloadManager: NSObject {
     @discardableResult
     func deleteDownload(id: Int) -> Bool {
         log.verbose(["VDM: deleteDownload", id])
-        guard let download = getDownloadFromDatabase(id: id) else { return false }
+        let download = getDownloadFromDatabase(id: id)
 
-        switch download.state {
-        case .queued, .starting, .active:
-            cancelDownload(id: id)
-        case .completed, .failed, .stopped:
-            guard deleteLocalFile(for: id) else { return false }
-        }
-
-        guard let realm = download.realm else { return false }
-        return DownloadSupport.write(realm, context: "VideoDownloadManager.deleteDownload.write") {
-            realm.delete(download)
-        }
+        return DownloadSupport.performDeletion(
+            state: download?.state,
+            cancelActiveDownload: { self.cancelDownload(id: id) },
+            deleteLocalFile: { self.deleteLocalFile(for: id) },
+            deleteRecord: {
+                guard let download, let realm = download.realm else { return false }
+                return DownloadSupport.write(realm, context: "VideoDownloadManager.deleteDownload.write") {
+                    realm.delete(download)
+                }
+            }
+        )
     }
 
     func restartDownload(id: Int) {
@@ -206,17 +206,18 @@ class VideoDownloadManager: NSObject {
     }
 
     @discardableResult
-    private func deleteLocalFile(for downloadId: Int) -> Bool {
+    private func deleteLocalFile(for downloadId: Int) -> DownloadSupport.LocalFileDeletionResult {
         log.verbose(["VDM: deleteLocalFile", downloadId])
 
-        guard let url = getLocalFileURL(for: downloadId) else { return true }
-
-        guard DownloadSupport.deleteItemIfPresent(at: url, context: "VideoDownloadManager.deleteLocalFile") else {
-            return false
+        let result = DownloadSupport.deleteLocalFile(
+            at: getLocalFileURL(for: downloadId),
+            context: "VideoDownloadManager.deleteLocalFile"
+        )
+        if result == .removed {
+            UserDefaults.standard.removeObject(forKey: String(downloadId))
+            log.verbose(["VDM: local file deleted", downloadId])
         }
-        UserDefaults.standard.removeObject(forKey: String(downloadId))
-        log.verbose(["VDM: local file deleted", downloadId])
-        return true
+        return result
     }
 }
 

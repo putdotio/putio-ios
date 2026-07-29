@@ -118,7 +118,16 @@ final class ErrorPresentationTests: XCTestCase {
         )
         XCTAssertTrue(alert.message?.contains("First Episode") == true)
         XCTAssertTrue(alert.message?.contains("Second Episode") == true)
-        XCTAssertTrue(alert.message?.contains("remain selected") == true)
+        XCTAssertEqual(
+            alert.message,
+            String(
+                format: NSLocalizedString(
+                    "%@ couldn't be deleted. The failed downloads remain selected so you can retry.",
+                    comment: ""
+                ),
+                ListFormatter.localizedString(byJoining: ["First Episode", "Second Episode"])
+            )
+        )
         XCTAssertEqual(
             alert.actions.map(\.title),
             [NSLocalizedString("Retry", comment: ""), NSLocalizedString("Close", comment: "")]
