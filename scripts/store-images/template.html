@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <!-- Brand tokens come from the published design system rather than being
          retyped here, so a palette change flows through without editing markup.
-         Injected by store-images.mjs. -->
+         Injected by store-images.ts. -->
     <style id="design-tokens"></style>
     <style id="brand-fonts"></style>
     <style>
@@ -40,7 +40,7 @@
       .caption {
         margin: 0;
         padding: var(--caption-padding-block) var(--caption-padding-inline) 0;
-        /* Reserved space, not a clip: store-images.mjs fails the render when a
+        /* Reserved space, not a clip: store-images.ts fails the render when a
            caption exceeds it, so this never silently truncates. */
         overflow: hidden;
         text-align: center;

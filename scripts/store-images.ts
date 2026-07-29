@@ -13,9 +13,9 @@
 // caption face is the same licensed GT America the app bundles, so these match
 // the product instead of merely resembling it.
 //
-// Usage:
-//   node scripts/store-images.mjs          # render into fastlane/screenshots/
-//   node scripts/store-images.mjs --check  # verify inputs without rendering
+// Usage (run directly — Node strips the types, there is no build step):
+//   node scripts/store-images.ts          # render into fastlane/screenshots/
+//   node scripts/store-images.ts --check  # verify inputs without rendering
 
 import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
@@ -23,6 +23,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 import { chromium } from "playwright";
+import type { Browser } from "playwright";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SCREENSHOTS_CONFIG = join(ROOT, "Config/StoreScreenshots.json");
@@ -64,9 +65,50 @@ const LAYOUT = {
   deviceBezel: ["width", 0.014],
   deviceRadius: ["width", 0.075],
   screenRadius: ["width", 0.062],
-};
+} as const satisfies Record<string, readonly [Axis, number]>;
 
-async function main() {
+type Axis = "width" | "height";
+
+/** Ratio overrides a device may declare, keyed by the LAYOUT entry they replace. */
+type LayoutOverrides = Partial<Record<keyof typeof LAYOUT, number>>;
+
+interface ScreenshotEntry {
+  slot: number;
+  baseline: string;
+  id: string;
+  captionKey: string;
+}
+
+interface Device {
+  width: number;
+  height: number;
+  layout?: LayoutOverrides;
+  screenshots: ScreenshotEntry[];
+}
+
+interface Config {
+  devices: Record<string, Device>;
+}
+
+interface Captions {
+  locales?: Record<string, Record<string, string>>;
+}
+
+/** One image to render: a raw capture, the caption over it, and the canvas it fills. */
+interface PlanItem {
+  deviceId: string;
+  slot: number;
+  id: string;
+  caption: string;
+  rawName: string;
+  rawPath: string;
+  width: number;
+  height: number;
+  layout: LayoutOverrides | undefined;
+  locale: string;
+}
+
+async function main(): Promise<void> {
   const checkOnly = process.argv.includes("--check");
   const config = JSON.parse(await readFile(SCREENSHOTS_CONFIG, "utf8"));
   const captions = JSON.parse(await readFile(CAPTIONS_CONFIG, "utf8"));
@@ -159,7 +201,7 @@ async function main() {
  * store-images` installs it, but a direct node invocation would otherwise fail
  * deep inside Playwright with a stack rather than a remedy.
  */
-function assertBrowserInstalled() {
+function assertBrowserInstalled(): void {
   let executable;
   try {
     executable = chromium.executablePath();
@@ -175,7 +217,7 @@ function assertBrowserInstalled() {
   }
 }
 
-async function designTokens() {
+async function designTokens(): Promise<string> {
   const path = join(ROOT, "node_modules/@putdotio/design/dist/css/tokens.css");
 
   if (!existsSync(path)) {
@@ -188,8 +230,12 @@ async function designTokens() {
   return readFile(path, "utf8");
 }
 
-async function buildPlan(config, strings, locale) {
-  const plan = [];
+async function buildPlan(
+  config: Config,
+  strings: Record<string, string>,
+  locale: string,
+): Promise<PlanItem[]> {
+  const plan: PlanItem[] = [];
 
   for (const [deviceId, device] of Object.entries(config.devices)) {
     const rawDir = join(RAW_DIR, deviceId);
@@ -265,14 +311,14 @@ async function brandFontFaces() {
     fail("no GT America faces found in Putio/Fonts.", "Run mise run fonts-setup.");
   }
 
-  const weights = { regular: 400, medium: 500, bold: 700, black: 900 };
-  const faces = [];
-  const loaded = new Set();
+  const weights: Record<string, number> = { regular: 400, medium: 500, bold: 700, black: 900 };
+  const faces: string[] = [];
+  const loaded = new Set<number>();
 
   for (const file of files) {
     const weightName = /gt-america-standard-([a-z]+)\.otf$/u.exec(file)?.[1];
-    const weight = weights[weightName];
-    if (!weight) {
+    const weight = weightName === undefined ? undefined : weights[weightName];
+    if (weight === undefined) {
       continue;
     }
 
@@ -307,14 +353,21 @@ async function brandFontFaces() {
   return faces.join("\n");
 }
 
-async function render(browser, item, css, fontFaces, outputDir) {
+async function render(
+  browser: Browser,
+  item: PlanItem,
+  css: string,
+  fontFaces: string,
+  outputDir: string,
+): Promise<void> {
   const page = await browser.newPage({
     viewport: { width: item.width, height: item.height },
     deviceScaleFactor: 1,
   });
 
   const screenshot = await readFile(item.rawPath);
-  const variables = Object.entries(LAYOUT)
+  const entries = Object.entries(LAYOUT) as [keyof typeof LAYOUT, readonly [Axis, number]][];
+  const variables = entries
     .map(([name, [axis, ratio]]) => {
       const basis = axis === "width" ? item.width : item.height;
       const resolved = item.layout?.[name] ?? ratio;
@@ -325,11 +378,22 @@ async function render(browser, item, css, fontFaces, outputDir) {
   await page.goto(`file://${TEMPLATE}`);
   await page.evaluate(
     ({ css, fontFaces, variables, caption, image, width, height }) => {
-      document.querySelector("#design-tokens").textContent = css;
-      document.querySelector("#brand-fonts").textContent = fontFaces;
+      // Every id below is in the committed template. Naming a missing one beats
+      // a TypeError from deep in the page: the template is the only thing that
+      // can make this fail, and it says which part of it broke.
+      const need = <T extends Element>(selector: string): T => {
+        const element = document.querySelector<T>(selector);
+        if (!element) {
+          throw new Error(`template.html has no ${selector}`);
+        }
+        return element;
+      };
+
+      need("#design-tokens").textContent = css;
+      need("#brand-fonts").textContent = fontFaces;
       document.documentElement.style.cssText = `${variables} --frame-width: ${width}px; --frame-height: ${height}px;`;
-      document.querySelector("#caption").textContent = caption;
-      document.querySelector("#screenshot").src = image;
+      need("#caption").textContent = caption;
+      need<HTMLImageElement>("#screenshot").src = image;
     },
     {
       css,
@@ -382,8 +446,12 @@ async function render(browser, item, css, fontFaces, outputDir) {
   // hangs rather than failing. Reject on error, and cap the wait.
   await page.evaluate(
     () =>
-      new Promise((resolve, reject) => {
-        const img = document.querySelector("#screenshot");
+      new Promise<void>((resolve, reject) => {
+        const img = document.querySelector<HTMLImageElement>("#screenshot");
+        if (!img) {
+          reject(new Error("template.html has no #screenshot"));
+          return;
+        }
         if (img.complete) {
           // A completed load with no intrinsic size already failed, and its
           // error event fired before this ran — waiting would burn the whole
@@ -415,6 +483,9 @@ async function render(browser, item, css, fontFaces, outputDir) {
   // half-visible caption in a store listing is worse than a failed render.
   const captionOverflow = await page.evaluate(() => {
     const caption = document.querySelector("#caption");
+    if (!caption) {
+      throw new Error("template.html has no #caption");
+    }
     return caption.scrollHeight - caption.clientHeight;
   });
 
@@ -437,9 +508,12 @@ async function render(browser, item, css, fontFaces, outputDir) {
   // the bottom flush at every size, so a bottom measurement is always zero and
   // would prove nothing.
   const captionToDevice = await page.evaluate(() => {
-    const device = document.querySelector(".device").getBoundingClientRect();
-    const caption = document.querySelector("#caption").getBoundingClientRect();
-    return device.top - caption.bottom;
+    const device = document.querySelector(".device");
+    const caption = document.querySelector("#caption");
+    if (!device || !caption) {
+      throw new Error("template.html has no .device or no #caption");
+    }
+    return device.getBoundingClientRect().top - caption.getBoundingClientRect().bottom;
   });
 
   // Measured, not guessed: the shipped iPhone layout leaves 89px on a 2868px
@@ -473,15 +547,15 @@ async function render(browser, item, css, fontFaces, outputDir) {
 // directory. deliver reads the display type from the image's pixel size rather
 // than its name, so the prefix is free — it only has to sort each device's own
 // slots in order, which a zero-padded slot does.
-function storeImageName(item) {
+function storeImageName(item: PlanItem): string {
   return `${item.deviceId}-${String(item.slot).padStart(2, "0")}-${item.id}.jpg`;
 }
 
-function kebab(value) {
+function kebab(value: string): string {
   return value.replace(/[A-Z]/gu, (character) => `-${character.toLowerCase()}`);
 }
 
-function fail(message, remedy) {
+function fail(message: string, remedy: string): never {
   console.error(`store-images: ${message}\n  fix: ${remedy}`);
   process.exit(1);
 }
@@ -492,7 +566,9 @@ function fail(message, remedy) {
  * directory. Carries the same message and remedy fail() prints.
  */
 class RenderError extends Error {
-  constructor(message, remedy) {
+  readonly remedy: string;
+
+  constructor(message: string, remedy: string) {
     super(message);
     this.name = "RenderError";
     this.remedy = remedy;
