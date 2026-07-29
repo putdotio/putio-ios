@@ -12,6 +12,8 @@
   "devDependencies": {
     "@putdotio/design": "^1.5.0",
     "@putdotio/vref": "^1.1.1",
-    "playwright": "^1.62.0"
+    "@types/node": "^24.13.3",
+    "playwright": "^1.62.0",
+    "typescript": "^7.0.2"
   }
 }

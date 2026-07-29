@@ -16,6 +16,8 @@
 //   build     sync, then write .vref/index.html
 //   validate  check the manifest and that every referenced asset exists
 //   serve     serve the gallery locally
+//
+// Run directly: Node strips the types, there is no build step.
 
 import { execFileSync } from "node:child_process";
 import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
@@ -27,10 +29,41 @@ const VREF_DIR = ".vref";
 const MANIFEST = join(VREF_DIR, "manifest.json");
 const OUTPUT = join(VREF_DIR, "index.html");
 
+/**
+ * The parts of a manifest entry this driver owns. Curated text (title, tags,
+ * notes) is preserved verbatim and deliberately not modelled — declaring only
+ * what we write keeps the contract honest about which fields are ours.
+ */
+interface ManifestEntry {
+  id: string;
+  file: string;
+  group: string;
+  platform: string;
+  device: string;
+  viewport: { width: number; height: number };
+  sizeBytes: number;
+  capturedAt: string;
+  [preserved: string]: unknown;
+}
+
+interface Manifest {
+  screenshots: ManifestEntry[];
+  updatedAt: string;
+  [preserved: string]: unknown;
+}
+
+interface Source {
+  group: string;
+  dir: string;
+  prefix: string;
+  subdir: string;
+  device: string;
+}
+
 // Where each group's baselines come from, and the id prefix stripped from the
 // filename. Screens come from the e2e walk; components render directly in unit
 // tests, so they are not device-sized and carry their own viewport.
-const SOURCES = [
+const SOURCES: Source[] = [
   {
     group: "Screens",
     dir: "PutioUITests/__Snapshots__/ScreenshotWalkUITests",
@@ -47,7 +80,7 @@ const SOURCES = [
   },
 ];
 
-async function main() {
+async function main(): Promise<void> {
   const command = process.argv[2] ?? "build";
 
   switch (command) {
@@ -79,9 +112,44 @@ async function main() {
       return;
     }
     default:
-      console.error("usage: node scripts/vref.mjs [sync|build|validate|serve]");
+      console.error("usage: node scripts/vref.ts [sync|build|validate|serve]");
       process.exitCode = 1;
   }
+}
+
+/**
+ * Parse the manifest at the boundary, so everything downstream can rely on the
+ * shape instead of re-checking it. A hand-edited manifest is the realistic
+ * failure here, and it should name the problem rather than surface later as a
+ * property read on undefined.
+ */
+async function readManifest(): Promise<Manifest> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(MANIFEST, "utf8"));
+  } catch (error) {
+    // A raw SyntaxError never names the file it came from, which is the one
+    // thing worth knowing when the manifest is hand-edited.
+    throw new Error(`${MANIFEST} could not be read: ${(error as Error).message}`);
+  }
+
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`${MANIFEST} is not an object.`);
+  }
+
+  const manifest = parsed as Partial<Manifest>;
+
+  if (!Array.isArray(manifest.screenshots)) {
+    throw new Error(`${MANIFEST} has no "screenshots" array.`);
+  }
+
+  for (const [index, entry] of manifest.screenshots.entries()) {
+    if (typeof entry?.id !== "string" || entry.id === "") {
+      throw new Error(`${MANIFEST} screenshots[${index}] has no string "id".`);
+    }
+  }
+
+  return manifest as Manifest;
 }
 
 /**
@@ -94,10 +162,10 @@ async function main() {
  * are rewritten, and a baseline with no manifest entry is reported rather than
  * silently added with a placeholder title.
  */
-async function sync() {
-  const manifest = JSON.parse(await readFile(MANIFEST, "utf8"));
+async function sync(): Promise<void> {
+  const manifest = await readManifest();
   const byId = new Map(manifest.screenshots.map((entry) => [entry.id, entry]));
-  const seen = new Set();
+  const seen = new Set<string>();
 
   await rm(join(VREF_DIR, "screenshots"), { recursive: true, force: true });
 
@@ -151,7 +219,7 @@ async function sync() {
   console.log(`synced ${seen.size} baselines into ${VREF_DIR}/screenshots/`);
 }
 
-function listBaselines(dir) {
+function listBaselines(dir: string): string[] {
   return execFileSync("git", ["ls-files", dir], { encoding: "utf8" })
     .split("\n")
     .filter((line) => line.endsWith(".png"))
@@ -159,7 +227,7 @@ function listBaselines(dir) {
     .sort();
 }
 
-function pixelSize(path) {
+function pixelSize(path: string): { width: number; height: number } {
   // sips ships with macOS and this repo is macOS-only; avoids adding an image
   // dependency just to read two integers.
   const output = execFileSync("sips", ["-g", "pixelWidth", "-g", "pixelHeight", path], {
@@ -185,7 +253,7 @@ function pixelSize(path) {
  * dirty the manifest for reasons that have nothing to do with the images. Author
  * date survives rebase and cherry-pick.
  */
-function lastCommitDate(path) {
+function lastCommitDate(path: string): string {
   const output = execFileSync("git", ["log", "-1", "--format=%aI", "--", path], {
     encoding: "utf8",
   }).trim();
@@ -193,7 +261,7 @@ function lastCommitDate(path) {
   return output === "" ? new Date(0).toISOString() : new Date(output).toISOString();
 }
 
-function newestCaptureDate(screenshots) {
+function newestCaptureDate(screenshots: ManifestEntry[]): string {
   const newest = screenshots
     .map((entry) => Date.parse(entry.capturedAt))
     .filter((value) => Number.isFinite(value))

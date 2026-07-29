@@ -1,5 +1,4 @@
-.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify type-scale-sync type-scale-verify fonts-setup fonts-check verify verify-fast e2e-simulator screenshots-record screenshots-record-components screenshots-record-screens print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean vref vref-validate vref-serve beta release store-screenshots store-screenshots-check playwright-chromium store-images store-images-check
-
+.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify type-scale-sync type-scale-verify fonts-setup fonts-check verify verify-fast e2e-simulator screenshots-record screenshots-record-components screenshots-record-screens scripts-typecheck print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean vref vref-validate vref-serve beta release store-screenshots store-screenshots-check playwright-chromium store-images store-images-check
 # Result bundle paths shared by verify / e2e-simulator / screenshots-record.
 VERIFY_RESULT_BUNDLE := build/verify.xcresult
 E2E_RESULT_BUNDLE := build/e2e-simulator.xcresult
@@ -143,20 +142,27 @@ release:
 	@echo "make release is CI-only. Use .github/workflows/release.yml via GitHub Actions." >&2
 	@exit 1
 
+# Node runs the .ts scripts directly by stripping types, so there is no build
+# step — but stripping is not checking, and an unchecked annotation drifts into
+# a lie. Deliberately not part of verify-fast, which is a sub-second gate that
+# runs without Node at all.
+scripts-typecheck:
+	pnpm exec tsc --noEmit
+
 vref:
-	node scripts/vref.mjs build
+	node scripts/vref.ts build
 
 vref-validate:
-	node scripts/vref.mjs validate
+	node scripts/vref.ts validate
 
 vref-serve:
-	node scripts/vref.mjs serve
+	node scripts/vref.ts serve
 
 store-screenshots:
-	node scripts/store-screenshots.mjs
+	node scripts/store-screenshots.ts
 
 store-screenshots-check:
-	node scripts/store-screenshots.mjs --check
+	node scripts/store-screenshots.ts --check
 
 # pnpm 10+ blocks postinstall scripts unless a package is allowlisted, so
 # `pnpm install` gives us the playwright package without a browser to drive.
