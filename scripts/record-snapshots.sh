@@ -6,9 +6,16 @@
 #   components  scheme Putio      target PutioTests    fixed-size view snapshots
 #   screens     scheme PutioE2E   target PutioUITests  full-screen walk captures
 #
-# Usage:
-#   scripts/record-snapshots.sh
-#   scripts/record-snapshots.sh --tier screens
+# Prefer the Make targets: they supply the expected baseline counts, which an
+# unscoped run needs and this script deliberately does not hardcode.
+#
+#   make screenshots-record
+#   make screenshots-record-screens
+#   make screenshots-record ONLY=PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk
+#
+# Direct, if you are supplying the counts yourself:
+#   scripts/record-snapshots.sh --expect-components 11 --expect-screens 12
+#   scripts/record-snapshots.sh --tier screens --expect-screens 12
 #   scripts/record-snapshots.sh --only PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk
 #
 # --only takes xcodebuild's own -only-testing: syntax. The leading test target
@@ -124,6 +131,18 @@ if [ -n "$only" ]; then
     esac
 fi
 
+# An unscoped tier needs its expected count, and finding that out after building
+# and rewriting the baselines is too late — the run has already mutated the tree
+# it is about to refuse.
+if [ -z "$scoped" ]; then
+    for tier in $tiers; do
+        case "$tier" in
+            components) [ -n "$expected_components" ] || fatal "an unscoped components run needs --expect-components (make screenshots-record supplies it)." ;;
+            screens) [ -n "$expected_screens" ] || fatal "an unscoped screens run needs --expect-screens (make screenshots-record supplies it)." ;;
+        esac
+    done
+fi
+
 # Baselines are recorded with the licensed faces bundled, and a scoped screens
 # run never reaches BrandFontTests — so nothing else would stop it writing a set
 # of system-font captures that then become the committed reference.
@@ -206,9 +225,14 @@ run_tier() {
     xcrun xcresulttool get test-results tests --path "$bundle" | ruby scripts/verify-snapshot-recording.rb \
         || fatal "$tier had failures beyond record-mode snapshot assertions; baselines may be incomplete."
 
-    if [ -z "$scoped" ]; then
-        [ -n "$expected" ] || fatal "$tier has no expected baseline count; pass --expect-$tier (the Makefile does)."
+    # xcodebuild exits 0 for a -only-testing: identifier that matches nothing, so
+    # a typo or a renamed test would otherwise record no baselines, assert no
+    # baselines, and report success. Nothing written by this run means the filter
+    # selected nothing.
+    written="$(find "$snapshots" -name '*.png' -newer "$run_marker" 2>/dev/null | head -1)"
+    [ -n "$written" ] || fatal "$tier recorded no baselines${only:+ for --only $only}. The filter matched no snapshot test; check the identifier."
 
+    if [ -z "$scoped" ]; then
         # Counting alone cannot see a deleted test: its orphaned PNG stays on
         # disk and fills the slot the missing one left, so the total still
         # matches. Anything not written by this run is an orphan by definition.
