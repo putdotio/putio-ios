@@ -16,10 +16,12 @@ device_type_override=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --label)
+      [ "$#" -ge 2 ] || { echo "--label needs a value" >&2; exit 2; }
       label="$2"
       shift 2
       ;;
     --device-type)
+      [ "$#" -ge 2 ] || { echo "--device-type needs a simulator device type identifier" >&2; exit 2; }
       device_type_override="$2"
       shift 2
       ;;

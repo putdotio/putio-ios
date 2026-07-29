@@ -421,25 +421,31 @@ async function render(browser, item, css, fontFaces, outputDir) {
     );
   }
 
-  // A device taller than the row it sits in grows *upward*, because it is
-  // bottom-aligned — so it covers the caption instead of running off the bottom,
-  // and the caption check above cannot see it. That is invisible at review size
-  // on a phone-shaped canvas and obvious on a squatter one. Both directions are
-  // wrong, so measure the gap: negative overlaps the caption, positive leaves a
-  // yellow strip along the bottom edge the design does not have.
-  const deviceGap = await page.evaluate(() => {
-    const device = document.querySelector(".device");
-    const caption = document.querySelector("#caption");
-    const top = device.getBoundingClientRect().top - caption.getBoundingClientRect().bottom;
-    const bottom = document.body.clientHeight - device.getBoundingClientRect().bottom;
-    return { top, bottom };
+  // The device's height is intrinsic — deviceWidth divided by the screenshot's
+  // aspect — so it can miss the space under the caption in either direction, and
+  // the caption check above sees neither. Too tall and it grows *upward* over the
+  // caption, because align-self: end pins its bottom to the canvas. Too short
+  // and it leaves a band of yellow between caption and device.
+  //
+  // Only the top edge can be measured for this: that same bottom alignment keeps
+  // the bottom flush at every size, so a bottom measurement is always zero and
+  // would prove nothing.
+  const captionToDevice = await page.evaluate(() => {
+    const device = document.querySelector(".device").getBoundingClientRect();
+    const caption = document.querySelector("#caption").getBoundingClientRect();
+    return device.top - caption.bottom;
   });
 
-  if (deviceGap.top < 0 || deviceGap.bottom > 1) {
+  // Measured, not guessed: the shipped iPhone layout leaves 89px on a 2868px
+  // canvas (3.11%) and iPad's fitted one leaves 0. Four percent accepts both
+  // with headroom while still catching a band anyone would notice.
+  const slack = item.height * 0.04;
+
+  if (captionToDevice < 0 || captionToDevice > slack) {
     throw new RenderError(
-      deviceGap.top < 0
-        ? `${item.deviceId} slot ${item.slot}: the device overlaps the caption by ${Math.abs(Math.round(deviceGap.top))}px.`
-        : `${item.deviceId} slot ${item.slot}: the device stops ${Math.round(deviceGap.bottom)}px short of the bottom edge.`,
+      captionToDevice < 0
+        ? `${item.deviceId} slot ${item.slot}: the device overlaps the caption by ${Math.abs(Math.round(captionToDevice))}px.`
+        : `${item.deviceId} slot ${item.slot}: ${Math.round(captionToDevice)}px of empty yellow sits between the caption and the device, over the ${Math.round(slack)}px allowed.`,
       "Adjust deviceWidth for this device in Config/StoreScreenshots.json so the device height fills the row under the caption.",
     );
   }
