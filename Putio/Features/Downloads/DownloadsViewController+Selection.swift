@@ -307,6 +307,8 @@ extension DownloadsViewController {
             updateSelectionUI()
             presentDeletionFailure(for: failures)
         }
+
+        updateDownloadsContentState(downloadCount: downloads?.count ?? 0)
     }
 
     func presentDeletionFailure(for failures: [DownloadDeletionItem]) {

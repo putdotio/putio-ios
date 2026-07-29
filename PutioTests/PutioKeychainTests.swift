@@ -183,5 +183,43 @@ final class DownloadedFilePresenterTests: XCTestCase {
         XCTAssertEqual(managedDownload.message, "File not reachable")
     }
 
-    private final class PresenterSpyViewController: UIViewController, DownloadedFilePresenter {}
+    func testFailedDeleteFromRestartAlertPresentsRecoveryMessage() throws {
+        let download = Download()
+        download.id = 77
+        download.name = "Episode"
+        download.fileType = .video
+
+        let viewController = PresenterSpyViewController()
+        viewController.deleteResult = false
+        viewController.handleDeleteDownloadedFile(download)
+
+        let alert = try XCTUnwrap(viewController.presentedAlert)
+        XCTAssertEqual(alert.title, NSLocalizedString("Couldn't Delete Download", comment: ""))
+        XCTAssertEqual(
+            alert.message,
+            NSLocalizedString(
+                "The download couldn't be deleted. Try again from Downloads, or remove it from the list; the file may remain on this device.",
+                comment: ""
+            )
+        )
+        XCTAssertEqual(alert.actions.map(\.title), [NSLocalizedString("Close", comment: "")])
+    }
+
+    private final class PresenterSpyViewController: UIViewController, DownloadedFilePresenter {
+        var deleteResult = true
+        var presentedAlert: UIAlertController?
+
+        func deleteDownloadedFile(_ download: Download) -> Bool {
+            deleteResult
+        }
+
+        override func present(
+            _ viewControllerToPresent: UIViewController,
+            animated flag: Bool,
+            completion: (() -> Void)? = nil
+        ) {
+            presentedAlert = viewControllerToPresent as? UIAlertController
+            completion?()
+        }
+    }
 }

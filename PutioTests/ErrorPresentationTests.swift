@@ -173,6 +173,24 @@ final class ErrorPresentationTests: XCTestCase {
         XCTAssertNotNil(viewController.presentedAlert)
     }
 
+    func testDownloadsEmptyStateWaitsForBulkDeletionToFinish() {
+        let viewController = DownloadsViewControllerSpy()
+        let tableView = UITableView()
+        viewController.view.addSubview(tableView)
+        viewController.tableView = tableView
+        viewController.downloads = nil
+        viewController.isDeletingSelectedDownloads = true
+
+        viewController.updateDownloadsContentState(downloadCount: 0)
+
+        XCTAssertEqual(viewController.stateMachine.lastState, .none)
+
+        viewController.finishDownloadOperation(failures: [])
+
+        XCTAssertFalse(viewController.isDeletingSelectedDownloads)
+        XCTAssertEqual(viewController.stateMachine.lastState, .view("empty"))
+    }
+
     func testChromecastManagerSkipsInvalidScreenshotURL() throws {
         let file = try makePutioFile([
                 "id": 42,

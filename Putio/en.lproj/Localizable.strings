@@ -575,6 +575,9 @@
 "Couldn't Delete %d Downloads" = "Couldn't Delete %d Downloads";
 
 /* No comment provided by engineer. */
+"Couldn't Delete Download" = "Couldn't Delete Download";
+
+/* No comment provided by engineer. */
 "Couldn't Delete 1 Download" = "Couldn't Delete 1 Download";
 
 /* No comment provided by engineer. */
@@ -582,6 +585,9 @@
 
 /* No comment provided by engineer. */
 "The original version of this file has been deleted from your put.io account." = "The original version of this file has been deleted from your put.io account.";
+
+/* No comment provided by engineer. */
+"The download couldn't be deleted. Try again from Downloads, or remove it from the list; the file may remain on this device." = "The download couldn't be deleted. Try again from Downloads, or remove it from the list; the file may remain on this device.";
 
 /* No comment provided by engineer. */
 "The password you entered doesn't match the one in our records" = "The password you entered doesn't match the one in our records";

@@ -136,11 +136,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
         notificationToken = downloads.observe { change in
             let downloadCount = self.downloads?.count ?? 0
 
-            if downloadCount == 0 && !PutioRealm.needsDownloadRecovery {
-                self.stateMachine.transitionToState(.view("empty"))
-            } else if downloadCount > 0 {
-                self.stateMachine.transitionToState(.none)
-            }
+            self.updateDownloadsContentState(downloadCount: downloadCount)
             switch change {
             case .initial:
                 self.tableView.reloadData()
@@ -171,6 +167,28 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
             self.updateSelectionAvailability()
             self.restoreSelectedRows()
         }
+    }
+
+    func downloadsContentState(
+        downloadCount: Int,
+        needsRecovery: Bool
+    ) -> ViewStateMachineState? {
+        if downloadCount == 0 && !needsRecovery {
+            return isDeletingSelectedDownloads ? nil : .view("empty")
+        }
+
+        return downloadCount > 0 ? ViewStateMachineState.none : nil
+    }
+
+    func updateDownloadsContentState(downloadCount: Int) {
+        guard let state = downloadsContentState(
+            downloadCount: downloadCount,
+            needsRecovery: PutioRealm.needsDownloadRecovery
+        ) else {
+            return
+        }
+
+        stateMachine.transitionToState(state)
     }
 
     deinit {
