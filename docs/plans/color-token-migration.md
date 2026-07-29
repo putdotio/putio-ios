@@ -22,7 +22,7 @@ light and dark modes. Fonts are explicitly out of scope (see Non-Goals).
    (a generated mirror of the canonical token build; do not hand-edit values).
 2. `scripts/sync-design-tokens.rb` generates `Putio/Assets.xcassets/Colors/`
    colorsets with light (`any`) + dark appearances; `--check` mode wired into
-   `make verify-fast` as the drift gate.
+   `mise run verify-fast` as the drift gate.
 3. Regenerate `UIColor+Putio.swift` from the same tokens; keep the six legacy
    names as deprecated aliases mapped to their semantic roles.
 4. Migrate all Swift usages and all storyboard/xib inline colors to named
@@ -88,7 +88,7 @@ Recorded deviations (Phase 2):
 ## Non-Goals
 
 - Full brand typography adoption. The font *infrastructure* now exists
-  (`make fonts-setup` downloads licensed faces from `static.put.io`
+  (`mise run fonts-setup` downloads licensed faces from `static.put.io`
   into gitignored `Putio/Fonts/`; optional bundling + runtime
   registration with system-font fallback; verification builds always use
   system fonts). Applying brand type beyond navigation titles is tracked
@@ -97,7 +97,7 @@ Recorded deviations (Phase 2):
 
 ## Verification
 
-- `make verify-fast` (includes token drift gate) and full `make verify`
-- `make e2e-simulator` including the screenshot walk
+- `mise run verify-fast` (includes token drift gate) and full `mise run verify`
+- `mise run e2e-simulator` including the screenshot walk
 - Phase 2: both-mode screenshot grids + manual light sweep
 - `/autoreview` closeout at the end of each phase

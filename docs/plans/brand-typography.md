@@ -62,9 +62,9 @@ brand face.
 
 ## Verification
 
-- `make verify` green with **zero baseline drift** (fonts absent → system
+- `mise run verify` green with **zero baseline drift** (fonts absent → system
   fallback everywhere).
-- `make type-scale-verify` drift gate in `verify-fast`.
+- `mise run type-scale-verify` drift gate in `verify-fast`.
 - Throwaway fonts-bundled record for the DS-scale before/after; committed
   baselines stay on system fonts.
 - `BrandFontTests` continues to assert the no-fonts-in-Verify contract; add

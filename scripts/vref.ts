@@ -210,7 +210,7 @@ async function sync(): Promise<void> {
   if (orphans.length > 0) {
     throw new Error(
       `manifest entries have no baseline: ${orphans.join(", ")}. ` +
-        `Remove them from ${MANIFEST}, or re-record with make screenshots-record.`,
+        `Remove them from ${MANIFEST}, or re-record with mise run screenshots-record.`,
     );
   }
 

@@ -27,7 +27,7 @@ script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 base_device_id="$("$script_dir/simctl-iphone-device-id.sh")"
 
 if [ -z "$base_device_id" ]; then
-  echo "No iPhone simulator available to mirror. Install the iOS simulator runtime or run make download-ios-platform." >&2
+  echo "No iPhone simulator available to mirror. Install the iOS simulator runtime or run 'mise run download-ios-platform'." >&2
   exit 1
 fi
 

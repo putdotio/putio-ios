@@ -5,7 +5,7 @@ import XCTest
 
 // View-level visual baselines for reusable components in the app's dark-only
 // appearance, stored under PutioTests/__Snapshots__/. Re-record intentionally
-// with `make screenshots-record` and review the image diff.
+// with `mise run screenshots-record` and review the image diff.
 @MainActor
 final class ComponentSnapshotTests: XCTestCase {
     private var isRecording: Bool {

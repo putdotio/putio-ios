@@ -10,7 +10,7 @@ import XCTest
 // capture the *branded* ramp, bundle the licensed faces first (flip
 // PUTIO_BUNDLE_BRAND_FONTS = YES in Config/Verify.xcconfig), then:
 //
-//   PUTIO_RAMP_OUT=/tmp/ramp make verify PUTIO_SIMULATOR_ID=<booted-udid>
+//   PUTIO_RAMP_OUT=/tmp/ramp PUTIO_SIMULATOR_ID=<booted-udid> mise run verify
 //
 // Without the faces it renders the system-font fallback (the same sizes).
 @MainActor

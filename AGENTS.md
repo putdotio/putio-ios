@@ -14,18 +14,18 @@
 
 ## Core Commands
 
-- `make doctor`
-- `make bootstrap`
-- `make verify-fast`
-- `make verify`
-- `make e2e-simulator`
-- `make run-simulator`
+- `mise run doctor`
+- `mise run bootstrap`
+- `mise run verify-fast`
+- `mise run verify`
+- `mise run e2e-simulator`
+- `mise run run-simulator`
 
 ## Worktrees
 
 `.worktreeinclude` carries local env, Bundler, Xcode, and font config into
-Codex and Claude worktrees. Run `make bootstrap`; use `make secrets-setup` or
-`make fonts-setup` only when a required local file is missing.
+Codex and Claude worktrees. Run `mise run bootstrap`; use `mise run secrets-setup` or
+`mise run fonts-setup` only when a required local file is missing.
 
 ## Workflow
 
@@ -40,22 +40,22 @@ Codex and Claude worktrees. Run `make bootstrap`; use `make secrets-setup` or
 
 Xcode + Fastlane carry their own config and signing flow; this repo does not use a `.envrc` / `secrets` task-runner pattern.
 
-- A fresh worktree needs `make bootstrap` and `make fonts-setup` — snapshot assertions require the licensed faces since baselines are recorded with them. Nothing else needs local secrets
+- A fresh worktree needs `mise run bootstrap` and `mise run fonts-setup` — snapshot assertions require the licensed faces since baselines are recorded with them. Nothing else needs local secrets
 - `mise.toml` is the single source of truth for the Ruby and Node versions. Both `ruby/setup-ruby` and the `Gemfile` (`ruby file: 'mise.toml'`) read it directly, so CI, Bundler, and a local checkout share one pin. pnpm stays pinned by `packageManager` in `package.json` and installed by corepack. Note that mise builds Ruby from source on macOS, which is why CI still installs Ruby through `ruby/setup-ruby` and only reads the pin from here
-- `make doctor` (also a `bootstrap` preflight) checks the active Ruby and Node against the `[tools]` pins in `mise.toml`, that pnpm is on PATH and matches `packageManager`, and the Xcode developer directory, and prints copy-pasteable fixes for each
-- Node is repo tooling only — the app builds and tests with no Node involvement, so `verify`, `e2e-simulator`, and the archive lanes never touch it. `node_modules/` is gitignored and reinstalled by `make bootstrap`, so it is deliberately absent from `.worktreeinclude`
-- Repo scripts are TypeScript and run directly — Node strips the types, so there is no build step and no `dist/`. Stripping is not checking, so `make scripts-typecheck` runs `tsc --noEmit` against `scripts/**/*.ts`. It is deliberately not part of `verify-fast`, which stays a sub-second gate that needs no Node
-- `make bootstrap` installs the repo pre-push hook (`.githooks/pre-push`), which runs `make verify-fast` — icon sync check, localized strings lint, and workspace sanity — in under a second
-- `make verify` and `make e2e-simulator` write test result bundles to `build/verify.xcresult` and `build/e2e-simulator.xcresult`; CI uploads them as artifacts on failure
-- `make verify` and `make e2e-simulator` each create an ephemeral simulator (pinned status bar and `en_US` locale, so the clock and number formats match between a maintainer's Mac and CI) and delete it on exit, so parallel worktrees never collide; set `PUTIO_SIMULATOR_ID=<udid>` to target a specific device instead (`make run-simulator` keeps using the shared visible simulator)
-- Visual baselines live in two tiers, both asserted with SnapshotTesting (perceptual tolerance): component-level snapshots in `PutioTests/__Snapshots__/` (buttons, cells, state views) and full-screen walk captures in `PutioUITests/__Snapshots__/` (12 screens); the app is dark-only, so both tiers capture dark mode only. Both are recorded on a pinned iPhone 17 Pro Max (1320x2868) with the brand faces bundled. After an intentional visual change run `make screenshots-record` (records both tiers then asserts against what it wrote, on one simulator, so a green exit needs no follow-up run), review the image diff, and commit the new baselines. Scope it with `ONLY=PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk` (xcodebuild's `-only-testing:` syntax; the leading test target picks the tier), which turns a one-screen change from about 28 minutes into about 1 minute. The full set is about 5 minutes
+- `mise run doctor` (also a `bootstrap` preflight) checks the active Ruby and Node against the `[tools]` pins in `mise.toml`, that pnpm is on PATH and matches `packageManager`, and the Xcode developer directory, and prints copy-pasteable fixes for each
+- Node is repo tooling only — the app builds and tests with no Node involvement, so `verify`, `e2e-simulator`, and the archive lanes never touch it. `node_modules/` is gitignored and reinstalled by `mise run bootstrap`, so it is deliberately absent from `.worktreeinclude`
+- Repo scripts are TypeScript and run directly — Node strips the types, so there is no build step and no `dist/`. Stripping is not checking, so `mise run scripts-typecheck` runs `tsc --noEmit` against `scripts/**/*.ts`. It is deliberately not part of `verify-fast`, which stays a sub-second gate that needs no Node
+- `mise run bootstrap` installs the repo pre-push hook (`.githooks/pre-push`), which runs `mise run verify-fast` — icon sync check, localized strings lint, and workspace sanity — in under a second
+- `mise run verify` and `mise run e2e-simulator` write test result bundles to `build/verify.xcresult` and `build/e2e-simulator.xcresult`; CI uploads them as artifacts on failure
+- `mise run verify` and `mise run e2e-simulator` each create an ephemeral simulator (pinned status bar and `en_US` locale, so the clock and number formats match between a maintainer's Mac and CI) and delete it on exit, so parallel worktrees never collide; set `PUTIO_SIMULATOR_ID=<udid>` to target a specific device instead (`mise run run-simulator` keeps using the shared visible simulator)
+- Visual baselines live in two tiers, both asserted with SnapshotTesting (perceptual tolerance): component-level snapshots in `PutioTests/__Snapshots__/` (buttons, cells, state views) and full-screen walk captures in `PutioUITests/__Snapshots__/` (12 screens); the app is dark-only, so both tiers capture dark mode only. Both are recorded on a pinned iPhone 17 Pro Max (1320x2868) with the brand faces bundled. After an intentional visual change run `mise run screenshots-record` (records both tiers then asserts against what it wrote, on one simulator, so a green exit needs no follow-up run), review the image diff, and commit the new baselines. Scope it with `-- --only PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk` (xcodebuild's `-only-testing:` syntax; the leading test target picks the tier), which turns a one-screen change from about 28 minutes into about 1 minute. The full set is about 5 minutes
 - E2e also runs weekly in CI (Mondays 06:00 UTC) via `.github/workflows/e2e-simulator.yml`
-- `make vref` builds a browsable gallery of the committed baselines into gitignored `.vref/screenshots/` and `.vref/index.html`; only `.vref/manifest.json` is committed, so the copies cannot drift from the images CI pixel-compares. `make vref-serve` serves it locally. Curated titles, tags and notes live in the manifest and survive a rebuild; a baseline with no entry, or an entry with no baseline, fails the sync by name. See [.vref/README.md](./.vref/README.md)
+- `mise run vref` builds a browsable gallery of the committed baselines into gitignored `.vref/screenshots/` and `.vref/index.html`; only `.vref/manifest.json` is committed, so the copies cannot drift from the images CI pixel-compares. `mise run vref-serve` serves it locally. Curated titles, tags and notes live in the manifest and survive a rebuild; a baseline with no entry, or an entry with no baseline, fails the sync by name. See [.vref/README.md](./.vref/README.md)
 
-- `make store-screenshots` assembles the App Store set into gitignored `dist/store-screenshots/`. There is no separate capture for iPhone: the walk is pinned to iPhone 17 Pro Max, whose 1320x2868 output is exactly Apple's 6.9 inch size, so the store set is a selection over baselines CI already pixel-compares. `Config/StoreScreenshots.json` holds the slot order; the script fails if a baseline is missing, the wrong size, or the slots have gaps. iPad is not covered yet — it needs a real capture lane
-- `make store-images` frames those into finished marketing images in `fastlane/screenshots/en-US/` — brand-yellow field, bold caption, rounded black device — using Playwright with tokens from `@putdotio/design` and the bundled GT America. Captions live in `Config/StoreCaptions.json`. Output is committed so it is reviewed as an image diff; rendering refuses to run without the brand fonts rather than shipping system-font typography
-- Use `make secrets-setup` only for signed local builds or private support integrations; it writes ignored `Config/Local.xcconfig` from maintainer-supplied `PUTIO_IOS_INFISICAL_*` values
-- `make fonts-setup` downloads the licensed brand fonts from `static.put.io` into gitignored `Putio/Fonts/` — the same files the web app serves to browsers, so no credentials, no private repository, and no `gh`. `Config/BrandFonts.json` carries each path and sha256; the hash guards pixel-compared baselines against a silently re-uploaded font. It is **required**, not optional: baselines are recorded with the faces bundled (`PUTIO_BUNDLE_BRAND_FONTS = YES`), so `make verify`, `make e2e-simulator`, and `make screenshots-record` all fail their snapshot assertions without them. Every CI workflow syncs the fonts before running verify, so pull requests — including Dependabot and forks — get full snapshot coverage
+- `mise run store-screenshots` assembles the App Store set into gitignored `dist/store-screenshots/`. There is no separate capture for iPhone: the walk is pinned to iPhone 17 Pro Max, whose 1320x2868 output is exactly Apple's 6.9 inch size, so the store set is a selection over baselines CI already pixel-compares. `Config/StoreScreenshots.json` holds the slot order; the script fails if a baseline is missing, the wrong size, or the slots have gaps. iPad is not covered yet — it needs a real capture lane
+- `mise run store-images` frames those into finished marketing images in `fastlane/screenshots/en-US/` — brand-yellow field, bold caption, rounded black device — using Playwright with tokens from `@putdotio/design` and the bundled GT America. Captions live in `Config/StoreCaptions.json`. Output is committed so it is reviewed as an image diff; rendering refuses to run without the brand fonts rather than shipping system-font typography
+- Use `mise run secrets-setup` only for signed local builds or private support integrations; it writes ignored `Config/Local.xcconfig` from maintainer-supplied `PUTIO_IOS_INFISICAL_*` values
+- `mise run fonts-setup` downloads the licensed brand fonts from `static.put.io` into gitignored `Putio/Fonts/` — the same files the web app serves to browsers, so no credentials, no private repository, and no `gh`. `Config/BrandFonts.json` carries each path and sha256; the hash guards pixel-compared baselines against a silently re-uploaded font. It is **required**, not optional: baselines are recorded with the faces bundled (`PUTIO_BUNDLE_BRAND_FONTS = YES`), so `mise run verify`, `mise run e2e-simulator`, and `mise run screenshots-record` all fail their snapshot assertions without them. Every CI workflow syncs the fonts before running verify, so pull requests — including Dependabot and forks — get full snapshot coverage
 
 Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-config).
 
@@ -73,9 +73,9 @@ Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-
 
 ## Verification Matrix
 
-- Any behavior change: run `make verify`
-- SDK-backed app flow: run `make e2e-simulator` before live-account checks
-- When auth, keychain, or signed-in persistence changes, run both `make verify` and `make run-simulator`
+- Any behavior change: run `mise run verify`
+- SDK-backed app flow: run `mise run e2e-simulator` before live-account checks
+- When auth, keychain, or signed-in persistence changes, run both `mise run verify` and `mise run run-simulator`
 - When user-facing copy changes, update the matching files under `Putio/en.lproj` and lint them with `plutil -lint Putio/en.lproj/*.strings`
 - When preparing a PR or handoff, include the most helpful evidence for review: visual aids for UI changes, sanity checks for risky flows, and before or after benchmarks for performance-sensitive work
 

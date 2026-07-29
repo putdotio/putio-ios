@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Preflight environment checks with copy-pasteable fixes. Runs before
-# bootstrap and on demand via `make doctor`. Exits non-zero when the
+# bootstrap and on demand via `mise run doctor`. Exits non-zero when the
 # environment cannot run bootstrap/verify targets.
 
 set -eu

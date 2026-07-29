@@ -2,7 +2,7 @@ import CoreText
 import UIKit
 
 // Licensed brand fonts are optional: fetched at dev time via
-// `make fonts-setup`, bundled by a build phase (never in Verify builds so
+// `mise run fonts-setup`, bundled by a build phase (never in Verify builds so
 // snapshot baselines stay on system fonts), and registered here at launch.
 // Every accessor falls back to the system font when the face is absent.
 enum BrandFont {

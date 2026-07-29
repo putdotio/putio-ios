@@ -5,7 +5,7 @@
 # Putio/Fonts/. The same files the web app already serves to browsers, so no
 # credentials, no private repository access, and no GitHub CLI.
 #
-# The fonts are licensed and must never be committed here — `make verify-fast`
+# The fonts are licensed and must never be committed here — `mise run verify-fast`
 # fails if any font binary is tracked.
 #
 # Usage:
@@ -57,7 +57,7 @@ class BrandFontSync
       abort [
         "sync-brand-fonts: #{@directory_label} contradicts Config/BrandFonts.json.",
         *details,
-        "  fix: rm -rf #{@directory_label} && make fonts-setup",
+        "  fix: rm -rf #{@directory_label} && mise run fonts-setup",
       ].join("\n")
     end
 
@@ -70,7 +70,7 @@ class BrandFontSync
     # only the snapshot suites require them.
     present = @files.keys - stale
     if present.empty?
-      puts "sync-brand-fonts: no brand fonts present; run `make fonts-setup` to download them."
+      puts "sync-brand-fonts: no brand fonts present; run `mise run fonts-setup` to download them."
       return
     end
 
@@ -80,7 +80,7 @@ class BrandFontSync
     abort [
       "sync-brand-fonts: #{@directory_label} has #{present.size} of #{@files.size} brand fonts.",
       "  missing: #{stale.sort.join(', ')}",
-      "  fix: make fonts-setup",
+      "  fix: mise run fonts-setup",
     ].join("\n")
   end
 
@@ -98,13 +98,13 @@ class BrandFontSync
 
     # The Xcode build phase globs this directory, so an unlisted face would be
     # bundled. Report it here too rather than only in --check, so a bare
-    # `make fonts-setup` cannot claim success over a contradictory directory.
+    # `mise run fonts-setup` cannot claim success over a contradictory directory.
     unlisted = unlisted_font_files
     unless unlisted.empty?
       abort [
         "sync-brand-fonts: #{@directory_label} contains fonts that are not in the manifest.",
         "  unlisted: #{unlisted.join(', ')}",
-        "  fix: rm -rf #{@directory_label} && make fonts-setup",
+        "  fix: rm -rf #{@directory_label} && mise run fonts-setup",
       ].join("\n")
     end
 
@@ -128,7 +128,7 @@ class BrandFontSync
           actual:   #{actual}
         The hosted font changed. Confirm the new file is intended, update its
         sha256 in Config/BrandFonts.json, then re-record baselines with
-        `make screenshots-record`.
+        `mise run screenshots-record`.
       MESSAGE
     end
 
