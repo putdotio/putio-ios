@@ -182,3 +182,9 @@ jobs:
 
       - name: Test repo tooling
         run: mise run scripts-test
+
+      # No browser: this hashes the committed baselines and configs rather than
+      # re-rendering, so a stale marketing image fails by name here instead of
+      # reaching the App Store.
+      - name: Check the marketing images against their inputs
+        run: mise run store-images-verify
