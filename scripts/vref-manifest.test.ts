@@ -48,6 +48,14 @@ describe("normalizeCapturedAt", () => {
     assert.equal(normalizeCapturedAt("not a date"), null);
     assert.equal(normalizeCapturedAt("2026-07-29"), null);
   });
+
+  // Date.UTC remaps years 0-99 onto 1900-1999, so building the date that way
+  // failed the round trip on a well-formed four-digit year.
+  test("accepts a two-digit-looking year without remapping it to the 1900s", () => {
+    assert.equal(new Date(Date.UTC(50, 0, 1)).toISOString(), "1950-01-01T00:00:00.000Z");
+    assert.equal(normalizeCapturedAt("0050-01-01T00:00:00.000Z"), "0050-01-01T00:00:00.000Z");
+    assert.equal(normalizeCapturedAt("0099-12-31T23:59:59.999Z"), "0099-12-31T23:59:59.999Z");
+  });
 });
 
 describe("resolveCapturedAt", () => {

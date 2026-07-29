@@ -27,9 +27,15 @@ export function normalizeCapturedAt(value: string): string | null {
     number, number, number, number, number, number,
   ];
   const millisecond = Number((match[7] ?? "0").padEnd(3, "0"));
-  const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second, millisecond));
 
-  // Date.UTC rolls out-of-range fields over rather than rejecting them, so
+  // Built with setUTCFullYear rather than Date.UTC, which remaps years 0-99 onto
+  // 1900-1999 — so Date.UTC(50, ...) is 1950 and the round trip below would
+  // reject a well-formed 0050 timestamp.
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1, day);
+  date.setUTCHours(hour, minute, second, millisecond);
+
+  // Both setters roll out-of-range fields over rather than rejecting them, so
   // comparing back is what catches February 30th and hour 25.
   const survived =
     date.getUTCFullYear() === year &&
