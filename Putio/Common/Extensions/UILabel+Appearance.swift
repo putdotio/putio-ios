@@ -16,7 +16,13 @@ extension UILabel {
 
     // Also called for labels UIKit creates for us (e.g. a UIButton's
     // titleLabel), which never receive awakeFromNib.
-    func applyBrandFontIfAvailable() {
+    //
+    // `weight` overrides what the label's own descriptor reports. A UIButton's
+    // title label carries a plain system font, whose descriptor says regular —
+    // so deriving the weight from it puts button titles in GT America Regular,
+    // which is lighter than a button label should be. Callers that know the
+    // intended weight pass it; everything else keeps deriving.
+    func applyBrandFontIfAvailable(weight: UIFont.Weight? = nil) {
         // Idempotent: configureGlobalAppearance calls this from draw(_:), and a
         // second pass would re-derive the weight from a descriptor that no
         // longer carries the trait — quietly demoting a bold label to regular.
@@ -25,8 +31,10 @@ extension UILabel {
         let descriptor = font.fontDescriptor
 
         // Map the label's Dynamic Type style onto the nearest design-system role
-        // and adopt that role's font (size + weight + Dynamic Type).
-        if let styleName = descriptor.object(forKey: .textStyle) as? String,
+        // and adopt that role's font (size + weight + Dynamic Type). Skipped
+        // when the caller named a weight, since a role carries its own.
+        if weight == nil,
+           let styleName = descriptor.object(forKey: .textStyle) as? String,
            let role = Self.brandRole(for: UIFont.TextStyle(rawValue: styleName)),
            let brandFont = BrandTypography.fontIfAvailable(role) {
             font = brandFont
@@ -46,8 +54,8 @@ extension UILabel {
         // Dynamic Type for these labels, which is the smaller loss: the
         // alternative is shipping the system face next to GT America on the
         // same screen.
-        let weight = Self.brandWeight(from: descriptor)
-        guard let brandFont = BrandFont.sansIfAvailable(size: font.pointSize, weight: weight) else { return }
+        let resolved = weight ?? Self.brandWeight(from: descriptor)
+        guard let brandFont = BrandFont.sansIfAvailable(size: font.pointSize, weight: resolved) else { return }
         font = brandFont
     }
 

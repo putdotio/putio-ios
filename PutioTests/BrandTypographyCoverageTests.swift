@@ -40,6 +40,7 @@ final class BrandTypographyCoverageTests: XCTestCase {
     private func assertBrandFace(
         _ font: UIFont?,
         _ surface: String,
+        weight: UIFont.Weight? = nil,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
@@ -51,6 +52,23 @@ final class BrandTypographyCoverageTests: XCTestCase {
             font.familyName,
             Self.sansFamily,
             "\(surface) renders in \(font.familyName), not the brand face",
+            file: file,
+            line: line
+        )
+
+        // The family alone cannot catch a weight regression, and that is the
+        // failure mode here: button titles resolved to GT America *Regular* for
+        // three releases because the weight came from a descriptor that reports
+        // regular for every system font.
+        guard let weight else { return }
+        guard let expected = BrandFont.sansIfAvailable(size: font.pointSize, weight: weight) else {
+            return XCTFail("no brand face for weight \(weight.rawValue)", file: file, line: line)
+        }
+
+        XCTAssertEqual(
+            font.fontName,
+            expected.fontName,
+            "\(surface) renders in \(font.fontName), not \(expected.fontName)",
             file: file,
             line: line
         )
@@ -66,7 +84,7 @@ final class BrandTypographyCoverageTests: XCTestCase {
         button.frame = CGRect(x: 0, y: 0, width: 240, height: 44)
         button.layoutIfNeeded()
 
-        assertBrandFace(button.titleLabel?.font, "Button title")
+        assertBrandFace(button.titleLabel?.font, "Button title", weight: .medium)
     }
 
     func testHistoryCellUsesBrandFace() throws {

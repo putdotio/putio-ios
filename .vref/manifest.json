@@ -16,7 +16,7 @@
       },
       "file": "screenshots/screens/screens-files.png",
       "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 193065,
+      "sizeBytes": 193948,
       "tags": [
         "files",
         "list"
@@ -269,7 +269,7 @@
       },
       "file": "screenshots/screens/screens-login.png",
       "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 80566,
+      "sizeBytes": 80433,
       "tags": [
         "auth"
       ],
@@ -289,7 +289,7 @@
       },
       "file": "screenshots/components/components-button-primary.png",
       "capturedAt": "2026-07-28T20:52:50.000Z",
-      "sizeBytes": 6547,
+      "sizeBytes": 6486,
       "tags": [
         "button"
       ],
@@ -309,7 +309,7 @@
       },
       "file": "screenshots/components/components-button-secondary.png",
       "capturedAt": "2026-07-28T20:52:50.000Z",
-      "sizeBytes": 6308,
+      "sizeBytes": 6309,
       "tags": [
         "button"
       ],
@@ -329,7 +329,7 @@
       },
       "file": "screenshots/components/components-button-danger.png",
       "capturedAt": "2026-07-28T20:52:50.000Z",
-      "sizeBytes": 6464,
+      "sizeBytes": 6434,
       "tags": [
         "button"
       ],
