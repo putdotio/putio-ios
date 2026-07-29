@@ -158,9 +158,15 @@ async function readManifest(): Promise<Manifest> {
  *
  * The copies are gitignored and regenerated from the committed baselines every
  * run, so they cannot drift. Curated text — title, tags, notes — lives in the
- * committed manifest and is preserved; only sizeBytes, viewport and capturedAt
- * are rewritten, and a baseline with no manifest entry is reported rather than
+ * committed manifest and is preserved; only sizeBytes and viewport are
+ * rewritten, and a baseline with no manifest entry is reported rather than
  * silently added with a placeholder title.
+ *
+ * capturedAt is set once, when an entry is first created, and preserved after
+ * that. It used to be recomputed from git on every run, which meant every squash
+ * merge that touched a baseline left the manifest stale on main — #75 exists
+ * solely to have refreshed it. @putdotio/vref requires the field, so it stays;
+ * only its ownership moves, from derived to curated like the text around it.
  */
 async function sync(): Promise<void> {
   const manifest = await readManifest();
@@ -201,7 +207,14 @@ async function sync(): Promise<void> {
       entry.device = source.device;
       entry.viewport = { width, height };
       entry.sizeBytes = size;
-      entry.capturedAt = lastCommitDate(sourcePath);
+
+      // Filled in once, for an entry that arrives without one, and left alone
+      // after that. Recomputing it on every run is what made a squash merge
+      // dirty the manifest.
+      if (typeof entry.capturedAt !== "string" || entry.capturedAt === "") {
+        entry.capturedAt = lastCommitDate(sourcePath);
+      }
+
       seen.add(id);
     }
   }
@@ -244,21 +257,24 @@ function pixelSize(path: string): { width: number; height: number } {
 }
 
 /**
- * When the baseline was last recorded, taken from git rather than the
- * filesystem: mtime changes on every checkout, which would make the manifest
- * dirty for no reason.
+ * A first `capturedAt` for a baseline that has just been added, taken from git
+ * rather than the filesystem: mtime changes on every checkout.
  *
- * Author date (%aI), not committer date (%cI). Rebasing rewrites the committer
- * date, so a stacked branch being restacked would change every capturedAt and
- * dirty the manifest for reasons that have nothing to do with the images. Author
- * date survives rebase and cherry-pick.
+ * Author date (%aI), not committer date (%cI), so a rebase does not move it.
+ * That is not sufficient on its own — a squash merge writes a new commit with a
+ * new author date — which is why the caller now keeps the first value instead of
+ * recomputing.
+ *
+ * A baseline recorded but not yet committed has no git date, and the value is
+ * permanent once written, so falling back to the epoch would stamp 1970 forever.
+ * The current time is the honest answer: recording is what just happened.
  */
 function lastCommitDate(path: string): string {
   const output = execFileSync("git", ["log", "-1", "--format=%aI", "--", path], {
     encoding: "utf8",
   }).trim();
 
-  return output === "" ? new Date(0).toISOString() : new Date(output).toISOString();
+  return output === "" ? new Date().toISOString() : new Date(output).toISOString();
 }
 
 function newestCaptureDate(screenshots: ManifestEntry[]): string {
