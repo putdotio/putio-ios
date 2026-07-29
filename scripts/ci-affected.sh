@@ -20,11 +20,19 @@ while IFS= read -r path; do
     .github/workflows/screenshots.yml | .github/workflows/e2e-simulator.yml) ;;
     # Gallery data. Nothing in CI reads it.
     .vref/*) ;;
+    # The control plane. These decide what every lane runs — mise.toml pins Node
+    # and Ruby and defines the tasks, and the other two are this gate itself —
+    # so a change to one has to be exercised by both lanes rather than only the
+    # one the default below would pick.
+    mise.toml | .github/workflows/ci.yml | scripts/ci-affected.sh)
+        app=true
+        tooling=true
+        ;;
     # Node tooling. The app target builds with no Node involvement, so these
     # reach the type-check lane only — until one of them joins the verify path,
     # at which point it belongs in the default branch below instead.
     scripts/*.ts | scripts/*.mjs | scripts/store-images/*) tooling=true ;;
-    package.json | pnpm-lock.yaml | tsconfig.json) tooling=true ;;
+    package.json | pnpm-lock.yaml | pnpm-workspace.yaml | tsconfig.json) tooling=true ;;
     *) app=true ;;
     esac
 done
