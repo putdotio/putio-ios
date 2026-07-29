@@ -21,8 +21,9 @@ make bootstrap
 Ruby and Node against the `[tools]` pins in `mise.toml`, that pnpm is on PATH
 and matches `packageManager`, and your Xcode developer directory, printing
 copy-pasteable fixes for each. `mise.toml` is the only place those versions are
-written down — `ruby/setup-ruby` reads it directly in CI, so there is no second
-pin to keep in step. Using mise itself is optional; the pins are just a file.
+written down: `ruby/setup-ruby` reads it in CI and the `Gemfile` reads it via
+`ruby file: 'mise.toml'`, so there is no second pin to keep in step. Using mise
+itself is optional; the pins are just a file.
 It also installs the repo pre-push hook (`.githooks/pre-push` via
 `core.hooksPath`), which runs the sub-second `make verify-fast` gate before
 every push.
