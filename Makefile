@@ -1,4 +1,4 @@
-.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify type-scale-sync type-scale-verify fonts-setup fonts-check verify verify-fast e2e-simulator screenshots-record print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean vref vref-validate vref-serve beta release store-screenshots store-screenshots-check store-images store-images-check
+.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify type-scale-sync type-scale-verify fonts-setup fonts-check verify verify-fast e2e-simulator screenshots-record print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean vref vref-validate vref-serve beta release store-screenshots store-screenshots-check store-images store-images-check playwright-chromium store-images store-images-check
 
 # Result bundle paths shared by verify / e2e-simulator / screenshots-record.
 VERIFY_RESULT_BUNDLE := build/verify.xcresult
@@ -161,8 +161,16 @@ store-screenshots:
 store-screenshots-check:
 	node scripts/store-screenshots.mjs --check
 
-store-images: store-screenshots
+# pnpm 10+ blocks postinstall scripts unless a package is allowlisted, so
+# `pnpm install` gives us the playwright package without a browser to drive.
+# Installing here rather than allowlisting the postinstall keeps `make bootstrap`
+# from pulling ~150MB of Chromium for everyone who never renders store images.
+# Idempotent, and a no-op once the browser is present.
+playwright-chromium:
+	@pnpm exec playwright install chromium
+
+store-images: store-screenshots playwright-chromium
 	node scripts/store-images.mjs
 
-store-images-check: store-screenshots
+store-images-check: store-screenshots playwright-chromium
 	node scripts/store-images.mjs --check

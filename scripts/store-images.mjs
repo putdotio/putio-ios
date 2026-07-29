@@ -87,6 +87,7 @@ async function main() {
   // preflight rather than a partial one that passes and then fails on render.
   const css = await designTokens();
   const fontFaces = await brandFontFaces();
+  assertBrowserInstalled();
 
   if (checkOnly) {
     for (const item of plan) {
@@ -136,6 +137,29 @@ async function main() {
   await rm(previous, { recursive: true, force: true });
 
   console.log(`rendered ${plan.length} store images into fastlane/screenshots/`);
+}
+
+/**
+ * The playwright package does not bring a browser with it here: pnpm 10+ blocks
+ * postinstall scripts unless the package is allowlisted, so a clean
+ * `pnpm install` leaves nothing for chromium.launch() to start. `make
+ * store-images` installs it, but a direct node invocation would otherwise fail
+ * deep inside Playwright with a stack rather than a remedy.
+ */
+function assertBrowserInstalled() {
+  let executable;
+  try {
+    executable = chromium.executablePath();
+  } catch {
+    executable = "";
+  }
+
+  if (!executable || !existsSync(executable)) {
+    fail(
+      "Playwright has no Chromium to drive.",
+      "Run pnpm exec playwright install chromium — or use make store-images, which does it for you.",
+    );
+  }
 }
 
 async function designTokens() {
