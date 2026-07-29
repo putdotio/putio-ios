@@ -1,4 +1,4 @@
-.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify type-scale-sync type-scale-verify fonts-setup fonts-check verify verify-fast e2e-simulator screenshots-record print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean vref vref-validate vref-serve beta release store-screenshots store-screenshots-check playwright-chromium store-images store-images-check
+.PHONY: bootstrap bootstrap-ci doctor icons-sync icons-verify tokens-sync tokens-verify type-scale-sync type-scale-verify fonts-setup fonts-check verify verify-fast e2e-simulator screenshots-record screenshots-record-components screenshots-record-screens print-simulator-destination print-simulator-device run-simulator download-ios-platform secrets-setup secrets-clean vref vref-validate vref-serve beta release store-screenshots store-screenshots-check playwright-chromium store-images store-images-check
 
 # Result bundle paths shared by verify / e2e-simulator / screenshots-record.
 VERIFY_RESULT_BUNDLE := build/verify.xcresult
@@ -91,34 +91,31 @@ e2e-simulator:
 	echo "Test results will be written to $(E2E_RESULT_BUNDLE)"; \
 	TEST_RUNNER_PUTIO_RECORD_SNAPSHOTS="$${PUTIO_RECORD_SNAPSHOTS:-0}" xcodebuild -workspace Putio.xcworkspace -scheme PutioE2E -configuration Debug -xcconfig Config/Verify.xcconfig -destination "$$destination" test-without-building -resultBundlePath $(E2E_RESULT_BUNDLE) -quiet
 
+# Records baselines and asserts against them in the same run, so a green exit
+# means the recording is self-consistent. Scope with ONLY= to skip the tier you
+# did not touch:
+#
+#   make screenshots-record
+#   make screenshots-record ONLY=PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk
+#
+# ONLY takes xcodebuild's -only-testing: syntax; the leading test target picks
+# the tier. screenshots-record-components and -screens cover the common case of
+# wanting one whole tier.
+#
+# It reaches the script through the environment rather than the command line, so
+# a filter containing a space or a shell metacharacter is passed through intact
+# instead of being word-split or executed.
+export ONLY
+RECORD_ARGS := --expect-components $(EXPECTED_COMPONENT_BASELINES) --expect-screens $(EXPECTED_WALK_BASELINES)
+
 screenshots-record:
-	@rm -rf PutioUITests/__Snapshots__ PutioTests/__Snapshots__; \
-	overall=0; \
-	for target in verify e2e-simulator; do \
-		case "$$target" in \
-			verify) bundle=$(VERIFY_RESULT_BUNDLE); snapshots=PutioTests/__Snapshots__; expected=$(EXPECTED_COMPONENT_BASELINES);; \
-			*) bundle=$(E2E_RESULT_BUNDLE); snapshots=PutioUITests/__Snapshots__; expected=$(EXPECTED_WALK_BASELINES);; \
-		esac; \
-		PUTIO_RECORD_SNAPSHOTS=1 $(MAKE) $$target; status=$$?; \
-		if [ ! -d "$$bundle" ]; then \
-			echo "screenshots-record: $$target produced no result bundle; the run failed before testing (exit $$status)." >&2; \
-			overall=1; continue; \
-		fi; \
-		if ! xcrun xcresulttool get test-results tests --path "$$bundle" | ruby scripts/verify-snapshot-recording.rb; then \
-			echo "screenshots-record: $$target had failures beyond record-mode snapshot assertions; baselines may be incomplete." >&2; \
-			overall=1; continue; \
-		fi; \
-		count="$$(find $$snapshots -name '*.png' 2>/dev/null | wc -l | tr -d ' ')"; \
-		if [ "$$count" -ne "$$expected" ]; then \
-			echo "screenshots-record: $$target wrote $$count baselines, expected $$expected (exit $$status)." >&2; \
-			echo "If you intentionally added or removed snapshot tests, update the EXPECTED_*_BASELINES constants in the Makefile." >&2; \
-			overall=1; continue; \
-		fi; \
-		echo "Recorded $$count baselines under $$snapshots/."; \
-	done; \
-	[ "$$overall" -eq 0 ] || exit 1; \
-	echo "Review the image diffs and commit deliberately."; \
-	echo "(Recording runs report snapshot-test failures by design; rerun make verify and make e2e-simulator to verify.)"
+	@./scripts/record-snapshots.sh $(RECORD_ARGS)
+
+screenshots-record-components:
+	@./scripts/record-snapshots.sh --tier components $(RECORD_ARGS)
+
+screenshots-record-screens:
+	@./scripts/record-snapshots.sh --tier screens $(RECORD_ARGS)
 
 print-simulator-destination:
 	@./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio
