@@ -55,7 +55,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@6e5d382445ae5590b7449d8b3bc8cb1c2c27f617 # v1
         with:
-          ruby-version: .ruby-version
+          ruby-version: mise.toml
           bundler-cache: false
 
       - name: Install Ruby dependencies
