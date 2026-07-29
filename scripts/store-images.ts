@@ -24,6 +24,7 @@ import { fileURLToPath } from "node:url";
 import process from "node:process";
 import { chromium } from "playwright";
 import type { Browser } from "playwright";
+import { computeLock, LOCK_PATH, storeImageName as lockImageName } from "./store-images-lock.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SCREENSHOTS_CONFIG = join(ROOT, "Config/StoreScreenshots.json");
@@ -190,6 +191,11 @@ async function main(): Promise<void> {
   }
 
   await rm(previous, { recursive: true, force: true });
+
+  // After the swap, not before: the lock must describe images that are actually
+  // on disk, or a failed render would leave a lock claiming a set that was never
+  // written.
+  await writeFile(LOCK_PATH, `${JSON.stringify(await computeLock(), null, 2)}\n`);
 
   console.log(`rendered ${plan.length} store images into fastlane/screenshots/`);
 }
@@ -548,7 +554,7 @@ async function render(
 // than its name, so the prefix is free — it only has to sort each device's own
 // slots in order, which a zero-padded slot does.
 function storeImageName(item: PlanItem): string {
-  return `${item.deviceId}-${String(item.slot).padStart(2, "0")}-${item.id}.jpg`;
+  return lockImageName(item.deviceId, item.slot, item.id);
 }
 
 function kebab(value: string): string {

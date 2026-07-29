@@ -1,0 +1,51 @@
+{
+  "$comment": "Written by mise run store-images. Ties each committed marketing image to the baseline it was rendered from, so a baseline change without a re-render fails mise run store-images-verify instead of shipping stale artwork. Do not hand-edit.",
+  "inputs": {
+    "storeScreenshots": "7bdb977dc6458e0efe5d63851ec530b981a3a8e2c02a3a635d8579a23e5b1598",
+    "storeCaptions": "5c0b2821e73bfb8c89dc9ac609758f7884b5bf8dbd74c86994c2b39222492244",
+    "template": "cce7b52110abab174b9fea360244c6a07691cd64d19e444936df283384848f60",
+    "designTokens": "e77ac7f23dd9b77beaa43b2cd7ca6db009b389f01d9a541b634a0a99611fa1ea"
+  },
+  "images": {
+    "en-US/iphone-6.9-01-files.jpg": {
+      "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-files.png",
+      "sha256": "70e84a9fc07774c46f9c1eb7cf5cd4bcc1e0f6ff75687a9c17b440c57ecb8d32"
+    },
+    "en-US/iphone-6.9-02-player.jpg": {
+      "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-video-player.png",
+      "sha256": "330d7c6e5c0efece8545e87f3fd40198d9dc19ccd43e55829275e1b85b5fcf2f"
+    },
+    "en-US/iphone-6.9-03-downloads.jpg": {
+      "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-downloads.png",
+      "sha256": "54fa76ce4c0b5fefe93928051ff210f544dab7282cd8bffe5b11029a614bc979"
+    },
+    "en-US/iphone-6.9-04-history.jpg": {
+      "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-history.png",
+      "sha256": "d3088c3cc9ddc4ab9c5a5df43fd03909c6c208036bad7ed22d14aaaa498eba7e"
+    },
+    "en-US/iphone-6.9-05-account.jpg": {
+      "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-account.png",
+      "sha256": "71cc2aed5ef1660a49a64f7f7e7e4e6181b39260cafc7d9f395d67a47a71884b"
+    },
+    "en-US/ipad-13-01-files.jpg": {
+      "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-files.png",
+      "sha256": "64bee29c7d106d9a8d166264efaa96ccd3597d678f174216bbaf15626c8c78e5"
+    },
+    "en-US/ipad-13-02-player.jpg": {
+      "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-video-player.png",
+      "sha256": "b7005157e7c9947e9e02d99c9d884433a65d2b50672181ddf7ed9f4f4d970b84"
+    },
+    "en-US/ipad-13-03-downloads.jpg": {
+      "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-downloads.png",
+      "sha256": "9ef79f811f4f7d1eb8440fa7efe0db4f938bf7130fd769ee3619460be0b0d8ce"
+    },
+    "en-US/ipad-13-04-history.jpg": {
+      "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-history.png",
+      "sha256": "4f3ab67c62be87ee64bacecf92cf89ef8e31e3fd89455d0f8d1baac80543be25"
+    },
+    "en-US/ipad-13-05-account.jpg": {
+      "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-account.png",
+      "sha256": "cda48ae9cd940799f24dbd4e3ef747bb9866aefdd1e1c87ca21b44ff8499359a"
+    }
+  }
+}

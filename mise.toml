@@ -167,6 +167,12 @@ description = "Frame the store screenshots into finished marketing images"
 depends = ["store-screenshots", "playwright-chromium"]
 run = "node scripts/store-images.ts"
 
+# No browser and no dist/: it hashes the committed baselines and configs, so it
+# runs on Linux in CI. store-images writes the lock this compares against.
+[tasks.store-images-verify]
+description = "Check the committed marketing images against the inputs they came from"
+run = "node scripts/store-images-lock.ts verify"
+
 [tasks.store-images-check]
 description = "Verify the store-image inputs without rendering"
 depends = ["store-screenshots", "playwright-chromium"]

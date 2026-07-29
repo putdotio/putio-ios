@@ -28,11 +28,23 @@ while IFS= read -r path; do
         app=true
         tooling=true
         ;;
+    # Visual baselines are asserted by the app lane *and* are the input the
+    # committed marketing images are rendered from, so store-images-verify has to
+    # see them too. Without this a baseline-only change — exactly the #69 case
+    # that check exists for — would run the app lane and skip the check.
+    PutioTests/__Snapshots__/* | PutioUITests/__Snapshots__/* | PutioUITests/__Captures__/*)
+        app=true
+        tooling=true
+        ;;
     # Node tooling. The app target builds with no Node involvement, so these
     # reach the type-check lane only — until one of them joins the verify path,
     # at which point it belongs in the default branch below instead.
     scripts/*.ts | scripts/*.mjs | scripts/store-images/*) tooling=true ;;
     package.json | pnpm-lock.yaml | pnpm-workspace.yaml | tsconfig.json) tooling=true ;;
+    # Store artwork and the configs that drive it. A caption or a slot order
+    # cannot break an iOS build, so these skip the macOS lane — but they do
+    # invalidate the committed images, which the tooling lane checks.
+    Config/Store*.json | fastlane/screenshots/*) tooling=true ;;
     *) app=true ;;
     esac
 done
