@@ -73,7 +73,7 @@ jobs:
       - name: Sync licensed brand fonts
         run: |
           mise run fonts-setup
-          mise run fonts-check
+          mise run verify-fonts
 
       - name: Run mocked simulator e2e
         run: mise run e2e-simulator

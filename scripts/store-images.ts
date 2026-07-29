@@ -449,7 +449,7 @@ async function render(
     // Thrown, not fail()ed, for the same reason as the caption check below.
     throw new RenderError(
       `${item.deviceId} slot ${item.slot}: ${fontProblem}.`,
-      "Run mise run fonts-setup to reinstall the licensed faces; mise run fonts-check verifies them against Config/BrandFonts.json.",
+      "Run mise run fonts-setup to reinstall the licensed faces; mise run verify-fonts verifies them against Config/BrandFonts.json.",
     );
   }
   // Resolving only on `load` means a decode failure never settles and the run

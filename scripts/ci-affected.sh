@@ -29,7 +29,7 @@ while IFS= read -r path; do
         tooling=true
         ;;
     # Visual baselines are asserted by the app lane *and* are the input the
-    # committed marketing images are rendered from, so store-images-verify has to
+    # committed marketing images are rendered from, so verify-store-images has to
     # see them too. Without this a baseline-only change — exactly the #69 case
     # that check exists for — would run the app lane and skip the check.
     PutioTests/__Snapshots__/* | PutioUITests/__Snapshots__/* | PutioUITests/__Captures__/*)

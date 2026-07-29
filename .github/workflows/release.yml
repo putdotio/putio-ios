@@ -84,7 +84,7 @@ jobs:
       - name: Sync licensed brand fonts
         run: |
           mise run fonts-setup
-          mise run fonts-check
+          mise run verify-fonts
 
       - name: Verify repository
         run: mise run verify

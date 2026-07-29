@@ -9,7 +9,7 @@ light and dark modes. Fonts are explicitly out of scope (see Non-Goals).
 | --- | --- |
 | Sequencing | Two phases: tokens first (dark still forced), light mode second |
 | Dark fidelity | Adopt design-system dark values faithfully; the dark theme visibly shifts once (e.g. background 20% gray → 8.5%) |
-| Token flow | Vendored `Config/DesignTokens.json` + `scripts/sync-design-tokens.rb` generating colorsets + `tokens-verify` drift gate (mirrors the Phosphor icons pattern) |
+| Token flow | Vendored `Config/DesignTokens.json` + `scripts/sync-design-tokens.rb` generating colorsets + `verify-tokens` drift gate (mirrors the Phosphor icons pattern) |
 | API surface | Full color token set (~76) as dual-appearance colorsets named 1:1 after design-system tokens; `UIColor.Putio` generated to match; old names deprecated in Phase 1, deleted in Phase 2 |
 | Storyboards | All inline colors → named color references in Phase 1 (precondition for light mode) |
 | Hardcoded Swift colors | Replace with tokens; sole exception is chrome rendered over video/media, kept literal with an exception comment |

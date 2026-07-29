@@ -122,7 +122,7 @@ export async function computeLock(): Promise<Lock> {
 
   return {
     $comment:
-      "Written by mise run store-images. Ties each committed marketing image to the baseline it was rendered from, so a baseline change without a re-render fails mise run store-images-verify instead of shipping stale artwork. Do not hand-edit.",
+      "Written by mise run store-images. Ties each committed marketing image to the baseline it was rendered from, so a baseline change without a re-render fails mise run verify-store-images instead of shipping stale artwork. Do not hand-edit.",
     inputs: {
       storeScreenshots: semanticHash(screenshotsSource),
       storeCaptions: semanticHash(captionsSource),
@@ -136,7 +136,7 @@ export async function computeLock(): Promise<Lock> {
 async function verify(): Promise<void> {
   if (!existsSync(LOCK_PATH)) {
     console.error(
-      "store-images-verify: Config/StoreImages.lock.json is missing.\n" +
+      "verify-store-images: Config/StoreImages.lock.json is missing.\n" +
         "  fix: Run mise run store-images and commit the result.",
     );
     process.exit(1);
@@ -182,7 +182,7 @@ async function verify(): Promise<void> {
   }
 
   if (problems.length > 0) {
-    console.error("store-images-verify: the committed marketing images no longer match their inputs:");
+    console.error("verify-store-images: the committed marketing images no longer match their inputs:");
     for (const problem of problems) {
       console.error(`  ${problem}`);
     }
@@ -190,7 +190,7 @@ async function verify(): Promise<void> {
     process.exit(1);
   }
 
-  console.log(`store-images-verify: ${Object.keys(current.images).length} images match their inputs`);
+  console.log(`verify-store-images: ${Object.keys(current.images).length} images match their inputs`);
 }
 
 // Only act as a CLI when run directly. store-images.ts imports computeLock from
