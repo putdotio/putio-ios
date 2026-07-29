@@ -224,6 +224,13 @@ async function buildPlan(config, strings, locale) {
         rawPath,
         width: device.width,
         height: device.height,
+        // Per-device ratio overrides for the LAYOUT table. The ratios below were
+        // tuned on a 0.46-aspect phone, and two of them fight on a 0.75-aspect
+        // tablet: captionSize scales with width so the text grows, captionBlock
+        // scales with height so its box shrinks. Rather than rebalance the axes
+        // and re-render every committed iPhone image over it, a device declares
+        // the ratios its shape needs.
+        layout: device.layout,
         locale,
       });
     }
@@ -304,7 +311,8 @@ async function render(browser, item, css, fontFaces, outputDir) {
   const variables = Object.entries(LAYOUT)
     .map(([name, [axis, ratio]]) => {
       const basis = axis === "width" ? item.width : item.height;
-      return `--${kebab(name)}: ${Math.round(ratio * basis)}px;`;
+      const resolved = item.layout?.[name] ?? ratio;
+      return `--${kebab(name)}: ${Math.round(resolved * basis)}px;`;
     })
     .join("\n");
 
@@ -413,7 +421,30 @@ async function render(browser, item, css, fontFaces, outputDir) {
     );
   }
 
-  const destination = join(outputDir, item.locale, `${String(item.slot).padStart(2, "0")}-${item.id}.jpg`);
+  // A device taller than the row it sits in grows *upward*, because it is
+  // bottom-aligned — so it covers the caption instead of running off the bottom,
+  // and the caption check above cannot see it. That is invisible at review size
+  // on a phone-shaped canvas and obvious on a squatter one. Both directions are
+  // wrong, so measure the gap: negative overlaps the caption, positive leaves a
+  // yellow strip along the bottom edge the design does not have.
+  const deviceGap = await page.evaluate(() => {
+    const device = document.querySelector(".device");
+    const caption = document.querySelector("#caption");
+    const top = device.getBoundingClientRect().top - caption.getBoundingClientRect().bottom;
+    const bottom = document.body.clientHeight - device.getBoundingClientRect().bottom;
+    return { top, bottom };
+  });
+
+  if (deviceGap.top < 0 || deviceGap.bottom > 1) {
+    throw new RenderError(
+      deviceGap.top < 0
+        ? `${item.deviceId} slot ${item.slot}: the device overlaps the caption by ${Math.abs(Math.round(deviceGap.top))}px.`
+        : `${item.deviceId} slot ${item.slot}: the device stops ${Math.round(deviceGap.bottom)}px short of the bottom edge.`,
+      "Adjust deviceWidth for this device in Config/StoreScreenshots.json so the device height fills the row under the caption.",
+    );
+  }
+
+  const destination = join(outputDir, item.locale, storeImageName(item));
   await mkdir(dirname(destination), { recursive: true });
 
   // JPEG, not PNG: Apple accepts both, and the framed output is ~5MB as JPEG
@@ -422,7 +453,16 @@ async function render(browser, item, css, fontFaces, outputDir) {
   await writeFile(destination, buffer);
   await page.close();
 
-  console.log(`  ${item.deviceId} slot ${item.slot}: "${item.caption}" -> ${item.locale}/${String(item.slot).padStart(2, "0")}-${item.id}.jpg`);
+  console.log(`  ${item.deviceId} slot ${item.slot}: "${item.caption}" -> ${item.locale}/${storeImageName(item)}`);
+}
+
+// Device-scoped, because every device declares the same slots and ids: without
+// it the iPad render would overwrite the iPhone one in the same locale
+// directory. deliver reads the display type from the image's pixel size rather
+// than its name, so the prefix is free — it only has to sort each device's own
+// slots in order, which a zero-padded slot does.
+function storeImageName(item) {
+  return `${item.deviceId}-${String(item.slot).padStart(2, "0")}-${item.id}.jpg`;
 }
 
 function kebab(value) {

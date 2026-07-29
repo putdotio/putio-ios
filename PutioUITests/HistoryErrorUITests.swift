@@ -17,7 +17,7 @@ final class HistoryErrorUITests: XCTestCase {
         let app = launchFixtureApp(failRoutes: "GET /v2/events/list")
 
         guard app.waitForSignedInTabBar() else { return }
-        app.tabBars.buttons["History"].tap()
+        app.tabItem("History").tap()
 
         let errorHeading = app.staticTexts["Oops"]
         XCTAssertTrue(

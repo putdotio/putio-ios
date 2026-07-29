@@ -1,18 +1,26 @@
 #!/bin/sh
 
-# Create a uniquely named ephemeral iPhone simulator matching the device type
-# and runtime of the repo's preferred simulator, and print the new device id.
+# Create a uniquely named ephemeral simulator matching the device type and
+# runtime of the repo's preferred simulator, and print the new device id.
 # Callers own deletion (xcrun simctl delete <id>), so parallel worktrees and
 # agents never share a simulator.
+#
+# --device-type overrides the device while keeping the mirrored runtime, so the
+# iPad store-capture lane pins one runtime with everything else.
 
 set -eu
 
 label="ephemeral"
+device_type_override=""
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --label)
       label="$2"
+      shift 2
+      ;;
+    --device-type)
+      device_type_override="$2"
       shift 2
       ;;
     *)
@@ -46,6 +54,23 @@ device_type_and_runtime="$(xcrun simctl list -j devices available | ruby -rjson 
 
 device_type="${device_type_and_runtime% *}"
 runtime="${device_type_and_runtime#* }"
+
+if [ -n "$device_type_override" ]; then
+  # simctl create accepts an unknown identifier only to fail with a bare "Invalid
+  # device type", so name the typo here instead.
+  xcrun simctl list -j devicetypes | ruby -rjson -e '
+    target = ARGV[0]
+    types = JSON.parse($stdin.read)["devicetypes"]
+    exit if types.any? { |type| type["identifier"] == target }
+    warn "No such simulator device type: #{target}"
+    warn "Available iPad types:"
+    types.select { |type| type["identifier"].include?("iPad") }
+         .each { |type| warn "  #{type["identifier"]}" }
+    exit 1
+  ' "$device_type_override" || exit 1
+
+  device_type="$device_type_override"
+fi
 
 device_name="putio-$label-$(date +%Y%m%d%H%M%S)-$$"
 

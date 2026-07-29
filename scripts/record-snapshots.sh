@@ -156,7 +156,7 @@ if [ -n "${PUTIO_SIMULATOR_ID:-}" ]; then
     device_id="$PUTIO_SIMULATOR_ID"
     echo "Using simulator from PUTIO_SIMULATOR_ID: $device_id"
 else
-    device_id="$(./scripts/simctl-ephemeral-iphone.sh --label record)" || exit 1
+    device_id="$(./scripts/simctl-ephemeral-device.sh --label record)" || exit 1
     ephemeral_id="$device_id"
     echo "Using ephemeral simulator: $device_id"
 fi

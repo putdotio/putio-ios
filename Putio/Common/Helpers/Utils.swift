@@ -12,6 +12,13 @@ class Utils {
     }
 
     static func authorizeNotifications(application: UIApplication) {
+        // The permission alert is a system window, so it lands on top of
+        // whatever a screenshot walk is capturing and no in-app wait can see it
+        // coming. On iPhone the capture happened to win that race; on iPad it
+        // did not, and slot 1 of the App Store set came out with an alert across
+        // it. Nothing mocked needs push, so nothing mocked should ask.
+        guard !PutioE2EEnvironment.isMockAPIEnabled else { return }
+
         let center = UNUserNotificationCenter.current()
 
         center.getNotificationSettings { (notificationSettings) in
