@@ -9,7 +9,7 @@
   "images": {
     "en-US/iphone-6.9-01-files.jpg": {
       "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-files.png",
-      "sha256": "70e84a9fc07774c46f9c1eb7cf5cd4bcc1e0f6ff75687a9c17b440c57ecb8d32"
+      "sha256": "dd2fc2f0e7f418d05261ba70f840926e96478f2a179c18ef06038ae82b4cd90f"
     },
     "en-US/iphone-6.9-02-player.jpg": {
       "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-video-player.png",
@@ -29,7 +29,7 @@
     },
     "en-US/ipad-13-01-files.jpg": {
       "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-files.png",
-      "sha256": "64bee29c7d106d9a8d166264efaa96ccd3597d678f174216bbaf15626c8c78e5"
+      "sha256": "4663463e7ae8f486202d4d23d783100f6e18c526c9e439b44b64bf3fac29bb69"
     },
     "en-US/ipad-13-02-player.jpg": {
       "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-video-player.png",
