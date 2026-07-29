@@ -2,7 +2,7 @@
   "version": 1,
   "title": "put.io iOS visual reference",
   "description": "Committed snapshot baselines for the put.io iOS app. Dark mode only — the app is dark-only. Screens come from the mocked e2e walk on a pinned iPhone 17 Pro Max; components render directly in unit tests.",
-  "updatedAt": "2026-07-28T20:00:34.000Z",
+  "updatedAt": "2026-07-29T06:45:16.000Z",
   "screenshots": [
     {
       "id": "screens-files",
@@ -78,7 +78,7 @@
         "height": 2868
       },
       "file": "screenshots/screens/screens-downloads.png",
-      "capturedAt": "2026-07-28T20:00:34.000Z",
+      "capturedAt": "2026-07-29T06:45:16.000Z",
       "sizeBytes": 223158,
       "tags": [
         "downloads"
@@ -162,7 +162,7 @@
         "height": 2868
       },
       "file": "screenshots/screens/screens-video-player.png",
-      "capturedAt": "2026-07-28T20:00:34.000Z",
+      "capturedAt": "2026-07-29T06:45:16.000Z",
       "sizeBytes": 1712033,
       "tags": [
         "player",

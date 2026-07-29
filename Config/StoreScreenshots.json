@@ -1,5 +1,5 @@
 {
-  "$description": "Which committed baselines become App Store screenshots, and in what order. The iPhone set needs no capture of its own: the regression walk is pinned to iPhone 17 Pro Max, whose 1320x2868 output is exactly Apple's required 6.9 inch size, so these are the same images CI already pixel-compares. Order is the order Apple displays them, and slot 1 carries the most weight because most people never swipe past slot 2. Captions are composed downstream in #51 and are not settled — treat the keys here as slots, not final copy.",
+  "$description": "Which committed baselines become App Store screenshots, and in what order. The iPhone set needs no capture of its own: the regression walk is pinned to iPhone 17 Pro Max, whose 1320x2868 output is exactly Apple's required 6.9 inch size, so these are the same images CI already pixel-compares. Order is the order Apple displays them, and slot 1 carries the most weight because most people never swipe past slot 2.",
   "devices": {
     "iphone-6.9": {
       "label": "iPhone 6.9\"",
@@ -7,11 +7,36 @@
       "height": 2868,
       "source": "PutioUITests/__Snapshots__/ScreenshotWalkUITests",
       "screenshots": [
-        { "slot": 1, "baseline": "walk.dark-files.png", "id": "files", "captionKey": "files" },
-        { "slot": 2, "baseline": "walk.dark-history.png", "id": "history", "captionKey": "history" },
-        { "slot": 3, "baseline": "walk.dark-downloads.png", "id": "downloads", "captionKey": "downloads" },
-        { "slot": 4, "baseline": "walk.dark-audio-player.png", "id": "audio-player", "captionKey": "player" },
-        { "slot": 5, "baseline": "walk.dark-account.png", "id": "account", "captionKey": "account" }
+        {
+          "slot": 1,
+          "baseline": "walk.dark-files.png",
+          "id": "files",
+          "captionKey": "files"
+        },
+        {
+          "slot": 2,
+          "baseline": "walk.dark-video-player.png",
+          "id": "player",
+          "captionKey": "player"
+        },
+        {
+          "slot": 3,
+          "baseline": "walk.dark-downloads.png",
+          "id": "downloads",
+          "captionKey": "downloads"
+        },
+        {
+          "slot": 4,
+          "baseline": "walk.dark-history.png",
+          "id": "history",
+          "captionKey": "history"
+        },
+        {
+          "slot": 5,
+          "baseline": "walk.dark-account.png",
+          "id": "account",
+          "captionKey": "account"
+        }
       ]
     }
   },
