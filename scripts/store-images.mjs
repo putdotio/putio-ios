@@ -35,10 +35,16 @@ const FONTS_DIR = join(ROOT, "Putio/Fonts");
 // The weight the caption is set in; template.html must agree.
 const CAPTION_WEIGHT = 900;
 
-// Proportional layout, so the same template holds for any device size Apple
-// introduces. Each value declares which axis it scales against: widths against
-// width, vertical rhythm against height. Scaling everything off one axis makes
-// the device wider than the canvas on a tall phone.
+// Proportional layout: each value declares which axis it scales against, widths
+// against width and vertical rhythm against height. Scaling everything off one
+// axis makes the device wider than the canvas on a tall phone.
+//
+// The ratios below are iPhone's, and the two radii are the ones that do NOT
+// generalize — a corner radius is physical device geometry, not a proportion of
+// the screen. A phone's corners are far rounder relative to its width than a
+// tablet's, so reusing 0.062 on iPad gave it a 128px screen radius that ate the
+// status bar clock. A device whose corners differ declares its own; see the
+// layout block for ipad-13 in Config/StoreScreenshots.json.
 const LAYOUT = {
   captionSize: ["width", 0.082],
   captionPaddingBlock: ["height", 0.042],

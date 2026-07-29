@@ -48,7 +48,9 @@
       "$layout": "Ratio overrides for the LAYOUT table in scripts/store-images.mjs, which was tuned on a 0.46 aspect phone. Two things break on a 0.75 aspect tablet. captionSize scales with width so the text grows while captionBlock scales with height so its box shrinks, and a two line caption stops fitting — captionBlock covers that. The device is then far taller for its width, and because it is bottom aligned in the row below the caption it grows upward over the caption instead of off the bottom edge; deviceWidth is set so its height fills that row. At these numbers that is 29px bezel plus a 1650x2200 screen against a 2752-523 row, so a caption change wants a deviceWidth change with it — the renderer measures the gap between caption and device and refuses either an overlap or a visible band of yellow, so getting it wrong fails the render.",
       "layout": {
         "captionBlock": 0.19,
-        "deviceWidth": 0.8275
+        "deviceWidth": 0.8275,
+        "screenRadius": 0.0175,
+        "deviceRadius": 0.0315
       },
       "screenshots": [
         {
