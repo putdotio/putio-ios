@@ -3,9 +3,20 @@ import AVKit
 import RealmSwift
 import PutioSDK
 
-protocol DownloadedFilePresenter {}
+protocol DownloadedFilePresenter {
+    func deleteDownloadedFile(_ download: Download) -> Bool
+}
 
 extension DownloadedFilePresenter where Self: UIViewController {
+    func deleteDownloadedFile(_ download: Download) -> Bool {
+        switch download.fileType {
+        case .video:
+            return VideoDownloadManager.sharedInstance.deleteDownload(id: download.id)
+        case .audio:
+            return AudioDownloadManager.sharedInstance.deleteDownload(id: download.id)
+        }
+    }
+
     func presentDownloadedFile(_ download: Download) {
         switch download.fileType {
         case .video:
@@ -88,16 +99,27 @@ extension DownloadedFilePresenter where Self: UIViewController {
             preferredStyle: .alert
         )
 
-        alert.addAction(UIAlertAction(title: NSLocalizedString("Delete Download", comment: ""), style: .destructive, handler: { _ in
-            if download.fileType == .video {
-                VideoDownloadManager.sharedInstance.deleteDownload(id: download.id)
-            } else {
-                AudioDownloadManager.sharedInstance.deleteDownload(id: download.id)
-            }
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Delete Download", comment: ""), style: .destructive, handler: { [weak self] _ in
+            self?.handleDeleteDownloadedFile(download)
         }))
 
         alert.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .cancel, handler: nil))
 
+        present(alert, animated: true)
+    }
+
+    func handleDeleteDownloadedFile(_ download: Download) {
+        guard !deleteDownloadedFile(download) else { return }
+
+        let alert = UIAlertController(
+            title: NSLocalizedString("Couldn't Delete Download", comment: ""),
+            message: NSLocalizedString(
+                "The download couldn't be deleted. Try again from Downloads, or remove it from the list; the file may remain on this device.",
+                comment: ""
+            ),
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .cancel))
         present(alert, animated: true)
     }
 }

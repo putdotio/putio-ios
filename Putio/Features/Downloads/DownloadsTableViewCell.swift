@@ -52,6 +52,16 @@ class DownloadsTableViewCell: UITableViewCell {
     override func prepareForReuse() {
         super.prepareForReuse()
         downloadButtonContainer.isHidden = true
+        isAccessibilityElement = false
+        accessibilityLabel = nil
+        accessibilityValue = nil
+        accessibilityHint = nil
+        accessibilityTraits.remove([.selected, .notEnabled])
+    }
+
+    override func setEditing(_ editing: Bool, animated: Bool) {
+        super.setEditing(editing, animated: animated)
+        downloadButtonContainer.isHidden = editing
     }
 
     func configure(with downloadId: Int) {
@@ -65,7 +75,7 @@ class DownloadsTableViewCell: UITableViewCell {
         icon.image = download.fileType == .video ? PutioIcon.fileVideo.image : PutioIcon.fileAudio.image
         icon.tintColor = UIColor.Putio.Neutral.textSecondary
         selectionStyle = .none
-        downloadButtonContainer.isHidden = false
+        downloadButtonContainer.isHidden = isEditing
 
         guard download.state == .completed else {
             switch download.state {
@@ -104,6 +114,47 @@ class DownloadsTableViewCell: UITableViewCell {
         icon.tintColor = UIColor.Putio.Yellow.solid
         stateButton.displayState = .completed
         selectionStyle = .default
+    }
+
+    func configureSelectionAccessibility(
+        isSelecting: Bool,
+        isSelected: Bool,
+        isSelectable: Bool
+    ) {
+        isAccessibilityElement = isSelecting
+        guard isSelecting else {
+            accessibilityLabel = nil
+            accessibilityValue = nil
+            accessibilityHint = nil
+            accessibilityTraits.remove([.selected, .notEnabled])
+            return
+        }
+
+        if isSelectable {
+            accessibilityLabel = [titleLabel.text, subtitleLabel.text]
+                .compactMap { $0 }
+                .filter { !$0.isEmpty }
+                .joined(separator: ", ")
+            accessibilityTraits.remove(.notEnabled)
+            accessibilityValue = isSelected
+                ? NSLocalizedString("Selected", comment: "")
+                : NSLocalizedString("Not selected", comment: "")
+            accessibilityHint = isSelected
+                ? NSLocalizedString("Double tap to deselect this download.", comment: "")
+                : NSLocalizedString("Double tap to select this download.", comment: "")
+
+            if isSelected {
+                accessibilityTraits.insert(.selected)
+            } else {
+                accessibilityTraits.remove(.selected)
+            }
+        } else {
+            accessibilityLabel = titleLabel.text
+            accessibilityValue = subtitleLabel.text
+            accessibilityHint = NSLocalizedString("Only completed downloads can be selected.", comment: "")
+            accessibilityTraits.remove(.selected)
+            accessibilityTraits.insert(.notEnabled)
+        }
     }
 }
 

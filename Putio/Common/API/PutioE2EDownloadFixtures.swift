@@ -6,7 +6,7 @@ import RealmSwift
 // screen PutioE2EMockURLProtocol cannot reach. Without a seed the Downloads tab
 // renders its empty state on every mocked run: no coverage for the cell, the
 // state button, or the size and age formatting, and an empty screen in the App
-// Store set. Seed the table directly instead.
+// Store set. Seed the table and lightweight local files directly instead.
 //
 // DEBUG-only and installed only after PUTIO_E2E_RESET_STATE has cleared the
 // realm, so this can never touch a real user's downloads.
@@ -65,6 +65,10 @@ enum PutioE2EDownloadFixtures {
     static func install(into realm: Realm) {
         let now = Date()
 
+        for seed in seeds where seed.state == .completed {
+            installLocalFile(for: seed)
+        }
+
         _ = PutioRealm.write(realm, context: "PutioE2EDownloadFixtures.install") {
             for (index, seed) in seeds.enumerated() {
                 let download = Download()
@@ -82,6 +86,33 @@ enum PutioE2EDownloadFixtures {
                     now.addingTimeInterval(TimeInterval(-3600 * $0))
                 }
                 realm.add(download, update: .modified)
+            }
+        }
+    }
+
+    private static func installLocalFile(for seed: Seed) {
+        guard let documentsURL = FileManager.default.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        ).first else {
+            return log.error("[PutioE2EDownloadFixtures] Unable to resolve documents directory")
+        }
+
+        let fileExtension = seed.fileType == .audio ? "mp3" : "movpkg"
+        let filename = "putio_e2e_\(seed.id).\(fileExtension)"
+        let fileURL = documentsURL.appendingPathComponent(filename)
+        guard FileManager.default.createFile(atPath: fileURL.path, contents: Data()) else {
+            return log.error("[PutioE2EDownloadFixtures] Unable to create \(filename)")
+        }
+
+        switch seed.fileType {
+        case .audio:
+            UserDefaults.standard.set(filename, forKey: String(seed.id))
+        case .video:
+            do {
+                UserDefaults.standard.set(try fileURL.bookmarkData(), forKey: String(seed.id))
+            } catch {
+                log.error("[PutioE2EDownloadFixtures] Unable to bookmark \(filename): \(error.localizedDescription)")
             }
         }
     }

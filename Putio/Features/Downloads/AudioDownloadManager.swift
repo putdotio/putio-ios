@@ -11,10 +11,11 @@ class AudioDownloadManager: NSObject {
 
     fileprivate var urlSession: URLSession!
     fileprivate var activeDownloadsMap = [URLSessionTask: Int]()
+    private let activeDownloadsLock = NSLock()
     fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
 
     var activeDownloadCount: Int {
-        return activeDownloadsMap.count
+        withActiveDownloadsMap { $0.count }
     }
 
     override private init() {
@@ -45,7 +46,7 @@ class AudioDownloadManager: NSObject {
                     return log.error("ADM: restore - could not cast taskDescription: \(taskDescription)")
                 }
 
-                self.activeDownloadsMap[task] = downloadId
+                self.withActiveDownloadsMap { $0[task] = downloadId }
                 self.cancelDownload(id: downloadId)
             }
         }
@@ -70,7 +71,7 @@ class AudioDownloadManager: NSObject {
 
         let task = urlSession.downloadTask(with: url)
 
-        activeDownloadsMap[task] = id
+        withActiveDownloadsMap { $0[task] = id }
 
         task.taskDescription = String(id)
         task.resume()
@@ -98,8 +99,8 @@ class AudioDownloadManager: NSObject {
     func cancelDownload(id: Int) {
         guard let download = getDownloadFromDatabase(id: id) else { return }
 
-        if let task = activeDownloadsMap.first(where: { $0.value == id }) {
-            task.key.cancel()
+        if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
+            task.cancel()
         }
 
         guard let realm = download.realm else { return }
@@ -108,20 +109,49 @@ class AudioDownloadManager: NSObject {
         }
     }
 
-    func deleteDownload(id: Int) {
-        guard let download = getDownloadFromDatabase(id: id) else { return }
+    @discardableResult
+    func deleteDownload(id: Int) -> Bool {
+        let download = getDownloadFromDatabase(id: id)
 
-        switch download.state {
-        case .queued, .starting, .active:
-            cancelDownload(id: id)
-        case .completed, .failed, .stopped:
-            deleteLocalFile(for: id)
+        return DownloadSupport.performDeletion(
+            state: download?.state,
+            cancelActiveDownload: { self.cancelDownload(id: id) },
+            deleteLocalFile: { self.deleteLocalFile(for: id) },
+            deleteRecord: {
+                DownloadSupport.deleteRecord(
+                    id: id,
+                    context: "AudioDownloadManager.deleteDownload"
+                )
+            },
+            localFileDeletionDidSucceed: {
+                UserDefaults.standard.removeObject(forKey: String(id))
+            }
+        )
+    }
+
+    @discardableResult
+    func removeDownloadRecord(id: Int) -> Bool {
+        if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
+            task.cancel()
         }
 
-        guard let realm = download.realm else { return }
-        _ = DownloadSupport.write(realm, context: "AudioDownloadManager.deleteDownload.write") {
-            realm.delete(download)
+        guard DownloadSupport.deleteRecord(
+            id: id,
+            context: "AudioDownloadManager.removeDownloadRecord"
+        ) else {
+            return false
         }
+
+        UserDefaults.standard.removeObject(forKey: String(id))
+        return true
+    }
+
+    private func withActiveDownloadsMap<Result>(
+        _ body: (inout [URLSessionTask: Int]) -> Result
+    ) -> Result {
+        activeDownloadsLock.lock()
+        defer { activeDownloadsLock.unlock() }
+        return body(&activeDownloadsMap)
     }
 
     func restartDownload(id: Int) {
@@ -142,22 +172,38 @@ class AudioDownloadManager: NSObject {
         DownloadSupport.absoluteDocumentsURL(for: relativePath)
     }
 
-    func getLocalFileURL(for downloadId: Int) -> URL? {
-        guard let filePath = UserDefaults.standard.value(forKey: String(downloadId)) as? String else {
+    private func getLocalFileLocation(for downloadId: Int) -> DownloadSupport.LocalFileLocation {
+        let location = DownloadSupport.localFileLocation(
+            from: UserDefaults.standard.object(forKey: String(downloadId)),
+            as: String.self,
+            resolve: getAbsoluteURL
+        )
+
+        switch location {
+        case .none:
             log.error("ADM: getLocalFileURL: no filePath found in UserDefaults")
+        case .unresolved:
+            log.error("ADM: getLocalFileURL: persisted filePath could not be resolved")
+        case .resolved(let url):
+            log.debug("ADM: getLocalFileURL found: \(url.absoluteString)")
+        }
+        return location
+    }
+
+    func getLocalFileURL(for downloadId: Int) -> URL? {
+        guard case .resolved(let url) = getLocalFileLocation(for: downloadId) else {
             return nil
         }
-
-        guard let url = getAbsoluteURL(for: filePath) else { return nil }
-        log.debug("ADM: getLocalFileURL found: \(url.absoluteString)")
         return url
     }
 
-    private func deleteLocalFile(for downloadId: Int) {
-        guard let url = getLocalFileURL(for: downloadId) else { return }
-
-        guard DownloadSupport.deleteItemIfPresent(at: url, context: "AudioDownloadManager.deleteLocalFile") else { return }
-        UserDefaults.standard.removeObject(forKey: String(downloadId))
+    @discardableResult
+    private func deleteLocalFile(for downloadId: Int) -> DownloadSupport.LocalFileDeletionResult {
+        let result = DownloadSupport.deleteLocalFile(
+            at: getLocalFileLocation(for: downloadId),
+            context: "AudioDownloadManager.deleteLocalFile"
+        )
+        return result
     }
 
     private func deriveFileExtensionFromResponse(response: URLResponse?) -> String {
@@ -188,7 +234,7 @@ class AudioDownloadManager: NSObject {
 
 extension AudioDownloadManager: URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        guard let id = activeDownloadsMap.removeValue(forKey: task) else { return }
+        guard let id = withActiveDownloadsMap({ $0.removeValue(forKey: task) }) else { return }
         lastProgressUpdateTime.removeValue(forKey: id)
         guard let download = getDownloadFromDatabase(id: id) else { return }
 
@@ -226,7 +272,7 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
         log.verbose(["ADM: downloadTask-didWriteData task:", downloadTask.taskIdentifier])
 
-        guard let downloadId = activeDownloadsMap[downloadTask] else { return }
+        guard let downloadId = withActiveDownloadsMap({ $0[downloadTask] }) else { return }
         guard let download = getDownloadFromDatabase(id: downloadId) else { return }
 
         log.verbose(["ADM: downloadTask-didWriteData download:", downloadId])
@@ -255,7 +301,7 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         log.verbose(["ADM: downloadTask-didFinishDownloadingTo task:", downloadTask.taskIdentifier])
 
-        guard let id = activeDownloadsMap[downloadTask] else { return }
+        guard let id = withActiveDownloadsMap({ $0[downloadTask] }) else { return }
         guard let download = getDownloadFromDatabase(id: id) else { return }
 
         let fileExtension = deriveFileExtensionFromResponse(response: downloadTask.response)

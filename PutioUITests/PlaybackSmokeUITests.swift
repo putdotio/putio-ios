@@ -61,4 +61,52 @@ final class PlaybackSmokeUITests: XCTestCase {
         screenshot.lifetime = .keepAlways
         add(screenshot)
     }
+
+    func testDownloadsMultiSelectDeletesCompletedItemsAndLeavesActiveDownload() {
+        let app = launchFixtureApp()
+        guard app.waitForSignedInTabBar() else { return }
+
+        app.tabItem("Downloads").tap()
+        let downloadsTable = app.tables["putio-downloads-table"]
+        let firstDownload = downloadsTable.cells.containing(
+            .staticText,
+            identifier: "Big Buck Bunny.mp4"
+        ).element
+        let secondDownload = downloadsTable.cells.containing(
+            .staticText,
+            identifier: "Sintel.mp4"
+        ).element
+        let activeDownload = downloadsTable.cells.containing(
+            .staticText,
+            identifier: "Tears of Steel.mp4"
+        ).element
+        XCTAssertTrue(firstDownload.waitForExistence(timeout: 10))
+        XCTAssertTrue(secondDownload.exists)
+        XCTAssertTrue(activeDownload.exists)
+
+        app.buttons["Select completed downloads"].tap()
+        XCTAssertTrue(app.navigationBars["Select Items"].waitForExistence(timeout: 5))
+
+        activeDownload.tap()
+        XCTAssertTrue(app.navigationBars["Select Items"].exists, "active downloads must not become selected")
+
+        firstDownload.tap()
+        secondDownload.tap()
+        XCTAssertTrue(app.navigationBars["2 Items"].waitForExistence(timeout: 5))
+
+        firstDownload.tap()
+        XCTAssertTrue(app.navigationBars["1 Item"].waitForExistence(timeout: 5))
+        firstDownload.tap()
+        XCTAssertTrue(app.navigationBars["2 Items"].waitForExistence(timeout: 5))
+
+        app.buttons["Delete 2 selected downloads"].tap()
+        let confirmation = app.sheets["Delete 2 Downloads?"]
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
+        confirmation.buttons["Delete"].tap()
+
+        XCTAssertTrue(firstDownload.waitForNonExistence(timeout: 10))
+        XCTAssertTrue(secondDownload.waitForNonExistence(timeout: 10))
+        XCTAssertTrue(activeDownload.exists)
+        XCTAssertTrue(app.navigationBars["Downloads"].exists)
+    }
 }

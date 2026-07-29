@@ -3,6 +3,20 @@ import RealmSwift
 import UserNotifications
 
 enum DownloadSupport {
+    enum LocalFileLocation: Equatable {
+        case none
+        case unresolved
+        case resolved(URL)
+    }
+
+    enum LocalFileDeletionResult: Equatable {
+        case noLocation
+        case unresolvedLocation
+        case alreadyMissing
+        case removed
+        case failed
+    }
+
     static func realm(context: String) -> Realm? {
         PutioRealm.open(context: context)
     }
@@ -10,6 +24,17 @@ enum DownloadSupport {
     @discardableResult
     static func write(_ realm: Realm, context: String, updates: () -> Void) -> Bool {
         PutioRealm.write(realm, context: context, updates: updates)
+    }
+
+    static func deleteRecord(id: Int, context: String) -> Bool {
+        guard let realm = realm(context: context) else { return false }
+        guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else {
+            return true
+        }
+
+        return write(realm, context: "\(context).write") {
+            realm.delete(download)
+        }
     }
 
     static func url(from string: String, context: String) -> URL? {
@@ -30,6 +55,17 @@ enum DownloadSupport {
         return documentsURL.appendingPathComponent(relativePath)
     }
 
+    static func localFileLocation<Value>(
+        from persistedValue: Any?,
+        as _: Value.Type,
+        resolve: (Value) -> URL?
+    ) -> LocalFileLocation {
+        guard let persistedValue else { return .none }
+        guard let value = persistedValue as? Value else { return .unresolved }
+        guard let url = resolve(value) else { return .unresolved }
+        return .resolved(url)
+    }
+
     @discardableResult
     static func deleteItemIfPresent(at url: URL, context: String) -> Bool {
         guard FileManager.default.fileExists(atPath: url.path) else {
@@ -43,6 +79,61 @@ enum DownloadSupport {
             log.error("[DownloadSupport] \(context): \(error.localizedDescription)")
             return false
         }
+    }
+
+    static func deleteLocalFile(
+        at location: LocalFileLocation,
+        context: String
+    ) -> LocalFileDeletionResult {
+        let url: URL
+        switch location {
+        case .none:
+            return .noLocation
+        case .unresolved:
+            return .unresolvedLocation
+        case .resolved(let resolvedURL):
+            url = resolvedURL
+        }
+
+        do {
+            try FileManager.default.removeItem(at: url)
+            return .removed
+        } catch let error as CocoaError where error.code == .fileNoSuchFile {
+            return .alreadyMissing
+        } catch {
+            log.error("[DownloadSupport] \(context): \(error.localizedDescription)")
+            return .failed
+        }
+    }
+
+    static func performDeletion(
+        state: Download.State?,
+        cancelActiveDownload: () -> Void,
+        deleteLocalFile: () -> LocalFileDeletionResult,
+        deleteRecord: () -> Bool,
+        localFileDeletionDidSucceed: () -> Void = {}
+    ) -> Bool {
+        guard let state else { return false }
+
+        var localFileResult: LocalFileDeletionResult?
+        switch state {
+        case .queued, .starting, .active:
+            cancelActiveDownload()
+        case .completed:
+            let result = deleteLocalFile()
+            guard result == .removed || result == .alreadyMissing else { return false }
+            localFileResult = result
+        case .failed, .stopped:
+            let result = deleteLocalFile()
+            guard result != .unresolvedLocation && result != .failed else { return false }
+            localFileResult = result
+        }
+
+        guard deleteRecord() else { return false }
+        if localFileResult == .removed || localFileResult == .alreadyMissing {
+            localFileDeletionDidSucceed()
+        }
+        return true
     }
 
     static func enqueueCompletedDownloadNotification(for downloadName: String) {
