@@ -2,7 +2,7 @@
   "version": 1,
   "title": "put.io iOS visual reference",
   "description": "Committed snapshot baselines for the put.io iOS app. Dark mode only — the app is dark-only. Screens come from the mocked e2e walk on a pinned iPhone 17 Pro Max; components render directly in unit tests.",
-  "updatedAt": "2026-07-29T06:45:16.000Z",
+  "updatedAt": "2026-07-29T09:29:31.000Z",
   "screenshots": [
     {
       "id": "screens-files",
@@ -15,7 +15,7 @@
         "height": 2868
       },
       "file": "screenshots/screens/screens-files.png",
-      "capturedAt": "2026-07-28T15:25:09.000Z",
+      "capturedAt": "2026-07-29T09:29:31.000Z",
       "sizeBytes": 193948,
       "tags": [
         "files",
@@ -184,7 +184,7 @@
         "height": 2868
       },
       "file": "screenshots/screens/screens-audio-player.png",
-      "capturedAt": "2026-07-28T20:52:50.000Z",
+      "capturedAt": "2026-07-29T09:29:31.000Z",
       "sizeBytes": 743655,
       "tags": [
         "player",
@@ -268,7 +268,7 @@
         "height": 2868
       },
       "file": "screenshots/screens/screens-login.png",
-      "capturedAt": "2026-07-28T15:25:09.000Z",
+      "capturedAt": "2026-07-29T09:29:31.000Z",
       "sizeBytes": 80433,
       "tags": [
         "auth"
@@ -288,7 +288,7 @@
         "height": 132
       },
       "file": "screenshots/components/components-button-primary.png",
-      "capturedAt": "2026-07-28T20:52:50.000Z",
+      "capturedAt": "2026-07-29T09:29:31.000Z",
       "sizeBytes": 6486,
       "tags": [
         "button"
@@ -308,7 +308,7 @@
         "height": 132
       },
       "file": "screenshots/components/components-button-secondary.png",
-      "capturedAt": "2026-07-28T20:52:50.000Z",
+      "capturedAt": "2026-07-29T09:29:31.000Z",
       "sizeBytes": 6309,
       "tags": [
         "button"
@@ -328,7 +328,7 @@
         "height": 132
       },
       "file": "screenshots/components/components-button-danger.png",
-      "capturedAt": "2026-07-28T20:52:50.000Z",
+      "capturedAt": "2026-07-29T09:29:31.000Z",
       "sizeBytes": 6434,
       "tags": [
         "button"
@@ -472,7 +472,7 @@
         "height": 192
       },
       "file": "screenshots/components/components-history-cell-upload.png",
-      "capturedAt": "2026-07-28T20:52:50.000Z",
+      "capturedAt": "2026-07-29T09:29:31.000Z",
       "sizeBytes": 18725,
       "tags": [
         "history",
@@ -493,7 +493,7 @@
         "height": 192
       },
       "file": "screenshots/components/components-trash-cell.png",
-      "capturedAt": "2026-07-28T20:52:50.000Z",
+      "capturedAt": "2026-07-29T09:29:31.000Z",
       "sizeBytes": 20420,
       "tags": [
         "trash",
