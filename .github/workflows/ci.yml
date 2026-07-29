@@ -50,19 +50,21 @@ jobs:
           AFTER: ${{ github.sha }}
         run: |
           set -euo pipefail
-          # previous_filename as well as filename: a rename reports only where
-          # the file landed, so moving an app file into an ignored path would
-          # otherwise read as a docs-only diff while deleting app code.
+          # One line per changed file, carrying previous_filename beside
+          # filename: a rename reports only where the file landed, so moving an
+          # app file into an ignored path would otherwise read as a docs-only
+          # diff while deleting app code. Keeping the pair on one line means the
+          # cap below counts files rather than emitted paths.
           if [ "$EVENT" = "pull_request" ]; then
             gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" \
-              --jq '.[] | .filename, (.previous_filename // empty)' > changed.txt
+              --jq '.[] | [.filename, (.previous_filename // empty)] | @tsv' > files.tsv
           elif [ -n "${BEFORE//0/}" ]; then
             gh api --paginate "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$AFTER" \
-              --jq '.files[] | .filename, (.previous_filename // empty)' > changed.txt
+              --jq '.files[] | [.filename, (.previous_filename // empty)] | @tsv' > files.tsv
 
             # The compare endpoint returns at most 300 files and does not
             # paginate past them, so a larger push arrives silently truncated.
-            if [ "$(wc -l < changed.txt)" -ge 300 ]; then
+            if [ "$(wc -l < files.tsv)" -ge 300 ]; then
               echo "the compare response is at its 300-file cap and may be truncated; running every lane" >&2
               printf 'app=true\ntooling=true\n' >> "$GITHUB_OUTPUT"
               exit 0
@@ -72,6 +74,8 @@ jobs:
             printf 'app=true\ntooling=true\n' >> "$GITHUB_OUTPUT"
             exit 0
           fi
+
+          tr '\t' '\n' < files.tsv | grep -v '^$' > changed.txt
 
           echo "changed paths:"
           sed 's/^/  /' changed.txt
