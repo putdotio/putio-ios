@@ -9,8 +9,8 @@ Most local work only needs the normal toolchain and the checked-in development d
 - Prerequisites:
   - Xcode `26.x`
   - iOS `26.x` simulator runtime
-  - Ruby from `.ruby-version`
-  - Node from `.node-version`, with pnpm via `corepack enable`
+  - Ruby and Node from `mise.toml` — `mise install` gets both, and pnpm
+    arrives with `corepack enable`
 - Install dependencies:
 
 ```bash
@@ -18,8 +18,12 @@ make bootstrap
 ```
 
 `make bootstrap` starts with a `make doctor` preflight that checks your active
-Ruby against `.ruby-version`, Node against `.node-version`, that pnpm is on
-PATH, and your Xcode developer directory, printing copy-pasteable fixes for each.
+Ruby and Node against the `[tools]` pins in `mise.toml`, that pnpm is on PATH
+and matches `packageManager`, and your Xcode developer directory, printing
+copy-pasteable fixes for each. `mise.toml` is the only place those versions are
+written down: `ruby/setup-ruby` reads it in CI and the `Gemfile` reads it via
+`ruby file: 'mise.toml'`, so there is no second pin to keep in step. Using mise
+itself is optional; the pins are just a file.
 It also installs the repo pre-push hook (`.githooks/pre-push` via
 `core.hooksPath`), which runs the sub-second `make verify-fast` gate before
 every push.

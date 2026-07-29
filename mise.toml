@@ -1,0 +1,20 @@
+# Single source of truth for the toolchain versions this repo pins.
+#
+# `ruby/setup-ruby` reads this file directly, so CI and a local checkout agree
+# without a second pin to keep in step. `make doctor` reads the [tools] block
+# below to report drift when the active Ruby or Node is not the pinned one.
+#
+# pnpm is deliberately absent. It is pinned by "packageManager" in package.json
+# and installed by corepack, which ships with Node — pinning it here as well
+# would create two versions that have to be bumped together.
+#
+# Note that `mise install` builds Ruby from source (mise has no prebuilt Ruby
+# for macOS yet), so CI installs Ruby through `ruby/setup-ruby`, which serves a
+# prebuilt one, and only reads the pin from here.
+#
+# Keep [tools] first. `ruby/setup-ruby` matches the first `ruby = "…"` line in
+# this file without looking at which table it sits in, so a later table
+# declaring one would quietly become the version CI builds against.
+[tools]
+ruby = "3.2.4"
+node = "24.18.0"

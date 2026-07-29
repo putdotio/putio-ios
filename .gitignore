@@ -49,6 +49,10 @@ fastlane/.env.1password.local
 .direnv/
 !.env.example
 
+## mise, for a maintainer who needs to override a pin locally without
+## dirtying the tree. mise.toml itself is checked in and is the shared pin.
+mise.local.toml
+
 ## Fastlane DSYM .zip
 *.zip
 
