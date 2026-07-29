@@ -20,6 +20,14 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
             return AudioDownloadManager.sharedInstance.deleteDownload(id: id)
         }
     }
+    var removeDownloadRecord: (Int, Download.FileType) -> Bool = { id, fileType in
+        switch fileType {
+        case .video:
+            return VideoDownloadManager.sharedInstance.removeDownloadRecord(id: id)
+        case .audio:
+            return AudioDownloadManager.sharedInstance.removeDownloadRecord(id: id)
+        }
+    }
 
     lazy var downloads: Results<Download>? = {
         guard let realm = PutioRealm.open(context: "DownloadsViewController.downloads") else {
@@ -133,9 +141,6 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
             } else if downloadCount > 0 {
                 self.stateMachine.transitionToState(.none)
             }
-            self.reconcileSelectionAfterDownloadsChange()
-            self.updateSelectionAvailability()
-
             switch change {
             case .initial:
                 self.tableView.reloadData()
@@ -162,6 +167,8 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
                 SentrySDK.capture(error: error)
             }
 
+            self.reconcileSelectionAfterDownloadsChange()
+            self.updateSelectionAvailability()
             self.restoreSelectedRows()
         }
     }

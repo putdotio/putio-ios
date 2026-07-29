@@ -158,15 +158,32 @@ class VideoDownloadManager: NSObject {
             cancelActiveDownload: { self.cancelDownload(id: id) },
             deleteLocalFile: { self.deleteLocalFile(for: id) },
             deleteRecord: {
-                guard let download, let realm = download.realm else { return false }
-                return DownloadSupport.write(realm, context: "VideoDownloadManager.deleteDownload.write") {
-                    realm.delete(download)
-                }
+                DownloadSupport.deleteRecord(
+                    id: id,
+                    context: "VideoDownloadManager.deleteDownload"
+                )
             },
             localFileDeletionDidSucceed: {
                 UserDefaults.standard.removeObject(forKey: String(id))
             }
         )
+    }
+
+    @discardableResult
+    func removeDownloadRecord(id: Int) -> Bool {
+        if let task = activeDownloadsMap.first(where: { $0.value == id }) {
+            task.key.cancel()
+        }
+
+        guard DownloadSupport.deleteRecord(
+            id: id,
+            context: "VideoDownloadManager.removeDownloadRecord"
+        ) else {
+            return false
+        }
+
+        UserDefaults.standard.removeObject(forKey: String(id))
+        return true
     }
 
     func restartDownload(id: Int) {

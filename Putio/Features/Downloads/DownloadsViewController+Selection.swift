@@ -1,57 +1,5 @@
 import UIKit
 
-struct DownloadsSelectionState {
-    private(set) var selectedIDs = Set<Int>()
-
-    var count: Int {
-        selectedIDs.count
-    }
-
-    func contains(_ id: Int) -> Bool {
-        selectedIDs.contains(id)
-    }
-
-    func hasSelectedAll(_ selectableIDs: [Int]) -> Bool {
-        !selectableIDs.isEmpty && selectedIDs == Set(selectableIDs)
-    }
-
-    mutating func select(_ id: Int, isCompleted: Bool) {
-        guard isCompleted else { return }
-        selectedIDs.insert(id)
-    }
-
-    mutating func deselect(_ id: Int) {
-        selectedIDs.remove(id)
-    }
-
-    mutating func selectAll(_ selectableIDs: [Int]) {
-        selectedIDs = Set(selectableIDs)
-    }
-
-    mutating func retain(_ ids: [Int]) {
-        selectedIDs.formIntersection(ids)
-    }
-
-    mutating func clear() {
-        selectedIDs.removeAll()
-    }
-}
-
-struct DownloadDeletionItem: Equatable {
-    let id: Int
-    let name: String
-    let fileType: Download.FileType
-}
-
-enum DownloadsBulkDeletion {
-    static func failures(
-        deleting items: [DownloadDeletionItem],
-        with delete: (Int, Download.FileType) -> Bool
-    ) -> [DownloadDeletionItem] {
-        items.filter { !delete($0.id, $0.fileType) }
-    }
-}
-
 extension DownloadsViewController {
     var completedDownloadIDs: [Int] {
         downloads?
@@ -237,9 +185,16 @@ extension DownloadsViewController {
             return
         }
 
-        for row in 0..<tableView.numberOfRows(inSection: 0) {
+        guard let downloads else { return }
+        let tableRowCount = tableView.numberOfRows(inSection: 0)
+        guard tableRowCount == downloads.count else {
+            updateVisibleCellAccessibility()
+            return
+        }
+
+        for row in 0..<tableRowCount {
             let indexPath = IndexPath(row: row, section: 0)
-            guard let download = downloads?[row] else { continue }
+            let download = downloads[row]
 
             if selectionState.contains(download.id) {
                 tableView.selectRow(at: indexPath, animated: false, scrollPosition: .none)
@@ -303,6 +258,17 @@ extension DownloadsViewController {
     }
 
     func deleteSelectedDownloads(_ items: [DownloadDeletionItem]) {
+        performDownloadOperation(items, with: deleteDownload)
+    }
+
+    func removeDownloadsFromList(_ items: [DownloadDeletionItem]) {
+        performDownloadOperation(items, with: removeDownloadRecord)
+    }
+
+    private func performDownloadOperation(
+        _ items: [DownloadDeletionItem],
+        with operation: @escaping (Int, Download.FileType) -> Bool
+    ) {
         guard !items.isEmpty, !isDeletingSelectedDownloads else { return }
 
         isDeletingSelectedDownloads = true
@@ -312,32 +278,34 @@ extension DownloadsViewController {
         bulkDeleteButton?.title = NSLocalizedString("Deleting...", comment: "")
         updateSelectionUI()
 
-        let deleteDownload = self.deleteDownload
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let failures = DownloadsBulkDeletion.failures(deleting: items, with: deleteDownload)
+            let failures = DownloadsBulkDeletion.failures(deleting: items, with: operation)
 
             DispatchQueue.main.async {
                 guard let self else { return }
-
-                self.isDeletingSelectedDownloads = false
-                self.tableView.isUserInteractionEnabled = true
-                self.navigationItem.leftBarButtonItem?.isEnabled = true
-                self.navigationItem.rightBarButtonItems?.forEach { $0.isEnabled = true }
-                self.bulkDeleteButton?.title = NSLocalizedString("Delete", comment: "")
-                self.selectionState.retain(failures.map(\.id))
-
-                if failures.isEmpty {
-                    if self.tableView.isEditing {
-                        self.stopSelectingDownloads()
-                    } else {
-                        self.updateSelectionAvailability()
-                    }
-                } else {
-                    self.restoreSelectedRows()
-                    self.updateSelectionUI()
-                    self.presentDeletionFailure(for: failures)
-                }
+                self.finishDownloadOperation(failures: failures)
             }
+        }
+    }
+
+    func finishDownloadOperation(failures: [DownloadDeletionItem]) {
+        isDeletingSelectedDownloads = false
+        tableView.isUserInteractionEnabled = true
+        navigationItem.leftBarButtonItem?.isEnabled = true
+        navigationItem.rightBarButtonItems?.forEach { $0.isEnabled = true }
+        tutorialButton?.isEnabled = true
+        bulkDeleteButton?.title = NSLocalizedString("Delete", comment: "")
+        selectionState.retain(failures.map(\.id))
+        updateSelectionAvailability()
+
+        if failures.isEmpty {
+            if tableView.isEditing {
+                stopSelectingDownloads()
+            }
+        } else {
+            restoreSelectedRows()
+            updateSelectionUI()
+            presentDeletionFailure(for: failures)
         }
     }
 
@@ -354,16 +322,30 @@ extension DownloadsViewController {
             )
         }
 
-        let names = ListFormatter.localizedString(byJoining: failures.map(\.name))
+        let names = DownloadsBulkDeletion.failureNamesSummary(failures)
         let message: String
         if tableView.isEditing {
+            let format = NSLocalizedString(
+                """
+                %@ couldn't be deleted. The failed downloads remain selected. Retry, or remove them from the list; \
+                files that couldn't be deleted may remain on this device.
+                """,
+                comment: ""
+            )
             message = String(
-                format: NSLocalizedString("%@ couldn't be deleted. The failed downloads remain selected so you can retry.", comment: ""),
+                format: format,
                 names
             )
         } else {
+            let format = NSLocalizedString(
+                """
+                %@ couldn't be deleted. Retry, or remove the failed downloads from the list; \
+                files that couldn't be deleted may remain on this device.
+                """,
+                comment: ""
+            )
             message = String(
-                format: NSLocalizedString("%@ couldn't be deleted. Please try again.", comment: ""),
+                format: format,
                 names
             )
         }
@@ -374,6 +356,12 @@ extension DownloadsViewController {
             style: .destructive
         ) { [weak self] _ in
             self?.deleteSelectedDownloads(failures)
+        })
+        alert.addAction(UIAlertAction(
+            title: NSLocalizedString("Remove from List", comment: ""),
+            style: .destructive
+        ) { [weak self] _ in
+            self?.removeDownloadsFromList(failures)
         })
         alert.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .cancel))
         present(alert, animated: true)

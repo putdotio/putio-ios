@@ -26,6 +26,17 @@ enum DownloadSupport {
         PutioRealm.write(realm, context: context, updates: updates)
     }
 
+    static func deleteRecord(id: Int, context: String) -> Bool {
+        guard let realm = realm(context: context) else { return false }
+        guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else {
+            return true
+        }
+
+        return write(realm, context: "\(context).write") {
+            realm.delete(download)
+        }
+    }
+
     static func url(from string: String, context: String) -> URL? {
         guard let url = URL(string: string) else {
             log.error("[DownloadSupport] \(context): invalid URL \(string)")

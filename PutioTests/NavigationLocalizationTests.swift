@@ -1,6 +1,7 @@
 import XCTest
 @testable import Putio
 @testable import PutioSDK
+import RealmSwift
 
 final class NavigationLocalizationTests: XCTestCase {
     func testEveryPutioIconResolvesToA16PointTemplateAsset() throws {
@@ -181,6 +182,22 @@ final class NavigationLocalizationTests: XCTestCase {
 
         XCTAssertEqual(attemptedIDs, [11, 12, 13])
         XCTAssertEqual(failures, [items[1]])
+    }
+
+    func testDownloadsFailureSummaryCapsNamedItems() {
+        let failures = [
+            DownloadDeletionItem(id: 11, name: "First", fileType: .video),
+            DownloadDeletionItem(id: 12, name: "Second", fileType: .audio),
+            DownloadDeletionItem(id: 13, name: "Third", fileType: .video),
+            DownloadDeletionItem(id: 14, name: "Fourth", fileType: .audio),
+            DownloadDeletionItem(id: 15, name: "Fifth", fileType: .video)
+        ]
+        let more = String(format: NSLocalizedString("%d more", comment: ""), 2)
+
+        XCTAssertEqual(
+            DownloadsBulkDeletion.failureNamesSummary(failures),
+            ["First", "Second", "Third", more].formatted(.list(type: .and))
+        )
     }
 
     func testDownloadsBulkDeleteAccessibilityLabelDescribesSelectedCount() {
@@ -449,7 +466,7 @@ final class NavigationLocalizationTests: XCTestCase {
         cell.configureSelectionAccessibility(isSelecting: true, isSelected: true, isSelectable: true)
 
         XCTAssertTrue(cell.isAccessibilityElement)
-        XCTAssertEqual(cell.accessibilityLabel, "Episode")
+        XCTAssertEqual(cell.accessibilityLabel, "Episode, Downloading...")
         XCTAssertEqual(cell.accessibilityValue, NSLocalizedString("Selected", comment: ""))
         XCTAssertTrue(cell.accessibilityTraits.contains(.selected))
 
@@ -466,6 +483,40 @@ final class NavigationLocalizationTests: XCTestCase {
         cell.configureSelectionAccessibility(isSelecting: true, isSelected: false, isSelectable: true)
 
         XCTAssertFalse(cell.accessibilityTraits.contains(.notEnabled))
+
+        cell.accessibilityTraits.insert([.selected, .notEnabled])
+        cell.prepareForReuse()
+
+        XCTAssertFalse(cell.accessibilityTraits.contains(.selected))
+        XCTAssertFalse(cell.accessibilityTraits.contains(.notEnabled))
+    }
+
+    func testDownloadsSelectionEditingControlsOnlyAppearForCompletedRows() throws {
+        let configuration = Realm.Configuration(inMemoryIdentifier: #function)
+        let realm = try Realm(configuration: configuration)
+        let active = Download()
+        active.id = 11
+        active.state = .active
+        active.createdAt = Date(timeIntervalSince1970: 1)
+        let completed = Download()
+        completed.id = 12
+        completed.state = .completed
+        completed.createdAt = Date(timeIntervalSince1970: 2)
+        try realm.write {
+            realm.add([active, completed])
+        }
+
+        let viewController = DownloadsViewController()
+        viewController.downloads = realm.objects(Download.self).sorted(byKeyPath: "createdAt")
+        let tableView = UITableView()
+        viewController.tableView = tableView
+
+        XCTAssertTrue(viewController.tableView(tableView, canEditRowAt: IndexPath(row: 0, section: 0)))
+
+        tableView.setEditing(true, animated: false)
+
+        XCTAssertFalse(viewController.tableView(tableView, canEditRowAt: IndexPath(row: 0, section: 0)))
+        XCTAssertTrue(viewController.tableView(tableView, canEditRowAt: IndexPath(row: 1, section: 0)))
     }
 
     private func makeFolder(id: Int, name: String, sortBy: String) throws -> PutioFile {

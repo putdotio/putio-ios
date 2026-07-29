@@ -56,7 +56,7 @@ class DownloadsTableViewCell: UITableViewCell {
         accessibilityLabel = nil
         accessibilityValue = nil
         accessibilityHint = nil
-        accessibilityTraits.remove(.selected)
+        accessibilityTraits.remove([.selected, .notEnabled])
     }
 
     override func setEditing(_ editing: Bool, animated: Bool) {
@@ -130,8 +130,11 @@ class DownloadsTableViewCell: UITableViewCell {
             return
         }
 
-        accessibilityLabel = titleLabel.text
         if isSelectable {
+            accessibilityLabel = [titleLabel.text, subtitleLabel.text]
+                .compactMap { $0 }
+                .filter { !$0.isEmpty }
+                .joined(separator: ", ")
             accessibilityTraits.remove(.notEnabled)
             accessibilityValue = isSelected
                 ? NSLocalizedString("Selected", comment: "")
@@ -146,6 +149,7 @@ class DownloadsTableViewCell: UITableViewCell {
                 accessibilityTraits.remove(.selected)
             }
         } else {
+            accessibilityLabel = titleLabel.text
             accessibilityValue = subtitleLabel.text
             accessibilityHint = NSLocalizedString("Only completed downloads can be selected.", comment: "")
             accessibilityTraits.remove(.selected)

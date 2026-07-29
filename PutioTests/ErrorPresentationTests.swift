@@ -122,16 +122,55 @@ final class ErrorPresentationTests: XCTestCase {
             alert.message,
             String(
                 format: NSLocalizedString(
-                    "%@ couldn't be deleted. The failed downloads remain selected so you can retry.",
+                    "%@ couldn't be deleted. The failed downloads remain selected. Retry, or remove them from the list; files that couldn't be deleted may remain on this device.",
                     comment: ""
                 ),
-                ListFormatter.localizedString(byJoining: ["First Episode", "Second Episode"])
+                ["First Episode", "Second Episode"].formatted(.list(type: .and))
             )
         )
         XCTAssertEqual(
             alert.actions.map(\.title),
-            [NSLocalizedString("Retry", comment: ""), NSLocalizedString("Close", comment: "")]
+            [
+                NSLocalizedString("Retry", comment: ""),
+                NSLocalizedString("Remove from List", comment: ""),
+                NSLocalizedString("Close", comment: "")
+            ]
         )
+    }
+
+    func testDownloadsDeletionCompletionRetainsFailuresAndRestoresControls() throws {
+        let viewController = DownloadsViewControllerSpy()
+        let tableView = UITableView()
+        viewController.view.addSubview(tableView)
+        viewController.tableView = tableView
+        tableView.setEditing(true, animated: false)
+        tableView.isUserInteractionEnabled = false
+
+        let leftButton = UIBarButtonItem(title: "Select All", style: .plain, target: nil, action: nil)
+        let doneButton = UIBarButtonItem(title: "Done", style: .plain, target: nil, action: nil)
+        let deleteButton = UIBarButtonItem(title: "Deleting...", style: .plain, target: nil, action: nil)
+        leftButton.isEnabled = false
+        doneButton.isEnabled = false
+        deleteButton.isEnabled = false
+        viewController.navigationItem.leftBarButtonItem = leftButton
+        viewController.navigationItem.rightBarButtonItem = doneButton
+        viewController.bulkDeleteButton = deleteButton
+        viewController.selectButton = UIBarButtonItem(title: "Select", style: .plain, target: nil, action: nil)
+        viewController.selectionState.selectAll([11, 12, 13])
+        viewController.isDeletingSelectedDownloads = true
+
+        let failure = DownloadDeletionItem(id: 12, name: "Second Episode", fileType: .audio)
+        viewController.finishDownloadOperation(failures: [failure])
+
+        XCTAssertFalse(viewController.isDeletingSelectedDownloads)
+        XCTAssertTrue(tableView.isUserInteractionEnabled)
+        XCTAssertTrue(tableView.isEditing)
+        XCTAssertEqual(viewController.selectionState.selectedIDs, Set([12]))
+        XCTAssertTrue(leftButton.isEnabled)
+        XCTAssertTrue(doneButton.isEnabled)
+        XCTAssertEqual(deleteButton.title, NSLocalizedString("Delete", comment: ""))
+        XCTAssertFalse(viewController.selectButton?.isEnabled == true)
+        XCTAssertNotNil(viewController.presentedAlert)
     }
 
     func testChromecastManagerSkipsInvalidScreenshotURL() throws {

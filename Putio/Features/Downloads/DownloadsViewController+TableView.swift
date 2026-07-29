@@ -98,9 +98,17 @@ extension DownloadsViewController: UITableViewDataSource {
 }
 
 extension DownloadsViewController: UITableViewDelegate {
+    func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+        guard tableView.isEditing else { return true }
+        guard let downloads, indexPath.row < downloads.count else { return false }
+        return downloads[indexPath.row].state == .completed
+    }
+
     func tableView(_ tableView: UITableView, willSelectRowAt indexPath: IndexPath) -> IndexPath? {
         guard tableView.isEditing else { return indexPath }
-        guard let download = downloads?[indexPath.row], download.state == .completed else {
+        guard let downloads,
+              indexPath.row < downloads.count,
+              downloads[indexPath.row].state == .completed else {
             return nil
         }
         return indexPath

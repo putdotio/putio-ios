@@ -23,10 +23,10 @@
 "%@ is ready to play." = "%@ is ready to play.";
 
 /* No comment provided by engineer. */
-"%@ couldn't be deleted. The failed downloads remain selected so you can retry." = "%@ couldn't be deleted. The failed downloads remain selected so you can retry.";
+"%@ couldn't be deleted. The failed downloads remain selected. Retry, or remove them from the list; files that couldn't be deleted may remain on this device." = "%@ couldn't be deleted. The failed downloads remain selected. Retry, or remove them from the list; files that couldn't be deleted may remain on this device.";
 
 /* No comment provided by engineer. */
-"%@ couldn't be deleted. Please try again." = "%@ couldn't be deleted. Please try again.";
+"%@ couldn't be deleted. Retry, or remove the failed downloads from the list; files that couldn't be deleted may remain on this device." = "%@ couldn't be deleted. Retry, or remove the failed downloads from the list; files that couldn't be deleted may remain on this device.";
 
 /* No comment provided by engineer. */
 "%@ of %@ used" = "%1$@ of %2$@ used";
@@ -36,6 +36,9 @@
 
 /* No comment provided by engineer. */
 "%d Items" = "%d Items";
+
+/* No comment provided by engineer. */
+"%d more" = "%d more";
 
 /* No comment provided by engineer. */
 "1 Item" = "1 Item";
@@ -474,6 +477,9 @@
 
 /* No comment provided by engineer. */
 "Retry" = "Retry";
+
+/* No comment provided by engineer. */
+"Remove from List" = "Remove from List";
 
 /* No comment provided by engineer. */
 "Settings updated" = "Settings updated";
