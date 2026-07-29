@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 import process from "node:process";
 import { chromium } from "playwright";
 import type { Browser } from "playwright";
-import { computeLock, LOCK_PATH, storeImageName as lockImageName } from "./store-images-lock.ts";
+import { computeLock, LOCALE, LOCK_PATH, storeImageName as lockImageName } from "./store-images-lock.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SCREENSHOTS_CONFIG = join(ROOT, "Config/StoreScreenshots.json");
@@ -113,7 +113,7 @@ async function main(): Promise<void> {
   const checkOnly = process.argv.includes("--check");
   const config = JSON.parse(await readFile(SCREENSHOTS_CONFIG, "utf8"));
   const captions = JSON.parse(await readFile(CAPTIONS_CONFIG, "utf8"));
-  const locale = "en-US";
+  const locale = LOCALE;
   const strings = captions.locales?.[locale];
 
   if (!strings) {
@@ -152,6 +152,11 @@ async function main(): Promise<void> {
     console.log(`checked ${plan.length} store images`);
     return;
   }
+
+  // Computed before anything is rendered, so a lock that cannot be built fails
+  // the run while the committed set is still untouched. It hashes baselines and
+  // configs, never the rendered output, so it does not need them to exist yet.
+  const lock = `${JSON.stringify(await computeLock(), null, 2)}\n`;
 
   // Render into a staging directory and swap on success. Wiping the committed
   // set up front would leave a half-written listing behind if the browser died
@@ -192,10 +197,9 @@ async function main(): Promise<void> {
 
   await rm(previous, { recursive: true, force: true });
 
-  // After the swap, not before: the lock must describe images that are actually
-  // on disk, or a failed render would leave a lock claiming a set that was never
-  // written.
-  await writeFile(LOCK_PATH, `${JSON.stringify(await computeLock(), null, 2)}\n`);
+  // Written after the swap for the same reason it was computed before it: the
+  // lock must never describe a set that is not on disk.
+  await writeFile(LOCK_PATH, lock);
 
   console.log(`rendered ${plan.length} store images into fastlane/screenshots/`);
 }

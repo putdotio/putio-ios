@@ -33,6 +33,17 @@ const TEMPLATE = join(ROOT, "scripts/store-images/template.html");
 const DESIGN_TOKENS = join(ROOT, "node_modules/@putdotio/design/dist/css/tokens.css");
 
 export const LOCK_PATH = join(ROOT, "Config/StoreImages.lock.json");
+const OUTPUT_DIR = join(ROOT, "fastlane/screenshots");
+
+/**
+ * The only locale rendered today. Exported so the renderer and the lock cannot
+ * disagree: deriving the lock's locales from StoreCaptions.json instead would let
+ * a second locale added there produce lock entries for images the renderer never
+ * writes, and verification would accept them because both sides computed the same
+ * phantom set. Rendering more locales is a code change, so this is a code
+ * constant.
+ */
+export const LOCALE = "en-US";
 
 /** Hashes shared by every image: change one and the whole set is stale. */
 interface LockInputs {
@@ -102,12 +113,10 @@ export async function computeLock(): Promise<Lock> {
         );
       }
 
-      for (const locale of Object.keys(captions.locales ?? {})) {
-        images[`${locale}/${storeImageName(deviceId, entry.slot, entry.id)}`] = {
-          baseline,
-          sha256: sha256(await readFile(absolute)),
-        };
-      }
+      images[`${LOCALE}/${storeImageName(deviceId, entry.slot, entry.id)}`] = {
+        baseline,
+        sha256: sha256(await readFile(absolute)),
+      };
     }
   }
 
@@ -144,6 +153,14 @@ async function verify(): Promise<void> {
   }
 
   for (const [image, entry] of Object.entries(current.images)) {
+    // Existence, deliberately not content. A deleted or renamed JPEG would
+    // otherwise pass, since nothing else here reads the rendered files — but
+    // hashing them would fail the whole set after a Playwright bump re-encoded
+    // identical-looking pixels, which is the noise this check exists to avoid.
+    if (!existsSync(join(OUTPUT_DIR, image))) {
+      problems.push(`${image} is missing from fastlane/screenshots/`);
+    }
+
     const was = committed.images?.[image];
     if (!was) {
       problems.push(`${image} is declared by the config but absent from the lock`);
