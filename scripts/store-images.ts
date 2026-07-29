@@ -503,8 +503,8 @@ async function render(
     // Thrown rather than fail()ed: fail() exits the process, which would skip
     // main's finally and leave Chromium running and .staging on disk.
     throw new RenderError(
-      `${item.deviceId} slot ${item.slot}: "${item.caption}" needs more than the two lines the caption row reserves.`,
-      "Shorten it in Config/StoreCaptions.json, or raise captionBlock in the LAYOUT table for every image.",
+      `${item.deviceId} slot ${item.slot}: "${item.caption}" does not fit the caption row.`,
+      "Shorten it in Config/StoreCaptions.json, or raise captionBlock — in the LAYOUT table for every device, or in this device's layout block in Config/StoreScreenshots.json. Raising it also wants deviceWidth adjusted, which the device-fit check below enforces.",
     );
   }
 

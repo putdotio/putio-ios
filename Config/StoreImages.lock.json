@@ -1,7 +1,7 @@
 {
   "$comment": "Written by mise run store-images. Ties each committed marketing image to the baseline it was rendered from, so a baseline change without a re-render fails mise run store-images-verify instead of shipping stale artwork. Do not hand-edit.",
   "inputs": {
-    "storeScreenshots": "7bdb977dc6458e0efe5d63851ec530b981a3a8e2c02a3a635d8579a23e5b1598",
+    "storeScreenshots": "942cbd58fdf307dce196e212a7e6718b06d0ca44b78f49e4c04307d53707ff6b",
     "storeCaptions": "5c0b2821e73bfb8c89dc9ac609758f7884b5bf8dbd74c86994c2b39222492244",
     "template": "cce7b52110abab174b9fea360244c6a07691cd64d19e444936df283384848f60",
     "designTokens": "e77ac7f23dd9b77beaa43b2cd7ca6db009b389f01d9a541b634a0a99611fa1ea"
