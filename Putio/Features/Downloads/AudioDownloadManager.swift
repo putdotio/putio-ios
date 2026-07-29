@@ -121,6 +121,9 @@ class AudioDownloadManager: NSObject {
                 return DownloadSupport.write(realm, context: "AudioDownloadManager.deleteDownload.write") {
                     realm.delete(download)
                 }
+            },
+            localFileDeletionDidSucceed: {
+                UserDefaults.standard.removeObject(forKey: String(id))
             }
         )
     }
@@ -143,26 +146,37 @@ class AudioDownloadManager: NSObject {
         DownloadSupport.absoluteDocumentsURL(for: relativePath)
     }
 
-    func getLocalFileURL(for downloadId: Int) -> URL? {
-        guard let filePath = UserDefaults.standard.value(forKey: String(downloadId)) as? String else {
+    private func getLocalFileLocation(for downloadId: Int) -> DownloadSupport.LocalFileLocation {
+        let location = DownloadSupport.localFileLocation(
+            from: UserDefaults.standard.object(forKey: String(downloadId)),
+            as: String.self,
+            resolve: getAbsoluteURL
+        )
+
+        switch location {
+        case .none:
             log.error("ADM: getLocalFileURL: no filePath found in UserDefaults")
+        case .unresolved:
+            log.error("ADM: getLocalFileURL: persisted filePath could not be resolved")
+        case .resolved(let url):
+            log.debug("ADM: getLocalFileURL found: \(url.absoluteString)")
+        }
+        return location
+    }
+
+    func getLocalFileURL(for downloadId: Int) -> URL? {
+        guard case .resolved(let url) = getLocalFileLocation(for: downloadId) else {
             return nil
         }
-
-        guard let url = getAbsoluteURL(for: filePath) else { return nil }
-        log.debug("ADM: getLocalFileURL found: \(url.absoluteString)")
         return url
     }
 
     @discardableResult
     private func deleteLocalFile(for downloadId: Int) -> DownloadSupport.LocalFileDeletionResult {
         let result = DownloadSupport.deleteLocalFile(
-            at: getLocalFileURL(for: downloadId),
+            at: getLocalFileLocation(for: downloadId),
             context: "AudioDownloadManager.deleteLocalFile"
         )
-        if result == .removed {
-            UserDefaults.standard.removeObject(forKey: String(downloadId))
-        }
         return result
     }
 

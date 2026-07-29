@@ -162,6 +162,9 @@ class VideoDownloadManager: NSObject {
                 return DownloadSupport.write(realm, context: "VideoDownloadManager.deleteDownload.write") {
                     realm.delete(download)
                 }
+            },
+            localFileDeletionDidSucceed: {
+                UserDefaults.standard.removeObject(forKey: String(id))
             }
         )
     }
@@ -179,30 +182,48 @@ class VideoDownloadManager: NSObject {
         }
     }
 
-    func getLocalFileURL(for downloadId: Int) -> URL? {
+    private func getLocalFileLocation(for downloadId: Int) -> DownloadSupport.LocalFileLocation {
         log.verbose(["VDM: getLocalFileURL", downloadId])
 
-        guard let boomarkData = UserDefaults.standard.value(forKey: String(downloadId)) as? Data else {
-            log.error("VDM: Failed to receive bookmark")
-            return nil
-        }
+        let persistedValue = UserDefaults.standard.object(forKey: String(downloadId))
+        let location = DownloadSupport.localFileLocation(
+            from: persistedValue,
+            as: Data.self
+        ) { boomarkData in
+            var bookmarkDataIsStale = false
 
-        var bookmarkDataIsStale = false
+            do {
+                let url = try URL(
+                    resolvingBookmarkData: boomarkData,
+                    bookmarkDataIsStale: &bookmarkDataIsStale
+                )
 
-        do {
-            let url = try URL(resolvingBookmarkData: boomarkData, bookmarkDataIsStale: &bookmarkDataIsStale)
+                if bookmarkDataIsStale {
+                    log.error("VDM: Bookmark data is stale")
+                    return nil
+                }
 
-            if bookmarkDataIsStale {
-                log.error("VDM: Bookmark data is stale")
+                log.debug(["VDM: Bookmark URL is valid!", url.absoluteString])
+                return url
+            } catch {
+                log.error("VDM: Failed to create URL from bookmark with error: \(error)")
                 return nil
             }
+        }
 
-            log.debug(["VDM: Bookmark URL is valid!", url.absoluteString])
-            return url
-        } catch {
-            log.error("VDM: Failed to create URL from bookmark with error: \(error)")
+        if location == .none {
+            log.error("VDM: Failed to receive bookmark")
+        } else if location == .unresolved, persistedValue != nil {
+            log.error("VDM: Persisted bookmark could not be resolved")
+        }
+        return location
+    }
+
+    func getLocalFileURL(for downloadId: Int) -> URL? {
+        guard case .resolved(let url) = getLocalFileLocation(for: downloadId) else {
             return nil
         }
+        return url
     }
 
     @discardableResult
@@ -210,11 +231,10 @@ class VideoDownloadManager: NSObject {
         log.verbose(["VDM: deleteLocalFile", downloadId])
 
         let result = DownloadSupport.deleteLocalFile(
-            at: getLocalFileURL(for: downloadId),
+            at: getLocalFileLocation(for: downloadId),
             context: "VideoDownloadManager.deleteLocalFile"
         )
         if result == .removed {
-            UserDefaults.standard.removeObject(forKey: String(downloadId))
             log.verbose(["VDM: local file deleted", downloadId])
         }
         return result

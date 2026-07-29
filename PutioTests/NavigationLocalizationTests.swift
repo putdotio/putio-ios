@@ -231,14 +231,18 @@ final class NavigationLocalizationTests: XCTestCase {
     }
 
     func testCompletedDownloadDeletionPropagatesRecordFailure() {
+        var didFinalizeLocalFileDeletion = false
+
         let didDelete = DownloadSupport.performDeletion(
             state: .completed,
             cancelActiveDownload: { XCTFail("Completed downloads do not need cancellation") },
             deleteLocalFile: { .removed },
-            deleteRecord: { false }
+            deleteRecord: { false },
+            localFileDeletionDidSucceed: { didFinalizeLocalFileDeletion = true }
         )
 
         XCTAssertFalse(didDelete)
+        XCTAssertFalse(didFinalizeLocalFileDeletion)
     }
 
     func testCompletedDownloadDeletionSucceedsAfterFileAndRecordDeletion() {
@@ -254,11 +258,12 @@ final class NavigationLocalizationTests: XCTestCase {
             deleteRecord: {
                 operations.append("record")
                 return true
-            }
+            },
+            localFileDeletionDidSucceed: { operations.append("metadata") }
         )
 
         XCTAssertTrue(didDelete)
-        XCTAssertEqual(operations, ["file", "record"])
+        XCTAssertEqual(operations, ["file", "record", "metadata"])
     }
 
     func testActiveDownloadDeletionCancelsBeforeDeletingRecord() {
@@ -281,8 +286,53 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(operations, ["cancel", "record"])
     }
 
-    func testLocalFileDeletionReportsMissingWhenLocationCannotBeResolved() {
-        XCTAssertEqual(DownloadSupport.deleteLocalFile(at: nil, context: #function), .missing)
+    func testLocalFileDeletionDistinguishesAbsentAndUnresolvedLocations() {
+        XCTAssertEqual(
+            DownloadSupport.deleteLocalFile(at: .none, context: #function),
+            .noLocation
+        )
+        XCTAssertEqual(
+            DownloadSupport.deleteLocalFile(at: .unresolved, context: #function),
+            .unresolvedLocation
+        )
+    }
+
+    func testPersistedLocalFileLocationDistinguishesAbsentMalformedAndResolvedValues() {
+        let resolvedURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("resolved")
+
+        XCTAssertEqual(
+            DownloadSupport.localFileLocation(
+                from: nil,
+                as: String.self,
+                resolve: { _ in resolvedURL }
+            ),
+            .none
+        )
+        XCTAssertEqual(
+            DownloadSupport.localFileLocation(
+                from: Data(),
+                as: String.self,
+                resolve: { _ in resolvedURL }
+            ),
+            .unresolved
+        )
+        XCTAssertEqual(
+            DownloadSupport.localFileLocation(
+                from: "persisted-path",
+                as: String.self,
+                resolve: { _ in nil }
+            ),
+            .unresolved
+        )
+        XCTAssertEqual(
+            DownloadSupport.localFileLocation(
+                from: "persisted-path",
+                as: String.self,
+                resolve: { _ in resolvedURL }
+            ),
+            .resolved(resolvedURL)
+        )
     }
 
     func testLocalFileDeletionReportsMissingWhenResolvedFileDoesNotExist() {
@@ -290,8 +340,8 @@ final class NavigationLocalizationTests: XCTestCase {
             .appendingPathComponent("missing-\(UUID().uuidString)")
 
         XCTAssertEqual(
-            DownloadSupport.deleteLocalFile(at: missingURL, context: #function),
-            .missing
+            DownloadSupport.deleteLocalFile(at: .resolved(missingURL), context: #function),
+            .alreadyMissing
         )
     }
 
@@ -301,7 +351,7 @@ final class NavigationLocalizationTests: XCTestCase {
         try Data("offline".utf8).write(to: fileURL)
 
         XCTAssertEqual(
-            DownloadSupport.deleteLocalFile(at: fileURL, context: #function),
+            DownloadSupport.deleteLocalFile(at: .resolved(fileURL), context: #function),
             .removed
         )
         XCTAssertFalse(FileManager.default.fileExists(atPath: fileURL.path))
@@ -313,7 +363,7 @@ final class NavigationLocalizationTests: XCTestCase {
         let didDelete = DownloadSupport.performDeletion(
             state: .completed,
             cancelActiveDownload: { XCTFail("Completed downloads do not need cancellation") },
-            deleteLocalFile: { .missing },
+            deleteLocalFile: { .noLocation },
             deleteRecord: {
                 didDeleteRecord = true
                 return true
@@ -324,15 +374,43 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertFalse(didDeleteRecord)
     }
 
+    func testCompletedDownloadWithKnownMissingFileCanDeleteItsRecord() {
+        XCTAssertTrue(
+            DownloadSupport.performDeletion(
+                state: .completed,
+                cancelActiveDownload: { XCTFail("Completed downloads do not need cancellation") },
+                deleteLocalFile: { .alreadyMissing },
+                deleteRecord: { true }
+            )
+        )
+    }
+
     func testFailedDownloadWithoutLocalFileCanDeleteItsRecord() {
         XCTAssertTrue(
             DownloadSupport.performDeletion(
                 state: .failed,
                 cancelActiveDownload: { XCTFail("Failed downloads do not need cancellation") },
-                deleteLocalFile: { .missing },
+                deleteLocalFile: { .noLocation },
                 deleteRecord: { true }
             )
         )
+    }
+
+    func testFailedDownloadPreservesRecordWhenPersistedLocationCannotBeResolved() {
+        var didDeleteRecord = false
+
+        let didDelete = DownloadSupport.performDeletion(
+            state: .failed,
+            cancelActiveDownload: { XCTFail("Failed downloads do not need cancellation") },
+            deleteLocalFile: { .unresolvedLocation },
+            deleteRecord: {
+                didDeleteRecord = true
+                return true
+            }
+        )
+
+        XCTAssertFalse(didDelete)
+        XCTAssertFalse(didDeleteRecord)
     }
 
     func testDownloadSelectionAvailabilityHintExplainsRecovery() {
