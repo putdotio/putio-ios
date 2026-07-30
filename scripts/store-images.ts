@@ -2,16 +2,13 @@
 
 // Frames the raw store screenshots into finished App Store marketing images:
 // brand-yellow field, bold caption, screenshot in a rounded black device that
-// runs off the bottom edge — the treatment the Apple TV and Android TV listings
-// already use.
+// runs off the bottom edge — matching the Apple TV and Android TV listings.
 //
-// Input comes from `mise run store-screenshots` (gitignored, intermediate). Output
-// is committed, so the images get reviewed as an image diff in the PR before
-// #52 uploads them.
+// Input comes from `mise run store-screenshots` (gitignored). Output is
+// committed, so it is reviewed as an image diff before upload.
 //
-// Brand values are read from @putdotio/design rather than retyped, and the
-// caption face is the same licensed GT America the app bundles, so these match
-// the product instead of merely resembling it.
+// Brand values come from @putdotio/design and the caption face is the licensed
+// GT America the app bundles, so these match the product rather than resemble it.
 //
 // Usage (run directly — Node strips the types, there is no build step):
 //   node scripts/store-images.ts          # render into fastlane/screenshots/
@@ -37,31 +34,25 @@ const FONTS_DIR = join(ROOT, "Putio/Fonts");
 // The weight the caption is set in; template.html must agree.
 const CAPTION_WEIGHT = 900;
 
-// Proportional layout: each value declares which axis it scales against, widths
-// against width and vertical rhythm against height. Scaling everything off one
-// axis makes the device wider than the canvas on a tall phone.
+// Proportional layout: each value declares its own axis — widths against width,
+// vertical rhythm against height. Scaling everything off one axis makes the
+// device wider than the canvas on a tall phone.
 //
-// The ratios below are iPhone's, and the two radii are the ones that do NOT
-// generalize — a corner radius is physical device geometry, not a proportion of
-// the screen. A phone's corners are far rounder relative to its width than a
-// tablet's, so reusing 0.062 on iPad gave it a 128px screen radius that ate the
-// status bar clock. A device whose corners differ declares its own; see the
-// layout block for ipad-13 in Config/StoreScreenshots.json.
+// These ratios are iPhone's. The two radii do not generalize: a corner radius is
+// physical device geometry, and a phone's corners are far rounder relative to
+// its width than a tablet's. A device whose corners differ declares its own in
+// Config/StoreScreenshots.json.
 const LAYOUT = {
   captionSize: ["width", 0.082],
   captionPaddingBlock: ["height", 0.042],
   captionPaddingInline: ["width", 0.09],
-  // The caption row is a fixed height rather than auto, so a one-line caption
-  // and a two-line one place the device at exactly the same y. Sized for the
-  // top padding plus two lines: 373px against the 366px GT America Black
-  // actually occupies at this size — its ascent and descent make the line box
-  // taller than the 1.1 line height, so this cannot be derived from the two
-  // ratios above. A third line overflows, which render() refuses rather than
-  // clipping.
+  // Fixed rather than auto, so one- and two-line captions place the device at
+  // the same y. Measured, not derived: GT America Black's ascent and descent
+  // make the line box taller than the 1.1 line height. A third line overflows,
+  // which render() refuses rather than clips.
   captionBlock: ["height", 0.13],
-  // Wide enough that the bottom-aligned device reaches up close under the
-  // caption. At 0.8 it is only 2234px tall on a 2868px canvas and leaves ~294px
-  // of dead yellow between the two.
+  // Wide enough that the bottom-aligned device reaches up under the caption;
+  // at 0.8 it leaves a visible band of dead yellow between the two.
   deviceWidth: ["width", 0.86],
   deviceBezel: ["width", 0.014],
   deviceRadius: ["width", 0.075],
@@ -122,9 +113,8 @@ async function main(): Promise<void> {
 
   const plan = await buildPlan(config, strings, locale);
 
-  // An empty plan is always a config mistake, never an intent to publish zero
-  // screenshots. Without this the swap below deletes the committed set and then
-  // fails, because nothing ever created the staging directory.
+  // Always a config mistake, never an intent to publish zero screenshots.
+  // Without this the swap below deletes the committed set and then fails.
   if (plan.length === 0) {
     fail(
       "the plan is empty — no device declares any screenshots.",
@@ -132,8 +122,8 @@ async function main(): Promise<void> {
     );
   }
 
-  // Every render prerequisite is validated in both modes, so --check is a real
-  // preflight rather than a partial one that passes and then fails on render.
+  // Validated in both modes, so --check is a real preflight rather than one
+  // that passes and then fails on render.
   const css = await designTokens();
   const fontFaces = await brandFontFaces();
   assertBrowserInstalled();
@@ -153,14 +143,12 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Computed before anything is rendered, so a lock that cannot be built fails
-  // the run while the committed set is still untouched. It hashes baselines and
-  // configs, never the rendered output, so it does not need them to exist yet.
+  // Before rendering, so a lock that cannot be built fails while the committed
+  // set is untouched. It hashes inputs, never output, so nothing need exist yet.
   const lock = `${JSON.stringify(await computeLock(), null, 2)}\n`;
 
-  // Render into a staging directory and swap on success. Wiping the committed
-  // set up front would leave a half-written listing behind if the browser died
-  // mid-loop, and the missing images would look intentional in a diff.
+  // Staging plus swap on success: wiping up front would leave a half-written
+  // listing if the browser died mid-loop, and a diff would read it as intended.
   const staging = `${OUTPUT_DIR}.staging`;
   await rm(staging, { recursive: true, force: true });
 
@@ -176,9 +164,8 @@ async function main(): Promise<void> {
     await browser.close();
   }
 
-  // Move the committed set aside rather than deleting it: a rename that fails
-  // after an rm would leave the listing path gone with the new images stranded
-  // under .staging, which is worse than the mid-loop failure staging prevents.
+  // Moved aside rather than deleted: a rename failing after an rm would leave
+  // the listing path gone and the new images stranded under .staging.
   const previous = `${OUTPUT_DIR}.previous`;
   await rm(previous, { recursive: true, force: true });
 
@@ -197,19 +184,17 @@ async function main(): Promise<void> {
 
   await rm(previous, { recursive: true, force: true });
 
-  // Written after the swap for the same reason it was computed before it: the
-  // lock must never describe a set that is not on disk.
+  // After the swap: the lock must never describe a set that is not on disk.
   await writeFile(LOCK_PATH, lock);
 
   console.log(`rendered ${plan.length} store images into fastlane/screenshots/`);
 }
 
 /**
- * The playwright package does not bring a browser with it here: pnpm 10+ blocks
- * postinstall scripts unless the package is allowlisted, so a clean
- * `pnpm install` leaves nothing for chromium.launch() to start. `make
- * store-images` installs it, but a direct node invocation would otherwise fail
- * deep inside Playwright with a stack rather than a remedy.
+ * pnpm 10+ blocks postinstall scripts unless the package is allowlisted, so a
+ * clean install leaves no browser for chromium.launch(). The mise task installs
+ * one; a direct node invocation would otherwise fail deep inside Playwright
+ * with a stack rather than a remedy.
  */
 function assertBrowserInstalled(): void {
   let executable;
@@ -286,12 +271,10 @@ async function buildPlan(
         rawPath,
         width: device.width,
         height: device.height,
-        // Per-device ratio overrides for the LAYOUT table. The ratios below were
-        // tuned on a 0.46-aspect phone, and two of them fight on a 0.75-aspect
-        // tablet: captionSize scales with width so the text grows, captionBlock
-        // scales with height so its box shrinks. Rather than rebalance the axes
-        // and re-render every committed iPhone image over it, a device declares
-        // the ratios its shape needs.
+        // The LAYOUT ratios were tuned on a 0.46-aspect phone, and two of them
+        // fight on a 0.75-aspect tablet: captionSize grows with width while
+        // captionBlock shrinks with height. A device declares what its shape
+        // needs rather than every committed iPhone image being re-rendered.
         layout: device.layout,
         locale,
       });
@@ -302,10 +285,9 @@ async function buildPlan(
 }
 
 /**
- * Embed the licensed faces as data URLs. Chromium will not load a local file
- * through @font-face from a data: document, and a missing face would silently
- * fall back to a system font — producing store images whose typography is not
- * the product's. Better to refuse.
+ * Chromium will not load a local file through @font-face from a data: document,
+ * so the faces are embedded. A missing face falls back silently to a system
+ * font, which would ship store images in the wrong typography.
  */
 async function brandFontFaces() {
   if (!existsSync(FONTS_DIR)) {
@@ -340,9 +322,8 @@ async function brandFontFaces() {
     );
   }
 
-  // Files existing is not the same as usable faces existing: a rename or a new
-  // naming scheme would leave this empty, and an empty @font-face block falls
-  // back to a system font — the exact outcome this function exists to prevent.
+  // Files existing is not usable faces existing: a rename would leave this
+  // empty, and an empty @font-face block falls back to a system font.
   if (faces.length === 0) {
     fail(
       `found ${files.length} GT America file(s) in Putio/Fonts but none matched gt-america-standard-<weight>.otf.`,
@@ -350,9 +331,8 @@ async function brandFontFaces() {
     );
   }
 
-  // Having *a* face is not enough. The template sets captions in 900, so a
-  // partial install holding only, say, the regular weight would render every
-  // caption in a system font while this function reported success.
+  // The template sets captions in 900, so a partial install carrying only
+  // lighter weights would render them in a system font and still report success.
   if (!loaded.has(CAPTION_WEIGHT)) {
     fail(
       `GT America ${CAPTION_WEIGHT} (black) is missing from Putio/Fonts; found ${[...loaded].sort().join(", ") || "nothing usable"}.`,
@@ -388,9 +368,8 @@ async function render(
   await page.goto(`file://${TEMPLATE}`);
   await page.evaluate(
     ({ css, fontFaces, variables, caption, image, width, height }) => {
-      // Every id below is in the committed template. Naming a missing one beats
-      // a TypeError from deep in the page: the template is the only thing that
-      // can make this fail, and it says which part of it broke.
+      // The template is the only thing that can make this fail, so name the
+      // missing id rather than throwing a TypeError from deep in the page.
       const need = <T extends Element>(selector: string): T => {
         const element = document.querySelector<T>(selector);
         if (!element) {
@@ -416,13 +395,11 @@ async function render(
     },
   );
 
-  // Fonts and the embedded screenshot must be decoded before capture, or the
-  // first image renders in a fallback face.
+  // Fonts and the embedded screenshot must decode before capture, or the first
+  // image renders in a fallback face.
   //
-  // `fonts.ready` settling is not the same as the faces having loaded: it
-  // resolves once every attempt has finished, failures included, so a corrupt
-  // OTF would paint the caption in the template's system-ui fallback and still
-  // report success. Ask the font set what actually happened.
+  // `fonts.ready` resolves once every attempt finishes, failures included, so a
+  // corrupt OTF would still report success. Ask the font set what happened.
   const fontProblem = await page.evaluate(async (weight) => {
     await document.fonts.ready;
     const faces = [...document.fonts].filter((face) => face.family === "GT America");
@@ -432,8 +409,7 @@ async function render(
       return `Chromium could not parse these GT America faces: ${errored.join(", ")}`;
     }
 
-    // Unused weights stay "unloaded" and that is fine — only the caption weight
-    // has to be live, because it is the only one the template paints with.
+    // Only the caption weight has to be live; unused weights stay "unloaded".
     const caption = faces.find((face) => Number(face.weight) === weight);
     if (!caption) {
       return `no GT America face was declared at weight ${weight}`;
@@ -446,14 +422,14 @@ async function render(
   }, CAPTION_WEIGHT);
 
   if (fontProblem) {
-    // Thrown, not fail()ed, for the same reason as the caption check below.
+    // Thrown, not fail()ed — see the caption check below.
     throw new RenderError(
       `${item.deviceId} slot ${item.slot}: ${fontProblem}.`,
       "Run mise run fonts-setup to reinstall the licensed faces; mise run verify-fonts verifies them against Config/BrandFonts.json.",
     );
   }
-  // Resolving only on `load` means a decode failure never settles and the run
-  // hangs rather than failing. Reject on error, and cap the wait.
+  // Resolving only on `load` would hang the run on a decode failure rather
+  // than failing it. Reject on error, and cap the wait.
   await page.evaluate(
     () =>
       new Promise<void>((resolve, reject) => {
@@ -463,9 +439,8 @@ async function render(
           return;
         }
         if (img.complete) {
-          // A completed load with no intrinsic size already failed, and its
-          // error event fired before this ran — waiting would burn the whole
-          // timeout to reach the same conclusion.
+          // Already failed, and its error event fired before this ran, so
+          // waiting would burn the whole timeout for the same answer.
           if (img.naturalWidth > 0) {
             resolve();
           } else {
@@ -475,7 +450,7 @@ async function render(
         }
         const timer = setTimeout(() => reject(new Error("screenshot did not decode within 10s")), 10_000);
         // `load` can fire on an image with no intrinsic size, which renders as
-        // a blank device screen — so the same check guards both paths.
+        // a blank device screen.
         img.addEventListener("load", () => {
           clearTimeout(timer);
           if (img.naturalWidth > 0) {
@@ -488,9 +463,9 @@ async function render(
       }),
   );
 
-  // The caption row is a fixed two-line height, so a longer string would be
-  // silently clipped by the body's overflow: hidden. Refuse instead — a
-  // half-visible caption in a store listing is worse than a failed render.
+  // The caption row is a fixed two-line height, so a longer string is silently
+  // clipped by the body's overflow: hidden. A half-visible caption in a store
+  // listing is worse than a failed render.
   const captionOverflow = await page.evaluate(() => {
     const caption = document.querySelector("#caption");
     if (!caption) {
@@ -500,23 +475,20 @@ async function render(
   });
 
   if (captionOverflow > 1) {
-    // Thrown rather than fail()ed: fail() exits the process, which would skip
-    // main's finally and leave Chromium running and .staging on disk.
+    // fail() exits the process, skipping main's finally and leaving Chromium
+    // running with .staging on disk.
     throw new RenderError(
       `${item.deviceId} slot ${item.slot}: "${item.caption}" does not fit the caption row.`,
       "Shorten it in Config/StoreCaptions.json, or raise captionBlock — in the LAYOUT table for every device, or in this device's layout block in Config/StoreScreenshots.json. Raising it also wants deviceWidth adjusted, which the device-fit check below enforces.",
     );
   }
 
-  // The device's height is intrinsic — deviceWidth divided by the screenshot's
-  // aspect — so it can miss the space under the caption in either direction, and
-  // the caption check above sees neither. Too tall and it grows *upward* over the
-  // caption, because align-self: end pins its bottom to the canvas. Too short
-  // and it leaves a band of yellow between caption and device.
+  // The device's height is intrinsic, so it can miss the space under the
+  // caption either way and the caption check above sees neither: too tall it
+  // grows upward over the caption, too short it leaves a band of yellow.
   //
-  // Only the top edge can be measured for this: that same bottom alignment keeps
-  // the bottom flush at every size, so a bottom measurement is always zero and
-  // would prove nothing.
+  // Only the top edge is measurable — align-self: end keeps the bottom flush at
+  // every size, so a bottom measurement is always zero.
   const captionToDevice = await page.evaluate(() => {
     const device = document.querySelector(".device");
     const caption = document.querySelector("#caption");
@@ -526,9 +498,8 @@ async function render(
     return device.getBoundingClientRect().top - caption.getBoundingClientRect().bottom;
   });
 
-  // Measured, not guessed: the shipped iPhone layout leaves 89px on a 2868px
-  // canvas (3.11%) and iPad's fitted one leaves 0. Four percent accepts both
-  // with headroom while still catching a band anyone would notice.
+  // Measured, not guessed: the shipped iPhone layout leaves 3.11% and iPad's
+  // fitted one leaves 0, so this accepts both while still catching a visible band.
   const slack = item.height * 0.04;
 
   if (captionToDevice < 0 || captionToDevice > slack) {
@@ -543,8 +514,8 @@ async function render(
   const destination = join(outputDir, item.locale, storeImageName(item));
   await mkdir(dirname(destination), { recursive: true });
 
-  // JPEG, not PNG: Apple accepts both, and the framed output is ~5MB as JPEG
-  // against ~15MB as PNG for images that get committed.
+  // Apple accepts both, and these get committed: JPEG is roughly a third of
+  // PNG here.
   const buffer = await page.screenshot({ type: "jpeg", quality: 92 });
   await writeFile(destination, buffer);
   await page.close();
@@ -552,11 +523,10 @@ async function render(
   console.log(`  ${item.deviceId} slot ${item.slot}: "${item.caption}" -> ${item.locale}/${storeImageName(item)}`);
 }
 
-// Device-scoped, because every device declares the same slots and ids: without
-// it the iPad render would overwrite the iPhone one in the same locale
-// directory. deliver reads the display type from the image's pixel size rather
-// than its name, so the prefix is free — it only has to sort each device's own
-// slots in order, which a zero-padded slot does.
+// Every device declares the same slots and ids, so without a device scope the
+// iPad render would overwrite the iPhone one in the same locale directory.
+// deliver reads the display type from pixel size, not the name, so the prefix
+// only has to sort each device's own slots — which a zero-padded slot does.
 function storeImageName(item: PlanItem): string {
   return lockImageName(item.deviceId, item.slot, item.id);
 }
@@ -571,9 +541,8 @@ function fail(message: string, remedy: string): never {
 }
 
 /**
- * A failure raised from inside the render loop, where exiting the process
- * directly would skip the cleanup that closes Chromium and removes the staging
- * directory. Carries the same message and remedy fail() prints.
+ * A failure raised inside the render loop, where exiting directly would skip the
+ * cleanup that closes Chromium and removes the staging directory.
  */
 class RenderError extends Error {
   readonly remedy: string;

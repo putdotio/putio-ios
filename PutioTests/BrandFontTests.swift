@@ -1,15 +1,11 @@
 import XCTest
 @testable import Putio
 
-// Verification builds bundle the licensed faces
-// (PUTIO_BUNDLE_BRAND_FONTS = YES in Config/Verify.xcconfig) so the visual
-// suite can see typography regressions — it could not while they were
-// excluded, which is why #37, #42, and #43 all moved zero baselines. These
-// tests pin that contract: a build that loses the faces becomes a named
-// failure here instead of 23 mysterious pixel diffs.
-//
-// Recording therefore requires the fonts. Run `mise run fonts-setup` before
-// `mise run screenshots-record`.
+// Pins the contract that verification builds bundle the licensed faces
+// (PUTIO_BUNDLE_BRAND_FONTS in Config/Verify.xcconfig). Without it a build that
+// loses the fonts shows up as a spread of unexplained pixel diffs rather than a
+// named failure — and the visual suite stops seeing typography regressions at
+// all. Run `mise run fonts-setup` before recording.
 final class BrandFontTests: XCTestCase {
     private static let sansFamily = "GT America"
     private static let monoFamily = "Berkeley Mono Variable"
@@ -55,12 +51,9 @@ final class BrandFontTests: XCTestCase {
         XCTAssertNotEqual(mono, .monospacedSystemFont(ofSize: 13, weight: .regular))
     }
 
-    // Pins the wiring of the system-font fallback without depending on the
-    // faces being absent: `sans` is `sansIfAvailable` plus a fallback, so when
-    // a face resolves the two must agree. The absent-fonts branch itself is
-    // only reachable in builds without the licensed fonts — a contributor
-    // without font access, or any non-Verify build that skipped the sync — and
-    // is covered there by the app simply rendering in system fonts.
+    // Checks the fallback wiring without needing the faces to be absent: when a
+    // face resolves, the two accessors must agree. The absent branch is only
+    // reachable in builds without the licensed fonts.
     func testNonOptionalAccessorsDeferToTheOptionalOnesWhenFacesResolve() {
         BrandFont.registerIfAvailable()
 
@@ -68,9 +61,7 @@ final class BrandFontTests: XCTestCase {
         XCTAssertEqual(BrandFont.mono(size: 13), BrandFont.monoIfAvailable(size: 13))
     }
 
-    // Pins the fixed-size-label weight fix: the descriptor's weight trait is
-    // an NSNumber, so a direct `as? CGFloat` cast fails and silently drops the
-    // label to regular. Pure descriptor math — independent of bundled fonts.
+    // Pure descriptor math, so this holds whether or not the fonts are bundled.
     func testFixedSizeWeightIsRecoveredFromNSNumberTrait() {
         let semibold = UIFont.systemFont(ofSize: 14, weight: .semibold)
         let recovered = UILabel.brandWeight(from: semibold.fontDescriptor)
@@ -84,8 +75,6 @@ final class BrandFontTests: XCTestCase {
                        UIFont.Weight.regular.rawValue, accuracy: 0.001)
     }
 
-    // The full-style application (font + tracking + line height + uppercasing)
-    // must actually take effect now that the faces ship in Verify.
     func testApplyBrandStyleAppliesTheBrandFace() {
         BrandFont.registerIfAvailable()
         let label = UILabel()
@@ -98,8 +87,8 @@ final class BrandFontTests: XCTestCase {
         XCTAssertEqual(label.text, "Restore Your Downloads", "h2 does not uppercase")
     }
 
-    // `.label` is the one role that uppercases, so it pins that the style is
-    // applied whole rather than just the font being swapped.
+    // `.label` is the only uppercasing role, so it proves the whole style is
+    // applied rather than just the font being swapped.
     func testApplyBrandStyleUppercasesTheLabelRole() {
         BrandFont.registerIfAvailable()
         let label = UILabel()
@@ -121,8 +110,7 @@ final class BrandFontTests: XCTestCase {
         }
     }
 
-    // The two mono roles must use the mono face and everything else the sans
-    // face — the split #42 and #43 established.
+    // Berkeley Mono is the only mono face; every other role is sans.
     func testMonoRolesUseTheMonoFaceAndTheRestUseSans() {
         BrandFont.registerIfAvailable()
 

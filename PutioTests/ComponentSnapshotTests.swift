@@ -3,9 +3,8 @@ import PutioSDK
 import XCTest
 @testable import Putio
 
-// View-level visual baselines for reusable components in the app's dark-only
-// appearance, stored under PutioTests/__Snapshots__/. Re-record intentionally
-// with `mise run screenshots-record` and review the image diff.
+// View-level visual baselines under PutioTests/__Snapshots__/. Re-record
+// intentionally with `mise run screenshots-record` and review the image diff.
 @MainActor
 final class ComponentSnapshotTests: XCTestCase {
     private var isRecording: Bool {
@@ -88,13 +87,12 @@ final class ComponentSnapshotTests: XCTestCase {
     }
 
     func testHistoryCell() throws {
-        // Two hours back renders "2 hours ago" in every calendar; a fixed
-        // date would drift through timeAgoSinceDate buckets over time.
+        // Relative, not fixed: a fixed date drifts through timeAgoSinceDate
+        // buckets as time passes.
         let createdAt = ISO8601DateFormatter().string(from: Date().addingTimeInterval(-60 * 60 * 2))
         let json = #"{"id": 1, "user_id": 1, "type": "upload", "created_at": "\#(createdAt)", "file_id": 42, "file_name": "E2E Upload.mp4", "file_size": 7340032}"#
-        // The upload presentation requires the concrete subtype; decoding the
-        // base PutioHistoryEvent would snapshot the No-title fallback instead
-        // of a real upload row.
+        // The concrete subtype is required; the base PutioHistoryEvent would
+        // snapshot the No-title fallback instead of a real upload row.
         let event = try JSONDecoder().decode(PutioUploadEvent.self, from: Data(json.utf8))
 
         let cell = HistoryTableViewCell(style: .subtitle, reuseIdentifier: "historyReuse")

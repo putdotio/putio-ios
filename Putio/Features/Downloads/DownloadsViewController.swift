@@ -256,9 +256,6 @@ final class DownloadsRecoveryView: UIView {
         titleLabel.textAlignment = .center
         titleLabel.font = .preferredFont(forTextStyle: .title1)
         titleLabel.adjustsFontForContentSizeCategory = true
-        // Upgrades to the brand h2 role (font + tracking + line height) when the
-        // licensed faces are present; a no-op that keeps the system font above
-        // otherwise. Called after text/colour/alignment so they are preserved.
         titleLabel.applyBrandStyle(.h2)
 
         let bodyLabel = UILabel()

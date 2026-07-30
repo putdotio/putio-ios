@@ -3,12 +3,10 @@
 // Visual reference gallery driver.
 //
 // build and validate use @putdotio/vref's library API; serve goes through its
-// CLI, because serve is not exported from the package. Both paths need vref
-// 1.1.1 or newer — the bin in 1.1.0 exited 0 having done nothing under pnpm's
-// symlinked layout (putdotio/vref#21).
+// CLI, since it is not exported. Both need vref 1.1.1 or newer — the 1.1.0 bin
+// exited 0 having done nothing under pnpm's symlinked layout (putdotio/vref#21).
 //
-// Either way this driver has to copy baselines and refresh the manifest first,
-// so the work below is ours regardless of which entry point vref offers.
+// Copying baselines and refreshing the manifest is this driver's job either way.
 //
 // Commands:
 //   sync      copy committed baselines into .vref/screenshots/ and refresh the
@@ -32,9 +30,9 @@ const MANIFEST = join(VREF_DIR, "manifest.json");
 const OUTPUT = join(VREF_DIR, "index.html");
 
 /**
- * The parts of a manifest entry this driver owns. Curated text (title, tags,
- * notes) is preserved verbatim and deliberately not modelled — declaring only
- * what we write keeps the contract honest about which fields are ours.
+ * The parts of a manifest entry this driver owns. Curated text is preserved
+ * verbatim and deliberately not modelled, so the type stays honest about which
+ * fields are ours to write.
  */
 interface ManifestEntry {
   id: string;
@@ -63,8 +61,8 @@ interface Source {
 }
 
 // Where each group's baselines come from, and the id prefix stripped from the
-// filename. Screens come from the e2e walk; components render directly in unit
-// tests, so they are not device-sized and carry their own viewport.
+// filename. Components render directly in unit tests, so they are not
+// device-sized and carry their own viewport.
 const SOURCES: Source[] = [
   {
     group: "Screens",
@@ -96,9 +94,8 @@ async function main(): Promise<void> {
       return;
     }
     case "validate": {
-      // Syncs first, like build and serve: the assets validateGallery checks for
-      // are the gitignored copies, so validating without regenerating them would
-      // fail on every clean checkout.
+      // The assets validateGallery checks for are the gitignored copies, so
+      // validating without regenerating them fails on every clean checkout.
       await sync();
       const result = await validateGallery({ cwd: process.cwd(), manifestPath: MANIFEST });
       console.log(`validated ${result.screenshotCount} references in ${result.groupCount} groups`);
@@ -107,9 +104,8 @@ async function main(): Promise<void> {
     case "serve": {
       await sync();
       await buildGallery({ cwd: process.cwd(), manifestPath: MANIFEST, outputPath: OUTPUT });
-      // Unlike build and validate, serve is not part of vref's library exports,
-      // so this one goes through the CLI. Safe as of vref 1.1.1, which fixed the
-      // bin that previously exited 0 without doing anything under pnpm.
+      // serve is not part of vref's library exports, so it goes through the
+      // CLI — safe as of 1.1.1, which fixed the bin under pnpm.
       execFileSync("pnpm", ["exec", "vref", "serve", "--dir", VREF_DIR], { stdio: "inherit" });
       return;
     }
@@ -120,18 +116,16 @@ async function main(): Promise<void> {
 }
 
 /**
- * Parse the manifest at the boundary, so everything downstream can rely on the
- * shape instead of re-checking it. A hand-edited manifest is the realistic
- * failure here, and it should name the problem rather than surface later as a
- * property read on undefined.
+ * Parsed at the boundary, so everything downstream can rely on the shape. A
+ * hand-edited manifest is the realistic failure, and it should name the problem
+ * rather than surface later as a property read on undefined.
  */
 async function readManifest(): Promise<Manifest> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(await readFile(MANIFEST, "utf8"));
   } catch (error) {
-    // A raw SyntaxError never names the file it came from, which is the one
-    // thing worth knowing when the manifest is hand-edited.
+    // A raw SyntaxError never names the file it came from.
     throw new Error(`${MANIFEST} could not be read: ${(error as Error).message}`);
   }
 
@@ -158,18 +152,14 @@ async function readManifest(): Promise<Manifest> {
  * Copy the committed baselines into `.vref/screenshots/` and refresh the
  * manifest's mechanical fields against them.
  *
- * The copies are gitignored and regenerated from the committed baselines every
- * run, so they cannot drift. Everything derivable from the baseline itself is
- * rewritten — file, group, platform, device, viewport, sizeBytes — and curated
- * text — title, tags, notes — lives in the committed manifest and is preserved.
- * A baseline with no manifest entry is reported rather than silently added with a
- * placeholder title.
+ * The copies are gitignored and regenerated every run, so they cannot drift.
+ * Everything derivable from a baseline is rewritten — file, group, platform,
+ * device, viewport, sizeBytes — while curated text is preserved. A baseline with
+ * no manifest entry is reported rather than added with a placeholder title.
  *
- * capturedAt is set once, when an entry is first created, and preserved after
- * that. It used to be recomputed from git on every run, which meant every squash
- * merge that touched a baseline left the manifest stale on main — #75 exists
- * solely to have refreshed it. @putdotio/vref requires the field, so it stays;
- * only its ownership moves, from derived to curated like the text around it.
+ * capturedAt is curated too: set once when an entry is created, then preserved.
+ * Recomputing it from git on every run left the manifest stale on main after any
+ * squash merge that touched a baseline.
  */
 async function sync(): Promise<void> {
   const manifest = await readManifest();
@@ -201,9 +191,8 @@ async function sync(): Promise<void> {
       const { size } = await stat(destination);
       const { width, height } = pixelSize(destination);
 
-      // Manifest paths are POSIX by contract, and join() uses the platform
-      // separator, so convert rather than assume. (`split("/").join("/")` — what
-      // this used to do — is a no-op that only looks like normalization.)
+      // Manifest paths are POSIX by contract and join() uses the platform
+      // separator, so this converts rather than assumes.
       entry.file = relative.split(sep).join("/");
       entry.group = source.group;
       entry.platform = "iOS";
@@ -211,14 +200,9 @@ async function sync(): Promise<void> {
       entry.viewport = { width, height };
       entry.sizeBytes = size;
 
-      // Filled in once, for an entry that arrives without one, and left alone
-      // after that. Recomputing it on every run is what made a squash merge
-      // dirty the manifest.
-      //
-      // Validated rather than trusted, because preserving a value means
-      // preserving a bad one, and updatedAt is the newest capturedAt — so one bad
-      // entry moves the whole gallery's timestamp. scripts/vref-manifest.ts
-      // explains why Date.parse cannot be the gate.
+      // Validated rather than trusted: preserving a value means preserving a
+      // bad one, and updatedAt is the newest capturedAt, so a single bad entry
+      // moves the whole gallery's timestamp.
       entry.capturedAt = resolveCapturedAt(
         entry.capturedAt,
         () => lastCommitDate(sourcePath),
@@ -254,8 +238,8 @@ function listBaselines(dir: string): string[] {
 }
 
 function pixelSize(path: string): { width: number; height: number } {
-  // sips ships with macOS and this repo is macOS-only; avoids adding an image
-  // dependency just to read two integers.
+  // sips ships with macOS and this repo is macOS-only, so reading two integers
+  // needs no image dependency.
   const output = execFileSync("sips", ["-g", "pixelWidth", "-g", "pixelHeight", path], {
     encoding: "utf8",
   });
@@ -270,17 +254,14 @@ function pixelSize(path: string): { width: number; height: number } {
 }
 
 /**
- * A first `capturedAt` for a baseline that has just been added, taken from git
- * rather than the filesystem: mtime changes on every checkout.
+ * A first `capturedAt` for a newly added baseline, taken from git rather than
+ * the filesystem, whose mtime changes on every checkout. Author date, not
+ * committer date, so a rebase does not move it — though a squash merge still
+ * would, which is why the caller keeps the first value rather than recomputing.
  *
- * Author date (%aI), not committer date (%cI), so a rebase does not move it.
- * That is not sufficient on its own — a squash merge writes a new commit with a
- * new author date — which is why the caller now keeps the first value instead of
- * recomputing.
- *
- * A baseline recorded but not yet committed has no git date, and the value is
- * permanent once written, so falling back to the epoch would stamp 1970 forever.
- * The current time is the honest answer: recording is what just happened.
+ * A baseline recorded but not yet committed has no git date. The value is
+ * permanent once written, so the epoch would stamp 1970 forever; the current
+ * time is the honest answer, since recording is what just happened.
  */
 function lastCommitDate(path: string): string {
   const output = execFileSync("git", ["log", "-1", "--format=%aI", "--", path], {

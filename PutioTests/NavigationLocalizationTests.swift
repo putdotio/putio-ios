@@ -55,9 +55,8 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(fileActionsButton.center.x - castButton.center.x, 44)
     }
 
-    // The mocked e2e run leaves the cast button out, since it only appears when
-    // the Cast SDK finds a receiver on the LAN. The group has to collapse to the
-    // single remaining target rather than reserve the empty half.
+    // The mocked run leaves the cast button out, so the group has to collapse
+    // to its single remaining target rather than reserve the empty half.
     func testNavigationBarActionGroupCollapsesWithoutCastButton() throws {
         let viewController = FilesViewController()
         let fileActionsButton = viewController.createNavigationBarFileActionsButton()

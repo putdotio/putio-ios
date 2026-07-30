@@ -137,16 +137,13 @@ private enum PutioE2EPlaybackAsset {
             return nil
         }
 
-        // Stream URLs are built from the file id + token, so the mocked API
-        // never sees them — and AVFoundation's own networking would escape
-        // the mock URLProtocol anyway. Local assets keep playback hermetic.
+        // AVFoundation's networking escapes the mock URLProtocol, so playback
+        // is only hermetic against a local asset.
         switch file.type {
         case PutioFileType.video:
-            // A Big Buck Bunny still frame held for 9:50, bundled only when
-            // PUTIO_BUNDLE_E2E_MEDIA is YES. It gives the player a real decoded
-            // frame, which the App Store screenshot in slot 2 depends on — the
-            // downloads tutorial clip used here previously is a screen recording
-            // of an old build and shows filenames no listing should carry.
+            // A still frame held for 9:50, bundled only when
+            // PUTIO_BUNDLE_E2E_MEDIA is YES. Gives the player a real decoded
+            // frame, which the App Store screenshot in slot 2 depends on.
             return Bundle.main.url(forResource: "big-buck-bunny", withExtension: "mp4")
                 ?? Bundle.main.url(forResource: "downloadsTutorial", withExtension: "mov")
         case PutioFileType.audio:
@@ -160,10 +157,8 @@ private enum PutioE2EPlaybackAsset {
     }
 
     #if DEBUG
-    // A generated ten-minute silent WAV: long enough that the duration label
-    // is stable ("10:00") and the slider thumb barely moves across the walk's
-    // capture window, so elapsed-tick drift stays far inside the snapshot
-    // comparison's pixel tolerance.
+    // Ten minutes, so the duration label is a stable "10:00" and the slider
+    // thumb barely moves across the walk's capture window.
     private static let silentAudioURL: URL? = {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("putio-e2e-audio-fixture.wav")

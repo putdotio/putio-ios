@@ -2,8 +2,7 @@ import UIKit
 import AVKit
 
 class DownloadsTutorialViewController: UIViewController {
-    // Where the clip is parked for snapshot captures: far enough in that the
-    // recording shows its loaded file list rather than a spinner.
+    // Far enough in that the recording shows its loaded file list, not a spinner.
     private static let snapshotFrameSeconds = 2.0
 
     @IBOutlet weak var videoContainerView: UIView!
@@ -25,10 +24,9 @@ class DownloadsTutorialViewController: UIViewController {
         playerLayer.frame = videoContainerView.bounds
         videoContainerView.layer.addSublayer(playerLayer)
 
-        // A playing clip makes the screenshot depend on when the capture lands,
-        // so the e2e walk holds one frame instead of racing playback. The seek
-        // is asynchronous: report "parked" only once the frame is on screen, so
-        // the walk waits for it rather than capturing mid-seek.
+        // Hold one frame rather than let the capture race playback. The seek is
+        // asynchronous, so "parked" is only reported once the frame is on
+        // screen and the walk has something to wait for.
         guard PutioE2EEnvironment.isMockAPIEnabled == false else {
             let frame = CMTime(seconds: Self.snapshotFrameSeconds, preferredTimescale: 600)
             player?.seek(to: frame, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in

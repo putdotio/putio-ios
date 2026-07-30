@@ -9,7 +9,6 @@ class DisableTwoFactorAuthViewController: UIViewController {
         super.viewDidLoad()
         textField.delegate = self
         textField.becomeFirstResponder()
-        // A machine-readable code, so render it in the design system's code face.
         textField.applyCodeFont()
     }
 

@@ -1,6 +1,5 @@
-// Run with `mise run verify-scripts-tests`. Node's built-in runner executes TypeScript
-// directly by stripping types, so this needs no test framework and no build step —
-// the same reason the scripts themselves are run rather than compiled.
+// Run with `mise run verify-scripts-tests`. Node's built-in runner strips types
+// and executes directly, so there is no test framework and no build step.
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
@@ -25,7 +24,7 @@ describe("normalizeCapturedAt", () => {
     assert.equal(normalizeCapturedAt(once!), once);
   });
 
-  // The whole reason this is not Date.parse: each of these is accepted there.
+  // Each of these is accepted by Date.parse, which is why it is not the gate.
   test("rejects a date Date.parse would silently roll over", () => {
     assert.equal(new Date("2024-02-30T00:00:00.000Z").toISOString(), "2024-03-01T00:00:00.000Z");
     assert.equal(normalizeCapturedAt("2024-02-30T00:00:00.000Z"), null);
@@ -50,7 +49,7 @@ describe("normalizeCapturedAt", () => {
   });
 
   // Date.UTC remaps years 0-99 onto 1900-1999, so building the date that way
-  // failed the round trip on a well-formed four-digit year.
+  // fails the round trip on a well-formed four-digit year.
   test("accepts a two-digit-looking year without remapping it to the 1900s", () => {
     assert.equal(new Date(Date.UTC(50, 0, 1)).toISOString(), "1950-01-01T00:00:00.000Z");
     assert.equal(normalizeCapturedAt("0050-01-01T00:00:00.000Z"), "0050-01-01T00:00:00.000Z");

@@ -92,8 +92,8 @@ final class HistoryViewModelTests: XCTestCase {
     }
 }
 
-// Mirrors HistoryViewController's wiring: the data source reads viewModel.sections
-// and the delegate reloads the table synchronously when state becomes .loaded.
+// Mirrors HistoryViewController's wiring: the data source reads
+// viewModel.sections and the delegate reloads synchronously on .loaded.
 private final class HistoryTableHarness: NSObject, UITableViewDataSource, HistoryViewModelDelegate {
     let viewModel: HistoryViewModel
     let tableView = UITableView(frame: CGRect(x: 0, y: 0, width: 375, height: 667), style: .plain)
@@ -121,8 +121,8 @@ private final class HistoryTableHarness: NSObject, UITableViewDataSource, Histor
     }
 }
 
-// Regression coverage for the first-load-renders-empty bug: sections must be
-// rebuilt before .loaded is published, otherwise the table renders one fetch behind.
+// Sections must be rebuilt before .loaded is published, or the table renders
+// one fetch behind.
 @MainActor
 final class HistoryFirstLoadRenderTests: XCTestCase {
     private func makeEvent(id: Int) throws -> PutioHistoryEvent {
@@ -149,9 +149,9 @@ final class HistoryFirstLoadRenderTests: XCTestCase {
     func testFirstFetchRendersRowsInTable() throws {
         let fixture = makeFixture()
 
-        // Mirror the real app: the table is on screen and laid out before the fetch
-        // completes. An off-window table defers its first row-count build and would
-        // mask this regression.
+        // On screen and laid out before the fetch completes, as in the real
+        // app: an off-window table defers its first row-count build and would
+        // mask the regression.
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 375, height: 667))
         window.addSubview(fixture.harness.tableView)
         window.makeKeyAndVisible()

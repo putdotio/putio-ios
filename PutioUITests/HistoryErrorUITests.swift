@@ -11,8 +11,8 @@ final class HistoryErrorUITests: XCTestCase {
         return app
     }
 
-    // Regression guard for the failure path: an API error on the history feed must
-    // surface the error state view, not leave the screen blank or stuck on a loader.
+    // An API error must surface the error state view, not leave the screen
+    // blank or stuck on a loader.
     func testHistoryScreenShowsErrorStateWhenEventsFailToLoad() {
         let app = launchFixtureApp(failRoutes: "GET /v2/events/list")
 

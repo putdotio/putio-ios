@@ -8,8 +8,6 @@ class TwoFactorRecoveryCodesTableViewCell: UITableViewCell {
         guard let code = self.code else { return }
 
         self.textLabel?.text = code.code
-        // Recovery codes are machine-readable strings the user copies/records,
-        // so render them in the design system's code face (Berkeley Mono).
         self.textLabel?.applyBrandStyle(.code)
 
         if let date = code.usedAt, !date.isEmpty {

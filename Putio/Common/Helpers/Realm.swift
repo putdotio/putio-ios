@@ -238,7 +238,6 @@ class PutioRealm {
             recoveredFileIds.insert(fileId)
         }
 
-        // Fallback: scan Documents directory for audio files whose UserDefaults entries were lost
         if let contents = try? FileManager.default.contentsOfDirectory(atPath: documentsURL.path) {
             for filename in contents where filename.hasPrefix("putio_adm_") {
                 guard let fileId = recoveredAudioFileId(from: filename),
@@ -255,13 +254,12 @@ class PutioRealm {
             }
         }
 
-        // Clear recovery flag after all records are created.
-        // API enrichment below is fire-and-forget - don't block flag clearing on it.
+        // Cleared here, not after enrichment: enrichment is fire-and-forget and
+        // must not hold the flag open.
         setNeedsDownloadRecovery(false, defaults: defaults)
 
         log.info("[PutioRealm] Recovered \(recovered) download record(s)")
 
-        // Enrich all recovered downloads with real names from the API
         if shouldEnrichPlaceholders {
             enrichPlaceholderDownloads(in: realm)
         }
