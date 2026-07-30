@@ -40,7 +40,7 @@ Sign in with your put.io account to browse files, view history, manage downloads
 
 ## Contributing
 
-Contributions are welcome. Start with [Contributing](./CONTRIBUTING.md)
+Contributions are welcome—start with [Contributing](./CONTRIBUTING.md).
 
 ## License
 
