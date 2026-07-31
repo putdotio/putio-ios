@@ -1,21 +1,17 @@
 import SnapshotTesting
 import XCTest
 
-// Captures labeled screenshots of every main screen into the result bundle
-// and asserts them against committed baselines in PutioUITests/__Snapshots__/.
-// The app is dark-only, so the walk captures a single appearance. Re-record
-// intentionally with `mise run screenshots-record`, then review the image diff in
-// the PR. The ephemeral simulator pins the status bar so pixels are
-// deterministic.
+// Captures every main screen and asserts it against the committed baselines in
+// PutioUITests/__Snapshots__/. Re-record intentionally with
+// `mise run screenshots-record` and review the image diff.
 final class ScreenshotWalkUITests: XCTestCase {
     private var isRecording: Bool {
         ProcessInfo.processInfo.environment["PUTIO_RECORD_SNAPSHOTS"] == "1"
     }
 
-    // Sends the images somewhere other than __Snapshots__/, for the iPad
-    // store-capture lane: those captures are marketing input, not a pixel
-    // baseline, and writing them here would overwrite the iPhone set that CI
-    // compares — SnapshotTesting names a file after the test, not the device.
+    // Redirects the iPad store-capture lane away from __Snapshots__/.
+    // SnapshotTesting names a file after the test, not the device, so without
+    // this the iPad captures would overwrite the iPhone set CI compares.
     private var snapshotDirectoryOverride: String? {
         ProcessInfo.processInfo.environment["PUTIO_SNAPSHOT_DIR"]
     }
@@ -33,8 +29,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         return app
     }
 
-    // Presentation animations (~0.35s) race screenshot capture; give modals
-    // and pushes a beat to settle so baselines stay deterministic.
+    // Presentation animations (~0.35s) race capture; let them settle.
     private func settle() {
         Thread.sleep(forTimeInterval: 0.8)
     }
@@ -42,18 +37,13 @@ final class ScreenshotWalkUITests: XCTestCase {
     private func capture(_ app: XCUIApplication, named name: String) {
         let screenshot = app.screenshot()
 
-        // No manual XCTAttachment: SnapshotTesting already attaches the
-        // recorded image and the failure diff when an assertion fails, and
-        // result bundles are only uploaded on failure.
-
         // verifySnapshot rather than assertSnapshot: only the former takes a
-        // snapshotDirectory, and the failure text it returns is what
+        // snapshotDirectory, and its returned failure text is what
         // verify-snapshot-recording.rb matches to tell a record-mode failure
-        // from a real one. With no override this resolves to exactly the
-        // directory assertSnapshot would have used.
+        // from a real one.
         //
-        // precision tolerates a small share of outlier pixels; perceptual
-        // precision absorbs antialiasing drift across Xcode/simulator builds.
+        // precision tolerates a few outlier pixels; perceptualPrecision absorbs
+        // antialiasing drift across Xcode and simulator builds.
         let failure = verifySnapshot(
             of: screenshot.image,
             as: .image(precision: 0.995, perceptualPrecision: 0.98),
@@ -75,12 +65,11 @@ final class ScreenshotWalkUITests: XCTestCase {
         XCTAssertTrue(app.tables["putio-files-table"].cells["putio-file-42"].waitForExistence(timeout: 10))
         capture(app, named: "walk-dark-files")
 
-        // Wait for tab-specific content so captures never race the fixture
-        // load; a generic nav-bar wait is satisfiable before rendering ends.
+        // Tab-specific, because a generic nav-bar wait is satisfiable before
+        // rendering ends.
         let readiness: [String: XCUIElement] = [
-            // Scoped to the downloads table rather than the whole app: the
-            // fixture library is shared, so a bare title can be matched by a
-            // row on another tab or by an API fixture that names the same file.
+            // Scoped to the table: the fixture library is shared, so a bare
+            // title also matches rows on other tabs.
             "Downloads": app.tables["putio-downloads-table"].staticTexts["Caminandes - Llamigos.mp4"],
             "History": app.tables["putio-history-table"].staticTexts["Tears of Steel.mp4"],
             "Account": app.tables.staticTexts["Manage your trash"]
@@ -106,17 +95,15 @@ final class ScreenshotWalkUITests: XCTestCase {
 
         guard app.waitForSignedInTabBar() else { return }
 
-        // The video player is the App Store set's second slot, so this capture
-        // is marketing-facing as well as a regression baseline. It plays a
-        // bundled Big Buck Bunny still frame (Putio/E2EMedia), so the frame is
-        // real and identical on every run.
+        // Also the App Store set's second slot, so this capture is
+        // marketing-facing. The bundled still frame (Putio/E2EMedia) keeps it
+        // identical on every run.
         let movie = app.tables["putio-files-table"].cells["putio-file-42"]
         XCTAssertTrue(movie.waitForExistence(timeout: 10))
         movie.tap()
 
-        // File 42 carries a saved position (125s), so the app asks before
-        // playing. Start from the beginning rather than resuming: resuming
-        // seeks, and the capture can land before the seek settles.
+        // File 42 has a saved position, so the app asks before playing. Start
+        // from the beginning — resuming seeks, and capture can beat the seek.
         let resumeDialog = app.alerts["Where would you like to start?"]
         XCTAssertTrue(resumeDialog.waitForExistence(timeout: 10), "resume prompt should appear for a file with a start position")
         resumeDialog.buttons["Start from the beginning"].tap()
@@ -124,8 +111,8 @@ final class ScreenshotWalkUITests: XCTestCase {
         let player = app.otherElements["putio-video-player"]
         XCTAssertTrue(player.waitForExistence(timeout: 10))
 
-        // Wait for the player to report ready rather than sleeping: the frame
-        // is only decoded once it is, and capturing earlier yields black.
+        // The frame is only decoded once the player reports ready; capturing
+        // earlier yields black.
         let ready = NSPredicate(format: "value == %@", "ready")
         expectation(for: ready, evaluatedWith: player)
         waitForExpectations(timeout: 20)
@@ -139,17 +126,13 @@ final class ScreenshotWalkUITests: XCTestCase {
 
         guard app.waitForSignedInTabBar() else { return }
 
-        // Audio player, reached from the files list.
         let song = app.tables["putio-files-table"].cells["putio-file-43"]
         XCTAssertTrue(song.waitForExistence(timeout: 10))
         song.tap()
         XCTAssertTrue(app.staticTexts["Sintel Theme.mp3"].waitForExistence(timeout: 10))
-        // The player loads a local ten-minute silent WAV (see
-        // PutioE2EPlaybackAsset), so it reaches a real ready state
-        // hermetically: the duration label proves the asset loaded and the
-        // next-item lookup settles on its deterministic empty result. Should
-        // playback advance before capture, the elapsed glyphs and the slider
-        // thumb's sub-percent crawl sit far inside the snapshot tolerance.
+        // The duration label is what proves the local asset actually loaded.
+        // Any playback that advances before capture moves the elapsed glyphs
+        // and slider thumb far less than the snapshot tolerance.
         XCTAssertTrue(
             app.staticTexts["10:00"].waitForExistence(timeout: 15),
             "duration label should show the loaded fixture length"
@@ -165,7 +148,6 @@ final class ScreenshotWalkUITests: XCTestCase {
         closeButton.tap()
         settle()
 
-        // Move-files sheet via selection mode (Select lives in the More menu).
         XCTAssertTrue(app.tables["putio-files-table"].cells["putio-file-42"].waitForExistence(timeout: 5))
         app.buttons["More"].tap()
         let selectAction = app.buttons["Select"]
@@ -180,16 +162,15 @@ final class ScreenshotWalkUITests: XCTestCase {
         app.buttons["Cancel"].firstMatch.tap()
         settle()
 
-        // Downloads tutorial sheet.
         app.tabItem("Downloads").tap()
         let tutorialButton = app.buttons["Downloads tutorial"]
         XCTAssertTrue(tutorialButton.waitForExistence(timeout: 5))
         tutorialButton.tap()
         XCTAssertTrue(app.staticTexts["Downloads: Mini Tutorial"].waitForExistence(timeout: 5))
-        // The sheet plays a screen recording, which under the mocked API parks
-        // on a fixed frame (see DownloadsTutorialViewController) and reports
-        // "parked" once that frame is on screen — the seek is asynchronous, so
-        // waiting for it is what keeps the capture off a racing frame.
+        // The sheet's clip parks on a fixed frame under the mocked API and
+        // reports "parked" once it is on screen (see
+        // DownloadsTutorialViewController). The seek is asynchronous, so
+        // waiting on that is what keeps capture off a racing frame.
         let tutorialFrame = NSPredicate(format: "value == %@", "parked")
         expectation(for: tutorialFrame, evaluatedWith: app.otherElements["putio-downloads-tutorial"])
         waitForExpectations(timeout: 10)
@@ -198,7 +179,6 @@ final class ScreenshotWalkUITests: XCTestCase {
         app.swipeDown(velocity: .fast)
         XCTAssertTrue(app.staticTexts["Downloads: Mini Tutorial"].waitForNonExistence(timeout: 5), "tutorial sheet should dismiss")
 
-        // Routes and sessions from the Account screen.
         app.tabItem("Account").tap()
         let routesRow = app.tables.staticTexts["Choose your proxy"]
         XCTAssertTrue(routesRow.waitForExistence(timeout: 5))
@@ -220,11 +200,9 @@ final class ScreenshotWalkUITests: XCTestCase {
         let loginApp = launchFixtureApp(loggedIn: false)
         XCTAssertTrue(loginApp.buttons["Log in"].waitForExistence(timeout: 10))
 
-        // The login screen auto-starts web auth in normal use, but not under
-        // the mocked API, so no system consent alert covers this capture and
-        // the screen is already at rest. Give the alert a window to appear
-        // rather than checking on one instant, since that is exactly the race
-        // this suppression removes.
+        // Web auth does not auto-start under the mocked API, so no system
+        // consent alert should cover this capture. Give the alert a window to
+        // appear rather than checking one instant — that race is the point.
         XCTAssertFalse(
             XCUIApplication(bundleIdentifier: "com.apple.springboard").alerts.firstMatch
                 .waitForExistence(timeout: 3),

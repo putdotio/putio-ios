@@ -4,14 +4,9 @@ import PutioSDK
 
 // Asserts the resolved *face* on surfaces the snapshot suite cannot speak for.
 //
-// A pixel comparison tells you two images match; it cannot tell you they match
-// because a surface never adopted the brand font in the first place. That is
-// exactly what happened: #54 bundled the licensed faces and re-recorded, and
-// eight component baselines came back byte-identical. Some of those were fine
-// (a control with no text cannot change), and some were a real gap nobody had
-// a way to see.
-//
-// These tests name the face directly, so the gap fails by name.
+// A pixel comparison can tell you two images match; it cannot tell you they
+// match because the surface never adopted the brand font at all. Naming the
+// face directly is what turns that silent gap into a failure.
 @MainActor
 final class BrandTypographyCoverageTests: XCTestCase {
     private static let sansFamily = "GT America"
@@ -21,11 +16,8 @@ final class BrandTypographyCoverageTests: XCTestCase {
         BrandFont.registerIfAvailable()
     }
 
-    // Mirrors ComponentSnapshotTests.assertComponent, so these assertions
-    // measure the same state the visual baselines capture rather than a
-    // detached view the app never renders. Branding itself does not depend on
-    // this: the cells call configureGlobalAppearance from configure(_:), and a
-    // nib-loaded view gets it from awakeFromNib.
+    // Mirrors ComponentSnapshotTests.assertComponent, so these assertions measure
+    // the same state the visual baselines capture, not a detached view.
     private func render(_ view: UIView, size: CGSize) {
         let window = UIWindow(frame: CGRect(origin: .zero, size: size))
         window.overrideUserInterfaceStyle = .dark
@@ -56,10 +48,9 @@ final class BrandTypographyCoverageTests: XCTestCase {
             line: line
         )
 
-        // The family alone cannot catch a weight regression, and that is the
-        // failure mode here: button titles resolved to GT America *Regular* for
-        // three releases because the weight came from a descriptor that reports
-        // regular for every system font.
+        // The family alone cannot catch a weight regression, which is the live
+        // failure mode: a system font descriptor reports regular whatever it
+        // renders at, so a derived weight silently demotes the title.
         guard let weight else { return }
         guard let expected = BrandFont.sansIfAvailable(size: font.pointSize, weight: weight) else {
             return XCTFail("no brand face for weight \(weight.rawValue)", file: file, line: line)
@@ -79,8 +70,7 @@ final class BrandTypographyCoverageTests: XCTestCase {
         button.variant = "primary"
         button.setTitle("Log in", for: .normal)
         button.applyVariantStyle()
-        // Layout is when UIKit would have a chance to reset the title font, so
-        // check after it rather than immediately after applyVariantStyle().
+        // Layout is UIKit's chance to reset the title font, so assert after it.
         button.frame = CGRect(x: 0, y: 0, width: 240, height: 44)
         button.layoutIfNeeded()
 

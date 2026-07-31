@@ -60,8 +60,7 @@ class ChromecastManager: NSObject {
         GCKLogger.sharedInstance().delegate = self
     }
 
-    // Cast chrome is styled once at setup; re-run after a theme change so
-    // already-configured Cast views pick up the new appearance.
+    // Cast chrome is styled once at setup, so a theme change has to re-run it.
     func applyAppearanceStyling() {
         stylize()
     }

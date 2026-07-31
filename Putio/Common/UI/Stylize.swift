@@ -9,17 +9,13 @@ class Stylize {
         navigationBarAppearance.shadowColor = .clear
 
         var titleAttributes: [NSAttributedString.Key: Any] = [.foregroundColor: UIColor.Putio.Neutral.text]
-        // Brand type only when the licensed faces are bundled; otherwise the
-        // system styling stays byte-identical for snapshot baselines. Large
-        // titles (Files/Account/History/Downloads) style through their own
-        // attribute set, at the system large-title metrics (34pt bold).
+        // Sizes match the system's own nav-bar metrics, inline and large.
         if let brandTitleFont = BrandFont.sansIfAvailable(size: 17, weight: .bold) {
             titleAttributes[.font] = brandTitleFont
         }
         if let brandLargeTitleFont = BrandFont.sansIfAvailable(size: 34, weight: .bold) {
-            // Assigning the attribute dictionary replaces the configured
-            // defaults, so carry the title color large titles should share
-            // with the inline title.
+            // Assigning the dictionary replaces the configured defaults, so the
+            // shared title colour has to be repeated here.
             navigationBarAppearance.largeTitleTextAttributes = [
                 .font: brandLargeTitleFont,
                 .foregroundColor: UIColor.Putio.Neutral.text
@@ -57,9 +53,7 @@ class Stylize {
         UITabBar.appearance().tintColor = UIColor.Putio.Yellow.textSecondary
         UITabBar.appearance().unselectedItemTintColor = UIColor.Putio.Neutral.solid
 
-        // Brand the tab-bar item titles when the licensed faces are bundled;
-        // otherwise leave the system default so verification builds are
-        // unchanged. Tab bar labels use a fixed ~10pt, matching the system.
+        // Tab bar labels are a fixed ~10pt, matching the system.
         if let tabBarItemFont = BrandFont.sansIfAvailable(size: 10, weight: .medium) {
             let attributes: [NSAttributedString.Key: Any] = [.font: tabBarItemFont]
             UITabBarItem.appearance().setTitleTextAttributes(attributes, for: .normal)

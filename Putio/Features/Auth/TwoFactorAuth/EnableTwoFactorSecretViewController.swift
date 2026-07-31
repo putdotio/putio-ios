@@ -36,8 +36,6 @@ class EnableTwoFactorSecretViewController: UIViewController, StatefulViewControl
 
         case .success(let data):
             secretLabel.text = data
-            // The TOTP secret is a machine-readable string the user copies into
-            // an authenticator, so render it in the design system's code face.
             secretLabel.applyBrandStyle(.code)
             stateMachine.transitionToState(.none)
 

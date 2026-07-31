@@ -40,10 +40,9 @@ extension FilesViewController {
             let button = createNavigationBarFileActionsButton()
             fileActionsButton = button
 
-            // GCKUICastButton shows itself only once the Cast SDK discovers a
-            // receiver, so on a mocked run the nav bar depends on what happens
-            // to be on the LAN — a maintainer's Mac finds one, CI does not.
-            // Leave it out entirely there so the screen is the same either way.
+            // GCKUICastButton only shows itself once the Cast SDK finds a
+            // receiver, so leaving it in would make the nav bar depend on
+            // what is on the LAN — a maintainer's Mac finds one, CI does not.
             if PutioE2EEnvironment.isMockAPIEnabled == false {
                 let castButton = GCKUICastButton(frame: .zero)
                 castButton.tintColor = UIColor.Putio.Yellow.textSecondary

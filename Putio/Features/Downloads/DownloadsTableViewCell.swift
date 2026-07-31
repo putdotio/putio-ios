@@ -281,7 +281,6 @@ class DownloadStateButton: UIControl {
 
             let clamped = min(max(value, 0), 1)
             if case .progress = oldValue {
-                // Animate from current position
                 let anim = CABasicAnimation(keyPath: "strokeEnd")
                 anim.fromValue = progressLayer.presentation()?.strokeEnd ?? progressLayer.strokeEnd
                 anim.toValue = clamped
@@ -290,7 +289,6 @@ class DownloadStateButton: UIControl {
                 progressLayer.strokeEnd = clamped
                 progressLayer.add(anim, forKey: "progress")
             } else {
-                // First progress update - set directly
                 progressLayer.removeAllAnimations()
                 progressLayer.strokeEnd = clamped
             }

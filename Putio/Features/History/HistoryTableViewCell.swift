@@ -140,8 +140,7 @@ struct HistoryEventPresentation {
 class HistoryTableViewCell: UITableViewCell {
     func configure(with event: PutioHistoryEvent) {
         imageView?.contentMode = .scaleAspectFit
-        // Built from code, so awakeFromNib never runs and textLabel /
-        // detailTextLabel would keep the system face.
+        // Code-built: awakeFromNib never runs on these labels.
         configureGlobalAppearance()
 
         guard let presentation = HistoryEventPresentation.build(from: event) else {

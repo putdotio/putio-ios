@@ -83,8 +83,7 @@ private enum PutioE2EMockAPI {
         """)
     }
 
-    // Route keys ("METHOD /path", comma-separated) that return a 500 error
-    // fixture, so tests can exercise failure states.
+    // "METHOD /path", comma-separated.
     private static let failRoutes: Set<String> = {
         guard let raw = ProcessInfo.processInfo.environment["PUTIO_E2E_FAIL_ROUTES"] else {
             return []
@@ -151,9 +150,8 @@ private enum PutioE2EMockAPI {
     }
     """
 
-    // The trash row renders expiration_date as an absolute "Expires on
-    // <month day>" label, so these stay fixed — a relative date would shift
-    // the rendered text daily and break screenshot baselines.
+    // expiration_date renders as an absolute "Expires on <month day>", so these
+    // are fixed: a relative date would change the rendered text daily.
     private static let trashList = """
     {
       "status": "OK",
@@ -244,9 +242,7 @@ private enum PutioE2EMockAPI {
     }
     """
 
-    // One array so `total` is counted rather than tallied by hand. It was
-    // `6 + 2 + libraryTitles.count`, which would have gone quietly wrong the
-    // first time someone added a folder.
+    // One array so `total` is counted rather than tallied by hand.
     private static let rootFiles: [String] =
         [
             folder(id: 101, name: "Downloads", size: 3_221_225_472),
@@ -259,17 +255,12 @@ private enum PutioE2EMockAPI {
             audioFile
         ] + libraryFiles
 
-    // Rows past the eight the walk actually interacts with. They exist so the
-    // list reaches the bottom of a 13-inch iPad, which is what the App Store set
-    // is cropped from — eight rows left the lower half of slot 1 black (#86).
+    // Padding past the eight rows the walk interacts with, so the list fills a
+    // 13-inch iPad — the App Store set is cropped from it. Appended rather than
+    // interleaved so ids 42 and 43 keep positions 7 and 8.
     //
-    // Appended rather than interleaved: ids 42 and 43 stay at positions 7 and 8,
-    // so every element the walk looks up is where it was, and no navigation
-    // changes.
-    //
-    // All Blender Studio open movies, like the fixtures above. These names reach
-    // the App Store listing, so they are deliberately free content rather than
-    // titles that would imply a catalogue put.io does not have.
+    // Blender Studio open movies: these titles reach the App Store listing, so
+    // they must be free content rather than a catalogue put.io does not have.
     private static let libraryTitles = [
         "Agent 327 - Operation Barbershop",
         "Caminandes - Gran Dillama",
@@ -289,9 +280,8 @@ private enum PutioE2EMockAPI {
     private static let libraryFiles: [String] = libraryTitles
         .enumerated()
         .map { index, title in
-            // Sizes vary so the subtitle column does not read as a repeated
-            // string, and are derived from the index so they stay fixed across
-            // runs — a random size would move pixels in a compared baseline.
+            // Varied so the subtitle column does not repeat, index-derived so a
+            // compared baseline sees the same pixels every run.
             libraryFile(id: 200 + index, name: "\(title).mp4", size: 314_572_800 + index * 41_943_040)
         }
 
@@ -363,8 +353,8 @@ private enum PutioE2EMockAPI {
     }
     """
 
-    // Two hours back renders "2 hours ago" in every calendar; day-scale
-    // offsets can straddle month buckets and destabilize snapshot baselines.
+    // Two hours back renders "2 hours ago" in every calendar; day-scale offsets
+    // can straddle a month bucket.
     private static let fixtureFileDate: String = {
         ISO8601DateFormatter().string(from: Date().addingTimeInterval(-60 * 60 * 2))
     }()

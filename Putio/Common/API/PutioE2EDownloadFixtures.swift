@@ -2,14 +2,11 @@
 import Foundation
 import RealmSwift
 
-// Downloads are local Realm state, not an API resource, so they are the one
-// screen PutioE2EMockURLProtocol cannot reach. Without a seed the Downloads tab
-// renders its empty state on every mocked run: no coverage for the cell, the
-// state button, or the size and age formatting, and an empty screen in the App
-// Store set. Seed the table and lightweight local files directly instead.
+// Downloads are local Realm state, not an API resource, so this is the one
+// screen PutioE2EMockURLProtocol cannot reach; the rows are seeded directly.
 //
-// DEBUG-only and installed only after PUTIO_E2E_RESET_STATE has cleared the
-// realm, so this can never touch a real user's downloads.
+// DEBUG-only, and installed only after PUTIO_E2E_RESET_STATE has cleared the
+// realm, so it can never touch a real user's downloads.
 enum PutioE2EDownloadFixtures {
     private struct Seed {
         let id: Int
@@ -17,9 +14,8 @@ enum PutioE2EDownloadFixtures {
         let size: Int64
         let fileType: Download.FileType
         let state: Download.State
-        // Hours back from launch. Two hours or more renders a stable "N hours
-        // ago" in every calendar; smaller offsets cross the minute boundary
-        // mid-run and day-scale ones can straddle a month bucket.
+        // Hours back from launch. Keep at two or more: smaller offsets cross the
+        // minute boundary mid-run, day-scale ones straddle a month bucket.
         let completedHoursAgo: Int?
         let progress: String
 
@@ -42,15 +38,10 @@ enum PutioE2EDownloadFixtures {
         }
     }
 
-    // Ordered oldest first, matching the table's createdAt sort, so the list
-    // reads the way a real one does: finished items settled at the top and the
-    // active transfer newest at the bottom. Names come from the same Blender
-    // open-content set the API fixtures use.
-    //
-    // Eight rows rather than a token two or three: the pinned capture device is
-    // 2868pt tall and a short list leaves most of the screen black, which is
-    // both a weak App Store slot and no proof the table scrolls or that long
-    // names truncate.
+    // Oldest first, matching the table's createdAt sort, so the active transfer
+    // lands at the bottom. Enough rows to fill the 2868pt capture device and
+    // prove the table scrolls; names are the Blender open-content set the API
+    // fixtures use, since they reach the App Store listing.
     private static let seeds: [Seed] = [
         Seed(id: 42, name: "Big Buck Bunny.mp4", size: 276_205_568, completedHoursAgo: 9),
         Seed(id: 71, name: "Sintel.mp4", size: 1_503_238_553, completedHoursAgo: 7),
@@ -78,9 +69,8 @@ enum PutioE2EDownloadFixtures {
                 download.fileType = seed.fileType
                 download.state = seed.state
                 download.progress = seed.progress
-                // Spaced a minute apart purely to fix the sort order, and kept
-                // in the past: nothing shows createdAt today, but a future date
-                // is a trap for anything that later formats or prunes on it.
+                // A minute apart to fix the sort order, and kept in the past so
+                // anything that later formats or prunes on createdAt behaves.
                 download.createdAt = now.addingTimeInterval(TimeInterval((index - seeds.count) * 60))
                 download.completedAt = seed.completedHoursAgo.map {
                     now.addingTimeInterval(TimeInterval(-3600 * $0))

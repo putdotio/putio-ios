@@ -1,18 +1,13 @@
 #!/usr/bin/env node
 
-// The link between a committed marketing image and the inputs it was rendered
-// from, so a baseline can no longer change underneath one silently.
+// Ties each committed marketing image to the inputs it was rendered from, so a
+// baseline cannot change underneath one silently. The drift is per-slot and
+// invisible unless someone renders and diffs.
 //
-// It already did: #60 rendered 01-files.jpg from walk.dark-files.png, #69 then
-// changed that baseline without re-rendering, and main carried a marketing image
-// showing pre-#69 typography until #79 happened to re-render for unrelated
-// reasons. The other four slots were byte-identical, which is the tell — the
-// drift is per-slot and invisible unless someone renders and diffs.
-//
-// Deliberately not a byte comparison of a fresh render: that needs Chromium on
-// the runner and byte-stable output across Chromium versions, so a Playwright
-// bump would fail every image for no visual reason. Hashing the inputs needs no
-// browser, which is why this runs in the Linux verify-tooling lane.
+// Deliberately not a byte comparison against a fresh render: that would need
+// Chromium on the runner and byte-stable output across its versions, so a
+// Playwright bump would fail every image for no visual reason. Hashing inputs
+// needs no browser, which is what lets this run in the Linux CI lane.
 //
 // Usage:
 //   node scripts/store-images-lock.ts verify   # fail naming any stale image
@@ -36,12 +31,10 @@ export const LOCK_PATH = join(ROOT, "Config/StoreImages.lock.json");
 const OUTPUT_DIR = join(ROOT, "fastlane/screenshots");
 
 /**
- * The only locale rendered today. Exported so the renderer and the lock cannot
- * disagree: deriving the lock's locales from StoreCaptions.json instead would let
- * a second locale added there produce lock entries for images the renderer never
- * writes, and verification would accept them because both sides computed the same
- * phantom set. Rendering more locales is a code change, so this is a code
- * constant.
+ * The only locale rendered today. A code constant, not derived from
+ * StoreCaptions.json: a locale added there would otherwise produce lock entries
+ * for images the renderer never writes, and both sides would agree on the same
+ * phantom set. Rendering more locales is a code change.
  */
 export const LOCALE = "en-US";
 
@@ -69,21 +62,16 @@ function sha256(data: Buffer | string): string {
 }
 
 /**
- * Hashes a config's meaning rather than its bytes. Every `$`-prefixed key in
- * these files is prose for maintainers — `$comment`, `$layout`, `$notInStoreSet`
- * — and hashing those would mark all ten images stale every time someone
- * improves a note. A check that cries wolf gets ignored.
+ * Hashes a config's meaning rather than its bytes. `$`-prefixed keys are prose
+ * for maintainers, and hashing them would mark every image stale each time
+ * someone improves a note.
  */
 function semanticHash(source: string): string {
   const stripped = JSON.parse(source, (key, value) => (key.startsWith("$") ? undefined : value));
   return sha256(JSON.stringify(stripped));
 }
 
-/**
- * Recomputes the lock from what is on disk right now. Called by store-images
- * after a successful render, and by `verify` to compare against the committed
- * copy.
- */
+/** Recomputes the lock from what is on disk right now. */
 export async function computeLock(): Promise<Lock> {
   const screenshotsSource = await readFile(SCREENSHOTS_CONFIG, "utf8");
   const captionsSource = await readFile(CAPTIONS_CONFIG, "utf8");
@@ -153,10 +141,9 @@ async function verify(): Promise<void> {
   }
 
   for (const [image, entry] of Object.entries(current.images)) {
-    // Existence, deliberately not content. A deleted or renamed JPEG would
-    // otherwise pass, since nothing else here reads the rendered files — but
-    // hashing them would fail the whole set after a Playwright bump re-encoded
-    // identical-looking pixels, which is the noise this check exists to avoid.
+    // Existence, deliberately not content: nothing else here reads the
+    // rendered files, but hashing them would fail the whole set after a
+    // Playwright bump re-encoded identical-looking pixels.
     if (!existsSync(join(OUTPUT_DIR, image))) {
       problems.push(`${image} is missing from fastlane/screenshots/`);
     }
@@ -193,9 +180,8 @@ async function verify(): Promise<void> {
   console.log(`verify-store-images: ${Object.keys(current.images).length} images match their inputs`);
 }
 
-// Only act as a CLI when run directly. store-images.ts imports computeLock from
-// here, and without this guard its own `--check` would arrive as argv[2] and be
-// rejected as an unknown command.
+// store-images.ts imports computeLock from here; without this guard its own
+// `--check` would arrive as argv[2] and be rejected as an unknown command.
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const command = process.argv[2];
 

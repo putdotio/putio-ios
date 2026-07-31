@@ -206,8 +206,7 @@ extension HistoryViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int) {
         guard let headerView = view as? UITableViewHeaderFooterView else { return }
         headerView.textLabel?.textColor = UIColor.Putio.Neutral.textSecondary
-        // Section headers are UIKit-created, so the nib font hook never reaches
-        // them; brand them here when the licensed faces are bundled.
+        // UIKit-created, so the nib font hook never reaches them.
         if let brandFont = BrandTypography.fontIfAvailable(.small) {
             headerView.textLabel?.font = brandFont
             headerView.textLabel?.adjustsFontForContentSizeCategory = true

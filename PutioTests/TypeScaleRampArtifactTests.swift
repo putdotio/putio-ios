@@ -1,18 +1,15 @@
 import XCTest
 @testable import Putio
 
-// Reproducible generator for the Dynamic Type "scaling ramp" artifact: renders
-// the Type · Scale specimen at a range of content size categories to PNGs, so
-// the brand type can be seen growing with the system text-size setting.
+// Renders the Type · Scale specimen across content size categories to PNGs, as
+// a visual artifact of Dynamic Type scaling.
 //
-// Inert in normal runs — it skips unless PUTIO_RAMP_OUT points at an output
-// directory, so it never runs in CI and writes no snapshot baselines. To
-// capture the *branded* ramp, bundle the licensed faces first (flip
-// PUTIO_BUNDLE_BRAND_FONTS = YES in Config/Verify.xcconfig), then:
+// Inert unless PUTIO_RAMP_OUT points at an output directory, so it never runs
+// in CI and writes no baselines:
 //
 //   PUTIO_RAMP_OUT=/tmp/ramp PUTIO_SIMULATOR_ID=<booted-udid> mise run verify
 //
-// Without the faces it renders the system-font fallback (the same sizes).
+// Without the licensed faces it renders the same sizes in the system font.
 @MainActor
 final class TypeScaleRampArtifactTests: XCTestCase {
     private struct Step {
@@ -43,17 +40,15 @@ final class TypeScaleRampArtifactTests: XCTestCase {
         }
         XCTAssertEqual(written, ramp.count, "every ramp step must produce a PNG")
 
-        // Styling before/after at the default size: the font-only sheet above
-        // (ramp-1-Default) versus the full design-system styling — tracking,
-        // line height, and the uppercase `label` role.
+        // The font-only sheet above (ramp-1-Default) against the full styling:
+        // tracking, line height, and the uppercase `label` role.
         let styled = renderSheet(for: .large, styled: true)
         try XCTUnwrap(styled.pngData()).write(to: outDir.appendingPathComponent("style-full-Default.png"))
     }
 
-    // A single specimen sheet at one content size category: role tag + resolved
-    // point size on top, the sample below. `styled` applies the role's full
-    // Style (tracking + line height + uppercasing) via attributedText, matching
-    // UILabel.applyBrandStyle; otherwise the sample is font-only.
+    // One specimen sheet at one content size category. `styled` applies the
+    // role's full Style via attributedText, matching UILabel.applyBrandStyle;
+    // otherwise the sample is font-only.
     private func renderSheet(for category: UIContentSizeCategory, styled: Bool = false) -> UIImage {
         let width: CGFloat = 420
         let margin: CGFloat = 24
@@ -84,9 +79,9 @@ final class TypeScaleRampArtifactTests: XCTestCase {
                 let paragraph = NSMutableParagraphStyle()
                 paragraph.lineHeightMultiple = style.lineHeightMultiple
                 var attributes: [NSAttributedString.Key: Any] = [.font: font, .paragraphStyle: paragraph, .foregroundColor: ink]
-                // Resolve the style against the same requested category as `font`
-                // so the kern (from the trait-scaled size) matches the rendered
-                // size regardless of the simulator's ambient content-size setting.
+                // Same requested category as `font`, so the trait-scaled kern
+                // matches the rendered size whatever the simulator's ambient
+                // content-size setting is.
                 if style.tracking != 0 { attributes[.kern] = style.tracking }
                 sample.attributedText = NSAttributedString(string: display, attributes: attributes)
             } else {

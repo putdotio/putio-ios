@@ -10,8 +10,7 @@ final class HistorySmokeUITests: XCTestCase {
         return app
     }
 
-    // Regression guard for the first-open render: history events must appear on the
-    // initial load, without a pull-to-refresh.
+    // Events must appear on the initial load, without a pull-to-refresh.
     func testHistoryScreenShowsEventsOnFirstOpen() {
         let app = launchFixtureApp()
 

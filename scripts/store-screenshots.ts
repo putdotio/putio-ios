@@ -2,14 +2,12 @@
 
 // Assembles raw App Store screenshots from the committed visual baselines.
 //
-// There is deliberately no capture step for iPhone. The regression walk is
-// pinned to iPhone 17 Pro Max, and its 1320x2868 output is exactly Apple's
-// required 6.9" size, so the store set is a *selection* over images CI already
-// pixel-compares. A parallel capture lane would be free to drift from what is
-// actually asserted, which is the failure mode worth avoiding.
+// There is deliberately no capture step for iPhone: the regression walk is
+// pinned to a device whose output is exactly Apple's required 6.9" size, so the
+// store set is a selection over images CI already pixel-compares. A parallel
+// capture lane would be free to drift from what is asserted.
 //
-// Output is gitignored and intermediate. #51 frames these into the finished
-// marketing images that get committed and uploaded.
+// Output is gitignored and intermediate; store-images.ts frames it.
 //
 // Usage (run directly — Node strips the types, there is no build step):
 //   node scripts/store-screenshots.ts          # assemble into dist/store-screenshots/
@@ -22,8 +20,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 
-// Anchored on the script so it can be run from anywhere, matching
-// sync-brand-fonts.rb.
+// Anchored on the script so it can be run from anywhere.
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CONFIG = join(ROOT, "Config/StoreScreenshots.json");
 const OUTPUT_DIR = join(ROOT, "dist/store-screenshots");
@@ -78,8 +75,7 @@ async function main(): Promise<void> {
       }
 
       // Apple rejects a set whose dimensions do not match the declared device,
-      // and the pinned simulator is the only thing keeping these correct. If
-      // someone repins it, this is where that surfaces — before an upload.
+      // and the pinned simulator is the only thing keeping these correct.
       const { width, height } = pixelSize(source, `${deviceId} slot ${entry.slot}`);
       if (width !== device.width || height !== device.height) {
         fail(
@@ -110,18 +106,18 @@ async function main(): Promise<void> {
 }
 
 /**
- * Parse the config once, at the boundary, so the loop above can index into it
- * without re-checking every field. A hand-edited slot with a missing `id` or a
- * device with no `width` used to surface as `undefined` inside a filename or a
- * dimension comparison; now it is named here.
+ * Parsed once, at the boundary, so the loop above can index in without
+ * re-checking every field. A hand-edited slot missing an `id`, or a device
+ * missing a `width`, is named here rather than surfacing as `undefined` inside
+ * a filename or a dimension comparison.
  */
 async function readConfig(): Promise<Config> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(await readFile(CONFIG, "utf8"));
   } catch (error) {
-    // Otherwise a hand-edited trailing comma exits with a raw SyntaxError stack
-    // that never names the file — the one thing the reader needs.
+    // A raw SyntaxError stack never names the file, which is the one thing the
+    // reader needs.
     fail(
       `Config/StoreScreenshots.json could not be read: ${(error as Error).message}`,
       "Fix the JSON, or restore the file from git.",
@@ -134,8 +130,8 @@ async function readConfig(): Promise<Config> {
 
   const config = parsed as Partial<Config>;
 
-  // Arrays are objects, so a `"devices": []` typo would pass a bare typeof
-  // check and then produce an empty store set without complaint.
+  // Arrays are objects, so a `"devices": []` typo passes a bare typeof check
+  // and then produces an empty store set without complaint.
   if (!isPlainObject(config.devices)) {
     fail("Config/StoreScreenshots.json has no devices object.", "Add a devices block keyed by device id.");
   }
@@ -185,7 +181,7 @@ async function readConfig(): Promise<Config> {
 
 /**
  * Apple presents screenshots in order, so a gap or duplicate silently reorders
- * the listing. Cheaper to reject here than to notice it on the product page.
+ * the listing.
  */
 function assertContiguousSlots(slots: ScreenshotEntry[], deviceId: string): void {
   const expected = slots.map((_, index) => index + 1);
@@ -200,10 +196,10 @@ function assertContiguousSlots(slots: ScreenshotEntry[], deviceId: string): void
 }
 
 function pixelSize(path: string, label: string): { width: number; height: number } {
-  // sips ships with macOS and this repo is macOS-only. Both failure modes are
-  // handled explicitly: without this, an unreadable file throws a raw stack, and
-  // an unparsed one yields NaNxNaN reported against the size check — whose
-  // remedy talks about the simulator and would send someone the wrong way.
+  // sips ships with macOS and this script is macOS-only. Both failure modes are
+  // handled explicitly: unhandled, an unparsed read yields NaNxNaN reported
+  // against the size check, whose remedy talks about the simulator and would
+  // send someone the wrong way.
   let output: string;
   try {
     output = execFileSync("sips", ["-g", "pixelWidth", "-g", "pixelHeight", path], {
@@ -230,19 +226,14 @@ function pixelSize(path: string, label: string): { width: number; height: number
   return { width, height };
 }
 
-/**
- * A JSON object, excluding arrays and null — both of which `typeof` calls
- * "object", and both of which would otherwise slip through a shape check and
- * fail later somewhere less informative.
- */
+/** A JSON object, excluding the arrays and null that `typeof` also calls one. */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /**
- * Returns `never` so the type checker knows control does not continue past a
- * fail() — which is what lets the callers above use the values they just
- * validated without a redundant non-null assertion.
+ * Returns `never` so callers can use a value they just validated without a
+ * redundant non-null assertion.
  */
 function fail(message: string, remedy: string): never {
   console.error(`store-screenshots: ${message}\n  fix: ${remedy}`);

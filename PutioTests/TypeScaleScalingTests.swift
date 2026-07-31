@@ -1,15 +1,12 @@
 import XCTest
 @testable import Putio
 
-// Pins the Dynamic Type contract of the design-system Type · Scale: every role
-// is anchored to a scalable iOS text style, so brand type grows and shrinks
-// with the system accessibility text-size setting instead of being frozen at a
-// fixed point size. Runs on system fonts (verification builds bundle no brand
-// faces), which is the fallback path — the scaling mechanism is identical for
-// the brand faces, only the family differs.
+// Pins the Dynamic Type contract: every role is anchored to a scalable iOS text
+// style rather than frozen at a fixed point size. The scaling mechanism is the
+// same for brand and system faces, so asserting either proves the wiring.
 @MainActor
 final class TypeScaleScalingTests: XCTestCase {
-    // Smallest to largest, spanning the standard and accessibility ranges.
+    // Smallest to largest, across the standard and accessibility ranges.
     private let ramp: [UIContentSizeCategory] = [
         .extraSmall, .large, .extraExtraExtraLarge, .accessibilityExtraExtraExtraLarge
     ]
@@ -20,10 +17,10 @@ final class TypeScaleScalingTests: XCTestCase {
         for row in TypeScaleSpecimen.rows {
             let sizes = ramp.map { TypeScaleSpecimen.font(for: row, category: $0).pointSize }
 
-            // Non-decreasing across the ramp: a role frozen at a fixed size (or
-            // anchored to a non-scaling context) would shrink somewhere. Large
-            // titles plateau between the top accessibility steps, so this is
-            // >=, not strictly-increasing at every adjacent step.
+            // >= rather than strictly increasing: large titles plateau between
+            // the top accessibility steps. A role frozen at a fixed size
+            // plateaus everywhere and passes this loop — the end-to-end growth
+            // assertion below is what rejects it.
             for (smaller, larger) in zip(sizes, sizes.dropFirst()) {
                 XCTAssertLessThanOrEqual(
                     smaller, larger,
@@ -31,8 +28,7 @@ final class TypeScaleScalingTests: XCTestCase {
                 )
             }
 
-            // But end to end it must genuinely grow — the whole point of anchoring
-            // to a Dynamic Type style rather than a fixed point size.
+            // End to end it must still genuinely grow.
             XCTAssertGreaterThan(
                 sizes.last!, sizes.first!,
                 "\(row.role) must be larger at the largest accessibility size than the smallest (got \(sizes))"
@@ -40,10 +36,8 @@ final class TypeScaleScalingTests: XCTestCase {
         }
     }
 
-    // End-to-end proof of the live wiring the branded labels rely on: a stack of
-    // real specimen labels (branded when the faces are present) grows when the
-    // surrounding trait environment's content size category increases, driven by
-    // adjustsFontForContentSizeCategory — not by rebuilding the fonts.
+    // End-to-end: real labels grow with the surrounding trait environment via
+    // adjustsFontForContentSizeCategory, without the fonts being rebuilt.
     func testBrandedSpecimenStackGrowsWithContentSizeCategory() {
         let stack = UIStackView(arrangedSubviews: TypeScaleSpecimen.rows.map { TypeScaleSpecimen.label(for: $0) })
         stack.axis = .vertical
