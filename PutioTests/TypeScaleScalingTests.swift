@@ -18,8 +18,9 @@ final class TypeScaleScalingTests: XCTestCase {
             let sizes = ramp.map { TypeScaleSpecimen.font(for: row, category: $0).pointSize }
 
             // >= rather than strictly increasing: large titles plateau between
-            // the top accessibility steps. A role frozen at a fixed size, or
-            // anchored to a non-scaling context, would shrink somewhere.
+            // the top accessibility steps. A role frozen at a fixed size
+            // plateaus everywhere and passes this loop — the end-to-end growth
+            // assertion below is what rejects it.
             for (smaller, larger) in zip(sizes, sizes.dropFirst()) {
                 XCTAssertLessThanOrEqual(
                     smaller, larger,

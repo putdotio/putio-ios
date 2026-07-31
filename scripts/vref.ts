@@ -238,8 +238,8 @@ function listBaselines(dir: string): string[] {
 }
 
 function pixelSize(path: string): { width: number; height: number } {
-  // sips ships with macOS and this repo is macOS-only, so reading two integers
-  // needs no image dependency.
+  // sips ships with macOS and this script is macOS-only, so reading two
+  // integers needs no image dependency.
   const output = execFileSync("sips", ["-g", "pixelWidth", "-g", "pixelHeight", path], {
     encoding: "utf8",
   });

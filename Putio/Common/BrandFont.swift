@@ -2,8 +2,9 @@ import CoreText
 import UIKit
 
 // The licensed faces are fetched by `mise run fonts-setup` and bundled by a
-// build phase, so a build can legitimately lack them; every accessor here
-// degrades to the system font rather than failing.
+// build phase, so a build can legitimately lack them. Nothing here fails on
+// that: `sans`/`mono` substitute the system font, while the `IfAvailable`
+// variants return nil so a caller can leave existing styling alone.
 enum BrandFont {
     private static let sansFamily = "GT America"
     // CoreText reports the variable OTF's internal family name, not the

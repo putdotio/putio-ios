@@ -1,8 +1,9 @@
 import ObjectiveC
 import UIKit
 
-// Every entry point here is a no-op when the licensed faces are absent, so a
-// build without them keeps exactly the fonts its callers and nibs set.
+// Font styling here is skipped when the licensed faces are absent, so a build
+// without them keeps exactly the fonts its callers and nibs set. Note this is
+// not a full no-op: applyBrandStyle still clears a prior trait registration.
 extension UILabel {
     open override func awakeFromNib() {
         super.awakeFromNib()
@@ -12,9 +13,9 @@ extension UILabel {
     // Labels UIKit creates for us (a UIButton's titleLabel, a built-in cell's
     // textLabel) never receive awakeFromNib and must call this directly.
     //
-    // Pass `weight` when the intended weight is known: a system font's
-    // descriptor reports regular whatever the label renders at, so deriving it
-    // silently demotes such labels.
+    // Pass `weight` for those labels: UIKit gives them a *plain* system font,
+    // whose descriptor reports regular, so a derived weight silently demotes
+    // them. A descriptor built with an explicit weight does carry it.
     func applyBrandFontIfAvailable(weight: UIFont.Weight? = nil) {
         // Re-deriving from an already-branded descriptor loses the weight trait,
         // and draw(_:) reaches this more than once per label.

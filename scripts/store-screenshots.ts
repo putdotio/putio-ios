@@ -196,7 +196,7 @@ function assertContiguousSlots(slots: ScreenshotEntry[], deviceId: string): void
 }
 
 function pixelSize(path: string, label: string): { width: number; height: number } {
-  // sips ships with macOS and this repo is macOS-only. Both failure modes are
+  // sips ships with macOS and this script is macOS-only. Both failure modes are
   // handled explicitly: unhandled, an unparsed read yields NaNxNaN reported
   // against the size check, whose remedy talks about the simulator and would
   // send someone the wrong way.
