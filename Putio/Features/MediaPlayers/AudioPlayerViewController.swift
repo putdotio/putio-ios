@@ -20,8 +20,6 @@ class AudioPlayerViewController: UIViewController {
     var player: AVQueuePlayer?
     var timeObservers: [Any?] = []
     var playerQueueObserver: NSKeyValueObservation?
-    var playerItemStatusObserver: NSKeyValueObservation?
-    var playerRateObserver: NSKeyValueObservation?
     var playerTimeControlStatusObserver: NSKeyValueObservation?
     var playerTimeObserver: Any?
     var playerSetStartFromTimeObserver: Any?
@@ -30,7 +28,6 @@ class AudioPlayerViewController: UIViewController {
 
     var commandCenterTargets: [String: Any] = [:]
     var queuePlaybackRate: Float = 1
-    var playerScrollView: UIScrollView?
 
     private(set) lazy var routePickerView: AVRoutePickerView = {
         let routePickerView = AVRoutePickerView(frame: CGRect(x: 0, y: 0, width: 44, height: 44))
@@ -76,7 +73,6 @@ class AudioPlayerViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        configureScrollableLayout()
         configurePlayerAppearance()
         let skipSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 32, weight: .regular)
         controlRewind.setImage(UIImage(systemName: "gobackward.15", withConfiguration: skipSymbolConfiguration), for: .normal)
@@ -158,14 +154,6 @@ class AudioPlayerViewController: UIViewController {
         player = nil
     }
 
-    func performSeek(
-        on player: AVPlayer,
-        to time: CMTime,
-        completion: @escaping (Bool) -> Void
-    ) {
-        player.seek(to: time, completionHandler: completion)
-    }
-
     func configureStateMachine(for state: UIState, with item: MediaPlayerItem? = nil) {
         switch state {
         case .loading:
@@ -217,14 +205,9 @@ class AudioPlayerViewController: UIViewController {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = [
                 MPMediaItemPropertyTitle: media.name
             ]
-            self?.observeNowPlayingReadiness(for: currentItem)
 
             self?.trackTitleLabel.text = media.name
             self?.nextMediaFinder.findNextMedia(for: media)
-        })
-
-        playerRateObserver = player?.observe(\.rate, options: [.new], changeHandler: { [weak self] (_, _) in
-            self?.updateMPNowPlayingInfoForCurrentItem()
         })
 
         playerTimeControlStatusObserver = player?.observe(\.timeControlStatus, options: [.new, .old], changeHandler: { [weak self] (player, _) in
@@ -251,12 +234,8 @@ class AudioPlayerViewController: UIViewController {
 
     func unregisterPlayerObservers() {
         playerQueueObserver?.invalidate()
-        playerItemStatusObserver?.invalidate()
-        playerRateObserver?.invalidate()
         playerTimeControlStatusObserver?.invalidate()
         playerQueueObserver = nil
-        playerItemStatusObserver = nil
-        playerRateObserver = nil
         playerTimeControlStatusObserver = nil
     }
 
@@ -267,7 +246,7 @@ class AudioPlayerViewController: UIViewController {
             using: { [weak self] (_) in
                 guard let player = self?.player else { return }
 
-                if self?.shouldTrackPlayback(at: player.rate) == true {
+                if player.rate != 0 {
                     guard let currentTime = player.currentItem?.currentTime().getFiniteSeconds() else { return }
                     guard let duration = player.currentItem?.duration.getFiniteSeconds() else { return }
                     self?.updateTimeDisplay(currentTime: currentTime, duration: duration)
@@ -280,7 +259,7 @@ class AudioPlayerViewController: UIViewController {
             using: { [weak self] (_) in
                 guard let player = self?.player else { return }
 
-                if self?.shouldTrackPlayback(at: player.rate) == true {
+                if player.rate != 0 {
                     guard let media = self?.findMediaItem(by: player.currentItem) else { return }
                     guard let currentTime = player.currentItem?.currentTime().getFiniteSeconds() else { return }
                     guard let duration = player.currentItem?.duration.getFiniteSeconds() else { return }

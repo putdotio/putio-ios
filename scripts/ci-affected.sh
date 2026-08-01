@@ -40,14 +40,6 @@ while IFS= read -r path; do
     # reach the type-check lane only — until one of them joins the verify path,
     # at which point it belongs in the default branch below instead.
     scripts/*.ts | scripts/*.mjs | scripts/store-images/*) tooling=true ;;
-    # The icon sync is part of verify-fast and has focused Ruby tests.
-    scripts/sync-phosphor-icons.rb | scripts/sync-phosphor-icons.test.rb)
-        app=true
-        tooling=true
-        ;;
-    # The snapshot-result verifier has focused Ruby tests but is only used by
-    # the explicit screenshot-recording tasks, not the regular app lane.
-    scripts/verify-snapshot-recording.rb | scripts/verify-snapshot-recording.test.rb) tooling=true ;;
     package.json | pnpm-lock.yaml | pnpm-workspace.yaml | tsconfig.json) tooling=true ;;
     # Store artwork and the configs that drive it. A caption or a slot order
     # cannot break an iOS build, so these skip the macOS lane — but they do

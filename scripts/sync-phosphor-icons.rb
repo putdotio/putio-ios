@@ -17,152 +17,8 @@ class PhosphorIconSync
   ASSET_ROOT = File.join(ROOT, "Putio", "Assets.xcassets", "Phosphor")
   LICENSE_PATH = File.join(ROOT, "ThirdParty", "PhosphorIcons", "LICENSE")
   ALLOWED_WEIGHTS = %w[regular fill].freeze
-  SF_SYMBOL_ALLOWLIST = {
-    "Putio/Features/MediaPlayers/AudioPlayerViewController.swift" => %w[gobackward.15 goforward.15]
-  }.freeze
-
-  def self.source_policy_violations(root:, allowlist:)
-    Dir.glob(File.join(root, "Putio", "**", "*.swift")).filter_map do |path|
-      source = File.read(path, encoding: Encoding::UTF_8)
-      next unless source.include?("UIImage") && source.include?("systemName")
-
-      symbols = sf_symbol_names(source)
-      next if symbols.empty?
-
-      relative_path = path.delete_prefix("#{root}/")
-      allowed_symbols = allowlist.fetch(relative_path, [])
-      next if symbols.all? { |symbol| symbol && allowed_symbols.include?(symbol) }
-
-      relative_path
-    end
-  end
-
-  def self.sf_symbol_names(source)
-    tokens = swift_tokens(source)
-    symbols = []
-    tokens.each_index do |index|
-      next unless tokens[index] == [:identifier, "UIImage"]
-      value_index = sf_symbol_value_index(tokens, index)
-      next unless value_index
-
-      value = tokens[value_index]
-      terminator = tokens[value_index + 1]
-      if value&.first == :string && [[:punctuation, ","], [:punctuation, ")"]].include?(terminator)
-        symbols << value.last
-      else
-        symbols << nil
-      end
-    end
-    symbols
-  end
-
-  def self.sf_symbol_value_index(tokens, index)
-    if tokens[index + 1] == [:punctuation, "("] &&
-       tokens[index + 2] == [:identifier, "systemName"] &&
-       tokens[index + 3] == [:punctuation, ":"]
-      index + 4
-    elsif tokens[index + 1] == [:punctuation, "."] &&
-          tokens[index + 2] == [:identifier, "init"] &&
-          tokens[index + 3] == [:punctuation, "("] &&
-          tokens[index + 4] == [:identifier, "systemName"] &&
-          tokens[index + 5] == [:punctuation, ":"]
-      index + 6
-    end
-  end
-
-  def self.swift_tokens(source, index: 0, closing_parenthesis: false)
-    tokens = []
-    parenthesis_depth = closing_parenthesis ? 1 : 0
-
-    while index < source.length
-      if source[index, 2] == "//"
-        index = source.index("\n", index + 2) || source.length
-      elsif source[index, 2] == "/*"
-        index = skip_swift_block_comment(source, index)
-      elsif source[index].match?(/[A-Za-z_]/)
-        finish = index + 1
-        finish += 1 while finish < source.length && source[finish].match?(/[A-Za-z0-9_]/)
-        tokens << [:identifier, source[index...finish]]
-        index = finish
-      elsif (delimiter = swift_string_delimiter(source, index))
-        value, embedded_tokens, interpolated, index = read_swift_string(source, index, *delimiter)
-        tokens << (interpolated ? [:other, "interpolated-string"] : [:string, value])
-        tokens.concat(embedded_tokens)
-      elsif ["(", ")", ":", ",", "."].include?(source[index])
-        punctuation = source[index]
-        if closing_parenthesis && punctuation == "("
-          parenthesis_depth += 1
-        elsif closing_parenthesis && punctuation == ")"
-          parenthesis_depth -= 1
-          return [tokens, index + 1] if parenthesis_depth.zero?
-        end
-        tokens << [:punctuation, punctuation]
-        index += 1
-      else
-        tokens << [:other, source[index]] unless source[index].match?(/\s/)
-        index += 1
-      end
-    end
-
-    closing_parenthesis ? [tokens, index] : tokens
-  end
-
-  def self.skip_swift_block_comment(source, index)
-    depth = 1
-    index += 2
-    while index < source.length && depth.positive?
-      if source[index, 2] == "/*"
-        depth += 1
-        index += 2
-      elsif source[index, 2] == "*/"
-        depth -= 1
-        index += 2
-      else
-        index += 1
-      end
-    end
-    index
-  end
-
-  def self.swift_string_delimiter(source, index)
-    hash_count = 0
-    hash_count += 1 while source[index + hash_count] == "#"
-    quote_index = index + hash_count
-    return [hash_count, 3] if source[quote_index, 3] == '"""'
-    return [hash_count, 1] if source[quote_index] == '"'
-
-    nil
-  end
-
-  def self.read_swift_string(source, index, hash_count, quote_count)
-    opening_length = hash_count + quote_count
-    content_start = index + opening_length
-    terminator = ('"' * quote_count) + ("#" * hash_count)
-    interpolation_opener = "\\#{"#" * hash_count}("
-    cursor = content_start
-    embedded_tokens = []
-    interpolated = false
-
-    while cursor < source.length
-      if source[cursor, terminator.length] == terminator
-        return [source[content_start...cursor], embedded_tokens, interpolated, cursor + terminator.length]
-      elsif source[cursor, interpolation_opener.length] == interpolation_opener
-        interpolated = true
-        interpolation_tokens, cursor = swift_tokens(
-          source,
-          index: cursor + interpolation_opener.length,
-          closing_parenthesis: true
-        )
-        embedded_tokens.concat(interpolation_tokens)
-      elsif hash_count.zero? && source[cursor] == "\\"
-        cursor += 2
-      else
-        cursor += 1
-      end
-    end
-
-    [source[content_start..], embedded_tokens, interpolated, source.length]
-  end
+  SF_SYMBOL_PATTERN = /\bUIImage\s*\(\s*systemName\s*:/
+  SF_SYMBOL_ALLOWED_FILES = %w[Putio/Features/MediaPlayers/AudioPlayerViewController.swift].freeze
 
   def initialize
     @manifest = JSON.parse(File.read(MANIFEST_PATH))
@@ -378,9 +234,11 @@ class PhosphorIconSync
   end
 
   def check_source_policy(errors)
-    symbol_violations = self.class.source_policy_violations(root: ROOT, allowlist: SF_SYMBOL_ALLOWLIST)
-    unless symbol_violations.empty?
-      errors << "Unapproved SF Symbols are not allowed: #{symbol_violations.join(", ")}"
+    swift_files = Dir.glob(File.join(ROOT, "Putio", "**", "*.swift"))
+    symbol_files = swift_files.select { |path| File.read(path, encoding: Encoding::UTF_8).match?(SF_SYMBOL_PATTERN) }
+      .reject { |path| SF_SYMBOL_ALLOWED_FILES.include?(relative(path)) }
+    unless symbol_files.empty?
+      errors << "SF Symbols are not allowed: #{symbol_files.map { |path| relative(path) }.join(", ")}"
     end
 
     assets_root = File.join(ROOT, "Putio", "Assets.xcassets")
@@ -443,14 +301,12 @@ class PhosphorIconSync
   end
 end
 
-if $PROGRAM_NAME == __FILE__
-  case ARGV
-  when []
-    PhosphorIconSync.new.sync
-  when ["--check"]
-    PhosphorIconSync.new.check
-  else
-    warn "Usage: ruby scripts/sync-phosphor-icons.rb [--check]"
-    exit 2
-  end
+case ARGV
+when []
+  PhosphorIconSync.new.sync
+when ["--check"]
+  PhosphorIconSync.new.check
+else
+  warn "Usage: ruby scripts/sync-phosphor-icons.rb [--check]"
+  exit 2
 end

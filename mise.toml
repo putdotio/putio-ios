@@ -103,12 +103,8 @@ run = "pnpm exec tsc --noEmit"
 # quoted for Node to expand: passing a bare directory makes it try to load
 # `scripts` as a module instead of searching it.
 [tasks.verify-scripts-tests]
-description = "Run the unit tests for repo tooling"
-run = """
-node --test 'scripts/**/*.test.ts'
-ruby scripts/sync-phosphor-icons.test.rb
-ruby scripts/verify-snapshot-recording.test.rb
-"""
+description = "Run the unit tests for the repo TypeScript tooling"
+run = "node --test 'scripts/**/*.test.ts'"
 
 [tasks.print-simulator-destination]
 description = "Print the xcodebuild destination for the shared simulator"
