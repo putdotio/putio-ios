@@ -11,6 +11,7 @@ class DownloadsTableViewCell: UITableViewCell {
 
     lazy var realm: Realm? = PutioRealm.open(context: "DownloadsTableViewCell.realm")
     var id: Int?
+    private var standardAccessibilityHint: String?
 
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var titleLabel: UILabel!
@@ -62,6 +63,7 @@ class DownloadsTableViewCell: UITableViewCell {
         accessibilityLabel = nil
         accessibilityValue = nil
         accessibilityHint = nil
+        standardAccessibilityHint = nil
         accessibilityTraits.remove([.button, .selected, .notEnabled])
     }
 
@@ -77,6 +79,7 @@ class DownloadsTableViewCell: UITableViewCell {
         }
 
         id = download.id
+        standardAccessibilityHint = accessibilityActionHint(for: download.state)
         accessibilityIdentifier = "putio-download-\(download.id)"
         titleLabel?.text = download.name
         icon.image = download.fileType == .video ? PutioIcon.fileVideo.image : PutioIcon.fileAudio.image
@@ -129,7 +132,7 @@ class DownloadsTableViewCell: UITableViewCell {
     }
 
     override func accessibilityActivate() -> Bool {
-        guard !isEditing else { return super.accessibilityActivate() }
+        guard !isEditing, delegate != nil else { return super.accessibilityActivate() }
         downloadButtonTapped(self)
         return true
     }
@@ -141,9 +144,20 @@ class DownloadsTableViewCell: UITableViewCell {
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
         accessibilityValue = nil
-        accessibilityHint = nil
+        accessibilityHint = standardAccessibilityHint
         accessibilityTraits.remove([.selected, .notEnabled])
         accessibilityTraits.insert(.button)
+    }
+
+    private func accessibilityActionHint(for state: Download.State) -> String {
+        switch state {
+        case .queued, .starting, .active:
+            return NSLocalizedString("Double tap to stop this download.", comment: "")
+        case .stopped, .failed:
+            return NSLocalizedString("Double tap to retry this download.", comment: "")
+        case .completed:
+            return NSLocalizedString("Double tap to open this download.", comment: "")
+        }
     }
 
     func configureSelectionAccessibility(
