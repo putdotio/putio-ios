@@ -75,7 +75,11 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func beginDownload(id: Int) {
-        guard let download = getDownloadFromDatabase(id: id), download.state == .starting else { return }
+        guard let download = getDownloadFromDatabase(id: id) else {
+            DownloadQueueController.sharedInstance.startFailed(id: id)
+            return
+        }
+        guard download.state == .starting else { return }
         guard let url = DownloadSupport.url(from: download.url, context: "AudioDownloadManager.beginDownload") else {
             DownloadQueueController.sharedInstance.startFailed(id: id)
             return

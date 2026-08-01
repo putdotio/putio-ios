@@ -294,6 +294,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func logout() {
+        DownloadQueueController.sharedInstance.pause()
         PutioKeychain.sharedInstance.clearToken()
         api.clearToken()
         VideoPlaybackPositionStore.shared.clearAllPositions()

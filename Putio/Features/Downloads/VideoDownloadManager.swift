@@ -101,7 +101,11 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 
     func beginDownload(id: Int) {
         log.verbose(["VDM: beginDownload", id])
-        guard let download = getDownloadFromDatabase(id: id), download.state == .starting else { return }
+        guard let download = getDownloadFromDatabase(id: id) else {
+            DownloadQueueController.sharedInstance.startFailed(id: id)
+            return
+        }
+        guard download.state == .starting else { return }
         let attempt = UUID()
         startAttempts[id] = attempt
 
@@ -250,6 +254,12 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
             )
         }
         task?.cancel()
+    }
+
+    func invalidatePendingStarts() -> Set<Int> {
+        let ids = Set(startAttempts.keys)
+        startAttempts.removeAll()
+        return ids
     }
 
     private func getLocalFileLocation(for downloadId: Int) -> DownloadSupport.LocalFileLocation {

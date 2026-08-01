@@ -97,7 +97,21 @@ final class DownloadQueueController {
     }
 
     func pause() {
-        onMain { self.isEnabled = false }
+        onMain {
+            self.isEnabled = false
+            guard self.restoredIDsByType[.video] != nil else { return }
+            let pendingIDs = VideoDownloadManager.sharedInstance.invalidatePendingStarts()
+            guard !pendingIDs.isEmpty,
+                  let realm = DownloadSupport.realm(context: "DownloadQueueController.pause") else { return }
+            _ = DownloadSupport.write(realm, context: "DownloadQueueController.pause.write") {
+                pendingIDs.forEach { id in
+                    guard let download = realm.object(ofType: Download.self, forPrimaryKey: id),
+                          download.state == .starting else { return }
+                    download.state = .queued
+                    download.message = ""
+                }
+            }
+        }
     }
 
     func managerDidRestore(_ fileType: Download.FileType, activeIDs: Set<Int>) {
