@@ -243,6 +243,7 @@
 
 /* No comment provided by engineer. */
 "Downloading..." = "Downloading...";
+"Downloading... %@" = "Downloading... %@";
 
 /* No comment provided by engineer. */
 "Downloads" = "Downloads";

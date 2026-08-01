@@ -71,6 +71,8 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
         tableView.tableHeaderView = UIView(
             frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNormalMagnitude)
         )
+        tableView.rowHeight = UITableView.automaticDimension
+        tableView.estimatedRowHeight = 60
         tableView.allowsMultipleSelectionDuringEditing = true
 
         configureEditingToolbar()

@@ -84,7 +84,7 @@ run = "./scripts/xcodebuild-test.sh --scheme PutioE2E --result-bundle build/e2e-
 #   mise run screenshots-record -- --only PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk
 [tasks.screenshots-record]
 description = "Record both baseline tiers, then assert against what was written"
-run = "./scripts/record-snapshots.sh --expect-components 11 --expect-screens 13"
+run = "./scripts/record-snapshots.sh --expect-components 13 --expect-screens 13"
 
 [tasks.screenshots-record-components]
 description = "Record the component baselines only"

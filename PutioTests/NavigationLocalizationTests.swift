@@ -490,6 +490,96 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertFalse(cell.accessibilityTraits.contains(.notEnabled))
     }
 
+    func testDownloadProgressPresentationRoundsAndClampsLocalizedPercentages() {
+        let locale = Locale(identifier: "en_US")
+
+        XCTAssertEqual(DownloadProgressPresentation.fraction(from: "0.474"), 0.474)
+        XCTAssertEqual(DownloadProgressPresentation.fraction(from: "not-a-number"), 0)
+        XCTAssertEqual(DownloadProgressPresentation.percentage(fraction: -0.1, locale: locale), "0%")
+        XCTAssertEqual(DownloadProgressPresentation.percentage(fraction: 0.474, locale: locale), "47%")
+        XCTAssertEqual(DownloadProgressPresentation.percentage(fraction: 0.995, locale: locale), "100%")
+        XCTAssertEqual(DownloadProgressPresentation.percentage(fraction: 1.4, locale: locale), "100%")
+        XCTAssertEqual(
+            DownloadProgressPresentation.activeStatus(fraction: 0.474, locale: locale),
+            "Downloading... 47%"
+        )
+    }
+
+    func testActiveDownloadRestoresPercentageAndCombinedAccessibility() throws {
+        let configuration = Realm.Configuration(inMemoryIdentifier: #function)
+        let realm = try Realm(configuration: configuration)
+        let download = Download()
+        download.id = 108
+        download.name = "Episode"
+        download.state = .active
+        download.progress = "0.47"
+        try realm.write { realm.add(download) }
+
+        func makeCell() -> DownloadsTableViewCell {
+            let cell = DownloadsTableViewCell()
+            let icon = UIImageView()
+            let titleLabel = UILabel()
+            let subtitleLabel = UILabel()
+            let buttonContainer = UIView()
+            [icon, titleLabel, subtitleLabel, buttonContainer].forEach {
+                cell.contentView.addSubview($0)
+            }
+            cell.icon = icon
+            cell.titleLabel = titleLabel
+            cell.subtitleLabel = subtitleLabel
+            cell.downloadButtonContainer = buttonContainer
+            cell.realm = realm
+            return cell
+        }
+
+        let cell = makeCell()
+        cell.configure(with: download.id)
+        cell.configureSelectionAccessibility(isSelecting: false, isSelected: false, isSelectable: false)
+
+        XCTAssertEqual(cell.subtitleLabel.text, "Downloading... 47%")
+        XCTAssertTrue(cell.isAccessibilityElement)
+        XCTAssertEqual(cell.accessibilityLabel, "Episode, Downloading... 47%")
+        XCTAssertTrue(cell.accessibilityTraits.contains(.button))
+
+        let restoredCell = makeCell()
+        restoredCell.configure(with: download.id)
+
+        XCTAssertEqual(restoredCell.subtitleLabel.text, "Downloading... 47%")
+        XCTAssertEqual(restoredCell.accessibilityLabel, "Episode, Downloading... 47%")
+    }
+
+    func testQueuedAndStartingDownloadsDoNotShowPercentages() throws {
+        let configuration = Realm.Configuration(inMemoryIdentifier: #function)
+        let realm = try Realm(configuration: configuration)
+        let download = Download()
+        download.id = 109
+        download.name = "Queued Episode"
+        download.progress = "0.47"
+        try realm.write { realm.add(download) }
+
+        let cell = DownloadsTableViewCell()
+        let icon = UIImageView()
+        let titleLabel = UILabel()
+        let subtitleLabel = UILabel()
+        let buttonContainer = UIView()
+        [icon, titleLabel, subtitleLabel, buttonContainer].forEach {
+            cell.contentView.addSubview($0)
+        }
+        cell.icon = icon
+        cell.titleLabel = titleLabel
+        cell.subtitleLabel = subtitleLabel
+        cell.downloadButtonContainer = buttonContainer
+        cell.realm = realm
+
+        for (state, expected) in [(Download.State.queued, "In Queue"), (.starting, "Starting...")] {
+            try realm.write { download.state = state }
+            cell.configure(with: download.id)
+
+            XCTAssertEqual(cell.subtitleLabel.text, expected)
+            XCTAssertFalse(cell.subtitleLabel.text?.contains("%") == true)
+        }
+    }
+
     func testDownloadsSelectionEditingControlsOnlyAppearForCompletedRows() throws {
         let configuration = Realm.Configuration(inMemoryIdentifier: #function)
         let realm = try Realm(configuration: configuration)

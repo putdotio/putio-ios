@@ -1,5 +1,6 @@
 import SnapshotTesting
 import PutioSDK
+import RealmSwift
 import XCTest
 @testable import Putio
 
@@ -15,6 +16,7 @@ final class ComponentSnapshotTests: XCTestCase {
         _ view: UIView,
         size: CGSize,
         named name: String,
+        contentSizeCategory: UIContentSizeCategory? = nil,
         file: StaticString = #filePath,
         testName: String = "component",
         line: UInt = #line
@@ -22,6 +24,9 @@ final class ComponentSnapshotTests: XCTestCase {
         for (label, style) in [("dark", UIUserInterfaceStyle.dark)] {
             let window = UIWindow(frame: CGRect(origin: .zero, size: size))
             window.overrideUserInterfaceStyle = style
+            if let contentSizeCategory {
+                window.traitOverrides.preferredContentSizeCategory = contentSizeCategory
+            }
             window.backgroundColor = UIColor.Putio.Surface.appBg
             view.frame = window.bounds
             window.addSubview(view)
@@ -84,6 +89,91 @@ final class ComponentSnapshotTests: XCTestCase {
             button.displayState = state
             assertComponent(button, size: CGSize(width: 44, height: 44), named: "download-state-\(label)")
         }
+    }
+
+    func testDownloadCellStatesAndAccessibilityTextSize() throws {
+        let storyboard = UIStoryboard(name: "Main", bundle: Bundle(for: DownloadsViewController.self))
+        let tabBarController = try XCTUnwrap(
+            storyboard.instantiateViewController(withIdentifier: "MainTabBarController") as? UITabBarController
+        )
+        let downloadsViewController = try XCTUnwrap(
+            tabBarController.viewControllers?
+                .compactMap { $0 as? UINavigationController }
+                .flatMap(\.viewControllers)
+                .compactMap { $0 as? DownloadsViewController }
+                .first
+        )
+        downloadsViewController.loadViewIfNeeded()
+
+        let configuration = Realm.Configuration(inMemoryIdentifier: #function)
+        let realm = try Realm(configuration: configuration)
+        let states: [(Download.State, String, String, String)] = [
+            (.queued, "Queued Episode.mp4", "0.47", ""),
+            (.active, "Active Episode.mp4", "0.47", ""),
+            (.failed, "Failed Episode.mp4", "0.47", "Network unavailable"),
+            (.completed, "Completed Episode.mp4", "1", "")
+        ]
+
+        try realm.write {
+            for (index, state) in states.enumerated() {
+                let download = Download()
+                download.id = 200 + index
+                download.name = state.1
+                download.size = 7340032
+                download.state = state.0
+                download.progress = state.2
+                download.message = state.3
+                download.completedAt = state.0 == .completed
+                    ? Date().addingTimeInterval(-2 * 60 * 60)
+                    : nil
+                realm.add(download)
+            }
+        }
+
+        func makeCell(for index: Int) throws -> DownloadsTableViewCell {
+            let cell = try XCTUnwrap(
+                downloadsViewController.tableView.dequeueReusableCell(
+                    withIdentifier: "downloadsReuse"
+                ) as? DownloadsTableViewCell
+            )
+            cell.realm = realm
+            cell.configure(with: 200 + index)
+            cell.configureSelectionAccessibility(
+                isSelecting: false,
+                isSelected: false,
+                isSelectable: false
+            )
+            return cell
+        }
+
+        let statesView = UIView()
+        var previous: UIView?
+        for index in states.indices {
+            let cell = try makeCell(for: index)
+            cell.translatesAutoresizingMaskIntoConstraints = false
+            statesView.addSubview(cell)
+            NSLayoutConstraint.activate([
+                cell.leadingAnchor.constraint(equalTo: statesView.leadingAnchor),
+                cell.trailingAnchor.constraint(equalTo: statesView.trailingAnchor),
+                cell.heightAnchor.constraint(equalToConstant: 60),
+                cell.topAnchor.constraint(equalTo: previous?.bottomAnchor ?? statesView.topAnchor)
+            ])
+            previous = cell
+        }
+
+        assertComponent(
+            statesView,
+            size: CGSize(width: 375, height: 240),
+            named: "download-cell-states"
+        )
+
+        let accessibilityCell = try makeCell(for: 1)
+        assertComponent(
+            accessibilityCell,
+            size: CGSize(width: 375, height: 100),
+            named: "download-cell-active-accessibility-large",
+            contentSizeCategory: .accessibilityLarge
+        )
     }
 
     func testHistoryCell() throws {

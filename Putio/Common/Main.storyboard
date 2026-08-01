@@ -433,6 +433,8 @@
                                         <connections>
                                             <outlet property="downloadButtonContainer" destination="X1r-qC-0bE" id="MKx-4b-tE8"/>
                                             <outlet property="icon" destination="zCe-f3-81n" id="a0M-W9-POb"/>
+                                            <outlet property="labelContainer" destination="UoM-VI-Mdp" id="Qd5-pF-gGP"/>
+                                            <outlet property="labelsStack" destination="ba9-v0-whZ" id="5m8-Au-vf1"/>
                                             <outlet property="subtitleLabel" destination="tko-lc-Zpw" id="RIu-DA-mB9"/>
                                             <outlet property="titleLabel" destination="c9K-cp-KEs" id="SvW-kB-fb6"/>
                                         </connections>
