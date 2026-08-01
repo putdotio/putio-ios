@@ -76,11 +76,15 @@ extension AudioPlayerViewController {
     }
 
     func onSeek(to time: Float) {
-        player?.seek(
+        guard let player else { return }
+        player.seek(
             to: CMTime(seconds: Double(max(0, time)), preferredTimescale: 600),
-            completionHandler: { [weak self] finished in
+            completionHandler: { [weak self, weak player] finished in
                 guard finished else { return }
-                DispatchQueue.main.async { self?.refreshAfterSeek() }
+                DispatchQueue.main.async {
+                    guard let self, let player, self.player === player else { return }
+                    self.refreshAfterSeek()
+                }
             }
         )
     }
