@@ -48,6 +48,29 @@ class PhosphorIconSourcePolicyTest < Minitest::Test
     assert_equal ["Putio/Allowed.swift"], violations
   end
 
+  def test_comments_do_not_count_as_symbol_calls
+    violations = scan(
+      {
+        "Putio/Allowed.swift" => <<~SWIFT
+          // UIImage(systemName: symbolName)
+          let image = UIImage(/* platform icon */ systemName: "gobackward.15")
+        SWIFT
+      },
+      allowlist: { "Putio/Allowed.swift" => ["gobackward.15"] }
+    )
+
+    assert_empty violations
+  end
+
+  def test_raw_allowlisted_literal_passes
+    violations = scan(
+      { "Putio/Allowed.swift" => 'let image = UIImage(systemName: #"gobackward.15"#)' },
+      allowlist: { "Putio/Allowed.swift" => ["gobackward.15"] }
+    )
+
+    assert_empty violations
+  end
+
   private
 
   def scan(sources, allowlist: {})

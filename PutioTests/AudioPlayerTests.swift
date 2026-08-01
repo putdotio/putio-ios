@@ -29,6 +29,16 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(viewController.nextItemActionButton.bounds.height, 44)
     }
 
+    func testSkipActionsHave44PointTouchTargets() throws {
+        let viewController = try makeStoryboardViewController()
+
+        viewController.loadViewIfNeeded()
+        viewController.view.layoutIfNeeded()
+
+        XCTAssertGreaterThanOrEqual(viewController.controlRewind.bounds.height, 44)
+        XCTAssertGreaterThanOrEqual(viewController.controlFastForward.bounds.height, 44)
+    }
+
     func testAudioPlayerScrollsWhenTheAvailableHeightIsCompact() throws {
         let viewController = try makeStoryboardViewController()
         viewController.loadViewIfNeeded()
@@ -37,7 +47,10 @@ final class AudioPlayerTests: XCTestCase {
         viewController.view.layoutIfNeeded()
 
         let scrollView = try XCTUnwrap(viewController.playerScrollView)
+        let controls = try XCTUnwrap(viewController.controlPlayPause.superview)
         XCTAssertGreaterThan(scrollView.contentSize.height, scrollView.bounds.height)
+        XCTAssertFalse(viewController.playerContentView.hasAmbiguousLayout)
+        XCTAssertEqual(viewController.playerContentView.bounds.maxY - controls.frame.maxY, 8, accuracy: 0.5)
     }
 
     func testPlaybackRateControlExposesEverySupportedRateToVoiceOver() throws {
@@ -168,6 +181,46 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertEqual(savedPosition.duration, reportedDuration, accuracy: 0.1)
     }
 
+    func testCompletedSeekDoesNotPersistAfterTheQueueAdvances() throws {
+        let media = MediaPlayerItem(
+            id: 105,
+            name: "Queue transition.m4b",
+            url: URL(fileURLWithPath: "/tmp/queue-transition.m4b"),
+            fileType: .audio,
+            consumptionType: .offline
+        )
+        let viewController = DeferredSeekAudioPlayerViewController(media: media)
+        let composition = AVMutableComposition()
+        composition.insertEmptyTimeRange(CMTimeRange(start: .zero, duration: CMTime(seconds: 120, preferredTimescale: 600)))
+        let firstItem = AVPlayerItem(asset: composition)
+        let secondItem = AVPlayerItem(asset: composition)
+        viewController.player = AVQueuePlayer(items: [firstItem, secondItem])
+        let incorrectlyPersisted = expectation(description: "Superseded seek was not persisted")
+        incorrectlyPersisted.isInverted = true
+        viewController.onSaveAudioTime = { incorrectlyPersisted.fulfill() }
+
+        viewController.onSeek(to: 30)
+        viewController.player?.advanceToNextItem()
+        viewController.completeSeek(finished: true)
+
+        wait(for: [incorrectlyPersisted], timeout: 0.2)
+        XCTAssertNil(viewController.savedPosition)
+    }
+
+    func testCurrentItemReadinessIsObservedForNowPlayingMetadata() throws {
+        let viewController = AudioPlayerViewController()
+        let composition = AVMutableComposition()
+        composition.insertEmptyTimeRange(CMTimeRange(start: .zero, duration: CMTime(seconds: 120, preferredTimescale: 600)))
+        let playerItem = AVPlayerItem(asset: composition)
+        viewController.player = AVQueuePlayer(playerItem: playerItem)
+
+        viewController.observeNowPlayingReadiness(for: playerItem)
+
+        XCTAssertNotNil(viewController.playerItemStatusObserver)
+        viewController.unregisterPlayerObservers()
+        XCTAssertNil(viewController.playerItemStatusObserver)
+    }
+
     func testProgressIsTrackedAtEverySupportedPlaybackRate() {
         let viewController = AudioPlayerViewController()
 
@@ -209,7 +262,7 @@ final class AudioPlayerTests: XCTestCase {
     }
 }
 
-private final class SeekObservingAudioPlayerViewController: AudioPlayerViewController {
+private class SeekObservingAudioPlayerViewController: AudioPlayerViewController {
     let media: MediaPlayerItem
     var savedPosition: (currentTime: Double, duration: Double)?
     var onSaveAudioTime: (() -> Void)?
@@ -232,5 +285,22 @@ private final class SeekObservingAudioPlayerViewController: AudioPlayerViewContr
     override func saveAudioTime(for item: MediaPlayerItem, currentTime: Double, duration: Double) {
         savedPosition = (currentTime, duration)
         onSaveAudioTime?()
+    }
+}
+
+private final class DeferredSeekAudioPlayerViewController: SeekObservingAudioPlayerViewController {
+    private var completion: ((Bool) -> Void)?
+
+    override func performSeek(
+        on player: AVPlayer,
+        to time: CMTime,
+        completion: @escaping (Bool) -> Void
+    ) {
+        self.completion = completion
+    }
+
+    func completeSeek(finished: Bool) {
+        completion?(finished)
+        completion = nil
     }
 }

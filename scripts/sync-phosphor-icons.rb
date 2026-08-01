@@ -17,8 +17,6 @@ class PhosphorIconSync
   ASSET_ROOT = File.join(ROOT, "Putio", "Assets.xcassets", "Phosphor")
   LICENSE_PATH = File.join(ROOT, "ThirdParty", "PhosphorIcons", "LICENSE")
   ALLOWED_WEIGHTS = %w[regular fill].freeze
-  SF_SYMBOL_PATTERN = /\bUIImage\s*\(\s*systemName\s*:/
-  SF_SYMBOL_LITERAL_PATTERN = /\bUIImage\s*\(\s*systemName\s*:\s*"([^"]+)"(?=\s*(?:,|\)))/
   SF_SYMBOL_ALLOWLIST = {
     "Putio/Features/MediaPlayers/AudioPlayerViewController.swift" => %w[gobackward.15 goforward.15]
   }.freeze
@@ -26,16 +24,111 @@ class PhosphorIconSync
   def self.source_policy_violations(root:, allowlist:)
     Dir.glob(File.join(root, "Putio", "**", "*.swift")).filter_map do |path|
       source = File.read(path, encoding: Encoding::UTF_8)
-      call_count = source.scan(SF_SYMBOL_PATTERN).count
-      next if call_count.zero?
+      symbols = sf_symbol_names(source)
+      next if symbols.empty?
 
-      symbols = source.scan(SF_SYMBOL_LITERAL_PATTERN).flatten
       relative_path = path.delete_prefix("#{root}/")
-      unexpected_symbols = symbols - allowlist.fetch(relative_path, [])
-      next if unexpected_symbols.empty? && symbols.count == call_count
+      allowed_symbols = allowlist.fetch(relative_path, [])
+      next if symbols.all? { |symbol| symbol && allowed_symbols.include?(symbol) }
 
       relative_path
     end
+  end
+
+  def self.sf_symbol_names(source)
+    tokens = swift_tokens(source)
+    symbols = []
+    tokens.each_index do |index|
+      next unless tokens[index] == [:identifier, "UIImage"]
+      next unless tokens[index + 1] == [:punctuation, "("]
+      next unless tokens[index + 2] == [:identifier, "systemName"]
+      next unless tokens[index + 3] == [:punctuation, ":"]
+
+      value = tokens[index + 4]
+      terminator = tokens[index + 5]
+      if value&.first == :string && [[:punctuation, ","], [:punctuation, ")"]].include?(terminator)
+        symbols << value.last
+      else
+        symbols << nil
+      end
+    end
+    symbols
+  end
+
+  def self.swift_tokens(source)
+    tokens = []
+    index = 0
+
+    while index < source.length
+      if source[index, 2] == "//"
+        index = source.index("\n", index + 2) || source.length
+      elsif source[index, 2] == "/*"
+        index = skip_swift_block_comment(source, index)
+      elsif source[index].match?(/[A-Za-z_]/)
+        finish = index + 1
+        finish += 1 while finish < source.length && source[finish].match?(/[A-Za-z0-9_]/)
+        tokens << [:identifier, source[index...finish]]
+        index = finish
+      elsif (delimiter = swift_string_delimiter(source, index))
+        value, index = read_swift_string(source, index, *delimiter)
+        tokens << [:string, value]
+      elsif ["(", ")", ":", ","].include?(source[index])
+        tokens << [:punctuation, source[index]]
+        index += 1
+      else
+        tokens << [:other, source[index]] unless source[index].match?(/\s/)
+        index += 1
+      end
+    end
+
+    tokens
+  end
+
+  def self.skip_swift_block_comment(source, index)
+    depth = 1
+    index += 2
+    while index < source.length && depth.positive?
+      if source[index, 2] == "/*"
+        depth += 1
+        index += 2
+      elsif source[index, 2] == "*/"
+        depth -= 1
+        index += 2
+      else
+        index += 1
+      end
+    end
+    index
+  end
+
+  def self.swift_string_delimiter(source, index)
+    hash_count = 0
+    hash_count += 1 while source[index + hash_count] == "#"
+    quote_index = index + hash_count
+    return [hash_count, 3] if source[quote_index, 3] == '"""'
+    return [hash_count, 1] if source[quote_index] == '"'
+
+    nil
+  end
+
+  def self.read_swift_string(source, index, hash_count, quote_count)
+    opening_length = hash_count + quote_count
+    content_start = index + opening_length
+    terminator = ('"' * quote_count) + ("#" * hash_count)
+    cursor = content_start
+
+    while cursor < source.length
+      if source[cursor, terminator.length] == terminator
+        return [source[content_start...cursor], cursor + terminator.length]
+      end
+      if hash_count.zero? && source[cursor] == "\\"
+        cursor += 2
+      else
+        cursor += 1
+      end
+    end
+
+    [source[content_start..], source.length]
   end
 
   def initialize

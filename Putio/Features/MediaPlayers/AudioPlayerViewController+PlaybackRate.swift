@@ -52,7 +52,7 @@ extension AudioPlayerViewController {
             playerContentView.topAnchor.constraint(equalTo: contentView.topAnchor),
             playerContentView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             playerContentView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            nextItemContainerView.topAnchor.constraint(equalTo: playerContentView.bottomAnchor, constant: 16),
+            nextItemContainerView.topAnchor.constraint(greaterThanOrEqualTo: playerContentView.bottomAnchor, constant: 16),
             nextItemLeading,
             nextItemTrailing,
             nextItemContainerView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
@@ -146,18 +146,19 @@ extension AudioPlayerViewController {
     }
 
     func onSeek(to: Float) {
-        guard let player else { return }
+        guard let player, let soughtItem = player.currentItem else { return }
 
         let seekTime = CMTimeMakeWithSeconds(Float64(max(0, to)), preferredTimescale: 600)
-        player.seek(to: seekTime, completionHandler: { [weak self, weak player] finished in
+        performSeek(on: player, to: seekTime, completion: { [weak self, weak player, weak soughtItem] finished in
             guard finished, let self, let player else { return }
 
             DispatchQueue.main.async {
                 guard player === self.player,
-                      let playerItem = player.currentItem,
-                      let media = self.findMediaItem(by: playerItem),
-                      let currentTime = playerItem.currentTime().getFiniteSeconds(),
-                      let duration = playerItem.duration.getFiniteSeconds() else {
+                      let soughtItem,
+                      player.currentItem === soughtItem,
+                      let media = self.findMediaItem(by: soughtItem),
+                      let currentTime = soughtItem.currentTime().getFiniteSeconds(),
+                      let duration = soughtItem.duration.getFiniteSeconds() else {
                     return
                 }
 

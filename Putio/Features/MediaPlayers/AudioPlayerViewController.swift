@@ -20,6 +20,7 @@ class AudioPlayerViewController: UIViewController {
     var player: AVQueuePlayer?
     var timeObservers: [Any?] = []
     var playerQueueObserver: NSKeyValueObservation?
+    var playerItemStatusObserver: NSKeyValueObservation?
     var playerRateObserver: NSKeyValueObservation?
     var playerTimeControlStatusObserver: NSKeyValueObservation?
     var playerTimeObserver: Any?
@@ -156,6 +157,14 @@ class AudioPlayerViewController: UIViewController {
         unregisterRemoteMediaControls()
     }
 
+    func performSeek(
+        on player: AVPlayer,
+        to time: CMTime,
+        completion: @escaping (Bool) -> Void
+    ) {
+        player.seek(to: time, completionHandler: completion)
+    }
+
     func configureStateMachine(for state: UIState, with item: MediaPlayerItem? = nil) {
         switch state {
         case .loading:
@@ -208,7 +217,7 @@ class AudioPlayerViewController: UIViewController {
                 MPMediaItemPropertyTitle: media.name,
                 MPMediaItemPropertyAssetURL: media.url
             ]
-            self?.updateMPNowPlayingInfoForCurrentItem()
+            self?.observeNowPlayingReadiness(for: currentItem)
 
             self?.trackTitleLabel.text = media.name
             self?.nextMediaFinder.findNextMedia(for: media)
@@ -242,8 +251,25 @@ class AudioPlayerViewController: UIViewController {
 
     func unregisterPlayerObservers() {
         playerQueueObserver?.invalidate()
+        playerItemStatusObserver?.invalidate()
         playerRateObserver?.invalidate()
         playerTimeControlStatusObserver?.invalidate()
+        playerQueueObserver = nil
+        playerItemStatusObserver = nil
+        playerRateObserver = nil
+        playerTimeControlStatusObserver = nil
+    }
+
+    func observeNowPlayingReadiness(for playerItem: AVPlayerItem) {
+        playerItemStatusObserver?.invalidate()
+        playerItemStatusObserver = playerItem.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
+            guard item.status == .readyToPlay else { return }
+
+            DispatchQueue.main.async {
+                guard let self, self.player?.currentItem === item else { return }
+                self.updateMPNowPlayingInfoForCurrentItem()
+            }
+        }
     }
 
     func registerPlayerTimeObservers() {

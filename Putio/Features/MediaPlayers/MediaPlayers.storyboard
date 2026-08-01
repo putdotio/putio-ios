@@ -107,6 +107,9 @@
                                         <subviews>
                                             <button opaque="NO" contentMode="scaleToFill" enabled="NO" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ZxL-Qn-rZf">
                                                 <rect key="frame" x="0.0" y="15.666666666666686" width="66" height="35"/>
+                                                <constraints>
+                                                    <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="44" id="Yg8-qS-j1U"/>
+                                                </constraints>
                                                 <color key="tintColor" name="putio.neutral.text-secondary"/>
                                                 <state key="normal">
                                                     <color key="titleColor" name="putio.neutral.text-secondary"/>
@@ -127,6 +130,9 @@
                                             </button>
                                             <button opaque="NO" contentMode="scaleToFill" enabled="NO" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="02N-L3-eIY">
                                                 <rect key="frame" x="148" y="15.666666666666686" width="66" height="35"/>
+                                                <constraints>
+                                                    <constraint firstAttribute="height" relation="greaterThanOrEqual" constant="44" id="Jn4-gM-C2V"/>
+                                                </constraints>
                                                 <color key="tintColor" name="putio.neutral.text-secondary"/>
                                                 <state key="normal">
                                                     <color key="titleColor" name="putio.neutral.text-secondary"/>
@@ -142,7 +148,7 @@
                                 <constraints>
                                     <constraint firstItem="d0p-aR-vGZ" firstAttribute="centerX" secondItem="HGl-35-jUd" secondAttribute="centerX" id="0o2-0a-Kfq"/>
                                     <constraint firstItem="p8j-FC-yZw" firstAttribute="top" secondItem="A0r-td-kPj" secondAttribute="bottom" constant="16" id="4VC-5a-rI4"/>
-                                    <constraint firstItem="p8j-FC-yZw" firstAttribute="bottom" relation="lessThanOrEqual" secondItem="HGl-35-jUd" secondAttribute="bottom" constant="-8" id="5PN-rJ-DpR"/>
+                                    <constraint firstItem="p8j-FC-yZw" firstAttribute="bottom" secondItem="HGl-35-jUd" secondAttribute="bottom" constant="-8" id="5PN-rJ-DpR"/>
                                     <constraint firstItem="d0p-aR-vGZ" firstAttribute="top" secondItem="HGl-35-jUd" secondAttribute="top" constant="24" id="6re-mG-Ta5"/>
                                     <constraint firstItem="d0p-aR-vGZ" firstAttribute="width" secondItem="HGl-35-jUd" secondAttribute="width" multiplier="0.68" priority="750" id="8pq-3Z-aTg"/>
                                     <constraint firstItem="d0p-aR-vGZ" firstAttribute="height" secondItem="d0p-aR-vGZ" secondAttribute="width" id="A2A-CM-pXg"/>

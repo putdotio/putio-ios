@@ -167,8 +167,13 @@ jobs:
           install: false
           cache: false
 
-      # Named explicitly so mise installs Node and nothing else: its Ruby comes
-      # from source, and this lane runs no Ruby task.
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@6e5d382445ae5590b7449d8b3bc8cb1c2c27f617 # v1
+        with:
+          ruby-version: mise.toml
+
+      # Named explicitly so mise installs Node and nothing else. Ruby is the
+      # prebuilt, repo-pinned version provided above.
       - name: Install the pinned Node
         run: |
           mise install node
