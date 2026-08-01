@@ -155,6 +155,7 @@ class AudioPlayerViewController: UIViewController {
         unregisterPlayerObservers()
         unregisterPlayerTimeObservers()
         unregisterRemoteMediaControls()
+        player = nil
     }
 
     func performSeek(
@@ -260,18 +261,6 @@ class AudioPlayerViewController: UIViewController {
         playerTimeControlStatusObserver = nil
     }
 
-    func observeNowPlayingReadiness(for playerItem: AVPlayerItem) {
-        playerItemStatusObserver?.invalidate()
-        playerItemStatusObserver = playerItem.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
-            guard item.status == .readyToPlay else { return }
-
-            DispatchQueue.main.async {
-                guard let self, self.player?.currentItem === item else { return }
-                self.updateMPNowPlayingInfoForCurrentItem()
-            }
-        }
-    }
-
     func registerPlayerTimeObservers() {
         playerTimeObserver = player?.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 1.0, preferredTimescale: CMTimeScale(NSEC_PER_SEC)),
@@ -311,6 +300,8 @@ class AudioPlayerViewController: UIViewController {
         if let setStartFromTimeObserver = playerSetStartFromTimeObserver {
             player?.removeTimeObserver(setStartFromTimeObserver)
         }
+        playerTimeObserver = nil
+        playerSetStartFromTimeObserver = nil
     }
 
     func saveAudioTime(for item: MediaPlayerItem, currentTime: Double, duration: Double) {

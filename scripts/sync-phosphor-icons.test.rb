@@ -53,6 +53,7 @@ class PhosphorIconSourcePolicyTest < Minitest::Test
       {
         "Putio/Allowed.swift" => <<~SWIFT
           // UIImage(systemName: symbolName)
+          let documentation = "UIImage(systemName: \\"heart\\")"
           let image = UIImage(/* platform icon */ systemName: "gobackward.15")
         SWIFT
       },
@@ -60,6 +61,20 @@ class PhosphorIconSourcePolicyTest < Minitest::Test
     )
 
     assert_empty violations
+  end
+
+  def test_explicit_init_form_is_checked
+    violations = scan({ "Putio/Unapproved.swift" => 'let image = UIImage.init(systemName: "heart")' })
+
+    assert_equal ["Putio/Unapproved.swift"], violations
+  end
+
+  def test_call_inside_string_interpolation_is_checked
+    violations = scan(
+      { "Putio/Unapproved.swift" => 'let description = "\(UIImage(systemName: "heart"))"' }
+    )
+
+    assert_equal ["Putio/Unapproved.swift"], violations
   end
 
   def test_raw_allowlisted_literal_passes

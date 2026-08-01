@@ -10,6 +10,24 @@ final class PlaybackSmokeUITests: XCTestCase {
         return app
     }
 
+    private func waitUntilHittable(
+        _ element: XCUIElement,
+        byScrolling scrollView: XCUIElement,
+        maximumSwipes: Int = 3
+    ) -> Bool {
+        for attempt in 0...maximumSwipes {
+            let hittable = NSPredicate { _, _ in element.exists && element.isHittable }
+            let expectation = XCTNSPredicateExpectation(predicate: hittable, object: element)
+            if XCTWaiter.wait(for: [expectation], timeout: 2) == .completed {
+                return true
+            }
+            if attempt < maximumSwipes {
+                scrollView.swipeUp()
+            }
+        }
+        return false
+    }
+
     func testMockedPlaybackResumeFlow() {
         let app = launchFixtureApp()
 
@@ -33,7 +51,7 @@ final class PlaybackSmokeUITests: XCTestCase {
         waitForExpectations(timeout: 10)
     }
 
-    func testAudioPlaybackRateCanChangeAndResetWithinTheQueue() {
+    func testAudioPlaybackRateCanChangeWithinQueueAndResetForNewPlayer() {
         let app = launchFixtureApp()
 
         guard app.waitForSignedInTabBar() else { return }
@@ -70,6 +88,17 @@ final class PlaybackSmokeUITests: XCTestCase {
         XCTAssertTrue(normalRate.waitForExistence(timeout: 5))
         normalRate.tap()
         XCTAssertEqual(playbackRateButton.value as? String, "1×")
+
+        playbackRateButton.tap()
+        XCTAssertTrue(fasterRate.waitForExistence(timeout: 5))
+        fasterRate.tap()
+        XCTAssertEqual(playbackRateButton.value as? String, "1.5×")
+
+        app.navigationBars.buttons["Close"].tap()
+        XCTAssertTrue(song.waitForExistence(timeout: 5))
+        song.tap()
+        XCTAssertTrue(app.staticTexts["10:00"].waitForExistence(timeout: 15))
+        XCTAssertEqual(app.buttons["Playback speed"].value as? String, "1×")
     }
 
     func testAudioPlayerControlsRemainReachableInLandscape() {
@@ -86,17 +115,17 @@ final class PlaybackSmokeUITests: XCTestCase {
 
         let scrollView = app.scrollViews["audio-player-scroll-view"]
         XCTAssertTrue(scrollView.waitForExistence(timeout: 5))
-        let playPauseButton = app.buttons["audio-player-play-pause"]
-        if !playPauseButton.isHittable {
-            scrollView.swipeUp()
+        let landscapeLayout = NSPredicate { _, _ in
+            scrollView.frame.width > scrollView.frame.height
         }
-        XCTAssertTrue(playPauseButton.isHittable)
+        let rotated = XCTNSPredicateExpectation(predicate: landscapeLayout, object: scrollView)
+        XCTAssertEqual(XCTWaiter.wait(for: [rotated], timeout: 5), .completed)
+
+        let playPauseButton = app.buttons["audio-player-play-pause"]
+        XCTAssertTrue(waitUntilHittable(playPauseButton, byScrolling: scrollView))
 
         let upNextLabel = app.staticTexts["Up next"]
-        if !upNextLabel.isHittable {
-            scrollView.swipeUp()
-        }
-        XCTAssertTrue(upNextLabel.isHittable)
+        XCTAssertTrue(waitUntilHittable(upNextLabel, byScrolling: scrollView))
     }
 
     func testFilesScreenLoadsWithFixtureData() {

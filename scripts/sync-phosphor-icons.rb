@@ -40,12 +40,11 @@ class PhosphorIconSync
     symbols = []
     tokens.each_index do |index|
       next unless tokens[index] == [:identifier, "UIImage"]
-      next unless tokens[index + 1] == [:punctuation, "("]
-      next unless tokens[index + 2] == [:identifier, "systemName"]
-      next unless tokens[index + 3] == [:punctuation, ":"]
+      value_index = sf_symbol_value_index(tokens, index)
+      next unless value_index
 
-      value = tokens[index + 4]
-      terminator = tokens[index + 5]
+      value = tokens[value_index]
+      terminator = tokens[value_index + 1]
       if value&.first == :string && [[:punctuation, ","], [:punctuation, ")"]].include?(terminator)
         symbols << value.last
       else
@@ -55,9 +54,23 @@ class PhosphorIconSync
     symbols
   end
 
-  def self.swift_tokens(source)
+  def self.sf_symbol_value_index(tokens, index)
+    if tokens[index + 1] == [:punctuation, "("] &&
+       tokens[index + 2] == [:identifier, "systemName"] &&
+       tokens[index + 3] == [:punctuation, ":"]
+      index + 4
+    elsif tokens[index + 1] == [:punctuation, "."] &&
+          tokens[index + 2] == [:identifier, "init"] &&
+          tokens[index + 3] == [:punctuation, "("] &&
+          tokens[index + 4] == [:identifier, "systemName"] &&
+          tokens[index + 5] == [:punctuation, ":"]
+      index + 6
+    end
+  end
+
+  def self.swift_tokens(source, index: 0, closing_parenthesis: false)
     tokens = []
-    index = 0
+    parenthesis_depth = closing_parenthesis ? 1 : 0
 
     while index < source.length
       if source[index, 2] == "//"
@@ -70,10 +83,18 @@ class PhosphorIconSync
         tokens << [:identifier, source[index...finish]]
         index = finish
       elsif (delimiter = swift_string_delimiter(source, index))
-        value, index = read_swift_string(source, index, *delimiter)
-        tokens << [:string, value]
-      elsif ["(", ")", ":", ","].include?(source[index])
-        tokens << [:punctuation, source[index]]
+        value, embedded_tokens, interpolated, index = read_swift_string(source, index, *delimiter)
+        tokens << (interpolated ? [:other, "interpolated-string"] : [:string, value])
+        tokens.concat(embedded_tokens)
+      elsif ["(", ")", ":", ",", "."].include?(source[index])
+        punctuation = source[index]
+        if closing_parenthesis && punctuation == "("
+          parenthesis_depth += 1
+        elsif closing_parenthesis && punctuation == ")"
+          parenthesis_depth -= 1
+          return [tokens, index + 1] if parenthesis_depth.zero?
+        end
+        tokens << [:punctuation, punctuation]
         index += 1
       else
         tokens << [:other, source[index]] unless source[index].match?(/\s/)
@@ -81,7 +102,7 @@ class PhosphorIconSync
       end
     end
 
-    tokens
+    closing_parenthesis ? [tokens, index] : tokens
   end
 
   def self.skip_swift_block_comment(source, index)
@@ -115,20 +136,30 @@ class PhosphorIconSync
     opening_length = hash_count + quote_count
     content_start = index + opening_length
     terminator = ('"' * quote_count) + ("#" * hash_count)
+    interpolation_opener = "\\#{"#" * hash_count}("
     cursor = content_start
+    embedded_tokens = []
+    interpolated = false
 
     while cursor < source.length
       if source[cursor, terminator.length] == terminator
-        return [source[content_start...cursor], cursor + terminator.length]
-      end
-      if hash_count.zero? && source[cursor] == "\\"
+        return [source[content_start...cursor], embedded_tokens, interpolated, cursor + terminator.length]
+      elsif source[cursor, interpolation_opener.length] == interpolation_opener
+        interpolated = true
+        interpolation_tokens, cursor = swift_tokens(
+          source,
+          index: cursor + interpolation_opener.length,
+          closing_parenthesis: true
+        )
+        embedded_tokens.concat(interpolation_tokens)
+      elsif hash_count.zero? && source[cursor] == "\\"
         cursor += 2
       else
         cursor += 1
       end
     end
 
-    [source[content_start..], source.length]
+    [source[content_start..], embedded_tokens, interpolated, source.length]
   end
 
   def initialize

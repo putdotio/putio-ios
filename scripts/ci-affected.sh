@@ -40,6 +40,12 @@ while IFS= read -r path; do
     # reach the type-check lane only — until one of them joins the verify path,
     # at which point it belongs in the default branch below instead.
     scripts/*.ts | scripts/*.mjs | scripts/store-images/*) tooling=true ;;
+    # Ruby tooling participates in app verification and has focused tests in
+    # the tooling lane, so changes must exercise both.
+    scripts/*.rb)
+        app=true
+        tooling=true
+        ;;
     package.json | pnpm-lock.yaml | pnpm-workspace.yaml | tsconfig.json) tooling=true ;;
     # Store artwork and the configs that drive it. A caption or a slot order
     # cannot break an iOS build, so these skip the macOS lane — but they do

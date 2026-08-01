@@ -207,18 +207,73 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertNil(viewController.savedPosition)
     }
 
-    func testCurrentItemReadinessIsObservedForNowPlayingMetadata() throws {
+    func testCurrentItemReadinessPublishesNowPlayingMetadata() throws {
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        let audioURL = try makeSilentAudioURL(duration: 10)
+        let media = MediaPlayerItem(
+            id: 106,
+            name: "Ready item.m4b",
+            url: audioURL,
+            fileType: .audio,
+            consumptionType: .offline
+        )
         let viewController = AudioPlayerViewController()
+        viewController.mediaItems = [media]
+        let playerItem = AVPlayerItem(url: audioURL)
+        viewController.player = AVQueuePlayer(playerItem: playerItem)
+
+        viewController.observeNowPlayingReadiness(for: playerItem)
+        viewController.player?.play()
+
+        let ready = NSPredicate(format: "status == %d", AVPlayerItem.Status.readyToPlay.rawValue)
+        expectation(for: ready, evaluatedWith: playerItem)
+        waitForExpectations(timeout: 2)
+        let metadataPublished = expectation(description: "Ready item metadata published")
+        DispatchQueue.main.async {
+            let info = MPNowPlayingInfoCenter.default().nowPlayingInfo
+            XCTAssertEqual(info?[MPMediaItemPropertyTitle] as? String, media.name)
+            XCTAssertEqual(
+                (info?[MPMediaItemPropertyPlaybackDuration] as? NSNumber)?.doubleValue ?? -1,
+                10,
+                accuracy: 0.1
+            )
+            metadataPublished.fulfill()
+        }
+        wait(for: [metadataPublished], timeout: 1)
+
+        viewController.disposePlayer()
+        XCTAssertNil(viewController.player)
+        XCTAssertNil(viewController.playerItemStatusObserver)
+        XCTAssertNil(MPNowPlayingInfoCenter.default().nowPlayingInfo)
+    }
+
+    func testDisposePreventsQueuedReadinessAndSeekWorkFromPublishing() throws {
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        let media = MediaPlayerItem(
+            id: 107,
+            name: "Disposed item.m4b",
+            url: URL(fileURLWithPath: "/tmp/disposed-item.m4b"),
+            fileType: .audio,
+            consumptionType: .offline
+        )
+        let viewController = DeferredSeekAudioPlayerViewController(media: media)
         let composition = AVMutableComposition()
         composition.insertEmptyTimeRange(CMTimeRange(start: .zero, duration: CMTime(seconds: 120, preferredTimescale: 600)))
         let playerItem = AVPlayerItem(asset: composition)
         viewController.player = AVQueuePlayer(playerItem: playerItem)
+        let incorrectlyPersisted = expectation(description: "Disposed seek was not persisted")
+        incorrectlyPersisted.isInverted = true
+        viewController.onSaveAudioTime = { incorrectlyPersisted.fulfill() }
 
-        viewController.observeNowPlayingReadiness(for: playerItem)
+        viewController.onSeek(to: 30)
+        viewController.disposePlayer()
+        viewController.publishNowPlayingInfoIfCurrent(playerItem)
+        viewController.completeSeek(finished: true)
 
-        XCTAssertNotNil(viewController.playerItemStatusObserver)
-        viewController.unregisterPlayerObservers()
-        XCTAssertNil(viewController.playerItemStatusObserver)
+        wait(for: [incorrectlyPersisted], timeout: 0.2)
+        XCTAssertNil(viewController.player)
+        XCTAssertNil(viewController.savedPosition)
+        XCTAssertNil(MPNowPlayingInfoCenter.default().nowPlayingInfo)
     }
 
     func testProgressIsTrackedAtEverySupportedPlaybackRate() {
@@ -259,6 +314,41 @@ final class AudioPlayerTests: XCTestCase {
         )
         viewController.mediaItems = []
         return viewController
+    }
+
+    private func makeSilentAudioURL(duration: UInt32) throws -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("putio-audio-test-\(UUID().uuidString).wav")
+        let sampleRate: UInt32 = 8_000
+        let dataSize = sampleRate * duration * 2
+        var wav = Data()
+
+        func append(_ ascii: String) {
+            wav.append(contentsOf: ascii.utf8)
+        }
+        func append32(_ value: UInt32) {
+            withUnsafeBytes(of: value.littleEndian) { wav.append(contentsOf: $0) }
+        }
+        func append16(_ value: UInt16) {
+            withUnsafeBytes(of: value.littleEndian) { wav.append(contentsOf: $0) }
+        }
+
+        append("RIFF")
+        append32(36 + dataSize)
+        append("WAVEfmt ")
+        append32(16)
+        append16(1)
+        append16(1)
+        append32(sampleRate)
+        append32(sampleRate * 2)
+        append16(2)
+        append16(16)
+        append("data")
+        append32(dataSize)
+        wav.append(Data(count: Int(dataSize)))
+        try wav.write(to: url, options: .atomic)
+        addTeardownBlock { try? FileManager.default.removeItem(at: url) }
+        return url
     }
 }
 

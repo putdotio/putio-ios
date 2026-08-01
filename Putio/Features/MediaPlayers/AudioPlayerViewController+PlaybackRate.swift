@@ -243,6 +243,23 @@ extension AudioPlayerViewController {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
 
+    func observeNowPlayingReadiness(for playerItem: AVPlayerItem) {
+        playerItemStatusObserver?.invalidate()
+        playerItemStatusObserver = playerItem.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
+            guard item.status == .readyToPlay else { return }
+
+            DispatchQueue.main.async { [weak self, weak item] in
+                guard let item else { return }
+                self?.publishNowPlayingInfoIfCurrent(item)
+            }
+        }
+    }
+
+    func publishNowPlayingInfoIfCurrent(_ playerItem: AVPlayerItem) {
+        guard player?.currentItem === playerItem else { return }
+        updateMPNowPlayingInfoForCurrentItem()
+    }
+
     func updateMPNowPlayingInfo(for item: MediaPlayerItem, currentTime: Double, duration: Double) {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = makeMPNowPlayingInfo(
             for: item,
