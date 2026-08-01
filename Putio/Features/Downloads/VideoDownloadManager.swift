@@ -170,7 +170,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         log.verbose(["VDM: deleteDownload", id])
         let download = getDownloadFromDatabase(id: id)
 
-        return DownloadSupport.performDeletion(
+        let didDelete = DownloadSupport.performDeletion(
             state: download?.state,
             cancelActiveDownload: { self.cancelDownload(id: id) },
             deleteLocalFile: { self.deleteLocalFile(for: id) },
@@ -184,6 +184,11 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
                 UserDefaults.standard.removeObject(forKey: String(id))
             }
         )
+        if didDelete {
+            discardDownload(id: id)
+            DownloadQueueController.sharedInstance.managerDidFinish()
+        }
+        return didDelete
     }
 
     @discardableResult

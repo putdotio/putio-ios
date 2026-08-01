@@ -77,6 +77,9 @@ final class DownloadQueueController {
 
     func restoreBackgroundSessions() {
         onMain {
+            BackgroundDownloadSessionEvents.reconnectLegacySession(
+                identifier: DOWNLOAD_LEGACY_BACKGROUND_SESSION_IDENTIFIER
+            )
             _ = AudioDownloadManager.sharedInstance
             _ = VideoDownloadManager.sharedInstance
         }
