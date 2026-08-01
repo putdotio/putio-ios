@@ -574,6 +574,12 @@ final class NavigationLocalizationTests: XCTestCase {
 
         XCTAssertFalse(cell.accessibilityActivate())
         XCTAssertEqual(delegate.activatedDownloadIDs, [download.id])
+        XCTAssertEqual(delegate.selectionActivationCount, 1)
+
+        delegate.selectionActivationResult = true
+
+        XCTAssertTrue(cell.accessibilityActivate())
+        XCTAssertEqual(delegate.selectionActivationCount, 2)
 
         cell.setEditing(false, animated: false)
         cell.prepareForReuse()
@@ -693,8 +699,15 @@ final class NavigationLocalizationTests: XCTestCase {
 
 private final class DownloadCellDelegateSpy: DownloadsTableViewCellDelegate {
     private(set) var activatedDownloadIDs: [Int] = []
+    private(set) var selectionActivationCount = 0
+    var selectionActivationResult = false
 
     func downloadCellActionButtonTapped(download: Download, sender: DownloadsTableViewCell) {
         activatedDownloadIDs.append(download.id)
+    }
+
+    func downloadCellSelectionAccessibilityActivated(sender: DownloadsTableViewCell) -> Bool {
+        selectionActivationCount += 1
+        return selectionActivationResult
     }
 }

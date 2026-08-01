@@ -4,6 +4,7 @@ import RealmSwift
 
 protocol DownloadsTableViewCellDelegate: AnyObject {
     func downloadCellActionButtonTapped(download: Download, sender: DownloadsTableViewCell)
+    func downloadCellSelectionAccessibilityActivated(sender: DownloadsTableViewCell) -> Bool
 }
 
 class DownloadsTableViewCell: UITableViewCell {
@@ -140,7 +141,9 @@ class DownloadsTableViewCell: UITableViewCell {
     }
 
     override func accessibilityActivate() -> Bool {
-        guard !isEditing else { return super.accessibilityActivate() }
+        if isEditing {
+            return delegate?.downloadCellSelectionAccessibilityActivated(sender: self) ?? false
+        }
         return performDownloadAction()
     }
 
