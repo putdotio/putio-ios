@@ -130,7 +130,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         BackgroundDownloadSessionEvents.register(identifier: identifier, completionHandler: completionHandler)
         BackgroundDownloadSessionEvents.reconnectLegacySession(identifier: identifier)
-        DownloadQueueController.sharedInstance.restoreBackgroundSessions()
+        if !PutioE2EEnvironment.isMockAPIEnabled {
+            DownloadQueueController.sharedInstance.restoreBackgroundSessions()
+        }
     }
 
     func application(_ application: UIApplication, open url: URL, sourceApplication: String?, annotation: Any) -> Bool {

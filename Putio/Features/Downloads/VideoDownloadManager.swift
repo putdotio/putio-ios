@@ -371,6 +371,10 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
             do {
                 UserDefaults.standard.set(try downloadURL.bookmarkData(), forKey: String(download.id))
             } catch {
+                _ = DownloadSupport.deleteItemIfPresent(
+                    at: downloadURL,
+                    context: "VideoDownloadManager.didComplete.bookmarkCleanup"
+                )
                 didFail = true
             }
         } else if error == nil {

@@ -279,7 +279,7 @@ private final class LegacyDownloadSessionDelegate: NSObject, AVAssetDownloadDele
 enum BackgroundDownloadSessionEvents {
     private static let lock = NSLock()
     private static var handlers = [String: () -> Void]()
-    private static var earlyFinishes = [String: Date]()
+    private static var earlyFinishes = Set<String>()
     private static let legacyDelegate = LegacyDownloadSessionDelegate()
     private static var legacySession: AVAssetDownloadURLSession?
 
@@ -293,11 +293,10 @@ enum BackgroundDownloadSessionEvents {
 
     static func register(identifier: String, completionHandler: @escaping () -> Void) {
         lock.lock()
-        let earlyFinish = earlyFinishes.removeValue(forKey: identifier)
-        let didFinishRecently = earlyFinish.map { Date().timeIntervalSince($0) <= 30 } ?? false
-        let replacedHandler = didFinishRecently ? nil : handlers.updateValue(completionHandler, forKey: identifier)
+        let didFinishEarly = earlyFinishes.remove(identifier) != nil
+        let replacedHandler = didFinishEarly ? nil : handlers.updateValue(completionHandler, forKey: identifier)
         lock.unlock()
-        if didFinishRecently {
+        if didFinishEarly {
             DispatchQueue.main.async(execute: completionHandler)
         } else if let replacedHandler {
             DispatchQueue.main.async(execute: replacedHandler)
@@ -311,7 +310,7 @@ enum BackgroundDownloadSessionEvents {
         lock.lock()
         let handler = handlers.removeValue(forKey: identifier)
         if handler == nil, applicationState != .active {
-            earlyFinishes[identifier] = Date()
+            earlyFinishes.insert(identifier)
         }
         lock.unlock()
         if let handler { DispatchQueue.main.async(execute: handler) }
