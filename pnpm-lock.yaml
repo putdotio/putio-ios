@@ -12,8 +12,8 @@ importers:
         specifier: ^1.5.0
         version: 1.5.0
       '@putdotio/vref':
-        specifier: ^1.1.1
-        version: 1.1.1
+        specifier: ^1.2.0
+        version: 1.2.0
       '@types/node':
         specifier: ^24.13.3
         version: 24.13.3
@@ -59,8 +59,8 @@ packages:
   '@putdotio/design@1.5.0':
     resolution: {integrity: sha512-lYCaf9svlXxoJKBe2gPcWDnkU3GGYLyV7QADQR2l2QIHvDOa87rYEHZWBGiPfbZffceyrBahrfGXbT1rZ1mjwA==}
 
-  '@putdotio/vref@1.1.1':
-    resolution: {integrity: sha512-0g2fzA3oHQ5qcYD71B0Z4PgihzPHWKRb5JqGu8FmjKsB5nO5y/br3Z2b9LpApgn7eyodmXN2viZ47eKf/6SLXQ==}
+  '@putdotio/vref@1.2.0':
+    resolution: {integrity: sha512-upH/CoJHdTontc0X9m0nQhcmUolsD1XhUNk72ogtJJBesy5Xc2aVXt1zF2Os96yZtJbl/3JprU6ODfmV4hdaLg==}
     engines: {node: '>=24.18.0'}
     hasBin: true
 
@@ -286,7 +286,7 @@ snapshots:
 
   '@putdotio/design@1.5.0': {}
 
-  '@putdotio/vref@1.1.1':
+  '@putdotio/vref@1.2.0':
     dependencies:
       effect: 4.0.0-beta.102
 
