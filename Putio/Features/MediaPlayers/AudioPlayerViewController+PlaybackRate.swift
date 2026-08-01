@@ -148,8 +148,10 @@ extension AudioPlayerViewController {
         }
 
         commandCenterTargets["changePlaybackPosition"] = commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
-            guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
-            self?.onSeek(to: Float(event.positionTime))
+            guard let self,
+                  self.player?.currentItem != nil,
+                  let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
+            self.onSeek(to: Float(event.positionTime))
             return .success
         }
     }
