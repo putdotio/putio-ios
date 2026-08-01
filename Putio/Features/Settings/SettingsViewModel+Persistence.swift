@@ -1,21 +1,4 @@
 import Foundation
-
-enum DownloadConcurrencyPreference {
-    static let allowedLimits = [1, 2, 3, 4]
-    static let defaultLimit = 3
-
-    private static let key = "DownloadConcurrencyPreference.limit"
-
-    static func limit(defaults: UserDefaults = .standard) -> Int {
-        let value = defaults.integer(forKey: key)
-        return allowedLimits.contains(value) ? value : defaultLimit
-    }
-
-    static func setLimit(_ value: Int, defaults: UserDefaults = .standard) {
-        guard allowedLimits.contains(value) else { return }
-        defaults.set(value, forKey: key)
-    }
-}
 import UIKit
 import PutioSDK
 import RealmSwift

@@ -1,15 +1,5 @@
 import Foundation
 import RealmSwift
-
-enum DownloadRequeueResult: Equatable {
-    case failed
-    case awaitingTaskCompletion
-    case completedWithoutTask
-
-    var didRequeue: Bool {
-        self != .failed
-    }
-}
 import UserNotifications
 
 enum DownloadSupport {

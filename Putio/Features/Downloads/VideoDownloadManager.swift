@@ -173,9 +173,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 
         return DownloadSupport.performDeletion(
             state: download?.state,
-            cancelActiveDownload: {
-                DownloadSupport.performSerializedTransition { self.cancelDownload(id: id) }
-            },
+            cancelActiveDownload: { self.cancelDownload(id: id) },
             deleteLocalFile: { self.deleteLocalFile(for: id) },
             deleteRecord: {
                 DownloadSupport.deleteRecord(

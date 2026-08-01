@@ -13,11 +13,9 @@ enum DownloadConcurrencyPreference {
         return allowedLimits.contains(value) ? value : defaultLimit
     }
 
-    func suspendDownloads() {
-        DownloadSupport.preconditionSerializedTransition()
-        withActiveDownloadsMap { tasks in
-            tasks.keys.filter { $0.state == .running }.forEach { $0.suspend() }
-        }
+    static func setLimit(_ value: Int, defaults: UserDefaults = .standard) {
+        guard allowedLimits.contains(value) else { return }
+        defaults.set(value, forKey: key)
     }
 }
 

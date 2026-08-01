@@ -6,11 +6,6 @@ import NotificationCenter
 import PutioSDK
 
 class AudioDownloadManager: NSObject, DownloadQueueManaging {
-    struct DownloadedArtifact {
-        let url: URL
-        let relativePath: String
-    }
-
     static let sharedInstance = AudioDownloadManager()
     static let NOTIFICATION = Notification.Name("DOWNLOAD_MANAGER_QUEUE_UPDATED")
 
@@ -95,13 +90,6 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)
     }
 
-    func resumeDownload(id: Int) {
-        DownloadSupport.preconditionSerializedTransition()
-        guard let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }),
-              task.state == .suspended else { return }
-        task.resume()
-    }
-
     func createDownload(from file: PutioFile) {
         guard file.type == .audio else { return }
 
@@ -140,9 +128,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 
         return DownloadSupport.performDeletion(
             state: download?.state,
-            cancelActiveDownload: {
-                DownloadSupport.performSerializedTransition { self.cancelDownload(id: id) }
-            },
+            cancelActiveDownload: { self.cancelDownload(id: id) },
             deleteLocalFile: { self.deleteLocalFile(for: id) },
             deleteRecord: {
                 DownloadSupport.deleteRecord(

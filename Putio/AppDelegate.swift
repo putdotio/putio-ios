@@ -325,52 +325,5 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         applyWindowAppearance()
         window?.rootViewController = RootContainerViewController()
         window?.makeKeyAndVisible()
-        if ProcessInfo.processInfo.environment["PUTIO_E2E_MOCK_API"] != "1" {
-            DownloadQueueController.sharedInstance.start()
-        }
-    }
-}
-
-enum BackgroundDownloadSessionEvents {
-    private static let lock = NSLock()
-    private static var completionHandlers = [String: () -> Void]()
-    private static var finishedIdentifiers = Set<String>()
-
-    static func supports(identifier: String) -> Bool {
-        identifier == DOWNLOAD_AUDIO_BACKGROUND_SESSION_IDENTIFIER
-            || identifier == DOWNLOAD_VIDEO_BACKGROUND_SESSION_IDENTIFIER
-    }
-
-    static func register(identifier: String, completionHandler: @escaping () -> Void) {
-        lock.lock()
-        let alreadyFinished = finishedIdentifiers.remove(identifier) != nil
-        if !alreadyFinished {
-            completionHandlers[identifier] = completionHandler
-        }
-        lock.unlock()
-
-        if alreadyFinished {
-            DispatchQueue.main.async(execute: completionHandler)
-        }
-    }
-
-    static func finish(identifier: String) {
-        lock.lock()
-        let completionHandler = completionHandlers.removeValue(forKey: identifier)
-        if completionHandler == nil {
-            finishedIdentifiers.insert(identifier)
-        }
-        lock.unlock()
-
-        if let completionHandler {
-            DispatchQueue.main.async(execute: completionHandler)
-        }
-    }
-
-    static func resetForTests() {
-        lock.lock()
-        completionHandlers.removeAll()
-        finishedIdentifiers.removeAll()
-        lock.unlock()
     }
 }
