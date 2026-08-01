@@ -324,6 +324,13 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 extension VideoDownloadManager: AVAssetDownloadDelegate {
     func urlSession(_ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didFinishDownloadingTo location: URL) {
         log.verbose(["VDM: assetDownloadTask-didFinishDownloadingTo", location.absoluteString])
+        guard withActiveDownloadsMap({ $0[assetDownloadTask] != nil }) else {
+            _ = DownloadSupport.deleteItemIfPresent(
+                at: location,
+                context: "VideoDownloadManager.didFinishDownloadingTo.unowned"
+            )
+            return
+        }
         willDownloadToURLMap[assetDownloadTask] = location
     }
 
