@@ -47,7 +47,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
                 guard let task = candidate as? AVAssetDownloadTask,
                       let description = task.taskDescription,
                       let id = Int(description),
-                      task.state == .running || task.state == .suspended,
+                      task.state == .running || task.state == .suspended || task.state == .completed,
                       let download = self.getDownloadFromDatabase(id: id),
                       download.state == .starting || download.state == .active,
                       !restoredIDs.contains(id) else {
@@ -273,10 +273,12 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         task?.cancel()
     }
 
-    func invalidatePendingStarts() -> Set<Int> {
-        let ids = Set(startAttempts.keys)
-        startAttempts.removeAll()
-        return ids
+    var pendingStartIDs: Set<Int> {
+        Set(startAttempts.keys)
+    }
+
+    func invalidatePendingStarts(ids: Set<Int>) {
+        ids.forEach { startAttempts.removeValue(forKey: $0) }
     }
 
     private func getLocalFileLocation(for downloadId: Int) -> DownloadSupport.LocalFileLocation {
