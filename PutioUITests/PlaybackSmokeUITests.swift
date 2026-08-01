@@ -95,7 +95,10 @@ final class PlaybackSmokeUITests: XCTestCase {
         XCTAssertEqual(playbackRateButton.value as? String, "1.5×")
 
         app.navigationBars.buttons["Close"].tap()
-        XCTAssertTrue(song.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Now Playing"].waitForNonExistence(timeout: 5))
+        let songIsHittable = NSPredicate { _, _ in song.exists && song.isHittable }
+        let songReady = XCTNSPredicateExpectation(predicate: songIsHittable, object: song)
+        XCTAssertEqual(XCTWaiter.wait(for: [songReady], timeout: 5), .completed)
         song.tap()
         XCTAssertTrue(app.staticTexts["10:00"].waitForExistence(timeout: 15))
         XCTAssertEqual(app.buttons["Playback speed"].value as? String, "1×")

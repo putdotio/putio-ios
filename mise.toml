@@ -107,6 +107,7 @@ description = "Run the unit tests for repo tooling"
 run = """
 node --test 'scripts/**/*.test.ts'
 ruby scripts/sync-phosphor-icons.test.rb
+ruby scripts/verify-snapshot-recording.test.rb
 """
 
 [tasks.print-simulator-destination]

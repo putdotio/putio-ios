@@ -24,6 +24,8 @@ class PhosphorIconSync
   def self.source_policy_violations(root:, allowlist:)
     Dir.glob(File.join(root, "Putio", "**", "*.swift")).filter_map do |path|
       source = File.read(path, encoding: Encoding::UTF_8)
+      next unless source.include?("UIImage") && source.include?("systemName")
+
       symbols = sf_symbol_names(source)
       next if symbols.empty?
 

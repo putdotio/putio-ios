@@ -86,9 +86,26 @@ class PhosphorIconSourcePolicyTest < Minitest::Test
     assert_empty violations
   end
 
+  def test_files_without_candidate_call_text_skip_tokenization
+    sources = {
+      "Putio/Plain.swift" => "let title = \"Nothing to scan\"",
+      "Putio/Candidate.swift" => 'let image = UIImage(systemName: "heart")'
+    }
+    tokenized_sources = []
+    scanner = Class.new(PhosphorIconSync)
+    scanner.define_singleton_method(:swift_tokens) do |source|
+      tokenized_sources << source
+      []
+    end
+
+    scan(sources, scanner: scanner)
+
+    assert_equal [sources.fetch("Putio/Candidate.swift")], tokenized_sources
+  end
+
   private
 
-  def scan(sources, allowlist: {})
+  def scan(sources, allowlist: {}, scanner: PhosphorIconSync)
     Dir.mktmpdir do |root|
       sources.each do |relative_path, source|
         path = File.join(root, relative_path)
@@ -96,7 +113,7 @@ class PhosphorIconSourcePolicyTest < Minitest::Test
         File.write(path, source, encoding: Encoding::UTF_8)
       end
 
-      return PhosphorIconSync.source_policy_violations(root: root, allowlist: allowlist)
+      return scanner.source_policy_violations(root: root, allowlist: allowlist)
     end
   end
 end

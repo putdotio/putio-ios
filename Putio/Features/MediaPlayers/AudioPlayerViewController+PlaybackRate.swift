@@ -173,6 +173,13 @@ extension AudioPlayerViewController {
         UIApplication.shared.beginReceivingRemoteControlEvents()
         let commandCenter = MPRemoteCommandCenter.shared()
 
+        commandCenter.pauseCommand.isEnabled = true
+        commandCenter.playCommand.isEnabled = true
+        commandCenter.skipBackwardCommand.isEnabled = true
+        commandCenter.skipForwardCommand.isEnabled = true
+        commandCenter.changePlaybackPositionCommand.isEnabled = true
+        commandCenter.changePlaybackRateCommand.isEnabled = true
+
         commandCenterTargets["pause"] = commandCenter.pauseCommand.addTarget { [weak self] _ in
             self?.player?.pause()
             return .success
@@ -201,7 +208,6 @@ extension AudioPlayerViewController {
             return .success
         }
 
-        commandCenter.changePlaybackRateCommand.isEnabled = true
         commandCenter.changePlaybackRateCommand.supportedPlaybackRates = Self.supportedPlaybackRates.map {
             NSNumber(value: $0)
         }
@@ -238,6 +244,11 @@ extension AudioPlayerViewController {
         }
         commandCenter.skipBackwardCommand.preferredIntervals = []
         commandCenter.skipForwardCommand.preferredIntervals = []
+        commandCenter.pauseCommand.isEnabled = false
+        commandCenter.playCommand.isEnabled = false
+        commandCenter.skipBackwardCommand.isEnabled = false
+        commandCenter.skipForwardCommand.isEnabled = false
+        commandCenter.changePlaybackPositionCommand.isEnabled = false
         commandCenter.changePlaybackRateCommand.isEnabled = false
         commandCenterTargets.removeAll()
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
@@ -288,7 +299,6 @@ extension AudioPlayerViewController {
     ) -> [String: Any] {
         return [
             MPMediaItemPropertyTitle: item.name,
-            MPMediaItemPropertyAssetURL: item.url,
             MPMediaItemPropertyPlaybackDuration: duration,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
             MPNowPlayingInfoPropertyPlaybackRate: playbackRate,

@@ -17,10 +17,24 @@ const classify = (paths: string[]) =>
       .map((line) => line.split("=")),
   );
 
-test("Ruby tooling changes run both CI lanes", () => {
+test("tested Ruby tooling in verify-fast runs both CI lanes", () => {
   assert.deepEqual(classify(["scripts/sync-phosphor-icons.test.rb"]), {
     app: "true",
     tooling: "true",
+  });
+});
+
+test("snapshot verifier changes run their focused tooling tests", () => {
+  assert.deepEqual(classify(["scripts/verify-snapshot-recording.rb"]), {
+    app: "false",
+    tooling: "true",
+  });
+});
+
+test("unclassified Ruby scripts use the conservative app fallback", () => {
+  assert.deepEqual(classify(["scripts/sync-brand-fonts.rb"]), {
+    app: "true",
+    tooling: "false",
   });
 });
 

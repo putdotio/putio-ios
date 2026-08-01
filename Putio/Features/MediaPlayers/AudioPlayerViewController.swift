@@ -215,8 +215,7 @@ class AudioPlayerViewController: UIViewController {
             guard let media = self?.findMediaItem(by: currentItem) else { return }
 
             MPNowPlayingInfoCenter.default().nowPlayingInfo = [
-                MPMediaItemPropertyTitle: media.name,
-                MPMediaItemPropertyAssetURL: media.url
+                MPMediaItemPropertyTitle: media.name
             ]
             self?.observeNowPlayingReadiness(for: currentItem)
 

@@ -126,7 +126,16 @@ final class AudioPlayerTests: XCTestCase {
     func testRemoteMediaControlsRegisterAndUnregisterTheirExactTargets() {
         let viewController = AudioPlayerViewController()
         let commandCenter = MPRemoteCommandCenter.shared()
+        let registeredCommands = [
+            commandCenter.pauseCommand,
+            commandCenter.playCommand,
+            commandCenter.skipBackwardCommand,
+            commandCenter.skipForwardCommand,
+            commandCenter.changePlaybackPositionCommand,
+            commandCenter.changePlaybackRateCommand
+        ]
 
+        viewController.unregisterRemoteMediaControls()
         viewController.registerRemoteMediaControls()
         MPNowPlayingInfoCenter.default().nowPlayingInfo = [MPMediaItemPropertyTitle: "Test audio"]
 
@@ -136,7 +145,7 @@ final class AudioPlayerTests: XCTestCase {
         )
         XCTAssertEqual(commandCenter.skipBackwardCommand.preferredIntervals, [15])
         XCTAssertEqual(commandCenter.skipForwardCommand.preferredIntervals, [15])
-        XCTAssertTrue(commandCenter.changePlaybackRateCommand.isEnabled)
+        XCTAssertTrue(registeredCommands.allSatisfy(\.isEnabled))
         XCTAssertEqual(
             commandCenter.changePlaybackRateCommand.supportedPlaybackRates,
             AudioPlayerViewController.supportedPlaybackRates.map(NSNumber.init(value:))
@@ -148,7 +157,7 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertTrue(viewController.commandCenterTargets.isEmpty)
         XCTAssertEqual(commandCenter.skipBackwardCommand.preferredIntervals, [])
         XCTAssertEqual(commandCenter.skipForwardCommand.preferredIntervals, [])
-        XCTAssertFalse(commandCenter.changePlaybackRateCommand.isEnabled)
+        XCTAssertTrue(registeredCommands.allSatisfy { !$0.isEnabled })
         XCTAssertNil(MPNowPlayingInfoCenter.default().nowPlayingInfo)
 
         viewController.unregisterRemoteMediaControls()
@@ -283,13 +292,13 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertFalse(viewController.shouldTrackPlayback(at: 0))
     }
 
-    func testNowPlayingInfoIncludesSelectedAndActualPlaybackRates() throws {
+    func testNowPlayingInfoOmitsAssetURLAndIncludesSelectedAndActualPlaybackRates() throws {
         let viewController = AudioPlayerViewController()
         viewController.queuePlaybackRate = 1.5
         let item = MediaPlayerItem(
             id: 103,
             name: "Audiobook.m4b",
-            url: URL(fileURLWithPath: "/tmp/audiobook.m4b"),
+            url: try XCTUnwrap(URL(string: "https://example.com/audiobook.m4b?oauth_token=secret")),
             fileType: .audio,
             consumptionType: .offline
         )
@@ -305,6 +314,7 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(info[MPNowPlayingInfoPropertyDefaultPlaybackRate] as? NSNumber).floatValue, 1.5)
         XCTAssertEqual(try XCTUnwrap(info[MPNowPlayingInfoPropertyElapsedPlaybackTime] as? NSNumber).doubleValue, 90)
         XCTAssertEqual(try XCTUnwrap(info[MPMediaItemPropertyPlaybackDuration] as? NSNumber).doubleValue, 3_600)
+        XCTAssertNil(info[MPMediaItemPropertyAssetURL])
     }
 
     private func makeStoryboardViewController() throws -> AudioPlayerViewController {
