@@ -48,6 +48,29 @@ final class ComponentSnapshotTests: XCTestCase {
         }
     }
 
+    private func selfSizingHeight(
+        for cell: UITableViewCell,
+        width: CGFloat,
+        contentSizeCategory: UIContentSizeCategory
+    ) -> CGFloat {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: width, height: 1_000))
+        window.traitOverrides.preferredContentSizeCategory = contentSizeCategory
+        cell.frame = window.bounds
+        window.addSubview(cell)
+        window.isHidden = false
+        window.layoutIfNeeded()
+
+        let size = cell.contentView.systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+
+        cell.removeFromSuperview()
+        window.isHidden = true
+        return ceil(size.height)
+    }
+
     func testButtonVariants() {
         for variant in ["primary", "secondary", "danger"] {
             let button = Button(type: .custom)
@@ -168,9 +191,16 @@ final class ComponentSnapshotTests: XCTestCase {
         )
 
         let accessibilityCell = try makeCell(for: 1)
+        let accessibilityWidth: CGFloat = 375
+        let accessibilityHeight = selfSizingHeight(
+            for: accessibilityCell,
+            width: accessibilityWidth,
+            contentSizeCategory: .accessibilityLarge
+        )
+        XCTAssertGreaterThan(accessibilityHeight, 60)
         assertComponent(
             accessibilityCell,
-            size: CGSize(width: 375, height: 100),
+            size: CGSize(width: accessibilityWidth, height: accessibilityHeight),
             named: "download-cell-active-accessibility-large",
             contentSizeCategory: .accessibilityLarge
         )

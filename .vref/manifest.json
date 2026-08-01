@@ -367,10 +367,10 @@
       "device": "Rendered directly",
       "viewport": {
         "width": 1125,
-        "height": 300
+        "height": 264
       },
       "file": "screenshots/components/components-download-cell-active-accessibility-large.png",
-      "sizeBytes": 35623,
+      "sizeBytes": 34559,
       "tags": [
         "downloads",
         "dynamic-type",
