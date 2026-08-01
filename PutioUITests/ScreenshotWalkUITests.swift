@@ -138,12 +138,12 @@ final class ScreenshotWalkUITests: XCTestCase {
             "duration label should show the loaded fixture length"
         )
         XCTAssertTrue(
-            app.staticTexts["We couldn't find anything to play"].waitForExistence(timeout: 10),
+            app.staticTexts["Nothing queued"].waitForExistence(timeout: 10),
             "next-item lookup should settle on the empty fixture result"
         )
         settle()
         capture(app, named: "walk-dark-audio-player")
-        let closeButton = app.navigationBars.buttons["Stop"]
+        let closeButton = app.navigationBars.buttons["Close"]
         XCTAssertTrue(closeButton.waitForExistence(timeout: 5), "audio player close button should exist")
         closeButton.tap()
         settle()
