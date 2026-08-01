@@ -106,14 +106,12 @@ final class SettingsViewModelTests: XCTestCase {
     }
 
     func testBuildSectionsIncludesDownloadConcurrencySetting() {
-        let previousLimit = DownloadConcurrencyPreference.limit()
-        defer { DownloadConcurrencyPreference.setLimit(previousLimit) }
-        DownloadConcurrencyPreference.setLimit(2)
+        let limit = DownloadConcurrencyPreference.limit()
 
         let downloadsSection = SettingsViewModel().buildSections().first { $0.title == "Downloads" }
 
         XCTAssertEqual(downloadsSection?.items.first?.title, "Simultaneous downloads")
-        XCTAssertEqual(downloadsSection?.items.first?.value as? String, "2 at a time")
+        XCTAssertEqual(downloadsSection?.items.first?.value as? String, "\(limit) at a time")
     }
 }
 

@@ -231,6 +231,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 
     func discardDownload(id: Int) {
         startAttempts.removeValue(forKey: id)
+        lastProgressUpdateTime.removeValue(forKey: id)
         let task = withActiveDownloadsMap { map -> AVAssetDownloadTask? in
             guard let task = map.first(where: { $0.value == id })?.key else { return nil }
             map.removeValue(forKey: task)
