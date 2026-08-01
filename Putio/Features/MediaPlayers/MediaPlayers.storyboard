@@ -257,7 +257,7 @@
                         </constraints>
                         <viewLayoutGuide key="safeArea" id="hFF-Tk-8qT"/>
                     </view>
-                    <navigationItem key="navigationItem" title="Now Playing" id="y9f-Mf-UuS">
+                    <navigationItem key="navigationItem" id="y9f-Mf-UuS">
                         <barButtonItem key="leftBarButtonItem" systemItem="stop" id="Kts-a9-mEb">
                             <color key="tintColor" name="putio.yellow.text-secondary"/>
                             <connections>
@@ -277,6 +277,7 @@
                         <outlet property="nextItemLabel" destination="baS-cA-ANE" id="Kdm-vV-y4i"/>
                         <outlet property="nextItemLoadingView" destination="vEk-T9-V1S" id="4e4-5g-Cxs"/>
                         <outlet property="playbackInfoStackView" destination="u9L-HR-38e" id="Zp9-P3-7eX"/>
+                        <outlet property="playerContentView" destination="HGl-35-jUd" id="B6i-KU-HLf"/>
                         <outlet property="posterContainerView" destination="d0p-aR-vGZ" id="Apw-eG-4Rz"/>
                         <outlet property="posterImage" destination="Qbm-Ex-5kE" id="O9N-GS-TF3"/>
                         <outlet property="timeSlider" destination="p0q-ni-d7i" id="cU2-ae-KHs"/>

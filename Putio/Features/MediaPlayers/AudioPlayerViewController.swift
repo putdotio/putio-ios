@@ -29,6 +29,7 @@ class AudioPlayerViewController: UIViewController {
 
     var commandCenterTargets: [String: Any] = [:]
     var queuePlaybackRate: Float = 1
+    var playerScrollView: UIScrollView?
 
     private(set) lazy var routePickerView: AVRoutePickerView = {
         let routePickerView = AVRoutePickerView(frame: CGRect(x: 0, y: 0, width: 44, height: 44))
@@ -51,6 +52,7 @@ class AudioPlayerViewController: UIViewController {
     }()
 
     // MARK: Poster UI
+    @IBOutlet weak var playerContentView: UIView!
     @IBOutlet weak var posterContainerView: UIView!
     @IBOutlet weak var posterImage: UIImageView!
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
@@ -73,6 +75,7 @@ class AudioPlayerViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        configureScrollableLayout()
         configurePlayerAppearance()
         let skipSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 32, weight: .regular)
         controlRewind.setImage(UIImage(systemName: "gobackward.15", withConfiguration: skipSymbolConfiguration), for: .normal)

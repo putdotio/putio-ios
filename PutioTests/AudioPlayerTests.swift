@@ -20,17 +20,24 @@ final class AudioPlayerTests: XCTestCase {
     }
 
     func testNextItemActionHasA44PointTouchTarget() throws {
-        let viewController = try XCTUnwrap(
-            UIStoryboard(name: "MediaPlayers", bundle: nil)
-                .instantiateViewController(withIdentifier: "AudioPlayerVC") as? AudioPlayerViewController
-        )
-        viewController.mediaItems = []
+        let viewController = try makeStoryboardViewController()
 
         viewController.loadViewIfNeeded()
         viewController.view.layoutIfNeeded()
 
         XCTAssertGreaterThanOrEqual(viewController.nextItemActionButton.bounds.width, 44)
         XCTAssertGreaterThanOrEqual(viewController.nextItemActionButton.bounds.height, 44)
+    }
+
+    func testAudioPlayerScrollsWhenTheAvailableHeightIsCompact() throws {
+        let viewController = try makeStoryboardViewController()
+        viewController.loadViewIfNeeded()
+        viewController.view.frame = CGRect(x: 0, y: 0, width: 667, height: 320)
+
+        viewController.view.layoutIfNeeded()
+
+        let scrollView = try XCTUnwrap(viewController.playerScrollView)
+        XCTAssertGreaterThan(scrollView.contentSize.height, scrollView.bounds.height)
     }
 
     func testPlaybackRateControlExposesEverySupportedRateToVoiceOver() throws {
@@ -108,6 +115,7 @@ final class AudioPlayerTests: XCTestCase {
         let commandCenter = MPRemoteCommandCenter.shared()
 
         viewController.registerRemoteMediaControls()
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = [MPMediaItemPropertyTitle: "Test audio"]
 
         XCTAssertEqual(
             Set(viewController.commandCenterTargets.keys),
@@ -120,6 +128,7 @@ final class AudioPlayerTests: XCTestCase {
             commandCenter.changePlaybackRateCommand.supportedPlaybackRates,
             AudioPlayerViewController.supportedPlaybackRates.map(NSNumber.init(value:))
         )
+        XCTAssertNotNil(MPNowPlayingInfoCenter.default().nowPlayingInfo)
 
         viewController.unregisterRemoteMediaControls()
 
@@ -127,6 +136,7 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertEqual(commandCenter.skipBackwardCommand.preferredIntervals, [])
         XCTAssertEqual(commandCenter.skipForwardCommand.preferredIntervals, [])
         XCTAssertFalse(commandCenter.changePlaybackRateCommand.isEnabled)
+        XCTAssertNil(MPNowPlayingInfoCenter.default().nowPlayingInfo)
 
         viewController.unregisterRemoteMediaControls()
         XCTAssertTrue(viewController.commandCenterTargets.isEmpty)
@@ -187,6 +197,15 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(info[MPNowPlayingInfoPropertyDefaultPlaybackRate] as? NSNumber).floatValue, 1.5)
         XCTAssertEqual(try XCTUnwrap(info[MPNowPlayingInfoPropertyElapsedPlaybackTime] as? NSNumber).doubleValue, 90)
         XCTAssertEqual(try XCTUnwrap(info[MPMediaItemPropertyPlaybackDuration] as? NSNumber).doubleValue, 3_600)
+    }
+
+    private func makeStoryboardViewController() throws -> AudioPlayerViewController {
+        let viewController = try XCTUnwrap(
+            UIStoryboard(name: "MediaPlayers", bundle: nil)
+                .instantiateViewController(withIdentifier: "AudioPlayerVC") as? AudioPlayerViewController
+        )
+        viewController.mediaItems = []
+        return viewController
     }
 }
 

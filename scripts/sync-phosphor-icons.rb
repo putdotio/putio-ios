@@ -23,6 +23,21 @@ class PhosphorIconSync
     "Putio/Features/MediaPlayers/AudioPlayerViewController.swift" => %w[gobackward.15 goforward.15]
   }.freeze
 
+  def self.source_policy_violations(root:, allowlist:)
+    Dir.glob(File.join(root, "Putio", "**", "*.swift")).filter_map do |path|
+      source = File.read(path, encoding: Encoding::UTF_8)
+      call_count = source.scan(SF_SYMBOL_PATTERN).count
+      next if call_count.zero?
+
+      symbols = source.scan(SF_SYMBOL_LITERAL_PATTERN).flatten
+      relative_path = path.delete_prefix("#{root}/")
+      unexpected_symbols = symbols - allowlist.fetch(relative_path, [])
+      next if unexpected_symbols.empty? && symbols.count == call_count
+
+      relative_path
+    end
+  end
+
   def initialize
     @manifest = JSON.parse(File.read(MANIFEST_PATH))
     @package = @manifest.fetch("package")
@@ -237,19 +252,7 @@ class PhosphorIconSync
   end
 
   def check_source_policy(errors)
-    swift_files = Dir.glob(File.join(ROOT, "Putio", "**", "*.swift"))
-    symbol_violations = swift_files.filter_map do |path|
-      source = File.read(path)
-      call_count = source.scan(SF_SYMBOL_PATTERN).count
-      next if call_count.zero?
-
-      symbols = source.scan(SF_SYMBOL_LITERAL_PATTERN).flatten
-      allowed_symbols = SF_SYMBOL_ALLOWLIST.fetch(relative(path), [])
-      unexpected_symbols = symbols - allowed_symbols
-      next if unexpected_symbols.empty? && symbols.count == call_count
-
-      relative(path)
-    end
+    symbol_violations = self.class.source_policy_violations(root: ROOT, allowlist: SF_SYMBOL_ALLOWLIST)
     unless symbol_violations.empty?
       errors << "Unapproved SF Symbols are not allowed: #{symbol_violations.join(", ")}"
     end
@@ -314,12 +317,14 @@ class PhosphorIconSync
   end
 end
 
-case ARGV
-when []
-  PhosphorIconSync.new.sync
-when ["--check"]
-  PhosphorIconSync.new.check
-else
-  warn "Usage: ruby scripts/sync-phosphor-icons.rb [--check]"
-  exit 2
+if $PROGRAM_NAME == __FILE__
+  case ARGV
+  when []
+    PhosphorIconSync.new.sync
+  when ["--check"]
+    PhosphorIconSync.new.check
+  else
+    warn "Usage: ruby scripts/sync-phosphor-icons.rb [--check]"
+    exit 2
+  end
 end

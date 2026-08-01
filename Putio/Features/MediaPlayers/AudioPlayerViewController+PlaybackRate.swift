@@ -3,6 +3,66 @@ import MediaPlayer
 import UIKit
 
 extension AudioPlayerViewController {
+    func configureScrollableLayout() {
+        guard playerScrollView == nil,
+              let rootView = playerContentView.superview,
+              rootView === nextItemContainerView.superview else {
+            return
+        }
+
+        let arrangedViews = [playerContentView, nextItemContainerView]
+        let originalConstraints = rootView.constraints.filter { constraint in
+            arrangedViews.contains { candidate in
+                (constraint.firstItem as? UIView) === candidate ||
+                    (constraint.secondItem as? UIView) === candidate
+            }
+        }
+        NSLayoutConstraint.deactivate(originalConstraints)
+        playerContentView.removeFromSuperview()
+        nextItemContainerView.removeFromSuperview()
+
+        let scrollView = UIScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.accessibilityIdentifier = "audio-player-scroll-view"
+        rootView.addSubview(scrollView)
+
+        let contentView = UIView()
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(contentView)
+        contentView.addSubview(playerContentView)
+        contentView.addSubview(nextItemContainerView)
+
+        let nextItemLeading = nextItemContainerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16)
+        nextItemLeading.priority = .defaultHigh
+        let nextItemTrailing = nextItemContainerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16)
+        nextItemTrailing.priority = .defaultHigh
+
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: rootView.safeAreaLayoutGuide.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: rootView.safeAreaLayoutGuide.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: rootView.safeAreaLayoutGuide.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: rootView.safeAreaLayoutGuide.bottomAnchor),
+            contentView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+            contentView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+            contentView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
+            contentView.heightAnchor.constraint(greaterThanOrEqualTo: scrollView.frameLayoutGuide.heightAnchor),
+            playerContentView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            playerContentView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            playerContentView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            nextItemContainerView.topAnchor.constraint(equalTo: playerContentView.bottomAnchor, constant: 16),
+            nextItemLeading,
+            nextItemTrailing,
+            nextItemContainerView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            nextItemContainerView.widthAnchor.constraint(lessThanOrEqualToConstant: 560),
+            nextItemContainerView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16)
+        ])
+
+        playerScrollView = scrollView
+    }
+
     func configurePlaybackRateControl() {
         if playbackRateButton.superview == nil, let playbackInfoStackView {
             playbackInfoStackView.insertArrangedSubview(playbackRateButton, at: 1)
@@ -179,6 +239,7 @@ extension AudioPlayerViewController {
         commandCenter.skipForwardCommand.preferredIntervals = []
         commandCenter.changePlaybackRateCommand.isEnabled = false
         commandCenterTargets.removeAll()
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
 
     func updateMPNowPlayingInfo(for item: MediaPlayerItem, currentTime: Double, duration: Double) {

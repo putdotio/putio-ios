@@ -72,6 +72,33 @@ final class PlaybackSmokeUITests: XCTestCase {
         XCTAssertEqual(playbackRateButton.value as? String, "1×")
     }
 
+    func testAudioPlayerControlsRemainReachableInLandscape() {
+        let app = launchFixtureApp()
+        defer { XCUIDevice.shared.orientation = .portrait }
+
+        guard app.waitForSignedInTabBar() else { return }
+        let song = app.tables["putio-files-table"].cells["putio-file-43"]
+        XCTAssertTrue(song.waitForExistence(timeout: 10))
+        song.tap()
+        XCTAssertTrue(app.staticTexts["10:00"].waitForExistence(timeout: 15))
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+
+        let scrollView = app.scrollViews["audio-player-scroll-view"]
+        XCTAssertTrue(scrollView.waitForExistence(timeout: 5))
+        let playPauseButton = app.buttons["audio-player-play-pause"]
+        if !playPauseButton.isHittable {
+            scrollView.swipeUp()
+        }
+        XCTAssertTrue(playPauseButton.isHittable)
+
+        let upNextLabel = app.staticTexts["Up next"]
+        if !upNextLabel.isHittable {
+            scrollView.swipeUp()
+        }
+        XCTAssertTrue(upNextLabel.isHittable)
+    }
+
     func testFilesScreenLoadsWithFixtureData() {
         let app = launchFixtureApp()
         guard app.waitForSignedInTabBar() else { return }
