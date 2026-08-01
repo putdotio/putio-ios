@@ -449,18 +449,9 @@ final class NavigationLocalizationTests: XCTestCase {
     }
 
     func testDownloadCellAccessibilityDescribesSelectionAndUnavailableState() {
-        let cell = DownloadsTableViewCell()
-        let titleLabel = UILabel()
-        let subtitleLabel = UILabel()
-        let container = UIView()
-        cell.contentView.addSubview(titleLabel)
-        cell.contentView.addSubview(subtitleLabel)
-        cell.contentView.addSubview(container)
-        cell.titleLabel = titleLabel
-        cell.subtitleLabel = subtitleLabel
-        cell.downloadButtonContainer = container
-        titleLabel.text = "Episode"
-        subtitleLabel.text = "Downloading..."
+        let cell = makeDownloadCell()
+        cell.titleLabel.text = "Episode"
+        cell.subtitleLabel.text = "Downloading..."
 
         cell.configureSelectionAccessibility(isSelecting: true, isSelected: true, isSelectable: true)
 
@@ -515,24 +506,7 @@ final class NavigationLocalizationTests: XCTestCase {
         download.progress = "0.47"
         try realm.write { realm.add(download) }
 
-        func makeCell() -> DownloadsTableViewCell {
-            let cell = DownloadsTableViewCell()
-            let icon = UIImageView()
-            let titleLabel = UILabel()
-            let subtitleLabel = UILabel()
-            let buttonContainer = UIView()
-            [icon, titleLabel, subtitleLabel, buttonContainer].forEach {
-                cell.contentView.addSubview($0)
-            }
-            cell.icon = icon
-            cell.titleLabel = titleLabel
-            cell.subtitleLabel = subtitleLabel
-            cell.downloadButtonContainer = buttonContainer
-            cell.realm = realm
-            return cell
-        }
-
-        let cell = makeCell()
+        let cell = makeDownloadCell(realm: realm)
         cell.configure(with: download.id)
         cell.configureSelectionAccessibility(isSelecting: false, isSelected: false, isSelectable: false)
         let expectedStatus = DownloadProgressPresentation.activeStatus(fraction: 0.47)
@@ -542,7 +516,7 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(cell.accessibilityLabel, "Episode, \(expectedStatus)")
         XCTAssertTrue(cell.accessibilityTraits.contains(.button))
 
-        let restoredCell = makeCell()
+        let restoredCell = makeDownloadCell(realm: realm)
         restoredCell.configure(with: download.id)
 
         XCTAssertEqual(restoredCell.subtitleLabel.text, expectedStatus)
@@ -558,19 +532,7 @@ final class NavigationLocalizationTests: XCTestCase {
         download.progress = "0.47"
         try realm.write { realm.add(download) }
 
-        let cell = DownloadsTableViewCell()
-        let icon = UIImageView()
-        let titleLabel = UILabel()
-        let subtitleLabel = UILabel()
-        let buttonContainer = UIView()
-        [icon, titleLabel, subtitleLabel, buttonContainer].forEach {
-            cell.contentView.addSubview($0)
-        }
-        cell.icon = icon
-        cell.titleLabel = titleLabel
-        cell.subtitleLabel = subtitleLabel
-        cell.downloadButtonContainer = buttonContainer
-        cell.realm = realm
+        let cell = makeDownloadCell(realm: realm)
 
         let states = [
             (Download.State.queued, NSLocalizedString("In Queue", comment: "")),
@@ -612,6 +574,23 @@ final class NavigationLocalizationTests: XCTestCase {
 
         XCTAssertFalse(viewController.tableView(tableView, canEditRowAt: IndexPath(row: 0, section: 0)))
         XCTAssertTrue(viewController.tableView(tableView, canEditRowAt: IndexPath(row: 1, section: 0)))
+    }
+
+    private func makeDownloadCell(realm: Realm? = nil) -> DownloadsTableViewCell {
+        let cell = DownloadsTableViewCell()
+        let icon = UIImageView()
+        let titleLabel = UILabel()
+        let subtitleLabel = UILabel()
+        let buttonContainer = UIView()
+        [icon, titleLabel, subtitleLabel, buttonContainer].forEach {
+            cell.contentView.addSubview($0)
+        }
+        cell.icon = icon
+        cell.titleLabel = titleLabel
+        cell.subtitleLabel = subtitleLabel
+        cell.downloadButtonContainer = buttonContainer
+        cell.realm = realm
+        return cell
     }
 
     private func makeFolder(id: Int, name: String, sortBy: String) throws -> PutioFile {
