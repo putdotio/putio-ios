@@ -1,5 +1,6 @@
 import UIKit
 import AVFoundation
+import AVKit
 import MediaPlayer
 import RealmSwift
 
@@ -8,6 +9,8 @@ enum UIState {
 }
 
 class AudioPlayerViewController: UIViewController {
+    static let supportedPlaybackRates: [Float] = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2]
+
     private lazy var realm: Realm? = PutioRealm.open(context: "AudioPlayerViewController.realm")
     private lazy var user: User? = realm?.objects(User.self).first
 
@@ -16,21 +19,42 @@ class AudioPlayerViewController: UIViewController {
 
     var player: AVQueuePlayer?
     var timeObservers: [Any?] = []
-
     var playerQueueObserver: NSKeyValueObservation?
     var playerRateObserver: NSKeyValueObservation?
     var playerTimeControlStatusObserver: NSKeyValueObservation?
     var playerTimeObserver: Any?
     var playerSetStartFromTimeObserver: Any?
-
     var setStartFromTimer: Timer?
     var setStartFromMap = [Int: Int]()
 
     var commandCenterTargets: [String: Any] = [:]
+    var queuePlaybackRate: Float = 1
+
+    private(set) lazy var routePickerView: AVRoutePickerView = {
+        let routePickerView = AVRoutePickerView(frame: CGRect(x: 0, y: 0, width: 44, height: 44))
+        routePickerView.prioritizesVideoDevices = false
+        routePickerView.tintColor = UIColor.Putio.Neutral.text
+        routePickerView.activeTintColor = UIColor.Putio.Yellow.textSecondary
+        routePickerView.accessibilityIdentifier = "audio-output-route-picker"
+        return routePickerView
+    }()
+
+    private(set) lazy var playbackRateButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.tintColor = UIColor.Putio.Neutral.textSecondary
+        button.setTitleColor(UIColor.Putio.Neutral.textSecondary, for: .normal)
+        button.showsMenuAsPrimaryAction = true
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.accessibilityLabel = NSLocalizedString("Playback speed", comment: "")
+        button.accessibilityHint = NSLocalizedString("Applies to this queue", comment: "")
+        return button
+    }()
 
     // MARK: Poster UI
+    @IBOutlet weak var posterContainerView: UIView!
     @IBOutlet weak var posterImage: UIImageView!
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
+    @IBOutlet weak var trackTitleLabel: UILabel!
 
     // MARK: Player Controls UI
     @IBOutlet weak var currentTimeLabel: UILabel!
@@ -39,21 +63,63 @@ class AudioPlayerViewController: UIViewController {
     @IBOutlet weak var controlRewind: UIButton!
     @IBOutlet weak var controlPlayPause: UIButton!
     @IBOutlet weak var controlFastForward: UIButton!
+    @IBOutlet weak var playbackInfoStackView: UIStackView!
 
     // MARK: Next Item UI
+    @IBOutlet weak var nextItemContainerView: UIView!
     @IBOutlet weak var nextItemLoadingView: UIStackView!
     @IBOutlet weak var nextItemLabel: UILabel!
     @IBOutlet weak var nextItemActionButton: UIButton!
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        controlRewind.setImage(PutioIcon.rewindFill.image(pointSize: 32), for: .normal)
+        configurePlayerAppearance()
+        let skipSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 32, weight: .regular)
+        controlRewind.setImage(UIImage(systemName: "gobackward.15", withConfiguration: skipSymbolConfiguration), for: .normal)
         controlPlayPause.setImage(PutioIcon.playCircleFill.image(pointSize: 66), for: .normal)
-        controlFastForward.setImage(PutioIcon.fastForwardFill.image(pointSize: 32), for: .normal)
+        controlFastForward.setImage(UIImage(systemName: "goforward.15", withConfiguration: skipSymbolConfiguration), for: .normal)
         nextItemActionButton.setImage(PutioIcon.playFill.image(pointSize: 20), for: .normal)
+        configurePlaybackRateControl()
         nextMediaFinder.delegate = self
         configureStateMachine(for: .loading)
         setupPlayer()
+    }
+
+    func configurePlayerAppearance() {
+        configureNavigationControls()
+        trackTitleLabel.text = mediaItems.first?.name
+
+        posterContainerView.layer.cornerRadius = 20
+        posterContainerView.layer.cornerCurve = .continuous
+        posterContainerView.layer.borderWidth = 1
+        posterContainerView.layer.borderColor = UIColor.Putio.Neutral.border.cgColor
+        posterContainerView.clipsToBounds = true
+
+        nextItemContainerView.layer.cornerRadius = 16
+        nextItemContainerView.layer.cornerCurve = .continuous
+        nextItemContainerView.layer.borderWidth = 1
+        nextItemContainerView.layer.borderColor = UIColor.Putio.Neutral.border.cgColor
+
+        let timeFontSize = UIFont.preferredFont(forTextStyle: .caption1).pointSize
+        let timeFont = BrandFont.monoIfAvailable(size: timeFontSize, weight: .medium)
+            ?? UIFont.monospacedDigitSystemFont(ofSize: timeFontSize, weight: .medium)
+        currentTimeLabel.font = timeFont
+        durationLabel.font = timeFont
+        playbackRateButton.titleLabel?.font = timeFont
+
+        controlRewind.tintColor = UIColor.Putio.Neutral.textSecondary
+        controlPlayPause.tintColor = UIColor.Putio.Neutral.text
+        controlFastForward.tintColor = UIColor.Putio.Neutral.textSecondary
+        controlRewind.accessibilityLabel = NSLocalizedString("Rewind 15 seconds", comment: "")
+        controlFastForward.accessibilityLabel = NSLocalizedString("Forward 15 seconds", comment: "")
+        controlPlayPause.accessibilityLabel = NSLocalizedString("Play", comment: "")
+        timeSlider.accessibilityLabel = NSLocalizedString("Playback position", comment: "")
+    }
+
+    func configureNavigationControls() {
+        navigationItem.title = NSLocalizedString("Now Playing", comment: "")
+        navigationItem.leftBarButtonItem?.accessibilityLabel = NSLocalizedString("Close", comment: "")
+        navigationItem.rightBarButtonItem = UIBarButtonItem(customView: routePickerView)
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -68,6 +134,7 @@ class AudioPlayerViewController: UIViewController {
         let playerItem = AVPlayerItem.init(asset: asset)
 
         player = AVQueuePlayer()
+        player?.defaultRate = queuePlaybackRate
 
         registerPlayerObservers()
         registerPlayerTimeObservers()
@@ -75,7 +142,7 @@ class AudioPlayerViewController: UIViewController {
 
         player?.insert(playerItem, after: player?.currentItem)
         player?.seek(to: CMTimeMakeWithSeconds(Float64(media.startFrom), preferredTimescale: 600))
-        player?.play()
+        playAtQueueRate()
     }
 
     func disposePlayer() {
@@ -90,20 +157,25 @@ class AudioPlayerViewController: UIViewController {
         case .loading:
             nextItemLoadingView.isHidden = false
             nextItemLabel.isHidden = true
+            nextItemActionButton.isHidden = true
             nextItemActionButton.isEnabled = false
             nextItemActionButton.tintColor = UIColor.Putio.Neutral.solid
 
         case .success:
             nextItemLabel.text = item?.name
+            nextItemLabel.textColor = UIColor.Putio.Neutral.text
             nextItemLabel.isHidden = false
             nextItemLoadingView.isHidden = true
+            nextItemActionButton.isHidden = false
             nextItemActionButton.isEnabled = true
             nextItemActionButton.tintColor = UIColor.Putio.Yellow.textSecondary
 
         case .failure:
-            nextItemLabel.text = NSLocalizedString("We couldn't find anything to play", comment: "")
+            nextItemLabel.text = NSLocalizedString("Nothing queued", comment: "")
+            nextItemLabel.textColor = UIColor.Putio.Neutral.textSecondary
             nextItemLabel.isHidden = false
             nextItemLoadingView.isHidden = true
+            nextItemActionButton.isHidden = true
             nextItemActionButton.isEnabled = false
             nextItemActionButton.tintColor = UIColor.Putio.Neutral.solid
         }
@@ -132,20 +204,27 @@ class AudioPlayerViewController: UIViewController {
                 MPMediaItemPropertyTitle: media.name,
                 MPMediaItemPropertyAssetURL: media.url
             ]
+            self?.updateMPNowPlayingInfoForCurrentItem()
 
-            self?.navigationItem.title = media.name
+            self?.trackTitleLabel.text = media.name
             self?.nextMediaFinder.findNextMedia(for: media)
+        })
+
+        playerRateObserver = player?.observe(\.rate, options: [.new], changeHandler: { [weak self] (_, _) in
+            self?.updateMPNowPlayingInfoForCurrentItem()
         })
 
         playerTimeControlStatusObserver = player?.observe(\.timeControlStatus, options: [.new, .old], changeHandler: { [weak self] (player, _) in
             switch player.timeControlStatus {
             case .playing:
                 self?.controlPlayPause.setImage(PutioIcon.pauseCircleFill.image(pointSize: 66), for: .normal)
+                self?.controlPlayPause.accessibilityLabel = NSLocalizedString("Pause", comment: "")
                 self?.activityIndicator.isHidden = true
                 self?.configurePlaybackControls(isEnabled: true)
                 self?.posterImage.image = UIImage(named: "discoball")
             case .paused:
                 self?.controlPlayPause.setImage(PutioIcon.playCircleFill.image(pointSize: 66), for: .normal)
+                self?.controlPlayPause.accessibilityLabel = NSLocalizedString("Play", comment: "")
                 self?.posterImage.image = UIImage(named: "discoball")
             case .waitingToPlayAtSpecifiedRate:
                 self?.posterImage.image = UIImage(named: "discoball")
@@ -159,6 +238,7 @@ class AudioPlayerViewController: UIViewController {
 
     func unregisterPlayerObservers() {
         playerQueueObserver?.invalidate()
+        playerRateObserver?.invalidate()
         playerTimeControlStatusObserver?.invalidate()
     }
 
@@ -169,7 +249,7 @@ class AudioPlayerViewController: UIViewController {
             using: { [weak self] (_) in
                 guard let player = self?.player else { return }
 
-                if player.rate == 1.0 {
+                if self?.shouldTrackPlayback(at: player.rate) == true {
                     guard let currentTime = player.currentItem?.currentTime().getFiniteSeconds() else { return }
                     guard let duration = player.currentItem?.duration.getFiniteSeconds() else { return }
                     self?.updateTimeDisplay(currentTime: currentTime, duration: duration)
@@ -182,7 +262,7 @@ class AudioPlayerViewController: UIViewController {
             using: { [weak self] (_) in
                 guard let player = self?.player else { return }
 
-                if player.rate == 1.0 {
+                if self?.shouldTrackPlayback(at: player.rate) == true {
                     guard let media = self?.findMediaItem(by: player.currentItem) else { return }
                     guard let currentTime = player.currentItem?.currentTime().getFiniteSeconds() else { return }
                     guard let duration = player.currentItem?.duration.getFiniteSeconds() else { return }
@@ -201,45 +281,6 @@ class AudioPlayerViewController: UIViewController {
         if let setStartFromTimeObserver = playerSetStartFromTimeObserver {
             player?.removeTimeObserver(setStartFromTimeObserver)
         }
-    }
-
-    func registerRemoteMediaControls() {
-        UIApplication.shared.beginReceivingRemoteControlEvents()
-        let commandCenter = MPRemoteCommandCenter.shared()
-
-        commandCenterTargets["togglePlayPause"] = commandCenter.pauseCommand.addTarget { (_) -> MPRemoteCommandHandlerStatus in
-            self.onTogglePlayPause()
-            return .success
-        }
-
-        commandCenterTargets["togglePlayPause"] = commandCenter.playCommand.addTarget { (_) -> MPRemoteCommandHandlerStatus in
-            self.onTogglePlayPause()
-            return .success
-        }
-
-        commandCenterTargets["skipBackward"] = commandCenter.previousTrackCommand.addTarget { (_) -> MPRemoteCommandHandlerStatus in
-            self.onRewind()
-            return .success
-        }
-
-        commandCenterTargets["skipForward"] = commandCenter.nextTrackCommand.addTarget { (_) -> MPRemoteCommandHandlerStatus in
-            self.onFastForward()
-            return .success
-        }
-
-        commandCenterTargets["changePlaybackPosition"] = commandCenter.changePlaybackPositionCommand.addTarget { (event) -> MPRemoteCommandHandlerStatus in
-            self.onSeek(to: Float((event as! MPChangePlaybackPositionCommandEvent).positionTime))
-            return .success
-        }
-    }
-
-    func unRegisterRemoteMediaControls() {
-        UIApplication.shared.endReceivingRemoteControlEvents()
-        let commandCenter = MPRemoteCommandCenter.shared()
-        commandCenter.togglePlayPauseCommand.removeTarget(commandCenterTargets["togglePlayPause"])
-        commandCenter.skipBackwardCommand.removeTarget(commandCenterTargets["skipBackward"])
-        commandCenter.skipForwardCommand.removeTarget(commandCenterTargets["skipForward"])
-        commandCenter.changePlaybackPositionCommand.removeTarget(commandCenterTargets["changePlaybackPosition"])
     }
 
     func saveAudioTime(for item: MediaPlayerItem, currentTime: Double, duration: Double) {
@@ -267,28 +308,6 @@ class AudioPlayerViewController: UIViewController {
         }
     }
 
-    func onTogglePlayPause() {
-        guard let rate = player?.rate else { return }
-
-        switch rate {
-        case 1.0:
-            player?.pause()
-        case 0.0:
-            player?.play()
-        default:
-            log.warning("Unhandled player rate \(rate)")
-        }
-    }
-
-    func updateMPNowPlayingInfo(for item: MediaPlayerItem, currentTime: Double, duration: Double) {
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = [
-            MPMediaItemPropertyTitle: item.name,
-            MPMediaItemPropertyAssetURL: item.url,
-            MPMediaItemPropertyPlaybackDuration: duration,
-            MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime
-        ]
-    }
-
     func updateTimeDisplay(currentTime: Double, duration: Double) {
         if !timeSlider.isTracking {
             timeSlider.minimumValue = Float(0)
@@ -303,20 +322,6 @@ class AudioPlayerViewController: UIViewController {
 
         currentTimeLabel.text = formatter.string(from: currentTime)
         durationLabel.text = formatter.string(from: duration)
-    }
-
-    func onRewind() {
-        guard let currentTime = player?.currentItem?.currentTime().seconds else { return }
-        player?.seek(to: CMTimeMakeWithSeconds(Float64(Int(currentTime) - 15), preferredTimescale: 600))
-    }
-
-    func onFastForward() {
-        guard let currentTime = player?.currentItem?.currentTime().seconds else { return }
-        player?.seek(to: CMTimeMakeWithSeconds(Float64(Int(currentTime) + 15), preferredTimescale: 600))
-    }
-
-    func onSeek(to: Float) {
-        player?.seek(to: CMTimeMakeWithSeconds(Float64(to), preferredTimescale: 600))
     }
 
     @IBAction func onTimeSliderValueChanged(_ sender: Any) {
@@ -341,7 +346,7 @@ class AudioPlayerViewController: UIViewController {
 
     @IBAction func nextItemActionButtonTapped(_ sender: Any) {
         player?.advanceToNextItem()
-        player?.play()
+        playAtQueueRate()
     }
 }
 

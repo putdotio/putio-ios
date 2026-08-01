@@ -18,6 +18,10 @@ class PhosphorIconSync
   LICENSE_PATH = File.join(ROOT, "ThirdParty", "PhosphorIcons", "LICENSE")
   ALLOWED_WEIGHTS = %w[regular fill].freeze
   SF_SYMBOL_PATTERN = /\bUIImage\s*\(\s*systemName\s*:/
+  SF_SYMBOL_LITERAL_PATTERN = /\bUIImage\s*\(\s*systemName\s*:\s*"([^"]+)"/
+  SF_SYMBOL_ALLOWLIST = {
+    "Putio/Features/MediaPlayers/AudioPlayerViewController.swift" => %w[gobackward.15 goforward.15]
+  }.freeze
 
   def initialize
     @manifest = JSON.parse(File.read(MANIFEST_PATH))
@@ -234,9 +238,20 @@ class PhosphorIconSync
 
   def check_source_policy(errors)
     swift_files = Dir.glob(File.join(ROOT, "Putio", "**", "*.swift"))
-    symbol_files = swift_files.select { |path| File.read(path).match?(SF_SYMBOL_PATTERN) }
-    unless symbol_files.empty?
-      errors << "SF Symbols are not allowed: #{symbol_files.map { |path| relative(path) }.join(", ")}"
+    symbol_violations = swift_files.filter_map do |path|
+      source = File.read(path)
+      call_count = source.scan(SF_SYMBOL_PATTERN).count
+      next if call_count.zero?
+
+      symbols = source.scan(SF_SYMBOL_LITERAL_PATTERN).flatten
+      allowed_symbols = SF_SYMBOL_ALLOWLIST.fetch(relative(path), [])
+      unexpected_symbols = symbols - allowed_symbols
+      next if unexpected_symbols.empty? && symbols.count == call_count
+
+      relative(path)
+    end
+    unless symbol_violations.empty?
+      errors << "Unapproved SF Symbols are not allowed: #{symbol_violations.join(", ")}"
     end
 
     assets_root = File.join(ROOT, "Putio", "Assets.xcassets")

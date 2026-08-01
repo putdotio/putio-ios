@@ -1,6 +1,6 @@
 
-/* Class = "UILabel"; text = "UP NEXT"; ObjectID = "ApZ-Pi-uWy"; */
-"ApZ-Pi-uWy.text" = "UP NEXT";
+/* Class = "UILabel"; text = "Up next"; ObjectID = "ApZ-Pi-uWy"; */
+"ApZ-Pi-uWy.text" = "Up next";
 
 /* Class = "UILabel"; text = "Looking..."; ObjectID = "F4y-3M-sbM"; */
 "F4y-3M-sbM.text" = "Looking...";
@@ -11,8 +11,11 @@
 /* Class = "UILabel"; text = "Found File Name (04:30) Found File Name (04:30)"; ObjectID = "baS-cA-ANE"; */
 "baS-cA-ANE.text" = "Found File Name (04:30) Found File Name (04:30)";
 
-/* Class = "UINavigationItem"; title = "Audio Player"; ObjectID = "y9f-Mf-UuS"; */
-"y9f-Mf-UuS.title" = "Audio Player";
+/* Class = "UILabel"; text = "Track title"; ObjectID = "K1w-ZW-xbc"; */
+"K1w-ZW-xbc.text" = "Track title";
+
+/* Class = "UINavigationItem"; title = "Now Playing"; ObjectID = "y9f-Mf-UuS"; */
+"y9f-Mf-UuS.title" = "Now Playing";
 
 /* Class = "UILabel"; text = "--:--"; ObjectID = "zoz-f1-rTr"; */
 "zoz-f1-rTr.text" = "--:--";

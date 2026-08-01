@@ -80,6 +80,9 @@
 "Ancient Times" = "Ancient Times";
 
 /* No comment provided by engineer. */
+"Applies to this queue" = "Applies to this queue";
+
+/* No comment provided by engineer. */
 "Are you sure to delete those files?" = "Are you sure to delete those files?";
 
 /* No comment provided by engineer. */
@@ -422,6 +425,12 @@
 "Play original in VLC" = "Play original in VLC";
 
 /* No comment provided by engineer. */
+"Playback Speed" = "Playback Speed";
+
+/* No comment provided by engineer. */
+"Playback speed" = "Playback speed";
+
+/* No comment provided by engineer. */
 "Please check your code and try again." = "Please check your code and try again.";
 
 /* No comment provided by engineer. */
@@ -678,3 +687,24 @@
 
 /* No comment provided by engineer. */
 "Your trash is empty" = "Your trash is empty";
+
+/* Audio player controls. */
+"Forward 15 seconds" = "Forward 15 seconds";
+
+/* Audio player queue empty state. */
+"Nothing queued" = "Nothing queued";
+
+/* Audio player screen title. */
+"Now Playing" = "Now Playing";
+
+/* Audio player control. */
+"Pause" = "Pause";
+
+/* Audio player control. */
+"Play" = "Play";
+
+/* Audio player scrubber accessibility label. */
+"Playback position" = "Playback position";
+
+/* Audio player controls. */
+"Rewind 15 seconds" = "Rewind 15 seconds";

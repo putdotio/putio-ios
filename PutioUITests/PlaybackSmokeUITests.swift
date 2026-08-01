@@ -33,6 +33,35 @@ final class PlaybackSmokeUITests: XCTestCase {
         waitForExpectations(timeout: 10)
     }
 
+    func testAudioPlaybackRateCanChangeAndResetWithinTheQueue() {
+        let app = launchFixtureApp()
+
+        guard app.waitForSignedInTabBar() else { return }
+        let song = app.tables["putio-files-table"].cells["putio-file-43"]
+        XCTAssertTrue(song.waitForExistence(timeout: 10))
+        song.tap()
+        XCTAssertTrue(app.staticTexts["10:00"].waitForExistence(timeout: 15))
+
+        let playbackRateButton = app.buttons["Playback speed"]
+        XCTAssertTrue(playbackRateButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(playbackRateButton.isEnabled)
+        XCTAssertGreaterThanOrEqual(playbackRateButton.frame.width, 48)
+        XCTAssertGreaterThanOrEqual(playbackRateButton.frame.height, 48)
+        XCTAssertEqual(playbackRateButton.value as? String, "1×")
+
+        playbackRateButton.tap()
+        let fasterRate = app.buttons["1.5×"]
+        XCTAssertTrue(fasterRate.waitForExistence(timeout: 5))
+        fasterRate.tap()
+        XCTAssertEqual(playbackRateButton.value as? String, "1.5×")
+
+        playbackRateButton.tap()
+        let normalRate = app.buttons["1×"]
+        XCTAssertTrue(normalRate.waitForExistence(timeout: 5))
+        normalRate.tap()
+        XCTAssertEqual(playbackRateButton.value as? String, "1×")
+    }
+
     func testFilesScreenLoadsWithFixtureData() {
         let app = launchFixtureApp()
         guard app.waitForSignedInTabBar() else { return }
