@@ -55,7 +55,7 @@ enum DownloadQueuePolicy {
         limit: Int
     ) -> [Int] {
         items
-            .filter { activeIDs.contains($0.id) }
+            .filter { activeIDs.contains($0.id) || $0.state == .starting }
             .sorted {
                 if $0.createdAt == $1.createdAt { return $0.id < $1.id }
                 return $0.createdAt < $1.createdAt
@@ -84,6 +84,9 @@ final class DownloadQueueController {
         onMain {
             self.isEnabled = true
             self.restoreBackgroundSessions()
+            if self.didRestoreBothManagers {
+                self.reconcileRestoredDownloads()
+            }
             self.schedule()
         }
     }
@@ -95,7 +98,7 @@ final class DownloadQueueController {
     func managerDidRestore(_ fileType: Download.FileType, activeIDs: Set<Int>) {
         onMain {
             self.restoredIDsByType[fileType] = activeIDs
-            guard self.didRestoreBothManagers else { return }
+            guard self.didRestoreBothManagers, self.isEnabled else { return }
             self.reconcileRestoredDownloads()
             self.schedule()
         }
@@ -116,10 +119,11 @@ final class DownloadQueueController {
         onMain {
             guard let realm = DownloadSupport.realm(context: "DownloadQueueController.startFailed"),
                   let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
-            _ = DownloadSupport.write(realm, context: "DownloadQueueController.startFailed.write") {
+            let didWrite = DownloadSupport.write(realm, context: "DownloadQueueController.startFailed.write") {
                 download.state = .failed
                 download.message = NSLocalizedString("Unable to start download. Tap to retry.", comment: "")
             }
+            guard didWrite else { return }
             self.schedule()
         }
     }

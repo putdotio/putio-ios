@@ -23,7 +23,10 @@ enum DownloadSupport {
 
     @discardableResult
     static func write(_ realm: Realm, context: String, updates: () -> Void) -> Bool {
-        PutioRealm.write(realm, context: context, updates: updates)
+        if PutioRealm.write(realm, context: context, updates: updates) {
+            return true
+        }
+        return PutioRealm.write(realm, context: "\(context).retry", updates: updates)
     }
 
     static func deleteRecord(id: Int, context: String) -> Bool {

@@ -88,7 +88,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         task.taskDescription = String(id)
         task.resume()
 
-        NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)
+        NotificationCenter.default.post(name: AudioDownloadManager.NOTIFICATION, object: nil)
     }
 
     func createDownload(from file: PutioFile) {

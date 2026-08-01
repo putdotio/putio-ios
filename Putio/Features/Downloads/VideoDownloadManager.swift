@@ -25,27 +25,21 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 
     override private init() {
         super.init()
-
         let backgroundConfiguration = URLSessionConfiguration.background(withIdentifier: DOWNLOAD_VIDEO_BACKGROUND_SESSION_IDENTIFIER)
         backgroundConfiguration.sessionSendsLaunchEvents = true
-
         log.verbose("VDM: init")
-
         assetDownloadURLSession = AVAssetDownloadURLSession(
             configuration: backgroundConfiguration,
             assetDownloadDelegate: self,
             delegateQueue: .main
         )
-
         restore()
     }
 
     private func restore() {
         guard let assetDownloadURLSession = assetDownloadURLSession else { return }
-
         assetDownloadURLSession.getAllTasks { (tasks) in
             log.verbose("VDM: restore - task count: \(tasks.count)")
-
             var restoredIDs = Set<Int>()
             tasks.forEach { candidate in
                 guard let task = candidate as? AVAssetDownloadTask,
@@ -364,8 +358,9 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
         guard let download = getDownloadFromDatabase(id: id) else { return }
         log.verbose(["VDM: didCompleteWithError download: ", download.id, download.name])
 
+        let downloadURL = willDownloadToURLMap.removeValue(forKey: task)
         var didFail = error != nil
-        if error == nil, let downloadURL = willDownloadToURLMap.removeValue(forKey: task) {
+        if error == nil, let downloadURL {
             do {
                 UserDefaults.standard.set(try downloadURL.bookmarkData(), forKey: String(download.id))
             } catch {
@@ -373,6 +368,11 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
             }
         } else if error == nil {
             didFail = true
+        } else if let downloadURL {
+            _ = DownloadSupport.deleteItemIfPresent(
+                at: downloadURL,
+                context: "VideoDownloadManager.didComplete.cleanup"
+            )
         }
 
         log.verbose("VDM: didCompleteWithError: writing to realm")
