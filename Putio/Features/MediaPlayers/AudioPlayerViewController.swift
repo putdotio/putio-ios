@@ -30,6 +30,8 @@ class AudioPlayerViewController: UIViewController {
     var queuePlaybackRate: Float = 1
     var posterContentConstraints: [NSLayoutConstraint] = []
     var compactArtworkHeightConstraint: NSLayoutConstraint?
+    var nextItemContentConstraints: [NSLayoutConstraint] = []
+    var compactNextItemHeightConstraint: NSLayoutConstraint?
 
     private(set) lazy var routePickerView: AVRoutePickerView = {
         let routePickerView = AVRoutePickerView(frame: CGRect(x: 0, y: 0, width: 44, height: 44))
@@ -104,6 +106,8 @@ class AudioPlayerViewController: UIViewController {
         nextItemContainerView.layer.cornerCurve = .continuous
         nextItemContainerView.layer.borderWidth = 1
         nextItemContainerView.layer.borderColor = UIColor.Putio.Neutral.border.cgColor
+        nextItemContentConstraints = nextItemContainerView.constraints
+        compactNextItemHeightConstraint = nextItemContainerView.heightAnchor.constraint(equalToConstant: 0)
 
         let timeFontSize = UIFont.preferredFont(forTextStyle: .caption1).pointSize
         let timeFont = BrandFont.monoIfAvailable(size: timeFontSize, weight: .medium)
@@ -130,12 +134,18 @@ class AudioPlayerViewController: UIViewController {
         guard compactArtworkHeightConstraint?.isActive != isCompact else { return }
 
         posterContainerView.isHidden = isCompact
+        nextItemContainerView.isHidden = isCompact
+        trackTitleLabel.numberOfLines = isCompact ? 1 : 2
         if isCompact {
             NSLayoutConstraint.deactivate(posterContentConstraints)
+            NSLayoutConstraint.deactivate(nextItemContentConstraints)
             compactArtworkHeightConstraint?.isActive = true
+            compactNextItemHeightConstraint?.isActive = true
         } else {
             compactArtworkHeightConstraint?.isActive = false
+            compactNextItemHeightConstraint?.isActive = false
             NSLayoutConstraint.activate(posterContentConstraints)
+            NSLayoutConstraint.activate(nextItemContentConstraints)
         }
     }
 

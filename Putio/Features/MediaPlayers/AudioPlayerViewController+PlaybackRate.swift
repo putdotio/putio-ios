@@ -66,12 +66,12 @@ extension AudioPlayerViewController {
     }
 
     func onRewind() {
-        guard let currentTime = player?.currentItem?.currentTime().seconds else { return }
+        guard let currentTime = player?.currentItem?.currentTime().getFiniteSeconds() else { return }
         onSeek(to: Float(max(0, currentTime - 15)))
     }
 
     func onFastForward() {
-        guard let currentTime = player?.currentItem?.currentTime().seconds else { return }
+        guard let currentTime = player?.currentItem?.currentTime().getFiniteSeconds() else { return }
         onSeek(to: Float(currentTime + 15))
     }
 

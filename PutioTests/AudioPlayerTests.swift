@@ -5,6 +5,11 @@ import XCTest
 @testable import Putio
 
 final class AudioPlayerTests: XCTestCase {
+    override func tearDown() {
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        super.tearDown()
+    }
+
     func testPlayerControlsHaveAccessibleTouchTargets() throws {
         let viewController = try makeStoryboardViewController()
 
@@ -16,7 +21,8 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(viewController.nextItemActionButton.bounds.height, 44)
         XCTAssertGreaterThanOrEqual(viewController.playbackRateButton.bounds.width, 48)
         XCTAssertGreaterThanOrEqual(viewController.playbackRateButton.bounds.height, 48)
-        XCTAssertEqual(viewController.routePickerView.frame.size, CGSize(width: 44, height: 44))
+        XCTAssertGreaterThanOrEqual(viewController.routePickerView.frame.width, 44)
+        XCTAssertGreaterThanOrEqual(viewController.routePickerView.frame.height, 44)
         XCTAssertEqual(viewController.playbackRateButton.titleLabel?.font.fontName, viewController.currentTimeLabel.font.fontName)
         XCTAssertEqual(viewController.playbackRateButton.titleLabel?.font.pointSize, viewController.currentTimeLabel.font.pointSize)
     }
@@ -68,7 +74,6 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertEqual(nowPlayingInfo?[MPNowPlayingInfoPropertyPlaybackRate] as? Float, 0)
         XCTAssertEqual(nowPlayingInfo?[MPNowPlayingInfoPropertyDefaultPlaybackRate] as? Float, 1.5)
         XCTAssertNil(nowPlayingInfo?[MPMediaItemPropertyAssetURL])
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
 
     func testEmptyQueueClearsNowPlayingMetadata() {
@@ -90,6 +95,10 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertTrue(viewController.posterContainerView.isHidden)
         XCTAssertEqual(viewController.compactArtworkHeightConstraint?.isActive, true)
         XCTAssertTrue(viewController.posterContentConstraints.allSatisfy { !$0.isActive })
+        XCTAssertTrue(viewController.nextItemContainerView.isHidden)
+        XCTAssertEqual(viewController.compactNextItemHeightConstraint?.isActive, true)
+        XCTAssertTrue(viewController.nextItemContentConstraints.allSatisfy { !$0.isActive })
+        XCTAssertEqual(viewController.trackTitleLabel.numberOfLines, 1)
         XCTAssertFalse(viewController.playbackInfoStackView.isHidden)
 
         viewController.updateCompactHeightLayout(isCompact: false)
@@ -97,6 +106,10 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertFalse(viewController.posterContainerView.isHidden)
         XCTAssertEqual(viewController.compactArtworkHeightConstraint?.isActive, false)
         XCTAssertTrue(viewController.posterContentConstraints.allSatisfy { $0.isActive })
+        XCTAssertFalse(viewController.nextItemContainerView.isHidden)
+        XCTAssertEqual(viewController.compactNextItemHeightConstraint?.isActive, false)
+        XCTAssertTrue(viewController.nextItemContentConstraints.allSatisfy { $0.isActive })
+        XCTAssertEqual(viewController.trackTitleLabel.numberOfLines, 2)
     }
 
     private func makeStoryboardViewController() throws -> AudioPlayerViewController {
