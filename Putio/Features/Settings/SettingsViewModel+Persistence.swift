@@ -21,6 +21,26 @@ import PutioSDK
 import RealmSwift
 
 extension SettingsViewModel {
+    func presentDownloadConcurrencyLimit() {
+        let alert = UIAlertController(
+            title: NSLocalizedString("Simultaneous downloads", comment: ""),
+            message: NSLocalizedString("Choose how many offline downloads can run at once.", comment: ""),
+            preferredStyle: .alert
+        )
+        DownloadConcurrencyPreference.allowedLimits.forEach { limit in
+            alert.addAction(UIAlertAction(
+                title: String(format: NSLocalizedString("%d at a time", comment: ""), limit),
+                style: .default
+            ) { _ in
+                DownloadConcurrencyPreference.setLimit(limit)
+                DownloadQueueController.sharedInstance.concurrencyLimitDidChange()
+                self.update()
+            })
+        }
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
+        tableViewController?.present(alert, animated: true)
+    }
+
     private func presentLoadingAlert(title: String = NSLocalizedString("Saving...", comment: "")) -> UIAlertController {
         let alert = UIAlertController(title: title, message: nil, preferredStyle: .alert)
         tableViewController?.present(alert, animated: true)
@@ -229,41 +249,6 @@ extension SettingsViewModel {
         api.resetFileSpecificSortSettings { _ in
             loadingAlert.dismiss(animated: true)
         }
-    }
-
-    func presentDownloadConcurrencySettings() {
-        let currentLimit = DownloadConcurrencyPreference.limit()
-        let actionSheet = UIAlertController(
-            title: NSLocalizedString("Simultaneous downloads", comment: ""),
-            message: NSLocalizedString(
-                "Audio and video downloads share this limit. Queued items start in order.",
-                comment: ""
-            ),
-            preferredStyle: .alert
-        )
-
-        DownloadConcurrencyPreference.allowedLimits.forEach { limit in
-            var title = String(
-                format: NSLocalizedString("%d at a time", comment: ""),
-                limit
-            )
-            if limit == currentLimit {
-                title += " ✓"
-            }
-
-            actionSheet.addAction(UIAlertAction(title: title, style: .default) { _ in
-                self.setDownloadConcurrencyLimit(limit)
-            })
-        }
-
-        actionSheet.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
-        tableViewController?.present(actionSheet, animated: true)
-    }
-
-    func setDownloadConcurrencyLimit(_ limit: Int) {
-        DownloadConcurrencyPreference.setLimit(limit)
-        DownloadQueueController.sharedInstance.concurrencyLimitDidChange()
-        update()
     }
 
     func presentLogoutAlert() {

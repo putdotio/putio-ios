@@ -7,7 +7,7 @@ class Download: Object {
         case queued, starting, active, completed, failed, stopped
     }
 
-    @objc enum FileType: Int, CaseIterable {
+    @objc enum FileType: Int {
         case video, audio
     }
 

@@ -44,6 +44,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         configureSDKs()
         prepareForE2ETestsIfNeeded()
+        DownloadQueueController.sharedInstance.restoreBackgroundSessions()
         configureUI()
         authenticate(token: e2eAccessToken)
         return true
@@ -121,15 +122,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
-        guard BackgroundDownloadSessionEvents.supports(identifier: identifier) else {
+        guard BackgroundDownloadSessionEvents.isSupported(identifier) else {
             completionHandler()
             return
         }
-        BackgroundDownloadSessionEvents.register(
-            identifier: identifier,
-            completionHandler: completionHandler
-        )
-        DownloadQueueController.sharedInstance.restoreBackgroundSession(identifier: identifier)
+        BackgroundDownloadSessionEvents.register(identifier: identifier, completionHandler: completionHandler)
+        BackgroundDownloadSessionEvents.reconnectLegacySession(identifier: identifier)
+        DownloadQueueController.sharedInstance.restoreBackgroundSessions()
     }
 
     func application(_ application: UIApplication, open url: URL, sourceApplication: String?, annotation: Any) -> Bool {
@@ -290,7 +289,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func logout() {
-        DownloadQueueController.sharedInstance.pause()
         PutioKeychain.sharedInstance.clearToken()
         api.clearToken()
         VideoPlaybackPositionStore.shared.clearAllPositions()
@@ -310,6 +308,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func presentLoginScreen() {
+        DownloadQueueController.sharedInstance.pause()
         applyWindowAppearance()
         let storyboard = UIStoryboard(name: "Login", bundle: nil)
         guard let loginViewController = storyboard.instantiateViewController(withIdentifier: "LoginVC", as: UIViewController.self) else {
@@ -321,6 +320,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func presentMainScreen() {
+        DownloadQueueController.sharedInstance.start()
         ChromecastManager.sharedInstance.setup()
         applyWindowAppearance()
         window?.rootViewController = RootContainerViewController()

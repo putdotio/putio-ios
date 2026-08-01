@@ -373,16 +373,6 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: fileURL.path))
     }
 
-    func testDiscardedVideoArtifactPackageIsRemoved() throws {
-        let packageURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("video-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: packageURL, withIntermediateDirectories: false)
-        try Data("offline".utf8).write(to: packageURL.appendingPathComponent("asset"))
-
-        XCTAssertTrue(DownloadSupport.deleteItemIfPresent(at: packageURL, context: #function))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: packageURL.path))
-    }
-
     func testCompletedDownloadDeletionPreservesRecordWhenLocationCannotBeResolved() {
         var didDeleteRecord = false
 
@@ -456,585 +446,6 @@ final class NavigationLocalizationTests: XCTestCase {
             ),
             NSLocalizedString("No completed downloads are available to select.", comment: "")
         )
-    }
-
-    func testDownloadConcurrencyPreferenceDefaultsToThreeAndRejectsUnsupportedValues() throws {
-        let suiteName = "DownloadConcurrencyPreferenceTests-\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        XCTAssertEqual(DownloadConcurrencyPreference.limit(defaults: defaults), 3)
-
-        DownloadConcurrencyPreference.setLimit(1, defaults: defaults)
-        XCTAssertEqual(DownloadConcurrencyPreference.limit(defaults: defaults), 1)
-
-        DownloadConcurrencyPreference.setLimit(20, defaults: defaults)
-        XCTAssertEqual(DownloadConcurrencyPreference.limit(defaults: defaults), 1)
-    }
-
-    func testDownloadQueuePolicySharesSlotsAcrossAudioAndVideoInCreationOrder() {
-        let items = [
-            DownloadQueueItem(id: 10, fileType: .video, state: .queued, createdAt: Date(timeIntervalSince1970: 3)),
-            DownloadQueueItem(id: 11, fileType: .audio, state: .queued, createdAt: Date(timeIntervalSince1970: 1)),
-            DownloadQueueItem(id: 12, fileType: .video, state: .active, createdAt: Date(timeIntervalSince1970: 2))
-        ]
-
-        XCTAssertEqual(
-            DownloadQueuePolicy.nextDownloadIDs(from: items, activeIDs: [12], limit: 2),
-            [11]
-        )
-    }
-
-    func testDownloadQueuePolicyRequeuesNewestWorkWhenLimitDrops() {
-        let items = [
-            DownloadQueueItem(id: 10, fileType: .video, state: .active, createdAt: Date(timeIntervalSince1970: 1)),
-            DownloadQueueItem(id: 11, fileType: .audio, state: .starting, createdAt: Date(timeIntervalSince1970: 2)),
-            DownloadQueueItem(id: 12, fileType: .video, state: .active, createdAt: Date(timeIntervalSince1970: 3)),
-            DownloadQueueItem(id: 13, fileType: .audio, state: .queued, createdAt: Date(timeIntervalSince1970: 4))
-        ]
-
-        XCTAssertEqual(
-            DownloadQueuePolicy.downloadIDsToRequeue(
-                from: items,
-                activeIDs: [10, 11, 12],
-                limit: 1
-            ),
-            [11, 12]
-        )
-    }
-
-    func testDownloadQueuePolicyDoesNotResumeRestoredWorkWhileCancellationDrains() {
-        let items = [
-            DownloadQueueItem(id: 10, fileType: .video, state: .active, createdAt: Date(timeIntervalSince1970: 1)),
-            DownloadQueueItem(id: 11, fileType: .audio, state: .active, createdAt: Date(timeIntervalSince1970: 2))
-        ]
-
-        XCTAssertEqual(
-            DownloadQueuePolicy.downloadIDsToRequeue(
-                from: items,
-                activeIDs: [-1, 10, 11],
-                limit: 1
-            ),
-            [10, 11]
-        )
-        XCTAssertEqual(
-            DownloadQueuePolicy.downloadIDsToResume(
-                from: items,
-                activeIDs: [-1, 10, 11],
-                limit: 1
-            ),
-            []
-        )
-    }
-
-    func testDownloadQueuePolicyContinuesPastFailedAndCancelledItems() {
-        let items = [
-            DownloadQueueItem(id: 10, fileType: .video, state: .failed, createdAt: Date(timeIntervalSince1970: 1)),
-            DownloadQueueItem(id: 11, fileType: .audio, state: .stopped, createdAt: Date(timeIntervalSince1970: 2)),
-            DownloadQueueItem(id: 12, fileType: .audio, state: .queued, createdAt: Date(timeIntervalSince1970: 3)),
-            DownloadQueueItem(id: 13, fileType: .video, state: .queued, createdAt: Date(timeIntervalSince1970: 4))
-        ]
-
-        XCTAssertEqual(
-            DownloadQueuePolicy.nextDownloadIDs(from: items, activeIDs: [], limit: 2),
-            [12, 13]
-        )
-    }
-
-    func testDownloadQueuePolicyDoesNotRestartQueuedWorkWhileItsOldTaskDrains() {
-        let items = [
-            DownloadQueueItem(id: 10, fileType: .video, state: .queued, createdAt: Date(timeIntervalSince1970: 1)),
-            DownloadQueueItem(id: 11, fileType: .audio, state: .queued, createdAt: Date(timeIntervalSince1970: 2)),
-            DownloadQueueItem(id: 12, fileType: .video, state: .queued, createdAt: Date(timeIntervalSince1970: 3))
-        ]
-
-        XCTAssertEqual(
-            DownloadQueuePolicy.nextDownloadIDs(from: items, activeIDs: [10], limit: 2),
-            [11]
-        )
-    }
-
-    func testDownloadQueuePolicyRestoresTasksAndRequeuesInterruptedWork() {
-        XCTAssertEqual(
-            DownloadQueuePolicy.restoredState(from: .queued, hasBackgroundTask: true),
-            .queued
-        )
-        XCTAssertEqual(
-            DownloadQueuePolicy.restoredState(from: .active, hasBackgroundTask: false),
-            .queued
-        )
-        XCTAssertEqual(
-            DownloadQueuePolicy.restoredState(from: .stopped, hasBackgroundTask: true),
-            .stopped
-        )
-    }
-
-    func testDownloadTaskRestorationPolicyResumesActiveWorkAndDrainsCancellationIntent() {
-        XCTAssertEqual(
-            DownloadTaskRestorationPolicy.action(for: .queued),
-            .cancelPreservingState
-        )
-        XCTAssertEqual(
-            DownloadTaskRestorationPolicy.action(for: .active),
-            .restore
-        )
-        XCTAssertEqual(
-            DownloadTaskRestorationPolicy.action(for: .completed),
-            .cancelIgnoringCompletion
-        )
-    }
-
-    func testDownloadAttemptRegistryRejectsStaleVideoLookupCallbacks() {
-        let registry = DownloadAttemptRegistry()
-        let staleAttempt = registry.begin(downloadID: 10)
-        let currentAttempt = registry.begin(downloadID: 10)
-
-        XCTAssertFalse(registry.consume(staleAttempt, downloadID: 10))
-        XCTAssertTrue(registry.consume(currentAttempt, downloadID: 10))
-        XCTAssertFalse(registry.consume(currentAttempt, downloadID: 10))
-    }
-
-    func testDownloadTaskCompletionIdentityRejectsSupersededRestoredCallbacks() throws {
-        let suiteName = "DownloadTaskCompletionIdentityTests-\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-
-        XCTAssertEqual(
-            DownloadTaskCompletionIdentity.downloadID(
-                mappedID: nil,
-                taskDescription: "42",
-                fileType: .audio,
-                defaults: defaults
-            ),
-            42
-        )
-        XCTAssertEqual(
-            DownloadTaskCompletionIdentity.preferredTaskDescription(
-                from: ["42:garbage", "42:00000000-0000-0000-0000-000000000001", "42"],
-                downloadID: 42,
-                fileType: .audio,
-                defaults: defaults
-            ),
-            "42"
-        )
-        XCTAssertNil(
-            DownloadTaskCompletionIdentity.preferredTaskDescription(
-                from: ["42:garbage", "42:00000000-0000-0000-0000-000000000001"],
-                downloadID: 42,
-                fileType: .audio,
-                defaults: defaults
-            )
-        )
-
-        let staleDescription = DownloadTaskCompletionIdentity.begin(
-            downloadID: 42,
-            fileType: .video,
-            defaults: defaults
-        )
-        let currentDescription = DownloadTaskCompletionIdentity.begin(
-            downloadID: 42,
-            fileType: .video,
-            defaults: defaults
-        )
-
-        XCTAssertEqual(
-            DownloadTaskCompletionIdentity.preferredTaskDescription(
-                from: [staleDescription, currentDescription],
-                downloadID: 42,
-                fileType: .video,
-                defaults: defaults
-            ),
-            currentDescription
-        )
-
-        XCTAssertNil(
-            DownloadTaskCompletionIdentity.downloadID(
-                mappedID: nil,
-                taskDescription: staleDescription,
-                fileType: .video,
-                defaults: defaults
-            )
-        )
-        XCTAssertNil(
-            DownloadTaskCompletionIdentity.downloadID(
-                mappedID: 42,
-                taskDescription: staleDescription,
-                fileType: .video,
-                defaults: defaults
-            )
-        )
-        XCTAssertEqual(
-            DownloadTaskCompletionIdentity.downloadID(
-                mappedID: nil,
-                taskDescription: currentDescription,
-                fileType: .video,
-                defaults: defaults
-            ),
-            42
-        )
-        XCTAssertNil(
-            DownloadTaskCompletionIdentity.downloadID(
-                mappedID: nil,
-                taskDescription: "invalid",
-                fileType: .video,
-                defaults: defaults
-            )
-        )
-        XCTAssertNotEqual(
-            DownloadTaskCompletionIdentity.drainingDownloadID(taskIdentifier: 7, fileType: .audio),
-            DownloadTaskCompletionIdentity.drainingDownloadID(taskIdentifier: 7, fileType: .video)
-        )
-    }
-
-    func testDownloadQueueControllerReleasesSharedSlotAfterFailureAndCancellation() throws {
-        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
-        let video = makeDownload(id: 10, fileType: .video, state: .active, createdAt: 1)
-        let audio = makeDownload(id: 11, fileType: .audio, state: .queued, createdAt: 2)
-        let nextVideo = makeDownload(id: 12, fileType: .video, state: .queued, createdAt: 3)
-        try realm.write { realm.add([video, audio, nextVideo]) }
-
-        let audioManager = DownloadQueueManagerSpy()
-        let videoManager = DownloadQueueManagerSpy(activeDownloadIDs: [10])
-        let controller = makeDownloadQueueController(
-            realm: realm,
-            audioManager: audioManager,
-            videoManager: videoManager,
-            limit: 1
-        )
-        controller.start()
-        controller.managerDidRestore(.audio, activeIDs: [])
-        controller.managerDidRestore(.video, activeIDs: [10])
-
-        try realm.write { video.state = .failed }
-        videoManager.activeDownloadIDs.remove(10)
-        controller.managerDidFinish()
-
-        XCTAssertEqual(audioManager.begunIDs, [11])
-        XCTAssertEqual(audio.state, .starting)
-
-        try realm.write { audio.state = .stopped }
-        audioManager.activeDownloadIDs.remove(11)
-        controller.managerDidFinish()
-
-        XCTAssertEqual(videoManager.begunIDs, [12])
-        XCTAssertEqual(nextVideo.state, .starting)
-    }
-
-    func testDownloadQueueControllerPersistsRestoredAndInterruptedStates() throws {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("DownloadQueueControllerTests-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let configuration = PutioRealm.configuration(fileURL: directory.appendingPathComponent("Downloads.realm"))
-
-        let realm = try Realm(configuration: configuration)
-        let interrupted = makeDownload(id: 20, fileType: .video, state: .active, createdAt: 1)
-        let pendingCancellation = makeDownload(id: 21, fileType: .audio, state: .queued, createdAt: 2)
-        let restored = makeDownload(id: 22, fileType: .video, state: .starting, createdAt: 3)
-        try realm.write { realm.add([interrupted, pendingCancellation, restored]) }
-
-        let audioManager = DownloadQueueManagerSpy(activeDownloadIDs: [21])
-        let videoManager = DownloadQueueManagerSpy(activeDownloadIDs: [22])
-        let controller = makeDownloadQueueController(
-            realm: realm,
-            audioManager: audioManager,
-            videoManager: videoManager,
-            limit: 2
-        )
-        controller.start()
-        controller.managerDidRestore(.audio, activeIDs: [21])
-        controller.managerDidRestore(.video, activeIDs: [22])
-
-        let reopenedRealm = try Realm(configuration: configuration)
-        XCTAssertEqual(reopenedRealm.object(ofType: Download.self, forPrimaryKey: 20)?.state, .queued)
-        XCTAssertEqual(reopenedRealm.object(ofType: Download.self, forPrimaryKey: 21)?.state, .queued)
-        XCTAssertEqual(reopenedRealm.object(ofType: Download.self, forPrimaryKey: 22)?.state, .active)
-    }
-
-    func testDownloadQueueControllerEnforcesReducedLimitAcrossMedia() throws {
-        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
-        let downloads = [
-            makeDownload(id: 30, fileType: .video, state: .active, createdAt: 1),
-            makeDownload(id: 31, fileType: .audio, state: .active, createdAt: 2),
-            makeDownload(id: 32, fileType: .video, state: .active, createdAt: 3)
-        ]
-        try realm.write { realm.add(downloads) }
-
-        var limit = 3
-        let audioManager = DownloadQueueManagerSpy(activeDownloadIDs: [31])
-        let videoManager = DownloadQueueManagerSpy(activeDownloadIDs: [30, 32])
-        audioManager.requeueHandler = { id in try! realm.write { realm.object(ofType: Download.self, forPrimaryKey: id)?.state = .queued } }
-        videoManager.requeueHandler = { id in try! realm.write { realm.object(ofType: Download.self, forPrimaryKey: id)?.state = .queued } }
-        let controller = DownloadQueueController(
-            realmProvider: { realm },
-            audioManagerProvider: { audioManager },
-            videoManagerProvider: { videoManager },
-            limitProvider: { limit }
-        )
-        controller.start()
-        controller.managerDidRestore(.audio, activeIDs: [31])
-        controller.managerDidRestore(.video, activeIDs: [30, 32])
-
-        limit = 1
-        controller.concurrencyLimitDidChange()
-
-        XCTAssertEqual(audioManager.requeuedIDs, [31])
-        XCTAssertEqual(videoManager.requeuedIDs, [32])
-        XCTAssertEqual(downloads.map(\.state), [.active, .queued, .queued])
-    }
-
-    func testDownloadQueueControllerDoesNotLoopWhenRequeueMakesNoProgress() throws {
-        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
-        let downloads = [
-            makeDownload(id: 40, fileType: .video, state: .active, createdAt: 1),
-            makeDownload(id: 41, fileType: .audio, state: .active, createdAt: 2)
-        ]
-        try realm.write { realm.add(downloads) }
-
-        let audioManager = DownloadQueueManagerSpy(activeDownloadIDs: [41])
-        let videoManager = DownloadQueueManagerSpy(activeDownloadIDs: [40])
-        audioManager.requeueResult = .failed
-        let controller = makeDownloadQueueController(
-            realm: realm,
-            audioManager: audioManager,
-            videoManager: videoManager,
-            limit: 1
-        )
-        controller.start()
-        controller.managerDidRestore(.audio, activeIDs: [41])
-        controller.managerDidRestore(.video, activeIDs: [40])
-
-        XCTAssertEqual(audioManager.requeuedIDs, [41])
-        XCTAssertEqual(videoManager.resumedIDs, [40])
-        XCTAssertEqual(downloads.map(\.state), [.active, .active])
-    }
-
-    func testDownloadQueueControllerKeepsAdmittedTransferWhileCancellationDrains() throws {
-        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
-        let admitted = makeDownload(id: 45, fileType: .video, state: .active, createdAt: 1)
-        let draining = makeDownload(id: 46, fileType: .audio, state: .active, createdAt: 2)
-        try realm.write { realm.add([admitted, draining]) }
-
-        let audioManager = DownloadQueueManagerSpy(activeDownloadIDs: [46])
-        let videoManager = DownloadQueueManagerSpy(activeDownloadIDs: [45])
-        audioManager.requeueResult = .awaitingTaskCompletion
-        audioManager.requeueHandler = { id in
-            try! realm.write { realm.object(ofType: Download.self, forPrimaryKey: id)?.state = .queued }
-        }
-        let controller = makeDownloadQueueController(
-            realm: realm,
-            audioManager: audioManager,
-            videoManager: videoManager,
-            limit: 1
-        )
-        controller.start()
-        controller.managerDidRestore(.audio, activeIDs: [46])
-        controller.managerDidRestore(.video, activeIDs: [45])
-
-        XCTAssertEqual(audioManager.requeuedIDs, [46])
-        XCTAssertTrue(videoManager.requeuedIDs.isEmpty)
-
-        controller.concurrencyLimitDidChange()
-
-        XCTAssertTrue(videoManager.requeuedIDs.isEmpty)
-        XCTAssertEqual(admitted.state, .active)
-        XCTAssertEqual(draining.state, .queued)
-
-        audioManager.activeDownloadIDs.remove(46)
-        controller.managerDidFinish()
-
-        XCTAssertTrue(videoManager.resumedIDs.allSatisfy { $0 == 45 })
-        XCTAssertFalse(videoManager.resumedIDs.isEmpty)
-        XCTAssertTrue(videoManager.requeuedIDs.isEmpty)
-    }
-
-    func testDownloadQueueControllerPausesAndRequeuesActiveTransfersOnLogout() throws {
-        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
-        let downloads = [
-            makeDownload(id: 50, fileType: .video, state: .active, createdAt: 1),
-            makeDownload(id: 51, fileType: .audio, state: .active, createdAt: 2)
-        ]
-        try realm.write { realm.add(downloads) }
-
-        let audioManager = DownloadQueueManagerSpy(activeDownloadIDs: [51])
-        let videoManager = DownloadQueueManagerSpy(activeDownloadIDs: [50])
-        audioManager.requeueHandler = { id in
-            try! realm.write { realm.object(ofType: Download.self, forPrimaryKey: id)?.state = .queued }
-        }
-        videoManager.requeueHandler = { id in
-            try! realm.write { realm.object(ofType: Download.self, forPrimaryKey: id)?.state = .queued }
-        }
-        let controller = makeDownloadQueueController(
-            realm: realm,
-            audioManager: audioManager,
-            videoManager: videoManager,
-            limit: 2
-        )
-        controller.start()
-        controller.managerDidRestore(.audio, activeIDs: [51])
-        controller.managerDidRestore(.video, activeIDs: [50])
-
-        controller.pause()
-
-        XCTAssertEqual(audioManager.suspendCallCount, 1)
-        XCTAssertEqual(videoManager.suspendCallCount, 1)
-        XCTAssertEqual(audioManager.requeuedIDs, [51])
-        XCTAssertEqual(videoManager.requeuedIDs, [50])
-        XCTAssertEqual(downloads.map(\.state), [.queued, .queued])
-    }
-
-    func testDownloadQueueControllerCompletesPendingPauseAfterRestoration() throws {
-        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
-        let video = makeDownload(id: 52, fileType: .video, state: .active, createdAt: 1)
-        let audio = makeDownload(id: 53, fileType: .audio, state: .active, createdAt: 2)
-        try realm.write { realm.add([video, audio]) }
-
-        let audioManager = DownloadQueueManagerSpy(activeDownloadIDs: [53])
-        let videoManager = DownloadQueueManagerSpy(activeDownloadIDs: [52])
-        audioManager.requeueHandler = { id in
-            try! realm.write { realm.object(ofType: Download.self, forPrimaryKey: id)?.state = .queued }
-        }
-        videoManager.requeueHandler = { id in
-            try! realm.write { realm.object(ofType: Download.self, forPrimaryKey: id)?.state = .queued }
-        }
-        let controller = makeDownloadQueueController(
-            realm: realm,
-            audioManager: audioManager,
-            videoManager: videoManager,
-            limit: 2
-        )
-        controller.pause()
-
-        controller.managerDidRestore(.audio, activeIDs: [53])
-        XCTAssertTrue(audioManager.requeuedIDs.isEmpty)
-        controller.managerDidRestore(.video, activeIDs: [52])
-
-        XCTAssertEqual(audioManager.requeuedIDs, [53])
-        XCTAssertEqual(videoManager.requeuedIDs, [52])
-        XCTAssertEqual([video.state, audio.state], [.queued, .queued])
-    }
-
-    func testDownloadCompletionPreservesIntentionalCancellationAndSurfacesFailures() {
-        let cancellation = NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)
-        let offline = NSError(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet)
-
-        XCTAssertEqual(
-            DownloadSupport.completionResult(currentState: .queued, error: cancellation),
-            DownloadSupport.CompletionResult(state: .queued, message: "")
-        )
-        XCTAssertEqual(
-            DownloadSupport.completionResult(currentState: .stopped, error: cancellation),
-            DownloadSupport.CompletionResult(state: .stopped, message: "")
-        )
-        XCTAssertEqual(
-            DownloadSupport.completionResult(currentState: .queued, error: nil),
-            DownloadSupport.CompletionResult(state: .queued, message: "")
-        )
-        XCTAssertEqual(
-            DownloadSupport.completionResult(currentState: .stopped, error: nil),
-            DownloadSupport.CompletionResult(state: .stopped, message: "")
-        )
-        XCTAssertEqual(
-            DownloadSupport.completionResult(currentState: .active, error: offline).state,
-            .failed
-        )
-        let artifactFailure = DownloadSupport.completionResult(
-            currentState: .active,
-            error: nil,
-            artifactSaveFailureMessage: "Unable to save audio"
-        )
-        XCTAssertEqual(
-            artifactFailure,
-            DownloadSupport.CompletionResult(state: .failed, message: "Unable to save audio")
-        )
-        XCTAssertNil(DownloadSupport.completedAt(for: artifactFailure.state))
-        XCTAssertNotNil(DownloadSupport.completedAt(for: .completed))
-    }
-
-    func testVideoProgressRejectsInvalidRangesAndClampsCompletedWork() {
-        XCTAssertNil(DownloadSupport.normalizedProgress(loadedDurations: [1], expectedDuration: 0))
-        XCTAssertNil(DownloadSupport.normalizedProgress(loadedDurations: [.infinity], expectedDuration: 10))
-        XCTAssertNil(DownloadSupport.normalizedProgress(loadedDurations: [1], expectedDuration: .nan))
-        XCTAssertEqual(
-            DownloadSupport.normalizedProgress(loadedDurations: [4, 8], expectedDuration: 10),
-            1
-        )
-    }
-
-    func testBackgroundDownloadSessionCompletionUsesOnlySupportedIdentifiers() {
-        BackgroundDownloadSessionEvents.resetForTests()
-        defer { BackgroundDownloadSessionEvents.resetForTests() }
-
-        XCTAssertTrue(
-            BackgroundDownloadSessionEvents.supports(
-                identifier: DOWNLOAD_AUDIO_BACKGROUND_SESSION_IDENTIFIER
-            )
-        )
-        XCTAssertFalse(BackgroundDownloadSessionEvents.supports(identifier: "legacy.background.session"))
-
-        let completion = expectation(description: "background completion")
-        BackgroundDownloadSessionEvents.register(
-            identifier: DOWNLOAD_AUDIO_BACKGROUND_SESSION_IDENTIFIER,
-            completionHandler: { completion.fulfill() }
-        )
-        BackgroundDownloadSessionEvents.finish(identifier: DOWNLOAD_AUDIO_BACKGROUND_SESSION_IDENTIFIER)
-        wait(for: [completion], timeout: 1)
-    }
-
-    func testBackgroundDownloadSessionCompletionCanFinishBeforeRegistration() {
-        BackgroundDownloadSessionEvents.resetForTests()
-        defer { BackgroundDownloadSessionEvents.resetForTests() }
-
-        BackgroundDownloadSessionEvents.finish(identifier: DOWNLOAD_VIDEO_BACKGROUND_SESSION_IDENTIFIER)
-        let completion = expectation(description: "deferred background completion")
-        BackgroundDownloadSessionEvents.register(
-            identifier: DOWNLOAD_VIDEO_BACKGROUND_SESSION_IDENTIFIER,
-            completionHandler: { completion.fulfill() }
-        )
-
-        wait(for: [completion], timeout: 1)
-    }
-
-    func testBackgroundWakeRestoresOnlyTheRequestedSession() {
-        let audioManager = DownloadQueueManagerSpy()
-        let videoManager = DownloadQueueManagerSpy()
-        var audioProviderCalls = 0
-        var videoProviderCalls = 0
-        let controller = DownloadQueueController(
-            realmProvider: { nil },
-            audioManagerProvider: {
-                audioProviderCalls += 1
-                return audioManager
-            },
-            videoManagerProvider: {
-                videoProviderCalls += 1
-                return videoManager
-            },
-            limitProvider: { 1 }
-        )
-
-        controller.restoreBackgroundSession(identifier: DOWNLOAD_AUDIO_BACKGROUND_SESSION_IDENTIFIER)
-
-        XCTAssertEqual(audioProviderCalls, 1)
-        XCTAssertEqual(videoProviderCalls, 0)
-    }
-
-    func testAccountSettingsExposeDocumentedDownloadConcurrencyLimit() {
-        let originalLimit = DownloadConcurrencyPreference.limit()
-        defer { DownloadConcurrencyPreference.setLimit(originalLimit) }
-        DownloadConcurrencyPreference.setLimit(1)
-
-        let item = SettingsViewModel()
-            .buildSections()
-            .flatMap(\.items)
-            .first { $0.title == NSLocalizedString("Simultaneous downloads", comment: "") }
-
-        XCTAssertEqual(item?.icon, .downloadSimple)
-        XCTAssertEqual(
-            item?.value as? String,
-            String(format: NSLocalizedString("%d at a time", comment: ""), 1)
-        )
-        XCTAssertNotNil(item?.action)
     }
 
     func testDownloadCellAccessibilityDescribesSelectionAndUnavailableState() {
@@ -1231,6 +642,64 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertTrue(viewController.tableView(tableView, canEditRowAt: IndexPath(row: 1, section: 0)))
     }
 
+    func testDownloadQueuePolicySharesOneFIFOLimitAcrossMedia() {
+        let items = [
+            DownloadQueueItem(id: 1, state: .queued, createdAt: Date(timeIntervalSince1970: 1)),
+            DownloadQueueItem(id: 2, state: .queued, createdAt: Date(timeIntervalSince1970: 2)),
+            DownloadQueueItem(id: 3, state: .queued, createdAt: Date(timeIntervalSince1970: 3))
+        ]
+
+        XCTAssertEqual(
+            DownloadQueuePolicy.nextDownloadIDs(from: items, occupiedIDs: [], limit: 1),
+            [1]
+        )
+        XCTAssertEqual(
+            DownloadQueuePolicy.nextDownloadIDs(from: items, occupiedIDs: [1], limit: 2),
+            [2]
+        )
+    }
+
+    func testDownloadConcurrencyPreferencePersistsAllowedLimit() throws {
+        let suiteName = "DownloadConcurrencyPreferenceTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        XCTAssertEqual(DownloadConcurrencyPreference.limit(defaults: defaults), 3)
+        DownloadConcurrencyPreference.setLimit(1, defaults: defaults)
+        XCTAssertEqual(DownloadConcurrencyPreference.limit(defaults: defaults), 1)
+        DownloadConcurrencyPreference.setLimit(99, defaults: defaults)
+        XCTAssertEqual(DownloadConcurrencyPreference.limit(defaults: defaults), 1)
+    }
+
+    func testDownloadedArtifactReplacementPreservesExistingFileOnCopyFailure() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ArtifactCopyTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("source")
+        let destination = directory.appendingPathComponent("destination")
+        try Data("complete".utf8).write(to: source)
+
+        XCTAssertNil(DownloadSupport.copyDownloadedArtifact(from: source, to: destination))
+        XCTAssertNotNil(
+            DownloadSupport.copyDownloadedArtifact(
+                from: directory.appendingPathComponent("missing"),
+                to: destination
+            )
+        )
+        XCTAssertEqual(try Data(contentsOf: destination), Data("complete".utf8))
+    }
+
+    func testBackgroundCompletionHandlesFinishBeforeRegistration() {
+        let identifier = "BackgroundSessionTests-\(UUID().uuidString)"
+        let completed = expectation(description: "completion handler called")
+
+        BackgroundDownloadSessionEvents.finish(identifier: identifier, applicationState: .background)
+        BackgroundDownloadSessionEvents.register(identifier: identifier) { completed.fulfill() }
+
+        wait(for: [completed], timeout: 1)
+    }
+
     private func makeDownloadCell(realm: Realm? = nil) -> DownloadsTableViewCell {
         let cell = DownloadsTableViewCell()
         let icon = UIImageView()
@@ -1262,34 +731,6 @@ final class NavigationLocalizationTests: XCTestCase {
                 "folder_type": "REGULAR",
                 "sort_by": sortBy
             ]
-        )
-    }
-
-    private func makeDownload(
-        id: Int,
-        fileType: Download.FileType,
-        state: Download.State,
-        createdAt: TimeInterval
-    ) -> Download {
-        let download = Download()
-        download.id = id
-        download.fileType = fileType
-        download.state = state
-        download.createdAt = Date(timeIntervalSince1970: createdAt)
-        return download
-    }
-
-    private func makeDownloadQueueController(
-        realm: Realm,
-        audioManager: DownloadQueueManagerSpy,
-        videoManager: DownloadQueueManagerSpy,
-        limit: Int
-    ) -> DownloadQueueController {
-        DownloadQueueController(
-            realmProvider: { realm },
-            audioManagerProvider: { audioManager },
-            videoManagerProvider: { videoManager },
-            limitProvider: { limit }
         )
     }
 
@@ -1326,42 +767,5 @@ private final class DownloadCellDelegateSpy: DownloadsTableViewCellDelegate {
     func downloadCellSelectionAccessibilityActivated(sender: DownloadsTableViewCell) -> Bool {
         selectionActivationCount += 1
         return selectionActivationResult
-    }
-}
-
-private final class DownloadQueueManagerSpy: DownloadQueueManaging {
-    var activeDownloadIDs: Set<Int>
-    private(set) var begunIDs = [Int]()
-    private(set) var resumedIDs = [Int]()
-    private(set) var requeuedIDs = [Int]()
-    private(set) var suspendCallCount = 0
-    var requeueHandler: ((Int) -> Void)?
-    var requeueResult: DownloadRequeueResult = .completedWithoutTask
-
-    init(activeDownloadIDs: Set<Int> = []) {
-        self.activeDownloadIDs = activeDownloadIDs
-    }
-
-    func beginDownload(id: Int) {
-        begunIDs.append(id)
-        activeDownloadIDs.insert(id)
-    }
-
-    func resumeDownload(id: Int) {
-        resumedIDs.append(id)
-    }
-
-    func requeueDownload(id: Int) -> DownloadRequeueResult {
-        requeuedIDs.append(id)
-        guard requeueResult.didRequeue else { return .failed }
-        if requeueResult == .completedWithoutTask {
-            activeDownloadIDs.remove(id)
-        }
-        requeueHandler?(id)
-        return requeueResult
-    }
-
-    func suspendDownloads() {
-        suspendCallCount += 1
     }
 }

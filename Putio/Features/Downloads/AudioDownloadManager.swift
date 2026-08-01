@@ -17,9 +17,8 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     fileprivate var urlSession: URLSession!
     fileprivate var activeDownloadsMap = [URLSessionTask: Int]()
     private let activeDownloadsLock = NSLock()
-    var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
-    var artifactSaveFailures = Set<URLSessionTask>()
-    var downloadedArtifacts = [URLSessionTask: DownloadedArtifact]()
+    fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
+    private var artifactSaveErrors = [URLSessionTask: Error]()
 
     var activeDownloadCount: Int {
         withActiveDownloadsMap { $0.count }
@@ -47,92 +46,31 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     private func restore() {
         urlSession.getAllTasks { (tasks) in
             log.verbose("ADM: restore - task count: \(tasks.count)")
-            var restoredIDs = Set<Int>()
-            var tasksByDownloadID = [Int: [URLSessionTask]]()
 
+            var restoredIDs = Set<Int>()
             tasks.forEach { task in
-                guard let downloadID = DownloadTaskCompletionIdentity.parsedDownloadID(
-                    from: task.taskDescription
-                ) else {
-                    log.error("ADM: restore - unknown task: \(task.taskDescription ?? "")")
-                    self.trackDraining(task, restoredIDs: &restoredIDs)
+                guard let description = task.taskDescription,
+                      let id = Int(description),
+                      let download = self.getDownloadFromDatabase(id: id),
+                      download.state == .starting || download.state == .active,
+                      !restoredIDs.contains(id) else {
+                    task.cancel()
                     return
                 }
-                tasksByDownloadID[downloadID, default: []].append(task)
+                if task.state == .running { task.suspend() }
+                self.withActiveDownloadsMap { $0[task] = id }
+                restoredIDs.insert(id)
             }
-
-            tasksByDownloadID.forEach { downloadID, downloadTasks in
-                self.restore(
-                    downloadTasks,
-                    downloadID: downloadID,
-                    restoredIDs: &restoredIDs
-                )
-            }
-
             DownloadQueueController.sharedInstance.managerDidRestore(.audio, activeIDs: restoredIDs)
         }
     }
 
-    private func restore(
-        _ tasks: [URLSessionTask],
-        downloadID: Int,
-        restoredIDs: inout Set<Int>
-    ) {
-        guard let download = getDownloadFromDatabase(id: downloadID) else {
-            tasks.forEach { trackDraining($0, restoredIDs: &restoredIDs) }
-            return
-        }
-        let preferredDescription = DownloadTaskCompletionIdentity.preferredTaskDescription(
-            from: tasks.compactMap(\.taskDescription),
-            downloadID: downloadID,
-            fileType: .audio
-        )
-        var didRestorePreferredTask = false
-
-        tasks.forEach { task in
-            let isPreferred = !didRestorePreferredTask && task.taskDescription == preferredDescription
-            guard isPreferred, let taskDescription = task.taskDescription else {
-                trackDraining(task, restoredIDs: &restoredIDs)
-                return
-            }
-            didRestorePreferredTask = true
-            let action = DownloadTaskRestorationPolicy.action(for: download.state)
-            guard action != .cancelIgnoringCompletion else {
-                trackDraining(task, restoredIDs: &restoredIDs)
-                return
-            }
-
-            DownloadTaskCompletionIdentity.adopt(
-                taskDescription: taskDescription,
-                downloadID: downloadID,
-                fileType: .audio
-            )
-            withActiveDownloadsMap { $0[task] = downloadID }
-            restoredIDs.insert(downloadID)
-            if action == .cancelPreservingState {
-                task.cancel()
-            } else if task.state == .running {
-                task.suspend()
-            }
-        }
-    }
-
-    private func trackDraining(_ task: URLSessionTask, restoredIDs: inout Set<Int>) {
-        let drainingID = DownloadTaskCompletionIdentity.drainingDownloadID(
-            taskIdentifier: task.taskIdentifier,
-            fileType: .audio
-        )
-        withActiveDownloadsMap { $0[task] = drainingID }
-        restoredIDs.insert(drainingID)
-        task.cancel()
-    }
-
-    func notifyUser(for id: Int) {
+    private func notifyUser(for id: Int) {
         guard let download = getDownloadFromDatabase(id: id) else { return }
         DownloadSupport.enqueueCompletedDownloadNotification(for: download.name)
     }
 
-    func getDownloadFromDatabase(id: Int) -> Download? {
+    private func getDownloadFromDatabase(id: Int) -> Download? {
         guard let realm = DownloadSupport.realm(context: "AudioDownloadManager.getDownloadFromDatabase") else {
             return nil
         }
@@ -141,25 +79,17 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func beginDownload(id: Int) {
-        DownloadSupport.preconditionSerializedTransition()
         guard let download = getDownloadFromDatabase(id: id), download.state == .starting else { return }
         guard let url = DownloadSupport.url(from: download.url, context: "AudioDownloadManager.beginDownload") else {
-            DownloadQueueController.sharedInstance.startFailed(
-                id: id,
-                message: NSLocalizedString("Unable to start download. Tap to retry.", comment: "")
-            )
+            DownloadQueueController.sharedInstance.startFailed(id: id)
             return
         }
 
-        let taskDescription = DownloadTaskCompletionIdentity.begin(
-            downloadID: id,
-            fileType: .audio
-        )
         let task = urlSession.downloadTask(with: url)
 
         withActiveDownloadsMap { $0[task] = id }
 
-        task.taskDescription = taskDescription
+        task.taskDescription = String(id)
         task.resume()
 
         NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)
@@ -186,22 +116,21 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         }
         guard didWrite else { return }
 
+        discardDownload(id: file.id)
         DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 
     func cancelDownload(id: Int) {
-        DownloadSupport.preconditionSerializedTransition()
         guard let download = getDownloadFromDatabase(id: id) else { return }
-
         guard let realm = download.realm else { return }
         let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.cancelDownload.write") {
+            download.progress = "0"
             download.state = .stopped
         }
         guard didWrite else { return }
 
-        if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
-            task.cancel()
-        }
+        discardDownload(id: id)
+        _ = deleteLocalFile(for: id)
         DownloadQueueController.sharedInstance.managerDidFinish()
     }
 
@@ -229,15 +158,6 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 
     @discardableResult
     func removeDownloadRecord(id: Int) -> Bool {
-        DownloadSupport.performSerializedTransition { self.removeDownloadRecordOnMain(id: id) }
-    }
-
-    private func removeDownloadRecordOnMain(id: Int) -> Bool {
-        DownloadSupport.preconditionSerializedTransition()
-        if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
-            task.cancel()
-        }
-
         guard DownloadSupport.deleteRecord(
             id: id,
             context: "AudioDownloadManager.removeDownloadRecord"
@@ -245,12 +165,13 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
             return false
         }
 
+        discardDownload(id: id)
         UserDefaults.standard.removeObject(forKey: String(id))
         DownloadQueueController.sharedInstance.managerDidFinish()
         return true
     }
 
-    func withActiveDownloadsMap<Result>(
+    private func withActiveDownloadsMap<Result>(
         _ body: (inout [URLSessionTask: Int]) -> Result
     ) -> Result {
         activeDownloadsLock.lock()
@@ -259,7 +180,6 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func restartDownload(id: Int) {
-        DownloadSupport.preconditionSerializedTransition()
         log.verbose(["ADM: restartDownload", id])
         guard let download = getDownloadFromDatabase(id: id) else { return }
 
@@ -271,13 +191,25 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         }
         guard didWrite else { return }
 
-        if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
-            task.cancel()
-        }
+        discardDownload(id: id)
         DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 
-    func getAbsoluteURL(for relativePath: String) -> URL? {
+    func resumeDownload(id: Int) {
+        withActiveDownloadsMap { $0.first(where: { $0.value == id })?.key.resume() }
+    }
+
+    func discardDownload(id: Int) {
+        let task = withActiveDownloadsMap { map -> URLSessionTask? in
+            guard let task = map.first(where: { $0.value == id })?.key else { return nil }
+            map.removeValue(forKey: task)
+            return task
+        }
+        if let task { artifactSaveErrors.removeValue(forKey: task) }
+        task?.cancel()
+    }
+
+    private func getAbsoluteURL(for relativePath: String) -> URL? {
         DownloadSupport.absoluteDocumentsURL(for: relativePath)
     }
 
@@ -307,7 +239,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     @discardableResult
-    func deleteLocalFile(for downloadId: Int) -> DownloadSupport.LocalFileDeletionResult {
+    private func deleteLocalFile(for downloadId: Int) -> DownloadSupport.LocalFileDeletionResult {
         let result = DownloadSupport.deleteLocalFile(
             at: getLocalFileLocation(for: downloadId),
             context: "AudioDownloadManager.deleteLocalFile"
@@ -315,7 +247,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         return result
     }
 
-    func deriveFileExtensionFromResponse(response: URLResponse?) -> String {
+    private func deriveFileExtensionFromResponse(response: URLResponse?) -> String {
         var fileExtension = "mp3"
 
         if let mimeType = response?.mimeType {
@@ -341,29 +273,84 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     }
 }
 
-extension AudioDownloadManager {
-    @discardableResult
-    func requeueDownload(id: Int) -> DownloadRequeueResult {
-        DownloadSupport.preconditionSerializedTransition()
-        guard let download = getDownloadFromDatabase(id: id), let realm = download.realm else { return .failed }
-        let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.requeueDownload.write") {
-            download.progress = "0"
-            download.message = ""
-            download.state = .queued
-        }
-        guard didWrite else { return .failed }
+extension AudioDownloadManager: URLSessionTaskDelegate {
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        guard let id = withActiveDownloadsMap({ $0[task] }) else { return }
+        lastProgressUpdateTime.removeValue(forKey: id)
+        guard let download = getDownloadFromDatabase(id: id) else { return }
 
-        if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
-            task.cancel()
-            return .awaitingTaskCompletion
+        let artifactError = artifactSaveErrors.removeValue(forKey: task)
+        let effectiveError = error ?? artifactError
+        let state: Download.State = effectiveError == nil ? .completed : .failed
+        let message = effectiveError == nil ? "" : NSLocalizedString("Download failed. Tap to retry.", comment: "")
+
+        guard let realm = download.realm else { return }
+        let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.didComplete.write") {
+            download.state = state
+            download.message = message
+            download.completedAt = state == .completed ? Date() : nil
         }
-        return .completedWithoutTask
+        guard didWrite else { return }
+        _ = withActiveDownloadsMap { $0.removeValue(forKey: task) }
+
+        if download.state == .completed {
+            notifyUser(for: id)
+        }
+
+        NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)
+        DownloadQueueController.sharedInstance.managerDidFinish()
+    }
+}
+
+extension AudioDownloadManager: URLSessionDownloadDelegate {
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        log.verbose(["ADM: downloadTask-didWriteData task:", downloadTask.taskIdentifier])
+
+        guard let downloadId = withActiveDownloadsMap({ $0[downloadTask] }) else { return }
+        guard let download = getDownloadFromDatabase(id: downloadId) else { return }
+
+        log.verbose(["ADM: downloadTask-didWriteData download:", downloadId])
+
+        guard totalBytesExpectedToWrite > 0 else { return }
+
+        let currentProgress = Float(totalBytesWritten) / Float(totalBytesExpectedToWrite)
+        let oldProgress = (download.progress as NSString).floatValue
+        let now = CFAbsoluteTimeGetCurrent()
+        let elapsed = now - (lastProgressUpdateTime[downloadId] ?? 0)
+
+        if currentProgress > oldProgress && (oldProgress == 0 || (currentProgress - oldProgress >= 0.02 && elapsed >= 1.0)) {
+            log.verbose(["ADM: downloadTask-didWriteData progress:", currentProgress, "oldProgress", oldProgress])
+            lastProgressUpdateTime[downloadId] = now
+
+            guard let realm = download.realm else { return }
+            _ = DownloadSupport.write(realm, context: "AudioDownloadManager.progress.write") {
+                download.progress = String(format: "%.2f", currentProgress)
+                if download.state != .active {
+                    download.state = .active
+                }
+            }
+        }
     }
 
-    func suspendDownloads() {
-        DownloadSupport.preconditionSerializedTransition()
-        withActiveDownloadsMap { tasks in
-            tasks.keys.filter { $0.state == .running }.forEach { $0.suspend() }
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        log.verbose(["ADM: downloadTask-didFinishDownloadingTo task:", downloadTask.taskIdentifier])
+
+        guard let id = withActiveDownloadsMap({ $0[downloadTask] }) else { return }
+        guard let download = getDownloadFromDatabase(id: id) else { return }
+
+        let fileExtension = deriveFileExtensionFromResponse(response: downloadTask.response)
+        let destinationPath = "putio_adm_\(String(download.id))_\(download.name.slugify()).\(fileExtension)"
+        guard let destinationURL = getAbsoluteURL(for: destinationPath) else { return }
+
+        if let error = DownloadSupport.copyDownloadedArtifact(from: location, to: destinationURL) {
+            artifactSaveErrors[downloadTask] = error
+            return
         }
+        UserDefaults.standard.set(destinationPath, forKey: String(download.id))
+    }
+
+    func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+        guard let identifier = session.configuration.identifier else { return }
+        BackgroundDownloadSessionEvents.finish(identifier: identifier)
     }
 }

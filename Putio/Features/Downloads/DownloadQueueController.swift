@@ -1,25 +1,16 @@
+import AVFoundation
 import Foundation
 import RealmSwift
+import UIKit
 
-extension VideoDownloadManager {
-    @discardableResult
-    func requeueDownload(id: Int) -> DownloadRequeueResult {
-        DownloadSupport.preconditionSerializedTransition()
-        pendingAttempts.invalidate(downloadID: id)
-        guard let download = getDownloadFromDatabase(id: id), let realm = download.realm else { return .failed }
-        let didWrite = DownloadSupport.write(realm, context: "VideoDownloadManager.requeueDownload.write") {
-            download.progress = "0"
-            download.message = ""
-            download.state = .queued
-        }
-        guard didWrite else { return .failed }
-        DownloadTaskCompletionIdentity.clear(downloadID: id, fileType: .video)
+enum DownloadConcurrencyPreference {
+    static let allowedLimits = [1, 2, 3, 4]
+    static let defaultLimit = 3
+    private static let key = "DownloadConcurrencyPreference.limit"
 
-        if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
-            task.cancel()
-            return .awaitingTaskCompletion
-        }
-        return .completedWithoutTask
+    static func limit(defaults: UserDefaults = .standard) -> Int {
+        let value = defaults.integer(forKey: key)
+        return allowedLimits.contains(value) ? value : defaultLimit
     }
 
     func suspendDownloads() {
@@ -30,71 +21,28 @@ extension VideoDownloadManager {
     }
 }
 
+protocol DownloadQueueManaging: AnyObject {
+    var activeDownloadIDs: Set<Int> { get }
+    func beginDownload(id: Int)
+    func resumeDownload(id: Int)
+    func discardDownload(id: Int)
+}
+
 struct DownloadQueueItem: Equatable {
     let id: Int
-    let fileType: Download.FileType
     let state: Download.State
     let createdAt: Date
 }
 
-protocol DownloadQueueManaging: AnyObject {
-    var activeDownloadIDs: Set<Int> { get }
-
-    func beginDownload(id: Int)
-    func resumeDownload(id: Int)
-    func requeueDownload(id: Int) -> DownloadRequeueResult
-    func suspendDownloads()
-}
-
 enum DownloadQueuePolicy {
-    static func downloadIDsToRequeue(
-        from items: [DownloadQueueItem],
-        activeIDs: Set<Int>,
-        limit: Int
-    ) -> [Int] {
-        let activeItems = items
-            .filter { $0.state == .starting || $0.state == .active }
-            .sorted {
-                if $0.createdAt == $1.createdAt { return $0.id < $1.id }
-                return $0.createdAt < $1.createdAt
-            }
-
-        let drainingCount = activeIDs.filter { $0 < 0 }.count
-        let admittedCount = max(0, limit - drainingCount)
-        return activeItems
-            .dropFirst(admittedCount)
-            .map(\.id)
-    }
-
-    static func downloadIDsToResume(
-        from items: [DownloadQueueItem],
-        activeIDs: Set<Int>,
-        limit: Int
-    ) -> [Int] {
-        let activeItems = items
-            .filter { $0.state == .starting || $0.state == .active }
-            .sorted {
-                if $0.createdAt == $1.createdAt { return $0.id < $1.id }
-                return $0.createdAt < $1.createdAt
-            }
-        let drainingCount = activeIDs.filter { $0 < 0 }.count
-        let admittedCount = max(0, limit - drainingCount)
-        return activeItems.prefix(admittedCount).map(\.id).filter(activeIDs.contains)
-    }
-
     static func nextDownloadIDs(
         from items: [DownloadQueueItem],
-        activeIDs: Set<Int>,
+        occupiedIDs: Set<Int>,
         limit: Int
     ) -> [Int] {
-        let startingOrActiveIDs = Set(items.compactMap { item in
-            item.state == .starting || item.state == .active ? item.id : nil
-        })
-        let occupiedCount = activeIDs.union(startingOrActiveIDs).count
-        let availableCount = max(0, limit - occupiedCount)
-
+        let availableCount = max(0, limit - occupiedIDs.count)
         return items
-            .filter { $0.state == .queued && !activeIDs.contains($0.id) }
+            .filter { $0.state == .queued && !occupiedIDs.contains($0.id) }
             .sorted {
                 if $0.createdAt == $1.createdAt { return $0.id < $1.id }
                 return $0.createdAt < $1.createdAt
@@ -102,290 +50,218 @@ enum DownloadQueuePolicy {
             .prefix(availableCount)
             .map(\.id)
     }
-
-    static func restoredState(
-        from state: Download.State,
-        hasBackgroundTask: Bool
-    ) -> Download.State {
-        if hasBackgroundTask {
-            switch state {
-            case .starting, .active:
-                return .active
-            case .queued, .completed, .failed, .stopped:
-                return state
-            }
-        }
-
-        if state == .starting || state == .active {
-            return .queued
-        }
-        return state
-    }
 }
 
 final class DownloadQueueController {
     static let sharedInstance = DownloadQueueController()
 
-    private let realmProvider: () -> Realm?
-    private let audioManagerProvider: () -> DownloadQueueManaging
-    private let videoManagerProvider: () -> DownloadQueueManaging
-    private let limitProvider: () -> Int
     private var restoredIDsByType = [Download.FileType: Set<Int>]()
-    private var isStarted = false
-    private var isPaused = false
-    private var canStartQueuedDownloads = false
+    private var isEnabled = false
 
-    private convenience init() {
-        self.init(
-            realmProvider: { DownloadSupport.realm(context: "DownloadQueueController") },
-            audioManagerProvider: { AudioDownloadManager.sharedInstance },
-            videoManagerProvider: { VideoDownloadManager.sharedInstance },
-            limitProvider: { DownloadConcurrencyPreference.limit() }
-        )
-    }
+    private init() {}
 
-    init(
-        realmProvider: @escaping () -> Realm?,
-        audioManagerProvider: @escaping () -> DownloadQueueManaging,
-        videoManagerProvider: @escaping () -> DownloadQueueManaging,
-        limitProvider: @escaping () -> Int
-    ) {
-        self.realmProvider = realmProvider
-        self.audioManagerProvider = audioManagerProvider
-        self.videoManagerProvider = videoManagerProvider
-        self.limitProvider = limitProvider
-    }
-
-    func start() {
-        performOnMain { [self] in
-            isPaused = false
-            canStartQueuedDownloads = true
-            guard !isStarted else {
-                scheduleNow()
-                return
-            }
-            isStarted = true
-            _ = audioManagerProvider()
-            _ = videoManagerProvider()
+    func restoreBackgroundSessions() {
+        onMain {
+            _ = AudioDownloadManager.sharedInstance
+            _ = VideoDownloadManager.sharedInstance
         }
     }
 
-    func restoreBackgroundSession(identifier: String) {
-        performOnMain { [self] in
-            if identifier == DOWNLOAD_AUDIO_BACKGROUND_SESSION_IDENTIFIER {
-                _ = audioManagerProvider()
-            } else if identifier == DOWNLOAD_VIDEO_BACKGROUND_SESSION_IDENTIFIER {
-                _ = videoManagerProvider()
-            }
+    func start() {
+        onMain {
+            self.isEnabled = true
+            self.restoreBackgroundSessions()
+            self.schedule()
         }
     }
 
     func pause() {
-        performOnMain { [self] in
-            isPaused = true
-            canStartQueuedDownloads = false
-            let audioManager = audioManagerProvider()
-            let videoManager = videoManagerProvider()
-            audioManager.suspendDownloads()
-            videoManager.suspendDownloads()
-
-            guard restoredIDsByType.count == Download.FileType.allCases.count else { return }
-            requeueActiveDownloads(audioManager: audioManager, videoManager: videoManager)
-        }
+        onMain { self.isEnabled = false }
     }
 
     func managerDidRestore(_ fileType: Download.FileType, activeIDs: Set<Int>) {
-        performOnMain { [self] in
-            #if DEBUG
-            guard ProcessInfo.processInfo.environment["PUTIO_E2E_MOCK_API"] != "1" else { return }
-            #endif
-            restoredIDsByType[fileType] = activeIDs
-            guard restoredIDsByType.count == Download.FileType.allCases.count else { return }
-            reconcileRestoredDownloads()
-            if isPaused {
-                requeueActiveDownloads(
-                    audioManager: audioManagerProvider(),
-                    videoManager: videoManagerProvider()
-                )
-                return
-            }
-            scheduleNow()
+        onMain {
+            self.restoredIDsByType[fileType] = activeIDs
+            guard self.didRestoreBothManagers else { return }
+            self.reconcileRestoredDownloads()
+            self.schedule()
         }
     }
 
     func downloadWasQueued() {
-        performOnMain { [self] in
-            start()
-            scheduleNow()
+        onMain {
+            self.restoreBackgroundSessions()
+            self.schedule()
         }
     }
 
     func managerDidFinish() {
-        performOnMain { [self] in scheduleNow() }
+        onMain { self.schedule() }
     }
 
-    func startFailed(id: Int, message: String) {
-        performOnMain { [self] in
-            if let realm = realmProvider(),
-               let download = realm.object(ofType: Download.self, forPrimaryKey: id) {
-                _ = DownloadSupport.write(realm, context: "DownloadQueueController.startFailed.write") {
-                    download.state = .failed
-                    download.message = message
-                }
+    func startFailed(id: Int) {
+        onMain {
+            guard let realm = DownloadSupport.realm(context: "DownloadQueueController.startFailed"),
+                  let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
+            _ = DownloadSupport.write(realm, context: "DownloadQueueController.startFailed.write") {
+                download.state = .failed
+                download.message = NSLocalizedString("Unable to start download. Tap to retry.", comment: "")
             }
-            scheduleNow()
+            self.schedule()
         }
     }
 
     func concurrencyLimitDidChange() {
-        performOnMain { [self] in scheduleNow() }
+        onMain { self.schedule() }
+    }
+
+    private var didRestoreBothManagers: Bool {
+        restoredIDsByType[.audio] != nil && restoredIDsByType[.video] != nil
     }
 
     private func reconcileRestoredDownloads() {
-        guard let realm = realmProvider() else { return }
-        let restoredIDs = restoredIDsByType.values.reduce(into: Set<Int>()) { result, ids in
-            result.formUnion(ids)
-        }
-
-        _ = DownloadSupport.write(realm, context: "DownloadQueueController.reconcile.write") {
-            for download in realm.objects(Download.self) {
-                let state = DownloadQueuePolicy.restoredState(
-                    from: download.state,
-                    hasBackgroundTask: restoredIDs.contains(download.id)
-                )
-                if state != download.state {
-                    download.state = state
-                    if state == .queued {
-                        download.message = ""
-                    }
+        guard let realm = DownloadSupport.realm(context: "DownloadQueueController.restore") else { return }
+        let restoredIDs = restoredIDsByType.values.reduce(into: Set<Int>()) { $0.formUnion($1) }
+        let admittedIDs = Set(
+            realm.objects(Download.self)
+                .filter { restoredIDs.contains($0.id) && ($0.state == .starting || $0.state == .active) }
+                .sorted {
+                    if $0.createdAt == $1.createdAt { return $0.id < $1.id }
+                    return ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast)
                 }
+                .prefix(DownloadConcurrencyPreference.limit())
+                .map(\.id)
+        )
+
+        let didWrite = DownloadSupport.write(realm, context: "DownloadQueueController.restore.write") {
+            realm.objects(Download.self).forEach { download in
+                guard download.state == .starting || download.state == .active else { return }
+                guard !admittedIDs.contains(download.id) else { return }
+                download.state = .queued
+                download.progress = "0"
+                download.message = ""
+            }
+        }
+        guard didWrite else { return }
+
+        restoredIDs.forEach { id in
+            let manager: DownloadQueueManaging = restoredIDsByType[.audio]?.contains(id) == true
+                ? AudioDownloadManager.sharedInstance
+                : VideoDownloadManager.sharedInstance
+            if admittedIDs.contains(id) {
+                manager.resumeDownload(id: id)
+            } else {
+                manager.discardDownload(id: id)
             }
         }
     }
 
-    private func requeueActiveDownloads(
-        audioManager: DownloadQueueManaging,
-        videoManager: DownloadQueueManaging
-    ) {
-        guard let realm = realmProvider() else { return }
-        let items = realm.objects(Download.self).map { download in
-            DownloadQueueItem(
-                id: download.id,
-                fileType: download.fileType,
-                state: download.state,
-                createdAt: download.createdAt ?? .distantPast
-            )
-        }
-        let ids = items
-            .filter { $0.state == .starting || $0.state == .active }
-            .map(\.id)
-        _ = requeueDownloads(
-            ids: Array(ids),
-            items: Array(items),
-            audioManager: audioManager,
-            videoManager: videoManager
-        )
-    }
+    private func schedule() {
+        guard isEnabled, didRestoreBothManagers else { return }
+        guard let realm = DownloadSupport.realm(context: "DownloadQueueController.schedule") else { return }
 
-    private func scheduleNow() {
-        guard canStartQueuedDownloads else { return }
-        guard restoredIDsByType.count == Download.FileType.allCases.count else { return }
-        guard let realm = realmProvider() else { return }
-
-        let downloads = realm.objects(Download.self)
-        let items = downloads.map { download in
-            DownloadQueueItem(
-                id: download.id,
-                fileType: download.fileType,
-                state: download.state,
-                createdAt: download.createdAt ?? .distantPast
-            )
+        let audioManager = AudioDownloadManager.sharedInstance
+        let videoManager = VideoDownloadManager.sharedInstance
+        let taskIDs = audioManager.activeDownloadIDs.union(videoManager.activeDownloadIDs)
+        let items = realm.objects(Download.self).map {
+            DownloadQueueItem(id: $0.id, state: $0.state, createdAt: $0.createdAt ?? .distantPast)
         }
-        let audioManager = audioManagerProvider()
-        let videoManager = videoManagerProvider()
-        let activeIDs = audioManager.activeDownloadIDs.union(videoManager.activeDownloadIDs)
-        let idsToRequeue = DownloadQueuePolicy.downloadIDsToRequeue(
-            from: Array(items),
-            activeIDs: activeIDs,
-            limit: limitProvider()
-        )
-        guard !requeueDownloads(
-            ids: idsToRequeue,
-            items: Array(items),
-            audioManager: audioManager,
-            videoManager: videoManager
-        ) else { return }
-        let idsToResume = DownloadQueuePolicy.downloadIDsToResume(
-            from: Array(items),
-            activeIDs: activeIDs,
-            limit: limitProvider()
-        )
-        idsToResume.forEach { id in
-            guard let item = items.first(where: { $0.id == id }) else { return }
-            manager(for: item.fileType, audio: audioManager, video: videoManager)
-                .resumeDownload(id: id)
-        }
+        let stateIDs = Set(items.compactMap { item in
+            item.state == .starting || item.state == .active ? item.id : nil
+        })
         let nextIDs = DownloadQueuePolicy.nextDownloadIDs(
             from: Array(items),
-            activeIDs: activeIDs,
-            limit: limitProvider()
+            occupiedIDs: taskIDs.union(stateIDs),
+            limit: DownloadConcurrencyPreference.limit()
         )
         guard !nextIDs.isEmpty else { return }
 
-        let nextDownloads = nextIDs.compactMap { id -> (Int, Download.FileType)? in
-            guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return nil }
-            return (download.id, download.fileType)
+        let downloads = nextIDs.compactMap { id -> (Int, Download.FileType)? in
+            realm.object(ofType: Download.self, forPrimaryKey: id).map { ($0.id, $0.fileType) }
         }
-
         let didWrite = DownloadSupport.write(realm, context: "DownloadQueueController.schedule.write") {
-            nextDownloads.forEach { id, _ in
+            downloads.forEach { id, _ in
                 realm.object(ofType: Download.self, forPrimaryKey: id)?.state = .starting
             }
         }
         guard didWrite else { return }
 
-        nextDownloads.forEach { id, fileType in
-            manager(for: fileType, audio: audioManager, video: videoManager)
-                .beginDownload(id: id)
+        downloads.forEach { id, type in
+            switch type {
+            case .audio: audioManager.beginDownload(id: id)
+            case .video: videoManager.beginDownload(id: id)
+            }
         }
     }
 
-    private func requeueDownloads(
-        ids: [Int],
-        items: [DownloadQueueItem],
-        audioManager: DownloadQueueManaging,
-        videoManager: DownloadQueueManaging
-    ) -> Bool {
-        guard !ids.isEmpty else { return false }
-
-        var didRequeue = false
-        var isAwaitingTaskCompletion = false
-        ids.forEach { id in
-            guard let item = items.first(where: { $0.id == id }) else { return }
-            let itemManager = manager(for: item.fileType, audio: audioManager, video: videoManager)
-            let result = itemManager.requeueDownload(id: id)
-            didRequeue = result.didRequeue || didRequeue
-            isAwaitingTaskCompletion = result == .awaitingTaskCompletion || isAwaitingTaskCompletion
-        }
-        if didRequeue && !isAwaitingTaskCompletion && canStartQueuedDownloads {
-            DispatchQueue.main.async { [weak self] in self?.scheduleNow() }
-        }
-        return didRequeue
-    }
-
-    private func manager(
-        for fileType: Download.FileType,
-        audio: DownloadQueueManaging,
-        video: DownloadQueueManaging
-    ) -> DownloadQueueManaging {
-        fileType == .audio ? audio : video
-    }
-
-    private func performOnMain(_ work: @escaping () -> Void) {
+    private func onMain(_ work: @escaping () -> Void) {
         if Thread.isMainThread {
             work()
         } else {
             DispatchQueue.main.async(execute: work)
         }
+    }
+}
+
+private final class LegacyDownloadSessionDelegate: NSObject, AVAssetDownloadDelegate {
+    func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
+        guard let identifier = session.configuration.identifier else { return }
+        BackgroundDownloadSessionEvents.finish(identifier: identifier)
+    }
+}
+
+enum BackgroundDownloadSessionEvents {
+    private static let lock = NSLock()
+    private static var handlers = [String: () -> Void]()
+    private static var earlyFinishes = [String: Date]()
+    private static let legacyDelegate = LegacyDownloadSessionDelegate()
+    private static var legacySession: AVAssetDownloadURLSession?
+
+    static func isSupported(_ identifier: String) -> Bool {
+        [
+            DOWNLOAD_AUDIO_BACKGROUND_SESSION_IDENTIFIER,
+            DOWNLOAD_VIDEO_BACKGROUND_SESSION_IDENTIFIER,
+            DOWNLOAD_LEGACY_BACKGROUND_SESSION_IDENTIFIER
+        ].contains(identifier)
+    }
+
+    static func register(identifier: String, completionHandler: @escaping () -> Void) {
+        lock.lock()
+        let earlyFinish = earlyFinishes.removeValue(forKey: identifier)
+        let didFinishRecently = earlyFinish.map { Date().timeIntervalSince($0) <= 30 } ?? false
+        let replacedHandler = didFinishRecently ? nil : handlers.updateValue(completionHandler, forKey: identifier)
+        lock.unlock()
+        if didFinishRecently {
+            DispatchQueue.main.async(execute: completionHandler)
+        } else if let replacedHandler {
+            DispatchQueue.main.async(execute: replacedHandler)
+        }
+    }
+
+    static func finish(
+        identifier: String,
+        applicationState: UIApplication.State = UIApplication.shared.applicationState
+    ) {
+        lock.lock()
+        let handler = handlers.removeValue(forKey: identifier)
+        if handler == nil, applicationState != .active {
+            earlyFinishes[identifier] = Date()
+        }
+        lock.unlock()
+        if let handler { DispatchQueue.main.async(execute: handler) }
+    }
+
+    static func reconnectLegacySession(identifier: String) {
+        guard identifier == DOWNLOAD_LEGACY_BACKGROUND_SESSION_IDENTIFIER else { return }
+        if legacySession == nil {
+            let configuration = URLSessionConfiguration.background(withIdentifier: identifier)
+            configuration.sessionSendsLaunchEvents = true
+            legacySession = AVAssetDownloadURLSession(
+                configuration: configuration,
+                assetDownloadDelegate: legacyDelegate,
+                delegateQueue: .main
+            )
+        }
+        legacySession?.getAllTasks { $0.forEach { $0.cancel() } }
     }
 }

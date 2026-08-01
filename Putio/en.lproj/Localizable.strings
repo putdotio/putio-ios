@@ -243,6 +243,10 @@
 
 /* No comment provided by engineer. */
 "Downloading... %@" = "Downloading... %@";
+"Download failed. Tap to retry." = "Download failed. Tap to retry.";
+"Choose how many offline downloads can run at once." = "Choose how many offline downloads can run at once.";
+"Simultaneous downloads" = "Simultaneous downloads";
+"%d at a time" = "%d at a time";
 
 /* No comment provided by engineer. */
 "Double tap to open this download." = "Double tap to open this download.";
@@ -687,22 +691,3 @@
 
 /* No comment provided by engineer. */
 "Your trash is empty" = "Your trash is empty";
-
-/* Offline download concurrency setting. */
-"Simultaneous downloads" = "Simultaneous downloads";
-
-/* Explains that one queue coordinates both supported media types. */
-"Audio and video downloads share this limit. Queued items start in order." = "Audio and video downloads share this limit. Queued items start in order.";
-
-/* Number of offline downloads allowed to run concurrently. */
-"%d at a time" = "%d at a time";
-
-/* Download start failure shown in the Downloads screen. */
-"Unable to start download. Tap to retry." = "Unable to start download. Tap to retry.";
-
-/* Video download completed but could not be persisted. */
-"Unable to save the downloaded video. Tap to retry." = "Unable to save the downloaded video. Tap to retry.";
-"Unable to save the downloaded audio. Tap to retry." = "Unable to save the downloaded audio. Tap to retry.";
-
-/* Download completion could not be persisted. */
-"The download could not be completed. Tap to retry." = "The download could not be completed. Tap to retry.";

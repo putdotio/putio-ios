@@ -27,8 +27,6 @@
 		53457AFE39DF68A6E14E3AA9 /* PlaybackSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6152DB33E9792260A66491D4 /* PlaybackSmokeUITests.swift */; };
 		66592A832C92EA206BAB25BF /* DownloadSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15797E9117171E8D87F34F1C /* DownloadSupport.swift */; };
 		109000000000000000000001 /* DownloadQueueController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 109000000000000000000002 /* DownloadQueueController.swift */; };
-		109000000000000000000003 /* VideoDownloadManager+Delegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 109000000000000000000004 /* VideoDownloadManager+Delegate.swift */; };
-		109000000000000000000005 /* AudioDownloadManager+Delegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 109000000000000000000006 /* AudioDownloadManager+Delegate.swift */; };
 		6C24700E6133B0C889BF2EE3 /* Pods_PutioUITests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7AD1192F6A523D03D09DF523 /* Pods_PutioUITests.framework */; };
 		6E7F8A9B0C1D2E3F4A5B6C7D /* BrandFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F8A9B0C1D2E3F4A5B6C7D8E /* BrandFont.swift */; };
 		78CA18B245AAA93D97689C6F /* SettingsViewModel+Sections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38466C37F620EDDBF46BFEF7 /* SettingsViewModel+Sections.swift */; };
@@ -178,6 +176,7 @@
 /* Begin PBXFileReference section */
 		0A59A0DE5C9D8BEA12786D32 /* Pods-PutioUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PutioUITests.debug.xcconfig"; path = "Target Support Files/Pods-PutioUITests/Pods-PutioUITests.debug.xcconfig"; sourceTree = "<group>"; };
 		15797E9117171E8D87F34F1C /* DownloadSupport.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DownloadSupport.swift; sourceTree = "<group>"; };
+		109000000000000000000002 /* DownloadQueueController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadQueueController.swift; sourceTree = "<group>"; };
 		28B31D9D86843A740051235A /* FilesViewController+TableView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "FilesViewController+TableView.swift"; sourceTree = "<group>"; };
 		293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UserConfigTests.swift; sourceTree = "<group>"; };
 		2D4F6A8C0E1B3D5F7A9C1E3B /* UILabel+Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UILabel+Appearance.swift"; sourceTree = "<group>"; };
@@ -303,9 +302,6 @@
 		ACDA73E3278C31AB00C59611 /* Int64+BytesToHumanReadable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Int64+BytesToHumanReadable.swift"; sourceTree = "<group>"; };
 		ACDA73E5278D991200C59611 /* Date+TimeAgo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+TimeAgo.swift"; sourceTree = "<group>"; };
 		ACE4603F230811A0003C6C0A /* VideoDownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoDownloadManager.swift; sourceTree = "<group>"; };
-		109000000000000000000002 /* DownloadQueueController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadQueueController.swift; sourceTree = "<group>"; };
-		109000000000000000000004 /* VideoDownloadManager+Delegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VideoDownloadManager+Delegate.swift"; sourceTree = "<group>"; };
-		109000000000000000000006 /* AudioDownloadManager+Delegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AudioDownloadManager+Delegate.swift"; sourceTree = "<group>"; };
 		ACE636D21F9A29DB00AFB921 /* LoginViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewController.swift; sourceTree = "<group>"; };
 		ACEB6E73231A989000611D74 /* AudioDownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDownloadManager.swift; sourceTree = "<group>"; };
 		ACED3B5B1FEBC1BA0066F41A /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
@@ -610,8 +606,6 @@
 				ACEB6E73231A989000611D74 /* AudioDownloadManager.swift */,
 				15797E9117171E8D87F34F1C /* DownloadSupport.swift */,
 				109000000000000000000002 /* DownloadQueueController.swift */,
-				109000000000000000000004 /* VideoDownloadManager+Delegate.swift */,
-				109000000000000000000006 /* AudioDownloadManager+Delegate.swift */,
 			);
 			path = Downloads;
 			sourceTree = "<group>";
@@ -1193,9 +1187,6 @@
 				810000000000000000000001 /* DownloadsViewController+Selection.swift in Sources */,
 				810000000000000000000002 /* DownloadsViewController+TableView.swift in Sources */,
 				810000000000000000000005 /* DownloadsSelectionSupport.swift in Sources */,
-				109000000000000000000001 /* DownloadQueueController.swift in Sources */,
-				109000000000000000000003 /* VideoDownloadManager+Delegate.swift in Sources */,
-				109000000000000000000005 /* AudioDownloadManager+Delegate.swift in Sources */,
 				AC918F6E2AF128920082BFAF /* RootContainerViewController.swift in Sources */,
 				6E7F8A9B0C1D2E3F4A5B6C7D /* BrandFont.swift in Sources */,
 				7A8B9C0D1E2F3A4B5C6D7E8F /* BrandTypography.swift in Sources */,
@@ -1283,6 +1274,7 @@
 				7F88FAC086E3EACC35AEAD10 /* UIStoryboard+TypedInstantiation.swift in Sources */,
 				CEBF9BFFE49971BF6934E873 /* InternalFailurePresenter.swift in Sources */,
 				66592A832C92EA206BAB25BF /* DownloadSupport.swift in Sources */,
+				109000000000000000000001 /* DownloadQueueController.swift in Sources */,
 				F9E4EEE0C7237C463865FD19 /* FilesViewController+Navigation.swift in Sources */,
 				49366D1A1B213117EB390D4E /* FilesViewController+Playback.swift in Sources */,
 				48A3319779B5E73F59983FC9 /* FilesViewController+Selection.swift in Sources */,
