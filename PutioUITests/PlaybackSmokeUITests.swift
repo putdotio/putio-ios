@@ -33,6 +33,27 @@ final class PlaybackSmokeUITests: XCTestCase {
         waitForExpectations(timeout: 10)
     }
 
+    func testAudioPlaybackSpeedCanChange() {
+        let app = launchFixtureApp()
+
+        guard app.waitForSignedInTabBar() else { return }
+        let song = app.tables["putio-files-table"].cells["putio-file-43"]
+        XCTAssertTrue(song.waitForExistence(timeout: 10))
+        song.tap()
+        XCTAssertTrue(app.staticTexts["10:00"].waitForExistence(timeout: 15))
+
+        let speedButton = app.buttons["Playback speed"]
+        XCTAssertTrue(speedButton.waitForExistence(timeout: 5))
+        XCTAssertEqual(speedButton.value as? String, "1×")
+
+        speedButton.tap()
+        let fasterRate = app.buttons["1.5×"]
+        XCTAssertTrue(fasterRate.waitForExistence(timeout: 5))
+        fasterRate.tap()
+
+        XCTAssertEqual(speedButton.value as? String, "1.5×")
+    }
+
     func testFilesScreenLoadsWithFixtureData() {
         let app = launchFixtureApp()
         guard app.waitForSignedInTabBar() else { return }

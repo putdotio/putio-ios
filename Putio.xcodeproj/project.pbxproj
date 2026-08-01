@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		00B1394779C26A8412502962 /* PutioE2EMockURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42113E74CF811CB4E40A41C6 /* PutioE2EMockURLProtocol.swift */; };
+		103000000000000000000001 /* AudioPlayerViewController+PlaybackRate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 103000000000000000000002 /* AudioPlayerViewController+PlaybackRate.swift */; };
+		103000000000000000000003 /* AudioPlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 103000000000000000000004 /* AudioPlayerTests.swift */; };
 		17DD2CCF4F2FFD056E0D7D36 /* PutioE2EDownloadFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E37FB6D557730098AC8864 /* PutioE2EDownloadFixtures.swift */; };
 		9F3A1C7D2E4B6A8C0D1E2F31 /* PutioE2EEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F3A1C7D2E4B6A8C0D1E2F30 /* PutioE2EEnvironment.swift */; };
 		9F3A1C7D2E4B6A8C0D1E2F33 /* SignedInLaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F3A1C7D2E4B6A8C0D1E2F32 /* SignedInLaunch.swift */; };
@@ -173,6 +175,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		103000000000000000000002 /* AudioPlayerViewController+PlaybackRate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AudioPlayerViewController+PlaybackRate.swift"; sourceTree = "<group>"; };
+		103000000000000000000004 /* AudioPlayerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AudioPlayerTests.swift; sourceTree = "<group>"; };
 		0A59A0DE5C9D8BEA12786D32 /* Pods-PutioUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PutioUITests.debug.xcconfig"; path = "Target Support Files/Pods-PutioUITests/Pods-PutioUITests.debug.xcconfig"; sourceTree = "<group>"; };
 		15797E9117171E8D87F34F1C /* DownloadSupport.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DownloadSupport.swift; sourceTree = "<group>"; };
 		28B31D9D86843A740051235A /* FilesViewController+TableView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "FilesViewController+TableView.swift"; sourceTree = "<group>"; };
@@ -368,6 +372,7 @@
 		23057B4F8E5BE300D7880600 /* PutioTests */ = {
 			isa = PBXGroup;
 			children = (
+				103000000000000000000004 /* AudioPlayerTests.swift */,
 				333E41E81298A2E8796ACE97 /* APIErrorLocalizerTests.swift */,
 				8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */,
 				C2B1049C9B1A0CA9C66F6CD2 /* HistoryViewModelTests.swift */,
@@ -582,6 +587,7 @@
 				AC16C0401FBF76E200069733 /* MediaPlayers.storyboard */,
 				AC11C72520444E650001CD89 /* MediaPlayerItemModel.swift */,
 				ACC92DD91FC5843100064BF9 /* AudioPlayerViewController.swift */,
+				103000000000000000000002 /* AudioPlayerViewController+PlaybackRate.swift */,
 				AC11C7282044502A0001CD89 /* VideoPlayerViewController.swift */,
 				ACD159AE2099E5B1001241BC /* MediaPlaybackManager.swift */,
 				ACAA622C23BD0D9C0043458C /* NextMediaFinder.swift */,
@@ -1144,6 +1150,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				103000000000000000000003 /* AudioPlayerTests.swift in Sources */,
 				0E4F147822C01DF9814EE2C9 /* APIErrorLocalizerTests.swift in Sources */,
 				8B5C2D1E4F60718293A4B5C6 /* ErrorPresentationTests.swift in Sources */,
 				51D9E494DFC76AF375536663 /* HistoryViewModelTests.swift in Sources */,
@@ -1237,6 +1244,7 @@
 				AC484072202C8E6800EF374E /* DeeplinkManager.swift in Sources */,
 				ACF668D6282A3A4800A48879 /* TwoFactorRecoveryCodesViewModel.swift in Sources */,
 				ACC92DDA1FC5843100064BF9 /* AudioPlayerViewController.swift in Sources */,
+				103000000000000000000001 /* AudioPlayerViewController+PlaybackRate.swift in Sources */,
 				ACF668DE282A783900A48879 /* Button.swift in Sources */,
 				ACBAF58B1FB097ED00BEDE1D /* UIColor+Putio.swift in Sources */,
 				ACCE333A1FD5559F0006793D /* HistoryViewController.swift in Sources */,

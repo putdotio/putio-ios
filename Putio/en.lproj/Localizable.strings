@@ -80,6 +80,9 @@
 "Ancient Times" = "Ancient Times";
 
 /* No comment provided by engineer. */
+"Applies to this queue" = "Applies to this queue";
+
+/* No comment provided by engineer. */
 "Are you sure to delete those files?" = "Are you sure to delete those files?";
 
 /* No comment provided by engineer. */
@@ -307,6 +310,9 @@
 /* No comment provided by engineer. */
 "Folder Name" = "Folder Name";
 
+/* Audio player controls. */
+"Forward 15 seconds" = "Forward 15 seconds";
+
 /* No comment provided by engineer. */
 "Go Back" = "Go Back";
 
@@ -397,6 +403,12 @@
 /* No comment provided by engineer. */
 "No title" = "No title";
 
+/* Audio player queue empty state. */
+"Nothing queued" = "Nothing queued";
+
+/* Audio player screen title. */
+"Now Playing" = "Now Playing";
+
 /* No comment provided by engineer. */
 "OK" = "OK";
 
@@ -424,11 +436,26 @@
 /* No comment provided by engineer. */
 "Only completed downloads can be selected." = "Only completed downloads can be selected.";
 
+/* Audio player control. */
+"Pause" = "Pause";
+
+/* Audio player control. */
+"Play" = "Play";
+
 /* No comment provided by engineer. */
 "Play Downloaded" = "Play Downloaded";
 
 /* No comment provided by engineer. */
 "Play original in VLC" = "Play original in VLC";
+
+/* Audio player scrubber accessibility label. */
+"Playback position" = "Playback position";
+
+/* No comment provided by engineer. */
+"Playback Speed" = "Playback Speed";
+
+/* No comment provided by engineer. */
+"Playback speed" = "Playback speed";
 
 /* No comment provided by engineer. */
 "Please check your code and try again." = "Please check your code and try again.";
@@ -519,6 +546,9 @@
 
 /* No comment provided by engineer. */
 "Revoke" = "Revoke";
+
+/* Audio player controls. */
+"Rewind 15 seconds" = "Rewind 15 seconds";
 
 /* No comment provided by engineer. */
 "Save" = "Save";

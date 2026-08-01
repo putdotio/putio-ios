@@ -140,20 +140,6 @@
       "sha256": "476e7a0e1b4c5606a52e7b23fac4534430a46dd53517b5f63f2a39fb0944dacb"
     },
     {
-      "name": "rewind",
-      "weight": "fill",
-      "asset_name": "rewind-fill",
-      "source_path": "package/assets/fill/rewind-fill.svg",
-      "sha256": "3197612befbeeb53ee184cc0d7585be659aadc74661c3e8b21b4e70918c546c8"
-    },
-    {
-      "name": "fast-forward",
-      "weight": "fill",
-      "asset_name": "fast-forward-fill",
-      "source_path": "package/assets/fill/fast-forward-fill.svg",
-      "sha256": "7be1c21f85a18cfdbd9e8fa25bb0ee7c1204cbc8320e7c444d2b4624783f39d8"
-    },
-    {
       "name": "play",
       "weight": "fill",
       "asset_name": "play-fill",
