@@ -47,11 +47,13 @@ extension AudioPlayerViewController {
             player?.rate = rate
         }
         updatePlaybackRateControl()
+        refreshNowPlayingInfo()
     }
 
     func playAtQueueRate() {
         player?.defaultRate = queuePlaybackRate
         player?.play()
+        refreshNowPlayingInfo()
     }
 
     func onTogglePlayPause() {
@@ -59,6 +61,7 @@ extension AudioPlayerViewController {
             playAtQueueRate()
         } else {
             player?.pause()
+            refreshNowPlayingInfo()
         }
     }
 
@@ -73,7 +76,29 @@ extension AudioPlayerViewController {
     }
 
     func onSeek(to time: Float) {
-        player?.seek(to: CMTime(seconds: Double(max(0, time)), preferredTimescale: 600))
+        player?.seek(
+            to: CMTime(seconds: Double(max(0, time)), preferredTimescale: 600),
+            completionHandler: { [weak self] finished in
+                guard finished else { return }
+                DispatchQueue.main.async { self?.refreshAfterSeek() }
+            }
+        )
+    }
+
+    func refreshAfterSeek() {
+        guard let player,
+              let item = findMediaItem(by: player.currentItem),
+              let currentTime = player.currentItem?.currentTime().getFiniteSeconds(),
+              let duration = player.currentItem?.duration.getFiniteSeconds() else {
+            refreshNowPlayingInfo()
+            return
+        }
+
+        updateTimeDisplay(currentTime: currentTime, duration: duration)
+        updateMPNowPlayingInfo(for: item, currentTime: currentTime, duration: duration)
+        if !timeSlider.isTracking {
+            saveAudioTime(for: item, currentTime: currentTime, duration: duration)
+        }
     }
 
     func registerRemoteMediaControls() {
@@ -84,10 +109,13 @@ extension AudioPlayerViewController {
         commandCenter.playCommand.isEnabled = true
         commandCenter.skipBackwardCommand.isEnabled = true
         commandCenter.skipForwardCommand.isEnabled = true
+        commandCenter.previousTrackCommand.isEnabled = true
+        commandCenter.nextTrackCommand.isEnabled = true
         commandCenter.changePlaybackPositionCommand.isEnabled = true
 
         commandCenterTargets["pause"] = commandCenter.pauseCommand.addTarget { [weak self] _ in
             self?.player?.pause()
+            self?.refreshNowPlayingInfo()
             return .success
         }
         commandCenterTargets["play"] = commandCenter.playCommand.addTarget { [weak self] _ in
@@ -103,6 +131,14 @@ extension AudioPlayerViewController {
 
         commandCenter.skipForwardCommand.preferredIntervals = [15]
         commandCenterTargets["skipForward"] = commandCenter.skipForwardCommand.addTarget { [weak self] _ in
+            self?.onFastForward()
+            return .success
+        }
+        commandCenterTargets["previousTrack"] = commandCenter.previousTrackCommand.addTarget { [weak self] _ in
+            self?.onRewind()
+            return .success
+        }
+        commandCenterTargets["nextTrack"] = commandCenter.nextTrackCommand.addTarget { [weak self] _ in
             self?.onFastForward()
             return .success
         }
@@ -130,6 +166,12 @@ extension AudioPlayerViewController {
         if let target = commandCenterTargets["skipForward"] {
             commandCenter.skipForwardCommand.removeTarget(target)
         }
+        if let target = commandCenterTargets["previousTrack"] {
+            commandCenter.previousTrackCommand.removeTarget(target)
+        }
+        if let target = commandCenterTargets["nextTrack"] {
+            commandCenter.nextTrackCommand.removeTarget(target)
+        }
         if let target = commandCenterTargets["changePlaybackPosition"] {
             commandCenter.changePlaybackPositionCommand.removeTarget(target)
         }
@@ -138,6 +180,8 @@ extension AudioPlayerViewController {
         commandCenter.playCommand.isEnabled = false
         commandCenter.skipBackwardCommand.isEnabled = false
         commandCenter.skipForwardCommand.isEnabled = false
+        commandCenter.previousTrackCommand.isEnabled = false
+        commandCenter.nextTrackCommand.isEnabled = false
         commandCenter.changePlaybackPositionCommand.isEnabled = false
         commandCenter.skipBackwardCommand.preferredIntervals = []
         commandCenter.skipForwardCommand.preferredIntervals = []
@@ -145,12 +189,26 @@ extension AudioPlayerViewController {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
 
-    func updateMPNowPlayingInfo(for item: MediaPlayerItem, currentTime: Double, duration: Double) {
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = [
+    func refreshNowPlayingInfo(for item: MediaPlayerItem? = nil) {
+        guard let item = item ?? findMediaItem(by: player?.currentItem) else {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            return
+        }
+        updateMPNowPlayingInfo(
+            for: item,
+            currentTime: player?.currentItem?.currentTime().getFiniteSeconds(),
+            duration: player?.currentItem?.duration.getFiniteSeconds()
+        )
+    }
+
+    func updateMPNowPlayingInfo(for item: MediaPlayerItem, currentTime: Double? = nil, duration: Double? = nil) {
+        var nowPlayingInfo: [String: Any] = [
             MPMediaItemPropertyTitle: item.name,
-            MPMediaItemPropertyPlaybackDuration: duration,
-            MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
-            MPNowPlayingInfoPropertyPlaybackRate: player?.rate ?? 0
+            MPNowPlayingInfoPropertyPlaybackRate: player?.rate ?? 0,
+            MPNowPlayingInfoPropertyDefaultPlaybackRate: queuePlaybackRate
         ]
+        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = duration
+        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
     }
 }

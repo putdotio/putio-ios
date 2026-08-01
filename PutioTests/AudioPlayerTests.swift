@@ -17,6 +17,8 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(viewController.playbackRateButton.bounds.width, 48)
         XCTAssertGreaterThanOrEqual(viewController.playbackRateButton.bounds.height, 48)
         XCTAssertEqual(viewController.routePickerView.frame.size, CGSize(width: 44, height: 44))
+        XCTAssertEqual(viewController.playbackRateButton.titleLabel?.font.fontName, viewController.currentTimeLabel.font.fontName)
+        XCTAssertEqual(viewController.playbackRateButton.titleLabel?.font.pointSize, viewController.currentTimeLabel.font.pointSize)
     }
 
     func testPlaybackRateMenuExposesSupportedRates() throws {
@@ -40,9 +42,14 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertEqual(viewController.player?.defaultRate, 1.5)
         XCTAssertEqual(viewController.playbackRateButton.accessibilityValue, "1.5×")
         XCTAssertEqual(AudioPlayerViewController().queuePlaybackRate, 1)
+
+        viewController.player?.defaultRate = 1
+        viewController.playAtQueueRate()
+
+        XCTAssertEqual(viewController.player?.defaultRate, 1.5)
     }
 
-    func testNowPlayingMetadataDoesNotExposeTheAuthenticatedAssetURL() {
+    func testRateChangeRefreshesNowPlayingMetadataWithoutExposingTheAssetURL() {
         let viewController = AudioPlayerViewController()
         let media = MediaPlayerItem(
             id: 1,
@@ -51,11 +58,45 @@ final class AudioPlayerTests: XCTestCase {
             fileType: .audio,
             consumptionType: .online
         )
+        viewController.mediaItems = [media]
+        viewController.player = AVQueuePlayer(items: [AVPlayerItem(url: media.url)])
 
-        viewController.updateMPNowPlayingInfo(for: media, currentTime: 10, duration: 60)
+        viewController.setPlaybackRate(1.5)
 
-        XCTAssertNil(MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPMediaItemPropertyAssetURL])
+        let nowPlayingInfo = MPNowPlayingInfoCenter.default().nowPlayingInfo
+        XCTAssertEqual(nowPlayingInfo?[MPMediaItemPropertyTitle] as? String, "Audio")
+        XCTAssertEqual(nowPlayingInfo?[MPNowPlayingInfoPropertyPlaybackRate] as? Float, 0)
+        XCTAssertEqual(nowPlayingInfo?[MPNowPlayingInfoPropertyDefaultPlaybackRate] as? Float, 1.5)
+        XCTAssertNil(nowPlayingInfo?[MPMediaItemPropertyAssetURL])
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    }
+
+    func testEmptyQueueClearsNowPlayingMetadata() {
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = [MPMediaItemPropertyTitle: "Stale audio"]
+        let viewController = AudioPlayerViewController()
+        viewController.player = AVQueuePlayer()
+
+        viewController.refreshNowPlayingInfo()
+
+        XCTAssertNil(MPNowPlayingInfoCenter.default().nowPlayingInfo)
+    }
+
+    func testCompactHeightLayoutCollapsesOnlyTheArtwork() throws {
+        let viewController = try makeStoryboardViewController()
+        viewController.loadViewIfNeeded()
+
+        viewController.updateCompactHeightLayout(isCompact: true)
+
+        XCTAssertTrue(viewController.posterContainerView.isHidden)
+        XCTAssertEqual(viewController.compactArtworkHeightConstraint?.isActive, true)
+        XCTAssertTrue(viewController.posterContentConstraints.allSatisfy { !$0.isActive })
+        XCTAssertFalse(viewController.playbackInfoStackView.isHidden)
+
+        viewController.updateCompactHeightLayout(isCompact: false)
+
+        XCTAssertFalse(viewController.posterContainerView.isHidden)
+        XCTAssertEqual(viewController.compactArtworkHeightConstraint?.isActive, false)
+        XCTAssertTrue(viewController.posterContentConstraints.allSatisfy { $0.isActive })
     }
 
     private func makeStoryboardViewController() throws -> AudioPlayerViewController {

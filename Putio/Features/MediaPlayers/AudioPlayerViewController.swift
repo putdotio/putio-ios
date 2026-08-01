@@ -28,6 +28,8 @@ class AudioPlayerViewController: UIViewController {
 
     var commandCenterTargets: [String: Any] = [:]
     var queuePlaybackRate: Float = 1
+    var posterContentConstraints: [NSLayoutConstraint] = []
+    var compactArtworkHeightConstraint: NSLayoutConstraint?
 
     private(set) lazy var routePickerView: AVRoutePickerView = {
         let routePickerView = AVRoutePickerView(frame: CGRect(x: 0, y: 0, width: 44, height: 44))
@@ -80,6 +82,7 @@ class AudioPlayerViewController: UIViewController {
         controlFastForward.setImage(UIImage(systemName: "goforward.15", withConfiguration: skipSymbolConfiguration), for: .normal)
         nextItemActionButton.setImage(PutioIcon.playFill.image(pointSize: 20), for: .normal)
         configurePlaybackRateControl()
+        playbackRateButton.titleLabel?.font = currentTimeLabel.font
         nextMediaFinder.delegate = self
         configureStateMachine(for: .loading)
         setupPlayer()
@@ -94,6 +97,8 @@ class AudioPlayerViewController: UIViewController {
         posterContainerView.layer.borderWidth = 1
         posterContainerView.layer.borderColor = UIColor.Putio.Neutral.border.cgColor
         posterContainerView.clipsToBounds = true
+        posterContentConstraints = posterContainerView.constraints
+        compactArtworkHeightConstraint = posterContainerView.heightAnchor.constraint(equalToConstant: 0)
 
         nextItemContainerView.layer.cornerRadius = 16
         nextItemContainerView.layer.cornerCurve = .continuous
@@ -105,7 +110,6 @@ class AudioPlayerViewController: UIViewController {
             ?? UIFont.monospacedDigitSystemFont(ofSize: timeFontSize, weight: .medium)
         currentTimeLabel.font = timeFont
         durationLabel.font = timeFont
-        playbackRateButton.titleLabel?.font = timeFont
 
         controlRewind.tintColor = UIColor.Putio.Neutral.textSecondary
         controlPlayPause.tintColor = UIColor.Putio.Neutral.text
@@ -115,6 +119,24 @@ class AudioPlayerViewController: UIViewController {
         controlPlayPause.accessibilityLabel = NSLocalizedString("Play", comment: "")
         controlPlayPause.accessibilityIdentifier = "audio-player-play-pause"
         timeSlider.accessibilityLabel = NSLocalizedString("Playback position", comment: "")
+    }
+
+    override func viewWillLayoutSubviews() {
+        super.viewWillLayoutSubviews()
+        updateCompactHeightLayout(isCompact: traitCollection.verticalSizeClass == .compact)
+    }
+
+    func updateCompactHeightLayout(isCompact: Bool) {
+        guard compactArtworkHeightConstraint?.isActive != isCompact else { return }
+
+        posterContainerView.isHidden = isCompact
+        if isCompact {
+            NSLayoutConstraint.deactivate(posterContentConstraints)
+            compactArtworkHeightConstraint?.isActive = true
+        } else {
+            compactArtworkHeightConstraint?.isActive = false
+            NSLayoutConstraint.activate(posterContentConstraints)
+        }
     }
 
     func configureNavigationControls() {
@@ -199,12 +221,13 @@ class AudioPlayerViewController: UIViewController {
 
     func registerPlayerObservers() {
         playerQueueObserver = player?.observe(\.currentItem, options: [.new], changeHandler: { [weak self] (_, change) in
-            guard let currentItem = change.newValue as? AVPlayerItem else { return }
+            guard let currentItem = change.newValue as? AVPlayerItem else {
+                self?.refreshNowPlayingInfo()
+                return
+            }
             guard let media = self?.findMediaItem(by: currentItem) else { return }
 
-            MPNowPlayingInfoCenter.default().nowPlayingInfo = [
-                MPMediaItemPropertyTitle: media.name
-            ]
+            self?.refreshNowPlayingInfo(for: media)
 
             self?.trackTitleLabel.text = media.name
             self?.nextMediaFinder.findNextMedia(for: media)
@@ -229,6 +252,7 @@ class AudioPlayerViewController: UIViewController {
             @unknown default:
                 log.warning("Unhandled player time control status: \(player.timeControlStatus.rawValue)")
             }
+            self?.refreshNowPlayingInfo()
         })
     }
 
