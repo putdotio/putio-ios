@@ -113,6 +113,7 @@ class AudioPlayerViewController: UIViewController {
         controlRewind.accessibilityLabel = NSLocalizedString("Rewind 15 seconds", comment: "")
         controlFastForward.accessibilityLabel = NSLocalizedString("Forward 15 seconds", comment: "")
         controlPlayPause.accessibilityLabel = NSLocalizedString("Play", comment: "")
+        controlPlayPause.accessibilityIdentifier = "audio-player-play-pause"
         timeSlider.accessibilityLabel = NSLocalizedString("Playback position", comment: "")
     }
 
@@ -149,7 +150,7 @@ class AudioPlayerViewController: UIViewController {
         player?.pause()
         unregisterPlayerObservers()
         unregisterPlayerTimeObservers()
-        unRegisterRemoteMediaControls()
+        unregisterRemoteMediaControls()
     }
 
     func configureStateMachine(for state: UIState, with item: MediaPlayerItem? = nil) {

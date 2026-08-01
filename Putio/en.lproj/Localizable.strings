@@ -301,6 +301,9 @@
 /* No comment provided by engineer. */
 "Folder Name" = "Folder Name";
 
+/* Audio player controls. */
+"Forward 15 seconds" = "Forward 15 seconds";
+
 /* No comment provided by engineer. */
 "Go Back" = "Go Back";
 
@@ -391,6 +394,12 @@
 /* No comment provided by engineer. */
 "No title" = "No title";
 
+/* Audio player queue empty state. */
+"Nothing queued" = "Nothing queued";
+
+/* Audio player screen title. */
+"Now Playing" = "Now Playing";
+
 /* No comment provided by engineer. */
 "OK" = "OK";
 
@@ -418,11 +427,20 @@
 /* No comment provided by engineer. */
 "Only completed downloads can be selected." = "Only completed downloads can be selected.";
 
+/* Audio player control. */
+"Pause" = "Pause";
+
+/* Audio player control. */
+"Play" = "Play";
+
 /* No comment provided by engineer. */
 "Play Downloaded" = "Play Downloaded";
 
 /* No comment provided by engineer. */
 "Play original in VLC" = "Play original in VLC";
+
+/* Audio player scrubber accessibility label. */
+"Playback position" = "Playback position";
 
 /* No comment provided by engineer. */
 "Playback Speed" = "Playback Speed";
@@ -519,6 +537,9 @@
 
 /* No comment provided by engineer. */
 "Revoke" = "Revoke";
+
+/* Audio player controls. */
+"Rewind 15 seconds" = "Rewind 15 seconds";
 
 /* No comment provided by engineer. */
 "Save" = "Save";
@@ -687,24 +708,3 @@
 
 /* No comment provided by engineer. */
 "Your trash is empty" = "Your trash is empty";
-
-/* Audio player controls. */
-"Forward 15 seconds" = "Forward 15 seconds";
-
-/* Audio player queue empty state. */
-"Nothing queued" = "Nothing queued";
-
-/* Audio player screen title. */
-"Now Playing" = "Now Playing";
-
-/* Audio player control. */
-"Pause" = "Pause";
-
-/* Audio player control. */
-"Play" = "Play";
-
-/* Audio player scrubber accessibility label. */
-"Playback position" = "Playback position";
-
-/* Audio player controls. */
-"Rewind 15 seconds" = "Rewind 15 seconds";

@@ -61,6 +61,23 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertEqual(AudioPlayerViewController().queuePlaybackRate, 1)
     }
 
+    func testPlaybackRateRequestFromBackgroundQueueUpdatesTheControlOnMain() {
+        let viewController = AudioPlayerViewController()
+        viewController.configurePlaybackRateControl()
+        let updated = expectation(description: "Playback rate control updated")
+
+        DispatchQueue.global().async {
+            viewController.setPlaybackRate(1.5)
+            DispatchQueue.main.async {
+                XCTAssertEqual(viewController.queuePlaybackRate, 1.5)
+                XCTAssertEqual(viewController.playbackRateButton.accessibilityValue, "1.5×")
+                updated.fulfill()
+            }
+        }
+
+        wait(for: [updated], timeout: 2)
+    }
+
     func testPlayRestoresTheSelectedQueueRateAsThePlayerDefault() {
         let viewController = AudioPlayerViewController()
         viewController.player = AVQueuePlayer()

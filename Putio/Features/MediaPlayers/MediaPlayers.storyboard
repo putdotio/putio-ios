@@ -142,6 +142,7 @@
                                 <constraints>
                                     <constraint firstItem="d0p-aR-vGZ" firstAttribute="centerX" secondItem="HGl-35-jUd" secondAttribute="centerX" id="0o2-0a-Kfq"/>
                                     <constraint firstItem="p8j-FC-yZw" firstAttribute="top" secondItem="A0r-td-kPj" secondAttribute="bottom" constant="16" id="4VC-5a-rI4"/>
+                                    <constraint firstItem="p8j-FC-yZw" firstAttribute="bottom" relation="lessThanOrEqual" secondItem="HGl-35-jUd" secondAttribute="bottom" constant="-8" id="5PN-rJ-DpR"/>
                                     <constraint firstItem="d0p-aR-vGZ" firstAttribute="top" secondItem="HGl-35-jUd" secondAttribute="top" constant="24" id="6re-mG-Ta5"/>
                                     <constraint firstItem="d0p-aR-vGZ" firstAttribute="width" secondItem="HGl-35-jUd" secondAttribute="width" multiplier="0.68" priority="750" id="8pq-3Z-aTg"/>
                                     <constraint firstItem="d0p-aR-vGZ" firstAttribute="height" secondItem="d0p-aR-vGZ" secondAttribute="width" id="A2A-CM-pXg"/>

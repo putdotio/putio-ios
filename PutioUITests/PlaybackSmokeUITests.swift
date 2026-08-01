@@ -49,6 +49,16 @@ final class PlaybackSmokeUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(playbackRateButton.frame.height, 48)
         XCTAssertEqual(playbackRateButton.value as? String, "1×")
 
+        let playPauseButton = app.buttons["audio-player-play-pause"]
+        let upNextLabel = app.staticTexts["Up next"]
+        XCTAssertTrue(playPauseButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(upNextLabel.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(
+            playPauseButton.frame.maxY + 8,
+            upNextLabel.frame.minY,
+            "playback controls should remain clear of the queue card"
+        )
+
         playbackRateButton.tap()
         let fasterRate = app.buttons["1.5×"]
         XCTAssertTrue(fasterRate.waitForExistence(timeout: 5))

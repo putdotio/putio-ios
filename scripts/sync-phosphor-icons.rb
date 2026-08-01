@@ -18,7 +18,7 @@ class PhosphorIconSync
   LICENSE_PATH = File.join(ROOT, "ThirdParty", "PhosphorIcons", "LICENSE")
   ALLOWED_WEIGHTS = %w[regular fill].freeze
   SF_SYMBOL_PATTERN = /\bUIImage\s*\(\s*systemName\s*:/
-  SF_SYMBOL_LITERAL_PATTERN = /\bUIImage\s*\(\s*systemName\s*:\s*"([^"]+)"/
+  SF_SYMBOL_LITERAL_PATTERN = /\bUIImage\s*\(\s*systemName\s*:\s*"([^"]+)"(?=\s*(?:,|\)))/
   SF_SYMBOL_ALLOWLIST = {
     "Putio/Features/MediaPlayers/AudioPlayerViewController.swift" => %w[gobackward.15 goforward.15]
   }.freeze

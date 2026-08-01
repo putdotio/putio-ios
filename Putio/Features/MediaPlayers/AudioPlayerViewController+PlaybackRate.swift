@@ -37,6 +37,12 @@ extension AudioPlayerViewController {
 
     func setPlaybackRate(_ rate: Float) {
         guard Self.supportedPlaybackRates.contains(rate) else { return }
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.setPlaybackRate(rate)
+            }
+            return
+        }
 
         let wasPlaying = player?.rate != 0
         queuePlaybackRate = rate
@@ -147,15 +153,27 @@ extension AudioPlayerViewController {
         }
     }
 
-    func unRegisterRemoteMediaControls() {
+    func unregisterRemoteMediaControls() {
         UIApplication.shared.endReceivingRemoteControlEvents()
         let commandCenter = MPRemoteCommandCenter.shared()
-        commandCenter.pauseCommand.removeTarget(commandCenterTargets["pause"])
-        commandCenter.playCommand.removeTarget(commandCenterTargets["play"])
-        commandCenter.skipBackwardCommand.removeTarget(commandCenterTargets["skipBackward"])
-        commandCenter.skipForwardCommand.removeTarget(commandCenterTargets["skipForward"])
-        commandCenter.changePlaybackPositionCommand.removeTarget(commandCenterTargets["changePlaybackPosition"])
-        commandCenter.changePlaybackRateCommand.removeTarget(commandCenterTargets["changePlaybackRate"])
+        if let target = commandCenterTargets["pause"] {
+            commandCenter.pauseCommand.removeTarget(target)
+        }
+        if let target = commandCenterTargets["play"] {
+            commandCenter.playCommand.removeTarget(target)
+        }
+        if let target = commandCenterTargets["skipBackward"] {
+            commandCenter.skipBackwardCommand.removeTarget(target)
+        }
+        if let target = commandCenterTargets["skipForward"] {
+            commandCenter.skipForwardCommand.removeTarget(target)
+        }
+        if let target = commandCenterTargets["changePlaybackPosition"] {
+            commandCenter.changePlaybackPositionCommand.removeTarget(target)
+        }
+        if let target = commandCenterTargets["changePlaybackRate"] {
+            commandCenter.changePlaybackRateCommand.removeTarget(target)
+        }
         commandCenter.skipBackwardCommand.preferredIntervals = []
         commandCenter.skipForwardCommand.preferredIntervals = []
         commandCenter.changePlaybackRateCommand.isEnabled = false
