@@ -47,12 +47,13 @@ extension AudioPlayerViewController {
         let wasPlaying = player?.rate != 0
         queuePlaybackRate = rate
         player?.defaultRate = rate
+        updatePlaybackRateControl()
+
         if wasPlaying {
             player?.rate = rate
+        } else {
+            updateMPNowPlayingInfoForCurrentItem()
         }
-
-        updatePlaybackRateControl()
-        updateMPNowPlayingInfoForCurrentItem()
     }
 
     func shouldTrackPlayback(at rate: Float) -> Bool {

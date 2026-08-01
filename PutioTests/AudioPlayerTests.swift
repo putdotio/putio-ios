@@ -19,6 +19,20 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertEqual(viewController.routePickerView.accessibilityIdentifier, "audio-output-route-picker")
     }
 
+    func testNextItemActionHasA44PointTouchTarget() throws {
+        let viewController = try XCTUnwrap(
+            UIStoryboard(name: "MediaPlayers", bundle: nil)
+                .instantiateViewController(withIdentifier: "AudioPlayerVC") as? AudioPlayerViewController
+        )
+        viewController.mediaItems = []
+
+        viewController.loadViewIfNeeded()
+        viewController.view.layoutIfNeeded()
+
+        XCTAssertGreaterThanOrEqual(viewController.nextItemActionButton.bounds.width, 44)
+        XCTAssertGreaterThanOrEqual(viewController.nextItemActionButton.bounds.height, 44)
+    }
+
     func testPlaybackRateControlExposesEverySupportedRateToVoiceOver() throws {
         let viewController = AudioPlayerViewController()
 
@@ -89,6 +103,61 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertEqual(viewController.player?.defaultRate, 1.5)
     }
 
+    func testRemoteMediaControlsRegisterAndUnregisterTheirExactTargets() {
+        let viewController = AudioPlayerViewController()
+        let commandCenter = MPRemoteCommandCenter.shared()
+
+        viewController.registerRemoteMediaControls()
+
+        XCTAssertEqual(
+            Set(viewController.commandCenterTargets.keys),
+            ["pause", "play", "skipBackward", "skipForward", "changePlaybackPosition", "changePlaybackRate"]
+        )
+        XCTAssertEqual(commandCenter.skipBackwardCommand.preferredIntervals, [15])
+        XCTAssertEqual(commandCenter.skipForwardCommand.preferredIntervals, [15])
+        XCTAssertTrue(commandCenter.changePlaybackRateCommand.isEnabled)
+        XCTAssertEqual(
+            commandCenter.changePlaybackRateCommand.supportedPlaybackRates,
+            AudioPlayerViewController.supportedPlaybackRates.map(NSNumber.init(value:))
+        )
+
+        viewController.unregisterRemoteMediaControls()
+
+        XCTAssertTrue(viewController.commandCenterTargets.isEmpty)
+        XCTAssertEqual(commandCenter.skipBackwardCommand.preferredIntervals, [])
+        XCTAssertEqual(commandCenter.skipForwardCommand.preferredIntervals, [])
+        XCTAssertFalse(commandCenter.changePlaybackRateCommand.isEnabled)
+
+        viewController.unregisterRemoteMediaControls()
+        XCTAssertTrue(viewController.commandCenterTargets.isEmpty)
+    }
+
+    func testCompletedSeekPersistsThePlayerReportedPosition() throws {
+        let media = MediaPlayerItem(
+            id: 104,
+            name: "Seekable.m4b",
+            url: URL(fileURLWithPath: "/tmp/seekable.m4b"),
+            fileType: .audio,
+            consumptionType: .offline
+        )
+        let viewController = SeekObservingAudioPlayerViewController(media: media)
+        let composition = AVMutableComposition()
+        composition.insertEmptyTimeRange(CMTimeRange(start: .zero, duration: CMTime(seconds: 120, preferredTimescale: 600)))
+        viewController.player = AVQueuePlayer(playerItem: AVPlayerItem(asset: composition))
+        let persisted = expectation(description: "Completed seek persisted")
+        viewController.onSaveAudioTime = { persisted.fulfill() }
+
+        viewController.onSeek(to: 30)
+
+        wait(for: [persisted], timeout: 2)
+        let savedPosition = try XCTUnwrap(viewController.savedPosition)
+        let reportedCurrentTime = try XCTUnwrap(viewController.player?.currentItem?.currentTime().getFiniteSeconds())
+        let reportedDuration = try XCTUnwrap(viewController.player?.currentItem?.duration.getFiniteSeconds())
+        XCTAssertEqual(reportedCurrentTime, 30, accuracy: 0.1)
+        XCTAssertEqual(savedPosition.currentTime, reportedCurrentTime, accuracy: 0.1)
+        XCTAssertEqual(savedPosition.duration, reportedDuration, accuracy: 0.1)
+    }
+
     func testProgressIsTrackedAtEverySupportedPlaybackRate() {
         let viewController = AudioPlayerViewController()
 
@@ -118,5 +187,31 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(info[MPNowPlayingInfoPropertyDefaultPlaybackRate] as? NSNumber).floatValue, 1.5)
         XCTAssertEqual(try XCTUnwrap(info[MPNowPlayingInfoPropertyElapsedPlaybackTime] as? NSNumber).doubleValue, 90)
         XCTAssertEqual(try XCTUnwrap(info[MPMediaItemPropertyPlaybackDuration] as? NSNumber).doubleValue, 3_600)
+    }
+}
+
+private final class SeekObservingAudioPlayerViewController: AudioPlayerViewController {
+    let media: MediaPlayerItem
+    var savedPosition: (currentTime: Double, duration: Double)?
+    var onSaveAudioTime: (() -> Void)?
+
+    init(media: MediaPlayerItem) {
+        self.media = media
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func findMediaItem(by playerItem: AVPlayerItem?) -> MediaPlayerItem? {
+        return media
+    }
+
+    override func updateTimeDisplay(currentTime: Double, duration: Double) {}
+
+    override func saveAudioTime(for item: MediaPlayerItem, currentTime: Double, duration: Double) {
+        savedPosition = (currentTime, duration)
+        onSaveAudioTime?()
     }
 }

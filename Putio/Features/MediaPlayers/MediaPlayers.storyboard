@@ -161,10 +161,10 @@
                                 </constraints>
                             </view>
                             <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="fXQ-eQ-eVP" userLabel="NextItemContainer">
-                                <rect key="frame" x="16" y="678" width="382" height="80"/>
+                                <rect key="frame" x="16" y="673" width="382" height="85"/>
                                 <subviews>
                                     <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" alignment="top" translatesAutoresizingMaskIntoConstraints="NO" id="Jfm-PY-dSO">
-                                        <rect key="frame" x="16" y="12" width="354" height="56"/>
+                                        <rect key="frame" x="16" y="12" width="354" height="61"/>
                                         <subviews>
                                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Up next" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="ApZ-Pi-uWy">
                                                 <rect key="frame" x="0.0" y="0.0" width="45" height="17"/>
@@ -173,13 +173,13 @@
                                                 <nil key="highlightedColor"/>
                                             </label>
                                             <stackView opaque="NO" contentMode="scaleAspectFit" alignment="center" spacing="4" translatesAutoresizingMaskIntoConstraints="NO" id="YUf-jW-fQT">
-                                                <rect key="frame" x="0.0" y="17" width="354" height="39"/>
+                                                <rect key="frame" x="0.0" y="17" width="354" height="44"/>
                                                 <subviews>
                                                     <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="bRd-WA-lQX">
-                                                        <rect key="frame" x="0.0" y="0.0" width="306" height="39"/>
+                                                        <rect key="frame" x="0.0" y="0.0" width="306" height="44"/>
                                                         <subviews>
                                                             <stackView opaque="NO" contentMode="scaleToFill" alignment="top" spacing="4" translatesAutoresizingMaskIntoConstraints="NO" id="vEk-T9-V1S" userLabel="LoaderView">
-                                                                <rect key="frame" x="0.0" y="5.6666666666666288" width="94.666666666666671" height="20"/>
+                                                                <rect key="frame" x="0.0" y="12" width="94.666666666666671" height="20"/>
                                                                 <subviews>
                                                                     <activityIndicatorView opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" animating="YES" style="medium" translatesAutoresizingMaskIntoConstraints="NO" id="cEW-T5-6nZ">
                                                                         <rect key="frame" x="0.0" y="0.0" width="20" height="20"/>
@@ -194,7 +194,7 @@
                                                                 </subviews>
                                                             </stackView>
                                                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Found File Name (04:30) Found File Name (04:30)" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="baS-cA-ANE" userLabel="NextItemLabel">
-                                                                <rect key="frame" x="0.0" y="10" width="306" height="19.333333333333332"/>
+                                                                <rect key="frame" x="0.0" y="12.333333333333332" width="306" height="19.333333333333332"/>
                                                                 <fontDescription key="fontDescription" style="UICTFontTextStyleCallout"/>
                                                                 <color key="textColor" name="putio.neutral.text"/>
                                                                 <nil key="highlightedColor"/>
@@ -209,8 +209,9 @@
                                                         </constraints>
                                                     </view>
                                                     <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="17A-ph-ewx" userLabel="NextItemPlayButton">
-                                                        <rect key="frame" x="310" y="0.0" width="44" height="39"/>
+                                                        <rect key="frame" x="310" y="0.0" width="44" height="44"/>
                                                         <constraints>
+                                                            <constraint firstAttribute="height" constant="44" id="o6e-z7-YMV"/>
                                                             <constraint firstAttribute="width" constant="44" id="t3S-21-pWp"/>
                                                         </constraints>
                                                         <fontDescription key="fontDescription" style="UICTFontTextStyleBody"/>
@@ -237,7 +238,7 @@
                                     <constraint firstItem="Jfm-PY-dSO" firstAttribute="leading" secondItem="fXQ-eQ-eVP" secondAttribute="leading" constant="16" id="9M4-4S-pph"/>
                                     <constraint firstItem="Jfm-PY-dSO" firstAttribute="top" secondItem="fXQ-eQ-eVP" secondAttribute="top" constant="12" id="J6V-aP-aTb"/>
                                     <constraint firstAttribute="bottom" secondItem="Jfm-PY-dSO" secondAttribute="bottom" constant="12" id="PAX-GB-q54"/>
-                                    <constraint firstAttribute="height" constant="80" id="Qde-gr-1Ze"/>
+                                    <constraint firstAttribute="height" constant="85" id="Qde-gr-1Ze"/>
                                     <constraint firstAttribute="trailing" secondItem="Jfm-PY-dSO" secondAttribute="trailing" constant="12" id="fCx-Ba-uc4"/>
                                 </constraints>
                             </view>
