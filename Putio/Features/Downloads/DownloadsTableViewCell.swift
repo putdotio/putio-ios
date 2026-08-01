@@ -43,20 +43,28 @@ class DownloadsTableViewCell: UITableViewCell {
     }
 
     @IBAction func downloadButtonTapped(_ sender: Any) {
-        guard let realm,
+        _ = performDownloadAction()
+    }
+
+    private func performDownloadAction() -> Bool {
+        guard let delegate,
+              let realm,
               let id,
               let download = realm.object(ofType: Download.self, forPrimaryKey: id) else {
-            return log.error("DownloadsTableViewCell - downloadButtonTapped - invalid download")
+            log.error("DownloadsTableViewCell - downloadButtonTapped - invalid download")
+            return false
         }
 
-        self.delegate?.downloadCellActionButtonTapped(
+        delegate.downloadCellActionButtonTapped(
             download: download,
             sender: self
         )
+        return true
     }
 
     override func prepareForReuse() {
         super.prepareForReuse()
+        id = nil
         downloadButtonContainer.isHidden = true
         accessibilityIdentifier = nil
         isAccessibilityElement = false
@@ -132,9 +140,8 @@ class DownloadsTableViewCell: UITableViewCell {
     }
 
     override func accessibilityActivate() -> Bool {
-        guard !isEditing, delegate != nil else { return super.accessibilityActivate() }
-        downloadButtonTapped(self)
-        return true
+        guard !isEditing else { return super.accessibilityActivate() }
+        return performDownloadAction()
     }
 
     private func configureStandardAccessibility() {

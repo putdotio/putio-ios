@@ -574,6 +574,12 @@ final class NavigationLocalizationTests: XCTestCase {
 
         XCTAssertFalse(cell.accessibilityActivate())
         XCTAssertEqual(delegate.activatedDownloadIDs, [download.id])
+
+        cell.setEditing(false, animated: false)
+        cell.prepareForReuse()
+
+        XCTAssertFalse(cell.accessibilityActivate())
+        XCTAssertEqual(delegate.activatedDownloadIDs, [download.id])
     }
 
     func testDownloadCellAccessibilityHintsDescribeEveryStateAction() throws {
