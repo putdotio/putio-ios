@@ -227,6 +227,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         guard didWrite else { return }
 
         discardDownload(id: id)
+        _ = deleteLocalFile(for: id)
         DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 
