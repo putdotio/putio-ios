@@ -118,6 +118,7 @@ class AudioPlayerViewController: UIViewController {
         controlFastForward.accessibilityLabel = NSLocalizedString("Forward 15 seconds", comment: "")
         controlPlayPause.accessibilityLabel = NSLocalizedString("Play", comment: "")
         controlPlayPause.accessibilityIdentifier = "audio-player-play-pause"
+        currentTimeLabel.accessibilityIdentifier = "audio-player-current-time"
         timeSlider.accessibilityLabel = NSLocalizedString("Playback position", comment: "")
     }
 

@@ -45,6 +45,9 @@ final class PlaybackSmokeUITests: XCTestCase {
         let speedButton = app.buttons["Playback speed"]
         XCTAssertTrue(speedButton.waitForExistence(timeout: 5))
         XCTAssertEqual(speedButton.value as? String, "1×")
+        let currentTimeLabel = app.staticTexts["audio-player-current-time"]
+        XCTAssertTrue(currentTimeLabel.waitForExistence(timeout: 5))
+        let initialTime = currentTimeLabel.label
 
         speedButton.tap()
         let fasterRate = app.buttons["1.5×"]
@@ -52,6 +55,11 @@ final class PlaybackSmokeUITests: XCTestCase {
         fasterRate.tap()
 
         XCTAssertEqual(speedButton.value as? String, "1.5×")
+        expectation(
+            for: NSPredicate(format: "label != %@", initialTime),
+            evaluatedWith: currentTimeLabel
+        )
+        waitForExpectations(timeout: 5)
     }
 
     func testFilesScreenLoadsWithFixtureData() {
