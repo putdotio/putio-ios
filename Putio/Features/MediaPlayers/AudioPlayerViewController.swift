@@ -114,6 +114,7 @@ class AudioPlayerViewController: UIViewController {
             ?? UIFont.monospacedDigitSystemFont(ofSize: timeFontSize, weight: .medium)
         currentTimeLabel.font = timeFont
         durationLabel.font = timeFont
+        trackTitleLabel.setContentCompressionResistancePriority(.required, for: .vertical)
 
         controlRewind.tintColor = UIColor.Putio.Neutral.textSecondary
         controlPlayPause.tintColor = UIColor.Putio.Neutral.text

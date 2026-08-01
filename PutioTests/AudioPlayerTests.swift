@@ -25,6 +25,7 @@ final class AudioPlayerTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(viewController.routePickerView.frame.height, 44)
         XCTAssertEqual(viewController.playbackRateButton.titleLabel?.font.fontName, viewController.currentTimeLabel.font.fontName)
         XCTAssertEqual(viewController.playbackRateButton.titleLabel?.font.pointSize, viewController.currentTimeLabel.font.pointSize)
+        XCTAssertEqual(viewController.trackTitleLabel.contentCompressionResistancePriority(for: .vertical), .required)
     }
 
     func testPlaybackRateMenuExposesSupportedRates() throws {
