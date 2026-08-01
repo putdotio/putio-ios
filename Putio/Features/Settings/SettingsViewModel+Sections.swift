@@ -8,6 +8,7 @@ extension SettingsViewModel {
         [
             informationSection(),
             storageSection(),
+            downloadsSection(),
             filesSection(),
             mediaPlaybackSection(),
             securitySection(),
@@ -92,6 +93,26 @@ extension SettingsViewModel {
                     icon: .arrowCounterClockwise,
                     value: "",
                     action: { self.resetSortSettings() },
+                    visible: true
+                )
+            ]
+        )
+    }
+
+    private func downloadsSection() -> SettingsModel.Section {
+        let limit = DownloadConcurrencyPreference.limit()
+        return SettingsModel.Section(
+            title: NSLocalizedString("Downloads", comment: ""),
+            items: [
+                SettingsModel.SectionItem(
+                    title: NSLocalizedString("Simultaneous downloads", comment: ""),
+                    type: .button,
+                    icon: .downloadSimple,
+                    value: String(
+                        format: NSLocalizedString("%d at a time", comment: ""),
+                        limit
+                    ),
+                    action: { self.presentDownloadConcurrencySettings() },
                     visible: true
                 )
             ]

@@ -3,6 +3,15 @@ import RealmSwift
 import UserNotifications
 
 enum DownloadSupport {
+    struct CompletionResult: Equatable {
+        let state: Download.State
+        let message: String
+
+        var shouldDiscardArtifact: Bool {
+            state == .queued || state == .stopped
+        }
+    }
+
     enum LocalFileLocation: Equatable {
         case none
         case unresolved
@@ -15,6 +24,10 @@ enum DownloadSupport {
         case alreadyMissing
         case removed
         case failed
+    }
+
+    static func preconditionSerializedTransition() {
+        dispatchPrecondition(condition: .onQueue(.main))
     }
 
     static func realm(context: String) -> Realm? {
@@ -79,6 +92,12 @@ enum DownloadSupport {
             log.error("[DownloadSupport] \(context): \(error.localizedDescription)")
             return false
         }
+    }
+
+    @discardableResult
+    static func deleteItemIfPresent(at url: URL?, context: String) -> Bool {
+        guard let url else { return true }
+        return deleteItemIfPresent(at: url, context: context)
     }
 
     static func deleteLocalFile(
@@ -155,5 +174,171 @@ enum DownloadSupport {
             guard let error else { return }
             log.error("[DownloadSupport] Failed to enqueue completion notification: \(error.localizedDescription)")
         }
+    }
+
+    static func completionResult(
+        currentState: Download.State,
+        error: Error?
+    ) -> CompletionResult {
+        if currentState == .queued || currentState == .stopped {
+            return CompletionResult(state: currentState, message: "")
+        }
+
+        guard let error = error as NSError? else {
+            return CompletionResult(state: .completed, message: "")
+        }
+
+        return CompletionResult(state: .failed, message: error.localizedDescription)
+    }
+}
+
+enum DownloadTaskCompletionIdentity {
+    private static let defaultsKeyPrefix = "DownloadTaskCompletionIdentity.current"
+
+    static func begin(
+        downloadID: Int,
+        fileType: Download.FileType,
+        defaults: UserDefaults = .standard
+    ) -> String {
+        let taskDescription = "\(downloadID):\(UUID().uuidString)"
+        adopt(
+            taskDescription: taskDescription,
+            downloadID: downloadID,
+            fileType: fileType,
+            defaults: defaults
+        )
+        return taskDescription
+    }
+
+    static func parsedDownloadID(from taskDescription: String?) -> Int? {
+        guard let idComponent = taskDescription?.split(separator: ":", maxSplits: 1).first else { return nil }
+        return Int(idComponent)
+    }
+
+    static func adopt(
+        taskDescription: String,
+        downloadID: Int,
+        fileType: Download.FileType,
+        defaults: UserDefaults = .standard
+    ) {
+        defaults.set(taskDescription, forKey: defaultsKey(downloadID: downloadID, fileType: fileType))
+    }
+
+    static func preferredTaskDescription(
+        from taskDescriptions: [String],
+        downloadID: Int,
+        fileType: Download.FileType,
+        defaults: UserDefaults = .standard
+    ) -> String? {
+        let currentDescription = defaults.string(
+            forKey: defaultsKey(downloadID: downloadID, fileType: fileType)
+        )
+        if let currentDescription {
+            return taskDescriptions.contains(currentDescription) ? currentDescription : nil
+        }
+        let legacyDescription = String(downloadID)
+        return taskDescriptions.contains(legacyDescription) ? legacyDescription : nil
+    }
+
+    static func drainingDownloadID(taskIdentifier: Int, fileType: Download.FileType) -> Int {
+        let mediaOffset = fileType == .audio ? 1 : 2
+        return -(taskIdentifier * 2 + mediaOffset)
+    }
+
+    static func downloadID(
+        mappedID: Int?,
+        taskDescription: String?,
+        fileType: Download.FileType,
+        defaults: UserDefaults = .standard
+    ) -> Int? {
+        guard let taskDescription,
+              let parsedID = parsedDownloadID(from: taskDescription),
+              mappedID == nil || mappedID == parsedID else { return nil }
+        let expectedDescription = defaults.string(
+            forKey: defaultsKey(downloadID: parsedID, fileType: fileType)
+        )
+        if let expectedDescription {
+            return expectedDescription == taskDescription ? parsedID : nil
+        }
+        return mappedID != nil || taskDescription == String(parsedID) ? parsedID : nil
+    }
+
+    static func clearIfCurrent(
+        taskDescription: String?,
+        downloadID: Int,
+        fileType: Download.FileType,
+        defaults: UserDefaults = .standard
+    ) {
+        let key = defaultsKey(downloadID: downloadID, fileType: fileType)
+        guard defaults.string(forKey: key) == taskDescription else { return }
+        defaults.removeObject(forKey: key)
+    }
+
+    static func clear(
+        downloadID: Int,
+        fileType: Download.FileType,
+        defaults: UserDefaults = .standard
+    ) {
+        defaults.removeObject(forKey: defaultsKey(downloadID: downloadID, fileType: fileType))
+    }
+
+    private static func defaultsKey(downloadID: Int, fileType: Download.FileType) -> String {
+        "\(defaultsKeyPrefix).\(fileType.rawValue).\(downloadID)"
+    }
+}
+
+enum DownloadTaskRestorationPolicy {
+    enum Action: Equatable {
+        case restore
+        case cancelPreservingState
+        case cancelIgnoringCompletion
+    }
+
+    static func action(for state: Download.State, isDuplicate: Bool) -> Action {
+        switch state {
+        case .starting, .active:
+            return isDuplicate ? .cancelIgnoringCompletion : .restore
+        case .queued:
+            return isDuplicate ? .cancelIgnoringCompletion : .cancelPreservingState
+        case .completed, .failed, .stopped:
+            return .cancelIgnoringCompletion
+        }
+    }
+}
+
+final class DownloadAttemptRegistry {
+    struct Token: Equatable {
+        fileprivate let value = UUID()
+    }
+
+    private let lock = NSLock()
+    private var tokens = [Int: Token]()
+
+    func begin(downloadID: Int) -> Token {
+        lock.lock()
+        defer { lock.unlock() }
+        let token = Token()
+        tokens[downloadID] = token
+        return token
+    }
+
+    func consume(_ token: Token, downloadID: Int) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard tokens[downloadID] == token else { return false }
+        tokens.removeValue(forKey: downloadID)
+        return true
+    }
+
+    func isCurrent(_ token: Token, downloadID: Int) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return tokens[downloadID] == token
+    }
+
+    func invalidate(downloadID: Int) {
+        lock.lock()
+        tokens.removeValue(forKey: downloadID)
+        lock.unlock()
     }
 }

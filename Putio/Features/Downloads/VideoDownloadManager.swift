@@ -5,20 +5,19 @@ import RealmSwift
 import UserNotifications
 import NotificationCenter
 
-class VideoDownloadManager: NSObject {
+class VideoDownloadManager: NSObject, DownloadQueueManaging {
     static let sharedInstance = VideoDownloadManager()
     static let NOTIFICATION = Notification.Name("DOWNLOAD_MANAGER_QUEUE_UPDATED")
 
     fileprivate var assetDownloadURLSession: AVAssetDownloadURLSession?
-    fileprivate var activeDownloadsMap = [AVAssetDownloadTask: Int]()
+    fileprivate var activeDownloadsMap = [URLSessionTask: Int]()
     private let activeDownloadsLock = NSLock()
-    fileprivate var willDownloadToURLMap = [AVAssetDownloadTask: URL]()
-    fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
-    fileprivate var didRestore = false
+    var willDownloadToURLMap = [AVAssetDownloadTask: URL]()
+    var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
+    let pendingAttempts = DownloadAttemptRegistry()
+    var activeDownloadCount: Int { withActiveDownloadsMap { $0.count } }
 
-    var activeDownloadCount: Int {
-        withActiveDownloadsMap { $0.count }
-    }
+    var activeDownloadIDs: Set<Int> { withActiveDownloadsMap { Set($0.values) } }
 
     override private init() {
         super.init()
@@ -42,30 +41,95 @@ class VideoDownloadManager: NSObject {
 
         assetDownloadURLSession.getAllTasks { (tasks) in
             log.verbose("VDM: restore - task count: \(tasks.count)")
+            var restoredIDs = Set<Int>()
+            var tasksByDownloadID = [Int: [AVAssetDownloadTask]]()
 
-            tasks.forEach { (t) in
-                guard let task = t as? AVAssetDownloadTask, let taskDescription = t.taskDescription else {
-                    return log.error("VDM: restore - unknown task: \(t.taskDescription ?? "")")
+            tasks.forEach { task in
+                guard let assetTask = task as? AVAssetDownloadTask,
+                      let downloadID = DownloadTaskCompletionIdentity.parsedDownloadID(
+                        from: assetTask.taskDescription
+                      ) else {
+                    log.error("VDM: restore - unknown task: \(task.taskDescription ?? "")")
+                    self.trackDraining(task, restoredIDs: &restoredIDs)
+                    return
                 }
+                tasksByDownloadID[downloadID, default: []].append(assetTask)
+            }
 
-                guard let downloadId = Int(taskDescription) else {
-                    return log.error("VDM: restore - could not cast taskDescription: \(taskDescription)")
-                }
+            tasksByDownloadID.forEach { downloadID, downloadTasks in
+                self.restore(
+                    downloadTasks,
+                    downloadID: downloadID,
+                    restoredIDs: &restoredIDs
+                )
+            }
 
-                self.withActiveDownloadsMap { $0[task] = downloadId }
-                self.cancelDownload(id: downloadId)
+            DownloadQueueController.sharedInstance.managerDidRestore(.video, activeIDs: restoredIDs)
+        }
+    }
+
+    private func restore(
+        _ tasks: [AVAssetDownloadTask],
+        downloadID: Int,
+        restoredIDs: inout Set<Int>
+    ) {
+        guard let download = getDownloadFromDatabase(id: downloadID) else {
+            tasks.forEach { trackDraining($0, restoredIDs: &restoredIDs) }
+            return
+        }
+        let preferredDescription = DownloadTaskCompletionIdentity.preferredTaskDescription(
+            from: tasks.compactMap(\.taskDescription),
+            downloadID: downloadID,
+            fileType: .video
+        )
+        var didRestorePreferredTask = false
+
+        tasks.forEach { task in
+            let isPreferred = !didRestorePreferredTask && task.taskDescription == preferredDescription
+            guard isPreferred, let taskDescription = task.taskDescription else {
+                trackDraining(task, restoredIDs: &restoredIDs)
+                return
+            }
+            didRestorePreferredTask = true
+            let action = DownloadTaskRestorationPolicy.action(for: download.state, isDuplicate: false)
+            guard action != .cancelIgnoringCompletion else {
+                trackDraining(task, restoredIDs: &restoredIDs)
+                return
+            }
+
+            DownloadTaskCompletionIdentity.adopt(
+                taskDescription: taskDescription,
+                downloadID: downloadID,
+                fileType: .video
+            )
+            withActiveDownloadsMap { $0[task] = downloadID }
+            restoredIDs.insert(downloadID)
+            if action == .cancelPreservingState {
+                task.cancel()
+            } else {
+                task.resume()
             }
         }
     }
 
-    private func notifyUser(for id: Int) {
+    private func trackDraining(_ task: URLSessionTask, restoredIDs: inout Set<Int>) {
+        let drainingID = DownloadTaskCompletionIdentity.drainingDownloadID(
+            taskIdentifier: task.taskIdentifier,
+            fileType: .video
+        )
+        withActiveDownloadsMap { $0[task] = drainingID }
+        restoredIDs.insert(drainingID)
+        task.cancel()
+    }
+
+    func notifyUser(for id: Int) {
         log.verbose(["VDM: notifyUser", id])
 
         guard let download = getDownloadFromDatabase(id: id) else { return }
         DownloadSupport.enqueueCompletedDownloadNotification(for: download.name)
     }
 
-    private func getDownloadFromDatabase(id: Int) -> Download? {
+    func getDownloadFromDatabase(id: Int) -> Download? {
         log.verbose(["VDM: getDownloadFromDatabase", id])
         guard let realm = DownloadSupport.realm(context: "VideoDownloadManager.getDownloadFromDatabase") else {
             return nil
@@ -96,28 +160,61 @@ class VideoDownloadManager: NSObject {
         }
     }
 
-    private func startDownload(id: Int) {
-        log.verbose(["VDM: startDownload", id])
-        guard let download = getDownloadFromDatabase(id: id) else { return }
+    func beginDownload(id: Int) {
+        DownloadSupport.preconditionSerializedTransition()
+        log.verbose(["VDM: beginDownload", id])
+        guard let download = getDownloadFromDatabase(id: id), download.state == .starting else { return }
+        let taskDescription = DownloadTaskCompletionIdentity.begin(
+            downloadID: id,
+            fileType: .video
+        )
+        let attempt = pendingAttempts.begin(downloadID: id)
 
         getRemoteStreamURL(for: download, completion: { url in
-            guard let assetDownloadURLSession = self.assetDownloadURLSession else { return }
-            guard let url else { return }
+            dispatchPrecondition(condition: .onQueue(.main))
+            guard self.pendingAttempts.isCurrent(attempt, downloadID: id) else { return }
+            guard let currentDownload = self.getDownloadFromDatabase(id: id), currentDownload.state == .starting else { return }
+            guard let assetDownloadURLSession = self.assetDownloadURLSession, let url else {
+                self.failStart(id: id, attempt: attempt)
+                return
+            }
 
             guard let task = assetDownloadURLSession.makeAssetDownloadTask(
                 asset: AVURLAsset(url: url),
-                assetTitle: download.name.slugify(),
+                assetTitle: currentDownload.name.slugify(),
                 assetArtworkData: nil,
                 options: nil
-            ) else { return }
+            ) else {
+                self.failStart(id: id, attempt: attempt)
+                return
+            }
 
             self.withActiveDownloadsMap { $0[task] = id }
 
-            task.taskDescription = String(id)
+            task.taskDescription = taskDescription
+            guard self.getDownloadFromDatabase(id: id)?.state == .starting,
+                  DownloadTaskCompletionIdentity.downloadID(
+                    mappedID: id,
+                    taskDescription: taskDescription,
+                    fileType: .video
+                  ) == id,
+                  self.pendingAttempts.consume(attempt, downloadID: id) else {
+                _ = self.withActiveDownloadsMap { $0.removeValue(forKey: task) }
+                task.cancel()
+                return
+            }
             task.resume()
 
             NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)
         })
+    }
+
+    private func failStart(id: Int, attempt: DownloadAttemptRegistry.Token) {
+        guard pendingAttempts.consume(attempt, downloadID: id) else { return }
+        DownloadQueueController.sharedInstance.startFailed(
+            id: id,
+            message: NSLocalizedString("Unable to start download. Tap to retry.", comment: "")
+        )
     }
 
     func createDownload(from file: PutioFile) {
@@ -130,22 +227,26 @@ class VideoDownloadManager: NSObject {
         }
         guard didWrite else { return }
 
-        startDownload(id: download.id)
+        DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 
     func cancelDownload(id: Int) {
+        DownloadSupport.preconditionSerializedTransition()
         log.verbose(["VDM: cancelDownload", id])
+        pendingAttempts.invalidate(downloadID: id)
         guard let download = getDownloadFromDatabase(id: id) else { return }
+
+        guard let realm = download.realm else { return }
+        let didWrite = DownloadSupport.write(realm, context: "VideoDownloadManager.cancelDownload.write") {
+            download.progress = "0"
+            download.state = .stopped
+        }
+        guard didWrite else { return }
 
         if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
             task.cancel()
         }
-
-        guard let realm = download.realm else { return }
-        _ = DownloadSupport.write(realm, context: "VideoDownloadManager.cancelDownload.write") {
-            download.progress = "0"
-            download.state = .stopped
-        }
+        DownloadQueueController.sharedInstance.managerDidFinish()
     }
 
     @discardableResult
@@ -171,6 +272,8 @@ class VideoDownloadManager: NSObject {
 
     @discardableResult
     func removeDownloadRecord(id: Int) -> Bool {
+        DownloadSupport.preconditionSerializedTransition()
+        pendingAttempts.invalidate(downloadID: id)
         if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
             task.cancel()
         }
@@ -183,11 +286,12 @@ class VideoDownloadManager: NSObject {
         }
 
         UserDefaults.standard.removeObject(forKey: String(id))
+        DownloadQueueController.sharedInstance.managerDidFinish()
         return true
     }
 
-    private func withActiveDownloadsMap<Result>(
-        _ body: (inout [AVAssetDownloadTask: Int]) -> Result
+    func withActiveDownloadsMap<Result>(
+        _ body: (inout [URLSessionTask: Int]) -> Result
     ) -> Result {
         activeDownloadsLock.lock()
         defer { activeDownloadsLock.unlock() }
@@ -195,16 +299,23 @@ class VideoDownloadManager: NSObject {
     }
 
     func restartDownload(id: Int) {
+        DownloadSupport.preconditionSerializedTransition()
         log.verbose(["VDM: restartDownload", id])
+        pendingAttempts.invalidate(downloadID: id)
         guard let download = getDownloadFromDatabase(id: id) else { return }
 
-        cancelDownload(id: id)
-        startDownload(id: id)
-
         guard let realm = download.realm else { return }
-        _ = DownloadSupport.write(realm, context: "VideoDownloadManager.restartDownload.write") {
+        let didWrite = DownloadSupport.write(realm, context: "VideoDownloadManager.restartDownload.write") {
+            download.progress = "0"
+            download.message = ""
             download.state = .queued
         }
+        guard didWrite else { return }
+
+        if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
+            task.cancel()
+        }
+        DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 
     private func getLocalFileLocation(for downloadId: Int) -> DownloadSupport.LocalFileLocation {
@@ -252,7 +363,7 @@ class VideoDownloadManager: NSObject {
     }
 
     @discardableResult
-    private func deleteLocalFile(for downloadId: Int) -> DownloadSupport.LocalFileDeletionResult {
+    func deleteLocalFile(for downloadId: Int) -> DownloadSupport.LocalFileDeletionResult {
         log.verbose(["VDM: deleteLocalFile", downloadId])
 
         let result = DownloadSupport.deleteLocalFile(
@@ -263,110 +374,5 @@ class VideoDownloadManager: NSObject {
             log.verbose(["VDM: local file deleted", downloadId])
         }
         return result
-    }
-}
-
-extension VideoDownloadManager: AVAssetDownloadDelegate {
-    func urlSession(_ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didFinishDownloadingTo location: URL) {
-        log.verbose(["VDM: assetDownloadTask-didFinishDownloadingTo", location.absoluteString])
-        willDownloadToURLMap[assetDownloadTask] = location
-    }
-
-    func urlSession(_ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didResolve resolvedMediaSelection: AVMediaSelection) {
-        log.verbose(["VDM: assetDownloadTask-did-resolve: ", resolvedMediaSelection])
-    }
-
-    // swiftlint:disable:next line_length
-    func urlSession(_ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didLoad timeRange: CMTimeRange, totalTimeRangesLoaded loadedTimeRanges: [NSValue], timeRangeExpectedToLoad: CMTimeRange) {
-        log.verbose(["VDM: assetDownloadTask-progress task: ", assetDownloadTask.taskIdentifier])
-
-        guard let downloadId = withActiveDownloadsMap({ $0[assetDownloadTask] }) else { return }
-        guard let download = getDownloadFromDatabase(id: downloadId) else { return }
-
-        log.verbose(["VDM: assetDownloadTask-progress download: ", downloadId])
-
-        var currentProgress = 0.0
-        for value in loadedTimeRanges {
-            let loadedTimeRange: CMTimeRange = value.timeRangeValue
-            currentProgress += CMTimeGetSeconds(loadedTimeRange.duration) / CMTimeGetSeconds(timeRangeExpectedToLoad.duration)
-        }
-
-        let oldProgress = (download.progress as NSString).doubleValue
-        let now = CFAbsoluteTimeGetCurrent()
-        let elapsed = now - (lastProgressUpdateTime[downloadId] ?? 0)
-
-        if currentProgress > oldProgress && (oldProgress == 0 || (currentProgress - oldProgress >= 0.02 && elapsed >= 1.0)) {
-            log.verbose(["VDM: assetDownloadTask-progress percent: ", currentProgress, "oldProgress", oldProgress])
-            lastProgressUpdateTime[downloadId] = now
-
-            guard let realm = download.realm else { return }
-            _ = DownloadSupport.write(realm, context: "VideoDownloadManager.progress.write") {
-                download.progress = String(format: "%.2f", currentProgress)
-                if download.state != .active {
-                    download.state = .active
-                }
-            }
-        }
-    }
-
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        log.verbose("VDM: didCompleteWithError")
-
-        guard let task = task as? AVAssetDownloadTask else { return }
-        log.verbose(["VDM: didCompleteWithError task: ", task.taskIdentifier])
-
-        guard let id = withActiveDownloadsMap({ $0.removeValue(forKey: task) }) else { return }
-        lastProgressUpdateTime.removeValue(forKey: id)
-        log.verbose(["VDM: didCompleteWithError task.id: ", id])
-
-        guard let downloadURL = willDownloadToURLMap.removeValue(forKey: task) else { return }
-        log.verbose(["VDM: didCompleteWithError downloadURL: ", downloadURL])
-
-        guard let download = getDownloadFromDatabase(id: id) else { return }
-        log.verbose(["VDM: didCompleteWithError download: ", download.id, download.name])
-
-        var state = Download.State.completed
-        var message = ""
-
-        do {
-            log.verbose("VDM: didCompleteWithError: getting boomark data")
-            let bookmark = try downloadURL.bookmarkData()
-            log.verbose("VDM: didCompleteWithError: saving boomark data to userDefauls")
-            UserDefaults.standard.set(bookmark, forKey: String(download.id))
-            log.verbose("VDM: didCompleteWithError: bookmark data set")
-        } catch {
-            state = Download.State.failed
-            message = "Unable to decode the bookmark data"
-            log.error(["VDM: didCompleteWithError: ", message])
-        }
-
-        if let error = error as NSError? {
-            switch (error.domain, error.code) {
-            case (NSURLErrorDomain, NSURLErrorCancelled):
-                deleteLocalFile(for: id)
-            default:
-                break
-            }
-
-            state = Download.State.failed
-            message = error.localizedDescription
-
-            log.error(["VDM: didCompleteWithError error: ", message])
-        }
-
-        log.verbose("VDM: didCompleteWithError: writing to realm")
-        guard let realm = download.realm else { return }
-        _ = DownloadSupport.write(realm, context: "VideoDownloadManager.didComplete.write") {
-            download.state = state
-            download.message = message
-            download.completedAt = Date()
-        }
-
-        if download.state == .completed {
-            notifyUser(for: id)
-        }
-
-        log.verbose("VDM: didCompleteWithError: posting notification")
-        NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)
     }
 }

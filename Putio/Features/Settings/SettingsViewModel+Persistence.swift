@@ -214,6 +214,41 @@ extension SettingsViewModel {
         }
     }
 
+    func presentDownloadConcurrencySettings() {
+        let currentLimit = DownloadConcurrencyPreference.limit()
+        let actionSheet = UIAlertController(
+            title: NSLocalizedString("Simultaneous downloads", comment: ""),
+            message: NSLocalizedString(
+                "Audio and video downloads share this limit. Queued items start in order.",
+                comment: ""
+            ),
+            preferredStyle: .alert
+        )
+
+        DownloadConcurrencyPreference.allowedLimits.forEach { limit in
+            var title = String(
+                format: NSLocalizedString("%d at a time", comment: ""),
+                limit
+            )
+            if limit == currentLimit {
+                title += " ✓"
+            }
+
+            actionSheet.addAction(UIAlertAction(title: title, style: .default) { _ in
+                self.setDownloadConcurrencyLimit(limit)
+            })
+        }
+
+        actionSheet.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
+        tableViewController?.present(actionSheet, animated: true)
+    }
+
+    func setDownloadConcurrencyLimit(_ limit: Int, defaults: UserDefaults = .standard) {
+        DownloadConcurrencyPreference.setLimit(limit, defaults: defaults)
+        DownloadQueueController.sharedInstance.concurrencyLimitDidChange()
+        update()
+    }
+
     func presentLogoutAlert() {
         let alert = UIAlertController(title: NSLocalizedString("Are you sure?", comment: ""), message: "", preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))

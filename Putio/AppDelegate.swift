@@ -121,7 +121,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
-        completionHandler()
+        BackgroundDownloadSessionEvents.register(
+            identifier: identifier,
+            completionHandler: completionHandler
+        )
+        DownloadQueueController.sharedInstance.restoreBackgroundSessions()
     }
 
     func application(_ application: UIApplication, open url: URL, sourceApplication: String?, annotation: Any) -> Bool {
@@ -165,6 +169,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         PutioKeychain.sharedInstance.setToken(token)
         api.setToken(token: token)
+        if ProcessInfo.processInfo.environment["PUTIO_E2E_MOCK_API"] != "1" {
+            DownloadQueueController.sharedInstance.start()
+        }
         fetchUser()
     }
 
@@ -282,6 +289,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func logout() {
+        DownloadQueueController.sharedInstance.pause()
         PutioKeychain.sharedInstance.clearToken()
         api.clearToken()
         VideoPlaybackPositionStore.shared.clearAllPositions()

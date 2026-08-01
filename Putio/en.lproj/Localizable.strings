@@ -687,3 +687,18 @@
 
 /* No comment provided by engineer. */
 "Your trash is empty" = "Your trash is empty";
+
+/* Offline download concurrency setting. */
+"Simultaneous downloads" = "Simultaneous downloads";
+
+/* Explains that one queue coordinates both supported media types. */
+"Audio and video downloads share this limit. Queued items start in order." = "Audio and video downloads share this limit. Queued items start in order.";
+
+/* Number of offline downloads allowed to run concurrently. */
+"%d at a time" = "%d at a time";
+
+/* Download start failure shown in the Downloads screen. */
+"Unable to start download. Tap to retry." = "Unable to start download. Tap to retry.";
+
+/* Video download completed but could not be persisted. */
+"Unable to save the downloaded video. Tap to retry." = "Unable to save the downloaded video. Tap to retry.";
