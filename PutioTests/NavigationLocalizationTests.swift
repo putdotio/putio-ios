@@ -657,6 +657,10 @@ final class NavigationLocalizationTests: XCTestCase {
             DownloadQueuePolicy.nextDownloadIDs(from: items, occupiedIDs: [1], limit: 2),
             [2]
         )
+        XCTAssertEqual(
+            DownloadQueuePolicy.overflowDownloadIDs(from: items, activeIDs: [1, 2, 3], limit: 1),
+            [2, 3]
+        )
     }
 
     func testDownloadConcurrencyPreferencePersistsAllowedLimit() throws {

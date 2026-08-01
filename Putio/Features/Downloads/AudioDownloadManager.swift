@@ -46,6 +46,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
             tasks.forEach { task in
                 guard let description = task.taskDescription,
                       let id = Int(description),
+                      task.state == .running || task.state == .suspended,
                       let download = self.getDownloadFromDatabase(id: id),
                       download.state == .starting || download.state == .active,
                       !restoredIDs.contains(id) else {
@@ -178,6 +179,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         guard didWrite else { return }
 
         discardDownload(id: id)
+        _ = deleteLocalFile(for: id)
         DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 
@@ -230,6 +232,9 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
             at: getLocalFileLocation(for: downloadId),
             context: "AudioDownloadManager.deleteLocalFile"
         )
+        if result == .removed || result == .alreadyMissing {
+            UserDefaults.standard.removeObject(forKey: String(downloadId))
+        }
         return result
     }
 

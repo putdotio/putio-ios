@@ -48,6 +48,21 @@ enum DownloadQueuePolicy {
             .prefix(availableCount)
             .map(\.id)
     }
+
+    static func overflowDownloadIDs(
+        from items: [DownloadQueueItem],
+        activeIDs: Set<Int>,
+        limit: Int
+    ) -> [Int] {
+        items
+            .filter { activeIDs.contains($0.id) }
+            .sorted {
+                if $0.createdAt == $1.createdAt { return $0.id < $1.id }
+                return $0.createdAt < $1.createdAt
+            }
+            .dropFirst(limit)
+            .map(\.id)
+    }
 }
 
 final class DownloadQueueController {
@@ -110,7 +125,10 @@ final class DownloadQueueController {
     }
 
     func concurrencyLimitDidChange() {
-        onMain { self.schedule() }
+        onMain {
+            self.enforceLimit()
+            self.schedule()
+        }
     }
 
     private var didRestoreBothManagers: Bool {
@@ -150,6 +168,43 @@ final class DownloadQueueController {
                 manager.resumeDownload(id: id)
             } else {
                 manager.discardDownload(id: id)
+            }
+        }
+    }
+
+    private func enforceLimit() {
+        guard isEnabled else { return }
+        guard let realm = DownloadSupport.realm(context: "DownloadQueueController.enforceLimit") else { return }
+
+        let audioManager = AudioDownloadManager.sharedInstance
+        let videoManager = VideoDownloadManager.sharedInstance
+        let audioIDs = audioManager.activeDownloadIDs
+        let activeIDs = audioIDs.union(videoManager.activeDownloadIDs)
+        let items = realm.objects(Download.self).map {
+            DownloadQueueItem(id: $0.id, state: $0.state, createdAt: $0.createdAt ?? .distantPast)
+        }
+        let overflowIDs = DownloadQueuePolicy.overflowDownloadIDs(
+            from: Array(items),
+            activeIDs: activeIDs,
+            limit: DownloadConcurrencyPreference.limit()
+        )
+        guard !overflowIDs.isEmpty else { return }
+
+        let didWrite = DownloadSupport.write(realm, context: "DownloadQueueController.enforceLimit.write") {
+            overflowIDs.forEach { id in
+                guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
+                download.state = .queued
+                download.progress = "0"
+                download.message = ""
+            }
+        }
+        guard didWrite else { return }
+
+        overflowIDs.forEach { id in
+            if audioIDs.contains(id) {
+                audioManager.discardDownload(id: id)
+            } else {
+                videoManager.discardDownload(id: id)
             }
         }
     }

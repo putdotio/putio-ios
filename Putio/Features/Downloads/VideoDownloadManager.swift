@@ -4,7 +4,6 @@ import PutioSDK
 import RealmSwift
 import UserNotifications
 import NotificationCenter
-
 class VideoDownloadManager: NSObject, DownloadQueueManaging {
     static let sharedInstance = VideoDownloadManager()
     static let NOTIFICATION = Notification.Name("DOWNLOAD_MANAGER_QUEUE_UPDATED")
@@ -52,6 +51,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
                 guard let task = candidate as? AVAssetDownloadTask,
                       let description = task.taskDescription,
                       let id = Int(description),
+                      task.state == .running || task.state == .suspended,
                       let download = self.getDownloadFromDatabase(id: id),
                       download.state == .starting || download.state == .active,
                       !restoredIDs.contains(id) else {
