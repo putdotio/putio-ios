@@ -11,6 +11,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     fileprivate var assetDownloadURLSession: AVAssetDownloadURLSession?
     fileprivate var activeDownloadsMap = [AVAssetDownloadTask: Int]()
     private var startAttempts = [Int: UUID]()
+    private var didRestoreTasks = false
     private let activeDownloadsLock = NSLock()
     fileprivate var willDownloadToURLMap = [AVAssetDownloadTask: URL]()
     fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
@@ -57,6 +58,8 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
                 self.withActiveDownloadsMap { $0[task] = id }
                 restoredIDs.insert(id)
             }
+            self.didRestoreTasks = true
+            self.removeUnownedDownloadLocations()
             DownloadQueueController.sharedInstance.managerDidRestore(.video, activeIDs: restoredIDs)
         }
     }
@@ -218,6 +221,17 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         return body(&activeDownloadsMap)
     }
 
+    private func removeUnownedDownloadLocations() {
+        let activeTasks = withActiveDownloadsMap { Set($0.keys) }
+        willDownloadToURLMap.keys.filter { !activeTasks.contains($0) }.forEach { task in
+            guard let location = willDownloadToURLMap.removeValue(forKey: task) else { return }
+            _ = DownloadSupport.deleteItemIfPresent(
+                at: location,
+                context: "VideoDownloadManager.restore.unowned"
+            )
+        }
+    }
+
     func restartDownload(id: Int) {
         log.verbose(["VDM: restartDownload", id])
         guard let download = getDownloadFromDatabase(id: id) else { return }
@@ -324,7 +338,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 extension VideoDownloadManager: AVAssetDownloadDelegate {
     func urlSession(_ session: URLSession, assetDownloadTask: AVAssetDownloadTask, didFinishDownloadingTo location: URL) {
         log.verbose(["VDM: assetDownloadTask-didFinishDownloadingTo", location.absoluteString])
-        guard withActiveDownloadsMap({ $0[assetDownloadTask] != nil }) else {
+        guard !didRestoreTasks || withActiveDownloadsMap({ $0[assetDownloadTask] != nil }) else {
             _ = DownloadSupport.deleteItemIfPresent(
                 at: location,
                 context: "VideoDownloadManager.didFinishDownloadingTo.unowned"

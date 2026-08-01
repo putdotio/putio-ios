@@ -702,6 +702,20 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: destination), Data("complete".utf8))
     }
 
+    func testDownloadedArtifactReplacementReplacesExistingFile() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ArtifactReplacementTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("source")
+        let destination = directory.appendingPathComponent("destination")
+        try Data("new".utf8).write(to: source)
+        try Data("old".utf8).write(to: destination)
+
+        XCTAssertNil(DownloadSupport.copyDownloadedArtifact(from: source, to: destination))
+        XCTAssertEqual(try Data(contentsOf: destination), Data("new".utf8))
+    }
+
     func testBackgroundCompletionHandlesFinishBeforeRegistration() {
         let identifier = "BackgroundSessionTests-\(UUID().uuidString)"
         let completed = expectation(description: "completion handler called")

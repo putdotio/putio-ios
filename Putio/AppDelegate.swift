@@ -243,6 +243,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return presentLoginScreen(afterBootstrapFailure: "user/config models could not be constructed")
         }
 
+        let previousAccountID = realm.objects(User.self).first?.id
+
         let didPersist = PutioRealm.replaceUserSession(
             realm,
             user: persistedUser,
@@ -252,6 +254,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         guard didPersist else {
             return presentLoginScreen(afterBootstrapFailure: "user session could not be persisted")
+        }
+
+        if let previousAccountID, previousAccountID != account.id {
+            DownloadQueueController.sharedInstance.clearDownloadsForAccountChange()
         }
 
         Utils.authorizeNotifications(application: UIApplication.shared)

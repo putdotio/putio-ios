@@ -114,6 +114,19 @@ final class DownloadQueueController {
         }
     }
 
+    func clearDownloadsForAccountChange() {
+        onMain {
+            self.isEnabled = false
+            guard let realm = DownloadSupport.realm(context: "DownloadQueueController.accountChange") else { return }
+            Array(realm.objects(Download.self)).forEach { download in
+                switch download.fileType {
+                case .audio: _ = AudioDownloadManager.sharedInstance.deleteDownload(id: download.id)
+                case .video: _ = VideoDownloadManager.sharedInstance.deleteDownload(id: download.id)
+                }
+            }
+        }
+    }
+
     func managerDidRestore(_ fileType: Download.FileType, activeIDs: Set<Int>) {
         onMain {
             self.restoredIDsByType[fileType] = activeIDs
