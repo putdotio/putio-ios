@@ -91,7 +91,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
                 return
             }
             didRestorePreferredTask = true
-            let action = DownloadTaskRestorationPolicy.action(for: download.state, isDuplicate: false)
+            let action = DownloadTaskRestorationPolicy.action(for: download.state)
             guard action != .cancelIgnoringCompletion else {
                 trackDraining(task, restoredIDs: &restoredIDs)
                 return
@@ -106,8 +106,8 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
             restoredIDs.insert(downloadID)
             if action == .cancelPreservingState {
                 task.cancel()
-            } else {
-                task.resume()
+            } else if task.state == .running {
+                task.suspend()
             }
         }
     }
@@ -209,8 +209,16 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         })
     }
 
+    func resumeDownload(id: Int) {
+        DownloadSupport.preconditionSerializedTransition()
+        guard let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }),
+              task.state == .suspended else { return }
+        task.resume()
+    }
+
     private func failStart(id: Int, attempt: DownloadAttemptRegistry.Token) {
         guard pendingAttempts.consume(attempt, downloadID: id) else { return }
+        DownloadTaskCompletionIdentity.clear(downloadID: id, fileType: .video)
         DownloadQueueController.sharedInstance.startFailed(
             id: id,
             message: NSLocalizedString("Unable to start download. Tap to retry.", comment: "")
@@ -256,7 +264,9 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 
         return DownloadSupport.performDeletion(
             state: download?.state,
-            cancelActiveDownload: { self.cancelDownload(id: id) },
+            cancelActiveDownload: {
+                DownloadSupport.performSerializedTransition { self.cancelDownload(id: id) }
+            },
             deleteLocalFile: { self.deleteLocalFile(for: id) },
             deleteRecord: {
                 DownloadSupport.deleteRecord(
@@ -272,6 +282,10 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 
     @discardableResult
     func removeDownloadRecord(id: Int) -> Bool {
+        DownloadSupport.performSerializedTransition { self.removeDownloadRecordOnMain(id: id) }
+    }
+
+    private func removeDownloadRecordOnMain(id: Int) -> Bool {
         DownloadSupport.preconditionSerializedTransition()
         pendingAttempts.invalidate(downloadID: id)
         if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {

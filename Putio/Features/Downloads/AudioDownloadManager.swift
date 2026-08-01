@@ -6,6 +6,11 @@ import NotificationCenter
 import PutioSDK
 
 class AudioDownloadManager: NSObject, DownloadQueueManaging {
+    struct DownloadedArtifact {
+        let url: URL
+        let relativePath: String
+    }
+
     static let sharedInstance = AudioDownloadManager()
     static let NOTIFICATION = Notification.Name("DOWNLOAD_MANAGER_QUEUE_UPDATED")
 
@@ -13,6 +18,8 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     fileprivate var activeDownloadsMap = [URLSessionTask: Int]()
     private let activeDownloadsLock = NSLock()
     var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
+    var artifactSaveFailures = Set<URLSessionTask>()
+    var downloadedArtifacts = [URLSessionTask: DownloadedArtifact]()
 
     var activeDownloadCount: Int {
         withActiveDownloadsMap { $0.count }
@@ -89,7 +96,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
                 return
             }
             didRestorePreferredTask = true
-            let action = DownloadTaskRestorationPolicy.action(for: download.state, isDuplicate: false)
+            let action = DownloadTaskRestorationPolicy.action(for: download.state)
             guard action != .cancelIgnoringCompletion else {
                 trackDraining(task, restoredIDs: &restoredIDs)
                 return
@@ -104,8 +111,8 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
             restoredIDs.insert(downloadID)
             if action == .cancelPreservingState {
                 task.cancel()
-            } else {
-                task.resume()
+            } else if task.state == .running {
+                task.suspend()
             }
         }
     }
@@ -158,6 +165,13 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)
     }
 
+    func resumeDownload(id: Int) {
+        DownloadSupport.preconditionSerializedTransition()
+        guard let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }),
+              task.state == .suspended else { return }
+        task.resume()
+    }
+
     func createDownload(from file: PutioFile) {
         guard file.type == .audio else { return }
 
@@ -197,7 +211,9 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 
         return DownloadSupport.performDeletion(
             state: download?.state,
-            cancelActiveDownload: { self.cancelDownload(id: id) },
+            cancelActiveDownload: {
+                DownloadSupport.performSerializedTransition { self.cancelDownload(id: id) }
+            },
             deleteLocalFile: { self.deleteLocalFile(for: id) },
             deleteRecord: {
                 DownloadSupport.deleteRecord(
@@ -213,6 +229,10 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 
     @discardableResult
     func removeDownloadRecord(id: Int) -> Bool {
+        DownloadSupport.performSerializedTransition { self.removeDownloadRecordOnMain(id: id) }
+    }
+
+    private func removeDownloadRecordOnMain(id: Int) -> Bool {
         DownloadSupport.preconditionSerializedTransition()
         if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
             task.cancel()
@@ -318,5 +338,32 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         }
 
         return fileExtension
+    }
+}
+
+extension AudioDownloadManager {
+    @discardableResult
+    func requeueDownload(id: Int) -> DownloadRequeueResult {
+        DownloadSupport.preconditionSerializedTransition()
+        guard let download = getDownloadFromDatabase(id: id), let realm = download.realm else { return .failed }
+        let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.requeueDownload.write") {
+            download.progress = "0"
+            download.message = ""
+            download.state = .queued
+        }
+        guard didWrite else { return .failed }
+
+        if let task = withActiveDownloadsMap({ $0.first(where: { $0.value == id })?.key }) {
+            task.cancel()
+            return .awaitingTaskCompletion
+        }
+        return .completedWithoutTask
+    }
+
+    func suspendDownloads() {
+        DownloadSupport.preconditionSerializedTransition()
+        withActiveDownloadsMap { tasks in
+            tasks.keys.filter { $0.state == .running }.forEach { $0.suspend() }
+        }
     }
 }

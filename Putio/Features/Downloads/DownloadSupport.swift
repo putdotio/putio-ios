@@ -1,5 +1,15 @@
 import Foundation
 import RealmSwift
+
+enum DownloadRequeueResult: Equatable {
+    case failed
+    case awaitingTaskCompletion
+    case completedWithoutTask
+
+    var didRequeue: Bool {
+        self != .failed
+    }
+}
 import UserNotifications
 
 enum DownloadSupport {
@@ -28,6 +38,13 @@ enum DownloadSupport {
 
     static func preconditionSerializedTransition() {
         dispatchPrecondition(condition: .onQueue(.main))
+    }
+
+    static func performSerializedTransition<Result>(_ work: @escaping () -> Result) -> Result {
+        if Thread.isMainThread {
+            return work()
+        }
+        return DispatchQueue.main.sync(execute: work)
     }
 
     static func realm(context: String) -> Realm? {
@@ -178,10 +195,15 @@ enum DownloadSupport {
 
     static func completionResult(
         currentState: Download.State,
-        error: Error?
+        error: Error?,
+        artifactSaveFailureMessage: String? = nil
     ) -> CompletionResult {
         if currentState == .queued || currentState == .stopped {
             return CompletionResult(state: currentState, message: "")
+        }
+
+        if let artifactSaveFailureMessage {
+            return CompletionResult(state: .failed, message: artifactSaveFailureMessage)
         }
 
         guard let error = error as NSError? else {
@@ -189,6 +211,21 @@ enum DownloadSupport {
         }
 
         return CompletionResult(state: .failed, message: error.localizedDescription)
+    }
+
+    static func completedAt(for state: Download.State, now: Date = Date()) -> Date? {
+        state == .completed ? now : nil
+    }
+
+    static func normalizedProgress(
+        loadedDurations: [Double],
+        expectedDuration: Double
+    ) -> Double? {
+        guard expectedDuration.isFinite, expectedDuration > 0 else { return nil }
+        guard loadedDurations.allSatisfy({ $0.isFinite && $0 >= 0 }) else { return nil }
+        let progress = loadedDurations.reduce(0, +) / expectedDuration
+        guard progress.isFinite else { return nil }
+        return min(max(progress, 0), 1)
     }
 }
 
@@ -294,12 +331,12 @@ enum DownloadTaskRestorationPolicy {
         case cancelIgnoringCompletion
     }
 
-    static func action(for state: Download.State, isDuplicate: Bool) -> Action {
+    static func action(for state: Download.State) -> Action {
         switch state {
         case .starting, .active:
-            return isDuplicate ? .cancelIgnoringCompletion : .restore
+            return .restore
         case .queued:
-            return isDuplicate ? .cancelIgnoringCompletion : .cancelPreservingState
+            return .cancelPreservingState
         case .completed, .failed, .stopped:
             return .cancelIgnoringCompletion
         }

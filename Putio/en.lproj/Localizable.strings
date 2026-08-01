@@ -702,3 +702,7 @@
 
 /* Video download completed but could not be persisted. */
 "Unable to save the downloaded video. Tap to retry." = "Unable to save the downloaded video. Tap to retry.";
+"Unable to save the downloaded audio. Tap to retry." = "Unable to save the downloaded audio. Tap to retry.";
+
+/* Download completion could not be persisted. */
+"The download could not be completed. Tap to retry." = "The download could not be completed. Tap to retry.";

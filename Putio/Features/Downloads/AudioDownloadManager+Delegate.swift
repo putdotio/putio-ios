@@ -4,11 +4,17 @@ extension AudioDownloadManager: URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         DownloadSupport.preconditionSerializedTransition()
         let mappedID = withActiveDownloadsMap { $0.removeValue(forKey: task) }
+        let artifactSaveFailed = artifactSaveFailures.remove(task) != nil
+        let artifact = downloadedArtifacts.removeValue(forKey: task)
         guard let id = DownloadTaskCompletionIdentity.downloadID(
             mappedID: mappedID,
             taskDescription: task.taskDescription,
             fileType: .audio
         ) else {
+            _ = DownloadSupport.deleteItemIfPresent(
+                at: artifact?.url,
+                context: "AudioDownloadManager.didComplete.stale"
+            )
             if mappedID != nil {
                 DownloadQueueController.sharedInstance.managerDidFinish()
             }
@@ -24,29 +30,60 @@ extension AudioDownloadManager: URLSessionTaskDelegate {
         }
         lastProgressUpdateTime.removeValue(forKey: id)
         guard let download = getDownloadFromDatabase(id: id) else {
+            _ = DownloadSupport.deleteItemIfPresent(
+                at: artifact?.url,
+                context: "AudioDownloadManager.didComplete.deleted"
+            )
             deleteLocalFile(for: id)
             UserDefaults.standard.removeObject(forKey: String(id))
             return
         }
 
-        let result = DownloadSupport.completionResult(currentState: download.state, error: error)
+        let result = DownloadSupport.completionResult(
+            currentState: download.state,
+            error: error,
+            artifactSaveFailureMessage: artifactSaveFailed || (error == nil && artifact == nil)
+                ? NSLocalizedString("Unable to save the downloaded audio. Tap to retry.", comment: "")
+                : nil
+        )
         let nsError = error as NSError?
         let wasCancelled = nsError?.code == NSURLErrorCancelled && nsError?.domain == NSURLErrorDomain
         if result.shouldDiscardArtifact || wasCancelled {
             deleteLocalFile(for: id)
+        }
+        if result.state != .completed {
+            _ = DownloadSupport.deleteItemIfPresent(
+                at: artifact?.url,
+                context: "AudioDownloadManager.didComplete.discard"
+            )
         }
         if result.shouldDiscardArtifact {
             UserDefaults.standard.removeObject(forKey: String(id))
         }
 
         guard let realm = download.realm else { return }
-        _ = DownloadSupport.write(realm, context: "AudioDownloadManager.didComplete.write") {
+        let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.didComplete.write") {
             download.state = result.state
             download.message = result.message
-            download.completedAt = Date()
+            download.completedAt = DownloadSupport.completedAt(for: result.state)
+        }
+        guard didWrite else {
+            _ = DownloadSupport.deleteItemIfPresent(
+                at: artifact?.url,
+                context: "AudioDownloadManager.didComplete.writeFailed"
+            )
+            DownloadQueueController.sharedInstance.startFailed(
+                id: id,
+                message: result.message.isEmpty
+                    ? NSLocalizedString("The download could not be completed. Tap to retry.", comment: "")
+                    : result.message
+            )
+            return
         }
 
         if download.state == .completed {
+            guard let artifact else { return }
+            UserDefaults.standard.set(artifact.relativePath, forKey: String(download.id))
             notifyUser(for: id)
         }
 
@@ -97,8 +134,17 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
         guard let download = getDownloadFromDatabase(id: id) else { return }
 
         let fileExtension = deriveFileExtensionFromResponse(response: downloadTask.response)
-        let destinationPath = "putio_adm_\(String(download.id))_\(download.name.slugify()).\(fileExtension)"
-        guard let destinationURL = getAbsoluteURL(for: destinationPath) else { return }
+        let destinationPath = [
+            "putio_adm",
+            String(download.id),
+            String(downloadTask.taskIdentifier),
+            download.name.slugify()
+        ].joined(separator: "_") + ".\(fileExtension)"
+        guard let destinationURL = getAbsoluteURL(for: destinationPath) else {
+            artifactSaveFailures.insert(downloadTask)
+            UserDefaults.standard.removeObject(forKey: String(download.id))
+            return
+        }
 
         _ = DownloadSupport.deleteItemIfPresent(at: destinationURL, context: "AudioDownloadManager.didFinishDownloadingTo.removeExisting")
 
@@ -106,10 +152,15 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
             log.verbose(["ADM: downloadTask-didFinishDownloadingTo saving file to:", destinationURL])
             try FileManager.default.copyItem(at: location, to: destinationURL)
             log.verbose("ADM: downloadTask-didFinishDownloadingTo saved file!")
+            artifactSaveFailures.remove(downloadTask)
+            downloadedArtifacts[downloadTask] = AudioDownloadManager.DownloadedArtifact(
+                url: destinationURL,
+                relativePath: destinationPath
+            )
         } catch let error {
+            artifactSaveFailures.insert(downloadTask)
+            UserDefaults.standard.removeObject(forKey: String(download.id))
             log.error(["ADM: downloadTask-didFinishDownloadingTo saved error:", error.localizedDescription])
         }
-
-        UserDefaults.standard.set(destinationPath, forKey: String(download.id))
     }
 }

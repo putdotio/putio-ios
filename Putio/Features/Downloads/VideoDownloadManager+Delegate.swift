@@ -21,11 +21,11 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
 
         log.verbose(["VDM: assetDownloadTask-progress download: ", downloadId])
 
-        var currentProgress = 0.0
-        for value in loadedTimeRanges {
-            let loadedTimeRange: CMTimeRange = value.timeRangeValue
-            currentProgress += CMTimeGetSeconds(loadedTimeRange.duration) / CMTimeGetSeconds(timeRangeExpectedToLoad.duration)
-        }
+        let loadedDurations = loadedTimeRanges.map { CMTimeGetSeconds($0.timeRangeValue.duration) }
+        guard let currentProgress = DownloadSupport.normalizedProgress(
+            loadedDurations: loadedDurations,
+            expectedDuration: CMTimeGetSeconds(timeRangeExpectedToLoad.duration)
+        ) else { return }
 
         let oldProgress = (download.progress as NSString).doubleValue
         let now = CFAbsoluteTimeGetCurrent()
@@ -92,7 +92,7 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
         _ = DownloadSupport.write(realm, context: "VideoDownloadManager.didComplete.write") {
             download.state = result.state
             download.message = result.message
-            download.completedAt = Date()
+            download.completedAt = DownloadSupport.completedAt(for: result.state)
         }
 
         if download.state == .completed {
