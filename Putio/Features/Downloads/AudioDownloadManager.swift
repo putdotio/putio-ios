@@ -120,6 +120,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 
         discardDownload(id: id)
         _ = deleteLocalFile(for: id)
+        NotificationCenter.default.post(name: AudioDownloadManager.NOTIFICATION, object: nil)
         DownloadQueueController.sharedInstance.managerDidFinish()
     }
 

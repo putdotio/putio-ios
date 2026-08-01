@@ -44,7 +44,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         configureSDKs()
         prepareForE2ETestsIfNeeded()
-        DownloadQueueController.sharedInstance.restoreBackgroundSessions()
+        if !PutioE2EEnvironment.isMockAPIEnabled {
+            DownloadQueueController.sharedInstance.restoreBackgroundSessions()
+        }
         configureUI()
         authenticate(token: e2eAccessToken)
         return true
