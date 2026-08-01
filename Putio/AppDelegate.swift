@@ -320,7 +320,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func presentMainScreen() {
-        DownloadQueueController.sharedInstance.start()
+        if !PutioE2EEnvironment.isMockAPIEnabled {
+            DownloadQueueController.sharedInstance.start()
+        }
         ChromecastManager.sharedInstance.setup()
         applyWindowAppearance()
         window?.rootViewController = RootContainerViewController()
