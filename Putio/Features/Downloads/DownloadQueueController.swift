@@ -69,6 +69,7 @@ final class DownloadQueueController {
     static let sharedInstance = DownloadQueueController()
 
     private var restoredIDsByType = [Download.FileType: Set<Int>]()
+    private var hasReconciledRestoredDownloads = false
     private var isEnabled = false
 
     private init() {}
@@ -140,6 +141,7 @@ final class DownloadQueueController {
     }
 
     private func reconcileRestoredDownloads() {
+        guard !hasReconciledRestoredDownloads else { return }
         guard let realm = DownloadSupport.realm(context: "DownloadQueueController.restore") else { return }
         let restoredIDs = restoredIDsByType.values.reduce(into: Set<Int>()) { $0.formUnion($1) }
         let admittedIDs = Set(
@@ -163,6 +165,7 @@ final class DownloadQueueController {
             }
         }
         guard didWrite else { return }
+        hasReconciledRestoredDownloads = true
 
         restoredIDs.forEach { id in
             let manager: DownloadQueueManaging = restoredIDsByType[.audio]?.contains(id) == true
