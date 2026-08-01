@@ -535,17 +535,18 @@ final class NavigationLocalizationTests: XCTestCase {
         let cell = makeCell()
         cell.configure(with: download.id)
         cell.configureSelectionAccessibility(isSelecting: false, isSelected: false, isSelectable: false)
+        let expectedStatus = DownloadProgressPresentation.activeStatus(fraction: 0.47)
 
-        XCTAssertEqual(cell.subtitleLabel.text, "Downloading... 47%")
+        XCTAssertEqual(cell.subtitleLabel.text, expectedStatus)
         XCTAssertTrue(cell.isAccessibilityElement)
-        XCTAssertEqual(cell.accessibilityLabel, "Episode, Downloading... 47%")
+        XCTAssertEqual(cell.accessibilityLabel, "Episode, \(expectedStatus)")
         XCTAssertTrue(cell.accessibilityTraits.contains(.button))
 
         let restoredCell = makeCell()
         restoredCell.configure(with: download.id)
 
-        XCTAssertEqual(restoredCell.subtitleLabel.text, "Downloading... 47%")
-        XCTAssertEqual(restoredCell.accessibilityLabel, "Episode, Downloading... 47%")
+        XCTAssertEqual(restoredCell.subtitleLabel.text, expectedStatus)
+        XCTAssertEqual(restoredCell.accessibilityLabel, "Episode, \(expectedStatus)")
     }
 
     func testQueuedAndStartingDownloadsDoNotShowPercentages() throws {
@@ -571,7 +572,12 @@ final class NavigationLocalizationTests: XCTestCase {
         cell.downloadButtonContainer = buttonContainer
         cell.realm = realm
 
-        for (state, expected) in [(Download.State.queued, "In Queue"), (.starting, "Starting...")] {
+        let states = [
+            (Download.State.queued, NSLocalizedString("In Queue", comment: "")),
+            (.starting, NSLocalizedString("Starting...", comment: ""))
+        ]
+
+        for (state, expected) in states {
             try realm.write { download.state = state }
             cell.configure(with: download.id)
 

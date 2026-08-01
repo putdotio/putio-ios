@@ -2,7 +2,7 @@
   "version": 1,
   "title": "put.io iOS visual reference",
   "description": "Committed snapshot baselines for the put.io iOS app. Dark mode only — the app is dark-only. Screens come from the mocked e2e walk on a pinned iPhone 17 Pro Max; components render directly in unit tests.",
-  "updatedAt": "2026-08-01T00:00:00.000Z",
+  "updatedAt": "2026-08-01T12:03:43.000Z",
   "screenshots": [
     {
       "id": "screens-files",
@@ -348,7 +348,6 @@
         "height": 720
       },
       "file": "screenshots/components/components-download-cell-states.png",
-      "capturedAt": "2026-08-01T00:00:00.000Z",
       "sizeBytes": 78399,
       "tags": [
         "downloads",
@@ -357,7 +356,8 @@
       ],
       "notes": [
         "Queued, active, failed, and completed rows. Active progress is rounded to a whole localized percentage."
-      ]
+      ],
+      "capturedAt": "2026-08-01T12:03:43.000Z"
     },
     {
       "id": "components-download-cell-active-accessibility-large",
@@ -370,7 +370,6 @@
         "height": 300
       },
       "file": "screenshots/components/components-download-cell-active-accessibility-large.png",
-      "capturedAt": "2026-08-01T00:00:00.000Z",
       "sizeBytes": 35623,
       "tags": [
         "downloads",
@@ -379,7 +378,8 @@
       ],
       "notes": [
         "Active download name, numeric progress, and stop control at an accessibility text size."
-      ]
+      ],
+      "capturedAt": "2026-08-01T12:03:43.000Z"
     },
     {
       "id": "components-download-state-idle",
