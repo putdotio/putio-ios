@@ -242,7 +242,16 @@
 "Download Completed!" = "Download Completed!";
 
 /* No comment provided by engineer. */
-"Downloading..." = "Downloading...";
+"Downloading... %@" = "Downloading... %@";
+
+/* No comment provided by engineer. */
+"Double tap to open this download." = "Double tap to open this download.";
+
+/* No comment provided by engineer. */
+"Double tap to retry this download." = "Double tap to retry this download.";
+
+/* No comment provided by engineer. */
+"Double tap to stop this download." = "Double tap to stop this download.";
 
 /* No comment provided by engineer. */
 "Downloads" = "Downloads";

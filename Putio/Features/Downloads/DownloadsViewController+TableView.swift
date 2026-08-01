@@ -73,6 +73,25 @@ extension DownloadsViewController: DownloadsTableViewCellDelegate {
             presentDownloadedFile(download)
         }
     }
+
+    func downloadCellSelectionAccessibilityActivated(sender: DownloadsTableViewCell) -> Bool {
+        guard tableView.isEditing,
+              let indexPath = tableView.indexPath(for: sender),
+              tableView(tableView, canEditRowAt: indexPath) else {
+            return false
+        }
+
+        if tableView.indexPathsForSelectedRows?.contains(indexPath) == true {
+            tableView.deselectRow(at: indexPath, animated: false)
+            tableView(tableView, didDeselectRowAt: indexPath)
+        } else {
+            guard tableView(tableView, willSelectRowAt: indexPath) != nil else { return false }
+            tableView.selectRow(at: indexPath, animated: false, scrollPosition: .none)
+            tableView(tableView, didSelectRowAt: indexPath)
+        }
+
+        return true
+    }
 }
 
 extension DownloadsViewController: UITableViewDataSource {

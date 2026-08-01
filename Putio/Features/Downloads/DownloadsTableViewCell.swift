@@ -4,6 +4,7 @@ import RealmSwift
 
 protocol DownloadsTableViewCellDelegate: AnyObject {
     func downloadCellActionButtonTapped(download: Download, sender: DownloadsTableViewCell)
+    func downloadCellSelectionAccessibilityActivated(sender: DownloadsTableViewCell) -> Bool
 }
 
 class DownloadsTableViewCell: UITableViewCell {
@@ -11,10 +12,13 @@ class DownloadsTableViewCell: UITableViewCell {
 
     lazy var realm: Realm? = PutioRealm.open(context: "DownloadsTableViewCell.realm")
     var id: Int?
+    private var standardAccessibilityHint: String?
 
     @IBOutlet weak var icon: UIImageView!
     @IBOutlet weak var titleLabel: UILabel!
     @IBOutlet weak var subtitleLabel: UILabel!
+    @IBOutlet weak var labelContainer: UIView!
+    @IBOutlet weak var labelsStack: UIStackView!
     @IBOutlet weak var downloadButtonContainer: UIView!
 
     private lazy var stateButton: DownloadStateButton = {
@@ -32,31 +36,44 @@ class DownloadsTableViewCell: UITableViewCell {
             stateButton.topAnchor.constraint(equalTo: downloadButtonContainer.topAnchor),
             stateButton.bottomAnchor.constraint(equalTo: downloadButtonContainer.bottomAnchor),
             stateButton.leadingAnchor.constraint(equalTo: downloadButtonContainer.leadingAnchor),
-            stateButton.trailingAnchor.constraint(equalTo: downloadButtonContainer.trailingAnchor)
+            stateButton.trailingAnchor.constraint(equalTo: downloadButtonContainer.trailingAnchor),
+            labelContainer.heightAnchor.constraint(greaterThanOrEqualToConstant: 60),
+            labelsStack.topAnchor.constraint(greaterThanOrEqualTo: labelContainer.topAnchor, constant: 8),
+            labelsStack.bottomAnchor.constraint(lessThanOrEqualTo: labelContainer.bottomAnchor, constant: -8)
         ])
     }
 
     @IBAction func downloadButtonTapped(_ sender: Any) {
-        guard let realm,
+        _ = performDownloadAction()
+    }
+
+    private func performDownloadAction() -> Bool {
+        guard let delegate,
+              let realm,
               let id,
               let download = realm.object(ofType: Download.self, forPrimaryKey: id) else {
-            return log.error("DownloadsTableViewCell - downloadButtonTapped - invalid download")
+            log.error("DownloadsTableViewCell - downloadButtonTapped - invalid download")
+            return false
         }
 
-        self.delegate?.downloadCellActionButtonTapped(
+        delegate.downloadCellActionButtonTapped(
             download: download,
             sender: self
         )
+        return true
     }
 
     override func prepareForReuse() {
         super.prepareForReuse()
+        id = nil
         downloadButtonContainer.isHidden = true
+        accessibilityIdentifier = nil
         isAccessibilityElement = false
         accessibilityLabel = nil
         accessibilityValue = nil
         accessibilityHint = nil
-        accessibilityTraits.remove([.selected, .notEnabled])
+        standardAccessibilityHint = nil
+        accessibilityTraits.remove([.button, .selected, .notEnabled])
     }
 
     override func setEditing(_ editing: Bool, animated: Bool) {
@@ -71,6 +88,8 @@ class DownloadsTableViewCell: UITableViewCell {
         }
 
         id = download.id
+        standardAccessibilityHint = accessibilityActionHint(for: download.state)
+        accessibilityIdentifier = "putio-download-\(download.id)"
         titleLabel?.text = download.name
         icon.image = download.fileType == .video ? PutioIcon.fileVideo.image : PutioIcon.fileAudio.image
         icon.tintColor = UIColor.Putio.Neutral.textSecondary
@@ -86,8 +105,11 @@ class DownloadsTableViewCell: UITableViewCell {
                 stateButton.displayState = .progress(0)
                 subtitleLabel?.text = NSLocalizedString("Starting...", comment: "")
             case .active:
-                stateButton.displayState = .progress(CGFloat((download.progress as NSString).floatValue))
-                subtitleLabel?.text = NSLocalizedString("Downloading...", comment: "")
+                let progress = DownloadProgressPresentation.fraction(from: download.progress)
+                stateButton.displayState = .progress(CGFloat(progress))
+                subtitleLabel?.text = DownloadProgressPresentation.activeStatus(
+                    fraction: progress
+                )
             case .stopped:
                 stateButton.displayState = .idle
                 subtitleLabel?.text = NSLocalizedString("Stopped", comment: "")
@@ -101,6 +123,7 @@ class DownloadsTableViewCell: UITableViewCell {
                 break
             }
 
+            configureStandardAccessibility()
             return
         }
 
@@ -114,6 +137,37 @@ class DownloadsTableViewCell: UITableViewCell {
         icon.tintColor = UIColor.Putio.Yellow.solid
         stateButton.displayState = .completed
         selectionStyle = .default
+        configureStandardAccessibility()
+    }
+
+    override func accessibilityActivate() -> Bool {
+        if isEditing {
+            return delegate?.downloadCellSelectionAccessibilityActivated(sender: self) ?? false
+        }
+        return performDownloadAction()
+    }
+
+    private func configureStandardAccessibility() {
+        isAccessibilityElement = true
+        accessibilityLabel = [titleLabel.text, subtitleLabel.text]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
+        accessibilityValue = nil
+        accessibilityHint = standardAccessibilityHint
+        accessibilityTraits.remove([.selected, .notEnabled])
+        accessibilityTraits.insert(.button)
+    }
+
+    private func accessibilityActionHint(for state: Download.State) -> String {
+        switch state {
+        case .queued, .starting, .active:
+            return NSLocalizedString("Double tap to stop this download.", comment: "")
+        case .stopped, .failed:
+            return NSLocalizedString("Double tap to retry this download.", comment: "")
+        case .completed:
+            return NSLocalizedString("Double tap to open this download.", comment: "")
+        }
     }
 
     func configureSelectionAccessibility(
@@ -121,14 +175,13 @@ class DownloadsTableViewCell: UITableViewCell {
         isSelected: Bool,
         isSelectable: Bool
     ) {
-        isAccessibilityElement = isSelecting
         guard isSelecting else {
-            accessibilityLabel = nil
-            accessibilityValue = nil
-            accessibilityHint = nil
-            accessibilityTraits.remove([.selected, .notEnabled])
+            configureStandardAccessibility()
             return
         }
+
+        isAccessibilityElement = true
+        accessibilityTraits.remove(.button)
 
         if isSelectable {
             accessibilityLabel = [titleLabel.text, subtitleLabel.text]
@@ -155,6 +208,38 @@ class DownloadsTableViewCell: UITableViewCell {
             accessibilityTraits.remove(.selected)
             accessibilityTraits.insert(.notEnabled)
         }
+    }
+}
+
+enum DownloadProgressPresentation {
+    static func fraction(from persistedValue: String) -> Double {
+        guard let fraction = Double(persistedValue), fraction.isFinite else { return 0 }
+        return min(max(fraction, 0), 1)
+    }
+
+    static func percentage(
+        fraction: Double,
+        locale: Locale = .current
+    ) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = locale
+        formatter.numberStyle = .percent
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 0
+        formatter.roundingMode = .halfUp
+
+        let clamped = min(max(fraction, 0), 1)
+        return formatter.string(from: NSNumber(value: clamped)) ?? "0%"
+    }
+
+    static func activeStatus(
+        fraction: Double,
+        locale: Locale = .current
+    ) -> String {
+        String(
+            format: NSLocalizedString("Downloading... %@", comment: ""),
+            percentage(fraction: fraction, locale: locale)
+        )
     }
 }
 

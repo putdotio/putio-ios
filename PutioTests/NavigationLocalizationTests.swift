@@ -449,18 +449,9 @@ final class NavigationLocalizationTests: XCTestCase {
     }
 
     func testDownloadCellAccessibilityDescribesSelectionAndUnavailableState() {
-        let cell = DownloadsTableViewCell()
-        let titleLabel = UILabel()
-        let subtitleLabel = UILabel()
-        let container = UIView()
-        cell.contentView.addSubview(titleLabel)
-        cell.contentView.addSubview(subtitleLabel)
-        cell.contentView.addSubview(container)
-        cell.titleLabel = titleLabel
-        cell.subtitleLabel = subtitleLabel
-        cell.downloadButtonContainer = container
-        titleLabel.text = "Episode"
-        subtitleLabel.text = "Downloading..."
+        let cell = makeDownloadCell()
+        cell.titleLabel.text = "Episode"
+        cell.subtitleLabel.text = "Downloading..."
 
         cell.configureSelectionAccessibility(isSelecting: true, isSelected: true, isSelectable: true)
 
@@ -490,6 +481,139 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertFalse(cell.accessibilityTraits.contains(.notEnabled))
     }
 
+    func testDownloadProgressPresentationRoundsAndClampsLocalizedPercentages() {
+        let locale = Locale(identifier: "en_US")
+
+        XCTAssertEqual(DownloadProgressPresentation.fraction(from: "0.474"), 0.474)
+        XCTAssertEqual(DownloadProgressPresentation.fraction(from: "not-a-number"), 0)
+        XCTAssertEqual(DownloadProgressPresentation.percentage(fraction: -0.1, locale: locale), "0%")
+        XCTAssertEqual(DownloadProgressPresentation.percentage(fraction: 0.474, locale: locale), "47%")
+        XCTAssertEqual(DownloadProgressPresentation.percentage(fraction: 0.995, locale: locale), "100%")
+        XCTAssertEqual(DownloadProgressPresentation.percentage(fraction: 1.4, locale: locale), "100%")
+        XCTAssertEqual(
+            DownloadProgressPresentation.activeStatus(fraction: 0.474, locale: locale),
+            "Downloading... 47%"
+        )
+    }
+
+    func testActiveDownloadRestoresPercentageAndCombinedAccessibility() throws {
+        let configuration = Realm.Configuration(inMemoryIdentifier: #function)
+        let realm = try Realm(configuration: configuration)
+        let download = Download()
+        download.id = 108
+        download.name = "Episode"
+        download.state = .active
+        download.progress = "0.47"
+        try realm.write { realm.add(download) }
+
+        let cell = makeDownloadCell(realm: realm)
+        cell.configure(with: download.id)
+        cell.configureSelectionAccessibility(isSelecting: false, isSelected: false, isSelectable: false)
+        let expectedStatus = DownloadProgressPresentation.activeStatus(fraction: 0.47)
+
+        XCTAssertEqual(cell.subtitleLabel.text, expectedStatus)
+        XCTAssertTrue(cell.isAccessibilityElement)
+        XCTAssertEqual(cell.accessibilityLabel, "Episode, \(expectedStatus)")
+        XCTAssertEqual(
+            cell.accessibilityHint,
+            NSLocalizedString("Double tap to stop this download.", comment: "")
+        )
+        XCTAssertTrue(cell.accessibilityTraits.contains(.button))
+
+        let restoredCell = makeDownloadCell(realm: realm)
+        restoredCell.configure(with: download.id)
+
+        XCTAssertEqual(restoredCell.subtitleLabel.text, expectedStatus)
+        XCTAssertEqual(restoredCell.accessibilityLabel, "Episode, \(expectedStatus)")
+    }
+
+    func testQueuedAndStartingDownloadsDoNotShowPercentages() throws {
+        let configuration = Realm.Configuration(inMemoryIdentifier: #function)
+        let realm = try Realm(configuration: configuration)
+        let download = Download()
+        download.id = 109
+        download.name = "Queued Episode"
+        download.progress = "0.47"
+        try realm.write { realm.add(download) }
+
+        let cell = makeDownloadCell(realm: realm)
+
+        let states = [
+            (Download.State.queued, NSLocalizedString("In Queue", comment: "")),
+            (.starting, NSLocalizedString("Starting...", comment: ""))
+        ]
+
+        for (state, expected) in states {
+            try realm.write { download.state = state }
+            cell.configure(with: download.id)
+
+            XCTAssertEqual(cell.subtitleLabel.text, expected)
+            XCTAssertFalse(cell.subtitleLabel.text?.contains("%") == true)
+        }
+    }
+
+    func testDownloadCellAccessibilityActivationInvokesActionOutsideEditing() throws {
+        let configuration = Realm.Configuration(inMemoryIdentifier: #function)
+        let realm = try Realm(configuration: configuration)
+        let download = Download()
+        download.id = 110
+        download.name = "Episode"
+        download.state = .active
+        download.progress = "0.47"
+        try realm.write { realm.add(download) }
+
+        let cell = makeDownloadCell(realm: realm)
+        let delegate = DownloadCellDelegateSpy()
+        cell.delegate = delegate
+        cell.configure(with: download.id)
+
+        XCTAssertTrue(cell.accessibilityActivate())
+        XCTAssertEqual(delegate.activatedDownloadIDs, [download.id])
+
+        cell.setEditing(true, animated: false)
+
+        XCTAssertFalse(cell.accessibilityActivate())
+        XCTAssertEqual(delegate.activatedDownloadIDs, [download.id])
+        XCTAssertEqual(delegate.selectionActivationCount, 1)
+
+        delegate.selectionActivationResult = true
+
+        XCTAssertTrue(cell.accessibilityActivate())
+        XCTAssertEqual(delegate.selectionActivationCount, 2)
+
+        cell.setEditing(false, animated: false)
+        cell.prepareForReuse()
+
+        XCTAssertFalse(cell.accessibilityActivate())
+        XCTAssertEqual(delegate.activatedDownloadIDs, [download.id])
+    }
+
+    func testDownloadCellAccessibilityHintsDescribeEveryStateAction() throws {
+        let configuration = Realm.Configuration(inMemoryIdentifier: #function)
+        let realm = try Realm(configuration: configuration)
+        let download = Download()
+        download.id = 111
+        download.name = "Episode"
+        try realm.write { realm.add(download) }
+        let cell = makeDownloadCell(realm: realm)
+        let states = [
+            (Download.State.queued, NSLocalizedString("Double tap to stop this download.", comment: "")),
+            (.starting, NSLocalizedString("Double tap to stop this download.", comment: "")),
+            (.active, NSLocalizedString("Double tap to stop this download.", comment: "")),
+            (.stopped, NSLocalizedString("Double tap to retry this download.", comment: "")),
+            (.failed, NSLocalizedString("Double tap to retry this download.", comment: "")),
+            (.completed, NSLocalizedString("Double tap to open this download.", comment: ""))
+        ]
+
+        for (state, expectedHint) in states {
+            try realm.write { download.state = state }
+            cell.configure(with: download.id)
+
+            XCTAssertEqual(cell.accessibilityHint, expectedHint)
+            XCTAssertTrue(cell.accessibilityTraits.contains(.button))
+        }
+    }
+
     func testDownloadsSelectionEditingControlsOnlyAppearForCompletedRows() throws {
         let configuration = Realm.Configuration(inMemoryIdentifier: #function)
         let realm = try Realm(configuration: configuration)
@@ -516,6 +640,23 @@ final class NavigationLocalizationTests: XCTestCase {
 
         XCTAssertFalse(viewController.tableView(tableView, canEditRowAt: IndexPath(row: 0, section: 0)))
         XCTAssertTrue(viewController.tableView(tableView, canEditRowAt: IndexPath(row: 1, section: 0)))
+    }
+
+    private func makeDownloadCell(realm: Realm? = nil) -> DownloadsTableViewCell {
+        let cell = DownloadsTableViewCell()
+        let icon = UIImageView()
+        let titleLabel = UILabel()
+        let subtitleLabel = UILabel()
+        let buttonContainer = UIView()
+        [icon, titleLabel, subtitleLabel, buttonContainer].forEach {
+            cell.contentView.addSubview($0)
+        }
+        cell.icon = icon
+        cell.titleLabel = titleLabel
+        cell.subtitleLabel = subtitleLabel
+        cell.downloadButtonContainer = buttonContainer
+        cell.realm = realm
+        return cell
     }
 
     private func makeFolder(id: Int, name: String, sortBy: String) throws -> PutioFile {
@@ -553,5 +694,20 @@ final class NavigationLocalizationTests: XCTestCase {
     private func makePutioFile(_ payload: [String: Any]) throws -> PutioFile {
         let data = try JSONSerialization.data(withJSONObject: payload)
         return try JSONDecoder().decode(PutioFile.self, from: data)
+    }
+}
+
+private final class DownloadCellDelegateSpy: DownloadsTableViewCellDelegate {
+    private(set) var activatedDownloadIDs: [Int] = []
+    private(set) var selectionActivationCount = 0
+    var selectionActivationResult = false
+
+    func downloadCellActionButtonTapped(download: Download, sender: DownloadsTableViewCell) {
+        activatedDownloadIDs.append(download.id)
+    }
+
+    func downloadCellSelectionAccessibilityActivated(sender: DownloadsTableViewCell) -> Bool {
+        selectionActivationCount += 1
+        return selectionActivationResult
     }
 }

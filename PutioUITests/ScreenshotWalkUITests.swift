@@ -70,7 +70,7 @@ final class ScreenshotWalkUITests: XCTestCase {
         let readiness: [String: XCUIElement] = [
             // Scoped to the table: the fixture library is shared, so a bare
             // title also matches rows on other tabs.
-            "Downloads": app.tables["putio-downloads-table"].staticTexts["Caminandes - Llamigos.mp4"],
+            "Downloads": app.tables["putio-downloads-table"].cells["putio-download-75"],
             "History": app.tables["putio-history-table"].staticTexts["Tears of Steel.mp4"],
             "Account": app.tables.staticTexts["Manage your trash"]
         ]

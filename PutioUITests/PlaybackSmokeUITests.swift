@@ -68,21 +68,16 @@ final class PlaybackSmokeUITests: XCTestCase {
 
         app.tabItem("Downloads").tap()
         let downloadsTable = app.tables["putio-downloads-table"]
-        let firstDownload = downloadsTable.cells.containing(
-            .staticText,
-            identifier: "Big Buck Bunny.mp4"
-        ).element
-        let secondDownload = downloadsTable.cells.containing(
-            .staticText,
-            identifier: "Sintel.mp4"
-        ).element
-        let activeDownload = downloadsTable.cells.containing(
-            .staticText,
-            identifier: "Tears of Steel.mp4"
-        ).element
+        let firstDownload = downloadsTable.cells["putio-download-42"]
+        let secondDownload = downloadsTable.cells["putio-download-71"]
+        let activeDownload = downloadsTable.cells["putio-download-72"]
         XCTAssertTrue(firstDownload.waitForExistence(timeout: 10))
         XCTAssertTrue(secondDownload.exists)
         XCTAssertTrue(activeDownload.exists)
+        XCTAssertEqual(
+            activeDownload.label,
+            "Tears of Steel.mp4, Downloading... 62%"
+        )
 
         app.buttons["Select completed downloads"].tap()
         XCTAssertTrue(app.navigationBars["Select Items"].waitForExistence(timeout: 5))
