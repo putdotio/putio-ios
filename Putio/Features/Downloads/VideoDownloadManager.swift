@@ -245,7 +245,10 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         guard didWrite else { return }
 
         discardDownload(id: id)
-        _ = deleteLocalFile(for: id)
+        let deletionResult = deleteLocalFile(for: id)
+        if deletionResult == .removed || deletionResult == .alreadyMissing {
+            UserDefaults.standard.removeObject(forKey: String(id))
+        }
         DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 
@@ -399,7 +402,17 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
         lastProgressUpdateTime.removeValue(forKey: id)
         log.verbose(["VDM: didCompleteWithError task.id: ", id])
 
-        guard let download = getDownloadFromDatabase(id: id) else { return }
+        guard let download = getDownloadFromDatabase(id: id), let realm = download.realm else {
+            if let downloadURL = willDownloadToURLMap.removeValue(forKey: task) {
+                _ = DownloadSupport.deleteItemIfPresent(
+                    at: downloadURL,
+                    context: "VideoDownloadManager.didComplete.missingRecord"
+                )
+            }
+            _ = withActiveDownloadsMap { $0.removeValue(forKey: task) }
+            DownloadQueueController.sharedInstance.managerDidFinish()
+            return
+        }
         log.verbose(["VDM: didCompleteWithError download: ", download.id, download.name])
 
         let downloadURL = willDownloadToURLMap.removeValue(forKey: task)
@@ -424,7 +437,6 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
         }
 
         log.verbose("VDM: didCompleteWithError: writing to realm")
-        guard let realm = download.realm else { return }
         let didWrite = DownloadSupport.write(realm, context: "VideoDownloadManager.didComplete.write") {
             download.state = didFail ? .failed : .completed
             download.message = didFail ? NSLocalizedString("Download failed. Tap to retry.", comment: "") : ""

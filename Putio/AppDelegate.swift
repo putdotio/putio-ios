@@ -281,7 +281,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         switch error.localizerType {
         case .decodingError, .unknownError, .networkError:
             if user != nil {
-                return self.presentMainScreen()
+                return self.presentMainScreen(startDownloadQueue: false)
             }
 
             self.presentLoginScreen(afterBootstrapFailure: "account fetch failed: \(error.localizerType)")
@@ -292,7 +292,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             }
 
             if user != nil {
-                return self.presentMainScreen()
+                return self.presentMainScreen(startDownloadQueue: false)
             }
 
             return self.presentLoginScreen(afterBootstrapFailure: "account fetch failed with HTTP \(statusCode)")
@@ -331,8 +331,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.makeKeyAndVisible()
     }
 
-    func presentMainScreen() {
-        if !PutioE2EEnvironment.isMockAPIEnabled {
+    func presentMainScreen(startDownloadQueue: Bool = true) {
+        if startDownloadQueue && !PutioE2EEnvironment.isMockAPIEnabled {
             DownloadQueueController.sharedInstance.start()
         }
         ChromecastManager.sharedInstance.setup()

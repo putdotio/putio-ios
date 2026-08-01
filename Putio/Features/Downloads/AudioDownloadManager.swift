@@ -278,14 +278,18 @@ extension AudioDownloadManager: URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard let id = withActiveDownloadsMap({ $0[task] }) else { return }
         lastProgressUpdateTime.removeValue(forKey: id)
-        guard let download = getDownloadFromDatabase(id: id) else { return }
+        guard let download = getDownloadFromDatabase(id: id), let realm = download.realm else {
+            artifactSaveErrors.removeValue(forKey: task)
+            _ = withActiveDownloadsMap { $0.removeValue(forKey: task) }
+            DownloadQueueController.sharedInstance.managerDidFinish()
+            return
+        }
 
         let artifactError = artifactSaveErrors.removeValue(forKey: task)
         let effectiveError = error ?? artifactError
         let state: Download.State = effectiveError == nil ? .completed : .failed
         let message = effectiveError == nil ? "" : NSLocalizedString("Download failed. Tap to retry.", comment: "")
 
-        guard let realm = download.realm else { return }
         let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.didComplete.write") {
             download.state = state
             download.message = message

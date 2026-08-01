@@ -120,8 +120,12 @@ final class DownloadQueueController {
             guard let realm = DownloadSupport.realm(context: "DownloadQueueController.accountChange") else { return }
             Array(realm.objects(Download.self)).forEach { download in
                 switch download.fileType {
-                case .audio: _ = AudioDownloadManager.sharedInstance.deleteDownload(id: download.id)
-                case .video: _ = VideoDownloadManager.sharedInstance.deleteDownload(id: download.id)
+                case .audio:
+                    let manager = AudioDownloadManager.sharedInstance
+                    if !manager.deleteDownload(id: download.id) { _ = manager.removeDownloadRecord(id: download.id) }
+                case .video:
+                    let manager = VideoDownloadManager.sharedInstance
+                    if !manager.deleteDownload(id: download.id) { _ = manager.removeDownloadRecord(id: download.id) }
                 }
             }
         }
