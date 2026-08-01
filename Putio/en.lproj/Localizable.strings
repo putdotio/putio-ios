@@ -244,6 +244,7 @@
 /* No comment provided by engineer. */
 "Downloading... %@" = "Downloading... %@";
 "Download failed. Tap to retry." = "Download failed. Tap to retry.";
+"Unable to start download. Tap to retry." = "Unable to start download. Tap to retry.";
 "Choose how many offline downloads can run at once." = "Choose how many offline downloads can run at once.";
 "Simultaneous downloads" = "Simultaneous downloads";
 "%d at a time" = "%d at a time";

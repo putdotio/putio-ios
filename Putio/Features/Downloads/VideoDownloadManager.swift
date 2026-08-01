@@ -10,6 +10,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 
     fileprivate var assetDownloadURLSession: AVAssetDownloadURLSession?
     fileprivate var activeDownloadsMap = [AVAssetDownloadTask: Int]()
+    private var startAttempts = [Int: UUID]()
     private let activeDownloadsLock = NSLock()
     fileprivate var willDownloadToURLMap = [AVAssetDownloadTask: URL]()
     fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
@@ -101,8 +102,12 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     func beginDownload(id: Int) {
         log.verbose(["VDM: beginDownload", id])
         guard let download = getDownloadFromDatabase(id: id), download.state == .starting else { return }
+        let attempt = UUID()
+        startAttempts[id] = attempt
 
         getRemoteStreamURL(for: download, completion: { url in
+            guard self.startAttempts[id] == attempt else { return }
+            self.startAttempts.removeValue(forKey: id)
             guard let currentDownload = self.getDownloadFromDatabase(id: id),
                   currentDownload.state == .starting,
                   let assetDownloadURLSession = self.assetDownloadURLSession,
@@ -225,6 +230,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func discardDownload(id: Int) {
+        startAttempts.removeValue(forKey: id)
         let task = withActiveDownloadsMap { map -> AVAssetDownloadTask? in
             guard let task = map.first(where: { $0.value == id })?.key else { return nil }
             map.removeValue(forKey: task)

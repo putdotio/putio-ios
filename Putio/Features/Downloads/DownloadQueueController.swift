@@ -69,6 +69,7 @@ final class DownloadQueueController {
     static let sharedInstance = DownloadQueueController()
 
     private var restoredIDsByType = [Download.FileType: Set<Int>]()
+    private var tasklessStartIDs = Set<Int>()
     private var hasReconciledRestoredDownloads = false
     private var isEnabled = false
 
@@ -118,6 +119,8 @@ final class DownloadQueueController {
 
     func startFailed(id: Int) {
         onMain {
+            self.tasklessStartIDs.insert(id)
+            defer { self.schedule() }
             guard let realm = DownloadSupport.realm(context: "DownloadQueueController.startFailed"),
                   let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
             let didWrite = DownloadSupport.write(realm, context: "DownloadQueueController.startFailed.write") {
@@ -125,7 +128,7 @@ final class DownloadQueueController {
                 download.message = NSLocalizedString("Unable to start download. Tap to retry.", comment: "")
             }
             guard didWrite else { return }
-            self.schedule()
+            self.tasklessStartIDs.remove(id)
         }
     }
 
@@ -227,7 +230,9 @@ final class DownloadQueueController {
             DownloadQueueItem(id: $0.id, state: $0.state, createdAt: $0.createdAt ?? .distantPast)
         }
         let stateIDs = Set(items.compactMap { item in
-            item.state == .starting || item.state == .active ? item.id : nil
+            (item.state == .starting || item.state == .active) && !self.tasklessStartIDs.contains(item.id)
+                ? item.id
+                : nil
         })
         let nextIDs = DownloadQueuePolicy.nextDownloadIDs(
             from: Array(items),
@@ -247,6 +252,7 @@ final class DownloadQueueController {
         guard didWrite else { return }
 
         downloads.forEach { id, type in
+            tasklessStartIDs.remove(id)
             switch type {
             case .audio: audioManager.beginDownload(id: id)
             case .video: videoManager.beginDownload(id: id)
