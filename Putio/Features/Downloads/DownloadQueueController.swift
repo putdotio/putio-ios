@@ -44,12 +44,7 @@ enum DownloadQueuePolicy {
         limit: Int
     ) -> DownloadQueueRestorationPlan {
         let activeItems = items.filter { $0.state == .starting || $0.state == .active }
-        let restoredItems = activeItems
-            .filter { restoredIDs.contains($0.id) }
-            .sorted {
-                if $0.createdAt == $1.createdAt { return $0.id < $1.id }
-                return $0.createdAt < $1.createdAt
-            }
+        let restoredItems = fifoSorted(activeItems.filter { restoredIDs.contains($0.id) })
         let admittedIDs = Set(restoredItems.prefix(limit).map(\.id))
         return DownloadQueueRestorationPlan(
             admittedIDs: admittedIDs,
@@ -63,12 +58,7 @@ enum DownloadQueuePolicy {
         limit: Int
     ) -> [Int] {
         let availableCount = max(0, limit - occupiedIDs.count)
-        return items
-            .filter { $0.state == .queued && !occupiedIDs.contains($0.id) }
-            .sorted {
-                if $0.createdAt == $1.createdAt { return $0.id < $1.id }
-                return $0.createdAt < $1.createdAt
-            }
+        return fifoSorted(items.filter { $0.state == .queued && !occupiedIDs.contains($0.id) })
             .prefix(availableCount)
             .map(\.id)
     }
@@ -78,14 +68,16 @@ enum DownloadQueuePolicy {
         activeIDs: Set<Int>,
         limit: Int
     ) -> [Int] {
-        items
-            .filter { activeIDs.contains($0.id) || $0.state == .starting }
-            .sorted {
-                if $0.createdAt == $1.createdAt { return $0.id < $1.id }
-                return $0.createdAt < $1.createdAt
-            }
+        fifoSorted(items.filter { activeIDs.contains($0.id) || $0.state == .starting })
             .dropFirst(limit)
             .map(\.id)
+    }
+
+    private static func fifoSorted(_ items: [DownloadQueueItem]) -> [DownloadQueueItem] {
+        items.sorted {
+            if $0.createdAt == $1.createdAt { return $0.id < $1.id }
+            return $0.createdAt < $1.createdAt
+        }
     }
 }
 
