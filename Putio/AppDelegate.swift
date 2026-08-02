@@ -94,6 +94,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         applyWindowAppearance()
         Stylize.UIKit(window: window)
         NetworkReachability.sharedInstance.setup()
+        OfflineVideoPlaybackPositionSynchronizer.shared.startObservingReconnects()
         Utils.configureAVSession()
     }
 
@@ -314,6 +315,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func logout() {
         DownloadQueueController.sharedInstance.pause()
+        OfflineVideoPlaybackPositionStore.shared.clearAllUpdates()
         PutioKeychain.sharedInstance.clearToken()
         api.clearToken()
         VideoPlaybackPositionStore.shared.clearAllPositions()
@@ -351,9 +353,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         ) {
             DownloadQueueController.sharedInstance.start()
         }
+
+        OfflineVideoPlaybackPositionSynchronizer.shared.syncPendingUpdates()
         ChromecastManager.sharedInstance.setup()
         applyWindowAppearance()
         window?.rootViewController = RootContainerViewController()
         window?.makeKeyAndVisible()
     }
+
 }

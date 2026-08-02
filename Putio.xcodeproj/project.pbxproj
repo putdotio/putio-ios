@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		00B1394779C26A8412502962 /* PutioE2EMockURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42113E74CF811CB4E40A41C6 /* PutioE2EMockURLProtocol.swift */; };
 		103000000000000000000001 /* AudioPlayerViewController+PlaybackRate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 103000000000000000000002 /* AudioPlayerViewController+PlaybackRate.swift */; };
+		101000000000000000000001 /* OfflineVideoPlaybackPositionSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101000000000000000000002 /* OfflineVideoPlaybackPositionSync.swift */; };
+		101000000000000000000003 /* OfflineVideoPlaybackPositionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101000000000000000000004 /* OfflineVideoPlaybackPositionStore.swift */; };
 		103000000000000000000003 /* AudioPlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 103000000000000000000004 /* AudioPlayerTests.swift */; };
 		17DD2CCF4F2FFD056E0D7D36 /* PutioE2EDownloadFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E37FB6D557730098AC8864 /* PutioE2EDownloadFixtures.swift */; };
 		9F3A1C7D2E4B6A8C0D1E2F31 /* PutioE2EEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F3A1C7D2E4B6A8C0D1E2F30 /* PutioE2EEnvironment.swift */; };
@@ -177,6 +179,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		101000000000000000000002 /* OfflineVideoPlaybackPositionSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineVideoPlaybackPositionSync.swift; sourceTree = "<group>"; };
+		101000000000000000000004 /* OfflineVideoPlaybackPositionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineVideoPlaybackPositionStore.swift; sourceTree = "<group>"; };
 		103000000000000000000002 /* AudioPlayerViewController+PlaybackRate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AudioPlayerViewController+PlaybackRate.swift"; sourceTree = "<group>"; };
 		103000000000000000000004 /* AudioPlayerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AudioPlayerTests.swift; sourceTree = "<group>"; };
 		0A59A0DE5C9D8BEA12786D32 /* Pods-PutioUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PutioUITests.debug.xcconfig"; path = "Target Support Files/Pods-PutioUITests/Pods-PutioUITests.debug.xcconfig"; sourceTree = "<group>"; };
@@ -591,6 +595,8 @@
 			children = (
 				AC16C0401FBF76E200069733 /* MediaPlayers.storyboard */,
 				AC11C72520444E650001CD89 /* MediaPlayerItemModel.swift */,
+				101000000000000000000004 /* OfflineVideoPlaybackPositionStore.swift */,
+				101000000000000000000002 /* OfflineVideoPlaybackPositionSync.swift */,
 				ACC92DD91FC5843100064BF9 /* AudioPlayerViewController.swift */,
 				103000000000000000000002 /* AudioPlayerViewController+PlaybackRate.swift */,
 				AC11C7282044502A0001CD89 /* VideoPlayerViewController.swift */,
@@ -1242,6 +1248,8 @@
 				AC8796A8249DDFE6001FFBC1 /* AppStoreReviewManager.swift in Sources */,
 				ACABA8921FB47CB50015B86D /* AuthAppsTableViewController.swift in Sources */,
 				AC11C72620444E650001CD89 /* MediaPlayerItemModel.swift in Sources */,
+				101000000000000000000003 /* OfflineVideoPlaybackPositionStore.swift in Sources */,
+				101000000000000000000001 /* OfflineVideoPlaybackPositionSync.swift in Sources */,
 				ACAD072020E1260500C3FB5F /* ImageViewController.swift in Sources */,
 				ACF43FD627A2B6AE00E523D1 /* ClearDataTableViewController.swift in Sources */,
 				ACFA83751FF128FA008711B4 /* LoaderView.swift in Sources */,

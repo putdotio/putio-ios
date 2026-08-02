@@ -13,6 +13,7 @@ class VideoPlayerViewController: AVPlayerViewController {
     var isPlayingInPictureOnPictureMode: Bool = false
 
     private let playbackPositionStore = VideoPlaybackPositionStore.shared
+    private let offlinePlaybackPositionPersistence = OfflineVideoPlaybackPositionPersistence.shared
     private var playerTimeObserver: Any?
     private var playerStatusObserver: NSKeyValueObservation?
     private var hasStoppedPlayback = false
@@ -174,12 +175,8 @@ class VideoPlayerViewController: AVPlayerViewController {
             return
         }
 
-        guard let realm = realm,
-            let download = realm.object(ofType: Download.self, forPrimaryKey: item.id) else { return }
-
-        _ = PutioRealm.write(realm, context: "VideoPlayerViewController.persistPlaybackPosition") {
-            download.startFrom = startFrom
-        }
+        guard let realm else { return }
+        offlinePlaybackPositionPersistence.save(fileID: item.id, position: startFrom, in: realm)
     }
 
     func onPlaybackStarted() {

@@ -127,6 +127,456 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertEqual(defaults.string(forKey: "other-key"), "keep")
     }
 
+    func testOfflinePlaybackProgressPersistsLocallyBeforeRequestingSync() throws {
+        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
+        let download = Download()
+        download.id = 42
+        download.startFrom = 90
+        try realm.write {
+            realm.add(makeUser(id: 1, username: "offline-user", mail: "offline@put.io"))
+            realm.add(download)
+        }
+
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        var syncRequestCount = 0
+        let persistence = OfflineVideoPlaybackPositionPersistence(store: store) {
+            syncRequestCount += 1
+        }
+
+        XCTAssertTrue(persistence.save(fileID: 42, position: 180, in: realm))
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 42)?.startFrom, 180)
+        XCTAssertEqual(store.pendingUpdate(for: 42, accountID: 1)?.position, 180)
+        XCTAssertEqual(store.pendingUpdate(for: 42, accountID: 1)?.expectedRemotePosition, 90)
+        XCTAssertEqual(syncRequestCount, 1)
+    }
+
+    func testOfflinePlaybackSaveRestoresPreviousQueueEntryWhenRealmWriteFails() throws {
+        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
+        let download = Download()
+        download.id = 42
+        download.startFrom = 90
+        try realm.write {
+            realm.add(makeUser(id: 1, username: "offline-user", mail: "offline@put.io"))
+            realm.add(download)
+        }
+
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        let previousUpdate = store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 120,
+            expectedRemotePosition: 90
+        )
+        var syncRequestCount = 0
+        let persistence = OfflineVideoPlaybackPositionPersistence(
+            store: store,
+            requestSync: { syncRequestCount += 1 },
+            writePosition: { _, _, _ in false }
+        )
+
+        XCTAssertFalse(persistence.save(fileID: 42, position: 180, in: realm))
+        XCTAssertEqual(store.pendingUpdate(for: 42, accountID: 1), previousUpdate)
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 42)?.startFrom, 90)
+        XCTAssertEqual(syncRequestCount, 0)
+    }
+
+    func testOfflinePlaybackSaveRemovesNewQueueEntryWhenRealmWriteFails() throws {
+        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
+        let download = Download()
+        download.id = 42
+        download.startFrom = 90
+        try realm.write {
+            realm.add(makeUser(id: 1, username: "offline-user", mail: "offline@put.io"))
+            realm.add(download)
+        }
+
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        let persistence = OfflineVideoPlaybackPositionPersistence(
+            store: store,
+            requestSync: { XCTFail("A failed Realm write must not request synchronization") },
+            writePosition: { _, _, _ in false }
+        )
+
+        XCTAssertFalse(persistence.save(fileID: 42, position: 180, in: realm))
+        XCTAssertNil(store.pendingUpdate(for: 42, accountID: 1))
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 42)?.startFrom, 90)
+    }
+
+    func testPendingPlaybackQueueRestoresLocalPositionAfterInterruptedWrite() throws {
+        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
+        let download = Download()
+        download.id = 42
+        download.startFrom = 90
+        try realm.write {
+            realm.add(makeUser(id: 1, username: "offline-user", mail: "offline@put.io"))
+            realm.add(download)
+        }
+
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        store.enqueue(accountID: 1, fileID: 42, position: 180, expectedRemotePosition: 90)
+        let persistence = OfflineVideoPlaybackPositionPersistence(store: store, requestSync: {})
+
+        XCTAssertTrue(persistence.restorePendingLocalPositions(in: realm))
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 42)?.startFrom, 180)
+    }
+
+    func testOfflinePlaybackSyncWaitsForSuccessfulRestoreAndRetriesOnForeground() {
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 0,
+            expectedRemotePosition: 120
+        )
+
+        let remotePosition = OfflinePlaybackRemotePosition(value: 120)
+        let notificationCenter = NotificationCenter()
+        var canRestore = false
+        var restoreCallCount = 0
+        let synchronizer = makeOfflinePlaybackSynchronizer(
+            store: store,
+            remotePosition: remotePosition,
+            prepareForSync: {
+                restoreCallCount += 1
+                return canRestore
+            }
+        )
+        synchronizer.startObservingReconnects(notificationCenter: notificationCenter)
+
+        notificationCenter.post(name: NetworkReachability.NOTIFICATION, object: nil)
+        XCTAssertEqual(remotePosition.value, 120)
+        XCTAssertNotNil(store.pendingUpdate(for: 42, accountID: 1))
+
+        canRestore = true
+        notificationCenter.post(name: UIApplication.willEnterForegroundNotification, object: nil)
+
+        XCTAssertEqual(restoreCallCount, 2)
+        XCTAssertEqual(remotePosition.value, 0)
+        XCTAssertNil(store.pendingUpdate(for: 42, accountID: 1))
+    }
+
+    func testOfflinePlaybackSyncDoesNotCrossAccountSessions() {
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 180,
+            expectedRemotePosition: 120
+        )
+
+        var accountID = 1
+        var fetchCompletions: [(Result<Int, Error>) -> Void] = []
+        var appliedPositions: [Int] = []
+        let synchronizer = OfflineVideoPlaybackPositionSynchronizer(
+            store: store,
+            currentAccountID: { accountID },
+            fetchRemotePosition: { _, completion in fetchCompletions.append(completion) },
+            updateRemotePosition: { _, position, completion in
+                appliedPositions.append(position)
+                completion(.success(()))
+            }
+        )
+
+        synchronizer.syncPendingUpdates()
+        XCTAssertEqual(fetchCompletions.count, 1)
+
+        store.clearAllUpdates()
+        accountID = 2
+        store.enqueue(
+            accountID: 2,
+            fileID: 42,
+            position: 300,
+            expectedRemotePosition: 120
+        )
+        synchronizer.syncPendingUpdates()
+        fetchCompletions[0](.success(120))
+
+        XCTAssertEqual(fetchCompletions.count, 2)
+        XCTAssertEqual(appliedPositions, [])
+
+        fetchCompletions[1](.success(120))
+        XCTAssertEqual(appliedPositions, [300])
+        XCTAssertNil(store.pendingUpdate(for: 42, accountID: 2))
+    }
+
+    func testOfflinePlaybackCompletionResetsRemotePositionOnReconnect() {
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 0,
+            expectedRemotePosition: 120
+        )
+
+        let remotePosition = OfflinePlaybackRemotePosition(value: 120)
+        var isReachable = false
+        let notificationCenter = NotificationCenter()
+        let synchronizer = makeOfflinePlaybackSynchronizer(
+            store: store,
+            remotePosition: remotePosition,
+            canAttemptSync: { isReachable }
+        )
+        synchronizer.startObservingReconnects(notificationCenter: notificationCenter)
+
+        notificationCenter.post(name: NetworkReachability.NOTIFICATION, object: nil)
+        XCTAssertEqual(remotePosition.value, 120)
+        XCTAssertNotNil(store.pendingUpdate(for: 42, accountID: 1))
+
+        isReachable = true
+        notificationCenter.post(name: NetworkReachability.NOTIFICATION, object: nil)
+
+        XCTAssertEqual(remotePosition.value, 0)
+        XCTAssertNil(store.pendingUpdate(for: 42, accountID: 1))
+    }
+
+    func testOfflinePlaybackSyncDoesNotOverwriteConflictingRemoteProgress() {
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 0,
+            expectedRemotePosition: 120
+        )
+
+        var remotePosition = 240
+        var updateCallCount = 0
+        var resolvedLocalPosition: Int?
+        let synchronizer = OfflineVideoPlaybackPositionSynchronizer(
+            store: store,
+            currentAccountID: { 1 },
+            fetchRemotePosition: { _, completion in
+                completion(.success(remotePosition))
+            },
+            updateRemotePosition: { _, position, completion in
+                updateCallCount += 1
+                remotePosition = position
+                completion(.success(()))
+            },
+            resolveLocalConflict: { _, _, position in
+                resolvedLocalPosition = position
+                return true
+            }
+        )
+
+        synchronizer.syncPendingUpdates()
+
+        XCTAssertEqual(remotePosition, 240)
+        XCTAssertEqual(updateCallCount, 0)
+        XCTAssertNil(store.pendingUpdate(for: 42, accountID: 1))
+        XCTAssertEqual(resolvedLocalPosition, 240)
+
+        store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 300,
+            expectedRemotePosition: 240
+        )
+        XCTAssertEqual(store.pendingUpdate(for: 42, accountID: 1)?.expectedRemotePosition, 240)
+    }
+
+    func testLegacyOfflinePlaybackConflictFavorsRemotePosition() {
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 800,
+            expectedRemotePosition: 500
+        )
+
+        var appliedRemotePositions: [Int] = []
+        var resolvedLocalPosition: Int?
+        let synchronizer = OfflineVideoPlaybackPositionSynchronizer(
+            store: store,
+            currentAccountID: { 1 },
+            fetchRemotePosition: { _, completion in completion(.success(0)) },
+            updateRemotePosition: { _, position, completion in
+                appliedRemotePositions.append(position)
+                completion(.success(()))
+            },
+            resolveLocalConflict: { _, _, position in
+                resolvedLocalPosition = position
+                return true
+            }
+        )
+
+        synchronizer.syncPendingUpdates()
+
+        XCTAssertEqual(appliedRemotePositions, [])
+        XCTAssertEqual(resolvedLocalPosition, 0)
+        XCTAssertNil(store.pendingUpdate(for: 42, accountID: 1))
+    }
+
+    func testOfflinePlaybackConflictRemainsRetryableWhenLocalResolutionFails() {
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 0,
+            expectedRemotePosition: 120
+        )
+
+        let synchronizer = OfflineVideoPlaybackPositionSynchronizer(
+            store: store,
+            currentAccountID: { 1 },
+            fetchRemotePosition: { _, completion in completion(.success(240)) },
+            updateRemotePosition: { _, _, _ in XCTFail("A conflict must not update the remote position") },
+            resolveLocalConflict: { _, _, _ in false }
+        )
+
+        synchronizer.syncPendingUpdates()
+
+        XCTAssertNotNil(store.pendingUpdate(for: 42, accountID: 1))
+    }
+
+    func testFailedOfflinePlaybackSyncRemainsRetryable() {
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 0,
+            expectedRemotePosition: 120
+        )
+
+        var remotePosition = 120
+        var shouldFailUpdate = true
+        let synchronizer = OfflineVideoPlaybackPositionSynchronizer(
+            store: store,
+            currentAccountID: { 1 },
+            fetchRemotePosition: { _, completion in
+                completion(.success(remotePosition))
+            },
+            updateRemotePosition: { _, position, completion in
+                if shouldFailUpdate {
+                    completion(.failure(OfflinePlaybackSyncTestError.unavailable))
+                } else {
+                    remotePosition = position
+                    completion(.success(()))
+                }
+            }
+        )
+
+        synchronizer.syncPendingUpdates()
+        XCTAssertNotNil(store.pendingUpdate(for: 42, accountID: 1))
+        XCTAssertEqual(remotePosition, 120)
+
+        shouldFailUpdate = false
+        synchronizer.syncPendingUpdates()
+
+        XCTAssertEqual(remotePosition, 0)
+        XCTAssertNil(store.pendingUpdate(for: 42, accountID: 1))
+    }
+
+    func testAmbiguousUpdateFailureReconcilesBeforeSendingNewerProgress() {
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 180,
+            expectedRemotePosition: 120
+        )
+
+        var remotePosition = 120
+        var firstCompletion: ((Result<Void, Error>) -> Void)?
+        var appliedPositions: [Int] = []
+        let synchronizer = OfflineVideoPlaybackPositionSynchronizer(
+            store: store,
+            currentAccountID: { 1 },
+            fetchRemotePosition: { _, completion in
+                completion(.success(remotePosition))
+            },
+            updateRemotePosition: { _, position, completion in
+                appliedPositions.append(position)
+                if firstCompletion == nil {
+                    firstCompletion = completion
+                } else {
+                    remotePosition = position
+                    completion(.success(()))
+                }
+            }
+        )
+
+        synchronizer.syncPendingUpdates()
+        remotePosition = 180
+        store.enqueue(accountID: 1, fileID: 42, position: 200, expectedRemotePosition: 180)
+        synchronizer.syncPendingUpdates()
+        firstCompletion?(.failure(OfflinePlaybackSyncTestError.unavailable))
+
+        XCTAssertEqual(appliedPositions, [180, 200])
+        XCTAssertEqual(remotePosition, 200)
+        XCTAssertNil(store.pendingUpdate(for: 42, accountID: 1))
+    }
+
+    func testReentrantSyncRetriesNewerPositionWithoutRepeatingRestoreMidPass() {
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 180,
+            expectedRemotePosition: 120
+        )
+
+        var canRestore = true
+        var restoreCallCount = 0
+        var fetchCompletions: [(Result<Int, Error>) -> Void] = []
+        var appliedPositions: [Int] = []
+        let synchronizer = OfflineVideoPlaybackPositionSynchronizer(
+            store: store,
+            prepareForSync: {
+                restoreCallCount += 1
+                return canRestore
+            },
+            currentAccountID: { 1 },
+            fetchRemotePosition: { _, completion in fetchCompletions.append(completion) },
+            updateRemotePosition: { _, position, completion in
+                appliedPositions.append(position)
+                completion(.success(()))
+            }
+        )
+
+        synchronizer.syncPendingUpdates()
+        XCTAssertEqual(restoreCallCount, 1)
+        XCTAssertEqual(fetchCompletions.count, 1)
+
+        store.enqueue(accountID: 1, fileID: 42, position: 200, expectedRemotePosition: 120)
+        canRestore = false
+        synchronizer.syncPendingUpdates()
+        XCTAssertEqual(restoreCallCount, 1)
+
+        canRestore = true
+        fetchCompletions[0](.success(120))
+        XCTAssertEqual(restoreCallCount, 2)
+        XCTAssertEqual(fetchCompletions.count, 2)
+
+        fetchCompletions[1](.success(120))
+        XCTAssertEqual(appliedPositions, [200])
+        XCTAssertNil(store.pendingUpdate(for: 42, accountID: 1))
+    }
+
+    func testDeletingDownloadDoesNotDiscardPendingPlaybackUpdate() throws {
+        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
+        let download = Download()
+        download.id = 42
+        download.startFrom = 120
+        try realm.write {
+            realm.add(makeUser(id: 1, username: "offline-user", mail: "offline@put.io"))
+            realm.add(download)
+        }
+
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        let persistence = OfflineVideoPlaybackPositionPersistence(store: store, requestSync: {})
+        XCTAssertTrue(persistence.save(fileID: 42, position: 0, in: realm))
+
+        try realm.write { realm.delete(realm.objects(Download.self)) }
+        XCTAssertNotNil(store.pendingUpdate(for: 42, accountID: 1))
+
+        let remotePosition = OfflinePlaybackRemotePosition(value: 120)
+        let synchronizer = makeOfflinePlaybackSynchronizer(store: store, remotePosition: remotePosition)
+        synchronizer.syncPendingUpdates()
+
+        XCTAssertEqual(remotePosition.value, 0)
+        XCTAssertNil(store.pendingUpdate(for: 42, accountID: 1))
+    }
+
     func testReplaceUserSessionPersistsSingletonUserAndConfig() throws {
         let realmURL = temporaryDirectory.appendingPathComponent("UserSession.realm")
         let configuration = PutioRealm.configuration(fileURL: realmURL)
@@ -203,5 +653,38 @@ final class PutioRealmTests: XCTestCase {
         let config = UserConfig()
         config.chromecastPlaybackType = chromecastPlaybackType
         return config
+    }
+
+    private func makeOfflinePlaybackSynchronizer(
+        store: OfflineVideoPlaybackPositionStore,
+        remotePosition: OfflinePlaybackRemotePosition,
+        prepareForSync: @escaping () -> Bool = { true },
+        canAttemptSync: @escaping () -> Bool = { true }
+    ) -> OfflineVideoPlaybackPositionSynchronizer {
+        return OfflineVideoPlaybackPositionSynchronizer(
+            store: store,
+            prepareForSync: prepareForSync,
+            canAttemptSync: canAttemptSync,
+            currentAccountID: { 1 },
+            fetchRemotePosition: { _, completion in
+                completion(.success(remotePosition.value))
+            },
+            updateRemotePosition: { _, position, completion in
+                remotePosition.value = position
+                completion(.success(()))
+            }
+        )
+    }
+}
+
+private enum OfflinePlaybackSyncTestError: Error, Equatable {
+    case unavailable
+}
+
+private final class OfflinePlaybackRemotePosition {
+    var value: Int
+
+    init(value: Int) {
+        self.value = value
     }
 }
