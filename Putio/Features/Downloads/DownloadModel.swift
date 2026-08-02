@@ -33,6 +33,7 @@ class Download: Object {
         self.size = file.hasMp4 ? file.mp4Size : file.size
         self.completedAt = nil
         self.createdAt = Date()
+        self.startFrom = file.startFrom
 
         // TO BE DEPRECATED
         self.url = url
