@@ -506,6 +506,52 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertNil(store.pendingUpdate(for: 42, accountID: 1))
     }
 
+    func testReentrantSyncRetriesNewerPositionWithoutRepeatingRestoreMidPass() {
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 180,
+            expectedRemotePosition: 120
+        )
+
+        var canRestore = true
+        var restoreCallCount = 0
+        var fetchCompletions: [(Result<Int, Error>) -> Void] = []
+        var appliedPositions: [Int] = []
+        let synchronizer = OfflineVideoPlaybackPositionSynchronizer(
+            store: store,
+            prepareForSync: {
+                restoreCallCount += 1
+                return canRestore
+            },
+            currentAccountID: { 1 },
+            fetchRemotePosition: { _, completion in fetchCompletions.append(completion) },
+            updateRemotePosition: { _, position, completion in
+                appliedPositions.append(position)
+                completion(.success(()))
+            }
+        )
+
+        synchronizer.syncPendingUpdates()
+        XCTAssertEqual(restoreCallCount, 1)
+        XCTAssertEqual(fetchCompletions.count, 1)
+
+        store.enqueue(accountID: 1, fileID: 42, position: 200, expectedRemotePosition: 120)
+        canRestore = false
+        synchronizer.syncPendingUpdates()
+        XCTAssertEqual(restoreCallCount, 1)
+
+        canRestore = true
+        fetchCompletions[0](.success(120))
+        XCTAssertEqual(restoreCallCount, 2)
+        XCTAssertEqual(fetchCompletions.count, 2)
+
+        fetchCompletions[1](.success(120))
+        XCTAssertEqual(appliedPositions, [200])
+        XCTAssertNil(store.pendingUpdate(for: 42, accountID: 1))
+    }
+
     func testDeletingDownloadDoesNotDiscardPendingPlaybackUpdate() throws {
         let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
         let download = Download()

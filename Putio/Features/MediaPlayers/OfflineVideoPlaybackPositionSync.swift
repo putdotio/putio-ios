@@ -115,12 +115,12 @@ final class OfflineVideoPlaybackPositionSynchronizer {
             DispatchQueue.main.async { [weak self] in self?.syncPendingUpdates() }
             return
         }
-        guard prepareForSync() else { return }
-        guard canAttemptSync() else { return }
         guard !isSyncing else {
             needsAnotherPass = true
             return
         }
+        guard prepareForSync() else { return }
+        guard canAttemptSync() else { return }
         guard let accountID = currentAccountID() else { return }
 
         let generation = store.generation
