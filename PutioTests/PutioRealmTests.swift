@@ -374,6 +374,38 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertEqual(store.pendingUpdate(for: 42, accountID: 1)?.expectedRemotePosition, 240)
     }
 
+    func testLegacyOfflinePlaybackConflictFavorsRemotePosition() {
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 800,
+            expectedRemotePosition: 500
+        )
+
+        var appliedRemotePositions: [Int] = []
+        var resolvedLocalPosition: Int?
+        let synchronizer = OfflineVideoPlaybackPositionSynchronizer(
+            store: store,
+            currentAccountID: { 1 },
+            fetchRemotePosition: { _, completion in completion(.success(0)) },
+            updateRemotePosition: { _, position, completion in
+                appliedRemotePositions.append(position)
+                completion(.success(()))
+            },
+            resolveLocalConflict: { _, _, position in
+                resolvedLocalPosition = position
+                return true
+            }
+        )
+
+        synchronizer.syncPendingUpdates()
+
+        XCTAssertEqual(appliedRemotePositions, [])
+        XCTAssertEqual(resolvedLocalPosition, 0)
+        XCTAssertNil(store.pendingUpdate(for: 42, accountID: 1))
+    }
+
     func testOfflinePlaybackConflictRemainsRetryableWhenLocalResolutionFails() {
         let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
         store.enqueue(
