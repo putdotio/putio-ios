@@ -23,10 +23,24 @@ enum DownloadSupport {
 
     @discardableResult
     static func write(_ realm: Realm, context: String, updates: () -> Void) -> Bool {
-        if PutioRealm.write(realm, context: context, updates: updates) {
-            return true
+        var attempt = 0
+        return performWithOneRetry {
+            defer { attempt += 1 }
+            let attemptContext = attempt == 0 ? context : "\(context).retry"
+            return PutioRealm.write(realm, context: attemptContext, updates: updates)
         }
-        return PutioRealm.write(realm, context: "\(context).retry", updates: updates)
+    }
+
+    static func performWithOneRetry(_ operation: () -> Bool) -> Bool {
+        if operation() { return true }
+        return operation()
+    }
+
+    @discardableResult
+    static func releaseAfterPersistence(_ didPersist: Bool, release: () -> Void) -> Bool {
+        guard didPersist else { return false }
+        release()
+        return true
     }
 
     static func deleteRecord(id: Int, context: String) -> Bool {

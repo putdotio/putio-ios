@@ -295,8 +295,9 @@ extension AudioDownloadManager: URLSessionTaskDelegate {
             download.message = message
             download.completedAt = state == .completed ? Date() : nil
         }
-        guard didWrite else { return }
-        _ = withActiveDownloadsMap { $0.removeValue(forKey: task) }
+        guard DownloadSupport.releaseAfterPersistence(didWrite, release: {
+            _ = self.withActiveDownloadsMap { $0.removeValue(forKey: task) }
+        }) else { return }
 
         if download.state == .completed {
             notifyUser(for: id)

@@ -32,7 +32,31 @@ struct DownloadQueueItem: Equatable {
     let createdAt: Date
 }
 
+struct DownloadQueueRestorationPlan: Equatable {
+    let admittedIDs: Set<Int>
+    let overflowIDs: Set<Int>
+}
+
 enum DownloadQueuePolicy {
+    static func restorationPlan(
+        from items: [DownloadQueueItem],
+        restoredIDs: Set<Int>,
+        limit: Int
+    ) -> DownloadQueueRestorationPlan {
+        let activeItems = items.filter { $0.state == .starting || $0.state == .active }
+        let restoredItems = activeItems
+            .filter { restoredIDs.contains($0.id) }
+            .sorted {
+                if $0.createdAt == $1.createdAt { return $0.id < $1.id }
+                return $0.createdAt < $1.createdAt
+            }
+        let admittedIDs = Set(restoredItems.prefix(limit).map(\.id))
+        return DownloadQueueRestorationPlan(
+            admittedIDs: admittedIDs,
+            overflowIDs: Set(activeItems.map(\.id)).subtracting(admittedIDs)
+        )
+    }
+
     static func nextDownloadIDs(
         from items: [DownloadQueueItem],
         occupiedIDs: Set<Int>,
@@ -183,21 +207,17 @@ final class DownloadQueueController {
         guard !hasReconciledRestoredDownloads else { return }
         guard let realm = DownloadSupport.realm(context: "DownloadQueueController.restore") else { return }
         let restoredIDs = restoredIDsByType.values.reduce(into: Set<Int>()) { $0.formUnion($1) }
-        let admittedIDs = Set(
-            realm.objects(Download.self)
-                .filter { restoredIDs.contains($0.id) && ($0.state == .starting || $0.state == .active) }
-                .sorted {
-                    if $0.createdAt == $1.createdAt { return $0.id < $1.id }
-                    return ($0.createdAt ?? .distantPast) < ($1.createdAt ?? .distantPast)
-                }
-                .prefix(DownloadConcurrencyPreference.limit())
-                .map(\.id)
+        let plan = DownloadQueuePolicy.restorationPlan(
+            from: realm.objects(Download.self).map {
+                DownloadQueueItem(id: $0.id, state: $0.state, createdAt: $0.createdAt ?? .distantPast)
+            },
+            restoredIDs: restoredIDs,
+            limit: DownloadConcurrencyPreference.limit()
         )
 
         let didWrite = DownloadSupport.write(realm, context: "DownloadQueueController.restore.write") {
             realm.objects(Download.self).forEach { download in
-                guard download.state == .starting || download.state == .active else { return }
-                guard !admittedIDs.contains(download.id) else { return }
+                guard plan.overflowIDs.contains(download.id) else { return }
                 download.state = .queued
                 download.progress = "0"
                 download.message = ""
@@ -210,7 +230,7 @@ final class DownloadQueueController {
             let manager: DownloadQueueManaging = restoredIDsByType[.audio]?.contains(id) == true
                 ? AudioDownloadManager.sharedInstance
                 : VideoDownloadManager.sharedInstance
-            if admittedIDs.contains(id) {
+            if plan.admittedIDs.contains(id) {
                 manager.resumeDownload(id: id)
             } else {
                 manager.discardDownload(id: id)

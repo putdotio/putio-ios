@@ -444,8 +444,9 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
             download.message = didFail ? NSLocalizedString("Download failed. Tap to retry.", comment: "") : ""
             download.completedAt = didFail ? nil : Date()
         }
-        guard didWrite else { return }
-        _ = withActiveDownloadsMap { $0.removeValue(forKey: task) }
+        guard DownloadSupport.releaseAfterPersistence(didWrite, release: {
+            _ = self.withActiveDownloadsMap { $0.removeValue(forKey: task) }
+        }) else { return }
 
         if download.state == .completed {
             notifyUser(for: id)

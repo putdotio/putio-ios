@@ -27,6 +27,7 @@
 		53457AFE39DF68A6E14E3AA9 /* PlaybackSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6152DB33E9792260A66491D4 /* PlaybackSmokeUITests.swift */; };
 		66592A832C92EA206BAB25BF /* DownloadSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15797E9117171E8D87F34F1C /* DownloadSupport.swift */; };
 		109000000000000000000001 /* DownloadQueueController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 109000000000000000000002 /* DownloadQueueController.swift */; };
+		109100000000000000000001 /* DownloadQueueControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 109100000000000000000002 /* DownloadQueueControllerTests.swift */; };
 		6C24700E6133B0C889BF2EE3 /* Pods_PutioUITests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7AD1192F6A523D03D09DF523 /* Pods_PutioUITests.framework */; };
 		6E7F8A9B0C1D2E3F4A5B6C7D /* BrandFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F8A9B0C1D2E3F4A5B6C7D8E /* BrandFont.swift */; };
 		78CA18B245AAA93D97689C6F /* SettingsViewModel+Sections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38466C37F620EDDBF46BFEF7 /* SettingsViewModel+Sections.swift */; };
@@ -177,6 +178,7 @@
 		0A59A0DE5C9D8BEA12786D32 /* Pods-PutioUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PutioUITests.debug.xcconfig"; path = "Target Support Files/Pods-PutioUITests/Pods-PutioUITests.debug.xcconfig"; sourceTree = "<group>"; };
 		15797E9117171E8D87F34F1C /* DownloadSupport.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DownloadSupport.swift; sourceTree = "<group>"; };
 		109000000000000000000002 /* DownloadQueueController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadQueueController.swift; sourceTree = "<group>"; };
+		109100000000000000000002 /* DownloadQueueControllerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DownloadQueueControllerTests.swift; sourceTree = "<group>"; };
 		28B31D9D86843A740051235A /* FilesViewController+TableView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "FilesViewController+TableView.swift"; sourceTree = "<group>"; };
 		293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UserConfigTests.swift; sourceTree = "<group>"; };
 		2D4F6A8C0E1B3D5F7A9C1E3B /* UILabel+Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UILabel+Appearance.swift"; sourceTree = "<group>"; };
@@ -373,6 +375,7 @@
 				333E41E81298A2E8796ACE97 /* APIErrorLocalizerTests.swift */,
 				8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */,
 				C2B1049C9B1A0CA9C66F6CD2 /* HistoryViewModelTests.swift */,
+				109100000000000000000002 /* DownloadQueueControllerTests.swift */,
 				7A112233445566778899AABC /* NavigationLocalizationTests.swift */,
 				9061977704DB05372D01A172 /* PutioKeychainTests.swift */,
 				E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */,
@@ -1150,6 +1153,7 @@
 				0E4F147822C01DF9814EE2C9 /* APIErrorLocalizerTests.swift in Sources */,
 				8B5C2D1E4F60718293A4B5C6 /* ErrorPresentationTests.swift in Sources */,
 				51D9E494DFC76AF375536663 /* HistoryViewModelTests.swift in Sources */,
+				109100000000000000000001 /* DownloadQueueControllerTests.swift in Sources */,
 				7A112233445566778899AABB /* NavigationLocalizationTests.swift in Sources */,
 				B5E0A31A3EECB199CBAC08D0 /* PutioKeychainTests.swift in Sources */,
 				F5F55CEFFA917A837390DE86 /* PutioRealmTests.swift in Sources */,

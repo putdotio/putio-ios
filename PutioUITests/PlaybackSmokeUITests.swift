@@ -62,6 +62,28 @@ final class PlaybackSmokeUITests: XCTestCase {
         add(screenshot)
     }
 
+    func testDownloadConcurrencyPickerUpdatesAccountCaption() {
+        let app = launchFixtureApp()
+        guard app.waitForSignedInTabBar() else { return }
+
+        app.tabItem("Account").tap()
+        XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 5))
+
+        let setting = app.cells.containing(
+            .staticText,
+            identifier: "Simultaneous downloads"
+        ).firstMatch
+        XCTAssertTrue(setting.waitForExistence(timeout: 5))
+        XCTAssertTrue(setting.staticTexts["3 at a time"].exists)
+        setting.tap()
+
+        let picker = app.alerts["Simultaneous downloads"]
+        XCTAssertTrue(picker.waitForExistence(timeout: 5))
+        picker.buttons["1 at a time"].tap()
+
+        XCTAssertTrue(setting.staticTexts["1 at a time"].waitForExistence(timeout: 5))
+    }
+
     func testDownloadsMultiSelectDeletesCompletedItemsAndLeavesActiveDownload() {
         let app = launchFixtureApp()
         guard app.waitForSignedInTabBar() else { return }

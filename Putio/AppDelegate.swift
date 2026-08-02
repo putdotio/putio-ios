@@ -8,6 +8,20 @@ import GoogleCast
 
 let log = SwiftyBeaver.self
 
+enum DownloadQueueLifecyclePolicy {
+    static func shouldRestoreBackgroundSession(identifier: String, isMockAPIEnabled: Bool) -> Bool {
+        BackgroundDownloadSessionEvents.isSupported(identifier) && !isMockAPIEnabled
+    }
+
+    static func shouldStartQueue(requested: Bool, isMockAPIEnabled: Bool) -> Bool {
+        requested && !isMockAPIEnabled
+    }
+
+    static func accountDidChange(previousID: Int?, currentID: Int) -> Bool {
+        previousID.map { $0 != currentID } ?? false
+    }
+}
+
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
@@ -124,11 +138,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
-        guard BackgroundDownloadSessionEvents.isSupported(identifier) else {
-            completionHandler()
-            return
-        }
-        guard !PutioE2EEnvironment.isMockAPIEnabled else {
+        guard DownloadQueueLifecyclePolicy.shouldRestoreBackgroundSession(
+            identifier: identifier,
+            isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled
+        ) else {
             completionHandler()
             return
         }
@@ -256,7 +269,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return presentLoginScreen(afterBootstrapFailure: "user session could not be persisted")
         }
 
-        if let previousAccountID, previousAccountID != account.id {
+        if DownloadQueueLifecyclePolicy.accountDidChange(previousID: previousAccountID, currentID: account.id) {
             DownloadQueueController.sharedInstance.clearDownloadsForAccountChange()
         }
 
@@ -332,7 +345,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func presentMainScreen(startDownloadQueue: Bool = true) {
-        if startDownloadQueue && !PutioE2EEnvironment.isMockAPIEnabled {
+        if DownloadQueueLifecyclePolicy.shouldStartQueue(
+            requested: startDownloadQueue,
+            isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled
+        ) {
             DownloadQueueController.sharedInstance.start()
         }
         ChromecastManager.sharedInstance.setup()
