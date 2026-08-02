@@ -23,7 +23,24 @@ enum DownloadSupport {
 
     @discardableResult
     static func write(_ realm: Realm, context: String, updates: () -> Void) -> Bool {
-        PutioRealm.write(realm, context: context, updates: updates)
+        var attempt = 0
+        return performWithOneRetry {
+            defer { attempt += 1 }
+            let attemptContext = attempt == 0 ? context : "\(context).retry"
+            return PutioRealm.write(realm, context: attemptContext, updates: updates)
+        }
+    }
+
+    static func performWithOneRetry(_ operation: () -> Bool) -> Bool {
+        if operation() { return true }
+        return operation()
+    }
+
+    @discardableResult
+    static func releaseAfterPersistence(_ didPersist: Bool, release: () -> Void) -> Bool {
+        guard didPersist else { return false }
+        release()
+        return true
     }
 
     static func deleteRecord(id: Int, context: String) -> Bool {
@@ -78,6 +95,25 @@ enum DownloadSupport {
         } catch {
             log.error("[DownloadSupport] \(context): \(error.localizedDescription)")
             return false
+        }
+    }
+
+    static func copyDownloadedArtifact(from sourceURL: URL, to destinationURL: URL) -> Error? {
+        let temporaryURL = destinationURL
+            .deletingLastPathComponent()
+            .appendingPathComponent(".\(destinationURL.lastPathComponent).\(UUID().uuidString).partial")
+        defer { try? FileManager.default.removeItem(at: temporaryURL) }
+
+        do {
+            try FileManager.default.copyItem(at: sourceURL, to: temporaryURL)
+            if FileManager.default.fileExists(atPath: destinationURL.path) {
+                _ = try FileManager.default.replaceItemAt(destinationURL, withItemAt: temporaryURL)
+            } else {
+                try FileManager.default.moveItem(at: temporaryURL, to: destinationURL)
+            }
+            return nil
+        } catch {
+            return error
         }
     }
 

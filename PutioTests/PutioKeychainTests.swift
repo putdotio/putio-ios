@@ -104,6 +104,15 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedSortByKey.key, "DATE")
         XCTAssertEqual(viewModel.selectedSortByDirection.key, "DESC")
     }
+
+    func testBuildSectionsIncludesDownloadConcurrencySetting() {
+        let limit = DownloadConcurrencyPreference.limit()
+
+        let downloadsSection = SettingsViewModel().buildSections().first { $0.title == "Downloads" }
+
+        XCTAssertEqual(downloadsSection?.items.first?.title, "Simultaneous downloads")
+        XCTAssertEqual(downloadsSection?.items.first?.value as? String, "\(limit) at a time")
+    }
 }
 
 final class DeeplinkManagerTests: XCTestCase {

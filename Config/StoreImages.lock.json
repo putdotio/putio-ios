@@ -25,7 +25,7 @@
     },
     "en-US/iphone-6.9-05-account.jpg": {
       "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-account.png",
-      "sha256": "71cc2aed5ef1660a49a64f7f7e7e4e6181b39260cafc7d9f395d67a47a71884b"
+      "sha256": "716211aba94c8a81ab7f2bcf29674f06538fbe4ec41941e93b78c3152860c79d"
     },
     "en-US/ipad-13-01-files.jpg": {
       "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-files.png",

@@ -8,6 +8,20 @@ import GoogleCast
 
 let log = SwiftyBeaver.self
 
+enum DownloadQueueLifecyclePolicy {
+    static func shouldRestoreBackgroundSession(identifier: String, isMockAPIEnabled: Bool) -> Bool {
+        BackgroundDownloadSessionEvents.isSupported(identifier) && !isMockAPIEnabled
+    }
+
+    static func shouldStartQueue(requested: Bool, isMockAPIEnabled: Bool) -> Bool {
+        requested && !isMockAPIEnabled
+    }
+
+    static func accountDidChange(previousID: Int?, currentID: Int) -> Bool {
+        previousID.map { $0 != currentID } ?? false
+    }
+}
+
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
@@ -44,6 +58,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         configureSDKs()
         prepareForE2ETestsIfNeeded()
+        if !PutioE2EEnvironment.isMockAPIEnabled {
+            DownloadQueueController.sharedInstance.restoreBackgroundSessions()
+        }
         configureUI()
         authenticate(token: e2eAccessToken)
         return true
@@ -121,7 +138,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
-        completionHandler()
+        guard DownloadQueueLifecyclePolicy.shouldRestoreBackgroundSession(
+            identifier: identifier,
+            isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled
+        ) else {
+            completionHandler()
+            return
+        }
+        BackgroundDownloadSessionEvents.register(identifier: identifier, completionHandler: completionHandler)
+        DownloadQueueController.sharedInstance.restoreBackgroundSessions()
     }
 
     func application(_ application: UIApplication, open url: URL, sourceApplication: String?, annotation: Any) -> Bool {
@@ -231,6 +256,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return presentLoginScreen(afterBootstrapFailure: "user/config models could not be constructed")
         }
 
+        let previousAccountID = realm.objects(User.self).first?.id
+
         let didPersist = PutioRealm.replaceUserSession(
             realm,
             user: persistedUser,
@@ -240,6 +267,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         guard didPersist else {
             return presentLoginScreen(afterBootstrapFailure: "user session could not be persisted")
+        }
+
+        if DownloadQueueLifecyclePolicy.accountDidChange(previousID: previousAccountID, currentID: account.id) {
+            DownloadQueueController.sharedInstance.clearDownloadsForAccountChange()
         }
 
         Utils.authorizeNotifications(application: UIApplication.shared)
@@ -263,7 +294,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         switch error.localizerType {
         case .decodingError, .unknownError, .networkError:
             if user != nil {
-                return self.presentMainScreen()
+                return self.presentMainScreen(startDownloadQueue: false)
             }
 
             self.presentLoginScreen(afterBootstrapFailure: "account fetch failed: \(error.localizerType)")
@@ -274,7 +305,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             }
 
             if user != nil {
-                return self.presentMainScreen()
+                return self.presentMainScreen(startDownloadQueue: false)
             }
 
             return self.presentLoginScreen(afterBootstrapFailure: "account fetch failed with HTTP \(statusCode)")
@@ -282,6 +313,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func logout() {
+        DownloadQueueController.sharedInstance.pause()
         PutioKeychain.sharedInstance.clearToken()
         api.clearToken()
         VideoPlaybackPositionStore.shared.clearAllPositions()
@@ -301,6 +333,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func presentLoginScreen() {
+        DownloadQueueController.sharedInstance.pause()
         applyWindowAppearance()
         let storyboard = UIStoryboard(name: "Login", bundle: nil)
         guard let loginViewController = storyboard.instantiateViewController(withIdentifier: "LoginVC", as: UIViewController.self) else {
@@ -311,7 +344,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.makeKeyAndVisible()
     }
 
-    func presentMainScreen() {
+    func presentMainScreen(startDownloadQueue: Bool = true) {
+        if DownloadQueueLifecyclePolicy.shouldStartQueue(
+            requested: startDownloadQueue,
+            isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled
+        ) {
+            DownloadQueueController.sharedInstance.start()
+        }
         ChromecastManager.sharedInstance.setup()
         applyWindowAppearance()
         window?.rootViewController = RootContainerViewController()

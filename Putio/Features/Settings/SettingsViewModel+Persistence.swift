@@ -4,6 +4,26 @@ import PutioSDK
 import RealmSwift
 
 extension SettingsViewModel {
+    func presentDownloadConcurrencyLimit() {
+        let alert = UIAlertController(
+            title: NSLocalizedString("Simultaneous downloads", comment: ""),
+            message: NSLocalizedString("Choose how many offline downloads can run at once.", comment: ""),
+            preferredStyle: .alert
+        )
+        DownloadConcurrencyPreference.allowedLimits.forEach { limit in
+            alert.addAction(UIAlertAction(
+                title: String(format: NSLocalizedString("%d at a time", comment: ""), limit),
+                style: .default
+            ) { _ in
+                DownloadConcurrencyPreference.setLimit(limit)
+                DownloadQueueController.sharedInstance.concurrencyLimitDidChange()
+                self.update()
+            })
+        }
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
+        tableViewController?.present(alert, animated: true)
+    }
+
     private func presentLoadingAlert(title: String = NSLocalizedString("Saving...", comment: "")) -> UIAlertController {
         let alert = UIAlertController(title: title, message: nil, preferredStyle: .alert)
         tableViewController?.present(alert, animated: true)
