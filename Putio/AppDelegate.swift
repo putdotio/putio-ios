@@ -354,23 +354,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             DownloadQueueController.sharedInstance.start()
         }
 
-        let realm = PutioRealm.open(context: "presentMainScreen.restoreOfflinePlaybackPositions")
-        if Self.shouldSyncOfflinePlaybackPositions(in: realm) {
-            OfflineVideoPlaybackPositionSynchronizer.shared.syncPendingUpdates()
-        }
+        OfflineVideoPlaybackPositionSynchronizer.shared.syncPendingUpdates()
         ChromecastManager.sharedInstance.setup()
         applyWindowAppearance()
         window?.rootViewController = RootContainerViewController()
         window?.makeKeyAndVisible()
     }
 
-    static func shouldSyncOfflinePlaybackPositions(
-        in realm: Realm?,
-        restore: (Realm) -> Bool = {
-            OfflineVideoPlaybackPositionPersistence.shared.restorePendingLocalPositions(in: $0)
-        }
-    ) -> Bool {
-        guard let realm else { return false }
-        return restore(realm)
-    }
 }

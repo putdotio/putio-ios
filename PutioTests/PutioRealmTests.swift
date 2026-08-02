@@ -150,6 +150,58 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertEqual(syncRequestCount, 1)
     }
 
+    func testOfflinePlaybackSaveRestoresPreviousQueueEntryWhenRealmWriteFails() throws {
+        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
+        let download = Download()
+        download.id = 42
+        download.startFrom = 90
+        try realm.write {
+            realm.add(makeUser(id: 1, username: "offline-user", mail: "offline@put.io"))
+            realm.add(download)
+        }
+
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        let previousUpdate = store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 120,
+            expectedRemotePosition: 90
+        )
+        var syncRequestCount = 0
+        let persistence = OfflineVideoPlaybackPositionPersistence(
+            store: store,
+            requestSync: { syncRequestCount += 1 },
+            writePosition: { _, _, _ in false }
+        )
+
+        XCTAssertFalse(persistence.save(fileID: 42, position: 180, in: realm))
+        XCTAssertEqual(store.pendingUpdate(for: 42, accountID: 1), previousUpdate)
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 42)?.startFrom, 90)
+        XCTAssertEqual(syncRequestCount, 0)
+    }
+
+    func testOfflinePlaybackSaveRemovesNewQueueEntryWhenRealmWriteFails() throws {
+        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
+        let download = Download()
+        download.id = 42
+        download.startFrom = 90
+        try realm.write {
+            realm.add(makeUser(id: 1, username: "offline-user", mail: "offline@put.io"))
+            realm.add(download)
+        }
+
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        let persistence = OfflineVideoPlaybackPositionPersistence(
+            store: store,
+            requestSync: { XCTFail("A failed Realm write must not request synchronization") },
+            writePosition: { _, _, _ in false }
+        )
+
+        XCTAssertFalse(persistence.save(fileID: 42, position: 180, in: realm))
+        XCTAssertNil(store.pendingUpdate(for: 42, accountID: 1))
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 42)?.startFrom, 90)
+    }
+
     func testPendingPlaybackQueueRestoresLocalPositionAfterInterruptedWrite() throws {
         let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
         let download = Download()
@@ -168,27 +220,39 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 42)?.startFrom, 180)
     }
 
-    func testOfflinePlaybackStartupSyncRequiresSuccessfulRestore() throws {
-        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
+    func testOfflinePlaybackSyncWaitsForSuccessfulRestoreAndRetriesOnForeground() {
+        let store = OfflineVideoPlaybackPositionStore(userDefaults: defaults)
+        store.enqueue(
+            accountID: 1,
+            fileID: 42,
+            position: 0,
+            expectedRemotePosition: 120
+        )
+
+        let remotePosition = OfflinePlaybackRemotePosition(value: 120)
+        let notificationCenter = NotificationCenter()
+        var canRestore = false
         var restoreCallCount = 0
+        let synchronizer = makeOfflinePlaybackSynchronizer(
+            store: store,
+            remotePosition: remotePosition,
+            prepareForSync: {
+                restoreCallCount += 1
+                return canRestore
+            }
+        )
+        synchronizer.startObservingReconnects(notificationCenter: notificationCenter)
 
-        XCTAssertFalse(AppDelegate.shouldSyncOfflinePlaybackPositions(in: nil) { _ in
-            restoreCallCount += 1
-            return true
-        })
-        XCTAssertEqual(restoreCallCount, 0)
+        notificationCenter.post(name: NetworkReachability.NOTIFICATION, object: nil)
+        XCTAssertEqual(remotePosition.value, 120)
+        XCTAssertNotNil(store.pendingUpdate(for: 42, accountID: 1))
 
-        XCTAssertFalse(AppDelegate.shouldSyncOfflinePlaybackPositions(in: realm) { _ in
-            restoreCallCount += 1
-            return false
-        })
-        XCTAssertEqual(restoreCallCount, 1)
+        canRestore = true
+        notificationCenter.post(name: UIApplication.willEnterForegroundNotification, object: nil)
 
-        XCTAssertTrue(AppDelegate.shouldSyncOfflinePlaybackPositions(in: realm) { _ in
-            restoreCallCount += 1
-            return true
-        })
         XCTAssertEqual(restoreCallCount, 2)
+        XCTAssertEqual(remotePosition.value, 0)
+        XCTAssertNil(store.pendingUpdate(for: 42, accountID: 1))
     }
 
     func testOfflinePlaybackSyncDoesNotCrossAccountSessions() {
@@ -516,10 +580,12 @@ final class PutioRealmTests: XCTestCase {
     private func makeOfflinePlaybackSynchronizer(
         store: OfflineVideoPlaybackPositionStore,
         remotePosition: OfflinePlaybackRemotePosition,
+        prepareForSync: @escaping () -> Bool = { true },
         canAttemptSync: @escaping () -> Bool = { true }
     ) -> OfflineVideoPlaybackPositionSynchronizer {
         return OfflineVideoPlaybackPositionSynchronizer(
             store: store,
+            prepareForSync: prepareForSync,
             canAttemptSync: canAttemptSync,
             currentAccountID: { 1 },
             fetchRemotePosition: { _, completion in

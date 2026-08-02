@@ -15,6 +15,15 @@ final class OfflineVideoPlaybackPositionSynchronizer {
 
     static let shared = OfflineVideoPlaybackPositionSynchronizer(
         store: .shared,
+        prepareForSync: {
+            guard let realm = PutioRealm.open(
+                context: "OfflineVideoPlaybackPositionSynchronizer.prepareForSync"
+            ) else { return false }
+            return OfflineVideoPlaybackPositionPersistence.restorePendingLocalPositions(
+                in: realm,
+                store: .shared
+            )
+        },
         canAttemptSync: { NetworkReachability.sharedInstance.getIsReachable() },
         currentAccountID: {
             PutioRealm.open(context: "OfflineVideoPlaybackPositionSynchronizer.currentAccount")?
@@ -54,6 +63,7 @@ final class OfflineVideoPlaybackPositionSynchronizer {
     )
 
     private let store: OfflineVideoPlaybackPositionStore
+    private let prepareForSync: () -> Bool
     private let canAttemptSync: () -> Bool
     private let currentAccountID: () -> Int?
     private let fetchRemotePosition: FetchRemotePosition
@@ -66,6 +76,7 @@ final class OfflineVideoPlaybackPositionSynchronizer {
 
     init(
         store: OfflineVideoPlaybackPositionStore,
+        prepareForSync: @escaping () -> Bool = { true },
         canAttemptSync: @escaping () -> Bool = { true },
         currentAccountID: @escaping () -> Int?,
         fetchRemotePosition: @escaping FetchRemotePosition,
@@ -73,6 +84,7 @@ final class OfflineVideoPlaybackPositionSynchronizer {
         resolveLocalConflict: @escaping ResolveLocalConflict = { _, _, _ in true }
     ) {
         self.store = store
+        self.prepareForSync = prepareForSync
         self.canAttemptSync = canAttemptSync
         self.currentAccountID = currentAccountID
         self.fetchRemotePosition = fetchRemotePosition
@@ -103,6 +115,7 @@ final class OfflineVideoPlaybackPositionSynchronizer {
             DispatchQueue.main.async { [weak self] in self?.syncPendingUpdates() }
             return
         }
+        guard prepareForSync() else { return }
         guard canAttemptSync() else { return }
         guard !isSyncing else {
             needsAnotherPass = true

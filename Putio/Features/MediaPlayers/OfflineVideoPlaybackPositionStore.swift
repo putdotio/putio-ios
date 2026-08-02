@@ -205,6 +205,8 @@ final class OfflineVideoPlaybackPositionStore {
 }
 
 final class OfflineVideoPlaybackPositionPersistence {
+    typealias WritePosition = (Realm, Download, Int) -> Bool
+
     static let shared = OfflineVideoPlaybackPositionPersistence(
         store: .shared,
         requestSync: { OfflineVideoPlaybackPositionSynchronizer.shared.syncPendingUpdates() }
@@ -212,10 +214,20 @@ final class OfflineVideoPlaybackPositionPersistence {
 
     private let store: OfflineVideoPlaybackPositionStore
     private let requestSync: () -> Void
+    private let writePosition: WritePosition
 
-    init(store: OfflineVideoPlaybackPositionStore, requestSync: @escaping () -> Void) {
+    init(
+        store: OfflineVideoPlaybackPositionStore,
+        requestSync: @escaping () -> Void,
+        writePosition: @escaping WritePosition = { realm, download, position in
+            PutioRealm.write(realm, context: "OfflineVideoPlaybackPositionPersistence.save") {
+                download.startFrom = position
+            }
+        }
+    ) {
         self.store = store
         self.requestSync = requestSync
+        self.writePosition = writePosition
     }
 
     @discardableResult
@@ -233,9 +245,7 @@ final class OfflineVideoPlaybackPositionPersistence {
             expectedRemotePosition: previousUpdate?.expectedRemotePosition ?? download.startFrom
         )
 
-        let didWrite = PutioRealm.write(realm, context: "OfflineVideoPlaybackPositionPersistence.save") {
-            download.startFrom = position
-        }
+        let didWrite = writePosition(realm, download, position)
         guard didWrite else {
             store.restore(previousUpdate, fileID: fileID, accountID: accountID)
             return false
@@ -247,6 +257,14 @@ final class OfflineVideoPlaybackPositionPersistence {
 
     @discardableResult
     func restorePendingLocalPositions(in realm: Realm) -> Bool {
+        Self.restorePendingLocalPositions(in: realm, store: store)
+    }
+
+    @discardableResult
+    static func restorePendingLocalPositions(
+        in realm: Realm,
+        store: OfflineVideoPlaybackPositionStore
+    ) -> Bool {
         guard let accountID = realm.objects(User.self).first?.id else { return false }
         let updates = store.pendingUpdates(accountID: accountID)
         guard !updates.isEmpty else { return true }
