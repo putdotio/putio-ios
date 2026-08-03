@@ -12,7 +12,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
 ciphertext="${PUTIO_IOS_SOPS_FILE:?Set PUTIO_IOS_SOPS_FILE to the iOS ciphertext file}"
-output="${SECRETS_OUTPUT-Config/Local.xcconfig}"
+output="Config/Local.xcconfig"
 
 command -v sops >/dev/null 2>&1 || fail "sops is required"
 command -v jq >/dev/null 2>&1 || fail "jq is required"
@@ -22,21 +22,8 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
 
 [ -f "$ciphertext" ] || fail "ciphertext input must be one regular file"
 [ ! -L "$ciphertext" ] || fail "ciphertext input must not be a symlink"
-[ -n "$output" ] || fail "SECRETS_OUTPUT must not be empty"
-case "$output" in
-  /*|..|../*|*/../*) fail "SECRETS_OUTPUT must be a repository-relative ignored path" ;;
-esac
 git check-ignore -q -- "$output" || fail "output path is not gitignored: $output"
-
-output_component="$output"
-while [ "$output_component" != "." ]; do
-  [ ! -L "$output_component" ] \
-    || fail "output path must not contain symlinks: $output_component"
-  parent_component="$(dirname "$output_component")"
-  [ "$parent_component" != "$output_component" ] || break
-  output_component="$parent_component"
-done
-
+[ ! -L "$output" ] || fail "output path must not be a symlink: $output"
 [ ! -e "$output" ] || [ -f "$output" ] || fail "output path must be a regular file: $output"
 
 status="$(sops filestatus --input-type dotenv "$ciphertext" 2>/dev/null)" \
