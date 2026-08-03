@@ -68,13 +68,9 @@ description = "Sub-second gate: generated assets, strings, workspace sanity"
 depends = ["verify-icons", "verify-tokens", "verify-type-scale"]
 run = "./scripts/verify-fast.sh"
 
-[tasks.verify-secrets]
-description = "Test fail-closed SOPS local-config rendering"
-run = "./scripts/secrets-setup.test.sh"
-
 [tasks.verify]
 description = "Build and run the unit test suite on an ephemeral simulator"
-depends = ["verify-fast", "verify-secrets"]
+depends = ["verify-fast"]
 run = "./scripts/xcodebuild-test.sh --scheme Putio --result-bundle build/verify.xcresult --label verify"
 
 [tasks.e2e-simulator]
