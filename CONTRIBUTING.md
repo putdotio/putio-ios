@@ -11,6 +11,7 @@ Most local work only needs the normal toolchain and the checked-in development d
   - iOS `26.x` simulator runtime
   - [mise](https://mise.jdx.dev) — it pins the toolchain and runs every task in
     this repo
+  - [SOPS](https://getsops.io) `3.10+` and `jq` when private local config is required
   - Ruby and Node come from `mise.toml` via `mise install`; pnpm arrives with
     `corepack enable`
 - Install dependencies:
@@ -44,17 +45,18 @@ and `mise run e2e-simulator` do not need `pnpm install` to have run.
 Use this path when your work needs signed local builds or private support
 integrations.
 
-- Sign in to Infisical and make sure workspace onboarding has granted access to the `frontend` project and Development environment
-- Materialize the local config:
+- Obtain an authorized iOS ciphertext file and a machine-specific age identity
+  from a maintainer
+- Materialize the local config with the ciphertext path supplied explicitly:
 
 ```bash
-mise run secrets-setup
+PUTIO_IOS_SOPS_FILE=/path/to/ios.sops.env mise run secrets-setup
 ```
 
-This renders `Config/Local.xcconfig` from the repo-owned Infisical path. Set
-the onboarding-provided `PUTIO_IOS_INFISICAL_*` variables in this repo or
-worktree shell before running the command. Run `mise run secrets-clean` to remove
-the generated file.
+This validates the encrypted payload's exact key and value contract, then
+writes ignored mode-`0600` `Config/Local.xcconfig`. SOPS discovers the age
+identity from its standard location or `SOPS_AGE_KEY_FILE`. Run
+`mise run secrets-clean` to remove the generated file.
 
 ### Brand fonts (required)
 
@@ -98,7 +100,8 @@ suite — Dependabot and forks included.
   - bundle id `io.put.dev`
   - display name `put.io`
   - primary icon `AppIconDev`
-- Keep the repo-owned Infisical path aligned with `Config/Local.example.xcconfig`
+- Keep the encrypted payload contract, `Config/Local.example.xcconfig`, and the
+  renderer test aligned
 - CI beta and release builds use the release-secret contract in [Distribution](./docs/DISTRIBUTION.md)
 
 ## Run And Validate

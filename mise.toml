@@ -65,8 +65,12 @@ run = "ruby scripts/sync-brand-fonts.rb --check"
 
 [tasks.verify-fast]
 description = "Sub-second gate: generated assets, strings, workspace sanity"
-depends = ["verify-icons", "verify-tokens", "verify-type-scale"]
+depends = ["verify-icons", "verify-tokens", "verify-type-scale", "verify-secrets"]
 run = "./scripts/verify-fast.sh"
+
+[tasks.verify-secrets]
+description = "Test fail-closed SOPS local-config rendering"
+run = "./scripts/secrets-setup.test.sh"
 
 [tasks.verify]
 description = "Build and run the unit test suite on an ephemeral simulator"
@@ -123,7 +127,7 @@ description = "Download the iOS simulator runtime"
 run = "xcodebuild -downloadPlatform iOS"
 
 [tasks.secrets-setup]
-description = "Write Config/Local.xcconfig from maintainer-supplied values"
+description = "Validate SOPS ciphertext and write Config/Local.xcconfig"
 run = "./scripts/secrets-setup.sh"
 
 [tasks.secrets-clean]
