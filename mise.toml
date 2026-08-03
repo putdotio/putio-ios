@@ -65,7 +65,7 @@ run = "ruby scripts/sync-brand-fonts.rb --check"
 
 [tasks.verify-fast]
 description = "Sub-second gate: generated assets, strings, workspace sanity"
-depends = ["verify-icons", "verify-tokens", "verify-type-scale", "verify-secrets"]
+depends = ["verify-icons", "verify-tokens", "verify-type-scale"]
 run = "./scripts/verify-fast.sh"
 
 [tasks.verify-secrets]
@@ -74,7 +74,7 @@ run = "./scripts/secrets-setup.test.sh"
 
 [tasks.verify]
 description = "Build and run the unit test suite on an ephemeral simulator"
-depends = ["verify-fast"]
+depends = ["verify-fast", "verify-secrets"]
 run = "./scripts/xcodebuild-test.sh --scheme Putio --result-bundle build/verify.xcresult --label verify"
 
 [tasks.e2e-simulator]

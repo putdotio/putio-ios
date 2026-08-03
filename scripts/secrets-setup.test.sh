@@ -9,7 +9,7 @@ cd "$repo_root"
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/putio-ios-secrets-test.XXXXXX")"
 output="build/secrets-test/Local.xcconfig"
 cleanup() {
-  find "$tmp_dir" -type f -delete
+  find "$tmp_dir" \( -type f -o -type l \) -delete
   find "$tmp_dir" -depth -type d -empty -delete
   rm -f "$output"
   rmdir "$(dirname "$output")" 2>/dev/null || true
@@ -85,6 +85,13 @@ grep -Fx 'PUTIO_INTERCOM_API_KEY = ios_sdk-key' "$output" >/dev/null
 grep -Fx 'PUTIO_INTERCOM_APP_ID = app-id' "$output" >/dev/null
 expected_sentry="PUTIO_SENTRY_DSN = https:/\$()/public@example.com/1"
 grep -Fx "$expected_sentry" "$output" >/dev/null
+rm -f "$output"
+
+write_payload '{"PUTIO_CHROMECAST_RECEIVER_APP_ID":"CC1AD845","PUTIO_DEVELOPMENT_TEAM":"A1B2C3D4E5","PUTIO_INTERCOM_API_KEY":"null","PUTIO_INTERCOM_APP_ID":"null","PUTIO_OAUTH_CLIENT_ID":"3001","PUTIO_SENTRY_DSN":"null"}'
+run_setup >/dev/null
+grep -Fx 'PUTIO_INTERCOM_API_KEY = ' "$output" >/dev/null
+grep -Fx 'PUTIO_INTERCOM_APP_ID = ' "$output" >/dev/null
+grep -Fx 'PUTIO_SENTRY_DSN = ' "$output" >/dev/null
 rm -f "$output"
 
 write_payload '{"PUTIO_DEVELOPMENT_TEAM":"A1B2C3D4E5"}'

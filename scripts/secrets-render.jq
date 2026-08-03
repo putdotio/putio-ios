@@ -6,6 +6,7 @@ def quote_wrapped:
 def control_character: any(explode[]; . < 32 or . == 127);
 def safe_xcconfig_value: test("^[A-Za-z0-9._~:@/+?&=%-]+$");
 def render_xcconfig: gsub("//"; "/$()/");
+def render_optional: if . == "null" then "" else render_xcconfig end;
 
 if type != "object" then
   fail("decrypted payload must be a JSON object")
@@ -43,9 +44,9 @@ else
     "PUTIO_OAUTH_CLIENT_ID = \(.PUTIO_OAUTH_CLIENT_ID | render_xcconfig)",
     "PUTIO_CHROMECAST_RECEIVER_APP_ID = \(.PUTIO_CHROMECAST_RECEIVER_APP_ID | render_xcconfig)",
     "",
-    "PUTIO_INTERCOM_API_KEY = \(.PUTIO_INTERCOM_API_KEY | render_xcconfig)",
-    "PUTIO_INTERCOM_APP_ID = \(.PUTIO_INTERCOM_APP_ID | render_xcconfig)",
-    "PUTIO_SENTRY_DSN = \(.PUTIO_SENTRY_DSN | render_xcconfig)"
+    "PUTIO_INTERCOM_API_KEY = \(.PUTIO_INTERCOM_API_KEY | render_optional)",
+    "PUTIO_INTERCOM_APP_ID = \(.PUTIO_INTERCOM_APP_ID | render_optional)",
+    "PUTIO_SENTRY_DSN = \(.PUTIO_SENTRY_DSN | render_optional)"
   ]
   | join("\n")
 end
