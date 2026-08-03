@@ -1,4 +1,5 @@
-// Copy this file to Config/Local.xcconfig for local private credentials.
+// Copy this file for manual overrides, or render authorized SOPS ciphertext:
+// `PUTIO_IOS_SOPS_FILE=/path/to/ios.sops.env mise run secrets-setup`.
 // Keep Config/Local.xcconfig out of git.
 PUTIO_DEVELOPMENT_TEAM =
 
