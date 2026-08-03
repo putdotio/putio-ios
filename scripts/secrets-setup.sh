@@ -13,6 +13,7 @@ cd "$repo_root"
 
 ciphertext="${PUTIO_IOS_SOPS_FILE:?Set PUTIO_IOS_SOPS_FILE to the iOS ciphertext file}"
 output="Config/Local.xcconfig"
+[ -z "${SECRETS_OUTPUT+x}" ] || fail "SECRETS_OUTPUT is no longer supported; setup writes Config/Local.xcconfig"
 
 command -v sops >/dev/null 2>&1 || fail "sops is required"
 command -v jq >/dev/null 2>&1 || fail "jq is required"
@@ -23,6 +24,7 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
 [ -f "$ciphertext" ] || fail "ciphertext input must be one regular file"
 [ ! -L "$ciphertext" ] || fail "ciphertext input must not be a symlink"
 git check-ignore -q -- "$output" || fail "output path is not gitignored: $output"
+[ ! -L "$(dirname "$output")" ] || fail "output directory must not be a symlink: $(dirname "$output")"
 [ ! -L "$output" ] || fail "output path must not be a symlink: $output"
 [ ! -e "$output" ] || [ -f "$output" ] || fail "output path must be a regular file: $output"
 
