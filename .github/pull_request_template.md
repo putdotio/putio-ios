@@ -16,8 +16,7 @@
 ## Validation
 
 - [ ] `mise run verify`
-- [ ] Manual runtime check when behavior changed
-- [ ] `mise run run-simulator` when auth, keychain, or signed-in persistence changed
+- [ ] Affected iOS, watchOS, or tvOS shell launched in Simulator when runtime behavior changed
 - Additional targeted checks:
   -
 

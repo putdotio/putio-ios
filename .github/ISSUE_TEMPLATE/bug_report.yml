@@ -27,7 +27,7 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: App version, iOS version, device or simulator, and any relevant config notes.
+      description: App version, Apple platform and OS version, device or simulator, and any relevant config notes.
     validations:
       required: true
   - type: textarea

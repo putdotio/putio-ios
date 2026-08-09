@@ -28,7 +28,7 @@ Useful reports usually include issues involving:
 
 This repo does not yet publish a separate supported-version matrix.
 
-Please report issues against `main`, or against the latest App Store build when the issue is only reproducible there.
+Report shipping-app issues against `main` or the latest App Store build. Report rewrite issues against `next` and identify the affected Apple platform.
 
 ## Disclosure
 
