@@ -16,7 +16,9 @@
 ## Validation
 
 - [ ] `mise run verify`
-- [ ] Affected iOS, watchOS, or tvOS shell launched in Simulator when runtime behavior changed
+- [ ] Affected shell exercised with `mise run harness -- exercise --platform <ios|watchos|tvos>`
+- [ ] Proof captured with `mise run harness -- proof --platform <platform>`
+- [ ] Proof published separately with `mise run harness -- publish --artifact <path> --repo putdotio/putio-ios --pr <number>`
 - Additional targeted checks:
   -
 

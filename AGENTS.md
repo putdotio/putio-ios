@@ -19,6 +19,7 @@
 - `mise run test`
 - `mise run build`
 - `mise run verify`
+- `mise run harness -- help`
 - `mise run open`
 
 ## Workflow
@@ -30,6 +31,8 @@
 - Keep platform-specific UI, lifecycle, focus, playback, and download behavior in the matching app shell
 - Put only genuinely cross-platform models, session, API, and feature logic in `PutioCore`
 - Keep checked-in defaults open-source-safe and require no account, token, or secret for generation and verification
+- Use the typed harness for runtime proof; do not open Simulator.app from automation
+- Keep capture local by default and invoke the separate `publish` command only after reviewing the artifact
 
 ## Tuist
 
@@ -44,3 +47,11 @@
 - Full repository: `mise run verify`
 - Manifest change: regenerate, then build every app scheme
 - Runtime-sensitive change: launch the affected shell in its simulator in addition to `mise run verify`
+- Agent runtime proof: `mise run harness -- proof --platform <ios|watchos|tvos>`
+
+## Harness
+
+- [Harness contract](./docs/HARNESS.md)
+- Simulator devices are ephemeral, uniquely named, headless, and deleted after every command
+- Deterministic proof is secret-free; live smoke uses only the `devs-fe-auto` put.io CLI profile
+- Proof artifacts and provenance manifests live under ignored `build/proof/`

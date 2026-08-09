@@ -4,4 +4,5 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-exec ./scripts/harness.sh build --platform all
+./scripts/generate.sh
+./scripts/harness.sh doctor

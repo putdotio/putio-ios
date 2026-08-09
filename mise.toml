@@ -6,9 +6,8 @@ description = "Validate the local Apple development toolchain"
 run = "./scripts/doctor.sh"
 
 [tasks.bootstrap]
-description = "Resolve dependencies and generate the Xcode workspace"
-depends = ["doctor"]
-run = "./scripts/generate.sh"
+description = "Generate the workspace and verify the provisioned host"
+run = "./scripts/bootstrap.sh"
 
 [tasks.generate]
 description = "Generate the Xcode workspace without opening Xcode"
@@ -27,7 +26,14 @@ run = "./scripts/build.sh"
 description = "Generate and open the Xcode workspace"
 run = "./scripts/open.sh"
 
+[tasks.harness]
+description = "Run the typed headless Apple-platform harness"
+run = "./scripts/harness.sh"
+
+[tasks.harness-ci]
+description = "Run the headless iOS proof subset used by CI"
+run = "./scripts/harness-ci.sh"
+
 [tasks.verify]
 description = "Test the shared core and build every Apple app shell"
-depends = ["doctor"]
 run = "./scripts/verify.sh"
