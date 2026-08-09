@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import ImageIO
 
@@ -401,14 +402,8 @@ public struct SimulatorHarness {
     let baselinePixels = try decodedPixels(at: baseline)
     let deadline = Date().addingTimeInterval(12)
     repeat {
-      let liveness = try runner.run(
-        "xcrun",
-        ["simctl", "spawn", session.deviceIdentifier, "/bin/kill", "-0", String(pid)]
-      )
-      guard liveness.status == 0 else {
-        throw HarnessFailure(
-          "\(config.bundleIdentifier) liveness probe failed before its first rendered frame\n\(liveness.combinedOutput)"
-        )
+      guard processIsRunning(pid) else {
+        throw HarnessFailure("\(config.bundleIdentifier) exited before its first rendered frame")
       }
       let capture = try runner.run(
         "xcrun",
@@ -426,6 +421,10 @@ public struct SimulatorHarness {
 
     throw HarnessFailure(
       "\(config.bundleIdentifier) stayed running but its screen did not change within 12 seconds")
+  }
+
+  private func processIsRunning(_ pid: Int) -> Bool {
+    Darwin.kill(pid_t(pid), 0) == 0 || errno == EPERM
   }
 
   private func startRecording(session: SimulatorSession, output: URL) throws -> RunningProcess {
