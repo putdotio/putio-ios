@@ -176,8 +176,10 @@ public struct SimulatorHarness {
           "captured \(command.rawValue) for \(platform.rawValue) in \(platformDirectory.path)"
       )
     } catch {
+      let diagnostics = failureDiagnostics(in: platformDirectory)
       try? fileManager.removeItem(at: platformDirectory)
-      throw error
+      guard !diagnostics.isEmpty else { throw error }
+      throw HarnessFailure("\(error)\n\(diagnostics)")
     }
   }
 
@@ -441,6 +443,17 @@ public struct SimulatorHarness {
     }
     _ = process.interruptAndWait()
     throw HarnessFailure("recording did not start within 8 seconds")
+  }
+
+  private func failureDiagnostics(in directory: URL) -> String {
+    ["app.stdout.log", "app.stderr.log"].compactMap { name in
+      let url = directory.appending(path: name)
+      guard let data = try? Data(contentsOf: url), !data.isEmpty,
+        let contents = String(data: data, encoding: .utf8)
+      else { return nil }
+      let lines = contents.split(separator: "\n", omittingEmptySubsequences: false).suffix(40)
+      return "\(name):\n\(lines.joined(separator: "\n"))"
+    }.joined(separator: "\n")
   }
 
   private func writeManifest(
