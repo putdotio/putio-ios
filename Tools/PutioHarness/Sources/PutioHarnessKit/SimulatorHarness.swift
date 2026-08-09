@@ -407,7 +407,7 @@ public struct SimulatorHarness {
       )
       guard liveness.status == 0 else {
         throw HarnessFailure(
-          "\(config.bundleIdentifier) exited before its first rendered frame; inspect \(stderr.path)"
+          "\(config.bundleIdentifier) liveness probe failed before its first rendered frame\n\(liveness.combinedOutput)"
         )
       }
       let capture = try runner.run(
