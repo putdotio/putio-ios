@@ -1,193 +1,33 @@
-# Toolchain pins and task runner. `mise tasks` lists every task below.
-#
-# No [env] and no [vars]: mise demands `mise trust` before reading a config with
-# either, and a trust prompt before `mise run verify` works on a fresh clone is
-# not worth the two literals it would save.
-#
-# Keep [tools] first — `ruby/setup-ruby` reads the first `ruby = "…"` line in
-# this file without caring which table it is in.
 [tools]
-ruby = "4.0.6"
-# CI installs Ruby via ruby/setup-ruby instead: mise would compile it from
-# source on macOS. mise owns the pin, setup-ruby owns the install.
-node = "24.18.0"
+tuist = "4.203.4"
 
 [tasks.doctor]
-description = "Check Ruby, Node, pnpm and Xcode against this repo's pins"
+description = "Validate the local Apple development toolchain"
 run = "./scripts/doctor.sh"
 
 [tasks.bootstrap]
-description = "Install every dependency and the pre-push hook"
+description = "Resolve dependencies and generate the Xcode workspace"
 depends = ["doctor"]
-run = [
-    "bundle config set --local path vendor/bundle",
-    "bundle install",
-    "bundle exec pod install",
-    "pnpm install --frozen-lockfile",
-    "git config core.hooksPath .githooks",
-]
+run = "./scripts/generate.sh"
 
-[tasks.bootstrap-ci]
-description = "Install Ruby gems and Pods only (CI)"
-run = "./scripts/bootstrap-ci.sh"
+[tasks.generate]
+description = "Generate the Xcode workspace without opening Xcode"
+run = "./scripts/generate.sh"
 
-[tasks.icons-sync]
-description = "Regenerate the pinned Phosphor icon assets"
-run = "ruby scripts/sync-phosphor-icons.rb"
+[tasks.test]
+description = "Format-check and test the shared core"
+run = "./scripts/test.sh"
 
-[tasks.verify-icons]
-description = "Check the Phosphor icon assets are in sync"
-run = "ruby scripts/sync-phosphor-icons.rb --check"
+[tasks.build]
+description = "Build every Apple app shell"
+depends = ["generate"]
+run = "./scripts/build.sh"
 
-[tasks.tokens-sync]
-description = "Regenerate the design tokens from Config/DesignTokens.json"
-run = "ruby scripts/sync-design-tokens.rb"
-
-[tasks.verify-tokens]
-description = "Check the generated design tokens are in sync"
-run = "ruby scripts/sync-design-tokens.rb --check"
-
-[tasks.type-scale-sync]
-description = "Regenerate BrandTypography.swift from Config/TypeScale.json"
-run = "ruby scripts/sync-type-scale.rb"
-
-[tasks.verify-type-scale]
-description = "Check BrandTypography.swift is in sync"
-run = "ruby scripts/sync-type-scale.rb --check"
-
-[tasks.fonts-setup]
-description = "Download the licensed brand fonts into Putio/Fonts"
-run = "ruby scripts/sync-brand-fonts.rb"
-
-[tasks.verify-fonts]
-description = "Verify Putio/Fonts against Config/BrandFonts.json"
-run = "ruby scripts/sync-brand-fonts.rb --check"
-
-[tasks.verify-fast]
-description = "Sub-second gate: generated assets, strings, workspace sanity"
-depends = ["verify-icons", "verify-tokens", "verify-type-scale"]
-run = "./scripts/verify-fast.sh"
+[tasks.open]
+description = "Generate and open the Xcode workspace"
+run = "./scripts/open.sh"
 
 [tasks.verify]
-description = "Build and run the unit test suite on an ephemeral simulator"
-depends = ["verify-fast"]
-run = "./scripts/xcodebuild-test.sh --scheme Putio --result-bundle build/verify.xcresult --label verify"
-
-[tasks.e2e-simulator]
-description = "Build and run the mocked end-to-end suite"
-run = "./scripts/xcodebuild-test.sh --scheme PutioE2E --result-bundle build/e2e-simulator.xcresult --label e2e"
-
-# The counts are the tripwire for a walk that silently dropped baselines. They
-# live here once; the tier tasks delegate. Scope a run by appending the script's
-# own flags — mise passes them through quoted:
-#
-#   mise run screenshots-record -- --only PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk
-[tasks.screenshots-record]
-description = "Record both baseline tiers, then assert against what was written"
-run = "./scripts/record-snapshots.sh --expect-components 13 --expect-screens 13"
-
-[tasks.screenshots-record-components]
-description = "Record the component baselines only"
-run = "mise run screenshots-record -- --tier components"
-
-[tasks.screenshots-record-screens]
-description = "Record the full-screen walk baselines only"
-run = "mise run screenshots-record -- --tier screens"
-
-[tasks.verify-scripts-types]
-description = "Type-check the repo's TypeScript tooling"
-run = "pnpm exec tsc --noEmit"
-
-# Node runs the .ts tests directly, so this needs no framework and no build
-# step — the same reason the scripts themselves are not compiled. The pattern is
-# quoted for Node to expand: passing a bare directory makes it try to load
-# `scripts` as a module instead of searching it.
-[tasks.verify-scripts-tests]
-description = "Run the unit tests for the repo TypeScript tooling"
-run = "node --test 'scripts/**/*.test.ts'"
-
-[tasks.print-simulator-destination]
-description = "Print the xcodebuild destination for the shared simulator"
-run = "./scripts/xcode-iphone-simulator-destination.sh --workspace Putio.xcworkspace --scheme Putio"
-
-[tasks.print-simulator-device]
-description = "Print the shared simulator's device id"
-run = "./scripts/simctl-iphone-device-id.sh"
-
-[tasks.run-simulator]
-description = "Build and launch the app on the shared visible simulator"
-run = "./scripts/run-simulator-app.sh --workspace Putio.xcworkspace --scheme Putio"
-
-[tasks.download-ios-platform]
-description = "Download the iOS simulator runtime"
-run = "xcodebuild -downloadPlatform iOS"
-
-[tasks.secrets-setup]
-description = "Validate SOPS ciphertext and write Config/Local.xcconfig"
-run = "./scripts/secrets-setup.sh"
-
-[tasks.secrets-clean]
-description = "Remove Config/Local.xcconfig"
-run = "rm -f Config/Local.xcconfig"
-
-[tasks.vref]
-description = "Build the browsable gallery of committed visual baselines"
-run = "node scripts/vref.ts build"
-
-[tasks.verify-vref]
-description = "Check every baseline has a manifest entry and vice versa"
-run = "node scripts/vref.ts validate"
-
-[tasks.vref-serve]
-description = "Serve the visual reference gallery locally"
-run = "node scripts/vref.ts serve"
-
-[tasks.store-capture-ipad]
-description = "Capture the iPad App Store screenshots (iPhone needs no capture)"
-run = "./scripts/capture-store-ipad.sh"
-
-[tasks.store-screenshots]
-description = "Assemble the App Store screenshot set from the baselines"
-run = "node scripts/store-screenshots.ts"
-
-[tasks.verify-store-screenshots]
-description = "Check the App Store screenshot slots without writing them"
-run = "node scripts/store-screenshots.ts --check"
-
-# pnpm 10+ blocks postinstall scripts unless a package is allowlisted, so
-# `pnpm install` leaves the playwright package without a browser to drive.
-# Installing here rather than allowlisting keeps bootstrap from pulling ~150MB of
-# Chromium for everyone who never renders store images. A no-op once present.
-[tasks.playwright-chromium]
-description = "Install the Chromium the store-image renderer drives"
-run = "pnpm exec playwright install chromium"
-
-[tasks.store-images]
-description = "Frame the store screenshots into finished marketing images"
-depends = ["store-screenshots", "playwright-chromium"]
-run = "node scripts/store-images.ts"
-
-# No browser and no dist/: it hashes the committed baselines and configs, so it
-# runs on Linux in CI. store-images writes the lock this compares against.
-[tasks.verify-store-images]
-description = "Check the committed marketing images against the inputs they came from"
-run = "node scripts/store-images-lock.ts verify"
-
-[tasks.verify-store-image-inputs]
-description = "Verify the store-image inputs without rendering"
-depends = ["store-screenshots", "playwright-chromium"]
-run = "node scripts/store-images.ts --check"
-
-[tasks.beta]
-description = "CI-only. Use .github/workflows/beta.yml via GitHub Actions"
-run = '''
-echo "beta is CI-only. Use .github/workflows/beta.yml via GitHub Actions." >&2
-exit 1
-'''
-
-[tasks.release]
-description = "CI-only. Use .github/workflows/release.yml via GitHub Actions"
-run = '''
-echo "release is CI-only. Use .github/workflows/release.yml via GitHub Actions." >&2
-exit 1
-'''
+description = "Test the shared core and build every Apple app shell"
+depends = ["doctor"]
+run = "./scripts/verify.sh"

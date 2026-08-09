@@ -5,42 +5,48 @@
 
   <h1>putio-ios</h1>
 
-  <p>
-    Native iOS app for put.io
-  </p>
-
-  <p>
-    <a href="https://github.com/putdotio/putio-ios/actions/workflows/ci.yml?query=branch%3Amain" style="text-decoration:none;"><img src="https://img.shields.io/github/actions/workflow/status/putdotio/putio-ios/ci.yml?branch=main&style=flat&label=ci&colorA=000000&colorB=000000" alt="CI"></a>
-    <a href="https://github.com/putdotio/putio-ios/blob/main/LICENSE" style="text-decoration:none;"><img src="https://img.shields.io/github/license/putdotio/putio-ios?style=flat&colorA=000000&colorB=000000" alt="license"></a>
-  </p>
+  <p>Native put.io apps for iOS, watchOS, and tvOS</p>
 </div>
 
 ## Overview
 
-`putio-ios` is the native iPhone and iPad app for put.io.
+The `next` generation is a Tuist-generated SwiftUI workspace with three thin app shells and one shared Swift package:
 
-## Install
+- `Apps/iOS`
+- `Apps/watchOS`
+- `Apps/tvOS`
+- `Packages/PutioCore`
 
-Install the public app from the [App Store](https://apps.apple.com/app/id1260479699)
+The shipping legacy application remains on the protected `main` branch while the rewrite develops on `next`.
 
-## Use
+## Setup
 
-Sign in with your put.io account to browse files, view history, manage downloads, and stream supported media on iPhone and iPad
+Install [mise](https://mise.jdx.dev), then run:
 
-## Docs
+```bash
+mise install
+mise run bootstrap
+```
 
-- [Distribution](./docs/DISTRIBUTION.md) for CI, TestFlight, and release delivery details
-- [Icon system](./docs/ICONS.md) for the Phosphor asset and UIKit integration contract
-- [Security](./SECURITY.md) for private vulnerability reporting
+No Tuist account, application secret, or signing material is required.
 
-## Repo Internals
+## Commands
 
-- [Agent guide](./AGENTS.md) for repo-specific agent guidance
-- [Fastlane action docs](./fastlane/README.md) for generated fastlane action docs
+```bash
+mise run generate  # regenerate Putio.xcworkspace without opening Xcode
+mise run open      # regenerate and open the workspace
+mise run test      # format-check and test PutioCore
+mise run build     # build all three app shells
+mise run verify    # test PutioCore and build all three app shells
+```
 
-## Contributing
+## Development identities
 
-Contributions are welcome. Start with [Contributing](./CONTRIBUTING.md)
+- iOS: `io.put.dev.ios`
+- watchOS companion: `io.put.dev.ios.watchkitapp`
+- tvOS: `io.put.dev.tvos`
+
+Production identities and delivery lanes are tracked separately.
 
 ## License
 

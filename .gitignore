@@ -1,74 +1,26 @@
-# macOS
 .DS_Store
 
-# XCode
-## Build generated
+# Tuist and Xcode generated output
+*.xcodeproj/
+*.xcworkspace/
+.tuist-cache/
+Derived/
+DerivedData/
 build/
-DerivedData
 
-## Various settings
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-xcuserdata
+# Swift Package Manager
+.build/
+.swiftpm/
+Tuist/.build/
 
-## Other
-*.xccheckout
-*.moved-aside
+# Xcode user state
 *.xcuserstate
-*.xcscmblueprint
+xcuserdata/
 
-## Obj-C/Swift specific
-*.hmap
-*.ipa
-
-## Playgrounds
-timeline.xctimeline
-playground.xcworkspace
-
-# CocoaPods
-Pods/
-
-.claude/worktrees/
-# fastlane
-fastlane/report.xml
-fastlane/.env
-fastlane/*.p8
-.bundle/
-vendor/bundle/
-Config/Local.xcconfig
-Config/1Password.local.env
-fastlane/.env.1password.local
-.env
-.env.*
-.direnv/
-!.env.example
-
-## mise, for a maintainer who needs to override a pin locally without
-## dirtying the tree. mise.toml itself is checked in and is the shared pin.
+# Local mise overrides
 mise.local.toml
 
-## Fastlane DSYM .zip
-*.zip
-
-## Licensed brand fonts; never committed
-Putio/Fonts/
-
-## Node tooling; reinstalled by `mise run bootstrap`
-node_modules/
-
-# Visual reference gallery: the manifest is committed, but the screenshot copies
-# and the rendered gallery are regenerated from the committed baselines by
-# `mise run vref`, so they would only ever drift.
-.vref/screenshots/
-.vref/index.html
-
-# Raw App Store screenshots assembled from the committed baselines by
-# `mise run store-screenshots`. Intermediate: #51 frames these into the finished
-# marketing images, and those get committed.
-dist/
+# Local environment
+.env
+.env.*
+!.env.example
