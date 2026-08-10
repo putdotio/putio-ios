@@ -30,10 +30,8 @@ final class PutioThemeTests: XCTestCase {
 
   func testFontRoleLineSpacingClampsNegativeLeading() {
     let role = PutioFontRole(
-      family: "System",
       fontName: "Helvetica",
       size: 20,
-      weight: .regular,
       lineHeight: 0.8,
       textStyle: .body
     )

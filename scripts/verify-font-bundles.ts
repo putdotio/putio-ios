@@ -46,7 +46,9 @@ const verifyApp = async (
   const actualFiles = await listFontResources(app);
   const expected = expectedNames(platform);
   if (actualFiles.join("\n") !== expected.join("\n")) {
-    throw new Error(`${label} font resources differ\nexpected: ${expected}\nactual: ${actualFiles}`);
+    throw new Error(
+      `${label} font resources differ\nexpected:\n${expected.join("\n")}\nactual:\n${actualFiles.join("\n")}`,
+    );
   }
 
   const { stdout } = await execFileAsync("plutil", [
@@ -63,7 +65,9 @@ const verifyApp = async (
   }
   const registered = parsed.map(String).sort();
   if (registered.join("\n") !== expected.join("\n")) {
-    throw new Error(`${label} UIAppFonts differs\nexpected: ${expected}\nactual: ${registered}`);
+    throw new Error(
+      `${label} UIAppFonts differs\nexpected:\n${expected.join("\n")}\nactual:\n${registered.join("\n")}`,
+    );
   }
 };
 

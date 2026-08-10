@@ -462,20 +462,6 @@ const primaryFontFamily = (value: string | number): string => {
   return value.split(",", 1)[0]?.trim().replace(/^"|"$/g, "") ?? value;
 };
 
-const fontWeight = (value: string | number): string => {
-  const numeric = Number(value);
-  const weights = new Map<number, string>([
-    [400, ".regular"],
-    [500, ".medium"],
-    [600, ".semibold"],
-    [700, ".bold"],
-    [900, ".black"],
-  ]);
-  const result = weights.get(numeric);
-  if (!result) throw new Error(`unsupported font weight: ${value}`);
-  return result;
-};
-
 const nativeFontName = (family: string, weight: string | number): string => {
   const numeric = Number(weight);
   if (family === "GT America") {
@@ -601,25 +587,19 @@ public struct PutioIconRole: Sendable {
 }
 
 public struct PutioFontRole: Sendable {
-  public let family: String
   public let fontName: String
   public let size: CGFloat
-  public let weight: Font.Weight
   public let lineHeight: CGFloat
   public let textStyle: Font.TextStyle
 
   public init(
-    family: String,
     fontName: String,
     size: CGFloat,
-    weight: Font.Weight,
     lineHeight: CGFloat,
     textStyle: Font.TextStyle
   ) {
-    self.family = family
     self.fontName = fontName
     self.size = size
-    self.weight = weight
     self.lineHeight = lineHeight
     self.textStyle = textStyle
   }
@@ -742,59 +722,45 @@ ${renderProductColors(entries)}
     public static let sizeDisplay: CGFloat = ${dimension(entries, "typography.fontSize.display")}
 
     public static let caption = PutioFontRole(
-      family: familySans,
       fontName: ${swiftString(nativeFontName(familySans, requiredToken(entries, "typography.fontWeight.regular").value))},
       size: sizeSm,
-      weight: ${fontWeight(requiredToken(entries, "typography.fontWeight.regular").value)},
       lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
       textStyle: .caption
     )
     public static let body = PutioFontRole(
-      family: familySans,
       fontName: ${swiftString(nativeFontName(familySans, requiredToken(entries, "typography.fontWeight.regular").value))},
       size: sizeBase,
-      weight: ${fontWeight(requiredToken(entries, "typography.fontWeight.regular").value)},
       lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
       textStyle: .body
     )
     public static let subheading = PutioFontRole(
-      family: familySans,
       fontName: ${swiftString(nativeFontName(familySans, requiredToken(entries, "typography.fontWeight.medium").value))},
       size: sizeMd,
-      weight: ${fontWeight(requiredToken(entries, "typography.fontWeight.medium").value)},
       lineHeight: ${numberValue(entries, "typography.lineHeight.snug")},
       textStyle: .subheadline
     )
     public static let heading = PutioFontRole(
-      family: familySans,
       fontName: ${swiftString(nativeFontName(familySans, requiredToken(entries, "typography.fontWeight.bold").value))},
       size: sizeLg,
-      weight: ${fontWeight(requiredToken(entries, "typography.fontWeight.bold").value)},
       lineHeight: ${numberValue(entries, "typography.lineHeight.tight")},
       textStyle: .headline
     )
     public static let title = PutioFontRole(
-      family: familySans,
       fontName: ${swiftString(nativeFontName(familySans, requiredToken(entries, "typography.fontWeight.bold").value))},
       size: sizeXl,
-      weight: ${fontWeight(requiredToken(entries, "typography.fontWeight.bold").value)},
       lineHeight: ${numberValue(entries, "typography.lineHeight.tight")},
       textStyle: .title
     )
     public static let display = PutioFontRole(
-      family: familyDisplay,
       fontName: ${swiftString(nativeFontName(familyDisplay, requiredToken(entries, "typography.fontWeight.black").value))},
       size: sizeDisplay,
-      weight: ${fontWeight(requiredToken(entries, "typography.fontWeight.black").value)},
       lineHeight: ${numberValue(entries, "typography.lineHeight.tight")},
       textStyle: .largeTitle
     )
     #if os(iOS) || os(watchOS)
       public static let mono = PutioFontRole(
-        family: familyMono,
         fontName: ${swiftString(nativeFontName(familyMono, requiredToken(entries, "typography.fontWeight.regular").value))},
         size: sizeSm,
-        weight: ${fontWeight(requiredToken(entries, "typography.fontWeight.regular").value)},
         lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
         textStyle: .caption
       )
@@ -878,42 +844,32 @@ ${renderTVColors(entries)}
 
       public enum Typography {
         public static let heading = PutioFontRole(
-          family: PutioTheme.Typography.familySans,
           fontName: ${swiftString(nativeFontName(familySans, requiredToken(entries, "tv.fontWeight.medium").value))},
           size: ${dimension(entries, "tv.text.heading")},
-          weight: ${fontWeight(requiredToken(entries, "tv.fontWeight.medium").value)},
           lineHeight: ${numberValue(entries, "typography.lineHeight.tight")},
           textStyle: .title
         )
         public static let label = PutioFontRole(
-          family: PutioTheme.Typography.familySans,
           fontName: ${swiftString(nativeFontName(familySans, requiredToken(entries, "tv.fontWeight.medium").value))},
           size: ${dimension(entries, "tv.text.label")},
-          weight: ${fontWeight(requiredToken(entries, "tv.fontWeight.medium").value)},
           lineHeight: ${numberValue(entries, "typography.lineHeight.snug")},
           textStyle: .headline
         )
         public static let body = PutioFontRole(
-          family: PutioTheme.Typography.familySans,
           fontName: ${swiftString(nativeFontName(familySans, requiredToken(entries, "tv.fontWeight.regular").value))},
           size: ${dimension(entries, "tv.text.body")},
-          weight: ${fontWeight(requiredToken(entries, "tv.fontWeight.regular").value)},
           lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
           textStyle: .body
         )
         public static let caption = PutioFontRole(
-          family: PutioTheme.Typography.familySans,
           fontName: ${swiftString(nativeFontName(familySans, requiredToken(entries, "tv.fontWeight.regular").value))},
           size: ${dimension(entries, "tv.text.caption")},
-          weight: ${fontWeight(requiredToken(entries, "tv.fontWeight.regular").value)},
           lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
           textStyle: .caption
         )
         public static let small = PutioFontRole(
-          family: PutioTheme.Typography.familySans,
           fontName: ${swiftString(nativeFontName(familySans, requiredToken(entries, "tv.fontWeight.regular").value))},
           size: ${dimension(entries, "tv.text.smol")},
-          weight: ${fontWeight(requiredToken(entries, "tv.fontWeight.regular").value)},
           lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
           textStyle: .caption2
         )

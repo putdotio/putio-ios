@@ -84,7 +84,7 @@ public struct HarnessDoctor: Sendable {
     } catch {
       return DoctorCheck(
         name: "brand-fonts", status: .failed, required: true,
-        detail: "missing or invalid; run mise run fonts-setup"
+        detail: String(describing: error)
       )
     }
   }

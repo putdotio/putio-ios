@@ -124,4 +124,9 @@ test("maps semantic font weights to bundled native faces", async () => {
   assert.match(swift, /public static let numeric = PutioTabularFontRole\(base: caption\)/);
   assert.match(swift, /\.monospacedDigit\(\)/);
   assert.doesNotMatch(swift, /\.custom\(family,/);
+  const fontRole = swift.slice(
+    swift.indexOf("public struct PutioFontRole"),
+    swift.indexOf("public struct PutioTabularFontRole"),
+  );
+  assert.doesNotMatch(fontRole, /public let (?:family|weight):/);
 });
