@@ -91,6 +91,13 @@ public struct HarnessService {
 }
 
 public enum HarnessOutput {
+  public static func requestedErrorFormat(arguments: [String]) -> OutputFormat {
+    guard let outputIndex = arguments.firstIndex(of: "--output"),
+      arguments.indices.contains(outputIndex + 1)
+    else { return .text }
+    return OutputFormat(rawValue: arguments[outputIndex + 1]) ?? .text
+  }
+
   public static func format(for invocation: HarnessInvocation) -> OutputFormat {
     switch invocation {
     case .help: .text

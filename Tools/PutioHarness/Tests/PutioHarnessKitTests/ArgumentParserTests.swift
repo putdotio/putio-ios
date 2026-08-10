@@ -65,3 +65,21 @@ import Testing
     ])
   }
 }
+
+@Test func errorFormatUsesOnlyOutputOptionValue() {
+  #expect(
+    HarnessOutput.requestedErrorFormat(arguments: [
+      "proof", "--platform", "ios", "--run-id", "json", "--output", "text",
+    ]) == .text
+  )
+  #expect(
+    HarnessOutput.requestedErrorFormat(arguments: [
+      "publish", "--artifact", "json", "--repo", "putdotio/putio-ios", "--pr", "156",
+    ]) == .text
+  )
+  #expect(
+    HarnessOutput.requestedErrorFormat(arguments: [
+      "proof", "--platform", "ios", "--output", "json",
+    ]) == .json
+  )
+}

@@ -12,7 +12,9 @@ do {
     exit(1)
   }
 } catch {
-  let json = CommandLine.arguments.contains("json") && CommandLine.arguments.contains("--output")
+  let json =
+    HarnessOutput.requestedErrorFormat(arguments: Array(CommandLine.arguments.dropFirst()))
+    == .json
   FileHandle.standardError.write(Data((HarnessOutput.error(error, json: json) + "\n").utf8))
   exit(2)
 }
