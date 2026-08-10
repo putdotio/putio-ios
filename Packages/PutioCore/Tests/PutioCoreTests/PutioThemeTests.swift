@@ -3,6 +3,13 @@ import XCTest
 @testable import PutioCore
 
 final class PutioThemeTests: XCTestCase {
+  func testDynamicColorResolvesTheRequestedAppearance() {
+    let dynamicColor = PutioDynamicColor(light: .white, dark: .black)
+
+    XCTAssertEqual(dynamicColor.resolve(for: .light), dynamicColor.light)
+    XCTAssertEqual(dynamicColor.resolve(for: .dark), dynamicColor.dark)
+  }
+
   func testGeneratedThemeIdentifiesItsPinnedSource() {
     XCTAssertEqual(PutioTheme.sourcePackage, "@putdotio/design")
     XCTAssertEqual(PutioTheme.sourceVersion, "2.0.1")
