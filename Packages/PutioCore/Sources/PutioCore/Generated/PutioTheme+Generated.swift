@@ -290,7 +290,9 @@ public enum PutioTheme {
   public enum Typography {
     public static let familySans = "GT America"
     public static let familyDisplay = "GT America"
-    public static let familyMono = "Berkeley Mono"
+    #if os(iOS) || os(watchOS)
+      public static let familyMono = "Berkeley Mono"
+    #endif
 
     public static let sizeXs: CGFloat = 12.0
     public static let sizeSm: CGFloat = 14.0

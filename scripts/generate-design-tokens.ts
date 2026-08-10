@@ -727,7 +727,9 @@ ${renderProductColors(entries)}
   public enum Typography {
     public static let familySans = ${swiftString(familySans)}
     public static let familyDisplay = ${swiftString(familyDisplay)}
-    public static let familyMono = ${swiftString(familyMono)}
+    #if os(iOS) || os(watchOS)
+      public static let familyMono = ${swiftString(familyMono)}
+    #endif
 
     public static let sizeXs: CGFloat = ${dimension(entries, "typography.fontSize.xs")}
     public static let sizeSm: CGFloat = ${dimension(entries, "typography.fontSize.sm")}
