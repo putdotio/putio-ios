@@ -8,6 +8,13 @@ public struct SurfaceRun: Sendable {
   public let message: String
 }
 
+func shouldBuildIOSCompanion(
+  for platform: HarnessPlatform,
+  iosCompanionAvailable: Bool
+) -> Bool {
+  platform == .watchos && !iosCompanionAvailable
+}
+
 private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: ProcessRunner) throws {
   var diagnostics: [String] = []
   for identifier in identifiers {
@@ -84,8 +91,15 @@ public struct SimulatorHarness {
   {
     try requireGeneratedWorkspace()
     try fileManager.createDirectory(at: context.derivedData, withIntermediateDirectories: true)
-    if platform == .watchos && !iosCompanionAvailable {
-      try buildProduct(.ios)
+    if platform == .watchos {
+      if shouldBuildIOSCompanion(
+        for: platform, iosCompanionAvailable: iosCompanionAvailable)
+      {
+        try buildProduct(.ios)
+      } else {
+        try requireNonemptyDirectory(
+          appURL(for: .ios), context: "reused iOS companion build product")
+      }
     }
     try buildProduct(platform)
     let config = platform.configuration

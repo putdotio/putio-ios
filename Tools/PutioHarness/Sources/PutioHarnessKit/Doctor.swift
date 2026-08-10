@@ -21,7 +21,9 @@ public struct HarnessDoctor: Sendable {
     checks.append(toolCheck("tuist", required: true, recovery: "run mise install"))
     checks.append(toolCheck("git", required: true, recovery: "install Xcode command-line tools"))
     checks.append(
-      toolCheck("shasum", required: true, recovery: "install the macOS Perl toolchain"))
+      toolCheck(
+        "shasum", required: true,
+        recovery: "reinstall Xcode command-line tools or repair the macOS system shasum"))
 
     if commandExists("xcodebuild") {
       checks.append(xcodeCheck())

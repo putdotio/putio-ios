@@ -47,3 +47,22 @@ import Testing
   #expect(runtimeMatchesSDK("26.5", "26.5.1"))
   #expect(!runtimeMatchesSDK("26.4.1", "26.5"))
 }
+
+@Test func watchBuildPlanReusesOnlyAnAvailableIOSCompanion() {
+  #expect(shouldBuildIOSCompanion(for: .watchos, iosCompanionAvailable: false))
+  #expect(!shouldBuildIOSCompanion(for: .watchos, iosCompanionAvailable: true))
+  #expect(!shouldBuildIOSCompanion(for: .ios, iosCompanionAvailable: false))
+}
+
+@Test func watchBuildRejectsMissingReusedIOSCompanion() throws {
+  let root = FileManager.default.temporaryDirectory.appending(
+    path: "putio-harness-watch-build-\(UUID().uuidString.lowercased())")
+  defer { try? FileManager.default.removeItem(at: root) }
+  try FileManager.default.createDirectory(
+    at: root.appending(path: "Putio.xcworkspace"), withIntermediateDirectories: true)
+
+  #expect(throws: HarnessFailure.self) {
+    try SimulatorHarness(context: RepositoryContext(root: root)).build(
+      .watchos, iosCompanionAvailable: true)
+  }
+}
