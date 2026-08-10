@@ -183,10 +183,11 @@ public struct SimulatorHarness {
     command: SurfaceCommand,
     runID: String,
     recordSeconds: Int,
-    iosCompanionAvailable: Bool = false
+    iosCompanionAvailable: Bool = false,
+    sourceRevision: String
   ) throws -> SurfaceRun {
     try requireCleanSource()
-    let sourceRevision = try currentRevision()
+    try requireRevision(sourceRevision)
     try regenerateWorkspace()
     try requireCleanSource()
     try requireRevision(sourceRevision)
@@ -299,6 +300,11 @@ public struct SimulatorHarness {
     return "\(formatter.string(from: Date()))-\(commit)"
   }
 
+  func pinProofSourceRevision() throws -> String {
+    try requireCleanSource()
+    return try currentRevision()
+  }
+
   private func withSession<T>(
     platform: HarnessPlatform,
     runID: String,
@@ -357,10 +363,7 @@ public struct SimulatorHarness {
 
   private func requireRevision(_ expected: String) throws {
     let actual = try currentRevision()
-    guard actual == expected else {
-      throw HarnessFailure(
-        "proof source revision changed during capture: expected \(expected), found \(actual)")
-    }
+    try requireMatchingProofRevision(expected: expected, actual: actual)
   }
 
   private func regenerateWorkspace() throws {

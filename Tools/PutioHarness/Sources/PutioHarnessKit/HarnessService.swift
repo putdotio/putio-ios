@@ -72,6 +72,7 @@ public struct HarnessService {
       runs.append(try simulator.exercise(platform))
     case .screenshot, .record, .proof:
       let runID = try requestedRunID ?? simulator.defaultRunID()
+      let sourceRevision = try simulator.pinProofSourceRevision()
       for platform in platforms {
         runs.append(
           try simulator.capture(
@@ -79,7 +80,8 @@ public struct HarnessService {
             command: command,
             runID: runID,
             recordSeconds: recordSeconds,
-            iosCompanionAvailable: iosProductAvailable
+            iosCompanionAvailable: iosProductAvailable,
+            sourceRevision: sourceRevision
           )
         )
         if platform == .ios || platform == .watchos { iosProductAvailable = true }

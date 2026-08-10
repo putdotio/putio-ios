@@ -65,3 +65,10 @@ func runtimeMatchesSDK(_ runtimeVersion: String, _ sdkVersion: String) -> Bool {
   let sdkComponents = sdkVersion.split(separator: ".").prefix(2)
   return runtimeComponents.elementsEqual(sdkComponents)
 }
+
+func requireMatchingProofRevision(expected: String, actual: String) throws {
+  guard actual == expected else {
+    throw HarnessFailure(
+      "proof source revision changed during capture: expected \(expected), found \(actual)")
+  }
+}

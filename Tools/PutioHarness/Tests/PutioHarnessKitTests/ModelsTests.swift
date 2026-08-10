@@ -32,6 +32,13 @@ import Testing
   #expect(try JSONDecoder().decode(ProofManifest.self, from: data) == manifest)
 }
 
+@Test func proofRevisionRejectsDriftFromPinnedCommit() throws {
+  try requireMatchingProofRevision(expected: "abc123", actual: "abc123")
+  #expect(throws: HarnessFailure.self) {
+    try requireMatchingProofRevision(expected: "abc123", actual: "def456")
+  }
+}
+
 @Test func doctorFailsOnlyForRequiredFailures() {
   let warningOnly = DoctorReport(checks: [
     DoctorCheck(name: "attach", status: .warning, required: false, detail: "missing")
