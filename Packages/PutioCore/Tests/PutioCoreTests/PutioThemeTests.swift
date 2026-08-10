@@ -2,6 +2,10 @@ import XCTest
 
 @testable import PutioCore
 
+#if os(macOS)
+  import AppKit
+#endif
+
 final class PutioThemeTests: XCTestCase {
   func testGeneratedThemeIdentifiesItsPinnedSource() {
     XCTAssertEqual(PutioTheme.sourcePackage, "@putdotio/design")
@@ -35,4 +39,17 @@ final class PutioThemeTests: XCTestCase {
 
     XCTAssertEqual(role.baseLineSpacing, 0)
   }
+
+  #if os(macOS)
+    func testSemanticColorsResolveDuringDirectSwiftPackageTests() throws {
+      let color = try XCTUnwrap(
+        NSColor(PutioTheme.Colors.background).usingColorSpace(.sRGB)
+      )
+
+      XCTAssertEqual(color.redComponent, 0.085, accuracy: 0.000_001)
+      XCTAssertEqual(color.greenComponent, 0.085, accuracy: 0.000_001)
+      XCTAssertEqual(color.blueComponent, 0.085, accuracy: 0.000_001)
+      XCTAssertEqual(color.alphaComponent, 1, accuracy: 0.000_001)
+    }
+  #endif
 }

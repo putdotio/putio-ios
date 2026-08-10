@@ -380,15 +380,17 @@ const swiftColorComponents = (value: string): readonly string[] => {
   return [decimal(red), decimal(green), decimal(blue), decimal(opacity)];
 };
 
-const swiftMultilineColor = (value: string): string => {
+const swiftMultilineColor = (value: string, closingIndent = 8): string => {
   const [red, green, blue, opacity] = swiftColorComponents(value);
+  const valueIndent = " ".repeat(closingIndent + 2);
+  const endIndent = " ".repeat(closingIndent);
   return `Color(
-          .sRGB,
-          red: ${red},
-          green: ${green},
-          blue: ${blue},
-          opacity: ${opacity}
-        )`;
+${valueIndent}.sRGB,
+${valueIndent}red: ${red},
+${valueIndent}green: ${green},
+${valueIndent}blue: ${blue},
+${valueIndent}opacity: ${opacity}
+${endIndent})`;
 };
 
 const assetColor = (value: string): Record<string, unknown> => {
@@ -487,13 +489,26 @@ const requiredToken = (
   return result;
 };
 
-const renderProductColors = (entries: readonly TokenEntry[]): string =>
-  semanticColorRoles
+const renderProductColors = (entries: readonly TokenEntry[]): string => {
+  const roles = semanticColorRoles
     .map((role) => {
-      requiredDarkColorToken(entries, role.token);
-      return `    public static let ${role.swiftName} = Color(\n      ${swiftString(role.assetName)},\n      bundle: .module\n    )`;
+      const token = requiredDarkColorToken(entries, role.token);
+      return `    public static let ${role.swiftName} = semanticColor(
+      named: ${swiftString(role.assetName)},
+      fallback: ${swiftMultilineColor(String(token.value), 6)}
+    )`;
     })
     .join("\n\n");
+  return `${roles}
+
+    private static func semanticColor(named: String, fallback: Color) -> Color {
+      #if os(macOS)
+        fallback
+      #else
+        Color(named, bundle: .module)
+      #endif
+    }`;
+};
 
 const tvColorRoles = [
   ["textPrimary", "context.tv.text.primary"],

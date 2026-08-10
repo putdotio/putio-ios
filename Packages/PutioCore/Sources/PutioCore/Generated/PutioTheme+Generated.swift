@@ -140,60 +140,134 @@ public enum PutioTheme {
   public static let sourceTokenCount = 449
 
   public enum Colors {
-    public static let background = Color(
-      "PutioBackground",
-      bundle: .module
+    public static let background = semanticColor(
+      named: "PutioBackground",
+      fallback: Color(
+        .sRGB,
+        red: 0.085,
+        green: 0.085,
+        blue: 0.085,
+        opacity: 1.0
+      )
     )
 
-    public static let surface = Color(
-      "PutioSurface",
-      bundle: .module
+    public static let surface = semanticColor(
+      named: "PutioSurface",
+      fallback: Color(
+        .sRGB,
+        red: 0.136,
+        green: 0.136,
+        blue: 0.136,
+        opacity: 1.0
+      )
     )
 
-    public static let textPrimary = Color(
-      "PutioTextPrimary",
-      bundle: .module
+    public static let textPrimary = semanticColor(
+      named: "PutioTextPrimary",
+      fallback: Color(
+        .sRGB,
+        red: 0.93,
+        green: 0.93,
+        blue: 0.93,
+        opacity: 1.0
+      )
     )
 
-    public static let textSecondary = Color(
-      "PutioTextSecondary",
-      bundle: .module
+    public static let textSecondary = semanticColor(
+      named: "PutioTextSecondary",
+      fallback: Color(
+        .sRGB,
+        red: 0.628,
+        green: 0.628,
+        blue: 0.628,
+        opacity: 1.0
+      )
     )
 
-    public static let accent = Color(
-      "PutioAccent",
-      bundle: .module
+    public static let accent = semanticColor(
+      named: "PutioAccent",
+      fallback: Color(
+        .sRGB,
+        red: 0.992251,
+        green: 0.808013,
+        blue: 0.269749,
+        opacity: 1.0
+      )
     )
 
-    public static let accentForeground = Color(
-      "PutioAccentForeground",
-      bundle: .module
+    public static let accentForeground = semanticColor(
+      named: "PutioAccentForeground",
+      fallback: Color(
+        .sRGB,
+        red: 0.165,
+        green: 0.117333,
+        blue: 0.035,
+        opacity: 1.0
+      )
     )
 
-    public static let success = Color(
-      "PutioSuccess",
-      bundle: .module
+    public static let success = semanticColor(
+      named: "PutioSuccess",
+      fallback: Color(
+        .sRGB,
+        red: 0.18675,
+        green: 0.64325,
+        blue: 0.422608,
+        opacity: 1.0
+      )
     )
 
-    public static let successForeground = Color(
-      "PutioSuccessForeground",
-      bundle: .module
+    public static let successForeground = semanticColor(
+      named: "PutioSuccessForeground",
+      fallback: Color(
+        .sRGB,
+        red: 1.0,
+        green: 1.0,
+        blue: 1.0,
+        opacity: 1.0
+      )
     )
 
-    public static let destructive = Color(
-      "PutioDestructive",
-      bundle: .module
+    public static let destructive = semanticColor(
+      named: "PutioDestructive",
+      fallback: Color(
+        .sRGB,
+        red: 0.8975,
+        green: 0.2825,
+        blue: 0.303,
+        opacity: 1.0
+      )
     )
 
-    public static let destructiveForeground = Color(
-      "PutioDestructiveForeground",
-      bundle: .module
+    public static let destructiveForeground = semanticColor(
+      named: "PutioDestructiveForeground",
+      fallback: Color(
+        .sRGB,
+        red: 1.0,
+        green: 1.0,
+        blue: 1.0,
+        opacity: 1.0
+      )
     )
 
-    public static let separator = Color(
-      "PutioSeparator",
-      bundle: .module
+    public static let separator = semanticColor(
+      named: "PutioSeparator",
+      fallback: Color(
+        .sRGB,
+        red: 0.243,
+        green: 0.243,
+        blue: 0.243,
+        opacity: 1.0
+      )
     )
+
+    private static func semanticColor(named: String, fallback: Color) -> Color {
+      #if os(macOS)
+        fallback
+      #else
+        Color(named, bundle: .module)
+      #endif
+    }
   }
 
   public enum Typography {
