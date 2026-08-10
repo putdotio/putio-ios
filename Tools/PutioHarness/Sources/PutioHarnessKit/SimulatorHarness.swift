@@ -79,10 +79,12 @@ public struct SimulatorHarness {
     self.fileManager = fileManager
   }
 
-  public func build(_ platform: HarnessPlatform) throws -> SurfaceRun {
+  public func build(_ platform: HarnessPlatform, iosCompanionAvailable: Bool = false) throws
+    -> SurfaceRun
+  {
     try requireGeneratedWorkspace()
     try fileManager.createDirectory(at: context.derivedData, withIntermediateDirectories: true)
-    if platform == .watchos {
+    if platform == .watchos && !iosCompanionAvailable {
       try buildProduct(.ios)
     }
     try buildProduct(platform)
@@ -166,14 +168,15 @@ public struct SimulatorHarness {
     _ platform: HarnessPlatform,
     command: SurfaceCommand,
     runID: String,
-    recordSeconds: Int
+    recordSeconds: Int,
+    iosCompanionAvailable: Bool = false
   ) throws -> SurfaceRun {
     try requireCleanSource()
     let sourceRevision = try currentRevision()
     try regenerateWorkspace()
     try requireCleanSource()
     try requireRevision(sourceRevision)
-    _ = try build(platform)
+    _ = try build(platform, iosCompanionAvailable: iosCompanionAvailable)
     let platformDirectory = context.proofRoot.appending(path: runID).appending(
       path: platform.rawValue)
     guard !fileManager.fileExists(atPath: platformDirectory.path) else {

@@ -51,10 +51,16 @@ public struct HarnessService {
   ) throws -> HarnessResult {
     let platforms = selection.platforms
     var runs: [SurfaceRun] = []
+    var iosProductAvailable = false
 
     switch command {
     case .build:
-      for platform in platforms { runs.append(try simulator.build(platform)) }
+      for platform in platforms {
+        runs.append(
+          try simulator.build(platform, iosCompanionAvailable: iosProductAvailable)
+        )
+        if platform == .ios || platform == .watchos { iosProductAvailable = true }
+      }
     case .boot:
       guard let platform = platforms.first else { throw HarnessFailure("no platform selected") }
       runs.append(try simulator.boot(platform))
@@ -72,9 +78,11 @@ public struct HarnessService {
             platform,
             command: command,
             runID: runID,
-            recordSeconds: recordSeconds
+            recordSeconds: recordSeconds,
+            iosCompanionAvailable: iosProductAvailable
           )
         )
+        if platform == .ios || platform == .watchos { iosProductAvailable = true }
       }
     }
 
@@ -128,12 +136,42 @@ public enum HarnessOutput {
   }
 
   public static func error(_ error: Error, json: Bool) -> String {
-    let message = String(describing: error)
+    let message = redact(String(describing: error))
     if json {
       let result = HarnessResult(status: "failed", command: "error", message: message)
       return (try? encode(result)) ?? #"{"status":"failed","message":"harness error"}"#
     }
     return "putio-harness: \(message)"
+  }
+
+  public static func redact(
+    _ message: String,
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) -> String {
+    var result = message
+    let sensitiveKeyMarkers = ["TOKEN", "SECRET", "PASSWORD", "API_KEY", "APIKEY", "AUTHORIZATION"]
+    let sensitiveValues = environment.compactMap { key, value in
+      sensitiveKeyMarkers.contains(where: { key.uppercased().contains($0) }) && value.count >= 4
+        ? value : nil
+    }.sorted { $0.count > $1.count }
+    for value in sensitiveValues {
+      result = result.replacingOccurrences(of: value, with: "[REDACTED]")
+    }
+    if let home = environment["HOME"], home.count > 1 {
+      result = result.replacingOccurrences(of: home, with: "$HOME")
+    }
+
+    let patterns = [
+      #"(?i)(authorization\s*:\s*bearer\s+)[^\s]+"#,
+      #"(?i)((?:access[_-]?token|refresh[_-]?token|api[_-]?key|password|secret|token)\s*[:=]\s*[\"']?)[^\"'\s&,}]+"#,
+    ]
+    for pattern in patterns {
+      guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+      let range = NSRange(result.startIndex..., in: result)
+      result = regex.stringByReplacingMatches(
+        in: result, range: range, withTemplate: "$1[REDACTED]")
+    }
+    return result
   }
 
   private static func encode<T: Encodable>(_ value: T) throws -> String {

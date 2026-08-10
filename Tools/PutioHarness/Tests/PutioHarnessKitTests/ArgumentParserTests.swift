@@ -83,3 +83,19 @@ import Testing
     ]) == .json
   )
 }
+
+@Test func errorOutputRedactsSecretsAndHomePaths() {
+  let environment = [
+    "HOME": "/Users/example",
+    "PUTIO_CLI_TOKEN": "ambient-secret-value",
+  ]
+  let message = HarnessOutput.redact(
+    "request failed at /Users/example/file: Authorization: Bearer bearer-value token=query-value ambient-secret-value",
+    environment: environment
+  )
+  #expect(!message.contains("ambient-secret-value"))
+  #expect(!message.contains("bearer-value"))
+  #expect(!message.contains("query-value"))
+  #expect(message.contains("$HOME/file"))
+  #expect(message.contains("[REDACTED]"))
+}

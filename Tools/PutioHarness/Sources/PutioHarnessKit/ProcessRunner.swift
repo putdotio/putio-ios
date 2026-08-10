@@ -55,7 +55,15 @@ public struct ProcessRunner: Sendable {
     FileManager.default.createFile(atPath: stdoutURL.path, contents: nil)
     FileManager.default.createFile(atPath: stderrURL.path, contents: nil)
     let stdoutHandle = try FileHandle(forWritingTo: stdoutURL)
+    var stdoutIsOpen = true
+    defer {
+      if stdoutIsOpen { try? stdoutHandle.close() }
+    }
     let stderrHandle = try FileHandle(forWritingTo: stderrURL)
+    var stderrIsOpen = true
+    defer {
+      if stderrIsOpen { try? stderrHandle.close() }
+    }
 
     let process = configuredProcess(
       executable,
@@ -69,7 +77,9 @@ public struct ProcessRunner: Sendable {
     try process.run()
     process.waitUntilExit()
     try stdoutHandle.close()
+    stdoutIsOpen = false
     try stderrHandle.close()
+    stderrIsOpen = false
     let stdout = String(data: try Data(contentsOf: stdoutURL), encoding: .utf8) ?? ""
     let stderr = String(data: try Data(contentsOf: stderrURL), encoding: .utf8) ?? ""
     return ProcessOutput(status: process.terminationStatus, stdout: stdout, stderr: stderr)

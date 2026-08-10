@@ -12,7 +12,7 @@ mise run bootstrap
 mise run doctor -- --output json
 ```
 
-Doctor exits nonzero for missing build prerequisites and returns stable JSON with `--output json`. Optional live-lane tools produce warnings without blocking deterministic builds. Brand fonts are reported as not configured until #126 owns their contract.
+Doctor exits nonzero for missing build prerequisites and returns stable JSON with `--output json`. A shell preflight preserves actionable text or JSON failures when the selected Swift/Xcode toolchain cannot compile the harness. Optional live-lane tools produce warnings without blocking deterministic builds. Brand fonts are reported as not configured until #126 owns their contract.
 
 ## Commands
 
@@ -29,9 +29,11 @@ mise run harness -- proof --platform all
 
 Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` and `proof`. Invalid platforms, options, run identifiers, durations, repositories, and pull-request numbers fail before invoking platform tools.
 
-All simulator commands are headless. The harness never opens Simulator.app. Each run creates uniquely named devices, pairs watchOS with an ephemeral iPhone companion, waits for boot and a rendered app frame, and shuts down and deletes every created device on success or failure.
+All simulator commands are headless. The harness never opens Simulator.app. `boot`, `launch`, `exercise`, and capture runs create uniquely named devices and pair watchOS with an ephemeral iPhone companion. `launch`, `exercise`, and capture wait for a rendered app frame. Every created device is shut down, deleted, and verified absent on success or failure. `build` does not create devices.
 
 `exercise` launches the selected app, relaunches it with the explicit exercised scenario, requires the fixed semantic marker in its Simulator data container, and confirms the final visible state transition while the process remains alive. The launch scenario is shared by iOS, watchOS, and tvOS so automation never encounters custom-URL confirmation UI.
+
+Structured failures redact inherited secret environment values, bearer credentials, token-shaped fields, and the local home-directory prefix before writing to stderr.
 
 ## Deterministic proof
 
