@@ -169,8 +169,10 @@ public struct SimulatorHarness {
     recordSeconds: Int
   ) throws -> SurfaceRun {
     try requireCleanSource()
+    let sourceRevision = try currentRevision()
     try regenerateWorkspace()
     try requireCleanSource()
+    try requireRevision(sourceRevision)
     _ = try build(platform)
     let platformDirectory = context.proofRoot.appending(path: runID).appending(
       path: platform.rawValue)
@@ -241,10 +243,12 @@ public struct SimulatorHarness {
         let artifactURLs = [wantsScreenshot ? screenshot : nil, wantsRecording ? recording : nil]
           .compactMap { $0 }
         try requireCleanSource()
+        try requireRevision(sourceRevision)
         let manifest = try writeManifest(
           platform: platform,
           command: command,
           runID: runID,
+          commit: sourceRevision,
           session: session,
           artifactURLs: artifactURLs,
           directory: platformDirectory
@@ -322,6 +326,23 @@ public struct SimulatorHarness {
       throw HarnessFailure(
         "proof requires a clean Git worktree so its manifest can identify the exact source commit\n\(changedPaths)"
       )
+    }
+  }
+
+  private func currentRevision() throws -> String {
+    try runner.checked(
+      "git",
+      ["rev-parse", "HEAD"],
+      currentDirectory: context.root,
+      context: "read proof source revision"
+    ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  private func requireRevision(_ expected: String) throws {
+    let actual = try currentRevision()
+    guard actual == expected else {
+      throw HarnessFailure(
+        "proof source revision changed during capture: expected \(expected), found \(actual)")
     }
   }
 
@@ -689,16 +710,11 @@ public struct SimulatorHarness {
     platform: HarnessPlatform,
     command: SurfaceCommand,
     runID: String,
+    commit: String,
     session: SimulatorSession,
     artifactURLs: [URL],
     directory: URL
   ) throws -> URL {
-    let commit = try runner.checked(
-      "git",
-      ["rev-parse", "HEAD"],
-      currentDirectory: context.root,
-      context: "read git commit"
-    ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     let artifacts = try artifactURLs.map { try artifact(for: $0) }
     let manifest = ProofManifest(
       runID: runID,

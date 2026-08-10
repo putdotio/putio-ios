@@ -48,6 +48,7 @@ build/proof/<run-id>/<platform>/
 
 The manifest records the commit, platform, scheme, bundle identifier, runtime, device type, simulator name, fixture set, artifact sizes, and SHA-256 digests. `build/` is ignored by Git.
 Proof capture rejects tracked or untracked source changes so the manifest commit always identifies the exact built source.
+It pins `HEAD` before generation and requires the same revision immediately before manifest emission.
 
 Capture never uploads implicitly. Publish one reviewed artifact only after a pull request exists:
 
