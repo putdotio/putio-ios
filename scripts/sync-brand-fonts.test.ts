@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
-import { parseFontManifest } from "./sync-brand-fonts.ts";
+import {
+  approvedFontURL,
+  findUnlistedFontFiles,
+  parseFontManifest,
+} from "./sync-brand-fonts.ts";
 
 const manifest = () => ({
   baseUrl: "https://static.put.io",
@@ -50,4 +57,31 @@ test("rejects font downloads outside the approved origin", () => {
   const value = manifest();
   value.baseUrl = "https://example.com";
   assert.throws(() => parseFontManifest(value), /approved https:\/\/static\.put\.io origin/);
+});
+
+test("rejects absolute font paths and redirects outside the approved origin", () => {
+  const value = manifest();
+  value.files["gt-america-standard-regular.otf"].path = "https://example.com/regular.otf";
+  assert.throws(() => parseFontManifest(value), /must stay on https:\/\/static\.put\.io/);
+  assert.throws(
+    () => approvedFontURL("https://cdn.example.com/redirected.otf"),
+    /must stay on https:\/\/static\.put\.io/,
+  );
+});
+
+test("classifies every unlisted OTF or TTF regardless of filename prefix", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "putio-font-test-"));
+  try {
+    await Promise.all([
+      writeFile(join(directory, "OtherFont.otf"), "font"),
+      writeFile(join(directory, "another.ttf"), "font"),
+      writeFile(join(directory, "notes.txt"), "not a font"),
+    ]);
+    assert.deepEqual(await findUnlistedFontFiles(directory, new Set()), [
+      "OtherFont.otf",
+      "another.ttf",
+    ]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

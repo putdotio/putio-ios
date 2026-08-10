@@ -33,6 +33,8 @@ No Tuist account, application secret, or signing material is required.
 Bootstrap downloads the licensed GT America and Berkeley Mono files from their checksummed
 `static.put.io` sources into the ignored `Resources/BrandFonts` directory. Font binaries are never
 committed.
+The setup task also removes unlisted OTF or TTF files from that dedicated ignored directory before
+restoring the manifest set.
 
 ## Commands
 

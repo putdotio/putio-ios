@@ -20,6 +20,8 @@ type FontManifest = {
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = join(repositoryRoot, "Config", "BrandFonts.json");
 const bundledFontPattern = /^(?:gt-america|berkeley-mono)-.*\.otf$/i;
+const fontBinaryPattern = /\.(?:otf|ttf)$/i;
+const approvedOrigin = "https://static.put.io";
 const expectedPlatforms = new Map<string, readonly Platform[]>([
   ["gt-america-standard-regular.otf", ["ios", "watchos", "tvos"]],
   ["gt-america-standard-medium.otf", ["ios", "watchos", "tvos"]],
@@ -34,6 +36,19 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isPlatform = (value: unknown): value is Platform =>
   value === "ios" || value === "watchos" || value === "tvos";
 
+export const approvedFontURL = (path: string): URL => {
+  const url = new URL(path, `${approvedOrigin}/`);
+  if (
+    url.origin !== approvedOrigin ||
+    url.protocol !== "https:" ||
+    url.username !== "" ||
+    url.password !== ""
+  ) {
+    throw new Error(`brand font URL must stay on ${approvedOrigin}: ${path}`);
+  }
+  return url;
+};
+
 export const parseFontManifest = (value: unknown): FontManifest => {
   if (!isRecord(value) || typeof value.baseUrl !== "string" || typeof value.directory !== "string") {
     throw new Error("BrandFonts.json must define baseUrl and directory");
@@ -41,7 +56,7 @@ export const parseFontManifest = (value: unknown): FontManifest => {
   if (!isRecord(value.files) || Object.keys(value.files).length === 0) {
     throw new Error("BrandFonts.json must define at least one font");
   }
-  if (value.baseUrl !== "https://static.put.io") {
+  if (value.baseUrl !== approvedOrigin) {
     throw new Error("BrandFonts.json must use the approved https://static.put.io origin");
   }
   if (value.directory !== "Resources/BrandFonts") {
@@ -70,6 +85,7 @@ export const parseFontManifest = (value: unknown): FontManifest => {
     ) {
       throw new Error(`invalid brand font metadata: ${name}`);
     }
+    approvedFontURL(rawEntry.path);
     const expected = expectedPlatforms.get(name) ?? [];
     const actual = platforms.map(String).sort();
     if (actual.join("\n") !== [...expected].sort().join("\n")) {
@@ -99,10 +115,13 @@ const readIfPresent = async (path: string): Promise<Uint8Array | undefined> => {
 const loadManifest = async (): Promise<FontManifest> =>
   parseFontManifest(JSON.parse(await readFile(manifestPath, "utf8")) as unknown);
 
-const unlistedFonts = async (directory: string, listed: ReadonlySet<string>): Promise<string[]> => {
+export const findUnlistedFontFiles = async (
+  directory: string,
+  listed: ReadonlySet<string>,
+): Promise<string[]> => {
   try {
     return (await readdir(directory))
-      .filter((name) => bundledFontPattern.test(name) && !listed.has(name))
+      .filter((name) => fontBinaryPattern.test(name) && !listed.has(name))
       .sort();
   } catch (error) {
     if (isRecord(error) && error.code === "ENOENT") return [];
@@ -125,7 +144,7 @@ const inspect = async (manifest: FontManifest) => {
     directory,
     missing,
     mismatched,
-    unlisted: await unlistedFonts(directory, new Set(Object.keys(manifest.files))),
+    unlisted: await findUnlistedFontFiles(directory, new Set(Object.keys(manifest.files))),
   };
 };
 
@@ -146,8 +165,15 @@ const check = async (manifest: FontManifest): Promise<void> => {
   console.log(`${Object.keys(manifest.files).length} brand fonts match Config/BrandFonts.json`);
 };
 
-const download = async (url: URL): Promise<Uint8Array> => {
-  const response = await fetch(url, { redirect: "follow" });
+const download = async (url: URL, redirectsRemaining = 3): Promise<Uint8Array> => {
+  approvedFontURL(url.href);
+  const response = await fetch(url, { redirect: "manual" });
+  if (response.status >= 300 && response.status < 400) {
+    if (redirectsRemaining === 0) throw new Error(`too many redirects fetching ${url.href}`);
+    const location = response.headers.get("location");
+    if (!location) throw new Error(`${url.href} redirected without a Location header`);
+    return download(approvedFontURL(new URL(location, url).href), redirectsRemaining - 1);
+  }
   if (!response.ok) throw new Error(`${url.href} returned ${response.status} ${response.statusText}`);
   return new Uint8Array(await response.arrayBuffer());
 };
@@ -156,12 +182,18 @@ const sync = async (manifest: FontManifest): Promise<void> => {
   const directory = join(repositoryRoot, manifest.directory);
   await mkdir(directory, { recursive: true });
 
+  const extras = await findUnlistedFontFiles(directory, new Set(Object.keys(manifest.files)));
+  for (const name of extras) {
+    await rm(join(directory, name));
+    console.log(`removed unlisted font ${name}`);
+  }
+
   for (const [name, entry] of Object.entries(manifest.files)) {
     const path = join(directory, name);
     const existing = await readIfPresent(path);
     if (existing && sha256(existing) === entry.sha256) continue;
 
-    const bytes = await download(new URL(entry.path, `${manifest.baseUrl}/`));
+    const bytes = await download(approvedFontURL(entry.path));
     const actual = sha256(bytes);
     if (actual !== entry.sha256) {
       throw new Error(`${name} checksum mismatch: expected ${entry.sha256}, received ${actual}`);

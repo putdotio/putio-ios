@@ -19,6 +19,8 @@ Bootstrap also downloads the licensed brand fonts from `static.put.io` into the 
 `Resources/BrandFonts` directory. `Config/BrandFonts.json` pins every URL, checksum, and destination
 platform. Run `mise run fonts-setup` to repair the local set or `mise run verify-fonts` for a read-only
 check. Verification intentionally fails when fonts are absent, partial, changed, or unlisted.
+`mise run fonts-setup` repairs all four states; because the directory is a generated build input, it
+removes unlisted OTF or TTF files before restoring the manifest set.
 
 For a machine-readable environment report:
 
