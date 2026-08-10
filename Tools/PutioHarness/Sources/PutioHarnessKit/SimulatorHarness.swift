@@ -621,6 +621,24 @@ public struct SimulatorHarness {
       throw HarnessFailure(
         "\(platform.configuration.bundleIdentifier) exited before harness exercise")
     }
+    if platform == .tvos {
+      _ = try runner.checked(
+        "xcrun",
+        [
+          "simctl", "terminate", session.deviceIdentifier,
+          platform.configuration.bundleIdentifier,
+        ],
+        context: "terminate tvOS app before harness exercise"
+      )
+      let deadline = Date().addingTimeInterval(4)
+      while processIsRunning(pid), Date() < deadline {
+        Thread.sleep(forTimeInterval: 0.1)
+      }
+      guard !processIsRunning(pid) else {
+        throw HarnessFailure(
+          "\(platform.configuration.bundleIdentifier) did not terminate before harness exercise")
+      }
+    }
     let exercisedPID = try launchAndWait(
       platform: platform,
       session: session,
@@ -634,6 +652,13 @@ public struct SimulatorHarness {
       pid: exercisedPID,
       bundleIdentifier: platform.configuration.bundleIdentifier
     )
+    if platform == .tvos {
+      try waitForLiveness(
+        pid: exercisedPID,
+        seconds: 2,
+        bundleIdentifier: platform.configuration.bundleIdentifier
+      )
+    }
     try waitForChangedFrame(
       platform: platform,
       session: session,

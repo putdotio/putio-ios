@@ -20,21 +20,21 @@ struct PutioWatchApp: App {
 }
 
 private struct SignedOutView: View {
-  @Environment(\.colorScheme) private var colorScheme
+  @PutioScaledMetric(PutioTheme.ScaledMetrics.compactContentGap) private var contentGap
 
   let presentation: SignedOutPresentation
 
   var body: some View {
-    VStack(spacing: PutioTheme.Spacing.space1) {
+    VStack(spacing: contentGap) {
       Text(presentation.title)
         .putioFont(PutioTheme.Typography.subheading)
-        .foregroundStyle(PutioTheme.Colors.text.resolve(for: colorScheme))
+        .foregroundStyle(PutioTheme.Colors.textPrimary)
       Text(presentation.message)
         .putioFont(PutioTheme.Typography.caption)
-        .foregroundStyle(PutioTheme.Colors.textSecondary.resolve(for: colorScheme))
+        .foregroundStyle(PutioTheme.Colors.textSecondary)
         .multilineTextAlignment(.center)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(PutioTheme.Colors.appBg.resolve(for: colorScheme))
+    .background(PutioTheme.Colors.background)
   }
 }

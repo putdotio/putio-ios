@@ -33,6 +33,10 @@ public struct SignedOutPresentation: Equatable, Sendable {
     )
   }
 
+  public var isHarnessExercise: Bool {
+    self == Self.harnessExercise
+  }
+
   public static let harnessExerciseMarkerFilename = "putio-harness-exercise-complete"
 
   private static let harnessExercise = SignedOutPresentation(

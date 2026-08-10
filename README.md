@@ -43,7 +43,9 @@ mise run verify    # test PutioCore and build all three app shells
 
 ## Design tokens
 
-`PutioCore` exposes the generated `PutioTheme` API consumed by every app shell. Its source is the exact `@putdotio/design` version in `pnpm-lock.yaml`; `mise run verify` rejects stale generated Swift. Change token values in the design-system repository, bump the package here, then run `mise run tokens`.
+`PutioCore` exposes the generated `PutioTheme` API consumed by every app shell. The dark-only app adapter emits semantic Swift roles plus a semantic color asset catalog from the exact `@putdotio/design` version in `pnpm-lock.yaml`; `mise run verify` rejects unclassified upstream tokens and stale generated output. Change token values in the design-system repository, bump the package here, audit `scripts/design-token-coverage.json`, then run `mise run tokens`.
+
+The raw spacing scale remains fixed. Content-coupled gaps and meaningful interface icons use generated `PutioMetricRole` values with an explicit Dynamic Type text style; structural layout, overscan, radii, borders, and minimum interaction geometry do not scale implicitly.
 
 ## Development identities
 

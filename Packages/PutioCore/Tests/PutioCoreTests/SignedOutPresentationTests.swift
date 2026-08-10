@@ -27,5 +27,9 @@ final class SignedOutPresentationTests: XCTestCase {
       SignedOutPresentation.isHarnessExercise(arguments: [
         "PutioWatch", "--putio-harness-scenario", "signed-out",
       ]))
+    XCTAssertTrue(
+      SignedOutPresentation.harnessInitialPresentation(arguments: [
+        "PutioWatch", "--putio-harness-scenario", "exercised",
+      ]).isHarnessExercise)
   }
 }

@@ -20,20 +20,18 @@ struct PutioTVApp: App {
 }
 
 private struct SignedOutView: View {
-  @Environment(\.colorScheme) private var colorScheme
-
   let presentation: SignedOutPresentation
 
   var body: some View {
     VStack(spacing: PutioTheme.TV.Spacing.small) {
       Text(presentation.title)
         .putioFont(PutioTheme.TV.Typography.heading)
-        .foregroundStyle(PutioTheme.TV.Colors.text1)
+        .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
       Text(presentation.message)
         .putioFont(PutioTheme.TV.Typography.body)
-        .foregroundStyle(PutioTheme.TV.Colors.text2)
+        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(PutioTheme.Colors.appBg.resolve(for: colorScheme))
+    .background(PutioTheme.Colors.background)
   }
 }

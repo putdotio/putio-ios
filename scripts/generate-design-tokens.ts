@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -36,9 +36,8 @@ export type TokenEntry = {
 };
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const packageRoot = path.join(repositoryRoot, "node_modules", "@putdotio", "design");
-const inputPath = path.join(packageRoot, "dist", "tokens.flat.json");
-const packagePath = path.join(packageRoot, "package.json");
+const inputPath = fileURLToPath(import.meta.resolve("@putdotio/design/tokens"));
+const coveragePath = path.join(repositoryRoot, "scripts", "design-token-coverage.json");
 const outputPath = path.join(
   repositoryRoot,
   "Packages",
@@ -48,6 +47,136 @@ const outputPath = path.join(
   "Generated",
   "PutioTheme+Generated.swift",
 );
+const assetCatalogPath = path.join(
+  repositoryRoot,
+  "Packages",
+  "PutioCore",
+  "Sources",
+  "PutioCore",
+  "Resources",
+  "PutioColors.xcassets",
+);
+
+type CoverageManifest = {
+  readonly sourcePackageVersion: string;
+  readonly generated: readonly string[];
+  readonly aliased: Readonly<Record<string, string>>;
+  readonly excluded: Readonly<Record<string, readonly string[]>>;
+};
+
+type SemanticColorRole = {
+  readonly assetName: string;
+  readonly swiftName: string;
+  readonly token: string;
+};
+
+export const semanticColorRoles = [
+  {
+    assetName: "PutioBackground",
+    swiftName: "background",
+    token: "surface.dark.appBg",
+  },
+  {
+    assetName: "PutioSurface",
+    swiftName: "surface",
+    token: "component.alias.cardDark",
+  },
+  {
+    assetName: "PutioTextPrimary",
+    swiftName: "textPrimary",
+    token: "component.alias.foregroundDark",
+  },
+  {
+    assetName: "PutioTextSecondary",
+    swiftName: "textSecondary",
+    token: "component.alias.foregroundMutedDark",
+  },
+  {
+    assetName: "PutioAccent",
+    swiftName: "accent",
+    token: "component.alias.primary",
+  },
+  {
+    assetName: "PutioAccentForeground",
+    swiftName: "accentForeground",
+    token: "component.alias.primaryForeground",
+  },
+  {
+    assetName: "PutioSuccess",
+    swiftName: "success",
+    token: "component.alias.successDark",
+  },
+  {
+    assetName: "PutioSuccessForeground",
+    swiftName: "successForeground",
+    token: "component.alias.successForeground",
+  },
+  {
+    assetName: "PutioDestructive",
+    swiftName: "destructive",
+    token: "component.alias.destructiveDark",
+  },
+  {
+    assetName: "PutioDestructiveForeground",
+    swiftName: "destructiveForeground",
+    token: "component.alias.destructiveForeground",
+  },
+  {
+    assetName: "PutioSeparator",
+    swiftName: "separator",
+    token: "color.neutral.dark.border",
+  },
+] as const satisfies readonly SemanticColorRole[];
+
+export const generatedTokenNames = [...new Set([
+  ...semanticColorRoles.map((role) => role.token),
+  "border.width",
+  "component.button.gap",
+  "component.button.iconSize",
+  "motion.duration.base",
+  "motion.duration.fast",
+  "motion.duration.slow",
+  "motion.easing.inOut",
+  "motion.easing.out",
+  "radius.default",
+  "radius.lg",
+  "radius.md",
+  "radius.pill",
+  "radius.sm",
+  ...Array.from({ length: 9 }, (_, index) => `spacing.${index}`),
+  "typography.fontFamily.display",
+  "typography.fontFamily.mono",
+  "typography.fontFamily.sans",
+  "typography.fontSize.2xl",
+  "typography.fontSize.3xl",
+  "typography.fontSize.base",
+  "typography.fontSize.display",
+  "typography.fontSize.lg",
+  "typography.fontSize.md",
+  "typography.fontSize.sm",
+  "typography.fontSize.xl",
+  "typography.fontSize.xs",
+  "typography.fontWeight.black",
+  "typography.fontWeight.bold",
+  "typography.fontWeight.medium",
+  "typography.fontWeight.regular",
+  "typography.lineHeight.normal",
+  "typography.lineHeight.snug",
+  "typography.lineHeight.tight",
+  "context.tv.text.primary",
+  "context.tv.text.secondary",
+  "context.tv.text.tertiary",
+  "tv.fontWeight.medium",
+  "tv.fontWeight.regular",
+  "tv.overscan.x",
+  "tv.overscan.y",
+  "tv.radius",
+  ...["body", "caption", "heading", "label", "smol"].map((name) => `tv.text.${name}`),
+  ...["lg", "md", "sm", "xl", "xs", "xxl", "xxs"].map((name) => `tv.space.${name}`),
+  "tv.z.modal",
+  "tv.z.overlay",
+  "tv.z.toast",
+])] as readonly string[];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -110,45 +239,104 @@ export function parseTokens(value: unknown): readonly TokenEntry[] {
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-const swiftKeywords = new Set([
-  "associatedtype",
-  "class",
-  "deinit",
-  "enum",
-  "extension",
-  "fileprivate",
-  "func",
-  "import",
-  "init",
-  "inout",
-  "internal",
-  "let",
-  "open",
-  "operator",
-  "private",
-  "protocol",
-  "public",
-  "rethrows",
-  "static",
-  "struct",
-  "subscript",
-  "typealias",
-  "var",
-]);
+export function parseCoverageManifest(value: unknown): CoverageManifest {
+  if (!isRecord(value) || typeof value.sourcePackageVersion !== "string") {
+    throw new Error("token coverage manifest must declare sourcePackageVersion");
+  }
+  if (!Array.isArray(value.generated) || !value.generated.every((item) => typeof item === "string")) {
+    throw new Error("token coverage manifest generated list must contain token names");
+  }
+  if (!isRecord(value.aliased)) {
+    throw new Error("token coverage manifest aliased map must be an object");
+  }
+  const aliased = Object.fromEntries(
+    Object.entries(value.aliased).map(([name, target]) => {
+      if (typeof target !== "string") {
+        throw new Error(`aliased token ${name} must name its generated target`);
+      }
+      return [name, target];
+    }),
+  );
+  if (!isRecord(value.excluded)) {
+    throw new Error("token coverage manifest excluded groups must be an object");
+  }
+  const excluded = Object.fromEntries(
+    Object.entries(value.excluded).map(([reason, names]) => {
+      if (!Array.isArray(names) || !names.every((item) => typeof item === "string")) {
+        throw new Error(`excluded group ${reason} must contain token names`);
+      }
+      return [reason, names];
+    }),
+  );
+  return {
+    sourcePackageVersion: value.sourcePackageVersion,
+    generated: value.generated,
+    aliased,
+    excluded,
+  };
+}
 
-const swiftIdentifier = (cssName: string): string => {
-  const words = cssName.replace(/^--/, "").split(/[^A-Za-z0-9]+/).filter(Boolean);
-  assert(words.length > 0, `cannot derive a Swift identifier from ${cssName}`);
-  const identifier = words
-    .map((word, index) =>
-      index === 0
-        ? word.toLowerCase()
-        : `${word.slice(0, 1).toUpperCase()}${word.slice(1).toLowerCase()}`,
-    )
-    .join("");
-  const safe = /^\d/.test(identifier) ? `token${identifier}` : identifier;
-  return swiftKeywords.has(safe) ? `${safe}Value` : safe;
-};
+export function validateCoverage(
+  entries: readonly TokenEntry[],
+  manifest: CoverageManifest,
+  packageVersion: string,
+): void {
+  if (manifest.sourcePackageVersion !== packageVersion) {
+    throw new Error(
+      `token coverage targets @putdotio/design ${manifest.sourcePackageVersion}, received ${packageVersion}`,
+    );
+  }
+  const groups = [
+    ["generated", manifest.generated] as const,
+    ["aliased", Object.keys(manifest.aliased)] as const,
+    ...Object.entries(manifest.excluded).map(
+      ([reason, names]) => [`excluded:${reason}`, names] as const,
+    ),
+  ];
+  const classifications = new Map<string, string>();
+  for (const [classification, names] of groups) {
+    for (const name of names) {
+      const existing = classifications.get(name);
+      if (existing) {
+        throw new Error(`token ${name} is classified as both ${existing} and ${classification}`);
+      }
+      classifications.set(name, classification);
+    }
+  }
+  const entryNames = new Set(entries.map((entry) => entry.name));
+  const missing = [...entryNames].filter((name) => !classifications.has(name)).sort();
+  const stale = [...classifications.keys()].filter((name) => !entryNames.has(name)).sort();
+  if (missing.length > 0) {
+    throw new Error(`unclassified design tokens: ${missing.join(", ")}`);
+  }
+  if (stale.length > 0) {
+    throw new Error(`coverage references missing design tokens: ${stale.join(", ")}`);
+  }
+  const expectedGenerated = [...new Set(generatedTokenNames)].sort();
+  const declaredGenerated = [...manifest.generated].sort();
+  assert.deepEqual(
+    declaredGenerated,
+    expectedGenerated,
+    "coverage generated list must match the native adapter inputs",
+  );
+  for (const [name, target] of Object.entries(manifest.aliased)) {
+    const aliasEntry = entries.find((entry) => entry.name === name);
+    const targetEntry = entries.find((entry) => entry.name === target);
+    if (!targetEntry) {
+      throw new Error(`aliased token ${name} targets missing token ${target}`);
+    }
+    if (!expectedGenerated.includes(target)) {
+      throw new Error(`aliased token ${name} must target a generated token`);
+    }
+    if (
+      !aliasEntry ||
+      aliasEntry.token.type !== targetEntry.token.type ||
+      aliasEntry.token.value !== targetEntry.token.value
+    ) {
+      throw new Error(`aliased token ${name} diverges from generated token ${target}`);
+    }
+  }
+}
 
 const swiftString = (value: string): string => JSON.stringify(value);
 const decimal = (value: number): string => {
@@ -192,21 +380,55 @@ const swiftColorComponents = (value: string): readonly string[] => {
   return [decimal(red), decimal(green), decimal(blue), decimal(opacity)];
 };
 
-const swiftColor = (value: string): string => {
+const swiftMultilineColor = (value: string, closingIndent = 8): string => {
   const [red, green, blue, opacity] = swiftColorComponents(value);
-  return `Color(.sRGB, red: ${red}, green: ${green}, blue: ${blue}, opacity: ${opacity})`;
+  const valueIndent = " ".repeat(closingIndent + 2);
+  const endIndent = " ".repeat(closingIndent);
+  return `Color(
+${valueIndent}.sRGB,
+${valueIndent}red: ${red},
+${valueIndent}green: ${green},
+${valueIndent}blue: ${blue},
+${valueIndent}opacity: ${opacity}
+${endIndent})`;
 };
 
-const swiftMultilineColor = (value: string): string => {
-  const [red, green, blue, opacity] = swiftColorComponents(value);
-  return `Color(
-          .sRGB,
-          red: ${red},
-          green: ${green},
-          blue: ${blue},
-          opacity: ${opacity}
-        )`;
+const assetColor = (value: string): Record<string, unknown> => {
+  const [red, green, blue, alpha] = swiftColorComponents(value);
+  return {
+    "color-space": "srgb",
+    components: { red, green, blue, alpha },
+  };
 };
+
+const formattedJSON = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
+
+const requiredDarkColorToken = (
+  entries: readonly TokenEntry[],
+  name: string,
+): DesignToken => {
+  const token = requiredToken(entries, name, "color");
+  if (token.mode !== "dark" && token.mode !== "global") {
+    throw new Error(`dark-only semantic color ${name} must use dark or global mode`);
+  }
+  return token;
+};
+
+export function renderAssetCatalog(
+  entries: readonly TokenEntry[],
+): Readonly<Record<string, string>> {
+  const files: Record<string, string> = {
+    "Contents.json": formattedJSON({ info: { author: "xcode", version: 1 } }),
+  };
+  for (const role of semanticColorRoles) {
+    const token = requiredDarkColorToken(entries, role.token);
+    files[`${role.assetName}.colorset/Contents.json`] = formattedJSON({
+      colors: [{ color: assetColor(String(token.value)), idiom: "universal" }],
+      info: { author: "xcode", version: 1 },
+    });
+  }
+  return files;
+}
 
 const dimensionPoints = (value: string | number): number => {
   if (typeof value === "number") return value;
@@ -267,45 +489,38 @@ const requiredToken = (
   return result;
 };
 
-const groupedColors = (
-  entries: readonly TokenEntry[],
-  mode: "product" | "tv",
-): readonly { readonly identifier: string; readonly entries: readonly TokenEntry[] }[] => {
-  const groups = new Map<string, TokenEntry[]>();
-  for (const entry of entries) {
-    if (entry.token.type !== "color") continue;
-    if ((mode === "tv") !== (entry.token.mode === "tv")) continue;
-    const group = groups.get(entry.token.cssName) ?? [];
-    group.push(entry);
-    groups.set(entry.token.cssName, group);
-  }
-  const result = [...groups.entries()]
-    .map(([cssName, colorEntries]) => ({
-      identifier: swiftIdentifier(cssName),
-      entries: colorEntries.sort((left, right) => left.name.localeCompare(right.name)),
-    }))
-    .sort((left, right) => left.identifier.localeCompare(right.identifier));
-  const identifiers = result.map((item) => item.identifier);
-  assert.equal(new Set(identifiers).size, identifiers.length, "color identifiers must be unique");
-  return result;
-};
-
-const renderProductColors = (entries: readonly TokenEntry[]): string =>
-  groupedColors(entries, "product")
-    .map(({ identifier, entries: variants }) => {
-      const global = variants.find((entry) => entry.token.mode === "global");
-      const light = variants.find((entry) => entry.token.mode === "light") ?? global ?? variants[0];
-      const dark = variants.find((entry) => entry.token.mode === "dark") ?? global ?? variants[0];
-      assert(light && dark, `color ${identifier} has no usable variants`);
-      return `    public static let ${identifier} = PutioDynamicColor(\n      light: ${swiftColor(String(light.token.value))},\n      dark: ${swiftColor(String(dark.token.value))}\n    )`;
+const renderProductColors = (entries: readonly TokenEntry[]): string => {
+  const roles = semanticColorRoles
+    .map((role) => {
+      const token = requiredDarkColorToken(entries, role.token);
+      return `    public static let ${role.swiftName} = semanticColor(
+      named: ${swiftString(role.assetName)},
+      fallback: ${swiftMultilineColor(String(token.value), 6)}
+    )`;
     })
     .join("\n\n");
+  return `${roles}
+
+    private static func semanticColor(named: String, fallback: Color) -> Color {
+      #if os(macOS)
+        fallback
+      #else
+        Color(named, bundle: .module)
+      #endif
+    }`;
+};
+
+const tvColorRoles = [
+  ["textPrimary", "context.tv.text.primary"],
+  ["textSecondary", "context.tv.text.secondary"],
+  ["textTertiary", "context.tv.text.tertiary"],
+] as const;
 
 const renderTVColors = (entries: readonly TokenEntry[]): string =>
-  groupedColors(entries, "tv")
-    .map(({ identifier, entries: variants }) => {
-      assert.equal(variants.length, 1, `TV color ${identifier} must have one variant`);
-      return `        public static let ${identifier} = ${swiftMultilineColor(String(variants[0]?.token.value))}`;
+  tvColorRoles
+    .map(([swiftName, tokenName]) => {
+      const token = requiredToken(entries, tokenName, "color");
+      return `        public static let ${swiftName} = ${swiftMultilineColor(String(token.value))}`;
     })
     .join("\n");
 
@@ -333,17 +548,36 @@ export function renderSwift(entries: readonly TokenEntry[], packageVersion: stri
 
 import SwiftUI
 
-public struct PutioDynamicColor: Sendable {
-  public let light: Color
-  public let dark: Color
+public struct PutioMetricRole: Sendable {
+  public let value: CGFloat
+  public let textStyle: Font.TextStyle
 
-  public init(light: Color, dark: Color) {
-    self.light = light
-    self.dark = dark
+  public init(value: CGFloat, relativeTo textStyle: Font.TextStyle) {
+    self.value = value
+    self.textStyle = textStyle
+  }
+}
+
+@propertyWrapper
+public struct PutioScaledMetric: DynamicProperty {
+  @ScaledMetric private var metric: CGFloat
+
+  public init(_ role: PutioMetricRole) {
+    _metric = ScaledMetric(wrappedValue: role.value, relativeTo: role.textStyle)
   }
 
-  public func resolve(for colorScheme: ColorScheme) -> Color {
-    colorScheme == .dark ? dark : light
+  public var wrappedValue: CGFloat {
+    metric
+  }
+}
+
+public struct PutioIconRole: Sendable {
+  public let size: PutioMetricRole
+  public let weight: Font.Weight
+
+  public init(size: PutioMetricRole, weight: Font.Weight) {
+    self.size = size
+    self.weight = weight
   }
 }
 
@@ -397,8 +631,33 @@ private struct PutioFontModifier: ViewModifier {
 }
 
 extension View {
+  @MainActor
   public func putioFont(_ role: PutioFontRole) -> some View {
     modifier(PutioFontModifier(role: role))
+  }
+}
+
+private struct PutioIconModifier: ViewModifier {
+  let role: PutioIconRole
+  @ScaledMetric private var size: CGFloat
+
+  init(role: PutioIconRole) {
+    self.role = role
+    _size = ScaledMetric(
+      wrappedValue: role.size.value,
+      relativeTo: role.size.textStyle
+    )
+  }
+
+  func body(content: Content) -> some View {
+    content.font(.system(size: size, weight: role.weight))
+  }
+}
+
+extension Image {
+  @MainActor
+  public func putioIcon(_ role: PutioIconRole) -> some View {
+    modifier(PutioIconModifier(role: role))
   }
 }
 
@@ -509,6 +768,32 @@ ${renderProductColors(entries)}
     public static let space8: CGFloat = ${dimension(entries, "spacing.8")}
   }
 
+  public enum ScaledMetrics {
+    public static let compactContentGap = PutioMetricRole(
+      value: Spacing.space1,
+      relativeTo: .caption
+    )
+    public static let contentGap = PutioMetricRole(
+      value: Spacing.space3,
+      relativeTo: .body
+    )
+    public static let buttonContentGap = PutioMetricRole(
+      value: ${dimension(entries, "component.button.gap")},
+      relativeTo: .caption
+    )
+    public static let buttonIconSize = PutioMetricRole(
+      value: ${dimension(entries, "component.button.iconSize")},
+      relativeTo: .caption
+    )
+  }
+
+  public enum Icons {
+    public static let button = PutioIconRole(
+      size: ScaledMetrics.buttonIconSize,
+      weight: .regular
+    )
+  }
+
   public enum Radius {
     public static let small: CGFloat = ${dimension(entries, "radius.sm")}
     public static let standard: CGFloat = ${dimension(entries, "radius.default")}
@@ -614,21 +899,93 @@ ${renderTVColors(entries)}
 const readJSON = async (filePath: string): Promise<unknown> =>
   JSON.parse(await readFile(filePath, "utf8")) as unknown;
 
-const run = async (): Promise<void> => {
-  const [rawTokens, packageJSON] = await Promise.all([readJSON(inputPath), readJSON(packagePath)]);
-  if (!isRecord(packageJSON) || typeof packageJSON.version !== "string") {
-    throw new Error("@putdotio/design package.json has no version");
+const findDesignPackage = async (): Promise<{ readonly version: string }> => {
+  let directory = path.dirname(inputPath);
+  while (directory !== path.dirname(directory)) {
+    const candidate = path.join(directory, "package.json");
+    const value = await readJSON(candidate).catch(() => undefined);
+    if (isRecord(value) && value.name === "@putdotio/design") {
+      if (typeof value.version !== "string") {
+        throw new Error("@putdotio/design package.json has no version");
+      }
+      return { version: value.version };
+    }
+    directory = path.dirname(directory);
   }
-  const generated = renderSwift(parseTokens(rawTokens), packageJSON.version);
+  throw new Error("could not find @putdotio/design package.json from its public token export");
+};
+
+const readGeneratedTree = async (
+  root: string,
+  relativeDirectory = "",
+): Promise<Readonly<Record<string, string>>> => {
+  const directory = path.join(root, relativeDirectory);
+  const entries = await readdir(directory, { withFileTypes: true }).catch(() => []);
+  const files: Record<string, string> = {};
+  for (const entry of entries) {
+    const relativePath = path.join(relativeDirectory, entry.name);
+    if (entry.isDirectory()) {
+      Object.assign(files, await readGeneratedTree(root, relativePath));
+    } else if (entry.isFile()) {
+      files[relativePath] = await readFile(path.join(root, relativePath), "utf8");
+    }
+  }
+  return files;
+};
+
+const assertGeneratedTree = (
+  current: Readonly<Record<string, string>>,
+  expected: Readonly<Record<string, string>>,
+): void => {
+  assert.deepEqual(Object.keys(current).sort(), Object.keys(expected).sort());
+  for (const [relativePath, contents] of Object.entries(expected)) {
+    assert.equal(current[relativePath], contents, `${relativePath} is stale`);
+  }
+};
+
+const writeGeneratedTree = async (
+  root: string,
+  files: Readonly<Record<string, string>>,
+): Promise<void> => {
+  await rm(root, { force: true, recursive: true });
+  for (const [relativePath, contents] of Object.entries(files)) {
+    const filePath = path.join(root, relativePath);
+    await mkdir(path.dirname(filePath), { recursive: true });
+    await writeFile(filePath, contents);
+  }
+};
+
+const run = async (): Promise<void> => {
+  const [rawTokens, rawCoverage, packageMetadata] = await Promise.all([
+    readJSON(inputPath),
+    readJSON(coveragePath),
+    findDesignPackage(),
+  ]);
+  const entries = parseTokens(rawTokens);
+  const coverage = parseCoverageManifest(rawCoverage);
+  validateCoverage(entries, coverage, packageMetadata.version);
+  const generated = renderSwift(entries, packageMetadata.version);
+  const generatedAssets = renderAssetCatalog(entries);
   if (process.argv.includes("--check")) {
-    const current = await readFile(outputPath, "utf8").catch(() => "");
-    if (current !== generated) {
-      throw new Error("generated Swift design tokens are stale; run pnpm tokens:generate");
+    const [currentSwift, currentAssets] = await Promise.all([
+      readFile(outputPath, "utf8").catch(() => ""),
+      readGeneratedTree(assetCatalogPath),
+    ]);
+    try {
+      assert.equal(currentSwift, generated, "generated Swift design tokens are stale");
+      assertGeneratedTree(currentAssets, generatedAssets);
+    } catch (error) {
+      throw new Error("generated design tokens are stale; run pnpm tokens:generate", {
+        cause: error,
+      });
     }
     return;
   }
   await mkdir(path.dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, generated);
+  await Promise.all([
+    writeFile(outputPath, generated),
+    writeGeneratedTree(assetCatalogPath, generatedAssets),
+  ]);
 };
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {

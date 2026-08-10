@@ -34,13 +34,15 @@ Source changes inside existing `buildableFolders` appear without regenerating. R
 
 ### Design tokens
 
-The committed `PutioTheme+Generated.swift` adapter comes from the exact `@putdotio/design` version in `pnpm-lock.yaml`.
+The committed `PutioTheme+Generated.swift` adapter and `PutioColors.xcassets` catalog come from the exact `@putdotio/design` version in `pnpm-lock.yaml`.
 
 ```bash
 mise run tokens
 ```
 
-Do not edit the generated Swift or token values directly. Update tokens in `putio-design`, bump the package version here, regenerate, and commit the lockfile and generated output together. The verification lane fails when they drift.
+Do not edit generated Swift, generated asset catalogs, or token values directly. Update tokens in `putio-design`, bump the package version here, classify every new token in `scripts/design-token-coverage.json`, regenerate, and commit the lockfile, coverage audit, and generated output together. The verification lane fails on an unclassified token or generated-output drift.
+
+Use fixed spacing tokens for structural layout. Add a semantic `PutioMetricRole` when spacing or meaningful icon geometry should scale with Dynamic Type; select the text style explicitly rather than scaling the whole spacing ramp.
 
 ## Verification
 
