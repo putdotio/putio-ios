@@ -48,6 +48,15 @@ mise run verify    # test PutioCore and build all three app shells
 
 Production identities and delivery lanes are tracked separately.
 
+## Docs
+
+- [Apple Platform Harness](./docs/HARNESS.md)
+- [Security](./SECURITY.md)
+
+## Contributing
+
+See [Contributing](./CONTRIBUTING.md) for local setup, verification, and runtime proof.
+
 ## License
 
 This project is available under the [MIT License](./LICENSE)

@@ -15,6 +15,12 @@ mise run bootstrap
 
 Bootstrap validates Xcode, installs the pinned Tuist release through mise, resolves package dependencies, and generates `Putio.xcworkspace`. It requires no Tuist login or private configuration.
 
+For a machine-readable environment report:
+
+```bash
+mise run doctor -- --output json
+```
+
 ## Development
 
 Edit `Project.swift` when changing the Xcode graph. Generated Xcode projects and workspaces are disposable and ignored by Git.
@@ -32,7 +38,16 @@ Source changes inside existing `buildableFolders` appear without regenerating. R
 mise run verify
 ```
 
-This runs the `PutioCore` tests and builds the iOS, watchOS, and tvOS schemes against generic simulators. Launch the affected app in Simulator when a change alters runtime behavior.
+This runs the `PutioCore` and harness tests, then builds the iOS, watchOS, and tvOS schemes against generic simulators. Exercise the affected shell with the headless harness when a change alters runtime behavior.
+
+Use the headless harness for runtime-sensitive changes:
+
+```bash
+mise run harness -- exercise --platform ios
+mise run harness -- proof --platform ios
+```
+
+The harness never opens Simulator.app and deletes the isolated devices it creates. See [Apple Platform Harness](./docs/HARNESS.md) for structured output, watchOS pairing, proof manifests, live testing-profile readiness, and separate artifact publishing.
 
 ## Scope
 

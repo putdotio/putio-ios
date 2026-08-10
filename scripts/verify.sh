@@ -5,5 +5,6 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
 ./scripts/generate.sh
+./scripts/doctor.sh
 ./scripts/test.sh
 ./scripts/build.sh

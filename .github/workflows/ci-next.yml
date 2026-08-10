@@ -35,3 +35,6 @@ jobs:
 
       - name: Verify repository
         run: mise run verify
+
+      - name: Exercise the headless iOS harness
+        run: mise run harness-ci
