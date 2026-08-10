@@ -8,15 +8,7 @@ final class SignedOutPresentationTests: XCTestCase {
     XCTAssertEqual(SignedOutPresentation.putio.message, "Sign in to continue")
   }
 
-  func testHarnessExerciseRequiresTheDedicatedURL() throws {
-    let exerciseURL = try XCTUnwrap(URL(string: "putio-harness://exercise"))
-    let unrelatedURL = try XCTUnwrap(URL(string: "putio-harness://unrelated"))
-
-    XCTAssertEqual(
-      SignedOutPresentation.harnessExercise(for: exerciseURL)?.message,
-      "Harness exercise complete"
-    )
-    XCTAssertNil(SignedOutPresentation.harnessExercise(for: unrelatedURL))
+  func testHarnessExerciseRequiresTheExplicitScenario() {
     XCTAssertEqual(
       SignedOutPresentation.harnessInitialPresentation(arguments: [
         "PutioWatch", "--putio-harness-scenario", "exercised",
@@ -27,5 +19,13 @@ final class SignedOutPresentationTests: XCTestCase {
       SignedOutPresentation.harnessInitialPresentation(arguments: ["PutioWatch"]),
       .putio
     )
+    XCTAssertTrue(
+      SignedOutPresentation.isHarnessExercise(arguments: [
+        "PutioWatch", "--putio-harness-scenario", "exercised",
+      ]))
+    XCTAssertFalse(
+      SignedOutPresentation.isHarnessExercise(arguments: [
+        "PutioWatch", "--putio-harness-scenario", "signed-out",
+      ]))
   }
 }

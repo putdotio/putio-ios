@@ -112,29 +112,14 @@ public struct SimulatorHarness {
       platform: platform, session: session, screenshot: screenshot, logsDirectory: scratch)
     if shouldExercise {
       let exercisedScreenshot = scratch.appending(path: "exercised.png")
-      if platform == .watchos {
-        _ = try launchAndWait(
-          platform: platform,
-          session: session,
-          screenshot: exercisedScreenshot,
-          logsDirectory: scratch,
-          scenario: "exercised"
-        )
-      } else {
-        _ = try runner.checked(
-          "xcrun",
-          ["simctl", "openurl", session.deviceIdentifier, platform.configuration.exerciseURL],
-          context: "open \(platform.rawValue) harness exercise URL"
-        )
-        try waitForChangedFrame(
-          platform: platform,
-          session: session,
-          pid: pid,
-          baseline: screenshot,
-          screenshot: exercisedScreenshot,
-          action: "harness exercise"
-        )
-      }
+      _ = try performExercise(
+        platform: platform,
+        session: session,
+        pid: pid,
+        baseline: screenshot,
+        screenshot: exercisedScreenshot,
+        logsDirectory: scratch
+      )
     }
     return SurfaceRun(
       platform: platform,
@@ -170,9 +155,12 @@ public struct SimulatorHarness {
 
       let wantsScreenshot = command == .screenshot || command == .proof
       let wantsRecording = command == .record || command == .proof
-      let screenshot = platformDirectory.appending(path: "signed-out.png")
+      let screenshot = platformDirectory.appending(
+        path: command == .proof ? "exercised.png" : "signed-out.png")
       let readinessScreenshot =
-        wantsScreenshot ? screenshot : platformDirectory.appending(path: ".readiness.png")
+        command == .proof
+        ? platformDirectory.appending(path: ".signed-out-readiness.png")
+        : wantsScreenshot ? screenshot : platformDirectory.appending(path: ".readiness.png")
       let recording = platformDirectory.appending(path: "launch.mp4")
       let recordingProcess =
         wantsRecording ? try startRecording(session: session, output: recording) : nil
@@ -180,12 +168,23 @@ public struct SimulatorHarness {
         if let recordingProcess { _ = recordingProcess.interruptAndWait() }
       }
 
-      let pid = try launchAndWait(
+      var pid = try launchAndWait(
         platform: platform,
         session: session,
         screenshot: readinessScreenshot,
         logsDirectory: platformDirectory
       )
+      if command == .proof {
+        pid = try performExercise(
+          platform: platform,
+          session: session,
+          pid: pid,
+          baseline: readinessScreenshot,
+          screenshot: screenshot,
+          logsDirectory: platformDirectory
+        )
+        try? fileManager.removeItem(at: readinessScreenshot)
+      }
 
       if wantsRecording {
         try waitForLiveness(
@@ -509,6 +508,66 @@ public struct SimulatorHarness {
     } while Date() < deadline
   }
 
+  private func performExercise(
+    platform: HarnessPlatform,
+    session: SimulatorSession,
+    pid: Int,
+    baseline: URL,
+    screenshot: URL,
+    logsDirectory: URL
+  ) throws -> Int {
+    guard processIsRunning(pid) else {
+      throw HarnessFailure(
+        "\(platform.configuration.bundleIdentifier) exited before harness exercise")
+    }
+    let exercisedPID = try launchAndWait(
+      platform: platform,
+      session: session,
+      screenshot: screenshot,
+      logsDirectory: logsDirectory,
+      scenario: "exercised"
+    )
+    try waitForExerciseSignal(
+      platform: platform,
+      session: session,
+      pid: exercisedPID,
+      bundleIdentifier: platform.configuration.bundleIdentifier
+    )
+    try waitForChangedFrame(
+      platform: platform,
+      session: session,
+      pid: exercisedPID,
+      baseline: baseline,
+      screenshot: screenshot,
+      action: "harness exercise"
+    )
+    return exercisedPID
+  }
+
+  private func waitForExerciseSignal(
+    platform: HarnessPlatform,
+    session: SimulatorSession,
+    pid: Int,
+    bundleIdentifier: String
+  ) throws {
+    let container = try runner.checked(
+      "xcrun",
+      ["simctl", "get_app_container", session.deviceIdentifier, bundleIdentifier, "data"],
+      context: "locate \(platform.rawValue) harness data container"
+    ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    let marker = URL(fileURLWithPath: container)
+      .appending(path: "tmp/putio-harness-exercise-complete")
+    let deadline = Date().addingTimeInterval(12)
+    repeat {
+      guard processIsRunning(pid) else {
+        throw HarnessFailure("\(bundleIdentifier) exited before signaling harness exercise")
+      }
+      if fileManager.fileExists(atPath: marker.path) { return }
+      Thread.sleep(forTimeInterval: 0.1)
+    } while Date() < deadline
+    throw HarnessFailure("\(bundleIdentifier) did not signal harness exercise within 12 seconds")
+  }
+
   private func waitForChangedFrame(
     platform: HarnessPlatform,
     session: SimulatorSession,
@@ -592,7 +651,8 @@ public struct SimulatorHarness {
       runtime: session.runtime.name,
       deviceType: session.deviceType.name,
       simulatorName: session.deviceName,
-      fixtureSet: "signed-out-placeholder-v1",
+      fixtureSet: command == .proof
+        ? "signed-out-to-exercised-placeholder-v1" : "signed-out-placeholder-v1",
       artifacts: artifacts
     )
     let manifestURL = directory.appending(path: "manifest.json")

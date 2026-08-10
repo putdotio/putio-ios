@@ -16,8 +16,7 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         productDirectory: "Debug-iphonesimulator",
         appName: "Putio.app",
         runtimePlatform: "iOS",
-        deviceFamily: "iPhone",
-        exerciseURL: "putio-harness://exercise"
+        deviceFamily: "iPhone"
       )
     case .watchos:
       PlatformConfiguration(
@@ -28,8 +27,7 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         productDirectory: "Debug-watchsimulator",
         appName: "PutioWatch.app",
         runtimePlatform: "watchOS",
-        deviceFamily: "Apple Watch",
-        exerciseURL: "putio-harness://exercise"
+        deviceFamily: "Apple Watch"
       )
     case .tvos:
       PlatformConfiguration(
@@ -40,8 +38,7 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         productDirectory: "Debug-appletvsimulator",
         appName: "PutioTV.app",
         runtimePlatform: "tvOS",
-        deviceFamily: "Apple TV",
-        exerciseURL: "putio-harness://exercise"
+        deviceFamily: "Apple TV"
       )
     }
   }
@@ -56,7 +53,6 @@ public struct PlatformConfiguration: Equatable, Sendable {
   public let appName: String
   public let runtimePlatform: String
   public let deviceFamily: String
-  public let exerciseURL: String
 
   public init(
     scheme: String,
@@ -66,8 +62,7 @@ public struct PlatformConfiguration: Equatable, Sendable {
     productDirectory: String,
     appName: String,
     runtimePlatform: String,
-    deviceFamily: String,
-    exerciseURL: String
+    deviceFamily: String
   ) {
     self.scheme = scheme
     self.bundleIdentifier = bundleIdentifier
@@ -77,7 +72,6 @@ public struct PlatformConfiguration: Equatable, Sendable {
     self.appName = appName
     self.runtimePlatform = runtimePlatform
     self.deviceFamily = deviceFamily
-    self.exerciseURL = exerciseURL
   }
 }
 

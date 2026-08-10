@@ -1,12 +1,5 @@
 import ProjectDescription
 
-let harnessURLTypes: Plist.Value = [
-  [
-    "CFBundleURLName": "io.put.harness",
-    "CFBundleURLSchemes": ["putio-harness"],
-  ]
-]
-
 let project = Project(
   name: "Putio",
   organizationName: "put.io",
@@ -22,7 +15,6 @@ let project = Project(
       deploymentTargets: .iOS("26.0"),
       infoPlist: .extendingDefault(with: [
         "CFBundleDisplayName": "put.io",
-        "CFBundleURLTypes": harnessURLTypes,
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
       ]),
@@ -58,7 +50,6 @@ let project = Project(
       deploymentTargets: .tvOS("26.0"),
       infoPlist: .extendingDefault(with: [
         "CFBundleDisplayName": "put.io",
-        "CFBundleURLTypes": harnessURLTypes,
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
       ]),

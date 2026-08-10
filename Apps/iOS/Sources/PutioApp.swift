@@ -9,9 +9,9 @@ struct PutioApp: App {
   var body: some Scene {
     WindowGroup {
       SignedOutView(presentation: presentation)
-        .onOpenURL { url in
-          if let exercised = SignedOutPresentation.harnessExercise(for: url) {
-            presentation = exercised
+        .onAppear {
+          if SignedOutPresentation.isHarnessExercise(arguments: ProcessInfo.processInfo.arguments) {
+            SignedOutPresentation.signalHarnessExercise()
           }
         }
     }

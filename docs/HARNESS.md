@@ -30,11 +30,11 @@ Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` 
 
 All simulator commands are headless. The harness never opens Simulator.app. Each run creates uniquely named devices, pairs watchOS with an ephemeral iPhone companion, waits for boot and a rendered app frame, and shuts down and deletes every created device on success or failure.
 
-`exercise` launches the selected app and requires a visible state transition while the process remains alive. iOS and tvOS open the dedicated `putio-harness://exercise` deep link with `simctl`; watchOS relaunches the paired Watch app with the explicit exercised scenario because Watch Simulator does not route custom URLs through `simctl openurl`.
+`exercise` launches the selected app, relaunches it with the explicit exercised scenario, requires the fixed semantic marker in its Simulator data container, and confirms the final visible state transition while the process remains alive. The launch scenario is shared by iOS, watchOS, and tvOS so automation never encounters custom-URL confirmation UI.
 
 ## Deterministic proof
 
-`proof` regenerates the ignored workspace from the clean current commit, builds, installs, records the launch, verifies the app process remains alive, requires meaningful rendered content outside system chrome, and captures a screenshot. Artifacts are written beneath:
+`proof` regenerates the ignored workspace from the clean current commit, builds, installs, records the signed-out launch and exercised transition, verifies the app process remains alive, requires the fixed semantic exercise signal plus meaningful rendered content outside system chrome, and captures the exercised screenshot. Artifacts are written beneath:
 
 ```text
 build/proof/<run-id>/<platform>/
@@ -42,7 +42,7 @@ build/proof/<run-id>/<platform>/
 ├── app.stdout.log
 ├── launch.mp4
 ├── manifest.json
-└── signed-out.png
+└── exercised.png
 ```
 
 The manifest records the commit, platform, scheme, bundle identifier, runtime, device type, simulator name, fixture set, artifact sizes, and SHA-256 digests. `build/` is ignored by Git.
