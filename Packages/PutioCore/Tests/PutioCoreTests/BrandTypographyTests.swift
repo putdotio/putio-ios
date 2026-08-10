@@ -31,33 +31,35 @@
       }
     }
 
-    func testHostileFilenamesShapeWithoutMissingGlyphsUsingSystemFallback() throws {
-      let primary = try XCTUnwrap(
-        fontDescriptors().first { descriptor in
-          (CTFontDescriptorCopyAttribute(descriptor, kCTFontNameAttribute) as? String)
-            == PutioTheme.Typography.body.fontName
-        }
-      )
-      let font = CTFontCreateWithFontDescriptor(primary, PutioTheme.Typography.body.size, nil)
-
-      for filename in BrandTypographyProof.hostileFilenames {
-        let line = CTLineCreateWithAttributedString(
-          NSAttributedString(
-            string: filename,
-            attributes: [
-              NSAttributedString.Key(kCTFontAttributeName as String): font
-            ]
-          )
+    func testHostileFilenamesShapeWithoutMissingGlyphsUsingMobileAndTVFallbacks() throws {
+      for role in [PutioTheme.Typography.mono, PutioTheme.Typography.body] {
+        let primary = try XCTUnwrap(
+          fontDescriptors().first { descriptor in
+            (CTFontDescriptorCopyAttribute(descriptor, kCTFontNameAttribute) as? String)
+              == role.fontName
+          }
         )
-        let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
-        XCTAssertFalse(runs.isEmpty, filename)
+        let font = CTFontCreateWithFontDescriptor(primary, role.size, nil)
 
-        let glyphs = runs.flatMap { run -> [CGGlyph] in
-          var values = Array(repeating: CGGlyph(), count: CTRunGetGlyphCount(run))
-          CTRunGetGlyphs(run, CFRange(), &values)
-          return values
+        for filename in BrandTypographyProof.hostileFilenames {
+          let line = CTLineCreateWithAttributedString(
+            NSAttributedString(
+              string: filename,
+              attributes: [
+                NSAttributedString.Key(kCTFontAttributeName as String): font
+              ]
+            )
+          )
+          let runs = CTLineGetGlyphRuns(line) as? [CTRun] ?? []
+          XCTAssertFalse(runs.isEmpty, "\(role.fontName): \(filename)")
+
+          let glyphs = runs.flatMap { run -> [CGGlyph] in
+            var values = Array(repeating: CGGlyph(), count: CTRunGetGlyphCount(run))
+            CTRunGetGlyphs(run, CFRange(), &values)
+            return values
+          }
+          XCTAssertFalse(glyphs.contains(0), "missing glyph in \(role.fontName): \(filename)")
         }
-        XCTAssertFalse(glyphs.contains(0), "missing glyph in \(filename)")
       }
     }
 

@@ -48,7 +48,7 @@ private struct SignedOutView: View {
       if presentation.isHarnessExercise {
         ForEach(BrandTypographyProof.hostileFilenames, id: \.self) { filename in
           Text(filename)
-            .putioFont(PutioTheme.Typography.caption)
+            .putioFont(PutioTheme.Typography.mono)
             .foregroundStyle(PutioTheme.Colors.textPrimary)
         }
         Text(BrandTypographyProof.numericSample)
