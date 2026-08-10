@@ -787,7 +787,7 @@ ${renderProductColors(entries)}
       lineHeight: ${numberValue(entries, "typography.lineHeight.tight")},
       textStyle: .largeTitle
     )
-    #if !os(tvOS)
+    #if os(iOS) || os(watchOS)
       public static let mono = PutioFontRole(
         family: familyMono,
         fontName: ${swiftString(nativeFontName(familyMono, requiredToken(entries, "typography.fontWeight.regular").value))},

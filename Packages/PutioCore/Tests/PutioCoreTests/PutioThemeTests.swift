@@ -46,8 +46,6 @@ final class PutioThemeTests: XCTestCase {
     XCTAssertEqual(PutioTheme.Typography.subheading.fontName, "GTAmerica-Md")
     XCTAssertEqual(PutioTheme.Typography.heading.fontName, "GTAmerica-Bd")
     XCTAssertEqual(PutioTheme.Typography.display.fontName, "GTAmerica-Bl")
-    XCTAssertEqual(PutioTheme.Typography.mono.fontName, "BerkeleyMonoVariable-Regular")
-    XCTAssertEqual(PutioTheme.Typography.numeric.base.fontName, "BerkeleyMonoVariable-Regular")
   }
 
   #if os(macOS)

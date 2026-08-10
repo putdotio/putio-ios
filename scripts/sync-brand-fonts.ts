@@ -120,13 +120,33 @@ export const findUnlistedFontFiles = async (
   listed: ReadonlySet<string>,
 ): Promise<string[]> => {
   try {
-    return (await readdir(directory))
-      .filter((name) => fontBinaryPattern.test(name) && !listed.has(name))
-      .sort();
+    const visit = async (current: string, prefix = ""): Promise<string[]> => {
+      const entries = await readdir(current, { withFileTypes: true });
+      const paths = await Promise.all(
+        entries.map(async (entry): Promise<string[]> => {
+          const relativePath = join(prefix, entry.name);
+          if (entry.isDirectory()) return visit(join(current, entry.name), relativePath);
+          return fontBinaryPattern.test(entry.name) && !listed.has(relativePath)
+            ? [relativePath]
+            : [];
+        }),
+      );
+      return paths.flat();
+    };
+    return (await visit(directory)).sort();
   } catch (error) {
     if (isRecord(error) && error.code === "ENOENT") return [];
     throw error;
   }
+};
+
+export const removeUnlistedFontFiles = async (
+  directory: string,
+  listed: ReadonlySet<string>,
+): Promise<string[]> => {
+  const extras = await findUnlistedFontFiles(directory, listed);
+  for (const name of extras) await rm(join(directory, name), { force: true });
+  return extras;
 };
 
 const inspect = async (manifest: FontManifest) => {
@@ -182,9 +202,8 @@ const sync = async (manifest: FontManifest): Promise<void> => {
   const directory = join(repositoryRoot, manifest.directory);
   await mkdir(directory, { recursive: true });
 
-  const extras = await findUnlistedFontFiles(directory, new Set(Object.keys(manifest.files)));
+  const extras = await removeUnlistedFontFiles(directory, new Set(Object.keys(manifest.files)));
   for (const name of extras) {
-    await rm(join(directory, name));
     console.log(`removed unlisted font ${name}`);
   }
 

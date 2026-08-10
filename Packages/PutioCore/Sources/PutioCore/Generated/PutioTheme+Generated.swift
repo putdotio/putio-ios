@@ -350,7 +350,7 @@ public enum PutioTheme {
       lineHeight: 1.1,
       textStyle: .largeTitle
     )
-    #if !os(tvOS)
+    #if os(iOS) || os(watchOS)
       public static let mono = PutioFontRole(
         family: familyMono,
         fontName: "BerkeleyMonoVariable-Regular",

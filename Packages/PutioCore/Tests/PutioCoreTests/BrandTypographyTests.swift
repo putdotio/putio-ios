@@ -5,6 +5,8 @@
   @testable import PutioCore
 
   final class BrandTypographyTests: XCTestCase {
+    private let mobileMonoFontName = "BerkeleyMonoVariable-Regular"
+
     private var fontDirectory: URL {
       URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()
@@ -25,14 +27,18 @@
         PutioTheme.Typography.subheading,
         PutioTheme.Typography.heading,
         PutioTheme.Typography.display,
-        PutioTheme.Typography.mono,
       ] {
         XCTAssertTrue(names.contains(role.fontName), "missing native face \(role.fontName)")
       }
+      XCTAssertTrue(names.contains(mobileMonoFontName), "missing native face \(mobileMonoFontName)")
     }
 
     func testHostileFilenamesShapeWithoutMissingGlyphsUsingMobileAndTVFallbacks() throws {
-      for role in [PutioTheme.Typography.mono, PutioTheme.Typography.body] {
+      let roles = [
+        (fontName: mobileMonoFontName, size: PutioTheme.Typography.sizeSm),
+        (fontName: PutioTheme.Typography.body.fontName, size: PutioTheme.Typography.body.size),
+      ]
+      for role in roles {
         let primary = try XCTUnwrap(
           fontDescriptors().first { descriptor in
             (CTFontDescriptorCopyAttribute(descriptor, kCTFontNameAttribute) as? String)

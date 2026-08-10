@@ -116,6 +116,7 @@ test("maps semantic font weights to bundled native faces", async () => {
   assert.match(swift, /fontName: "GTAmerica-Bd"/);
   assert.match(swift, /fontName: "GTAmerica-Bl"/);
   assert.match(swift, /fontName: "BerkeleyMonoVariable-Regular"/);
+  assert.match(swift, /#if os\(iOS\) \|\| os\(watchOS\)/);
   assert.match(swift, /public static let numeric = PutioTabularFontRole\(base: caption\)/);
   assert.match(swift, /\.monospacedDigit\(\)/);
   assert.doesNotMatch(swift, /\.custom\(family,/);

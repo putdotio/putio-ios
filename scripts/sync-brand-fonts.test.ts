@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -8,6 +8,7 @@ import {
   approvedFontURL,
   findUnlistedFontFiles,
   parseFontManifest,
+  removeUnlistedFontFiles,
 } from "./sync-brand-fonts.ts";
 
 const manifest = () => ({
@@ -72,15 +73,22 @@ test("rejects absolute font paths and redirects outside the approved origin", ()
 test("classifies every unlisted OTF or TTF regardless of filename prefix", async () => {
   const directory = await mkdtemp(join(tmpdir(), "putio-font-test-"));
   try {
+    await mkdir(join(directory, "nested"));
     await Promise.all([
       writeFile(join(directory, "OtherFont.otf"), "font"),
       writeFile(join(directory, "another.ttf"), "font"),
       writeFile(join(directory, "notes.txt"), "not a font"),
+      writeFile(join(directory, "nested", "DeepFont.otf"), "font"),
     ]);
-    assert.deepEqual(await findUnlistedFontFiles(directory, new Set()), [
+    const extras = [
       "OtherFont.otf",
       "another.ttf",
-    ]);
+      "nested/DeepFont.otf",
+    ];
+    assert.deepEqual(await findUnlistedFontFiles(directory, new Set()), extras);
+    assert.deepEqual(await removeUnlistedFontFiles(directory, new Set()), extras);
+    assert.deepEqual(await findUnlistedFontFiles(directory, new Set()), []);
+    assert.equal(await readFile(join(directory, "notes.txt"), "utf8"), "not a font");
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
