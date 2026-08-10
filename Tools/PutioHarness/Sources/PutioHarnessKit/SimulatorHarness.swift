@@ -152,6 +152,8 @@ public struct SimulatorHarness {
     recordSeconds: Int
   ) throws -> SurfaceRun {
     try requireCleanSource()
+    try regenerateWorkspace()
+    try requireCleanSource()
     _ = try build(platform)
     let platformDirectory = context.proofRoot.appending(path: runID).appending(
       path: platform.rawValue)
@@ -264,6 +266,14 @@ public struct SimulatorHarness {
         "proof requires a clean Git worktree so its manifest can identify the exact source commit\n\(changedPaths)"
       )
     }
+  }
+
+  private func regenerateWorkspace() throws {
+    _ = try runner.checked(
+      "./scripts/generate.sh",
+      currentDirectory: context.root,
+      context: "regenerate workspace for proof provenance"
+    )
   }
 
   private func appURL(for platform: HarnessPlatform) -> URL {
@@ -474,7 +484,7 @@ public struct SimulatorHarness {
       if capture.status == 0,
         let currentPixels = try? decodedPixels(at: screenshot),
         currentPixels.data != baselinePixels.data,
-        currentPixels.visiblePixelCount >= currentPixels.minimumVisiblePixelCount
+        currentPixels.visibleContentPixelCount >= currentPixels.minimumContentPixelCount
       {
         return pid
       }
@@ -519,7 +529,7 @@ public struct SimulatorHarness {
       if capture.status == 0,
         let currentPixels = try? decodedPixels(at: screenshot),
         currentPixels.data != baselinePixels.data,
-        currentPixels.visiblePixelCount >= currentPixels.minimumVisiblePixelCount
+        currentPixels.visibleContentPixelCount >= currentPixels.minimumContentPixelCount
       {
         return
       }
@@ -652,22 +662,30 @@ public struct SimulatorHarness {
     guard rendered else {
       throw HarnessFailure("could not rasterize screenshot pixels at \(url.path)")
     }
-    var visiblePixelCount = 0
-    for index in stride(from: 0, to: bytes.count, by: 4) {
-      if max(bytes[index], bytes[index + 1], bytes[index + 2]) >= 48 {
-        visiblePixelCount += 1
+    let minimumX = image.width / 10
+    let maximumX = image.width * 9 / 10
+    let minimumY = image.height / 5
+    let maximumY = image.height * 4 / 5
+    var visibleContentPixelCount = 0
+    for y in minimumY..<maximumY {
+      for x in minimumX..<maximumX {
+        let index = (y * image.width + x) * 4
+        if max(bytes[index], bytes[index + 1], bytes[index + 2]) >= 48 {
+          visibleContentPixelCount += 1
+        }
       }
     }
+    let contentArea = (maximumX - minimumX) * (maximumY - minimumY)
     return DecodedPixels(
       data: Data(bytes),
-      visiblePixelCount: visiblePixelCount,
-      minimumVisiblePixelCount: max(32, image.width * image.height / 5_000)
+      visibleContentPixelCount: visibleContentPixelCount,
+      minimumContentPixelCount: max(128, contentArea / 1_000)
     )
   }
 }
 
 private struct DecodedPixels {
   let data: Data
-  let visiblePixelCount: Int
-  let minimumVisiblePixelCount: Int
+  let visibleContentPixelCount: Int
+  let minimumContentPixelCount: Int
 }

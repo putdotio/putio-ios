@@ -34,7 +34,7 @@ All simulator commands are headless. The harness never opens Simulator.app. Each
 
 ## Deterministic proof
 
-`proof` builds, installs, records the launch, verifies the app process remains alive, waits for the display to change from its pre-launch state, and captures a screenshot. Artifacts are written beneath:
+`proof` regenerates the ignored workspace from the clean current commit, builds, installs, records the launch, verifies the app process remains alive, requires meaningful rendered content outside system chrome, and captures a screenshot. Artifacts are written beneath:
 
 ```text
 build/proof/<run-id>/<platform>/
