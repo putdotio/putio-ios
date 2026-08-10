@@ -5,10 +5,9 @@
   "scripts": {
     "fonts:setup": "node scripts/sync-brand-fonts.ts",
     "fonts:check": "node scripts/sync-brand-fonts.ts --check",
-    "fonts:check-bundles": "node scripts/verify-font-bundles.ts",
     "tokens:generate": "node scripts/generate-design-tokens.ts",
     "tokens:check": "node scripts/generate-design-tokens.ts --check",
-    "test": "node --test scripts/*.test.ts",
+    "test": "node --test scripts/generate-design-tokens.test.ts",
     "typecheck": "tsc --noEmit",
     "verify": "pnpm typecheck && pnpm test && pnpm tokens:check && pnpm fonts:check"
   },

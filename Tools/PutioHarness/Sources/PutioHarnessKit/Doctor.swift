@@ -18,7 +18,6 @@ public struct HarnessDoctor: Sendable {
         recovery: "install Xcode 26.x and select it with DEVELOPER_DIR"))
     checks.append(toolCheck("xcrun", required: true, recovery: "install Xcode command-line tools"))
     checks.append(toolCheck("swift", required: true, recovery: "install Xcode 26.x"))
-    checks.append(toolCheck("node", required: true, recovery: "run mise install"))
     checks.append(toolCheck("tuist", required: true, recovery: "run mise install"))
     checks.append(toolCheck("git", required: true, recovery: "install Xcode command-line tools"))
     checks.append(
@@ -42,8 +41,6 @@ public struct HarnessDoctor: Sendable {
         "putio", required: false, recovery: "install the global putio CLI for live-profile checks"))
     checks.append(
       toolCheck("attach", required: false, recovery: "install attach for proof publishing"))
-    checks.append(brandFontsCheck())
-
     return DoctorReport(checks: checks)
   }
 
@@ -62,31 +59,6 @@ public struct HarnessDoctor: Sendable {
       required: required,
       detail: "missing; \(recovery)"
     )
-  }
-
-  private func brandFontsCheck() -> DoctorCheck {
-    guard commandExists("node") else {
-      return DoctorCheck(
-        name: "brand-fonts", status: .failed, required: true,
-        detail: "Node.js is missing; run mise install"
-      )
-    }
-    do {
-      let output = try runner.checked(
-        "node", ["scripts/sync-brand-fonts.ts", "--check"],
-        currentDirectory: context.root,
-        context: "verify brand fonts"
-      )
-      return DoctorCheck(
-        name: "brand-fonts", status: .ok, required: true,
-        detail: output.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-      )
-    } catch {
-      return DoctorCheck(
-        name: "brand-fonts", status: .failed, required: true,
-        detail: String(describing: error)
-      )
-    }
   }
 
   private func xcodeCheck() -> DoctorCheck {

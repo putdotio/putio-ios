@@ -45,7 +45,7 @@ description = "Run the typed headless Apple-platform harness"
 run = "./scripts/harness.sh"
 
 [tasks.harness-ci]
-description = "Run the headless all-platform proof used by CI"
+description = "Run the headless iOS proof subset used by CI"
 run = "./scripts/harness-ci.sh"
 
 [tasks.verify]

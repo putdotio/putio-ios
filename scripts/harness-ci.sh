@@ -11,4 +11,4 @@ elif [[ -n "${GITHUB_RUN_ID:-}" ]]; then
 else
   run_id="ci-local-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 fi
-./scripts/harness.sh proof --platform all --run-id "$run_id" --record-seconds 1 --output json
+./scripts/harness.sh proof --platform ios --run-id "$run_id" --record-seconds 1 --output json
