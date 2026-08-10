@@ -27,3 +27,6 @@ mise.local.toml
 
 # JavaScript tooling
 node_modules/
+
+# Licensed brand fonts; checksummed public downloads, never committed
+Resources/BrandFonts/

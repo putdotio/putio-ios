@@ -19,6 +19,14 @@ run = "./scripts/generate.sh"
 description = "Regenerate the Swift design-token adapter"
 run = "pnpm run tokens:generate"
 
+[tasks.fonts-setup]
+description = "Download the checksummed licensed brand fonts"
+run = "pnpm run fonts:setup"
+
+[tasks.verify-fonts]
+description = "Verify the local brand fonts against the manifest"
+run = "pnpm run fonts:check"
+
 [tasks.test]
 description = "Format-check and test the shared core"
 run = "./scripts/test.sh"

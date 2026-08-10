@@ -15,6 +15,11 @@ mise run bootstrap
 
 Bootstrap validates Xcode, installs the pinned Tuist, Node.js, and pnpm releases through mise, resolves package dependencies, and generates `Putio.xcworkspace`. It requires no Tuist login or private configuration.
 
+Bootstrap also downloads the licensed brand fonts from `static.put.io` into the ignored
+`Resources/BrandFonts` directory. `Config/BrandFonts.json` pins every URL, checksum, and destination
+platform. Run `mise run fonts-setup` to repair the local set or `mise run verify-fonts` for a read-only
+check. Verification intentionally fails when fonts are absent, partial, changed, or unlisted.
+
 For a machine-readable environment report:
 
 ```bash

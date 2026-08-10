@@ -38,6 +38,7 @@ public struct PutioIconRole: Sendable {
 
 public struct PutioFontRole: Sendable {
   public let family: String
+  public let fontName: String
   public let size: CGFloat
   public let weight: Font.Weight
   public let lineHeight: CGFloat
@@ -45,12 +46,14 @@ public struct PutioFontRole: Sendable {
 
   public init(
     family: String,
+    fontName: String,
     size: CGFloat,
     weight: Font.Weight,
     lineHeight: CGFloat,
     textStyle: Font.TextStyle
   ) {
     self.family = family
+    self.fontName = fontName
     self.size = size
     self.weight = weight
     self.lineHeight = lineHeight
@@ -58,7 +61,7 @@ public struct PutioFontRole: Sendable {
   }
 
   public var font: Font {
-    .custom(family, size: size, relativeTo: textStyle).weight(weight)
+    .custom(fontName, size: size, relativeTo: textStyle)
   }
 
   var baseLineSpacing: CGFloat {
@@ -287,6 +290,7 @@ public enum PutioTheme {
 
     public static let caption = PutioFontRole(
       family: familySans,
+      fontName: "GTAmerica-Rg",
       size: sizeSm,
       weight: .regular,
       lineHeight: 1.45,
@@ -294,6 +298,7 @@ public enum PutioTheme {
     )
     public static let body = PutioFontRole(
       family: familySans,
+      fontName: "GTAmerica-Rg",
       size: sizeBase,
       weight: .regular,
       lineHeight: 1.45,
@@ -301,6 +306,7 @@ public enum PutioTheme {
     )
     public static let subheading = PutioFontRole(
       family: familySans,
+      fontName: "GTAmerica-Md",
       size: sizeMd,
       weight: .medium,
       lineHeight: 1.25,
@@ -308,6 +314,7 @@ public enum PutioTheme {
     )
     public static let heading = PutioFontRole(
       family: familySans,
+      fontName: "GTAmerica-Bd",
       size: sizeLg,
       weight: .bold,
       lineHeight: 1.1,
@@ -315,6 +322,7 @@ public enum PutioTheme {
     )
     public static let title = PutioFontRole(
       family: familySans,
+      fontName: "GTAmerica-Bd",
       size: sizeXl,
       weight: .bold,
       lineHeight: 1.1,
@@ -322,6 +330,7 @@ public enum PutioTheme {
     )
     public static let display = PutioFontRole(
       family: familyDisplay,
+      fontName: "GTAmerica-Bl",
       size: sizeDisplay,
       weight: .black,
       lineHeight: 1.1,
@@ -330,6 +339,7 @@ public enum PutioTheme {
     #if !os(tvOS)
       public static let mono = PutioFontRole(
         family: familyMono,
+        fontName: "BerkeleyMonoVariable-Regular",
         size: sizeSm,
         weight: .regular,
         lineHeight: 1.45,
@@ -435,6 +445,7 @@ public enum PutioTheme {
       public enum Typography {
         public static let heading = PutioFontRole(
           family: PutioTheme.Typography.familySans,
+          fontName: "GTAmerica-Md",
           size: 64.0,
           weight: .medium,
           lineHeight: 1.1,
@@ -442,6 +453,7 @@ public enum PutioTheme {
         )
         public static let label = PutioFontRole(
           family: PutioTheme.Typography.familySans,
+          fontName: "GTAmerica-Md",
           size: 48.0,
           weight: .medium,
           lineHeight: 1.25,
@@ -449,6 +461,7 @@ public enum PutioTheme {
         )
         public static let body = PutioFontRole(
           family: PutioTheme.Typography.familySans,
+          fontName: "GTAmerica-Rg",
           size: 36.0,
           weight: .regular,
           lineHeight: 1.45,
@@ -456,6 +469,7 @@ public enum PutioTheme {
         )
         public static let caption = PutioFontRole(
           family: PutioTheme.Typography.familySans,
+          fontName: "GTAmerica-Rg",
           size: 32.0,
           weight: .regular,
           lineHeight: 1.45,
@@ -463,6 +477,7 @@ public enum PutioTheme {
         )
         public static let small = PutioFontRole(
           family: PutioTheme.Typography.familySans,
+          fontName: "GTAmerica-Rg",
           size: 24.0,
           weight: .regular,
           lineHeight: 1.45,

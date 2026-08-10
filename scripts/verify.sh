@@ -9,3 +9,4 @@ pnpm install --frozen-lockfile
 ./scripts/doctor.sh
 ./scripts/test.sh
 ./scripts/build.sh
+pnpm run fonts:check-bundles

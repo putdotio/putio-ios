@@ -7,6 +7,7 @@ import {
   parseCoverageManifest,
   parseTokens,
   renderAssetCatalog,
+  renderSwift,
   semanticColorRoles,
   validateCoverage,
 } from "./generate-design-tokens.ts";
@@ -103,4 +104,17 @@ test("rejects aliased tokens that diverge from their generated target", async ()
     () => validateCoverage(entries, manifest, manifest.sourcePackageVersion),
     /aliased token typography\.fontSize\.4xl diverges from generated token typography\.fontSize\.3xl/,
   );
+});
+
+test("maps semantic font weights to bundled native faces", async () => {
+  const rawTokens = JSON.parse(
+    await readFile(fileURLToPath(import.meta.resolve("@putdotio/design/tokens")), "utf8"),
+  ) as unknown;
+  const swift = renderSwift(parseTokens(rawTokens), "test");
+  assert.match(swift, /fontName: "GTAmerica-Rg"/);
+  assert.match(swift, /fontName: "GTAmerica-Md"/);
+  assert.match(swift, /fontName: "GTAmerica-Bd"/);
+  assert.match(swift, /fontName: "GTAmerica-Bl"/);
+  assert.match(swift, /fontName: "BerkeleyMonoVariable-Regular"/);
+  assert.doesNotMatch(swift, /\.custom\(family,/);
 });

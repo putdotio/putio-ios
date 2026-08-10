@@ -1,0 +1,32 @@
+{
+  "$description": "Licensed brand fonts downloaded from static.put.io. The files are required for generation, verification, and runtime proof but must never be committed.",
+  "baseUrl": "https://static.put.io",
+  "directory": "Resources/BrandFonts",
+  "files": {
+    "gt-america-standard-regular.otf": {
+      "path": "fonts/gt-america/desktop/otf/gt-america-standard-regular.otf",
+      "sha256": "6b1eb2a461e5c827ac615bc8aca268ec6b67250d61fc87f100671aca3db82515",
+      "platforms": ["ios", "watchos", "tvos"]
+    },
+    "gt-america-standard-medium.otf": {
+      "path": "fonts/gt-america/desktop/otf/gt-america-standard-medium.otf",
+      "sha256": "9938e387bbf094e02daf2f8f577f39537e2ff1133da5746be190c1ec4a43d73d",
+      "platforms": ["ios", "watchos", "tvos"]
+    },
+    "gt-america-standard-bold.otf": {
+      "path": "fonts/gt-america/desktop/otf/gt-america-standard-bold.otf",
+      "sha256": "988b273ddc1d85ad9d2065e40999611f477cc6c855062a2c1f2aa665bc6e6a8c",
+      "platforms": ["ios", "watchos", "tvos"]
+    },
+    "gt-america-standard-black.otf": {
+      "path": "fonts/gt-america/desktop/otf/gt-america-standard-black.otf",
+      "sha256": "f7aac29fad864d90f2acd39169a39c75be12db5447a5f2f5024a1820ac325e9e",
+      "platforms": ["ios", "watchos", "tvos"]
+    },
+    "berkeley-mono-variable.otf": {
+      "path": "fonts/berkeley-mono/variable/otf/berkeley-mono-variable.otf",
+      "sha256": "32386a75d675d497f11f9514779fbd4555574f3f8635a807e4d9530f71b7a569",
+      "platforms": ["ios", "watchos"]
+    }
+  }
+}
