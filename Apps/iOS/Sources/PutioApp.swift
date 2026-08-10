@@ -19,16 +19,23 @@ struct PutioApp: App {
 }
 
 private struct SignedOutView: View {
+  @Environment(\.colorScheme) private var colorScheme
+
   let presentation: SignedOutPresentation
 
   var body: some View {
-    VStack(spacing: 12) {
+    VStack(spacing: PutioTheme.Spacing.space3) {
       Text(presentation.title)
-        .font(.largeTitle.bold())
+        .font(PutioTheme.Typography.title.font)
+        .lineSpacing(PutioTheme.Typography.title.lineSpacing)
+        .foregroundStyle(PutioTheme.Colors.text.resolve(for: colorScheme))
       Text(presentation.message)
-        .foregroundStyle(.secondary)
+        .font(PutioTheme.Typography.body.font)
+        .lineSpacing(PutioTheme.Typography.body.lineSpacing)
+        .foregroundStyle(PutioTheme.Colors.textSecondary.resolve(for: colorScheme))
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(PutioTheme.Colors.appBg.resolve(for: colorScheme))
     .preferredColorScheme(.dark)
   }
 }

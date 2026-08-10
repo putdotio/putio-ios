@@ -1,0 +1,18 @@
+{
+  "name": "putio-apple-tooling",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "tokens:generate": "node scripts/generate-design-tokens.ts",
+    "tokens:check": "node scripts/generate-design-tokens.ts --check",
+    "test": "node --test scripts/generate-design-tokens.test.ts",
+    "typecheck": "tsc --noEmit",
+    "verify": "pnpm typecheck && pnpm test && pnpm tokens:check"
+  },
+  "devDependencies": {
+    "@putdotio/design": "2.0.1",
+    "@types/node": "24.13.3",
+    "typescript": "7.0.2"
+  },
+  "packageManager": "pnpm@11.2.2"
+}

@@ -13,7 +13,7 @@ mise install
 mise run bootstrap
 ```
 
-Bootstrap validates Xcode, installs the pinned Tuist release through mise, resolves package dependencies, and generates `Putio.xcworkspace`. It requires no Tuist login or private configuration.
+Bootstrap validates Xcode, installs the pinned Tuist, Node.js, and pnpm releases through mise, resolves package dependencies, and generates `Putio.xcworkspace`. It requires no Tuist login or private configuration.
 
 For a machine-readable environment report:
 
@@ -32,13 +32,23 @@ mise run open
 
 Source changes inside existing `buildableFolders` appear without regenerating. Regenerate after manifest or dependency-graph changes.
 
+### Design tokens
+
+The committed `PutioTheme+Generated.swift` adapter comes from the exact `@putdotio/design` version in `pnpm-lock.yaml`.
+
+```bash
+mise run tokens
+```
+
+Do not edit the generated Swift or token values directly. Update tokens in `putio-design`, bump the package version here, regenerate, and commit the lockfile and generated output together. The verification lane fails when they drift.
+
 ## Verification
 
 ```bash
 mise run verify
 ```
 
-This runs the `PutioCore` and harness tests, then builds the iOS, watchOS, and tvOS schemes against generic simulators. Exercise the affected shell with the headless harness when a change alters runtime behavior.
+This installs the locked token tooling, checks generated-output drift, runs the `PutioCore` and harness tests, then builds the iOS, watchOS, and tvOS schemes against generic simulators. Exercise the affected shell with the headless harness when a change alters runtime behavior.
 
 Use the headless harness for runtime-sensitive changes:
 

@@ -16,6 +16,7 @@
 - `mise run doctor`
 - `mise run bootstrap`
 - `mise run generate`
+- `mise run tokens`
 - `mise run test`
 - `mise run build`
 - `mise run verify`
@@ -27,6 +28,7 @@
 - Run `mise run bootstrap` in a fresh checkout or worktree
 - Run `mise run verify` before handoff
 - Change targets and settings in `Project.swift`, never in generated Xcode files
+- Change design tokens in `putio-design`, then bump the locked package and regenerate; never edit `PutioTheme+Generated.swift`
 - Use Swift Package Manager for dependencies
 - Keep platform-specific UI, lifecycle, focus, playback, and download behavior in the matching app shell
 - Put only genuinely cross-platform models, session, API, and feature logic in `PutioCore`
