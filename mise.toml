@@ -1,4 +1,6 @@
 [tools]
+node = "24.18.0"
+pnpm = "11.2.2"
 tuist = "4.203.4"
 
 [tasks.doctor]
@@ -12,6 +14,10 @@ run = "./scripts/bootstrap.sh"
 [tasks.generate]
 description = "Generate the Xcode workspace without opening Xcode"
 run = "./scripts/generate.sh"
+
+[tasks.tokens]
+description = "Regenerate the Swift design-token adapter"
+run = "pnpm run tokens:generate"
 
 [tasks.test]
 description = "Format-check and test the shared core"

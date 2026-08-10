@@ -34,11 +34,16 @@ No Tuist account, application secret, or signing material is required.
 
 ```bash
 mise run generate  # regenerate Putio.xcworkspace without opening Xcode
+mise run tokens    # regenerate the committed Swift design-token adapter
 mise run open      # regenerate and open the workspace
 mise run test      # format-check and test PutioCore
 mise run build     # build all three app shells
 mise run verify    # test PutioCore and build all three app shells
 ```
+
+## Design tokens
+
+`PutioCore` exposes the generated `PutioTheme` API consumed by every app shell. Its source is the exact `@putdotio/design` version in `pnpm-lock.yaml`; `mise run verify` rejects stale generated Swift. Change token values in the design-system repository, bump the package here, then run `mise run tokens`.
 
 ## Development identities
 

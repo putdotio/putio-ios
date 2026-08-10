@@ -1,0 +1,41 @@
+import XCTest
+
+@testable import PutioCore
+
+final class PutioThemeTests: XCTestCase {
+  func testDynamicColorResolvesTheRequestedAppearance() {
+    let dynamicColor = PutioDynamicColor(light: .white, dark: .black)
+
+    XCTAssertEqual(dynamicColor.resolve(for: .light), dynamicColor.light)
+    XCTAssertEqual(dynamicColor.resolve(for: .dark), dynamicColor.dark)
+  }
+
+  func testGeneratedThemeIdentifiesItsPinnedSource() {
+    XCTAssertEqual(PutioTheme.sourcePackage, "@putdotio/design")
+    XCTAssertEqual(PutioTheme.sourceVersion, "2.0.1")
+    XCTAssertEqual(PutioTheme.sourceTokenCount, 449)
+  }
+
+  func testGeneratedScalesPreservePublishedValues() {
+    XCTAssertEqual(PutioTheme.Spacing.space3, 16)
+    XCTAssertEqual(PutioTheme.Radius.standard, 6)
+    XCTAssertEqual(PutioTheme.Border.width, 1)
+    XCTAssertEqual(PutioTheme.Motion.durationBase, 0.2)
+    XCTAssertEqual(
+      PutioTheme.Motion.easingOut,
+      PutioCubicBezier(x1: 0.22, y1: 1, x2: 0.36, y2: 1)
+    )
+  }
+
+  func testFontRoleLineSpacingClampsNegativeLeading() {
+    let role = PutioFontRole(
+      family: "System",
+      size: 20,
+      weight: .regular,
+      lineHeight: 0.8,
+      textStyle: .body
+    )
+
+    XCTAssertEqual(role.baseLineSpacing, 0)
+  }
+}

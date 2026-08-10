@@ -9,6 +9,7 @@ struct PutioTVApp: App {
   var body: some Scene {
     WindowGroup {
       SignedOutView(presentation: presentation)
+        .preferredColorScheme(.dark)
         .onAppear {
           if SignedOutPresentation.isHarnessExercise(arguments: ProcessInfo.processInfo.arguments) {
             SignedOutPresentation.signalHarnessExercise()
@@ -19,16 +20,20 @@ struct PutioTVApp: App {
 }
 
 private struct SignedOutView: View {
+  @Environment(\.colorScheme) private var colorScheme
+
   let presentation: SignedOutPresentation
 
   var body: some View {
-    VStack(spacing: 20) {
+    VStack(spacing: PutioTheme.TV.Spacing.small) {
       Text(presentation.title)
-        .font(.largeTitle.bold())
+        .putioFont(PutioTheme.TV.Typography.heading)
+        .foregroundStyle(PutioTheme.TV.Colors.text1)
       Text(presentation.message)
-        .foregroundStyle(.secondary)
+        .putioFont(PutioTheme.TV.Typography.body)
+        .foregroundStyle(PutioTheme.TV.Colors.text2)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .preferredColorScheme(.dark)
+    .background(PutioTheme.Colors.appBg.resolve(for: colorScheme))
   }
 }
