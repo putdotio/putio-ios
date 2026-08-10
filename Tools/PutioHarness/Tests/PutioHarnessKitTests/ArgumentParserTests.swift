@@ -127,6 +127,13 @@ import Testing
     quotedAuthorization
       == #"{"Authorization":"[REDACTED]","authorization": "[REDACTED]"}"#
   )
+
+  let equalsAuthorization = HarnessOutput.redact(
+    "Authorization=Bearer equals-secret",
+    environment: [:]
+  )
+  #expect(!equalsAuthorization.contains("equals-secret"))
+  #expect(equalsAuthorization.contains("[REDACTED]"))
 }
 
 @Test func doctorOutputRedactsCaughtFailureDetails() throws {

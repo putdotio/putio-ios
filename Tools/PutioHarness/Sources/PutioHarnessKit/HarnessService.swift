@@ -163,7 +163,7 @@ public enum HarnessOutput {
 
     let replacements = [
       (
-        pattern: #"(?i)(authorization\s*:\s*bearer\s+)[^\s]+"#,
+        pattern: #"(?i)(authorization\s*[:=]\s*bearer\s+)[^\s,}&]+"#,
         template: "$1[REDACTED]"
       ),
       (
