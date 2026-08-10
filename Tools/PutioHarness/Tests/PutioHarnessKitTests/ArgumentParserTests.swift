@@ -100,10 +100,20 @@ import Testing
   #expect(message.contains("[REDACTED]"))
 
   let json = HarnessOutput.redact(
-    #"{"access_token":"live-secret","password":"pw-secret"}"#,
+    #"{"access_token":"live secret","password":"correct horse","api_key":"abc,def"}"#,
     environment: [:]
   )
-  #expect(!json.contains("live-secret"))
-  #expect(!json.contains("pw-secret"))
-  #expect(json == #"{"access_token":"[REDACTED]","password":"[REDACTED]"}"#)
+  #expect(!json.contains("live secret"))
+  #expect(!json.contains("correct horse"))
+  #expect(!json.contains("abc,def"))
+  #expect(
+    json
+      == #"{"access_token":"[REDACTED]","password":"[REDACTED]","api_key":"[REDACTED]"}"#
+  )
+
+  let escapedJSON = HarnessOutput.redact(
+    #"{"secret":"value with \"quote\" and \\ slash"}"#,
+    environment: [:]
+  )
+  #expect(escapedJSON == #"{"secret":"[REDACTED]"}"#)
 }

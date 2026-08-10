@@ -161,15 +161,32 @@ public enum HarnessOutput {
       result = result.replacingOccurrences(of: home, with: "$HOME")
     }
 
-    let patterns = [
-      #"(?i)(authorization\s*:\s*bearer\s+)[^\s]+"#,
-      #"(?i)([\"']?(?:access[_-]?token|refresh[_-]?token|api[_-]?key|password|secret|token)[\"']?\s*[:=]\s*[\"']?)[^\"'\s&,}]+"#,
+    let replacements = [
+      (
+        pattern: #"(?i)(authorization\s*:\s*bearer\s+)[^\s]+"#,
+        template: "$1[REDACTED]"
+      ),
+      (
+        pattern:
+          "(?i)([\"']?(?:access[_-]?token|refresh[_-]?token|api[_-]?key|password|secret|token)[\"']?\\s*[:=]\\s*)\"(?:\\\\.|[^\"\\\\])*\"",
+        template: "$1\"[REDACTED]\""
+      ),
+      (
+        pattern:
+          "(?i)([\"']?(?:access[_-]?token|refresh[_-]?token|api[_-]?key|password|secret|token)[\"']?\\s*[:=]\\s*)'(?:\\\\.|[^'\\\\])*'",
+        template: "$1'[REDACTED]'"
+      ),
+      (
+        pattern:
+          "(?i)([\"']?(?:access[_-]?token|refresh[_-]?token|api[_-]?key|password|secret|token)[\"']?\\s*[:=]\\s*)(?![\"'])[^\\s&,}]+",
+        template: "$1[REDACTED]"
+      ),
     ]
-    for pattern in patterns {
-      guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+    for replacement in replacements {
+      guard let regex = try? NSRegularExpression(pattern: replacement.pattern) else { continue }
       let range = NSRange(result.startIndex..., in: result)
       result = regex.stringByReplacingMatches(
-        in: result, range: range, withTemplate: "$1[REDACTED]")
+        in: result, range: range, withTemplate: replacement.template)
     }
     return result
   }
