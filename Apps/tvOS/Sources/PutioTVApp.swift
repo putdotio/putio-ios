@@ -1,6 +1,16 @@
 import PutioCore
 import SwiftUI
 
+private enum TypographyHarnessProof {
+  static let hostileFilenames = [
+    "Résumé – été.pdf",
+    "東京の映画 🎬.mkv",
+    "Семейное видео.mp4",
+    "👩🏽‍🚀 archive.zip",
+  ]
+  static let numericSample = "02:41:09 · 1.25 GB"
+}
+
 @main
 struct PutioTVApp: App {
   @State private var presentation = SignedOutPresentation.harnessInitialPresentation(
@@ -31,12 +41,12 @@ private struct SignedOutView: View {
         .putioFont(PutioTheme.TV.Typography.body)
         .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
       if presentation.isHarnessExercise {
-        ForEach(BrandTypographyProof.hostileFilenames, id: \.self) { filename in
+        ForEach(TypographyHarnessProof.hostileFilenames, id: \.self) { filename in
           Text(filename)
             .putioFont(PutioTheme.TV.Typography.label)
             .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
         }
-        Text(BrandTypographyProof.numericSample)
+        Text(TypographyHarnessProof.numericSample)
           .putioFont(PutioTheme.TV.Typography.numeric)
           .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
       }

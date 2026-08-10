@@ -6,6 +6,12 @@
 
   final class BrandTypographyTests: XCTestCase {
     private let mobileMonoFontName = "BerkeleyMonoVariable-Regular"
+    private let hostileFilenames = [
+      "Résumé – été.pdf",
+      "東京の映画 🎬.mkv",
+      "Семейное видео.mp4",
+      "👩🏽‍🚀 archive.zip",
+    ]
 
     private var fontDirectory: URL {
       URL(fileURLWithPath: #filePath)
@@ -47,7 +53,7 @@
         )
         let font = CTFontCreateWithFontDescriptor(primary, role.size, nil)
 
-        for filename in BrandTypographyProof.hostileFilenames {
+        for filename in hostileFilenames {
           let line = CTLineCreateWithAttributedString(
             NSAttributedString(
               string: filename,
