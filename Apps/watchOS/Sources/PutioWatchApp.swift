@@ -27,7 +27,7 @@ private struct SignedOutView: View {
   var body: some View {
     Group {
       if presentation.isHarnessExercise {
-        ScrollView { content.padding(PutioTheme.Spacing.space4) }
+        ScrollView { content.padding(.horizontal, PutioTheme.Spacing.space4) }
       } else {
         content
       }
