@@ -3,19 +3,13 @@
   "generated": [
     "border.width",
     "color.neutral.dark.border",
-    "color.neutral.light.border",
-    "component.alias.card",
     "component.alias.cardDark",
-    "component.alias.destructive",
     "component.alias.destructiveDark",
     "component.alias.destructiveForeground",
-    "component.alias.foreground",
     "component.alias.foregroundDark",
-    "component.alias.foregroundMuted",
     "component.alias.foregroundMutedDark",
     "component.alias.primary",
     "component.alias.primaryForeground",
-    "component.alias.success",
     "component.alias.successDark",
     "component.alias.successForeground",
     "component.button.gap",
@@ -43,7 +37,6 @@
     "spacing.7",
     "spacing.8",
     "surface.dark.appBg",
-    "surface.light.appBg",
     "tv.fontWeight.medium",
     "tv.fontWeight.regular",
     "tv.overscan.x",
@@ -101,6 +94,15 @@
       "context.tv.channelArt.lab.foreground",
       "context.tv.channelArt.production.posterBackground",
       "context.tv.channelArt.production.splashBackground"
+    ],
+    "light-theme": [
+      "color.neutral.light.border",
+      "component.alias.card",
+      "component.alias.destructive",
+      "component.alias.foreground",
+      "component.alias.foregroundMuted",
+      "component.alias.success",
+      "surface.light.appBg"
     ],
     "web-components": [
       "component.alias.accent",

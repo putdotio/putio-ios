@@ -64,84 +64,72 @@ type CoverageManifest = {
   readonly excluded: Readonly<Record<string, readonly string[]>>;
 };
 
-type AdaptiveColorRole = {
+type SemanticColorRole = {
   readonly assetName: string;
   readonly swiftName: string;
-  readonly light: string;
-  readonly dark: string;
+  readonly token: string;
 };
 
-export const adaptiveColorRoles = [
+export const semanticColorRoles = [
   {
     assetName: "PutioBackground",
     swiftName: "background",
-    light: "surface.light.appBg",
-    dark: "surface.dark.appBg",
+    token: "surface.dark.appBg",
   },
   {
     assetName: "PutioSurface",
     swiftName: "surface",
-    light: "component.alias.card",
-    dark: "component.alias.cardDark",
+    token: "component.alias.cardDark",
   },
   {
     assetName: "PutioTextPrimary",
     swiftName: "textPrimary",
-    light: "component.alias.foreground",
-    dark: "component.alias.foregroundDark",
+    token: "component.alias.foregroundDark",
   },
   {
     assetName: "PutioTextSecondary",
     swiftName: "textSecondary",
-    light: "component.alias.foregroundMuted",
-    dark: "component.alias.foregroundMutedDark",
+    token: "component.alias.foregroundMutedDark",
   },
   {
     assetName: "PutioAccent",
     swiftName: "accent",
-    light: "component.alias.primary",
-    dark: "component.alias.primary",
+    token: "component.alias.primary",
   },
   {
     assetName: "PutioAccentForeground",
     swiftName: "accentForeground",
-    light: "component.alias.primaryForeground",
-    dark: "component.alias.primaryForeground",
+    token: "component.alias.primaryForeground",
   },
   {
     assetName: "PutioSuccess",
     swiftName: "success",
-    light: "component.alias.success",
-    dark: "component.alias.successDark",
+    token: "component.alias.successDark",
   },
   {
     assetName: "PutioSuccessForeground",
     swiftName: "successForeground",
-    light: "component.alias.successForeground",
-    dark: "component.alias.successForeground",
+    token: "component.alias.successForeground",
   },
   {
     assetName: "PutioDestructive",
     swiftName: "destructive",
-    light: "component.alias.destructive",
-    dark: "component.alias.destructiveDark",
+    token: "component.alias.destructiveDark",
   },
   {
     assetName: "PutioDestructiveForeground",
     swiftName: "destructiveForeground",
-    light: "component.alias.destructiveForeground",
-    dark: "component.alias.destructiveForeground",
+    token: "component.alias.destructiveForeground",
   },
   {
     assetName: "PutioSeparator",
     swiftName: "separator",
-    light: "color.neutral.light.border",
-    dark: "color.neutral.dark.border",
+    token: "color.neutral.dark.border",
   },
-] as const satisfies readonly AdaptiveColorRole[];
+] as const satisfies readonly SemanticColorRole[];
 
 export const generatedTokenNames = [...new Set([
-  ...adaptiveColorRoles.flatMap((role) => [role.light, role.dark]),
+  ...semanticColorRoles.map((role) => role.token),
   "border.width",
   "component.button.gap",
   "component.button.iconSize",
@@ -410,21 +398,10 @@ export function renderAssetCatalog(
   const files: Record<string, string> = {
     "Contents.json": formattedJSON({ info: { author: "xcode", version: 1 } }),
   };
-  for (const role of adaptiveColorRoles) {
-    const light = requiredToken(entries, role.light, "color");
-    const dark = requiredToken(entries, role.dark, "color");
-    const colors: Record<string, unknown>[] = [
-      { color: assetColor(String(light.value)), idiom: "universal" },
-    ];
-    if (role.light !== role.dark) {
-      colors.push({
-        appearances: [{ appearance: "luminosity", value: "dark" }],
-        color: assetColor(String(dark.value)),
-        idiom: "universal",
-      });
-    }
+  for (const role of semanticColorRoles) {
+    const token = requiredToken(entries, role.token, "color");
     files[`${role.assetName}.colorset/Contents.json`] = formattedJSON({
-      colors,
+      colors: [{ color: assetColor(String(token.value)), idiom: "universal" }],
       info: { author: "xcode", version: 1 },
     });
   }
@@ -491,10 +468,9 @@ const requiredToken = (
 };
 
 const renderProductColors = (entries: readonly TokenEntry[]): string =>
-  adaptiveColorRoles
+  semanticColorRoles
     .map((role) => {
-      requiredToken(entries, role.light, "color");
-      requiredToken(entries, role.dark, "color");
+      requiredToken(entries, role.token, "color");
       return `    public static let ${role.swiftName} = Color(\n      ${swiftString(role.assetName)},\n      bundle: .module\n    )`;
     })
     .join("\n\n");

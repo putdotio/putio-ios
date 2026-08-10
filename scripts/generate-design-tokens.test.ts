@@ -7,6 +7,7 @@ import {
   parseCoverageManifest,
   parseTokens,
   renderAssetCatalog,
+  semanticColorRoles,
   validateCoverage,
 } from "./generate-design-tokens.ts";
 
@@ -40,16 +41,18 @@ test("resolves the token artifact through the package public export", () => {
   assert.match(resolved, /tokens\.flat\.json$/);
 });
 
-test("renders semantic adaptive colors into the asset catalog", async () => {
+test("renders dark-only semantic colors into the asset catalog", async () => {
   const rawTokens = JSON.parse(
     await readFile(fileURLToPath(import.meta.resolve("@putdotio/design/tokens")), "utf8"),
   ) as unknown;
   const files = renderAssetCatalog(parseTokens(rawTokens));
-  const background = JSON.parse(
-    files["PutioBackground.colorset/Contents.json"] ?? "null",
-  ) as { colors?: readonly { appearances?: readonly unknown[] }[] };
-  assert.equal(background.colors?.length, 2);
-  assert.equal(background.colors?.[1]?.appearances?.length, 1);
+  for (const role of semanticColorRoles) {
+    const asset = JSON.parse(
+      files[`${role.assetName}.colorset/Contents.json`] ?? "null",
+    ) as { colors?: readonly { appearances?: readonly unknown[] }[] };
+    assert.equal(asset.colors?.length, 1, role.assetName);
+    assert.equal(asset.colors?.[0]?.appearances, undefined, role.assetName);
+  }
 });
 
 test("rejects newly published tokens until coverage is classified", async () => {
