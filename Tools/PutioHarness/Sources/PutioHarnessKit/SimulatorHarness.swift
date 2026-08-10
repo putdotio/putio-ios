@@ -15,6 +15,21 @@ func shouldBuildIOSCompanion(
   platform == .watchos && !iosCompanionAvailable
 }
 
+func waitForRecordingStart(
+  timeout: TimeInterval,
+  pollInterval: TimeInterval = 0.1,
+  now: () -> Date = Date.init,
+  sleep: (TimeInterval) -> Void = Thread.sleep,
+  fileExists: () -> Bool
+) -> Bool {
+  let deadline = now().addingTimeInterval(timeout)
+  repeat {
+    if fileExists() { return true }
+    sleep(pollInterval)
+  } while now() < deadline
+  return false
+}
+
 private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: ProcessRunner) throws {
   var diagnostics: [String] = []
   for identifier in identifiers {
@@ -731,13 +746,15 @@ public struct SimulatorHarness {
         output.path,
       ]
     )
-    let deadline = Date().addingTimeInterval(8)
-    while Date() < deadline {
-      if fileManager.fileExists(atPath: output.path) { return process }
-      Thread.sleep(forTimeInterval: 0.1)
+    let timeout: TimeInterval = 30
+    if waitForRecordingStart(
+      timeout: timeout,
+      fileExists: { fileManager.fileExists(atPath: output.path) }
+    ) {
+      return process
     }
     _ = process.interruptAndWait()
-    throw HarnessFailure("recording did not start within 8 seconds")
+    throw HarnessFailure("recording did not start within \(Int(timeout)) seconds")
   }
 
   private func failureDiagnostics(in directory: URL) -> String {

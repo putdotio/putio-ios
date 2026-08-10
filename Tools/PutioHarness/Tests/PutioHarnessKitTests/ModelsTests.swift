@@ -69,6 +69,39 @@ import Testing
   #expect(!shouldBuildIOSCompanion(for: .ios, iosCompanionAvailable: false))
 }
 
+@Test func recordingStartWaitUsesTheSuppliedClock() {
+  var current = Date(timeIntervalSince1970: 0)
+  var polls = 0
+  let started = waitForRecordingStart(
+    timeout: 3,
+    pollInterval: 1,
+    now: { current },
+    sleep: { current.addTimeInterval($0) },
+    fileExists: {
+      polls += 1
+      return polls == 3
+    }
+  )
+
+  #expect(started)
+  #expect(polls == 3)
+  #expect(current == Date(timeIntervalSince1970: 2))
+}
+
+@Test func recordingStartWaitTimesOutWithTheSuppliedClock() {
+  var current = Date(timeIntervalSince1970: 0)
+  let started = waitForRecordingStart(
+    timeout: 3,
+    pollInterval: 1,
+    now: { current },
+    sleep: { current.addTimeInterval($0) },
+    fileExists: { false }
+  )
+
+  #expect(!started)
+  #expect(current == Date(timeIntervalSince1970: 3))
+}
+
 @Test func watchBuildRejectsMissingReusedIOSCompanion() throws {
   let root = FileManager.default.temporaryDirectory.appending(
     path: "putio-harness-watch-build-\(UUID().uuidString.lowercased())")
