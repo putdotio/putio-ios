@@ -39,6 +39,14 @@ import Testing
   }
 }
 
+@Test func repositoryPathsStayRelativeInHarnessOutput() {
+  let context = RepositoryContext(root: URL(fileURLWithPath: "/Users/example/putio-ios"))
+  #expect(
+    context.relativePath(for: context.proofRoot.appending(path: "run/ios"))
+      == "build/proof/run/ios"
+  )
+}
+
 @Test func doctorFailsOnlyForRequiredFailures() {
   let warningOnly = DoctorReport(checks: [
     DoctorCheck(name: "attach", status: .warning, required: false, detail: "missing")

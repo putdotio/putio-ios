@@ -28,6 +28,13 @@ public struct RepositoryContext: Sendable {
     throw HarnessFailure(
       "repository root not found; run from putio-ios or one of its subdirectories")
   }
+
+  func relativePath(for url: URL) -> String {
+    let rootPrefix = root.standardizedFileURL.path + "/"
+    let path = url.standardizedFileURL.path
+    guard path.hasPrefix(rootPrefix) else { return url.lastPathComponent }
+    return String(path.dropFirst(rootPrefix.count))
+  }
 }
 
 struct RuntimeRecord: Decodable, Sendable {

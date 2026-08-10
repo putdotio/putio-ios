@@ -88,9 +88,7 @@ public struct HarnessService {
       }
     }
 
-    let artifacts = runs.flatMap(\.artifacts).map { url in
-      url.path.replacingOccurrences(of: context.root.path + "/", with: "")
-    }
+    let artifacts = runs.flatMap(\.artifacts).map(context.relativePath(for:))
     return HarnessResult(
       command: command.rawValue,
       platforms: runs.map(\.platform.rawValue),

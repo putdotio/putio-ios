@@ -275,7 +275,7 @@ public struct SimulatorHarness {
           platform: platform,
           artifacts: artifactURLs + [manifest],
           message:
-            "captured \(command.rawValue) for \(platform.rawValue) in \(platformDirectory.path)"
+            "captured \(command.rawValue) for \(platform.rawValue) in \(context.relativePath(for: platformDirectory))"
         )
       }
     } catch {
