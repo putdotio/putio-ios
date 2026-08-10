@@ -6,6 +6,8 @@
 
   final class BrandTypographyTests: XCTestCase {
     private let mobileMonoFontName = "BerkeleyMonoVariable-Regular"
+    private let tvFilenameFontName = "GTAmerica-Md"
+    private let tvFilenameFontSize: CGFloat = 48
     private let hostileFilenames = [
       "Résumé – été.pdf",
       "東京の映画 🎬.mkv",
@@ -42,7 +44,7 @@
     func testHostileFilenamesShapeWithoutMissingGlyphsUsingMobileAndTVFallbacks() throws {
       let roles = [
         (fontName: mobileMonoFontName, size: PutioTheme.Typography.sizeSm),
-        (fontName: PutioTheme.Typography.body.fontName, size: PutioTheme.Typography.body.size),
+        (fontName: tvFilenameFontName, size: tvFilenameFontSize),
       ]
       for role in roles {
         let primary = try XCTUnwrap(

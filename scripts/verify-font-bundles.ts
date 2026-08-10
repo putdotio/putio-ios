@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import { readFile, readdir } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, extname, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { parseFontManifest, type Platform } from "./sync-brand-fonts.ts";
 
@@ -19,13 +19,31 @@ const expectedNames = (platform: Platform): string[] =>
     .map(([name]) => name)
     .sort();
 
+export const listFontResources = async (root: string): Promise<string[]> => {
+  const resources: string[] = [];
+
+  const visit = async (directory: string): Promise<void> => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory() && extname(entry.name).toLowerCase() !== ".app") {
+        await visit(path);
+      } else if ([".otf", ".ttf"].includes(extname(entry.name).toLowerCase())) {
+        resources.push(relative(root, path));
+      }
+    }
+  };
+
+  await visit(root);
+  return resources.sort();
+};
+
 const verifyApp = async (
   label: string,
   relativePath: string,
   platform: Platform,
 ): Promise<void> => {
   const app = join(repositoryRoot, relativePath);
-  const actualFiles = (await readdir(app)).filter((name) => name.endsWith(".otf")).sort();
+  const actualFiles = await listFontResources(app);
   const expected = expectedNames(platform);
   if (actualFiles.join("\n") !== expected.join("\n")) {
     throw new Error(`${label} font resources differ\nexpected: ${expected}\nactual: ${actualFiles}`);
@@ -49,25 +67,31 @@ const verifyApp = async (
   }
 };
 
-await verifyApp(
-  "iOS",
-  "build/DerivedData/Build/Products/Debug-iphonesimulator/Putio.app",
-  "ios",
-);
-await verifyApp(
-  "embedded watchOS",
-  "build/DerivedData/Build/Products/Debug-iphonesimulator/Putio.app/Watch/PutioWatch.app",
-  "watchos",
-);
-await verifyApp(
-  "watchOS",
-  "build/DerivedData/Build/Products/Debug-watchsimulator/PutioWatch.app",
-  "watchos",
-);
-await verifyApp(
-  "tvOS",
-  "build/DerivedData/Build/Products/Debug-appletvsimulator/PutioTV.app",
-  "tvos",
-);
+const main = async (): Promise<void> => {
+  await verifyApp(
+    "iOS",
+    "build/DerivedData/Build/Products/Debug-iphonesimulator/Putio.app",
+    "ios",
+  );
+  await verifyApp(
+    "embedded watchOS",
+    "build/DerivedData/Build/Products/Debug-iphonesimulator/Putio.app/Watch/PutioWatch.app",
+    "watchos",
+  );
+  await verifyApp(
+    "watchOS",
+    "build/DerivedData/Build/Products/Debug-watchsimulator/PutioWatch.app",
+    "watchos",
+  );
+  await verifyApp(
+    "tvOS",
+    "build/DerivedData/Build/Products/Debug-appletvsimulator/PutioTV.app",
+    "tvos",
+  );
 
-console.log("iOS, embedded watchOS, standalone watchOS, and tvOS font bundles match the manifest");
+  console.log("iOS, embedded watchOS, standalone watchOS, and tvOS font bundles match the manifest");
+};
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  await main();
+}
