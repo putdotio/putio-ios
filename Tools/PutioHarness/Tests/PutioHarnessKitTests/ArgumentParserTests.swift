@@ -116,6 +116,17 @@ import Testing
     environment: [:]
   )
   #expect(escapedJSON == #"{"secret":"[REDACTED]"}"#)
+
+  let quotedAuthorization = HarnessOutput.redact(
+    #"{"Authorization":"Bearer very-secret-token","authorization": "Basic another-secret"}"#,
+    environment: [:]
+  )
+  #expect(!quotedAuthorization.contains("very-secret-token"))
+  #expect(!quotedAuthorization.contains("another-secret"))
+  #expect(
+    quotedAuthorization
+      == #"{"Authorization":"[REDACTED]","authorization": "[REDACTED]"}"#
+  )
 }
 
 @Test func doctorOutputRedactsCaughtFailureDetails() throws {

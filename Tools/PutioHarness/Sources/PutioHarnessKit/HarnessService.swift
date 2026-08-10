@@ -168,17 +168,17 @@ public enum HarnessOutput {
       ),
       (
         pattern:
-          "(?i)([\"']?(?:access[_-]?token|refresh[_-]?token|api[_-]?key|password|secret|token)[\"']?\\s*[:=]\\s*)\"(?:\\\\.|[^\"\\\\])*\"",
+          "(?i)([\"']?(?:access[_-]?token|refresh[_-]?token|api[_-]?key|password|secret|token|authorization)[\"']?\\s*[:=]\\s*)\"(?:\\\\.|[^\"\\\\])*\"",
         template: "$1\"[REDACTED]\""
       ),
       (
         pattern:
-          "(?i)([\"']?(?:access[_-]?token|refresh[_-]?token|api[_-]?key|password|secret|token)[\"']?\\s*[:=]\\s*)'(?:\\\\.|[^'\\\\])*'",
+          "(?i)([\"']?(?:access[_-]?token|refresh[_-]?token|api[_-]?key|password|secret|token|authorization)[\"']?\\s*[:=]\\s*)'(?:\\\\.|[^'\\\\])*'",
         template: "$1'[REDACTED]'"
       ),
       (
         pattern:
-          "(?i)([\"']?(?:access[_-]?token|refresh[_-]?token|api[_-]?key|password|secret|token)[\"']?\\s*[:=]\\s*)(?![\"'])[^\\s&,}]+",
+          "(?i)([\"']?(?:access[_-]?token|refresh[_-]?token|api[_-]?key|password|secret|token|authorization)[\"']?\\s*[:=]\\s*)(?![\"'])[^\\s&,}]+",
         template: "$1[REDACTED]"
       ),
     ]
