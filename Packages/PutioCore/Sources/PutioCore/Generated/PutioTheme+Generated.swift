@@ -3,17 +3,36 @@
 
 import SwiftUI
 
-public struct PutioDynamicColor: Sendable {
-  public let light: Color
-  public let dark: Color
+public struct PutioMetricRole: Sendable {
+  public let value: CGFloat
+  public let textStyle: Font.TextStyle
 
-  public init(light: Color, dark: Color) {
-    self.light = light
-    self.dark = dark
+  public init(value: CGFloat, relativeTo textStyle: Font.TextStyle) {
+    self.value = value
+    self.textStyle = textStyle
+  }
+}
+
+@propertyWrapper
+public struct PutioScaledMetric: DynamicProperty {
+  @ScaledMetric private var metric: CGFloat
+
+  public init(_ role: PutioMetricRole) {
+    _metric = ScaledMetric(wrappedValue: role.value, relativeTo: role.textStyle)
   }
 
-  public func resolve(for colorScheme: ColorScheme) -> Color {
-    colorScheme == .dark ? dark : light
+  public var wrappedValue: CGFloat {
+    metric
+  }
+}
+
+public struct PutioIconRole: Sendable {
+  public let size: PutioMetricRole
+  public let weight: Font.Weight
+
+  public init(size: PutioMetricRole, weight: Font.Weight) {
+    self.size = size
+    self.weight = weight
   }
 }
 
@@ -67,8 +86,33 @@ private struct PutioFontModifier: ViewModifier {
 }
 
 extension View {
+  @MainActor
   public func putioFont(_ role: PutioFontRole) -> some View {
     modifier(PutioFontModifier(role: role))
+  }
+}
+
+private struct PutioIconModifier: ViewModifier {
+  let role: PutioIconRole
+  @ScaledMetric private var size: CGFloat
+
+  init(role: PutioIconRole) {
+    self.role = role
+    _size = ScaledMetric(
+      wrappedValue: role.size.value,
+      relativeTo: role.size.textStyle
+    )
+  }
+
+  func body(content: Content) -> some View {
+    content.font(.system(size: size, weight: role.weight))
+  }
+}
+
+extension Image {
+  @MainActor
+  public func putioIcon(_ role: PutioIconRole) -> some View {
+    modifier(PutioIconModifier(role: role))
   }
 }
 
@@ -96,834 +140,59 @@ public enum PutioTheme {
   public static let sourceTokenCount = 449
 
   public enum Colors {
-    public static let accent = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.951, green: 0.951, blue: 0.951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
+    public static let background = Color(
+      "PutioBackground",
+      bundle: .module
     )
 
-    public static let accentForeground = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.09, green: 0.09, blue: 0.09, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0)
+    public static let surface = Color(
+      "PutioSurface",
+      bundle: .module
     )
 
-    public static let appBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.085, green: 0.085, blue: 0.085, opacity: 1.0)
+    public static let textPrimary = Color(
+      "PutioTextPrimary",
+      bundle: .module
     )
 
-    public static let background = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.99, green: 0.99, blue: 0.99, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.085, green: 0.085, blue: 0.085, opacity: 1.0)
+    public static let textSecondary = Color(
+      "PutioTextSecondary",
+      bundle: .module
     )
 
-    public static let bg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.99, green: 0.99, blue: 0.99, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.085, green: 0.085, blue: 0.085, opacity: 1.0)
+    public static let accent = Color(
+      "PutioAccent",
+      bundle: .module
     )
 
-    public static let bgSecondary = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.973, green: 0.973, blue: 0.973, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.11, green: 0.11, blue: 0.11, opacity: 1.0)
+    public static let accentForeground = Color(
+      "PutioAccentForeground",
+      bundle: .module
     )
 
-    public static let border = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.858, green: 0.858, blue: 0.858, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.243, green: 0.243, blue: 0.243, opacity: 1.0)
+    public static let success = Color(
+      "PutioSuccess",
+      bundle: .module
     )
 
-    public static let borderHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.78, green: 0.78, blue: 0.78, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.312, green: 0.312, blue: 0.312, opacity: 1.0)
+    public static let successForeground = Color(
+      "PutioSuccessForeground",
+      bundle: .module
     )
 
-    public static let buttonDangerBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.8975, green: 0.2825, blue: 0.303, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.8975, green: 0.2825, blue: 0.303, opacity: 1.0)
+    public static let destructive = Color(
+      "PutioDestructive",
+      bundle: .module
     )
 
-    public static let buttonDangerBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.8402, green: 0.2198, blue: 0.25082, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.8449, green: 0.2151, blue: 0.24659, opacity: 1.0)
+    public static let destructiveForeground = Color(
+      "PutioDestructiveForeground",
+      bundle: .module
     )
 
-    public static let buttonDangerFg = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0),
-      dark: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0)
-    )
-
-    public static let buttonDefaultBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.951, green: 0.951, blue: 0.951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let buttonDefaultBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.158, green: 0.158, blue: 0.158, opacity: 1.0)
-    )
-
-    public static let buttonDefaultFg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.09, green: 0.09, blue: 0.09, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0)
-    )
-
-    public static let buttonGhostBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.0),
-      dark: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.0)
-    )
-
-    public static let buttonGhostBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.158, green: 0.158, blue: 0.158, opacity: 1.0)
-    )
-
-    public static let buttonGhostFg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.435, green: 0.435, blue: 0.435, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.628, green: 0.628, blue: 0.628, opacity: 1.0)
-    )
-
-    public static let buttonGhostFgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.09, green: 0.09, blue: 0.09, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0)
-    )
-
-    public static let buttonInfoBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.561, green: 0.561, blue: 0.561, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.439, green: 0.439, blue: 0.439, opacity: 1.0)
-    )
-
-    public static let buttonInfoBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.523, green: 0.523, blue: 0.523, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.494, green: 0.494, blue: 0.494, opacity: 1.0)
-    )
-
-    public static let buttonInfoFg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 1.0),
-      dark: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0)
-    )
-
-    public static let buttonPrimaryBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.992251, green: 0.808013, blue: 0.269749, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.992251, green: 0.808013, blue: 0.269749, opacity: 1.0)
-    )
-
-    public static let buttonPrimaryBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.9538, green: 0.7669, blue: 0.2062, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.9538, green: 0.7669, blue: 0.2062, opacity: 1.0)
-    )
-
-    public static let buttonPrimaryFg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.165, green: 0.117333, blue: 0.035, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.165, green: 0.117333, blue: 0.035, opacity: 1.0)
-    )
-
-    public static let buttonSecondaryBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.951, green: 0.951, blue: 0.951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let buttonSecondaryBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.158, green: 0.158, blue: 0.158, opacity: 1.0)
-    )
-
-    public static let buttonSecondaryFg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.09, green: 0.09, blue: 0.09, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0)
-    )
-
-    public static let buttonSuccessBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.18675, green: 0.64325, blue: 0.422608, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.18675, green: 0.64325, blue: 0.422608, opacity: 1.0)
-    )
-
-    public static let buttonSuccessBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.1554, green: 0.5846, blue: 0.377153, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.112, green: 0.588, blue: 0.357933, opacity: 1.0)
-    )
-
-    public static let buttonSuccessFg = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0),
-      dark: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0)
-    )
-
-    public static let card = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.951, green: 0.951, blue: 0.951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let cardForeground = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.09, green: 0.09, blue: 0.09, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0)
-    )
-
-    public static let componentBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.951, green: 0.951, blue: 0.951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let componentBgActive = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.909, green: 0.909, blue: 0.909, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.179, green: 0.179, blue: 0.179, opacity: 1.0)
-    )
-
-    public static let componentBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.158, green: 0.158, blue: 0.158, opacity: 1.0)
-    )
-
-    public static let destructive = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.8975, green: 0.2825, blue: 0.303, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.8975, green: 0.2825, blue: 0.303, opacity: 1.0)
-    )
-
-    public static let destructiveForeground = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0),
-      dark: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0)
-    )
-
-    public static let fieldBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.085, green: 0.085, blue: 0.085, opacity: 1.0)
-    )
-
-    public static let fieldBgDisabled = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.973, green: 0.973, blue: 0.973, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.11, green: 0.11, blue: 0.11, opacity: 1.0)
-    )
-
-    public static let fieldBorder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.858, green: 0.858, blue: 0.858, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.243, green: 0.243, blue: 0.243, opacity: 1.0)
-    )
-
-    public static let fieldBorderFocus = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.78, green: 0.78, blue: 0.78, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.312, green: 0.312, blue: 0.312, opacity: 1.0)
-    )
-
-    public static let fieldBorderHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.78, green: 0.78, blue: 0.78, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.312, green: 0.312, blue: 0.312, opacity: 1.0)
-    )
-
-    public static let fieldPlaceholder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.435, green: 0.435, blue: 0.435, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.628, green: 0.628, blue: 0.628, opacity: 1.0)
-    )
-
-    public static let fieldText = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.09, green: 0.09, blue: 0.09, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0)
-    )
-
-    public static let fileRowBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.0),
-      dark: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.0)
-    )
-
-    public static let fileRowBgActive = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.973, green: 0.973, blue: 0.973, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.11, green: 0.11, blue: 0.11, opacity: 1.0)
-    )
-
-    public static let fileRowBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.973, green: 0.973, blue: 0.973, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.11, green: 0.11, blue: 0.11, opacity: 1.0)
-    )
-
-    public static let fileRowBorder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.909, green: 0.909, blue: 0.909, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.179, green: 0.179, blue: 0.179, opacity: 1.0)
-    )
-
-    public static let fileRowIcon = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.992251, green: 0.808013, blue: 0.269749, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.992251, green: 0.808013, blue: 0.269749, opacity: 1.0)
-    )
-
-    public static let foreground = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.09, green: 0.09, blue: 0.09, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0)
-    )
-
-    public static let foregroundMuted = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.435, green: 0.435, blue: 0.435, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.628, green: 0.628, blue: 0.628, opacity: 1.0)
-    )
-
-    public static let greenBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.984, green: 0.996, blue: 0.988, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.0522, green: 0.0678, blue: 0.0574, opacity: 1.0)
-    )
-
-    public static let greenBgSecondary = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.9577, green: 0.9823, blue: 0.9659, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.0711, green: 0.1089, blue: 0.08937, opacity: 1.0)
-    )
-
-    public static let greenBorder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.5552, green: 0.8048, blue: 0.6384, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.1711, green: 0.4089, blue: 0.274147, opacity: 1.0)
-    )
-
-    public static let greenBorderHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.3745, green: 0.7255, blue: 0.5266, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.1938, green: 0.4862, blue: 0.330253, opacity: 1.0)
-    )
-
-    public static let greenComponentBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.8929, green: 0.9671, blue: 0.91145, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.0845, green: 0.1755, blue: 0.131517, opacity: 1.0)
-    )
-
-    public static let greenComponentBgActive = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.76, green: 0.92, blue: 0.813333, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.1026, green: 0.2774, blue: 0.187087, opacity: 1.0)
-    )
-
-    public static let greenComponentBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.8262, green: 0.9538, blue: 0.86448, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.0816, green: 0.2384, blue: 0.157387, opacity: 1.0)
-    )
-
-    public static let greenLine = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.6619, green: 0.8781, blue: 0.73757, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.1392, green: 0.3408, blue: 0.22656, opacity: 1.0)
-    )
-
-    public static let greenSolid = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.18675, green: 0.64325, blue: 0.422608, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.18675, green: 0.64325, blue: 0.422608, opacity: 1.0)
-    )
-
-    public static let greenSolidHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.1554, green: 0.5846, blue: 0.377153, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.112, green: 0.588, blue: 0.357933, opacity: 1.0)
-    )
-
-    public static let greenText = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.1105, green: 0.2295, blue: 0.162067, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.6922, green: 0.9478, blue: 0.78592, opacity: 1.0)
-    )
-
-    public static let greenTextSecondary = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.0, green: 0.5, blue: 0.291667, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.376, green: 0.824, blue: 0.570133, opacity: 1.0)
-    )
-
-    public static let hiContrast = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.09, green: 0.09, blue: 0.09, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0)
-    )
-
-    public static let htmlBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.973, green: 0.973, blue: 0.973, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 1.0)
-    )
-
-    public static let input = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.858, green: 0.858, blue: 0.858, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.243, green: 0.243, blue: 0.243, opacity: 1.0)
-    )
-
-    public static let inputBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.085, green: 0.085, blue: 0.085, opacity: 1.0)
-    )
-
-    public static let inputBorder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.858, green: 0.858, blue: 0.858, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.243, green: 0.243, blue: 0.243, opacity: 1.0)
-    )
-
-    public static let inputBorderFocus = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.78, green: 0.78, blue: 0.78, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.312, green: 0.312, blue: 0.312, opacity: 1.0)
-    )
-
-    public static let inputBorderHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.78, green: 0.78, blue: 0.78, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.312, green: 0.312, blue: 0.312, opacity: 1.0)
-    )
-
-    public static let inputPlaceholder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.435, green: 0.435, blue: 0.435, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.628, green: 0.628, blue: 0.628, opacity: 1.0)
-    )
-
-    public static let inputText = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.09, green: 0.09, blue: 0.09, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0)
-    )
-
-    public static let invertForeground = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.085, green: 0.085, blue: 0.085, opacity: 1.0)
-    )
-
-    public static let lime3 = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.932753, green: 0.98152, blue: 0.86448, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.129, green: 0.174, blue: 0.066, opacity: 1.0)
-    )
-
-    public static let line = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.887, green: 0.887, blue: 0.887, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.205, green: 0.205, blue: 0.205, opacity: 1.0)
-    )
-
-    public static let listItemBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.0),
-      dark: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.0)
-    )
-
-    public static let listItemBgActive = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.973, green: 0.973, blue: 0.973, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.11, green: 0.11, blue: 0.11, opacity: 1.0)
-    )
-
-    public static let listItemBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.973, green: 0.973, blue: 0.973, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.11, green: 0.11, blue: 0.11, opacity: 1.0)
-    )
-
-    public static let listItemBorder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.909, green: 0.909, blue: 0.909, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.179, green: 0.179, blue: 0.179, opacity: 1.0)
-    )
-
-    public static let loContrast = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.99, green: 0.99, blue: 0.99, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.085, green: 0.085, blue: 0.085, opacity: 1.0)
-    )
-
-    public static let menuBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.951, green: 0.951, blue: 0.951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let menuBorder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.887, green: 0.887, blue: 0.887, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.205, green: 0.205, blue: 0.205, opacity: 1.0)
-    )
-
-    public static let menuItemBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.158, green: 0.158, blue: 0.158, opacity: 1.0)
-    )
-
-    public static let menuItemDangerBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 0.922667, blue: 0.92, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.2325, green: 0.0675, blue: 0.0675, opacity: 1.0)
-    )
-
-    public static let menuItemDangerText = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.8036, green: 0.1764, blue: 0.228667, opacity: 1.0),
-      dark: Color(.sRGB, red: 1.0, green: 0.555333, blue: 0.54, opacity: 1.0)
-    )
-
-    public static let menuItemIcon = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.435, green: 0.435, blue: 0.435, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.628, green: 0.628, blue: 0.628, opacity: 1.0)
-    )
-
-    public static let menuItemShortcut = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.435, green: 0.435, blue: 0.435, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.628, green: 0.628, blue: 0.628, opacity: 1.0)
-    )
-
-    public static let menuItemText = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.09, green: 0.09, blue: 0.09, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0)
-    )
-
-    public static let menuLabel = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.435, green: 0.435, blue: 0.435, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.628, green: 0.628, blue: 0.628, opacity: 1.0)
-    )
-
-    public static let menuSeparator = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.887, green: 0.887, blue: 0.887, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.205, green: 0.205, blue: 0.205, opacity: 1.0)
-    )
-
-    public static let muted = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.973, green: 0.973, blue: 0.973, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.11, green: 0.11, blue: 0.11, opacity: 1.0)
-    )
-
-    public static let mutedForeground = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.435, green: 0.435, blue: 0.435, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.628, green: 0.628, blue: 0.628, opacity: 1.0)
-    )
-
-    public static let navBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.085, green: 0.085, blue: 0.085, opacity: 1.0)
-    )
-
-    public static let navItemBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.0),
-      dark: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.0)
-    )
-
-    public static let navItemBgActive = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.951, green: 0.951, blue: 0.951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let navItemBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.951, green: 0.951, blue: 0.951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let notificationBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.951, green: 0.951, blue: 0.951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let notificationBorder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.887, green: 0.887, blue: 0.887, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.205, green: 0.205, blue: 0.205, opacity: 1.0)
-    )
-
-    public static let notificationDangerBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 0.922667, blue: 0.92, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.2325, green: 0.0675, blue: 0.0675, opacity: 1.0)
-    )
-
-    public static let notificationDangerBorder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.962, green: 0.6488, blue: 0.638, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.5548, green: 0.2052, blue: 0.2052, opacity: 1.0)
-    )
-
-    public static let notificationDangerFg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.3888, green: 0.0912, blue: 0.10112, opacity: 1.0),
-      dark: Color(.sRGB, red: 1.0, green: 0.835, blue: 0.82, opacity: 1.0)
-    )
-
-    public static let notificationFg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.09, green: 0.09, blue: 0.09, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0)
-    )
-
-    public static let notificationIcon = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.435, green: 0.435, blue: 0.435, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.628, green: 0.628, blue: 0.628, opacity: 1.0)
-    )
-
-    public static let notificationInfoBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.973, green: 0.973, blue: 0.973, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let notificationSuccessBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.9577, green: 0.9823, blue: 0.9659, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.0711, green: 0.1089, blue: 0.08937, opacity: 1.0)
-    )
-
-    public static let notificationSuccessBorder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.5552, green: 0.8048, blue: 0.6384, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.1711, green: 0.4089, blue: 0.274147, opacity: 1.0)
-    )
-
-    public static let notificationSuccessFg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.1105, green: 0.2295, blue: 0.162067, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.6922, green: 0.9478, blue: 0.78592, opacity: 1.0)
-    )
-
-    public static let overlayFull = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.439),
-      dark: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.565)
-    )
-
-    public static let overlayInline = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.047),
-      dark: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.439)
-    )
-
-    public static let paletteBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.951, green: 0.951, blue: 0.951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let paletteBorder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.887, green: 0.887, blue: 0.887, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.205, green: 0.205, blue: 0.205, opacity: 1.0)
-    )
-
-    public static let paletteGroupLabel = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.435, green: 0.435, blue: 0.435, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.628, green: 0.628, blue: 0.628, opacity: 1.0)
-    )
-
-    public static let paletteItemBgActive = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.158, green: 0.158, blue: 0.158, opacity: 1.0)
-    )
-
-    public static let paletteItemMeta = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.435, green: 0.435, blue: 0.435, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.628, green: 0.628, blue: 0.628, opacity: 1.0)
-    )
-
-    public static let paletteScrim = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.439),
-      dark: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.565)
-    )
-
-    public static let panelBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.951, green: 0.951, blue: 0.951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let panelBorder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.887, green: 0.887, blue: 0.887, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.205, green: 0.205, blue: 0.205, opacity: 1.0)
-    )
-
-    public static let popover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.951, green: 0.951, blue: 0.951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let popoverForeground = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.09, green: 0.09, blue: 0.09, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0)
-    )
-
-    public static let primary = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.992251, green: 0.808013, blue: 0.269749, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.992251, green: 0.808013, blue: 0.269749, opacity: 1.0)
-    )
-
-    public static let primaryForeground = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.165, green: 0.117333, blue: 0.035, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.165, green: 0.117333, blue: 0.035, opacity: 1.0)
-    )
-
-    public static let redBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 0.98, blue: 0.98, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.0791, green: 0.063327, blue: 0.0609, opacity: 1.0)
-    )
-
-    public static let redBgSecondary = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 0.96, blue: 0.96, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.128, green: 0.075733, blue: 0.072, opacity: 1.0)
-    )
-
-    public static let redBorder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.962, green: 0.6488, blue: 0.638, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.5548, green: 0.2052, blue: 0.2052, opacity: 1.0)
-    )
-
-    public static let redBorderHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.9217, green: 0.55108, blue: 0.5383, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.7105, green: 0.2695, blue: 0.27685, opacity: 1.0)
-    )
-
-    public static let redComponentBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 0.922667, blue: 0.92, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.2325, green: 0.0675, blue: 0.0675, opacity: 1.0)
-    )
-
-    public static let redComponentBgActive = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 0.791, blue: 0.78, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.3888, green: 0.0912, blue: 0.10112, opacity: 1.0)
-    )
-
-    public static let redComponentBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 0.869333, blue: 0.86, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.323, green: 0.057, blue: 0.0703, opacity: 1.0)
-    )
-
-    public static let redLine = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.9958, green: 0.73778, blue: 0.7242, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.456, green: 0.144, blue: 0.1492, opacity: 1.0)
-    )
-
-    public static let redSolid = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.8975, green: 0.2825, blue: 0.303, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.8975, green: 0.2825, blue: 0.303, opacity: 1.0)
-    )
-
-    public static let redSolidHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.8402, green: 0.2198, blue: 0.25082, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.8449, green: 0.2151, blue: 0.24659, opacity: 1.0)
-    )
-
-    public static let redText = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.3888, green: 0.0912, blue: 0.10112, opacity: 1.0),
-      dark: Color(.sRGB, red: 1.0, green: 0.835, blue: 0.82, opacity: 1.0)
-    )
-
-    public static let redTextSecondary = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.8036, green: 0.1764, blue: 0.228667, opacity: 1.0),
-      dark: Color(.sRGB, red: 1.0, green: 0.555333, blue: 0.54, opacity: 1.0)
-    )
-
-    public static let ring = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 0.848333, blue: 0.3, opacity: 0.35),
-      dark: Color(.sRGB, red: 1.0, green: 0.848333, blue: 0.3, opacity: 0.35)
-    )
-
-    public static let segmentedControlBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.951, green: 0.951, blue: 0.951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.085, green: 0.085, blue: 0.085, opacity: 1.0)
-    )
-
-    public static let segmentedControlBgActive = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let shadow = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.78, green: 0.78, blue: 0.78, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 1.0)
-    )
-
-    public static let shadowColor = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.78, green: 0.78, blue: 0.78, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 1.0)
-    )
-
-    public static let shadowFocusColor = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 0.848333, blue: 0.3, opacity: 0.35),
-      dark: Color(.sRGB, red: 1.0, green: 0.848333, blue: 0.3, opacity: 0.35)
-    )
-
-    public static let sheetBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.951, green: 0.951, blue: 0.951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let sheetBorder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.887, green: 0.887, blue: 0.887, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.205, green: 0.205, blue: 0.205, opacity: 1.0)
-    )
-
-    public static let sheetScrim = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.439),
-      dark: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.565)
-    )
-
-    public static let solid = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.561, green: 0.561, blue: 0.561, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.439, green: 0.439, blue: 0.439, opacity: 1.0)
-    )
-
-    public static let solidForeground = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 1.0),
-      dark: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0)
-    )
-
-    public static let solidHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.523, green: 0.523, blue: 0.523, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.494, green: 0.494, blue: 0.494, opacity: 1.0)
-    )
-
-    public static let success = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.18675, green: 0.64325, blue: 0.422608, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.18675, green: 0.64325, blue: 0.422608, opacity: 1.0)
-    )
-
-    public static let successForeground = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0),
-      dark: Color(.sRGB, red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0)
-    )
-
-    public static let text = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.09, green: 0.09, blue: 0.09, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.93, green: 0.93, blue: 0.93, opacity: 1.0)
-    )
-
-    public static let textSecondary = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.435, green: 0.435, blue: 0.435, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.628, green: 0.628, blue: 0.628, opacity: 1.0)
-    )
-
-    public static let transferListItemCompletingBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.932753, green: 0.98152, blue: 0.86448, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let transferListItemDownloadingBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.932753, green: 0.98152, blue: 0.86448, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.136, green: 0.136, blue: 0.136, opacity: 1.0)
-    )
-
-    public static let transferListItemFinishedBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.973, green: 0.973, blue: 0.973, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.11, green: 0.11, blue: 0.11, opacity: 1.0)
-    )
-
-    public static let transferListItemPassiveBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.99, green: 0.99, blue: 0.99, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.11, green: 0.11, blue: 0.11, opacity: 1.0)
-    )
-
-    public static let transparent = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.0),
-      dark: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 0.0)
-    )
-
-    public static let yellowBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.996, green: 0.993, blue: 0.984, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.0, green: 0.0, blue: 0.0, opacity: 1.0)
-    )
-
-    public static let yellowBgSecondary = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 0.990667, blue: 0.92, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.081, green: 0.0656, blue: 0.039, opacity: 1.0)
-    )
-
-    public static let yellowBorder = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.8911, green: 0.78055, blue: 0.4489, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.3978, green: 0.3289, blue: 0.1222, opacity: 1.0)
-    )
-
-    public static let yellowBorderHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.8152, green: 0.679093, blue: 0.3048, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.5066, green: 0.4233, blue: 0.1734, opacity: 1.0)
-    )
-
-    public static let yellowComponentBg = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 0.968, blue: 0.76, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.153, green: 0.1215, blue: 0.027, opacity: 1.0)
-    )
-
-    public static let yellowComponentBgActive = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 0.904, blue: 0.52, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.28, green: 0.205333, blue: 0.0, opacity: 1.0)
-    )
-
-    public static let yellowComponentBgHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 1.0, green: 0.94, blue: 0.64, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.22, green: 0.161333, blue: 0.0, opacity: 1.0)
-    )
-
-    public static let yellowLine = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.9649, green: 0.85528, blue: 0.4951, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.3249, green: 0.25745, blue: 0.0551, opacity: 1.0)
-    )
-
-    public static let yellowSolid = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.992251, green: 0.808013, blue: 0.269749, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.992251, green: 0.808013, blue: 0.269749, opacity: 1.0)
-    )
-
-    public static let yellowSolidHover = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.9538, green: 0.7669, blue: 0.2062, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.9538, green: 0.7669, blue: 0.2062, opacity: 1.0)
-    )
-
-    public static let yellowText = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.2772, green: 0.23912, blue: 0.1428, opacity: 1.0),
-      dark: Color(.sRGB, red: 0.9846, green: 0.926453, blue: 0.7354, opacity: 1.0)
-    )
-
-    public static let yellowTextSecondary = PutioDynamicColor(
-      light: Color(.sRGB, red: 0.54, green: 0.414, blue: 0.0, opacity: 1.0),
-      dark: Color(.sRGB, red: 1.0, green: 0.82, blue: 0.28, opacity: 1.0)
+    public static let separator = Color(
+      "PutioSeparator",
+      bundle: .module
     )
   }
 
@@ -1007,6 +276,32 @@ public enum PutioTheme {
     public static let space8: CGFloat = 512.0
   }
 
+  public enum ScaledMetrics {
+    public static let compactContentGap = PutioMetricRole(
+      value: Spacing.space1,
+      relativeTo: .caption
+    )
+    public static let contentGap = PutioMetricRole(
+      value: Spacing.space3,
+      relativeTo: .body
+    )
+    public static let buttonContentGap = PutioMetricRole(
+      value: 8.0,
+      relativeTo: .caption
+    )
+    public static let buttonIconSize = PutioMetricRole(
+      value: 14.0,
+      relativeTo: .caption
+    )
+  }
+
+  public enum Icons {
+    public static let button = PutioIconRole(
+      size: ScaledMetrics.buttonIconSize,
+      weight: .regular
+    )
+  }
+
   public enum Radius {
     public static let small: CGFloat = 4.0
     public static let standard: CGFloat = 6.0
@@ -1040,81 +335,25 @@ public enum PutioTheme {
   #if os(tvOS)
     public enum TV {
       public enum Colors {
-        public static let text1 = Color(
+        public static let textPrimary = Color(
           .sRGB,
           red: 0.93,
           green: 0.93,
           blue: 0.93,
           opacity: 1.0
         )
-        public static let text2 = Color(
+        public static let textSecondary = Color(
           .sRGB,
           red: 0.628,
           green: 0.628,
           blue: 0.628,
           opacity: 1.0
         )
-        public static let text3 = Color(
+        public static let textTertiary = Color(
           .sRGB,
           red: 0.628,
           green: 0.628,
           blue: 0.628,
-          opacity: 1.0
-        )
-        public static let tvChannelArtDevelopmentAccent = Color(
-          .sRGB,
-          red: 0.624,
-          green: 0.835187,
-          blue: 1.0,
-          opacity: 1.0
-        )
-        public static let tvChannelArtDevelopmentBg = Color(
-          .sRGB,
-          red: 0.14176,
-          green: 0.561606,
-          blue: 0.89824,
-          opacity: 1.0
-        )
-        public static let tvChannelArtDevelopmentGrid = Color(
-          .sRGB,
-          red: 1.0,
-          green: 1.0,
-          blue: 1.0,
-          opacity: 0.18
-        )
-        public static let tvChannelArtLabAccent = Color(
-          .sRGB,
-          red: 0.222447,
-          green: 1.0,
-          blue: 0.078,
-          opacity: 1.0
-        )
-        public static let tvChannelArtLabBg = Color(
-          .sRGB,
-          red: 0.0392,
-          green: 0.0588,
-          blue: 0.0392,
-          opacity: 1.0
-        )
-        public static let tvChannelArtLabFg = Color(
-          .sRGB,
-          red: 0.909723,
-          green: 1.0,
-          blue: 0.894,
-          opacity: 1.0
-        )
-        public static let tvChannelArtProductionPosterBg = Color(
-          .sRGB,
-          red: 0.2,
-          green: 0.2,
-          blue: 0.2,
-          opacity: 1.0
-        )
-        public static let tvChannelArtProductionSplashBg = Color(
-          .sRGB,
-          red: 0.085,
-          green: 0.085,
-          blue: 0.085,
           opacity: 1.0
         )
       }

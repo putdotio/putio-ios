@@ -14,7 +14,10 @@ let package = Package(
     .library(name: "PutioCore", targets: ["PutioCore"])
   ],
   targets: [
-    .target(name: "PutioCore"),
+    .target(
+      name: "PutioCore",
+      resources: [.process("Resources")]
+    ),
     .testTarget(name: "PutioCoreTests", dependencies: ["PutioCore"]),
   ]
 )

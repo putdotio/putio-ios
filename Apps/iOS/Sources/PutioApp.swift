@@ -9,6 +9,12 @@ struct PutioApp: App {
   var body: some Scene {
     WindowGroup {
       SignedOutView(presentation: presentation)
+        .modifier(
+          HarnessDynamicTypeModifier(
+            enabled: SignedOutPresentation.isHarnessExercise(
+              arguments: ProcessInfo.processInfo.arguments)
+          )
+        )
         .preferredColorScheme(.dark)
         .onAppear {
           if SignedOutPresentation.isHarnessExercise(arguments: ProcessInfo.processInfo.arguments) {
@@ -19,21 +25,39 @@ struct PutioApp: App {
   }
 }
 
+private struct HarnessDynamicTypeModifier: ViewModifier {
+  let enabled: Bool
+
+  @ViewBuilder
+  func body(content: Content) -> some View {
+    if enabled {
+      content.dynamicTypeSize(.accessibility3)
+    } else {
+      content
+    }
+  }
+}
+
 private struct SignedOutView: View {
-  @Environment(\.colorScheme) private var colorScheme
+  @PutioScaledMetric(PutioTheme.ScaledMetrics.contentGap) private var contentGap
 
   let presentation: SignedOutPresentation
 
   var body: some View {
-    VStack(spacing: PutioTheme.Spacing.space3) {
+    VStack(spacing: contentGap) {
+      if presentation.isHarnessExercise {
+        Image(systemName: "externaldrive.fill")
+          .putioIcon(PutioTheme.Icons.button)
+          .foregroundStyle(PutioTheme.Colors.accent)
+      }
       Text(presentation.title)
         .putioFont(PutioTheme.Typography.title)
-        .foregroundStyle(PutioTheme.Colors.text.resolve(for: colorScheme))
+        .foregroundStyle(PutioTheme.Colors.textPrimary)
       Text(presentation.message)
         .putioFont(PutioTheme.Typography.body)
-        .foregroundStyle(PutioTheme.Colors.textSecondary.resolve(for: colorScheme))
+        .foregroundStyle(PutioTheme.Colors.textSecondary)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(PutioTheme.Colors.appBg.resolve(for: colorScheme))
+    .background(PutioTheme.Colors.background)
   }
 }
