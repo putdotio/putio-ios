@@ -372,8 +372,33 @@ public struct PutioFontRole: Sendable {
     .custom(family, size: size, relativeTo: textStyle).weight(weight)
   }
 
-  public var lineSpacing: CGFloat {
+  var baseLineSpacing: CGFloat {
     max(0, size * (lineHeight - 1))
+  }
+}
+
+private struct PutioFontModifier: ViewModifier {
+  let role: PutioFontRole
+  @ScaledMetric private var lineSpacing: CGFloat
+
+  init(role: PutioFontRole) {
+    self.role = role
+    _lineSpacing = ScaledMetric(
+      wrappedValue: role.baseLineSpacing,
+      relativeTo: role.textStyle
+    )
+  }
+
+  func body(content: Content) -> some View {
+    content
+      .font(role.font)
+      .lineSpacing(lineSpacing)
+  }
+}
+
+extension View {
+  public func putioFont(_ role: PutioFontRole) -> some View {
+    modifier(PutioFontModifier(role: role))
   }
 }
 

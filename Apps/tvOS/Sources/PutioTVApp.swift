@@ -27,12 +27,10 @@ private struct SignedOutView: View {
   var body: some View {
     VStack(spacing: PutioTheme.TV.Spacing.small) {
       Text(presentation.title)
-        .font(PutioTheme.TV.Typography.heading.font)
-        .lineSpacing(PutioTheme.TV.Typography.heading.lineSpacing)
+        .putioFont(PutioTheme.TV.Typography.heading)
         .foregroundStyle(PutioTheme.TV.Colors.text1)
       Text(presentation.message)
-        .font(PutioTheme.TV.Typography.body.font)
-        .lineSpacing(PutioTheme.TV.Typography.body.lineSpacing)
+        .putioFont(PutioTheme.TV.Typography.body)
         .foregroundStyle(PutioTheme.TV.Colors.text2)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)

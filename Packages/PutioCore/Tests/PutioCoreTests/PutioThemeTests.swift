@@ -36,6 +36,6 @@ final class PutioThemeTests: XCTestCase {
       textStyle: .body
     )
 
-    XCTAssertEqual(role.lineSpacing, 0)
+    XCTAssertEqual(role.baseLineSpacing, 0)
   }
 }
