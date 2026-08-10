@@ -1,16 +1,6 @@
 import PutioCore
 import SwiftUI
 
-private enum TypographyHarnessProof {
-  static let hostileFilenames = [
-    "Résumé – été.pdf",
-    "東京の映画 🎬.mkv",
-    "Семейное видео.mp4",
-    "👩🏽‍🚀 archive.zip",
-  ]
-  static let numericSample = "02:41:09 · 1.25 GB"
-}
-
 @main
 struct PutioWatchApp: App {
   @State private var presentation = SignedOutPresentation.harnessInitialPresentation(
@@ -37,7 +27,7 @@ private struct SignedOutView: View {
   var body: some View {
     Group {
       if presentation.isHarnessExercise {
-        ScrollView { content }
+        ScrollView { content.padding(PutioTheme.Spacing.space4) }
       } else {
         content
       }

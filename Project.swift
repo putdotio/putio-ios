@@ -62,7 +62,7 @@ let project = Project(
         "UIUserInterfaceStyle": "Dark",
       ]),
       resources: brandFontResources(for: "ios"),
-      buildableFolders: ["Apps/iOS/Sources"],
+      buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
       dependencies: [
         .package(product: "PutioCore"),
         .target(name: "PutioWatch"),
@@ -83,7 +83,7 @@ let project = Project(
         "WKWatchOnly": false,
       ]),
       resources: brandFontResources(for: "watchos"),
-      buildableFolders: ["Apps/watchOS/Sources"],
+      buildableFolders: ["Apps/watchOS/Sources", "Apps/Shared/Sources"],
       dependencies: [
         .package(product: "PutioCore")
       ]
@@ -101,7 +101,7 @@ let project = Project(
         "UIUserInterfaceStyle": "Dark",
       ]),
       resources: brandFontResources(for: "tvos"),
-      buildableFolders: ["Apps/tvOS/Sources"],
+      buildableFolders: ["Apps/tvOS/Sources", "Apps/Shared/Sources"],
       dependencies: [
         .package(product: "PutioCore")
       ]
