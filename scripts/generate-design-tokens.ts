@@ -401,6 +401,17 @@ const assetColor = (value: string): Record<string, unknown> => {
 
 const formattedJSON = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
 
+const requiredDarkColorToken = (
+  entries: readonly TokenEntry[],
+  name: string,
+): DesignToken => {
+  const token = requiredToken(entries, name, "color");
+  if (token.mode !== "dark" && token.mode !== "global") {
+    throw new Error(`dark-only semantic color ${name} must use dark or global mode`);
+  }
+  return token;
+};
+
 export function renderAssetCatalog(
   entries: readonly TokenEntry[],
 ): Readonly<Record<string, string>> {
@@ -408,7 +419,7 @@ export function renderAssetCatalog(
     "Contents.json": formattedJSON({ info: { author: "xcode", version: 1 } }),
   };
   for (const role of semanticColorRoles) {
-    const token = requiredToken(entries, role.token, "color");
+    const token = requiredDarkColorToken(entries, role.token);
     files[`${role.assetName}.colorset/Contents.json`] = formattedJSON({
       colors: [{ color: assetColor(String(token.value)), idiom: "universal" }],
       info: { author: "xcode", version: 1 },
@@ -479,7 +490,7 @@ const requiredToken = (
 const renderProductColors = (entries: readonly TokenEntry[]): string =>
   semanticColorRoles
     .map((role) => {
-      requiredToken(entries, role.token, "color");
+      requiredDarkColorToken(entries, role.token);
       return `    public static let ${role.swiftName} = Color(\n      ${swiftString(role.assetName)},\n      bundle: .module\n    )`;
     })
     .join("\n\n");

@@ -55,6 +55,21 @@ test("renders dark-only semantic colors into the asset catalog", async () => {
   }
 });
 
+test("rejects light-mode sources for dark-only semantic colors", async () => {
+  const rawTokens = JSON.parse(
+    await readFile(fileURLToPath(import.meta.resolve("@putdotio/design/tokens")), "utf8"),
+  ) as unknown;
+  const entries = parseTokens(rawTokens).map((entry) =>
+    entry.name === "surface.dark.appBg"
+      ? { ...entry, token: { ...entry.token, mode: "light" as const } }
+      : entry,
+  );
+  assert.throws(
+    () => renderAssetCatalog(entries),
+    /dark-only semantic color surface\.dark\.appBg must use dark or global mode/,
+  );
+});
+
 test("rejects newly published tokens until coverage is classified", async () => {
   const [rawTokens, rawCoverage] = await Promise.all([
     readFile(fileURLToPath(import.meta.resolve("@putdotio/design/tokens")), "utf8"),
