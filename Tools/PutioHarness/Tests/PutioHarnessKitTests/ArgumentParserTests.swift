@@ -134,6 +134,13 @@ import Testing
   )
   #expect(!equalsAuthorization.contains("equals-secret"))
   #expect(equalsAuthorization.contains("[REDACTED]"))
+
+  let basicAuthorization = HarnessOutput.redact(
+    "Authorization: Basic basic-secret",
+    environment: [:]
+  )
+  #expect(!basicAuthorization.contains("basic-secret"))
+  #expect(basicAuthorization.contains("[REDACTED]"))
 }
 
 @Test func doctorOutputRedactsCaughtFailureDetails() throws {
