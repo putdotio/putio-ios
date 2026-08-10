@@ -9,6 +9,7 @@ struct PutioApp: App {
   var body: some Scene {
     WindowGroup {
       SignedOutView(presentation: presentation)
+        .preferredColorScheme(.dark)
         .onAppear {
           if SignedOutPresentation.isHarnessExercise(arguments: ProcessInfo.processInfo.arguments) {
             SignedOutPresentation.signalHarnessExercise()
@@ -36,6 +37,5 @@ private struct SignedOutView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(PutioTheme.Colors.appBg.resolve(for: colorScheme))
-    .preferredColorScheme(.dark)
   }
 }

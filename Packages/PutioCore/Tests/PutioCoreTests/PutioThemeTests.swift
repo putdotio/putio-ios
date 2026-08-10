@@ -19,4 +19,16 @@ final class PutioThemeTests: XCTestCase {
       PutioCubicBezier(x1: 0.22, y1: 1, x2: 0.36, y2: 1)
     )
   }
+
+  func testFontRoleLineSpacingClampsNegativeLeading() {
+    let role = PutioFontRole(
+      family: "System",
+      size: 20,
+      weight: .regular,
+      lineHeight: 0.8,
+      textStyle: .body
+    )
+
+    XCTAssertEqual(role.lineSpacing, 0)
+  }
 }

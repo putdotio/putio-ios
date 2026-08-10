@@ -352,21 +352,24 @@ public struct PutioFontRole: Sendable {
   public let size: CGFloat
   public let weight: Font.Weight
   public let lineHeight: CGFloat
+  public let textStyle: Font.TextStyle
 
   public init(
     family: String,
     size: CGFloat,
     weight: Font.Weight,
-    lineHeight: CGFloat
+    lineHeight: CGFloat,
+    textStyle: Font.TextStyle
   ) {
     self.family = family
     self.size = size
     self.weight = weight
     self.lineHeight = lineHeight
+    self.textStyle = textStyle
   }
 
   public var font: Font {
-    .custom(family, size: size).weight(weight)
+    .custom(family, size: size, relativeTo: textStyle).weight(weight)
   }
 
   public var lineSpacing: CGFloat {
@@ -420,44 +423,51 @@ ${renderProductColors(entries)}
       family: familySans,
       size: sizeSm,
       weight: ${fontWeight(requiredToken(entries, "typography.fontWeight.regular").value)},
-      lineHeight: ${numberValue(entries, "typography.lineHeight.normal")}
+      lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
+      textStyle: .caption
     )
     public static let body = PutioFontRole(
       family: familySans,
       size: sizeBase,
       weight: ${fontWeight(requiredToken(entries, "typography.fontWeight.regular").value)},
-      lineHeight: ${numberValue(entries, "typography.lineHeight.normal")}
+      lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
+      textStyle: .body
     )
     public static let subheading = PutioFontRole(
       family: familySans,
       size: sizeMd,
       weight: ${fontWeight(requiredToken(entries, "typography.fontWeight.medium").value)},
-      lineHeight: ${numberValue(entries, "typography.lineHeight.snug")}
+      lineHeight: ${numberValue(entries, "typography.lineHeight.snug")},
+      textStyle: .subheadline
     )
     public static let heading = PutioFontRole(
       family: familySans,
       size: sizeLg,
       weight: ${fontWeight(requiredToken(entries, "typography.fontWeight.bold").value)},
-      lineHeight: ${numberValue(entries, "typography.lineHeight.tight")}
+      lineHeight: ${numberValue(entries, "typography.lineHeight.tight")},
+      textStyle: .headline
     )
     public static let title = PutioFontRole(
       family: familySans,
       size: sizeXl,
       weight: ${fontWeight(requiredToken(entries, "typography.fontWeight.bold").value)},
-      lineHeight: ${numberValue(entries, "typography.lineHeight.tight")}
+      lineHeight: ${numberValue(entries, "typography.lineHeight.tight")},
+      textStyle: .title
     )
     public static let display = PutioFontRole(
       family: familyDisplay,
       size: sizeDisplay,
       weight: ${fontWeight(requiredToken(entries, "typography.fontWeight.black").value)},
-      lineHeight: ${numberValue(entries, "typography.lineHeight.tight")}
+      lineHeight: ${numberValue(entries, "typography.lineHeight.tight")},
+      textStyle: .largeTitle
     )
     #if !os(tvOS)
       public static let mono = PutioFontRole(
         family: familyMono,
         size: sizeSm,
         weight: ${fontWeight(requiredToken(entries, "typography.fontWeight.regular").value)},
-        lineHeight: ${numberValue(entries, "typography.lineHeight.normal")}
+        lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
+        textStyle: .caption
       )
     #endif
   }
@@ -515,31 +525,36 @@ ${renderTVColors(entries)}
           family: PutioTheme.Typography.familySans,
           size: ${dimension(entries, "tv.text.heading")},
           weight: ${fontWeight(requiredToken(entries, "tv.fontWeight.medium").value)},
-          lineHeight: ${numberValue(entries, "typography.lineHeight.tight")}
+          lineHeight: ${numberValue(entries, "typography.lineHeight.tight")},
+          textStyle: .title
         )
         public static let label = PutioFontRole(
           family: PutioTheme.Typography.familySans,
           size: ${dimension(entries, "tv.text.label")},
           weight: ${fontWeight(requiredToken(entries, "tv.fontWeight.medium").value)},
-          lineHeight: ${numberValue(entries, "typography.lineHeight.snug")}
+          lineHeight: ${numberValue(entries, "typography.lineHeight.snug")},
+          textStyle: .headline
         )
         public static let body = PutioFontRole(
           family: PutioTheme.Typography.familySans,
           size: ${dimension(entries, "tv.text.body")},
           weight: ${fontWeight(requiredToken(entries, "tv.fontWeight.regular").value)},
-          lineHeight: ${numberValue(entries, "typography.lineHeight.normal")}
+          lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
+          textStyle: .body
         )
         public static let caption = PutioFontRole(
           family: PutioTheme.Typography.familySans,
           size: ${dimension(entries, "tv.text.caption")},
           weight: ${fontWeight(requiredToken(entries, "tv.fontWeight.regular").value)},
-          lineHeight: ${numberValue(entries, "typography.lineHeight.normal")}
+          lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
+          textStyle: .caption
         )
         public static let small = PutioFontRole(
           family: PutioTheme.Typography.familySans,
           size: ${dimension(entries, "tv.text.smol")},
           weight: ${fontWeight(requiredToken(entries, "tv.fontWeight.regular").value)},
-          lineHeight: ${numberValue(entries, "typography.lineHeight.normal")}
+          lineHeight: ${numberValue(entries, "typography.lineHeight.normal")},
+          textStyle: .caption2
         )
       }
 
