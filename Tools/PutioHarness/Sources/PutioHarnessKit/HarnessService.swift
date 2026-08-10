@@ -122,11 +122,11 @@ public enum HarnessOutput {
     case (.help(let usage), _):
       usage
     case (.doctor(let report), .json):
-      try encode(report)
+      try encode(redacted(report))
     case (.doctor(let report), .text):
       (["doctor: \(report.status)"]
         + report.checks.map { check in
-          "\(check.status.rawValue): \(check.name): \(check.detail)"
+          "\(check.status.rawValue): \(check.name): \(redact(check.detail))"
         }).joined(separator: "\n")
     case (.result(let result), .json):
       try encode(result)
@@ -189,6 +189,18 @@ public enum HarnessOutput {
         in: result, range: range, withTemplate: replacement.template)
     }
     return result
+  }
+
+  private static func redacted(_ report: DoctorReport) -> DoctorReport {
+    DoctorReport(
+      checks: report.checks.map { check in
+        DoctorCheck(
+          name: check.name,
+          status: check.status,
+          required: check.required,
+          detail: redact(check.detail)
+        )
+      })
   }
 
   private static func encode<T: Encodable>(_ value: T) throws -> String {

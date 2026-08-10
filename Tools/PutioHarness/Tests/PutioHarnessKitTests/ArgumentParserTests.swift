@@ -117,3 +117,21 @@ import Testing
   )
   #expect(escapedJSON == #"{"secret":"[REDACTED]"}"#)
 }
+
+@Test func doctorOutputRedactsCaughtFailureDetails() throws {
+  let report = DoctorReport(checks: [
+    DoctorCheck(
+      name: "simulator-runtimes",
+      status: .failed,
+      required: true,
+      detail: #"command failed: {"access_token":"secret with spaces"}"#
+    )
+  ])
+
+  let text = try HarnessOutput.render(.doctor(report), format: .text)
+  let json = try HarnessOutput.render(.doctor(report), format: .json)
+  #expect(!text.contains("secret with spaces"))
+  #expect(!json.contains("secret with spaces"))
+  #expect(text.contains("[REDACTED]"))
+  #expect(json.contains("[REDACTED]"))
+}
