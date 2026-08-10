@@ -3,9 +3,17 @@ import SwiftUI
 
 @main
 struct PutioWatchApp: App {
+  @State private var presentation = SignedOutPresentation.harnessInitialPresentation(
+    arguments: ProcessInfo.processInfo.arguments)
+
   var body: some Scene {
     WindowGroup {
-      SignedOutView(presentation: .putio)
+      SignedOutView(presentation: presentation)
+        .onOpenURL { url in
+          if let exercised = SignedOutPresentation.harnessExercise(for: url) {
+            presentation = exercised
+          }
+        }
     }
   }
 }

@@ -23,10 +23,10 @@ public struct HarnessService {
       return .help(HarnessArgumentParser.usage)
     case .doctor:
       return .doctor(HarnessDoctor(context: context).inspect())
-    case .authStatus(let profile, _):
-      return .result(try live.authStatus(profile: profile))
-    case .liveFixture(let profile, let name, _):
-      return .result(try live.provisionFixture(profile: profile, name: name))
+    case .authStatus:
+      return .result(try live.authStatus())
+    case .liveFixture:
+      return .result(try live.provisionFixture())
     case .publish(let artifact, let repository, let pullRequest, _):
       return .result(
         try live.publish(artifact: artifact, repository: repository, pullRequest: pullRequest)
@@ -55,9 +55,12 @@ public struct HarnessService {
     switch command {
     case .build:
       for platform in platforms { runs.append(try simulator.build(platform)) }
-    case .launch, .exercise:
+    case .launch:
       guard let platform = platforms.first else { throw HarnessFailure("no platform selected") }
-      runs.append(try simulator.launch(platform, command: command))
+      runs.append(try simulator.launch(platform))
+    case .exercise:
+      guard let platform = platforms.first else { throw HarnessFailure("no platform selected") }
+      runs.append(try simulator.exercise(platform))
     case .screenshot, .record, .proof:
       let runID = try requestedRunID ?? simulator.defaultRunID()
       for platform in platforms {
@@ -90,8 +93,8 @@ public enum HarnessOutput {
     case .help: .text
     case .doctor(let output): output
     case .surface(_, _, _, _, let output): output
-    case .authStatus(_, let output): output
-    case .liveFixture(_, _, let output): output
+    case .authStatus(let output): output
+    case .liveFixture(let output): output
     case .publish(_, _, _, let output): output
     }
   }

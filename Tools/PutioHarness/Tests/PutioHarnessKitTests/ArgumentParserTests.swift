@@ -26,7 +26,20 @@ import Testing
 
 @Test func defaultsLiveProfile() throws {
   let invocation = try HarnessArgumentParser.parse(["auth-status", "--output", "json"])
-  #expect(invocation == .authStatus(profile: "devs-fe-auto", output: .json))
+  #expect(invocation == .authStatus(output: .json))
+}
+
+@Test func rejectsLiveProfileAndNamespaceOverrides() {
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "auth-status", "--profile", "personal", "--output", "json",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "live-fixture", "--name", "unrelated", "--output", "json",
+    ])
+  }
 }
 
 @Test func publishRequiresPositivePullRequest() {

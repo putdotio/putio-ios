@@ -43,6 +43,7 @@ public struct ProcessRunner: Sendable {
     _ executable: String,
     _ arguments: [String] = [],
     environment: [String: String] = [:],
+    removingEnvironment: Set<String> = [],
     currentDirectory: URL? = nil
   ) throws -> ProcessOutput {
     let captureDirectory = FileManager.default.temporaryDirectory
@@ -60,6 +61,7 @@ public struct ProcessRunner: Sendable {
       executable,
       arguments,
       environment: environment,
+      removingEnvironment: removingEnvironment,
       currentDirectory: currentDirectory
     )
     process.standardOutput = stdoutHandle
@@ -77,6 +79,7 @@ public struct ProcessRunner: Sendable {
     _ executable: String,
     _ arguments: [String] = [],
     environment: [String: String] = [:],
+    removingEnvironment: Set<String> = [],
     currentDirectory: URL? = nil,
     context: String
   ) throws -> ProcessOutput {
@@ -84,6 +87,7 @@ public struct ProcessRunner: Sendable {
       executable,
       arguments,
       environment: environment,
+      removingEnvironment: removingEnvironment,
       currentDirectory: currentDirectory
     )
     guard output.status == 0 else {
@@ -96,12 +100,14 @@ public struct ProcessRunner: Sendable {
     _ executable: String,
     _ arguments: [String] = [],
     environment: [String: String] = [:],
+    removingEnvironment: Set<String> = [],
     currentDirectory: URL? = nil
   ) throws -> RunningProcess {
     let process = configuredProcess(
       executable,
       arguments,
       environment: environment,
+      removingEnvironment: removingEnvironment,
       currentDirectory: currentDirectory
     )
     let stdoutPipe = Pipe()
@@ -116,14 +122,17 @@ public struct ProcessRunner: Sendable {
     _ executable: String,
     _ arguments: [String],
     environment: [String: String],
+    removingEnvironment: Set<String>,
     currentDirectory: URL?
   ) -> Process {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
     process.arguments = [executable] + arguments
-    process.environment = ProcessInfo.processInfo.environment.merging(environment) { _, override in
+    var childEnvironment = ProcessInfo.processInfo.environment.merging(environment) { _, override in
       override
     }
+    for key in removingEnvironment { childEnvironment.removeValue(forKey: key) }
+    process.environment = childEnvironment
     process.currentDirectoryURL = currentDirectory
     return process
   }

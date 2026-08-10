@@ -16,7 +16,8 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         productDirectory: "Debug-iphonesimulator",
         appName: "Putio.app",
         runtimePlatform: "iOS",
-        deviceFamily: "iPhone"
+        deviceFamily: "iPhone",
+        exerciseURL: "putio-harness://exercise"
       )
     case .watchos:
       PlatformConfiguration(
@@ -27,7 +28,8 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         productDirectory: "Debug-watchsimulator",
         appName: "PutioWatch.app",
         runtimePlatform: "watchOS",
-        deviceFamily: "Apple Watch"
+        deviceFamily: "Apple Watch",
+        exerciseURL: "putio-harness://exercise"
       )
     case .tvos:
       PlatformConfiguration(
@@ -38,7 +40,8 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         productDirectory: "Debug-appletvsimulator",
         appName: "PutioTV.app",
         runtimePlatform: "tvOS",
-        deviceFamily: "Apple TV"
+        deviceFamily: "Apple TV",
+        exerciseURL: "putio-harness://exercise"
       )
     }
   }
@@ -53,6 +56,7 @@ public struct PlatformConfiguration: Equatable, Sendable {
   public let appName: String
   public let runtimePlatform: String
   public let deviceFamily: String
+  public let exerciseURL: String
 
   public init(
     scheme: String,
@@ -62,7 +66,8 @@ public struct PlatformConfiguration: Equatable, Sendable {
     productDirectory: String,
     appName: String,
     runtimePlatform: String,
-    deviceFamily: String
+    deviceFamily: String,
+    exerciseURL: String
   ) {
     self.scheme = scheme
     self.bundleIdentifier = bundleIdentifier
@@ -72,6 +77,7 @@ public struct PlatformConfiguration: Equatable, Sendable {
     self.appName = appName
     self.runtimePlatform = runtimePlatform
     self.deviceFamily = deviceFamily
+    self.exerciseURL = exerciseURL
   }
 }
 
@@ -111,9 +117,14 @@ public enum HarnessInvocation: Equatable, Sendable {
     recordSeconds: Int,
     output: OutputFormat
   )
-  case authStatus(profile: String, output: OutputFormat)
-  case liveFixture(profile: String, name: String, output: OutputFormat)
+  case authStatus(output: OutputFormat)
+  case liveFixture(output: OutputFormat)
   case publish(artifact: String, repository: String, pullRequest: Int, output: OutputFormat)
+}
+
+enum LiveFixtureContract {
+  static let profile = "devs-fe-auto"
+  static let rootFolder = "putio-ios-harness"
 }
 
 public struct HarnessResult: Codable, Sendable {

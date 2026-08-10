@@ -46,35 +46,46 @@ private struct AttachResponse: Decodable {
 public struct LiveAdapters: Sendable {
   private let context: RepositoryContext
   private let runner: ProcessRunner
+  private let environment = ["PUTIO_CLI_PROFILE": LiveFixtureContract.profile]
+  private let removedEnvironment: Set<String> = ["PUTIO_CLI_TOKEN"]
 
   public init(context: RepositoryContext, runner: ProcessRunner = ProcessRunner()) {
     self.context = context
     self.runner = runner
   }
 
-  public func authStatus(profile: String) throws -> HarnessResult {
+  public func authStatus() throws -> HarnessResult {
+    let profile = LiveFixtureContract.profile
     _ = try runner.checked(
-      "putio", ["describe", "--output", "json"], context: "discover putio CLI contract")
+      "putio",
+      ["describe", "--output", "json"],
+      environment: environment,
+      removingEnvironment: removedEnvironment,
+      context: "discover putio CLI contract"
+    )
     let output = try runner.checked(
       "putio",
       ["auth", "status", "--profile", profile, "--output", "json"],
+      environment: environment,
+      removingEnvironment: removedEnvironment,
       context: "check putio profile \(profile)"
     )
     let status = try JSONDecoder().decode(PutioAuthStatus.self, from: Data(output.stdout.utf8))
-    guard status.authenticated else {
+    guard status.authenticated, status.source == "profile", status.profile == profile else {
       throw HarnessFailure(
-        "putio profile \(profile) is not authenticated; run putio auth login --profile \(profile)")
+        "putio profile \(profile) is not authenticated from profile storage; run putio auth login --profile \(profile)"
+      )
     }
     return HarnessResult(
       command: "auth-status",
-      message:
-        "profile \(status.profile ?? profile) is authenticated via \(status.source ?? "unknown source")"
+      message: "profile \(profile) is authenticated via profile storage"
     )
   }
 
-  public func provisionFixture(profile: String, name: String) throws -> HarnessResult {
-    _ = try authStatus(profile: profile)
-    let environment = ["PUTIO_CLI_PROFILE": profile]
+  public func provisionFixture() throws -> HarnessResult {
+    _ = try authStatus()
+    let profile = LiveFixtureContract.profile
+    let name = LiveFixtureContract.rootFolder
     let listOutput = try runner.checked(
       "putio",
       [
@@ -86,6 +97,7 @@ public struct LiveAdapters: Sendable {
         "--output", "json",
       ],
       environment: environment,
+      removingEnvironment: removedEnvironment,
       context: "list putio harness fixtures"
     )
     let files = try JSONDecoder().decode(PutioFileList.self, from: Data(listOutput.stdout.utf8))
@@ -105,12 +117,14 @@ public struct LiveAdapters: Sendable {
       "putio",
       ["files", "mkdir", "--json", payload, "--dry-run", "--output", "json"],
       environment: environment,
+      removingEnvironment: removedEnvironment,
       context: "validate putio harness fixture write"
     )
     let createOutput = try runner.checked(
       "putio",
       ["files", "mkdir", "--json", payload, "--output", "json"],
       environment: environment,
+      removingEnvironment: removedEnvironment,
       context: "create putio harness fixture"
     )
     let created = try JSONDecoder().decode(

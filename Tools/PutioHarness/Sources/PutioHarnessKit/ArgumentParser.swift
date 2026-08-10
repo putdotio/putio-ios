@@ -5,8 +5,8 @@ public enum HarnessArgumentParser {
     Usage:
       putio-harness doctor [--output text|json]
       putio-harness <build|launch|exercise|screenshot|record|proof> --platform <ios|watchos|tvos|all> [--run-id ID] [--record-seconds N] [--output text|json]
-      putio-harness auth-status [--profile NAME] [--output text|json]
-      putio-harness live-fixture [--profile NAME] [--name NAME] [--output text|json]
+      putio-harness auth-status [--output text|json]
+      putio-harness live-fixture [--output text|json]
       putio-harness publish --artifact PATH --repo OWNER/REPO --pr NUMBER [--output text|json]
 
     Simulator commands are headless. They never open Simulator.app.
@@ -26,17 +26,11 @@ public enum HarnessArgumentParser {
       try options.rejectUnknown(allowing: ["output"])
       return .doctor(output: output)
     case "auth-status":
-      try options.rejectUnknown(allowing: ["profile", "output"])
-      return .authStatus(profile: options.value("profile") ?? "devs-fe-auto", output: output)
+      try options.rejectUnknown(allowing: ["output"])
+      return .authStatus(output: output)
     case "live-fixture":
-      try options.rejectUnknown(allowing: ["profile", "name", "output"])
-      let name = options.value("name") ?? "putio-ios-harness"
-      try validateIdentifier(name, label: "fixture name")
-      return .liveFixture(
-        profile: options.value("profile") ?? "devs-fe-auto",
-        name: name,
-        output: output
-      )
+      try options.rejectUnknown(allowing: ["output"])
+      return .liveFixture(output: output)
     case "publish":
       try options.rejectUnknown(allowing: ["artifact", "repo", "pr", "output"])
       let artifact = try options.required("artifact")

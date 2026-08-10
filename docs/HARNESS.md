@@ -30,6 +30,8 @@ Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` 
 
 All simulator commands are headless. The harness never opens Simulator.app. Each run creates uniquely named devices, pairs watchOS with an ephemeral iPhone companion, waits for boot and a rendered app frame, and shuts down and deletes every created device on success or failure.
 
+`exercise` launches the selected app and requires a visible state transition while the process remains alive. iOS and tvOS open the dedicated `putio-harness://exercise` deep link with `simctl`; watchOS relaunches the paired Watch app with the explicit exercised scenario because Watch Simulator does not route custom URLs through `simctl openurl`.
+
 ## Deterministic proof
 
 `proof` builds, installs, records the launch, verifies the app process remains alive, waits for the display to change from its pre-launch state, and captures a screenshot. Artifacts are written beneath:
@@ -44,6 +46,7 @@ build/proof/<run-id>/<platform>/
 ```
 
 The manifest records the commit, platform, scheme, bundle identifier, runtime, device type, simulator name, fixture set, artifact sizes, and SHA-256 digests. `build/` is ignored by Git.
+Proof capture rejects tracked or untracked source changes so the manifest commit always identifies the exact built source.
 
 Capture never uploads implicitly. Publish one reviewed artifact only after a pull request exists:
 
@@ -59,11 +62,11 @@ mise run harness -- publish \
 Deterministic proof requires no put.io account or secret. Live smoke uses the global `putio` CLI and the dedicated `devs-fe-auto` profile:
 
 ```bash
-mise run harness -- auth-status --profile devs-fe-auto --output json
-mise run harness -- live-fixture --profile devs-fe-auto --output json
+mise run harness -- auth-status --output json
+mise run harness -- live-fixture --output json
 ```
 
-`live-fixture` is idempotent. It reuses the root `putio-ios-harness` folder or validates the write with `--dry-run` before creating it. Tokens are never read from CLI storage or written to proof artifacts. App session injection, device-code approval, and richer live fixture creation remain unavailable until their owning CLI and app contracts land.
+The live commands are fixed to the `devs-fe-auto` profile and the root `putio-ios-harness` folder; profile and namespace overrides are rejected. They remove ambient `PUTIO_CLI_TOKEN` from every child process and require authentication to resolve from the named profile before any write. `live-fixture` is idempotent: it reuses the root folder or validates the write with `--dry-run` before creating it. Tokens are never read from CLI storage or written to proof artifacts. App session injection, device-code approval, and richer live fixture creation remain unavailable until their owning CLI and app contracts land.
 
 ## CI and platform limits
 
