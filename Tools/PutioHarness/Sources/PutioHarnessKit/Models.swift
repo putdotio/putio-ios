@@ -94,6 +94,7 @@ public enum OutputFormat: String, Equatable, Sendable {
 
 public enum SurfaceCommand: String, CaseIterable, Equatable, Sendable {
   case build
+  case boot
   case launch
   case exercise
   case screenshot

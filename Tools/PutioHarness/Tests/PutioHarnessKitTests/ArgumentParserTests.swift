@@ -18,6 +18,22 @@ import Testing
   )
 }
 
+@Test func parsesStandaloneBoot() throws {
+  let invocation = try HarnessArgumentParser.parse([
+    "boot", "--platform", "watchos", "--output", "json",
+  ])
+  #expect(
+    invocation
+      == .surface(
+        command: .boot,
+        platforms: .one(.watchos),
+        runID: nil,
+        recordSeconds: 3,
+        output: .json
+      )
+  )
+}
+
 @Test func rejectsUnknownPlatform() {
   #expect(throws: HarnessFailure.self) {
     try HarnessArgumentParser.parse(["proof", "--platform", "visionos"])

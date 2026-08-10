@@ -32,12 +32,30 @@ private final class SimulatorSession {
     self.runner = runner
   }
 
-  func cleanup() {
-    _ = try? runner.run("xcrun", ["simctl", "shutdown", deviceIdentifier])
-    _ = try? runner.run("xcrun", ["simctl", "delete", deviceIdentifier])
-    if let companionIdentifier {
-      _ = try? runner.run("xcrun", ["simctl", "shutdown", companionIdentifier])
-      _ = try? runner.run("xcrun", ["simctl", "delete", companionIdentifier])
+  func cleanup() throws {
+    let identifiers = [deviceIdentifier, companionIdentifier].compactMap { $0 }
+    var diagnostics: [String] = []
+    for identifier in identifiers {
+      do {
+        let output = try runner.run("xcrun", ["simctl", "shutdown", identifier])
+        if output.status != 0 { diagnostics.append(output.combinedOutput) }
+      } catch {
+        diagnostics.append("shutdown \(identifier): \(error)")
+      }
+      do {
+        let output = try runner.run("xcrun", ["simctl", "delete", identifier])
+        if output.status != 0 { diagnostics.append(output.combinedOutput) }
+      } catch {
+        diagnostics.append("delete \(identifier): \(error)")
+      }
+    }
+    let devices = try runner.checked(
+      "xcrun", ["simctl", "list", "devices", "-j"], context: "verify Simulator cleanup")
+    let remaining = identifiers.filter { devices.stdout.contains($0) }
+    guard remaining.isEmpty else {
+      let detail = diagnostics.filter { !$0.isEmpty }.joined(separator: "\n")
+      throw HarnessFailure(
+        "Simulator cleanup left devices behind: \(remaining.joined(separator: ", "))\n\(detail)")
     }
   }
 }
@@ -93,6 +111,16 @@ public struct SimulatorHarness {
     try runInstalledApp(platform, shouldExercise: false)
   }
 
+  public func boot(_ platform: HarnessPlatform) throws -> SurfaceRun {
+    try withSession(platform: platform, runID: UUID().uuidString.lowercased()) { _ in
+      SurfaceRun(
+        platform: platform,
+        artifacts: [],
+        message: "boot confirmed ephemeral \(platform.rawValue) Simulator"
+      )
+    }
+  }
+
   public func exercise(_ platform: HarnessPlatform) throws -> SurfaceRun {
     try runInstalledApp(platform, shouldExercise: true)
   }
@@ -104,30 +132,30 @@ public struct SimulatorHarness {
     let scratch = context.root.appending(path: "build/harness/\(UUID().uuidString.lowercased())")
     try fileManager.createDirectory(at: scratch, withIntermediateDirectories: true)
     defer { try? fileManager.removeItem(at: scratch) }
-    let session = try createSession(platform: platform, runID: UUID().uuidString.lowercased())
-    defer { session.cleanup() }
-    try install(platform: platform, session: session)
-    let screenshot = scratch.appending(path: "ready.png")
-    let pid = try launchAndWait(
-      platform: platform, session: session, screenshot: screenshot, logsDirectory: scratch)
-    if shouldExercise {
-      let exercisedScreenshot = scratch.appending(path: "exercised.png")
-      _ = try performExercise(
+    return try withSession(platform: platform, runID: UUID().uuidString.lowercased()) { session in
+      try install(platform: platform, session: session)
+      let screenshot = scratch.appending(path: "ready.png")
+      let pid = try launchAndWait(
+        platform: platform, session: session, screenshot: screenshot, logsDirectory: scratch)
+      if shouldExercise {
+        let exercisedScreenshot = scratch.appending(path: "exercised.png")
+        _ = try performExercise(
+          platform: platform,
+          session: session,
+          pid: pid,
+          baseline: screenshot,
+          screenshot: exercisedScreenshot,
+          logsDirectory: scratch
+        )
+      }
+      return SurfaceRun(
         platform: platform,
-        session: session,
-        pid: pid,
-        baseline: screenshot,
-        screenshot: exercisedScreenshot,
-        logsDirectory: scratch
+        artifacts: [],
+        message: shouldExercise
+          ? "exercise confirmed \(platform.configuration.bundleIdentifier) completed its visible harness scenario"
+          : "launch confirmed \(platform.configuration.bundleIdentifier) stayed running"
       )
     }
-    return SurfaceRun(
-      platform: platform,
-      artifacts: [],
-      message: shouldExercise
-        ? "exercise confirmed \(platform.configuration.bundleIdentifier) completed its visible harness scenario"
-        : "launch confirmed \(platform.configuration.bundleIdentifier) stayed running"
-    )
   }
 
   public func capture(
@@ -149,80 +177,80 @@ public struct SimulatorHarness {
     try fileManager.createDirectory(at: platformDirectory, withIntermediateDirectories: true)
 
     do {
-      let session = try createSession(platform: platform, runID: runID)
-      defer { session.cleanup() }
-      try install(platform: platform, session: session)
+      return try withSession(platform: platform, runID: runID) { session in
+        try install(platform: platform, session: session)
 
-      let wantsScreenshot = command == .screenshot || command == .proof
-      let wantsRecording = command == .record || command == .proof
-      let screenshot = platformDirectory.appending(
-        path: command == .proof ? "exercised.png" : "signed-out.png")
-      let readinessScreenshot =
-        command == .proof
-        ? platformDirectory.appending(path: ".signed-out-readiness.png")
-        : wantsScreenshot ? screenshot : platformDirectory.appending(path: ".readiness.png")
-      let recording = platformDirectory.appending(path: "launch.mp4")
-      let recordingProcess =
-        wantsRecording ? try startRecording(session: session, output: recording) : nil
-      defer {
-        if let recordingProcess { _ = recordingProcess.interruptAndWait() }
-      }
+        let wantsScreenshot = command == .screenshot || command == .proof
+        let wantsRecording = command == .record || command == .proof
+        let screenshot = platformDirectory.appending(
+          path: command == .proof ? "exercised.png" : "signed-out.png")
+        let readinessScreenshot =
+          command == .proof
+          ? platformDirectory.appending(path: ".signed-out-readiness.png")
+          : wantsScreenshot ? screenshot : platformDirectory.appending(path: ".readiness.png")
+        let recording = platformDirectory.appending(path: "launch.mp4")
+        let recordingProcess =
+          wantsRecording ? try startRecording(session: session, output: recording) : nil
+        defer {
+          if let recordingProcess { _ = recordingProcess.interruptAndWait() }
+        }
 
-      var pid = try launchAndWait(
-        platform: platform,
-        session: session,
-        screenshot: readinessScreenshot,
-        logsDirectory: platformDirectory
-      )
-      if command == .proof {
-        pid = try performExercise(
+        var pid = try launchAndWait(
           platform: platform,
           session: session,
-          pid: pid,
-          baseline: readinessScreenshot,
-          screenshot: screenshot,
+          screenshot: readinessScreenshot,
           logsDirectory: platformDirectory
         )
-        try? fileManager.removeItem(at: readinessScreenshot)
-      }
+        if command == .proof {
+          pid = try performExercise(
+            platform: platform,
+            session: session,
+            pid: pid,
+            baseline: readinessScreenshot,
+            screenshot: screenshot,
+            logsDirectory: platformDirectory
+          )
+          try? fileManager.removeItem(at: readinessScreenshot)
+        }
 
-      if wantsRecording {
-        try waitForLiveness(
-          pid: pid,
-          seconds: TimeInterval(recordSeconds),
-          bundleIdentifier: platform.configuration.bundleIdentifier
+        if wantsRecording {
+          try waitForLiveness(
+            pid: pid,
+            seconds: TimeInterval(recordSeconds),
+            bundleIdentifier: platform.configuration.bundleIdentifier
+          )
+          guard let recordingProcess else {
+            throw HarnessFailure("recording process was not created")
+          }
+          let output = recordingProcess.interruptAndWait()
+          guard output.status == 0 else {
+            throw HarnessFailure("record \(platform.rawValue) failed\n\(output.combinedOutput)")
+          }
+          try requireNonemptyFile(recording, context: "recording")
+          guard processIsRunning(pid) else {
+            throw HarnessFailure(
+              "\(platform.configuration.bundleIdentifier) exited before proof capture completed")
+          }
+        }
+        if !wantsScreenshot { try? fileManager.removeItem(at: readinessScreenshot) }
+
+        let artifactURLs = [wantsScreenshot ? screenshot : nil, wantsRecording ? recording : nil]
+          .compactMap { $0 }
+        let manifest = try writeManifest(
+          platform: platform,
+          command: command,
+          runID: runID,
+          session: session,
+          artifactURLs: artifactURLs,
+          directory: platformDirectory
         )
-        guard let recordingProcess else {
-          throw HarnessFailure("recording process was not created")
-        }
-        let output = recordingProcess.interruptAndWait()
-        guard output.status == 0 else {
-          throw HarnessFailure("record \(platform.rawValue) failed\n\(output.combinedOutput)")
-        }
-        try requireNonemptyFile(recording, context: "recording")
-        guard processIsRunning(pid) else {
-          throw HarnessFailure(
-            "\(platform.configuration.bundleIdentifier) exited before proof capture completed")
-        }
+        return SurfaceRun(
+          platform: platform,
+          artifacts: artifactURLs + [manifest],
+          message:
+            "captured \(command.rawValue) for \(platform.rawValue) in \(platformDirectory.path)"
+        )
       }
-      if !wantsScreenshot { try? fileManager.removeItem(at: readinessScreenshot) }
-
-      let artifactURLs = [wantsScreenshot ? screenshot : nil, wantsRecording ? recording : nil]
-        .compactMap { $0 }
-      let manifest = try writeManifest(
-        platform: platform,
-        command: command,
-        runID: runID,
-        session: session,
-        artifactURLs: artifactURLs,
-        directory: platformDirectory
-      )
-      return SurfaceRun(
-        platform: platform,
-        artifacts: artifactURLs + [manifest],
-        message:
-          "captured \(command.rawValue) for \(platform.rawValue) in \(platformDirectory.path)"
-      )
     } catch {
       let diagnostics = failureDiagnostics(in: platformDirectory)
       try? fileManager.removeItem(at: platformDirectory)
@@ -243,6 +271,31 @@ public struct SimulatorHarness {
     formatter.timeZone = TimeZone(secondsFromGMT: 0)
     formatter.dateFormat = "yyyyMMdd'T'HHmmss'Z'"
     return "\(formatter.string(from: Date()))-\(commit)"
+  }
+
+  private func withSession<T>(
+    platform: HarnessPlatform,
+    runID: String,
+    operation: (SimulatorSession) throws -> T
+  ) throws -> T {
+    let session = try createSession(platform: platform, runID: runID)
+    let result: Result<T, Error>
+    do {
+      result = .success(try operation(session))
+    } catch {
+      result = .failure(error)
+    }
+    do {
+      try session.cleanup()
+    } catch {
+      switch result {
+      case .success:
+        throw error
+      case .failure(let operationError):
+        throw HarnessFailure("\(operationError)\ncleanup failed: \(error)")
+      }
+    }
+    return try result.get()
   }
 
   private func requireGeneratedWorkspace() throws {

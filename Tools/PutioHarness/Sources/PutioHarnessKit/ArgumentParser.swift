@@ -4,7 +4,7 @@ public enum HarnessArgumentParser {
   public static let usage = """
     Usage:
       putio-harness doctor [--output text|json]
-      putio-harness <build|launch|exercise|screenshot|record|proof> --platform <ios|watchos|tvos|all> [--run-id ID] [--record-seconds N] [--output text|json]
+      putio-harness <build|boot|launch|exercise|screenshot|record|proof> --platform <ios|watchos|tvos|all> [--run-id ID] [--record-seconds N] [--output text|json]
       putio-harness auth-status [--output text|json]
       putio-harness live-fixture [--output text|json]
       putio-harness publish --artifact PATH --repo OWNER/REPO --pr NUMBER [--output text|json]

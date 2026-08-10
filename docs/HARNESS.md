@@ -19,6 +19,7 @@ Doctor exits nonzero for missing build prerequisites and returns stable JSON wit
 ```bash
 mise run harness -- help
 mise run harness -- build --platform ios
+mise run harness -- boot --platform ios
 mise run harness -- launch --platform watchos
 mise run harness -- exercise --platform tvos
 mise run harness -- screenshot --platform ios
@@ -52,7 +53,7 @@ Capture never uploads implicitly. Publish one reviewed artifact only after a pul
 
 ```bash
 mise run harness -- publish \
-  --artifact build/proof/<run-id>/ios/signed-out.png \
+  --artifact build/proof/<run-id>/ios/exercised.png \
   --repo putdotio/putio-ios \
   --pr <number>
 ```

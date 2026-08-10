@@ -55,6 +55,9 @@ public struct HarnessService {
     switch command {
     case .build:
       for platform in platforms { runs.append(try simulator.build(platform)) }
+    case .boot:
+      guard let platform = platforms.first else { throw HarnessFailure("no platform selected") }
+      runs.append(try simulator.boot(platform))
     case .launch:
       guard let platform = platforms.first else { throw HarnessFailure("no platform selected") }
       runs.append(try simulator.launch(platform))
