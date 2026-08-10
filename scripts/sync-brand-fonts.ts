@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 type FontEntry = {
@@ -26,6 +26,11 @@ if (manifest.baseUrl !== "https://static.put.io") {
 if (manifest.directory !== "Resources/BrandFonts") {
   throw new Error("Config/BrandFonts.json must use Resources/BrandFonts");
 }
+for (const name of Object.keys(manifest.files)) {
+  if (basename(name) !== name || !/^(?:gt-america|berkeley-mono)-.*\.otf$/i.test(name)) {
+    throw new Error(`invalid brand font filename: ${name}`);
+  }
+}
 
 const digest = (bytes: Uint8Array): string =>
   createHash("sha256").update(bytes).digest("hex");
@@ -37,6 +42,20 @@ const localDigest = async (path: string): Promise<string | undefined> => {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
     throw error;
   }
+};
+
+const download = async (url: URL, redirectsRemaining = 3): Promise<Uint8Array> => {
+  if (url.origin !== manifest.baseUrl || url.username || url.password) {
+    throw new Error(`font URL must stay on ${manifest.baseUrl}`);
+  }
+  const response = await fetch(url, { redirect: "manual" });
+  if (response.status >= 300 && response.status < 400) {
+    const location = response.headers.get("location");
+    if (!location || redirectsRemaining === 0) throw new Error(`invalid redirect from ${url.href}`);
+    return download(new URL(location, url), redirectsRemaining - 1);
+  }
+  if (!response.ok) throw new Error(`${url.href} returned ${response.status}`);
+  return new Uint8Array(await response.arrayBuffer());
 };
 
 const verify = async (): Promise<void> => {
@@ -64,9 +83,7 @@ const sync = async (): Promise<void> => {
     if (url.origin !== manifest.baseUrl) {
       throw new Error(`font URL must stay on ${manifest.baseUrl}: ${entry.path}`);
     }
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`${url.href} returned ${response.status}`);
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    const bytes = await download(url);
     if (digest(bytes) !== entry.sha256) {
       throw new Error(`${name} does not match its pinned checksum`);
     }
