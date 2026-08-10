@@ -98,4 +98,12 @@ import Testing
   #expect(!message.contains("query-value"))
   #expect(message.contains("$HOME/file"))
   #expect(message.contains("[REDACTED]"))
+
+  let json = HarnessOutput.redact(
+    #"{"access_token":"live-secret","password":"pw-secret"}"#,
+    environment: [:]
+  )
+  #expect(!json.contains("live-secret"))
+  #expect(!json.contains("pw-secret"))
+  #expect(json == #"{"access_token":"[REDACTED]","password":"[REDACTED]"}"#)
 }

@@ -163,7 +163,7 @@ public enum HarnessOutput {
 
     let patterns = [
       #"(?i)(authorization\s*:\s*bearer\s+)[^\s]+"#,
-      #"(?i)((?:access[_-]?token|refresh[_-]?token|api[_-]?key|password|secret|token)\s*[:=]\s*[\"']?)[^\"'\s&,}]+"#,
+      #"(?i)([\"']?(?:access[_-]?token|refresh[_-]?token|api[_-]?key|password|secret|token)[\"']?\s*[:=]\s*[\"']?)[^\"'\s&,}]+"#,
     ]
     for pattern in patterns {
       guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
