@@ -72,3 +72,20 @@ test("rejects newly published tokens until coverage is classified", async () => 
     /unclassified design tokens: future\.native\.metric/,
   );
 });
+
+test("rejects aliased tokens that diverge from their generated target", async () => {
+  const [rawTokens, rawCoverage] = await Promise.all([
+    readFile(fileURLToPath(import.meta.resolve("@putdotio/design/tokens")), "utf8"),
+    readFile(new URL("./design-token-coverage.json", import.meta.url), "utf8"),
+  ]);
+  const manifest = parseCoverageManifest(JSON.parse(rawCoverage) as unknown);
+  const entries = parseTokens(JSON.parse(rawTokens) as unknown).map((entry) =>
+    entry.name === "typography.fontSize.4xl"
+      ? { ...entry, token: { ...entry.token, value: "72px" } }
+      : entry,
+  );
+  assert.throws(
+    () => validateCoverage(entries, manifest, manifest.sourcePackageVersion),
+    /aliased token typography\.fontSize\.4xl diverges from generated token typography\.fontSize\.3xl/,
+  );
+});

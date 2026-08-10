@@ -320,11 +320,20 @@ export function validateCoverage(
     "coverage generated list must match the native adapter inputs",
   );
   for (const [name, target] of Object.entries(manifest.aliased)) {
-    if (!entryNames.has(target)) {
+    const aliasEntry = entries.find((entry) => entry.name === name);
+    const targetEntry = entries.find((entry) => entry.name === target);
+    if (!targetEntry) {
       throw new Error(`aliased token ${name} targets missing token ${target}`);
     }
     if (!expectedGenerated.includes(target)) {
       throw new Error(`aliased token ${name} must target a generated token`);
+    }
+    if (
+      !aliasEntry ||
+      aliasEntry.token.type !== targetEntry.token.type ||
+      aliasEntry.token.value !== targetEntry.token.value
+    ) {
+      throw new Error(`aliased token ${name} diverges from generated token ${target}`);
     }
   }
 }
