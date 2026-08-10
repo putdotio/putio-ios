@@ -634,6 +634,13 @@ public struct SimulatorHarness {
       pid: exercisedPID,
       bundleIdentifier: platform.configuration.bundleIdentifier
     )
+    if platform == .tvos {
+      try waitForLiveness(
+        pid: exercisedPID,
+        seconds: 2,
+        bundleIdentifier: platform.configuration.bundleIdentifier
+      )
+    }
     try waitForChangedFrame(
       platform: platform,
       session: session,
