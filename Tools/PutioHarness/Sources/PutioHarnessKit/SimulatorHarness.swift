@@ -8,6 +8,32 @@ public struct SurfaceRun: Sendable {
   public let message: String
 }
 
+private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: ProcessRunner) throws {
+  var diagnostics: [String] = []
+  for identifier in identifiers {
+    do {
+      let output = try runner.run("xcrun", ["simctl", "shutdown", identifier])
+      if output.status != 0 { diagnostics.append(output.combinedOutput) }
+    } catch {
+      diagnostics.append("shutdown \(identifier): \(error)")
+    }
+    do {
+      let output = try runner.run("xcrun", ["simctl", "delete", identifier])
+      if output.status != 0 { diagnostics.append(output.combinedOutput) }
+    } catch {
+      diagnostics.append("delete \(identifier): \(error)")
+    }
+  }
+  let devices = try runner.checked(
+    "xcrun", ["simctl", "list", "devices", "-j"], context: "verify Simulator cleanup")
+  let remaining = identifiers.filter { devices.stdout.contains($0) }
+  guard remaining.isEmpty else {
+    let detail = diagnostics.filter { !$0.isEmpty }.joined(separator: "\n")
+    throw HarnessFailure(
+      "Simulator cleanup left devices behind: \(remaining.joined(separator: ", "))\n\(detail)")
+  }
+}
+
 private final class SimulatorSession {
   let deviceIdentifier: String
   let deviceName: String
@@ -33,30 +59,8 @@ private final class SimulatorSession {
   }
 
   func cleanup() throws {
-    let identifiers = [deviceIdentifier, companionIdentifier].compactMap { $0 }
-    var diagnostics: [String] = []
-    for identifier in identifiers {
-      do {
-        let output = try runner.run("xcrun", ["simctl", "shutdown", identifier])
-        if output.status != 0 { diagnostics.append(output.combinedOutput) }
-      } catch {
-        diagnostics.append("shutdown \(identifier): \(error)")
-      }
-      do {
-        let output = try runner.run("xcrun", ["simctl", "delete", identifier])
-        if output.status != 0 { diagnostics.append(output.combinedOutput) }
-      } catch {
-        diagnostics.append("delete \(identifier): \(error)")
-      }
-    }
-    let devices = try runner.checked(
-      "xcrun", ["simctl", "list", "devices", "-j"], context: "verify Simulator cleanup")
-    let remaining = identifiers.filter { devices.stdout.contains($0) }
-    guard remaining.isEmpty else {
-      let detail = diagnostics.filter { !$0.isEmpty }.joined(separator: "\n")
-      throw HarnessFailure(
-        "Simulator cleanup left devices behind: \(remaining.joined(separator: ", "))\n\(detail)")
-    }
+    try cleanupSimulatorIdentifiers(
+      [deviceIdentifier, companionIdentifier].compactMap { $0 }, runner: runner)
   }
 }
 
@@ -236,6 +240,7 @@ public struct SimulatorHarness {
 
         let artifactURLs = [wantsScreenshot ? screenshot : nil, wantsRecording ? recording : nil]
           .compactMap { $0 }
+        try requireCleanSource()
         let manifest = try writeManifest(
           platform: platform,
           command: command,
@@ -418,9 +423,11 @@ public struct SimulatorHarness {
         runner: runner
       )
     } catch {
-      _ = try? runner.run("xcrun", ["simctl", "delete", deviceIdentifier])
-      if let companionIdentifier {
-        _ = try? runner.run("xcrun", ["simctl", "delete", companionIdentifier])
+      do {
+        try cleanupSimulatorIdentifiers(
+          [deviceIdentifier, companionIdentifier].compactMap { $0 }, runner: runner)
+      } catch let cleanupError {
+        throw HarnessFailure("\(error)\ncleanup failed: \(cleanupError)")
       }
       throw error
     }
