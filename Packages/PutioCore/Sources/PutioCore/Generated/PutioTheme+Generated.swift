@@ -69,6 +69,14 @@ public struct PutioFontRole: Sendable {
   }
 }
 
+public struct PutioTabularFontRole: Sendable {
+  public let base: PutioFontRole
+
+  public init(base: PutioFontRole) {
+    self.base = base
+  }
+}
+
 private struct PutioFontModifier: ViewModifier {
   let role: PutioFontRole
   @ScaledMetric private var lineSpacing: CGFloat
@@ -92,6 +100,12 @@ extension View {
   @MainActor
   public func putioFont(_ role: PutioFontRole) -> some View {
     modifier(PutioFontModifier(role: role))
+  }
+
+  @MainActor
+  public func putioFont(_ role: PutioTabularFontRole) -> some View {
+    modifier(PutioFontModifier(role: role.base))
+      .monospacedDigit()
   }
 }
 
@@ -345,6 +359,7 @@ public enum PutioTheme {
         lineHeight: 1.45,
         textStyle: .caption
       )
+      public static let numeric = PutioTabularFontRole(base: mono)
     #endif
   }
 
@@ -483,6 +498,7 @@ public enum PutioTheme {
           lineHeight: 1.45,
           textStyle: .caption2
         )
+        public static let numeric = PutioTabularFontRole(base: caption)
       }
 
       public enum Spacing {

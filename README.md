@@ -57,6 +57,8 @@ The raw spacing scale remains fixed. Content-coupled gaps and meaningful interfa
 Semantic typography roles resolve to the bundled GT America faces on every shell. Berkeley Mono is
 available only to iOS and watchOS; tvOS has no mono role or mono font resource. System fallback remains
 active per glyph for filenames outside the brand fonts character repertoire.
+Semantic numeric roles use tabular figures: Berkeley Mono on iOS and watchOS, and GT America with
+OpenType tabular figures on tvOS.
 
 ## Development identities
 

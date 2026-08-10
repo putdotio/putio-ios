@@ -46,7 +46,9 @@ private struct SignedOutView: View {
   var body: some View {
     Group {
       if presentation.isHarnessExercise {
-        ScrollView { content }
+        ScrollView {
+          content.padding(PutioTheme.Spacing.space4)
+        }
       } else {
         content
       }
@@ -75,10 +77,9 @@ private struct SignedOutView: View {
             .foregroundStyle(PutioTheme.Colors.textPrimary)
         }
         Text(BrandTypographyProof.numericSample)
-          .putioFont(PutioTheme.Typography.mono)
+          .putioFont(PutioTheme.Typography.numeric)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
       }
     }
-    .padding(PutioTheme.Spacing.space4)
   }
 }

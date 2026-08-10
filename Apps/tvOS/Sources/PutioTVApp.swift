@@ -36,6 +36,9 @@ private struct SignedOutView: View {
             .putioFont(PutioTheme.TV.Typography.label)
             .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
         }
+        Text(BrandTypographyProof.numericSample)
+          .putioFont(PutioTheme.TV.Typography.numeric)
+          .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)

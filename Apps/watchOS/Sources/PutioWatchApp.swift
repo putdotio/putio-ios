@@ -52,7 +52,7 @@ private struct SignedOutView: View {
             .foregroundStyle(PutioTheme.Colors.textPrimary)
         }
         Text(BrandTypographyProof.numericSample)
-          .putioFont(PutioTheme.Typography.mono)
+          .putioFont(PutioTheme.Typography.numeric)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
       }
     }
