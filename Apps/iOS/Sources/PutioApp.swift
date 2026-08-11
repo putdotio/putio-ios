@@ -44,6 +44,20 @@ private struct SignedOutView: View {
   let presentation: SignedOutPresentation
 
   var body: some View {
+    Group {
+      if presentation.isHarnessExercise {
+        ScrollView {
+          content.padding(PutioTheme.Spacing.space4)
+        }
+      } else {
+        content
+      }
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(PutioTheme.Colors.background)
+  }
+
+  private var content: some View {
     VStack(spacing: contentGap) {
       if presentation.isHarnessExercise {
         Image(systemName: "externaldrive.fill")
@@ -56,8 +70,16 @@ private struct SignedOutView: View {
       Text(presentation.message)
         .putioFont(PutioTheme.Typography.body)
         .foregroundStyle(PutioTheme.Colors.textSecondary)
+      if presentation.isHarnessExercise {
+        ForEach(TypographyHarnessProof.hostileFilenames, id: \.self) { filename in
+          Text(filename)
+            .putioFont(PutioTheme.Typography.mono)
+            .foregroundStyle(PutioTheme.Colors.textPrimary)
+        }
+        Text(TypographyHarnessProof.numericSample)
+          .putioFont(PutioTheme.Typography.numeric)
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+      }
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(PutioTheme.Colors.background)
   }
 }

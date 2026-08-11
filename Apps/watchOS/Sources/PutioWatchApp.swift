@@ -25,6 +25,18 @@ private struct SignedOutView: View {
   let presentation: SignedOutPresentation
 
   var body: some View {
+    Group {
+      if presentation.isHarnessExercise {
+        ScrollView { content }
+      } else {
+        content
+      }
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(PutioTheme.Colors.background)
+  }
+
+  private var content: some View {
     VStack(spacing: contentGap) {
       Text(presentation.title)
         .putioFont(PutioTheme.Typography.subheading)
@@ -33,8 +45,16 @@ private struct SignedOutView: View {
         .putioFont(PutioTheme.Typography.caption)
         .foregroundStyle(PutioTheme.Colors.textSecondary)
         .multilineTextAlignment(.center)
+      if presentation.isHarnessExercise {
+        ForEach(TypographyHarnessProof.hostileFilenames, id: \.self) { filename in
+          Text(filename)
+            .putioFont(PutioTheme.Typography.mono)
+            .foregroundStyle(PutioTheme.Colors.textPrimary)
+        }
+        Text(TypographyHarnessProof.numericSample)
+          .putioFont(PutioTheme.Typography.numeric)
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+      }
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(PutioTheme.Colors.background)
   }
 }

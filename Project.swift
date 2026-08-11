@@ -1,4 +1,46 @@
+import Foundation
 import ProjectDescription
+
+private struct BrandFontManifest: Decodable {
+  struct Font: Decodable {
+    let platforms: [String]
+  }
+
+  let directory: String
+  let files: [String: Font]
+}
+
+private func loadBrandFontManifest() -> BrandFontManifest {
+  let url = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent()
+    .appending(path: "Config/BrandFonts.json")
+  do {
+    return try JSONDecoder().decode(BrandFontManifest.self, from: Data(contentsOf: url))
+  } catch {
+    fatalError("Config/BrandFonts.json is invalid: \(error)")
+  }
+}
+
+private let brandFontManifest = loadBrandFontManifest()
+
+private func brandFontNames(for platform: String) -> [String] {
+  brandFontManifest.files
+    .filter { $0.value.platforms.contains(platform) }
+    .map(\.key)
+    .sorted()
+}
+
+private func brandFontResources(for platform: String) -> ResourceFileElements {
+  .resources(
+    brandFontNames(for: platform).map { name in
+      .glob(pattern: .relativeToManifest("\(brandFontManifest.directory)/\(name)"))
+    }
+  )
+}
+
+private func brandFontInfoPlist(for platform: String) -> Plist.Value {
+  .array(brandFontNames(for: platform).map(Plist.Value.string))
+}
 
 let project = Project(
   name: "Putio",
@@ -15,10 +57,12 @@ let project = Project(
       deploymentTargets: .iOS("26.0"),
       infoPlist: .extendingDefault(with: [
         "CFBundleDisplayName": "put.io",
+        "UIAppFonts": brandFontInfoPlist(for: "ios"),
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
       ]),
-      buildableFolders: ["Apps/iOS/Sources"],
+      resources: brandFontResources(for: "ios"),
+      buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
       dependencies: [
         .package(product: "PutioCore"),
         .target(name: "PutioWatch"),
@@ -32,12 +76,14 @@ let project = Project(
       deploymentTargets: .watchOS("26.0"),
       infoPlist: .extendingDefault(with: [
         "CFBundleDisplayName": "put.io",
+        "UIAppFonts": brandFontInfoPlist(for: "watchos"),
         "WKApplication": true,
         "WKCompanionAppBundleIdentifier": "io.put.dev.ios",
         "WKRunsIndependentlyOfCompanionApp": false,
         "WKWatchOnly": false,
       ]),
-      buildableFolders: ["Apps/watchOS/Sources"],
+      resources: brandFontResources(for: "watchos"),
+      buildableFolders: ["Apps/watchOS/Sources", "Apps/Shared/Sources"],
       dependencies: [
         .package(product: "PutioCore")
       ]
@@ -50,10 +96,12 @@ let project = Project(
       deploymentTargets: .tvOS("26.0"),
       infoPlist: .extendingDefault(with: [
         "CFBundleDisplayName": "put.io",
+        "UIAppFonts": brandFontInfoPlist(for: "tvos"),
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
       ]),
-      buildableFolders: ["Apps/tvOS/Sources"],
+      resources: brandFontResources(for: "tvos"),
+      buildableFolders: ["Apps/tvOS/Sources", "Apps/Shared/Sources"],
       dependencies: [
         .package(product: "PutioCore")
       ]

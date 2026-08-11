@@ -30,6 +30,16 @@ private struct SignedOutView: View {
       Text(presentation.message)
         .putioFont(PutioTheme.TV.Typography.body)
         .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+      if presentation.isHarnessExercise {
+        ForEach(TypographyHarnessProof.hostileFilenames, id: \.self) { filename in
+          Text(filename)
+            .putioFont(PutioTheme.TV.Typography.label)
+            .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
+        }
+        Text(TypographyHarnessProof.numericSample)
+          .putioFont(PutioTheme.TV.Typography.numeric)
+          .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+      }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(PutioTheme.Colors.background)

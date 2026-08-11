@@ -30,14 +30,20 @@ final class PutioThemeTests: XCTestCase {
 
   func testFontRoleLineSpacingClampsNegativeLeading() {
     let role = PutioFontRole(
-      family: "System",
+      fontName: "Helvetica",
       size: 20,
-      weight: .regular,
       lineHeight: 0.8,
       textStyle: .body
     )
 
     XCTAssertEqual(role.baseLineSpacing, 0)
+  }
+
+  func testTypographyRolesMapToBundledBrandFaces() {
+    XCTAssertEqual(PutioTheme.Typography.caption.fontName, "GTAmerica-Rg")
+    XCTAssertEqual(PutioTheme.Typography.subheading.fontName, "GTAmerica-Md")
+    XCTAssertEqual(PutioTheme.Typography.heading.fontName, "GTAmerica-Bd")
+    XCTAssertEqual(PutioTheme.Typography.display.fontName, "GTAmerica-Bl")
   }
 
   #if os(macOS)

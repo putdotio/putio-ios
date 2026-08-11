@@ -41,15 +41,6 @@ public struct HarnessDoctor: Sendable {
         "putio", required: false, recovery: "install the global putio CLI for live-profile checks"))
     checks.append(
       toolCheck("attach", required: false, recovery: "install attach for proof publishing"))
-    checks.append(
-      DoctorCheck(
-        name: "brand-fonts",
-        status: .warning,
-        required: false,
-        detail: "not configured in the scaffold; tracked by issue #126"
-      )
-    )
-
     return DoctorReport(checks: checks)
   }
 

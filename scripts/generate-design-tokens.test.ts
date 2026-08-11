@@ -7,6 +7,7 @@ import {
   parseCoverageManifest,
   parseTokens,
   renderAssetCatalog,
+  renderSwift,
   semanticColorRoles,
   validateCoverage,
 } from "./generate-design-tokens.ts";
@@ -103,4 +104,29 @@ test("rejects aliased tokens that diverge from their generated target", async ()
     () => validateCoverage(entries, manifest, manifest.sourcePackageVersion),
     /aliased token typography\.fontSize\.4xl diverges from generated token typography\.fontSize\.3xl/,
   );
+});
+
+test("maps semantic font weights to bundled native faces", async () => {
+  const rawTokens = JSON.parse(
+    await readFile(fileURLToPath(import.meta.resolve("@putdotio/design/tokens")), "utf8"),
+  ) as unknown;
+  const swift = renderSwift(parseTokens(rawTokens), "test");
+  assert.match(swift, /fontName: "GTAmerica-Rg"/);
+  assert.match(swift, /fontName: "GTAmerica-Md"/);
+  assert.match(swift, /fontName: "GTAmerica-Bd"/);
+  assert.match(swift, /fontName: "GTAmerica-Bl"/);
+  assert.match(swift, /fontName: "BerkeleyMonoVariable-Regular"/);
+  assert.match(swift, /#if os\(iOS\) \|\| os\(watchOS\)/);
+  assert.match(
+    swift,
+    /#if os\(iOS\) \|\| os\(watchOS\)\s+public static let familyMono = "Berkeley Mono"\s+#endif/,
+  );
+  assert.match(swift, /public static let numeric = PutioTabularFontRole\(base: caption\)/);
+  assert.match(swift, /\.monospacedDigit\(\)/);
+  assert.doesNotMatch(swift, /\.custom\(family,/);
+  const fontRole = swift.slice(
+    swift.indexOf("public struct PutioFontRole"),
+    swift.indexOf("public struct PutioTabularFontRole"),
+  );
+  assert.doesNotMatch(fontRole, /public let (?:family|weight):/);
 });

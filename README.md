@@ -30,11 +30,18 @@ mise run bootstrap
 
 No Tuist account, application secret, or signing material is required.
 
+Bootstrap downloads the licensed GT America and Berkeley Mono files from their checksummed
+`static.put.io` sources into the ignored `Resources/BrandFonts` directory. Font binaries are never
+committed.
+The setup task also removes unlisted OTF or TTF files from that dedicated ignored directory before
+restoring the manifest set.
+
 ## Commands
 
 ```bash
 mise run generate  # regenerate Putio.xcworkspace without opening Xcode
 mise run tokens    # regenerate the committed Swift design-token adapter
+mise run fonts-setup # provision the checksummed licensed fonts
 mise run open      # regenerate and open the workspace
 mise run test      # format-check and test PutioCore
 mise run build     # build all three app shells
@@ -46,6 +53,12 @@ mise run verify    # test PutioCore and build all three app shells
 `PutioCore` exposes the generated `PutioTheme` API consumed by every app shell. The dark-only app adapter emits semantic Swift roles plus a semantic color asset catalog from the exact `@putdotio/design` version in `pnpm-lock.yaml`; `mise run verify` rejects unclassified upstream tokens and stale generated output. Change token values in the design-system repository, bump the package here, audit `scripts/design-token-coverage.json`, then run `mise run tokens`.
 
 The raw spacing scale remains fixed. Content-coupled gaps and meaningful interface icons use generated `PutioMetricRole` values with an explicit Dynamic Type text style; structural layout, overscan, radii, borders, and minimum interaction geometry do not scale implicitly.
+
+Semantic typography roles resolve to the bundled GT America faces on every shell. Berkeley Mono is
+available only to iOS and watchOS; tvOS has no mono role or mono font resource. System fallback remains
+active per glyph for filenames outside the brand fonts character repertoire.
+Semantic numeric roles use tabular figures: Berkeley Mono on iOS and watchOS, and GT America with
+OpenType tabular figures on tvOS.
 
 ## Development identities
 

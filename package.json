@@ -3,11 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "fonts:setup": "node scripts/sync-brand-fonts.ts",
+    "fonts:check": "node scripts/sync-brand-fonts.ts --check",
     "tokens:generate": "node scripts/generate-design-tokens.ts",
     "tokens:check": "node scripts/generate-design-tokens.ts --check",
     "test": "node --test scripts/generate-design-tokens.test.ts",
     "typecheck": "tsc --noEmit",
-    "verify": "pnpm typecheck && pnpm test && pnpm tokens:check"
+    "verify": "pnpm typecheck && pnpm test && pnpm tokens:check && pnpm fonts:check"
   },
   "devDependencies": {
     "@putdotio/design": "2.0.1",
