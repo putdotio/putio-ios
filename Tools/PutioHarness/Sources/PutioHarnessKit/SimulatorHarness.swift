@@ -41,6 +41,30 @@ private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: Proces
   }
 }
 
+public final class SimulatorLifecycle: @unchecked Sendable {
+  public static let shared = SimulatorLifecycle()
+
+  private let lock = NSLock()
+  private var cleanupAction: (() throws -> Void)?
+
+  private init() {}
+
+  func register(cleanup: @escaping () throws -> Void) {
+    lock.withLock { cleanupAction = cleanup }
+  }
+
+  func release() {
+    lock.withLock { cleanupAction = nil }
+  }
+
+  public func cleanup() throws {
+    let cleanup = lock.withLock { cleanupAction }
+    guard let cleanup else { return }
+    try cleanup()
+    release()
+  }
+}
+
 private final class SimulatorSession {
   let deviceIdentifier: String
   let deviceName: String
@@ -311,6 +335,7 @@ public struct SimulatorHarness {
     operation: (SimulatorSession) throws -> T
   ) throws -> T {
     let session = try createSession(platform: platform, runID: runID)
+    SimulatorLifecycle.shared.register { try session.cleanup() }
     let result: Result<T, Error>
     do {
       result = .success(try operation(session))
@@ -319,6 +344,7 @@ public struct SimulatorHarness {
     }
     do {
       try session.cleanup()
+      SimulatorLifecycle.shared.release()
     } catch {
       switch result {
       case .success:
