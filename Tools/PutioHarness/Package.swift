@@ -11,8 +11,12 @@ let package = Package(
     .executable(name: "putio-harness", targets: ["PutioHarness"])
   ],
   targets: [
+    .target(name: "PutioSignalBridge", publicHeadersPath: "include"),
     .target(name: "PutioHarnessKit"),
-    .executableTarget(name: "PutioHarness", dependencies: ["PutioHarnessKit"]),
+    .executableTarget(
+      name: "PutioHarness",
+      dependencies: ["PutioHarnessKit", "PutioSignalBridge"]
+    ),
     .testTarget(name: "PutioHarnessKitTests", dependencies: ["PutioHarnessKit"]),
   ]
 )

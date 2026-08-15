@@ -26,3 +26,13 @@ import Testing
   #expect(recovery.status == 0)
   #expect(recovery.stdout == "ok")
 }
+
+@Test func cleanupChildrenIgnoreTerminalSignals() throws {
+  let output = try ProcessRunner().runIgnoringTerminationSignals(
+    "/bin/sh",
+    ["-c", "kill -TERM $$; kill -INT $$; printf survived"]
+  )
+
+  #expect(output.status == 0)
+  #expect(output.stdout == "survived")
+}

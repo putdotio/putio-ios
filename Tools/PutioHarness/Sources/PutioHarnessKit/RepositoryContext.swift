@@ -59,6 +59,15 @@ struct DeviceTypeList: Decodable, Sendable {
   let devicetypes: [DeviceTypeRecord]
 }
 
+struct SimulatorDeviceRecord: Decodable, Sendable {
+  let name: String
+  let udid: String
+}
+
+struct SimulatorDeviceList: Decodable, Sendable {
+  let devices: [String: [SimulatorDeviceRecord]]
+}
+
 struct WorkspaceList: Decodable, Sendable {
   struct Workspace: Decodable, Sendable {
     let schemes: [String]
