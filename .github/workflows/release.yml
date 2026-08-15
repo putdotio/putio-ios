@@ -1,0 +1,30 @@
+name: Legacy iOS 3.x Release
+run-name: Queue legacy iOS 3.x release ${{ inputs.version }} from protected main
+
+on:
+  workflow_dispatch:
+    inputs:
+      legacy_ref:
+        description: Protected legacy source ref (only refs/heads/main is trusted)
+        required: true
+        type: choice
+        options:
+          - refs/heads/main
+        default: refs/heads/main
+      version:
+        description: Legacy iOS 3.x App Store version to build from protected main
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    name: Validate and queue the protected legacy release workflow
+    uses: ./.github/workflows/legacy-ios-dispatch.yml
+    with:
+      operation: release
+      legacy_ref: ${{ inputs.legacy_ref }}
+      version: ${{ inputs.version }}

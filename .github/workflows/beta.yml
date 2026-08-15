@@ -1,0 +1,40 @@
+name: Legacy iOS 3.x Beta
+run-name: Queue legacy iOS 3.x beta from protected main
+
+on:
+  workflow_dispatch:
+    inputs:
+      legacy_ref:
+        description: Protected legacy source ref (only refs/heads/main is trusted)
+        required: true
+        type: choice
+        options:
+          - refs/heads/main
+        default: refs/heads/main
+      changelog:
+        description: Optional legacy TestFlight What to Test notes
+        required: false
+        default: ''
+      groups:
+        description: Comma-separated legacy TestFlight groups
+        required: false
+        default: Beta
+      processing_timeout_minutes:
+        description: Minutes to wait for legacy App Store Connect processing
+        required: false
+        default: '20'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    name: Validate and queue the protected legacy beta workflow
+    uses: ./.github/workflows/legacy-ios-dispatch.yml
+    with:
+      operation: beta
+      legacy_ref: ${{ inputs.legacy_ref }}
+      changelog: ${{ inputs.changelog }}
+      groups: ${{ inputs.groups }}
+      processing_timeout_minutes: ${{ inputs.processing_timeout_minutes }}

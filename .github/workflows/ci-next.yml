@@ -1,4 +1,5 @@
 name: Next CI
+run-name: Next app CI for ${{ github.event_name }} on ${{ github.ref_name }}
 
 on:
   pull_request:
@@ -17,7 +18,7 @@ permissions:
 
 jobs:
   verify:
-    name: Verify Apple workspace
+    name: Verify next Apple workspace
     runs-on: macos-latest
     timeout-minutes: 30
 
