@@ -4,12 +4,12 @@ on:
   workflow_call:
     inputs:
       expected_sha:
-        description: Commit SHA resolved by the default-branch relay
+        description: Exact commit SHA expected for manual protected-main delivery
         required: false
         type: string
         default: ''
       allow_release_tag:
-        description: Allow a published protected v* release tag
+        description: Allow a published semantic v* release tag
         required: false
         type: boolean
         default: false

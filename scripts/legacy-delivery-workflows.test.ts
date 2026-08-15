@@ -34,7 +34,10 @@ test("manual legacy delivery validates before entering the release Environment",
     const validationInputs = recordAt(validate, "with", `${name}.validate-ref`);
 
     assert.equal(validate.uses, "./.github/workflows/legacy-delivery-ref.yml");
-    assert.equal(validationInputs.expected_sha, "${{ inputs.expected_sha }}");
+    assert.equal(
+      validationInputs.expected_sha,
+      name === "release.yml" ? "${{ inputs.expected_sha || '' }}" : "${{ inputs.expected_sha }}",
+    );
     assert.equal("environment" in validate, false);
     assert.equal(delivery.needs, "validate-ref");
     assert.equal(delivery.environment, "release");
