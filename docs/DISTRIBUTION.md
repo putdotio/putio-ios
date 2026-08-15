@@ -12,7 +12,7 @@ GitHub registers manual workflows from the default branch, so the legacy workflo
 - [Legacy iOS 3.x Beta](../.github/workflows/beta.yml)
 - [Legacy iOS 3.x Release](../.github/workflows/release.yml)
 
-Both entrypoints run a secretless [legacy dispatch contract](../.github/workflows/legacy-ios-dispatch.yml). It accepts only `refs/heads/main`, verifies through the GitHub API that `main` is protected, resolves and records its current commit SHA, and checks that the selected workflow's Git blob still matches the reviewed legacy contract. It then dispatches the same workflow path on `main`.
+Both entrypoints run a secretless [legacy dispatch contract](../.github/workflows/legacy-ios-dispatch.yml). It accepts only `refs/heads/main`, verifies through the GitHub API that `main` is protected, resolves and records its current commit SHA, and checks that the selected workflow's Git blob still matches the reviewed legacy contract. It rechecks the branch SHA immediately before dispatch, then dispatches the same workflow path on `main`.
 
 The downstream run therefore uses the workflow and source from protected `main`. GitHub evaluates its `release` Environment branch policy against `main`, and only that downstream run can load the existing Environment secrets and signing material. The default-branch entrypoint never checks out or executes legacy app code, loads release secrets, signs an artifact, or uploads a build.
 

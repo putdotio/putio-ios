@@ -143,9 +143,20 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          RESOLVED_LEGACY_SHA: ${{ steps.legacy.outputs.legacy_sha }}
           WORKFLOW_FILE: ${{ steps.legacy.outputs.workflow_file }}
         run: |
           set -euo pipefail
+          current_legacy_sha="$(
+            gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha'
+          )"
+
+          if [ "$current_legacy_sha" != "$RESOLVED_LEGACY_SHA" ]; then
+            echo "Protected main moved after validation; refusing to dispatch" >&2
+            echo "Validated $RESOLVED_LEGACY_SHA, now $current_legacy_sha" >&2
+            exit 1
+          fi
+
           response="$(
             gh api \
               --method POST \

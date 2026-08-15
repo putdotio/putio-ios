@@ -95,6 +95,8 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
   assert.match(serialized, /cc78256c629cd289070c6ad2a3d90a79bc3dcd09/);
   assert.match(serialized, /20572e7313c1e1b83b43462f19c3b9b04872cdfc/);
   assert.match(serialized, /contents\/\.github\/workflows\/\$workflow_file\?ref=\$legacy_sha/);
+  assert.match(serialized, /Protected main moved after validation; refusing to dispatch/);
+  assert.match(serialized, /current_legacy_sha.*RESOLVED_LEGACY_SHA/);
   assert.match(serialized, /actions\/workflows\/\$WORKFLOW_FILE\/dispatches/);
   assert.match(serialized, /X-GitHub-Api-Version: 2026-03-10/);
   assert.match(serialized, /workflow_run_id/);
