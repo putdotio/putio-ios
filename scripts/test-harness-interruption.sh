@@ -9,12 +9,11 @@ device_ids() {
 }
 
 before_ids="$(device_ids)"
-owned_ids=()
+owned_id=""
 cleanup() {
-  for identifier in "${owned_ids[@]}"; do
-    xcrun simctl shutdown "$identifier" >/dev/null 2>&1 || true
-    xcrun simctl delete "$identifier" >/dev/null 2>&1 || true
-  done
+  [[ -z "$owned_id" ]] && return
+  xcrun simctl shutdown "$owned_id" >/dev/null 2>&1 || true
+  xcrun simctl delete "$owned_id" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -39,8 +38,6 @@ for signal_name in INT TERM; do
     cat "$log_file" >&2
     exit 1
   fi
-  owned_ids+=("$owned_id")
-
   kill -"$signal_name" "$harness_pid"
   set +e
   wait "$harness_pid"
@@ -58,7 +55,7 @@ for signal_name in INT TERM; do
     printf 'owned Simulator %s remains after %s\n' "$owned_id" "$signal_name" >&2
     exit 1
   fi
-  owned_ids=()
+  owned_id=""
   rm -f "$log_file"
 done
 
