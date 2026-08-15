@@ -6,8 +6,12 @@ on:
       - published
   workflow_dispatch:
     inputs:
+      expected_sha:
+        description: Exact protected-main commit SHA for manual delivery
+        required: true
+        type: string
       version:
-        description: Release version to build and upload from main
+        description: Legacy App Store version for manual protected-main delivery
         required: false
         default: ''
 
@@ -24,8 +28,16 @@ env:
   MISE_AUTO_INSTALL: "false"
 
 jobs:
+  validate-ref:
+    name: Validate protected legacy release source
+    uses: ./.github/workflows/legacy-delivery-ref.yml
+    with:
+      expected_sha: ${{ inputs.expected_sha || '' }}
+      allow_release_tag: ${{ github.event_name == 'release' }}
+
   release:
     name: Build release artifact
+    needs: validate-ref
     runs-on: macos-latest
     environment: release
     timeout-minutes: 60
@@ -42,7 +54,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.release.tag_name || 'main' }}
+          ref: ${{ needs.validate-ref.outputs.sha }}
 
       - name: Select latest stable Xcode
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1

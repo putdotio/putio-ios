@@ -3,6 +3,10 @@ name: Beta
 on:
   workflow_dispatch:
     inputs:
+      expected_sha:
+        description: Exact protected-main commit SHA to build
+        required: true
+        type: string
       changelog:
         description: Optional TestFlight What to Test notes
         required: false
@@ -29,8 +33,15 @@ env:
   MISE_AUTO_INSTALL: "false"
 
 jobs:
+  validate-ref:
+    name: Validate protected legacy main
+    uses: ./.github/workflows/legacy-delivery-ref.yml
+    with:
+      expected_sha: ${{ inputs.expected_sha }}
+
   beta:
     name: Upload beta build
+    needs: validate-ref
     runs-on: macos-latest
     environment: release
     timeout-minutes: 60
@@ -47,7 +58,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
+          ref: ${{ needs.validate-ref.outputs.sha }}
 
       - name: Select latest stable Xcode
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
@@ -114,6 +125,11 @@ jobs:
             exit 1
           fi
 
+          if [[ "$PUTIO_BETA_GROUPS" == *$'\n'* || "$PUTIO_BETA_GROUPS" == *$'\r'* ]]; then
+            echo "groups must be a single-line comma-separated value" >&2
+            exit 1
+          fi
+
           PUTIO_BETA_BUILD_NUMBER="$(date -u +%y%m%d%H%M)"
           PUTIO_BETA_IPA_PATH="$RUNNER_TEMP/putio-ios-beta.ipa"
           PUTIO_BETA_METADATA_PATH="$RUNNER_TEMP/putio-ios-beta.json"
@@ -136,6 +152,7 @@ jobs:
             echo "PUTIO_BETA_METADATA_PATH=$PUTIO_BETA_METADATA_PATH"
             echo "PUTIO_BETA_WAIT_TIMEOUT_DURATION=$PUTIO_BETA_WAIT_TIMEOUT_DURATION"
             echo "PUTIO_BETA_CHANGELOG=$PUTIO_BETA_CHANGELOG"
+            echo "PUTIO_BETA_GROUPS=$PUTIO_BETA_GROUPS"
           } >> "$GITHUB_ENV"
 
       - name: Load shared release secrets

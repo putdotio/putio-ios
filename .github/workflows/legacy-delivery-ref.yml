@@ -1,0 +1,82 @@
+name: Legacy delivery ref contract
+
+on:
+  workflow_call:
+    inputs:
+      expected_sha:
+        description: Exact commit SHA expected for manual protected-main delivery
+        required: false
+        type: string
+        default: ''
+      allow_release_tag:
+        description: Allow a published semantic v* release tag
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      sha:
+        description: Immutable commit approved for checkout
+        value: ${{ jobs.validate.outputs.sha }}
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate immutable legacy delivery source
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.validate.outputs.sha }}
+
+    steps:
+      - name: Validate the workflow event ref and SHA
+        id: validate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ALLOW_RELEASE_TAG: ${{ inputs.allow_release_tag }}
+          EVENT_NAME: ${{ github.event_name }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RUN_REF: ${{ github.ref }}
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if ! [[ "$RUN_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "GitHub supplied an invalid workflow SHA: $RUN_SHA" >&2
+            exit 1
+          fi
+
+          if [ "$RUN_REF" = "refs/heads/main" ]; then
+            if ! [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "Manual legacy delivery requires an exact expected_sha" >&2
+              exit 1
+            fi
+
+            if [ "$EXPECTED_SHA" != "$RUN_SHA" ]; then
+              echo "Protected main moved before the legacy workflow was created" >&2
+              echo "Expected $EXPECTED_SHA, workflow event resolved $RUN_SHA" >&2
+              exit 1
+            fi
+
+            branch_json="$(gh api "repos/$GITHUB_REPOSITORY/branches/main")"
+            protected="$(jq -r '.protected' <<< "$branch_json")"
+            current_sha="$(jq -r '.commit.sha' <<< "$branch_json")"
+
+            if [ "$protected" != "true" ] || [ "$current_sha" != "$RUN_SHA" ]; then
+              echo "Manual legacy delivery requires the current protected main head" >&2
+              exit 1
+            fi
+          elif [ "$ALLOW_RELEASE_TAG" = "true" ] && [ "$EVENT_NAME" = "release" ]; then
+            if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || [ "$RUN_REF" != "refs/tags/$RELEASE_TAG" ]; then
+              echo "Published legacy releases require an exact semantic v* tag ref" >&2
+              exit 1
+            fi
+          else
+            echo "Legacy delivery accepts only protected main or a published semantic v* release tag" >&2
+            exit 1
+          fi
+
+          echo "sha=$RUN_SHA" >> "$GITHUB_OUTPUT"
