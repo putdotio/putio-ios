@@ -16,6 +16,12 @@ const asRecord = (value: unknown, context: string): RecordValue => {
 const recordAt = (record: RecordValue, key: string, context: string): RecordValue =>
   asRecord(record[key], `${context}.${key}`);
 
+const arrayAt = (record: RecordValue, key: string, context: string): readonly unknown[] => {
+  const value = record[key];
+  assert.equal(Array.isArray(value), true, `${context}.${key} must be an array`);
+  return value as readonly unknown[];
+};
+
 const loadWorkflow = async (name: string): Promise<RecordValue> =>
   asRecord(
     parse(await readFile(new URL(`../.github/workflows/${name}`, import.meta.url), "utf8")) as unknown,
@@ -63,6 +69,18 @@ test("the shared guard binds manual dispatch to the protected main event SHA", a
 
 test("beta persists the selected TestFlight groups before distribution", async () => {
   const workflow = await loadWorkflow("beta.yml");
-  const serialized = JSON.stringify(workflow);
-  assert.match(serialized, /PUTIO_BETA_GROUPS=\$PUTIO_BETA_GROUPS/);
+  const jobs = recordAt(workflow, "jobs", "beta.yml");
+  const beta = recordAt(jobs, "beta", "beta.yml.jobs");
+  const steps = arrayAt(beta, "steps", "beta.yml.jobs.beta").map((step, index) =>
+    asRecord(step, `beta.yml.jobs.beta.steps[${index}]`),
+  );
+  const metadata = steps.find((step) => step.name === "Prepare beta metadata");
+  assert.notEqual(metadata, undefined);
+  const run = String(metadata?.run);
+  const newlineGuard = run.indexOf("PUTIO_BETA_GROUPS\" == *$'\\n'*");
+  const envWrite = run.indexOf('echo "PUTIO_BETA_GROUPS=$PUTIO_BETA_GROUPS"');
+  assert.notEqual(newlineGuard, -1);
+  assert.notEqual(envWrite, -1);
+  assert.ok(newlineGuard < envWrite, "group newline validation must precede the GITHUB_ENV write");
+  assert.match(run.slice(newlineGuard, envWrite), /exit 1/);
 });

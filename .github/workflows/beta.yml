@@ -125,6 +125,11 @@ jobs:
             exit 1
           fi
 
+          if [[ "$PUTIO_BETA_GROUPS" == *$'\n'* || "$PUTIO_BETA_GROUPS" == *$'\r'* ]]; then
+            echo "groups must be a single-line comma-separated value" >&2
+            exit 1
+          fi
+
           PUTIO_BETA_BUILD_NUMBER="$(date -u +%y%m%d%H%M)"
           PUTIO_BETA_IPA_PATH="$RUNNER_TEMP/putio-ios-beta.ipa"
           PUTIO_BETA_METADATA_PATH="$RUNNER_TEMP/putio-ios-beta.json"
