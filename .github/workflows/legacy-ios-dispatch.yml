@@ -122,7 +122,7 @@ jobs:
                 --arg changelog "$CHANGELOG" \
                 --arg groups "$TESTFLIGHT_GROUPS" \
                 --arg processing_timeout_minutes "$PROCESSING_TIMEOUT_MINUTES" \
-                '{ref: "main", inputs: {changelog: $changelog, groups: $groups, processing_timeout_minutes: $processing_timeout_minutes}}' \
+                '{ref: "main", return_run_details: true, inputs: {changelog: $changelog, groups: $groups, processing_timeout_minutes: $processing_timeout_minutes}}' \
                 > "$RUNNER_TEMP/legacy-dispatch.json"
               ;;
             release)
@@ -133,7 +133,7 @@ jobs:
 
               jq -n \
                 --arg version "$VERSION" \
-                '{ref: "main", inputs: {version: $version}}' \
+                '{ref: "main", return_run_details: true, inputs: {version: $version}}' \
                 > "$RUNNER_TEMP/legacy-dispatch.json"
               ;;
           esac

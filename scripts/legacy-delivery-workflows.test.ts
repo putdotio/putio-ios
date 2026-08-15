@@ -102,6 +102,7 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
   assert.match(serialized, /workflow_run_id/);
   assert.match(serialized, /html_url/);
   assert.match(serialized, /\{ref: \\"main\\"/);
+  assert.equal(serialized.match(/return_run_details: true/g)?.length, 2);
   assert.doesNotMatch(serialized, /secrets\./);
   assert.doesNotMatch(serialized, /load-ios-release-secrets/);
 });
