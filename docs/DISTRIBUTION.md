@@ -12,20 +12,20 @@ GitHub registers manual workflows from the default branch, so the legacy workflo
 - [Legacy iOS 3.x Beta](../.github/workflows/beta.yml)
 - [Legacy iOS 3.x Release](../.github/workflows/release.yml)
 
-Both entrypoints run a secretless [legacy dispatch contract](../.github/workflows/legacy-ios-dispatch.yml). It accepts only `refs/heads/main`, verifies through the GitHub API that `main` is protected, resolves and records its current commit SHA, and checks that the selected workflow's Git blob still matches the reviewed legacy contract. It rechecks the branch SHA immediately before dispatch, passes that exact SHA as `expected_sha`, then dispatches the same workflow path on `main`.
+Both entrypoints run a secretless [legacy dispatch contract](../.github/workflows/legacy-ios-dispatch.yml). It accepts only `refs/heads/main`, verifies through the GitHub API that `main` is protected, resolves and records its current commit SHA, and checks that both the selected delivery workflow and its reusable ref guard still match their reviewed Git blobs. It rechecks the branch SHA immediately before dispatch, passes that exact SHA as `expected_sha`, then dispatches the same workflow path on `main`.
 
 The guarded workflows installed on `main` by [#164](https://github.com/putdotio/putio-ios/pull/164) validate that `expected_sha` equals both the workflow event SHA and the current protected-main head in a secretless job. Their Environment-bearing delivery jobs check out only that immutable validated SHA. This makes direct same-path dispatches to `main` fail closed under the same contract and closes movement between relay validation and workflow creation.
 
 The downstream run therefore uses the reviewed workflow and immutable source from protected `main`. GitHub evaluates its `release` Environment branch policy against `main`, and only that downstream run can load the existing Environment secrets and signing material. The default-branch entrypoint never checks out or executes legacy app code, loads release secrets, signs an artifact, or uploads a build.
 
-The workflow-blob check fails closed if the legacy beta or release orchestration changes on `main`. Review that change against the release contract before updating the corresponding blob ID in the dispatcher; do not bypass the check or copy signing policy into the relay.
+The workflow-blob checks fail closed if the legacy beta/release orchestration or shared ref guard changes on `main`. Review that change against the release contract before updating the corresponding blob IDs in the dispatcher; do not bypass the checks or copy signing policy into the relay.
 
 ### Inputs and output identity
 
 - Both entrypoints expose a `legacy_ref` choice with the sole trusted value `refs/heads/main`. API callers receive the same server-side validation as UI callers.
 - Beta forwards the established `changelog`, TestFlight `groups`, and `processing_timeout_minutes` inputs to `main`.
 - Release requires a three-component legacy App Store version such as `3.1.0` and forwards it to `main`.
-- Workflow names, run names, input descriptions, and the relay job summary identify the line as legacy iOS 3.x and record the protected-main SHA, reviewed workflow blob, and downstream delivery-run link.
+- Workflow names, run names, input descriptions, and the relay job summary identify the line as legacy iOS 3.x and record the protected-main SHA, reviewed delivery and guard blobs, and downstream delivery-run link.
 
 After this change merges to the default branch, verify registration without dispatching delivery:
 

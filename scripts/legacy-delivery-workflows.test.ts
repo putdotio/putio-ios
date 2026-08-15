@@ -137,6 +137,7 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
   assert.match(resolveRun, /if \[ "\$LEGACY_REF" != "refs\/heads\/main" \]; then[\s\S]*exit 1/);
   assert.match(resolveRun, /if \[ "\$protected" != "true" \]; then[\s\S]*exit 1/);
   assert.match(resolveRun, /if \[ "\$workflow_blob" != "\$expected_workflow_blob" \]; then[\s\S]*exit 1/);
+  assert.match(resolveRun, /if \[ "\$guard_blob" != "\$expected_guard_blob" \]; then[\s\S]*exit 1/);
 
   const payloadRun = stringAt(steps[1] ?? {}, "run", "payload step");
   assert.equal(payloadRun.match(/return_run_details: true/g)?.length, 2);
@@ -156,6 +157,7 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
   const serialized = JSON.stringify(job);
   assert.match(serialized, /c72211e00159fe4d2a010fe1d0816b9de6a7d707/);
   assert.match(serialized, /759b0a86119fb5059d2655f6c5491ff9ed7361ef/);
+  assert.match(serialized, /7a7181e32709e92be3bc77d5b432eb8b900fd399/);
   assert.match(serialized, /actions\/workflows\/\$WORKFLOW_FILE\/dispatches/);
   assert.doesNotMatch(serialized, /secrets\./);
   assert.doesNotMatch(serialized, /secrets: inherit/);

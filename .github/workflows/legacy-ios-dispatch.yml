@@ -73,6 +73,8 @@ jobs:
               ;;
           esac
 
+          expected_guard_blob="7a7181e32709e92be3bc77d5b432eb8b900fd399"
+
           branch_json="$(gh api "repos/$GITHUB_REPOSITORY/branches/main")"
           protected="$(jq -r '.protected' <<< "$branch_json")"
           legacy_sha="$(jq -r '.commit.sha' <<< "$branch_json")"
@@ -91,6 +93,10 @@ jobs:
             gh api "repos/$GITHUB_REPOSITORY/contents/.github/workflows/$workflow_file?ref=$legacy_sha" \
               --jq '.sha'
           )"
+          guard_blob="$(
+            gh api "repos/$GITHUB_REPOSITORY/contents/.github/workflows/legacy-delivery-ref.yml?ref=$legacy_sha" \
+              --jq '.sha'
+          )"
 
           if [ "$workflow_blob" != "$expected_workflow_blob" ]; then
             echo "Protected main's $workflow_file no longer matches the reviewed legacy delivery contract" >&2
@@ -99,10 +105,18 @@ jobs:
             exit 1
           fi
 
+          if [ "$guard_blob" != "$expected_guard_blob" ]; then
+            echo "Protected main's legacy-delivery-ref.yml no longer matches the reviewed trust contract" >&2
+            echo "Expected guard blob $expected_guard_blob, received $guard_blob" >&2
+            echo "Review the main-branch guard change and update the default-branch dispatcher deliberately" >&2
+            exit 1
+          fi
+
           {
             echo "workflow_file=$workflow_file"
             echo "legacy_sha=$legacy_sha"
             echo "workflow_blob=$workflow_blob"
+            echo "guard_blob=$guard_blob"
           } >> "$GITHUB_OUTPUT"
 
       - name: Prepare the bounded legacy dispatch payload
@@ -184,6 +198,7 @@ jobs:
         shell: bash
         env:
           LEGACY_SHA: ${{ steps.legacy.outputs.legacy_sha }}
+          GUARD_BLOB: ${{ steps.legacy.outputs.guard_blob }}
           WORKFLOW_BLOB: ${{ steps.legacy.outputs.workflow_blob }}
           OPERATION: ${{ inputs.operation }}
           RUN_ID: ${{ steps.dispatch.outputs.run_id }}
@@ -196,6 +211,7 @@ jobs:
             echo "- Source ref: \`refs/heads/main\`"
             echo "- Resolved protected-main SHA: \`$LEGACY_SHA\`"
             echo "- Reviewed legacy workflow blob: \`$WORKFLOW_BLOB\`"
+            echo "- Reviewed legacy ref-guard blob: \`$GUARD_BLOB\`"
             echo "- Downstream delivery run: [$RUN_ID]($RUN_URL)"
             if [ "$OPERATION" = "release" ]; then
               echo "- App Store version: \`$VERSION\`"
