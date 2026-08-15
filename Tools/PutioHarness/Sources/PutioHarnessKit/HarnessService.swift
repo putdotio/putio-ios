@@ -63,16 +63,13 @@ public struct HarnessService {
       }
     case .boot:
       guard let platform = platforms.first else { throw HarnessFailure("no platform selected") }
-      let runID = requestedRunID ?? UUID().uuidString.lowercased()
-      runs.append(try simulator.boot(platform, runID: runID))
+      runs.append(try simulator.boot(platform))
     case .launch:
       guard let platform = platforms.first else { throw HarnessFailure("no platform selected") }
-      let runID = requestedRunID ?? UUID().uuidString.lowercased()
-      runs.append(try simulator.launch(platform, runID: runID))
+      runs.append(try simulator.launch(platform))
     case .exercise:
       guard let platform = platforms.first else { throw HarnessFailure("no platform selected") }
-      let runID = requestedRunID ?? UUID().uuidString.lowercased()
-      runs.append(try simulator.exercise(platform, runID: runID))
+      runs.append(try simulator.exercise(platform))
     case .screenshot, .record, .proof:
       let runID = try requestedRunID ?? simulator.defaultRunID()
       let sourceRevision = try simulator.pinProofSourceRevision()

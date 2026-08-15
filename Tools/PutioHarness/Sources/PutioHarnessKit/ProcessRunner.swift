@@ -106,36 +106,6 @@ public struct ProcessRunner: Sendable {
     return output
   }
 
-  func runIgnoringTerminationSignals(
-    _ executable: String,
-    _ arguments: [String] = [],
-    currentDirectory: URL? = nil
-  ) throws -> ProcessOutput {
-    try run(
-      "/bin/sh",
-      ["-c", "trap '' INT TERM; exec \"$@\"", "putio-harness-cleanup", executable]
-        + arguments,
-      currentDirectory: currentDirectory
-    )
-  }
-
-  func checkedIgnoringTerminationSignals(
-    _ executable: String,
-    _ arguments: [String] = [],
-    currentDirectory: URL? = nil,
-    context: String
-  ) throws -> ProcessOutput {
-    let output = try runIgnoringTerminationSignals(
-      executable,
-      arguments,
-      currentDirectory: currentDirectory
-    )
-    guard output.status == 0 else {
-      throw HarnessFailure("\(context) failed\n\(tail(output.combinedOutput))")
-    }
-    return output
-  }
-
   public func start(
     _ executable: String,
     _ arguments: [String] = [],

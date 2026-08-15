@@ -15,42 +15,23 @@ func shouldBuildIOSCompanion(
   platform == .watchos && !iosCompanionAvailable
 }
 
-func simulatorSessionSuffix(runID: String, attemptID: UUID = UUID()) -> String {
-  "\(runID)-\(attemptID.uuidString.lowercased())"
-}
-
-func preservingPrimaryResult<T>(
-  _ result: Result<T, Error>,
-  cleanup: () throws -> Void,
-  reportCleanupFailure: (Error) -> Void
-) throws -> T {
-  do {
-    try cleanup()
-  } catch {
-    reportCleanupFailure(error)
-  }
-  return try result.get()
-}
-
 private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: ProcessRunner) throws {
   var diagnostics: [String] = []
   for identifier in identifiers {
     do {
-      let output = try runner.runIgnoringTerminationSignals(
-        "xcrun", ["simctl", "shutdown", identifier])
+      let output = try runner.run("xcrun", ["simctl", "shutdown", identifier])
       if output.status != 0 { diagnostics.append(output.combinedOutput) }
     } catch {
       diagnostics.append("shutdown \(identifier): \(error)")
     }
     do {
-      let output = try runner.runIgnoringTerminationSignals(
-        "xcrun", ["simctl", "delete", identifier])
+      let output = try runner.run("xcrun", ["simctl", "delete", identifier])
       if output.status != 0 { diagnostics.append(output.combinedOutput) }
     } catch {
       diagnostics.append("delete \(identifier): \(error)")
     }
   }
-  let devices = try runner.checkedIgnoringTerminationSignals(
+  let devices = try runner.checked(
     "xcrun", ["simctl", "list", "devices", "-j"], context: "verify Simulator cleanup")
   let remaining = identifiers.filter { devices.stdout.contains($0) }
   guard remaining.isEmpty else {
@@ -60,219 +41,27 @@ private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: Proces
   }
 }
 
-private func simulatorDeviceIdentifiers(
-  named name: String,
-  runner: ProcessRunner,
-  ignoringTerminationSignals: Bool = false
-) throws -> Set<String> {
-  let output: ProcessOutput
-  if ignoringTerminationSignals {
-    output = try runner.checkedIgnoringTerminationSignals(
-      "xcrun",
-      ["simctl", "list", "devices", "-j"],
-      context: "reconcile Simulator ownership during cleanup"
-    )
-  } else {
-    output = try runner.checked(
-      "xcrun",
-      ["simctl", "list", "devices", "-j"],
-      context: "snapshot Simulator devices"
-    )
-  }
-  let devices = try JSONDecoder().decode(SimulatorDeviceList.self, from: Data(output.stdout.utf8))
-  return Set(devices.devices.values.flatMap { $0 }.filter { $0.name == name }.map(\.udid))
-}
-
-struct SimulatorCreationFailure: Error, CustomStringConvertible, Sendable {
-  let identifier: String?
-  let failure: HarnessFailure
-
-  var description: String { failure.description }
-}
-
-func validatedSimulatorIdentifier(_ output: String) -> String? {
-  let candidate = output.trimmingCharacters(in: .whitespacesAndNewlines)
-  guard UUID(uuidString: candidate) != nil else { return nil }
-  return candidate
-}
-
-public final class OwnedSimulatorRegistry: @unchecked Sendable {
-  private struct PendingCreation {
-    let name: String
-    let preexistingIdentifiers: Set<String>
-  }
-
-  public static let shared = OwnedSimulatorRegistry()
+public final class SimulatorLifecycle: @unchecked Sendable {
+  public static let shared = SimulatorLifecycle()
 
   private let lock = NSLock()
-  private var identifiers: Set<String> = []
-  private var pendingCreations: [PendingCreation] = []
-  private var isTerminal = false
+  private var cleanupAction: (() throws -> Void)?
 
-  init() {}
+  private init() {}
 
-  func register(_ identifier: String) {
-    lock.withLock { _ = identifiers.insert(identifier) }
+  func register(cleanup: @escaping () throws -> Void) {
+    lock.withLock { cleanupAction = cleanup }
   }
 
-  func registerCreated(
-    name: String,
-    snapshot: () throws -> Set<String>,
-    create: () throws -> String,
-    reconcile: () throws -> Set<String>
-  ) throws -> String {
-    lock.lock()
-    defer { lock.unlock() }
-    guard !isTerminal else {
-      throw HarnessFailure("Simulator registry is terminating; refusing device creation")
-    }
-    let preexisting = try snapshot()
-    pendingCreations.append(
-      PendingCreation(name: name, preexistingIdentifiers: preexisting)
-    )
-    do {
-      let identifier = try create()
-      _ = identifiers.insert(identifier)
-      pendingCreations.removeAll { $0.name == name }
-      return identifier
-    } catch let creationError {
-      if let identifier = (creationError as? SimulatorCreationFailure)?.identifier {
-        _ = identifiers.insert(identifier)
-      }
-      do {
-        let reconciled = try reconcile().subtracting(preexisting)
-        for identifier in reconciled {
-          _ = identifiers.insert(identifier)
-        }
-        if !reconciled.isEmpty {
-          pendingCreations.removeAll { $0.name == name }
-        }
-      } catch {
-        // The pending record intentionally survives for terminal reconciliation.
-      }
-      throw creationError
-    }
+  func release() {
+    lock.withLock { cleanupAction = nil }
   }
 
-  var ownedIdentifiers: [String] {
-    lock.withLock { identifiers.sorted() }
-  }
-
-  var pendingCreationCount: Int {
-    lock.withLock { pendingCreations.count }
-  }
-
-  public func cleanup(
-    _ identifiersToClean: [String],
-    runner: ProcessRunner = ProcessRunner()
-  ) throws {
-    try cleanup(identifiersToClean) { identifiers in
-      try cleanupSimulatorIdentifiers(identifiers, runner: runner)
-    }
-  }
-
-  public func cleanupAll(runner: ProcessRunner = ProcessRunner()) throws {
-    try terminateAndCleanup(
-      reconcile: { name in
-        try simulatorDeviceIdentifiers(
-          named: name,
-          runner: runner,
-          ignoringTerminationSignals: true
-        )
-      },
-      cleanup: { identifiers in
-        try cleanupSimulatorIdentifiers(identifiers, runner: runner)
-      }
-    )
-  }
-
-  func terminateAndCleanup(
-    reconcile: (String) throws -> Set<String>,
-    cleanup: ([String]) throws -> Void
-  ) throws {
-    lock.lock()
-    defer { lock.unlock() }
-    isTerminal = true
-
-    var reconciliationFailures: [String] = []
-    var reconciledNames: Set<String> = []
-    for pending in pendingCreations {
-      do {
-        let current = try reconcile(pending.name)
-        let reconciled = current.subtracting(pending.preexistingIdentifiers)
-        for identifier in reconciled {
-          _ = identifiers.insert(identifier)
-        }
-        if reconciled.isEmpty {
-          reconciliationFailures.append("\(pending.name): no attempt-owned device observed")
-        } else {
-          reconciledNames.insert(pending.name)
-        }
-      } catch {
-        reconciliationFailures.append("\(pending.name): \(error)")
-      }
-    }
-    pendingCreations.removeAll { reconciledNames.contains($0.name) }
-    let reconciliationError: Error? =
-      reconciliationFailures.isEmpty
-      ? nil
-      : HarnessFailure(reconciliationFailures.joined(separator: "\n"))
-
-    let owned = identifiers.sorted()
-    var cleanupError: Error?
-    do {
-      if !owned.isEmpty {
-        try cleanup(owned)
-        for identifier in owned { identifiers.remove(identifier) }
-      }
-    } catch {
-      cleanupError = error
-    }
-
-    switch (reconciliationError, cleanupError) {
-    case (.none, .none):
-      return
-    case (.some(let reconciliationError), .none):
-      throw reconciliationError
-    case (.none, .some(let cleanupError)):
-      throw cleanupError
-    case (.some(let reconciliationError), .some(let cleanupError)):
-      throw HarnessFailure(
-        "Simulator ownership reconciliation failed: \(reconciliationError)\ncleanup failed: \(cleanupError)"
-      )
-    }
-  }
-
-  func reconcilePending(using reconcile: (String) throws -> Set<String>) throws {
-    lock.lock()
-    defer { lock.unlock() }
-    var reconciledNames: Set<String> = []
-    for pending in pendingCreations {
-      let reconciled = try reconcile(pending.name).subtracting(pending.preexistingIdentifiers)
-      for identifier in reconciled {
-        _ = identifiers.insert(identifier)
-      }
-      if !reconciled.isEmpty {
-        reconciledNames.insert(pending.name)
-      }
-    }
-    pendingCreations.removeAll { reconciledNames.contains($0.name) }
-  }
-
-  func cleanup(
-    _ identifiersToClean: [String],
-    using cleanup: ([String]) throws -> Void
-  ) throws {
-    lock.lock()
-    defer { lock.unlock() }
-    let owned = identifiersToClean.filter { identifiers.contains($0) }.sorted()
-    guard !owned.isEmpty else { return }
-    try cleanup(owned)
-    for identifier in owned { identifiers.remove(identifier) }
-  }
-
-  func cleanupAll(using cleanup: ([String]) throws -> Void) throws {
-    try terminateAndCleanup(reconcile: { _ in [] }, cleanup: cleanup)
+  public func cleanup() throws {
+    let cleanup = lock.withLock { cleanupAction }
+    guard let cleanup else { return }
+    try cleanup()
+    release()
   }
 }
 
@@ -283,7 +72,6 @@ private final class SimulatorSession {
   let deviceType: DeviceTypeRecord
   let companionIdentifier: String?
   private let runner: ProcessRunner
-  private let registry: OwnedSimulatorRegistry
 
   init(
     deviceIdentifier: String,
@@ -291,8 +79,7 @@ private final class SimulatorSession {
     runtime: RuntimeRecord,
     deviceType: DeviceTypeRecord,
     companionIdentifier: String?,
-    runner: ProcessRunner,
-    registry: OwnedSimulatorRegistry
+    runner: ProcessRunner
   ) {
     self.deviceIdentifier = deviceIdentifier
     self.deviceName = deviceName
@@ -300,12 +87,11 @@ private final class SimulatorSession {
     self.deviceType = deviceType
     self.companionIdentifier = companionIdentifier
     self.runner = runner
-    self.registry = registry
   }
 
   func cleanup() throws {
-    let identifiers = [deviceIdentifier, companionIdentifier].compactMap { $0 }
-    try registry.cleanup(identifiers, runner: runner)
+    try cleanupSimulatorIdentifiers(
+      [deviceIdentifier, companionIdentifier].compactMap { $0 }, runner: runner)
   }
 }
 
@@ -313,18 +99,15 @@ public struct SimulatorHarness {
   private let context: RepositoryContext
   private let runner: ProcessRunner
   private let fileManager: FileManager
-  private let registry: OwnedSimulatorRegistry
 
   public init(
     context: RepositoryContext,
     runner: ProcessRunner = ProcessRunner(),
-    fileManager: FileManager = .default,
-    registry: OwnedSimulatorRegistry = .shared
+    fileManager: FileManager = .default
   ) {
     self.context = context
     self.runner = runner
     self.fileManager = fileManager
-    self.registry = registry
   }
 
   public func build(_ platform: HarnessPlatform, iosCompanionAvailable: Bool = false) throws
@@ -368,36 +151,32 @@ public struct SimulatorHarness {
     )
   }
 
-  public func launch(_ platform: HarnessPlatform, runID: String) throws -> SurfaceRun {
-    try runInstalledApp(platform, shouldExercise: false, runID: runID)
+  public func launch(_ platform: HarnessPlatform) throws -> SurfaceRun {
+    try runInstalledApp(platform, shouldExercise: false)
   }
 
-  public func boot(_ platform: HarnessPlatform, runID: String) throws -> SurfaceRun {
-    try withSession(platform: platform, runID: runID) { _ in
+  public func boot(_ platform: HarnessPlatform) throws -> SurfaceRun {
+    try withSession(platform: platform, runID: UUID().uuidString.lowercased()) { _ in
       SurfaceRun(
         platform: platform,
         artifacts: [],
-        message: "boot confirmed ephemeral \(platform.rawValue) Simulator for run \(runID)"
+        message: "boot confirmed ephemeral \(platform.rawValue) Simulator"
       )
     }
   }
 
-  public func exercise(_ platform: HarnessPlatform, runID: String) throws -> SurfaceRun {
-    try runInstalledApp(platform, shouldExercise: true, runID: runID)
+  public func exercise(_ platform: HarnessPlatform) throws -> SurfaceRun {
+    try runInstalledApp(platform, shouldExercise: true)
   }
 
-  private func runInstalledApp(
-    _ platform: HarnessPlatform,
-    shouldExercise: Bool,
-    runID: String
-  ) throws
+  private func runInstalledApp(_ platform: HarnessPlatform, shouldExercise: Bool) throws
     -> SurfaceRun
   {
     _ = try build(platform)
     let scratch = context.root.appending(path: "build/harness/\(UUID().uuidString.lowercased())")
     try fileManager.createDirectory(at: scratch, withIntermediateDirectories: true)
     defer { try? fileManager.removeItem(at: scratch) }
-    return try withSession(platform: platform, runID: runID) { session in
+    return try withSession(platform: platform, runID: UUID().uuidString.lowercased()) { session in
       try install(platform: platform, session: session)
       let screenshot = scratch.appending(path: "ready.png")
       let pid = try launchAndWait(
@@ -417,8 +196,8 @@ public struct SimulatorHarness {
         platform: platform,
         artifacts: [],
         message: shouldExercise
-          ? "exercise confirmed \(platform.configuration.bundleIdentifier) completed its visible harness scenario for run \(runID)"
-          : "launch confirmed \(platform.configuration.bundleIdentifier) stayed running for run \(runID)"
+          ? "exercise confirmed \(platform.configuration.bundleIdentifier) completed its visible harness scenario"
+          : "launch confirmed \(platform.configuration.bundleIdentifier) stayed running"
       )
     }
   }
@@ -556,21 +335,25 @@ public struct SimulatorHarness {
     operation: (SimulatorSession) throws -> T
   ) throws -> T {
     let session = try createSession(platform: platform, runID: runID)
+    SimulatorLifecycle.shared.register { try session.cleanup() }
     let result: Result<T, Error>
     do {
       result = .success(try operation(session))
     } catch {
       result = .failure(error)
     }
-    return try preservingPrimaryResult(
-      result,
-      cleanup: { try session.cleanup() },
-      reportCleanupFailure: { error in
-        let warning = HarnessOutput.redact(
-          "Simulator session cleanup failed; terminal cleanup will retry: \(error)")
-        FileHandle.standardError.write(Data((warning + "\n").utf8))
+    do {
+      try session.cleanup()
+      SimulatorLifecycle.shared.release()
+    } catch {
+      switch result {
+      case .success:
+        throw error
+      case .failure(let operationError):
+        throw HarnessFailure("\(operationError)\ncleanup failed: \(error)")
       }
-    )
+    }
+    return try result.get()
   }
 
   private func requireGeneratedWorkspace() throws {
@@ -649,16 +432,10 @@ public struct SimulatorHarness {
       throw HarnessFailure("no \(config.deviceFamily) Simulator device type is installed")
     }
 
-    let suffix = simulatorSessionSuffix(runID: runID)
+    let suffix = String(runID.prefix(24))
     let deviceName = "putio-harness-\(platform.rawValue)-\(suffix)"
-    let deviceIdentifier = try registry.registerCreated(
-      name: deviceName,
-      snapshot: { try deviceIdentifiers(named: deviceName) },
-      create: {
-        try createDevice(name: deviceName, type: deviceType.identifier, runtime: runtime.identifier)
-      },
-      reconcile: { try deviceIdentifiers(named: deviceName) }
-    )
+    let deviceIdentifier = try createDevice(
+      name: deviceName, type: deviceType.identifier, runtime: runtime.identifier)
     var companionIdentifier: String?
 
     do {
@@ -675,17 +452,10 @@ public struct SimulatorHarness {
           )
         }
         let phoneName = "putio-harness-watch-companion-\(suffix)"
-        let phoneIdentifier = try registry.registerCreated(
+        let phoneIdentifier = try createDevice(
           name: phoneName,
-          snapshot: { try deviceIdentifiers(named: phoneName) },
-          create: {
-            try createDevice(
-              name: phoneName,
-              type: phoneType.identifier,
-              runtime: phoneRuntime.identifier
-            )
-          },
-          reconcile: { try deviceIdentifiers(named: phoneName) }
+          type: phoneType.identifier,
+          runtime: phoneRuntime.identifier
         )
         companionIdentifier = phoneIdentifier
         let pairIdentifier = try runner.checked(
@@ -717,12 +487,11 @@ public struct SimulatorHarness {
         runtime: runtime,
         deviceType: deviceType,
         companionIdentifier: companionIdentifier,
-        runner: runner,
-        registry: registry
+        runner: runner
       )
     } catch {
       do {
-        try registry.cleanup(
+        try cleanupSimulatorIdentifiers(
           [deviceIdentifier, companionIdentifier].compactMap { $0 }, runner: runner)
       } catch let cleanupError {
         throw HarnessFailure("\(error)\ncleanup failed: \(cleanupError)")
@@ -750,27 +519,11 @@ public struct SimulatorHarness {
   }
 
   private func createDevice(name: String, type: String, runtime: String) throws -> String {
-    let output = try runner.run(
+    try runner.checked(
       "xcrun",
-      ["simctl", "create", name, type, runtime]
-    )
-    let identifier = validatedSimulatorIdentifier(output.stdout)
-    guard output.status == 0 else {
-      throw SimulatorCreationFailure(
-        identifier: identifier,
-        failure: HarnessFailure(
-          "create Simulator device \(name) failed\n\(output.combinedOutput)"
-        )
-      )
-    }
-    guard let identifier else {
-      throw HarnessFailure("create Simulator device \(name) returned an invalid identifier")
-    }
-    return identifier
-  }
-
-  private func deviceIdentifiers(named name: String) throws -> Set<String> {
-    try simulatorDeviceIdentifiers(named: name, runner: runner)
+      ["simctl", "create", name, type, runtime],
+      context: "create Simulator device \(name)"
+    ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
   private func boot(_ identifier: String, label: String) throws {
