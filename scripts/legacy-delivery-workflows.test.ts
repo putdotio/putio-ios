@@ -156,8 +156,8 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
 
   const serialized = JSON.stringify(job);
   assert.match(serialized, /c72211e00159fe4d2a010fe1d0816b9de6a7d707/);
-  assert.match(serialized, /759b0a86119fb5059d2655f6c5491ff9ed7361ef/);
-  assert.match(serialized, /7a7181e32709e92be3bc77d5b432eb8b900fd399/);
+  assert.match(serialized, /9e322da53648de9bc25dd005a2453e69d6bb354c/);
+  assert.match(serialized, /f959387dac71c6e897b496d00ac0e8b1f1075703/);
   assert.match(serialized, /actions\/workflows\/\$WORKFLOW_FILE\/dispatches/);
   assert.doesNotMatch(serialized, /secrets\./);
   assert.doesNotMatch(serialized, /secrets: inherit/);

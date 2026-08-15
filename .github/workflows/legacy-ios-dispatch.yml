@@ -65,7 +65,7 @@ jobs:
               ;;
             release)
               workflow_file="release.yml"
-              expected_workflow_blob="759b0a86119fb5059d2655f6c5491ff9ed7361ef"
+              expected_workflow_blob="9e322da53648de9bc25dd005a2453e69d6bb354c"
               ;;
             *)
               echo "Operation must be beta or release; received $OPERATION" >&2
@@ -73,7 +73,7 @@ jobs:
               ;;
           esac
 
-          expected_guard_blob="7a7181e32709e92be3bc77d5b432eb8b900fd399"
+          expected_guard_blob="f959387dac71c6e897b496d00ac0e8b1f1075703"
 
           branch_json="$(gh api "repos/$GITHUB_REPOSITORY/branches/main")"
           protected="$(jq -r '.protected' <<< "$branch_json")"
