@@ -140,7 +140,7 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
   assert.match(resolveRun, /if \[ "\$guard_blob" != "\$expected_guard_blob" \]; then[\s\S]*exit 1/);
 
   const payloadRun = stringAt(steps[1] ?? {}, "run", "payload step");
-  assert.equal(payloadRun.match(/return_run_details: true/g)?.length, 2);
+  assert.doesNotMatch(payloadRun, /return_run_details/);
   assert.equal(payloadRun.match(/expected_sha: \$expected_sha/g)?.length, 2);
   assert.match(payloadRun, /groups: \$groups/);
 
@@ -155,7 +155,7 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
   assert.match(dispatchRun, /html_url/);
 
   const serialized = JSON.stringify(job);
-  assert.match(serialized, /c72211e00159fe4d2a010fe1d0816b9de6a7d707/);
+  assert.match(serialized, /eb6ae278c53541ca4d528ed2415ab96003b9d398/);
   assert.match(serialized, /9e322da53648de9bc25dd005a2453e69d6bb354c/);
   assert.match(serialized, /f959387dac71c6e897b496d00ac0e8b1f1075703/);
   assert.match(serialized, /actions\/workflows\/\$WORKFLOW_FILE\/dispatches/);

@@ -61,7 +61,7 @@ jobs:
           case "$OPERATION" in
             beta)
               workflow_file="beta.yml"
-              expected_workflow_blob="c72211e00159fe4d2a010fe1d0816b9de6a7d707"
+              expected_workflow_blob="eb6ae278c53541ca4d528ed2415ab96003b9d398"
               ;;
             release)
               workflow_file="release.yml"
@@ -138,7 +138,7 @@ jobs:
                 --arg expected_sha "$EXPECTED_SHA" \
                 --arg groups "$BETA_GROUPS" \
                 --arg processing_timeout_minutes "$PROCESSING_TIMEOUT_MINUTES" \
-                '{ref: "main", return_run_details: true, inputs: {expected_sha: $expected_sha, changelog: $changelog, groups: $groups, processing_timeout_minutes: $processing_timeout_minutes}}' \
+                '{ref: "main", inputs: {expected_sha: $expected_sha, changelog: $changelog, groups: $groups, processing_timeout_minutes: $processing_timeout_minutes}}' \
                 > "$RUNNER_TEMP/legacy-dispatch.json"
               ;;
             release)
@@ -150,7 +150,7 @@ jobs:
               jq -n \
                 --arg expected_sha "$EXPECTED_SHA" \
                 --arg version "$VERSION" \
-                '{ref: "main", return_run_details: true, inputs: {expected_sha: $expected_sha, version: $version}}' \
+                '{ref: "main", inputs: {expected_sha: $expected_sha, version: $version}}' \
                 > "$RUNNER_TEMP/legacy-dispatch.json"
               ;;
           esac
