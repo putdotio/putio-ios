@@ -5,8 +5,8 @@ Distribution guidance for `putio-ios`.
 ## Workflows
 
 - [CI](../.github/workflows/ci.yml) verifies pushes and pull requests. A `changes` job on Linux classifies the diff with [`scripts/ci-affected.sh`](../scripts/ci-affected.sh), then `verify-app` runs `mise run bootstrap-ci` and `mise run verify` on macOS, and `verify-tooling` type-checks the Node scripts and checks the committed marketing images against their inputs, both on Linux. Each lane runs only when the diff can affect it, and an unrecognized path counts as app-affecting — a needless macOS run is cheaper than a missed break. Nothing is filtered at the `on:` level, so both checks always report a state.
-- [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. It verifies first, prepares metadata, loads release secrets, then splits delivery into archive, upload, and distribute steps.
-- [Release](../.github/workflows/release.yml) runs on published GitHub releases and builds the release artifact from the release tag. Manual dispatch builds from `main` for the supplied version.
+- [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. A secretless job first requires the exact current protected-main SHA, then the Environment-bearing job checks out that immutable commit, verifies, prepares metadata, loads release secrets, and splits delivery into archive, upload, and distribute steps.
+- [Release](../.github/workflows/release.yml) runs on published semantic `v*` GitHub releases and builds the release artifact from the immutable release-event SHA. Manual dispatch requires the exact current protected-main SHA and supplied version.
 - [Screenshots](../.github/workflows/screenshots.yml) is a dispatch-only lane that uploads the committed App Store images from `fastlane/screenshots/` and nothing else. It defaults to a dry run. It builds no app: no Xcode, no CocoaPods, no simulator.
   - The release lane keeps `skip_screenshots: true` on purpose. Shipping a build and changing the product page are separate decisions, and coupling them means every release either silently republishes the listing or silently does not.
   - `overwrite_screenshots: true` is required: App Store Connect appends otherwise, which would leave the 2024 images beside the new ones.
@@ -29,6 +29,7 @@ Distribution guidance for `putio-ios`.
 - release builds use UTC timestamp build numbers in `YYMMDDHHMM` format and upload the IPA produced from the checked-out source
 - checked-in `CURRENT_PROJECT_VERSION` stays at `1` as a baseline
 - fastlane temporarily updates tracked version metadata during archive time and restores the files afterward
+- Manual beta and release dispatches require `expected_sha` to equal both the workflow event SHA and the current protected `main` head. The validation job is secretless; only its immutable SHA output reaches the `release` Environment job.
 
 ## Release Secret Contract
 
