@@ -71,6 +71,7 @@ Production identities and delivery lanes are tracked separately.
 ## Docs
 
 - [Apple Platform Harness](./docs/HARNESS.md)
+- [Distribution](./docs/DISTRIBUTION.md)
 - [Security](./SECURITY.md)
 
 ## Contributing

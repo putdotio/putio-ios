@@ -1,0 +1,221 @@
+name: Legacy iOS 3.x dispatch contract
+
+on:
+  workflow_call:
+    inputs:
+      operation:
+        description: Legacy workflow to dispatch
+        required: true
+        type: string
+      legacy_ref:
+        description: Fully qualified protected legacy branch ref
+        required: true
+        type: string
+      changelog:
+        description: Optional TestFlight What to Test notes
+        required: false
+        type: string
+        default: ''
+      groups:
+        description: Comma-separated TestFlight groups
+        required: false
+        type: string
+        default: Beta
+      processing_timeout_minutes:
+        description: App Store Connect processing timeout in minutes
+        required: false
+        type: string
+        default: '20'
+      version:
+        description: App Store release version
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    name: Resolve protected main and dispatch its existing workflow
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Resolve the protected legacy ref
+        id: legacy
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LEGACY_REF: ${{ inputs.legacy_ref }}
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          set -euo pipefail
+
+          if [ "$LEGACY_REF" != "refs/heads/main" ]; then
+            echo "Only refs/heads/main is trusted for legacy iOS delivery; received $LEGACY_REF" >&2
+            exit 1
+          fi
+
+          case "$OPERATION" in
+            beta)
+              workflow_file="beta.yml"
+              expected_workflow_blob="eb6ae278c53541ca4d528ed2415ab96003b9d398"
+              ;;
+            release)
+              workflow_file="release.yml"
+              expected_workflow_blob="9e322da53648de9bc25dd005a2453e69d6bb354c"
+              ;;
+            *)
+              echo "Operation must be beta or release; received $OPERATION" >&2
+              exit 1
+              ;;
+          esac
+
+          expected_guard_blob="f959387dac71c6e897b496d00ac0e8b1f1075703"
+
+          branch_json="$(gh api "repos/$GITHUB_REPOSITORY/branches/main")"
+          protected="$(jq -r '.protected' <<< "$branch_json")"
+          legacy_sha="$(jq -r '.commit.sha' <<< "$branch_json")"
+
+          if [ "$protected" != "true" ]; then
+            echo "Refusing legacy delivery because main is not protected" >&2
+            exit 1
+          fi
+
+          if ! [[ "$legacy_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "GitHub returned an invalid SHA for protected main: $legacy_sha" >&2
+            exit 1
+          fi
+
+          workflow_blob="$(
+            gh api "repos/$GITHUB_REPOSITORY/contents/.github/workflows/$workflow_file?ref=$legacy_sha" \
+              --jq '.sha'
+          )"
+          guard_blob="$(
+            gh api "repos/$GITHUB_REPOSITORY/contents/.github/workflows/legacy-delivery-ref.yml?ref=$legacy_sha" \
+              --jq '.sha'
+          )"
+
+          if [ "$workflow_blob" != "$expected_workflow_blob" ]; then
+            echo "Protected main's $workflow_file no longer matches the reviewed legacy delivery contract" >&2
+            echo "Expected workflow blob $expected_workflow_blob, received $workflow_blob" >&2
+            echo "Review the main-branch workflow change and update the default-branch dispatcher deliberately" >&2
+            exit 1
+          fi
+
+          if [ "$guard_blob" != "$expected_guard_blob" ]; then
+            echo "Protected main's legacy-delivery-ref.yml no longer matches the reviewed trust contract" >&2
+            echo "Expected guard blob $expected_guard_blob, received $guard_blob" >&2
+            echo "Review the main-branch guard change and update the default-branch dispatcher deliberately" >&2
+            exit 1
+          fi
+
+          {
+            echo "workflow_file=$workflow_file"
+            echo "legacy_sha=$legacy_sha"
+            echo "workflow_blob=$workflow_blob"
+            echo "guard_blob=$guard_blob"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Prepare the bounded legacy dispatch payload
+        shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          CHANGELOG: ${{ inputs.changelog }}
+          EXPECTED_SHA: ${{ steps.legacy.outputs.legacy_sha }}
+          BETA_GROUPS: ${{ inputs.groups }}
+          PROCESSING_TIMEOUT_MINUTES: ${{ inputs.processing_timeout_minutes }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          case "$OPERATION" in
+            beta)
+              jq -n \
+                --arg changelog "$CHANGELOG" \
+                --arg expected_sha "$EXPECTED_SHA" \
+                --arg groups "$BETA_GROUPS" \
+                --arg processing_timeout_minutes "$PROCESSING_TIMEOUT_MINUTES" \
+                '{ref: "main", inputs: {expected_sha: $expected_sha, changelog: $changelog, groups: $groups, processing_timeout_minutes: $processing_timeout_minutes}}' \
+                > "$RUNNER_TEMP/legacy-dispatch.json"
+              ;;
+            release)
+              if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "Legacy release version must be three period-separated integers, for example 3.1.0" >&2
+                exit 1
+              fi
+
+              jq -n \
+                --arg expected_sha "$EXPECTED_SHA" \
+                --arg version "$VERSION" \
+                '{ref: "main", inputs: {expected_sha: $expected_sha, version: $version}}' \
+                > "$RUNNER_TEMP/legacy-dispatch.json"
+              ;;
+          esac
+
+      - name: Dispatch the existing workflow on protected main
+        id: dispatch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESOLVED_LEGACY_SHA: ${{ steps.legacy.outputs.legacy_sha }}
+          WORKFLOW_FILE: ${{ steps.legacy.outputs.workflow_file }}
+        run: |
+          set -euo pipefail
+          current_legacy_sha="$(
+            gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha'
+          )"
+
+          if [ "$current_legacy_sha" != "$RESOLVED_LEGACY_SHA" ]; then
+            echo "Protected main moved after validation; refusing to dispatch" >&2
+            echo "Validated $RESOLVED_LEGACY_SHA, now $current_legacy_sha" >&2
+            exit 1
+          fi
+
+          response="$(
+            gh api \
+              --method POST \
+              -H "X-GitHub-Api-Version: 2026-03-10" \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW_FILE/dispatches" \
+              --input "$RUNNER_TEMP/legacy-dispatch.json"
+          )"
+          downstream_run_id="$(jq -r '.workflow_run_id // empty' <<< "$response")"
+          downstream_run_url="$(jq -r '.html_url // empty' <<< "$response")"
+
+          if ! [[ "$downstream_run_id" =~ ^[0-9]+$ ]] || [ -z "$downstream_run_url" ]; then
+            echo "GitHub accepted the dispatch without returning a valid downstream run identity" >&2
+            exit 1
+          fi
+
+          {
+            echo "run_id=$downstream_run_id"
+            echo "run_url=$downstream_run_url"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Record the legacy handoff
+        shell: bash
+        env:
+          LEGACY_SHA: ${{ steps.legacy.outputs.legacy_sha }}
+          GUARD_BLOB: ${{ steps.legacy.outputs.guard_blob }}
+          WORKFLOW_BLOB: ${{ steps.legacy.outputs.workflow_blob }}
+          OPERATION: ${{ inputs.operation }}
+          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+          RUN_URL: ${{ steps.dispatch.outputs.run_url }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          {
+            echo "## Legacy iOS 3.x $OPERATION queued"
+            echo
+            echo "- Source ref: \`refs/heads/main\`"
+            echo "- Resolved protected-main SHA: \`$LEGACY_SHA\`"
+            echo "- Reviewed legacy workflow blob: \`$WORKFLOW_BLOB\`"
+            echo "- Reviewed legacy ref-guard blob: \`$GUARD_BLOB\`"
+            echo "- Downstream delivery run: [$RUN_ID]($RUN_URL)"
+            if [ "$OPERATION" = "release" ]; then
+              echo "- App Store version: \`$VERSION\`"
+            fi
+            echo "- Delivery contract: the existing \`.github/workflows/$OPERATION.yml\` from protected \`main\`"
+            echo "- Secrets and signing: loaded only by the downstream run's \`release\` Environment"
+          } >> "$GITHUB_STEP_SUMMARY"
