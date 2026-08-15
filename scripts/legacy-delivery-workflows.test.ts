@@ -49,6 +49,7 @@ test("legacy beta is a clearly bounded default-branch entrypoint", async () => {
   assert.deepEqual(Object.keys(inputs), [
     "legacy_ref",
     "changelog",
+    "groups",
     "processing_timeout_minutes",
   ]);
   const legacyRef = recordAt(inputs, "legacy_ref", "beta.yml inputs");
@@ -63,6 +64,7 @@ test("legacy beta is a clearly bounded default-branch entrypoint", async () => {
     operation: "beta",
     legacy_ref: "${{ inputs.legacy_ref }}",
     changelog: "${{ inputs.changelog }}",
+    groups: "${{ inputs.groups }}",
     processing_timeout_minutes: "${{ inputs.processing_timeout_minutes }}",
   });
   assert.equal("environment" in dispatch, false);
@@ -106,6 +108,7 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
     "operation",
     "legacy_ref",
     "changelog",
+    "groups",
     "processing_timeout_minutes",
     "version",
   ]);
@@ -137,7 +140,8 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
 
   const payloadRun = stringAt(steps[1] ?? {}, "run", "payload step");
   assert.equal(payloadRun.match(/return_run_details: true/g)?.length, 2);
-  assert.doesNotMatch(payloadRun, /groups/);
+  assert.equal(payloadRun.match(/expected_sha: \$expected_sha/g)?.length, 2);
+  assert.match(payloadRun, /groups: \$groups/);
 
   const dispatchRun = stringAt(steps[2] ?? {}, "run", "dispatch step");
   const recheckIndex = dispatchRun.indexOf('if [ "$current_legacy_sha" != "$RESOLVED_LEGACY_SHA" ]');
@@ -150,8 +154,8 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
   assert.match(dispatchRun, /html_url/);
 
   const serialized = JSON.stringify(job);
-  assert.match(serialized, /cc78256c629cd289070c6ad2a3d90a79bc3dcd09/);
-  assert.match(serialized, /20572e7313c1e1b83b43462f19c3b9b04872cdfc/);
+  assert.match(serialized, /c72211e00159fe4d2a010fe1d0816b9de6a7d707/);
+  assert.match(serialized, /759b0a86119fb5059d2655f6c5491ff9ed7361ef/);
   assert.match(serialized, /actions\/workflows\/\$WORKFLOW_FILE\/dispatches/);
   assert.doesNotMatch(serialized, /secrets\./);
   assert.doesNotMatch(serialized, /secrets: inherit/);

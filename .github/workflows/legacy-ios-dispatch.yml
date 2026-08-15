@@ -16,6 +16,11 @@ on:
         required: false
         type: string
         default: ''
+      groups:
+        description: Comma-separated TestFlight groups
+        required: false
+        type: string
+        default: Beta
       processing_timeout_minutes:
         description: App Store Connect processing timeout in minutes
         required: false
@@ -56,11 +61,11 @@ jobs:
           case "$OPERATION" in
             beta)
               workflow_file="beta.yml"
-              expected_workflow_blob="cc78256c629cd289070c6ad2a3d90a79bc3dcd09"
+              expected_workflow_blob="c72211e00159fe4d2a010fe1d0816b9de6a7d707"
               ;;
             release)
               workflow_file="release.yml"
-              expected_workflow_blob="20572e7313c1e1b83b43462f19c3b9b04872cdfc"
+              expected_workflow_blob="759b0a86119fb5059d2655f6c5491ff9ed7361ef"
               ;;
             *)
               echo "Operation must be beta or release; received $OPERATION" >&2
@@ -105,6 +110,8 @@ jobs:
         env:
           OPERATION: ${{ inputs.operation }}
           CHANGELOG: ${{ inputs.changelog }}
+          EXPECTED_SHA: ${{ steps.legacy.outputs.legacy_sha }}
+          BETA_GROUPS: ${{ inputs.groups }}
           PROCESSING_TIMEOUT_MINUTES: ${{ inputs.processing_timeout_minutes }}
           VERSION: ${{ inputs.version }}
         run: |
@@ -114,8 +121,10 @@ jobs:
             beta)
               jq -n \
                 --arg changelog "$CHANGELOG" \
+                --arg expected_sha "$EXPECTED_SHA" \
+                --arg groups "$BETA_GROUPS" \
                 --arg processing_timeout_minutes "$PROCESSING_TIMEOUT_MINUTES" \
-                '{ref: "main", return_run_details: true, inputs: {changelog: $changelog, processing_timeout_minutes: $processing_timeout_minutes}}' \
+                '{ref: "main", return_run_details: true, inputs: {expected_sha: $expected_sha, changelog: $changelog, groups: $groups, processing_timeout_minutes: $processing_timeout_minutes}}' \
                 > "$RUNNER_TEMP/legacy-dispatch.json"
               ;;
             release)
@@ -125,8 +134,9 @@ jobs:
               fi
 
               jq -n \
+                --arg expected_sha "$EXPECTED_SHA" \
                 --arg version "$VERSION" \
-                '{ref: "main", return_run_details: true, inputs: {version: $version}}' \
+                '{ref: "main", return_run_details: true, inputs: {expected_sha: $expected_sha, version: $version}}' \
                 > "$RUNNER_TEMP/legacy-dispatch.json"
               ;;
           esac
