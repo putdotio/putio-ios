@@ -19,6 +19,12 @@ const asRecord = (value: unknown, context: string): RecordValue => {
 const recordAt = (record: RecordValue, key: string, context: string): RecordValue =>
   asRecord(record[key], `${context}.${key}`);
 
+const arrayAt = (record: RecordValue, key: string, context: string): readonly unknown[] => {
+  const value = record[key];
+  assert.equal(Array.isArray(value), true, `${context}.${key} must be an array`);
+  return value as readonly unknown[];
+};
+
 const stringAt = (record: RecordValue, key: string, context: string): string => {
   const value = record[key];
   assert.equal(typeof value, "string", `${context}.${key} must be a string`);
@@ -43,7 +49,6 @@ test("legacy beta is a clearly bounded default-branch entrypoint", async () => {
   assert.deepEqual(Object.keys(inputs), [
     "legacy_ref",
     "changelog",
-    "groups",
     "processing_timeout_minutes",
   ]);
   const legacyRef = recordAt(inputs, "legacy_ref", "beta.yml inputs");
@@ -54,8 +59,14 @@ test("legacy beta is a clearly bounded default-branch entrypoint", async () => {
   assert.deepEqual(permissions, { actions: "write", contents: "read" });
   const dispatch = recordAt(recordAt(workflow, "jobs", "beta.yml"), "dispatch", "beta.yml jobs");
   assert.equal(dispatch.uses, "./.github/workflows/legacy-ios-dispatch.yml");
-  assert.equal(recordAt(dispatch, "with", "beta.yml dispatch").operation, "beta");
+  assert.deepEqual(recordAt(dispatch, "with", "beta.yml dispatch"), {
+    operation: "beta",
+    legacy_ref: "${{ inputs.legacy_ref }}",
+    changelog: "${{ inputs.changelog }}",
+    processing_timeout_minutes: "${{ inputs.processing_timeout_minutes }}",
+  });
   assert.equal("environment" in dispatch, false);
+  assert.equal("secrets" in dispatch, false);
 });
 
 test("legacy release requires an explicit legacy version", async () => {
@@ -70,10 +81,19 @@ test("legacy release requires an explicit legacy version", async () => {
   assert.equal(legacyRef.default, "refs/heads/main");
   assert.equal(recordAt(inputs, "version", "release.yml inputs").required, true);
 
+  assert.deepEqual(recordAt(workflow, "permissions", "release.yml"), {
+    actions: "write",
+    contents: "read",
+  });
   const dispatch = recordAt(recordAt(workflow, "jobs", "release.yml"), "dispatch", "release.yml jobs");
   assert.equal(dispatch.uses, "./.github/workflows/legacy-ios-dispatch.yml");
-  assert.equal(recordAt(dispatch, "with", "release.yml dispatch").operation, "release");
+  assert.deepEqual(recordAt(dispatch, "with", "release.yml dispatch"), {
+    operation: "release",
+    legacy_ref: "${{ inputs.legacy_ref }}",
+    version: "${{ inputs.version }}",
+  });
   assert.equal("environment" in dispatch, false);
+  assert.equal("secrets" in dispatch, false);
 });
 
 test("the relay fails closed before dispatching the reviewed main workflows", async () => {
@@ -81,6 +101,14 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
   assert.equal(workflow.name, "Legacy iOS 3.x dispatch contract");
   const on = recordAt(workflow, "on", "legacy-ios-dispatch.yml");
   assert.deepEqual(Object.keys(on), ["workflow_call"]);
+  const callInputs = recordAt(recordAt(on, "workflow_call", "legacy-ios-dispatch.yml.on"), "inputs", "legacy-ios-dispatch.yml.on.workflow_call");
+  assert.deepEqual(Object.keys(callInputs), [
+    "operation",
+    "legacy_ref",
+    "changelog",
+    "processing_timeout_minutes",
+    "version",
+  ]);
   assert.deepEqual(recordAt(workflow, "permissions", "legacy-ios-dispatch.yml"), {
     actions: "write",
     contents: "read",
@@ -88,23 +116,47 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
 
   const job = recordAt(recordAt(workflow, "jobs", "legacy-ios-dispatch.yml"), "dispatch", "legacy-ios-dispatch.yml jobs");
   assert.equal("environment" in job, false);
+  const steps = arrayAt(job, "steps", "legacy-ios-dispatch.yml dispatch").map((step, index) =>
+    asRecord(step, `legacy-ios-dispatch.yml steps[${index}]`),
+  );
+  assert.deepEqual(
+    steps.map((step) => step.name),
+    [
+      "Resolve the protected legacy ref",
+      "Prepare the bounded legacy dispatch payload",
+      "Dispatch the existing workflow on protected main",
+      "Record the legacy handoff",
+    ],
+  );
+  for (const step of steps) assert.equal("uses" in step, false, `${String(step.name)} must not invoke an action`);
+
+  const resolveRun = stringAt(steps[0] ?? {}, "run", "resolve step");
+  assert.match(resolveRun, /if \[ "\$LEGACY_REF" != "refs\/heads\/main" \]; then[\s\S]*exit 1/);
+  assert.match(resolveRun, /if \[ "\$protected" != "true" \]; then[\s\S]*exit 1/);
+  assert.match(resolveRun, /if \[ "\$workflow_blob" != "\$expected_workflow_blob" \]; then[\s\S]*exit 1/);
+
+  const payloadRun = stringAt(steps[1] ?? {}, "run", "payload step");
+  assert.equal(payloadRun.match(/return_run_details: true/g)?.length, 2);
+  assert.doesNotMatch(payloadRun, /groups/);
+
+  const dispatchRun = stringAt(steps[2] ?? {}, "run", "dispatch step");
+  const recheckIndex = dispatchRun.indexOf('if [ "$current_legacy_sha" != "$RESOLVED_LEGACY_SHA" ]');
+  const postIndex = dispatchRun.indexOf("--method POST");
+  assert.notEqual(recheckIndex, -1);
+  assert.ok(recheckIndex < postIndex, "protected-main SHA recheck must precede the POST");
+  assert.match(dispatchRun.slice(recheckIndex, postIndex), /exit 1/);
+  assert.match(dispatchRun, /X-GitHub-Api-Version: 2026-03-10/);
+  assert.match(dispatchRun, /workflow_run_id/);
+  assert.match(dispatchRun, /html_url/);
+
   const serialized = JSON.stringify(job);
-  assert.match(serialized, /Only refs\/heads\/main is trusted/);
-  assert.match(serialized, /\.protected/);
-  assert.match(serialized, /\^\[0-9a-f\]\{40\}\$/);
   assert.match(serialized, /cc78256c629cd289070c6ad2a3d90a79bc3dcd09/);
   assert.match(serialized, /20572e7313c1e1b83b43462f19c3b9b04872cdfc/);
-  assert.match(serialized, /contents\/\.github\/workflows\/\$workflow_file\?ref=\$legacy_sha/);
-  assert.match(serialized, /Protected main moved after validation; refusing to dispatch/);
-  assert.match(serialized, /current_legacy_sha.*RESOLVED_LEGACY_SHA/);
   assert.match(serialized, /actions\/workflows\/\$WORKFLOW_FILE\/dispatches/);
-  assert.match(serialized, /X-GitHub-Api-Version: 2026-03-10/);
-  assert.match(serialized, /workflow_run_id/);
-  assert.match(serialized, /html_url/);
-  assert.match(serialized, /\{ref: \\"main\\"/);
-  assert.equal(serialized.match(/return_run_details: true/g)?.length, 2);
   assert.doesNotMatch(serialized, /secrets\./);
+  assert.doesNotMatch(serialized, /secrets: inherit/);
   assert.doesNotMatch(serialized, /load-ios-release-secrets/);
+  assert.doesNotMatch(serialized, /actions\/checkout/);
 });
 
 test("next CI is visibly distinct from legacy delivery", async () => {

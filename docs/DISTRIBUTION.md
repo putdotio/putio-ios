@@ -21,7 +21,7 @@ The workflow-blob check fails closed if the legacy beta or release orchestration
 ### Inputs and output identity
 
 - Both entrypoints expose a `legacy_ref` choice with the sole trusted value `refs/heads/main`. API callers receive the same server-side validation as UI callers.
-- Beta forwards only the established `changelog`, `groups`, and `processing_timeout_minutes` inputs to `main`.
+- Beta forwards the established `changelog` and `processing_timeout_minutes` inputs to `main`. It intentionally omits custom groups because the current legacy workflow does not persist that input to its distribution step; the established `Beta` default remains in force.
 - Release requires a three-component legacy App Store version such as `3.1.0` and forwards it to `main`.
 - Workflow names, run names, input descriptions, and the relay job summary identify the line as legacy iOS 3.x and record the protected-main SHA, reviewed workflow blob, and downstream delivery-run link.
 

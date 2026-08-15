@@ -16,11 +16,6 @@ on:
         required: false
         type: string
         default: ''
-      groups:
-        description: Comma-separated TestFlight groups
-        required: false
-        type: string
-        default: Beta
       processing_timeout_minutes:
         description: App Store Connect processing timeout in minutes
         required: false
@@ -110,7 +105,6 @@ jobs:
         env:
           OPERATION: ${{ inputs.operation }}
           CHANGELOG: ${{ inputs.changelog }}
-          TESTFLIGHT_GROUPS: ${{ inputs.groups }}
           PROCESSING_TIMEOUT_MINUTES: ${{ inputs.processing_timeout_minutes }}
           VERSION: ${{ inputs.version }}
         run: |
@@ -120,9 +114,8 @@ jobs:
             beta)
               jq -n \
                 --arg changelog "$CHANGELOG" \
-                --arg groups "$TESTFLIGHT_GROUPS" \
                 --arg processing_timeout_minutes "$PROCESSING_TIMEOUT_MINUTES" \
-                '{ref: "main", return_run_details: true, inputs: {changelog: $changelog, groups: $groups, processing_timeout_minutes: $processing_timeout_minutes}}' \
+                '{ref: "main", return_run_details: true, inputs: {changelog: $changelog, processing_timeout_minutes: $processing_timeout_minutes}}' \
                 > "$RUNNER_TEMP/legacy-dispatch.json"
               ;;
             release)

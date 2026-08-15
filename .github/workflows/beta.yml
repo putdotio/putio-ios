@@ -15,10 +15,6 @@ on:
         description: Optional legacy TestFlight What to Test notes
         required: false
         default: ''
-      groups:
-        description: Comma-separated legacy TestFlight groups
-        required: false
-        default: Beta
       processing_timeout_minutes:
         description: Minutes to wait for legacy App Store Connect processing
         required: false
@@ -36,5 +32,4 @@ jobs:
       operation: beta
       legacy_ref: ${{ inputs.legacy_ref }}
       changelog: ${{ inputs.changelog }}
-      groups: ${{ inputs.groups }}
       processing_timeout_minutes: ${{ inputs.processing_timeout_minutes }}
