@@ -1,0 +1,40 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions-patch-minor:
+        update-types: ["patch", "minor"]
+      actions-major:
+        update-types: ["major"]
+    commit-message:
+      prefix: "ci"
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 1
+    groups:
+      npm-patch-minor:
+        update-types: ["patch", "minor"]
+      npm-major:
+        update-types: ["major"]
+    commit-message:
+      prefix: "chore"
+  - package-ecosystem: swift
+    directories:
+      - /Packages/PutioCore
+      - /Tools/PutioHarness
+      - /Tuist
+    schedule:
+      interval: monthly
+    groups:
+      swift-patch-minor:
+        update-types: ["patch", "minor"]
+      swift-major:
+        update-types: ["major"]
+    commit-message:
+      prefix: "chore"
