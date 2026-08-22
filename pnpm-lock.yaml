@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       '@putdotio/design':
-        specifier: 2.0.1
-        version: 2.0.1
+        specifier: 2.0.2
+        version: 2.0.2
       '@types/node':
         specifier: 24.13.3
         version: 24.13.3
@@ -18,13 +18,13 @@ importers:
         specifier: 7.0.2
         version: 7.0.2
       yaml:
-        specifier: 2.8.1
-        version: 2.8.1
+        specifier: 2.9.0
+        version: 2.9.0
 
 packages:
 
-  '@putdotio/design@2.0.1':
-    resolution: {integrity: sha512-ZXy7opHsluAtDMgFp5SaZWUnsjsX9PNJTivOgCcHpVU487SHoMsDcDe8tonSRQtImVST82NRKaKOdBX8CgxjkQ==}
+  '@putdotio/design@2.0.2':
+    resolution: {integrity: sha512-2/l+uIwGPRcejeneDKKWR+ByqDIIniltX8/bfbGFHB0xTQ9eozBWmyR73B08FNuXwd2MdSi7KHsy90Jf1LuUCA==}
 
   '@types/node@24.13.3':
     resolution: {integrity: sha512-Dh8vAsV36ig5wa9OX4pXvMc9D3Veibfw2wix0CUwYODLD8nkj9UsLjASr49nPg+2eKzxhBV+v7L8pXvT4e639Q==}
@@ -157,14 +157,14 @@ packages:
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
-  yaml@2.8.1:
-    resolution: {integrity: sha512-lcYcMxX2PO9XMGvAJkJ3OsNMw+/7FKes7/hgerGUYWIoWu5j/+YQqcZr5JnPZWzOsEBgMbSbiSTn/dv/69Mkpw==}
+  yaml@2.9.0:
+    resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
     engines: {node: '>= 14.6'}
     hasBin: true
 
 snapshots:
 
-  '@putdotio/design@2.0.1': {}
+  '@putdotio/design@2.0.2': {}
 
   '@types/node@24.13.3':
     dependencies:
@@ -255,4 +255,4 @@ snapshots:
 
   undici-types@7.18.2: {}
 
-  yaml@2.8.1: {}
+  yaml@2.9.0: {}
