@@ -19,11 +19,7 @@ public struct SignedOutPresentation: Equatable, Sendable {
   }
 
   public static func isHarnessExercise(arguments: [String]) -> Bool {
-    guard let scenarioIndex = arguments.firstIndex(of: "--putio-harness-scenario") else {
-      return false
-    }
-    return arguments.indices.contains(scenarioIndex + 1)
-      && arguments[scenarioIndex + 1] == "exercised"
+    HarnessScenario.parse(arguments: arguments) == .exercised
   }
 
   public static func signalHarnessExercise() {
