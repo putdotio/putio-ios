@@ -13,6 +13,7 @@ import Testing
         platforms: .all,
         runID: "pr-146",
         recordSeconds: 4,
+        scenario: .signedOut,
         output: .json
       )
   )
@@ -29,9 +30,56 @@ import Testing
         platforms: .one(.watchos),
         runID: nil,
         recordSeconds: 3,
+        scenario: .signedOut,
         output: .json
       )
   )
+}
+
+@Test func parsesGalleryScreenshot() throws {
+  let invocation = try HarnessArgumentParser.parse([
+    "screenshot", "--platform", "ios", "--scenario", "gallery", "--output", "json",
+  ])
+  #expect(
+    invocation
+      == .surface(
+        command: .screenshot,
+        platforms: .one(.ios),
+        runID: nil,
+        recordSeconds: 3,
+        scenario: .gallery,
+        output: .json
+      )
+  )
+}
+
+@Test func rejectsGalleryScenarioOutsideCapture() {
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse(["proof", "--platform", "ios", "--scenario", "gallery"])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "screenshot", "--platform", "watchos", "--scenario", "gallery",
+    ])
+  }
+}
+
+@Test func parsesSnapshotTest() throws {
+  let invocation = try HarnessArgumentParser.parse(["test", "--platform", "tvos"])
+  #expect(invocation == .test(platform: .tvos, recordSnapshots: false, output: .text))
+  let record = try HarnessArgumentParser.parse([
+    "test", "--platform", "ios", "--snapshots", "record",
+  ])
+  #expect(record == .test(platform: .ios, recordSnapshots: true, output: .text))
+}
+
+@Test func rejectsSnapshotTestOnUnsupportedPlatform() {
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse(["test", "--platform", "watchos"])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse(["test", "--platform", "all"])
+  }
 }
 
 @Test func rejectsUnknownPlatform() {

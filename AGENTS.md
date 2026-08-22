@@ -49,6 +49,9 @@
 - Full repository: `mise run verify`
 - Manifest change: regenerate, then build every app scheme
 - Runtime-sensitive change: launch the affected shell in its simulator in addition to `mise run verify`
+- Component or theming change: `mise run harness -- test --platform <ios|tvos>` asserts the
+  committed snapshot gallery; after an intentional visual change re-record with
+  `--snapshots record` and commit the image diff
 - Agent runtime proof: `mise run harness -- proof --platform <ios|watchos|tvos>`
 
 ## Harness

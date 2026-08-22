@@ -207,6 +207,7 @@ public struct SimulatorHarness {
     command: SurfaceCommand,
     runID: String,
     recordSeconds: Int,
+    scenario: CaptureScenario = .signedOut,
     iosCompanionAvailable: Bool = false,
     sourceRevision: String
   ) throws -> SurfaceRun {
@@ -231,7 +232,7 @@ public struct SimulatorHarness {
         let wantsScreenshot = command == .screenshot || command == .proof
         let wantsRecording = command == .record || command == .proof
         let screenshot = platformDirectory.appending(
-          path: command == .proof ? "exercised.png" : "signed-out.png")
+          path: command == .proof ? "exercised.png" : "\(scenario.rawValue).png")
         let readinessScreenshot =
           command == .proof
           ? platformDirectory.appending(path: ".signed-out-readiness.png")
@@ -247,7 +248,8 @@ public struct SimulatorHarness {
           platform: platform,
           session: session,
           screenshot: readinessScreenshot,
-          logsDirectory: platformDirectory
+          logsDirectory: platformDirectory,
+          scenario: scenario.rawValue
         )
         if command == .proof {
           pid = try performExercise(
@@ -293,7 +295,8 @@ public struct SimulatorHarness {
           commit: sourceRevision,
           session: session,
           artifactURLs: artifactURLs,
-          directory: platformDirectory
+          directory: platformDirectory,
+          scenario: scenario
         )
         return SurfaceRun(
           platform: platform,
@@ -307,6 +310,36 @@ public struct SimulatorHarness {
       try? fileManager.removeItem(at: platformDirectory)
       guard !diagnostics.isEmpty else { throw error }
       throw HarnessFailure("\(error)\n\(diagnostics)")
+    }
+  }
+
+  public func test(_ platform: HarnessPlatform, recordSnapshots: Bool) throws -> SurfaceRun {
+    guard let scheme = platform.configuration.snapshotScheme else {
+      throw HarnessFailure("test supports only platforms with a snapshot scheme: ios, tvos")
+    }
+    try requireGeneratedWorkspace()
+    try fileManager.createDirectory(at: context.derivedData, withIntermediateDirectories: true)
+    return try withSession(platform: platform, runID: UUID().uuidString.lowercased()) { session in
+      _ = try runner.checked(
+        "xcodebuild",
+        [
+          "test",
+          "-workspace", "Putio.xcworkspace",
+          "-scheme", scheme,
+          "-destination", "id=\(session.deviceIdentifier)",
+          "-derivedDataPath", context.derivedData.path,
+        ],
+        environment: recordSnapshots ? ["TEST_RUNNER_PUTIO_SNAPSHOT_RECORD": "1"] : [:],
+        currentDirectory: context.root,
+        context: "test \(platform.rawValue)"
+      )
+      return SurfaceRun(
+        platform: platform,
+        artifacts: [],
+        message: recordSnapshots
+          ? "recorded and re-asserted \(scheme) snapshot baselines"
+          : "\(scheme) snapshot suite passed"
+      )
     }
   }
 
@@ -777,6 +810,11 @@ public struct SimulatorHarness {
     }.joined(separator: "\n")
   }
 
+  private func fixtureSet(command: SurfaceCommand, scenario: CaptureScenario) -> String {
+    if command == .proof { return "signed-out-to-exercised-placeholder-v1" }
+    return scenario == .gallery ? "component-gallery-v1" : "signed-out-placeholder-v1"
+  }
+
   private func writeManifest(
     platform: HarnessPlatform,
     command: SurfaceCommand,
@@ -784,7 +822,8 @@ public struct SimulatorHarness {
     commit: String,
     session: SimulatorSession,
     artifactURLs: [URL],
-    directory: URL
+    directory: URL,
+    scenario: CaptureScenario
   ) throws -> URL {
     let artifacts = try artifactURLs.map { try artifact(for: $0) }
     let manifest = ProofManifest(
@@ -798,8 +837,7 @@ public struct SimulatorHarness {
       runtime: session.runtime.name,
       deviceType: session.deviceType.name,
       simulatorName: session.deviceName,
-      fixtureSet: command == .proof
-        ? "signed-out-to-exercised-placeholder-v1" : "signed-out-placeholder-v1",
+      fixtureSet: fixtureSet(command: command, scenario: scenario),
       artifacts: artifacts
     )
     let manifestURL = directory.appending(path: "manifest.json")

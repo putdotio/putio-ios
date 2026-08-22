@@ -31,13 +31,25 @@ public struct HarnessService {
       return .result(
         try live.publish(artifact: artifact, repository: repository, pullRequest: pullRequest)
       )
-    case .surface(let command, let selection, let requestedRunID, let recordSeconds, _):
+    case .surface(
+      let command, let selection, let requestedRunID, let recordSeconds, let scenario, _):
       return .result(
         try executeSurface(
           command: command,
           selection: selection,
           requestedRunID: requestedRunID,
-          recordSeconds: recordSeconds
+          recordSeconds: recordSeconds,
+          scenario: scenario
+        )
+      )
+    case .test(let platform, let recordSnapshots, _):
+      let run = try simulator.test(platform, recordSnapshots: recordSnapshots)
+      return .result(
+        HarnessResult(
+          command: "test",
+          platforms: [run.platform.rawValue],
+          artifacts: run.artifacts.map(context.relativePath(for:)),
+          message: run.message
         )
       )
     }
@@ -47,7 +59,8 @@ public struct HarnessService {
     command: SurfaceCommand,
     selection: PlatformSelection,
     requestedRunID: String?,
-    recordSeconds: Int
+    recordSeconds: Int,
+    scenario: CaptureScenario
   ) throws -> HarnessResult {
     let platforms = selection.platforms
     var runs: [SurfaceRun] = []
@@ -80,6 +93,7 @@ public struct HarnessService {
             command: command,
             runID: runID,
             recordSeconds: recordSeconds,
+            scenario: scenario,
             iosCompanionAvailable: iosProductAvailable,
             sourceRevision: sourceRevision
           )
@@ -110,7 +124,8 @@ public enum HarnessOutput {
     switch invocation {
     case .help: .text
     case .doctor(let output): output
-    case .surface(_, _, _, _, let output): output
+    case .surface(_, _, _, _, _, let output): output
+    case .test(_, _, let output): output
     case .authStatus(let output): output
     case .liveFixture(let output): output
     case .publish(_, _, _, let output): output
