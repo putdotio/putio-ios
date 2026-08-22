@@ -7,7 +7,7 @@
   "description": "Node tooling for the put.io iOS app: visual reference gallery, and later the App Store image pipeline and gallery deploy.",
   "packageManager": "pnpm@11.2.2",
   "engines": {
-    "node": ">=24.18.0"
+    "node": ">=24.19.0"
   },
   "devDependencies": {
     "@putdotio/design": "^1.5.0",

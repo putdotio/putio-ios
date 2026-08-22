@@ -10,7 +10,7 @@
 ruby = "4.0.6"
 # CI installs Ruby via ruby/setup-ruby instead: mise would compile it from
 # source on macOS. mise owns the pin, setup-ruby owns the install.
-node = "24.18.0"
+node = "24.19.0"
 
 [tasks.doctor]
 description = "Check Ruby, Node, pnpm and Xcode against this repo's pins"
