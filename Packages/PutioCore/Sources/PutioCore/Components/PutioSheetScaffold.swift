@@ -1,5 +1,9 @@
 import SwiftUI
 
+// On iOS and watchOS sheets are the system presentation: the scaffold only
+// arranges a title bar and content and lets the platform provide the sheet
+// surface. tvOS paints the contract's centered solid modal over a scrim,
+// because TV menus are centered modals with no translucent materials.
 public struct PutioSheetScaffold<Content: View>: View {
   private let title: String
   private let content: Content
@@ -10,32 +14,43 @@ public struct PutioSheetScaffold<Content: View>: View {
   }
 
   public var body: some View {
-    VStack(spacing: 0) {
-      Text(title)
-        .putioFont(PutioSheetLayout.titleFont)
-        .foregroundStyle(PutioTheme.Colors.textPrimary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(PutioSheetLayout.contentPadding)
-      Rectangle()
-        .fill(PutioTheme.Components.Sheet.border)
-        .frame(height: PutioTheme.Border.width)
-      content
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(PutioSheetLayout.contentPadding)
-    }
-    .background(PutioTheme.Components.Sheet.background, in: PutioSheetLayout.shape)
-    .overlay(
-      PutioSheetLayout.shape.strokeBorder(
-        PutioTheme.Components.Sheet.border,
-        lineWidth: PutioTheme.Border.width
+    #if os(tvOS)
+      VStack(spacing: 0) {
+        titleRow
+        Rectangle()
+          .fill(PutioTheme.Components.Sheet.border)
+          .frame(height: PutioTheme.Border.width)
+        content
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(PutioSheetLayout.contentPadding)
+      }
+      .background(
+        PutioTheme.Components.Sheet.background,
+        in: RoundedRectangle(cornerRadius: PutioTheme.TV.radius)
       )
-    )
+    #else
+      VStack(spacing: 0) {
+        titleRow
+        Divider()
+        content
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(PutioSheetLayout.contentPadding)
+        Spacer(minLength: 0)
+      }
+    #endif
+  }
+
+  private var titleRow: some View {
+    Text(title)
+      .putioFont(PutioSheetLayout.titleFont)
+      .foregroundStyle(PutioTheme.Colors.textPrimary)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(PutioSheetLayout.contentPadding)
   }
 }
 
 extension View {
-  // Centered token-surface modal over a scrim; on TV this is the one modal
-  // presentation (menus are centered modals, solid colors, no materials).
+  // System sheet on iOS and watchOS; centered solid modal on tvOS.
   public func putioModal<Content: View>(
     isPresented: Binding<Bool>,
     title: String,
@@ -51,21 +66,27 @@ private struct PutioModalPresenter<Modal: View>: ViewModifier {
   @ViewBuilder let modal: () -> Modal
 
   func body(content: Content) -> some View {
-    content.overlay {
-      if isPresented {
-        ZStack {
-          PutioTheme.Components.Sheet.scrim.ignoresSafeArea()
-          PutioSheetScaffold(title: title) { modal() }
-            .padding(PutioSheetLayout.presentationPadding)
+    #if os(tvOS)
+      content.overlay {
+        if isPresented {
+          ZStack {
+            PutioTheme.Components.Sheet.scrim.ignoresSafeArea()
+            PutioSheetScaffold(title: title) { modal() }
+              .padding(PutioTheme.TV.Spacing.xl)
+          }
+          .transition(.opacity)
+          .zIndex(PutioTheme.TV.ZIndex.modal)
         }
-        .transition(.opacity)
-        .zIndex(PutioSheetLayout.zIndex)
       }
-    }
-    .animation(
-      PutioTheme.Motion.easingInOut.animation(duration: PutioTheme.Motion.durationBase),
-      value: isPresented
-    )
+      .animation(
+        PutioTheme.Motion.easingInOut.animation(duration: PutioTheme.Motion.durationBase),
+        value: isPresented
+      )
+    #else
+      content.sheet(isPresented: $isPresented) {
+        PutioSheetScaffold(title: title) { modal() }
+      }
+    #endif
   }
 }
 
@@ -73,14 +94,8 @@ enum PutioSheetLayout {
   #if os(tvOS)
     static let titleFont = PutioTheme.TV.Typography.label
     static let contentPadding = PutioTheme.TV.Spacing.medium
-    static let presentationPadding = PutioTheme.TV.Spacing.xl
-    static let zIndex = PutioTheme.TV.ZIndex.modal
-    static let shape = RoundedRectangle(cornerRadius: PutioTheme.TV.radius)
   #else
     static let titleFont = PutioTheme.Typography.subheading
     static let contentPadding = PutioTheme.Spacing.space3
-    static let presentationPadding = PutioTheme.Spacing.space3
-    static let zIndex = 1.0
-    static let shape = RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
   #endif
 }

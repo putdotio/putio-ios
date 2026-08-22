@@ -37,18 +37,51 @@ public struct PutioFileRowModel: Equatable, Sendable {
   }
 }
 
+// The central list row. On iOS and watchOS it is plain content for a native
+// List: system separators, insets, and row heights per the HIG, with every
+// metric scaled so icons and gaps track the user's text size. tvOS keeps the
+// contract's painted row with the solid focus fill.
 public struct PutioFileRow: View {
   private let model: PutioFileRowModel
 
+  @PutioScaledMetric private var iconSize: CGFloat
+  @PutioScaledMetric private var indicatorSize: CGFloat
+  @PutioScaledMetric private var contentGap: CGFloat
+  @PutioScaledMetric private var textGap: CGFloat
+
   public init(_ model: PutioFileRowModel) {
     self.model = model
+    _iconSize = PutioScaledMetric(PutioFileRowLayout.iconSize)
+    _indicatorSize = PutioScaledMetric(PutioFileRowLayout.indicatorSize)
+    _contentGap = PutioScaledMetric(PutioTheme.ScaledMetrics.contentGap)
+    _textGap = PutioScaledMetric(PutioTheme.ScaledMetrics.compactContentGap)
   }
 
   public var body: some View {
-    HStack(spacing: PutioFileRowLayout.horizontalPadding) {
-      PutioIconView(model.icon, size: PutioFileRowLayout.iconSize)
+    #if os(tvOS)
+      content
+        .padding(.vertical, PutioTheme.TV.Spacing.small)
+        .padding(.horizontal, PutioTheme.TV.Spacing.small)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .bottom) {
+          Rectangle()
+            .fill(PutioTheme.Components.FileRow.border)
+            .frame(height: PutioTheme.Border.width)
+        }
+    #else
+      content
+        .padding(.vertical, textGap)
+    #endif
+  }
+
+  private var content: some View {
+    HStack(spacing: contentGap) {
+      Image(putioIcon: model.icon)
+        .resizable()
+        .scaledToFit()
+        .frame(width: iconSize, height: iconSize)
         .foregroundStyle(PutioTheme.Components.FileRow.icon)
-      VStack(alignment: .leading, spacing: PutioTheme.Spacing.space1) {
+      VStack(alignment: .leading, spacing: textGap) {
         Text(model.name)
           .putioFont(PutioFileRowLayout.nameFont)
           .foregroundStyle(PutioTheme.Colors.textPrimary)
@@ -61,76 +94,68 @@ public struct PutioFileRow: View {
             .lineLimit(1)
         }
       }
-      Spacer(minLength: PutioTheme.Spacing.space2)
+      Spacer(minLength: contentGap)
       if model.isWatched {
-        PutioIconView(.eye, size: PutioFileRowLayout.indicatorSize)
+        Image(putioIcon: .eye)
+          .resizable()
+          .scaledToFit()
+          .frame(width: indicatorSize, height: indicatorSize)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
           .accessibilityLabel(Text("Watched"))
       }
       if model.kind == .folder {
-        PutioIconView(.caretRight, size: PutioFileRowLayout.indicatorSize)
+        Image(putioIcon: .caretRight)
+          .resizable()
+          .scaledToFit()
+          .frame(width: indicatorSize, height: indicatorSize)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
       }
     }
-    .padding(.vertical, PutioTheme.Spacing.space2)
-    .padding(.horizontal, PutioFileRowLayout.horizontalPadding)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .background(PutioTheme.Components.FileRow.background)
-    .overlay(alignment: .bottom) {
-      Rectangle()
-        .fill(PutioTheme.Components.FileRow.border)
-        .frame(height: PutioTheme.Border.width)
+  }
+}
+
+#if os(tvOS)
+  // TV rows go transparent to the solid active fill on focus, per the TV
+  // contract: a fill, never a lift.
+  public struct PutioListRowButtonStyle: ButtonStyle {
+    @Environment(\.isFocused) private var isFocused
+
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
+      configuration.label
+        .background(fill(isPressed: configuration.isPressed), in: shape)
+        .animation(
+          PutioTheme.Motion.easingOut.animation(duration: PutioTheme.Motion.durationFast),
+          value: configuration.isPressed
+        )
+    }
+
+    private var shape: RoundedRectangle {
+      RoundedRectangle(cornerRadius: PutioTheme.TV.radius)
+    }
+
+    private func fill(isPressed: Bool) -> Color {
+      if isFocused { return PutioTheme.Colors.surfaceActive }
+      return isPressed
+        ? PutioTheme.Components.FileRow.backgroundActive
+        : PutioTheme.Components.FileRow.background
     }
   }
-}
-
-// Rows are the core list component; hover/focus states must be obvious
-// without inflating row height, so the pressed and focused fills are the
-// same solid active step.
-public struct PutioListRowButtonStyle: ButtonStyle {
-  #if os(tvOS)
-    @Environment(\.isFocused) private var isFocused
-  #endif
-
-  public init() {}
-
-  public func makeBody(configuration: Configuration) -> some View {
-    configuration.label
-      .background(fill(isPressed: configuration.isPressed), in: shape)
-      .animation(
-        PutioTheme.Motion.easingOut.animation(duration: PutioTheme.Motion.durationFast),
-        value: configuration.isPressed
-      )
-  }
-
-  private var shape: RoundedRectangle {
-    #if os(tvOS)
-      RoundedRectangle(cornerRadius: PutioTheme.TV.radius)
-    #else
-      RoundedRectangle(cornerRadius: PutioTheme.Radius.standard)
-    #endif
-  }
-
-  private func fill(isPressed: Bool) -> Color {
-    #if os(tvOS)
-      if isFocused { return PutioTheme.Colors.surfaceActive }
-    #endif
-    return isPressed
-      ? PutioTheme.Components.FileRow.backgroundActive
-      : PutioTheme.Components.FileRow.background
-  }
-}
+#endif
 
 enum PutioFileRowLayout {
   #if os(tvOS)
     static let nameFont = PutioTheme.TV.Typography.body
     static let detailFont = PutioTheme.TV.Typography.numeric
-    static let iconSize = PutioMetricRole(value: PutioTheme.TV.Spacing.medium, relativeTo: .body)
-    static let indicatorSize = PutioMetricRole(
-      value: PutioTheme.TV.Spacing.small,
+    static let iconSize = PutioMetricRole(
+      value: PutioTheme.TV.Typography.label.size,
       relativeTo: .body
     )
-    static let horizontalPadding = PutioTheme.TV.Spacing.small
+    static let indicatorSize = PutioMetricRole(
+      value: PutioTheme.TV.Typography.caption.size,
+      relativeTo: .body
+    )
   #else
     static let nameFont = PutioTheme.Typography.body
     #if os(iOS) || os(watchOS)
@@ -138,11 +163,10 @@ enum PutioFileRowLayout {
     #else
       static let detailFont = PutioTheme.Typography.caption
     #endif
-    static let iconSize = PutioMetricRole(value: PutioTheme.Typography.sizeLg, relativeTo: .body)
+    static let iconSize = PutioMetricRole(value: PutioTheme.Typography.sizeXl, relativeTo: .body)
     static let indicatorSize = PutioMetricRole(
-      value: PutioTheme.Typography.sizeBase,
+      value: PutioTheme.Typography.sizeMd,
       relativeTo: .body
     )
-    static let horizontalPadding = PutioTheme.Spacing.space3
   #endif
 }

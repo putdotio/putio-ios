@@ -19,35 +19,40 @@ public struct PutioToast: Equatable, Sendable {
   }
 }
 
+// On iOS and watchOS the toast rides the system material so it reads as
+// platform chrome; the variant only tints the icon. tvOS keeps solid token
+// surfaces because the TV contract forbids translucent materials.
 public struct PutioToastView: View {
   private let toast: PutioToast
 
+  @PutioScaledMetric private var iconSize: CGFloat
+
   public init(_ toast: PutioToast) {
     self.toast = toast
+    _iconSize = PutioScaledMetric(PutioToastLayout.iconSize)
   }
 
   public var body: some View {
-    let palette = toast.variant.palette
     HStack(alignment: .firstTextBaseline, spacing: PutioToastLayout.contentGap) {
-      PutioIconView(toast.variant.icon, size: PutioToastLayout.iconSize)
-        .foregroundStyle(palette.icon)
+      Image(putioIcon: toast.variant.icon)
+        .resizable()
+        .scaledToFit()
+        .frame(width: iconSize, height: iconSize)
+        .foregroundStyle(toast.variant.iconColor)
       VStack(alignment: .leading, spacing: PutioTheme.Spacing.space1) {
         Text(toast.title)
           .putioFont(PutioToastLayout.titleFont)
-          .foregroundStyle(palette.foreground)
+          .foregroundStyle(PutioToastLayout.titleColor)
         if let message = toast.message {
           Text(message)
             .putioFont(PutioToastLayout.messageFont)
-            .foregroundStyle(palette.foreground)
+            .foregroundStyle(PutioToastLayout.messageColor)
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .padding(PutioToastLayout.contentPadding)
-    .background(palette.background, in: PutioToastLayout.shape)
-    .overlay(
-      PutioToastLayout.shape.strokeBorder(palette.border, lineWidth: PutioTheme.Border.width)
-    )
+    .background(PutioToastLayout.background)
   }
 }
 
@@ -76,44 +81,13 @@ private struct PutioToastPresenter: ViewModifier {
   }
 }
 
-struct PutioToastPalette {
-  let background: Color
-  let border: Color
-  let foreground: Color
-  let icon: Color
-}
-
 extension PutioToast.Variant {
-  var palette: PutioToastPalette {
+  var iconColor: Color {
     switch self {
-    case .neutral:
-      PutioToastPalette(
-        background: PutioTheme.Components.Notification.background,
-        border: PutioTheme.Components.Notification.border,
-        foreground: PutioTheme.Components.Notification.foreground,
-        icon: PutioTheme.Components.Notification.icon
-      )
-    case .success:
-      PutioToastPalette(
-        background: PutioTheme.Components.Notification.successBackground,
-        border: PutioTheme.Components.Notification.successBorder,
-        foreground: PutioTheme.Components.Notification.successForeground,
-        icon: PutioTheme.Components.Notification.successForeground
-      )
-    case .danger:
-      PutioToastPalette(
-        background: PutioTheme.Components.Notification.dangerBackground,
-        border: PutioTheme.Components.Notification.dangerBorder,
-        foreground: PutioTheme.Components.Notification.dangerForeground,
-        icon: PutioTheme.Components.Notification.dangerForeground
-      )
-    case .info:
-      PutioToastPalette(
-        background: PutioTheme.Components.Notification.infoBackground,
-        border: PutioTheme.Components.Notification.border,
-        foreground: PutioTheme.Components.Notification.foreground,
-        icon: PutioTheme.Components.Notification.icon
-      )
+    case .neutral: PutioTheme.Colors.textSecondary
+    case .success: PutioTheme.Colors.success
+    case .danger: PutioTheme.Colors.destructive
+    case .info: PutioTheme.Colors.accent
     }
   }
 
@@ -131,15 +105,26 @@ enum PutioToastLayout {
   #if os(tvOS)
     static let titleFont = PutioTheme.TV.Typography.label
     static let messageFont = PutioTheme.TV.Typography.body
+    static let titleColor = PutioTheme.Components.Notification.foreground
+    static let messageColor = PutioTheme.Components.Notification.foreground
     static let contentGap = PutioTheme.TV.Spacing.small
     static let contentPadding = PutioTheme.TV.Spacing.medium
     static let presentationPadding = PutioTheme.TV.Spacing.large
-    static let iconSize = PutioMetricRole(value: PutioTheme.TV.Spacing.medium, relativeTo: .body)
+    static let iconSize = PutioMetricRole(
+      value: PutioTheme.TV.Typography.caption.size,
+      relativeTo: .body
+    )
     static let zIndex = PutioTheme.TV.ZIndex.toast
-    static let shape = RoundedRectangle(cornerRadius: PutioTheme.TV.radius)
+    @ViewBuilder static var background: some View {
+      RoundedRectangle(cornerRadius: PutioTheme.TV.radius)
+        .fill(PutioTheme.Components.Notification.background)
+        .stroke(PutioTheme.Components.Notification.border, lineWidth: PutioTheme.Border.width)
+    }
   #else
     static let titleFont = PutioTheme.Typography.subheading
     static let messageFont = PutioTheme.Typography.caption
+    static let titleColor = PutioTheme.Colors.textPrimary
+    static let messageColor = PutioTheme.Colors.textSecondary
     static let contentGap = PutioTheme.Spacing.space2
     static let contentPadding = PutioTheme.Spacing.space3
     static let presentationPadding = PutioTheme.Spacing.space3
@@ -148,6 +133,9 @@ enum PutioToastLayout {
       relativeTo: .body
     )
     static let zIndex = 1.0
-    static let shape = RoundedRectangle(cornerRadius: PutioTheme.Radius.medium)
+    @ViewBuilder static var background: some View {
+      RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
+        .fill(.regularMaterial)
+    }
   #endif
 }

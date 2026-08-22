@@ -35,27 +35,28 @@ final class ComponentKitTests: XCTestCase {
     )
   }
 
-  func testButtonSizesReadTokenGeometry() {
-    XCTAssertEqual(PutioButtonSize.regular.metrics.height.value, 36)
-    XCTAssertEqual(PutioButtonSize.medium.metrics.height.value, 32)
-    XCTAssertEqual(PutioButtonSize.small.metrics.height.value, 28)
-    XCTAssertEqual(PutioButtonSize.extraSmall.metrics.height.value, 24)
-    XCTAssertEqual(PutioButtonSize.regular.metrics.paddingX.value, 12)
-    XCTAssertEqual(PutioButtonSize.extraSmall.metrics.paddingX.value, 8)
-    XCTAssertEqual(PutioButtonSize.regular.metrics.tracking, 1)
-    XCTAssertEqual(PutioButtonSize.medium.metrics.tracking, 0.8)
-    XCTAssertEqual(PutioButtonSize.small.metrics.tracking, 0.6)
-    XCTAssertEqual(PutioButtonSize.extraSmall.metrics.tracking, 0.3)
-    XCTAssertEqual(PutioButtonSize.regular.metrics.label.fontName, "GTAmerica-Md")
-    XCTAssertEqual(PutioButtonSize.regular.metrics.label.size, 14)
-    XCTAssertEqual(PutioButtonSize.extraSmall.metrics.label.size, 12)
+  func testButtonTokensPreservePublishedGeometry() {
+    XCTAssertEqual(PutioTheme.Components.Button.height.value, 36)
+    XCTAssertEqual(PutioTheme.Components.Button.heightMedium.value, 32)
+    XCTAssertEqual(PutioTheme.Components.Button.heightSmall.value, 28)
+    XCTAssertEqual(PutioTheme.Components.Button.heightXSmall.value, 24)
+    XCTAssertEqual(PutioTheme.Components.Button.paddingX.value, 12)
+    XCTAssertEqual(PutioTheme.Components.Button.paddingXXSmall.value, 8)
+    XCTAssertEqual(PutioTheme.Components.Button.tracking, 1)
+    XCTAssertEqual(PutioTheme.Components.Button.trackingXSmall, 0.3)
+    XCTAssertEqual(PutioTheme.Components.Button.label.fontName, "GTAmerica-Md")
+    XCTAssertEqual(PutioTheme.Components.Button.label.size, 14)
+    XCTAssertEqual(PutioTheme.Components.Button.labelXSmall.size, 12)
   }
 
-  func testEveryButtonTierResolvesAPalette() {
-    for tier in PutioButtonTier.allCases {
-      _ = tier.palette
+  #if !os(tvOS)
+    func testButtonSizesMapToNativeControlSizes() {
+      XCTAssertEqual(PutioButtonSize.regular.controlSize, .large)
+      XCTAssertEqual(PutioButtonSize.medium.controlSize, .regular)
+      XCTAssertEqual(PutioButtonSize.small.controlSize, .small)
+      XCTAssertEqual(PutioButtonSize.extraSmall.controlSize, .mini)
     }
-  }
+  #endif
 
   func testFileRowIconsCoverEveryKind() {
     let icons = Set(

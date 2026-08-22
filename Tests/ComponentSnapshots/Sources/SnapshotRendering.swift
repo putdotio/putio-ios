@@ -59,9 +59,15 @@ enum SnapshotRenderer {
     let view = try XCTUnwrap(controller.view)
     view.backgroundColor = .clear
     let width = SnapshotEnvironment.width
-    let target = controller.sizeThatFits(
-      in: CGSize(width: width, height: .greatestFiniteMagnitude))
-    let size = CGSize(width: width, height: max(target.height, 1).rounded(.up))
+    let height: CGFloat
+    if let viewport = PutioComponentGallery.snapshotViewportHeight(page: page) {
+      height = viewport
+    } else {
+      let target = controller.sizeThatFits(
+        in: CGSize(width: width, height: .greatestFiniteMagnitude))
+      height = max(target.height, 1).rounded(.up)
+    }
+    let size = CGSize(width: width, height: height)
     let window = UIWindow(frame: CGRect(origin: .zero, size: size))
     window.rootViewController = controller
     window.isHidden = false

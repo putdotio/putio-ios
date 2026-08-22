@@ -19,6 +19,12 @@ public struct PutioComponentGallery: View {
       case .forms: "Forms"
       }
     }
+
+    // List- and Form-backed pages have no intrinsic height, so snapshots
+    // render them at a fixed viewport instead of the fitted size.
+    var usesContainerViewport: Bool {
+      self == .files || self == .forms
+    }
   }
 
   private let page: Page
@@ -42,11 +48,15 @@ public struct PutioComponentGallery: View {
     }
   }
 
-  // Snapshot tests render the unscrolled page so the full component set is
-  // asserted regardless of viewport height.
   public static func snapshotContent(page: Page) -> some View {
-    GalleryPageContent(page: page)
-      .background(PutioTheme.Colors.background)
+    GalleryPageView(page: page)
+      .frame(
+        maxHeight: page.usesContainerViewport ? GalleryLayout.containerViewportHeight : nil
+      )
+  }
+
+  public static func snapshotViewportHeight(page: Page) -> CGFloat? {
+    page.usesContainerViewport ? GalleryLayout.containerViewportHeight : nil
   }
 }
 
@@ -73,40 +83,48 @@ private struct AutoAdvancingGallery: View {
   }
 }
 
-private struct GalleryPageView: View {
+struct GalleryPageView: View {
   let page: PutioComponentGallery.Page
 
   var body: some View {
-    ScrollView {
-      GalleryPageContent(page: page)
+    Group {
+      switch page {
+      case .files:
+        FilesGallery()
+      case .forms:
+        FormsGallery()
+      case .buttons, .states, .feedback:
+        ScrollView {
+          VStack(alignment: .leading, spacing: GalleryLayout.sectionGap) {
+            GalleryTitle(page: page)
+            stackedContent
+          }
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(GalleryLayout.pagePadding)
+        }
+      }
     }
     .background(PutioTheme.Colors.background)
     .preferredColorScheme(.dark)
   }
+
+  @ViewBuilder private var stackedContent: some View {
+    switch page {
+    case .buttons: ButtonsPage()
+    case .states: StatesPage()
+    case .feedback: FeedbackPage()
+    case .files, .forms: EmptyView()
+    }
+  }
 }
 
-struct GalleryPageContent: View {
+private struct GalleryTitle: View {
   let page: PutioComponentGallery.Page
 
   var body: some View {
-    VStack(alignment: .leading, spacing: GalleryLayout.sectionGap) {
-      Text(page.title)
-        .putioFont(GalleryLayout.titleFont)
-        .foregroundStyle(PutioTheme.Colors.textPrimary)
-      pageContent
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .padding(GalleryLayout.pagePadding)
-  }
-
-  @ViewBuilder private var pageContent: some View {
-    switch page {
-    case .buttons: ButtonsPage()
-    case .files: FilesPage()
-    case .states: StatesPage()
-    case .feedback: FeedbackPage()
-    case .forms: FormsPage()
-    }
+    Text(page.title)
+      .putioFont(GalleryLayout.titleFont)
+      .foregroundStyle(PutioTheme.Colors.textPrimary)
   }
 }
 
@@ -147,22 +165,52 @@ private struct ButtonsPage: View {
   }
 }
 
-private struct FilesPage: View {
+private struct FilesGallery: View {
   var body: some View {
-    GallerySection(caption: "File rows") {
-      VStack(spacing: 0) {
-        ForEach(Array(GalleryFixtures.fileRows.enumerated()), id: \.offset) { _, model in
-          PutioFileRow(model)
+    #if os(tvOS)
+      ScrollView {
+        VStack(alignment: .leading, spacing: GalleryLayout.sectionGap) {
+          GalleryTitle(page: .files)
+          GallerySection(caption: "File rows") {
+            VStack(spacing: 0) {
+              ForEach(Array(GalleryFixtures.fileRows.enumerated()), id: \.offset) { _, model in
+                PutioFileRow(model)
+              }
+            }
+          }
+          GallerySection(caption: "As button") {
+            Button {
+            } label: {
+              PutioFileRow(GalleryFixtures.folderRow)
+            }
+            .buttonStyle(PutioListRowButtonStyle())
+          }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(GalleryLayout.pagePadding)
       }
-    }
-    GallerySection(caption: "As button") {
-      Button {
-      } label: {
-        PutioFileRow(GalleryFixtures.folderRow)
+    #else
+      List {
+        Section {
+          ForEach(Array(GalleryFixtures.fileRows.enumerated()), id: \.offset) { _, model in
+            PutioFileRow(model)
+          }
+        } header: {
+          GalleryTitle(page: .files)
+        }
+        .listRowBackground(PutioTheme.Colors.background)
+        Section("As button") {
+          Button {
+          } label: {
+            PutioFileRow(GalleryFixtures.folderRow)
+          }
+          .buttonStyle(.plain)
+        }
+        .listRowBackground(PutioTheme.Colors.background)
       }
-      .buttonStyle(PutioListRowButtonStyle())
-    }
+      .listStyle(.plain)
+      .scrollContentBackground(.hidden)
+    #endif
   }
 }
 
@@ -171,7 +219,6 @@ private struct StatesPage: View {
     GallerySection(caption: "Loading") {
       PutioLoadingStateView(title: "Loading your files")
         .frame(height: GalleryLayout.stateTileHeight)
-        .clipShape(GalleryLayout.tileShape)
     }
     GallerySection(caption: "Empty") {
       PutioEmptyStateView(
@@ -182,7 +229,6 @@ private struct StatesPage: View {
         action: {}
       )
       .frame(height: GalleryLayout.stateTileHeight)
-      .clipShape(GalleryLayout.tileShape)
     }
     GallerySection(caption: "Error") {
       PutioErrorStateView(
@@ -192,7 +238,6 @@ private struct StatesPage: View {
         retry: {}
       )
       .frame(height: GalleryLayout.stateTileHeight)
-      .clipShape(GalleryLayout.tileShape)
     }
   }
 }
@@ -210,17 +255,60 @@ private struct FeedbackPage: View {
           .putioFont(GalleryLayout.bodyFont)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
       }
+      .background(GalleryLayout.sheetPreviewBackground)
     }
   }
 }
 
-private struct FormsPage: View {
+private struct FormsGallery: View {
   @State private var name = "incoming"
   @State private var invalid = ""
   @State private var usesTrash = true
   @State private var route = "Frankfurt"
 
   var body: some View {
+    #if os(tvOS)
+      ScrollView {
+        VStack(alignment: .leading, spacing: GalleryLayout.sectionGap) {
+          GalleryTitle(page: .forms)
+          formRows
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(GalleryLayout.pagePadding)
+      }
+    #else
+      Form {
+        Section {
+          PutioFormField(label: "Folder name", placeholder: "Folder name", text: $name)
+          PutioFormField(
+            label: "Receiver app ID",
+            placeholder: "Required",
+            text: $invalid,
+            errorText: "Enter a receiver app ID."
+          )
+        } header: {
+          GalleryTitle(page: .forms)
+        }
+        .listRowBackground(PutioTheme.Colors.surface)
+        Section {
+          PutioToggleRow(
+            title: "Use trash",
+            subtitle: "Deleted files stay in trash for a week",
+            isOn: $usesTrash
+          )
+          PutioPickerRow(
+            title: "Tunnel route",
+            selection: $route,
+            options: GalleryFixtures.routes
+          ) { $0 }
+        }
+        .listRowBackground(PutioTheme.Colors.surface)
+      }
+      .scrollContentBackground(.hidden)
+    #endif
+  }
+
+  @ViewBuilder private var formRows: some View {
     GallerySection(caption: "Field") {
       PutioFormField(label: "Folder name", placeholder: "Folder name", text: $name)
       PutioFormField(
@@ -306,15 +394,19 @@ enum GalleryLayout {
     static let itemGap = PutioTheme.TV.Spacing.small
     static let pagePadding = PutioTheme.TV.Spacing.large
     static let stateTileHeight = PutioTheme.TV.Spacing.xl * 3
-    static let tileShape = RoundedRectangle(cornerRadius: PutioTheme.TV.radius)
+    static let containerViewportHeight = PutioTheme.TV.Spacing.xxl * 5
+    static let sheetPreviewBackground = Color.clear
   #else
     static let titleFont = PutioTheme.Typography.heading
     static let captionFont = PutioTheme.Typography.caption
     static let bodyFont = PutioTheme.Typography.body
     static let sectionGap = PutioTheme.Spacing.space4
-    static let itemGap = PutioTheme.Spacing.space2
+    static let itemGap = PutioTheme.Spacing.space3
     static let pagePadding = PutioTheme.Spacing.space3
     static let stateTileHeight = PutioTheme.Spacing.space6 * 2
-    static let tileShape = RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
+    static let containerViewportHeight = PutioTheme.Spacing.space6 * 7
+    // The scaffold previews inside a scroll page rather than a real sheet,
+    // so give it the surface a system sheet would provide.
+    static let sheetPreviewBackground = PutioTheme.Colors.surface
   #endif
 }

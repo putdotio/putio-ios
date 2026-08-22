@@ -28,6 +28,7 @@
 - Run `mise run bootstrap` in a fresh checkout or worktree
 - Run `mise run verify` before handoff
 - Change targets and settings in `Project.swift`, never in generated Xcode files
+- Follow [Design Principles](./docs/DESIGN.md): native platform elements with put.io theming; never port web component recipes
 - Change design tokens in `putio-design`, then bump the locked package, audit token coverage, and regenerate; never edit generated Swift or asset catalogs
 - Use Swift Package Manager for dependencies
 - Keep platform-specific UI, lifecycle, focus, playback, and download behavior in the matching app shell
