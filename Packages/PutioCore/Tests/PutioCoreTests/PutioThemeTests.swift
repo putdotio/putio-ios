@@ -9,7 +9,7 @@ import XCTest
 final class PutioThemeTests: XCTestCase {
   func testGeneratedThemeIdentifiesItsPinnedSource() {
     XCTAssertEqual(PutioTheme.sourcePackage, "@putdotio/design")
-    XCTAssertEqual(PutioTheme.sourceVersion, "2.0.1")
+    XCTAssertEqual(PutioTheme.sourceVersion, "2.0.2")
     XCTAssertEqual(PutioTheme.sourceTokenCount, 449)
   }
 
