@@ -145,13 +145,21 @@ public struct PutioCubicBezier: Equatable, Sendable {
   }
 }
 
+private func putioSemanticColor(named: String, fallback: Color) -> Color {
+  #if os(macOS)
+    fallback
+  #else
+    Color(named, bundle: .module)
+  #endif
+}
+
 public enum PutioTheme {
   public static let sourcePackage = "@putdotio/design"
   public static let sourceVersion = "2.0.1"
   public static let sourceTokenCount = 449
 
   public enum Colors {
-    public static let background = semanticColor(
+    public static let background = putioSemanticColor(
       named: "PutioBackground",
       fallback: Color(
         .sRGB,
@@ -162,7 +170,7 @@ public enum PutioTheme {
       )
     )
 
-    public static let surface = semanticColor(
+    public static let surface = putioSemanticColor(
       named: "PutioSurface",
       fallback: Color(
         .sRGB,
@@ -173,7 +181,7 @@ public enum PutioTheme {
       )
     )
 
-    public static let textPrimary = semanticColor(
+    public static let textPrimary = putioSemanticColor(
       named: "PutioTextPrimary",
       fallback: Color(
         .sRGB,
@@ -184,7 +192,7 @@ public enum PutioTheme {
       )
     )
 
-    public static let textSecondary = semanticColor(
+    public static let textSecondary = putioSemanticColor(
       named: "PutioTextSecondary",
       fallback: Color(
         .sRGB,
@@ -195,7 +203,7 @@ public enum PutioTheme {
       )
     )
 
-    public static let accent = semanticColor(
+    public static let accent = putioSemanticColor(
       named: "PutioAccent",
       fallback: Color(
         .sRGB,
@@ -206,7 +214,7 @@ public enum PutioTheme {
       )
     )
 
-    public static let accentForeground = semanticColor(
+    public static let accentForeground = putioSemanticColor(
       named: "PutioAccentForeground",
       fallback: Color(
         .sRGB,
@@ -217,7 +225,7 @@ public enum PutioTheme {
       )
     )
 
-    public static let success = semanticColor(
+    public static let success = putioSemanticColor(
       named: "PutioSuccess",
       fallback: Color(
         .sRGB,
@@ -228,7 +236,7 @@ public enum PutioTheme {
       )
     )
 
-    public static let successForeground = semanticColor(
+    public static let successForeground = putioSemanticColor(
       named: "PutioSuccessForeground",
       fallback: Color(
         .sRGB,
@@ -239,7 +247,7 @@ public enum PutioTheme {
       )
     )
 
-    public static let destructive = semanticColor(
+    public static let destructive = putioSemanticColor(
       named: "PutioDestructive",
       fallback: Color(
         .sRGB,
@@ -250,7 +258,7 @@ public enum PutioTheme {
       )
     )
 
-    public static let destructiveForeground = semanticColor(
+    public static let destructiveForeground = putioSemanticColor(
       named: "PutioDestructiveForeground",
       fallback: Color(
         .sRGB,
@@ -261,7 +269,7 @@ public enum PutioTheme {
       )
     )
 
-    public static let separator = semanticColor(
+    public static let separator = putioSemanticColor(
       named: "PutioSeparator",
       fallback: Color(
         .sRGB,
@@ -272,12 +280,562 @@ public enum PutioTheme {
       )
     )
 
-    private static func semanticColor(named: String, fallback: Color) -> Color {
-      #if os(macOS)
-        fallback
-      #else
-        Color(named, bundle: .module)
-      #endif
+    public static let borderActive = putioSemanticColor(
+      named: "PutioBorderActive",
+      fallback: Color(
+        .sRGB,
+        red: 0.312,
+        green: 0.312,
+        blue: 0.312,
+        opacity: 1.0
+      )
+    )
+
+    public static let surfaceActive = putioSemanticColor(
+      named: "PutioSurfaceActive",
+      fallback: Color(
+        .sRGB,
+        red: 0.179,
+        green: 0.179,
+        blue: 0.179,
+        opacity: 1.0
+      )
+    )
+
+    public static let textDisabled = putioSemanticColor(
+      named: "PutioTextDisabled",
+      fallback: Color(
+        .sRGB,
+        red: 0.439,
+        green: 0.439,
+        blue: 0.439,
+        opacity: 1.0
+      )
+    )
+  }
+
+  public enum Components {
+    public enum Button {
+      public static let primaryBackground = putioSemanticColor(
+        named: "PutioButtonPrimaryBackground",
+        fallback: Color(
+          .sRGB,
+          red: 0.992251,
+          green: 0.808013,
+          blue: 0.269749,
+          opacity: 1.0
+        )
+      )
+
+      public static let primaryBackgroundPressed = putioSemanticColor(
+        named: "PutioButtonPrimaryBackgroundPressed",
+        fallback: Color(
+          .sRGB,
+          red: 0.9538,
+          green: 0.7669,
+          blue: 0.2062,
+          opacity: 1.0
+        )
+      )
+
+      public static let primaryForeground = putioSemanticColor(
+        named: "PutioButtonPrimaryForeground",
+        fallback: Color(
+          .sRGB,
+          red: 0.165,
+          green: 0.117333,
+          blue: 0.035,
+          opacity: 1.0
+        )
+      )
+
+      public static let secondaryBackground = putioSemanticColor(
+        named: "PutioButtonSecondaryBackground",
+        fallback: Color(
+          .sRGB,
+          red: 0.136,
+          green: 0.136,
+          blue: 0.136,
+          opacity: 1.0
+        )
+      )
+
+      public static let secondaryBackgroundPressed = putioSemanticColor(
+        named: "PutioButtonSecondaryBackgroundPressed",
+        fallback: Color(
+          .sRGB,
+          red: 0.158,
+          green: 0.158,
+          blue: 0.158,
+          opacity: 1.0
+        )
+      )
+
+      public static let secondaryForeground = putioSemanticColor(
+        named: "PutioButtonSecondaryForeground",
+        fallback: Color(
+          .sRGB,
+          red: 0.93,
+          green: 0.93,
+          blue: 0.93,
+          opacity: 1.0
+        )
+      )
+
+      public static let ghostBackground = putioSemanticColor(
+        named: "PutioButtonGhostBackground",
+        fallback: Color(
+          .sRGB,
+          red: 0.0,
+          green: 0.0,
+          blue: 0.0,
+          opacity: 0.0
+        )
+      )
+
+      public static let ghostBackgroundPressed = putioSemanticColor(
+        named: "PutioButtonGhostBackgroundPressed",
+        fallback: Color(
+          .sRGB,
+          red: 0.158,
+          green: 0.158,
+          blue: 0.158,
+          opacity: 1.0
+        )
+      )
+
+      public static let ghostForeground = putioSemanticColor(
+        named: "PutioButtonGhostForeground",
+        fallback: Color(
+          .sRGB,
+          red: 0.628,
+          green: 0.628,
+          blue: 0.628,
+          opacity: 1.0
+        )
+      )
+
+      public static let ghostForegroundPressed = putioSemanticColor(
+        named: "PutioButtonGhostForegroundPressed",
+        fallback: Color(
+          .sRGB,
+          red: 0.93,
+          green: 0.93,
+          blue: 0.93,
+          opacity: 1.0
+        )
+      )
+
+      public static let successBackground = putioSemanticColor(
+        named: "PutioButtonSuccessBackground",
+        fallback: Color(
+          .sRGB,
+          red: 0.18675,
+          green: 0.64325,
+          blue: 0.422608,
+          opacity: 1.0
+        )
+      )
+
+      public static let successBackgroundPressed = putioSemanticColor(
+        named: "PutioButtonSuccessBackgroundPressed",
+        fallback: Color(
+          .sRGB,
+          red: 0.112,
+          green: 0.588,
+          blue: 0.357933,
+          opacity: 1.0
+        )
+      )
+
+      public static let successForeground = putioSemanticColor(
+        named: "PutioButtonSuccessForeground",
+        fallback: Color(
+          .sRGB,
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          opacity: 1.0
+        )
+      )
+
+      public static let dangerBackground = putioSemanticColor(
+        named: "PutioButtonDangerBackground",
+        fallback: Color(
+          .sRGB,
+          red: 0.8975,
+          green: 0.2825,
+          blue: 0.303,
+          opacity: 1.0
+        )
+      )
+
+      public static let dangerBackgroundPressed = putioSemanticColor(
+        named: "PutioButtonDangerBackgroundPressed",
+        fallback: Color(
+          .sRGB,
+          red: 0.8449,
+          green: 0.2151,
+          blue: 0.24659,
+          opacity: 1.0
+        )
+      )
+
+      public static let dangerForeground = putioSemanticColor(
+        named: "PutioButtonDangerForeground",
+        fallback: Color(
+          .sRGB,
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          opacity: 1.0
+        )
+      )
+
+      public static let infoBackground = putioSemanticColor(
+        named: "PutioButtonInfoBackground",
+        fallback: Color(
+          .sRGB,
+          red: 0.439,
+          green: 0.439,
+          blue: 0.439,
+          opacity: 1.0
+        )
+      )
+
+      public static let infoBackgroundPressed = putioSemanticColor(
+        named: "PutioButtonInfoBackgroundPressed",
+        fallback: Color(
+          .sRGB,
+          red: 0.494,
+          green: 0.494,
+          blue: 0.494,
+          opacity: 1.0
+        )
+      )
+
+      public static let infoForeground = putioSemanticColor(
+        named: "PutioButtonInfoForeground",
+        fallback: Color(
+          .sRGB,
+          red: 1.0,
+          green: 1.0,
+          blue: 1.0,
+          opacity: 1.0
+        )
+      )
+      public static let height = PutioMetricRole(
+        value: 36.0,
+        relativeTo: .caption
+      )
+      public static let heightMedium = PutioMetricRole(
+        value: 32.0,
+        relativeTo: .caption
+      )
+      public static let heightSmall = PutioMetricRole(
+        value: 28.0,
+        relativeTo: .caption
+      )
+      public static let heightXSmall = PutioMetricRole(
+        value: 24.0,
+        relativeTo: .caption2
+      )
+      public static let paddingX = PutioMetricRole(
+        value: 12.0,
+        relativeTo: .caption
+      )
+      public static let paddingXXSmall = PutioMetricRole(
+        value: 8.0,
+        relativeTo: .caption2
+      )
+      public static let label = PutioFontRole(
+        fontName: "GTAmerica-Md",
+        size: 14.0,
+        lineHeight: 1.1,
+        textStyle: .caption
+      )
+      public static let labelXSmall = PutioFontRole(
+        fontName: "GTAmerica-Md",
+        size: 12.0,
+        lineHeight: 1.1,
+        textStyle: .caption2
+      )
+      public static let tracking: CGFloat = 1.0
+      public static let trackingMedium: CGFloat = 0.8
+      public static let trackingSmall: CGFloat = 0.6
+      public static let trackingXSmall: CGFloat = 0.3
+    }
+
+    public enum Field {
+      public static let background = putioSemanticColor(
+        named: "PutioFieldBackground",
+        fallback: Color(
+          .sRGB,
+          red: 0.085,
+          green: 0.085,
+          blue: 0.085,
+          opacity: 1.0
+        )
+      )
+
+      public static let backgroundDisabled = putioSemanticColor(
+        named: "PutioFieldBackgroundDisabled",
+        fallback: Color(
+          .sRGB,
+          red: 0.11,
+          green: 0.11,
+          blue: 0.11,
+          opacity: 1.0
+        )
+      )
+
+      public static let border = putioSemanticColor(
+        named: "PutioFieldBorder",
+        fallback: Color(
+          .sRGB,
+          red: 0.243,
+          green: 0.243,
+          blue: 0.243,
+          opacity: 1.0
+        )
+      )
+
+      public static let borderFocus = putioSemanticColor(
+        named: "PutioFieldBorderFocus",
+        fallback: Color(
+          .sRGB,
+          red: 0.312,
+          green: 0.312,
+          blue: 0.312,
+          opacity: 1.0
+        )
+      )
+
+      public static let placeholder = putioSemanticColor(
+        named: "PutioFieldPlaceholder",
+        fallback: Color(
+          .sRGB,
+          red: 0.628,
+          green: 0.628,
+          blue: 0.628,
+          opacity: 1.0
+        )
+      )
+
+      public static let text = putioSemanticColor(
+        named: "PutioFieldText",
+        fallback: Color(
+          .sRGB,
+          red: 0.93,
+          green: 0.93,
+          blue: 0.93,
+          opacity: 1.0
+        )
+      )
+    }
+
+    public enum FileRow {
+      public static let background = putioSemanticColor(
+        named: "PutioFileRowBackground",
+        fallback: Color(
+          .sRGB,
+          red: 0.0,
+          green: 0.0,
+          blue: 0.0,
+          opacity: 0.0
+        )
+      )
+
+      public static let backgroundActive = putioSemanticColor(
+        named: "PutioFileRowBackgroundActive",
+        fallback: Color(
+          .sRGB,
+          red: 0.11,
+          green: 0.11,
+          blue: 0.11,
+          opacity: 1.0
+        )
+      )
+
+      public static let border = putioSemanticColor(
+        named: "PutioFileRowBorder",
+        fallback: Color(
+          .sRGB,
+          red: 0.179,
+          green: 0.179,
+          blue: 0.179,
+          opacity: 1.0
+        )
+      )
+
+      public static let icon = putioSemanticColor(
+        named: "PutioFileRowIcon",
+        fallback: Color(
+          .sRGB,
+          red: 0.992251,
+          green: 0.808013,
+          blue: 0.269749,
+          opacity: 1.0
+        )
+      )
+    }
+
+    public enum Notification {
+      public static let background = putioSemanticColor(
+        named: "PutioNotificationBackground",
+        fallback: Color(
+          .sRGB,
+          red: 0.136,
+          green: 0.136,
+          blue: 0.136,
+          opacity: 1.0
+        )
+      )
+
+      public static let border = putioSemanticColor(
+        named: "PutioNotificationBorder",
+        fallback: Color(
+          .sRGB,
+          red: 0.205,
+          green: 0.205,
+          blue: 0.205,
+          opacity: 1.0
+        )
+      )
+
+      public static let foreground = putioSemanticColor(
+        named: "PutioNotificationForeground",
+        fallback: Color(
+          .sRGB,
+          red: 0.93,
+          green: 0.93,
+          blue: 0.93,
+          opacity: 1.0
+        )
+      )
+
+      public static let icon = putioSemanticColor(
+        named: "PutioNotificationIcon",
+        fallback: Color(
+          .sRGB,
+          red: 0.628,
+          green: 0.628,
+          blue: 0.628,
+          opacity: 1.0
+        )
+      )
+
+      public static let dangerBackground = putioSemanticColor(
+        named: "PutioNotificationDangerBackground",
+        fallback: Color(
+          .sRGB,
+          red: 0.2325,
+          green: 0.0675,
+          blue: 0.0675,
+          opacity: 1.0
+        )
+      )
+
+      public static let dangerBorder = putioSemanticColor(
+        named: "PutioNotificationDangerBorder",
+        fallback: Color(
+          .sRGB,
+          red: 0.5548,
+          green: 0.2052,
+          blue: 0.2052,
+          opacity: 1.0
+        )
+      )
+
+      public static let dangerForeground = putioSemanticColor(
+        named: "PutioNotificationDangerForeground",
+        fallback: Color(
+          .sRGB,
+          red: 1.0,
+          green: 0.835,
+          blue: 0.82,
+          opacity: 1.0
+        )
+      )
+
+      public static let successBackground = putioSemanticColor(
+        named: "PutioNotificationSuccessBackground",
+        fallback: Color(
+          .sRGB,
+          red: 0.0711,
+          green: 0.1089,
+          blue: 0.08937,
+          opacity: 1.0
+        )
+      )
+
+      public static let successBorder = putioSemanticColor(
+        named: "PutioNotificationSuccessBorder",
+        fallback: Color(
+          .sRGB,
+          red: 0.1711,
+          green: 0.4089,
+          blue: 0.274147,
+          opacity: 1.0
+        )
+      )
+
+      public static let successForeground = putioSemanticColor(
+        named: "PutioNotificationSuccessForeground",
+        fallback: Color(
+          .sRGB,
+          red: 0.6922,
+          green: 0.9478,
+          blue: 0.78592,
+          opacity: 1.0
+        )
+      )
+
+      public static let infoBackground = putioSemanticColor(
+        named: "PutioNotificationInfoBackground",
+        fallback: Color(
+          .sRGB,
+          red: 0.136,
+          green: 0.136,
+          blue: 0.136,
+          opacity: 1.0
+        )
+      )
+    }
+
+    public enum Sheet {
+      public static let background = putioSemanticColor(
+        named: "PutioSheetBackground",
+        fallback: Color(
+          .sRGB,
+          red: 0.136,
+          green: 0.136,
+          blue: 0.136,
+          opacity: 1.0
+        )
+      )
+
+      public static let border = putioSemanticColor(
+        named: "PutioSheetBorder",
+        fallback: Color(
+          .sRGB,
+          red: 0.205,
+          green: 0.205,
+          blue: 0.205,
+          opacity: 1.0
+        )
+      )
+
+      public static let scrim = putioSemanticColor(
+        named: "PutioSheetScrim",
+        fallback: Color(
+          .sRGB,
+          red: 0.0,
+          green: 0.0,
+          blue: 0.0,
+          opacity: 0.565
+        )
+      )
     }
   }
 
