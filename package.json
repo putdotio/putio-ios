@@ -12,7 +12,7 @@
     "verify": "pnpm typecheck && pnpm test && pnpm tokens:check && pnpm fonts:check"
   },
   "devDependencies": {
-    "@putdotio/design": "2.0.2",
+    "@putdotio/design": "3.0.0",
     "@types/node": "24.13.3",
     "typescript": "7.0.2",
     "yaml": "2.9.0"

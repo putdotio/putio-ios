@@ -5,8 +5,10 @@ import Testing
 
 @Test func platformContractsStayExplicit() {
   #expect(HarnessPlatform.ios.configuration.scheme == "Putio")
+  #expect(HarnessPlatform.ios.configuration.extraBuildSchemes == ["PutioNightly"])
   #expect(HarnessPlatform.watchos.configuration.bundleIdentifier == "io.put.dev.ios.watchkitapp")
   #expect(HarnessPlatform.tvos.configuration.productDirectory == "Debug-appletvsimulator")
+  #expect(HarnessPlatform.tvos.configuration.extraBuildSchemes.isEmpty)
 }
 
 @Test func proofManifestRoundTrips() throws {

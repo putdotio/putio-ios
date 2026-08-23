@@ -11,6 +11,10 @@ final class ComponentGallerySnapshotTests: XCTestCase {
     try assertGallerySnapshot(page: .files)
   }
 
+  @MainActor func testTransfersPage() throws {
+    try assertGallerySnapshot(page: .transfers)
+  }
+
   @MainActor func testStatesPage() throws {
     try assertGallerySnapshot(page: .states)
   }

@@ -1,9 +1,11 @@
 import SwiftUI
 
 public enum PutioIcon: String, CaseIterable, Sendable {
+  case arrowCircleDown = "arrow-circle-down-regular"
   case arrowCounterClockwise = "arrow-counter-clockwise-regular"
   case caretRight = "caret-right-regular"
   case checkCircle = "check-circle-regular"
+  case clockCounterClockwise = "clock-counter-clockwise-regular"
   case eye = "eye-regular"
   case file = "file-regular"
   case fileAudio = "file-audio-regular"
@@ -11,6 +13,7 @@ public enum PutioIcon: String, CaseIterable, Sendable {
   case folderFill = "folder-fill"
   case image = "image-regular"
   case info = "info-regular"
+  case userCircle = "user-circle-regular"
   case warningCircle = "warning-circle-regular"
   case xCircle = "x-circle-regular"
 }

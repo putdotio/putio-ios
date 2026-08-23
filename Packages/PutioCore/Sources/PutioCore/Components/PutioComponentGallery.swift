@@ -6,6 +6,7 @@ public struct PutioComponentGallery: View {
   public enum Page: String, CaseIterable, Sendable {
     case buttons
     case files
+    case transfers
     case states
     case feedback
     case forms
@@ -14,6 +15,7 @@ public struct PutioComponentGallery: View {
       switch self {
       case .buttons: "Buttons"
       case .files: "File rows"
+      case .transfers: "Transfers"
       case .states: "Screen states"
       case .feedback: "Feedback"
       case .forms: "Forms"
@@ -93,7 +95,7 @@ struct GalleryPageView: View {
         FilesGallery()
       case .forms:
         FormsGallery()
-      case .buttons, .states, .feedback:
+      case .buttons, .transfers, .states, .feedback:
         ScrollView {
           VStack(alignment: .leading, spacing: GalleryLayout.sectionGap) {
             GalleryTitle(page: page)
@@ -106,11 +108,15 @@ struct GalleryPageView: View {
     }
     .background(PutioTheme.Colors.background)
     .preferredColorScheme(.dark)
+    // Mirrors the app roots: the brand tint is set once and stock controls
+    // (Toggle, Gauge, ProgressView) pick it up from the environment.
+    .tint(PutioTheme.Colors.accent)
   }
 
   @ViewBuilder private var stackedContent: some View {
     switch page {
     case .buttons: ButtonsPage()
+    case .transfers: TransfersPage()
     case .states: StatesPage()
     case .feedback: FeedbackPage()
     case .files, .forms: EmptyView()
@@ -211,6 +217,27 @@ private struct FilesGallery: View {
       .listStyle(.plain)
       .scrollContentBackground(.hidden)
     #endif
+  }
+}
+
+private struct TransfersPage: View {
+  var body: some View {
+    #if os(iOS) || os(watchOS)
+      GallerySection(caption: "Download states") {
+        ForEach(Array(GalleryFixtures.downloadStates.enumerated()), id: \.offset) { _, entry in
+          HStack(spacing: GalleryLayout.itemGap) {
+            PutioDownloadStateButton(state: entry.state) {}
+            Text(entry.label)
+              .putioFont(GalleryLayout.bodyFont)
+              .foregroundStyle(PutioTheme.Colors.textSecondary)
+          }
+        }
+      }
+    #endif
+    GallerySection(caption: "Row progress") {
+      ProgressView(value: 0.6)
+        .tint(PutioTheme.Colors.accent)
+    }
   }
 }
 
@@ -363,6 +390,16 @@ enum GalleryFixtures {
   ]
 
   static let routes = ["Frankfurt", "Amsterdam", "New York"]
+
+  #if os(iOS) || os(watchOS)
+    static let downloadStates: [(state: PutioDownloadState, label: String)] = [
+      (.idle, "Idle"),
+      (.queued, "Queued · position 2"),
+      (.downloading(progress: 0.6), "11.2 of 18.6 GB · 18.4 MB/s"),
+      (.downloaded, "Downloaded"),
+      (.failed, "No seeders found"),
+    ]
+  #endif
 
   static func tierLabel(_ tier: PutioButtonTier) -> String {
     switch tier {

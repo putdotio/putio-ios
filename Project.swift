@@ -30,12 +30,14 @@ private func brandFontNames(for platform: String) -> [String] {
     .sorted()
 }
 
+private func brandFontResourceElements(for platform: String) -> [ResourceFileElement] {
+  brandFontNames(for: platform).map { name in
+    .glob(pattern: .relativeToManifest("\(brandFontManifest.directory)/\(name)"))
+  }
+}
+
 private func brandFontResources(for platform: String) -> ResourceFileElements {
-  .resources(
-    brandFontNames(for: platform).map { name in
-      .glob(pattern: .relativeToManifest("\(brandFontManifest.directory)/\(name)"))
-    }
-  )
+  .resources(brandFontResourceElements(for: platform))
 }
 
 private func brandFontInfoPlist(for platform: String) -> Plist.Value {
@@ -67,6 +69,34 @@ let project = Project(
         .package(product: "PutioCore"),
         .target(name: "PutioWatch"),
       ]
+    ),
+    // The nightly flavor: same iOS sources, its own bundle ID so it installs
+    // beside the dev and production apps, and the starfield icon that only
+    // TestFlight ships. No watch companion; nightly is the phone app alone.
+    .target(
+      name: "PutioNightly",
+      destinations: .iOS,
+      product: .app,
+      bundleId: "io.put.nightly.ios",
+      deploymentTargets: .iOS("26.0"),
+      infoPlist: .extendingDefault(with: [
+        "CFBundleDisplayName": "put.io Nightly",
+        "UIAppFonts": brandFontInfoPlist(for: "ios"),
+        "UILaunchScreen": [:],
+        "UIUserInterfaceStyle": "Dark",
+      ]),
+      resources: .resources(
+        brandFontResourceElements(for: "ios") + [
+          .glob(pattern: .relativeToManifest("Apps/iOS/Resources/Nightly.xcassets"))
+        ]
+      ),
+      buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
+      dependencies: [
+        .package(product: "PutioCore")
+      ],
+      settings: .settings(base: [
+        "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon"
+      ])
     ),
     .target(
       name: "PutioWatch",

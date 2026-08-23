@@ -1,0 +1,2 @@
+minimumReleaseAgeExclude:
+  - '@putdotio/design@3.0.0'
