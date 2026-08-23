@@ -71,19 +71,20 @@ public struct PutioButton: View {
   }
 
   #if !os(tvOS)
+    // On iOS the filled tiers use the Liquid Glass prominent style and the
+    // secondary tier plain glass — buttons sit in the floating layer, where
+    // the HIG puts glass. Ghost stays a plain text button. watchOS and the
+    // macOS test host keep the bordered styles.
     @ViewBuilder private var nativeButton: some View {
       switch tier {
       case .primary:
-        Button(action: action) {
-          label.foregroundStyle(PutioTheme.Components.Button.primaryForeground)
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(PutioTheme.Colors.accent)
+        prominentButton(role: nil, foreground: PutioTheme.Components.Button.primaryForeground)
+          .tint(PutioTheme.Colors.accent)
       case .secondary:
         Button(action: action) {
           label
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(secondaryStyle)
         .tint(PutioTheme.Colors.textPrimary)
       case .ghost:
         Button(action: action) {
@@ -92,25 +93,34 @@ public struct PutioButton: View {
         .buttonStyle(.borderless)
         .tint(PutioTheme.Colors.accent)
       case .success:
-        Button(action: action) {
-          label.foregroundStyle(PutioTheme.Components.Button.successForeground)
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(PutioTheme.Colors.success)
+        prominentButton(role: nil, foreground: PutioTheme.Components.Button.successForeground)
+          .tint(PutioTheme.Colors.success)
       case .danger:
-        Button(role: .destructive, action: action) {
-          label.foregroundStyle(PutioTheme.Components.Button.dangerForeground)
-        }
-        .buttonStyle(.borderedProminent)
+        prominentButton(
+          role: .destructive,
+          foreground: PutioTheme.Components.Button.dangerForeground
+        )
         .tint(PutioTheme.Colors.destructive)
       case .info:
-        Button(action: action) {
-          label.foregroundStyle(PutioTheme.Components.Button.infoForeground)
-        }
-        .buttonStyle(.borderedProminent)
-        .tint(PutioTheme.Components.Button.infoBackground)
+        prominentButton(role: nil, foreground: PutioTheme.Components.Button.infoForeground)
+          .tint(PutioTheme.Components.Button.infoBackground)
       }
     }
+
+    private func prominentButton(role: ButtonRole?, foreground: Color) -> some View {
+      Button(role: role, action: action) {
+        label.foregroundStyle(foreground)
+      }
+      .buttonStyle(prominentStyle)
+    }
+
+    #if os(iOS)
+      private var prominentStyle: GlassProminentButtonStyle { .glassProminent }
+      private var secondaryStyle: GlassButtonStyle { .glass }
+    #else
+      private var prominentStyle: BorderedProminentButtonStyle { .borderedProminent }
+      private var secondaryStyle: BorderedButtonStyle { .bordered }
+    #endif
   #endif
 }
 

@@ -19,9 +19,7 @@ public struct PutioToast: Equatable, Sendable {
   }
 }
 
-// On iOS and watchOS the toast rides the system material so it reads as
-// platform chrome; the variant only tints the icon. tvOS keeps solid token
-// surfaces because the TV contract forbids translucent materials.
+// The variant only tints the icon; the surface comes from PutioToastSurface.
 public struct PutioToastView: View {
   private let toast: PutioToast
 
@@ -52,7 +50,32 @@ public struct PutioToastView: View {
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .padding(PutioToastLayout.contentPadding)
-    .background(PutioToastLayout.background)
+    .modifier(PutioToastSurface())
+  }
+}
+
+// The toast floats above content, so on iOS it rides Liquid Glass. tvOS is a
+// solid token surface (the TV contract forbids materials); the watchOS and
+// macOS-test fallback is the plain system material.
+private struct PutioToastSurface: ViewModifier {
+  func body(content: Content) -> some View {
+    #if os(tvOS)
+      content.background(
+        RoundedRectangle(cornerRadius: PutioTheme.TV.radius)
+          .fill(PutioTheme.Components.Notification.background)
+          .stroke(PutioTheme.Components.Notification.border, lineWidth: PutioTheme.Border.width)
+      )
+    #elseif os(iOS)
+      content.glassEffect(
+        .regular,
+        in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
+      )
+    #else
+      content.background(
+        .regularMaterial,
+        in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
+      )
+    #endif
   }
 }
 
@@ -115,11 +138,6 @@ enum PutioToastLayout {
       relativeTo: .body
     )
     static let zIndex = PutioTheme.TV.ZIndex.toast
-    @ViewBuilder static var background: some View {
-      RoundedRectangle(cornerRadius: PutioTheme.TV.radius)
-        .fill(PutioTheme.Components.Notification.background)
-        .stroke(PutioTheme.Components.Notification.border, lineWidth: PutioTheme.Border.width)
-    }
   #else
     static let titleFont = PutioTheme.Typography.subheading
     static let messageFont = PutioTheme.Typography.caption
@@ -133,9 +151,5 @@ enum PutioToastLayout {
       relativeTo: .body
     )
     static let zIndex = 1.0
-    @ViewBuilder static var background: some View {
-      RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
-        .fill(.regularMaterial)
-    }
   #endif
 }
