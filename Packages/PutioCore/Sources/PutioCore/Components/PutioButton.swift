@@ -68,6 +68,9 @@ public struct PutioButton: View {
       }
       Text(title)
     }
+    #if !os(tvOS)
+      .putioFont(size.brandLabel)
+    #endif
   }
 
   #if !os(tvOS)
@@ -81,10 +84,11 @@ public struct PutioButton: View {
         prominentButton(role: nil, foreground: PutioTheme.Components.Button.primaryForeground)
           .tint(PutioTheme.Colors.accent)
       case .secondary:
-        Button(action: action) {
-          label
-        }
-        .buttonStyle(secondaryStyle)
+        styledSecondary(
+          Button(action: action) {
+            label
+          }
+        )
         .tint(PutioTheme.Colors.textPrimary)
       case .ghost:
         Button(action: action) {
@@ -108,24 +112,72 @@ public struct PutioButton: View {
     }
 
     private func prominentButton(role: ButtonRole?, foreground: Color) -> some View {
-      Button(role: role, action: action) {
-        label.foregroundStyle(foreground)
-      }
-      .buttonStyle(prominentStyle)
+      styledProminent(
+        Button(role: role, action: action) {
+          label.foregroundStyle(foreground)
+        }
+      )
     }
 
-    #if os(iOS)
-      private var prominentStyle: GlassProminentButtonStyle { .glassProminent }
-      private var secondaryStyle: GlassButtonStyle { .glass }
-    #else
-      private var prominentStyle: BorderedProminentButtonStyle { .borderedProminent }
-      private var secondaryStyle: BorderedButtonStyle { .bordered }
-    #endif
+    @ViewBuilder private func styledProminent(_ button: some View) -> some View {
+      #if os(iOS)
+        if HarnessRendering.usesRasterFallback {
+          button.buttonStyle(.borderedProminent)
+        } else {
+          button.buttonStyle(.glassProminent)
+        }
+      #else
+        button.buttonStyle(.borderedProminent)
+      #endif
+    }
+
+    @ViewBuilder fileprivate func styledSecondary(_ button: some View) -> some View {
+      #if os(iOS)
+        if HarnessRendering.usesRasterFallback {
+          button.buttonStyle(.bordered)
+        } else {
+          button.buttonStyle(.glass)
+        }
+      #else
+        button.buttonStyle(.bordered)
+      #endif
+    }
   #endif
 }
 
 #if !os(tvOS)
   extension PutioButtonSize {
+    // The shipping app's recipe: keep the native control's box, swap the title
+    // to the brand face at the medium control weight. Sizes come from the
+    // token type scale at the step closest to each native control size.
+    var brandLabel: PutioFontRole {
+      let mediumFace = PutioTheme.Components.Button.label.fontName
+      let lineHeight = PutioTheme.Components.Button.label.lineHeight
+      return switch self {
+      case .regular:
+        PutioFontRole(
+          fontName: mediumFace,
+          size: PutioTheme.Typography.sizeBase,
+          lineHeight: lineHeight,
+          textStyle: .body
+        )
+      case .medium, .small:
+        PutioFontRole(
+          fontName: mediumFace,
+          size: PutioTheme.Typography.sizeSm,
+          lineHeight: lineHeight,
+          textStyle: .subheadline
+        )
+      case .extraSmall:
+        PutioFontRole(
+          fontName: mediumFace,
+          size: PutioTheme.Typography.sizeXs,
+          lineHeight: lineHeight,
+          textStyle: .caption
+        )
+      }
+    }
+
     var controlSize: ControlSize {
       switch self {
       case .regular: .large

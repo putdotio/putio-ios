@@ -1,5 +1,13 @@
 import Foundation
 
+// Liquid Glass cannot be rasterized by off-screen rendering, so the snapshot
+// lane sets this flag and glass surfaces drop to their bordered/material
+// fallbacks; the harness gallery captures review the real glass appearance.
+public enum HarnessRendering {
+  public static let usesRasterFallback =
+    ProcessInfo.processInfo.environment["PUTIO_SNAPSHOT_RASTER"] == "1"
+}
+
 public enum HarnessScenario: String, CaseIterable, Sendable {
   case signedOut = "signed-out"
   case exercised

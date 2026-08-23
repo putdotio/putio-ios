@@ -58,7 +58,7 @@ public struct PutioToastView: View {
 // solid token surface (the TV contract forbids materials); the watchOS and
 // macOS-test fallback is the plain system material.
 private struct PutioToastSurface: ViewModifier {
-  func body(content: Content) -> some View {
+  @ViewBuilder func body(content: Content) -> some View {
     #if os(tvOS)
       content.background(
         RoundedRectangle(cornerRadius: PutioTheme.TV.radius)
@@ -66,10 +66,17 @@ private struct PutioToastSurface: ViewModifier {
           .stroke(PutioTheme.Components.Notification.border, lineWidth: PutioTheme.Border.width)
       )
     #elseif os(iOS)
-      content.glassEffect(
-        .regular,
-        in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
-      )
+      if HarnessRendering.usesRasterFallback {
+        content.background(
+          .regularMaterial,
+          in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
+        )
+      } else {
+        content.glassEffect(
+          .regular,
+          in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
+        )
+      }
     #else
       content.background(
         .regularMaterial,

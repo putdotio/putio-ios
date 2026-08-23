@@ -329,7 +329,12 @@ public struct SimulatorHarness {
           "-destination", "id=\(session.deviceIdentifier)",
           "-derivedDataPath", context.derivedData.path,
         ],
-        environment: recordSnapshots ? ["TEST_RUNNER_PUTIO_SNAPSHOT_RECORD": "1"] : [:],
+        environment: recordSnapshots
+          ? [
+            "TEST_RUNNER_PUTIO_SNAPSHOT_RECORD": "1",
+            "TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1",
+          ]
+          : ["TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1"],
         currentDirectory: context.root,
         context: "test \(platform.rawValue)"
       )
