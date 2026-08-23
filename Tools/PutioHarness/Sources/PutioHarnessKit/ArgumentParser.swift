@@ -4,7 +4,7 @@ public enum HarnessArgumentParser {
   public static let usage = """
     Usage:
       putio-harness doctor [--output text|json]
-      putio-harness <build|boot|launch|exercise|screenshot|record|proof> --platform <ios|watchos|tvos|all> [--run-id ID] [--record-seconds N] [--scenario signed-out|gallery] [--output text|json]
+      putio-harness <build|boot|launch|exercise|screenshot|record|proof> --platform <ios|watchos|tvos|all> [--run-id ID] [--record-seconds N] [--scenario signed-out|gallery|signed-in] [--output text|json]
       putio-harness test --platform <ios|tvos> [--snapshots assert|record] [--output text|json]
       putio-harness auth-status [--output text|json]
       putio-harness live-fixture [--output text|json]
@@ -82,7 +82,7 @@ public enum HarnessArgumentParser {
       }
       let scenarioValue = options.value("scenario") ?? CaptureScenario.signedOut.rawValue
       guard let scenario = CaptureScenario(rawValue: scenarioValue) else {
-        throw HarnessFailure("--scenario must be signed-out or gallery")
+        throw HarnessFailure("--scenario must be signed-out, gallery, or signed-in")
       }
       if scenario != .signedOut, command != .screenshot, command != .record {
         throw HarnessFailure("--scenario is supported only by screenshot and record")
@@ -91,6 +91,9 @@ public enum HarnessArgumentParser {
         selection.platforms.contains(where: { $0.configuration.snapshotScheme == nil })
       {
         throw HarnessFailure("--scenario gallery is supported only on ios and tvos")
+      }
+      if scenario == .signedIn, selection != .one(.ios) {
+        throw HarnessFailure("--scenario signed-in is supported only on ios")
       }
       return .surface(
         command: command,
