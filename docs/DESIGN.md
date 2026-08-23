@@ -13,10 +13,14 @@ concepts, nothing more.
 
 ## What this means in practice
 
-- Use stock SwiftUI controls, containers, and presentations: `Button` styles
-  (`borderedProminent`/`bordered`/`borderless`), `List`, `Form`, `Toggle`,
-  `Picker`, `.sheet`, `ProgressView`, `ContentUnavailableView`, system
-  materials. If Apple ships the element, use Apple's element.
+- Use stock SwiftUI controls, containers, and presentations: `Button` styles,
+  `List`, `Form`, `Toggle`, `Picker`, `.sheet`, `ProgressView`,
+  `ContentUnavailableView`, system materials. If Apple ships the element, use
+  Apple's element.
+- Liquid Glass belongs to the floating layer, per the HIG: on iOS, buttons use
+  `.glassProminent`/`.glass` and floating overlays (toasts) use `glassEffect`.
+  The content layer — lists, rows, forms, screen states — stays opaque; do not
+  put glass on content.
 - Theme through the generated adapter only: tint is brand yellow
   (`PutioTheme.Colors.accent`), file/type icons are yellow Phosphor glyphs,
   text uses the brand faces via `putioFont`, semantic colors come from
