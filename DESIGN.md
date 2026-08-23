@@ -11,6 +11,12 @@ radii, motion, icons (Phosphor), and the dark-only decision (#82). Its
 not a spec for native controls. The old "Claude design" concept galleries were
 concepts, nothing more.
 
+This repo sits in the native tier of put.io's design binding model: web
+surfaces carry the full put.io component system; native apps (this repo,
+Android) take tokens only and build every component from the platform's human
+interface guidelines; Roku takes tokens with more room for put.io conventions;
+the web TV app applies the design system restrained to a generic 10-foot look.
+
 ## What this means in practice
 
 - Use stock SwiftUI controls, containers, and presentations: `Button` styles,
@@ -45,9 +51,14 @@ rule for buttons: native tvOS focus behavior wins over web-TV parity.
 
 The rest of the TV contract in `@putdotio/design`'s DESIGN.md still stands
 for non-button TV surfaces: solid token fills for rows, toasts, and modals,
-one `tv.radius`, row focus as a solid fill. Revisit when the tvOS browse
-slice lands and the upstream contract is updated. TV has no mono face;
-numerics use GT America tabular figures.
+one `tv.radius`, row focus as a solid fill. TV has no mono face; numerics use
+GT America tabular figures.
+
+The product's TV family feel is the shipped TV app's generic list-first
+10-foot interface: tvOS aligns with that direction — same content shapes,
+density, and calm file-browser character — without giving up tvOS platform
+characteristics like the system focus treatment. Revisit the non-button rules
+when the tvOS browse slice lands and the upstream contract is updated.
 
 ## Verification
 
