@@ -12,6 +12,7 @@ public enum HarnessScenario: String, CaseIterable, Sendable {
   case signedOut = "signed-out"
   case exercised
   case gallery
+  case signedIn = "signed-in"
 
   public static let launchArgument = "--putio-harness-scenario"
 

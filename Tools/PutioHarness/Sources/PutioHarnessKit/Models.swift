@@ -100,6 +100,7 @@ public enum OutputFormat: String, Equatable, Sendable {
 public enum CaptureScenario: String, CaseIterable, Equatable, Sendable {
   case signedOut = "signed-out"
   case gallery
+  case signedIn = "signed-in"
 }
 
 public enum SurfaceCommand: String, CaseIterable, Equatable, Sendable {

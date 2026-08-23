@@ -818,7 +818,11 @@ public struct SimulatorHarness {
 
   private func fixtureSet(command: SurfaceCommand, scenario: CaptureScenario) -> String {
     if command == .proof { return "signed-out-to-exercised-placeholder-v1" }
-    return scenario == .gallery ? "component-gallery-v1" : "signed-out-placeholder-v1"
+    switch scenario {
+    case .gallery: return "component-gallery-v1"
+    case .signedIn: return "seeded-session-v1"
+    case .signedOut: return "signed-out-placeholder-v1"
+    }
   }
 
   private func writeManifest(
