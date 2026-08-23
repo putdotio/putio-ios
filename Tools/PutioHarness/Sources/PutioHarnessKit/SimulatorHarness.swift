@@ -149,7 +149,7 @@ public struct SimulatorHarness {
           "-derivedDataPath", context.derivedData.path,
         ],
         currentDirectory: context.root,
-        context: "build \(platform.rawValue)"
+        context: "build \(platform.rawValue) scheme \(scheme)"
       )
     }
   }

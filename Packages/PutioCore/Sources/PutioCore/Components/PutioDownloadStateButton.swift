@@ -84,12 +84,15 @@ public enum PutioDownloadState: Equatable, Sendable {
       }
     }
 
+    // Failed shares the idle glyph visually (ios-s02), but VoiceOver names
+    // the action the tap performs, so it announces the retry.
     private var accessibilityLabel: Text {
       switch state {
-      case .idle, .failed: Text("Download")
+      case .idle: Text("Download")
       case .queued: Text("Queued")
       case .downloading: Text("Stop download")
       case .downloaded: Text("Downloaded")
+      case .failed: Text("Retry download")
       }
     }
 
