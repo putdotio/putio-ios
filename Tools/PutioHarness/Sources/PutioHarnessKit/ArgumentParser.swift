@@ -4,7 +4,8 @@ public enum HarnessArgumentParser {
   public static let usage = """
     Usage:
       putio-harness doctor [--output text|json]
-      putio-harness <build|boot|launch|exercise|screenshot|record|proof> --platform <ios|watchos|tvos|all> [--run-id ID] [--record-seconds N] [--output text|json]
+      putio-harness <build|boot|launch|exercise|screenshot|record|proof> --platform <ios|watchos|tvos|all> [--run-id ID] [--record-seconds N] [--scenario signed-out|gallery] [--output text|json]
+      putio-harness test --platform <ios|tvos> [--snapshots assert|record] [--output text|json]
       putio-harness auth-status [--output text|json]
       putio-harness live-fixture [--output text|json]
       putio-harness publish --artifact PATH --repo OWNER/REPO --pr NUMBER [--output text|json]
@@ -50,11 +51,24 @@ public enum HarnessArgumentParser {
         pullRequest: pullRequest,
         output: output
       )
+    case "test":
+      try options.rejectUnknown(allowing: ["platform", "snapshots", "output"])
+      guard let platform = HarnessPlatform(rawValue: try options.required("platform")),
+        platform.configuration.snapshotScheme != nil
+      else {
+        throw HarnessFailure("test: --platform must be ios or tvos")
+      }
+      let snapshotsValue = options.value("snapshots") ?? "assert"
+      guard snapshotsValue == "assert" || snapshotsValue == "record" else {
+        throw HarnessFailure("--snapshots must be assert or record")
+      }
+      return .test(platform: platform, recordSnapshots: snapshotsValue == "record", output: output)
     default:
       guard let command = SurfaceCommand(rawValue: commandName) else {
         throw HarnessFailure("unknown command: \(commandName)\n\n\(usage)")
       }
-      try options.rejectUnknown(allowing: ["platform", "run-id", "record-seconds", "output"])
+      try options.rejectUnknown(
+        allowing: ["platform", "run-id", "record-seconds", "scenario", "output"])
       let selection = try parsePlatform(try options.required("platform"))
       if command != .build, case .all = selection, command != .proof {
         throw HarnessFailure(
@@ -66,11 +80,24 @@ public enum HarnessArgumentParser {
       guard let seconds = Int(secondsValue), (1...30).contains(seconds) else {
         throw HarnessFailure("--record-seconds must be between 1 and 30")
       }
+      let scenarioValue = options.value("scenario") ?? CaptureScenario.signedOut.rawValue
+      guard let scenario = CaptureScenario(rawValue: scenarioValue) else {
+        throw HarnessFailure("--scenario must be signed-out or gallery")
+      }
+      if scenario != .signedOut, command != .screenshot, command != .record {
+        throw HarnessFailure("--scenario is supported only by screenshot and record")
+      }
+      if scenario == .gallery,
+        selection.platforms.contains(where: { $0.configuration.snapshotScheme == nil })
+      {
+        throw HarnessFailure("--scenario gallery is supported only on ios and tvos")
+      }
       return .surface(
         command: command,
         platforms: selection,
         runID: runID,
         recordSeconds: seconds,
+        scenario: scenario,
         output: output
       )
     }

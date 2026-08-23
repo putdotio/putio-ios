@@ -16,7 +16,8 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         productDirectory: "Debug-iphonesimulator",
         appName: "Putio.app",
         runtimePlatform: "iOS",
-        deviceFamily: "iPhone"
+        deviceFamily: "iPhone",
+        snapshotScheme: "Putio"
       )
     case .watchos:
       PlatformConfiguration(
@@ -38,7 +39,8 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         productDirectory: "Debug-appletvsimulator",
         appName: "PutioTV.app",
         runtimePlatform: "tvOS",
-        deviceFamily: "Apple TV"
+        deviceFamily: "Apple TV",
+        snapshotScheme: "PutioTV"
       )
     }
   }
@@ -53,6 +55,7 @@ public struct PlatformConfiguration: Equatable, Sendable {
   public let appName: String
   public let runtimePlatform: String
   public let deviceFamily: String
+  public let snapshotScheme: String?
 
   public init(
     scheme: String,
@@ -62,7 +65,8 @@ public struct PlatformConfiguration: Equatable, Sendable {
     productDirectory: String,
     appName: String,
     runtimePlatform: String,
-    deviceFamily: String
+    deviceFamily: String,
+    snapshotScheme: String? = nil
   ) {
     self.scheme = scheme
     self.bundleIdentifier = bundleIdentifier
@@ -72,6 +76,7 @@ public struct PlatformConfiguration: Equatable, Sendable {
     self.appName = appName
     self.runtimePlatform = runtimePlatform
     self.deviceFamily = deviceFamily
+    self.snapshotScheme = snapshotScheme
   }
 }
 
@@ -92,6 +97,11 @@ public enum OutputFormat: String, Equatable, Sendable {
   case json
 }
 
+public enum CaptureScenario: String, CaseIterable, Equatable, Sendable {
+  case signedOut = "signed-out"
+  case gallery
+}
+
 public enum SurfaceCommand: String, CaseIterable, Equatable, Sendable {
   case build
   case boot
@@ -110,6 +120,12 @@ public enum HarnessInvocation: Equatable, Sendable {
     platforms: PlatformSelection,
     runID: String?,
     recordSeconds: Int,
+    scenario: CaptureScenario,
+    output: OutputFormat
+  )
+  case test(
+    platform: HarnessPlatform,
+    recordSnapshots: Bool,
     output: OutputFormat
   )
   case authStatus(output: OutputFormat)

@@ -19,6 +19,8 @@ The `next` generation is a Tuist-generated SwiftUI workspace with three thin app
 
 The shipping legacy application remains on the protected `main` branch while the rewrite develops on `next`.
 
+`PutioCore` carries the generated design-token adapter and the shared component kit. Design direction lives in [DESIGN.md](./DESIGN.md): native platform elements with put.io theming, never ports of web component recipes.
+
 ## Setup
 
 Install [mise](https://mise.jdx.dev), then run:

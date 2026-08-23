@@ -8,13 +8,19 @@ struct PutioTVApp: App {
 
   var body: some Scene {
     WindowGroup {
-      SignedOutView(presentation: presentation)
-        .preferredColorScheme(.dark)
-        .onAppear {
-          if SignedOutPresentation.isHarnessExercise(arguments: ProcessInfo.processInfo.arguments) {
-            SignedOutPresentation.signalHarnessExercise()
-          }
+      Group {
+        if HarnessScenario.parse(arguments: ProcessInfo.processInfo.arguments) == .gallery {
+          PutioComponentGallery(autoAdvanceEvery: 3)
+        } else {
+          SignedOutView(presentation: presentation)
         }
+      }
+      .preferredColorScheme(.dark)
+      .onAppear {
+        if SignedOutPresentation.isHarnessExercise(arguments: ProcessInfo.processInfo.arguments) {
+          SignedOutPresentation.signalHarnessExercise()
+        }
+      }
     }
   }
 }

@@ -28,6 +28,7 @@
 - Run `mise run bootstrap` in a fresh checkout or worktree
 - Run `mise run verify` before handoff
 - Change targets and settings in `Project.swift`, never in generated Xcode files
+- Follow [Design Principles](./DESIGN.md): native platform elements with put.io theming; never port web component recipes
 - Change design tokens in `putio-design`, then bump the locked package, audit token coverage, and regenerate; never edit generated Swift or asset catalogs
 - Use Swift Package Manager for dependencies
 - Keep platform-specific UI, lifecycle, focus, playback, and download behavior in the matching app shell
@@ -49,6 +50,9 @@
 - Full repository: `mise run verify`
 - Manifest change: regenerate, then build every app scheme
 - Runtime-sensitive change: launch the affected shell in its simulator in addition to `mise run verify`
+- Component or theming change: `mise run harness -- test --platform <ios|tvos>` asserts the
+  committed snapshot gallery; after an intentional visual change re-record with
+  `--snapshots record` and commit the image diff
 - Agent runtime proof: `mise run harness -- proof --platform <ios|watchos|tvos>`
 
 ## Harness

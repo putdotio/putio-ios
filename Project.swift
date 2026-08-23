@@ -89,6 +89,30 @@ let project = Project(
       ]
     ),
     .target(
+      name: "PutioSnapshotTests",
+      destinations: .iOS,
+      product: .unitTests,
+      bundleId: "io.put.dev.ios.snapshottests",
+      deploymentTargets: .iOS("26.0"),
+      infoPlist: .default,
+      buildableFolders: ["Tests/ComponentSnapshots/Sources"],
+      dependencies: [
+        .package(product: "PutioCore")
+      ]
+    ),
+    .target(
+      name: "PutioTVSnapshotTests",
+      destinations: .tvOS,
+      product: .unitTests,
+      bundleId: "io.put.dev.tvos.snapshottests",
+      deploymentTargets: .tvOS("26.0"),
+      infoPlist: .default,
+      buildableFolders: ["Tests/ComponentSnapshots/Sources"],
+      dependencies: [
+        .package(product: "PutioCore")
+      ]
+    ),
+    .target(
       name: "PutioTV",
       destinations: .tvOS,
       product: .app,

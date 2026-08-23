@@ -23,11 +23,17 @@ mise run harness -- boot --platform ios
 mise run harness -- launch --platform watchos
 mise run harness -- exercise --platform tvos
 mise run harness -- screenshot --platform ios
+mise run harness -- screenshot --platform ios --scenario gallery
 mise run harness -- record --platform watchos --record-seconds 5
+mise run harness -- test --platform tvos
 mise run harness -- proof --platform all
 ```
 
 Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` and `proof`. Invalid platforms, options, run identifiers, durations, repositories, and pull-request numbers fail before invoking platform tools.
+
+`screenshot` and `record` accept `--scenario signed-out|gallery`. The `gallery` scenario launches the iOS or tvOS shell into the component-kit gallery, which cycles through its pages so a recording covers every component; other commands and the watchOS shell reject it.
+
+`test --platform <ios|tvos>` runs the component snapshot suite on an ephemeral simulator via `xcodebuild test`. Baselines are committed under `Tests/ComponentSnapshots/__Snapshots__/<platform>/`; comparison tolerates small antialiasing drift between Simulator runtimes. Liquid Glass cannot be rasterized off-screen, so the suite renders glass surfaces with their bordered/material fallbacks (`PUTIO_SNAPSHOT_RASTER`); review the real glass appearance through the gallery captures. After an intentional visual change run `test --platform <platform> --snapshots record`, which records the baselines and re-asserts against what it wrote, then review and commit the image diff. `mise run verify` runs both platforms' suites.
 
 All simulator commands are headless. The harness never opens Simulator.app. `boot`, `launch`, `exercise`, and capture runs create uniquely named devices and pair watchOS with an ephemeral iPhone companion. `launch`, `exercise`, and capture wait for a rendered app frame. Every created device is shut down, deleted, and verified absent on success or failure. `build` does not create devices.
 

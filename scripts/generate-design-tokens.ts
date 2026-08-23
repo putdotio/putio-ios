@@ -126,13 +126,139 @@ export const semanticColorRoles = [
     swiftName: "separator",
     token: "color.neutral.dark.border",
   },
+  {
+    assetName: "PutioBorderActive",
+    swiftName: "borderActive",
+    token: "color.neutral.dark.borderHover",
+  },
+  {
+    assetName: "PutioSurfaceActive",
+    swiftName: "surfaceActive",
+    token: "color.neutral.dark.componentBgActive",
+  },
+  {
+    assetName: "PutioTextDisabled",
+    swiftName: "textDisabled",
+    token: "color.neutral.dark.solid",
+  },
 ] as const satisfies readonly SemanticColorRole[];
+
+type ComponentColorGroup = {
+  readonly swiftNamespace: string;
+  readonly assetPrefix: string;
+  readonly roles: readonly SemanticColorRole[];
+};
+
+const componentColorRole = (
+  prefix: string,
+  swiftName: string,
+  token: string,
+): SemanticColorRole => ({
+  assetName: `${prefix}${swiftName[0]?.toUpperCase()}${swiftName.slice(1)}`,
+  swiftName,
+  token,
+});
+
+export const componentColorGroups = [
+  {
+    swiftNamespace: "Button",
+    assetPrefix: "PutioButton",
+    roles: [
+      ["primaryBackground", "component.button.primary.background"],
+      ["primaryBackgroundPressed", "component.button.primary.backgroundHoverDark"],
+      ["primaryForeground", "component.button.primary.foreground"],
+      ["secondaryBackground", "component.button.secondary.backgroundDark"],
+      ["secondaryBackgroundPressed", "component.button.secondary.backgroundHoverDark"],
+      ["secondaryForeground", "component.button.secondary.foregroundDark"],
+      ["ghostBackground", "component.button.ghost.background"],
+      ["ghostBackgroundPressed", "component.button.ghost.backgroundHoverDark"],
+      ["ghostForeground", "component.button.ghost.foregroundDark"],
+      ["ghostForegroundPressed", "component.button.ghost.foregroundHoverDark"],
+      ["successBackground", "component.button.success.backgroundDark"],
+      ["successBackgroundPressed", "component.button.success.backgroundHoverDark"],
+      ["successForeground", "component.button.success.foreground"],
+      ["dangerBackground", "component.button.danger.backgroundDark"],
+      ["dangerBackgroundPressed", "component.button.danger.backgroundHoverDark"],
+      ["dangerForeground", "component.button.danger.foreground"],
+      ["infoBackground", "component.button.info.backgroundDark"],
+      ["infoBackgroundPressed", "component.button.info.backgroundHoverDark"],
+      ["infoForeground", "component.button.info.foregroundDark"],
+    ].map(([swiftName, token]) => componentColorRole("PutioButton", swiftName ?? "", token ?? "")),
+  },
+  {
+    swiftNamespace: "Field",
+    assetPrefix: "PutioField",
+    roles: [
+      ["background", "component.field.backgroundDark"],
+      ["backgroundDisabled", "component.field.backgroundDisabledDark"],
+      ["border", "component.field.borderDark"],
+      ["borderFocus", "component.field.borderFocusDark"],
+      ["placeholder", "component.field.placeholderDark"],
+      ["text", "component.field.textDark"],
+    ].map(([swiftName, token]) => componentColorRole("PutioField", swiftName ?? "", token ?? "")),
+  },
+  {
+    swiftNamespace: "FileRow",
+    assetPrefix: "PutioFileRow",
+    roles: [
+      ["background", "component.fileRow.backgroundDark"],
+      ["backgroundActive", "component.fileRow.activeBackgroundDark"],
+      ["border", "component.fileRow.borderDark"],
+      ["icon", "component.fileRow.icon"],
+    ].map(([swiftName, token]) => componentColorRole("PutioFileRow", swiftName ?? "", token ?? "")),
+  },
+  {
+    swiftNamespace: "Notification",
+    assetPrefix: "PutioNotification",
+    roles: [
+      ["background", "component.notification.backgroundDark"],
+      ["border", "component.notification.borderDark"],
+      ["foreground", "component.notification.foregroundDark"],
+      ["icon", "component.notification.iconDark"],
+      ["dangerBackground", "component.notification.dangerBackgroundDark"],
+      ["dangerBorder", "component.notification.dangerBorderDark"],
+      ["dangerForeground", "component.notification.dangerForegroundDark"],
+      ["successBackground", "component.notification.successBackgroundDark"],
+      ["successBorder", "component.notification.successBorderDark"],
+      ["successForeground", "component.notification.successForegroundDark"],
+      ["infoBackground", "component.notification.infoBackgroundDark"],
+    ].map(([swiftName, token]) =>
+      componentColorRole("PutioNotification", swiftName ?? "", token ?? "")
+    ),
+  },
+  {
+    swiftNamespace: "Sheet",
+    assetPrefix: "PutioSheet",
+    roles: [
+      ["background", "component.sheet.backgroundDark"],
+      ["border", "component.sheet.borderDark"],
+      ["scrim", "component.sheet.scrimDark"],
+    ].map(([swiftName, token]) => componentColorRole("PutioSheet", swiftName ?? "", token ?? "")),
+  },
+] as const satisfies readonly ComponentColorGroup[];
+
+const allComponentColorRoles: readonly SemanticColorRole[] = componentColorGroups.flatMap(
+  (group) => group.roles,
+);
 
 export const generatedTokenNames = [...new Set([
   ...semanticColorRoles.map((role) => role.token),
+  ...allComponentColorRoles.map((role) => role.token),
   "border.width",
   "component.button.gap",
   "component.button.iconSize",
+  "component.button.height",
+  "component.button.heightMd",
+  "component.button.heightSm",
+  "component.button.heightXs",
+  "component.button.labelSize",
+  "component.button.labelSizeXs",
+  "component.button.paddingX",
+  "component.button.paddingXXs",
+  "component.button.tracking",
+  "component.button.trackingMd",
+  "component.button.trackingSm",
+  "component.button.trackingXs",
   "motion.duration.base",
   "motion.duration.fast",
   "motion.duration.slow",
@@ -420,7 +546,7 @@ export function renderAssetCatalog(
   const files: Record<string, string> = {
     "Contents.json": formattedJSON({ info: { author: "xcode", version: 1 } }),
   };
-  for (const role of semanticColorRoles) {
+  for (const role of [...semanticColorRoles, ...allComponentColorRoles]) {
     const token = requiredDarkColorToken(entries, role.token);
     files[`${role.assetName}.colorset/Contents.json`] = formattedJSON({
       colors: [{ color: assetColor(String(token.value)), idiom: "universal" }],
@@ -494,26 +620,83 @@ const requiredToken = (
   return result;
 };
 
-const renderProductColors = (entries: readonly TokenEntry[]): string => {
-  const roles = semanticColorRoles
-    .map((role) => {
-      const token = requiredDarkColorToken(entries, role.token);
-      return `    public static let ${role.swiftName} = semanticColor(
-      named: ${swiftString(role.assetName)},
-      fallback: ${swiftMultilineColor(String(token.value), 6)}
-    )`;
+const renderColorRole = (
+  entries: readonly TokenEntry[],
+  role: SemanticColorRole,
+  indent: number,
+): string => {
+  const token = requiredDarkColorToken(entries, role.token);
+  const pad = " ".repeat(indent);
+  return `${pad}public static let ${role.swiftName} = putioSemanticColor(
+${pad}  named: ${swiftString(role.assetName)},
+${pad}  fallback: ${swiftMultilineColor(String(token.value), indent + 2)}
+${pad})`;
+};
+
+const renderProductColors = (entries: readonly TokenEntry[]): string =>
+  semanticColorRoles
+    .map((role) => renderColorRole(entries, role, 4))
+    .join("\n\n");
+
+const renderButtonMetrics = (entries: readonly TokenEntry[]): string => {
+  const mediumFace = (weight: string | number) => nativeFontName("GT America", weight);
+  const medium = requiredToken(entries, "typography.fontWeight.medium").value;
+  const tight = numberValue(entries, "typography.lineHeight.tight");
+  return `
+      public static let height = PutioMetricRole(
+        value: ${dimension(entries, "component.button.height")},
+        relativeTo: .caption
+      )
+      public static let heightMedium = PutioMetricRole(
+        value: ${dimension(entries, "component.button.heightMd")},
+        relativeTo: .caption
+      )
+      public static let heightSmall = PutioMetricRole(
+        value: ${dimension(entries, "component.button.heightSm")},
+        relativeTo: .caption
+      )
+      public static let heightXSmall = PutioMetricRole(
+        value: ${dimension(entries, "component.button.heightXs")},
+        relativeTo: .caption2
+      )
+      public static let paddingX = PutioMetricRole(
+        value: ${dimension(entries, "component.button.paddingX")},
+        relativeTo: .caption
+      )
+      public static let paddingXXSmall = PutioMetricRole(
+        value: ${dimension(entries, "component.button.paddingXXs")},
+        relativeTo: .caption2
+      )
+      public static let label = PutioFontRole(
+        fontName: ${swiftString(mediumFace(medium))},
+        size: ${dimension(entries, "component.button.labelSize")},
+        lineHeight: ${tight},
+        textStyle: .caption
+      )
+      public static let labelXSmall = PutioFontRole(
+        fontName: ${swiftString(mediumFace(medium))},
+        size: ${dimension(entries, "component.button.labelSizeXs")},
+        lineHeight: ${tight},
+        textStyle: .caption2
+      )
+      public static let tracking: CGFloat = ${dimension(entries, "component.button.tracking")}
+      public static let trackingMedium: CGFloat = ${dimension(entries, "component.button.trackingMd")}
+      public static let trackingSmall: CGFloat = ${dimension(entries, "component.button.trackingSm")}
+      public static let trackingXSmall: CGFloat = ${dimension(entries, "component.button.trackingXs")}`;
+};
+
+const renderComponents = (entries: readonly TokenEntry[]): string =>
+  componentColorGroups
+    .map((group) => {
+      const colors = group.roles
+        .map((role) => renderColorRole(entries, role, 6))
+        .join("\n\n");
+      const extras = group.swiftNamespace === "Button" ? renderButtonMetrics(entries) : "";
+      return `    public enum ${group.swiftNamespace} {
+${colors}${extras}
+    }`;
     })
     .join("\n\n");
-  return `${roles}
-
-    private static func semanticColor(named: String, fallback: Color) -> Color {
-      #if os(macOS)
-        fallback
-      #else
-        Color(named, bundle: .module)
-      #endif
-    }`;
-};
 
 const tvColorRoles = [
   ["textPrimary", "context.tv.text.primary"],
@@ -695,6 +878,14 @@ public struct PutioCubicBezier: Equatable, Sendable {
   }
 }
 
+private func putioSemanticColor(named: String, fallback: Color) -> Color {
+  #if os(macOS)
+    fallback
+  #else
+    Color(named, bundle: .module)
+  #endif
+}
+
 public enum PutioTheme {
   public static let sourcePackage = "@putdotio/design"
   public static let sourceVersion = ${swiftString(packageVersion)}
@@ -702,6 +893,10 @@ public enum PutioTheme {
 
   public enum Colors {
 ${renderProductColors(entries)}
+  }
+
+  public enum Components {
+${renderComponents(entries)}
   }
 
   public enum Typography {
