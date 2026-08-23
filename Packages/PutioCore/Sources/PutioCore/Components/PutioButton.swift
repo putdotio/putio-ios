@@ -16,10 +16,11 @@ public enum PutioButtonSize: CaseIterable, Sendable {
   case extraSmall
 }
 
-// One Button, native first: on iOS and watchOS the tiers map onto the stock
-// button styles with token tints, so the controls stay platform chrome with
-// brand color on top. tvOS keeps the TV contract's painted solid-fill
-// treatment because the system focus style lifts and scales.
+// One Button, native first, on every shell: the tiers map onto the stock
+// Liquid Glass button styles with token tints, and the titles carry the brand
+// face at the medium control weight — the shipping app's recipe of native box
+// plus brand type. tvOS uses the system focus treatment; the TV contract's
+// solid-focus rule is deliberately overridden for buttons (see DESIGN.md).
 public struct PutioButton: View {
   private let title: String
   private let icon: PutioIcon?
@@ -48,10 +49,8 @@ public struct PutioButton: View {
 
   public var body: some View {
     #if os(tvOS)
-      Button(action: action) {
-        label
-      }
-      .buttonStyle(PutioTVButtonStyle(tier: tier))
+      // ControlSize is unavailable on tvOS: every size shares the one TV box.
+      nativeButton
     #else
       nativeButton
         .controlSize(size.controlSize)
@@ -68,89 +67,90 @@ public struct PutioButton: View {
       }
       Text(title)
     }
-    #if !os(tvOS)
-      .putioFont(size.brandLabel)
-    #endif
+    .putioFont(size.brandLabel)
   }
 
-  #if !os(tvOS)
-    // On iOS the filled tiers use the Liquid Glass prominent style and the
-    // secondary tier plain glass — buttons sit in the floating layer, where
-    // the HIG puts glass. Ghost stays a plain text button. watchOS and the
-    // macOS test host keep the bordered styles.
-    @ViewBuilder private var nativeButton: some View {
-      switch tier {
-      case .primary:
-        prominentButton(role: nil, foreground: PutioTheme.Components.Button.primaryForeground)
-          .tint(PutioTheme.Colors.accent)
-      case .secondary:
-        styledSecondary(
-          Button(action: action) {
-            label
-          }
-        )
-        .tint(PutioTheme.Colors.textPrimary)
-      case .ghost:
+  @ViewBuilder private var nativeButton: some View {
+    switch tier {
+    case .primary:
+      prominentButton(role: nil, foreground: PutioTheme.Components.Button.primaryForeground)
+        .tint(PutioTheme.Colors.accent)
+    case .secondary:
+      styledSecondary(
         Button(action: action) {
           label
         }
-        .buttonStyle(.borderless)
-        .tint(PutioTheme.Colors.accent)
-      case .success:
-        prominentButton(role: nil, foreground: PutioTheme.Components.Button.successForeground)
-          .tint(PutioTheme.Colors.success)
-      case .danger:
-        prominentButton(
-          role: .destructive,
-          foreground: PutioTheme.Components.Button.dangerForeground
-        )
-        .tint(PutioTheme.Colors.destructive)
-      case .info:
-        prominentButton(role: nil, foreground: PutioTheme.Components.Button.infoForeground)
-          .tint(PutioTheme.Components.Button.infoBackground)
-      }
-    }
-
-    private func prominentButton(role: ButtonRole?, foreground: Color) -> some View {
-      styledProminent(
-        Button(role: role, action: action) {
-          label.foregroundStyle(foreground)
-        }
       )
+      .tint(PutioTheme.Colors.textPrimary)
+    case .ghost:
+      Button(action: action) {
+        label
+      }
+      .buttonStyle(.borderless)
+      .tint(PutioTheme.Colors.accent)
+    case .success:
+      prominentButton(role: nil, foreground: PutioTheme.Components.Button.successForeground)
+        .tint(PutioTheme.Colors.success)
+    case .danger:
+      prominentButton(
+        role: .destructive,
+        foreground: PutioTheme.Components.Button.dangerForeground
+      )
+      .tint(PutioTheme.Colors.destructive)
+    case .info:
+      prominentButton(role: nil, foreground: PutioTheme.Components.Button.infoForeground)
+        .tint(PutioTheme.Components.Button.infoBackground)
     }
+  }
 
-    @ViewBuilder private func styledProminent(_ button: some View) -> some View {
-      #if os(iOS)
-        if HarnessRendering.usesRasterFallback {
-          button.buttonStyle(.borderedProminent)
-        } else {
-          button.buttonStyle(.glassProminent)
-        }
-      #else
+  private func prominentButton(role: ButtonRole?, foreground: Color) -> some View {
+    styledProminent(
+      Button(role: role, action: action) {
+        label.foregroundStyle(foreground)
+      }
+    )
+  }
+
+  // Liquid Glass cannot be rasterized off-screen, so the snapshot lane
+  // asserts the bordered fallbacks; captures review the real glass. The
+  // macOS 15 test host predates glass and keeps the bordered styles.
+  @ViewBuilder private func styledProminent(_ button: some View) -> some View {
+    #if os(macOS)
+      button.buttonStyle(.borderedProminent)
+    #else
+      if HarnessRendering.usesRasterFallback {
         button.buttonStyle(.borderedProminent)
-      #endif
-    }
+      } else {
+        button.buttonStyle(.glassProminent)
+      }
+    #endif
+  }
 
-    @ViewBuilder fileprivate func styledSecondary(_ button: some View) -> some View {
-      #if os(iOS)
-        if HarnessRendering.usesRasterFallback {
-          button.buttonStyle(.bordered)
-        } else {
-          button.buttonStyle(.glass)
-        }
-      #else
+  @ViewBuilder private func styledSecondary(_ button: some View) -> some View {
+    #if os(macOS)
+      button.buttonStyle(.bordered)
+    #else
+      if HarnessRendering.usesRasterFallback {
         button.buttonStyle(.bordered)
-      #endif
-    }
-  #endif
+      } else {
+        button.buttonStyle(.glass)
+      }
+    #endif
+  }
 }
 
-#if !os(tvOS)
-  extension PutioButtonSize {
-    // The shipping app's recipe: keep the native control's box, swap the title
-    // to the brand face at the medium control weight. Sizes come from the
-    // token type scale at the step closest to each native control size.
-    var brandLabel: PutioFontRole {
+extension PutioButtonSize {
+  // Native control box, brand face at the medium control weight, sized from
+  // the token type scale at the step closest to each native control size.
+  var brandLabel: PutioFontRole {
+    #if os(tvOS)
+      PutioFontRole(
+        fontName: PutioTheme.Components.Button.label.fontName,
+        size: PutioTheme.TV.Typography.caption.size,
+        lineHeight: PutioTheme.TV.Typography.label.lineHeight,
+        textStyle: .caption
+      )
+    #else
       let mediumFace = PutioTheme.Components.Button.label.fontName
       let lineHeight = PutioTheme.Components.Button.label.lineHeight
       return switch self {
@@ -176,8 +176,10 @@ public struct PutioButton: View {
           textStyle: .caption
         )
       }
-    }
+    #endif
+  }
 
+  #if !os(tvOS)
     var controlSize: ControlSize {
       switch self {
       case .regular: .large
@@ -186,158 +188,5 @@ public struct PutioButton: View {
       case .extraSmall: .mini
       }
     }
-  }
-#endif
-
-#if os(tvOS)
-  // TV keeps the contract's painted treatment: solid token fills, the single
-  // TV radius, and focus expressed as a solid fill plus a border step —
-  // never the system scale/lift.
-  struct PutioTVButtonStyle: ButtonStyle {
-    let tier: PutioButtonTier
-
-    @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.isFocused) private var isFocused
-
-    func makeBody(configuration: Configuration) -> some View {
-      let state = resolvedState(isPressed: configuration.isPressed)
-      return configuration.label
-        .putioFont(PutioTVButtonStyle.label)
-        .lineLimit(1)
-        .foregroundStyle(state.foreground)
-        .padding(.horizontal, PutioTheme.TV.Spacing.medium)
-        .frame(minHeight: PutioTheme.TV.Spacing.large)
-        .background(state.background, in: shape)
-        .overlay(shape.strokeBorder(state.border, lineWidth: PutioTheme.Border.width))
-        .opacity(isEnabled || !tier.palette.dimsWhenDisabled ? 1 : Self.disabledOpacity)
-        .animation(
-          PutioTheme.Motion.easingOut.animation(duration: PutioTheme.Motion.durationFast),
-          value: configuration.isPressed
-        )
-    }
-
-    // The web contract fades disabled filled buttons (`button:disabled`); the
-    // ratio is not in the token graph.
-    static let disabledOpacity = 0.3
-
-    static let label = PutioFontRole(
-      fontName: PutioTheme.TV.Typography.label.fontName,
-      size: PutioTheme.TV.Typography.caption.size,
-      lineHeight: PutioTheme.TV.Typography.label.lineHeight,
-      textStyle: .caption
-    )
-
-    private var shape: RoundedRectangle {
-      RoundedRectangle(cornerRadius: PutioTheme.TV.radius)
-    }
-
-    private struct ResolvedState {
-      let background: Color
-      let foreground: Color
-      let border: Color
-    }
-
-    private func resolvedState(isPressed: Bool) -> ResolvedState {
-      let palette = tier.palette
-      if !isEnabled && !palette.dimsWhenDisabled {
-        return ResolvedState(
-          background: PutioTheme.Components.Button.ghostBackground,
-          foreground: PutioTheme.Colors.textDisabled,
-          border: .clear
-        )
-      }
-      if isFocused {
-        return ResolvedState(
-          background: palette.focusBackground,
-          foreground: palette.pressedForeground ?? palette.foreground,
-          border: palette.focusBorder
-        )
-      }
-      if isPressed {
-        return ResolvedState(
-          background: palette.pressedBackground,
-          foreground: palette.pressedForeground ?? palette.foreground,
-          border: palette.pressedBorder ?? palette.pressedBackground
-        )
-      }
-      return ResolvedState(
-        background: palette.background,
-        foreground: palette.foreground,
-        border: palette.border ?? palette.background
-      )
-    }
-  }
-
-  struct PutioButtonPalette {
-    let background: Color
-    let foreground: Color
-    let pressedBackground: Color
-    var pressedForeground: Color?
-    var border: Color?
-    var pressedBorder: Color?
-    var dimsWhenDisabled = true
-
-    // The TV focus contract restores a visible box: a solid fill plus a
-    // border step, never a scale, lift, or halo.
-    var focusBackground = PutioTheme.Colors.surfaceActive
-    var focusBorder = PutioTheme.Colors.borderActive
-  }
-
-  extension PutioButtonTier {
-    var palette: PutioButtonPalette {
-      switch self {
-      case .primary:
-        PutioButtonPalette(
-          background: PutioTheme.Components.Button.primaryBackground,
-          foreground: PutioTheme.Components.Button.primaryForeground,
-          pressedBackground: PutioTheme.Components.Button.primaryBackgroundPressed,
-          focusBackground: PutioTheme.Components.Button.primaryBackgroundPressed,
-          focusBorder: PutioTheme.Components.Button.primaryBackgroundPressed
-        )
-      case .secondary:
-        PutioButtonPalette(
-          background: PutioTheme.Components.Button.secondaryBackground,
-          foreground: PutioTheme.Components.Button.secondaryForeground,
-          pressedBackground: PutioTheme.Components.Button.secondaryBackgroundPressed,
-          border: PutioTheme.Colors.separator,
-          pressedBorder: PutioTheme.Colors.borderActive,
-          focusBackground: PutioTheme.Components.Button.secondaryBackgroundPressed
-        )
-      case .ghost:
-        PutioButtonPalette(
-          background: PutioTheme.Components.Button.ghostBackground,
-          foreground: PutioTheme.Components.Button.ghostForeground,
-          pressedBackground: PutioTheme.Components.Button.ghostBackgroundPressed,
-          pressedForeground: PutioTheme.Components.Button.ghostForegroundPressed,
-          border: .clear,
-          pressedBorder: .clear,
-          dimsWhenDisabled: false
-        )
-      case .success:
-        PutioButtonPalette(
-          background: PutioTheme.Components.Button.successBackground,
-          foreground: PutioTheme.Components.Button.successForeground,
-          pressedBackground: PutioTheme.Components.Button.successBackgroundPressed,
-          focusBackground: PutioTheme.Components.Button.successBackgroundPressed,
-          focusBorder: PutioTheme.Components.Button.successBackgroundPressed
-        )
-      case .danger:
-        PutioButtonPalette(
-          background: PutioTheme.Components.Button.dangerBackground,
-          foreground: PutioTheme.Components.Button.dangerForeground,
-          pressedBackground: PutioTheme.Components.Button.dangerBackgroundPressed,
-          focusBackground: PutioTheme.Components.Button.dangerBackgroundPressed,
-          focusBorder: PutioTheme.Components.Button.dangerBackgroundPressed
-        )
-      case .info:
-        PutioButtonPalette(
-          background: PutioTheme.Components.Button.infoBackground,
-          foreground: PutioTheme.Components.Button.infoForeground,
-          pressedBackground: PutioTheme.Components.Button.infoBackgroundPressed,
-          focusBackground: PutioTheme.Components.Button.infoBackgroundPressed,
-          focusBorder: PutioTheme.Components.Button.infoBackgroundPressed
-        )
-      }
-    }
-  }
-#endif
+  #endif
+}

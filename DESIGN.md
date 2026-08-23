@@ -36,13 +36,18 @@ concepts, nothing more.
 - The shipping App Store app is the look reference: native iOS chrome,
   put.io color, type, and icons on top.
 
-## The tvOS exception
+## The tvOS exception (narrowed)
 
-The TV contract in `@putdotio/design`'s DESIGN.md stands: solid token
-surfaces, no translucent materials, one `tv.radius`, focus expressed as a
-solid fill plus a border step — never scale, lift, or halo. The system tvOS
-focus style lifts and scales, so TV keeps the painted treatment. TV has no
-mono face; numerics use GT America tabular figures.
+**Buttons are system Liquid Glass on every shell — including tvOS and
+watchOS — with the system focus treatment.** This is a deliberate product
+override (2026-08) of the upstream TV contract's "solid focus, no materials"
+rule for buttons: native tvOS focus behavior wins over web-TV parity.
+
+The rest of the TV contract in `@putdotio/design`'s DESIGN.md still stands
+for non-button TV surfaces: solid token fills for rows, toasts, and modals,
+one `tv.radius`, row focus as a solid fill. Revisit when the tvOS browse
+slice lands and the upstream contract is updated. TV has no mono face;
+numerics use GT America tabular figures.
 
 ## Verification
 

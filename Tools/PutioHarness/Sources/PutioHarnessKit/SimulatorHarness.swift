@@ -795,7 +795,8 @@ public struct SimulatorHarness {
         output.path,
       ]
     )
-    let deadline = Date().addingTimeInterval(8)
+    // Cold recordVideo starts exceed 8 seconds on hosted CI runners.
+    let deadline = Date().addingTimeInterval(30)
     while Date() < deadline {
       if fileManager.fileExists(atPath: output.path) { return process }
       Thread.sleep(forTimeInterval: 0.1)
