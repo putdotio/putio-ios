@@ -132,23 +132,26 @@ public struct SimulatorHarness {
       throw HarnessFailure(
         "build \(platform.rawValue) succeeded but product is missing at \(app.path)")
     }
-    return SurfaceRun(platform: platform, artifacts: [], message: "built \(config.scheme)")
+    let builtSchemes = ([config.scheme] + config.extraBuildSchemes).joined(separator: ", ")
+    return SurfaceRun(platform: platform, artifacts: [], message: "built \(builtSchemes)")
   }
 
   private func buildProduct(_ platform: HarnessPlatform) throws {
     let config = platform.configuration
-    _ = try runner.checked(
-      "xcodebuild",
-      [
-        "build",
-        "-workspace", "Putio.xcworkspace",
-        "-scheme", config.scheme,
-        "-destination", config.destination,
-        "-derivedDataPath", context.derivedData.path,
-      ],
-      currentDirectory: context.root,
-      context: "build \(platform.rawValue)"
-    )
+    for scheme in [config.scheme] + config.extraBuildSchemes {
+      _ = try runner.checked(
+        "xcodebuild",
+        [
+          "build",
+          "-workspace", "Putio.xcworkspace",
+          "-scheme", scheme,
+          "-destination", config.destination,
+          "-derivedDataPath", context.derivedData.path,
+        ],
+        currentDirectory: context.root,
+        context: "build \(platform.rawValue) scheme \(scheme)"
+      )
+    }
   }
 
   public func launch(_ platform: HarnessPlatform) throws -> SurfaceRun {

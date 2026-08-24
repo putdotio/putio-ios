@@ -9,8 +9,8 @@ importers:
   .:
     devDependencies:
       '@putdotio/design':
-        specifier: 2.0.2
-        version: 2.0.2
+        specifier: 3.0.0
+        version: 3.0.0
       '@types/node':
         specifier: 24.13.3
         version: 24.13.3
@@ -23,8 +23,8 @@ importers:
 
 packages:
 
-  '@putdotio/design@2.0.2':
-    resolution: {integrity: sha512-2/l+uIwGPRcejeneDKKWR+ByqDIIniltX8/bfbGFHB0xTQ9eozBWmyR73B08FNuXwd2MdSi7KHsy90Jf1LuUCA==}
+  '@putdotio/design@3.0.0':
+    resolution: {integrity: sha512-C4m/v7Z4LJUEXV8VGcL3Owb+16yyCqDZU15+7fj5c5S82UsuXDztW383liQEb68NlQItcj03AJldfD5XOkIqKQ==}
 
   '@types/node@24.13.3':
     resolution: {integrity: sha512-Dh8vAsV36ig5wa9OX4pXvMc9D3Veibfw2wix0CUwYODLD8nkj9UsLjASr49nPg+2eKzxhBV+v7L8pXvT4e639Q==}
@@ -164,7 +164,7 @@ packages:
 
 snapshots:
 
-  '@putdotio/design@2.0.2': {}
+  '@putdotio/design@3.0.0': {}
 
   '@types/node@24.13.3':
     dependencies:

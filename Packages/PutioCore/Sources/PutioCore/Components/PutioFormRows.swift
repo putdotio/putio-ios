@@ -51,11 +51,12 @@ public struct PutioToggleRow: View {
     _isOn = isOn
   }
 
+  // The on-state fill is the app-level `.tint()` (ios-e01): the Toggle takes
+  // no tint of its own, so it stays brand yellow wherever the app tint lands.
   public var body: some View {
     Toggle(isOn: $isOn) {
       PutioFormRowLabel(title: title, subtitle: subtitle)
     }
-    .tint(PutioTheme.Colors.success)
   }
 }
 

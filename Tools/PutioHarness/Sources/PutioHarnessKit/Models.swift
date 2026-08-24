@@ -17,7 +17,8 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         appName: "Putio.app",
         runtimePlatform: "iOS",
         deviceFamily: "iPhone",
-        snapshotScheme: "Putio"
+        snapshotScheme: "Putio",
+        extraBuildSchemes: ["PutioNightly"]
       )
     case .watchos:
       PlatformConfiguration(
@@ -56,6 +57,9 @@ public struct PlatformConfiguration: Equatable, Sendable {
   public let runtimePlatform: String
   public let deviceFamily: String
   public let snapshotScheme: String?
+  // Flavor schemes on the same platform (the nightly app) that the build
+  // command must also compile; runtime commands keep driving the main scheme.
+  public let extraBuildSchemes: [String]
 
   public init(
     scheme: String,
@@ -66,7 +70,8 @@ public struct PlatformConfiguration: Equatable, Sendable {
     appName: String,
     runtimePlatform: String,
     deviceFamily: String,
-    snapshotScheme: String? = nil
+    snapshotScheme: String? = nil,
+    extraBuildSchemes: [String] = []
   ) {
     self.scheme = scheme
     self.bundleIdentifier = bundleIdentifier
@@ -77,6 +82,7 @@ public struct PlatformConfiguration: Equatable, Sendable {
     self.runtimePlatform = runtimePlatform
     self.deviceFamily = deviceFamily
     self.snapshotScheme = snapshotScheme
+    self.extraBuildSchemes = extraBuildSchemes
   }
 }
 

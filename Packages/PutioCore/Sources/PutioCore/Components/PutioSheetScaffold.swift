@@ -40,11 +40,13 @@ public struct PutioSheetScaffold<Content: View>: View {
     #endif
   }
 
+  // Centred on the system sheet (ios-e12); the TV modal keeps its leading
+  // title per the TV contract.
   private var titleRow: some View {
     Text(title)
       .putioFont(PutioSheetLayout.titleFont)
       .foregroundStyle(PutioTheme.Colors.textPrimary)
-      .frame(maxWidth: .infinity, alignment: .leading)
+      .frame(maxWidth: .infinity, alignment: PutioSheetLayout.titleAlignment)
       .padding(PutioSheetLayout.contentPadding)
   }
 }
@@ -94,8 +96,10 @@ enum PutioSheetLayout {
   #if os(tvOS)
     static let titleFont = PutioTheme.TV.Typography.label
     static let contentPadding = PutioTheme.TV.Spacing.medium
+    static let titleAlignment = Alignment.leading
   #else
     static let titleFont = PutioTheme.Typography.subheading
     static let contentPadding = PutioTheme.Spacing.space3
+    static let titleAlignment = Alignment.center
   #endif
 }

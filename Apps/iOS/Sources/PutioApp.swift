@@ -60,7 +60,7 @@ private struct SessionRootView: View {
       case .signedOut(let reason):
         SignInView(session: session, reason: reason)
       case .signedIn(let account):
-        AccountView(
+        MainTabView(
           session: session,
           account: account,
           autoSignOutAfterSeconds: scenario == .signedIn ? 5 : nil
@@ -140,14 +140,113 @@ private struct SignInView: View {
   }
 }
 
-private struct AccountView: View {
+// The iOS 26 shell (ios-s00, ios-e10): a stock TabView whose floating glass
+// capsule, shrink-on-scroll, and separate Search capsule are all owned by the
+// OS. put.io supplies the tint on the selected tab and the Phosphor glyphs.
+private struct MainTabView: View {
   let session: PutioSessionStore
   let account: PutioAccount
   let autoSignOutAfterSeconds: TimeInterval?
 
+  @State private var searchText = ""
+
   var body: some View {
-    NavigationStack {
-      List {
+    TabView {
+      Tab {
+        NavigationStack {
+          PutioEmptyStateView(
+            icon: .folderFill,
+            title: "No files yet",
+            message: "Files you fetch appear here."
+          )
+          .navigationTitle("Files")
+          .putioContentBackground()
+        }
+      } label: {
+        Label {
+          Text("Files")
+        } icon: {
+          Image(putioIcon: .folderFill)
+        }
+      }
+      Tab {
+        NavigationStack {
+          PutioEmptyStateView(
+            icon: .arrowCircleDown,
+            title: "No transfers",
+            message: "Transfers you start appear here."
+          )
+          .navigationTitle("Transfers")
+          .putioContentBackground()
+        }
+      } label: {
+        Label {
+          Text("Transfers")
+        } icon: {
+          Image(putioIcon: .arrowCircleDown)
+        }
+      }
+      Tab {
+        NavigationStack {
+          PutioEmptyStateView(
+            icon: .clockCounterClockwise,
+            title: "No activity",
+            message: "What happens on your account appears here."
+          )
+          .navigationTitle("Activity")
+          .putioContentBackground()
+        }
+      } label: {
+        Label {
+          Text("Activity")
+        } icon: {
+          Image(putioIcon: .clockCounterClockwise)
+        }
+      }
+      Tab {
+        NavigationStack {
+          AccountView(session: session, account: account)
+        }
+      } label: {
+        Label {
+          Text("Account")
+        } icon: {
+          Image(putioIcon: .userCircle)
+        }
+      }
+      Tab(role: .search) {
+        NavigationStack {
+          PutioEmptyStateView(
+            icon: .file,
+            title: "Search your files",
+            message: "Find files by their stored name."
+          )
+          .navigationTitle("Search")
+          .putioContentBackground()
+          .searchable(text: $searchText, prompt: "Search in Files")
+        }
+      }
+    }
+    // Shrink-on-scroll is opt-in on iOS 26 and part of the ios-e10 treatment.
+    .tabBarMinimizeBehavior(.onScrollDown)
+    .task {
+      // The harness signed-in scenario records the full loop: restored
+      // session, account bootstrap, then sign-out back to the sign-in screen.
+      guard let autoSignOutAfterSeconds else { return }
+      try? await Task.sleep(for: .seconds(autoSignOutAfterSeconds))
+      guard !Task.isCancelled else { return }
+      await session.signOut()
+    }
+  }
+}
+
+private struct AccountView: View {
+  let session: PutioSessionStore
+  let account: PutioAccount
+
+  var body: some View {
+    List {
+      Group {
         Section {
           LabeledContent("Username", value: account.username)
           LabeledContent("Email", value: account.mail)
@@ -163,17 +262,11 @@ private struct AccountView: View {
           }
         }
       }
-      .navigationTitle("Account")
-      .putioFont(PutioTheme.Typography.body)
+      .listRowBackground(PutioTheme.Colors.surface)
     }
-    .task {
-      // The harness signed-in scenario records the full loop: restored
-      // session, account bootstrap, then sign-out back to the sign-in screen.
-      guard let autoSignOutAfterSeconds else { return }
-      try? await Task.sleep(for: .seconds(autoSignOutAfterSeconds))
-      guard !Task.isCancelled else { return }
-      await session.signOut()
-    }
+    .navigationTitle("Account")
+    .putioFont(PutioTheme.Typography.body)
+    .putioContentBackground()
   }
 
   private func byteText(_ bytes: Int64) -> String {

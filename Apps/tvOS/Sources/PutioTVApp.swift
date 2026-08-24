@@ -16,6 +16,7 @@ struct PutioTVApp: App {
         }
       }
       .preferredColorScheme(.dark)
+      .tint(PutioTheme.Colors.accent)
       .onAppear {
         if SignedOutPresentation.isHarnessExercise(arguments: ProcessInfo.processInfo.arguments) {
           SignedOutPresentation.signalHarnessExercise()
