@@ -160,6 +160,7 @@ private struct MainTabView: View {
             message: "Files you fetch appear here."
           )
           .navigationTitle("Files")
+          .putioContentBackground()
         }
       } label: {
         Label {
@@ -176,6 +177,7 @@ private struct MainTabView: View {
             message: "Transfers you start appear here."
           )
           .navigationTitle("Transfers")
+          .putioContentBackground()
         }
       } label: {
         Label {
@@ -192,6 +194,7 @@ private struct MainTabView: View {
             message: "What happens on your account appears here."
           )
           .navigationTitle("Activity")
+          .putioContentBackground()
         }
       } label: {
         Label {
@@ -219,10 +222,13 @@ private struct MainTabView: View {
             message: "Find files by their stored name."
           )
           .navigationTitle("Search")
+          .putioContentBackground()
           .searchable(text: $searchText, prompt: "Search in Files")
         }
       }
     }
+    // Shrink-on-scroll is opt-in on iOS 26 and part of the ios-e10 treatment.
+    .tabBarMinimizeBehavior(.onScrollDown)
     .task {
       // The harness signed-in scenario records the full loop: restored
       // session, account bootstrap, then sign-out back to the sign-in screen.
@@ -240,23 +246,27 @@ private struct AccountView: View {
 
   var body: some View {
     List {
-      Section {
-        LabeledContent("Username", value: account.username)
-        LabeledContent("Email", value: account.mail)
-      }
-      Section("Storage") {
-        LabeledContent("Used", value: byteText(account.disk.used))
-        LabeledContent("Available", value: byteText(account.disk.available))
-        LabeledContent("Total", value: byteText(account.disk.size))
-      }
-      Section {
-        Button("Sign out", role: .destructive) {
-          Task { await session.signOut() }
+      Group {
+        Section {
+          LabeledContent("Username", value: account.username)
+          LabeledContent("Email", value: account.mail)
+        }
+        Section("Storage") {
+          LabeledContent("Used", value: byteText(account.disk.used))
+          LabeledContent("Available", value: byteText(account.disk.available))
+          LabeledContent("Total", value: byteText(account.disk.size))
+        }
+        Section {
+          Button("Sign out", role: .destructive) {
+            Task { await session.signOut() }
+          }
         }
       }
+      .listRowBackground(PutioTheme.Colors.surface)
     }
     .navigationTitle("Account")
     .putioFont(PutioTheme.Typography.body)
+    .putioContentBackground()
   }
 
   private func byteText(_ bytes: Int64) -> String {

@@ -69,8 +69,9 @@ public struct PutioFileRow: View {
             .frame(height: PutioTheme.Border.width)
         }
     #else
+      // No extra padding: the List's system row insets own the row height
+      // (ios-e00: 60pt min, Dynamic Type drives it, never pinned).
       content
-        .padding(.vertical, textGap)
     #endif
   }
 
@@ -163,7 +164,8 @@ enum PutioFileRowLayout {
     #else
       static let detailFont = PutioTheme.Typography.caption
     #endif
-    static let iconSize = PutioMetricRole(value: PutioTheme.Typography.sizeXl, relativeTo: .body)
+    // ios-e00: file icons are Phosphor at 24pt, every type.
+    static let iconSize = PutioMetricRole(value: PutioTheme.Typography.sizeLg, relativeTo: .body)
     static let indicatorSize = PutioMetricRole(
       value: PutioTheme.Typography.sizeMd,
       relativeTo: .body

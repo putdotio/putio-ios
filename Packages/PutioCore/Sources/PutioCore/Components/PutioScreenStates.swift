@@ -58,7 +58,7 @@ public struct PutioEmptyStateView: View {
           .resizable()
           .scaledToFit()
           .frame(width: iconSize, height: iconSize)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
+          .foregroundStyle(PutioTheme.Colors.textDisabled)
       }
     } description: {
       if let message {
@@ -118,6 +118,24 @@ public struct PutioErrorStateView: View {
   }
 }
 
+extension View {
+  // The content layer is opaque --app-bg, replacing systemBackground
+  // (ios-s00): hide any system scroll background and paint the token so
+  // hosted containers (TabView, List, Form) cannot bleed system black
+  // through.
+  @MainActor
+  public func putioContentBackground() -> some View {
+    #if os(tvOS)
+      frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(PutioTheme.Colors.background)
+    #else
+      scrollContentBackground(.hidden)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(PutioTheme.Colors.background)
+    #endif
+  }
+}
+
 enum PutioScreenStateLayout {
   #if os(tvOS)
     static let messageFont = PutioTheme.TV.Typography.body
@@ -129,6 +147,7 @@ enum PutioScreenStateLayout {
   #else
     static let messageFont = PutioTheme.Typography.body
     static let contentGap = PutioTheme.Spacing.space3
-    static let iconSize = PutioMetricRole(value: PutioTheme.Typography.size2xl, relativeTo: .title)
+    // ios-e15: the empty-state glyph is 52pt in --solid.
+    static let iconSize = PutioMetricRole(value: 52, relativeTo: .title)
   #endif
 }
