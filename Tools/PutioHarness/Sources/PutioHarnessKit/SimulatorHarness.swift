@@ -41,27 +41,93 @@ private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: Proces
   }
 }
 
+private struct SimulatorDeviceList: Decodable {
+  let devices: [String: [SimulatorDevice]]
+}
+
+private struct SimulatorDevice: Decodable {
+  let name: String
+  let udid: String
+}
+
+private func cleanupSimulators(named names: [String], runner: ProcessRunner) throws {
+  let output = try runner.checked(
+    "xcrun", ["simctl", "list", "devices", "-j"], context: "locate owned Simulators")
+  let devices = try JSONDecoder().decode(SimulatorDeviceList.self, from: Data(output.stdout.utf8))
+  let identifiers = devices.devices.values.flatMap { $0 }.filter { names.contains($0.name) }.map(
+    \.udid)
+  if !identifiers.isEmpty { try cleanupSimulatorIdentifiers(identifiers, runner: runner) }
+}
+
 public final class SimulatorLifecycle: @unchecked Sendable {
   public static let shared = SimulatorLifecycle()
 
-  private let lock = NSLock()
-  private var cleanupAction: (() throws -> Void)?
+  private let condition = NSCondition()
+  private var cleanupActions: [() throws -> Void] = []
+  private var cleanupFailure: String?
+  private var cleanupInProgress = false
+  private var cleanupRequested = false
 
   private init() {}
 
-  func register(cleanup: @escaping () throws -> Void) {
-    lock.withLock { cleanupAction = cleanup }
+  func register(cleanup action: @escaping () throws -> Void) throws {
+    condition.lock()
+    let runImmediately: Bool
+    if cleanupRequested {
+      runImmediately = true
+    } else {
+      cleanupActions.append(action)
+      runImmediately = false
+    }
+    condition.unlock()
+    if runImmediately {
+      try action()
+      throw HarnessFailure("harness termination requested")
+    }
   }
 
   func release() {
-    lock.withLock { cleanupAction = nil }
+    condition.lock()
+    cleanupActions.removeAll()
+    cleanupFailure = nil
+    cleanupRequested = false
+    condition.unlock()
   }
 
   public func cleanup() throws {
-    let cleanup = lock.withLock { cleanupAction }
-    guard let cleanup else { return }
-    try cleanup()
-    release()
+    condition.lock()
+    while cleanupInProgress { condition.wait() }
+    if let cleanupFailure {
+      condition.unlock()
+      throw HarnessFailure(cleanupFailure)
+    }
+    cleanupRequested = true
+    let actions = cleanupActions
+    cleanupActions.removeAll()
+    guard !actions.isEmpty else {
+      condition.unlock()
+      return
+    }
+    cleanupInProgress = true
+    condition.unlock()
+
+    var failures: [String] = []
+    for action in actions {
+      do {
+        try action()
+      } catch {
+        failures.append(String(describing: error))
+      }
+    }
+    let failure = failures.isEmpty ? nil : failures.joined(separator: "\n")
+    condition.lock()
+    cleanupFailure = failure
+    cleanupInProgress = false
+    condition.broadcast()
+    condition.unlock()
+    if let failure {
+      throw HarnessFailure(failure)
+    }
   }
 }
 
@@ -376,7 +442,6 @@ public struct SimulatorHarness {
     operation: (SimulatorSession) throws -> T
   ) throws -> T {
     let session = try createSession(platform: platform, runID: runID)
-    SimulatorLifecycle.shared.register { try session.cleanup() }
     let result: Result<T, Error>
     do {
       result = .success(try operation(session))
@@ -475,11 +540,14 @@ public struct SimulatorHarness {
 
     let suffix = String(runID.prefix(24))
     let deviceName = "putio-harness-\(platform.rawValue)-\(suffix)"
-    let deviceIdentifier = try createDevice(
-      name: deviceName, type: deviceType.identifier, runtime: runtime.identifier)
-    var companionIdentifier: String?
 
     do {
+      try SimulatorLifecycle.shared.register {
+        try cleanupSimulators(named: [deviceName], runner: runner)
+      }
+      let deviceIdentifier = try createDevice(
+        name: deviceName, type: deviceType.identifier, runtime: runtime.identifier)
+      var companionIdentifier: String?
       if platform == .watchos {
         guard
           let phoneRuntime = runtimes.first(where: {
@@ -493,6 +561,9 @@ public struct SimulatorHarness {
           )
         }
         let phoneName = "putio-harness-watch-companion-\(suffix)"
+        try SimulatorLifecycle.shared.register {
+          try cleanupSimulators(named: [phoneName], runner: runner)
+        }
         let phoneIdentifier = try createDevice(
           name: phoneName,
           type: phoneType.identifier,
@@ -532,9 +603,10 @@ public struct SimulatorHarness {
       )
     } catch {
       do {
-        try cleanupSimulatorIdentifiers(
-          [deviceIdentifier, companionIdentifier].compactMap { $0 }, runner: runner)
+        try SimulatorLifecycle.shared.cleanup()
+        SimulatorLifecycle.shared.release()
       } catch let cleanupError {
+        SimulatorLifecycle.shared.release()
         throw HarnessFailure("\(error)\ncleanup failed: \(cleanupError)")
       }
       throw error

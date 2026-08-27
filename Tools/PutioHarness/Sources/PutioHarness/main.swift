@@ -6,6 +6,7 @@ import PutioHarnessKit
 private final class TerminationCoordinator: @unchecked Sendable {
   private let queue = DispatchQueue(label: "io.put.harness.lifecycle")
   private let signalQueue = DispatchQueue(label: "io.put.harness.signals")
+  private let workQueue = DispatchQueue(label: "io.put.harness.work")
   private let finished = DispatchSemaphore(value: 0)
   private var sources: [DispatchSourceSignal] = []
   private var status: Int32?
@@ -25,7 +26,7 @@ private final class TerminationCoordinator: @unchecked Sendable {
   }
 
   func run(_ work: @escaping @Sendable () -> Int32) -> Never {
-    queue.async {
+    workQueue.async {
       let primaryStatus = work()
       self.queue.async { self.finish(primaryStatus) }
     }
@@ -35,6 +36,7 @@ private final class TerminationCoordinator: @unchecked Sendable {
 
   private func finish(_ primaryStatus: Int32) {
     guard status == nil else { return }
+    ChildProcessLifecycle.shared.terminateAll()
     do {
       try SimulatorLifecycle.shared.cleanup()
     } catch {

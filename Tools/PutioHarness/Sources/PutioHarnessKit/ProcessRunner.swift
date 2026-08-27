@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 public struct ProcessOutput: Sendable {
@@ -7,6 +8,48 @@ public struct ProcessOutput: Sendable {
 
   public var combinedOutput: String {
     [stdout, stderr].filter { !$0.isEmpty }.joined(separator: "\n")
+  }
+}
+
+public final class ChildProcessLifecycle: @unchecked Sendable {
+  public static let shared = ChildProcessLifecycle()
+
+  private let condition = NSCondition()
+  private var processes: [ObjectIdentifier: Process] = [:]
+  private var terminationRequested = false
+
+  private init() {}
+
+  func launch(_ process: Process) throws {
+    condition.lock()
+    defer { condition.unlock() }
+    while terminationRequested { condition.wait() }
+    try process.run()
+    processes[ObjectIdentifier(process)] = process
+  }
+
+  func release(_ process: Process) {
+    condition.lock()
+    _ = processes.removeValue(forKey: ObjectIdentifier(process))
+    condition.unlock()
+  }
+
+  public func terminateAll() {
+    condition.lock()
+    terminationRequested = true
+    let activeProcesses = Array(processes.values)
+    condition.unlock()
+    for process in activeProcesses { terminate(process) }
+    condition.lock()
+    terminationRequested = false
+    condition.broadcast()
+    condition.unlock()
+  }
+
+  private func terminate(_ process: Process) {
+    guard process.isRunning else { return }
+    kill(process.processIdentifier, SIGKILL)
+    process.waitUntilExit()
   }
 }
 
@@ -26,6 +69,7 @@ public final class RunningProcess: @unchecked Sendable {
     if let result { return result }
     if process.isRunning { process.interrupt() }
     process.waitUntilExit()
+    ChildProcessLifecycle.shared.release(process)
     let stdout =
       String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
     let stderr =
@@ -74,7 +118,8 @@ public struct ProcessRunner: Sendable {
     )
     process.standardOutput = stdoutHandle
     process.standardError = stderrHandle
-    try process.run()
+    try ChildProcessLifecycle.shared.launch(process)
+    defer { ChildProcessLifecycle.shared.release(process) }
     process.waitUntilExit()
     try stdoutHandle.close()
     stdoutIsOpen = false
@@ -124,7 +169,7 @@ public struct ProcessRunner: Sendable {
     let stderrPipe = Pipe()
     process.standardOutput = stdoutPipe
     process.standardError = stderrPipe
-    try process.run()
+    try ChildProcessLifecycle.shared.launch(process)
     return RunningProcess(process: process, stdoutPipe: stdoutPipe, stderrPipe: stderrPipe)
   }
 
