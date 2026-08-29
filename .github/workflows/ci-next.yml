@@ -5,6 +5,7 @@ on:
   pull_request:
     branches:
       - next
+      - "next-rollout/**"
   push:
     branches:
       - next
