@@ -491,7 +491,7 @@ public struct SimulatorHarness {
   public func test(_ platform: HarnessPlatform, recordSnapshots: Bool) throws -> SurfaceRun {
     let suites = platform.configuration.snapshotSuites
     guard !suites.isEmpty else {
-      throw HarnessFailure("test supports only platforms with a snapshot scheme: ios, tvos")
+      throw HarnessFailure("test supports only platforms with snapshot suites: ios, tvos")
     }
     try requireGeneratedWorkspace()
     try fileManager.createDirectory(at: context.derivedData, withIntermediateDirectories: true)
