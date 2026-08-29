@@ -11,6 +11,7 @@ public enum HarnessRendering {
 public enum HarnessScenario: String, CaseIterable, Sendable {
   case signedOut = "signed-out"
   case exercised
+  case filesBrowser = "files-browser"
   case gallery
   case signedIn = "signed-in"
 

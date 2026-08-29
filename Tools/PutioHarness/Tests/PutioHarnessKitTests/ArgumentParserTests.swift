@@ -53,6 +53,23 @@ import Testing
   )
 }
 
+@Test func parsesFilesBrowserRecording() throws {
+  let invocation = try HarnessArgumentParser.parse([
+    "record", "--platform", "ios", "--scenario", "files-browser", "--record-seconds", "8",
+  ])
+  #expect(
+    invocation
+      == .surface(
+        command: .record,
+        platforms: .one(.ios),
+        runID: nil,
+        recordSeconds: 8,
+        scenario: .filesBrowser,
+        output: .text
+      )
+  )
+}
+
 @Test func rejectsGalleryScenarioOutsideCapture() {
   #expect(throws: HarnessFailure.self) {
     try HarnessArgumentParser.parse(["proof", "--platform", "ios", "--scenario", "gallery"])
@@ -60,6 +77,19 @@ import Testing
   #expect(throws: HarnessFailure.self) {
     try HarnessArgumentParser.parse([
       "screenshot", "--platform", "watchos", "--scenario", "gallery",
+    ])
+  }
+}
+
+@Test func rejectsFilesBrowserScenarioOutsideIOSCapture() {
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "proof", "--platform", "ios", "--scenario", "files-browser",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "record", "--platform", "tvos", "--scenario", "files-browser",
     ])
   }
 }

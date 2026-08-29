@@ -17,6 +17,12 @@ final class ComponentKitTests: XCTestCase {
       HarnessScenario.parse(arguments: ["--putio-harness-scenario", "exercised"]), .exercised)
     XCTAssertEqual(
       HarnessScenario.parse(arguments: ["app", "--putio-harness-scenario", "gallery"]), .gallery)
+    XCTAssertEqual(
+      HarnessScenario.parse(arguments: [
+        "app", "--putio-harness-scenario", "files-browser",
+      ]),
+      .filesBrowser
+    )
     XCTAssertTrue(
       SignedOutPresentation.isHarnessExercise(arguments: [
         "--putio-harness-scenario", "exercised",

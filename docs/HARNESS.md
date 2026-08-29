@@ -24,6 +24,7 @@ mise run harness -- launch --platform watchos
 mise run harness -- exercise --platform tvos
 mise run harness -- screenshot --platform ios
 mise run harness -- screenshot --platform ios --scenario gallery
+mise run harness -- record --platform ios --scenario files-browser --record-seconds 8
 mise run harness -- record --platform watchos --record-seconds 5
 mise run harness -- test --platform tvos
 mise run harness -- proof --platform all
@@ -31,7 +32,7 @@ mise run harness -- proof --platform all
 
 Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` and `proof`. Invalid platforms, options, run identifiers, durations, repositories, and pull-request numbers fail before invoking platform tools.
 
-`screenshot` and `record` accept `--scenario signed-out|gallery|signed-in`. The `gallery` scenario launches the iOS or tvOS shell into the component-kit gallery, which cycles through its pages so a recording covers every component. The `signed-in` scenario (iOS only) seeds a deterministic in-process API, restores a session from a seeded token, bootstraps the account screen, and signs out after a few seconds so one recording covers the whole loop. Other commands and unsupported platforms reject them.
+`screenshot` and `record` accept `--scenario signed-out|files-browser|gallery|signed-in`. The `gallery` scenario launches the iOS or tvOS shell into the component-kit gallery, which cycles through its pages so a recording covers every component. The iOS-only `signed-in` and `files-browser` scenarios seed a deterministic in-process API. `signed-in` restores a session, bootstraps the account screen, and signs out after a few seconds. `files-browser` records the root → nested folder → back walk against seeded file responses. Other commands and unsupported platforms reject them.
 
 `test --platform <ios|tvos>` runs the component snapshot suite on an ephemeral simulator via `xcodebuild test`. Baselines are committed under `Tests/ComponentSnapshots/__Snapshots__/<platform>/`; comparison tolerates small antialiasing drift between Simulator runtimes. Liquid Glass cannot be rasterized off-screen, so the suite renders glass surfaces with their bordered/material fallbacks (`PUTIO_SNAPSHOT_RASTER`); review the real glass appearance through the gallery captures. After an intentional visual change run `test --platform <platform> --snapshots record`, which records the baselines and re-asserts against what it wrote, then review and commit the image diff. `mise run verify` runs both platforms' suites.
 

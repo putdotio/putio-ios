@@ -895,6 +895,7 @@ public struct SimulatorHarness {
     if command == .proof { return "signed-out-to-exercised-placeholder-v1" }
     switch scenario {
     case .gallery: return "component-gallery-v1"
+    case .filesBrowser: return "seeded-files-browser-v1"
     case .signedIn: return "seeded-session-v1"
     case .signedOut: return "signed-out-placeholder-v1"
     }
