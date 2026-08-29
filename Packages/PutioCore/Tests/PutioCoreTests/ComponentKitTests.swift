@@ -72,6 +72,20 @@ final class ComponentKitTests: XCTestCase {
     XCTAssertEqual(icons.count, PutioFileRowModel.Kind.allCases.count)
   }
 
+  @MainActor
+  func testFileRowCanDeferFolderDisclosureToNavigationLink() {
+    let folder = PutioFileRowModel(name: "Folder", kind: .folder)
+    let defaultFolderDisclosure = PutioFileRow(folder).rendersFolderDisclosure
+    let deferredFolderDisclosure =
+      PutioFileRow(folder, showsFolderDisclosure: false).rendersFolderDisclosure
+    XCTAssertTrue(defaultFolderDisclosure)
+    XCTAssertFalse(deferredFolderDisclosure)
+
+    let file = PutioFileRowModel(name: "File", kind: .file)
+    let fileDisclosure = PutioFileRow(file).rendersFolderDisclosure
+    XCTAssertFalse(fileDisclosure)
+  }
+
   func testGalleryFixturesCoverEveryVariantAxis() {
     XCTAssertEqual(
       Set(GalleryFixtures.fileRows.map(\.kind)).count,

@@ -125,9 +125,13 @@ let project = Project(
       bundleId: "io.put.dev.ios.snapshottests",
       deploymentTargets: .iOS("26.0"),
       infoPlist: .default,
-      buildableFolders: ["Tests/ComponentSnapshots/Sources"],
+      buildableFolders: [
+        "Tests/ComponentSnapshots/Sources",
+        "Tests/iOS/Sources",
+      ],
       dependencies: [
-        .package(product: "PutioCore")
+        .target(name: "Putio"),
+        .package(product: "PutioCore"),
       ]
     ),
     .target(
