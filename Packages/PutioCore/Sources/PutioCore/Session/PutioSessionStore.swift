@@ -88,7 +88,10 @@ public final class PutioSessionStore {
   // MARK: - Sign in
 
   public func beginSignIn() throws -> PutioSignInRequest {
-    guard case .signedOut = state else {
+    switch state {
+    case .unknown, .signedOut:
+      break
+    case .authenticating, .signedIn, .signingOut:
       throw PutioSessionOperationError.signInUnavailable
     }
     let oauthState = try PutioSDK.generateOAuthState()
