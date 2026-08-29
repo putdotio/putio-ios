@@ -53,19 +53,18 @@ import Testing
   )
 }
 
-@Test func parsesFilesBrowserRecording() throws {
+@Test func parsesFilesBrowserJourney() throws {
   let invocation = try HarnessArgumentParser.parse([
-    "record", "--platform", "ios", "--scenario", "files-browser", "--record-seconds", "8",
+    "journey", "--platform", "ios", "--scenario", "files-browser", "--run-id", "browser-1",
+    "--output", "json",
   ])
   #expect(
     invocation
-      == .surface(
-        command: .record,
-        platforms: .one(.ios),
-        runID: nil,
-        recordSeconds: 8,
+      == .journey(
+        platform: .ios,
         scenario: .filesBrowser,
-        output: .text
+        runID: "browser-1",
+        output: .json
       )
   )
 }
@@ -81,15 +80,38 @@ import Testing
   }
 }
 
-@Test func rejectsFilesBrowserScenarioOutsideIOSCapture() {
+@Test func rejectsFilesBrowserScenarioOnOrdinaryCapture() {
   #expect(throws: HarnessFailure.self) {
     try HarnessArgumentParser.parse([
-      "proof", "--platform", "ios", "--scenario", "files-browser",
+      "record", "--platform", "ios", "--scenario", "files-browser",
+    ])
+  }
+}
+
+@Test func rejectsUnsupportedFilesBrowserJourneyShapes() {
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "tvos", "--scenario", "files-browser",
     ])
   }
   #expect(throws: HarnessFailure.self) {
     try HarnessArgumentParser.parse([
-      "record", "--platform", "tvos", "--scenario", "files-browser",
+      "journey", "--platform", "watchos", "--scenario", "files-browser",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "all", "--scenario", "files-browser",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--scenario", "signed-in",
     ])
   }
 }

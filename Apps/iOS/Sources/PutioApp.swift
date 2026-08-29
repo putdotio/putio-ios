@@ -154,15 +154,10 @@ private struct MainTabView: View {
   var body: some View {
     TabView {
       Tab {
-        NavigationStack {
-          PutioEmptyStateView(
-            icon: .folderFill,
-            title: "No files yet",
-            message: "Files you fetch appear here."
-          )
-          .navigationTitle("Files")
-          .putioContentBackground()
-        }
+        FilesBrowserView(
+          runtime: runtime,
+          onFileSelected: { _ in }
+        )
       } label: {
         Label {
           Text("Files")

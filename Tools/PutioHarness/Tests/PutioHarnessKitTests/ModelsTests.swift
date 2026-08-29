@@ -6,8 +6,20 @@ import Testing
 @Test func platformContractsStayExplicit() {
   #expect(HarnessPlatform.ios.configuration.scheme == "Putio")
   #expect(HarnessPlatform.ios.configuration.extraBuildSchemes == ["PutioNightly"])
+  #expect(
+    HarnessPlatform.ios.configuration.snapshotSuites
+      == [
+        SnapshotSuite(scheme: "Putio", target: "PutioSnapshotTests"),
+        SnapshotSuite(scheme: "PutioFeatureTests", target: "PutioFeatureTests"),
+      ]
+  )
   #expect(HarnessPlatform.watchos.configuration.bundleIdentifier == "io.put.dev.ios.watchkitapp")
+  #expect(HarnessPlatform.watchos.configuration.snapshotSuites.isEmpty)
   #expect(HarnessPlatform.tvos.configuration.productDirectory == "Debug-appletvsimulator")
+  #expect(
+    HarnessPlatform.tvos.configuration.snapshotSuites
+      == [SnapshotSuite(scheme: "PutioTV", target: "PutioTVSnapshotTests")]
+  )
   #expect(HarnessPlatform.tvos.configuration.extraBuildSchemes.isEmpty)
 }
 
@@ -32,6 +44,99 @@ import Testing
   )
   let data = try JSONEncoder().encode(manifest)
   #expect(try JSONDecoder().decode(ProofManifest.self, from: data) == manifest)
+}
+
+@Test func browserJourneyContractUsesSeededFixtureAndExactTest() {
+  #expect(JourneyScenario.filesBrowser.fixtureSet == "seeded-files-browser-v1")
+  #expect(
+    BrowserJourneyContract.testIdentifier
+      == "PutioUITests/FilesBrowserJourneyTests/testRootNestedFolderAndNativeBack"
+  )
+  #expect(
+    BrowserJourneyContract.attachmentNames
+      == ["files-browser-root", "files-browser-nested", "files-browser-back"]
+  )
+}
+
+@Test func browserJourneySelectsAttachmentsBySuggestedName() throws {
+  let manifest = Data(
+    #"""
+    [
+      {
+        "attachments": [
+          {
+            "exportedFileName": "opaque-nested.png",
+            "suggestedHumanReadableName": "files-browser-nested_0_123E4567-E89B-12D3-A456-426614174000.png"
+          },
+          {
+            "exportedFileName": "opaque-root.png",
+            "suggestedHumanReadableName": "files-browser-root"
+          },
+          {
+            "exportedFileName": "opaque-back.png",
+            "suggestedHumanReadableName": "files-browser-back_2_123E4567-E89B-12D3-A456-426614174002.png"
+          }
+        ]
+      }
+    ]
+    """#.utf8
+  )
+
+  let selected = try selectJourneyAttachmentFiles(from: manifest)
+
+  #expect(selected["files-browser-root"] == "opaque-root.png")
+  #expect(selected["files-browser-nested"] == "opaque-nested.png")
+  #expect(selected["files-browser-back"] == "opaque-back.png")
+}
+
+@Test func browserJourneyRejectsMissingDuplicateAndUnsafeAttachments() {
+  let missing = Data(
+    #"[{"attachments":[{"exportedFileName":"root.png","suggestedHumanReadableName":"root"}]}]"#
+      .utf8
+  )
+  #expect(throws: HarnessFailure.self) {
+    try selectJourneyAttachmentFiles(from: missing, expectedNames: ["root", "nested"])
+  }
+
+  let duplicate = Data(
+    #"[{"attachments":[{"exportedFileName":"one.png","suggestedHumanReadableName":"root"},{"exportedFileName":"two.png","suggestedHumanReadableName":"root"}]}]"#
+      .utf8
+  )
+  #expect(throws: HarnessFailure.self) {
+    try selectJourneyAttachmentFiles(from: duplicate, expectedNames: ["root"])
+  }
+
+  let unsafe = Data(
+    #"[{"attachments":[{"exportedFileName":"../root.png","suggestedHumanReadableName":"root"}]}]"#
+      .utf8
+  )
+  #expect(throws: HarnessFailure.self) {
+    try selectJourneyAttachmentFiles(from: unsafe, expectedNames: ["root"])
+  }
+}
+
+@Test func browserJourneyRequiresExactlyOnePassingTest() throws {
+  let passing = Data(
+    #"{"result":"Passed","totalTestCount":1,"passedTests":1,"failedTests":0,"skippedTests":0,"expectedFailures":0}"#
+      .utf8
+  )
+  #expect(try requirePassingJourneySummary(passing).passedTests == 1)
+
+  let extra = Data(
+    #"{"result":"Passed","totalTestCount":2,"passedTests":2,"failedTests":0,"skippedTests":0,"expectedFailures":0}"#
+      .utf8
+  )
+  #expect(throws: HarnessFailure.self) {
+    try requirePassingJourneySummary(extra)
+  }
+
+  let skipped = Data(
+    #"{"result":"Passed","totalTestCount":1,"passedTests":0,"failedTests":0,"skippedTests":1,"expectedFailures":0}"#
+      .utf8
+  )
+  #expect(throws: HarnessFailure.self) {
+    try requirePassingJourneySummary(skipped)
+  }
 }
 
 @Test func proofRevisionRejectsDriftFromPinnedCommit() throws {

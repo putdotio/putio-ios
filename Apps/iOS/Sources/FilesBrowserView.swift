@@ -1,3 +1,4 @@
+import Foundation
 import PutioCore
 import SwiftUI
 
@@ -49,12 +50,16 @@ struct PutioFolderScreen: View {
   let route: PutioFolderRoute
 
   @State private var model: PutioFolderModel
+  private let relativeDateReference: Date?
+  private let locale: Locale
   private let onFileSelected: PutioFileSelection
 
   init(
     route: PutioFolderRoute,
     load: @escaping PutioFolderLoad,
     initialContents: PutioFolderContents? = nil,
+    relativeTo relativeDateReference: Date? = nil,
+    locale: Locale = .current,
     onFileSelected: @escaping PutioFileSelection
   ) {
     self.route = route
@@ -65,6 +70,8 @@ struct PutioFolderScreen: View {
         initialContents: initialContents
       )
     )
+    self.relativeDateReference = relativeDateReference
+    self.locale = locale
     self.onFileSelected = onFileSelected
   }
 
@@ -97,19 +104,33 @@ struct PutioFolderScreen: View {
   private func loadedContent(_ contents: PutioFolderContents) -> some View {
     if contents.items.isEmpty {
       ScrollView {
-        PutioEmptyStateView(
-          icon: .folderFill,
-          title: "This folder is empty",
-          message: "Files added here appear in this list."
-        )
+        VStack(spacing: PutioTheme.Spacing.space4) {
+          PutioEmptyStateView(
+            icon: .folderFill,
+            title: "This folder is empty",
+            message: "Files added here appear in this list."
+          )
+          if let refreshFailure = model.refreshFailure {
+            refreshFailureRow(refreshFailure)
+          }
+        }
         .containerRelativeFrame([.horizontal, .vertical])
+        .padding(PutioTheme.Spacing.space4)
       }
       .refreshable {
         await model.refresh()
       }
     } else {
       List {
-        ForEach(contents.items.map { PutioBrowserItemPresentation(item: $0) }) { item in
+        ForEach(
+          contents.items.map {
+            PutioBrowserItemPresentation(
+              item: $0,
+              relativeTo: relativeDateReference ?? .now,
+              locale: locale
+            )
+          }
+        ) { item in
           row(item)
             .listRowBackground(PutioTheme.Colors.background)
         }

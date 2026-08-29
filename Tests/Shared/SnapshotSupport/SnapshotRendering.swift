@@ -4,6 +4,7 @@ import SwiftUI
 import UIKit
 import XCTest
 
+// Shared by unhosted component snapshots and app-hosted iOS feature snapshots.
 enum SnapshotEnvironment {
   static let repositoryRoot = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()

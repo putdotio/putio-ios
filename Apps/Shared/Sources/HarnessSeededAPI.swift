@@ -46,15 +46,18 @@ import Foundation
       let routeKey = "\(request.httpMethod ?? "GET") \(url.path)"
       switch routeKey {
       case "GET /v2/oauth2/validate":
-        (200, #"{"result": true, "token_id": 1, "token_scope": "default", "user_id": 1001}"#)
+        return (
+          200,
+          #"{"result": true, "token_id": 1, "token_scope": "default", "user_id": 1001}"#
+        )
       case "GET /v2/account/info":
-        (200, accountInfo)
+        return (200, accountInfo)
       case "POST /v2/oauth/grants/logout":
-        (200, #"{"status":"OK"}"#)
+        return (200, #"{"status":"OK"}"#)
       case "GET /v2/files/list":
-        filesListFixture(url: url)
+        return filesListFixture(url: url)
       default:
-        (
+        return (
           404,
           fixtureError(
             statusCode: 404,
@@ -73,11 +76,11 @@ import Foundation
         .flatMap(Int.init)
       switch parentID {
       case 0:
-        (200, rootFiles)
+        return (200, rootFiles)
       case 410:
-        (200, nestedFiles)
+        return (200, nestedFiles)
       case .none:
-        (
+        return (
           400,
           fixtureError(
             statusCode: 400,
@@ -86,7 +89,7 @@ import Foundation
           )
         )
       case .some(let parentID):
-        (
+        return (
           404,
           fixtureError(
             statusCode: 404,

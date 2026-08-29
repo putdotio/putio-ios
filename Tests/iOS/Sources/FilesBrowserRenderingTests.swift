@@ -1,12 +1,13 @@
 import PutioCore
 import SwiftUI
+import UIKit
 import XCTest
 
 @testable import Putio
 
 final class FilesBrowserRenderingTests: XCTestCase {
   @MainActor
-  func testLoadedBrowserRendersAtDefaultAndAccessibilityTypeSizes() throws {
+  func testLoadedBrowserMatchesDefaultAndAccessibilityBaselines() throws {
     let contents = BrowserTestFixtures.contents(
       items: [
         BrowserTestFixtures.item(id: 410, name: "Harness Folder", kind: .folder),
@@ -25,13 +26,20 @@ final class FilesBrowserRenderingTests: XCTestCase {
         route: .root,
         load: { _ in contents },
         initialContents: contents,
+        relativeTo: BrowserTestFixtures.referenceDate,
+        locale: Locale(identifier: "en_US"),
         onFileSelected: { _ in }
       )
     }
     let viewport = CGSize(width: 390, height: 844)
 
-    let defaultImage = try SnapshotRenderer.render(view: screen, size: viewport)
-    let accessibilityImage = try SnapshotRenderer.render(
+    let defaultImage = try assertBrowserSnapshot(
+      name: "browser-root-default",
+      view: screen,
+      size: viewport
+    )
+    let accessibilityImage = try assertBrowserSnapshot(
+      name: "browser-root-accessibility3",
       view: screen,
       size: viewport,
       dynamicTypeSize: .accessibility3
@@ -42,5 +50,65 @@ final class FilesBrowserRenderingTests: XCTestCase {
     let defaultPixels = try SnapshotPixels(cgImage: XCTUnwrap(defaultImage.cgImage))
     let accessibilityPixels = try SnapshotPixels(cgImage: XCTUnwrap(accessibilityImage.cgImage))
     XCTAssertFalse(defaultPixels.matches(accessibilityPixels).matches)
+  }
+
+  @MainActor
+  private func assertBrowserSnapshot<Content: View>(
+    name: String,
+    view: Content,
+    size: CGSize,
+    dynamicTypeSize: DynamicTypeSize = .large,
+    file: StaticString = #filePath,
+    line: UInt = #line
+  ) throws -> UIImage {
+    let fileManager = FileManager.default
+    let baselineURL = SnapshotEnvironment.baselineDirectory.appending(path: "\(name).png")
+    let rendered = try SnapshotRenderer.render(
+      view: view,
+      size: size,
+      dynamicTypeSize: dynamicTypeSize
+    )
+    let renderedData = try XCTUnwrap(rendered.pngData(), "could not encode rendered snapshot")
+
+    if SnapshotEnvironment.isRecording {
+      try fileManager.createDirectory(
+        at: SnapshotEnvironment.baselineDirectory,
+        withIntermediateDirectories: true
+      )
+      try renderedData.write(to: baselineURL, options: .atomic)
+    }
+
+    guard fileManager.fileExists(atPath: baselineURL.path) else {
+      XCTFail(
+        "missing baseline \(baselineURL.lastPathComponent); "
+          + "run mise run harness -- test --platform ios --snapshots record",
+        file: file,
+        line: line
+      )
+      return rendered
+    }
+
+    let baselineImage = try XCTUnwrap(
+      UIImage(data: try Data(contentsOf: baselineURL))?.cgImage,
+      "could not decode baseline \(baselineURL.lastPathComponent)"
+    )
+    let renderedImage = try XCTUnwrap(rendered.cgImage, "rendered snapshot has no CGImage")
+    let comparison = try SnapshotPixels(cgImage: renderedImage)
+      .matches(SnapshotPixels(cgImage: baselineImage))
+    if !comparison.matches {
+      let failureURL = SnapshotEnvironment.failureDirectory.appending(path: "\(name).png")
+      try? fileManager.createDirectory(
+        at: SnapshotEnvironment.failureDirectory,
+        withIntermediateDirectories: true
+      )
+      try? renderedData.write(to: failureURL, options: .atomic)
+      XCTFail(
+        "\(name) diverged from its baseline (\(comparison.detail)); "
+          + "rendered image written to \(failureURL.path)",
+        file: file,
+        line: line
+      )
+    }
+    return rendered
   }
 }

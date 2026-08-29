@@ -128,6 +128,59 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(recovered))
   }
 
+  func testInitialSessionFailureNeverBecomesAnInlineBrowserError() async {
+    let model = PutioFolderModel(folderID: .root) { _ in
+      throw PutioRuntimeError.authenticationRequired
+    }
+
+    await model.loadIfNeeded()
+
+    XCTAssertEqual(model.state, .loading)
+    XCTAssertNil(model.refreshFailure)
+    XCTAssertNil(
+      PutioBrowserErrorPresentation(error: PutioRuntimeError.authenticationRequired)
+    )
+    XCTAssertNil(PutioBrowserErrorPresentation(error: PutioRuntimeError.sessionExpired))
+  }
+
+  func testActiveCancellationErrorBecomesARecoverableFailure() async {
+    let model = PutioFolderModel(folderID: .root) { _ in
+      throw CancellationError()
+    }
+
+    await model.loadIfNeeded()
+
+    guard case .failed(let failure) = model.state else {
+      return XCTFail("expected failed, got \(model.state)")
+    }
+    XCTAssertEqual(failure.kind, .unknown)
+  }
+
+  func testLifecycleCancellationAllowsInitialLoadToRunAgain() async {
+    let probe = LoadStartProbe()
+    let loaded = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 1)]
+    )
+    var attempts = 0
+    let model = PutioFolderModel(folderID: .root) { _ in
+      attempts += 1
+      if attempts == 1 {
+        await probe.markStarted()
+        try await Task.sleep(for: .seconds(60))
+      }
+      return loaded
+    }
+
+    let initialTask = Task { await model.loadIfNeeded() }
+    await probe.waitUntilStarted()
+    initialTask.cancel()
+    await initialTask.value
+    await model.loadIfNeeded()
+
+    XCTAssertEqual(attempts, 2)
+    XCTAssertEqual(model.state, .loaded(loaded))
+  }
+
   func testRefreshPreservesRowsAndSurfacesRecoverableFailure() async {
     let loader = ControlledFolderLoader()
     let original = BrowserTestFixtures.contents(
@@ -160,6 +213,36 @@ final class PutioFolderModelTests: XCTestCase {
 
     XCTAssertEqual(model.state, .loaded(refreshed))
     XCTAssertNil(model.refreshFailure)
+  }
+
+  func testRefreshSessionExpiryPreservesRowsWithoutAnInlineBrowserError() async {
+    let original = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 1)]
+    )
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in throw PutioRuntimeError.sessionExpired },
+      initialContents: original
+    )
+
+    await model.refresh()
+
+    XCTAssertEqual(model.state, .loaded(original))
+    XCTAssertNil(model.refreshFailure)
+  }
+
+  func testEmptyFolderRefreshFailureRemainsRecoverable() async {
+    let empty = BrowserTestFixtures.contents(items: [])
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in throw PutioRuntimeError.transient },
+      initialContents: empty
+    )
+
+    await model.refresh()
+
+    XCTAssertEqual(model.state, .loaded(empty))
+    XCTAssertEqual(model.refreshFailure?.kind, .transient)
   }
 
   func testRefreshCancellationRestoresPriorContent() async {
@@ -226,6 +309,33 @@ final class PutioFolderModelTests: XCTestCase {
     await third.value
 
     XCTAssertEqual(model.state, .loaded(newestAgain))
+    XCTAssertNil(model.refreshFailure)
+  }
+
+  func testLaterGenerationDropsStaleCancellation() async {
+    let loader = ControlledFolderLoader()
+    let original = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 1)]
+    )
+    let newest = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 2)]
+    )
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { folderID in try await loader.load(folderID: folderID) },
+      initialContents: original
+    )
+
+    let stale = Task { await model.refresh() }
+    await loader.waitForRequestCount(1)
+    let current = Task { await model.refresh() }
+    await loader.waitForRequestCount(2)
+    await loader.succeed(request: 1, with: newest)
+    await current.value
+    await loader.fail(request: 0, with: CancellationError())
+    await stale.value
+
+    XCTAssertEqual(model.state, .loaded(newest))
     XCTAssertNil(model.refreshFailure)
   }
 }

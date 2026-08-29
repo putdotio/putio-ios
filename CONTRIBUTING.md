@@ -64,9 +64,10 @@ Use the headless harness for runtime-sensitive changes:
 ```bash
 mise run harness -- exercise --platform ios
 mise run harness -- proof --platform ios
+mise run harness -- journey --platform ios --scenario files-browser
 ```
 
-The harness never opens Simulator.app and deletes the isolated devices it creates. See [Apple Platform Harness](./docs/HARNESS.md) for structured output, watchOS pairing, proof manifests, live testing-profile readiness, and separate artifact publishing.
+Run the browser journey for iOS file-browser changes. The harness never opens Simulator.app and deletes the isolated devices it creates. See [Apple Platform Harness](./docs/HARNESS.md) for structured output, watchOS pairing, proof manifests, live testing-profile readiness, and separate artifact publishing.
 
 ## Scope
 

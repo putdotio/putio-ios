@@ -31,7 +31,6 @@ struct PutioFileRoute: Identifiable, Hashable, Sendable {
 }
 
 enum PutioBrowserErrorKind: Hashable, Sendable {
-  case authentication
   case notFound
   case rateLimited
   case transient
@@ -44,14 +43,10 @@ struct PutioBrowserErrorPresentation: Equatable, Sendable {
   let title: String
   let message: String
 
-  init(error: Error) {
+  init?(error: Error) {
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired:
-      self.init(
-        kind: .authentication,
-        title: "Sign in required",
-        message: "Sign in again to load this folder."
-      )
+      return nil
     case .notFound:
       self.init(
         kind: .notFound,
@@ -169,7 +164,7 @@ final class PutioFolderModel {
       refreshFailure = nil
     } catch {
       guard requestGeneration == generation else { return }
-      if error is CancellationError {
+      if Task.isCancelled {
         state = previousState
         refreshFailure = previousRefreshFailure
         if case .replace(isInitialLoad: true) = mode {
@@ -178,7 +173,14 @@ final class PutioFolderModel {
         return
       }
 
-      let presentation = PutioBrowserErrorPresentation(error: error)
+      guard let presentation = PutioBrowserErrorPresentation(error: error) else {
+        state = previousState
+        refreshFailure = nil
+        if case .replace(isInitialLoad: true) = mode {
+          attemptedInitialLoad = false
+        }
+        return
+      }
       switch mode {
       case .replace:
         state = .failed(presentation)

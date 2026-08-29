@@ -127,11 +127,38 @@ let project = Project(
       infoPlist: .default,
       buildableFolders: [
         "Tests/ComponentSnapshots/Sources",
+        "Tests/Shared/SnapshotSupport",
+      ],
+      dependencies: [
+        .package(product: "PutioCore")
+      ]
+    ),
+    .target(
+      name: "PutioFeatureTests",
+      destinations: .iOS,
+      product: .unitTests,
+      bundleId: "io.put.dev.ios.featuretests",
+      deploymentTargets: .iOS("26.0"),
+      infoPlist: .default,
+      buildableFolders: [
         "Tests/iOS/Sources",
+        "Tests/Shared/SnapshotSupport",
       ],
       dependencies: [
         .target(name: "Putio"),
         .package(product: "PutioCore"),
+      ]
+    ),
+    .target(
+      name: "PutioUITests",
+      destinations: .iOS,
+      product: .uiTests,
+      bundleId: "io.put.dev.ios.uitests",
+      deploymentTargets: .iOS("26.0"),
+      infoPlist: .default,
+      buildableFolders: ["Tests/iOSUITests/Sources"],
+      dependencies: [
+        .target(name: "Putio")
       ]
     ),
     .target(
@@ -141,7 +168,10 @@ let project = Project(
       bundleId: "io.put.dev.tvos.snapshottests",
       deploymentTargets: .tvOS("26.0"),
       infoPlist: .default,
-      buildableFolders: ["Tests/ComponentSnapshots/Sources"],
+      buildableFolders: [
+        "Tests/ComponentSnapshots/Sources",
+        "Tests/Shared/SnapshotSupport",
+      ],
       dependencies: [
         .package(product: "PutioCore")
       ]
