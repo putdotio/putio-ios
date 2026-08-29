@@ -55,6 +55,12 @@ public final class PutioSessionStore {
   // MARK: - Launch restore
 
   public func restore() async {
+    switch state {
+    case .unknown, .signedOut:
+      break
+    case .authenticating, .signedIn, .signingOut:
+      return
+    }
     pendingOAuthState = nil
     pendingOAuthGeneration = nil
     let generation = advanceAuthenticationGeneration()

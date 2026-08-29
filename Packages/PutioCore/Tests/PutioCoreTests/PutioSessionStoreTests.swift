@@ -182,6 +182,27 @@ final class PutioSessionStoreTests: XCTestCase {
     XCTAssertEqual(try tokenStore.read(), "fresh-token")
   }
 
+  func testRestoreDoesNotSupersedeSignInStartedBeforeRestore() async throws {
+    stubSignedInRoutes()
+    let (store, tokenStore) = makeStore(token: nil)
+
+    let request = try store.beginSignIn()
+    await store.restore()
+    XCTAssertEqual(store.state, .authenticating)
+
+    let oauthState = try XCTUnwrap(oauthState(from: request.url))
+    let callback = try XCTUnwrap(
+      URL(string: "putio://auth#access_token=fresh-token&state=\(oauthState)")
+    )
+    await store.completeSignIn(callbackURL: callback)
+
+    guard case .signedIn(let account) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertEqual(account.username, "moviebuff")
+    XCTAssertEqual(try tokenStore.read(), "fresh-token")
+  }
+
   func testSignInRejectsMismatchedState() async throws {
     stubSignedInRoutes()
     let (store, tokenStore) = makeStore(token: nil)
