@@ -118,7 +118,19 @@ final class PutioSessionStoreTests: XCTestCase {
     guard case .signedIn(let account) = store.state else {
       return XCTFail("expected signedIn, got \(store.state)")
     }
-    XCTAssertEqual(account.username, "moviebuff")
+    XCTAssertEqual(
+      account,
+      PutioAccountSnapshot(
+        id: 1001,
+        username: "moviebuff",
+        email: "tests@example.com",
+        storage: PutioAccountSnapshot.Storage(
+          availableBytes: 10,
+          totalBytes: 30,
+          usedBytes: 20
+        )
+      )
+    )
   }
 
   func testRestoreWithRejectedTokenClearsAndExpires() async {
@@ -166,6 +178,7 @@ final class PutioSessionStoreTests: XCTestCase {
       return XCTFail("expected signedIn, got \(store.state)")
     }
     XCTAssertEqual(account.username, "moviebuff")
+    XCTAssertEqual(account.email, "tests@example.com")
     XCTAssertEqual(try tokenStore.read(), "fresh-token")
   }
 

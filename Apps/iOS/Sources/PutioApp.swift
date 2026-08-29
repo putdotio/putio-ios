@@ -1,6 +1,5 @@
 import AuthenticationServices
 import PutioCore
-import PutioSDK
 import SwiftUI
 
 @main
@@ -43,25 +42,27 @@ private struct HarnessExerciseView: View {
 
 private struct SessionRootView: View {
   private let scenario: HarnessScenario
-  @State private var session: PutioSessionStore
+  @State private var runtime: PutioRuntime
 
   init(scenario: HarnessScenario) {
     self.scenario = scenario
-    _session = State(initialValue: PutioSessionFactory.make(scenario: scenario))
+    _runtime = State(initialValue: PutioRuntimeFactory.make(scenario: scenario))
   }
 
   var body: some View {
     Group {
-      switch session.state {
+      switch runtime.session.state {
       case .unknown:
         PutioLoadingStateView()
       case .authenticating:
         PutioLoadingStateView(title: "Signing in…")
+      case .signingOut:
+        PutioLoadingStateView(title: "Signing out…")
       case .signedOut(let reason):
-        SignInView(session: session, reason: reason)
+        SignInView(session: runtime.session, reason: reason)
       case .signedIn(let account):
         MainTabView(
-          session: session,
+          runtime: runtime,
           account: account,
           autoSignOutAfterSeconds: scenario == .signedIn ? 5 : nil
         )
@@ -69,7 +70,7 @@ private struct SessionRootView: View {
     }
     .background(PutioTheme.Colors.background)
     .task {
-      await session.restore()
+      await runtime.session.restore()
     }
   }
 }
@@ -144,8 +145,8 @@ private struct SignInView: View {
 // capsule, shrink-on-scroll, and separate Search capsule are all owned by the
 // OS. put.io supplies the tint on the selected tab and the Phosphor glyphs.
 private struct MainTabView: View {
-  let session: PutioSessionStore
-  let account: PutioAccount
+  let runtime: PutioRuntime
+  let account: PutioAccountSnapshot
   let autoSignOutAfterSeconds: TimeInterval?
 
   @State private var searchText = ""
@@ -205,7 +206,7 @@ private struct MainTabView: View {
       }
       Tab {
         NavigationStack {
-          AccountView(session: session, account: account)
+          AccountView(session: runtime.session, account: account)
         }
       } label: {
         Label {
@@ -235,26 +236,26 @@ private struct MainTabView: View {
       guard let autoSignOutAfterSeconds else { return }
       try? await Task.sleep(for: .seconds(autoSignOutAfterSeconds))
       guard !Task.isCancelled else { return }
-      await session.signOut()
+      await runtime.session.signOut()
     }
   }
 }
 
 private struct AccountView: View {
   let session: PutioSessionStore
-  let account: PutioAccount
+  let account: PutioAccountSnapshot
 
   var body: some View {
     List {
       Group {
         Section {
           LabeledContent("Username", value: account.username)
-          LabeledContent("Email", value: account.mail)
+          LabeledContent("Email", value: account.email)
         }
         Section("Storage") {
-          LabeledContent("Used", value: byteText(account.disk.used))
-          LabeledContent("Available", value: byteText(account.disk.available))
-          LabeledContent("Total", value: byteText(account.disk.size))
+          LabeledContent("Used", value: byteText(account.storage.usedBytes))
+          LabeledContent("Available", value: byteText(account.storage.availableBytes))
+          LabeledContent("Total", value: byteText(account.storage.totalBytes))
         }
         Section {
           Button("Sign out", role: .destructive) {
