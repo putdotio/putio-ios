@@ -32,6 +32,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     addScreenshot(named: "files-browser-nested")
 
     nestedFile.tap()
+    let selection = element(identifier: "files.selection")
+    XCTAssertTrue(selection.waitForExistence(timeout: 5), "file selection emitted no route")
+    XCTAssertEqual(selection.label, "Selected file route")
+    XCTAssertEqual(selection.value as? String, "id=411;parent=410;kind=video")
     XCTAssertTrue(nested.waitForExistence(timeout: 5), "file selection left the browser")
     XCTAssertTrue(nestedFile.isHittable, "selected file is no longer available")
 

@@ -64,6 +64,7 @@ private struct SessionRootView: View {
         MainTabView(
           runtime: runtime,
           account: account,
+          scenario: scenario,
           autoSignOutAfterSeconds: scenario == .signedIn ? 5 : nil
         )
       }
@@ -147,16 +148,18 @@ private struct SignInView: View {
 private struct MainTabView: View {
   let runtime: PutioRuntime
   let account: PutioAccountSnapshot
+  let scenario: HarnessScenario
   let autoSignOutAfterSeconds: TimeInterval?
 
   @State private var searchText = ""
+  @State private var selectedFileRoute: PutioFileRoute?
 
   var body: some View {
     TabView {
       Tab {
         FilesBrowserView(
           runtime: runtime,
-          onFileSelected: { _ in }
+          onFileSelected: { selectedFileRoute = $0 }
         )
       } label: {
         Label {
@@ -225,6 +228,11 @@ private struct MainTabView: View {
     }
     // Shrink-on-scroll is opt-in on iOS 26 and part of the ios-e10 treatment.
     .tabBarMinimizeBehavior(.onScrollDown)
+    .overlay(alignment: .topLeading) {
+      if scenario == .filesBrowser, let selectedFileRoute {
+        HarnessFileSelectionProbe(route: selectedFileRoute)
+      }
+    }
     .task {
       // The harness signed-in scenario records the full loop: restored
       // session, account bootstrap, then sign-out back to the sign-in screen.
@@ -232,6 +240,35 @@ private struct MainTabView: View {
       try? await Task.sleep(for: .seconds(autoSignOutAfterSeconds))
       guard !Task.isCancelled else { return }
       await runtime.session.signOut()
+    }
+  }
+}
+
+private struct HarnessFileSelectionProbe: View {
+  let route: PutioFileRoute
+
+  var body: some View {
+    Color.clear
+      .frame(width: 1, height: 1)
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel("Selected file route")
+      .accessibilityValue(selectionValue)
+      .accessibilityIdentifier("files.selection")
+      .allowsHitTesting(false)
+  }
+
+  private var selectionValue: String {
+    "id=\(route.id.rawValue);parent=\(route.item.parentID.rawValue);kind=\(kindName)"
+  }
+
+  private var kindName: String {
+    switch route.item.kind {
+    case .folder: "folder"
+    case .video: "video"
+    case .audio: "audio"
+    case .image: "image"
+    case .pdf: "pdf"
+    case .other: "other"
     }
   }
 }

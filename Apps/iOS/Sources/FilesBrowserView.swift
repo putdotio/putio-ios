@@ -50,6 +50,8 @@ struct PutioFolderScreen: View {
   let route: PutioFolderRoute
 
   @State private var model: PutioFolderModel
+  @State private var retryRequest: RetryRequest?
+  @State private var retrySequence: UInt64 = 0
   private let relativeDateReference: Date?
   private let locale: Locale
   private let onFileSelected: PutioFileSelection
@@ -88,7 +90,7 @@ struct PutioFolderScreen: View {
           message: failure.message,
           retryTitle: "Try again"
         ) {
-          Task { await model.retry() }
+          requestRetry(.load)
         }
       }
     }
@@ -97,6 +99,9 @@ struct PutioFolderScreen: View {
     .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
     .task(id: route.id) {
       await model.loadIfNeeded()
+    }
+    .task(id: retryRequest) {
+      await runRetryRequest()
     }
   }
 
@@ -185,10 +190,37 @@ struct PutioFolderScreen: View {
         .putioFont(PutioTheme.Typography.body)
         .foregroundStyle(PutioTheme.Colors.textSecondary)
       Button("Try again") {
-        Task { await model.refresh() }
+        requestRetry(.refresh)
       }
       .buttonStyle(.borderless)
     }
     .accessibilityIdentifier("files.refresh-error.\(route.id.rawValue)")
+  }
+
+  private func requestRetry(_ kind: RetryKind) {
+    retrySequence &+= 1
+    retryRequest = RetryRequest(id: retrySequence, kind: kind)
+  }
+
+  private func runRetryRequest() async {
+    guard let request = retryRequest else { return }
+    switch request.kind {
+    case .load:
+      await model.retry()
+    case .refresh:
+      await model.refresh()
+    }
+    guard retryRequest == request else { return }
+    retryRequest = nil
+  }
+
+  private enum RetryKind: Equatable {
+    case load
+    case refresh
+  }
+
+  private struct RetryRequest: Equatable {
+    let id: UInt64
+    let kind: RetryKind
   }
 }
