@@ -203,6 +203,33 @@ final class PutioSessionStoreTests: XCTestCase {
     XCTAssertEqual(try tokenStore.read(), "fresh-token")
   }
 
+  func testDuplicateSignInFailureKeepsFirstFlowActive() async throws {
+    stubSignedInRoutes()
+    let (store, tokenStore) = makeStore(token: nil)
+
+    let firstRequest = try store.beginSignIn()
+    do {
+      _ = try store.beginSignIn()
+      XCTFail("expected the overlapping sign-in to be rejected")
+    } catch {
+      XCTAssertEqual(error as? PutioSessionOperationError, .signInUnavailable)
+      store.failSignIn(error)
+    }
+    XCTAssertEqual(store.state, .authenticating)
+
+    let oauthState = try XCTUnwrap(oauthState(from: firstRequest.url))
+    let callback = try XCTUnwrap(
+      URL(string: "putio://auth#access_token=fresh-token&state=\(oauthState)")
+    )
+    await store.completeSignIn(callbackURL: callback)
+
+    guard case .signedIn(let account) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertEqual(account.username, "moviebuff")
+    XCTAssertEqual(try tokenStore.read(), "fresh-token")
+  }
+
   func testSignInRejectsMismatchedState() async throws {
     stubSignedInRoutes()
     let (store, tokenStore) = makeStore(token: nil)

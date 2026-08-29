@@ -152,6 +152,9 @@ public final class PutioSessionStore {
   }
 
   public func failSignIn(_ error: Error) {
+    if error as? PutioSessionOperationError == .signInUnavailable {
+      return
+    }
     pendingOAuthState = nil
     pendingOAuthGeneration = nil
     _ = advanceAuthenticationGeneration()
