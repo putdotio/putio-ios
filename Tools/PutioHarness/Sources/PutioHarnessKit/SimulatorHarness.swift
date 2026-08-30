@@ -650,6 +650,11 @@ public struct SimulatorHarness {
         try SimulatorLifecycle.shared.register {
           mediaServer.stop()
         }
+        try install(platform: platform, session: session)
+        let appContainer = try installedAppContainer(
+          platform: platform,
+          session: session
+        )
 
         let resultBundle = platformDirectory.appending(path: "runtime-proof.xcresult")
         let rawRecording = platformDirectory.appending(path: ".runtime-proof-walk.raw.mp4")
@@ -687,10 +692,9 @@ public struct SimulatorHarness {
           if !recordingFinished { _ = recordingProcess.interruptAndWait() }
         }
 
-        let appContainer: URL
         do {
-          appContainer = try waitForJourneyCaptureReady(
-            session: session,
+          try waitForJourneyCaptureReady(
+            appContainer: appContainer,
             testProcess: testProcess
           )
         } catch {
@@ -1352,33 +1356,39 @@ public struct SimulatorHarness {
     throw HarnessFailure("recording did not start within 30 seconds")
   }
 
-  private func waitForJourneyCaptureReady(
-    session: SimulatorSession,
-    testProcess: RunningProcess
+  private func installedAppContainer(
+    platform: HarnessPlatform,
+    session: SimulatorSession
   ) throws -> URL {
+    let output = try runner.checked(
+      "xcrun",
+      [
+        "simctl", "get_app_container", session.deviceIdentifier,
+        platform.configuration.bundleIdentifier, "data",
+      ],
+      context: "resolve installed app container"
+    )
+    let path = output.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !path.isEmpty else {
+      throw HarnessFailure("installed app container path is empty")
+    }
+    return URL(fileURLWithPath: path)
+  }
+
+  private func waitForJourneyCaptureReady(
+    appContainer: URL,
+    testProcess: RunningProcess
+  ) throws {
     let deadline = Date().addingTimeInterval(300)
+    let readyMarker = appContainer.appending(
+      path: "tmp/\(BrowserJourneyContract.captureReadyMarkerName)"
+    )
     repeat {
+      if fileManager.fileExists(atPath: readyMarker.path) {
+        return
+      }
       guard testProcess.isRunning else {
         throw HarnessFailure("iOS journey test exited before its capture gate became ready")
-      }
-      let containerOutput = try runner.run(
-        "xcrun",
-        [
-          "simctl", "get_app_container", session.deviceIdentifier,
-          HarnessPlatform.ios.configuration.bundleIdentifier, "data",
-        ]
-      )
-      let containerPath = containerOutput.stdout.trimmingCharacters(
-        in: .whitespacesAndNewlines
-      )
-      if containerOutput.status == 0, !containerPath.isEmpty {
-        let appContainer = URL(fileURLWithPath: containerPath)
-        let readyMarker = appContainer.appending(
-          path: "tmp/\(BrowserJourneyContract.captureReadyMarkerName)"
-        )
-        if fileManager.fileExists(atPath: readyMarker.path) {
-          return appContainer
-        }
       }
       Thread.sleep(forTimeInterval: 0.1)
     } while Date() < deadline
