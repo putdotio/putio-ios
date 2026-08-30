@@ -17,7 +17,10 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         appName: "Putio.app",
         runtimePlatform: "iOS",
         deviceFamily: "iPhone",
-        snapshotScheme: "Putio",
+        snapshotSuites: [
+          SnapshotSuite(scheme: "Putio", target: "PutioSnapshotTests"),
+          SnapshotSuite(scheme: "PutioFeatureTests", target: "PutioFeatureTests"),
+        ],
         extraBuildSchemes: ["PutioNightly"]
       )
     case .watchos:
@@ -41,9 +44,21 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         appName: "PutioTV.app",
         runtimePlatform: "tvOS",
         deviceFamily: "Apple TV",
-        snapshotScheme: "PutioTV"
+        snapshotSuites: [
+          SnapshotSuite(scheme: "PutioTV", target: "PutioTVSnapshotTests")
+        ]
       )
     }
+  }
+}
+
+public struct SnapshotSuite: Equatable, Sendable {
+  public let scheme: String
+  public let target: String
+
+  public init(scheme: String, target: String) {
+    self.scheme = scheme
+    self.target = target
   }
 }
 
@@ -56,7 +71,7 @@ public struct PlatformConfiguration: Equatable, Sendable {
   public let appName: String
   public let runtimePlatform: String
   public let deviceFamily: String
-  public let snapshotScheme: String?
+  public let snapshotSuites: [SnapshotSuite]
   // Flavor schemes on the same platform (the nightly app) that the build
   // command must also compile; runtime commands keep driving the main scheme.
   public let extraBuildSchemes: [String]
@@ -70,7 +85,7 @@ public struct PlatformConfiguration: Equatable, Sendable {
     appName: String,
     runtimePlatform: String,
     deviceFamily: String,
-    snapshotScheme: String? = nil,
+    snapshotSuites: [SnapshotSuite] = [],
     extraBuildSchemes: [String] = []
   ) {
     self.scheme = scheme
@@ -81,7 +96,7 @@ public struct PlatformConfiguration: Equatable, Sendable {
     self.appName = appName
     self.runtimePlatform = runtimePlatform
     self.deviceFamily = deviceFamily
-    self.snapshotScheme = snapshotScheme
+    self.snapshotSuites = snapshotSuites
     self.extraBuildSchemes = extraBuildSchemes
   }
 }
@@ -109,6 +124,16 @@ public enum CaptureScenario: String, CaseIterable, Equatable, Sendable {
   case signedIn = "signed-in"
 }
 
+public enum JourneyScenario: String, CaseIterable, Equatable, Sendable {
+  case filesBrowser = "files-browser"
+
+  var fixtureSet: String {
+    switch self {
+    case .filesBrowser: "seeded-files-browser-v1"
+    }
+  }
+}
+
 public enum SurfaceCommand: String, CaseIterable, Equatable, Sendable {
   case build
   case boot
@@ -133,6 +158,12 @@ public enum HarnessInvocation: Equatable, Sendable {
   case test(
     platform: HarnessPlatform,
     recordSnapshots: Bool,
+    output: OutputFormat
+  )
+  case journey(
+    platform: HarnessPlatform,
+    scenario: JourneyScenario,
+    runID: String?,
     output: OutputFormat
   )
   case authStatus(output: OutputFormat)
@@ -255,6 +286,123 @@ public struct ProofManifest: Codable, Equatable, Sendable {
     self.fixtureSet = fixtureSet
     self.artifacts = artifacts
   }
+}
+
+enum BrowserJourneyContract {
+  static let testIdentifier =
+    "PutioUITests/FilesBrowserJourneyTests/testRootNestedFolderAndNativeBack"
+  static let attachmentNames = [
+    "files-browser-root",
+    "files-browser-nested",
+    "files-browser-back",
+  ]
+
+  static func artifactFileName(for attachmentName: String) -> String {
+    "\(attachmentName).png"
+  }
+}
+
+private struct XCResultAttachmentGroup: Decodable {
+  let attachments: [XCResultAttachment]
+}
+
+private struct XCResultAttachment: Decodable {
+  let exportedFileName: String
+  let suggestedHumanReadableName: String
+}
+
+struct XCResultTestSummary: Decodable, Equatable, Sendable {
+  let result: String
+  let totalTestCount: Int
+  let passedTests: Int
+  let failedTests: Int
+  let skippedTests: Int
+  let expectedFailures: Int
+}
+
+func selectJourneyAttachmentFiles(
+  from manifestData: Data,
+  expectedNames: [String] = BrowserJourneyContract.attachmentNames
+) throws -> [String: String] {
+  let groups: [XCResultAttachmentGroup]
+  do {
+    groups = try JSONDecoder().decode([XCResultAttachmentGroup].self, from: manifestData)
+  } catch {
+    throw HarnessFailure("decode XCUITest attachment manifest: \(error)")
+  }
+  let attachments = groups.flatMap(\.attachments)
+  var selected: [String: String] = [:]
+  for name in expectedNames {
+    let matches = attachments.filter {
+      matchesJourneyAttachmentName(
+        suggestedName: $0.suggestedHumanReadableName,
+        expectedName: name
+      )
+    }
+    guard matches.count == 1, let match = matches.first else {
+      throw HarnessFailure(
+        "XCUITest attachment \(name) must appear exactly once; found \(matches.count)"
+      )
+    }
+    let exportedName = match.exportedFileName
+    guard !exportedName.isEmpty,
+      URL(fileURLWithPath: exportedName).lastPathComponent == exportedName,
+      URL(fileURLWithPath: exportedName).pathExtension.lowercased() == "png"
+    else {
+      throw HarnessFailure("XCUITest attachment \(name) has an invalid exported PNG filename")
+    }
+    selected[name] = exportedName
+  }
+  return selected
+}
+
+private func matchesJourneyAttachmentName(
+  suggestedName: String,
+  expectedName: String
+) -> Bool {
+  if suggestedName == expectedName { return true }
+  let prefix = expectedName + "_"
+  let suffix = ".png"
+  guard suggestedName.hasPrefix(prefix), suggestedName.lowercased().hasSuffix(suffix) else {
+    return false
+  }
+  let metadataStart = suggestedName.index(suggestedName.startIndex, offsetBy: prefix.count)
+  let metadataEnd = suggestedName.index(suggestedName.endIndex, offsetBy: -suffix.count)
+  let metadata = suggestedName[metadataStart..<metadataEnd]
+  let components = metadata.split(separator: "_", maxSplits: 1, omittingEmptySubsequences: false)
+  guard components.count == 2,
+    let ordinal = Int(components[0]),
+    ordinal >= 0,
+    UUID(uuidString: String(components[1])) != nil
+  else {
+    return false
+  }
+  return true
+}
+
+@discardableResult
+func requirePassingJourneySummary(_ summaryData: Data) throws -> XCResultTestSummary {
+  let summary: XCResultTestSummary
+  do {
+    summary = try JSONDecoder().decode(XCResultTestSummary.self, from: summaryData)
+  } catch {
+    throw HarnessFailure("decode XCUITest result summary: \(error)")
+  }
+  guard summary.result == "Passed",
+    summary.totalTestCount == 1,
+    summary.passedTests == 1,
+    summary.failedTests == 0,
+    summary.skippedTests == 0,
+    summary.expectedFailures == 0
+  else {
+    throw HarnessFailure(
+      "browser journey must pass exactly 1 of 1 tests with no failures or skips; "
+        + "result=\(summary.result), total=\(summary.totalTestCount), "
+        + "passed=\(summary.passedTests), failed=\(summary.failedTests), "
+        + "skipped=\(summary.skippedTests), expectedFailures=\(summary.expectedFailures)"
+    )
+  }
+  return summary
 }
 
 public struct HarnessFailure: Error, CustomStringConvertible, Sendable {

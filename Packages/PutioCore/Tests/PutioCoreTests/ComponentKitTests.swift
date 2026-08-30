@@ -17,6 +17,12 @@ final class ComponentKitTests: XCTestCase {
       HarnessScenario.parse(arguments: ["--putio-harness-scenario", "exercised"]), .exercised)
     XCTAssertEqual(
       HarnessScenario.parse(arguments: ["app", "--putio-harness-scenario", "gallery"]), .gallery)
+    XCTAssertEqual(
+      HarnessScenario.parse(arguments: [
+        "app", "--putio-harness-scenario", "files-browser",
+      ]),
+      .filesBrowser
+    )
     XCTAssertTrue(
       SignedOutPresentation.isHarnessExercise(arguments: [
         "--putio-harness-scenario", "exercised",
@@ -64,6 +70,20 @@ final class ComponentKitTests: XCTestCase {
         PutioFileRowModel(name: "fixture", kind: kind).icon
       })
     XCTAssertEqual(icons.count, PutioFileRowModel.Kind.allCases.count)
+  }
+
+  @MainActor
+  func testFileRowCanDeferFolderDisclosureToNavigationLink() {
+    let folder = PutioFileRowModel(name: "Folder", kind: .folder)
+    let defaultFolderDisclosure = PutioFileRow(folder).rendersFolderDisclosure
+    let deferredFolderDisclosure =
+      PutioFileRow(folder, showsFolderDisclosure: false).rendersFolderDisclosure
+    XCTAssertTrue(defaultFolderDisclosure)
+    XCTAssertFalse(deferredFolderDisclosure)
+
+    let file = PutioFileRowModel(name: "File", kind: .file)
+    let fileDisclosure = PutioFileRow(file).rendersFolderDisclosure
+    XCTAssertFalse(fileDisclosure)
   }
 
   func testGalleryFixturesCoverEveryVariantAxis() {

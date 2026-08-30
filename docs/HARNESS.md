@@ -24,6 +24,7 @@ mise run harness -- launch --platform watchos
 mise run harness -- exercise --platform tvos
 mise run harness -- screenshot --platform ios
 mise run harness -- screenshot --platform ios --scenario gallery
+mise run harness -- journey --platform ios --scenario files-browser
 mise run harness -- record --platform watchos --record-seconds 5
 mise run harness -- test --platform tvos
 mise run harness -- proof --platform all
@@ -31,9 +32,11 @@ mise run harness -- proof --platform all
 
 Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` and `proof`. Invalid platforms, options, run identifiers, durations, repositories, and pull-request numbers fail before invoking platform tools.
 
-`screenshot` and `record` accept `--scenario signed-out|gallery|signed-in`. The `gallery` scenario launches the iOS or tvOS shell into the component-kit gallery, which cycles through its pages so a recording covers every component. The `signed-in` scenario (iOS only) seeds a deterministic in-process API, restores a session from a seeded token, bootstraps the account screen, and signs out after a few seconds so one recording covers the whole loop. Other commands and unsupported platforms reject them.
+`screenshot` and `record` accept `--scenario signed-out|gallery|signed-in`. The `gallery` scenario launches the iOS or tvOS component gallery. The iOS-only `signed-in` scenario uses a deterministic in-process API, restores a session, bootstraps the account screen, and signs out after a few seconds. Other commands and unsupported platforms reject these scenarios.
 
-`test --platform <ios|tvos>` runs the component snapshot suite on an ephemeral simulator via `xcodebuild test`. Baselines are committed under `Tests/ComponentSnapshots/__Snapshots__/<platform>/`; comparison tolerates small antialiasing drift between Simulator runtimes. Liquid Glass cannot be rasterized off-screen, so the suite renders glass surfaces with their bordered/material fallbacks (`PUTIO_SNAPSHOT_RASTER`); review the real glass appearance through the gallery captures. After an intentional visual change run `test --platform <platform> --snapshots record`, which records the baselines and re-asserts against what it wrote, then review and commit the image diff. `mise run verify` runs both platforms' suites.
+`journey --platform ios --scenario files-browser` proves the browser with real accessibility input. One XCUITest waits for root folder `0`, taps folder `410`, taps file `411`, asserts its typed route contains file `411`, parent `410`, and kind `video`, taps the native `Files` Back button, and asserts the restored root. HTTP responses are deterministic fixtures; the app UI, row taps, route emission, navigation, and Back control are real.
+
+`test --platform <ios|tvos>` runs snapshot suites on an ephemeral simulator via `xcodebuild test`. iOS runs the unhosted `PutioSnapshotTests` component gallery and the app-hosted `PutioFeatureTests`; tvOS runs `PutioTVSnapshotTests`. Baselines are committed under `Tests/ComponentSnapshots/__Snapshots__/<platform>/`; comparison tolerates small antialiasing drift between Simulator runtimes. Liquid Glass cannot be rasterized off-screen, so the suite renders glass surfaces with their bordered/material fallbacks (`PUTIO_SNAPSHOT_RASTER`); review the real glass appearance through the gallery captures. After an intentional visual change run `test --platform <platform> --snapshots record`, which records the baselines and re-asserts against what it wrote, then review and commit the image diff. `mise run verify` runs both platforms' suites.
 
 All simulator commands are headless. The harness never opens Simulator.app. `boot`, `launch`, `exercise`, and capture runs create uniquely named devices and pair watchOS with an ephemeral iPhone companion. `launch`, `exercise`, and capture wait for a rendered app frame. Every created device is shut down, deleted, and verified absent on success or failure. `build` does not create devices.
 
@@ -57,6 +60,20 @@ build/proof/<run-id>/<platform>/
 The manifest records the commit, platform, scheme, bundle identifier, runtime, device type, simulator name, fixture set, artifact sizes, and SHA-256 digests. `build/` is ignored by Git.
 Proof capture rejects tracked or untracked source changes so the manifest commit always identifies the exact built source.
 It pins `HEAD` before generation and requires the same revision immediately before manifest emission.
+
+The browser journey applies the same clean-source and pinned-revision checks. It writes:
+
+```text
+build/proof/<run-id>/ios/
+├── files-browser-back.png
+├── files-browser-nested.png
+├── files-browser-root.png
+├── files-browser-test-summary.json
+├── files-browser-walk.mp4
+└── manifest.json
+```
+
+The journey requires exactly `1/1` passing UI test, three meaningful screenshots, and different root and nested frames. It removes the intermediate Xcode result bundle after extracting the named attachments and summary.
 
 Capture never uploads implicitly. Publish one reviewed artifact only after a pull request exists:
 

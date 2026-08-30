@@ -1,9 +1,9 @@
 import Foundation
 
 #if DEBUG
-  // Deterministic in-process API for the harness signed-in scenario, mirroring
-  // the legacy app's E2E mock approach. Serves only the session endpoints this
-  // scenario needs; anything else fails loudly with a named fixture gap.
+  // Deterministic in-process API for signed-in harness scenarios, mirroring
+  // the legacy app's E2E mock approach. Anything outside the seeded session
+  // and browser surface fails loudly with a named fixture gap.
   final class HarnessSeededAPI: URLProtocol {
     nonisolated(unsafe) static var isEnabled = false
 
@@ -22,8 +22,7 @@ import Foundation
         client?.urlProtocol(self, didFailWithError: URLError(.badURL))
         return
       }
-      let routeKey = "\(request.httpMethod ?? "GET") \(url.path)"
-      let (statusCode, body) = Self.fixture(for: routeKey)
+      let (statusCode, body) = Self.fixture(for: request)
       let response = HTTPURLResponse(
         url: url,
         statusCode: statusCode,
@@ -37,27 +36,79 @@ import Foundation
 
     override func stopLoading() {}
 
-    private static func fixture(for routeKey: String) -> (Int, String) {
-      switch routeKey {
-      case "GET /v2/oauth2/validate":
-        (200, #"{"result": true, "token_id": 1, "token_scope": "default", "user_id": 1001}"#)
-      case "GET /v2/account/info":
-        (200, accountInfo)
-      case "POST /v2/oauth/grants/logout":
-        (200, #"{"status":"OK"}"#)
-      default:
-        (
-          404,
-          """
-          {
-            "status": "ERROR",
-            "status_code": 404,
-            "error_type": "HARNESS_FIXTURE_NOT_FOUND",
-            "message": "No harness fixture for \(routeKey)"
-          }
-          """
+    private static func fixture(for request: URLRequest) -> (Int, String) {
+      guard let url = request.url else {
+        return (
+          400,
+          fixtureError(statusCode: 400, type: "HARNESS_INVALID_REQUEST", message: "Missing URL")
         )
       }
+      let routeKey = "\(request.httpMethod ?? "GET") \(url.path)"
+      switch routeKey {
+      case "GET /v2/oauth2/validate":
+        return (
+          200,
+          #"{"result": true, "token_id": 1, "token_scope": "default", "user_id": 1001}"#
+        )
+      case "GET /v2/account/info":
+        return (200, accountInfo)
+      case "POST /v2/oauth/grants/logout":
+        return (200, #"{"status":"OK"}"#)
+      case "GET /v2/files/list":
+        return filesListFixture(url: url)
+      default:
+        return (
+          404,
+          fixtureError(
+            statusCode: 404,
+            type: "HARNESS_FIXTURE_NOT_FOUND",
+            message: "No harness fixture for \(routeKey)"
+          )
+        )
+      }
+    }
+
+    private static func filesListFixture(url: URL) -> (Int, String) {
+      let parentID = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+        .queryItems?
+        .first(where: { $0.name == "parent_id" })?
+        .value
+        .flatMap(Int.init)
+      switch parentID {
+      case 0:
+        return (200, rootFiles)
+      case 410:
+        return (200, nestedFiles)
+      case .none:
+        return (
+          400,
+          fixtureError(
+            statusCode: 400,
+            type: "HARNESS_PARENT_ID_REQUIRED",
+            message: "The files fixture requires parent_id"
+          )
+        )
+      case .some(let parentID):
+        return (
+          404,
+          fixtureError(
+            statusCode: 404,
+            type: "HARNESS_FOLDER_NOT_FOUND",
+            message: "No harness folder fixture for parent_id=\(parentID)"
+          )
+        )
+      }
+    }
+
+    private static func fixtureError(statusCode: Int, type: String, message: String) -> String {
+      """
+      {
+        "status": "ERROR",
+        "status_code": \(statusCode),
+        "error_type": "\(type)",
+        "message": "\(message)"
+      }
+      """
     }
 
     private static let accountInfo = """
@@ -92,6 +143,69 @@ import Foundation
             "dont_autoselect_subtitles": false
           }
         }
+      }
+      """
+
+    private static let rootFiles = """
+      {
+        "parent": {
+          "id": 0,
+          "name": "Your Files",
+          "file_type": "FOLDER",
+          "parent_id": 0,
+          "size": 0,
+          "created_at": "2026-08-01T10:00:00Z",
+          "updated_at": "2026-08-01T10:00:00Z"
+        },
+        "files": [
+          {
+            "id": 410,
+            "name": "Harness Folder",
+            "file_type": "FOLDER",
+            "parent_id": 0,
+            "size": 0,
+            "created_at": "2026-08-28T10:00:00Z",
+            "updated_at": "2026-08-29T10:00:00Z"
+          },
+          {
+            "id": 412,
+            "name": "Root Movie.mkv",
+            "file_type": "VIDEO",
+            "parent_id": 0,
+            "size": 734003200,
+            "created_at": "2026-08-28T10:00:00Z",
+            "updated_at": "2026-08-29T10:00:00Z",
+            "start_from": 0
+          }
+        ],
+        "total": 2
+      }
+      """
+
+    private static let nestedFiles = """
+      {
+        "parent": {
+          "id": 410,
+          "name": "Harness Folder",
+          "file_type": "FOLDER",
+          "parent_id": 0,
+          "size": 0,
+          "created_at": "2026-08-28T10:00:00Z",
+          "updated_at": "2026-08-29T10:00:00Z"
+        },
+        "files": [
+          {
+            "id": 411,
+            "name": "Nested Movie.mkv",
+            "file_type": "VIDEO",
+            "parent_id": 410,
+            "size": 1073741824,
+            "created_at": "2026-08-28T11:00:00Z",
+            "updated_at": "2026-08-29T11:00:00Z",
+            "start_from": 90
+          }
+        ],
+        "total": 1
       }
       """
   }

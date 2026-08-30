@@ -4,6 +4,7 @@ import SwiftUI
 import UIKit
 import XCTest
 
+// Shared by unhosted component snapshots and app-hosted iOS feature snapshots.
 enum SnapshotEnvironment {
   static let repositoryRoot = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()
@@ -68,6 +69,37 @@ enum SnapshotRenderer {
       height = max(target.height, 1).rounded(.up)
     }
     let size = CGSize(width: width, height: height)
+    let window = UIWindow(frame: CGRect(origin: .zero, size: size))
+    window.rootViewController = controller
+    window.isHidden = false
+    view.frame = window.bounds
+    window.layoutIfNeeded()
+
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = SnapshotEnvironment.scale
+    format.opaque = false
+    let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+      view.layer.render(in: context.cgContext)
+    }
+    window.isHidden = true
+    return image
+  }
+
+  static func render<Content: View>(
+    view content: Content,
+    size: CGSize,
+    dynamicTypeSize: DynamicTypeSize = .large
+  ) throws -> UIImage {
+    _ = SnapshotEnvironment.registersBrandFonts
+    let controller = UIHostingController(
+      rootView:
+        content
+        .environment(\.colorScheme, .dark)
+        .dynamicTypeSize(dynamicTypeSize)
+    )
+    controller.overrideUserInterfaceStyle = .dark
+    let view = try XCTUnwrap(controller.view)
+    view.backgroundColor = .clear
     let window = UIWindow(frame: CGRect(origin: .zero, size: size))
     window.rootViewController = controller
     window.isHidden = false

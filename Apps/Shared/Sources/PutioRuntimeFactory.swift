@@ -12,7 +12,7 @@ enum PutioRuntimeFactory {
   @MainActor
   static func make(scenario: HarnessScenario) -> PutioRuntime {
     #if DEBUG
-      if scenario == .signedIn {
+      if scenario == .signedIn || scenario == .filesBrowser {
         HarnessSeededAPI.isEnabled = true
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [HarnessSeededAPI.self]

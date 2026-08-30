@@ -359,13 +359,13 @@ public struct SimulatorHarness {
         try requireRevision(sourceRevision)
         let manifest = try writeManifest(
           platform: platform,
-          command: command,
+          command: command.rawValue,
           runID: runID,
           commit: sourceRevision,
           session: session,
           artifactURLs: artifactURLs,
           directory: platformDirectory,
-          scenario: scenario
+          fixtureSet: fixtureSet(command: command, scenario: scenario)
         )
         return SurfaceRun(
           platform: platform,
@@ -382,38 +382,220 @@ public struct SimulatorHarness {
     }
   }
 
+  public func journey(
+    _ platform: HarnessPlatform,
+    scenario: JourneyScenario,
+    runID: String,
+    sourceRevision: String
+  ) throws -> SurfaceRun {
+    guard platform == .ios, scenario == .filesBrowser else {
+      throw HarnessFailure("journey supports only ios files-browser")
+    }
+    try requireCleanSource()
+    try requireRevision(sourceRevision)
+    try regenerateWorkspace()
+    try requireCleanSource()
+    try requireRevision(sourceRevision)
+    try requireGeneratedWorkspace()
+    try fileManager.createDirectory(at: context.derivedData, withIntermediateDirectories: true)
+
+    let platformDirectory = context.proofRoot.appending(path: runID).appending(
+      path: platform.rawValue)
+    guard !fileManager.fileExists(atPath: platformDirectory.path) else {
+      throw HarnessFailure(
+        "proof path already exists: \(platformDirectory.path); choose a new --run-id")
+    }
+    try fileManager.createDirectory(at: platformDirectory, withIntermediateDirectories: true)
+
+    do {
+      return try withSession(platform: platform, runID: runID) { session in
+        try buildJourneyTests(platform: platform, session: session)
+
+        let resultBundle = platformDirectory.appending(path: "files-browser.xcresult")
+        let recording = platformDirectory.appending(path: "files-browser-walk.mp4")
+        let recordingProcess = try startRecording(session: session, output: recording)
+        var recordingFinished = false
+        defer {
+          if !recordingFinished { _ = recordingProcess.interruptAndWait() }
+        }
+
+        _ = try runner.checked(
+          "xcodebuild",
+          [
+            "test-without-building",
+            "-workspace", "Putio.xcworkspace",
+            "-scheme", platform.configuration.scheme,
+            "-destination", "id=\(session.deviceIdentifier)",
+            "-derivedDataPath", context.derivedData.path,
+            "-resultBundlePath", resultBundle.path,
+            "-parallel-testing-enabled", "NO",
+            "-only-testing:\(BrowserJourneyContract.testIdentifier)",
+          ],
+          currentDirectory: context.root,
+          context: "run ios files-browser journey"
+        )
+
+        let recordingOutput = recordingProcess.interruptAndWait()
+        recordingFinished = true
+        guard recordingOutput.status == 0 else {
+          throw HarnessFailure(
+            "record ios files-browser journey failed\n\(recordingOutput.combinedOutput)")
+        }
+        try requireNonemptyFile(recording, context: "browser journey recording")
+
+        let summary = platformDirectory.appending(path: "files-browser-test-summary.json")
+        let screenshots = try extractJourneyResults(
+          resultBundle: resultBundle,
+          summary: summary,
+          directory: platformDirectory
+        )
+        try fileManager.removeItem(at: resultBundle)
+
+        let rootPixels = try requireMeaningfulScreenshot(
+          screenshots[0], context: "browser root attachment")
+        let nestedPixels = try requireMeaningfulScreenshot(
+          screenshots[1], context: "browser nested attachment")
+        _ = try requireMeaningfulScreenshot(
+          screenshots[2], context: "browser back attachment")
+        guard rootPixels.differsMeaningfully(from: nestedPixels) else {
+          throw HarnessFailure(
+            "browser journey root and nested screenshots do not differ meaningfully")
+        }
+
+        try requireCleanSource()
+        try requireRevision(sourceRevision)
+        let artifactURLs = screenshots + [recording, summary]
+        let manifest = try writeManifest(
+          platform: platform,
+          command: "journey",
+          runID: runID,
+          commit: sourceRevision,
+          session: session,
+          artifactURLs: artifactURLs,
+          directory: platformDirectory,
+          fixtureSet: scenario.fixtureSet
+        )
+        return SurfaceRun(
+          platform: platform,
+          artifacts: artifactURLs + [manifest],
+          message:
+            "files-browser journey passed 1/1 tests in \(context.relativePath(for: platformDirectory))"
+        )
+      }
+    } catch {
+      try? fileManager.removeItem(at: platformDirectory)
+      throw error
+    }
+  }
+
   public func test(_ platform: HarnessPlatform, recordSnapshots: Bool) throws -> SurfaceRun {
-    guard let scheme = platform.configuration.snapshotScheme else {
-      throw HarnessFailure("test supports only platforms with a snapshot scheme: ios, tvos")
+    let suites = platform.configuration.snapshotSuites
+    guard !suites.isEmpty else {
+      throw HarnessFailure("test supports only platforms with snapshot suites: ios, tvos")
     }
     try requireGeneratedWorkspace()
     try fileManager.createDirectory(at: context.derivedData, withIntermediateDirectories: true)
     return try withSession(platform: platform, runID: UUID().uuidString.lowercased()) { session in
-      _ = try runner.checked(
-        "xcodebuild",
-        [
-          "test",
-          "-workspace", "Putio.xcworkspace",
-          "-scheme", scheme,
-          "-destination", "id=\(session.deviceIdentifier)",
-          "-derivedDataPath", context.derivedData.path,
-        ],
-        environment: recordSnapshots
-          ? [
-            "TEST_RUNNER_PUTIO_SNAPSHOT_RECORD": "1",
-            "TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1",
-          ]
-          : ["TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1"],
-        currentDirectory: context.root,
-        context: "test \(platform.rawValue)"
-      )
+      let environment =
+        recordSnapshots
+        ? [
+          "TEST_RUNNER_PUTIO_SNAPSHOT_RECORD": "1",
+          "TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1",
+        ]
+        : ["TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1"]
+      for suite in suites {
+        _ = try runner.checked(
+          "xcodebuild",
+          [
+            "test",
+            "-workspace", "Putio.xcworkspace",
+            "-scheme", suite.scheme,
+            "-destination", "id=\(session.deviceIdentifier)",
+            "-derivedDataPath", context.derivedData.path,
+            "-only-testing:\(suite.target)",
+          ],
+          environment: environment,
+          currentDirectory: context.root,
+          context: "test \(platform.rawValue) \(suite.target)"
+        )
+      }
+      let targets = suites.map(\.target).joined(separator: ", ")
       return SurfaceRun(
         platform: platform,
         artifacts: [],
         message: recordSnapshots
-          ? "recorded and re-asserted \(scheme) snapshot baselines"
-          : "\(scheme) snapshot suite passed"
+          ? "recorded and re-asserted \(targets) snapshot baselines"
+          : "\(targets) snapshot suites passed"
       )
+    }
+  }
+
+  private func buildJourneyTests(
+    platform: HarnessPlatform,
+    session: SimulatorSession
+  ) throws {
+    _ = try runner.checked(
+      "xcodebuild",
+      [
+        "build-for-testing",
+        "-workspace", "Putio.xcworkspace",
+        "-scheme", platform.configuration.scheme,
+        "-destination", "id=\(session.deviceIdentifier)",
+        "-derivedDataPath", context.derivedData.path,
+        "-parallel-testing-enabled", "NO",
+      ],
+      currentDirectory: context.root,
+      context: "build ios files-browser journey tests"
+    )
+  }
+
+  private func extractJourneyResults(
+    resultBundle: URL,
+    summary: URL,
+    directory: URL
+  ) throws -> [URL] {
+    try requireNonemptyDirectory(resultBundle, context: "browser journey result bundle")
+    let summaryOutput = try runner.checked(
+      "xcrun",
+      [
+        "xcresulttool", "get", "test-results", "summary",
+        "--path", resultBundle.path,
+        "--compact",
+      ],
+      context: "read browser journey test summary"
+    )
+    let summaryData = Data(summaryOutput.stdout.utf8)
+    _ = try requirePassingJourneySummary(summaryData)
+    try summaryData.write(to: summary, options: .atomic)
+    try requireNonemptyFile(summary, context: "browser journey test summary")
+
+    let attachmentsDirectory = directory.appending(path: ".xcresult-attachments")
+    defer { try? fileManager.removeItem(at: attachmentsDirectory) }
+    _ = try runner.checked(
+      "xcrun",
+      [
+        "xcresulttool", "export", "attachments",
+        "--path", resultBundle.path,
+        "--output-path", attachmentsDirectory.path,
+      ],
+      context: "export browser journey attachments"
+    )
+    let attachmentManifest = attachmentsDirectory.appending(path: "manifest.json")
+    let selected = try selectJourneyAttachmentFiles(
+      from: Data(contentsOf: attachmentManifest)
+    )
+
+    return try BrowserJourneyContract.attachmentNames.map { name in
+      guard let exportedName = selected[name] else {
+        throw HarnessFailure("browser journey attachment selection lost \(name)")
+      }
+      let source = attachmentsDirectory.appending(path: exportedName)
+      try requireNonemptyFile(source, context: "browser journey attachment \(name)")
+      let destination = directory.appending(
+        path: BrowserJourneyContract.artifactFileName(for: name))
+      try fileManager.copyItem(at: source, to: destination)
+      try requireNonemptyFile(destination, context: "browser journey screenshot \(name)")
+      return destination
     }
   }
 
@@ -902,27 +1084,27 @@ public struct SimulatorHarness {
 
   private func writeManifest(
     platform: HarnessPlatform,
-    command: SurfaceCommand,
+    command: String,
     runID: String,
     commit: String,
     session: SimulatorSession,
     artifactURLs: [URL],
     directory: URL,
-    scenario: CaptureScenario
+    fixtureSet: String
   ) throws -> URL {
     let artifacts = try artifactURLs.map { try artifact(for: $0) }
     let manifest = ProofManifest(
       runID: runID,
       commit: commit,
       createdAt: ISO8601DateFormatter().string(from: Date()),
-      command: command.rawValue,
+      command: command,
       platform: platform,
       scheme: platform.configuration.scheme,
       bundleIdentifier: platform.configuration.bundleIdentifier,
       runtime: session.runtime.name,
       deviceType: session.deviceType.name,
       simulatorName: session.deviceName,
-      fixtureSet: fixtureSet(command: command, scenario: scenario),
+      fixtureSet: fixtureSet,
       artifacts: artifacts
     )
     let manifestURL = directory.appending(path: "manifest.json")
@@ -942,9 +1124,14 @@ public struct SimulatorHarness {
         context: "hash \(url.lastPathComponent)"
       ).stdout.split(separator: " ").first.map(String.init) ?? ""
     let relative = url.path.replacingOccurrences(of: context.root.path + "/", with: "")
-    return ProofArtifact(
-      kind: url.pathExtension == "png" ? "screenshot" : "recording", path: relative, bytes: bytes,
-      sha256: digest)
+    let kind =
+      switch url.pathExtension.lowercased() {
+      case "png": "screenshot"
+      case "mp4": "recording"
+      case "json": "test-summary"
+      default: "artifact"
+      }
+    return ProofArtifact(kind: kind, path: relative, bytes: bytes, sha256: digest)
   }
 
   private func requireNonemptyFile(_ url: URL, context: String) throws {
@@ -1012,10 +1199,35 @@ public struct SimulatorHarness {
       minimumContentPixelCount: max(128, contentArea / 1_000)
     )
   }
+
+  private func requireMeaningfulScreenshot(_ url: URL, context: String) throws -> DecodedPixels {
+    try requireNonemptyFile(url, context: context)
+    let pixels = try decodedPixels(at: url)
+    guard pixels.visibleContentPixelCount >= pixels.minimumContentPixelCount else {
+      throw HarnessFailure("\(context) has no meaningful visible content at \(url.path)")
+    }
+    return pixels
+  }
 }
 
 private struct DecodedPixels {
   let data: Data
   let visibleContentPixelCount: Int
   let minimumContentPixelCount: Int
+
+  func differsMeaningfully(from other: DecodedPixels) -> Bool {
+    guard data.count == other.data.count else { return true }
+    let minimumDifferentPixels = max(128, data.count / 4_000)
+    var differentPixels = 0
+    for offset in stride(from: 0, to: data.count, by: 4) {
+      let pixelDiffers = (0..<4).contains { channel in
+        abs(Int(data[offset + channel]) - Int(other.data[offset + channel])) > 8
+      }
+      if pixelDiffers {
+        differentPixels += 1
+        if differentPixels >= minimumDifferentPixels { return true }
+      }
+    }
+    return false
+  }
 }

@@ -53,6 +53,22 @@ import Testing
   )
 }
 
+@Test func parsesFilesBrowserJourney() throws {
+  let invocation = try HarnessArgumentParser.parse([
+    "journey", "--platform", "ios", "--scenario", "files-browser", "--run-id", "browser-1",
+    "--output", "json",
+  ])
+  #expect(
+    invocation
+      == .journey(
+        platform: .ios,
+        scenario: .filesBrowser,
+        runID: "browser-1",
+        output: .json
+      )
+  )
+}
+
 @Test func rejectsGalleryScenarioOutsideCapture() {
   #expect(throws: HarnessFailure.self) {
     try HarnessArgumentParser.parse(["proof", "--platform", "ios", "--scenario", "gallery"])
@@ -60,6 +76,42 @@ import Testing
   #expect(throws: HarnessFailure.self) {
     try HarnessArgumentParser.parse([
       "screenshot", "--platform", "watchos", "--scenario", "gallery",
+    ])
+  }
+}
+
+@Test func rejectsFilesBrowserScenarioOnOrdinaryCapture() {
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "record", "--platform", "ios", "--scenario", "files-browser",
+    ])
+  }
+}
+
+@Test func rejectsUnsupportedFilesBrowserJourneyShapes() {
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "tvos", "--scenario", "files-browser",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "watchos", "--scenario", "files-browser",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "all", "--scenario", "files-browser",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--scenario", "signed-in",
     ])
   }
 }

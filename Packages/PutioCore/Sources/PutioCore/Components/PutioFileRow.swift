@@ -43,14 +43,16 @@ public struct PutioFileRowModel: Equatable, Sendable {
 // contract's painted row with the solid focus fill.
 public struct PutioFileRow: View {
   private let model: PutioFileRowModel
+  private let showsFolderDisclosure: Bool
 
   @PutioScaledMetric private var iconSize: CGFloat
   @PutioScaledMetric private var indicatorSize: CGFloat
   @PutioScaledMetric private var contentGap: CGFloat
   @PutioScaledMetric private var textGap: CGFloat
 
-  public init(_ model: PutioFileRowModel) {
+  public init(_ model: PutioFileRowModel, showsFolderDisclosure: Bool = true) {
     self.model = model
+    self.showsFolderDisclosure = showsFolderDisclosure
     _iconSize = PutioScaledMetric(PutioFileRowLayout.iconSize)
     _indicatorSize = PutioScaledMetric(PutioFileRowLayout.indicatorSize)
     _contentGap = PutioScaledMetric(PutioTheme.ScaledMetrics.contentGap)
@@ -104,7 +106,7 @@ public struct PutioFileRow: View {
           .foregroundStyle(PutioTheme.Colors.textSecondary)
           .accessibilityLabel(Text("Watched"))
       }
-      if model.kind == .folder {
+      if rendersFolderDisclosure {
         Image(putioIcon: .caretRight)
           .resizable()
           .scaledToFit()
@@ -112,6 +114,10 @@ public struct PutioFileRow: View {
           .foregroundStyle(PutioTheme.Colors.textSecondary)
       }
     }
+  }
+
+  var rendersFolderDisclosure: Bool {
+    model.kind == .folder && showsFolderDisclosure
   }
 }
 
