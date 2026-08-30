@@ -61,6 +61,99 @@ import Testing
   }
 }
 
+@Test func journeyRecordingWindowCapsLoadedRootContextAtOneSecond() throws {
+  let root = JourneyFrameFingerprint(samples: [10])
+  let nested = JourneyFrameFingerprint(samples: [100])
+  let back = JourneyFrameFingerprint(samples: [200])
+  let frames = (0..<130).map { index in
+    JourneyVideoFrame(
+      presentationTime: Double(index) / 10,
+      duration: 0.1,
+      fingerprint: index < 100 ? root : index < 115 ? nested : back
+    )
+  }
+
+  let window = try journeyRecordingWindow(
+    frames: frames,
+    root: root,
+    nested: nested,
+    back: back
+  )
+
+  #expect(abs(window.start - 9.0) < 0.000_001)
+  #expect(window.duration < 4)
+}
+
+@Test func journeyRecordingWindowCapsSparseHeldRootContextAtOneSecond() throws {
+  let root = JourneyFrameFingerprint(samples: [10])
+  let nested = JourneyFrameFingerprint(samples: [100])
+  let back = JourneyFrameFingerprint(samples: [200])
+  var frames = [
+    JourneyVideoFrame(
+      presentationTime: 0,
+      duration: 20,
+      fingerprint: root
+    )
+  ]
+  frames += (0..<15).map { index in
+    JourneyVideoFrame(
+      presentationTime: 20 + Double(index) / 10,
+      duration: 0.1,
+      fingerprint: nested
+    )
+  }
+  frames += (0..<15).map { index in
+    JourneyVideoFrame(
+      presentationTime: 21.5 + Double(index) / 10,
+      duration: 0.1,
+      fingerprint: back
+    )
+  }
+
+  let window = try journeyRecordingWindow(
+    frames: frames,
+    root: root,
+    nested: nested,
+    back: back
+  )
+
+  #expect(abs(window.start - 19) < 0.000_001)
+  #expect(window.duration < 5)
+}
+
+@Test func journeyRecordingWindowUsesFinalRootRunBeforeNested() throws {
+  let root = JourneyFrameFingerprint(samples: [10])
+  let nested = JourneyFrameFingerprint(samples: [100])
+  let back = JourneyFrameFingerprint(samples: [200])
+  let unrelated = JourneyFrameFingerprint(samples: [250])
+  let frames = (0..<90).map { index in
+    let fingerprint =
+      if index < 5 || (index >= 50 && index < 60) {
+        root
+      } else if index < 50 {
+        unrelated
+      } else if index < 75 {
+        nested
+      } else {
+        back
+      }
+    return JourneyVideoFrame(
+      presentationTime: Double(index) / 10,
+      duration: 0.1,
+      fingerprint: fingerprint
+    )
+  }
+
+  let window = try journeyRecordingWindow(
+    frames: frames,
+    root: root,
+    nested: nested,
+    back: back
+  )
+
+  #expect(abs(window.start - 5) < 0.000_001)
+}
+
 @Test func journeyRecordingWindowRejectsMissingOrShortSequences() {
   let root = JourneyFrameFingerprint(samples: [0])
   let nested = JourneyFrameFingerprint(samples: [100])

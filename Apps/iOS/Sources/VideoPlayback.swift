@@ -294,13 +294,26 @@ private final class PutioPlaybackAudioSession: PutioPlaybackAudioSessioning {
 }
 
 @MainActor
+protocol PutioPlayerItemStatusObservation: AnyObject {
+  func invalidate()
+}
+
+extension NSKeyValueObservation: PutioPlayerItemStatusObservation {}
+
+@MainActor
 final class PutioSystemVideoPlayerCoordinator {
   typealias DriverFactory = @MainActor (AVPlayerItem) -> any PutioVideoPlayerDriving
+  typealias StatusObserverFactory =
+    @MainActor (
+      AVPlayerItem,
+      @escaping @Sendable (AVPlayerItem.Status) -> Void
+    ) -> any PutioPlayerItemStatusObservation
 
   private let makeDriver: DriverFactory
+  private let observeItemStatus: StatusObserverFactory
   private let audioSession: any PutioPlaybackAudioSessioning
   private let notificationCenter: NotificationCenter
-  private var statusObservation: NSKeyValueObservation?
+  private var statusObservation: (any PutioPlayerItemStatusObservation)?
   private var failedToEndObservation: NSObjectProtocol?
   private var driver: (any PutioVideoPlayerDriving)?
   private var onFailure: (@MainActor () -> Void)?
@@ -318,10 +331,16 @@ final class PutioSystemVideoPlayerCoordinator {
 
   init(
     makeDriver: @escaping DriverFactory,
+    observeItemStatus: @escaping StatusObserverFactory = { item, statusChanged in
+      item.observe(\.status, options: [.initial, .new]) { item, _ in
+        statusChanged(item.status)
+      }
+    },
     audioSession: any PutioPlaybackAudioSessioning,
     notificationCenter: NotificationCenter
   ) {
     self.makeDriver = makeDriver
+    self.observeItemStatus = observeItemStatus
     self.audioSession = audioSession
     self.notificationCenter = notificationCenter
   }
@@ -338,8 +357,8 @@ final class PutioSystemVideoPlayerCoordinator {
     self.onFailure = onFailure
 
     let item = AVPlayerItem(url: source.url)
-    statusObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
-      guard item.status == .failed else { return }
+    statusObservation = observeItemStatus(item) { [weak self] status in
+      guard status == .failed else { return }
       Task { @MainActor [weak self] in
         self?.reportFailure(generation: playbackGeneration)
       }
@@ -392,6 +411,7 @@ final class PutioSystemVideoPlayerCoordinator {
 
   func stop(controller: AVPlayerViewController) {
     generation &+= 1
+    statusObservation?.invalidate()
     statusObservation = nil
     if let failedToEndObservation {
       notificationCenter.removeObserver(failedToEndObservation)

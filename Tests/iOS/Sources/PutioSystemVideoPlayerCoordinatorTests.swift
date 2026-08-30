@@ -63,6 +63,20 @@ private final class VideoPlayerDriverCapture {
 }
 
 @MainActor
+private final class PlayerItemStatusObservationSpy: PutioPlayerItemStatusObservation {
+  private(set) var invalidationCount = 0
+  var statusChanged: (@Sendable (AVPlayerItem.Status) -> Void)?
+
+  func invalidate() {
+    invalidationCount += 1
+  }
+
+  func emit(_ status: AVPlayerItem.Status) {
+    statusChanged?(status)
+  }
+}
+
+@MainActor
 final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
   func testCurrentResumeSeekPlaysOnlyAfterCompletion() async throws {
     let audioSession = PlaybackAudioSessionSpy()
@@ -161,6 +175,56 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     XCTAssertEqual(failures, 1)
   }
 
+  func testItemStatusFailureReportsOnceAndIgnoresNonFailures() async throws {
+    let audioSession = PlaybackAudioSessionSpy()
+    let statusObservation = PlayerItemStatusObservationSpy()
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: audioSession,
+      statusObservation: statusObservation
+    )
+    let controller = AVPlayerViewController()
+    var failures = 0
+
+    coordinator.start(source: source(startFromSeconds: 0), in: controller) {
+      failures += 1
+    }
+    _ = try XCTUnwrap(capture.driver)
+
+    statusObservation.emit(.unknown)
+    statusObservation.emit(.readyToPlay)
+    await Task.yield()
+    XCTAssertEqual(failures, 0)
+
+    statusObservation.emit(.failed)
+    statusObservation.emit(.failed)
+    await Task.yield()
+    XCTAssertEqual(failures, 1)
+
+    coordinator.stop(controller: controller)
+    XCTAssertEqual(statusObservation.invalidationCount, 1)
+  }
+
+  func testStoppedItemStatusFailureCannotReportFromCapturedCallback() async {
+    let audioSession = PlaybackAudioSessionSpy()
+    let statusObservation = PlayerItemStatusObservationSpy()
+    let (coordinator, _) = makeCoordinator(
+      audioSession: audioSession,
+      statusObservation: statusObservation
+    )
+    let controller = AVPlayerViewController()
+    var failures = 0
+
+    coordinator.start(source: source(startFromSeconds: 0), in: controller) {
+      failures += 1
+    }
+    coordinator.stop(controller: controller)
+    statusObservation.emit(.failed)
+    await Task.yield()
+
+    XCTAssertEqual(statusObservation.invalidationCount, 1)
+    XCTAssertEqual(failures, 0)
+  }
+
   func testAudioSessionActivationFailureUsesPlayerFailureBoundary() async throws {
     let audioSession = PlaybackAudioSessionSpy()
     audioSession.activationError = PlaybackAudioSessionSpy.Failure.activation
@@ -201,6 +265,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
 
   private func makeCoordinator(
     audioSession: PlaybackAudioSessionSpy,
+    statusObservation: PlayerItemStatusObservationSpy? = nil,
     notificationCenter: NotificationCenter = NotificationCenter()
   ) -> (PutioSystemVideoPlayerCoordinator, VideoPlayerDriverCapture) {
     let capture = VideoPlayerDriverCapture()
@@ -210,6 +275,15 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
         capture.driver = driver
         capture.item = item
         return driver
+      },
+      observeItemStatus: { item, statusChanged in
+        guard let statusObservation else {
+          return item.observe(\.status, options: [.initial, .new]) { item, _ in
+            statusChanged(item.status)
+          }
+        }
+        statusObservation.statusChanged = statusChanged
+        return statusObservation
       },
       audioSession: audioSession,
       notificationCenter: notificationCenter

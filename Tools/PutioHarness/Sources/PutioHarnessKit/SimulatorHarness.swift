@@ -76,14 +76,39 @@ func journeyRecordingWindow(
     return differences.indices.filter { differences[$0] <= threshold }
   }
 
-  guard let rootIndex = try matchingIndices(for: root).first else {
+  let rootIndices = try matchingIndices(for: root)
+  guard !rootIndices.isEmpty else {
     throw HarnessFailure("browser journey recording is missing its root frame")
   }
   guard
-    let nestedIndex = try matchingIndices(for: nested).first(where: { $0 > rootIndex })
+    let nestedIndex = try matchingIndices(for: nested).first(where: { nestedIndex in
+      rootIndices.contains(where: { $0 < nestedIndex })
+    })
   else {
     throw HarnessFailure("browser journey recording is missing its nested frame after root")
   }
+  guard let lastRootIndex = rootIndices.last(where: { $0 < nestedIndex }) else {
+    throw HarnessFailure("browser journey recording is missing its root frame before nested")
+  }
+  let rootIndexSet = Set(rootIndices)
+  var rootRunStartIndex = lastRootIndex
+  while rootRunStartIndex > 0, rootIndexSet.contains(rootRunStartIndex - 1) {
+    rootRunStartIndex -= 1
+  }
+  let rootDepartureTime = frames[lastRootIndex + 1].presentationTime
+  let start = max(
+    frames[rootRunStartIndex].presentationTime,
+    rootDepartureTime - 1
+  )
+  let rootIndex =
+    (rootRunStartIndex...lastRootIndex).first(where: { index in
+      let nextPresentationTime = frames[index + 1].presentationTime
+      let visibleEnd = max(
+        frames[index].presentationTime + frames[index].duration,
+        nextPresentationTime
+      )
+      return visibleEnd > start
+    }) ?? lastRootIndex
   let backDifferences = frames.map { journeyFrameDifference($0.fingerprint, back) }
   guard let bestBackDifference = backDifferences.dropFirst(nestedIndex + 1).min(),
     bestBackDifference <= maximumDifference
@@ -120,7 +145,7 @@ func journeyRecordingWindow(
   }
 
   let end = frames[backIndex].presentationTime + frames[backIndex].duration
-  let duration = end - frames[rootIndex].presentationTime
+  let duration = end - start
   let frameCount = backIndex - rootIndex + 1
   guard duration.isFinite, duration > 0, duration <= maximumJourneyRecordingDuration else {
     throw HarnessFailure(
@@ -133,7 +158,7 @@ func journeyRecordingWindow(
     )
   }
   return JourneyRecordingWindow(
-    start: frames[rootIndex].presentationTime,
+    start: start,
     duration: duration,
     frameCount: frameCount
   )
