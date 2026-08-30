@@ -635,6 +635,21 @@ public struct SimulatorHarness {
     do {
       return try withSession(platform: platform, runID: runID) { session in
         try buildJourneyTests(platform: platform, session: session)
+        let mediaDirectory = appURL(for: platform).appending(path: "HarnessMedia")
+        try requireNonemptyFile(
+          mediaDirectory.appending(path: "runtime-proof.m3u8"),
+          context: "runtime-proof HLS playlist"
+        )
+        try requireNonemptyFile(
+          mediaDirectory.appending(path: "runtime-proof-000.ts"),
+          context: "runtime-proof HLS segment"
+        )
+        let mediaServer = try HarnessMediaServer(mediaDirectory: mediaDirectory)
+        let mediaBaseURL = try mediaServer.start()
+        defer { mediaServer.stop() }
+        try SimulatorLifecycle.shared.register {
+          mediaServer.stop()
+        }
 
         let resultBundle = platformDirectory.appending(path: "runtime-proof.xcresult")
         let rawRecording = platformDirectory.appending(path: ".runtime-proof-walk.raw.mp4")
@@ -655,6 +670,9 @@ public struct SimulatorHarness {
             "-default-test-execution-time-allowance", "30",
             "-maximum-test-execution-time-allowance", "60",
             "-only-testing:\(BrowserJourneyContract.testIdentifier)",
+          ],
+          environment: [
+            "TEST_RUNNER_PUTIO_HARNESS_MEDIA_BASE_URL": mediaBaseURL.absoluteString
           ],
           currentDirectory: context.root
         )

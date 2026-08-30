@@ -295,17 +295,30 @@ private struct MainTabView: View {
         return resolution
       }
       harnessPlaybackAttempt += 1
-      let resourceName = harnessPlaybackAttempt == 1
-        ? "runtime-proof-invalid"
-        : "runtime-proof"
-      guard
-        let fixtureURL = Bundle.main.url(
-          forResource: resourceName,
-          withExtension: "m3u8",
-          subdirectory: "HarnessMedia"
-        )
-      else {
-        throw HarnessPlaybackFixtureError.missingResource
+      let fixtureURL: URL
+      if harnessPlaybackAttempt == 1 {
+        guard
+          let invalidFixture = Bundle.main.url(
+            forResource: "runtime-proof-invalid",
+            withExtension: "m3u8",
+            subdirectory: "HarnessMedia"
+          )
+        else {
+          throw HarnessPlaybackFixtureError.missingResource
+        }
+        fixtureURL = invalidFixture
+      } else {
+        guard
+          let baseURLString = ProcessInfo.processInfo.environment[
+            "PUTIO_HARNESS_MEDIA_BASE_URL"
+          ],
+          let baseURL = URL(string: baseURLString),
+          baseURL.scheme == "http",
+          baseURL.host == "127.0.0.1"
+        else {
+          throw HarnessPlaybackFixtureError.missingResource
+        }
+        fixtureURL = baseURL.appending(path: "runtime-proof.m3u8")
       }
       if harnessPlaybackAttempt == 1 {
         do {

@@ -3,14 +3,17 @@ import XCTest
 final class FilesBrowserJourneyTests: XCTestCase {
   private var app: XCUIApplication!
 
-  override func setUp() {
-    super.setUp()
+  override func setUpWithError() throws {
+    try super.setUpWithError()
     continueAfterFailure = false
     app = XCUIApplication()
     app.launchArguments = [
       "--putio-harness-scenario",
       "files-browser",
     ]
+    app.launchEnvironment["PUTIO_HARNESS_MEDIA_BASE_URL"] = try XCTUnwrap(
+      ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"]
+    )
   }
 
   func testRunnableAlphaLoop() {
