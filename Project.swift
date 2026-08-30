@@ -60,6 +60,7 @@ let project = Project(
       infoPlist: .extendingDefault(with: [
         "CFBundleDisplayName": "put.io",
         "UIAppFonts": brandFontInfoPlist(for: "ios"),
+        "UIBackgroundModes": ["audio"],
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
       ]),

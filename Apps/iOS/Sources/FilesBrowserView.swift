@@ -3,33 +3,39 @@ import PutioCore
 import SwiftUI
 
 typealias PutioFileSelection = @MainActor @Sendable (PutioFileRoute) -> Void
+typealias PutioRootLoaded = @MainActor @Sendable () -> Void
 
 @MainActor
 struct FilesBrowserView: View {
   private let load: PutioFolderLoad
   private let onFileSelected: PutioFileSelection
+  private let onRootLoaded: PutioRootLoaded
   private let onReturnToRoot: @MainActor @Sendable () -> Void
   @State private var path: [PutioFolderRoute] = []
 
   init(
     runtime: PutioRuntime,
     onFileSelected: @escaping PutioFileSelection,
+    onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {}
   ) {
     load = { folderID in
       try await runtime.listFiles(parentID: folderID)
     }
     self.onFileSelected = onFileSelected
+    self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
   }
 
   init(
     load: @escaping PutioFolderLoad,
     onFileSelected: @escaping PutioFileSelection,
+    onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {}
   ) {
     self.load = load
     self.onFileSelected = onFileSelected
+    self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
   }
 
@@ -38,6 +44,7 @@ struct FilesBrowserView: View {
       PutioFolderScreen(
         route: .root,
         load: load,
+        onLoaded: onRootLoaded,
         onFileSelected: onFileSelected
       )
       .navigationDestination(for: PutioFolderRoute.self) { route in
@@ -63,8 +70,10 @@ struct PutioFolderScreen: View {
   @State private var model: PutioFolderModel
   @State private var retryRequest: RetryRequest?
   @State private var retrySequence: UInt64 = 0
+  @State private var reportedLoaded = false
   private let relativeDateReference: Date?
   private let locale: Locale
+  private let onLoaded: @MainActor @Sendable () -> Void
   private let onFileSelected: PutioFileSelection
 
   init(
@@ -73,6 +82,7 @@ struct PutioFolderScreen: View {
     initialContents: PutioFolderContents? = nil,
     relativeTo relativeDateReference: Date? = nil,
     locale: Locale = .current,
+    onLoaded: @escaping @MainActor @Sendable () -> Void = {},
     onFileSelected: @escaping PutioFileSelection
   ) {
     self.route = route
@@ -85,6 +95,7 @@ struct PutioFolderScreen: View {
     )
     self.relativeDateReference = relativeDateReference
     self.locale = locale
+    self.onLoaded = onLoaded
     self.onFileSelected = onFileSelected
   }
 
@@ -113,6 +124,11 @@ struct PutioFolderScreen: View {
     }
     .task(id: retryRequest) {
       await runRetryRequest()
+    }
+    .onChange(of: model.state, initial: true) { _, state in
+      guard !reportedLoaded, case .loaded = state else { return }
+      reportedLoaded = true
+      onLoaded()
     }
   }
 

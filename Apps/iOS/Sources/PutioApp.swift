@@ -154,6 +154,7 @@ private struct MainTabView: View {
   @State private var searchText = ""
   @State private var selectedFileRoute: PutioFileRoute?
   @State private var selectedVideoRoute: PutioFileRoute?
+  @State private var journeyRootLoaded = false
   @State private var journeyReturnedToRoot = false
 
   var body: some View {
@@ -162,6 +163,11 @@ private struct MainTabView: View {
         FilesBrowserView(
           runtime: runtime,
           onFileSelected: { route in selectFile(route) },
+          onRootLoaded: {
+            if scenario == .filesBrowser {
+              journeyRootLoaded = true
+            }
+          },
           onReturnToRoot: {
             if scenario == .filesBrowser {
               journeyReturnedToRoot = true
@@ -250,7 +256,10 @@ private struct MainTabView: View {
     }
     .overlay(alignment: .bottomTrailing) {
       if scenario == .filesBrowser {
-        HarnessJourneyCaptureGate(shouldComplete: journeyReturnedToRoot)
+        HarnessJourneyCaptureGate(
+          shouldStart: journeyRootLoaded,
+          shouldComplete: journeyReturnedToRoot
+        )
       }
     }
     .task {
@@ -265,12 +274,12 @@ private struct MainTabView: View {
 
   private func selectFile(_ route: PutioFileRoute) {
     selectedFileRoute = route
-    guard route.item.kind == .video else { return }
-    selectedVideoRoute = route
+    selectedVideoRoute = route.videoPlaybackRoute
   }
 }
 
 private struct HarnessJourneyCaptureGate: View {
+  let shouldStart: Bool
   let shouldComplete: Bool
 
   @State private var recordingStarted = false
@@ -293,7 +302,7 @@ private struct HarnessJourneyCaptureGate: View {
         .accessibilityHidden(!captureCompleted)
         .allowsHitTesting(false)
     }
-    .task {
+    .task(id: shouldStart) {
       let fileManager = FileManager.default
       let readyMarker = fileManager.temporaryDirectory.appending(
         path: "putio-harness-journey-ready"
@@ -302,6 +311,10 @@ private struct HarnessJourneyCaptureGate: View {
         path: "putio-harness-journey-recording"
       )
       try? fileManager.removeItem(at: recordingMarker)
+      guard shouldStart else {
+        try? fileManager.removeItem(at: readyMarker)
+        return
+      }
       try? Data().write(to: readyMarker, options: .atomic)
 
       while !Task.isCancelled {

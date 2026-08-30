@@ -90,6 +90,63 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertEqual(resolver.requestedIDs, [fileID, fileID])
   }
 
+  func testEveryResolutionFailureMapsToStableRecoveryCopy() throws {
+    let cases: [(Error, PutioVideoPlaybackFailure)] = [
+      (
+        PutioRuntimeError.notFound,
+        PutioVideoPlaybackFailure(
+          kind: .notFound,
+          title: "Video not found",
+          message: "It may have been moved or deleted."
+        )
+      ),
+      (
+        PutioRuntimeError.rateLimited,
+        PutioVideoPlaybackFailure(
+          kind: .rateLimited,
+          title: "Could not open video",
+          message: "put.io is receiving too many requests. Try again shortly."
+        )
+      ),
+      (
+        PutioRuntimeError.transient,
+        PutioVideoPlaybackFailure(
+          kind: .transient,
+          title: "Could not open video",
+          message: "Check your connection and try again."
+        )
+      ),
+      (
+        PutioRuntimeError.invalidResponse,
+        PutioVideoPlaybackFailure(
+          kind: .invalidResponse,
+          title: "Could not open video",
+          message: "put.io returned an invalid response. Try again."
+        )
+      ),
+      (
+        PutioRuntimeError.unknown,
+        PutioVideoPlaybackFailure(
+          kind: .unknown,
+          title: "Could not open video",
+          message: "put.io could not prepare this video. Try again."
+        )
+      ),
+      (
+        NSError(domain: "PutioVideoPlaybackModelTests", code: 1),
+        PutioVideoPlaybackFailure(
+          kind: .unknown,
+          title: "Could not open video",
+          message: "put.io could not prepare this video. Try again."
+        )
+      ),
+    ]
+
+    for (error, expected) in cases {
+      XCTAssertEqual(try XCTUnwrap(PutioVideoPlaybackFailure.resolving(error)), expected)
+    }
+  }
+
   func testCancellationCanRetryWithoutBecomingAnError() async {
     let source = playbackSource()
     let resolver = CancellationPlaybackResolver(source: source)

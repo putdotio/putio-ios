@@ -18,12 +18,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let root = element(identifier: "files.screen.0")
     let folder = element(identifier: "files.item.410")
-    XCTAssertTrue(root.waitForExistence(timeout: 15), "root browser never appeared")
-    XCTAssertTrue(folder.waitForExistence(timeout: 5), "seeded folder never appeared")
     XCTAssertTrue(
-      element(identifier: "journey.capture-recording").waitForExistence(timeout: 10),
+      element(identifier: "journey.capture-recording").waitForExistence(timeout: 15),
       "harness never signaled that journey recording started"
     )
+    XCTAssertTrue(root.exists, "capture started before the root browser appeared")
+    XCTAssertTrue(folder.exists, "capture started before the seeded folder appeared")
     XCTAssertTrue(folder.isHittable, "seeded folder is not tappable")
     addScreenshot(named: "files-browser-root")
 

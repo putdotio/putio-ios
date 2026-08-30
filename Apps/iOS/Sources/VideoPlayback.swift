@@ -157,10 +157,9 @@ struct PutioVideoPlaybackView: View {
   var body: some View {
     ZStack(alignment: .topTrailing) {
       content
-      Button("Done") {
+      PutioButton("Done", tier: .primary) {
         dismiss()
       }
-      .buttonStyle(.borderedProminent)
       .padding(PutioTheme.Spacing.space4)
       .accessibilityIdentifier("video.done")
     }
@@ -210,8 +209,8 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
   let source: PutioPlaybackSource
   let onFailure: @MainActor @Sendable () -> Void
 
-  func makeCoordinator() -> Coordinator {
-    Coordinator()
+  func makeCoordinator() -> PutioSystemVideoPlayerCoordinator {
+    PutioSystemVideoPlayerCoordinator()
   }
 
   func makeUIViewController(context: Context) -> AVPlayerViewController {
@@ -227,55 +226,181 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
 
   static func dismantleUIViewController(
     _ controller: AVPlayerViewController,
-    coordinator: Coordinator
+    coordinator: PutioSystemVideoPlayerCoordinator
   ) {
     coordinator.stop(controller: controller)
   }
+}
 
-  @MainActor
-  final class Coordinator {
-    private var statusObservation: NSKeyValueObservation?
-    private var onFailure: (@MainActor () -> Void)?
+@MainActor
+protocol PutioVideoPlayerDriving: AnyObject {
+  var player: AVPlayer { get }
 
-    func start(
-      source: PutioPlaybackSource,
-      in controller: AVPlayerViewController,
-      onFailure: @escaping @MainActor () -> Void
-    ) {
-      self.onFailure = onFailure
-      let item = AVPlayerItem(url: source.url)
-      statusObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
-        guard item.status == .failed else { return }
-        Task { @MainActor [weak self] in self?.reportFailure() }
+  func play()
+  func seek(to time: CMTime, completion: @escaping @Sendable (Bool) -> Void)
+  func stop()
+}
+
+@MainActor
+private final class PutioSystemVideoPlayerDriver: PutioVideoPlayerDriving {
+  let player: AVPlayer
+
+  init(item: AVPlayerItem) {
+    player = AVPlayer(playerItem: item)
+  }
+
+  func play() {
+    player.play()
+  }
+
+  func seek(to time: CMTime, completion: @escaping @Sendable (Bool) -> Void) {
+    player.seek(
+      to: time,
+      toleranceBefore: .zero,
+      toleranceAfter: .zero,
+      completionHandler: completion
+    )
+  }
+
+  func stop() {
+    player.currentItem?.cancelPendingSeeks()
+    player.pause()
+    player.replaceCurrentItem(with: nil)
+  }
+}
+
+@MainActor
+protocol PutioPlaybackAudioSessioning: AnyObject {
+  func activate() throws
+  func deactivate()
+}
+
+@MainActor
+private final class PutioPlaybackAudioSession: PutioPlaybackAudioSessioning {
+  func activate() throws {
+    let session = AVAudioSession.sharedInstance()
+    try session.setCategory(.playback, mode: .moviePlayback)
+    try session.setActive(true)
+  }
+
+  func deactivate() {
+    try? AVAudioSession.sharedInstance().setActive(
+      false,
+      options: .notifyOthersOnDeactivation
+    )
+  }
+}
+
+@MainActor
+final class PutioSystemVideoPlayerCoordinator {
+  typealias DriverFactory = @MainActor (AVPlayerItem) -> any PutioVideoPlayerDriving
+
+  private let makeDriver: DriverFactory
+  private let audioSession: any PutioPlaybackAudioSessioning
+  private let notificationCenter: NotificationCenter
+  private var statusObservation: NSKeyValueObservation?
+  private var failedToEndObservation: NSObjectProtocol?
+  private var driver: (any PutioVideoPlayerDriving)?
+  private var onFailure: (@MainActor () -> Void)?
+  private var generation: UInt64 = 0
+  private var failureReported = false
+  private var audioSessionIsActive = false
+
+  convenience init() {
+    self.init(
+      makeDriver: { PutioSystemVideoPlayerDriver(item: $0) },
+      audioSession: PutioPlaybackAudioSession(),
+      notificationCenter: .default
+    )
+  }
+
+  init(
+    makeDriver: @escaping DriverFactory,
+    audioSession: any PutioPlaybackAudioSessioning,
+    notificationCenter: NotificationCenter
+  ) {
+    self.makeDriver = makeDriver
+    self.audioSession = audioSession
+    self.notificationCenter = notificationCenter
+  }
+
+  func start(
+    source: PutioPlaybackSource,
+    in controller: AVPlayerViewController,
+    onFailure: @escaping @MainActor () -> Void
+  ) {
+    generation &+= 1
+    let playbackGeneration = generation
+    failureReported = false
+    self.onFailure = onFailure
+
+    let item = AVPlayerItem(url: source.url)
+    statusObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
+      guard item.status == .failed else { return }
+      Task { @MainActor [weak self] in
+        self?.reportFailure(generation: playbackGeneration)
       }
-
-      let player = AVPlayer(playerItem: item)
-      controller.player = player
-      guard source.startFromSeconds > 0 else {
-        player.play()
-        return
-      }
-
-      let startTime = CMTime(
-        seconds: Double(source.startFromSeconds),
-        preferredTimescale: 600
-      )
-      player.seek(to: startTime, toleranceBefore: .zero, toleranceAfter: .zero) { finished in
-        guard finished else { return }
-        player.play()
+    }
+    failedToEndObservation = notificationCenter.addObserver(
+      forName: AVPlayerItem.failedToPlayToEndTimeNotification,
+      object: item,
+      queue: nil
+    ) { [weak self] _ in
+      Task { @MainActor [weak self] in
+        self?.reportFailure(generation: playbackGeneration)
       }
     }
 
-    func stop(controller: AVPlayerViewController) {
-      statusObservation = nil
-      onFailure = nil
-      controller.player?.pause()
-      controller.player?.replaceCurrentItem(with: nil)
-      controller.player = nil
+    let driver = makeDriver(item)
+    self.driver = driver
+    controller.player = driver.player
+
+    do {
+      try audioSession.activate()
+      audioSessionIsActive = true
+    } catch {
+      reportFailure(generation: playbackGeneration)
+      return
     }
 
-    private func reportFailure() {
-      onFailure?()
+    guard source.startFromSeconds > 0 else {
+      driver.play()
+      return
     }
+
+    let startTime = CMTime(
+      seconds: Double(source.startFromSeconds),
+      preferredTimescale: 600
+    )
+    driver.seek(to: startTime) { [weak self] finished in
+      guard finished else { return }
+      Task { @MainActor [weak self] in
+        guard let self, generation == playbackGeneration, self.driver != nil else { return }
+        driver.play()
+      }
+    }
+  }
+
+  func stop(controller: AVPlayerViewController) {
+    generation &+= 1
+    statusObservation = nil
+    if let failedToEndObservation {
+      notificationCenter.removeObserver(failedToEndObservation)
+      self.failedToEndObservation = nil
+    }
+    onFailure = nil
+    driver?.stop()
+    driver = nil
+    controller.player = nil
+    if audioSessionIsActive {
+      audioSession.deactivate()
+      audioSessionIsActive = false
+    }
+  }
+
+  private func reportFailure(generation playbackGeneration: UInt64) {
+    guard generation == playbackGeneration, !failureReported else { return }
+    failureReported = true
+    onFailure?()
   }
 }
