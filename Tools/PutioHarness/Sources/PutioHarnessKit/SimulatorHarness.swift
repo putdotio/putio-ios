@@ -636,9 +636,9 @@ public struct SimulatorHarness {
       return try withSession(platform: platform, runID: runID) { session in
         try buildJourneyTests(platform: platform, session: session)
 
-        let resultBundle = platformDirectory.appending(path: "files-browser.xcresult")
-        let rawRecording = platformDirectory.appending(path: ".files-browser-walk.raw.mp4")
-        let recording = platformDirectory.appending(path: "files-browser-walk.mp4")
+        let resultBundle = platformDirectory.appending(path: "runtime-proof.xcresult")
+        let rawRecording = platformDirectory.appending(path: ".runtime-proof-walk.raw.mp4")
+        let recording = platformDirectory.appending(path: "runtime-proof-walk.mp4")
         let testProcess = try runner.start(
           "xcodebuild",
           [
@@ -694,17 +694,17 @@ public struct SimulatorHarness {
 
         guard recordingOutput.status == 0 else {
           throw HarnessFailure(
-            "record ios files-browser journey failed\n\(recordingOutput.combinedOutput)")
+            "record ios runtime-proof journey failed\n\(recordingOutput.combinedOutput)")
         }
-        try requireNonemptyFile(rawRecording, context: "raw browser journey recording")
+        try requireNonemptyFile(rawRecording, context: "raw runtime-proof recording")
         guard testOutput.status == 0 else {
           let details = journeyFailureDetails(resultBundle: resultBundle)
           throw HarnessFailure(
-            "run ios files-browser journey failed\n\(testOutput.combinedOutput)\n\(details)"
+            "run ios runtime-proof journey failed\n\(testOutput.combinedOutput)\n\(details)"
           )
         }
         try requireJourneyCaptureCompletion(captureCompleted, testOutput: testOutput)
-        let summary = platformDirectory.appending(path: "files-browser-test-summary.json")
+        let summary = platformDirectory.appending(path: "runtime-proof-test-summary.json")
         let screenshots = try extractJourneyResults(
           resultBundle: resultBundle,
           summary: summary,
@@ -713,14 +713,14 @@ public struct SimulatorHarness {
         try fileManager.removeItem(at: resultBundle)
 
         let rootPixels = try requireMeaningfulScreenshot(
-          screenshots[0], context: "browser root attachment")
+          screenshots[0], context: "runtime sign-in attachment")
         let nestedPixels = try requireMeaningfulScreenshot(
-          screenshots[1], context: "browser nested attachment")
+          screenshots[1], context: "runtime playback attachment")
         let backPixels = try requireMeaningfulScreenshot(
-          screenshots[2], context: "browser back attachment")
+          screenshots[2], context: "runtime signed-out attachment")
         guard rootPixels.differsMeaningfully(from: nestedPixels) else {
           throw HarnessFailure(
-            "browser journey root and nested screenshots do not differ meaningfully")
+            "runtime sign-in and playback screenshots do not differ meaningfully")
         }
 
         try trimJourneyRecording(
@@ -731,7 +731,7 @@ public struct SimulatorHarness {
           back: backPixels
         )
         try fileManager.removeItem(at: rawRecording)
-        try requireNonemptyFile(recording, context: "browser journey recording")
+        try requireNonemptyFile(recording, context: "runtime-proof recording")
 
         try requireCleanSource()
         try requireRevision(sourceRevision)
@@ -750,7 +750,7 @@ public struct SimulatorHarness {
           platform: platform,
           artifacts: artifactURLs + [manifest],
           message:
-            "files-browser journey passed 1/1 tests in \(context.relativePath(for: platformDirectory))"
+            "runtime-proof journey passed 1/1 tests in \(context.relativePath(for: platformDirectory))"
         )
       }
     } catch {

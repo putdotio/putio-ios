@@ -129,7 +129,7 @@ public enum JourneyScenario: String, CaseIterable, Equatable, Sendable {
 
   var fixtureSet: String {
     switch self {
-    case .filesBrowser: "seeded-files-browser-v1"
+    case .filesBrowser: "seeded-runtime-loop-v2"
     }
   }
 }
@@ -290,14 +290,14 @@ public struct ProofManifest: Codable, Equatable, Sendable {
 
 enum BrowserJourneyContract {
   static let testIdentifier =
-    "PutioUITests/FilesBrowserJourneyTests/testRootNestedFolderAndNativeBack"
+    "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
   static let captureReadyMarkerName = "putio-harness-journey-ready"
   static let recordingStartedMarkerName = "putio-harness-journey-recording"
   static let captureCompleteMarkerName = "putio-harness-journey-complete"
   static let attachmentNames = [
-    "files-browser-root",
-    "files-browser-nested",
-    "files-browser-back",
+    "runtime-sign-in",
+    "runtime-playback",
+    "runtime-signed-out",
   ]
 
   static func artifactFileName(for attachmentName: String) -> String {

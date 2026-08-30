@@ -34,7 +34,7 @@ Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` 
 
 `screenshot` and `record` accept `--scenario signed-out|gallery|signed-in`. The `gallery` scenario launches the iOS or tvOS component gallery. The iOS-only `signed-in` scenario uses a deterministic in-process API, restores a session, bootstraps the account screen, and signs out after a few seconds. Other commands and unsupported platforms reject these scenarios.
 
-`journey --platform ios --scenario files-browser` proves the browser and direct-HLS presentation with real accessibility input. One XCUITest waits for root folder `0`, taps folder `410`, opens video `411` in the system player, dismisses playback back to folder `410`, asserts its typed route contains file `411`, parent `410`, and kind `video`, then taps the native `Files` Back button and asserts the restored root. HTTP responses are deterministic fixtures; the app UI, row taps, playback-source resolution, system-player presentation, dismissal, navigation, and Back control are real. AVFoundation does not use the fixture `URLSession`, so the harness keeps the presented player visible instead of mapping that expected fixture-network failure into the app error state. This journey proves system-player handoff rather than decoded media; the runtime-proof layer owns a deterministic HLS media fixture.
+`journey --platform ios --scenario files-browser` proves the runnable alpha loop with real accessibility input. One XCUITest signs in through the real session transition using a deterministic OAuth callback, terminates and relaunches the app to prove Keychain restoration, browses root folder `0` and folder `410`, and opens video `411`. The first AVPlayer attempt uses an intentionally missing local playlist and must reach the retryable error state. Retry resolves the source again, plays the bundled Debug-only HLS fixture until `AVPlayerItem` reports `readyToPlay`, then dismisses playback, returns to root with the native Back control, opens Account, and signs out. HTTP responses and OAuth input are deterministic fixtures; the session store, SDK playback-source resolution, app UI, AVPlayer failure/readiness, navigation, and sign-out are real. AVFoundation does not use the fixture `URLSession`; successful media readiness comes from the bundled HLS fixture and is not evidence of fixture-network playback.
 
 `test --platform <ios|tvos>` runs snapshot suites on an ephemeral simulator via `xcodebuild test`. iOS runs the unhosted `PutioSnapshotTests` component gallery and the app-hosted `PutioFeatureTests`; tvOS runs `PutioTVSnapshotTests`. Baselines are committed under `Tests/ComponentSnapshots/__Snapshots__/<platform>/`; comparison tolerates small antialiasing drift between Simulator runtimes. Liquid Glass cannot be rasterized off-screen, so the suite renders glass surfaces with their bordered/material fallbacks (`PUTIO_SNAPSHOT_RASTER`); review the real glass appearance through the gallery captures. After an intentional visual change run `test --platform <platform> --snapshots record`, which records the baselines and re-asserts against what it wrote, then review and commit the image diff. `mise run verify` runs both platforms' suites.
 
@@ -61,19 +61,19 @@ The manifest records the commit, platform, scheme, bundle identifier, runtime, d
 Proof capture rejects tracked or untracked source changes so the manifest commit always identifies the exact built source.
 It pins `HEAD` before generation and requires the same revision immediately before manifest emission.
 
-The browser journey applies the same clean-source and pinned-revision checks. It writes:
+The runtime-proof journey applies the same clean-source and pinned-revision checks. It writes:
 
 ```text
 build/proof/<run-id>/ios/
-├── files-browser-back.png
-├── files-browser-nested.png
-├── files-browser-root.png
-├── files-browser-test-summary.json
-├── files-browser-walk.mp4
+├── runtime-playback.png
+├── runtime-sign-in.png
+├── runtime-signed-out.png
+├── runtime-proof-test-summary.json
+├── runtime-proof-walk.mp4
 └── manifest.json
 ```
 
-The journey requires exactly `1/1` passing UI test, three meaningful screenshots, and different root and nested frames. Recording is capture-gated: a single `simctl recordVideo` stream warms while the UI test launches, and the test pauses after the root browser is visible. The harness publishes at most one second of loaded-root context before releasing the test, then the UI test captures the root attachment before its first tap. After native Back returns to a stable root, the UI test triggers the app's harness-only finish action; the app clears stale capture markers at startup and signals completion immediately. The harness re-encodes the exact frame window, rejects a recording longer than 25 seconds, and removes the raw recording and intermediate Xcode result bundle after extraction. Empty startup and teardown never enter the published walk.
+The journey requires exactly `1/1` passing UI test, three meaningful screenshots, and different sign-in and playback frames. Recording is capture-gated: a single `simctl recordVideo` stream warms before the test releases the initial sign-in screen, and its marker survives the intentional app relaunch. The harness publishes at most one second of stable initial sign-in context. After sign-out returns to the same stable screen, the test triggers the harness-only finish action. The harness re-encodes the screenshot-matched frame window, requires the playback landmark between the matching initial and final sign-in runs, rejects a recording longer than 25 seconds, and removes the raw recording and intermediate Xcode result bundle after extraction. Empty startup and teardown never enter the published walk.
 
 Capture never uploads implicitly. Publish one reviewed artifact only after a pull request exists:
 

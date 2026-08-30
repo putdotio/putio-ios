@@ -154,6 +154,38 @@ import Testing
   #expect(abs(window.start - 5) < 0.000_001)
 }
 
+@Test func journeyRecordingWindowSupportsMatchingInitialAndFinalSignInScreens() throws {
+  let signIn = JourneyFrameFingerprint(samples: [10])
+  let playback = JourneyFrameFingerprint(samples: [100])
+  let unrelated = JourneyFrameFingerprint(samples: [250])
+  let frames = (0..<60).map { index in
+    let fingerprint =
+      if index < 10 || index >= 50 {
+        signIn
+      } else if index >= 25 && index < 35 {
+        playback
+      } else {
+        unrelated
+      }
+    return JourneyVideoFrame(
+      presentationTime: Double(index) / 10,
+      duration: 0.1,
+      fingerprint: fingerprint
+    )
+  }
+
+  let window = try journeyRecordingWindow(
+    frames: frames,
+    root: signIn,
+    nested: playback,
+    back: signIn
+  )
+
+  #expect(abs(window.start) < 0.000_001)
+  #expect(abs(window.duration - 5.3) < 0.000_001)
+  #expect(window.frameCount == 53)
+}
+
 @Test func journeyRecordingWindowRejectsMissingOrShortSequences() {
   let root = JourneyFrameFingerprint(samples: [0])
   let nested = JourneyFrameFingerprint(samples: [100])

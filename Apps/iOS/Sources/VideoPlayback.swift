@@ -141,6 +141,7 @@ struct PutioVideoPlaybackView: View {
   @Environment(\.dismiss) private var dismiss
   @State private var model: PutioVideoPlaybackModel
   @State private var retrySequence: UInt64 = 0
+  @State private var playerIsReady = false
   private let reportsPlayerFailures: Bool
 
   init(
@@ -169,7 +170,18 @@ struct PutioVideoPlaybackView: View {
     }
     .task(id: retrySequence) {
       guard retrySequence > 0 else { return }
+      playerIsReady = false
       await model.retry()
+    }
+    .overlay {
+      if playerIsReady {
+        Color.clear
+          .frame(width: 1, height: 1)
+          .accessibilityElement(children: .ignore)
+          .accessibilityLabel("Video ready")
+          .accessibilityIdentifier("video.ready")
+          .allowsHitTesting(false)
+      }
     }
   }
 
@@ -180,7 +192,11 @@ struct PutioVideoPlaybackView: View {
       PutioLoadingStateView(title: "Preparing video")
         .accessibilityIdentifier("video.loading")
     case .ready(let source):
-      PutioSystemVideoPlayer(source: source) {
+      PutioSystemVideoPlayer(
+        source: source,
+        onReady: { playerIsReady = true }
+      ) {
+        playerIsReady = false
         if reportsPlayerFailures {
           model.playerFailed()
         }
@@ -207,6 +223,7 @@ struct PutioVideoPlaybackView: View {
 
 private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
   let source: PutioPlaybackSource
+  let onReady: @MainActor @Sendable () -> Void
   let onFailure: @MainActor @Sendable () -> Void
 
   func makeCoordinator() -> PutioSystemVideoPlayerCoordinator {
@@ -218,7 +235,12 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
     controller.allowsPictureInPicturePlayback = true
     controller.entersFullScreenWhenPlaybackBegins = false
     controller.exitsFullScreenWhenPlaybackEnds = false
-    if context.coordinator.start(source: source, in: controller, onFailure: onFailure) {
+    if context.coordinator.start(
+      source: source,
+      in: controller,
+      onReady: onReady,
+      onFailure: onFailure
+    ) {
       controller.view.accessibilityIdentifier = "video.system-player"
     }
     return controller
@@ -316,8 +338,10 @@ final class PutioSystemVideoPlayerCoordinator {
   private var statusObservation: (any PutioPlayerItemStatusObservation)?
   private var failedToEndObservation: NSObjectProtocol?
   private var driver: (any PutioVideoPlayerDriving)?
+  private var onReady: (@MainActor () -> Void)?
   private var onFailure: (@MainActor () -> Void)?
   private var generation: UInt64 = 0
+  private var readyReported = false
   private var failureReported = false
   private var audioSessionIsActive = false
 
@@ -349,18 +373,29 @@ final class PutioSystemVideoPlayerCoordinator {
   func start(
     source: PutioPlaybackSource,
     in controller: AVPlayerViewController,
+    onReady: @escaping @MainActor () -> Void = {},
     onFailure: @escaping @MainActor () -> Void
   ) -> Bool {
     generation &+= 1
     let playbackGeneration = generation
+    readyReported = false
     failureReported = false
+    self.onReady = onReady
     self.onFailure = onFailure
 
     let item = AVPlayerItem(url: source.url)
     statusObservation = observeItemStatus(item) { [weak self] status in
-      guard status == .failed else { return }
       Task { @MainActor [weak self] in
-        self?.reportFailure(generation: playbackGeneration)
+        switch status {
+        case .readyToPlay:
+          self?.reportReady(generation: playbackGeneration)
+        case .failed:
+          self?.reportFailure(generation: playbackGeneration)
+        case .unknown:
+          break
+        @unknown default:
+          break
+        }
       }
     }
     failedToEndObservation = notificationCenter.addObserver(
@@ -418,6 +453,7 @@ final class PutioSystemVideoPlayerCoordinator {
       notificationCenter.removeObserver(failedToEndObservation)
       self.failedToEndObservation = nil
     }
+    onReady = nil
     onFailure = nil
     driver?.stop()
     driver = nil
@@ -432,5 +468,11 @@ final class PutioSystemVideoPlayerCoordinator {
     guard generation == playbackGeneration, !failureReported else { return }
     failureReported = true
     onFailure?()
+  }
+
+  private func reportReady(generation playbackGeneration: UInt64) {
+    guard generation == playbackGeneration, !readyReported, !failureReported else { return }
+    readyReported = true
+    onReady?()
   }
 }

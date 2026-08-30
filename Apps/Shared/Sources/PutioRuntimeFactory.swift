@@ -23,7 +23,9 @@ enum PutioRuntimeFactory {
         return PutioRuntime(
           clientID: clientID,
           clientName: clientName,
-          tokenStore: PutioInMemoryTokenStore(token: HarnessSeededAPI.token),
+          tokenStore: scenario == .filesBrowser
+            ? PutioKeychainTokenStore()
+            : PutioInMemoryTokenStore(token: HarnessSeededAPI.token),
           urlSession: URLSession(configuration: configuration)
         )
       }
@@ -34,6 +36,28 @@ enum PutioRuntimeFactory {
       tokenStore: PutioKeychainTokenStore()
     )
   }
+
+  #if DEBUG
+    static func runtimeProofCallback(for request: PutioSignInRequest) throws -> URL {
+      guard
+        let state = URLComponents(url: request.url, resolvingAgainstBaseURL: false)?
+          .queryItems?
+          .first(where: { $0.name == "state" })?
+          .value,
+        !state.isEmpty
+      else {
+        throw HarnessRuntimeError.missingOAuthState
+      }
+      var callback = URLComponents()
+      callback.scheme = request.callbackScheme
+      callback.host = "auth"
+      callback.fragment = "access_token=\(HarnessSeededAPI.token)&state=\(state)"
+      guard let url = callback.url else {
+        throw HarnessRuntimeError.invalidOAuthCallback
+      }
+      return url
+    }
+  #endif
 
   // The checked-in default stays open-source-safe; a registered client id
   // arrives with the app-identity work through the same Info.plist key the
@@ -54,3 +78,10 @@ enum PutioRuntimeFactory {
     #endif
   }
 }
+
+#if DEBUG
+  private enum HarnessRuntimeError: Error {
+    case invalidOAuthCallback
+    case missingOAuthState
+  }
+#endif

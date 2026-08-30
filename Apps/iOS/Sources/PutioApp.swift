@@ -59,7 +59,7 @@ private struct SessionRootView: View {
       case .signingOut:
         PutioLoadingStateView(title: "Signing out…")
       case .signedOut(let reason):
-        SignInView(session: runtime.session, reason: reason)
+        SignInView(session: runtime.session, reason: reason, scenario: scenario)
       case .signedIn(let account):
         MainTabView(
           runtime: runtime,
@@ -70,15 +70,35 @@ private struct SessionRootView: View {
       }
     }
     .background(PutioTheme.Colors.background)
+    .overlay(alignment: .bottomTrailing) {
+      if scenario == .filesBrowser {
+        HarnessJourneyCaptureGate(
+          shouldStart: runtimeProofCanStartCapture,
+          shouldComplete: runtimeProofCanCompleteCapture,
+          preservesRecordingAcrossRelaunch: true
+        )
+      }
+    }
     .task {
       await runtime.session.restore()
     }
+  }
+
+  private var runtimeProofCanStartCapture: Bool {
+    if case .signedOut(nil) = runtime.session.state { return true }
+    return false
+  }
+
+  private var runtimeProofCanCompleteCapture: Bool {
+    if case .signedOut(.userSignedOut) = runtime.session.state { return true }
+    return false
   }
 }
 
 private struct SignInView: View {
   let session: PutioSessionStore
   let reason: PutioSignedOutReason?
+  let scenario: HarnessScenario
 
   @Environment(\.webAuthenticationSession) private var webAuthenticationSession
   @PutioScaledMetric(PutioTheme.ScaledMetrics.contentGap) private var contentGap
@@ -95,6 +115,7 @@ private struct SignInView: View {
       PutioButton("Sign in", tier: .primary) {
         Task { await startSignIn() }
       }
+      .accessibilityIdentifier("auth.sign-in")
       if case .restoreFailed = reason {
         PutioButton("Try again", icon: .arrowCounterClockwise, tier: .ghost) {
           Task { await session.restore() }
@@ -129,6 +150,13 @@ private struct SignInView: View {
   private func startSignIn() async {
     do {
       let request = try session.beginSignIn()
+      #if DEBUG
+        if scenario == .filesBrowser {
+          let callbackURL = try PutioRuntimeFactory.runtimeProofCallback(for: request)
+          await session.completeSignIn(callbackURL: callbackURL)
+          return
+        }
+      #endif
       let callbackURL = try await webAuthenticationSession.authenticate(
         using: request.url,
         callbackURLScheme: request.callbackScheme
@@ -154,25 +182,14 @@ private struct MainTabView: View {
   @State private var searchText = ""
   @State private var selectedFileRoute: PutioFileRoute?
   @State private var selectedVideoRoute: PutioFileRoute?
-  @State private var journeyRootLoaded = false
-  @State private var journeyReturnedToRoot = false
+  @State private var harnessPlaybackAttempt = 0
 
   var body: some View {
     TabView {
       Tab {
         FilesBrowserView(
           runtime: runtime,
-          onFileSelected: { route in selectFile(route) },
-          onRootLoaded: {
-            if scenario == .filesBrowser {
-              journeyRootLoaded = true
-            }
-          },
-          onReturnToRoot: {
-            if scenario == .filesBrowser {
-              journeyReturnedToRoot = true
-            }
-          }
+          onFileSelected: { route in selectFile(route) }
         )
       } label: {
         Label {
@@ -243,23 +260,14 @@ private struct MainTabView: View {
     .tabBarMinimizeBehavior(.onScrollDown)
     .fullScreenCover(item: $selectedVideoRoute) { route in
       PutioVideoPlaybackView(
-        route: route,
-        reportsPlayerFailures: scenario != .filesBrowser
+        route: route
       ) { fileID in
-        try await runtime.resolveVideoPlaybackSource(fileID: fileID)
+        try await resolvePlaybackSource(fileID: fileID)
       }
     }
     .overlay(alignment: .topLeading) {
       if scenario == .filesBrowser, let selectedFileRoute {
         HarnessFileSelectionProbe(route: selectedFileRoute)
-      }
-    }
-    .overlay(alignment: .bottomTrailing) {
-      if scenario == .filesBrowser {
-        HarnessJourneyCaptureGate(
-          shouldStart: journeyRootLoaded,
-          shouldComplete: journeyReturnedToRoot
-        )
       }
     }
     .task {
@@ -276,11 +284,55 @@ private struct MainTabView: View {
     selectedFileRoute = route
     selectedVideoRoute = route.videoPlaybackRoute
   }
+
+  private func resolvePlaybackSource(fileID: PutioFileID) async throws
+    -> PutioPlaybackResolution
+  {
+    let resolution = try await runtime.resolveVideoPlaybackSource(fileID: fileID)
+    #if DEBUG
+      guard scenario == .filesBrowser, case .ready(let source) = resolution else {
+        return resolution
+      }
+      harnessPlaybackAttempt += 1
+      let fixtureURL: URL
+      if harnessPlaybackAttempt == 1 {
+        fixtureURL = Bundle.main.bundleURL.appending(
+          path: "HarnessMedia/missing-runtime-proof.m3u8"
+        )
+      } else {
+        guard
+          let bundledFixture = Bundle.main.url(
+            forResource: "runtime-proof",
+            withExtension: "m3u8",
+            subdirectory: "HarnessMedia"
+          )
+        else {
+          throw HarnessPlaybackFixtureError.missingResource
+        }
+        fixtureURL = bundledFixture
+      }
+      return .ready(
+        PutioPlaybackSource(
+          url: fixtureURL,
+          startFromSeconds: source.startFromSeconds
+        )
+      )
+    #else
+      return resolution
+    #endif
+  }
 }
+
+#if DEBUG
+  private enum HarnessPlaybackFixtureError: Error {
+    case missingResource
+  }
+#endif
 
 private struct HarnessJourneyCaptureGate: View {
   let shouldStart: Bool
   let shouldComplete: Bool
+  var preservesRecordingAcrossRelaunch = false
 
   @State private var recordingStarted = false
   @State private var captureCompleted = false
@@ -327,6 +379,12 @@ private struct HarnessJourneyCaptureGate: View {
       let completeMarker = fileManager.temporaryDirectory.appending(
         path: "putio-harness-journey-complete"
       )
+      if preservesRecordingAcrossRelaunch,
+        fileManager.fileExists(atPath: recordingMarker.path)
+      {
+        recordingStarted = true
+        return
+      }
       for marker in [readyMarker, recordingMarker, completeMarker] {
         try? fileManager.removeItem(at: marker)
       }
@@ -402,6 +460,7 @@ private struct AccountView: View {
           Button("Sign out", role: .destructive) {
             Task { await session.signOut() }
           }
+          .accessibilityIdentifier("auth.sign-out")
         }
       }
       .listRowBackground(PutioTheme.Colors.surface)
