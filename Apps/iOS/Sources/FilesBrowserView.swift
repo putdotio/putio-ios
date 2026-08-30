@@ -204,10 +204,20 @@ struct PutioFolderScreen: View {
 
   private func runRetryRequest() async {
     guard let request = retryRequest else { return }
+    // `.task(id:)` re-runs on every appearance, so a request that outlived
+    // its screen visit must not re-fire once the model no longer needs it.
     switch request.kind {
     case .load:
+      guard case .failed = model.state else {
+        retryRequest = nil
+        return
+      }
       await model.retry()
     case .refresh:
+      guard model.refreshFailure != nil else {
+        retryRequest = nil
+        return
+      }
       await model.refresh()
     }
     guard retryRequest == request else { return }
