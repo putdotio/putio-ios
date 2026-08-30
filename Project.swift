@@ -76,6 +76,7 @@ let project = Project(
               exit 0
             fi
             mkdir -p "$destination"
+            cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof-invalid.m3u8" "$destination/"
             cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof.m3u8" "$destination/"
             cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof-000.ts" "$destination/"
             """,
