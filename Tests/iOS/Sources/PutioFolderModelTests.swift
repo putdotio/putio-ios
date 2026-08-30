@@ -181,6 +181,32 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(loaded))
   }
 
+  func testReentryDuringCancelledInitialLoadUnwindRestartsTheLoad() async {
+    let loader = ControlledFolderLoader()
+    let loaded = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 3)]
+    )
+    let model = PutioFolderModel(folderID: .root) { folderID in
+      try await loader.load(folderID: folderID)
+    }
+
+    let firstVisit = Task { await model.loadIfNeeded() }
+    await loader.waitForRequestCount(1)
+    firstVisit.cancel()
+
+    // The next visit starts before the cancelled attempt finishes unwinding.
+    let secondVisit = Task { await model.loadIfNeeded() }
+    await loader.waitForRequestCount(2)
+    await loader.succeed(request: 1, with: loaded)
+    await secondVisit.value
+    XCTAssertEqual(model.state, .loaded(loaded))
+
+    // The late unwind of the superseded attempt must not clobber the result.
+    await loader.fail(request: 0, with: CancellationError())
+    await firstVisit.value
+    XCTAssertEqual(model.state, .loaded(loaded))
+  }
+
   func testRefreshPreservesRowsAndSurfacesRecoverableFailure() async {
     let loader = ControlledFolderLoader()
     let original = BrowserTestFixtures.contents(

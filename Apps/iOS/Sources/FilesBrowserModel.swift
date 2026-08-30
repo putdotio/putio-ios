@@ -103,7 +103,6 @@ final class PutioFolderModel {
 
   @ObservationIgnored private let load: PutioFolderLoad
   @ObservationIgnored private var generation: UInt64 = 0
-  @ObservationIgnored private var attemptedInitialLoad: Bool
 
   init(
     folderID: PutioFileID,
@@ -112,33 +111,25 @@ final class PutioFolderModel {
   ) {
     self.folderID = folderID
     self.load = load
-    if let initialContents {
-      state = .loaded(initialContents)
-      attemptedInitialLoad = true
-    } else {
-      state = .loading
-      attemptedInitialLoad = false
-    }
+    state = initialContents.map { .loaded($0) } ?? .loading
   }
 
   func loadIfNeeded() async {
-    guard !attemptedInitialLoad else { return }
-    attemptedInitialLoad = true
-    await replaceContents(isInitialLoad: true)
+    // `.loading` means the initial attempt never settled — including a
+    // cancelled attempt that is still unwinding when the screen is
+    // re-entered. Starting a new request here supersedes that unwind via
+    // the generation check, so a late restore cannot strand the spinner.
+    guard case .loading = state else { return }
+    await performLoad(mode: .replace)
   }
 
   func retry() async {
-    attemptedInitialLoad = true
-    await replaceContents(isInitialLoad: false)
+    await performLoad(mode: .replace)
   }
 
   func refresh() async {
     guard case .loaded = state else { return }
     await performLoad(mode: .refresh)
-  }
-
-  private func replaceContents(isInitialLoad: Bool) async {
-    await performLoad(mode: .replace(isInitialLoad: isInitialLoad))
   }
 
   private func performLoad(mode: LoadMode) async {
@@ -167,18 +158,12 @@ final class PutioFolderModel {
       if Task.isCancelled {
         state = previousState
         refreshFailure = previousRefreshFailure
-        if case .replace(isInitialLoad: true) = mode {
-          attemptedInitialLoad = false
-        }
         return
       }
 
       guard let presentation = PutioBrowserErrorPresentation(error: error) else {
         state = previousState
         refreshFailure = nil
-        if case .replace(isInitialLoad: true) = mode {
-          attemptedInitialLoad = false
-        }
         return
       }
       switch mode {
@@ -194,7 +179,7 @@ final class PutioFolderModel {
 }
 
 private enum LoadMode {
-  case replace(isInitialLoad: Bool)
+  case replace
   case refresh
 }
 
