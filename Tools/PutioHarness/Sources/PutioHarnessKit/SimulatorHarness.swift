@@ -17,26 +17,29 @@ func shouldBuildIOSCompanion(
 }
 
 let maximumJourneyRecordingDuration: TimeInterval = 25
+let journeyRootEstablishingDuration: TimeInterval = 1
 
 func journeyRecordingWindow(
   sourceDuration: TimeInterval,
+  captureStartOffset: TimeInterval,
   captureDuration: TimeInterval
 ) throws -> (start: TimeInterval, duration: TimeInterval) {
-  guard sourceDuration.isFinite, captureDuration.isFinite,
-    captureDuration >= 0, sourceDuration >= captureDuration - 0.5
+  guard sourceDuration.isFinite, captureStartOffset.isFinite, captureDuration.isFinite,
+    captureStartOffset >= 0, captureDuration >= 0,
+    sourceDuration >= captureStartOffset + captureDuration - 0.5
   else {
     throw HarnessFailure(
-      "raw browser journey recording is \(sourceDuration) seconds; expected at least \(captureDuration - 0.5)"
+      "raw browser journey recording is \(sourceDuration) seconds; expected the capture interval through \(captureStartOffset + captureDuration - 0.5)"
     )
   }
-  let leadingContext = min(3, max(0, sourceDuration - captureDuration))
-  let outputDuration = captureDuration + leadingContext
+  let rootContext = min(journeyRootEstablishingDuration, captureStartOffset)
+  let outputDuration = captureDuration + rootContext
   guard outputDuration <= maximumJourneyRecordingDuration else {
     throw HarnessFailure(
       "browser journey recording would be \(outputDuration) seconds; maximum is \(maximumJourneyRecordingDuration)"
     )
   }
-  return (start: max(0, sourceDuration - outputDuration), duration: outputDuration)
+  return (start: captureStartOffset - rootContext, duration: outputDuration)
 }
 
 private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: ProcessRunner) throws {
@@ -463,6 +466,7 @@ public struct SimulatorHarness {
         }
 
         let recordingProcess = try startRecording(session: session, output: rawRecording)
+        let recordingReadyAt = Date()
         var recordingFinished = false
         defer {
           if !recordingFinished { _ = recordingProcess.interruptAndWait() }
@@ -481,6 +485,7 @@ public struct SimulatorHarness {
         }
 
         let captureStartedAt = Date()
+        let captureStartOffset = captureStartedAt.timeIntervalSince(recordingReadyAt)
         try signalJourneyRecordingStarted(appContainer: appContainer)
 
         let captureCompleted = waitForJourneyCaptureComplete(
@@ -510,6 +515,7 @@ public struct SimulatorHarness {
         try trimJourneyRecording(
           source: rawRecording,
           output: recording,
+          captureStartOffset: captureStartOffset,
           captureDuration: captureDuration
         )
         try fileManager.removeItem(at: rawRecording)
@@ -1211,11 +1217,13 @@ public struct SimulatorHarness {
   private func trimJourneyRecording(
     source: URL,
     output: URL,
+    captureStartOffset: TimeInterval,
     captureDuration: TimeInterval
   ) throws {
     let sourceDuration = try mediaDuration(of: source)
     let window = try journeyRecordingWindow(
       sourceDuration: sourceDuration,
+      captureStartOffset: captureStartOffset,
       captureDuration: captureDuration
     )
     _ = try runner.checked(
@@ -1224,7 +1232,7 @@ public struct SimulatorHarness {
         "avconvert",
         "--source", source.path,
         "--output", output.path,
-        "--preset", "PresetPassthrough",
+        "--preset", "PresetHighestQuality",
         "--start", String(window.start),
         "--duration", String(window.duration),
         "--replace",

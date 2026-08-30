@@ -301,6 +301,20 @@ private struct HarnessJourneyCaptureGate: View {
         .accessibilityIdentifier("journey.capture-complete")
         .accessibilityHidden(!captureCompleted)
         .allowsHitTesting(false)
+      if shouldComplete, !captureCompleted {
+        Button {
+          captureCompleted = true
+          signalCaptureComplete()
+        } label: {
+          Color.clear
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .accessibilityLabel("Finish journey capture")
+        .accessibilityIdentifier("journey.capture-finish")
+      }
     }
     .task(id: shouldStart) {
       let fileManager = FileManager.default
@@ -310,9 +324,13 @@ private struct HarnessJourneyCaptureGate: View {
       let recordingMarker = fileManager.temporaryDirectory.appending(
         path: "putio-harness-journey-recording"
       )
-      try? fileManager.removeItem(at: recordingMarker)
+      let completeMarker = fileManager.temporaryDirectory.appending(
+        path: "putio-harness-journey-complete"
+      )
+      for marker in [readyMarker, recordingMarker, completeMarker] {
+        try? fileManager.removeItem(at: marker)
+      }
       guard shouldStart else {
-        try? fileManager.removeItem(at: readyMarker)
         return
       }
       try? Data().write(to: readyMarker, options: .atomic)
@@ -324,13 +342,6 @@ private struct HarnessJourneyCaptureGate: View {
         }
         try? await Task.sleep(for: .milliseconds(50))
       }
-    }
-    .task(id: shouldComplete) {
-      guard shouldComplete else { return }
-      try? await Task.sleep(for: .seconds(1))
-      guard !Task.isCancelled else { return }
-      captureCompleted = true
-      signalCaptureComplete()
     }
   }
 

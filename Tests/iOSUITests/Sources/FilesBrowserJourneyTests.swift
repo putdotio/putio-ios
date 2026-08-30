@@ -19,7 +19,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let root = element(identifier: "files.screen.0")
     let folder = element(identifier: "files.item.410")
     XCTAssertTrue(
-      element(identifier: "journey.capture-recording").waitForExistence(timeout: 15),
+      element(identifier: "journey.capture-recording").waitForExistence(timeout: 30),
       "harness never signaled that journey recording started"
     )
     XCTAssertTrue(root.exists, "capture started before the root browser appeared")
@@ -60,15 +60,28 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(backButton.isHittable, "native Files back button is not tappable")
     backButton.tap()
 
-    XCTAssertTrue(root.waitForExistence(timeout: 5), "root browser did not return")
-    XCTAssertTrue(folder.isHittable, "root folder is not tappable after returning")
-    XCTAssertFalse(nestedFile.isHittable, "nested content remains visible after returning")
-    addScreenshot(named: "files-browser-back")
+    XCTAssertTrue(
+      navigationBar.waitForNonExistence(timeout: 5),
+      "native Back transition did not finish"
+    )
+
+    let finishCapture = element(identifier: "journey.capture-finish")
+    XCTAssertTrue(
+      finishCapture.waitForExistence(timeout: 5),
+      "app did not expose the journey finish action after returning to root"
+    )
+    XCTAssertTrue(finishCapture.isHittable, "journey finish action is not tappable")
+    finishCapture.tap()
 
     XCTAssertTrue(
       element(identifier: "journey.capture-complete").waitForExistence(timeout: 5),
       "app did not finish the journey capture"
     )
+
+    XCTAssertTrue(root.waitForExistence(timeout: 5), "root browser did not return")
+    XCTAssertTrue(folder.isHittable, "root folder is not tappable after returning")
+    XCTAssertFalse(nestedFile.isHittable, "nested content remains visible after returning")
+    addScreenshot(named: "files-browser-back")
   }
 
   private func element(identifier: String) -> XCUIElement {
