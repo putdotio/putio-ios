@@ -16,6 +16,29 @@ func shouldBuildIOSCompanion(
   platform == .watchos && !iosCompanionAvailable
 }
 
+let maximumJourneyRecordingDuration: TimeInterval = 25
+
+func journeyRecordingWindow(
+  sourceDuration: TimeInterval,
+  captureDuration: TimeInterval
+) throws -> (start: TimeInterval, duration: TimeInterval) {
+  guard sourceDuration.isFinite, captureDuration.isFinite,
+    captureDuration >= 0, sourceDuration >= captureDuration - 0.5
+  else {
+    throw HarnessFailure(
+      "raw browser journey recording is \(sourceDuration) seconds; expected at least \(captureDuration - 0.5)"
+    )
+  }
+  let leadingContext = min(3, max(0, sourceDuration - captureDuration))
+  let outputDuration = captureDuration + leadingContext
+  guard outputDuration <= maximumJourneyRecordingDuration else {
+    throw HarnessFailure(
+      "browser journey recording would be \(outputDuration) seconds; maximum is \(maximumJourneyRecordingDuration)"
+    )
+  }
+  return (start: max(0, sourceDuration - outputDuration), duration: outputDuration)
+}
+
 private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: ProcessRunner) throws {
   var diagnostics: [String] = []
   for identifier in identifiers {
@@ -1191,14 +1214,10 @@ public struct SimulatorHarness {
     captureDuration: TimeInterval
   ) throws {
     let sourceDuration = try mediaDuration(of: source)
-    guard sourceDuration.isFinite, sourceDuration >= captureDuration - 0.5 else {
-      throw HarnessFailure(
-        "raw browser journey recording is \(sourceDuration) seconds; expected at least \(captureDuration - 0.5)"
-      )
-    }
-    let leadingContext = min(3, max(0, sourceDuration - captureDuration))
-    let outputTargetDuration = captureDuration + leadingContext
-    let start = max(0, sourceDuration - outputTargetDuration)
+    let window = try journeyRecordingWindow(
+      sourceDuration: sourceDuration,
+      captureDuration: captureDuration
+    )
     _ = try runner.checked(
       "xcrun",
       [
@@ -1206,19 +1225,19 @@ public struct SimulatorHarness {
         "--source", source.path,
         "--output", output.path,
         "--preset", "PresetPassthrough",
-        "--start", String(start),
-        "--duration", String(outputTargetDuration),
+        "--start", String(window.start),
+        "--duration", String(window.duration),
         "--replace",
       ],
       context: "trim browser journey recording"
     )
     let outputDuration = try mediaDuration(of: output)
     guard outputDuration.isFinite,
-      outputDuration >= max(2, outputTargetDuration - 1),
-      outputDuration <= outputTargetDuration + 1
+      outputDuration >= max(2, window.duration - 1),
+      outputDuration <= min(maximumJourneyRecordingDuration, window.duration + 1)
     else {
       throw HarnessFailure(
-        "trimmed browser journey recording is \(outputDuration) seconds; expected about \(outputTargetDuration)"
+        "trimmed browser journey recording is \(outputDuration) seconds; expected about \(window.duration)"
       )
     }
   }

@@ -73,7 +73,7 @@ build/proof/<run-id>/ios/
 └── manifest.json
 ```
 
-The journey requires exactly `1/1` passing UI test, three meaningful screenshots, and different root and nested frames. Recording is capture-gated: a raw `simctl recordVideo` stream warms while the UI test launches, the test pauses after the root browser is visible, and the harness records the capture-start timestamp before releasing the journey. The app signals capture completion after the native Back transition settles on the root. The harness retains at most three seconds of visible-root context before the capture-start timestamp, trims everything else outside the journey, and removes the raw recording and intermediate Xcode result bundle after extraction. Recorder warmup plus Xcode startup and teardown never enter the published walk.
+The journey requires exactly `1/1` passing UI test, three meaningful screenshots, and different root and nested frames. Recording is capture-gated: a raw `simctl recordVideo` stream warms while the UI test launches, the test pauses after the root browser is visible, and the harness records the capture-start timestamp before releasing the journey. The app signals capture completion after the native Back transition settles on the root. The harness retains at most three seconds of visible-root context before the capture-start timestamp, trims everything else outside the journey, and rejects a published recording longer than 25 seconds. It removes the raw recording and intermediate Xcode result bundle after extraction. Recorder warmup plus Xcode startup and teardown never enter the published walk.
 
 Capture never uploads implicitly. Publish one reviewed artifact only after a pull request exists:
 
