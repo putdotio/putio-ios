@@ -37,16 +37,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertFalse(signIn.exists, "restored session returned to sign-in")
     XCTAssertTrue(folder.isHittable, "seeded folder is not tappable after restore")
 
-    let unsupportedFile = app.staticTexts["Document.pdf"]
-    XCTAssertTrue(unsupportedFile.exists, "unsupported file row is missing")
-    XCTAssertEqual(unsupportedFile.elementType, .staticText)
-    XCTAssertFalse(app.buttons["files.item.413"].exists)
-    if unsupportedFile.isHittable {
-      unsupportedFile.tap()
-    }
-    XCTAssertTrue(root.exists, "unsupported file selection left the browser")
-    XCTAssertFalse(element(identifier: "files.selection").exists)
-
     folder.tap()
 
     let nested = element(identifier: "files.screen.410")
@@ -110,6 +100,32 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
     addScreenshot(named: "runtime-signed-out")
+  }
+
+  func testUnsupportedFileIsNotActionable() {
+    app.launch()
+
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
+    signIn.tap()
+
+    let root = element(identifier: "files.screen.0")
+    XCTAssertTrue(root.waitForExistence(timeout: 10), "signed-in root browser never appeared")
+    let unsupportedFile = app.staticTexts["Document.pdf"]
+    XCTAssertTrue(unsupportedFile.exists, "unsupported file row is missing")
+    XCTAssertEqual(unsupportedFile.elementType, .staticText)
+    XCTAssertFalse(app.buttons["files.item.413"].exists)
+    if unsupportedFile.isHittable {
+      unsupportedFile.tap()
+    }
+    XCTAssertTrue(root.exists, "unsupported file selection left the browser")
+    XCTAssertFalse(element(identifier: "files.selection").exists)
+
+    app.buttons["Account"].tap()
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
   private func element(identifier: String) -> XCUIElement {
