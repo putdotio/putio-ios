@@ -678,7 +678,8 @@ public struct SimulatorHarness {
         } catch {
           let testOutput = testProcess.wait()
           testFinished = true
-          throw HarnessFailure("\(error)\n\(testOutput.combinedOutput)")
+          let details = journeyFailureDetails(resultBundle: resultBundle)
+          throw HarnessFailure("\(error)\n\(testOutput.combinedOutput)\n\(details)")
         }
 
         try signalJourneyRecordingStarted(appContainer: appContainer)
