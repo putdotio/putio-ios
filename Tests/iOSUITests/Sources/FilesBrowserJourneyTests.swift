@@ -65,6 +65,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "native Back transition did not finish"
     )
 
+    XCTAssertTrue(root.waitForExistence(timeout: 5), "root browser did not return")
+    XCTAssertTrue(folder.isHittable, "root folder is not tappable after returning")
+    XCTAssertFalse(nestedFile.isHittable, "nested content remains visible after returning")
+    addScreenshot(named: "files-browser-back")
+
     let finishCapture = element(identifier: "journey.capture-finish")
     XCTAssertTrue(
       finishCapture.waitForExistence(timeout: 5),
@@ -77,11 +82,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "journey.capture-complete").waitForExistence(timeout: 5),
       "app did not finish the journey capture"
     )
-
-    XCTAssertTrue(root.waitForExistence(timeout: 5), "root browser did not return")
-    XCTAssertTrue(folder.isHittable, "root folder is not tappable after returning")
-    XCTAssertFalse(nestedFile.isHittable, "nested content remains visible after returning")
-    addScreenshot(named: "files-browser-back")
   }
 
   private func element(identifier: String) -> XCUIElement {
