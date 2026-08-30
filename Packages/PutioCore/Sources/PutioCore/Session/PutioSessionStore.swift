@@ -118,6 +118,10 @@ public final class PutioSessionStore {
       let generation = pendingOAuthGeneration,
       generation == authenticationGeneration
     else {
+      // A callback without a live transaction may only fail an active
+      // sign-in; outside `.authenticating` it must not disturb a signed-in
+      // session or a sign-out that still owns credential cleanup.
+      guard case .authenticating = state else { return }
       pendingOAuthState = nil
       pendingOAuthGeneration = nil
       _ = advanceAuthenticationGeneration()

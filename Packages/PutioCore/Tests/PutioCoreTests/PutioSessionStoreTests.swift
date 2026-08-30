@@ -264,6 +264,38 @@ final class PutioSessionStoreTests: XCTestCase {
     XCTAssertEqual(store.state, .signedOut(nil))
   }
 
+  func testStrayCallbackWhileSignedInIsIgnored() async throws {
+    stubSignedInRoutes()
+    let (store, tokenStore) = makeStore(token: "stored-token")
+    await store.restore()
+    guard case .signedIn = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+
+    let callback = try XCTUnwrap(
+      URL(string: "putio://auth#access_token=stray-token&state=stray-state")
+    )
+    await store.completeSignIn(callbackURL: callback)
+
+    guard case .signedIn = store.state else {
+      return XCTFail("stray callback must not disturb a signed-in session")
+    }
+    XCTAssertEqual(try tokenStore.read(), "stored-token")
+  }
+
+  func testStrayCallbackAfterCancelIsIgnored() async throws {
+    let (store, _) = makeStore(token: nil)
+    _ = try store.beginSignIn()
+    store.cancelSignIn()
+
+    let callback = try XCTUnwrap(
+      URL(string: "putio://auth#access_token=stray-token&state=stray-state")
+    )
+    await store.completeSignIn(callbackURL: callback)
+
+    XCTAssertEqual(store.state, .signedOut(nil))
+  }
+
   private func oauthState(from url: URL) -> String? {
     URLComponents(url: url, resolvingAgainstBaseURL: false)?
       .queryItems?

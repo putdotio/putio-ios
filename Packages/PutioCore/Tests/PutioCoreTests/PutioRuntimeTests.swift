@@ -491,6 +491,29 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(runtime.session.state, .authenticating)
   }
 
+  func testStrayCallbackDuringSignOutDoesNotBlockCredentialCleanup() async throws {
+    let (runtime, tokenStore) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.gateFixture(#"{"status":"OK"}"#, for: Self.logoutRoute)
+
+    let signOutTask = Task { await runtime.session.signOut() }
+    guard await waitForRequest(Self.logoutRoute) else {
+      RuntimeMockURLProtocol.releaseFixture(for: Self.logoutRoute)
+      await signOutTask.value
+      return XCTFail("logout request did not start")
+    }
+
+    let callback = try XCTUnwrap(
+      URL(string: "putio://auth#access_token=stray-token&state=stray-state")
+    )
+    await runtime.session.completeSignIn(callbackURL: callback)
+    XCTAssertEqual(runtime.session.state, .signingOut)
+
+    RuntimeMockURLProtocol.releaseFixture(for: Self.logoutRoute)
+    await signOutTask.value
+    XCTAssertEqual(runtime.session.state, .signedOut(.userSignedOut))
+    XCTAssertNil(try? tokenStore.read())
+  }
+
   func testOldSessionResponsesCannotEscapeIntoAFreshSession() async throws {
     for (statusCode, body) in [
       (200, Self.filesList(cursor: nil)),
