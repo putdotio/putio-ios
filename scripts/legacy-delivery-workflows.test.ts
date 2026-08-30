@@ -165,10 +165,21 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
   assert.doesNotMatch(serialized, /actions\/checkout/);
 });
 
-test("next CI is visibly distinct from legacy delivery", async () => {
+test("next CI admits rollout PR bases without broadening push", async () => {
   const workflow = await loadWorkflow("ci-next.yml");
   assert.equal(workflow.name, "Next CI");
   assert.match(stringAt(workflow, "run-name", "ci-next.yml"), /^Next app CI/);
+
+  const triggers = recordAt(workflow, "on", "ci-next.yml");
+  const pullRequest = recordAt(triggers, "pull_request", "ci-next.yml.on");
+  assert.deepEqual(arrayAt(pullRequest, "branches", "ci-next.yml.on.pull_request"), [
+    "next",
+    "next-rollout/**",
+  ]);
+
+  const push = recordAt(triggers, "push", "ci-next.yml.on");
+  assert.deepEqual(arrayAt(push, "branches", "ci-next.yml.on.push"), ["next"]);
+
   const verify = recordAt(recordAt(workflow, "jobs", "ci-next.yml"), "verify", "ci-next.yml jobs");
   assert.equal(verify.name, "Verify next Apple workspace");
 });
