@@ -218,7 +218,9 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
     controller.allowsPictureInPicturePlayback = true
     controller.entersFullScreenWhenPlaybackBegins = false
     controller.exitsFullScreenWhenPlaybackEnds = false
-    context.coordinator.start(source: source, in: controller, onFailure: onFailure)
+    if context.coordinator.start(source: source, in: controller, onFailure: onFailure) {
+      controller.view.accessibilityIdentifier = "video.system-player"
+    }
     return controller
   }
 
@@ -324,11 +326,12 @@ final class PutioSystemVideoPlayerCoordinator {
     self.notificationCenter = notificationCenter
   }
 
+  @discardableResult
   func start(
     source: PutioPlaybackSource,
     in controller: AVPlayerViewController,
     onFailure: @escaping @MainActor () -> Void
-  ) {
+  ) -> Bool {
     generation &+= 1
     let playbackGeneration = generation
     failureReported = false
@@ -359,13 +362,15 @@ final class PutioSystemVideoPlayerCoordinator {
       try audioSession.activate()
       audioSessionIsActive = true
     } catch {
-      reportFailure(generation: playbackGeneration)
-      return
+      Task { @MainActor [weak self] in
+        self?.reportFailure(generation: playbackGeneration)
+      }
+      return false
     }
 
     guard source.startFromSeconds > 0 else {
       driver.play()
-      return
+      return true
     }
 
     let startTime = CMTime(
@@ -373,12 +378,16 @@ final class PutioSystemVideoPlayerCoordinator {
       preferredTimescale: 600
     )
     driver.seek(to: startTime) { [weak self] finished in
-      guard finished else { return }
       Task { @MainActor [weak self] in
-        guard let self, generation == playbackGeneration, self.driver != nil else { return }
+        guard let self, generation == playbackGeneration, self.driver === driver else { return }
+        guard finished else {
+          reportFailure(generation: playbackGeneration)
+          return
+        }
         driver.play()
       }
     }
+    return true
   }
 
   func stop(controller: AVPlayerViewController) {

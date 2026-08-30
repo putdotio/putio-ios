@@ -83,12 +83,34 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     coordinator.stop(controller: controller)
   }
 
+  func testInterruptedCurrentResumeSeekReportsRecoverableFailure() async throws {
+    let audioSession = PlaybackAudioSessionSpy()
+    let (coordinator, capture) = makeCoordinator(audioSession: audioSession)
+    let controller = AVPlayerViewController()
+    var failures = 0
+
+    coordinator.start(source: source(startFromSeconds: 90), in: controller) {
+      failures += 1
+    }
+    let driver = try XCTUnwrap(capture.driver)
+
+    driver.completeSeek(false)
+    await Task.yield()
+
+    XCTAssertEqual(driver.events, ["seek"])
+    XCTAssertEqual(failures, 1)
+    coordinator.stop(controller: controller)
+  }
+
   func testStoppedResumeSeekCannotRestartDetachedPlayer() async throws {
     let audioSession = PlaybackAudioSessionSpy()
     let (coordinator, capture) = makeCoordinator(audioSession: audioSession)
     let controller = AVPlayerViewController()
+    var failures = 0
 
-    coordinator.start(source: source(startFromSeconds: 90), in: controller) {}
+    coordinator.start(source: source(startFromSeconds: 90), in: controller) {
+      failures += 1
+    }
     let driver = try XCTUnwrap(capture.driver)
     coordinator.stop(controller: controller)
 
@@ -97,10 +119,11 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     XCTAssertEqual(driver.events, ["seek", "stop"])
     XCTAssertEqual(audioSession.events, ["activate", "deactivate"])
 
-    driver.completeSeek(true)
+    driver.completeSeek(false)
     await Task.yield()
 
     XCTAssertEqual(driver.events, ["seek", "stop"])
+    XCTAssertEqual(failures, 0)
   }
 
   func testFailedToEndReportsOnceForExactItemAndStopsObservingOnTeardown() async throws {
@@ -150,9 +173,29 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     }
     let driver = try XCTUnwrap(capture.driver)
 
+    XCTAssertEqual(failures, 0)
+    await Task.yield()
     XCTAssertEqual(failures, 1)
     XCTAssertTrue(driver.events.isEmpty)
     coordinator.stop(controller: controller)
+    XCTAssertEqual(audioSession.events, ["activate"])
+  }
+
+  func testStoppedActivationFailureCannotReportAfterDeferredDelivery() async {
+    let audioSession = PlaybackAudioSessionSpy()
+    audioSession.activationError = PlaybackAudioSessionSpy.Failure.activation
+    let (coordinator, _) = makeCoordinator(audioSession: audioSession)
+    let controller = AVPlayerViewController()
+    var failures = 0
+
+    coordinator.start(source: source(startFromSeconds: 0), in: controller) {
+      failures += 1
+    }
+    coordinator.stop(controller: controller)
+    await Task.yield()
+
+    XCTAssertEqual(failures, 0)
+    XCTAssertNil(controller.player)
     XCTAssertEqual(audioSession.events, ["activate"])
   }
 

@@ -11,7 +11,15 @@ import Testing
     let fingerprint =
       if index < 5 { JourneyFrameFingerprint(samples: [250, 250, 250]) } else if index < 10 {
         root
-      } else if index < 20 { nested } else { back }
+      } else if index < 20 {
+        nested
+      } else if index == 20 {
+        JourneyFrameFingerprint(samples: [14, 14, 14])
+      } else if index == 21 {
+        JourneyFrameFingerprint(samples: [250, 250, 250])
+      } else {
+        back
+      }
     return JourneyVideoFrame(
       presentationTime: Double(index) / 10,
       duration: 0.1,
@@ -27,8 +35,8 @@ import Testing
   )
 
   #expect(abs(window.start - 0.5) < 0.000_001)
-  #expect(abs(window.duration - 2.1) < 0.000_001)
-  #expect(window.frameCount == 21)
+  #expect(abs(window.duration - 2.0) < 0.000_001)
+  #expect(window.frameCount == 20)
 }
 
 @Test func journeyRecordingWindowRejectsProofLongerThanCeiling() {

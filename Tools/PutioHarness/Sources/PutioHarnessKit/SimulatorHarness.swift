@@ -19,7 +19,8 @@ func shouldBuildIOSCompanion(
 let maximumJourneyRecordingDuration: TimeInterval = 25
 let minimumJourneyRecordingFrameCount = 12
 let maximumJourneyFrameDifference = 10.0
-let journeyBackStabilizationDuration: TimeInterval = 0.5
+let maximumStableJourneyFrameDifference = 1.0
+let minimumStableJourneyFrameCount = 3
 
 struct JourneyFrameFingerprint: Equatable, Sendable {
   let samples: [UInt8]
@@ -83,15 +84,40 @@ func journeyRecordingWindow(
   else {
     throw HarnessFailure("browser journey recording is missing its nested frame after root")
   }
-  let backIndices = try matchingIndices(for: back).filter { $0 > nestedIndex }
-  guard let firstBackIndex = backIndices.first else {
+  let backDifferences = frames.map { journeyFrameDifference($0.fingerprint, back) }
+  guard let bestBackDifference = backDifferences.dropFirst(nestedIndex + 1).min(),
+    bestBackDifference <= maximumDifference
+  else {
     throw HarnessFailure("browser journey recording is missing its returned-root frame")
   }
-  let stabilizedBackTime =
-    frames[firstBackIndex].presentationTime + journeyBackStabilizationDuration
-  let backIndex =
-    backIndices.first(where: { frames[$0].presentationTime >= stabilizedBackTime })
-    ?? firstBackIndex
+  let settledBackThreshold = min(
+    maximumDifference,
+    bestBackDifference + maximumStableJourneyFrameDifference
+  )
+  var stableBackFrameCount = 0
+  var backIndex: Int?
+  for index in frames.indices.dropFirst(nestedIndex + 1) {
+    let followsStableFrame =
+      stableBackFrameCount > 0
+      && journeyFrameDifference(
+        frames[index - 1].fingerprint,
+        frames[index].fingerprint
+      ) <= maximumStableJourneyFrameDifference
+    if backDifferences[index] <= settledBackThreshold {
+      stableBackFrameCount = followsStableFrame ? stableBackFrameCount + 1 : 1
+    } else {
+      stableBackFrameCount = 0
+    }
+    if stableBackFrameCount == minimumStableJourneyFrameCount {
+      backIndex = index
+      break
+    }
+  }
+  guard let backIndex else {
+    throw HarnessFailure(
+      "browser journey recording is missing \(minimumStableJourneyFrameCount) stable returned-root frames"
+    )
+  }
 
   let end = frames[backIndex].presentationTime + frames[backIndex].duration
   let duration = end - frames[rootIndex].presentationTime
@@ -1324,17 +1350,22 @@ public struct SimulatorHarness {
       )
     }
     let outputFrames = try journeyVideoFrames(at: output)
+    let firstDifference =
+      outputFrames.first.map { journeyFrameDifference($0.fingerprint, references.root) }
+      ?? .infinity
+    let lastDifference =
+      outputFrames.last.map { journeyFrameDifference($0.fingerprint, references.back) }
+      ?? .infinity
+    let nestedDifference =
+      outputFrames.map { journeyFrameDifference($0.fingerprint, references.nested) }.min()
+      ?? .infinity
     guard outputFrames.count >= minimumJourneyRecordingFrameCount,
-      let first = outputFrames.first,
-      let last = outputFrames.last,
-      journeyFrameDifference(first.fingerprint, references.root) <= maximumJourneyFrameDifference,
-      journeyFrameDifference(last.fingerprint, references.back) <= maximumJourneyFrameDifference,
-      outputFrames.contains(where: {
-        journeyFrameDifference($0.fingerprint, references.nested) <= maximumJourneyFrameDifference
-      })
+      firstDifference <= maximumJourneyFrameDifference,
+      lastDifference <= maximumJourneyFrameDifference,
+      nestedDifference <= maximumJourneyFrameDifference
     else {
       throw HarnessFailure(
-        "trimmed browser journey recording does not preserve root, nested, and returned-root frame boundaries"
+        "trimmed browser journey recording does not preserve root, nested, and returned-root frame boundaries; frames=\(outputFrames.count), root=\(firstDifference), nested=\(nestedDifference), back=\(lastDifference)"
       )
     }
   }

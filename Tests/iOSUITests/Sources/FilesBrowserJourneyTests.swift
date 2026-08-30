@@ -45,6 +45,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "video.conversion-required").exists,
       "video unexpectedly requires conversion"
     )
+    XCTAssertTrue(
+      element(identifier: "video.system-player").waitForExistence(timeout: 5),
+      "system video player never attached"
+    )
     XCTAssertTrue(done.isHittable, "video Done button is not tappable")
     done.tap()
 
