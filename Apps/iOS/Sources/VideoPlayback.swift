@@ -68,7 +68,7 @@ struct PutioVideoPlaybackFailure: Equatable {
   static let playback = PutioVideoPlaybackFailure(
     kind: .playback,
     title: "Could not play video",
-    message: "The stream could not continue. Try again."
+    message: "The video could not be played. Try again."
   )
 }
 

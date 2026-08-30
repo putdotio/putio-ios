@@ -11,6 +11,14 @@ public struct ProcessOutput: Sendable {
   }
 }
 
+func processCaptureContents(at url: URL, label: String) -> (contents: String, failure: String?) {
+  do {
+    return (try String(contentsOf: url, encoding: .utf8), nil)
+  } catch {
+    return ("", "read child \(label) capture: \(error)")
+  }
+}
+
 private final class ProcessCapture: @unchecked Sendable {
   private let directory: URL
   private let stdoutURL: URL
@@ -39,13 +47,16 @@ private final class ProcessCapture: @unchecked Sendable {
 
   func output(status: Int32) -> ProcessOutput {
     let closeFailure = closeHandles()
-    let stdout = (try? String(contentsOf: stdoutURL, encoding: .utf8)) ?? ""
-    var stderr = (try? String(contentsOf: stderrURL, encoding: .utf8)) ?? ""
-    if let closeFailure {
-      stderr += stderr.isEmpty ? closeFailure : "\n\(closeFailure)"
+    let stdoutCapture = processCaptureContents(at: stdoutURL, label: "stdout")
+    let stderrCapture = processCaptureContents(at: stderrURL, label: "stderr")
+    var stderr = stderrCapture.contents
+    let failures = [stdoutCapture.failure, stderrCapture.failure, closeFailure].compactMap { $0 }
+    if !failures.isEmpty {
+      let diagnostics = failures.joined(separator: "\n")
+      stderr += stderr.isEmpty ? diagnostics : "\n\(diagnostics)"
     }
     try? FileManager.default.removeItem(at: directory)
-    return ProcessOutput(status: status, stdout: stdout, stderr: stderr)
+    return ProcessOutput(status: status, stdout: stdoutCapture.contents, stderr: stderr)
   }
 
   func discard() {
