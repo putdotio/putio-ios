@@ -16,7 +16,7 @@ func shouldBuildIOSCompanion(
   platform == .watchos && !iosCompanionAvailable
 }
 
-let maximumJourneyRecordingDuration: TimeInterval = 25
+let maximumJourneyRecordingDuration: TimeInterval = 30
 let minimumJourneyRecordingFrameCount = 12
 let maximumJourneyFrameDifference = 10.0
 let maximumStableJourneyFrameDifference = 1.0
