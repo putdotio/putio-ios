@@ -56,6 +56,8 @@ import Foundation
         return (200, #"{"status":"OK"}"#)
       case "GET /v2/files/list":
         return filesListFixture(url: url)
+      case "GET /v2/files/411":
+        return (200, playbackFile)
       default:
         return (
           404,
@@ -206,6 +208,18 @@ import Foundation
           }
         ],
         "total": 1
+      }
+      """
+
+    private static let playbackFile = """
+      {
+        "file": {
+          "id": 411,
+          "name": "Nested Movie.mkv",
+          "file_type": "VIDEO",
+          "need_convert": false,
+          "start_from": 90
+        }
       }
       """
   }

@@ -66,8 +66,20 @@ public final class RunningProcess: @unchecked Sendable {
   }
 
   public func interruptAndWait() -> ProcessOutput {
+    finish(interrupt: true)
+  }
+
+  public func wait() -> ProcessOutput {
+    finish(interrupt: false)
+  }
+
+  public var isRunning: Bool {
+    process.isRunning
+  }
+
+  private func finish(interrupt: Bool) -> ProcessOutput {
     if let result { return result }
-    if process.isRunning { process.interrupt() }
+    if interrupt, process.isRunning { process.interrupt() }
     process.waitUntilExit()
     ChildProcessLifecycle.shared.release(process)
     let stdout =

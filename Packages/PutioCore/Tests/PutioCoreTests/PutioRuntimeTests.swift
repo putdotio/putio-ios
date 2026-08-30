@@ -199,6 +199,7 @@ private final class RuntimeMockURLProtocol: URLProtocol, @unchecked Sendable {
 @MainActor
 final class PutioRuntimeTests: XCTestCase {
   private static let filesRoute = "GET /v2/files/list"
+  private static let playbackRoute = "GET /v2/files/411"
   private static let logoutRoute = "POST /v2/oauth/grants/logout"
   private static let validValidation =
     #"{"result": true, "token_id": 1, "token_scope": "default", "user_id": 1001}"#
@@ -342,6 +343,71 @@ final class PutioRuntimeTests: XCTestCase {
       components.queryItems?.first(where: { $0.name == "parent_id" })?.value,
       "42"
     )
+  }
+
+  func testUnauthenticatedRuntimeRejectsPlaybackResolutionWithoutARequest() async {
+    let (runtime, _) = makeRuntime(token: nil)
+
+    await assertRuntimeError(.authenticationRequired) {
+      _ = try await runtime.resolveVideoPlaybackSource(fileID: PutioFileID(rawValue: 411))
+    }
+
+    XCTAssertTrue(RuntimeMockURLProtocol.capturedRequests().isEmpty)
+  }
+
+  func testPlaybackResolutionMapsReadySourceWithoutReflectingItsToken() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      Self.playbackFile(needConvert: false, startFrom: 90),
+      for: Self.playbackRoute
+    )
+
+    let resolution = try await runtime.resolveVideoPlaybackSource(
+      fileID: PutioFileID(rawValue: 411)
+    )
+
+    guard case .ready(let source) = resolution else {
+      return XCTFail("expected ready playback source")
+    }
+    XCTAssertEqual(source.startFromSeconds, 90)
+    XCTAssertEqual(source.url.path, "/v2/files/411/hls/media.m3u8")
+    XCTAssertEqual(
+      URLComponents(url: source.url, resolvingAgainstBaseURL: false)?
+        .queryItems?.first(where: { $0.name == "oauth_token" })?.value,
+      "stored-token"
+    )
+    XCTAssertFalse(String(describing: source).contains("stored-token"))
+    XCTAssertFalse(String(reflecting: source).contains("stored-token"))
+  }
+
+  func testPlaybackResolutionPreservesConversionRequired() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      Self.playbackFile(needConvert: true, startFrom: 0),
+      for: Self.playbackRoute
+    )
+
+    let resolution = try await runtime.resolveVideoPlaybackSource(
+      fileID: PutioFileID(rawValue: 411)
+    )
+
+    XCTAssertEqual(resolution, .conversionRequired)
+  }
+
+  func testPlaybackAuthenticationFailureExpiresSessionAndClearsToken() async {
+    let (runtime, tokenStore) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR","error_type":"invalid_grant"}"#,
+      statusCode: 401,
+      for: Self.playbackRoute
+    )
+
+    await assertRuntimeError(.sessionExpired) {
+      _ = try await runtime.resolveVideoPlaybackSource(fileID: PutioFileID(rawValue: 411))
+    }
+
+    XCTAssertEqual(runtime.session.state, .signedOut(.sessionExpired))
+    XCTAssertNil(try? tokenStore.read())
   }
 
   func testUnauthorizedAndForbiddenResponsesExpireTheSharedSession() async {
@@ -562,6 +628,8 @@ final class PutioRuntimeTests: XCTestCase {
     requireSendable(PutioFileKind.self)
     requireSendable(PutioFileItem.self)
     requireSendable(PutioFolderContents.self)
+    requireSendable(PutioPlaybackSource.self)
+    requireSendable(PutioPlaybackResolution.self)
     requireSendable(PutioRuntimeError.self)
     requireSendable(PutioSessionState.self)
   }
@@ -732,6 +800,19 @@ final class PutioRuntimeTests: XCTestCase {
           }
         ],
         "total": 6
+      }
+      """
+  }
+
+  private static func playbackFile(needConvert: Bool, startFrom: Int) -> String {
+    return """
+      {
+        "file": {
+          "id": 411,
+          "file_type": "VIDEO",
+          "need_convert": \(needConvert),
+          "start_from": \(startFrom)
+        }
       }
       """
   }

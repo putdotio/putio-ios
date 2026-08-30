@@ -27,6 +27,38 @@ public final class PutioRuntime {
   }
 
   public func listFiles(parentID: PutioFileID = .root) async throws -> PutioFolderContents {
+    let result = try await performAuthenticatedOperation {
+      let result = try await sdk.getFiles(parentID: parentID.rawValue)
+      return result
+    }
+
+    return PutioFolderContents(
+      folder: result.parent.map(snapshot),
+      items: result.children.map(snapshot),
+      hasMore: result.cursor?.isEmpty == false
+    )
+  }
+
+  public func resolveVideoPlaybackSource(fileID: PutioFileID) async throws
+    -> PutioPlaybackResolution
+  {
+    let resolution = try await performAuthenticatedOperation {
+      try await sdk.resolveVideoPlaybackSource(fileID: fileID.rawValue)
+    }
+
+    switch resolution {
+    case .ready(let source):
+      return .ready(
+        PutioPlaybackSource(url: source.url, startFromSeconds: source.startFrom)
+      )
+    case .conversionRequired:
+      return .conversionRequired
+    }
+  }
+
+  private func performAuthenticatedOperation<Value>(
+    _ operation: () async throws -> Value
+  ) async throws -> Value {
     guard case .signedIn = session.state else {
       throw currentSessionError
     }
@@ -34,7 +66,7 @@ public final class PutioRuntime {
 
     do {
       try Task.checkCancellation()
-      let result = try await sdk.getFiles(parentID: parentID.rawValue)
+      let result = try await operation()
       try Task.checkCancellation()
 
       guard
@@ -43,12 +75,7 @@ public final class PutioRuntime {
       else {
         throw currentSessionError
       }
-
-      return PutioFolderContents(
-        folder: result.parent.map(snapshot),
-        items: result.children.map(snapshot),
-        hasMore: result.cursor?.isEmpty == false
-      )
+      return result
     } catch {
       if Task.isCancelled || isCancellation(error) {
         throw CancellationError()
@@ -64,7 +91,6 @@ public final class PutioRuntime {
       guard let sdkError = error as? PutioSDKError else {
         throw PutioRuntimeError.unknown
       }
-
       if sdkError.isAuthenticationFailure {
         session.expireSession()
         throw PutioRuntimeError.sessionExpired

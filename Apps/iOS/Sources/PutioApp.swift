@@ -153,13 +153,20 @@ private struct MainTabView: View {
 
   @State private var searchText = ""
   @State private var selectedFileRoute: PutioFileRoute?
+  @State private var selectedVideoRoute: PutioFileRoute?
+  @State private var journeyReturnedToRoot = false
 
   var body: some View {
     TabView {
       Tab {
         FilesBrowserView(
           runtime: runtime,
-          onFileSelected: { selectedFileRoute = $0 }
+          onFileSelected: { route in selectFile(route) },
+          onReturnToRoot: {
+            if scenario == .filesBrowser {
+              journeyReturnedToRoot = true
+            }
+          }
         )
       } label: {
         Label {
@@ -228,9 +235,22 @@ private struct MainTabView: View {
     }
     // Shrink-on-scroll is opt-in on iOS 26 and part of the ios-e10 treatment.
     .tabBarMinimizeBehavior(.onScrollDown)
+    .fullScreenCover(item: $selectedVideoRoute) { route in
+      PutioVideoPlaybackView(
+        route: route,
+        reportsPlayerFailures: scenario != .filesBrowser
+      ) { fileID in
+        try await runtime.resolveVideoPlaybackSource(fileID: fileID)
+      }
+    }
     .overlay(alignment: .topLeading) {
       if scenario == .filesBrowser, let selectedFileRoute {
         HarnessFileSelectionProbe(route: selectedFileRoute)
+      }
+    }
+    .overlay(alignment: .bottomTrailing) {
+      if scenario == .filesBrowser {
+        HarnessJourneyCaptureGate(shouldComplete: journeyReturnedToRoot)
       }
     }
     .task {
@@ -241,6 +261,71 @@ private struct MainTabView: View {
       guard !Task.isCancelled else { return }
       await runtime.session.signOut()
     }
+  }
+
+  private func selectFile(_ route: PutioFileRoute) {
+    selectedFileRoute = route
+    guard route.item.kind == .video else { return }
+    selectedVideoRoute = route
+  }
+}
+
+private struct HarnessJourneyCaptureGate: View {
+  let shouldComplete: Bool
+
+  @State private var recordingStarted = false
+  @State private var captureCompleted = false
+
+  var body: some View {
+    ZStack {
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Journey capture recording")
+        .accessibilityIdentifier("journey.capture-recording")
+        .accessibilityHidden(!recordingStarted)
+        .allowsHitTesting(false)
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Journey capture complete")
+        .accessibilityIdentifier("journey.capture-complete")
+        .accessibilityHidden(!captureCompleted)
+        .allowsHitTesting(false)
+    }
+    .task {
+      let fileManager = FileManager.default
+      let readyMarker = fileManager.temporaryDirectory.appending(
+        path: "putio-harness-journey-ready"
+      )
+      let recordingMarker = fileManager.temporaryDirectory.appending(
+        path: "putio-harness-journey-recording"
+      )
+      try? fileManager.removeItem(at: recordingMarker)
+      try? Data().write(to: readyMarker, options: .atomic)
+
+      while !Task.isCancelled {
+        if fileManager.fileExists(atPath: recordingMarker.path) {
+          recordingStarted = true
+          return
+        }
+        try? await Task.sleep(for: .milliseconds(50))
+      }
+    }
+    .task(id: shouldComplete) {
+      guard shouldComplete else { return }
+      try? await Task.sleep(for: .seconds(1))
+      guard !Task.isCancelled else { return }
+      captureCompleted = true
+      signalCaptureComplete()
+    }
+  }
+
+  private func signalCaptureComplete() {
+    let marker = FileManager.default.temporaryDirectory.appending(
+      path: "putio-harness-journey-complete"
+    )
+    try? Data().write(to: marker, options: .atomic)
   }
 }
 

@@ -1,3 +1,4 @@
+import AVFoundation
 import Darwin
 import Foundation
 import ImageIO
@@ -412,35 +413,83 @@ public struct SimulatorHarness {
         try buildJourneyTests(platform: platform, session: session)
 
         let resultBundle = platformDirectory.appending(path: "files-browser.xcresult")
+        let rawRecording = platformDirectory.appending(path: ".files-browser-walk.raw.mp4")
         let recording = platformDirectory.appending(path: "files-browser-walk.mp4")
-        let recordingProcess = try startRecording(session: session, output: recording)
-        var recordingFinished = false
-        defer {
-          if !recordingFinished { _ = recordingProcess.interruptAndWait() }
-        }
-
-        _ = try runner.checked(
+        let testProcess = try runner.start(
           "xcodebuild",
           [
             "test-without-building",
+            "-quiet",
             "-workspace", "Putio.xcworkspace",
             "-scheme", platform.configuration.scheme,
             "-destination", "id=\(session.deviceIdentifier)",
             "-derivedDataPath", context.derivedData.path,
             "-resultBundlePath", resultBundle.path,
             "-parallel-testing-enabled", "NO",
+            "-collect-test-diagnostics", "never",
+            "-test-timeouts-enabled", "YES",
+            "-default-test-execution-time-allowance", "30",
+            "-maximum-test-execution-time-allowance", "60",
             "-only-testing:\(BrowserJourneyContract.testIdentifier)",
           ],
-          currentDirectory: context.root,
-          context: "run ios files-browser journey"
+          currentDirectory: context.root
         )
+        var testFinished = false
+        defer {
+          if !testFinished { _ = testProcess.interruptAndWait() }
+        }
 
+        let recordingProcess = try startRecording(session: session, output: rawRecording)
+        var recordingFinished = false
+        defer {
+          if !recordingFinished { _ = recordingProcess.interruptAndWait() }
+        }
+
+        let appContainer: URL
+        do {
+          appContainer = try waitForJourneyCaptureReady(
+            session: session,
+            testProcess: testProcess
+          )
+        } catch {
+          let testOutput = testProcess.wait()
+          testFinished = true
+          throw HarnessFailure("\(error)\n\(testOutput.combinedOutput)")
+        }
+
+        let captureStartedAt = Date()
+        try signalJourneyRecordingStarted(appContainer: appContainer)
+
+        let captureCompleted = waitForJourneyCaptureComplete(
+          appContainer: appContainer,
+          testProcess: testProcess
+        )
+        let captureDuration = Date().timeIntervalSince(captureStartedAt)
         let recordingOutput = recordingProcess.interruptAndWait()
         recordingFinished = true
+        let testOutput = testProcess.wait()
+        testFinished = true
+
         guard recordingOutput.status == 0 else {
           throw HarnessFailure(
             "record ios files-browser journey failed\n\(recordingOutput.combinedOutput)")
         }
+        try requireNonemptyFile(rawRecording, context: "raw browser journey recording")
+        guard testOutput.status == 0 else {
+          let details = journeyFailureDetails(resultBundle: resultBundle)
+          throw HarnessFailure(
+            "run ios files-browser journey failed\n\(testOutput.combinedOutput)\n\(details)"
+          )
+        }
+        guard captureCompleted else {
+          throw HarnessFailure("iOS journey did not signal capture completion within 60 seconds")
+        }
+        try trimJourneyRecording(
+          source: rawRecording,
+          output: recording,
+          captureDuration: captureDuration
+        )
+        try fileManager.removeItem(at: rawRecording)
         try requireNonemptyFile(recording, context: "browser journey recording")
 
         let summary = platformDirectory.appending(path: "files-browser-test-summary.json")
@@ -1059,7 +1108,140 @@ public struct SimulatorHarness {
       Thread.sleep(forTimeInterval: 0.1)
     }
     _ = process.interruptAndWait()
-    throw HarnessFailure("recording did not start within 8 seconds")
+    throw HarnessFailure("recording did not start within 30 seconds")
+  }
+
+  private func waitForJourneyCaptureReady(
+    session: SimulatorSession,
+    testProcess: RunningProcess
+  ) throws -> URL {
+    let deadline = Date().addingTimeInterval(300)
+    repeat {
+      guard testProcess.isRunning else {
+        throw HarnessFailure("iOS journey test exited before its capture gate became ready")
+      }
+      let containerOutput = try runner.run(
+        "xcrun",
+        [
+          "simctl", "get_app_container", session.deviceIdentifier,
+          HarnessPlatform.ios.configuration.bundleIdentifier, "data",
+        ]
+      )
+      let containerPath = containerOutput.stdout.trimmingCharacters(
+        in: .whitespacesAndNewlines
+      )
+      if containerOutput.status == 0, !containerPath.isEmpty {
+        let appContainer = URL(fileURLWithPath: containerPath)
+        let readyMarker = appContainer.appending(
+          path: "tmp/\(BrowserJourneyContract.captureReadyMarkerName)"
+        )
+        if fileManager.fileExists(atPath: readyMarker.path) {
+          return appContainer
+        }
+      }
+      Thread.sleep(forTimeInterval: 0.1)
+    } while Date() < deadline
+    throw HarnessFailure("iOS journey capture gate did not become ready within 300 seconds")
+  }
+
+  private func signalJourneyRecordingStarted(appContainer: URL) throws {
+    let marker = appContainer.appending(
+      path: "tmp/\(BrowserJourneyContract.recordingStartedMarkerName)"
+    )
+    try Data().write(to: marker, options: .atomic)
+  }
+
+  private func waitForJourneyCaptureComplete(
+    appContainer: URL,
+    testProcess: RunningProcess
+  ) -> Bool {
+    let marker = appContainer.appending(
+      path: "tmp/\(BrowserJourneyContract.captureCompleteMarkerName)"
+    )
+    let deadline = Date().addingTimeInterval(60)
+    repeat {
+      if fileManager.fileExists(atPath: marker.path) { return true }
+      if !testProcess.isRunning { return false }
+      Thread.sleep(forTimeInterval: 0.1)
+    } while Date() < deadline
+    return false
+  }
+
+  private func journeyFailureDetails(resultBundle: URL) -> String {
+    guard fileManager.fileExists(atPath: resultBundle.path),
+      let output = try? runner.run(
+        "xcrun",
+        [
+          "xcresulttool", "get", "test-results", "tests",
+          "--path", resultBundle.path,
+          "--compact",
+        ]
+      ), output.status == 0
+    else {
+      return "journey failure details unavailable"
+    }
+    return output.stdout.split(separator: "\n", omittingEmptySubsequences: false)
+      .suffix(80)
+      .joined(separator: "\n")
+  }
+
+  private func trimJourneyRecording(
+    source: URL,
+    output: URL,
+    captureDuration: TimeInterval
+  ) throws {
+    let sourceDuration = try mediaDuration(of: source)
+    guard sourceDuration.isFinite, sourceDuration >= captureDuration - 0.5 else {
+      throw HarnessFailure(
+        "raw browser journey recording is \(sourceDuration) seconds; expected at least \(captureDuration - 0.5)"
+      )
+    }
+    let leadingContext = min(3, max(0, sourceDuration - captureDuration))
+    let outputTargetDuration = captureDuration + leadingContext
+    let start = max(0, sourceDuration - outputTargetDuration)
+    _ = try runner.checked(
+      "xcrun",
+      [
+        "avconvert",
+        "--source", source.path,
+        "--output", output.path,
+        "--preset", "PresetPassthrough",
+        "--start", String(start),
+        "--duration", String(outputTargetDuration),
+        "--replace",
+      ],
+      context: "trim browser journey recording"
+    )
+    let outputDuration = try mediaDuration(of: output)
+    guard outputDuration.isFinite,
+      outputDuration >= max(2, outputTargetDuration - 1),
+      outputDuration <= outputTargetDuration + 1
+    else {
+      throw HarnessFailure(
+        "trimmed browser journey recording is \(outputDuration) seconds; expected about \(outputTargetDuration)"
+      )
+    }
+  }
+
+  private func mediaDuration(of url: URL) throws -> TimeInterval {
+    let semaphore = DispatchSemaphore(value: 0)
+    let lock = NSLock()
+    nonisolated(unsafe) var result: Result<CMTime, Error>?
+    Task {
+      let loaded: Result<CMTime, Error>
+      do {
+        loaded = .success(try await AVURLAsset(url: url).load(.duration))
+      } catch {
+        loaded = .failure(error)
+      }
+      lock.withLock { result = loaded }
+      semaphore.signal()
+    }
+    semaphore.wait()
+    let loaded = lock.withLock { result }
+    guard let loaded else { throw HarnessFailure("media duration missing") }
+    let duration = try loaded.get()
+    return CMTimeGetSeconds(duration)
   }
 
   private func failureDiagnostics(in directory: URL) -> String {

@@ -8,27 +8,33 @@ typealias PutioFileSelection = @MainActor @Sendable (PutioFileRoute) -> Void
 struct FilesBrowserView: View {
   private let load: PutioFolderLoad
   private let onFileSelected: PutioFileSelection
+  private let onReturnToRoot: @MainActor @Sendable () -> Void
+  @State private var path: [PutioFolderRoute] = []
 
   init(
     runtime: PutioRuntime,
-    onFileSelected: @escaping PutioFileSelection
+    onFileSelected: @escaping PutioFileSelection,
+    onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {}
   ) {
     load = { folderID in
       try await runtime.listFiles(parentID: folderID)
     }
     self.onFileSelected = onFileSelected
+    self.onReturnToRoot = onReturnToRoot
   }
 
   init(
     load: @escaping PutioFolderLoad,
-    onFileSelected: @escaping PutioFileSelection
+    onFileSelected: @escaping PutioFileSelection,
+    onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {}
   ) {
     self.load = load
     self.onFileSelected = onFileSelected
+    self.onReturnToRoot = onReturnToRoot
   }
 
   var body: some View {
-    NavigationStack {
+    NavigationStack(path: $path) {
       PutioFolderScreen(
         route: .root,
         load: load,
@@ -40,6 +46,11 @@ struct FilesBrowserView: View {
           load: load,
           onFileSelected: onFileSelected
         )
+      }
+    }
+    .onChange(of: path) { oldPath, newPath in
+      if !oldPath.isEmpty, newPath.isEmpty {
+        onReturnToRoot()
       }
     }
   }

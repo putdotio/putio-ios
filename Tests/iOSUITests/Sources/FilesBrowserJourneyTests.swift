@@ -20,6 +20,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let folder = element(identifier: "files.item.410")
     XCTAssertTrue(root.waitForExistence(timeout: 15), "root browser never appeared")
     XCTAssertTrue(folder.waitForExistence(timeout: 5), "seeded folder never appeared")
+    XCTAssertTrue(
+      element(identifier: "journey.capture-recording").waitForExistence(timeout: 10),
+      "harness never signaled that journey recording started"
+    )
     XCTAssertTrue(folder.isHittable, "seeded folder is not tappable")
     addScreenshot(named: "files-browser-root")
 
@@ -32,12 +36,23 @@ final class FilesBrowserJourneyTests: XCTestCase {
     addScreenshot(named: "files-browser-nested")
 
     nestedFile.tap()
-    let selection = element(identifier: "files.selection")
-    XCTAssertTrue(selection.waitForExistence(timeout: 5), "file selection emitted no route")
-    XCTAssertEqual(selection.label, "Selected file route")
-    XCTAssertEqual(selection.value as? String, "id=411;parent=410;kind=video")
+    let done = element(identifier: "video.done")
+    XCTAssertTrue(done.waitForExistence(timeout: 5), "video screen never appeared")
+    let loading = element(identifier: "video.loading")
+    XCTAssertTrue(loading.waitForNonExistence(timeout: 5), "video source never resolved")
+    XCTAssertFalse(element(identifier: "video.error").exists, "video source resolution failed")
+    XCTAssertFalse(
+      element(identifier: "video.conversion-required").exists,
+      "video unexpectedly requires conversion"
+    )
+    XCTAssertTrue(done.isHittable, "video Done button is not tappable")
+    done.tap()
+
     XCTAssertTrue(nested.waitForExistence(timeout: 5), "file selection left the browser")
     XCTAssertTrue(nestedFile.isHittable, "selected file is no longer available")
+    let selection = element(identifier: "files.selection")
+    XCTAssertEqual(selection.label, "Selected file route")
+    XCTAssertEqual(selection.value as? String, "id=411;parent=410;kind=video")
 
     let navigationBar = app.navigationBars["Harness Folder"]
     XCTAssertTrue(navigationBar.waitForExistence(timeout: 5), "nested navigation bar is missing")
@@ -49,6 +64,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(folder.isHittable, "root folder is not tappable after returning")
     XCTAssertFalse(nestedFile.isHittable, "nested content remains visible after returning")
     addScreenshot(named: "files-browser-back")
+
+    XCTAssertTrue(
+      element(identifier: "journey.capture-complete").waitForExistence(timeout: 5),
+      "app did not finish the journey capture"
+    )
   }
 
   private func element(identifier: String) -> XCUIElement {

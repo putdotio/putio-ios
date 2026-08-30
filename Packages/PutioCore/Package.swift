@@ -14,7 +14,12 @@ let package = Package(
     .library(name: "PutioCore", targets: ["PutioCore"])
   ],
   dependencies: [
-    .package(url: "https://github.com/putdotio/putio-sdk-swift", from: "3.4.0")
+    // Temporary cross-repository stack pin. Return to a released version when
+    // putdotio/putio-sdk-swift#51 lands and is published.
+    .package(
+      url: "https://github.com/putdotio/putio-sdk-swift",
+      revision: "f30692806fcb19eaf4e5ce89028a758c36dcd1ec"
+    )
   ],
   targets: [
     .target(
