@@ -14,25 +14,27 @@ final class HarnessMediaServer: @unchecked Sendable {
   private let condition = NSCondition()
   private let stopLock = NSLock()
   private let onStop: @Sendable () -> Void
+  private let startListener: @Sendable (NWListener, DispatchQueue) throws -> Void
   private var startupResult: Result<URL, Error>?
   private var stopped = false
 
   init(
     mediaDirectory: URL,
-    onStop: @escaping @Sendable () -> Void = {}
+    onStop: @escaping @Sendable () -> Void = {},
+    startListener: @escaping @Sendable (NWListener, DispatchQueue) throws -> Void = {
+      listener, queue in
+      listener.start(queue: queue)
+    }
   ) throws {
     self.mediaDirectory = mediaDirectory
     self.onStop = onStop
+    self.startListener = startListener
     let parameters = NWParameters.tcp
     parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
     listener = try NWListener(using: parameters)
   }
 
   func start(timeout: TimeInterval = 5) throws -> URL {
-    guard timeout > 0 else {
-      stop()
-      throw ServerError.startupTimedOut
-    }
     listener.stateUpdateHandler = { [weak self] state in
       guard let self else { return }
       switch state {
@@ -53,8 +55,12 @@ final class HarnessMediaServer: @unchecked Sendable {
     listener.newConnectionHandler = { [weak self] connection in
       self?.serve(connection)
     }
-    listener.start(queue: queue)
-
+    do {
+      try startListener(listener, queue)
+    } catch {
+      stop()
+      throw error
+    }
     condition.lock()
     let deadline = Date().addingTimeInterval(timeout)
     while startupResult == nil, condition.wait(until: deadline) {}

@@ -621,11 +621,11 @@ public struct SimulatorHarness {
           context: "runtime-proof HLS segment"
         )
         let mediaServer = try HarnessMediaServer(mediaDirectory: mediaDirectory)
-        let mediaBaseURL = try mediaServer.start()
         defer { mediaServer.stop() }
         try SimulatorLifecycle.shared.register {
           mediaServer.stop()
         }
+        let mediaBaseURL = try mediaServer.start()
 
         try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.unsupportedFileTestIdentifier,

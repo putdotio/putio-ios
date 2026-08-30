@@ -3,6 +3,10 @@ import Testing
 
 @testable import PutioHarnessKit
 
+private enum TestStartupError: Error {
+  case failed
+}
+
 private final class StopCounter: @unchecked Sendable {
   private let lock = NSLock()
   private var count = 0
@@ -27,11 +31,15 @@ private final class StopCounter: @unchecked Sendable {
   let stopCounter = StopCounter()
   let server = try HarnessMediaServer(
     mediaDirectory: directory,
-    onStop: { stopCounter.increment() }
+    onStop: { stopCounter.increment() },
+    startListener: { listener, queue in
+      listener.start(queue: queue)
+      throw TestStartupError.failed
+    }
   )
 
-  #expect(throws: (any Error).self) {
-    try server.start(timeout: 0)
+  #expect(throws: TestStartupError.self) {
+    try server.start()
   }
   server.stop()
   #expect(stopCounter.value() == 1)
