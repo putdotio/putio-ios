@@ -1,3 +1,4 @@
+import AVFoundation
 import AuthenticationServices
 import PutioCore
 import SwiftUI
@@ -306,6 +307,15 @@ private struct MainTabView: View {
       else {
         throw HarnessPlaybackFixtureError.missingResource
       }
+      if harnessPlaybackAttempt == 1 {
+        do {
+          guard try await AVURLAsset(url: fixtureURL).load(.isPlayable) else {
+            throw HarnessPlaybackFixtureError.invalidResource
+          }
+        } catch {
+          throw HarnessPlaybackFixtureError.invalidResource
+        }
+      }
       return .ready(
         PutioPlaybackSource(
           url: fixtureURL,
@@ -320,6 +330,7 @@ private struct MainTabView: View {
 
 #if DEBUG
   private enum HarnessPlaybackFixtureError: Error {
+    case invalidResource
     case missingResource
   }
 #endif

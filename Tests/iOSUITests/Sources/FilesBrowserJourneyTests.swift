@@ -66,7 +66,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let playbackError = element(identifier: "video.error")
     XCTAssertTrue(
       playbackError.waitForExistence(timeout: 10),
-      "missing HLS fixture did not produce a recoverable player failure"
+      "malformed HLS fixture did not produce a recoverable playback failure"
     )
     let retry = app.buttons["Try again"]
     XCTAssertTrue(retry.isHittable, "playback retry is not tappable")
