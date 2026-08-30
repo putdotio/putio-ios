@@ -9,27 +9,19 @@ public enum PutioSignedOutReason: Equatable, Sendable {
   case userSignedOut
 }
 
-// Closed session lifecycle: signedOut -> authenticating -> signedIn, with
-// restore and sign-out re-entering signedOut. `unknown` exists only until the
-// first restore() resolves on launch.
-public enum PutioSessionState: Equatable {
+// Closed session lifecycle: signedOut -> authenticating -> signedIn ->
+// signingOut -> signedOut. `unknown` exists only until the first restore()
+// resolves on launch.
+public enum PutioSessionState: Equatable, Sendable {
   case unknown
   case signedOut(PutioSignedOutReason?)
   case authenticating
-  case signedIn(PutioAccount)
+  case signedIn(PutioAccountSnapshot)
+  case signingOut
+}
 
-  public static func == (lhs: PutioSessionState, rhs: PutioSessionState) -> Bool {
-    switch (lhs, rhs) {
-    case (.unknown, .unknown), (.authenticating, .authenticating):
-      true
-    case (.signedOut(let left), .signedOut(let right)):
-      left == right
-    case (.signedIn(let left), .signedIn(let right)):
-      left.username == right.username
-    default:
-      false
-    }
-  }
+public enum PutioSessionOperationError: Error, Equatable, Sendable {
+  case signInUnavailable
 }
 
 public struct PutioSignInRequest: Sendable {
@@ -41,14 +33,16 @@ public struct PutioSignInRequest: Sendable {
 @Observable
 public final class PutioSessionStore {
   public private(set) var state: PutioSessionState = .unknown
+  private(set) var authenticationGeneration: UInt64 = 0
 
   private let sdk: PutioSDK
   private let tokenStore: PutioTokenStore
   private let callbackScheme: String
   private let callbackHost = "auth"
   private var pendingOAuthState: String?
+  private var pendingOAuthGeneration: UInt64?
 
-  public init(
+  init(
     sdk: PutioSDK,
     tokenStore: PutioTokenStore,
     callbackScheme: String = "putio"
@@ -61,25 +55,33 @@ public final class PutioSessionStore {
   // MARK: - Launch restore
 
   public func restore() async {
+    switch state {
+    case .unknown, .signedOut:
+      break
+    case .authenticating, .signedIn, .signingOut:
+      return
+    }
+    pendingOAuthState = nil
+    pendingOAuthGeneration = nil
+    let generation = advanceAuthenticationGeneration()
     guard let token = try? tokenStore.read(), !token.isEmpty else {
+      sdk.clearToken()
       state = .signedOut(nil)
       return
     }
     sdk.setToken(token: token)
     do {
       let validation = try await sdk.validateToken(token: token)
+      guard generation == authenticationGeneration else { return }
       guard validation.result else {
-        try? tokenStore.clear()
-        sdk.clearToken()
-        state = .signedOut(.sessionExpired)
+        expireSession()
         return
       }
-      await bootstrap(failure: PutioSignedOutReason.restoreFailed)
+      await bootstrap(failure: PutioSignedOutReason.restoreFailed, generation: generation)
     } catch {
+      guard generation == authenticationGeneration else { return }
       if isAuthRejection(error) {
-        try? tokenStore.clear()
-        sdk.clearToken()
-        state = .signedOut(.sessionExpired)
+        expireSession()
       } else {
         // Transient failure: keep the token so a retry can restore without
         // re-authenticating.
@@ -92,8 +94,16 @@ public final class PutioSessionStore {
   // MARK: - Sign in
 
   public func beginSignIn() throws -> PutioSignInRequest {
+    switch state {
+    case .unknown, .signedOut:
+      break
+    case .authenticating, .signedIn, .signingOut:
+      throw PutioSessionOperationError.signInUnavailable
+    }
     let oauthState = try PutioSDK.generateOAuthState()
+    let generation = advanceAuthenticationGeneration()
     pendingOAuthState = oauthState
+    pendingOAuthGeneration = generation
     state = .authenticating
     let url = sdk.getAuthURL(
       redirectURI: "\(callbackScheme)://\(callbackHost)",
@@ -103,11 +113,23 @@ public final class PutioSessionStore {
   }
 
   public func completeSignIn(callbackURL: URL) async {
-    guard let expectedState = pendingOAuthState else {
+    guard
+      let expectedState = pendingOAuthState,
+      let generation = pendingOAuthGeneration,
+      generation == authenticationGeneration
+    else {
+      // A callback without a live transaction may only fail an active
+      // sign-in; outside `.authenticating` it must not disturb a signed-in
+      // session or a sign-out that still owns credential cleanup.
+      guard case .authenticating = state else { return }
+      pendingOAuthState = nil
+      pendingOAuthGeneration = nil
+      _ = advanceAuthenticationGeneration()
       state = .signedOut(.authenticationFailed("No sign-in is in progress."))
       return
     }
     pendingOAuthState = nil
+    pendingOAuthGeneration = nil
     do {
       let token = try sdk.accessToken(
         fromOAuthCallback: callbackURL,
@@ -115,10 +137,12 @@ public final class PutioSessionStore {
         expectedHost: callbackHost,
         expectedState: expectedState
       )
+      guard generation == authenticationGeneration else { return }
       sdk.setToken(token: token)
       try tokenStore.write(token)
-      await bootstrap(failure: PutioSignedOutReason.authenticationFailed)
+      await bootstrap(failure: PutioSignedOutReason.authenticationFailed, generation: generation)
     } catch {
+      guard generation == authenticationGeneration else { return }
       sdk.clearToken()
       state = .signedOut(.authenticationFailed(message(for: error)))
     }
@@ -126,11 +150,18 @@ public final class PutioSessionStore {
 
   public func cancelSignIn() {
     pendingOAuthState = nil
+    pendingOAuthGeneration = nil
+    _ = advanceAuthenticationGeneration()
     state = .signedOut(nil)
   }
 
   public func failSignIn(_ error: Error) {
+    if error as? PutioSessionOperationError == .signInUnavailable {
+      return
+    }
     pendingOAuthState = nil
+    pendingOAuthGeneration = nil
+    _ = advanceAuthenticationGeneration()
     sdk.clearToken()
     state = .signedOut(.authenticationFailed(message(for: error)))
   }
@@ -138,23 +169,40 @@ public final class PutioSessionStore {
   // MARK: - Sign out
 
   public func signOut() async {
+    pendingOAuthState = nil
+    pendingOAuthGeneration = nil
+    let generation = advanceAuthenticationGeneration()
+    state = .signingOut
+    try? tokenStore.clear()
     _ = try? await sdk.logout()
+    guard generation == authenticationGeneration else { return }
+    sdk.clearToken()
+    state = .signedOut(.userSignedOut)
+  }
+
+  func expireSession() {
+    pendingOAuthState = nil
+    pendingOAuthGeneration = nil
+    _ = advanceAuthenticationGeneration()
     sdk.clearToken()
     try? tokenStore.clear()
-    state = .signedOut(.userSignedOut)
+    state = .signedOut(.sessionExpired)
   }
 
   // MARK: - Account bootstrap
 
-  private func bootstrap(failure: (String) -> PutioSignedOutReason) async {
+  private func bootstrap(
+    failure: (String) -> PutioSignedOutReason,
+    generation: UInt64
+  ) async {
     do {
       let account = try await sdk.getAccountInfo()
-      state = .signedIn(account)
+      guard generation == authenticationGeneration else { return }
+      state = .signedIn(snapshot(account))
     } catch {
+      guard generation == authenticationGeneration else { return }
       if isAuthRejection(error) {
-        try? tokenStore.clear()
-        sdk.clearToken()
-        state = .signedOut(.sessionExpired)
+        expireSession()
       } else {
         sdk.clearToken()
         state = .signedOut(failure(message(for: error)))
@@ -164,12 +212,27 @@ public final class PutioSessionStore {
 
   // MARK: - Failure classification
 
+  @discardableResult
+  private func advanceAuthenticationGeneration() -> UInt64 {
+    authenticationGeneration += 1
+    return authenticationGeneration
+  }
+
   private func isAuthRejection(_ error: Error) -> Bool {
-    guard let sdkError = error as? PutioSDKError else { return false }
-    if case .httpError(let statusCode, _) = sdkError.type {
-      return statusCode == 401 || statusCode == 403
-    }
-    return false
+    (error as? PutioSDKError)?.isAuthenticationFailure == true
+  }
+
+  private func snapshot(_ account: PutioAccount) -> PutioAccountSnapshot {
+    PutioAccountSnapshot(
+      id: account.id,
+      username: account.username,
+      email: account.mail,
+      storage: PutioAccountSnapshot.Storage(
+        availableBytes: account.disk.available,
+        totalBytes: account.disk.size,
+        usedBytes: account.disk.used
+      )
+    )
   }
 
   private func message(for error: Error) -> String {

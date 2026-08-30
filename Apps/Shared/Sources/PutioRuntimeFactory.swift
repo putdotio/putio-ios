@@ -1,6 +1,5 @@
 import Foundation
 import PutioCore
-import PutioSDK
 
 #if canImport(UIKit)
   import UIKit
@@ -9,9 +8,9 @@ import PutioSDK
   import WatchKit
 #endif
 
-enum PutioSessionFactory {
+enum PutioRuntimeFactory {
   @MainActor
-  static func make(scenario: HarnessScenario) -> PutioSessionStore {
+  static func make(scenario: HarnessScenario) -> PutioRuntime {
     #if DEBUG
       if scenario == .signedIn {
         HarnessSeededAPI.isEnabled = true
@@ -21,20 +20,19 @@ enum PutioSessionFactory {
         // responses return in-process.
         configuration.timeoutIntervalForRequest = 10
         configuration.timeoutIntervalForResource = 10
-        return PutioSessionStore(
-          sdk: PutioSDK(config: sdkConfig, urlSession: URLSession(configuration: configuration)),
-          tokenStore: PutioInMemoryTokenStore(token: HarnessSeededAPI.token)
+        return PutioRuntime(
+          clientID: clientID,
+          clientName: clientName,
+          tokenStore: PutioInMemoryTokenStore(token: HarnessSeededAPI.token),
+          urlSession: URLSession(configuration: configuration)
         )
       }
     #endif
-    return PutioSessionStore(
-      sdk: PutioSDK(config: sdkConfig),
+    return PutioRuntime(
+      clientID: clientID,
+      clientName: clientName,
       tokenStore: PutioKeychainTokenStore()
     )
-  }
-
-  private static var sdkConfig: PutioSDKConfig {
-    PutioSDKConfig(clientID: clientID, clientName: clientName)
   }
 
   // The checked-in default stays open-source-safe; a registered client id

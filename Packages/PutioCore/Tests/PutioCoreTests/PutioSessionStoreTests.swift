@@ -118,7 +118,19 @@ final class PutioSessionStoreTests: XCTestCase {
     guard case .signedIn(let account) = store.state else {
       return XCTFail("expected signedIn, got \(store.state)")
     }
-    XCTAssertEqual(account.username, "moviebuff")
+    XCTAssertEqual(
+      account,
+      PutioAccountSnapshot(
+        id: 1001,
+        username: "moviebuff",
+        email: "tests@example.com",
+        storage: PutioAccountSnapshot.Storage(
+          availableBytes: 10,
+          totalBytes: 30,
+          usedBytes: 20
+        )
+      )
+    )
   }
 
   func testRestoreWithRejectedTokenClearsAndExpires() async {
@@ -166,6 +178,55 @@ final class PutioSessionStoreTests: XCTestCase {
       return XCTFail("expected signedIn, got \(store.state)")
     }
     XCTAssertEqual(account.username, "moviebuff")
+    XCTAssertEqual(account.email, "tests@example.com")
+    XCTAssertEqual(try tokenStore.read(), "fresh-token")
+  }
+
+  func testRestoreDoesNotSupersedeSignInStartedBeforeRestore() async throws {
+    stubSignedInRoutes()
+    let (store, tokenStore) = makeStore(token: nil)
+
+    let request = try store.beginSignIn()
+    await store.restore()
+    XCTAssertEqual(store.state, .authenticating)
+
+    let oauthState = try XCTUnwrap(oauthState(from: request.url))
+    let callback = try XCTUnwrap(
+      URL(string: "putio://auth#access_token=fresh-token&state=\(oauthState)")
+    )
+    await store.completeSignIn(callbackURL: callback)
+
+    guard case .signedIn(let account) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertEqual(account.username, "moviebuff")
+    XCTAssertEqual(try tokenStore.read(), "fresh-token")
+  }
+
+  func testDuplicateSignInFailureKeepsFirstFlowActive() async throws {
+    stubSignedInRoutes()
+    let (store, tokenStore) = makeStore(token: nil)
+
+    let firstRequest = try store.beginSignIn()
+    do {
+      _ = try store.beginSignIn()
+      XCTFail("expected the overlapping sign-in to be rejected")
+    } catch {
+      XCTAssertEqual(error as? PutioSessionOperationError, .signInUnavailable)
+      store.failSignIn(error)
+    }
+    XCTAssertEqual(store.state, .authenticating)
+
+    let oauthState = try XCTUnwrap(oauthState(from: firstRequest.url))
+    let callback = try XCTUnwrap(
+      URL(string: "putio://auth#access_token=fresh-token&state=\(oauthState)")
+    )
+    await store.completeSignIn(callbackURL: callback)
+
+    guard case .signedIn(let account) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertEqual(account.username, "moviebuff")
     XCTAssertEqual(try tokenStore.read(), "fresh-token")
   }
 
@@ -200,6 +261,38 @@ final class PutioSessionStoreTests: XCTestCase {
     let (store, _) = makeStore(token: nil)
     _ = try store.beginSignIn()
     store.cancelSignIn()
+    XCTAssertEqual(store.state, .signedOut(nil))
+  }
+
+  func testStrayCallbackWhileSignedInIsIgnored() async throws {
+    stubSignedInRoutes()
+    let (store, tokenStore) = makeStore(token: "stored-token")
+    await store.restore()
+    guard case .signedIn = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+
+    let callback = try XCTUnwrap(
+      URL(string: "putio://auth#access_token=stray-token&state=stray-state")
+    )
+    await store.completeSignIn(callbackURL: callback)
+
+    guard case .signedIn = store.state else {
+      return XCTFail("stray callback must not disturb a signed-in session")
+    }
+    XCTAssertEqual(try tokenStore.read(), "stored-token")
+  }
+
+  func testStrayCallbackAfterCancelIsIgnored() async throws {
+    let (store, _) = makeStore(token: nil)
+    _ = try store.beginSignIn()
+    store.cancelSignIn()
+
+    let callback = try XCTUnwrap(
+      URL(string: "putio://auth#access_token=stray-token&state=stray-state")
+    )
+    await store.completeSignIn(callbackURL: callback)
+
     XCTAssertEqual(store.state, .signedOut(nil))
   }
 
