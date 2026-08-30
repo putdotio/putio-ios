@@ -309,7 +309,10 @@ private struct MainTabView: View {
       }
       if harnessPlaybackAttempt == 1 {
         do {
-          guard try await AVURLAsset(url: fixtureURL).load(.isPlayable) else {
+          let tracks = try await AVURLAsset(url: fixtureURL).loadTracks(
+            withMediaType: .video
+          )
+          guard !tracks.isEmpty else {
             throw HarnessPlaybackFixtureError.invalidResource
           }
         } catch {
