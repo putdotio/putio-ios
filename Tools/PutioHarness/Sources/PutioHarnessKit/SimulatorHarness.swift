@@ -164,6 +164,82 @@ func journeyRecordingWindow(
   )
 }
 
+func waitForJourneyCaptureComplete(
+  markerExists: () -> Bool,
+  processIsRunning: () -> Bool,
+  now: () -> Date = Date.init,
+  sleep: (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
+  timeout: TimeInterval = 60
+) -> Bool {
+  let deadline = now().addingTimeInterval(timeout)
+  repeat {
+    if markerExists() { return true }
+    if !processIsRunning() { return false }
+    sleep(0.1)
+  } while now() < deadline
+  return false
+}
+
+func requireJourneyCaptureCompletion(
+  _ captureCompleted: Bool,
+  testOutput: ProcessOutput
+) throws {
+  guard !captureCompleted else { return }
+  let diagnostics = testOutput.combinedOutput
+  let suffix = diagnostics.isEmpty ? "" : "\n\(diagnostics)"
+  throw HarnessFailure(
+    "iOS journey did not signal capture completion within 60 seconds\(suffix)"
+  )
+}
+
+func performJourneyRecordingTrim(
+  source: URL,
+  output: URL,
+  root: JourneyFrameFingerprint,
+  nested: JourneyFrameFingerprint,
+  back: JourneyFrameFingerprint,
+  readFrames: (URL) throws -> [JourneyVideoFrame],
+  convert: (URL, URL, JourneyRecordingWindow) throws -> Void,
+  readDuration: (URL) throws -> TimeInterval
+) throws {
+  let frames = try readFrames(source)
+  let window = try journeyRecordingWindow(
+    frames: frames,
+    root: root,
+    nested: nested,
+    back: back
+  )
+  try convert(source, output, window)
+  let outputDuration = try readDuration(output)
+  guard outputDuration.isFinite,
+    outputDuration >= max(2, window.duration - 1),
+    outputDuration <= min(maximumJourneyRecordingDuration, window.duration + 1)
+  else {
+    throw HarnessFailure(
+      "trimmed browser journey recording is \(outputDuration) seconds; expected about \(window.duration)"
+    )
+  }
+  let outputFrames = try readFrames(output)
+  let firstDifference =
+    outputFrames.first.map { journeyFrameDifference($0.fingerprint, root) }
+    ?? .infinity
+  let lastDifference =
+    outputFrames.last.map { journeyFrameDifference($0.fingerprint, back) }
+    ?? .infinity
+  let nestedDifference =
+    outputFrames.map { journeyFrameDifference($0.fingerprint, nested) }.min()
+    ?? .infinity
+  guard outputFrames.count >= minimumJourneyRecordingFrameCount,
+    firstDifference <= maximumJourneyFrameDifference,
+    lastDifference <= maximumJourneyFrameDifference,
+    nestedDifference <= maximumJourneyFrameDifference
+  else {
+    throw HarnessFailure(
+      "trimmed browser journey recording does not preserve root, nested, and returned-root frame boundaries; frames=\(outputFrames.count), root=\(firstDifference), nested=\(nestedDifference), back=\(lastDifference)"
+    )
+  }
+}
+
 private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: ProcessRunner) throws {
   var diagnostics: [String] = []
   for identifier in identifiers {
@@ -627,9 +703,7 @@ public struct SimulatorHarness {
             "run ios files-browser journey failed\n\(testOutput.combinedOutput)\n\(details)"
           )
         }
-        guard captureCompleted else {
-          throw HarnessFailure("iOS journey did not signal capture completion within 60 seconds")
-        }
+        try requireJourneyCaptureCompletion(captureCompleted, testOutput: testOutput)
         let summary = platformDirectory.appending(path: "files-browser-test-summary.json")
         let screenshots = try extractJourneyResults(
           resultBundle: resultBundle,
@@ -1306,13 +1380,10 @@ public struct SimulatorHarness {
     let marker = appContainer.appending(
       path: "tmp/\(BrowserJourneyContract.captureCompleteMarkerName)"
     )
-    let deadline = Date().addingTimeInterval(60)
-    repeat {
-      if fileManager.fileExists(atPath: marker.path) { return true }
-      if !testProcess.isRunning { return false }
-      Thread.sleep(forTimeInterval: 0.1)
-    } while Date() < deadline
-    return false
+    return PutioHarnessKit.waitForJourneyCaptureComplete(
+      markerExists: { self.fileManager.fileExists(atPath: marker.path) },
+      processIsRunning: { testProcess.isRunning }
+    )
   }
 
   private func journeyFailureDetails(resultBundle: URL) -> String {
@@ -1345,54 +1416,30 @@ public struct SimulatorHarness {
       nested: journeyFingerprint(from: nested),
       back: journeyFingerprint(from: back)
     )
-    let frames = try journeyVideoFrames(at: source)
-    let window = try journeyRecordingWindow(
-      frames: frames,
+    try performJourneyRecordingTrim(
+      source: source,
+      output: output,
       root: references.root,
       nested: references.nested,
-      back: references.back
+      back: references.back,
+      readFrames: { try self.journeyVideoFrames(at: $0) },
+      convert: { source, output, window in
+        _ = try self.runner.checked(
+          "xcrun",
+          [
+            "avconvert",
+            "--source", source.path,
+            "--output", output.path,
+            "--preset", "PresetHighestQuality",
+            "--start", String(window.start),
+            "--duration", String(window.duration),
+            "--replace",
+          ],
+          context: "trim browser journey recording"
+        )
+      },
+      readDuration: { try self.mediaDuration(of: $0) }
     )
-    _ = try runner.checked(
-      "xcrun",
-      [
-        "avconvert",
-        "--source", source.path,
-        "--output", output.path,
-        "--preset", "PresetHighestQuality",
-        "--start", String(window.start),
-        "--duration", String(window.duration),
-        "--replace",
-      ],
-      context: "trim browser journey recording"
-    )
-    let outputDuration = try mediaDuration(of: output)
-    guard outputDuration.isFinite,
-      outputDuration >= max(2, window.duration - 1),
-      outputDuration <= min(maximumJourneyRecordingDuration, window.duration + 1)
-    else {
-      throw HarnessFailure(
-        "trimmed browser journey recording is \(outputDuration) seconds; expected about \(window.duration)"
-      )
-    }
-    let outputFrames = try journeyVideoFrames(at: output)
-    let firstDifference =
-      outputFrames.first.map { journeyFrameDifference($0.fingerprint, references.root) }
-      ?? .infinity
-    let lastDifference =
-      outputFrames.last.map { journeyFrameDifference($0.fingerprint, references.back) }
-      ?? .infinity
-    let nestedDifference =
-      outputFrames.map { journeyFrameDifference($0.fingerprint, references.nested) }.min()
-      ?? .infinity
-    guard outputFrames.count >= minimumJourneyRecordingFrameCount,
-      firstDifference <= maximumJourneyFrameDifference,
-      lastDifference <= maximumJourneyFrameDifference,
-      nestedDifference <= maximumJourneyFrameDifference
-    else {
-      throw HarnessFailure(
-        "trimmed browser journey recording does not preserve root, nested, and returned-root frame boundaries; frames=\(outputFrames.count), root=\(firstDifference), nested=\(nestedDifference), back=\(lastDifference)"
-      )
-    }
   }
 
   private func journeyVideoFrames(at url: URL) throws -> [JourneyVideoFrame] {

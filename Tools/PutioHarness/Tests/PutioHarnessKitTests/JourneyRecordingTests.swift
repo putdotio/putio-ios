@@ -190,3 +190,131 @@ import Testing
 
   #expect(journeyFrameDifference(reference, sparseChange) > maximumJourneyFrameDifference)
 }
+
+@Test func journeyCaptureCompletionStopsWhenTestExits() {
+  var slept = false
+  let completed = waitForJourneyCaptureComplete(
+    markerExists: { false },
+    processIsRunning: { false },
+    sleep: { _ in slept = true }
+  )
+
+  #expect(!completed)
+  #expect(!slept)
+}
+
+@Test func journeyCaptureCompletionReturnsWhenMarkerAppears() {
+  let completed = waitForJourneyCaptureComplete(
+    markerExists: { true },
+    processIsRunning: { false },
+    sleep: { _ in Issue.record("unexpected sleep") }
+  )
+
+  #expect(completed)
+}
+
+@Test func journeyCaptureCompletionStopsAtTimeout() {
+  var sleepCount = 0
+  let completed = waitForJourneyCaptureComplete(
+    markerExists: { false },
+    processIsRunning: { true },
+    now: { Date(timeIntervalSince1970: 0) },
+    sleep: { _ in sleepCount += 1 },
+    timeout: 0
+  )
+
+  #expect(!completed)
+  #expect(sleepCount == 1)
+}
+
+@Test func missingJourneyCaptureCompletionPreservesTestDiagnostics() {
+  do {
+    try requireJourneyCaptureCompletion(
+      false,
+      testOutput: ProcessOutput(status: 0, stdout: "journey stdout", stderr: "journey stderr")
+    )
+    Issue.record("expected missing capture completion to fail")
+  } catch let error as HarnessFailure {
+    #expect(error.message.contains("did not signal capture completion"))
+    #expect(error.message.contains("journey stdout"))
+    #expect(error.message.contains("journey stderr"))
+  } catch {
+    Issue.record("unexpected error: \(error)")
+  }
+}
+
+@Test func journeyRecordingTrimPropagatesSourceDecodeFailureBeforeConversion() {
+  var converted = false
+
+  #expect(throws: HarnessFailure.self) {
+    try performJourneyRecordingTrim(
+      source: URL(fileURLWithPath: "/source.mp4"),
+      output: URL(fileURLWithPath: "/output.mp4"),
+      root: JourneyFrameFingerprint(samples: [0]),
+      nested: JourneyFrameFingerprint(samples: [100]),
+      back: JourneyFrameFingerprint(samples: [200]),
+      readFrames: { _ in throw HarnessFailure("decode failed") },
+      convert: { _, _, _ in converted = true },
+      readDuration: { _ in 3 }
+    )
+  }
+  #expect(!converted)
+}
+
+@Test func journeyRecordingTrimPropagatesConversionFailure() {
+  let fixture = journeyTrimFixture()
+  var readCount = 0
+
+  #expect(throws: HarnessFailure.self) {
+    try performJourneyRecordingTrim(
+      source: URL(fileURLWithPath: "/source.mp4"),
+      output: URL(fileURLWithPath: "/output.mp4"),
+      root: fixture.root,
+      nested: fixture.nested,
+      back: fixture.back,
+      readFrames: { _ in
+        readCount += 1
+        return fixture.frames
+      },
+      convert: { _, _, _ in throw HarnessFailure("avconvert failed") },
+      readDuration: { _ in 3 }
+    )
+  }
+  #expect(readCount == 1)
+}
+
+@Test func journeyRecordingTrimRejectsInvalidConvertedOutput() {
+  let fixture = journeyTrimFixture()
+
+  #expect(throws: HarnessFailure.self) {
+    try performJourneyRecordingTrim(
+      source: URL(fileURLWithPath: "/source.mp4"),
+      output: URL(fileURLWithPath: "/output.mp4"),
+      root: fixture.root,
+      nested: fixture.nested,
+      back: fixture.back,
+      readFrames: { _ in fixture.frames },
+      convert: { _, _, _ in },
+      readDuration: { _ in .infinity }
+    )
+  }
+}
+
+private func journeyTrimFixture() -> (
+  root: JourneyFrameFingerprint,
+  nested: JourneyFrameFingerprint,
+  back: JourneyFrameFingerprint,
+  frames: [JourneyVideoFrame]
+) {
+  let root = JourneyFrameFingerprint(samples: [0])
+  let nested = JourneyFrameFingerprint(samples: [100])
+  let back = JourneyFrameFingerprint(samples: [200])
+  let frames = (0..<30).map { index in
+    JourneyVideoFrame(
+      presentationTime: Double(index) / 10,
+      duration: 0.1,
+      fingerprint: index < 10 ? root : index < 20 ? nested : back
+    )
+  }
+  return (root, nested, back, frames)
+}
