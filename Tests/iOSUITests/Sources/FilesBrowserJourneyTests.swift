@@ -25,6 +25,15 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(root.exists, "capture started before the root browser appeared")
     XCTAssertTrue(folder.exists, "capture started before the seeded folder appeared")
     XCTAssertTrue(folder.isHittable, "seeded folder is not tappable")
+    let unsupportedFile = app.staticTexts["Document.pdf"]
+    XCTAssertTrue(unsupportedFile.exists, "unsupported file row is missing")
+    XCTAssertEqual(unsupportedFile.elementType, .staticText)
+    XCTAssertFalse(app.buttons["files.item.413"].exists)
+    if unsupportedFile.isHittable {
+      unsupportedFile.tap()
+    }
+    XCTAssertTrue(root.exists, "unsupported file selection left the browser")
+    XCTAssertFalse(element(identifier: "files.selection").exists)
     addScreenshot(named: "files-browser-root")
 
     folder.tap()

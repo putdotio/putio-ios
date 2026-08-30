@@ -169,6 +169,19 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertEqual(resolver.attempts, 2)
   }
 
+  func testActiveCancellationErrorBecomesARecoverableFailure() async {
+    let model = PutioVideoPlaybackModel(fileID: fileID) { _ in
+      throw CancellationError()
+    }
+
+    await model.loadIfNeeded()
+
+    guard case .failed(let failure) = model.state else {
+      return XCTFail("expected recoverable failure, got \(model.state)")
+    }
+    XCTAssertEqual(failure.kind, .unknown)
+  }
+
   func testPlayerFailureBecomesRecoverableAndIgnoresNonReadyStates() async {
     let source = playbackSource()
     let resolver = PlaybackResolverStub([.success(.ready(source))])

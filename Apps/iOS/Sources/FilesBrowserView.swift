@@ -198,13 +198,18 @@ struct PutioFolderScreen: View {
       }
       .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
     } else if let fileRoute = presentation.fileRoute {
-      Button {
-        onFileSelected(fileRoute)
-      } label: {
+      if let videoRoute = fileRoute.videoPlaybackRoute {
+        Button {
+          onFileSelected(videoRoute)
+        } label: {
+          PutioFileRow(presentation.row)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
+      } else {
         PutioFileRow(presentation.row)
+          .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
       }
-      .buttonStyle(.plain)
-      .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
     }
   }
 
