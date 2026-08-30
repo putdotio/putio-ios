@@ -3,6 +3,40 @@ import Testing
 
 @testable import PutioHarnessKit
 
+private final class StopCounter: @unchecked Sendable {
+  private let lock = NSLock()
+  private var count = 0
+
+  func increment() {
+    lock.lock()
+    count += 1
+    lock.unlock()
+  }
+
+  func value() -> Int {
+    lock.lock()
+    defer { lock.unlock() }
+    return count
+  }
+}
+
+@Test func harnessMediaServerStopsOnceWhenStartupFails() throws {
+  let directory = FileManager.default.temporaryDirectory.appending(
+    path: "putio-harness-media-\(UUID().uuidString)"
+  )
+  let stopCounter = StopCounter()
+  let server = try HarnessMediaServer(
+    mediaDirectory: directory,
+    onStop: { stopCounter.increment() }
+  )
+
+  #expect(throws: (any Error).self) {
+    try server.start(timeout: 0)
+  }
+  server.stop()
+  #expect(stopCounter.value() == 1)
+}
+
 @Test func harnessMediaServerServesOnlyAllowlistedMediaAndByteRanges() async throws {
   let directory = FileManager.default.temporaryDirectory.appending(
     path: "putio-harness-media-\(UUID().uuidString)"
@@ -14,9 +48,17 @@ import Testing
   try playlist.write(to: directory.appending(path: "runtime-proof.m3u8"))
   try segment.write(to: directory.appending(path: "runtime-proof-000.ts"))
 
-  let server = try HarnessMediaServer(mediaDirectory: directory)
+  let stopCounter = StopCounter()
+  let server = try HarnessMediaServer(
+    mediaDirectory: directory,
+    onStop: { stopCounter.increment() }
+  )
   let baseURL = try server.start()
-  defer { server.stop() }
+  defer {
+    server.stop()
+    server.stop()
+    #expect(stopCounter.value() == 1)
+  }
 
   let (playlistData, playlistResponse) = try await URLSession.shared.data(
     from: baseURL.appending(path: "runtime-proof.m3u8")

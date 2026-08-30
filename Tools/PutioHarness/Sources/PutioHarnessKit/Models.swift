@@ -291,6 +291,8 @@ public struct ProofManifest: Codable, Equatable, Sendable {
 enum BrowserJourneyContract {
   static let testIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
+  static let unsupportedFileTestIdentifier =
+    "PutioUITests/FilesBrowserJourneyTests/testUnsupportedFileIsNotActionable"
   static let attachmentNames = [
     "runtime-sign-in",
     "runtime-playback",

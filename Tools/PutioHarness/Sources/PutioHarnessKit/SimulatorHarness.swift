@@ -627,6 +627,14 @@ public struct SimulatorHarness {
           mediaServer.stop()
         }
 
+        try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.unsupportedFileTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".unsupported-file.xcresult")
+        )
+
         let resultBundle = platformDirectory.appending(path: "runtime-proof.xcresult")
         let rawRecording = platformDirectory.appending(path: ".runtime-proof-walk.raw.mp4")
         let recording = platformDirectory.appending(path: "runtime-proof-walk.mp4")
@@ -843,6 +851,55 @@ public struct SimulatorHarness {
       try requireNonemptyFile(destination, context: "browser journey screenshot \(name)")
       return destination
     }
+  }
+
+  private func runJourneyPreflightTest(
+    identifier: String,
+    platform: HarnessPlatform,
+    session: SimulatorSession,
+    mediaBaseURL: URL,
+    resultBundle: URL
+  ) throws {
+    defer { try? fileManager.removeItem(at: resultBundle) }
+    let testOutput = try runner.run(
+      "xcodebuild",
+      [
+        "test-without-building",
+        "-quiet",
+        "-workspace", "Putio.xcworkspace",
+        "-scheme", platform.configuration.scheme,
+        "-destination", "id=\(session.deviceIdentifier)",
+        "-derivedDataPath", context.derivedData.path,
+        "-resultBundlePath", resultBundle.path,
+        "-parallel-testing-enabled", "NO",
+        "-collect-test-diagnostics", "never",
+        "-test-timeouts-enabled", "YES",
+        "-default-test-execution-time-allowance", "30",
+        "-maximum-test-execution-time-allowance", "60",
+        "-only-testing:\(identifier)",
+      ],
+      environment: [
+        "TEST_RUNNER_PUTIO_HARNESS_MEDIA_BASE_URL": mediaBaseURL.absoluteString
+      ],
+      currentDirectory: context.root
+    )
+    guard testOutput.status == 0 else {
+      throw HarnessFailure(
+        "run ios journey preflight failed\n\(testOutput.combinedOutput)\n"
+          + journeyFailureDetails(resultBundle: resultBundle)
+      )
+    }
+    try requireNonemptyDirectory(resultBundle, context: "journey preflight result bundle")
+    let summaryOutput = try runner.checked(
+      "xcrun",
+      [
+        "xcresulttool", "get", "test-results", "summary",
+        "--path", resultBundle.path,
+        "--compact",
+      ],
+      context: "read journey preflight test summary"
+    )
+    _ = try requirePassingJourneySummary(Data(summaryOutput.stdout.utf8))
   }
 
   public func defaultRunID() throws -> String {

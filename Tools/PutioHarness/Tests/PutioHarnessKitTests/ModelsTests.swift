@@ -53,6 +53,10 @@ import Testing
       == "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
   )
   #expect(
+    BrowserJourneyContract.unsupportedFileTestIdentifier
+      == "PutioUITests/FilesBrowserJourneyTests/testUnsupportedFileIsNotActionable"
+  )
+  #expect(
     BrowserJourneyContract.attachmentNames
       == ["runtime-sign-in", "runtime-playback", "runtime-signed-out"]
   )
