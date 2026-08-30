@@ -16,10 +16,7 @@ import Testing
 
   let server = try HarnessMediaServer(mediaDirectory: directory)
   let baseURL = try server.start()
-  defer {
-    server.stop()
-    server.stop()
-  }
+  defer { server.stop() }
 
   let (playlistData, playlistResponse) = try await URLSession.shared.data(
     from: baseURL.appending(path: "runtime-proof.m3u8")

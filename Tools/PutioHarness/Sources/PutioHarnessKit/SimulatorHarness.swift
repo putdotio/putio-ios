@@ -613,6 +613,10 @@ public struct SimulatorHarness {
           context: "runtime-proof HLS playlist"
         )
         try requireNonemptyFile(
+          mediaDirectory.appending(path: "runtime-proof-invalid.m3u8"),
+          context: "invalid runtime-proof HLS playlist"
+        )
+        try requireNonemptyFile(
           mediaDirectory.appending(path: "runtime-proof-000.ts"),
           context: "runtime-proof HLS segment"
         )
