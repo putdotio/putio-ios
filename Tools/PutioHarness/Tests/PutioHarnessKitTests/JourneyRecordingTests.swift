@@ -223,58 +223,6 @@ import Testing
   #expect(journeyFrameDifference(reference, sparseChange) > maximumJourneyFrameDifference)
 }
 
-@Test func journeyCaptureCompletionStopsWhenTestExits() {
-  var slept = false
-  let completed = waitForJourneyCaptureComplete(
-    markerExists: { false },
-    processIsRunning: { false },
-    sleep: { _ in slept = true }
-  )
-
-  #expect(!completed)
-  #expect(!slept)
-}
-
-@Test func journeyCaptureCompletionReturnsWhenMarkerAppears() {
-  let completed = waitForJourneyCaptureComplete(
-    markerExists: { true },
-    processIsRunning: { false },
-    sleep: { _ in Issue.record("unexpected sleep") }
-  )
-
-  #expect(completed)
-}
-
-@Test func journeyCaptureCompletionStopsAtTimeout() {
-  var sleepCount = 0
-  let completed = waitForJourneyCaptureComplete(
-    markerExists: { false },
-    processIsRunning: { true },
-    now: { Date(timeIntervalSince1970: 0) },
-    sleep: { _ in sleepCount += 1 },
-    timeout: 0
-  )
-
-  #expect(!completed)
-  #expect(sleepCount == 1)
-}
-
-@Test func missingJourneyCaptureCompletionPreservesTestDiagnostics() {
-  do {
-    try requireJourneyCaptureCompletion(
-      false,
-      testOutput: ProcessOutput(status: 0, stdout: "journey stdout", stderr: "journey stderr")
-    )
-    Issue.record("expected missing capture completion to fail")
-  } catch let error as HarnessFailure {
-    #expect(error.message.contains("did not signal capture completion"))
-    #expect(error.message.contains("journey stdout"))
-    #expect(error.message.contains("journey stderr"))
-  } catch {
-    Issue.record("unexpected error: \(error)")
-  }
-}
-
 @Test func journeyRecordingTrimPropagatesSourceDecodeFailureBeforeConversion() {
   var converted = false
 

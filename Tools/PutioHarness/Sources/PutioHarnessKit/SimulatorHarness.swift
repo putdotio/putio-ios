@@ -164,34 +164,6 @@ func journeyRecordingWindow(
   )
 }
 
-func waitForJourneyCaptureComplete(
-  markerExists: () -> Bool,
-  processIsRunning: () -> Bool,
-  now: () -> Date = Date.init,
-  sleep: (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
-  timeout: TimeInterval = 60
-) -> Bool {
-  let deadline = now().addingTimeInterval(timeout)
-  repeat {
-    if markerExists() { return true }
-    if !processIsRunning() { return false }
-    sleep(0.1)
-  } while now() < deadline
-  return false
-}
-
-func requireJourneyCaptureCompletion(
-  _ captureCompleted: Bool,
-  testOutput: ProcessOutput
-) throws {
-  guard !captureCompleted else { return }
-  let diagnostics = testOutput.combinedOutput
-  let suffix = diagnostics.isEmpty ? "" : "\n\(diagnostics)"
-  throw HarnessFailure(
-    "iOS journey did not signal capture completion within 60 seconds\(suffix)"
-  )
-}
-
 func performJourneyRecordingTrim(
   source: URL,
   output: URL,
@@ -650,15 +622,16 @@ public struct SimulatorHarness {
         try SimulatorLifecycle.shared.register {
           mediaServer.stop()
         }
-        try install(platform: platform, session: session)
-        let appContainer = try installedAppContainer(
-          platform: platform,
-          session: session
-        )
 
         let resultBundle = platformDirectory.appending(path: "runtime-proof.xcresult")
         let rawRecording = platformDirectory.appending(path: ".runtime-proof-walk.raw.mp4")
         let recording = platformDirectory.appending(path: "runtime-proof-walk.mp4")
+        let recordingProcess = try startRecording(session: session, output: rawRecording)
+        var recordingFinished = false
+        defer {
+          if !recordingFinished { _ = recordingProcess.interruptAndWait() }
+        }
+
         let testProcess = try runner.start(
           "xcodebuild",
           [
@@ -686,34 +659,10 @@ public struct SimulatorHarness {
           if !testFinished { _ = testProcess.interruptAndWait() }
         }
 
-        let recordingProcess = try startRecording(session: session, output: rawRecording)
-        var recordingFinished = false
-        defer {
-          if !recordingFinished { _ = recordingProcess.interruptAndWait() }
-        }
-
-        do {
-          try waitForJourneyCaptureReady(
-            appContainer: appContainer,
-            testProcess: testProcess
-          )
-        } catch {
-          let testOutput = testProcess.wait()
-          testFinished = true
-          let details = journeyFailureDetails(resultBundle: resultBundle)
-          throw HarnessFailure("\(error)\n\(testOutput.combinedOutput)\n\(details)")
-        }
-
-        try signalJourneyRecordingStarted(appContainer: appContainer)
-
-        let captureCompleted = waitForJourneyCaptureComplete(
-          appContainer: appContainer,
-          testProcess: testProcess
-        )
-        let recordingOutput = recordingProcess.interruptAndWait()
-        recordingFinished = true
         let testOutput = testProcess.wait()
         testFinished = true
+        let recordingOutput = recordingProcess.interruptAndWait()
+        recordingFinished = true
 
         guard recordingOutput.status == 0 else {
           throw HarnessFailure(
@@ -726,7 +675,6 @@ public struct SimulatorHarness {
             "run ios runtime-proof journey failed\n\(testOutput.combinedOutput)\n\(details)"
           )
         }
-        try requireJourneyCaptureCompletion(captureCompleted, testOutput: testOutput)
         let summary = platformDirectory.appending(path: "runtime-proof-test-summary.json")
         let screenshots = try extractJourneyResults(
           resultBundle: resultBundle,
@@ -1354,65 +1302,6 @@ public struct SimulatorHarness {
     }
     _ = process.interruptAndWait()
     throw HarnessFailure("recording did not start within 30 seconds")
-  }
-
-  private func installedAppContainer(
-    platform: HarnessPlatform,
-    session: SimulatorSession
-  ) throws -> URL {
-    let output = try runner.checked(
-      "xcrun",
-      [
-        "simctl", "get_app_container", session.deviceIdentifier,
-        platform.configuration.bundleIdentifier, "data",
-      ],
-      context: "resolve installed app container"
-    )
-    let path = output.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !path.isEmpty else {
-      throw HarnessFailure("installed app container path is empty")
-    }
-    return URL(fileURLWithPath: path)
-  }
-
-  private func waitForJourneyCaptureReady(
-    appContainer: URL,
-    testProcess: RunningProcess
-  ) throws {
-    let deadline = Date().addingTimeInterval(300)
-    let readyMarker = appContainer.appending(
-      path: "tmp/\(BrowserJourneyContract.captureReadyMarkerName)"
-    )
-    repeat {
-      if fileManager.fileExists(atPath: readyMarker.path) {
-        return
-      }
-      guard testProcess.isRunning else {
-        throw HarnessFailure("iOS journey test exited before its capture gate became ready")
-      }
-      Thread.sleep(forTimeInterval: 0.1)
-    } while Date() < deadline
-    throw HarnessFailure("iOS journey capture gate did not become ready within 300 seconds")
-  }
-
-  private func signalJourneyRecordingStarted(appContainer: URL) throws {
-    let marker = appContainer.appending(
-      path: "tmp/\(BrowserJourneyContract.recordingStartedMarkerName)"
-    )
-    try Data().write(to: marker, options: .atomic)
-  }
-
-  private func waitForJourneyCaptureComplete(
-    appContainer: URL,
-    testProcess: RunningProcess
-  ) -> Bool {
-    let marker = appContainer.appending(
-      path: "tmp/\(BrowserJourneyContract.captureCompleteMarkerName)"
-    )
-    return PutioHarnessKit.waitForJourneyCaptureComplete(
-      markerExists: { self.fileManager.fileExists(atPath: marker.path) },
-      processIsRunning: { testProcess.isRunning }
-    )
   }
 
   private func journeyFailureDetails(resultBundle: URL) -> String {

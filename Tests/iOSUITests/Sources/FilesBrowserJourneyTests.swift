@@ -23,10 +23,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
     let root = element(identifier: "files.screen.0")
     let folder = element(identifier: "files.item.410")
-    XCTAssertTrue(
-      element(identifier: "journey.capture-recording").waitForExistence(timeout: 30),
-      "harness never signaled that journey recording started"
-    )
     addScreenshot(named: "runtime-sign-in")
 
     XCTAssertTrue(signIn.isHittable, "sign-in action is not tappable")
@@ -114,19 +110,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
     addScreenshot(named: "runtime-signed-out")
-
-    let finishCapture = element(identifier: "journey.capture-finish")
-    XCTAssertTrue(
-      finishCapture.waitForExistence(timeout: 5),
-      "app did not expose the journey finish action after returning to root"
-    )
-    XCTAssertTrue(finishCapture.isHittable, "journey finish action is not tappable")
-    finishCapture.tap()
-
-    XCTAssertTrue(
-      element(identifier: "journey.capture-complete").waitForExistence(timeout: 5),
-      "app did not finish the journey capture"
-    )
   }
 
   private func element(identifier: String) -> XCUIElement {

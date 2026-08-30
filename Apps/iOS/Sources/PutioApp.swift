@@ -71,28 +71,9 @@ private struct SessionRootView: View {
       }
     }
     .background(PutioTheme.Colors.background)
-    .overlay(alignment: .bottomTrailing) {
-      if scenario == .filesBrowser {
-        HarnessJourneyCaptureGate(
-          shouldStart: runtimeProofCanStartCapture,
-          shouldComplete: runtimeProofCanCompleteCapture,
-          preservesRecordingAcrossRelaunch: true
-        )
-      }
-    }
     .task {
       await runtime.session.restore()
     }
-  }
-
-  private var runtimeProofCanStartCapture: Bool {
-    if case .signedOut(nil) = runtime.session.state { return true }
-    return false
-  }
-
-  private var runtimeProofCanCompleteCapture: Bool {
-    if case .signedOut(.userSignedOut) = runtime.session.state { return true }
-    return false
   }
 }
 
@@ -350,88 +331,6 @@ private struct MainTabView: View {
     case missingResource
   }
 #endif
-
-private struct HarnessJourneyCaptureGate: View {
-  let shouldStart: Bool
-  let shouldComplete: Bool
-  var preservesRecordingAcrossRelaunch = false
-
-  @State private var recordingStarted = false
-  @State private var captureCompleted = false
-
-  var body: some View {
-    ZStack {
-      Color.clear
-        .frame(width: 1, height: 1)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Journey capture recording")
-        .accessibilityIdentifier("journey.capture-recording")
-        .accessibilityHidden(!recordingStarted)
-        .allowsHitTesting(false)
-      Color.clear
-        .frame(width: 1, height: 1)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Journey capture complete")
-        .accessibilityIdentifier("journey.capture-complete")
-        .accessibilityHidden(!captureCompleted)
-        .allowsHitTesting(false)
-      if shouldComplete, !captureCompleted {
-        Button {
-          captureCompleted = true
-          signalCaptureComplete()
-        } label: {
-          Color.clear
-            .frame(width: 44, height: 44)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .contentShape(Rectangle())
-        .accessibilityLabel("Finish journey capture")
-        .accessibilityIdentifier("journey.capture-finish")
-      }
-    }
-    .task(id: shouldStart) {
-      let fileManager = FileManager.default
-      let readyMarker = fileManager.temporaryDirectory.appending(
-        path: "putio-harness-journey-ready"
-      )
-      let recordingMarker = fileManager.temporaryDirectory.appending(
-        path: "putio-harness-journey-recording"
-      )
-      let completeMarker = fileManager.temporaryDirectory.appending(
-        path: "putio-harness-journey-complete"
-      )
-      if preservesRecordingAcrossRelaunch,
-        fileManager.fileExists(atPath: recordingMarker.path)
-      {
-        recordingStarted = true
-        return
-      }
-      for marker in [readyMarker, recordingMarker, completeMarker] {
-        try? fileManager.removeItem(at: marker)
-      }
-      guard shouldStart else {
-        return
-      }
-      try? Data().write(to: readyMarker, options: .atomic)
-
-      while !Task.isCancelled {
-        if fileManager.fileExists(atPath: recordingMarker.path) {
-          recordingStarted = true
-          return
-        }
-        try? await Task.sleep(for: .milliseconds(50))
-      }
-    }
-  }
-
-  private func signalCaptureComplete() {
-    let marker = FileManager.default.temporaryDirectory.appending(
-      path: "putio-harness-journey-complete"
-    )
-    try? Data().write(to: marker, options: .atomic)
-  }
-}
 
 private struct HarnessFileSelectionProbe: View {
   let route: PutioFileRoute

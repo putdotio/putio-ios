@@ -56,12 +56,6 @@ import Testing
     BrowserJourneyContract.attachmentNames
       == ["runtime-sign-in", "runtime-playback", "runtime-signed-out"]
   )
-  #expect(BrowserJourneyContract.captureReadyMarkerName == "putio-harness-journey-ready")
-  #expect(
-    BrowserJourneyContract.recordingStartedMarkerName
-      == "putio-harness-journey-recording"
-  )
-  #expect(BrowserJourneyContract.captureCompleteMarkerName == "putio-harness-journey-complete")
 }
 
 @Test func browserJourneySelectsAttachmentsBySuggestedName() throws {

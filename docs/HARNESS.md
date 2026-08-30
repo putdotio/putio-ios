@@ -73,7 +73,7 @@ build/proof/<run-id>/ios/
 └── manifest.json
 ```
 
-The journey requires exactly `1/1` passing UI test, three meaningful screenshots, and different sign-in and playback frames. Recording is capture-gated: a single `simctl recordVideo` stream warms before the test releases the initial sign-in screen, and its marker survives the intentional app relaunch. The harness publishes at most one second of stable initial sign-in context. After sign-out returns to the same stable screen, the test triggers the harness-only finish action. The harness re-encodes the screenshot-matched frame window, requires the playback landmark between the matching initial and final sign-in runs, rejects a recording longer than 25 seconds, and removes the raw recording and intermediate Xcode result bundle after extraction. Empty startup and teardown never enter the published walk.
+The journey requires exactly `1/1` passing UI test, three meaningful screenshots, and different sign-in and playback frames. One `simctl recordVideo` stream starts before XCTest and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 25 seconds and removes the raw recording and intermediate Xcode result bundle after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
 
 Capture never uploads implicitly. Publish one reviewed artifact only after a pull request exists:
 
