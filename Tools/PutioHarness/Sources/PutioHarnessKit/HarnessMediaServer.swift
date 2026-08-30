@@ -153,7 +153,8 @@ final class HarnessMediaServer: @unchecked Sendable {
     guard let header else {
       return ("200 OK", [:], data)
     }
-    let value = header.split(separator: ":", maxSplits: 1).last?
+    let value =
+      header.split(separator: ":", maxSplits: 1).last?
       .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     guard value.hasPrefix("bytes="),
       let dash = value.firstIndex(of: "-"),
@@ -195,13 +196,15 @@ final class HarnessMediaServer: @unchecked Sendable {
     responseHeaders["Connection"] = "close"
     let headerText =
       (["HTTP/1.1 \(status)"]
-        + responseHeaders.sorted(by: { $0.key < $1.key }).map { "\($0.key): \($0.value)" }
-        + ["", ""])
+      + responseHeaders.sorted(by: { $0.key < $1.key }).map { "\($0.key): \($0.value)" }
+      + ["", ""])
       .joined(separator: "\r\n")
     var response = Data(headerText.utf8)
     response.append(body)
-    connection.send(content: response, completion: .contentProcessed { _ in
-      connection.cancel()
-    })
+    connection.send(
+      content: response,
+      completion: .contentProcessed { _ in
+        connection.cancel()
+      })
   }
 }
