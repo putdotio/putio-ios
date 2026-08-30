@@ -68,7 +68,7 @@ struct PutioVideoPlaybackFailure: Equatable {
   static let playback = PutioVideoPlaybackFailure(
     kind: .playback,
     title: "Could not play video",
-    message: "The stream stopped before playback could begin. Try again."
+    message: "The stream could not continue. Try again."
   )
 }
 
@@ -399,6 +399,7 @@ final class PutioSystemVideoPlayerCoordinator {
     driver.seek(to: startTime) { [weak self] finished in
       Task { @MainActor [weak self] in
         guard let self, generation == playbackGeneration, self.driver === driver else { return }
+        guard !failureReported else { return }
         guard finished else {
           reportFailure(generation: playbackGeneration)
           return

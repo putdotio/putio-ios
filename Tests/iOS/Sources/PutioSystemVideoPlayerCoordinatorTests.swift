@@ -140,6 +140,31 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     XCTAssertEqual(failures, 0)
   }
 
+  func testResumeSeekCannotStartPlaybackAfterPlayerFailure() async throws {
+    let audioSession = PlaybackAudioSessionSpy()
+    let statusObservation = PlayerItemStatusObservationSpy()
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: audioSession,
+      statusObservation: statusObservation
+    )
+    let controller = AVPlayerViewController()
+    var failures = 0
+
+    coordinator.start(source: source(startFromSeconds: 90), in: controller) {
+      failures += 1
+    }
+    let driver = try XCTUnwrap(capture.driver)
+
+    statusObservation.emit(.failed)
+    await Task.yield()
+    driver.completeSeek(true)
+    await Task.yield()
+
+    XCTAssertEqual(failures, 1)
+    XCTAssertEqual(driver.events, ["seek"])
+    coordinator.stop(controller: controller)
+  }
+
   func testFailedToEndReportsOnceForExactItemAndStopsObservingOnTeardown() async throws {
     let notificationCenter = NotificationCenter()
     let audioSession = PlaybackAudioSessionSpy()
