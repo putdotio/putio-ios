@@ -12,7 +12,6 @@ private final class VideoPlayerDriverSpy: PutioVideoPlayerDriving {
   var currentTime: CMTime = .zero
   private(set) var events: [String] = []
   private(set) var seekTime: CMTime?
-  private(set) var timeObservation: PlayerTimeObservationSpy?
   private var seekCompletion: (@Sendable (Bool) -> Void)?
 
   init(item: AVPlayerItem) {
@@ -29,16 +28,6 @@ private final class VideoPlayerDriverSpy: PutioVideoPlayerDriving {
     seekCompletion = completion
   }
 
-  func observeTime(
-    every interval: CMTime,
-    using callback: @escaping @MainActor @Sendable (CMTime) -> Void
-  ) -> any PutioPlayerTimeObservation {
-    events.append("observe-time")
-    let observation = PlayerTimeObservationSpy(interval: interval, callback: callback)
-    timeObservation = observation
-    return observation
-  }
-
   func stop() {
     events.append("stop")
     player.currentItem?.cancelPendingSeeks()
@@ -52,12 +41,12 @@ private final class VideoPlayerDriverSpy: PutioVideoPlayerDriving {
 }
 
 @MainActor
-private final class PlayerTimeObservationSpy: PutioPlayerTimeObservation {
-  let interval: CMTime
+private final class PositionReportScheduleSpy: PutioPositionReportSchedule {
+  let interval: Duration
   private(set) var invalidationCount = 0
-  private let callback: @MainActor @Sendable (CMTime) -> Void
+  private let callback: @MainActor @Sendable () -> Void
 
-  init(interval: CMTime, callback: @escaping @MainActor @Sendable (CMTime) -> Void) {
+  init(interval: Duration, callback: @escaping @MainActor @Sendable () -> Void) {
     self.interval = interval
     self.callback = callback
   }
@@ -66,12 +55,8 @@ private final class PlayerTimeObservationSpy: PutioPlayerTimeObservation {
     invalidationCount += 1
   }
 
-  func emit(seconds: Double) {
-    callback(CMTime(seconds: seconds, preferredTimescale: 600))
-  }
-
-  func emit(_ time: CMTime) {
-    callback(time)
+  func tick() {
+    callback()
   }
 }
 
@@ -111,15 +96,6 @@ private final class PlaybackPositionReportSpy {
 }
 
 @MainActor
-private final class PlaybackPositionClockSpy {
-  private(set) var instant = ContinuousClock.now
-
-  func advance(by duration: Duration) {
-    instant = instant.advanced(by: duration)
-  }
-}
-
-@MainActor
 private final class PlaybackAudioSessionSpy: PutioPlaybackAudioSessioning {
   enum Failure: Error {
     case activation
@@ -142,6 +118,7 @@ private final class PlaybackAudioSessionSpy: PutioPlaybackAudioSessioning {
 private final class VideoPlayerDriverCapture {
   var driver: VideoPlayerDriverSpy?
   var item: AVPlayerItem?
+  var positionReportSchedule: PositionReportScheduleSpy?
 }
 
 @MainActor
@@ -178,7 +155,8 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     driver.completeSeek(true)
     await Task.yield()
 
-    XCTAssertEqual(driver.events, ["seek", "observe-time", "play"])
+    XCTAssertEqual(driver.events, ["seek", "play"])
+    XCTAssertEqual(capture.positionReportSchedule?.interval, .seconds(15))
     coordinator.stop(controller: controller)
   }
 
@@ -429,18 +407,16 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     await coordinator.waitForPendingPositionReports()
 
     XCTAssertEqual(driver.events, ["play", "stop"])
-    XCTAssertNil(driver.timeObservation)
+    XCTAssertNil(capture.positionReportSchedule)
     XCTAssertTrue(reports.started.isEmpty)
   }
 
   func testReadyPlayerSamplesOnExactFifteenSecondInterval() async throws {
     let audioSession = PlaybackAudioSessionSpy()
     let statusObservation = PlayerItemStatusObservationSpy()
-    let clock = PlaybackPositionClockSpy()
     let (coordinator, capture) = makeCoordinator(
       audioSession: audioSession,
-      statusObservation: statusObservation,
-      positionReportNow: { clock.instant }
+      statusObservation: statusObservation
     )
     let controller = AVPlayerViewController()
     let reports = PlaybackPositionReportSpy()
@@ -454,32 +430,60 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       onFailure: {}
     )
     let driver = try XCTUnwrap(capture.driver)
-    XCTAssertNil(driver.timeObservation)
+    XCTAssertNil(capture.positionReportSchedule)
 
     statusObservation.emit(.readyToPlay)
     await Task.yield()
-    let timeObservation = try XCTUnwrap(driver.timeObservation)
-    XCTAssertEqual(CMTimeGetSeconds(timeObservation.interval), 15)
+    let schedule = try XCTUnwrap(capture.positionReportSchedule)
+    XCTAssertEqual(schedule.interval, .seconds(15))
 
-    timeObservation.emit(seconds: 0)
-    clock.advance(by: .seconds(14))
-    timeObservation.emit(seconds: 120)
-    await Task.yield()
-    XCTAssertTrue(reports.started.isEmpty)
-
-    clock.advance(by: .seconds(1))
-    timeObservation.emit(seconds: 15.9)
+    driver.currentTime = CMTime(seconds: 15.9, preferredTimescale: 600)
+    schedule.tick()
     await coordinator.waitForPendingPositionReports()
 
     XCTAssertEqual(reports.completed.map(\.0), [fileID])
     XCTAssertEqual(reports.completed.map(\.1), [15])
 
-    timeObservation.emit(seconds: 300)
-    await Task.yield()
-    XCTAssertEqual(reports.completed.map(\.1), [15])
+    driver.currentTime = CMTime(seconds: 300, preferredTimescale: 600)
+    schedule.tick()
+    await coordinator.waitForPendingPositionReports()
+    XCTAssertEqual(reports.completed.map(\.1), [15, 300])
     driver.currentTime = .invalid
     coordinator.stop(controller: controller)
     await coordinator.waitForPendingPositionReports()
+  }
+
+  func testMonotonicScheduleSamplesCurrentPositionAtNonUnitPlaybackRates() async throws {
+    let statusObservation = PlayerItemStatusObservationSpy()
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: PlaybackAudioSessionSpy(),
+      statusObservation: statusObservation
+    )
+    let controller = AVPlayerViewController()
+    let reports = PlaybackPositionReportSpy()
+
+    coordinator.start(
+      fileID: fileID,
+      source: source(startFromSeconds: 0),
+      reportPosition: { try await reports.report(fileID: $0, position: $1) },
+      in: controller,
+      onFailure: {}
+    )
+    let driver = try XCTUnwrap(capture.driver)
+    statusObservation.emit(.readyToPlay)
+    await Task.yield()
+    let schedule = try XCTUnwrap(capture.positionReportSchedule)
+
+    driver.currentTime = CMTime(seconds: 7.5, preferredTimescale: 600)
+    schedule.tick()
+    await coordinator.waitForPendingPositionReports()
+    driver.currentTime = CMTime(seconds: 30, preferredTimescale: 600)
+    schedule.tick()
+    await coordinator.waitForPendingPositionReports()
+
+    XCTAssertEqual(reports.completed.map(\.1), [7, 30])
+    driver.currentTime = .invalid
+    coordinator.stop(controller: controller)
   }
 
   func testInvalidPeriodicPositionsAreIgnored() async throws {
@@ -502,16 +506,19 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     )
     statusObservation.emit(.readyToPlay)
     await Task.yield()
-    let observation = try XCTUnwrap(capture.driver?.timeObservation)
+    let driver = try XCTUnwrap(capture.driver)
+    let schedule = try XCTUnwrap(capture.positionReportSchedule)
 
-    observation.emit(.invalid)
-    observation.emit(.indefinite)
-    observation.emit(seconds: -1)
-    observation.emit(seconds: Double(Int.max))
+    for time in [CMTime.invalid, .indefinite, CMTime(seconds: -1, preferredTimescale: 600)] {
+      driver.currentTime = time
+      schedule.tick()
+    }
+    driver.currentTime = CMTime(seconds: Double(Int.max), preferredTimescale: 600)
+    schedule.tick()
     await Task.yield()
 
     XCTAssertTrue(reports.started.isEmpty)
-    capture.driver?.currentTime = .invalid
+    driver.currentTime = .invalid
     coordinator.stop(controller: controller)
     await coordinator.waitForPendingPositionReports()
     XCTAssertTrue(reports.started.isEmpty)
@@ -567,16 +574,17 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let driver = try XCTUnwrap(capture.driver)
     statusObservation.emit(.readyToPlay)
     await Task.yield()
-    let timeObservation = try XCTUnwrap(driver.timeObservation)
+    let schedule = try XCTUnwrap(capture.positionReportSchedule)
     driver.currentTime = CMTime(seconds: 44.8, preferredTimescale: 600)
 
     coordinator.stop(controller: controller)
     coordinator.stop(controller: controller)
-    timeObservation.emit(seconds: 60)
+    driver.currentTime = CMTime(seconds: 60, preferredTimescale: 600)
+    schedule.tick()
     await coordinator.waitForPendingPositionReports()
 
     XCTAssertEqual(reports.completed.map(\.1), [44])
-    XCTAssertEqual(timeObservation.invalidationCount, 1)
+    XCTAssertEqual(schedule.invalidationCount, 1)
     XCTAssertEqual(driver.events.last, "stop")
   }
 
@@ -621,6 +629,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     )
     let controller = AVPlayerViewController()
     let reports = PlaybackPositionReportSpy()
+    reports.blocksFirstReport = true
 
     coordinator.start(
       fileID: fileID,
@@ -633,25 +642,30 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let item = try XCTUnwrap(capture.item)
     statusObservation.emit(.readyToPlay)
     await Task.yield()
+    let schedule = try XCTUnwrap(capture.positionReportSchedule)
+    driver.currentTime = CMTime(seconds: 15, preferredTimescale: 600)
+    schedule.tick()
+    while reports.started.isEmpty {
+      await Task.yield()
+    }
     driver.currentTime = CMTime(seconds: 120, preferredTimescale: 600)
 
     notificationCenter.post(name: AVPlayerItem.didPlayToEndTimeNotification, object: item)
     driver.currentTime = CMTime(seconds: 8, preferredTimescale: 600)
     notificationCenter.post(name: AVPlayerItem.timeJumpedNotification, object: item)
     coordinator.stop(controller: controller)
+    reports.releaseFirstReport()
     await coordinator.waitForPendingPositionReports()
 
-    XCTAssertEqual(reports.completed.map(\.1), [0, 8])
+    XCTAssertEqual(reports.completed.map(\.1), [15, 0, 8])
   }
 
   func testReportsRemainOrderedAndFailureDoesNotBecomePlaybackFailure() async throws {
     let audioSession = PlaybackAudioSessionSpy()
     let statusObservation = PlayerItemStatusObservationSpy()
-    let clock = PlaybackPositionClockSpy()
     let (coordinator, capture) = makeCoordinator(
       audioSession: audioSession,
-      statusObservation: statusObservation,
-      positionReportNow: { clock.instant }
+      statusObservation: statusObservation
     )
     let controller = AVPlayerViewController()
     let reports = PlaybackPositionReportSpy()
@@ -670,11 +684,11 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let driver = try XCTUnwrap(capture.driver)
     statusObservation.emit(.readyToPlay)
     await Task.yield()
-    let timeObservation = try XCTUnwrap(driver.timeObservation)
-    clock.advance(by: .seconds(15))
-    timeObservation.emit(seconds: 15)
-    clock.advance(by: .seconds(15))
-    timeObservation.emit(seconds: 30)
+    let schedule = try XCTUnwrap(capture.positionReportSchedule)
+    driver.currentTime = CMTime(seconds: 15, preferredTimescale: 600)
+    schedule.tick()
+    driver.currentTime = CMTime(seconds: 30, preferredTimescale: 600)
+    schedule.tick()
     driver.currentTime = CMTime(seconds: 37, preferredTimescale: 600)
     coordinator.stop(controller: controller)
 
@@ -788,8 +802,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     audioSession: PlaybackAudioSessionSpy,
     statusObservation: PlayerItemStatusObservationSpy? = nil,
     notificationCenter: NotificationCenter = NotificationCenter(),
-    positionPipeline: PutioPlaybackPositionPipeline? = nil,
-    positionReportNow: PutioSystemVideoPlayerCoordinator.PositionReportNow? = nil
+    positionPipeline: PutioPlaybackPositionPipeline? = nil
   ) -> (PutioSystemVideoPlayerCoordinator, VideoPlayerDriverCapture) {
     let capture = VideoPlayerDriverCapture()
     let coordinator = PutioSystemVideoPlayerCoordinator(
@@ -811,7 +824,11 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: audioSession,
       notificationCenter: notificationCenter,
       positionPipeline: positionPipeline ?? PutioPlaybackPositionPipeline(),
-      positionReportNow: positionReportNow ?? { ContinuousClock.now }
+      schedulePositionReports: { interval, callback in
+        let schedule = PositionReportScheduleSpy(interval: interval, callback: callback)
+        capture.positionReportSchedule = schedule
+        return schedule
+      }
     )
     return (coordinator, capture)
   }
