@@ -660,6 +660,46 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     XCTAssertEqual(reports.completed.map(\.1), [15, 0, 8])
   }
 
+  func testReplayWaitsForTransientEOFResetRetryBeforeReportingTheNewPosition() async throws {
+    let notificationCenter = NotificationCenter()
+    let statusObservation = PlayerItemStatusObservationSpy()
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: PlaybackAudioSessionSpy(),
+      statusObservation: statusObservation,
+      notificationCenter: notificationCenter
+    )
+    let controller = AVPlayerViewController()
+    let reports = PlaybackPositionReportSpy()
+    reports.blocksFirstReport = true
+    reports.firstReportError = PutioRuntimeError.transient
+
+    coordinator.start(
+      fileID: fileID,
+      source: source(startFromSeconds: 0),
+      reportPosition: { try await reports.report(fileID: $0, position: $1) },
+      in: controller,
+      onFailure: {}
+    )
+    let driver = try XCTUnwrap(capture.driver)
+    let item = try XCTUnwrap(capture.item)
+    statusObservation.emit(.readyToPlay)
+    await Task.yield()
+    driver.currentTime = CMTime(seconds: 120, preferredTimescale: 600)
+
+    notificationCenter.post(name: AVPlayerItem.didPlayToEndTimeNotification, object: item)
+    while reports.started.isEmpty {
+      await Task.yield()
+    }
+    driver.currentTime = CMTime(seconds: 8, preferredTimescale: 600)
+    notificationCenter.post(name: AVPlayerItem.timeJumpedNotification, object: item)
+    coordinator.stop(controller: controller)
+    reports.releaseFirstReport()
+    await coordinator.waitForPendingPositionReports()
+
+    XCTAssertEqual(reports.started.map(\.1), [0, 0, 8])
+    XCTAssertEqual(reports.completed.map(\.1), [0, 8])
+  }
+
   func testReportsRemainOrderedAndFailureDoesNotBecomePlaybackFailure() async throws {
     let audioSession = PlaybackAudioSessionSpy()
     let statusObservation = PlayerItemStatusObservationSpy()

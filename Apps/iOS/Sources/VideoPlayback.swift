@@ -203,11 +203,17 @@ final class PutioPlaybackPositionPipeline {
     do {
       try await queuedReport.report(fileID, queuedReport.position)
     } catch {
-      guard Self.isRetryable(error), !hasQueuedReport(fileID: fileID, sequence: sequence) else {
+      guard Self.isRetryable(error) else {
+        return
+      }
+      let mayYieldToQueuedReport = !queuedReport.preservesOrdering
+      guard !mayYieldToQueuedReport || !hasQueuedReport(fileID: fileID, sequence: sequence) else {
         return
       }
       try? await Task.sleep(for: .milliseconds(250))
-      guard !hasQueuedReport(fileID: fileID, sequence: sequence) else { return }
+      guard !mayYieldToQueuedReport || !hasQueuedReport(fileID: fileID, sequence: sequence) else {
+        return
+      }
       try? await queuedReport.report(fileID, queuedReport.position)
     }
   }
