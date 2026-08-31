@@ -254,7 +254,16 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     XCTAssertEqual(harnessDriver.positionObservationIntervals.count, 1)
     XCTAssertEqual(harnessDriver.positionObservationIntervals[0].seconds, 0.25, accuracy: 0.001)
     harnessDriver.emitPosition(CMTime(seconds: 91.9, preferredTimescale: 600))
-    harnessDriver.emitPosition(CMTime(seconds: Double(Int.max), preferredTimescale: 1))
+    for time in [
+      CMTime.invalid,
+      .indefinite,
+      .positiveInfinity,
+      .negativeInfinity,
+      CMTime(seconds: -1, preferredTimescale: 600),
+      CMTime(seconds: Double(Int.max), preferredTimescale: 1),
+    ] {
+      harnessDriver.emitPosition(time)
+    }
     await Task.yield()
     XCTAssertEqual(positions, [91])
 
