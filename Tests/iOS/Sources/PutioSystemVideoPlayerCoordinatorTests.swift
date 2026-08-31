@@ -11,8 +11,11 @@ private final class VideoPlayerDriverSpy: PutioVideoPlayerDriving {
   let player: AVPlayer
   var currentTime: CMTime = .zero
   private(set) var events: [String] = []
+  private(set) var positionObservationIntervals: [CMTime] = []
+  private(set) var positionObservationRemovalCount = 0
   private(set) var seekTime: CMTime?
   private var seekCompletion: (@Sendable (Bool) -> Void)?
+  private var positionChanged: (@Sendable (CMTime) -> Void)?
 
   init(item: AVPlayerItem) {
     player = AVPlayer(playerItem: item)
@@ -37,6 +40,24 @@ private final class VideoPlayerDriverSpy: PutioVideoPlayerDriving {
 
   func completeSeek(_ finished: Bool) {
     seekCompletion?(finished)
+  }
+
+  func observePosition(
+    every interval: CMTime,
+    callback: @escaping @Sendable (CMTime) -> Void
+  ) -> Any {
+    positionObservationIntervals.append(interval)
+    positionChanged = callback
+    return NSObject()
+  }
+
+  func removePositionObservation(_ observation: Any) {
+    positionObservationRemovalCount += 1
+    positionChanged = nil
+  }
+
+  func emitPosition(_ time: CMTime) {
+    positionChanged?(time)
   }
 }
 
@@ -192,6 +213,56 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     }
     XCTAssertEqual(sleep.durations, [.seconds(15), .seconds(15)])
     XCTAssertEqual(callbackCount, 1)
+  }
+
+  func testPlaybackPositionObservationIsHarnessOnlyBoundedAndRemoved() async throws {
+    let productionStatus = PlayerItemStatusObservationSpy()
+    let (productionCoordinator, productionCapture) = makeCoordinator(
+      audioSession: PlaybackAudioSessionSpy(),
+      statusObservation: productionStatus
+    )
+    let productionController = AVPlayerViewController()
+    productionCoordinator.start(
+      fileID: fileID,
+      source: source(startFromSeconds: 0),
+      in: productionController,
+      onFailure: {}
+    )
+    let productionDriver = try XCTUnwrap(productionCapture.driver)
+
+    XCTAssertTrue(productionDriver.positionObservationIntervals.isEmpty)
+    productionCoordinator.stop(controller: productionController)
+    XCTAssertEqual(productionDriver.positionObservationRemovalCount, 0)
+
+    let harnessStatus = PlayerItemStatusObservationSpy()
+    let (harnessCoordinator, harnessCapture) = makeCoordinator(
+      audioSession: PlaybackAudioSessionSpy(),
+      statusObservation: harnessStatus
+    )
+    let harnessController = AVPlayerViewController()
+    var positions: [Int] = []
+    harnessCoordinator.start(
+      fileID: fileID,
+      source: source(startFromSeconds: 0),
+      in: harnessController,
+      observesPlaybackState: true,
+      onPositionChanged: { positions.append($0) },
+      onFailure: {}
+    )
+    let harnessDriver = try XCTUnwrap(harnessCapture.driver)
+
+    XCTAssertEqual(harnessDriver.positionObservationIntervals.count, 1)
+    XCTAssertEqual(harnessDriver.positionObservationIntervals[0].seconds, 0.25, accuracy: 0.001)
+    harnessDriver.emitPosition(CMTime(seconds: 91.9, preferredTimescale: 600))
+    harnessDriver.emitPosition(CMTime(seconds: Double(Int.max), preferredTimescale: 1))
+    await Task.yield()
+    XCTAssertEqual(positions, [91])
+
+    harnessCoordinator.stop(controller: harnessController)
+    XCTAssertEqual(harnessDriver.positionObservationRemovalCount, 1)
+    harnessDriver.emitPosition(CMTime(seconds: 92, preferredTimescale: 600))
+    await Task.yield()
+    XCTAssertEqual(positions, [91])
   }
 
   func testCurrentResumeSeekPlaysOnlyAfterCompletion() async throws {

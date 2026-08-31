@@ -444,6 +444,11 @@ protocol PutioVideoPlayerDriving: AnyObject {
 
   func play()
   func seek(to time: CMTime, completion: @escaping @Sendable (Bool) -> Void)
+  func observePosition(
+    every interval: CMTime,
+    callback: @escaping @Sendable (CMTime) -> Void
+  ) -> Any
+  func removePositionObservation(_ observation: Any)
   func stop()
 }
 
@@ -511,6 +516,17 @@ private final class PutioSystemVideoPlayerDriver: PutioVideoPlayerDriving {
       toleranceAfter: .zero,
       completionHandler: completion
     )
+  }
+
+  func observePosition(
+    every interval: CMTime,
+    callback: @escaping @Sendable (CMTime) -> Void
+  ) -> Any {
+    player.addPeriodicTimeObserver(forInterval: interval, queue: .main, using: callback)
+  }
+
+  func removePositionObservation(_ observation: Any) {
+    player.removeTimeObserver(observation)
   }
 
   func stop() {
@@ -703,10 +719,9 @@ final class PutioSystemVideoPlayerCoordinator {
     let driver = makeDriver(item)
     self.driver = driver
     controller.player = driver.player
-    if onPositionChanged != nil {
-      positionObservation = driver.player.addPeriodicTimeObserver(
-        forInterval: CMTime(seconds: 0.25, preferredTimescale: 600),
-        queue: .main
+    if self.onPositionChanged != nil {
+      positionObservation = driver.observePosition(
+        every: CMTime(seconds: 0.25, preferredTimescale: 600)
       ) { [weak self] time in
         Task { @MainActor [weak self] in
           guard
@@ -716,7 +731,7 @@ final class PutioSystemVideoPlayerCoordinator {
             time.isNumeric
           else { return }
           let seconds = time.seconds
-          guard seconds.isFinite, seconds >= 0, seconds <= Double(Int.max) else { return }
+          guard seconds.isFinite, seconds >= 0, seconds < Double(Int.max) else { return }
           self.onPositionChanged?(Int(seconds.rounded(.down)))
         }
       }
@@ -767,7 +782,7 @@ final class PutioSystemVideoPlayerCoordinator {
     positionReportSchedule?.invalidate()
     positionReportSchedule = nil
     if let positionObservation, let stoppedDriver {
-      stoppedDriver.player.removeTimeObserver(positionObservation)
+      stoppedDriver.removePositionObservation(positionObservation)
       self.positionObservation = nil
     }
     if let failedToEndObservation {
