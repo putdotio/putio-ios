@@ -242,7 +242,8 @@ private struct MainTabView: View {
     .tabBarMinimizeBehavior(.onScrollDown)
     .fullScreenCover(item: $selectedVideoRoute) { route in
       PutioVideoPlaybackView(
-        route: route
+        route: route,
+        showsHarnessReadiness: scenario == .filesBrowser
       ) { fileID in
         try await resolvePlaybackSource(fileID: fileID)
       }

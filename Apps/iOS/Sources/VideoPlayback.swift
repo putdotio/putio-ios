@@ -143,13 +143,16 @@ struct PutioVideoPlaybackView: View {
   @State private var retrySequence: UInt64 = 0
   @State private var playerIsReady = false
   private let reportsPlayerFailures: Bool
+  private let showsHarnessReadiness: Bool
 
   init(
     route: PutioFileRoute,
     reportsPlayerFailures: Bool = true,
+    showsHarnessReadiness: Bool = false,
     resolve: @escaping PutioPlaybackResolve
   ) {
     self.reportsPlayerFailures = reportsPlayerFailures
+    self.showsHarnessReadiness = showsHarnessReadiness
     _model = State(
       initialValue: PutioVideoPlaybackModel(fileID: route.id, resolve: resolve)
     )
@@ -174,7 +177,7 @@ struct PutioVideoPlaybackView: View {
       await model.retry()
     }
     .overlay {
-      if playerIsReady {
+      if showsHarnessReadiness, playerIsReady {
         Color.clear
           .frame(width: 1, height: 1)
           .accessibilityElement(children: .ignore)
