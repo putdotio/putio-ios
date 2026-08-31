@@ -219,6 +219,7 @@ struct PutioFolderScreen: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
+        .accessibilityValue(Text(videoAccessibilityValue(for: presentation.item)))
       } else {
         PutioFileRow(presentation.row)
           .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
@@ -240,6 +241,11 @@ struct PutioFolderScreen: View {
       .buttonStyle(.borderless)
     }
     .accessibilityIdentifier("files.refresh-error.\(route.id.rawValue)")
+  }
+
+  private func videoAccessibilityValue(for item: PutioFileItem) -> String {
+    guard item.isWatched else { return "Not watched" }
+    return "Watched, resume position \(item.resumePositionSeconds) seconds"
   }
 
   private func requestRetry(_ kind: RetryKind) {

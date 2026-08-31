@@ -71,7 +71,7 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertEqual(sources[412]?.startFromSeconds, 0)
   }
 
-  func testSeededPlaybackPositionRoundTripsThroughTheRuntime() async throws {
+  func testSeededPlaybackPositionRoundTripsThroughPlaybackAndFolderFixtures() async throws {
     let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
     await runtime.session.restore()
     for rawFileID in [411, 412] {
@@ -83,6 +83,18 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
         return XCTFail("expected seeded video \(rawFileID) to remain ready after reporting")
       }
       XCTAssertEqual(source.startFromSeconds, 137)
+
+      let parentID = PutioFileID(rawValue: rawFileID == 411 ? 410 : 0)
+      let refreshed = try await runtime.listFiles(parentID: parentID)
+      let refreshedFile = try XCTUnwrap(refreshed.items.first { $0.id == fileID })
+      XCTAssertEqual(refreshedFile.resumePositionSeconds, 137)
+      XCTAssertTrue(refreshedFile.isWatched)
+
+      try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: 0)
+      let reset = try await runtime.listFiles(parentID: parentID)
+      let resetFile = try XCTUnwrap(reset.items.first { $0.id == fileID })
+      XCTAssertEqual(resetFile.resumePositionSeconds, 0)
+      XCTAssertFalse(resetFile.isWatched)
     }
   }
 

@@ -227,7 +227,8 @@ import Foundation
       }
       """
 
-    private static let rootFiles = """
+    private static var rootFiles: String {
+      """
       {
         "parent": {
           "id": 0,
@@ -256,7 +257,7 @@ import Foundation
             "size": 734003200,
             "created_at": "2026-08-28T10:00:00Z",
             "updated_at": "2026-08-29T10:00:00Z",
-            "start_from": 0
+            "start_from": \(playbackPosition(fileID: 412))
           },
           {
             "id": 413,
@@ -271,8 +272,10 @@ import Foundation
         "total": 3
       }
       """
+    }
 
-    private static let nestedFiles = """
+    private static var nestedFiles: String {
+      """
       {
         "parent": {
           "id": 410,
@@ -292,12 +295,13 @@ import Foundation
             "size": 1073741824,
             "created_at": "2026-08-28T11:00:00Z",
             "updated_at": "2026-08-29T11:00:00Z",
-            "start_from": 90
+            "start_from": \(playbackPosition(fileID: 411))
           }
         ],
         "total": 1
       }
       """
+    }
 
     private static func playbackFile(id: Int, name: String, startFrom: Int) -> String {
       """

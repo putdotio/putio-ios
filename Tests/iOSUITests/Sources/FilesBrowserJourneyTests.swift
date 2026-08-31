@@ -43,6 +43,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let nestedFile = element(identifier: "files.item.411")
     XCTAssertTrue(nested.waitForExistence(timeout: 10), "nested browser never appeared")
     XCTAssertTrue(nestedFile.waitForExistence(timeout: 5), "seeded nested file never appeared")
+    XCTAssertEqual(nestedFile.value as? String, "Watched, resume position 90 seconds")
     nestedFile.tap()
     let done = element(identifier: "video.done")
     XCTAssertTrue(done.waitForExistence(timeout: 5), "video screen never appeared")
@@ -182,6 +183,18 @@ final class FilesBrowserJourneyTests: XCTestCase {
       persistedSeconds ?? -1,
       90,
       "reported playback position moved behind the resolved resume point"
+    )
+    let refreshedRowValue = persistedSeconds.map {
+      "Watched, resume position \($0) seconds"
+    }
+    let rowRefresh = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@", refreshedRowValue ?? ""),
+      object: nestedFile
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [rowRefresh], timeout: 5),
+      .completed,
+      "folder row did not refresh after the position report completed"
     )
 
     nestedFile.tap()
