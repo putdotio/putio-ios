@@ -468,6 +468,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private var statusObservation: (any PutioPlayerItemStatusObservation)?
   private var timeObservation: (any PutioPlayerTimeObservation)?
   private var failedToEndObservation: NSObjectProtocol?
+  private var playedToEndObservation: NSObjectProtocol?
   private var driver: (any PutioVideoPlayerDriving)?
   private var onReady: (@MainActor () -> Void)?
   private var onFailure: (@MainActor () -> Void)?
@@ -567,6 +568,15 @@ final class PutioSystemVideoPlayerCoordinator {
         self?.reportFailure(generation: playbackGeneration)
       }
     }
+    playedToEndObservation = notificationCenter.addObserver(
+      forName: AVPlayerItem.didPlayToEndTimeNotification,
+      object: item,
+      queue: nil
+    ) { [weak self] _ in
+      Task { @MainActor [weak self] in
+        self?.reportPlaybackEnded(generation: playbackGeneration)
+      }
+    }
 
     let driver = makeDriver(item)
     self.driver = driver
@@ -620,6 +630,10 @@ final class PutioSystemVideoPlayerCoordinator {
       notificationCenter.removeObserver(failedToEndObservation)
       self.failedToEndObservation = nil
     }
+    if let playedToEndObservation {
+      notificationCenter.removeObserver(playedToEndObservation)
+      self.playedToEndObservation = nil
+    }
     onReady = nil
     onFailure = nil
     stoppedDriver?.stop()
@@ -647,6 +661,19 @@ final class PutioSystemVideoPlayerCoordinator {
     readyReported = true
     startPositionObservation(generation: playbackGeneration)
     onReady?()
+  }
+
+  private func reportPlaybackEnded(generation playbackGeneration: UInt64) {
+    guard
+      generation == playbackGeneration,
+      remembersPlaybackPosition,
+      readyReported,
+      positionIsEstablished,
+      !failureReported,
+      !finalPositionEnqueued
+    else { return }
+    finalPositionEnqueued = true
+    enqueuePosition(0)
   }
 
   private func startPositionObservation(generation playbackGeneration: UInt64) {

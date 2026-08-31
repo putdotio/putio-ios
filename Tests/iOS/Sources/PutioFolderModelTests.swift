@@ -241,6 +241,40 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNil(model.refreshFailure)
   }
 
+  func testPlaybackRefreshTargetsOnlyTheOwningFolder() async {
+    let loader = ControlledFolderLoader()
+    let original = BrowserTestFixtures.contents(
+      folderID: 42,
+      items: [BrowserTestFixtures.item(id: 1, parentID: 42)]
+    )
+    let refreshed = BrowserTestFixtures.contents(
+      folderID: 42,
+      items: [BrowserTestFixtures.item(id: 2, parentID: 42)]
+    )
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { folderID in try await loader.load(folderID: folderID) },
+      initialContents: original
+    )
+
+    await model.refresh(
+      for: PutioFolderRefreshRequest(id: 1, folderID: PutioFileID(rawValue: 7))
+    )
+    let requestCount = await loader.requestCount()
+    XCTAssertEqual(requestCount, 0)
+
+    let refresh = Task {
+      await model.refresh(
+        for: PutioFolderRefreshRequest(id: 2, folderID: PutioFileID(rawValue: 42))
+      )
+    }
+    await loader.waitForRequestCount(1)
+    await loader.succeed(request: 0, with: refreshed)
+    await refresh.value
+
+    XCTAssertEqual(model.state, .loaded(refreshed))
+  }
+
   func testRefreshSessionExpiryPreservesRowsWithoutAnInlineBrowserError() async {
     let original = BrowserTestFixtures.contents(
       items: [BrowserTestFixtures.item(id: 1)]

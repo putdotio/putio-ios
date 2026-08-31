@@ -11,13 +11,15 @@ struct FilesBrowserView: View {
   private let onFileSelected: PutioFileSelection
   private let onRootLoaded: PutioRootLoaded
   private let onReturnToRoot: @MainActor @Sendable () -> Void
+  private let refreshRequest: PutioFolderRefreshRequest?
   @State private var path: [PutioFolderRoute] = []
 
   init(
     runtime: PutioRuntime,
     onFileSelected: @escaping PutioFileSelection,
     onRootLoaded: @escaping PutioRootLoaded = {},
-    onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {}
+    onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
+    refreshRequest: PutioFolderRefreshRequest? = nil
   ) {
     load = { folderID in
       try await runtime.listFiles(parentID: folderID)
@@ -25,18 +27,21 @@ struct FilesBrowserView: View {
     self.onFileSelected = onFileSelected
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
+    self.refreshRequest = refreshRequest
   }
 
   init(
     load: @escaping PutioFolderLoad,
     onFileSelected: @escaping PutioFileSelection,
     onRootLoaded: @escaping PutioRootLoaded = {},
-    onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {}
+    onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
+    refreshRequest: PutioFolderRefreshRequest? = nil
   ) {
     self.load = load
     self.onFileSelected = onFileSelected
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
+    self.refreshRequest = refreshRequest
   }
 
   var body: some View {
@@ -45,12 +50,14 @@ struct FilesBrowserView: View {
         route: .root,
         load: load,
         onLoaded: onRootLoaded,
+        refreshRequest: refreshRequest,
         onFileSelected: onFileSelected
       )
       .navigationDestination(for: PutioFolderRoute.self) { route in
         PutioFolderScreen(
           route: route,
           load: load,
+          refreshRequest: refreshRequest,
           onFileSelected: onFileSelected
         )
       }
@@ -75,6 +82,7 @@ struct PutioFolderScreen: View {
   private let locale: Locale
   private let onLoaded: @MainActor @Sendable () -> Void
   private let onFileSelected: PutioFileSelection
+  private let refreshRequest: PutioFolderRefreshRequest?
 
   init(
     route: PutioFolderRoute,
@@ -83,6 +91,7 @@ struct PutioFolderScreen: View {
     relativeTo relativeDateReference: Date? = nil,
     locale: Locale = .current,
     onLoaded: @escaping @MainActor @Sendable () -> Void = {},
+    refreshRequest: PutioFolderRefreshRequest? = nil,
     onFileSelected: @escaping PutioFileSelection
   ) {
     self.route = route
@@ -96,6 +105,7 @@ struct PutioFolderScreen: View {
     self.relativeDateReference = relativeDateReference
     self.locale = locale
     self.onLoaded = onLoaded
+    self.refreshRequest = refreshRequest
     self.onFileSelected = onFileSelected
   }
 
@@ -124,6 +134,9 @@ struct PutioFolderScreen: View {
     }
     .task(id: retryRequest) {
       await runRetryRequest()
+    }
+    .task(id: refreshRequest) {
+      await model.refresh(for: refreshRequest)
     }
     .onChange(of: model.state, initial: true) { _, state in
       guard !reportedLoaded, case .loaded = state else { return }
