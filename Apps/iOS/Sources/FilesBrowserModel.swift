@@ -12,9 +12,16 @@ struct PutioFolderRoute: Identifiable, Sendable {
   static let root = PutioFolderRoute(id: .root, title: "Files")
 }
 
-struct PutioFolderRefreshRequest: Equatable, Sendable {
-  let id: UInt64
-  let folderID: PutioFileID
+struct PutioFolderRefreshRequests: Equatable, Sendable {
+  private var sequences: [PutioFileID: UInt64] = [:]
+
+  mutating func request(folderID: PutioFileID) {
+    sequences[folderID, default: 0] &+= 1
+  }
+
+  func sequence(for folderID: PutioFileID) -> UInt64? {
+    sequences[folderID]
+  }
 }
 
 extension PutioFolderRoute: Hashable {
@@ -139,11 +146,6 @@ final class PutioFolderModel {
   func refresh() async {
     guard case .loaded = state else { return }
     await performLoad(mode: .refresh)
-  }
-
-  func refresh(for request: PutioFolderRefreshRequest?) async {
-    guard request?.folderID == folderID else { return }
-    await refresh()
   }
 
   private func performLoad(mode: LoadMode) async {

@@ -167,8 +167,7 @@ private struct MainTabView: View {
   @State private var harnessPlaybackAttempt = 0
   @State private var harnessReportedPosition: (fileID: PutioFileID, seconds: Int)?
   @State private var playbackPositionPipeline = PutioPlaybackPositionPipeline()
-  @State private var folderRefreshSequence: UInt64 = 0
-  @State private var folderRefreshRequest: PutioFolderRefreshRequest?
+  @State private var folderRefreshRequests = PutioFolderRefreshRequests()
   @State private var presentedVideoRoute: PutioFileRoute?
 
   var body: some View {
@@ -177,7 +176,7 @@ private struct MainTabView: View {
         FilesBrowserView(
           runtime: runtime,
           onFileSelected: { route in selectFile(route) },
-          refreshRequest: folderRefreshRequest
+          refreshRequests: folderRefreshRequests
         )
       } label: {
         Label {
@@ -301,11 +300,7 @@ private struct MainTabView: View {
     presentedVideoRoute = nil
     Task { @MainActor in
       await playbackPositionPipeline.waitForPendingReports(fileID: route.id)
-      folderRefreshSequence &+= 1
-      folderRefreshRequest = PutioFolderRefreshRequest(
-        id: folderRefreshSequence,
-        folderID: route.item.parentID
-      )
+      folderRefreshRequests.request(folderID: route.item.parentID)
     }
   }
 

@@ -607,6 +607,39 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     XCTAssertEqual(reports.completed.map(\.1), [0])
   }
 
+  func testReplayAfterCompletionReportsTheNewExitPosition() async throws {
+    let notificationCenter = NotificationCenter()
+    let statusObservation = PlayerItemStatusObservationSpy()
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: PlaybackAudioSessionSpy(),
+      statusObservation: statusObservation,
+      notificationCenter: notificationCenter
+    )
+    let controller = AVPlayerViewController()
+    let reports = PlaybackPositionReportSpy()
+
+    coordinator.start(
+      fileID: fileID,
+      source: source(startFromSeconds: 0),
+      reportPosition: { try await reports.report(fileID: $0, position: $1) },
+      in: controller,
+      onFailure: {}
+    )
+    let driver = try XCTUnwrap(capture.driver)
+    let item = try XCTUnwrap(capture.item)
+    statusObservation.emit(.readyToPlay)
+    await Task.yield()
+    driver.currentTime = CMTime(seconds: 120, preferredTimescale: 600)
+
+    notificationCenter.post(name: AVPlayerItem.didPlayToEndTimeNotification, object: item)
+    driver.currentTime = CMTime(seconds: 8, preferredTimescale: 600)
+    notificationCenter.post(name: AVPlayerItem.timeJumpedNotification, object: item)
+    coordinator.stop(controller: controller)
+    await coordinator.waitForPendingPositionReports()
+
+    XCTAssertEqual(reports.completed.map(\.1), [0, 8])
+  }
+
   func testReportsRemainOrderedAndFailureDoesNotBecomePlaybackFailure() async throws {
     let audioSession = PlaybackAudioSessionSpy()
     let statusObservation = PlayerItemStatusObservationSpy()
@@ -648,8 +681,8 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     reports.releaseFirstReport()
     await coordinator.waitForPendingPositionReports()
 
-    XCTAssertEqual(reports.started.map(\.1), [15, 30, 37])
-    XCTAssertEqual(reports.completed.map(\.1), [30, 37])
+    XCTAssertEqual(reports.started.map(\.1), [15, 37])
+    XCTAssertEqual(reports.completed.map(\.1), [37])
     XCTAssertEqual(playbackFailures, 0)
   }
 

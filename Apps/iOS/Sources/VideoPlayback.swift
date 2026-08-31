@@ -140,9 +140,15 @@ final class PutioVideoPlaybackModel {
 
 @MainActor
 final class PutioPlaybackPositionPipeline {
+  private struct QueuedReport {
+    let position: Int
+    let report: PutioPlaybackPositionReport
+  }
+
   private struct PendingReport {
     let sequence: UInt64
     let task: Task<Void, Never>
+    var queued: QueuedReport?
   }
 
   private var pendingReports: [PutioFileID: PendingReport] = [:]
@@ -153,20 +159,44 @@ final class PutioPlaybackPositionPipeline {
     position: Int,
     report: @escaping PutioPlaybackPositionReport
   ) {
+    let queuedReport = QueuedReport(position: position, report: report)
+    if pendingReports[fileID] != nil {
+      pendingReports[fileID]?.queued = queuedReport
+      return
+    }
+
     nextSequence &+= 1
     let sequence = nextSequence
-    let previousReport = pendingReports[fileID]?.task
     let task = Task { @MainActor [weak self] in
-      await previousReport?.value
-      try? await report(fileID, position)
-      guard self?.pendingReports[fileID]?.sequence == sequence else { return }
-      self?.pendingReports[fileID] = nil
+      var currentReport = queuedReport
+      while true {
+        try? await currentReport.report(fileID, currentReport.position)
+        guard let nextReport = self?.takeQueuedReport(fileID: fileID, sequence: sequence) else {
+          return
+        }
+        currentReport = nextReport
+      }
     }
-    pendingReports[fileID] = PendingReport(sequence: sequence, task: task)
+    pendingReports[fileID] = PendingReport(sequence: sequence, task: task, queued: nil)
   }
 
   func waitForPendingReports(fileID: PutioFileID) async {
-    await pendingReports[fileID]?.task.value
+    while let task = pendingReports[fileID]?.task {
+      await task.value
+    }
+  }
+
+  private func takeQueuedReport(fileID: PutioFileID, sequence: UInt64) -> QueuedReport? {
+    guard var pendingReport = pendingReports[fileID], pendingReport.sequence == sequence else {
+      return nil
+    }
+    guard let queuedReport = pendingReport.queued else {
+      pendingReports[fileID] = nil
+      return nil
+    }
+    pendingReport.queued = nil
+    pendingReports[fileID] = pendingReport
+    return queuedReport
   }
 }
 
@@ -469,6 +499,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private var timeObservation: (any PutioPlayerTimeObservation)?
   private var failedToEndObservation: NSObjectProtocol?
   private var playedToEndObservation: NSObjectProtocol?
+  private var timeJumpedObservation: NSObjectProtocol?
   private var driver: (any PutioVideoPlayerDriving)?
   private var onReady: (@MainActor () -> Void)?
   private var onFailure: (@MainActor () -> Void)?
@@ -577,6 +608,15 @@ final class PutioSystemVideoPlayerCoordinator {
         self?.reportPlaybackEnded(generation: playbackGeneration)
       }
     }
+    timeJumpedObservation = notificationCenter.addObserver(
+      forName: AVPlayerItem.timeJumpedNotification,
+      object: item,
+      queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated {
+        self?.reportPlaybackRestarted(generation: playbackGeneration)
+      }
+    }
 
     let driver = makeDriver(item)
     self.driver = driver
@@ -634,6 +674,10 @@ final class PutioSystemVideoPlayerCoordinator {
       notificationCenter.removeObserver(playedToEndObservation)
       self.playedToEndObservation = nil
     }
+    if let timeJumpedObservation {
+      notificationCenter.removeObserver(timeJumpedObservation)
+      self.timeJumpedObservation = nil
+    }
     onReady = nil
     onFailure = nil
     stoppedDriver?.stop()
@@ -674,6 +718,12 @@ final class PutioSystemVideoPlayerCoordinator {
     else { return }
     finalPositionEnqueued = true
     enqueuePosition(0)
+  }
+
+  private func reportPlaybackRestarted(generation playbackGeneration: UInt64) {
+    guard generation == playbackGeneration, finalPositionEnqueued else { return }
+    finalPositionEnqueued = false
+    lastPeriodicPositionReportAt = positionReportNow()
   }
 
   private func startPositionObservation(generation playbackGeneration: UInt64) {

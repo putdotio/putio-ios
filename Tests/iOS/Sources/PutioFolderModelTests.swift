@@ -241,38 +241,20 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNil(model.refreshFailure)
   }
 
-  func testPlaybackRefreshTargetsOnlyTheOwningFolder() async {
-    let loader = ControlledFolderLoader()
-    let original = BrowserTestFixtures.contents(
-      folderID: 42,
-      items: [BrowserTestFixtures.item(id: 1, parentID: 42)]
-    )
-    let refreshed = BrowserTestFixtures.contents(
-      folderID: 42,
-      items: [BrowserTestFixtures.item(id: 2, parentID: 42)]
-    )
-    let model = PutioFolderModel(
-      folderID: PutioFileID(rawValue: 42),
-      load: { folderID in try await loader.load(folderID: folderID) },
-      initialContents: original
-    )
+  func testPlaybackRefreshSequencesAreIndependentPerFolder() {
+    let firstFolder = PutioFileID(rawValue: 42)
+    let secondFolder = PutioFileID(rawValue: 7)
+    var requests = PutioFolderRefreshRequests()
 
-    await model.refresh(
-      for: PutioFolderRefreshRequest(id: 1, folderID: PutioFileID(rawValue: 7))
-    )
-    let requestCount = await loader.requestCount()
-    XCTAssertEqual(requestCount, 0)
+    requests.request(folderID: firstFolder)
+    let firstSequence = requests.sequence(for: firstFolder)
+    requests.request(folderID: secondFolder)
 
-    let refresh = Task {
-      await model.refresh(
-        for: PutioFolderRefreshRequest(id: 2, folderID: PutioFileID(rawValue: 42))
-      )
-    }
-    await loader.waitForRequestCount(1)
-    await loader.succeed(request: 0, with: refreshed)
-    await refresh.value
+    XCTAssertEqual(requests.sequence(for: firstFolder), firstSequence)
+    XCTAssertEqual(requests.sequence(for: secondFolder), 1)
 
-    XCTAssertEqual(model.state, .loaded(refreshed))
+    requests.request(folderID: firstFolder)
+    XCTAssertEqual(requests.sequence(for: firstFolder), 2)
   }
 
   func testRefreshSessionExpiryPreservesRowsWithoutAnInlineBrowserError() async {
