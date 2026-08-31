@@ -601,7 +601,6 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     driver.currentTime = CMTime(seconds: 120, preferredTimescale: 600)
 
     notificationCenter.post(name: AVPlayerItem.didPlayToEndTimeNotification, object: item)
-    await Task.yield()
     coordinator.stop(controller: controller)
     await coordinator.waitForPendingPositionReports()
 

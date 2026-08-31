@@ -571,9 +571,9 @@ final class PutioSystemVideoPlayerCoordinator {
     playedToEndObservation = notificationCenter.addObserver(
       forName: AVPlayerItem.didPlayToEndTimeNotification,
       object: item,
-      queue: nil
+      queue: .main
     ) { [weak self] _ in
-      Task { @MainActor [weak self] in
+      MainActor.assumeIsolated {
         self?.reportPlaybackEnded(generation: playbackGeneration)
       }
     }
