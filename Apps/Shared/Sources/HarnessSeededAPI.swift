@@ -6,14 +6,14 @@ import Foundation
   // and browser surface fails loudly with a named fixture gap.
   final class HarnessSeededAPI: URLProtocol {
     nonisolated(unsafe) static var isEnabled = false
-    nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 0]
+    nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 589]
     private static let playbackPositionLock = NSLock()
 
     static let token = "putio-harness-session-token"
 
     static func resetPlaybackPositions() {
       playbackPositionLock.lock()
-      playbackPositions = [411: 90, 412: 0]
+      playbackPositions = [411: 90, 412: 589]
       playbackPositionLock.unlock()
     }
 

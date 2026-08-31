@@ -85,6 +85,7 @@ private final class PlaybackPositionReportSpy {
   private(set) var completed: [(PutioFileID, Int)] = []
   var blocksFirstReport = false
   var failsFirstReport = false
+  var firstReportError: Error?
   private var firstReportContinuation: CheckedContinuation<Void, Never>?
 
   func report(fileID: PutioFileID, position: Int) async throws {
@@ -96,6 +97,9 @@ private final class PlaybackPositionReportSpy {
     }
     if failsFirstReport, started.count == 1 {
       throw Failure.rejected
+    }
+    if let firstReportError, started.count == 1 {
+      throw firstReportError
     }
     completed.append((fileID, position))
   }
@@ -684,6 +688,35 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     XCTAssertEqual(reports.started.map(\.1), [15, 37])
     XCTAssertEqual(reports.completed.map(\.1), [37])
     XCTAssertEqual(playbackFailures, 0)
+  }
+
+  func testTransientFinalReportRetriesOnceBeforeThePipelineDrains() async throws {
+    let statusObservation = PlayerItemStatusObservationSpy()
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: PlaybackAudioSessionSpy(),
+      statusObservation: statusObservation
+    )
+    let controller = AVPlayerViewController()
+    let reports = PlaybackPositionReportSpy()
+    reports.firstReportError = PutioRuntimeError.transient
+
+    coordinator.start(
+      fileID: fileID,
+      source: source(startFromSeconds: 0),
+      reportPosition: { try await reports.report(fileID: $0, position: $1) },
+      in: controller,
+      onFailure: {}
+    )
+    let driver = try XCTUnwrap(capture.driver)
+    statusObservation.emit(.readyToPlay)
+    await Task.yield()
+    driver.currentTime = CMTime(seconds: 44, preferredTimescale: 600)
+
+    coordinator.stop(controller: controller)
+    await coordinator.waitForPendingPositionReports()
+
+    XCTAssertEqual(reports.started.map(\.1), [44, 44])
+    XCTAssertEqual(reports.completed.map(\.1), [44])
   }
 
   func testSharedPipelineFinishesOldFinalReportBeforeReopenedPlaybackResolves() async throws {

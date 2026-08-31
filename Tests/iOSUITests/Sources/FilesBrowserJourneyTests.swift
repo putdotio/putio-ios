@@ -168,6 +168,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let resumePosition = element(identifier: "video.resume-position")
     XCTAssertTrue(resumePosition.exists, "resolved resume position is not observable")
     XCTAssertEqual(resumePosition.value as? String, "90")
+    Thread.sleep(forTimeInterval: 2)
     XCTAssertTrue(done.isHittable, "video Done button is not tappable")
     done.tap()
 
@@ -179,10 +180,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     let persistedSeconds = reportedPlaybackSeconds(from: reportedPosition.value as? String)
     XCTAssertNotNil(persistedSeconds, "reported playback position has an unexpected format")
-    XCTAssertGreaterThanOrEqual(
+    XCTAssertGreaterThan(
       persistedSeconds ?? -1,
       90,
-      "reported playback position moved behind the resolved resume point"
+      "reported playback position did not advance beyond the seeded row value"
     )
     let refreshedRowValue = persistedSeconds.map {
       "Watched, resume position \($0) seconds"
@@ -208,6 +209,45 @@ final class FilesBrowserJourneyTests: XCTestCase {
     done.tap()
 
     XCTAssertTrue(nested.waitForExistence(timeout: 5), "reopened video did not return to folder")
+    let navigationBar = app.navigationBars["Harness Folder"]
+    let backButton = navigationBar.buttons["Files"]
+    XCTAssertTrue(backButton.isHittable, "native Files back button is not tappable")
+    backButton.tap()
+
+    let root = element(identifier: "files.screen.0")
+    let rootVideo = element(identifier: "files.item.412")
+    XCTAssertTrue(root.waitForExistence(timeout: 5), "root browser did not return")
+    XCTAssertEqual(rootVideo.value as? String, "Watched, resume position 589 seconds")
+    rootVideo.tap()
+    XCTAssertTrue(done.waitForExistence(timeout: 5), "root video screen never appeared")
+    XCTAssertTrue(
+      element(identifier: "video.ready").waitForExistence(timeout: 10),
+      "root video never became ready near EOF"
+    )
+    Thread.sleep(forTimeInterval: 2)
+    XCTAssertTrue(done.isHittable, "root video Done button is not tappable")
+    done.tap()
+
+    XCTAssertTrue(root.waitForExistence(timeout: 5), "root video did not return to folder")
+    let resetPosition = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@", "id=412;seconds=0"),
+      object: reportedPosition
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [resetPosition], timeout: 5),
+      .completed,
+      "root video did not report the EOF reset"
+    )
+    let unwatchedRow = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@", "Not watched"),
+      object: rootVideo
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [unwatchedRow], timeout: 5),
+      .completed,
+      "root row did not refresh after the EOF reset"
+    )
+
     app.buttons["Account"].tap()
     let signOut = element(identifier: "auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")

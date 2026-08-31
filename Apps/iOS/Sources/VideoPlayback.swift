@@ -170,7 +170,7 @@ final class PutioPlaybackPositionPipeline {
     let task = Task { @MainActor [weak self] in
       var currentReport = queuedReport
       while true {
-        try? await currentReport.report(fileID, currentReport.position)
+        await self?.send(currentReport, fileID: fileID, sequence: sequence)
         guard let nextReport = self?.takeQueuedReport(fileID: fileID, sequence: sequence) else {
           return
         }
@@ -183,6 +183,35 @@ final class PutioPlaybackPositionPipeline {
   func waitForPendingReports(fileID: PutioFileID) async {
     while let task = pendingReports[fileID]?.task {
       await task.value
+    }
+  }
+
+  private func send(_ queuedReport: QueuedReport, fileID: PutioFileID, sequence: UInt64) async {
+    do {
+      try await queuedReport.report(fileID, queuedReport.position)
+    } catch {
+      guard Self.isRetryable(error), !hasQueuedReport(fileID: fileID, sequence: sequence) else {
+        return
+      }
+      try? await Task.sleep(for: .milliseconds(250))
+      guard !hasQueuedReport(fileID: fileID, sequence: sequence) else { return }
+      try? await queuedReport.report(fileID, queuedReport.position)
+    }
+  }
+
+  private func hasQueuedReport(fileID: PutioFileID, sequence: UInt64) -> Bool {
+    guard let pendingReport = pendingReports[fileID], pendingReport.sequence == sequence else {
+      return false
+    }
+    return pendingReport.queued != nil
+  }
+
+  private static func isRetryable(_ error: Error) -> Bool {
+    switch error as? PutioRuntimeError {
+    case .rateLimited, .transient:
+      true
+    case .authenticationRequired, .sessionExpired, .notFound, .invalidResponse, .unknown, nil:
+      false
     }
   }
 
