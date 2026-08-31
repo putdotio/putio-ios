@@ -165,6 +165,8 @@ private struct MainTabView: View {
   @State private var selectedFileRoute: PutioFileRoute?
   @State private var selectedVideoRoute: PutioFileRoute?
   @State private var harnessPlaybackAttempt = 0
+  @State private var harnessReportedPosition: (fileID: PutioFileID, seconds: Int)?
+  @State private var playbackPositionPipeline = PutioPlaybackPositionPipeline()
 
   var body: some View {
     TabView {
@@ -243,15 +245,36 @@ private struct MainTabView: View {
     .fullScreenCover(item: $selectedVideoRoute) { route in
       PutioVideoPlaybackView(
         route: route,
-        showsHarnessReadiness: scenario == .filesBrowser
-      ) { fileID in
-        try await resolvePlaybackSource(fileID: fileID)
-      }
+        remembersPlaybackPosition: account.rememberVideoTime,
+        showsHarnessReadiness: scenario == .filesBrowser,
+        positionPipeline: playbackPositionPipeline,
+        reportPosition: { fileID, seconds in
+          try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: seconds)
+          #if DEBUG
+            if scenario == .filesBrowser {
+              harnessReportedPosition = (fileID, seconds)
+            }
+          #endif
+        },
+        resolve: { fileID in
+          try await resolvePlaybackSource(fileID: fileID)
+        }
+      )
     }
     .overlay(alignment: .topLeading) {
       if scenario == .filesBrowser, let selectedFileRoute {
         HarnessFileSelectionProbe(route: selectedFileRoute)
       }
+    }
+    .overlay(alignment: .topTrailing) {
+      #if DEBUG
+        if scenario == .filesBrowser, let harnessReportedPosition {
+          HarnessPlaybackPositionProbe(
+            fileID: harnessReportedPosition.fileID,
+            seconds: harnessReportedPosition.seconds
+          )
+        }
+      #endif
     }
     .task {
       // The harness signed-in scenario records the full loop: restored
@@ -361,6 +384,23 @@ private struct HarnessFileSelectionProbe: View {
     }
   }
 }
+
+#if DEBUG
+  private struct HarnessPlaybackPositionProbe: View {
+    let fileID: PutioFileID
+    let seconds: Int
+
+    var body: some View {
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Playback position reported")
+        .accessibilityValue("id=\(fileID.rawValue);seconds=\(seconds)")
+        .accessibilityIdentifier("video.position-reported")
+        .allowsHitTesting(false)
+    }
+  }
+#endif
 
 private struct AccountView: View {
   let session: PutioSessionStore

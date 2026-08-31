@@ -6,8 +6,16 @@ import Foundation
   // and browser surface fails loudly with a named fixture gap.
   final class HarnessSeededAPI: URLProtocol {
     nonisolated(unsafe) static var isEnabled = false
+    nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 0]
+    private static let playbackPositionLock = NSLock()
 
     static let token = "putio-harness-session-token"
+
+    static func resetPlaybackPositions() {
+      playbackPositionLock.lock()
+      playbackPositions = [411: 90, 412: 0]
+      playbackPositionLock.unlock()
+    }
 
     override class func canInit(with request: URLRequest) -> Bool {
       isEnabled && request.url?.host == "api.put.io"
@@ -57,9 +65,27 @@ import Foundation
       case "GET /v2/files/list":
         return filesListFixture(url: url)
       case "GET /v2/files/411":
-        return (200, playbackFile(id: 411, name: "Nested Movie.mkv", startFrom: 90))
+        return (
+          200,
+          playbackFile(
+            id: 411,
+            name: "Nested Movie.mkv",
+            startFrom: playbackPosition(fileID: 411)
+          )
+        )
       case "GET /v2/files/412":
-        return (200, playbackFile(id: 412, name: "Root Movie.mkv", startFrom: 0))
+        return (
+          200,
+          playbackFile(
+            id: 412,
+            name: "Root Movie.mkv",
+            startFrom: playbackPosition(fileID: 412)
+          )
+        )
+      case "POST /v2/files/411/start-from/set":
+        return setPlaybackPosition(request: request, fileID: 411)
+      case "POST /v2/files/412/start-from/set":
+        return setPlaybackPosition(request: request, fileID: 412)
       default:
         return (
           404,
@@ -113,6 +139,57 @@ import Foundation
         "message": "\(message)"
       }
       """
+    }
+
+    private static func playbackPosition(fileID: Int) -> Int {
+      playbackPositionLock.lock()
+      defer { playbackPositionLock.unlock() }
+      return playbackPositions[fileID] ?? 0
+    }
+
+    private static func setPlaybackPosition(request: URLRequest, fileID: Int) -> (Int, String) {
+      guard
+        let body = requestBodyData(request),
+        let payload = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+        let seconds = payload["time"] as? Int,
+        seconds >= 0
+      else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400,
+            type: "HARNESS_POSITION_REQUIRED",
+            message: "The playback-position fixture requires a nonnegative integer time"
+          )
+        )
+      }
+
+      playbackPositionLock.lock()
+      playbackPositions[fileID] = seconds
+      playbackPositionLock.unlock()
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func requestBodyData(_ request: URLRequest) -> Data? {
+      if let body = request.httpBody {
+        return body
+      }
+      guard let stream = request.httpBodyStream else { return nil }
+
+      stream.open()
+      defer { stream.close() }
+      let bufferSize = 1_024
+      let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+      defer { buffer.deallocate() }
+
+      var body = Data()
+      while stream.hasBytesAvailable {
+        let count = stream.read(buffer, maxLength: bufferSize)
+        guard count >= 0 else { return nil }
+        guard count > 0 else { break }
+        body.append(buffer, count: count)
+      }
+      return body
     }
 
     private static let accountInfo = """

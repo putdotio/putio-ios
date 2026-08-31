@@ -65,12 +65,16 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "bundled HLS fixture never became ready"
     )
     XCTAssertFalse(playbackError.exists, "playback error remained after retry")
+    let resumePosition = element(identifier: "video.resume-position")
+    XCTAssertTrue(resumePosition.exists, "resolved resume position is not observable")
+    XCTAssertEqual(resumePosition.value as? String, "90")
     addScreenshot(named: "runtime-playback")
     XCTAssertTrue(done.isHittable, "video Done button is not tappable")
     done.tap()
 
     XCTAssertTrue(nested.waitForExistence(timeout: 5), "file selection left the browser")
     XCTAssertTrue(nestedFile.isHittable, "selected file is no longer available")
+
     let selection = element(identifier: "files.selection")
     XCTAssertEqual(selection.label, "Selected file route")
     XCTAssertEqual(selection.value as? String, "id=411;parent=410;kind=video")
@@ -126,6 +130,84 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+  }
+
+  func testPlaybackPositionPersistsAcrossReopen() {
+    app.launch()
+
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
+    signIn.tap()
+
+    let folder = element(identifier: "files.item.410")
+    XCTAssertTrue(folder.waitForExistence(timeout: 10), "seeded folder never appeared")
+    folder.tap()
+
+    let nested = element(identifier: "files.screen.410")
+    let nestedFile = element(identifier: "files.item.411")
+    XCTAssertTrue(nested.waitForExistence(timeout: 10), "nested browser never appeared")
+    XCTAssertTrue(nestedFile.waitForExistence(timeout: 5), "seeded nested file never appeared")
+    nestedFile.tap()
+
+    let done = element(identifier: "video.done")
+    XCTAssertTrue(done.waitForExistence(timeout: 5), "video screen never appeared")
+    let playbackError = element(identifier: "video.error")
+    XCTAssertTrue(
+      playbackError.waitForExistence(timeout: 10),
+      "malformed HLS fixture did not produce a recoverable playback failure"
+    )
+    let retry = app.buttons["Try again"]
+    XCTAssertTrue(retry.isHittable, "playback retry is not tappable")
+    retry.tap()
+    XCTAssertTrue(
+      element(identifier: "video.ready").waitForExistence(timeout: 10),
+      "bundled HLS fixture never became ready"
+    )
+
+    let resumePosition = element(identifier: "video.resume-position")
+    XCTAssertTrue(resumePosition.exists, "resolved resume position is not observable")
+    XCTAssertEqual(resumePosition.value as? String, "90")
+    XCTAssertTrue(done.isHittable, "video Done button is not tappable")
+    done.tap()
+
+    XCTAssertTrue(nested.waitForExistence(timeout: 5), "video did not return to folder")
+    let reportedPosition = element(identifier: "video.position-reported")
+    XCTAssertTrue(
+      reportedPosition.waitForExistence(timeout: 5),
+      "final playback position was not persisted"
+    )
+    let persistedSeconds = reportedPlaybackSeconds(from: reportedPosition.value as? String)
+    XCTAssertNotNil(persistedSeconds, "reported playback position has an unexpected format")
+    XCTAssertGreaterThanOrEqual(
+      persistedSeconds ?? -1,
+      90,
+      "reported playback position moved behind the resolved resume point"
+    )
+
+    nestedFile.tap()
+    XCTAssertTrue(done.waitForExistence(timeout: 5), "reopened video screen never appeared")
+    XCTAssertTrue(
+      resumePosition.waitForExistence(timeout: 5),
+      "persisted resume position did not resolve on reopen"
+    )
+    XCTAssertEqual(resumePosition.value as? String, persistedSeconds.map(String.init))
+    XCTAssertTrue(done.isHittable, "reopened video Done button is not tappable")
+    done.tap()
+
+    XCTAssertTrue(nested.waitForExistence(timeout: 5), "reopened video did not return to folder")
+    app.buttons["Account"].tap()
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+  }
+
+  private func reportedPlaybackSeconds(from value: String?) -> Int? {
+    let prefix = "id=411;seconds="
+    guard let value, value.hasPrefix(prefix) else {
+      return nil
+    }
+    return Int(value.dropFirst(prefix.count))
   }
 
   private func element(identifier: String) -> XCUIElement {

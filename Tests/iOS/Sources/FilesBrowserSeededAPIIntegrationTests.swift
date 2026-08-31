@@ -5,6 +5,11 @@ import XCTest
 
 @MainActor
 final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
+  override func setUp() {
+    super.setUp()
+    HarnessSeededAPI.resetPlaybackPositions()
+  }
+
   func testRootFolderAndNestedFileFlow() async throws {
     let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
     await runtime.session.restore()
@@ -64,6 +69,21 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertEqual(sources[411]?.startFromSeconds, 90)
     XCTAssertEqual(sources[412]?.url.path, "/v2/files/412/hls/media.m3u8")
     XCTAssertEqual(sources[412]?.startFromSeconds, 0)
+  }
+
+  func testSeededPlaybackPositionRoundTripsThroughTheRuntime() async throws {
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
+    await runtime.session.restore()
+    for rawFileID in [411, 412] {
+      let fileID = PutioFileID(rawValue: rawFileID)
+      try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: 137)
+      let resolution = try await runtime.resolveVideoPlaybackSource(fileID: fileID)
+
+      guard case .ready(let source) = resolution else {
+        return XCTFail("expected seeded video \(rawFileID) to remain ready after reporting")
+      }
+      XCTAssertEqual(source.startFromSeconds, 137)
+    }
   }
 
   func testHarnessSignInPersistsForRestoreAndSignOutClearsTheSession() async throws {

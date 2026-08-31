@@ -16,12 +16,20 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
   public let id: Int
   public let username: String
   public let email: String
+  public let rememberVideoTime: Bool
   public let storage: Storage
 
-  public init(id: Int, username: String, email: String, storage: Storage) {
+  public init(
+    id: Int,
+    username: String,
+    email: String,
+    rememberVideoTime: Bool,
+    storage: Storage
+  ) {
     self.id = id
     self.username = username
     self.email = email
+    self.rememberVideoTime = rememberVideoTime
     self.storage = storage
   }
 }

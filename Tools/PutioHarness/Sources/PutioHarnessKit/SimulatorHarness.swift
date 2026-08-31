@@ -634,6 +634,13 @@ public struct SimulatorHarness {
           mediaBaseURL: mediaBaseURL,
           resultBundle: platformDirectory.appending(path: ".unsupported-file.xcresult")
         )
+        try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.resumePersistenceTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".resume-persistence.xcresult")
+        )
 
         let resultBundle = platformDirectory.appending(path: "runtime-proof.xcresult")
         let rawRecording = platformDirectory.appending(path: ".runtime-proof-walk.raw.mp4")
