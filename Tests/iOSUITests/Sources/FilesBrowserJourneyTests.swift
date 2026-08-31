@@ -168,7 +168,19 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let resumePosition = element(identifier: "video.resume-position")
     XCTAssertTrue(resumePosition.exists, "resolved resume position is not observable")
     XCTAssertEqual(resumePosition.value as? String, "90")
-    Thread.sleep(forTimeInterval: 2)
+    let currentPosition = element(identifier: "video.current-position")
+    let advancedPlayback = XCTNSPredicateExpectation(
+      predicate: NSPredicate { object, _ in
+        guard let element = object as? XCUIElement else { return false }
+        return Int(element.value as? String ?? "") ?? -1 > 90
+      },
+      object: currentPosition
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [advancedPlayback], timeout: 10),
+      .completed,
+      "playback did not advance beyond the seeded resume position"
+    )
     XCTAssertTrue(done.isHittable, "video Done button is not tappable")
     done.tap()
 
@@ -224,7 +236,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "video.ready").waitForExistence(timeout: 10),
       "root video never became ready near EOF"
     )
-    Thread.sleep(forTimeInterval: 2)
+    XCTAssertTrue(
+      element(identifier: "video.ended").waitForExistence(timeout: 10),
+      "root video never reached EOF"
+    )
     XCTAssertTrue(done.isHittable, "root video Done button is not tappable")
     done.tap()
 

@@ -61,6 +61,30 @@ private final class PositionReportScheduleSpy: PutioPositionReportSchedule {
 }
 
 @MainActor
+private final class ControlledScheduleSleep {
+  private struct Request {
+    let duration: Duration
+    let continuation: CheckedContinuation<Void, any Error>
+  }
+
+  private var requests: [Request] = []
+
+  var durations: [Duration] {
+    requests.map(\.duration)
+  }
+
+  func callAsFunction(_ duration: Duration) async throws {
+    try await withCheckedThrowingContinuation { continuation in
+      requests.append(Request(duration: duration, continuation: continuation))
+    }
+  }
+
+  func resumeRequest(at index: Int) {
+    requests[index].continuation.resume()
+  }
+}
+
+@MainActor
 private final class PlaybackPositionReportSpy {
   enum Failure: Error {
     case rejected
@@ -138,6 +162,37 @@ private final class PlayerItemStatusObservationSpy: PutioPlayerItemStatusObserva
 @MainActor
 final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
   private let fileID = PutioFileID(rawValue: 411)
+
+  func testProductionPositionScheduleRepeatsOnTheMonotonicIntervalAndInvalidates() async {
+    let sleep = ControlledScheduleSleep()
+    var callbackCount = 0
+    let schedule = PutioMonotonicPositionReportSchedule(
+      interval: .seconds(15),
+      sleep: { try await sleep($0) },
+      callback: { callbackCount += 1 }
+    )
+
+    while sleep.durations.count < 1 {
+      await Task.yield()
+    }
+    XCTAssertEqual(sleep.durations, [.seconds(15)])
+    XCTAssertEqual(callbackCount, 0)
+
+    sleep.resumeRequest(at: 0)
+    while callbackCount < 1 || sleep.durations.count < 2 {
+      await Task.yield()
+    }
+    XCTAssertEqual(sleep.durations, [.seconds(15), .seconds(15)])
+    XCTAssertEqual(callbackCount, 1)
+
+    schedule.invalidate()
+    sleep.resumeRequest(at: 1)
+    for _ in 0..<10 {
+      await Task.yield()
+    }
+    XCTAssertEqual(sleep.durations, [.seconds(15), .seconds(15)])
+    XCTAssertEqual(callbackCount, 1)
+  }
 
   func testCurrentResumeSeekPlaysOnlyAfterCompletion() async throws {
     let audioSession = PlaybackAudioSessionSpy()

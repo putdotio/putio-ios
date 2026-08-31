@@ -254,6 +254,8 @@ struct PutioVideoPlaybackView: View {
   @State private var model: PutioVideoPlaybackModel
   @State private var retrySequence: UInt64 = 0
   @State private var playerIsReady = false
+  @State private var observedPlaybackPosition: Int?
+  @State private var playbackReachedEnd = false
   private let fileID: PutioFileID
   private let remembersPlaybackPosition: Bool
   private let reportsPlayerFailures: Bool
@@ -322,6 +324,23 @@ struct PutioVideoPlaybackView: View {
               .accessibilityIdentifier("video.ready")
               .allowsHitTesting(false)
           }
+          if let observedPlaybackPosition {
+            Color.clear
+              .frame(width: 1, height: 1)
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel("Current playback position")
+              .accessibilityValue("\(observedPlaybackPosition)")
+              .accessibilityIdentifier("video.current-position")
+              .allowsHitTesting(false)
+          }
+          if playbackReachedEnd {
+            Color.clear
+              .frame(width: 1, height: 1)
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel("Playback reached end")
+              .accessibilityIdentifier("video.ended")
+              .allowsHitTesting(false)
+          }
         }
       }
     }
@@ -340,7 +359,10 @@ struct PutioVideoPlaybackView: View {
         remembersPlaybackPosition: remembersPlaybackPosition,
         positionPipeline: positionPipeline,
         reportPosition: reportPosition,
-        onReady: { playerIsReady = true }
+        onReady: { playerIsReady = true },
+        observesPlaybackState: showsHarnessReadiness,
+        onPositionChanged: { observedPlaybackPosition = $0 },
+        onPlaybackEnded: { playbackReachedEnd = true }
       ) {
         playerIsReady = false
         if reportsPlayerFailures {
@@ -374,6 +396,9 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
   let positionPipeline: PutioPlaybackPositionPipeline
   let reportPosition: PutioPlaybackPositionReport
   let onReady: @MainActor @Sendable () -> Void
+  let observesPlaybackState: Bool
+  let onPositionChanged: @MainActor @Sendable (Int) -> Void
+  let onPlaybackEnded: @MainActor @Sendable () -> Void
   let onFailure: @MainActor @Sendable () -> Void
 
   func makeCoordinator() -> PutioSystemVideoPlayerCoordinator {
@@ -392,6 +417,9 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
       reportPosition: { try await reportPosition($0, $1) },
       in: controller,
       onReady: onReady,
+      observesPlaybackState: observesPlaybackState,
+      onPositionChanged: onPositionChanged,
+      onPlaybackEnded: onPlaybackEnded,
       onFailure: onFailure
     ) {
       controller.view.accessibilityIdentifier = "video.system-player"
@@ -425,14 +453,20 @@ protocol PutioPositionReportSchedule: AnyObject {
 }
 
 @MainActor
-private final class PutioMonotonicPositionReportSchedule: PutioPositionReportSchedule {
+final class PutioMonotonicPositionReportSchedule: PutioPositionReportSchedule {
   private var task: Task<Void, Never>?
 
-  init(interval: Duration, callback: @escaping @MainActor @Sendable () -> Void) {
+  init(
+    interval: Duration,
+    sleep: @escaping @MainActor @Sendable (Duration) async throws -> Void = {
+      try await Task.sleep(for: $0)
+    },
+    callback: @escaping @MainActor @Sendable () -> Void
+  ) {
     task = Task { @MainActor in
       while !Task.isCancelled {
         do {
-          try await Task.sleep(for: interval)
+          try await sleep(interval)
         } catch {
           return
         }
@@ -537,11 +571,14 @@ final class PutioSystemVideoPlayerCoordinator {
   private let schedulePositionReports: PositionReportScheduler
   private var statusObservation: (any PutioPlayerItemStatusObservation)?
   private var positionReportSchedule: (any PutioPositionReportSchedule)?
+  private var positionObservation: Any?
   private var failedToEndObservation: NSObjectProtocol?
   private var playedToEndObservation: NSObjectProtocol?
   private var timeJumpedObservation: NSObjectProtocol?
   private var driver: (any PutioVideoPlayerDriving)?
   private var onReady: (@MainActor () -> Void)?
+  private var onPositionChanged: (@MainActor @Sendable (Int) -> Void)?
+  private var onPlaybackEnded: (@MainActor @Sendable () -> Void)?
   private var onFailure: (@MainActor () -> Void)?
   private var generation: UInt64 = 0
   private var readyReported = false
@@ -601,6 +638,9 @@ final class PutioSystemVideoPlayerCoordinator {
     reportPosition: @escaping PutioPlaybackPositionReport = { _, _ in },
     in controller: AVPlayerViewController,
     onReady: @escaping @MainActor () -> Void = {},
+    observesPlaybackState: Bool = false,
+    onPositionChanged: @escaping @MainActor @Sendable (Int) -> Void = { _ in },
+    onPlaybackEnded: @escaping @MainActor @Sendable () -> Void = {},
     onFailure: @escaping @MainActor () -> Void
   ) -> Bool {
     generation &+= 1
@@ -613,6 +653,8 @@ final class PutioSystemVideoPlayerCoordinator {
     self.remembersPlaybackPosition = remembersPlaybackPosition
     self.reportPosition = reportPosition
     self.onReady = onReady
+    self.onPositionChanged = observesPlaybackState ? onPositionChanged : nil
+    self.onPlaybackEnded = observesPlaybackState ? onPlaybackEnded : nil
     self.onFailure = onFailure
 
     let item = AVPlayerItem(url: source.url)
@@ -661,6 +703,24 @@ final class PutioSystemVideoPlayerCoordinator {
     let driver = makeDriver(item)
     self.driver = driver
     controller.player = driver.player
+    if onPositionChanged != nil {
+      positionObservation = driver.player.addPeriodicTimeObserver(
+        forInterval: CMTime(seconds: 0.25, preferredTimescale: 600),
+        queue: .main
+      ) { [weak self] time in
+        Task { @MainActor [weak self] in
+          guard
+            let self,
+            generation == playbackGeneration,
+            time.isValid,
+            time.isNumeric
+          else { return }
+          let seconds = time.seconds
+          guard seconds.isFinite, seconds >= 0, seconds <= Double(Int.max) else { return }
+          self.onPositionChanged?(Int(seconds.rounded(.down)))
+        }
+      }
+    }
 
     do {
       try audioSession.activate()
@@ -706,6 +766,10 @@ final class PutioSystemVideoPlayerCoordinator {
     statusObservation = nil
     positionReportSchedule?.invalidate()
     positionReportSchedule = nil
+    if let positionObservation, let stoppedDriver {
+      stoppedDriver.player.removeTimeObserver(positionObservation)
+      self.positionObservation = nil
+    }
     if let failedToEndObservation {
       notificationCenter.removeObserver(failedToEndObservation)
       self.failedToEndObservation = nil
@@ -719,6 +783,8 @@ final class PutioSystemVideoPlayerCoordinator {
       self.timeJumpedObservation = nil
     }
     onReady = nil
+    onPositionChanged = nil
+    onPlaybackEnded = nil
     onFailure = nil
     stoppedDriver?.stop()
     driver = nil
@@ -758,6 +824,7 @@ final class PutioSystemVideoPlayerCoordinator {
     else { return }
     finalPositionEnqueued = true
     enqueuePosition(0, preservesOrdering: true)
+    onPlaybackEnded?()
   }
 
   private func reportPlaybackRestarted(generation playbackGeneration: UInt64) {
