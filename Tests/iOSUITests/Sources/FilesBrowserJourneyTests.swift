@@ -245,7 +245,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     let nextTitle = element(identifier: "video.next-title")
     XCTAssertTrue(nextTitle.waitForExistence(timeout: 15), "next-video suggestion never appeared")
-    XCTAssertTrue(element(identifier: "video.ended").exists, "root video never reached EOF")
+    XCTAssertTrue(
+      element(identifier: "video.ended").waitForExistence(timeout: 5),
+      "root video never reached EOF"
+    )
     XCTAssertEqual(nextTitle.label, "Up next, Root Movie 2.mkv")
     XCTAssertTrue(
       element(identifier: "video.play-next").isHittable,
