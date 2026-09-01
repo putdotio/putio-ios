@@ -52,7 +52,8 @@ final class PutioSessionStoreTests: XCTestCase {
   private static let validValidation =
     #"{"result": true, "token_id": 1, "token_scope": "default", "user_id": 1001}"#
   private static let rejectedValidation = #"{"result": false}"#
-  private static let accountInfo = """
+  private static func accountInfo(rememberVideoTime: Bool) -> String {
+    """
     {
       "info": {
         "user_id": 1001,
@@ -70,7 +71,7 @@ final class PutioSessionStoreTests: XCTestCase {
         "settings": {
           "tunnel_route_name": "default",
           "next_episode": true,
-          "start_from": true,
+          "start_from": \(rememberVideoTime),
           "history_enabled": true,
           "trash_enabled": true,
           "sort_by": "NAME_ASC",
@@ -82,6 +83,7 @@ final class PutioSessionStoreTests: XCTestCase {
       }
     }
     """
+  }
 
   override func setUp() {
     super.setUp()
@@ -101,7 +103,10 @@ final class PutioSessionStoreTests: XCTestCase {
 
   private func stubSignedInRoutes() {
     SessionMockURLProtocol.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
-    SessionMockURLProtocol.fixtures["GET /v2/account/info"] = (200, Self.accountInfo)
+    SessionMockURLProtocol.fixtures["GET /v2/account/info"] = (
+      200,
+      Self.accountInfo(rememberVideoTime: true)
+    )
     SessionMockURLProtocol.fixtures["POST /v2/oauth/grants/logout"] = (200, #"{"status":"OK"}"#)
   }
 
@@ -124,6 +129,7 @@ final class PutioSessionStoreTests: XCTestCase {
         id: 1001,
         username: "moviebuff",
         email: "tests@example.com",
+        rememberVideoTime: true,
         storage: PutioAccountSnapshot.Storage(
           availableBytes: 10,
           totalBytes: 30,
@@ -131,6 +137,22 @@ final class PutioSessionStoreTests: XCTestCase {
         )
       )
     )
+  }
+
+  func testRestoreMapsDisabledRememberVideoTimeSetting() async {
+    SessionMockURLProtocol.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    SessionMockURLProtocol.fixtures["GET /v2/account/info"] = (
+      200,
+      Self.accountInfo(rememberVideoTime: false)
+    )
+    let (store, _) = makeStore(token: "stored-token")
+
+    await store.restore()
+
+    guard case .signedIn(let account) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertFalse(account.rememberVideoTime)
   }
 
   func testRestoreWithRejectedTokenClearsAndExpires() async {

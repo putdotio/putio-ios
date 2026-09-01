@@ -165,13 +165,18 @@ private struct MainTabView: View {
   @State private var selectedFileRoute: PutioFileRoute?
   @State private var selectedVideoRoute: PutioFileRoute?
   @State private var harnessPlaybackAttempt = 0
+  @State private var harnessReportedPosition: (fileID: PutioFileID, seconds: Int)?
+  @State private var playbackPositionPipeline = PutioPlaybackPositionPipeline()
+  @State private var folderRefreshRequests = PutioFolderRefreshRequests()
+  @State private var presentedVideoRoute: PutioFileRoute?
 
   var body: some View {
     TabView {
       Tab {
         FilesBrowserView(
           runtime: runtime,
-          onFileSelected: { route in selectFile(route) }
+          onFileSelected: { route in selectFile(route) },
+          refreshRequests: folderRefreshRequests
         )
       } label: {
         Label {
@@ -240,18 +245,39 @@ private struct MainTabView: View {
     }
     // Shrink-on-scroll is opt-in on iOS 26 and part of the ios-e10 treatment.
     .tabBarMinimizeBehavior(.onScrollDown)
-    .fullScreenCover(item: $selectedVideoRoute) { route in
+    .fullScreenCover(item: $selectedVideoRoute, onDismiss: refreshPlayedVideoFolder) { route in
       PutioVideoPlaybackView(
         route: route,
-        showsHarnessReadiness: scenario == .filesBrowser
-      ) { fileID in
-        try await resolvePlaybackSource(fileID: fileID)
-      }
+        remembersPlaybackPosition: account.rememberVideoTime,
+        showsHarnessReadiness: scenario == .filesBrowser,
+        positionPipeline: playbackPositionPipeline,
+        reportPosition: { fileID, seconds in
+          try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: seconds)
+          #if DEBUG
+            if scenario == .filesBrowser {
+              harnessReportedPosition = (fileID, seconds)
+            }
+          #endif
+        },
+        resolve: { fileID in
+          try await resolvePlaybackSource(fileID: fileID)
+        }
+      )
     }
     .overlay(alignment: .topLeading) {
       if scenario == .filesBrowser, let selectedFileRoute {
         HarnessFileSelectionProbe(route: selectedFileRoute)
       }
+    }
+    .overlay(alignment: .topTrailing) {
+      #if DEBUG
+        if scenario == .filesBrowser, let harnessReportedPosition {
+          HarnessPlaybackPositionProbe(
+            fileID: harnessReportedPosition.fileID,
+            seconds: harnessReportedPosition.seconds
+          )
+        }
+      #endif
     }
     .task {
       // The harness signed-in scenario records the full loop: restored
@@ -266,6 +292,16 @@ private struct MainTabView: View {
   private func selectFile(_ route: PutioFileRoute) {
     selectedFileRoute = route
     selectedVideoRoute = route.videoPlaybackRoute
+    presentedVideoRoute = route.videoPlaybackRoute
+  }
+
+  private func refreshPlayedVideoFolder() {
+    guard let route = presentedVideoRoute else { return }
+    presentedVideoRoute = nil
+    Task { @MainActor in
+      await playbackPositionPipeline.waitForPendingReports(fileID: route.id)
+      folderRefreshRequests.request(folderID: route.item.parentID)
+    }
   }
 
   private func resolvePlaybackSource(fileID: PutioFileID) async throws
@@ -361,6 +397,23 @@ private struct HarnessFileSelectionProbe: View {
     }
   }
 }
+
+#if DEBUG
+  private struct HarnessPlaybackPositionProbe: View {
+    let fileID: PutioFileID
+    let seconds: Int
+
+    var body: some View {
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Playback position reported")
+        .accessibilityValue("id=\(fileID.rawValue);seconds=\(seconds)")
+        .accessibilityIdentifier("video.position-reported")
+        .allowsHitTesting(false)
+    }
+  }
+#endif
 
 private struct AccountView: View {
   let session: PutioSessionStore

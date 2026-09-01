@@ -241,6 +241,22 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNil(model.refreshFailure)
   }
 
+  func testPlaybackRefreshSequencesAreIndependentPerFolder() {
+    let firstFolder = PutioFileID(rawValue: 42)
+    let secondFolder = PutioFileID(rawValue: 7)
+    var requests = PutioFolderRefreshRequests()
+
+    requests.request(folderID: firstFolder)
+    let firstSequence = requests.sequence(for: firstFolder)
+    requests.request(folderID: secondFolder)
+
+    XCTAssertEqual(requests.sequence(for: firstFolder), firstSequence)
+    XCTAssertEqual(requests.sequence(for: secondFolder), 1)
+
+    requests.request(folderID: firstFolder)
+    XCTAssertEqual(requests.sequence(for: firstFolder), 2)
+  }
+
   func testRefreshSessionExpiryPreservesRowsWithoutAnInlineBrowserError() async {
     let original = BrowserTestFixtures.contents(
       items: [BrowserTestFixtures.item(id: 1)]

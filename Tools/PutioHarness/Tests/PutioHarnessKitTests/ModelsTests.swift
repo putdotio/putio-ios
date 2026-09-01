@@ -57,6 +57,10 @@ import Testing
       == "PutioUITests/FilesBrowserJourneyTests/testUnsupportedFileIsNotActionable"
   )
   #expect(
+    BrowserJourneyContract.resumePersistenceTestIdentifier
+      == "PutioUITests/FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen"
+  )
+  #expect(
     BrowserJourneyContract.attachmentNames
       == ["runtime-sign-in", "runtime-playback", "runtime-signed-out"]
   )

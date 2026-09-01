@@ -200,6 +200,7 @@ private final class RuntimeMockURLProtocol: URLProtocol, @unchecked Sendable {
 final class PutioRuntimeTests: XCTestCase {
   private static let filesRoute = "GET /v2/files/list"
   private static let playbackRoute = "GET /v2/files/411"
+  private static let playbackPositionRoute = "POST /v2/files/411/start-from/set"
   private static let logoutRoute = "POST /v2/oauth/grants/logout"
   private static let validValidation =
     #"{"result": true, "token_id": 1, "token_scope": "default", "user_id": 1001}"#
@@ -392,6 +393,85 @@ final class PutioRuntimeTests: XCTestCase {
     )
 
     XCTAssertEqual(resolution, .conversionRequired)
+  }
+
+  func testPlaybackPositionReportSendsExactPathAndBody() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.playbackPositionRoute)
+
+    try await runtime.reportVideoPlaybackPosition(
+      fileID: PutioFileID(rawValue: 411),
+      seconds: 91
+    )
+
+    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    XCTAssertEqual(request.httpMethod, "POST")
+    XCTAssertEqual(request.url?.path, "/v2/files/411/start-from/set")
+    let body = try XCTUnwrap(requestBodyData(for: request))
+    let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Int])
+    XCTAssertEqual(json, ["time": 91])
+  }
+
+  func testUnauthenticatedRuntimeRejectsPlaybackPositionReportWithoutARequest() async {
+    let (runtime, _) = makeRuntime(token: nil)
+
+    await assertRuntimeError(.authenticationRequired) {
+      try await runtime.reportVideoPlaybackPosition(
+        fileID: PutioFileID(rawValue: 411),
+        seconds: 91
+      )
+    }
+
+    XCTAssertTrue(RuntimeMockURLProtocol.capturedRequests().isEmpty)
+  }
+
+  func testPlaybackPositionAuthenticationFailureExpiresSessionAndClearsToken() async {
+    let (runtime, tokenStore) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR","error_type":"invalid_grant"}"#,
+      statusCode: 401,
+      for: Self.playbackPositionRoute
+    )
+
+    await assertRuntimeError(.sessionExpired) {
+      try await runtime.reportVideoPlaybackPosition(
+        fileID: PutioFileID(rawValue: 411),
+        seconds: 91
+      )
+    }
+
+    XCTAssertEqual(runtime.session.state, .signedOut(.sessionExpired))
+    XCTAssertNil(try? tokenStore.read())
+  }
+
+  func testPlaybackPositionCancellationPreservesSignedInSessionAndToken() async {
+    let (runtime, tokenStore) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.suspend(Self.playbackPositionRoute)
+
+    let task = Task {
+      try await runtime.reportVideoPlaybackPosition(
+        fileID: PutioFileID(rawValue: 411),
+        seconds: 91
+      )
+    }
+    guard await waitForRequest(Self.playbackPositionRoute) else {
+      task.cancel()
+      return XCTFail("playback-position request did not start")
+    }
+    task.cancel()
+
+    do {
+      try await task.value
+      XCTFail("expected cancellation")
+    } catch is CancellationError {
+    } catch {
+      XCTFail("expected CancellationError, got \(error)")
+    }
+
+    guard case .signedIn = runtime.session.state else {
+      return XCTFail("cancellation must preserve the signed-in session")
+    }
+    XCTAssertEqual(try? tokenStore.read(), "stored-token")
   }
 
   func testPlaybackAuthenticationFailureExpiresSessionAndClearsToken() async {
@@ -692,6 +772,32 @@ final class PutioRuntimeTests: XCTestCase {
   }
 
   private func requireSendable<Value: Sendable>(_: Value.Type) {}
+
+  private func requestBodyData(for request: URLRequest) -> Data? {
+    if let body = request.httpBody {
+      return body
+    }
+
+    guard let stream = request.httpBodyStream else {
+      return nil
+    }
+
+    stream.open()
+    defer { stream.close() }
+
+    let bufferSize = 1_024
+    let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+    defer { buffer.deallocate() }
+
+    var data = Data()
+    while stream.hasBytesAvailable {
+      let read = stream.read(buffer, maxLength: bufferSize)
+      guard read >= 0 else { return nil }
+      guard read > 0 else { break }
+      data.append(buffer, count: read)
+    }
+    return data
+  }
 
   private func waitForRequest(_ route: String) async -> Bool {
     for _ in 0..<1_000 {

@@ -56,6 +56,12 @@ public final class PutioRuntime {
     }
   }
 
+  public func reportVideoPlaybackPosition(fileID: PutioFileID, seconds: Int) async throws {
+    _ = try await performAuthenticatedOperation {
+      try await sdk.setStartFrom(fileID: fileID.rawValue, time: seconds)
+    }
+  }
+
   private func performAuthenticatedOperation<Value>(
     _ operation: () async throws -> Value
   ) async throws -> Value {

@@ -6,8 +6,16 @@ import Foundation
   // and browser surface fails loudly with a named fixture gap.
   final class HarnessSeededAPI: URLProtocol {
     nonisolated(unsafe) static var isEnabled = false
+    nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 589]
+    private static let playbackPositionLock = NSLock()
 
     static let token = "putio-harness-session-token"
+
+    static func resetPlaybackPositions() {
+      playbackPositionLock.lock()
+      playbackPositions = [411: 90, 412: 589]
+      playbackPositionLock.unlock()
+    }
 
     override class func canInit(with request: URLRequest) -> Bool {
       isEnabled && request.url?.host == "api.put.io"
@@ -57,9 +65,27 @@ import Foundation
       case "GET /v2/files/list":
         return filesListFixture(url: url)
       case "GET /v2/files/411":
-        return (200, playbackFile(id: 411, name: "Nested Movie.mkv", startFrom: 90))
+        return (
+          200,
+          playbackFile(
+            id: 411,
+            name: "Nested Movie.mkv",
+            startFrom: playbackPosition(fileID: 411)
+          )
+        )
       case "GET /v2/files/412":
-        return (200, playbackFile(id: 412, name: "Root Movie.mkv", startFrom: 0))
+        return (
+          200,
+          playbackFile(
+            id: 412,
+            name: "Root Movie.mkv",
+            startFrom: playbackPosition(fileID: 412)
+          )
+        )
+      case "POST /v2/files/411/start-from/set":
+        return setPlaybackPosition(request: request, fileID: 411)
+      case "POST /v2/files/412/start-from/set":
+        return setPlaybackPosition(request: request, fileID: 412)
       default:
         return (
           404,
@@ -115,6 +141,57 @@ import Foundation
       """
     }
 
+    private static func playbackPosition(fileID: Int) -> Int {
+      playbackPositionLock.lock()
+      defer { playbackPositionLock.unlock() }
+      return playbackPositions[fileID] ?? 0
+    }
+
+    private static func setPlaybackPosition(request: URLRequest, fileID: Int) -> (Int, String) {
+      guard
+        let body = requestBodyData(request),
+        let payload = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+        let seconds = payload["time"] as? Int,
+        seconds >= 0
+      else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400,
+            type: "HARNESS_POSITION_REQUIRED",
+            message: "The playback-position fixture requires a nonnegative integer time"
+          )
+        )
+      }
+
+      playbackPositionLock.lock()
+      playbackPositions[fileID] = seconds
+      playbackPositionLock.unlock()
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func requestBodyData(_ request: URLRequest) -> Data? {
+      if let body = request.httpBody {
+        return body
+      }
+      guard let stream = request.httpBodyStream else { return nil }
+
+      stream.open()
+      defer { stream.close() }
+      let bufferSize = 1_024
+      let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+      defer { buffer.deallocate() }
+
+      var body = Data()
+      while stream.hasBytesAvailable {
+        let count = stream.read(buffer, maxLength: bufferSize)
+        guard count >= 0 else { return nil }
+        guard count > 0 else { break }
+        body.append(buffer, count: count)
+      }
+      return body
+    }
+
     private static let accountInfo = """
       {
         "info": {
@@ -150,7 +227,8 @@ import Foundation
       }
       """
 
-    private static let rootFiles = """
+    private static var rootFiles: String {
+      """
       {
         "parent": {
           "id": 0,
@@ -179,7 +257,7 @@ import Foundation
             "size": 734003200,
             "created_at": "2026-08-28T10:00:00Z",
             "updated_at": "2026-08-29T10:00:00Z",
-            "start_from": 0
+            "start_from": \(playbackPosition(fileID: 412))
           },
           {
             "id": 413,
@@ -194,8 +272,10 @@ import Foundation
         "total": 3
       }
       """
+    }
 
-    private static let nestedFiles = """
+    private static var nestedFiles: String {
+      """
       {
         "parent": {
           "id": 410,
@@ -215,12 +295,13 @@ import Foundation
             "size": 1073741824,
             "created_at": "2026-08-28T11:00:00Z",
             "updated_at": "2026-08-29T11:00:00Z",
-            "start_from": 90
+            "start_from": \(playbackPosition(fileID: 411))
           }
         ],
         "total": 1
       }
       """
+    }
 
     private static func playbackFile(id: Int, name: String, startFrom: Int) -> String {
       """
