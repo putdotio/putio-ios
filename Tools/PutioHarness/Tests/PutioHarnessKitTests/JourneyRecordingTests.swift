@@ -43,11 +43,11 @@ import Testing
   let root = JourneyFrameFingerprint(samples: [0])
   let nested = JourneyFrameFingerprint(samples: [100])
   let back = JourneyFrameFingerprint(samples: [200])
-  let frames = (0..<30).map { index in
+  let frames = (0..<40).map { index in
     JourneyVideoFrame(
       presentationTime: Double(index),
       duration: 1,
-      fingerprint: index == 0 ? root : index == 1 ? nested : back
+      fingerprint: index < 3 ? root : index < 35 ? nested : back
     )
   }
 
@@ -154,6 +154,38 @@ import Testing
   #expect(abs(window.start - 5) < 0.000_001)
 }
 
+@Test func journeyRecordingWindowSupportsMatchingInitialAndFinalSignInScreens() throws {
+  let signIn = JourneyFrameFingerprint(samples: [10])
+  let playback = JourneyFrameFingerprint(samples: [100])
+  let unrelated = JourneyFrameFingerprint(samples: [250])
+  let frames = (0..<60).map { index in
+    let fingerprint =
+      if index < 10 || index >= 50 {
+        signIn
+      } else if index >= 25 && index < 35 {
+        playback
+      } else {
+        unrelated
+      }
+    return JourneyVideoFrame(
+      presentationTime: Double(index) / 10,
+      duration: 0.1,
+      fingerprint: fingerprint
+    )
+  }
+
+  let window = try journeyRecordingWindow(
+    frames: frames,
+    root: signIn,
+    nested: playback,
+    back: signIn
+  )
+
+  #expect(abs(window.start) < 0.000_001)
+  #expect(abs(window.duration - 5.3) < 0.000_001)
+  #expect(window.frameCount == 53)
+}
+
 @Test func journeyRecordingWindowRejectsMissingOrShortSequences() {
   let root = JourneyFrameFingerprint(samples: [0])
   let nested = JourneyFrameFingerprint(samples: [100])
@@ -189,58 +221,6 @@ import Testing
   let sparseChange = JourneyFrameFingerprint(samples: [0, 0, 0, 0, 0, 48])
 
   #expect(journeyFrameDifference(reference, sparseChange) > maximumJourneyFrameDifference)
-}
-
-@Test func journeyCaptureCompletionStopsWhenTestExits() {
-  var slept = false
-  let completed = waitForJourneyCaptureComplete(
-    markerExists: { false },
-    processIsRunning: { false },
-    sleep: { _ in slept = true }
-  )
-
-  #expect(!completed)
-  #expect(!slept)
-}
-
-@Test func journeyCaptureCompletionReturnsWhenMarkerAppears() {
-  let completed = waitForJourneyCaptureComplete(
-    markerExists: { true },
-    processIsRunning: { false },
-    sleep: { _ in Issue.record("unexpected sleep") }
-  )
-
-  #expect(completed)
-}
-
-@Test func journeyCaptureCompletionStopsAtTimeout() {
-  var sleepCount = 0
-  let completed = waitForJourneyCaptureComplete(
-    markerExists: { false },
-    processIsRunning: { true },
-    now: { Date(timeIntervalSince1970: 0) },
-    sleep: { _ in sleepCount += 1 },
-    timeout: 0
-  )
-
-  #expect(!completed)
-  #expect(sleepCount == 1)
-}
-
-@Test func missingJourneyCaptureCompletionPreservesTestDiagnostics() {
-  do {
-    try requireJourneyCaptureCompletion(
-      false,
-      testOutput: ProcessOutput(status: 0, stdout: "journey stdout", stderr: "journey stderr")
-    )
-    Issue.record("expected missing capture completion to fail")
-  } catch let error as HarnessFailure {
-    #expect(error.message.contains("did not signal capture completion"))
-    #expect(error.message.contains("journey stdout"))
-    #expect(error.message.contains("journey stderr"))
-  } catch {
-    Issue.record("unexpected error: \(error)")
-  }
 }
 
 @Test func journeyRecordingTrimPropagatesSourceDecodeFailureBeforeConversion() {

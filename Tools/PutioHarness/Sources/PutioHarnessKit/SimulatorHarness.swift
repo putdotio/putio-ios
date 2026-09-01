@@ -16,7 +16,7 @@ func shouldBuildIOSCompanion(
   platform == .watchos && !iosCompanionAvailable
 }
 
-let maximumJourneyRecordingDuration: TimeInterval = 25
+let maximumJourneyRecordingDuration: TimeInterval = 30
 let minimumJourneyRecordingFrameCount = 12
 let maximumJourneyFrameDifference = 10.0
 let maximumStableJourneyFrameDifference = 1.0
@@ -161,34 +161,6 @@ func journeyRecordingWindow(
     start: start,
     duration: duration,
     frameCount: frameCount
-  )
-}
-
-func waitForJourneyCaptureComplete(
-  markerExists: () -> Bool,
-  processIsRunning: () -> Bool,
-  now: () -> Date = Date.init,
-  sleep: (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
-  timeout: TimeInterval = 60
-) -> Bool {
-  let deadline = now().addingTimeInterval(timeout)
-  repeat {
-    if markerExists() { return true }
-    if !processIsRunning() { return false }
-    sleep(0.1)
-  } while now() < deadline
-  return false
-}
-
-func requireJourneyCaptureCompletion(
-  _ captureCompleted: Bool,
-  testOutput: ProcessOutput
-) throws {
-  guard !captureCompleted else { return }
-  let diagnostics = testOutput.combinedOutput
-  let suffix = diagnostics.isEmpty ? "" : "\n\(diagnostics)"
-  throw HarnessFailure(
-    "iOS journey did not signal capture completion within 60 seconds\(suffix)"
   )
 }
 
@@ -635,10 +607,43 @@ public struct SimulatorHarness {
     do {
       return try withSession(platform: platform, runID: runID) { session in
         try buildJourneyTests(platform: platform, session: session)
+        let mediaDirectory = appURL(for: platform).appending(path: "HarnessMedia")
+        try requireNonemptyFile(
+          mediaDirectory.appending(path: "runtime-proof.m3u8"),
+          context: "runtime-proof HLS playlist"
+        )
+        try requireNonemptyFile(
+          mediaDirectory.appending(path: "runtime-proof-invalid.m3u8"),
+          context: "invalid runtime-proof HLS playlist"
+        )
+        try requireNonemptyFile(
+          mediaDirectory.appending(path: "runtime-proof-000.ts"),
+          context: "runtime-proof HLS segment"
+        )
+        let mediaServer = try HarnessMediaServer(mediaDirectory: mediaDirectory)
+        defer { mediaServer.stop() }
+        try SimulatorLifecycle.shared.register {
+          mediaServer.stop()
+        }
+        let mediaBaseURL = try mediaServer.start()
 
-        let resultBundle = platformDirectory.appending(path: "files-browser.xcresult")
-        let rawRecording = platformDirectory.appending(path: ".files-browser-walk.raw.mp4")
-        let recording = platformDirectory.appending(path: "files-browser-walk.mp4")
+        try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.unsupportedFileTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".unsupported-file.xcresult")
+        )
+
+        let resultBundle = platformDirectory.appending(path: "runtime-proof.xcresult")
+        let rawRecording = platformDirectory.appending(path: ".runtime-proof-walk.raw.mp4")
+        let recording = platformDirectory.appending(path: "runtime-proof-walk.mp4")
+        let recordingProcess = try startRecording(session: session, output: rawRecording)
+        var recordingFinished = false
+        defer {
+          if !recordingFinished { _ = recordingProcess.interruptAndWait() }
+        }
+
         let testProcess = try runner.start(
           "xcodebuild",
           [
@@ -656,6 +661,9 @@ public struct SimulatorHarness {
             "-maximum-test-execution-time-allowance", "60",
             "-only-testing:\(BrowserJourneyContract.testIdentifier)",
           ],
+          environment: [
+            "TEST_RUNNER_PUTIO_HARNESS_MEDIA_BASE_URL": mediaBaseURL.absoluteString
+          ],
           currentDirectory: context.root
         )
         var testFinished = false
@@ -663,48 +671,23 @@ public struct SimulatorHarness {
           if !testFinished { _ = testProcess.interruptAndWait() }
         }
 
-        let recordingProcess = try startRecording(session: session, output: rawRecording)
-        var recordingFinished = false
-        defer {
-          if !recordingFinished { _ = recordingProcess.interruptAndWait() }
-        }
-
-        let appContainer: URL
-        do {
-          appContainer = try waitForJourneyCaptureReady(
-            session: session,
-            testProcess: testProcess
-          )
-        } catch {
-          let testOutput = testProcess.wait()
-          testFinished = true
-          throw HarnessFailure("\(error)\n\(testOutput.combinedOutput)")
-        }
-
-        try signalJourneyRecordingStarted(appContainer: appContainer)
-
-        let captureCompleted = waitForJourneyCaptureComplete(
-          appContainer: appContainer,
-          testProcess: testProcess
-        )
-        let recordingOutput = recordingProcess.interruptAndWait()
-        recordingFinished = true
         let testOutput = testProcess.wait()
         testFinished = true
+        let recordingOutput = recordingProcess.interruptAndWait()
+        recordingFinished = true
 
         guard recordingOutput.status == 0 else {
           throw HarnessFailure(
-            "record ios files-browser journey failed\n\(recordingOutput.combinedOutput)")
+            "record ios runtime-proof journey failed\n\(recordingOutput.combinedOutput)")
         }
-        try requireNonemptyFile(rawRecording, context: "raw browser journey recording")
+        try requireNonemptyFile(rawRecording, context: "raw runtime-proof recording")
         guard testOutput.status == 0 else {
           let details = journeyFailureDetails(resultBundle: resultBundle)
           throw HarnessFailure(
-            "run ios files-browser journey failed\n\(testOutput.combinedOutput)\n\(details)"
+            "run ios runtime-proof journey failed\n\(testOutput.combinedOutput)\n\(details)"
           )
         }
-        try requireJourneyCaptureCompletion(captureCompleted, testOutput: testOutput)
-        let summary = platformDirectory.appending(path: "files-browser-test-summary.json")
+        let summary = platformDirectory.appending(path: "runtime-proof-test-summary.json")
         let screenshots = try extractJourneyResults(
           resultBundle: resultBundle,
           summary: summary,
@@ -713,14 +696,14 @@ public struct SimulatorHarness {
         try fileManager.removeItem(at: resultBundle)
 
         let rootPixels = try requireMeaningfulScreenshot(
-          screenshots[0], context: "browser root attachment")
+          screenshots[0], context: "runtime sign-in attachment")
         let nestedPixels = try requireMeaningfulScreenshot(
-          screenshots[1], context: "browser nested attachment")
+          screenshots[1], context: "runtime playback attachment")
         let backPixels = try requireMeaningfulScreenshot(
-          screenshots[2], context: "browser back attachment")
+          screenshots[2], context: "runtime signed-out attachment")
         guard rootPixels.differsMeaningfully(from: nestedPixels) else {
           throw HarnessFailure(
-            "browser journey root and nested screenshots do not differ meaningfully")
+            "runtime sign-in and playback screenshots do not differ meaningfully")
         }
 
         try trimJourneyRecording(
@@ -731,7 +714,7 @@ public struct SimulatorHarness {
           back: backPixels
         )
         try fileManager.removeItem(at: rawRecording)
-        try requireNonemptyFile(recording, context: "browser journey recording")
+        try requireNonemptyFile(recording, context: "runtime-proof recording")
 
         try requireCleanSource()
         try requireRevision(sourceRevision)
@@ -750,7 +733,7 @@ public struct SimulatorHarness {
           platform: platform,
           artifacts: artifactURLs + [manifest],
           message:
-            "files-browser journey passed 1/1 tests in \(context.relativePath(for: platformDirectory))"
+            "runtime-proof journey passed 1/1 tests in \(context.relativePath(for: platformDirectory))"
         )
       }
     } catch {
@@ -868,6 +851,55 @@ public struct SimulatorHarness {
       try requireNonemptyFile(destination, context: "browser journey screenshot \(name)")
       return destination
     }
+  }
+
+  private func runJourneyPreflightTest(
+    identifier: String,
+    platform: HarnessPlatform,
+    session: SimulatorSession,
+    mediaBaseURL: URL,
+    resultBundle: URL
+  ) throws {
+    defer { try? fileManager.removeItem(at: resultBundle) }
+    let testOutput = try runner.run(
+      "xcodebuild",
+      [
+        "test-without-building",
+        "-quiet",
+        "-workspace", "Putio.xcworkspace",
+        "-scheme", platform.configuration.scheme,
+        "-destination", "id=\(session.deviceIdentifier)",
+        "-derivedDataPath", context.derivedData.path,
+        "-resultBundlePath", resultBundle.path,
+        "-parallel-testing-enabled", "NO",
+        "-collect-test-diagnostics", "never",
+        "-test-timeouts-enabled", "YES",
+        "-default-test-execution-time-allowance", "30",
+        "-maximum-test-execution-time-allowance", "60",
+        "-only-testing:\(identifier)",
+      ],
+      environment: [
+        "TEST_RUNNER_PUTIO_HARNESS_MEDIA_BASE_URL": mediaBaseURL.absoluteString
+      ],
+      currentDirectory: context.root
+    )
+    guard testOutput.status == 0 else {
+      throw HarnessFailure(
+        "run ios journey preflight failed\n\(testOutput.combinedOutput)\n"
+          + journeyFailureDetails(resultBundle: resultBundle)
+      )
+    }
+    try requireNonemptyDirectory(resultBundle, context: "journey preflight result bundle")
+    let summaryOutput = try runner.checked(
+      "xcrun",
+      [
+        "xcresulttool", "get", "test-results", "summary",
+        "--path", resultBundle.path,
+        "--compact",
+      ],
+      context: "read journey preflight test summary"
+    )
+    _ = try requirePassingJourneySummary(Data(summaryOutput.stdout.utf8))
   }
 
   public func defaultRunID() throws -> String {
@@ -1331,59 +1363,6 @@ public struct SimulatorHarness {
     }
     _ = process.interruptAndWait()
     throw HarnessFailure("recording did not start within 30 seconds")
-  }
-
-  private func waitForJourneyCaptureReady(
-    session: SimulatorSession,
-    testProcess: RunningProcess
-  ) throws -> URL {
-    let deadline = Date().addingTimeInterval(300)
-    repeat {
-      guard testProcess.isRunning else {
-        throw HarnessFailure("iOS journey test exited before its capture gate became ready")
-      }
-      let containerOutput = try runner.run(
-        "xcrun",
-        [
-          "simctl", "get_app_container", session.deviceIdentifier,
-          HarnessPlatform.ios.configuration.bundleIdentifier, "data",
-        ]
-      )
-      let containerPath = containerOutput.stdout.trimmingCharacters(
-        in: .whitespacesAndNewlines
-      )
-      if containerOutput.status == 0, !containerPath.isEmpty {
-        let appContainer = URL(fileURLWithPath: containerPath)
-        let readyMarker = appContainer.appending(
-          path: "tmp/\(BrowserJourneyContract.captureReadyMarkerName)"
-        )
-        if fileManager.fileExists(atPath: readyMarker.path) {
-          return appContainer
-        }
-      }
-      Thread.sleep(forTimeInterval: 0.1)
-    } while Date() < deadline
-    throw HarnessFailure("iOS journey capture gate did not become ready within 300 seconds")
-  }
-
-  private func signalJourneyRecordingStarted(appContainer: URL) throws {
-    let marker = appContainer.appending(
-      path: "tmp/\(BrowserJourneyContract.recordingStartedMarkerName)"
-    )
-    try Data().write(to: marker, options: .atomic)
-  }
-
-  private func waitForJourneyCaptureComplete(
-    appContainer: URL,
-    testProcess: RunningProcess
-  ) -> Bool {
-    let marker = appContainer.appending(
-      path: "tmp/\(BrowserJourneyContract.captureCompleteMarkerName)"
-    )
-    return PutioHarnessKit.waitForJourneyCaptureComplete(
-      markerExists: { self.fileManager.fileExists(atPath: marker.path) },
-      processIsRunning: { testProcess.isRunning }
-    )
   }
 
   private func journeyFailureDetails(resultBundle: URL) -> String {

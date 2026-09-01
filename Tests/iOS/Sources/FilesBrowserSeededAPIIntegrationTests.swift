@@ -6,7 +6,7 @@ import XCTest
 @MainActor
 final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
   func testRootFolderAndNestedFileFlow() async throws {
-    let runtime = PutioRuntimeFactory.make(scenario: .filesBrowser)
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
     await runtime.session.restore()
 
     guard case .signedIn = runtime.session.state else {
@@ -40,7 +40,7 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
   }
 
   func testEverySeededVideoResolvesToPlayback() async throws {
-    let runtime = PutioRuntimeFactory.make(scenario: .filesBrowser)
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
     await runtime.session.restore()
 
     let root = try await runtime.listFiles(parentID: .root)
@@ -64,5 +64,35 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertEqual(sources[411]?.startFromSeconds, 90)
     XCTAssertEqual(sources[412]?.url.path, "/v2/files/412/hls/media.m3u8")
     XCTAssertEqual(sources[412]?.startFromSeconds, 0)
+  }
+
+  func testHarnessSignInPersistsForRestoreAndSignOutClearsTheSession() async throws {
+    let tokenStore = PutioKeychainTokenStore()
+    try tokenStore.clear()
+    defer { try? tokenStore.clear() }
+
+    let signingInRuntime = PutioRuntimeFactory.make(scenario: .filesBrowser)
+    await signingInRuntime.session.restore()
+    XCTAssertEqual(signingInRuntime.session.state, .signedOut(nil))
+
+    let request = try signingInRuntime.session.beginSignIn()
+    let callback = try PutioRuntimeFactory.runtimeProofCallback(for: request)
+    await signingInRuntime.session.completeSignIn(callbackURL: callback)
+    guard case .signedIn = signingInRuntime.session.state else {
+      return XCTFail("deterministic callback did not sign in")
+    }
+
+    let restoredRuntime = PutioRuntimeFactory.make(scenario: .filesBrowser)
+    await restoredRuntime.session.restore()
+    guard case .signedIn = restoredRuntime.session.state else {
+      return XCTFail("persisted harness session did not restore")
+    }
+
+    await restoredRuntime.session.signOut()
+    XCTAssertEqual(restoredRuntime.session.state, .signedOut(.userSignedOut))
+
+    let signedOutRuntime = PutioRuntimeFactory.make(scenario: .filesBrowser)
+    await signedOutRuntime.session.restore()
+    XCTAssertEqual(signedOutRuntime.session.state, .signedOut(nil))
   }
 }

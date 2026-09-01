@@ -229,6 +229,35 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     XCTAssertEqual(statusObservation.invalidationCount, 1)
   }
 
+  func testItemReadyReportsOnceAndCannotEscapeAfterTeardown() async {
+    let audioSession = PlaybackAudioSessionSpy()
+    let statusObservation = PlayerItemStatusObservationSpy()
+    let (coordinator, _) = makeCoordinator(
+      audioSession: audioSession,
+      statusObservation: statusObservation
+    )
+    let controller = AVPlayerViewController()
+    var ready = 0
+
+    coordinator.start(
+      source: source(startFromSeconds: 0),
+      in: controller,
+      onReady: { ready += 1 },
+      onFailure: {}
+    )
+    statusObservation.emit(.readyToPlay)
+    statusObservation.emit(.readyToPlay)
+    await Task.yield()
+
+    XCTAssertEqual(ready, 1)
+
+    coordinator.stop(controller: controller)
+    statusObservation.emit(.readyToPlay)
+    await Task.yield()
+
+    XCTAssertEqual(ready, 1)
+  }
+
   func testStoppedItemStatusFailureCannotReportFromCapturedCallback() async {
     let audioSession = PlaybackAudioSessionSpy()
     let statusObservation = PlayerItemStatusObservationSpy()

@@ -47,21 +47,19 @@ import Testing
 }
 
 @Test func browserJourneyContractUsesSeededFixtureAndExactTest() {
-  #expect(JourneyScenario.filesBrowser.fixtureSet == "seeded-files-browser-v1")
+  #expect(JourneyScenario.filesBrowser.fixtureSet == "seeded-runtime-loop-v2")
   #expect(
     BrowserJourneyContract.testIdentifier
-      == "PutioUITests/FilesBrowserJourneyTests/testRootNestedFolderAndNativeBack"
+      == "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
+  )
+  #expect(
+    BrowserJourneyContract.unsupportedFileTestIdentifier
+      == "PutioUITests/FilesBrowserJourneyTests/testUnsupportedFileIsNotActionable"
   )
   #expect(
     BrowserJourneyContract.attachmentNames
-      == ["files-browser-root", "files-browser-nested", "files-browser-back"]
+      == ["runtime-sign-in", "runtime-playback", "runtime-signed-out"]
   )
-  #expect(BrowserJourneyContract.captureReadyMarkerName == "putio-harness-journey-ready")
-  #expect(
-    BrowserJourneyContract.recordingStartedMarkerName
-      == "putio-harness-journey-recording"
-  )
-  #expect(BrowserJourneyContract.captureCompleteMarkerName == "putio-harness-journey-complete")
 }
 
 @Test func browserJourneySelectsAttachmentsBySuggestedName() throws {
@@ -72,15 +70,15 @@ import Testing
         "attachments": [
           {
             "exportedFileName": "opaque-nested.png",
-            "suggestedHumanReadableName": "files-browser-nested_0_123E4567-E89B-12D3-A456-426614174000.png"
+            "suggestedHumanReadableName": "runtime-playback_0_123E4567-E89B-12D3-A456-426614174000.png"
           },
           {
             "exportedFileName": "opaque-root.png",
-            "suggestedHumanReadableName": "files-browser-root"
+            "suggestedHumanReadableName": "runtime-sign-in"
           },
           {
             "exportedFileName": "opaque-back.png",
-            "suggestedHumanReadableName": "files-browser-back_2_123E4567-E89B-12D3-A456-426614174002.png"
+            "suggestedHumanReadableName": "runtime-signed-out_2_123E4567-E89B-12D3-A456-426614174002.png"
           }
         ]
       }
@@ -90,9 +88,9 @@ import Testing
 
   let selected = try selectJourneyAttachmentFiles(from: manifest)
 
-  #expect(selected["files-browser-root"] == "opaque-root.png")
-  #expect(selected["files-browser-nested"] == "opaque-nested.png")
-  #expect(selected["files-browser-back"] == "opaque-back.png")
+  #expect(selected["runtime-sign-in"] == "opaque-root.png")
+  #expect(selected["runtime-playback"] == "opaque-nested.png")
+  #expect(selected["runtime-signed-out"] == "opaque-back.png")
 }
 
 @Test func browserJourneyRejectsMissingDuplicateAndUnsafeAttachments() {

@@ -66,6 +66,24 @@ let project = Project(
       ]),
       resources: brandFontResources(for: "ios"),
       buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
+      scripts: [
+        .post(
+          script: """
+            set -euo pipefail
+            destination="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/HarnessMedia"
+            rm -rf "$destination"
+            if [[ "$CONFIGURATION" != "Debug" ]]; then
+              exit 0
+            fi
+            mkdir -p "$destination"
+            cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof-invalid.m3u8" "$destination/"
+            cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof.m3u8" "$destination/"
+            cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof-000.ts" "$destination/"
+            """,
+          name: "Bundle runtime-proof HLS fixture",
+          basedOnDependencyAnalysis: false
+        )
+      ],
       dependencies: [
         .package(product: "PutioCore"),
         .target(name: "PutioWatch"),
