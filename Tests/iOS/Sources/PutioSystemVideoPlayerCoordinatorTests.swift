@@ -799,12 +799,14 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let controller = AVPlayerViewController()
     let reports = PlaybackPositionReportSpy()
     reports.blocksFirstReport = true
+    var restartCount = 0
 
     coordinator.start(
       fileID: fileID,
       source: source(startFromSeconds: 0),
       reportPosition: { try await reports.report(fileID: $0, position: $1) },
       in: controller,
+      onPlaybackRestarted: { restartCount += 1 },
       onFailure: {}
     )
     let driver = try XCTUnwrap(capture.driver)
@@ -814,6 +816,8 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let schedule = try XCTUnwrap(capture.positionReportSchedule)
     driver.currentTime = CMTime(seconds: 15, preferredTimescale: 600)
     schedule.tick()
+    notificationCenter.post(name: AVPlayerItem.timeJumpedNotification, object: item)
+    XCTAssertEqual(restartCount, 0)
     while reports.started.isEmpty {
       await Task.yield()
     }
@@ -826,6 +830,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     reports.releaseFirstReport()
     await coordinator.waitForPendingPositionReports()
 
+    XCTAssertEqual(restartCount, 1)
     XCTAssertEqual(reports.completed.map(\.1), [15, 0, 8])
   }
 

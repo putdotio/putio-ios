@@ -647,6 +647,12 @@ struct PutioVideoPlaybackView: View {
           nextVideoTransitionTask = Task { @MainActor in
             await nextVideoModel.playbackEnded(completedFileID: fileID)
           }
+        },
+        onPlaybackRestarted: {
+          playbackReachedEnd = false
+          nextVideoTransitionTask?.cancel()
+          nextVideoTransitionTask = nil
+          nextVideoModel.cancel()
         }
       ) {
         playerIsReady = false
@@ -746,6 +752,7 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
   let observesPlaybackState: Bool
   let onPositionChanged: @MainActor @Sendable (Int) -> Void
   let onPlaybackEnded: @MainActor @Sendable () -> Void
+  let onPlaybackRestarted: @MainActor @Sendable () -> Void
   let onFailure: @MainActor @Sendable () -> Void
 
   func makeCoordinator() -> PutioSystemVideoPlayerCoordinator {
@@ -767,6 +774,7 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
       observesPlaybackState: observesPlaybackState,
       onPositionChanged: { position in onPositionChanged(position) },
       onPlaybackEnded: { onPlaybackEnded() },
+      onPlaybackRestarted: { onPlaybackRestarted() },
       onFailure: onFailure
     ) {
       controller.view.accessibilityIdentifier = "video.system-player"
@@ -942,6 +950,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private var onReady: (@MainActor () -> Void)?
   private var onPositionChanged: (@MainActor @Sendable (Int) -> Void)?
   private var onPlaybackEnded: (@MainActor @Sendable () -> Void)?
+  private var onPlaybackRestarted: (@MainActor @Sendable () -> Void)?
   private var onFailure: (@MainActor () -> Void)?
   private var generation: UInt64 = 0
   private var readyReported = false
@@ -1004,6 +1013,7 @@ final class PutioSystemVideoPlayerCoordinator {
     observesPlaybackState: Bool = false,
     onPositionChanged: @escaping @MainActor @Sendable (Int) -> Void = { _ in },
     onPlaybackEnded: @escaping @MainActor @Sendable () -> Void = {},
+    onPlaybackRestarted: @escaping @MainActor @Sendable () -> Void = {},
     onFailure: @escaping @MainActor () -> Void
   ) -> Bool {
     generation &+= 1
@@ -1018,6 +1028,7 @@ final class PutioSystemVideoPlayerCoordinator {
     self.onReady = onReady
     self.onPositionChanged = observesPlaybackState ? onPositionChanged : nil
     self.onPlaybackEnded = onPlaybackEnded
+    self.onPlaybackRestarted = onPlaybackRestarted
     self.onFailure = onFailure
 
     let item = AVPlayerItem(url: source.url)
@@ -1147,6 +1158,7 @@ final class PutioSystemVideoPlayerCoordinator {
     onReady = nil
     onPositionChanged = nil
     onPlaybackEnded = nil
+    onPlaybackRestarted = nil
     onFailure = nil
     stoppedDriver?.stop()
     driver = nil
@@ -1193,6 +1205,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private func reportPlaybackRestarted(generation playbackGeneration: UInt64) {
     guard generation == playbackGeneration, finalPositionEnqueued else { return }
     finalPositionEnqueued = false
+    onPlaybackRestarted?()
   }
 
   private func startPositionReporting(generation playbackGeneration: UInt64) {
