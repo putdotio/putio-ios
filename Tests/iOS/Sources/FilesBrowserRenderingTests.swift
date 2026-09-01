@@ -7,6 +7,37 @@ import XCTest
 
 final class FilesBrowserRenderingTests: XCTestCase {
   @MainActor
+  func testNextVideoOverlayMatchesBaseline() throws {
+    let overlay = PutioNextVideoOverlay(
+      nextVideo: PutioNextVideo(
+        id: PutioFileID(rawValue: 414),
+        parentID: .root,
+        name: "Big Buck Bunny.mkv"
+      ),
+      onPlay: {},
+      onCancel: {}
+    )
+    .padding(PutioTheme.Spacing.space4)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+    .background(
+      LinearGradient(
+        colors: [PutioTheme.Colors.surface, PutioTheme.Colors.accent.opacity(0.25)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+      )
+    )
+
+    let viewport = CGSize(width: 390, height: 320)
+    let image = try assertRenderingSnapshot(
+      name: "video-next-overlay",
+      view: overlay,
+      size: viewport
+    )
+
+    XCTAssertEqual(image.size, viewport)
+  }
+
+  @MainActor
   func testLoadedBrowserMatchesDefaultAndAccessibilityBaselines() throws {
     let contents = BrowserTestFixtures.contents(
       items: [
@@ -33,12 +64,12 @@ final class FilesBrowserRenderingTests: XCTestCase {
     }
     let viewport = CGSize(width: 390, height: 844)
 
-    let defaultImage = try assertBrowserSnapshot(
+    let defaultImage = try assertRenderingSnapshot(
       name: "browser-root-default",
       view: screen,
       size: viewport
     )
-    let accessibilityImage = try assertBrowserSnapshot(
+    let accessibilityImage = try assertRenderingSnapshot(
       name: "browser-root-accessibility3",
       view: screen,
       size: viewport,
@@ -53,7 +84,7 @@ final class FilesBrowserRenderingTests: XCTestCase {
   }
 
   @MainActor
-  private func assertBrowserSnapshot<Content: View>(
+  private func assertRenderingSnapshot<Content: View>(
     name: String,
     view: Content,
     size: CGSize,

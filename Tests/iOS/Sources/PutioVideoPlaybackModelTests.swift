@@ -120,6 +120,41 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
 
   }
 
+  func testPreparedReadySourceSkipsDuplicateResolution() async {
+    let source = playbackSource()
+    let resolver = PlaybackResolverStub([])
+    let model = PutioVideoPlaybackModel(
+      fileID: fileID,
+      initialResolution: .ready(source),
+      resolve: { try await resolver.resolve($0) }
+    )
+
+    await model.loadIfNeeded()
+
+    XCTAssertEqual(model.state, .ready(source))
+    XCTAssertTrue(resolver.requestedIDs.isEmpty)
+  }
+
+  func testPreparedConversionResolutionIsConsumedBeforeFinalResolution() async {
+    let source = playbackSource()
+    let resolver = PlaybackResolverStub([.success(.ready(source))])
+    let conversion = VideoConversionStub(statusResults: [.success(.completed)])
+    let model = PutioVideoPlaybackModel(
+      fileID: fileID,
+      initialResolution: .conversionRequired,
+      conversionPollInterval: .milliseconds(10),
+      startConversion: { try await conversion.start($0) },
+      loadConversionStatus: { try await conversion.status($0) },
+      sleep: { try await conversion.sleep(for: $0) },
+      resolve: { try await resolver.resolve($0) }
+    )
+
+    await model.loadIfNeeded()
+
+    XCTAssertEqual(model.state, .ready(source))
+    XCTAssertEqual(resolver.requestedIDs, [fileID])
+  }
+
   func testConversionLifecycleResolvesTheEventualPlaybackSource() async {
     let source = playbackSource()
     let resolver = PlaybackResolverStub([

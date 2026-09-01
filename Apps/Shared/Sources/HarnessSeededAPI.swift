@@ -6,7 +6,7 @@ import Foundation
   // and browser surface fails loudly with a named fixture gap.
   final class HarnessSeededAPI: URLProtocol {
     nonisolated(unsafe) static var isEnabled = false
-    nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 589]
+    nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 589, 414: 37]
     nonisolated(unsafe) private static var conversionStarted = false
     nonisolated(unsafe) private static var conversionCompleted = false
     nonisolated(unsafe) private static var conversionStartAttempts = 0
@@ -18,7 +18,7 @@ import Foundation
 
     static func resetPlaybackPositions() {
       playbackPositionLock.lock()
-      playbackPositions = [411: 90, 412: 589]
+      playbackPositions = [411: 90, 412: 589, 414: 37]
       playbackPositionLock.unlock()
     }
 
@@ -100,10 +100,28 @@ import Foundation
             startFrom: playbackPosition(fileID: 412)
           )
         )
+      case "GET /v2/files/412/next-file":
+        return (
+          200,
+          #"{"next_file":{"id":414,"name":"Root Movie 2.mkv","parent_id":0}}"#
+        )
+      case "GET /v2/files/414":
+        return (
+          200,
+          playbackFile(
+            id: 414,
+            name: "Root Movie 2.mkv",
+            startFrom: playbackPosition(fileID: 414)
+          )
+        )
+      case "GET /v2/files/414/next-file":
+        return (200, #"{"next_file":null}"#)
       case "POST /v2/files/411/start-from/set":
         return setPlaybackPosition(request: request, fileID: 411)
       case "POST /v2/files/412/start-from/set":
         return setPlaybackPosition(request: request, fileID: 412)
+      case "POST /v2/files/414/start-from/set":
+        return setPlaybackPosition(request: request, fileID: 414)
       default:
         return (
           404,

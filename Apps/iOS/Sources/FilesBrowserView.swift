@@ -212,9 +212,9 @@ struct PutioFolderScreen: View {
       }
       .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
     } else if let fileRoute = presentation.fileRoute {
-      if let videoRoute = fileRoute.videoPlaybackRoute {
+      if fileRoute.videoPlaybackRoute != nil {
         Button {
-          onFileSelected(videoRoute)
+          onFileSelected(fileRoute)
         } label: {
           PutioFileRow(presentation.row)
         }

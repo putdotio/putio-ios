@@ -39,6 +39,19 @@ public final class PutioRuntime {
     )
   }
 
+  public func findNextVideo(after fileID: PutioFileID) async throws -> PutioNextVideo? {
+    let nextFile = try await performAuthenticatedOperation {
+      try await sdk.findNextFileIfAvailable(fileID: fileID.rawValue, fileType: .video)
+    }
+    guard let nextFile else { return nil }
+
+    return PutioNextVideo(
+      id: PutioFileID(rawValue: nextFile.id),
+      parentID: PutioFileID(rawValue: nextFile.parentID),
+      name: nextFile.name
+    )
+  }
+
   public func resolveVideoPlaybackSource(fileID: PutioFileID) async throws
     -> PutioPlaybackResolution
   {

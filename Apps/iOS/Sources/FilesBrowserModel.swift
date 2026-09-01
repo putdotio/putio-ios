@@ -41,8 +41,37 @@ struct PutioFileRoute: Identifiable, Hashable, Sendable {
     item.id
   }
 
-  var videoPlaybackRoute: PutioFileRoute? {
-    item.kind == .video ? self : nil
+  var videoPlaybackRoute: PutioVideoRoute? {
+    guard item.kind == .video else { return nil }
+    return PutioVideoRoute(id: item.id, parentID: item.parentID, title: item.name)
+  }
+}
+
+struct PutioVideoRoute: Identifiable, Sendable {
+  let id: PutioFileID
+  let parentID: PutioFileID
+  let title: String
+  let initialResolution: PutioPlaybackResolution?
+
+  init(
+    id: PutioFileID,
+    parentID: PutioFileID,
+    title: String,
+    initialResolution: PutioPlaybackResolution? = nil
+  ) {
+    self.id = id
+    self.parentID = parentID
+    self.title = title
+    self.initialResolution = initialResolution
+  }
+
+  init(nextVideo: PutioPlayableNextVideo) {
+    self.init(
+      id: nextVideo.video.id,
+      parentID: nextVideo.video.parentID,
+      title: nextVideo.video.name,
+      initialResolution: nextVideo.initialResolution
+    )
   }
 }
 

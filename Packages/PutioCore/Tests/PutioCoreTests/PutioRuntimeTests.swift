@@ -199,6 +199,7 @@ private final class RuntimeMockURLProtocol: URLProtocol, @unchecked Sendable {
 @MainActor
 final class PutioRuntimeTests: XCTestCase {
   private static let filesRoute = "GET /v2/files/list"
+  private static let nextVideoRoute = "GET /v2/files/411/next-file"
   private static let playbackRoute = "GET /v2/files/411"
   private static let playbackPositionRoute = "POST /v2/files/411/start-from/set"
   private static let conversionStartRoute = "POST /v2/files/411/mp4"
@@ -346,6 +347,105 @@ final class PutioRuntimeTests: XCTestCase {
       components.queryItems?.first(where: { $0.name == "parent_id" })?.value,
       "42"
     )
+  }
+
+  func testFindNextVideoMapsAppOwnedSuccessorAndVideoQuery() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      """
+      {
+        "next_file": {
+          "id": 412,
+          "name": "Episode 2.mkv",
+          "parent_id": 7,
+          "file_type": "VIDEO"
+        }
+      }
+      """,
+      for: Self.nextVideoRoute
+    )
+
+    let nextVideo = try await runtime.findNextVideo(
+      after: PutioFileID(rawValue: 411)
+    )
+
+    XCTAssertEqual(
+      nextVideo,
+      PutioNextVideo(
+        id: PutioFileID(rawValue: 412),
+        parentID: PutioFileID(rawValue: 7),
+        name: "Episode 2.mkv"
+      )
+    )
+    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    XCTAssertEqual(request.url?.path, "/v2/files/411/next-file")
+    let components = try XCTUnwrap(
+      request.url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }
+    )
+    XCTAssertEqual(
+      components.queryItems?.first(where: { $0.name == "file_type" })?.value,
+      "VIDEO"
+    )
+  }
+
+  func testFindNextVideoMapsNullSuccessorToNil() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"next_file":null}"#,
+      for: Self.nextVideoRoute
+    )
+
+    let nextVideo = try await runtime.findNextVideo(
+      after: PutioFileID(rawValue: 411)
+    )
+
+    XCTAssertNil(nextVideo)
+  }
+
+  func testFindNextVideoRejectsMissingSuccessorField() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture("{}", for: Self.nextVideoRoute)
+
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.findNextVideo(after: PutioFileID(rawValue: 411))
+    }
+  }
+
+  func testUnauthenticatedRuntimeRejectsNextVideoWithoutARequest() async {
+    let (runtime, _) = makeRuntime(token: nil)
+
+    await assertRuntimeError(.authenticationRequired) {
+      _ = try await runtime.findNextVideo(after: PutioFileID(rawValue: 411))
+    }
+
+    XCTAssertTrue(RuntimeMockURLProtocol.capturedRequests().isEmpty)
+  }
+
+  func testFindNextVideoCancellationPreservesSignedInSessionAndToken() async {
+    let (runtime, tokenStore) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.suspend(Self.nextVideoRoute)
+
+    let task = Task {
+      try await runtime.findNextVideo(after: PutioFileID(rawValue: 411))
+    }
+    guard await waitForRequest(Self.nextVideoRoute) else {
+      task.cancel()
+      return XCTFail("next-video request did not start")
+    }
+    task.cancel()
+
+    do {
+      _ = try await task.value
+      XCTFail("expected cancellation")
+    } catch is CancellationError {
+    } catch {
+      XCTFail("expected CancellationError, got \(error)")
+    }
+
+    guard case .signedIn = runtime.session.state else {
+      return XCTFail("cancellation must preserve the signed-in session")
+    }
+    XCTAssertEqual(try? tokenStore.read(), "stored-token")
   }
 
   func testUnauthenticatedRuntimeRejectsPlaybackResolutionWithoutARequest() async {
@@ -777,6 +877,7 @@ final class PutioRuntimeTests: XCTestCase {
     requireSendable(PutioFileKind.self)
     requireSendable(PutioFileItem.self)
     requireSendable(PutioFolderContents.self)
+    requireSendable(PutioNextVideo.self)
     requireSendable(PutioPlaybackSource.self)
     requireSendable(PutioPlaybackResolution.self)
     requireSendable(PutioVideoConversionStatus.self)

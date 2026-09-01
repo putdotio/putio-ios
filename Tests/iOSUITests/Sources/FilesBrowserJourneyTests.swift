@@ -22,81 +22,98 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let signIn = element(identifier: "auth.sign-in")
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
     let root = element(identifier: "files.screen.0")
-    let folder = element(identifier: "files.item.410")
     addScreenshot(named: "runtime-sign-in")
 
     XCTAssertTrue(signIn.isHittable, "sign-in action is not tappable")
     signIn.tap()
     XCTAssertTrue(root.waitForExistence(timeout: 10), "signed-in root browser never appeared")
-    XCTAssertTrue(folder.isHittable, "seeded folder is not tappable after sign-in")
 
-    app.terminate()
-    app.launch()
-
-    XCTAssertTrue(root.waitForExistence(timeout: 10), "persisted session did not restore")
-    XCTAssertFalse(signIn.exists, "restored session returned to sign-in")
-    XCTAssertTrue(folder.isHittable, "seeded folder is not tappable after restore")
-
-    folder.tap()
-
-    let nested = element(identifier: "files.screen.410")
-    let nestedFile = element(identifier: "files.item.411")
-    XCTAssertTrue(nested.waitForExistence(timeout: 10), "nested browser never appeared")
-    XCTAssertTrue(nestedFile.waitForExistence(timeout: 5), "seeded nested file never appeared")
-    XCTAssertEqual(nestedFile.value as? String, "Watched, resume position 90 seconds")
-    nestedFile.tap()
+    let rootVideo = element(identifier: "files.item.412")
     let done = element(identifier: "video.done")
-    XCTAssertTrue(done.waitForExistence(timeout: 5), "video screen never appeared")
-    let loading = element(identifier: "video.loading")
-    XCTAssertTrue(loading.waitForNonExistence(timeout: 5), "video source never resolved")
-    let conversionError = element(identifier: "video.error")
+    XCTAssertEqual(rootVideo.value as? String, "Watched, resume position 589 seconds")
+    XCTAssertTrue(rootVideo.isHittable, "root video row is not tappable")
+    let presentedRoute = element(identifier: "video.presented-route")
+    rootVideo.tap()
+    let rootRoute = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@", "id=412"),
+      object: presentedRoute
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [rootRoute], timeout: 5),
+      .completed,
+      "root video tap did not select route 412"
+    )
+    XCTAssertTrue(done.waitForExistence(timeout: 5), "root video screen never appeared")
+    let playbackError = element(identifier: "video.error")
     XCTAssertTrue(
-      conversionError.waitForExistence(timeout: 5),
-      "first conversion request did not produce a recoverable failure"
+      playbackError.waitForExistence(timeout: 5),
+      "invalid playback fixture did not produce a recoverable failure"
     )
     let retry = app.buttons["Try again"]
-    XCTAssertTrue(retry.isHittable, "conversion retry is not tappable")
+    XCTAssertTrue(retry.isHittable, "playback retry is not tappable")
     retry.tap()
     XCTAssertTrue(
-      element(identifier: "video.conversion-progress").waitForExistence(timeout: 5),
-      "conversion progress never appeared"
+      element(identifier: "video.ready").waitForExistence(timeout: 10),
+      "root video never became ready near EOF"
+    )
+    let nextTitle = element(identifier: "video.next-title")
+    XCTAssertTrue(nextTitle.waitForExistence(timeout: 15), "next-video suggestion never appeared")
+    XCTAssertFalse(
+      rootVideo.isHittable,
+      "root browser remained interactive while the next-video player was presented"
+    )
+    let nextVideoAttachment = screenshotAttachment(named: "runtime-playback")
+    XCTAssertEqual(nextTitle.label, "Up next, Root Movie 2.mkv")
+    XCTAssertTrue(
+      element(identifier: "video.play-next").isHittable,
+      "manual play-next action is not tappable"
     )
     XCTAssertTrue(
-      element(identifier: "video.ready").waitForExistence(timeout: 10),
-      "converted video never became ready through native HLS"
+      element(identifier: "video.cancel-next").isHittable,
+      "next-video cancellation is not tappable"
     )
-    let conversionHistory = element(identifier: "video.conversion-history")
-    XCTAssertTrue(conversionHistory.exists, "conversion state history is not observable")
-    XCTAssertEqual(conversionHistory.value as? String, "queued,converting,completed")
-    XCTAssertFalse(conversionError.exists, "conversion error remained after retry")
-    let resumePosition = element(identifier: "video.resume-position")
-    XCTAssertTrue(resumePosition.exists, "resolved resume position is not observable")
-    XCTAssertEqual(resumePosition.value as? String, "90")
-    addScreenshot(named: "runtime-playback")
-    XCTAssertTrue(done.isHittable, "video Done button is not tappable")
+    add(nextVideoAttachment)
+    XCTAssertTrue(
+      element(identifier: "video.ended").waitForExistence(timeout: 5),
+      "root video never reached EOF"
+    )
+    let reportedPosition = element(identifier: "video.position-reported")
+    XCTAssertEqual(
+      reportedPosition.value as? String,
+      "id=412;seconds=0",
+      "next-video suggestion appeared before the completed position reset drained"
+    )
+    let successorRoute = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@", "id=414"),
+      object: presentedRoute
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [successorRoute], timeout: 10),
+      .completed,
+      "autoplay did not select the successor route"
+    )
+    let successorResumePosition = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@", "37"),
+      object: element(identifier: "video.resume-position")
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [successorResumePosition], timeout: 10),
+      .completed,
+      "autoplay did not open the successor at its saved position"
+    )
+    XCTAssertTrue(done.isHittable, "successor video Done button is not tappable")
     done.tap()
 
-    XCTAssertTrue(nested.waitForExistence(timeout: 5), "file selection left the browser")
-    XCTAssertTrue(nestedFile.isHittable, "selected file is no longer available")
-
-    let selection = element(identifier: "files.selection")
-    XCTAssertEqual(selection.label, "Selected file route")
-    XCTAssertEqual(selection.value as? String, "id=411;parent=410;kind=video")
-
-    let navigationBar = app.navigationBars["Harness Folder"]
-    XCTAssertTrue(navigationBar.waitForExistence(timeout: 5), "nested navigation bar is missing")
-    let backButton = navigationBar.buttons["Files"]
-    XCTAssertTrue(backButton.isHittable, "native Files back button is not tappable")
-    backButton.tap()
-
-    XCTAssertTrue(
-      navigationBar.waitForNonExistence(timeout: 5),
-      "native Back transition did not finish"
+    XCTAssertTrue(root.waitForExistence(timeout: 5), "successor video did not return to root")
+    let unwatchedRow = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@", "Not watched"),
+      object: rootVideo
     )
-
-    XCTAssertTrue(root.waitForExistence(timeout: 5), "root browser did not return")
-    XCTAssertTrue(folder.isHittable, "root folder is not tappable after returning")
-    XCTAssertFalse(nestedFile.isHittable, "nested content remains visible after returning")
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [unwatchedRow], timeout: 5),
+      .completed,
+      "root row did not refresh after the EOF reset"
+    )
 
     let account = app.buttons["Account"]
     XCTAssertTrue(account.isHittable, "Account tab is not tappable")
@@ -233,41 +250,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(backButton.isHittable, "native Files back button is not tappable")
     backButton.tap()
 
-    let root = element(identifier: "files.screen.0")
-    let rootVideo = element(identifier: "files.item.412")
-    XCTAssertTrue(root.waitForExistence(timeout: 5), "root browser did not return")
-    XCTAssertEqual(rootVideo.value as? String, "Watched, resume position 589 seconds")
-    rootVideo.tap()
-    XCTAssertTrue(done.waitForExistence(timeout: 5), "root video screen never appeared")
     XCTAssertTrue(
-      element(identifier: "video.ready").waitForExistence(timeout: 10),
-      "root video never became ready near EOF"
-    )
-    XCTAssertTrue(
-      element(identifier: "video.ended").waitForExistence(timeout: 10),
-      "root video never reached EOF"
-    )
-    XCTAssertTrue(done.isHittable, "root video Done button is not tappable")
-    done.tap()
-
-    XCTAssertTrue(root.waitForExistence(timeout: 5), "root video did not return to folder")
-    let resetPosition = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "value == %@", "id=412;seconds=0"),
-      object: reportedPosition
-    )
-    XCTAssertEqual(
-      XCTWaiter.wait(for: [resetPosition], timeout: 5),
-      .completed,
-      "root video did not report the EOF reset"
-    )
-    let unwatchedRow = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "value == %@", "Not watched"),
-      object: rootVideo
-    )
-    XCTAssertEqual(
-      XCTWaiter.wait(for: [unwatchedRow], timeout: 5),
-      .completed,
-      "root row did not refresh after the EOF reset"
+      element(identifier: "files.screen.0").waitForExistence(timeout: 5),
+      "root browser did not return"
     )
 
     app.buttons["Account"].tap()
@@ -290,9 +275,13 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   private func addScreenshot(named name: String) {
-    let attachment = XCTAttachment(screenshot: app.screenshot())
+    add(screenshotAttachment(named: name))
+  }
+
+  private func screenshotAttachment(named name: String) -> XCTAttachment {
+    let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
     attachment.name = name
     attachment.lifetime = .keepAlways
-    add(attachment)
+    return attachment
   }
 }

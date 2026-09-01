@@ -16,6 +16,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
   public let id: Int
   public let username: String
   public let email: String
+  public let suggestNextVideo: Bool
   public let rememberVideoTime: Bool
   public let storage: Storage
 
@@ -23,12 +24,14 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     id: Int,
     username: String,
     email: String,
+    suggestNextVideo: Bool,
     rememberVideoTime: Bool,
     storage: Storage
   ) {
     self.id = id
     self.username = username
     self.email = email
+    self.suggestNextVideo = suggestNextVideo
     self.rememberVideoTime = rememberVideoTime
     self.storage = storage
   }
@@ -97,6 +100,18 @@ public struct PutioFolderContents: Equatable, Sendable {
     self.folder = folder
     self.items = items
     self.hasMore = hasMore
+  }
+}
+
+public struct PutioNextVideo: Equatable, Sendable {
+  public let id: PutioFileID
+  public let parentID: PutioFileID
+  public let name: String
+
+  public init(id: PutioFileID, parentID: PutioFileID, name: String) {
+    self.id = id
+    self.parentID = parentID
+    self.name = name
   }
 }
 

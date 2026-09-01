@@ -118,12 +118,14 @@ final class PutioVideoPlaybackModel {
   @ObservationIgnored private let loadConversionStatus: PutioVideoConversionStatusLoad
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private let sleep: PutioVideoConversionSleep
+  @ObservationIgnored private var initialResolution: PutioPlaybackResolution?
   @ObservationIgnored private var generation: UInt64 = 0
   @ObservationIgnored private var attemptedLoad = false
   @ObservationIgnored private var recovery: Recovery = .resolve
 
   init(
     fileID: PutioFileID,
+    initialResolution: PutioPlaybackResolution? = nil,
     conversionPollInterval: Duration = .seconds(3),
     startConversion: @escaping PutioVideoConversionStart = { _ in
       throw PutioRuntimeError.unknown
@@ -135,6 +137,7 @@ final class PutioVideoPlaybackModel {
     resolve: @escaping PutioPlaybackResolve
   ) {
     self.fileID = fileID
+    self.initialResolution = initialResolution
     self.conversionPollInterval = conversionPollInterval
     self.startConversion = startConversion
     self.loadConversionStatus = loadConversionStatus
@@ -180,7 +183,13 @@ final class PutioVideoPlaybackModel {
 
     do {
       try Task.checkCancellation()
-      let resolution = try await resolve(fileID)
+      let resolution: PutioPlaybackResolution
+      if let initialResolution {
+        self.initialResolution = nil
+        resolution = initialResolution
+      } else {
+        resolution = try await resolve(fileID)
+      }
       try Task.checkCancellation()
       guard requestGeneration == generation else { return }
 
@@ -418,41 +427,53 @@ final class PutioPlaybackPositionPipeline {
 
 @MainActor
 struct PutioVideoPlaybackView: View {
-  @Environment(\.dismiss) private var dismiss
   @State private var model: PutioVideoPlaybackModel
+  @State private var nextVideoModel: PutioNextVideoModel
   @State private var retrySequence: UInt64 = 0
   @State private var playerIsReady = false
   @State private var observedPlaybackPosition: Int?
   @State private var playbackReachedEnd = false
   @State private var conversionHistory: [String] = []
+  @State private var nextVideoTransitionTask: Task<Void, Never>?
   private let fileID: PutioFileID
+  private let onDismiss: @MainActor @Sendable () -> Void
   private let remembersPlaybackPosition: Bool
   private let reportsPlayerFailures: Bool
   private let showsHarnessReadiness: Bool
   private let positionPipeline: PutioPlaybackPositionPipeline
   private let reportPosition: PutioPlaybackPositionReport
+  private let onPlayNext: @MainActor @Sendable (PutioPlayableNextVideo) -> Void
 
   init(
-    route: PutioFileRoute,
+    route: PutioVideoRoute,
+    onDismiss: @escaping @MainActor @Sendable () -> Void,
     remembersPlaybackPosition: Bool = true,
+    suggestsNextVideo: Bool = true,
+    autoplayNextVideo: Bool = false,
     reportsPlayerFailures: Bool = true,
     showsHarnessReadiness: Bool = false,
     conversionPollInterval: Duration = .seconds(3),
+    nextVideoAutoplayDelay: Duration = PutioNextVideoModel.defaultAutoplayDelay,
     positionPipeline: PutioPlaybackPositionPipeline,
     reportPosition: @escaping PutioPlaybackPositionReport = { _, _ in },
     startConversion: @escaping PutioVideoConversionStart,
     loadConversionStatus: @escaping PutioVideoConversionStatusLoad,
+    loadNextVideo: @escaping PutioNextVideoLoad,
+    onPlayNext: @escaping @MainActor @Sendable (PutioPlayableNextVideo) -> Void,
     resolve: @escaping PutioPlaybackResolve
   ) {
     self.fileID = route.id
+    self.onDismiss = onDismiss
     self.remembersPlaybackPosition = remembersPlaybackPosition
     self.reportsPlayerFailures = reportsPlayerFailures
     self.showsHarnessReadiness = showsHarnessReadiness
     self.positionPipeline = positionPipeline
     self.reportPosition = reportPosition
+    self.onPlayNext = onPlayNext
     _model = State(
       initialValue: PutioVideoPlaybackModel(
         fileID: route.id,
+        initialResolution: route.initialResolution,
         conversionPollInterval: conversionPollInterval,
         startConversion: startConversion,
         loadConversionStatus: loadConversionStatus
@@ -461,17 +482,29 @@ struct PutioVideoPlaybackView: View {
         return try await resolve(fileID)
       }
     )
+    _nextVideoModel = State(
+      initialValue: PutioNextVideoModel(
+        suggestionsEnabled: suggestsNextVideo,
+        autoplayEnabled: autoplayNextVideo,
+        autoplayDelay: nextVideoAutoplayDelay,
+        waitForReset: { completedFileID in
+          await positionPipeline.waitForPendingReports(fileID: completedFileID)
+        },
+        loadNext: loadNextVideo
+      )
+    )
   }
 
   var body: some View {
     ZStack(alignment: .topTrailing) {
       content
       PutioButton("Done", tier: .primary) {
-        dismiss()
+        onDismiss()
       }
       .padding(PutioTheme.Spacing.space4)
       .accessibilityIdentifier("video.done")
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Color.black)
     .task {
       await model.loadIfNeeded()
@@ -483,6 +516,18 @@ struct PutioVideoPlaybackView: View {
     }
     .onChange(of: model.state) { _, state in
       recordConversionState(state)
+    }
+    .onChange(of: nextVideoModel.state) { _, state in
+      guard case .playing(let nextVideo) = state else { return }
+      onPlayNext(nextVideo)
+    }
+    .onDisappear {
+      nextVideoTransitionTask?.cancel()
+      nextVideoTransitionTask = nil
+      nextVideoModel.cancel()
+    }
+    .overlay(alignment: .bottom) {
+      nextVideoOverlay
     }
     .overlay {
       if showsHarnessReadiness {
@@ -535,6 +580,38 @@ struct PutioVideoPlaybackView: View {
     }
   }
 
+  @ViewBuilder
+  private var nextVideoOverlay: some View {
+    switch nextVideoModel.state {
+    case .loading:
+      if showsHarnessReadiness {
+        ProgressView()
+          .tint(PutioTheme.Colors.accent)
+          .accessibilityLabel("Finding the next video")
+          .accessibilityIdentifier("video.next-loading")
+          .padding(PutioTheme.Spacing.space4)
+      }
+    case .available(let nextVideo):
+      PutioNextVideoOverlay(
+        nextVideo: nextVideo.video,
+        onPlay: { nextVideoModel.playNext() },
+        onCancel: { nextVideoModel.cancel() }
+      )
+      .padding(PutioTheme.Spacing.space4)
+    case .unavailable:
+      if showsHarnessReadiness {
+        Color.clear
+          .frame(width: 1, height: 1)
+          .accessibilityElement(children: .ignore)
+          .accessibilityLabel("No next video")
+          .accessibilityIdentifier("video.next-unavailable")
+          .allowsHitTesting(false)
+      }
+    case .idle, .playing, .cancelled:
+      EmptyView()
+    }
+  }
+
   private func recordConversionState(_ state: PutioVideoPlaybackState) {
     let phase: String
     switch state {
@@ -567,7 +644,19 @@ struct PutioVideoPlaybackView: View {
         onReady: { playerIsReady = true },
         observesPlaybackState: showsHarnessReadiness,
         onPositionChanged: { observedPlaybackPosition = $0 },
-        onPlaybackEnded: { playbackReachedEnd = true }
+        onPlaybackEnded: {
+          playbackReachedEnd = true
+          nextVideoTransitionTask?.cancel()
+          nextVideoTransitionTask = Task { @MainActor in
+            await nextVideoModel.playbackEnded(completedFileID: fileID)
+          }
+        },
+        onPlaybackRestarted: {
+          playbackReachedEnd = false
+          nextVideoTransitionTask?.cancel()
+          nextVideoTransitionTask = nil
+          nextVideoModel.cancel()
+        }
       ) {
         playerIsReady = false
         if reportsPlayerFailures {
@@ -610,6 +699,52 @@ struct PutioVideoPlaybackView: View {
   }
 }
 
+struct PutioNextVideoOverlay: View {
+  let nextVideo: PutioNextVideo
+  let onPlay: () -> Void
+  let onCancel: () -> Void
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: PutioTheme.Spacing.space3) {
+      Text("Up Next")
+        .putioFont(PutioTheme.Typography.heading)
+        .foregroundStyle(PutioTheme.Colors.textPrimary)
+      Text(nextVideo.name)
+        .putioFont(PutioTheme.Typography.body)
+        .foregroundStyle(PutioTheme.Colors.textSecondary)
+        .accessibilityLabel("Up next, \(nextVideo.name)")
+        .accessibilityIdentifier("video.next-title")
+      HStack(spacing: PutioTheme.Spacing.space2) {
+        PutioButton("Play Next", tier: .primary, action: onPlay)
+          .accessibilityLabel("Play next, \(nextVideo.name)")
+          .accessibilityIdentifier("video.play-next")
+        PutioButton("Cancel", tier: .secondary, action: onCancel)
+          .accessibilityLabel("Cancel playing \(nextVideo.name)")
+          .accessibilityIdentifier("video.cancel-next")
+      }
+    }
+    .padding(PutioTheme.Spacing.space4)
+    .frame(maxWidth: 480, alignment: .leading)
+    .modifier(PutioNextVideoSurface())
+  }
+}
+
+private struct PutioNextVideoSurface: ViewModifier {
+  @ViewBuilder func body(content: Content) -> some View {
+    if HarnessRendering.usesRasterFallback {
+      content.background(
+        .regularMaterial,
+        in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
+      )
+    } else {
+      content.glassEffect(
+        .regular,
+        in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
+      )
+    }
+  }
+}
+
 private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
   let fileID: PutioFileID
   let source: PutioPlaybackSource
@@ -620,6 +755,7 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
   let observesPlaybackState: Bool
   let onPositionChanged: @MainActor @Sendable (Int) -> Void
   let onPlaybackEnded: @MainActor @Sendable () -> Void
+  let onPlaybackRestarted: @MainActor @Sendable () -> Void
   let onFailure: @MainActor @Sendable () -> Void
 
   func makeCoordinator() -> PutioSystemVideoPlayerCoordinator {
@@ -639,8 +775,9 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
       in: controller,
       onReady: onReady,
       observesPlaybackState: observesPlaybackState,
-      onPositionChanged: onPositionChanged,
-      onPlaybackEnded: onPlaybackEnded,
+      onPositionChanged: { position in onPositionChanged(position) },
+      onPlaybackEnded: { onPlaybackEnded() },
+      onPlaybackRestarted: { onPlaybackRestarted() },
       onFailure: onFailure
     ) {
       controller.view.accessibilityIdentifier = "video.system-player"
@@ -816,6 +953,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private var onReady: (@MainActor () -> Void)?
   private var onPositionChanged: (@MainActor @Sendable (Int) -> Void)?
   private var onPlaybackEnded: (@MainActor @Sendable () -> Void)?
+  private var onPlaybackRestarted: (@MainActor @Sendable () -> Void)?
   private var onFailure: (@MainActor () -> Void)?
   private var generation: UInt64 = 0
   private var readyReported = false
@@ -878,6 +1016,7 @@ final class PutioSystemVideoPlayerCoordinator {
     observesPlaybackState: Bool = false,
     onPositionChanged: @escaping @MainActor @Sendable (Int) -> Void = { _ in },
     onPlaybackEnded: @escaping @MainActor @Sendable () -> Void = {},
+    onPlaybackRestarted: @escaping @MainActor @Sendable () -> Void = {},
     onFailure: @escaping @MainActor () -> Void
   ) -> Bool {
     generation &+= 1
@@ -891,7 +1030,8 @@ final class PutioSystemVideoPlayerCoordinator {
     self.reportPosition = reportPosition
     self.onReady = onReady
     self.onPositionChanged = observesPlaybackState ? onPositionChanged : nil
-    self.onPlaybackEnded = observesPlaybackState ? onPlaybackEnded : nil
+    self.onPlaybackEnded = onPlaybackEnded
+    self.onPlaybackRestarted = onPlaybackRestarted
     self.onFailure = onFailure
 
     let item = AVPlayerItem(url: source.url)
@@ -1021,6 +1161,7 @@ final class PutioSystemVideoPlayerCoordinator {
     onReady = nil
     onPositionChanged = nil
     onPlaybackEnded = nil
+    onPlaybackRestarted = nil
     onFailure = nil
     stoppedDriver?.stop()
     driver = nil
@@ -1052,20 +1193,22 @@ final class PutioSystemVideoPlayerCoordinator {
   private func reportPlaybackEnded(generation playbackGeneration: UInt64) {
     guard
       generation == playbackGeneration,
-      remembersPlaybackPosition,
       readyReported,
       positionIsEstablished,
       !failureReported,
       !finalPositionEnqueued
     else { return }
     finalPositionEnqueued = true
-    enqueuePosition(0, preservesOrdering: true)
+    if remembersPlaybackPosition {
+      enqueuePosition(0, preservesOrdering: true)
+    }
     onPlaybackEnded?()
   }
 
   private func reportPlaybackRestarted(generation playbackGeneration: UInt64) {
     guard generation == playbackGeneration, finalPositionEnqueued else { return }
     finalPositionEnqueued = false
+    onPlaybackRestarted?()
   }
 
   private func startPositionReporting(generation playbackGeneration: UInt64) {
