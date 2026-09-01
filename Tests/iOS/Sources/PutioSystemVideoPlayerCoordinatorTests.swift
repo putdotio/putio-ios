@@ -546,6 +546,40 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     XCTAssertTrue(reports.started.isEmpty)
   }
 
+  func testRememberPositionOffStillReportsPlaybackCompletion() async throws {
+    let notificationCenter = NotificationCenter()
+    let statusObservation = PlayerItemStatusObservationSpy()
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: PlaybackAudioSessionSpy(),
+      statusObservation: statusObservation,
+      notificationCenter: notificationCenter
+    )
+    let controller = AVPlayerViewController()
+    let reports = PlaybackPositionReportSpy()
+    var completionCount = 0
+
+    coordinator.start(
+      fileID: fileID,
+      source: source(startFromSeconds: 0),
+      remembersPlaybackPosition: false,
+      reportPosition: { try await reports.report(fileID: $0, position: $1) },
+      in: controller,
+      onPlaybackEnded: { completionCount += 1 },
+      onFailure: {}
+    )
+    let item = try XCTUnwrap(capture.item)
+    statusObservation.emit(.readyToPlay)
+    await Task.yield()
+
+    notificationCenter.post(name: AVPlayerItem.didPlayToEndTimeNotification, object: item)
+    notificationCenter.post(name: AVPlayerItem.didPlayToEndTimeNotification, object: item)
+    coordinator.stop(controller: controller)
+    await coordinator.waitForPendingPositionReports()
+
+    XCTAssertEqual(completionCount, 1)
+    XCTAssertTrue(reports.started.isEmpty)
+  }
+
   func testReadyPlayerSamplesOnExactFifteenSecondInterval() async throws {
     let audioSession = PlaybackAudioSessionSpy()
     let statusObservation = PlayerItemStatusObservationSpy()

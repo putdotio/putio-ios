@@ -47,7 +47,10 @@ final class PutioFileRouteTests: XCTestCase {
 
   func testOnlyVideoRoutesRefineIntoPlaybackRoutes() throws {
     let video = PutioFileRoute(item: BrowserTestFixtures.item(id: 20, kind: .video))
-    XCTAssertEqual(try XCTUnwrap(video.videoPlaybackRoute), video)
+    let videoRoute = try XCTUnwrap(video.videoPlaybackRoute)
+    XCTAssertEqual(videoRoute.id, video.item.id)
+    XCTAssertEqual(videoRoute.parentID, video.item.parentID)
+    XCTAssertEqual(videoRoute.title, video.item.name)
 
     let nonVideoKinds: [PutioFileKind] = [
       .audio,
@@ -61,6 +64,31 @@ final class PutioFileRouteTests: XCTestCase {
       )
       XCTAssertNil(route.videoPlaybackRoute, "\(kind) unexpectedly opened the video player")
     }
+  }
+
+  func testNextVideoMapsIntoPlaybackRoute() {
+    let nextVideo = PutioNextVideo(
+      id: PutioFileID(rawValue: 22),
+      parentID: PutioFileID(rawValue: 10),
+      name: "Episode 2.mkv"
+    )
+    let resolution = PutioPlaybackResolution.ready(
+      PutioPlaybackSource(
+        url: URL(fileURLWithPath: "/episode-2.m3u8"),
+        startFromSeconds: 37
+      )
+    )
+    let playableNextVideo = PutioPlayableNextVideo(
+      video: nextVideo,
+      initialResolution: resolution
+    )
+
+    let route = PutioVideoRoute(nextVideo: playableNextVideo)
+
+    XCTAssertEqual(route.id, nextVideo.id)
+    XCTAssertEqual(route.parentID, nextVideo.parentID)
+    XCTAssertEqual(route.title, nextVideo.name)
+    XCTAssertEqual(route.initialResolution, resolution)
   }
 
   func testRowPresentationUsesRawNameSizeRelativeDateAndWatchedState() throws {

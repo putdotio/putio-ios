@@ -118,6 +118,28 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     }
   }
 
+  func testSeededNextVideoPreservesSuccessorIdentityAndResumePosition() async throws {
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
+    await runtime.session.restore()
+
+    let loadedNextVideo = try await runtime.findNextVideo(after: PutioFileID(rawValue: 412))
+    let nextVideo = try XCTUnwrap(loadedNextVideo)
+    XCTAssertEqual(nextVideo.id, PutioFileID(rawValue: 414))
+    XCTAssertEqual(nextVideo.parentID, .root)
+    XCTAssertEqual(nextVideo.name, "Root Movie 2.mkv")
+
+    guard
+      case .ready(let source) = try await runtime.resolveVideoPlaybackSource(
+        fileID: nextVideo.id
+      )
+    else {
+      return XCTFail("expected the seeded successor to resolve")
+    }
+    XCTAssertEqual(source.startFromSeconds, 37)
+    let finalSuccessor = try await runtime.findNextVideo(after: nextVideo.id)
+    XCTAssertNil(finalSuccessor)
+  }
+
   private func completeSeededConversion(runtime: PutioRuntime, fileID: PutioFileID) async throws {
     do {
       try await runtime.startVideoConversion(fileID: fileID)

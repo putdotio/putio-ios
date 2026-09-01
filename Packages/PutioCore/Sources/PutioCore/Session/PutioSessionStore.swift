@@ -227,6 +227,7 @@ public final class PutioSessionStore {
       id: account.id,
       username: account.username,
       email: account.mail,
+      suggestNextVideo: account.settings.suggestNextVideo,
       rememberVideoTime: account.settings.rememberVideoTime,
       storage: PutioAccountSnapshot.Storage(
         availableBytes: account.disk.available,

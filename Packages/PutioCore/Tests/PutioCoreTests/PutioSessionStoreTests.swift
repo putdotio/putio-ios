@@ -52,7 +52,10 @@ final class PutioSessionStoreTests: XCTestCase {
   private static let validValidation =
     #"{"result": true, "token_id": 1, "token_scope": "default", "user_id": 1001}"#
   private static let rejectedValidation = #"{"result": false}"#
-  private static func accountInfo(rememberVideoTime: Bool) -> String {
+  private static func accountInfo(
+    rememberVideoTime: Bool,
+    suggestNextVideo: Bool = true
+  ) -> String {
     """
     {
       "info": {
@@ -70,7 +73,7 @@ final class PutioSessionStoreTests: XCTestCase {
         "disk": { "avail": 10, "size": 30, "used": 20 },
         "settings": {
           "tunnel_route_name": "default",
-          "next_episode": true,
+          "next_episode": \(suggestNextVideo),
           "start_from": \(rememberVideoTime),
           "history_enabled": true,
           "trash_enabled": true,
@@ -123,12 +126,14 @@ final class PutioSessionStoreTests: XCTestCase {
     guard case .signedIn(let account) = store.state else {
       return XCTFail("expected signedIn, got \(store.state)")
     }
+    XCTAssertTrue(account.suggestNextVideo)
     XCTAssertEqual(
       account,
       PutioAccountSnapshot(
         id: 1001,
         username: "moviebuff",
         email: "tests@example.com",
+        suggestNextVideo: true,
         rememberVideoTime: true,
         storage: PutioAccountSnapshot.Storage(
           availableBytes: 10,
@@ -153,6 +158,22 @@ final class PutioSessionStoreTests: XCTestCase {
       return XCTFail("expected signedIn, got \(store.state)")
     }
     XCTAssertFalse(account.rememberVideoTime)
+  }
+
+  func testRestoreMapsDisabledNextVideoSetting() async {
+    SessionMockURLProtocol.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    SessionMockURLProtocol.fixtures["GET /v2/account/info"] = (
+      200,
+      Self.accountInfo(rememberVideoTime: true, suggestNextVideo: false)
+    )
+    let (store, _) = makeStore(token: "stored-token")
+
+    await store.restore()
+
+    guard case .signedIn(let account) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertFalse(account.suggestNextVideo)
   }
 
   func testRestoreWithRejectedTokenClearsAndExpires() async {

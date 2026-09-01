@@ -243,23 +243,47 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "video.ready").waitForExistence(timeout: 10),
       "root video never became ready near EOF"
     )
+    let nextTitle = element(identifier: "video.next-title")
+    XCTAssertTrue(nextTitle.waitForExistence(timeout: 15), "next-video suggestion never appeared")
+    XCTAssertTrue(element(identifier: "video.ended").exists, "root video never reached EOF")
+    XCTAssertEqual(nextTitle.label, "Up next, Root Movie 2.mkv")
     XCTAssertTrue(
-      element(identifier: "video.ended").waitForExistence(timeout: 10),
-      "root video never reached EOF"
+      element(identifier: "video.play-next").isHittable,
+      "manual play-next action is not tappable"
+    )
+    XCTAssertTrue(
+      element(identifier: "video.cancel-next").isHittable,
+      "next-video cancellation is not tappable"
+    )
+    XCTAssertEqual(
+      reportedPosition.value as? String,
+      "id=412;seconds=0",
+      "next-video suggestion appeared before the completed position reset drained"
+    )
+    let presentedRoute = element(identifier: "video.presented-route")
+    let successorRoute = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@", "id=414"),
+      object: presentedRoute
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [successorRoute], timeout: 10),
+      .completed,
+      "autoplay did not select the successor route"
+    )
+    let successorResumePositionProbe = element(identifier: "video.resume-position")
+    let successorResumePosition = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@", "37"),
+      object: successorResumePositionProbe
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [successorResumePosition], timeout: 10),
+      .completed,
+      "autoplay did not open the successor at its saved position"
     )
     XCTAssertTrue(done.isHittable, "root video Done button is not tappable")
     done.tap()
 
     XCTAssertTrue(root.waitForExistence(timeout: 5), "root video did not return to folder")
-    let resetPosition = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "value == %@", "id=412;seconds=0"),
-      object: reportedPosition
-    )
-    XCTAssertEqual(
-      XCTWaiter.wait(for: [resetPosition], timeout: 5),
-      .completed,
-      "root video did not report the EOF reset"
-    )
     let unwatchedRow = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value == %@", "Not watched"),
       object: rootVideo
