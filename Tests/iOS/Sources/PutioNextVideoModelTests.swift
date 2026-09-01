@@ -265,6 +265,18 @@ final class PutioNextVideoModelTests: XCTestCase {
     XCTAssertEqual(model.state, .playing(playableNextVideo))
   }
 
+  func testCancelRejectsASelectedSuccessorBeforeNavigationRuns() async {
+    let model = makeModel(autoplayEnabled: false)
+
+    await model.playbackEnded(completedFileID: completedFileID)
+    model.playNext()
+    XCTAssertEqual(model.state, .playing(playableNextVideo))
+
+    model.cancel()
+
+    XCTAssertEqual(model.state, .cancelled)
+  }
+
   func testMissingSuccessorEndsUnavailable() async {
     let model = PutioNextVideoModel(
       autoplayEnabled: true,

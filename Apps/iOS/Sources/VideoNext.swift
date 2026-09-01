@@ -105,10 +105,10 @@ final class PutioNextVideoModel {
 
   func cancel() {
     switch state {
-    case .loading, .available:
+    case .loading, .available, .playing:
       _ = nextGeneration()
       state = .cancelled
-    case .idle, .playing, .cancelled, .unavailable:
+    case .idle, .cancelled, .unavailable:
       break
     }
   }

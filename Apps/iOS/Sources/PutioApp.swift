@@ -245,10 +245,12 @@ private struct MainTabView: View {
     }
     // Shrink-on-scroll is opt-in on iOS 26 and part of the ios-e10 treatment.
     .tabBarMinimizeBehavior(.onScrollDown)
-    .fullScreenCover(item: $selectedVideoRoute, onDismiss: refreshPlayedVideoFolder) { _ in
+    .accessibilityHidden(selectedVideoRoute != nil)
+    .overlay {
       PutioSelectedVideoCover(route: $selectedVideoRoute) { route in
         PutioVideoPlaybackView(
           route: route,
+          onDismiss: dismissPresentedVideo,
           remembersPlaybackPosition: account.rememberVideoTime,
           suggestsNextVideo: account.suggestNextVideo,
           autoplayNextVideo: account.suggestNextVideo,
@@ -325,16 +327,22 @@ private struct MainTabView: View {
 
   private func selectFile(_ route: PutioFileRoute) {
     selectedFileRoute = route
-    selectedVideoRoute = route.videoPlaybackRoute
-    presentedVideoRoute = route.videoPlaybackRoute
+    guard let videoRoute = route.videoPlaybackRoute else { return }
+    presentVideo(videoRoute)
   }
 
-  private func refreshPlayedVideoFolder() {
-    guard let route = presentedVideoRoute else { return }
+  private func presentVideo(_ route: PutioVideoRoute) {
+    selectedVideoRoute = route
+    presentedVideoRoute = route
+  }
+
+  private func dismissPresentedVideo() {
+    guard let dismissedRoute = selectedVideoRoute else { return }
+    selectedVideoRoute = nil
     presentedVideoRoute = nil
     Task { @MainActor in
-      await playbackPositionPipeline.waitForPendingReports(fileID: route.id)
-      folderRefreshRequests.request(folderID: route.parentID)
+      await playbackPositionPipeline.waitForPendingReports(fileID: dismissedRoute.id)
+      folderRefreshRequests.request(folderID: dismissedRoute.parentID)
     }
   }
 

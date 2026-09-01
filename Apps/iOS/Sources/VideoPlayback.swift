@@ -427,7 +427,6 @@ final class PutioPlaybackPositionPipeline {
 
 @MainActor
 struct PutioVideoPlaybackView: View {
-  @Environment(\.dismiss) private var dismiss
   @State private var model: PutioVideoPlaybackModel
   @State private var nextVideoModel: PutioNextVideoModel
   @State private var retrySequence: UInt64 = 0
@@ -437,6 +436,7 @@ struct PutioVideoPlaybackView: View {
   @State private var conversionHistory: [String] = []
   @State private var nextVideoTransitionTask: Task<Void, Never>?
   private let fileID: PutioFileID
+  private let onDismiss: @MainActor @Sendable () -> Void
   private let remembersPlaybackPosition: Bool
   private let reportsPlayerFailures: Bool
   private let showsHarnessReadiness: Bool
@@ -446,6 +446,7 @@ struct PutioVideoPlaybackView: View {
 
   init(
     route: PutioVideoRoute,
+    onDismiss: @escaping @MainActor @Sendable () -> Void,
     remembersPlaybackPosition: Bool = true,
     suggestsNextVideo: Bool = true,
     autoplayNextVideo: Bool = false,
@@ -462,6 +463,7 @@ struct PutioVideoPlaybackView: View {
     resolve: @escaping PutioPlaybackResolve
   ) {
     self.fileID = route.id
+    self.onDismiss = onDismiss
     self.remembersPlaybackPosition = remembersPlaybackPosition
     self.reportsPlayerFailures = reportsPlayerFailures
     self.showsHarnessReadiness = showsHarnessReadiness
@@ -497,11 +499,12 @@ struct PutioVideoPlaybackView: View {
     ZStack(alignment: .topTrailing) {
       content
       PutioButton("Done", tier: .primary) {
-        dismiss()
+        onDismiss()
       }
       .padding(PutioTheme.Spacing.space4)
       .accessibilityIdentifier("video.done")
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Color.black)
     .task {
       await model.loadIfNeeded()
