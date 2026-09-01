@@ -4,6 +4,40 @@ import PutioCore
 
 typealias PutioFolderLoad =
   @MainActor @Sendable (PutioFileID) async throws -> PutioFolderContents
+typealias PutioFolderCreate =
+  @MainActor @Sendable (String, PutioFileID) async throws -> PutioFileItem
+typealias PutioFileRename =
+  @MainActor @Sendable (PutioFileID, String) async throws -> Void
+typealias PutioFileDelete =
+  @MainActor @Sendable (PutioFileID) async throws -> Void
+
+struct PutioFileActions: Sendable {
+  let createFolder: PutioFolderCreate
+  let renameFile: PutioFileRename
+  let deleteFile: PutioFileDelete
+
+  init(runtime: PutioRuntime) {
+    createFolder = { name, parentID in
+      try await runtime.createFolder(name: name, parentID: parentID)
+    }
+    renameFile = { fileID, name in
+      try await runtime.renameFile(fileID: fileID, name: name)
+    }
+    deleteFile = { fileID in
+      try await runtime.deleteFile(fileID: fileID)
+    }
+  }
+
+  init(
+    createFolder: @escaping PutioFolderCreate,
+    renameFile: @escaping PutioFileRename,
+    deleteFile: @escaping PutioFileDelete
+  ) {
+    self.createFolder = createFolder
+    self.renameFile = renameFile
+    self.deleteFile = deleteFile
+  }
+}
 
 struct PutioFolderRoute: Identifiable, Sendable {
   let id: PutioFileID
@@ -138,6 +172,37 @@ enum PutioFolderLoadState: Equatable, Sendable {
   case failed(PutioBrowserErrorPresentation)
 }
 
+enum PutioFileAction: Equatable, Sendable {
+  case createFolder(name: String)
+  case rename(fileID: PutioFileID, oldName: String, newName: String)
+  case delete(fileID: PutioFileID, name: String)
+}
+
+struct PutioFileActionFailure: Equatable, Sendable {
+  let title: String
+  let message: String
+
+  init?(action: PutioFileAction, error: Error, trashEnabled: Bool) {
+    guard let browserFailure = PutioBrowserErrorPresentation(error: error) else {
+      return nil
+    }
+    switch action {
+    case .createFolder:
+      title = "Could not create folder"
+    case .rename:
+      title = "Could not rename item"
+    case .delete:
+      title = trashEnabled ? "Could not move item to Trash" : "Could not delete item"
+    }
+    message = browserFailure.message
+  }
+}
+
+enum PutioFileActionOutcome: Equatable, Sendable {
+  case succeeded(PutioFileAction)
+  case failed(PutioFileAction, PutioFileActionFailure)
+}
+
 @MainActor
 @Observable
 final class PutioFolderModel {
@@ -145,18 +210,30 @@ final class PutioFolderModel {
 
   private(set) var state: PutioFolderLoadState
   private(set) var refreshFailure: PutioBrowserErrorPresentation?
+  private(set) var activeAction: PutioFileAction?
+  private(set) var actionOutcome: PutioFileActionOutcome?
 
   @ObservationIgnored private let load: PutioFolderLoad
+  @ObservationIgnored private let actions: PutioFileActions?
+  @ObservationIgnored private let trashEnabled: Bool
   @ObservationIgnored private var generation: UInt64 = 0
 
   init(
     folderID: PutioFileID,
     load: @escaping PutioFolderLoad,
+    actions: PutioFileActions? = nil,
+    trashEnabled: Bool = true,
     initialContents: PutioFolderContents? = nil
   ) {
     self.folderID = folderID
     self.load = load
+    self.actions = actions
+    self.trashEnabled = trashEnabled
     state = initialContents.map { .loaded($0) } ?? .loading
+  }
+
+  var supportsActions: Bool {
+    actions != nil
   }
 
   func loadIfNeeded() async {
@@ -173,8 +250,73 @@ final class PutioFolderModel {
   }
 
   func refresh() async {
-    guard case .loaded = state else { return }
+    guard case .loaded = state, activeAction == nil else { return }
     await performLoad(mode: .refresh)
+  }
+
+  func createFolder(name: String) async {
+    guard let actions, activeAction == nil, case .loaded(let contents) = state else { return }
+    let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !name.isEmpty else { return }
+    let action = PutioFileAction.createFolder(name: name)
+    begin(action)
+
+    do {
+      let folder = try await actions.createFolder(name, folderID)
+      try Task.checkCancellation()
+      guard activeAction == action else { return }
+      state = .loaded(contents.appending(folder))
+      activeAction = nil
+      actionOutcome = .succeeded(action)
+    } catch {
+      settleFailure(action: action, error: error, rollback: contents)
+    }
+  }
+
+  func rename(_ item: PutioFileItem, to proposedName: String) async {
+    guard let actions, activeAction == nil, case .loaded(let contents) = state else { return }
+    let name = proposedName.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !name.isEmpty, name != item.name else { return }
+    let action = PutioFileAction.rename(fileID: item.id, oldName: item.name, newName: name)
+    begin(action)
+    state = .loaded(contents.replacing(item.renamed(to: name)))
+
+    do {
+      try await actions.renameFile(item.id, name)
+      try Task.checkCancellation()
+      guard activeAction == action else { return }
+      activeAction = nil
+      actionOutcome = .succeeded(action)
+    } catch {
+      settleFailure(action: action, error: error, rollback: contents)
+    }
+  }
+
+  func delete(_ item: PutioFileItem) async {
+    guard let actions, activeAction == nil, case .loaded(let contents) = state else { return }
+    let action = PutioFileAction.delete(fileID: item.id, name: item.name)
+    begin(action)
+    state = .loaded(contents.removing(item.id))
+
+    do {
+      try await actions.deleteFile(item.id)
+      try Task.checkCancellation()
+      guard activeAction == action else { return }
+      activeAction = nil
+      actionOutcome = .succeeded(action)
+    } catch {
+      settleFailure(action: action, error: error, rollback: contents)
+    }
+  }
+
+  func clearActionOutcome() {
+    actionOutcome = nil
+  }
+
+  private func begin(_ action: PutioFileAction) {
+    generation &+= 1
+    activeAction = action
+    actionOutcome = nil
   }
 
   private func performLoad(mode: LoadMode) async {
@@ -220,6 +362,60 @@ final class PutioFolderModel {
         refreshFailure = presentation
       }
     }
+  }
+
+  private func settleFailure(
+    action: PutioFileAction,
+    error: Error,
+    rollback: PutioFolderContents
+  ) {
+    guard activeAction == action else { return }
+    state = .loaded(rollback)
+    activeAction = nil
+    guard !Task.isCancelled, !(error is CancellationError) else {
+      actionOutcome = nil
+      return
+    }
+    actionOutcome = PutioFileActionFailure(
+      action: action,
+      error: error,
+      trashEnabled: trashEnabled
+    ).map {
+      .failed(action, $0)
+    }
+  }
+}
+
+extension PutioFolderContents {
+  fileprivate func appending(_ item: PutioFileItem) -> PutioFolderContents {
+    PutioFolderContents(folder: folder, items: items + [item], hasMore: hasMore)
+  }
+
+  fileprivate func replacing(_ item: PutioFileItem) -> PutioFolderContents {
+    PutioFolderContents(
+      folder: folder,
+      items: items.map { $0.id == item.id ? item : $0 },
+      hasMore: hasMore
+    )
+  }
+
+  fileprivate func removing(_ id: PutioFileID) -> PutioFolderContents {
+    PutioFolderContents(folder: folder, items: items.filter { $0.id != id }, hasMore: hasMore)
+  }
+}
+
+extension PutioFileItem {
+  fileprivate func renamed(to name: String) -> PutioFileItem {
+    PutioFileItem(
+      id: id,
+      parentID: parentID,
+      name: name,
+      kind: kind,
+      sizeBytes: sizeBytes,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      resumePositionSeconds: resumePositionSeconds
+    )
   }
 }
 

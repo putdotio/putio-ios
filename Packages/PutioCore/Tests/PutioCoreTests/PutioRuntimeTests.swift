@@ -199,6 +199,9 @@ private final class RuntimeMockURLProtocol: URLProtocol, @unchecked Sendable {
 @MainActor
 final class PutioRuntimeTests: XCTestCase {
   private static let filesRoute = "GET /v2/files/list"
+  private static let createFolderRoute = "POST /v2/files/create-folder"
+  private static let renameFileRoute = "POST /v2/files/rename"
+  private static let deleteFilesRoute = "POST /v2/files/delete"
   private static let nextVideoRoute = "GET /v2/files/411/next-file"
   private static let playbackRoute = "GET /v2/files/411"
   private static let playbackPositionRoute = "POST /v2/files/411/start-from/set"
@@ -347,6 +350,55 @@ final class PutioRuntimeTests: XCTestCase {
       components.queryItems?.first(where: { $0.name == "parent_id" })?.value,
       "42"
     )
+  }
+
+  func testFileActionsUseSDKOwnedRoutesAndMapCreatedFolder() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      """
+      {
+        "file": {
+          "id": 91,
+          "name": "Season 2",
+          "file_type": "FOLDER",
+          "parent_id": 7,
+          "size": 0,
+          "created_at": "2026-09-01T10:00:00Z",
+          "updated_at": "2026-09-01T10:00:00Z"
+        }
+      }
+      """,
+      for: Self.createFolderRoute
+    )
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.renameFileRoute)
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.deleteFilesRoute)
+
+    let folder = try await runtime.createFolder(
+      name: "Season 2",
+      parentID: PutioFileID(rawValue: 7)
+    )
+    try await runtime.renameFile(fileID: folder.id, name: "Season Two")
+    try await runtime.deleteFile(fileID: folder.id)
+
+    XCTAssertEqual(folder.id, PutioFileID(rawValue: 91))
+    XCTAssertEqual(folder.parentID, PutioFileID(rawValue: 7))
+    XCTAssertEqual(folder.name, "Season 2")
+    XCTAssertEqual(folder.kind, .folder)
+
+    let actionRequests = RuntimeMockURLProtocol.capturedRequests().suffix(3)
+    XCTAssertEqual(
+      actionRequests.compactMap { $0.url?.path },
+      ["/v2/files/create-folder", "/v2/files/rename", "/v2/files/delete"]
+    )
+    let bodies = try actionRequests.map { request -> [String: Any] in
+      let data = try XCTUnwrap(requestBodyData(for: request))
+      return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    }
+    XCTAssertEqual(bodies[0]["name"] as? String, "Season 2")
+    XCTAssertEqual(bodies[0]["parent_id"] as? Int, 7)
+    XCTAssertEqual(bodies[1]["file_id"] as? Int, 91)
+    XCTAssertEqual(bodies[1]["name"] as? String, "Season Two")
+    XCTAssertEqual(bodies[2]["file_ids"] as? String, "91")
   }
 
   func testFindNextVideoMapsAppOwnedSuccessorAndVideoQuery() async throws {
