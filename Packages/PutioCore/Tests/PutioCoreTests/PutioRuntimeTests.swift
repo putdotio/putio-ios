@@ -201,6 +201,8 @@ final class PutioRuntimeTests: XCTestCase {
   private static let filesRoute = "GET /v2/files/list"
   private static let playbackRoute = "GET /v2/files/411"
   private static let playbackPositionRoute = "POST /v2/files/411/start-from/set"
+  private static let conversionStartRoute = "POST /v2/files/411/mp4"
+  private static let conversionStatusRoute = "GET /v2/files/411/mp4"
   private static let logoutRoute = "POST /v2/oauth/grants/logout"
   private static let validValidation =
     #"{"result": true, "token_id": 1, "token_scope": "default", "user_id": 1001}"#
@@ -393,6 +395,73 @@ final class PutioRuntimeTests: XCTestCase {
     )
 
     XCTAssertEqual(resolution, .conversionRequired)
+  }
+
+  func testVideoConversionStartSendsTheSDKOwnedRequest() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.conversionStartRoute)
+
+    try await runtime.startVideoConversion(fileID: PutioFileID(rawValue: 411))
+
+    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    XCTAssertEqual(request.httpMethod, "POST")
+    XCTAssertEqual(request.url?.path, "/v2/files/411/mp4")
+  }
+
+  func testVideoConversionStatusMapsEveryKnownSDKState() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let cases: [(String, Int, PutioVideoConversionStatus)] = [
+      ("IN_QUEUE", 0, .queued),
+      ("CONVERTING", 35, .converting(progress: 0.35)),
+      ("COMPLETED", 100, .completed),
+      ("ERROR", 0, .failed),
+      ("NOT_AVAILABLE", 0, .failed),
+    ]
+
+    for (status, percentDone, expected) in cases {
+      RuntimeMockURLProtocol.setFixture(
+        #"{"mp4":{"percent_done":\#(percentDone),"status":"\#(status)"}}"#,
+        for: Self.conversionStatusRoute
+      )
+
+      let conversion = try await runtime.videoConversionStatus(
+        fileID: PutioFileID(rawValue: 411)
+      )
+      if case .converting(let progress) = conversion,
+        case .converting(let expectedProgress) = expected
+      {
+        XCTAssertEqual(progress, expectedProgress, accuracy: 0.001)
+      } else {
+        XCTAssertEqual(conversion, expected)
+      }
+    }
+  }
+
+  func testVideoConversionRejectsUnknownStatusAndInvalidProgress() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    for body in [
+      #"{"mp4":{"percent_done":35,"status":"PAUSED"}}"#,
+      #"{"mp4":{"percent_done":101,"status":"CONVERTING"}}"#,
+      #"{"mp4":{"percent_done":-1,"status":"CONVERTING"}}"#,
+    ] {
+      RuntimeMockURLProtocol.setFixture(body, for: Self.conversionStatusRoute)
+      await assertRuntimeError(.invalidResponse) {
+        _ = try await runtime.videoConversionStatus(fileID: PutioFileID(rawValue: 411))
+      }
+    }
+  }
+
+  func testUnauthenticatedRuntimeRejectsVideoConversionWithoutARequest() async {
+    let (runtime, _) = makeRuntime(token: nil)
+
+    await assertRuntimeError(.authenticationRequired) {
+      try await runtime.startVideoConversion(fileID: PutioFileID(rawValue: 411))
+    }
+    await assertRuntimeError(.authenticationRequired) {
+      _ = try await runtime.videoConversionStatus(fileID: PutioFileID(rawValue: 411))
+    }
+
+    XCTAssertTrue(RuntimeMockURLProtocol.capturedRequests().isEmpty)
   }
 
   func testPlaybackPositionReportSendsExactPathAndBody() async throws {
@@ -710,6 +779,7 @@ final class PutioRuntimeTests: XCTestCase {
     requireSendable(PutioFolderContents.self)
     requireSendable(PutioPlaybackSource.self)
     requireSendable(PutioPlaybackResolution.self)
+    requireSendable(PutioVideoConversionStatus.self)
     requireSendable(PutioRuntimeError.self)
     requireSendable(PutioSessionState.self)
   }

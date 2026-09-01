@@ -8,11 +8,20 @@ typealias PutioPlaybackResolve =
   @MainActor @Sendable (PutioFileID) async throws -> PutioPlaybackResolution
 typealias PutioPlaybackPositionReport =
   @MainActor @Sendable (PutioFileID, Int) async throws -> Void
+typealias PutioVideoConversionStart =
+  @MainActor @Sendable (PutioFileID) async throws -> Void
+typealias PutioVideoConversionStatusLoad =
+  @MainActor @Sendable (PutioFileID) async throws -> PutioVideoConversionStatus
+typealias PutioVideoConversionSleep =
+  @MainActor @Sendable (Duration) async throws -> Void
 
 enum PutioVideoPlaybackState: Equatable {
   case loading
   case ready(PutioPlaybackSource)
   case conversionRequired
+  case conversionQueued
+  case converting(progress: Double)
+  case conversionCompleted
   case failed(PutioVideoPlaybackFailure)
 }
 
@@ -23,6 +32,7 @@ struct PutioVideoPlaybackFailure: Equatable {
     case transient
     case invalidResponse
     case playback
+    case conversion
     case unknown
   }
 
@@ -72,32 +82,88 @@ struct PutioVideoPlaybackFailure: Equatable {
     title: "Could not play video",
     message: "The video could not be played. Try again."
   )
+
+  static let conversion = PutioVideoPlaybackFailure(
+    kind: .conversion,
+    title: "Could not convert video",
+    message: "The conversion did not finish. Try again."
+  )
+
+  static func converting(_ error: Error) -> PutioVideoPlaybackFailure? {
+    guard let failure = resolving(error) else { return nil }
+    guard failure.kind != .notFound else { return failure }
+    return PutioVideoPlaybackFailure(
+      kind: failure.kind,
+      title: "Could not convert video",
+      message: failure.message
+    )
+  }
 }
 
 @MainActor
 @Observable
 final class PutioVideoPlaybackModel {
+  private enum Recovery {
+    case resolve
+    case startConversion
+    case pollConversion
+    case resolveConvertedSource
+  }
+
   private(set) var state: PutioVideoPlaybackState = .loading
 
   @ObservationIgnored private let fileID: PutioFileID
   @ObservationIgnored private let resolve: PutioPlaybackResolve
+  @ObservationIgnored private let startConversion: PutioVideoConversionStart
+  @ObservationIgnored private let loadConversionStatus: PutioVideoConversionStatusLoad
+  @ObservationIgnored private let conversionPollInterval: Duration
+  @ObservationIgnored private let sleep: PutioVideoConversionSleep
   @ObservationIgnored private var generation: UInt64 = 0
   @ObservationIgnored private var attemptedLoad = false
+  @ObservationIgnored private var recovery: Recovery = .resolve
 
-  init(fileID: PutioFileID, resolve: @escaping PutioPlaybackResolve) {
+  init(
+    fileID: PutioFileID,
+    conversionPollInterval: Duration = .seconds(3),
+    startConversion: @escaping PutioVideoConversionStart = { _ in
+      throw PutioRuntimeError.unknown
+    },
+    loadConversionStatus: @escaping PutioVideoConversionStatusLoad = { _ in
+      throw PutioRuntimeError.unknown
+    },
+    sleep: @escaping PutioVideoConversionSleep = { try await Task.sleep(for: $0) },
+    resolve: @escaping PutioPlaybackResolve
+  ) {
     self.fileID = fileID
+    self.conversionPollInterval = conversionPollInterval
+    self.startConversion = startConversion
+    self.loadConversionStatus = loadConversionStatus
+    self.sleep = sleep
     self.resolve = resolve
   }
 
   func loadIfNeeded() async {
     guard !attemptedLoad else { return }
     attemptedLoad = true
-    await resolveSource()
+    await recover()
   }
 
   func retry() async {
     attemptedLoad = true
-    await resolveSource()
+    await recover()
+  }
+
+  private func recover() async {
+    switch recovery {
+    case .resolve:
+      await resolveSource()
+    case .startConversion:
+      await beginConversion()
+    case .pollConversion:
+      await pollConversion()
+    case .resolveConvertedSource:
+      await resolveConvertedSource()
+    }
   }
 
   func playerFailed() {
@@ -109,6 +175,7 @@ final class PutioVideoPlaybackModel {
   private func resolveSource() async {
     generation &+= 1
     let requestGeneration = generation
+    recovery = .resolve
     state = .loading
 
     do {
@@ -122,6 +189,7 @@ final class PutioVideoPlaybackModel {
         state = .ready(source)
       case .conversionRequired:
         state = .conversionRequired
+        await beginConversion(generation: requestGeneration)
       }
     } catch {
       guard requestGeneration == generation else { return }
@@ -135,6 +203,106 @@ final class PutioVideoPlaybackModel {
       }
       state = .failed(failure)
     }
+  }
+
+  private func beginConversion(generation existingGeneration: UInt64? = nil) async {
+    let requestGeneration = existingGeneration ?? nextGeneration()
+    recovery = .startConversion
+    state = .conversionRequired
+
+    do {
+      try Task.checkCancellation()
+      try await startConversion(fileID)
+      try Task.checkCancellation()
+      guard requestGeneration == generation else { return }
+      state = .conversionQueued
+      await pollConversion(generation: requestGeneration)
+    } catch {
+      handleConversionError(error, generation: requestGeneration, recovery: .startConversion)
+    }
+  }
+
+  private func pollConversion(generation existingGeneration: UInt64? = nil) async {
+    let requestGeneration = existingGeneration ?? nextGeneration()
+    recovery = .pollConversion
+
+    do {
+      while requestGeneration == generation {
+        try Task.checkCancellation()
+        let status = try await loadConversionStatus(fileID)
+        try Task.checkCancellation()
+        guard requestGeneration == generation else { return }
+
+        switch status {
+        case .queued:
+          state = .conversionQueued
+        case .converting(let progress):
+          state = .converting(progress: progress)
+        case .completed:
+          state = .conversionCompleted
+          await resolveConvertedSource(generation: requestGeneration)
+          return
+        case .failed:
+          recovery = .startConversion
+          state = .failed(.conversion)
+          return
+        }
+        try await sleep(conversionPollInterval)
+      }
+    } catch {
+      handleConversionError(error, generation: requestGeneration, recovery: .pollConversion)
+    }
+  }
+
+  private func resolveConvertedSource(generation existingGeneration: UInt64? = nil) async {
+    let requestGeneration = existingGeneration ?? nextGeneration()
+    recovery = .resolveConvertedSource
+    state = .conversionCompleted
+
+    do {
+      while requestGeneration == generation {
+        try Task.checkCancellation()
+        let resolution = try await resolve(fileID)
+        try Task.checkCancellation()
+        guard requestGeneration == generation else { return }
+        switch resolution {
+        case .ready(let source):
+          state = .ready(source)
+          return
+        case .conversionRequired:
+          try await sleep(conversionPollInterval)
+        }
+      }
+    } catch {
+      handleConversionError(
+        error,
+        generation: requestGeneration,
+        recovery: .resolveConvertedSource
+      )
+    }
+  }
+
+  private func nextGeneration() -> UInt64 {
+    generation &+= 1
+    return generation
+  }
+
+  private func handleConversionError(
+    _ error: Error,
+    generation requestGeneration: UInt64,
+    recovery: Recovery
+  ) {
+    guard requestGeneration == generation else { return }
+    if Task.isCancelled {
+      attemptedLoad = false
+      return
+    }
+    guard let failure = PutioVideoPlaybackFailure.converting(error) else {
+      attemptedLoad = false
+      return
+    }
+    self.recovery = recovery
+    state = .failed(failure)
   }
 }
 
@@ -256,6 +424,7 @@ struct PutioVideoPlaybackView: View {
   @State private var playerIsReady = false
   @State private var observedPlaybackPosition: Int?
   @State private var playbackReachedEnd = false
+  @State private var conversionHistory: [String] = []
   private let fileID: PutioFileID
   private let remembersPlaybackPosition: Bool
   private let reportsPlayerFailures: Bool
@@ -268,8 +437,11 @@ struct PutioVideoPlaybackView: View {
     remembersPlaybackPosition: Bool = true,
     reportsPlayerFailures: Bool = true,
     showsHarnessReadiness: Bool = false,
+    conversionPollInterval: Duration = .seconds(3),
     positionPipeline: PutioPlaybackPositionPipeline,
     reportPosition: @escaping PutioPlaybackPositionReport = { _, _ in },
+    startConversion: @escaping PutioVideoConversionStart,
+    loadConversionStatus: @escaping PutioVideoConversionStatusLoad,
     resolve: @escaping PutioPlaybackResolve
   ) {
     self.fileID = route.id
@@ -279,7 +451,12 @@ struct PutioVideoPlaybackView: View {
     self.positionPipeline = positionPipeline
     self.reportPosition = reportPosition
     _model = State(
-      initialValue: PutioVideoPlaybackModel(fileID: route.id) { fileID in
+      initialValue: PutioVideoPlaybackModel(
+        fileID: route.id,
+        conversionPollInterval: conversionPollInterval,
+        startConversion: startConversion,
+        loadConversionStatus: loadConversionStatus
+      ) { fileID in
         await positionPipeline.waitForPendingReports(fileID: fileID)
         return try await resolve(fileID)
       }
@@ -303,6 +480,9 @@ struct PutioVideoPlaybackView: View {
       guard retrySequence > 0 else { return }
       playerIsReady = false
       await model.retry()
+    }
+    .onChange(of: model.state) { _, state in
+      recordConversionState(state)
     }
     .overlay {
       if showsHarnessReadiness {
@@ -341,9 +521,34 @@ struct PutioVideoPlaybackView: View {
               .accessibilityIdentifier("video.ended")
               .allowsHitTesting(false)
           }
+          if !conversionHistory.isEmpty {
+            Color.clear
+              .frame(width: 1, height: 1)
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel("Observed conversion states")
+              .accessibilityValue(conversionHistory.joined(separator: ","))
+              .accessibilityIdentifier("video.conversion-history")
+              .allowsHitTesting(false)
+          }
         }
       }
     }
+  }
+
+  private func recordConversionState(_ state: PutioVideoPlaybackState) {
+    let phase: String
+    switch state {
+    case .conversionQueued:
+      phase = "queued"
+    case .converting:
+      phase = "converting"
+    case .conversionCompleted:
+      phase = "completed"
+    case .loading, .ready, .conversionRequired, .failed:
+      return
+    }
+    guard conversionHistory.last != phase else { return }
+    conversionHistory.append(phase)
   }
 
   @ViewBuilder
@@ -371,11 +576,27 @@ struct PutioVideoPlaybackView: View {
       }
       .ignoresSafeArea()
     case .conversionRequired:
-      PutioErrorStateView(
-        title: "Video needs conversion",
-        message: "Convert this video before playing it. Conversion support is coming next."
-      )
-      .accessibilityIdentifier("video.conversion-required")
+      PutioLoadingStateView(title: "Starting conversion")
+        .accessibilityIdentifier("video.conversion-required")
+    case .conversionQueued:
+      PutioLoadingStateView(title: "Waiting to convert")
+        .accessibilityIdentifier("video.conversion-queued")
+    case .converting(let progress):
+      VStack(spacing: PutioTheme.Spacing.space3) {
+        ProgressView(value: progress)
+          .tint(PutioTheme.Colors.accent)
+          .accessibilityLabel("Video conversion progress")
+          .accessibilityValue(progress.formatted(.percent.precision(.fractionLength(0))))
+          .accessibilityIdentifier("video.conversion-progress")
+        Text("Converting video")
+          .putioFont(PutioTheme.Typography.body)
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+      }
+      .padding(PutioTheme.Spacing.space4)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+    case .conversionCompleted:
+      PutioLoadingStateView(title: "Finishing conversion")
+        .accessibilityIdentifier("video.conversion-completed")
     case .failed(let failure):
       PutioErrorStateView(
         title: failure.title,

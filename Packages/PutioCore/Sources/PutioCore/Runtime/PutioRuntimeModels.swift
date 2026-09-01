@@ -136,6 +136,13 @@ public enum PutioPlaybackResolution: Equatable, Sendable {
   case conversionRequired
 }
 
+public enum PutioVideoConversionStatus: Equatable, Sendable {
+  case queued
+  case converting(progress: Double)
+  case completed
+  case failed
+}
+
 public enum PutioRuntimeError: Error, Equatable, Sendable {
   case authenticationRequired
   case sessionExpired

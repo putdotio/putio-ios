@@ -7,7 +7,12 @@ import Foundation
   final class HarnessSeededAPI: URLProtocol {
     nonisolated(unsafe) static var isEnabled = false
     nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 589]
+    nonisolated(unsafe) private static var conversionStarted = false
+    nonisolated(unsafe) private static var conversionCompleted = false
+    nonisolated(unsafe) private static var conversionStartAttempts = 0
+    nonisolated(unsafe) private static var conversionStatusLoads = 0
     private static let playbackPositionLock = NSLock()
+    private static let conversionLock = NSLock()
 
     static let token = "putio-harness-session-token"
 
@@ -15,6 +20,15 @@ import Foundation
       playbackPositionLock.lock()
       playbackPositions = [411: 90, 412: 589]
       playbackPositionLock.unlock()
+    }
+
+    static func resetVideoConversion() {
+      conversionLock.lock()
+      conversionStarted = false
+      conversionCompleted = false
+      conversionStartAttempts = 0
+      conversionStatusLoads = 0
+      conversionLock.unlock()
     }
 
     override class func canInit(with request: URLRequest) -> Bool {
@@ -73,6 +87,10 @@ import Foundation
             startFrom: playbackPosition(fileID: 411)
           )
         )
+      case "POST /v2/files/411/mp4":
+        return startVideoConversion()
+      case "GET /v2/files/411/mp4":
+        return videoConversionStatus()
       case "GET /v2/files/412":
         return (
           200,
@@ -131,14 +149,14 @@ import Foundation
     }
 
     private static func fixtureError(statusCode: Int, type: String, message: String) -> String {
-      """
-      {
-        "status": "ERROR",
-        "status_code": \(statusCode),
-        "error_type": "\(type)",
-        "message": "\(message)"
-      }
-      """
+      return """
+        {
+          "status": "ERROR",
+          "status_code": \(statusCode),
+          "error_type": "\(type)",
+          "message": "\(message)"
+        }
+        """
     }
 
     private static func playbackPosition(fileID: Int) -> Int {
@@ -168,6 +186,56 @@ import Foundation
       playbackPositions[fileID] = seconds
       playbackPositionLock.unlock()
       return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func startVideoConversion() -> (Int, String) {
+      conversionLock.lock()
+      defer { conversionLock.unlock() }
+      conversionStartAttempts += 1
+      guard conversionStartAttempts > 1 else {
+        return (
+          503,
+          fixtureError(
+            statusCode: 503,
+            type: "HARNESS_TRANSIENT_CONVERSION_FAILURE",
+            message: "The first conversion request fails for retry proof"
+          )
+        )
+      }
+      conversionStarted = true
+      conversionStatusLoads = 0
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func videoConversionStatus() -> (Int, String) {
+      conversionLock.lock()
+      defer { conversionLock.unlock() }
+      guard conversionStarted else {
+        return (
+          409,
+          fixtureError(
+            statusCode: 409,
+            type: "HARNESS_CONVERSION_NOT_STARTED",
+            message: "Conversion status was requested before conversion started"
+          )
+        )
+      }
+
+      let response: (status: String, percentDone: Int)
+      switch conversionStatusLoads {
+      case 0:
+        response = ("IN_QUEUE", 0)
+      case 1:
+        response = ("CONVERTING", 35)
+      default:
+        response = ("COMPLETED", 100)
+        conversionCompleted = true
+      }
+      conversionStatusLoads += 1
+      return (
+        200,
+        #"{"mp4":{"percent_done":\#(response.percentDone),"status":"\#(response.status)"}}"#
+      )
     }
 
     private static func requestBodyData(_ request: URLRequest) -> Data? {
@@ -304,17 +372,25 @@ import Foundation
     }
 
     private static func playbackFile(id: Int, name: String, startFrom: Int) -> String {
-      """
-      {
-        "file": {
-          "id": \(id),
-          "name": "\(name)",
-          "file_type": "VIDEO",
-          "need_convert": false,
-          "start_from": \(startFrom)
-        }
+      let needsConversion: Bool
+      if id == 411 {
+        conversionLock.lock()
+        needsConversion = !conversionCompleted
+        conversionLock.unlock()
+      } else {
+        needsConversion = false
       }
-      """
+      return """
+        {
+          "file": {
+            "id": \(id),
+            "name": "\(name)",
+            "file_type": "VIDEO",
+            "need_convert": \(needsConversion),
+            "start_from": \(startFrom)
+          }
+        }
+        """
     }
   }
 #endif

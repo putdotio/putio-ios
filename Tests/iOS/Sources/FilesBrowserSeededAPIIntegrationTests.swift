@@ -8,6 +8,7 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
   override func setUp() {
     super.setUp()
     HarnessSeededAPI.resetPlaybackPositions()
+    HarnessSeededAPI.resetVideoConversion()
   }
 
   func testRootFolderAndNestedFileFlow() async throws {
@@ -44,7 +45,7 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertEqual(fileRoute.item.kind, .video)
   }
 
-  func testEverySeededVideoResolvesToPlayback() async throws {
+  func testSeededConversionTransitionsNestedVideoToPlayback() async throws {
     let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
     await runtime.session.restore()
 
@@ -52,15 +53,31 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     let nested = try await runtime.listFiles(parentID: PutioFileID(rawValue: 410))
     let videos = (root.items + nested.items).filter { $0.kind == .video }
 
+    let initialResolution = try await runtime.resolveVideoPlaybackSource(
+      fileID: PutioFileID(rawValue: 411)
+    )
+    XCTAssertEqual(initialResolution, .conversionRequired)
+    do {
+      try await runtime.startVideoConversion(fileID: PutioFileID(rawValue: 411))
+      XCTFail("expected the first seeded conversion request to fail")
+    } catch {
+      XCTAssertEqual(error as? PutioRuntimeError, .transient)
+    }
+    try await runtime.startVideoConversion(fileID: PutioFileID(rawValue: 411))
+    let queued = try await runtime.videoConversionStatus(fileID: PutioFileID(rawValue: 411))
+    let converting = try await runtime.videoConversionStatus(fileID: PutioFileID(rawValue: 411))
+    let completed = try await runtime.videoConversionStatus(fileID: PutioFileID(rawValue: 411))
+    XCTAssertEqual(queued, .queued)
+    guard case .converting(let progress) = converting else {
+      return XCTFail("expected converting status, got \(converting)")
+    }
+    XCTAssertEqual(progress, 0.35, accuracy: 0.001)
+    XCTAssertEqual(completed, .completed)
+
     var sources: [Int: PutioPlaybackSource] = [:]
     for video in videos {
-      guard
-        case .ready(let source) = try await runtime.resolveVideoPlaybackSource(
-          fileID: video.id
-        )
-      else {
-        return XCTFail("expected seeded video \(video.id.rawValue) to be ready")
-      }
+      guard case .ready(let source) = try await runtime.resolveVideoPlaybackSource(fileID: video.id)
+      else { return XCTFail("expected seeded video \(video.id.rawValue) to be ready") }
       sources[video.id.rawValue] = source
     }
 
@@ -76,6 +93,9 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     await runtime.session.restore()
     for rawFileID in [411, 412] {
       let fileID = PutioFileID(rawValue: rawFileID)
+      if rawFileID == 411 {
+        try await completeSeededConversion(runtime: runtime, fileID: fileID)
+      }
       try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: 137)
       let resolution = try await runtime.resolveVideoPlaybackSource(fileID: fileID)
 
@@ -96,6 +116,20 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
       XCTAssertEqual(resetFile.resumePositionSeconds, 0)
       XCTAssertFalse(resetFile.isWatched)
     }
+  }
+
+  private func completeSeededConversion(runtime: PutioRuntime, fileID: PutioFileID) async throws {
+    do {
+      try await runtime.startVideoConversion(fileID: fileID)
+      XCTFail("expected the first seeded conversion request to fail")
+    } catch {
+      XCTAssertEqual(error as? PutioRuntimeError, .transient)
+    }
+    try await runtime.startVideoConversion(fileID: fileID)
+    _ = try await runtime.videoConversionStatus(fileID: fileID)
+    _ = try await runtime.videoConversionStatus(fileID: fileID)
+    let completed = try await runtime.videoConversionStatus(fileID: fileID)
+    XCTAssertEqual(completed, .completed)
   }
 
   func testHarnessSignInPersistsForRestoreAndSignOutClearsTheSession() async throws {

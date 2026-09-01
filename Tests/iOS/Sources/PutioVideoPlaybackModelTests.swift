@@ -41,10 +41,72 @@ private final class CancellationPlaybackResolver {
 }
 
 @MainActor
+private final class VideoConversionStub {
+  private(set) var startRequests: [PutioFileID] = []
+  private(set) var statusRequests: [PutioFileID] = []
+  private(set) var sleepDurations: [Duration] = []
+  var startResults: [Result<Void, PutioRuntimeError>]
+  var statusResults: [Result<PutioVideoConversionStatus, PutioRuntimeError>]
+
+  init(
+    startResults: [Result<Void, PutioRuntimeError>] = [.success(())],
+    statusResults: [Result<PutioVideoConversionStatus, PutioRuntimeError>]
+  ) {
+    self.startResults = startResults
+    self.statusResults = statusResults
+  }
+
+  func start(_ fileID: PutioFileID) async throws {
+    startRequests.append(fileID)
+    guard !startResults.isEmpty else { throw PutioRuntimeError.unknown }
+    try startResults.removeFirst().get()
+  }
+
+  func status(_ fileID: PutioFileID) async throws -> PutioVideoConversionStatus {
+    statusRequests.append(fileID)
+    guard !statusResults.isEmpty else { throw PutioRuntimeError.unknown }
+    return try statusResults.removeFirst().get()
+  }
+
+  func sleep(for duration: Duration) async throws {
+    sleepDurations.append(duration)
+    await Task.yield()
+  }
+}
+
+@MainActor
+private final class SuspendedConversionStatus {
+  private(set) var startRequests: [PutioFileID] = []
+  private(set) var requests = 0
+
+  func start(_ fileID: PutioFileID) async throws {
+    startRequests.append(fileID)
+  }
+
+  func load(_: PutioFileID) async throws -> PutioVideoConversionStatus {
+    requests += 1
+    if requests == 1 {
+      try await Task.sleep(for: .seconds(60))
+    }
+    return .completed
+  }
+}
+
+@MainActor
+private final class SuspendedConversionStart {
+  private(set) var requests = 0
+
+  func start(_: PutioFileID) async throws {
+    requests += 1
+    try await Task.sleep(for: .seconds(60))
+  }
+}
+
+@MainActor
 final class PutioVideoPlaybackModelTests: XCTestCase {
   private let fileID = PutioFileID(rawValue: 411)
 
-  func testReadySourceAndConversionRequiredAreDistinctStates() async {
+  func testReadySourceResolvesWithoutConversion() async {
     let source = playbackSource()
     let readyResolver = PlaybackResolverStub([.success(.ready(source))])
     let readyModel = PutioVideoPlaybackModel(fileID: fileID) {
@@ -56,14 +118,151 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertEqual(readyModel.state, .ready(source))
     XCTAssertEqual(readyResolver.requestedIDs, [fileID])
 
-    let conversionResolver = PlaybackResolverStub([.success(.conversionRequired)])
-    let conversionModel = PutioVideoPlaybackModel(fileID: fileID) {
-      try await conversionResolver.resolve($0)
+  }
+
+  func testConversionLifecycleResolvesTheEventualPlaybackSource() async {
+    let source = playbackSource()
+    let resolver = PlaybackResolverStub([
+      .success(.conversionRequired),
+      .success(.conversionRequired),
+      .success(.ready(source)),
+    ])
+    let conversion = VideoConversionStub(statusResults: [
+      .success(.queued),
+      .success(.converting(progress: 0.35)),
+      .success(.completed),
+    ])
+    let model = PutioVideoPlaybackModel(
+      fileID: fileID,
+      conversionPollInterval: .milliseconds(10),
+      startConversion: { try await conversion.start($0) },
+      loadConversionStatus: { try await conversion.status($0) },
+      sleep: { try await conversion.sleep(for: $0) },
+      resolve: { try await resolver.resolve($0) }
+    )
+
+    await model.loadIfNeeded()
+
+    XCTAssertEqual(model.state, .ready(source))
+    XCTAssertEqual(conversion.startRequests, [fileID])
+    XCTAssertEqual(conversion.statusRequests, [fileID, fileID, fileID])
+    XCTAssertEqual(resolver.requestedIDs, [fileID, fileID, fileID])
+    XCTAssertEqual(conversion.sleepDurations.count, 3)
+  }
+
+  func testStartFailureRetriesTheConversionRequest() async {
+    let source = playbackSource()
+    let resolver = PlaybackResolverStub([
+      .success(.conversionRequired),
+      .success(.ready(source)),
+    ])
+    let conversion = VideoConversionStub(
+      startResults: [.failure(.transient), .success(())],
+      statusResults: [.success(.completed)]
+    )
+    let model = conversionModel(resolver: resolver, conversion: conversion)
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(conversionFailure(from: model)?.kind, .transient)
+
+    await model.retry()
+
+    XCTAssertEqual(model.state, .ready(source))
+    XCTAssertEqual(conversion.startRequests, [fileID, fileID])
+  }
+
+  func testQueuedStateWaitsForConversionStartAcceptance() async {
+    let resolver = PlaybackResolverStub([.success(.conversionRequired)])
+    let suspendedStart = SuspendedConversionStart()
+    let model = PutioVideoPlaybackModel(
+      fileID: fileID,
+      startConversion: { try await suspendedStart.start($0) },
+      loadConversionStatus: { _ in .queued },
+      resolve: { try await resolver.resolve($0) }
+    )
+
+    let loadTask = Task { await model.loadIfNeeded() }
+    while suspendedStart.requests == 0 {
+      await Task.yield()
     }
 
-    await conversionModel.loadIfNeeded()
+    XCTAssertEqual(model.state, .conversionRequired)
+    loadTask.cancel()
+    await loadTask.value
+    XCTAssertEqual(model.state, .conversionRequired)
+  }
 
-    XCTAssertEqual(conversionModel.state, .conversionRequired)
+  func testPollFailureRetriesStatusWithoutStartingAgain() async {
+    let source = playbackSource()
+    let resolver = PlaybackResolverStub([
+      .success(.conversionRequired),
+      .success(.ready(source)),
+    ])
+    let conversion = VideoConversionStub(statusResults: [
+      .failure(.transient),
+      .success(.completed),
+    ])
+    let model = conversionModel(resolver: resolver, conversion: conversion)
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(conversionFailure(from: model)?.kind, .transient)
+
+    await model.retry()
+
+    XCTAssertEqual(model.state, .ready(source))
+    XCTAssertEqual(conversion.startRequests, [fileID])
+    XCTAssertEqual(conversion.statusRequests, [fileID, fileID])
+  }
+
+  func testTerminalConversionFailureRestartsConversionOnRetry() async {
+    let source = playbackSource()
+    let resolver = PlaybackResolverStub([
+      .success(.conversionRequired),
+      .success(.ready(source)),
+    ])
+    let conversion = VideoConversionStub(
+      startResults: [.success(()), .success(())],
+      statusResults: [.success(.failed), .success(.completed)]
+    )
+    let model = conversionModel(resolver: resolver, conversion: conversion)
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(conversionFailure(from: model), .conversion)
+
+    await model.retry()
+
+    XCTAssertEqual(model.state, .ready(source))
+    XCTAssertEqual(conversion.startRequests, [fileID, fileID])
+  }
+
+  func testConversionPollingCancelsWithoutPresentingAnError() async {
+    let source = playbackSource()
+    let resolver = PlaybackResolverStub([
+      .success(.conversionRequired),
+      .success(.ready(source)),
+    ])
+    let suspendedStatus = SuspendedConversionStatus()
+    let model = PutioVideoPlaybackModel(
+      fileID: fileID,
+      startConversion: { try await suspendedStatus.start($0) },
+      loadConversionStatus: { try await suspendedStatus.load($0) },
+      resolve: { try await resolver.resolve($0) }
+    )
+
+    let loadTask = Task { await model.loadIfNeeded() }
+    while suspendedStatus.requests == 0 {
+      await Task.yield()
+    }
+    loadTask.cancel()
+    await loadTask.value
+
+    XCTAssertEqual(model.state, .conversionQueued)
+
+    await model.loadIfNeeded()
+
+    XCTAssertEqual(model.state, .ready(source))
+    XCTAssertEqual(suspendedStatus.startRequests, [fileID])
+    XCTAssertEqual(suspendedStatus.requests, 2)
   }
 
   func testResolutionFailureIsTypedAndRetryCanRecover() async {
@@ -208,5 +407,29 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
       url: URL(string: "https://media.example.test/video.m3u8?oauth_token=secret")!,
       startFromSeconds: 90
     )
+  }
+
+  private func conversionModel(
+    resolver: PlaybackResolverStub,
+    conversion: VideoConversionStub
+  ) -> PutioVideoPlaybackModel {
+    PutioVideoPlaybackModel(
+      fileID: fileID,
+      conversionPollInterval: .milliseconds(10),
+      startConversion: { try await conversion.start($0) },
+      loadConversionStatus: { try await conversion.status($0) },
+      sleep: { try await conversion.sleep(for: $0) },
+      resolve: { try await resolver.resolve($0) }
+    )
+  }
+
+  private func conversionFailure(
+    from model: PutioVideoPlaybackModel
+  ) -> PutioVideoPlaybackFailure? {
+    guard case .failed(let failure) = model.state else {
+      XCTFail("expected conversion failure, got \(model.state)")
+      return nil
+    }
+    return failure
   }
 }
