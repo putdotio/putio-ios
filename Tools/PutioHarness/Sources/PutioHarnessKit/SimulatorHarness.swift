@@ -1,3 +1,4 @@
+import AVFoundation
 import Darwin
 import Foundation
 import ImageIO
@@ -13,6 +14,230 @@ func shouldBuildIOSCompanion(
   iosCompanionAvailable: Bool
 ) -> Bool {
   platform == .watchos && !iosCompanionAvailable
+}
+
+let maximumJourneyRecordingDuration: TimeInterval = 25
+let minimumJourneyRecordingFrameCount = 12
+let maximumJourneyFrameDifference = 10.0
+let maximumStableJourneyFrameDifference = 1.0
+let minimumStableJourneyFrameCount = 3
+
+struct JourneyFrameFingerprint: Equatable, Sendable {
+  let samples: [UInt8]
+}
+
+struct JourneyVideoFrame: Sendable {
+  let presentationTime: TimeInterval
+  let duration: TimeInterval
+  let fingerprint: JourneyFrameFingerprint
+}
+
+struct JourneyRecordingWindow: Equatable, Sendable {
+  let start: TimeInterval
+  let duration: TimeInterval
+  let frameCount: Int
+}
+
+func journeyFrameDifference(
+  _ lhs: JourneyFrameFingerprint,
+  _ rhs: JourneyFrameFingerprint
+) -> Double {
+  guard lhs.samples.count == rhs.samples.count, !lhs.samples.isEmpty else {
+    return .infinity
+  }
+  let squaredDifference = zip(lhs.samples, rhs.samples).reduce(0) { partial, channels in
+    let difference = Int(channels.0) - Int(channels.1)
+    return partial + difference * difference
+  }
+  return sqrt(Double(squaredDifference) / Double(lhs.samples.count))
+}
+
+func journeyRecordingWindow(
+  frames: [JourneyVideoFrame],
+  root: JourneyFrameFingerprint,
+  nested: JourneyFrameFingerprint,
+  back: JourneyFrameFingerprint,
+  maximumDifference: Double = maximumJourneyFrameDifference
+) throws -> JourneyRecordingWindow {
+  guard frames.count >= minimumJourneyRecordingFrameCount else {
+    throw HarnessFailure(
+      "raw browser journey recording has \(frames.count) frames; expected at least \(minimumJourneyRecordingFrameCount)"
+    )
+  }
+
+  func matchingIndices(for reference: JourneyFrameFingerprint) throws -> [Int] {
+    let differences = frames.map { journeyFrameDifference($0.fingerprint, reference) }
+    guard let best = differences.min(), best <= maximumDifference else {
+      throw HarnessFailure(
+        "browser journey recording has no frame matching an XCTest screenshot; best root-mean-square channel difference is \(differences.min() ?? .infinity)"
+      )
+    }
+    let threshold = min(maximumDifference, max(4, best + 2))
+    return differences.indices.filter { differences[$0] <= threshold }
+  }
+
+  let rootIndices = try matchingIndices(for: root)
+  guard !rootIndices.isEmpty else {
+    throw HarnessFailure("browser journey recording is missing its root frame")
+  }
+  guard
+    let nestedIndex = try matchingIndices(for: nested).first(where: { nestedIndex in
+      rootIndices.contains(where: { $0 < nestedIndex })
+    })
+  else {
+    throw HarnessFailure("browser journey recording is missing its nested frame after root")
+  }
+  guard let lastRootIndex = rootIndices.last(where: { $0 < nestedIndex }) else {
+    throw HarnessFailure("browser journey recording is missing its root frame before nested")
+  }
+  let rootIndexSet = Set(rootIndices)
+  var rootRunStartIndex = lastRootIndex
+  while rootRunStartIndex > 0, rootIndexSet.contains(rootRunStartIndex - 1) {
+    rootRunStartIndex -= 1
+  }
+  let rootDepartureTime = frames[lastRootIndex + 1].presentationTime
+  let start = max(
+    frames[rootRunStartIndex].presentationTime,
+    rootDepartureTime - 1
+  )
+  let rootIndex =
+    (rootRunStartIndex...lastRootIndex).first(where: { index in
+      let nextPresentationTime = frames[index + 1].presentationTime
+      let visibleEnd = max(
+        frames[index].presentationTime + frames[index].duration,
+        nextPresentationTime
+      )
+      return visibleEnd > start
+    }) ?? lastRootIndex
+  let backDifferences = frames.map { journeyFrameDifference($0.fingerprint, back) }
+  guard let bestBackDifference = backDifferences.dropFirst(nestedIndex + 1).min(),
+    bestBackDifference <= maximumDifference
+  else {
+    throw HarnessFailure("browser journey recording is missing its returned-root frame")
+  }
+  let settledBackThreshold = min(
+    maximumDifference,
+    bestBackDifference + maximumStableJourneyFrameDifference
+  )
+  var stableBackFrameCount = 0
+  var backIndex: Int?
+  for index in frames.indices.dropFirst(nestedIndex + 1) {
+    let followsStableFrame =
+      stableBackFrameCount > 0
+      && journeyFrameDifference(
+        frames[index - 1].fingerprint,
+        frames[index].fingerprint
+      ) <= maximumStableJourneyFrameDifference
+    if backDifferences[index] <= settledBackThreshold {
+      stableBackFrameCount = followsStableFrame ? stableBackFrameCount + 1 : 1
+    } else {
+      stableBackFrameCount = 0
+    }
+    if stableBackFrameCount == minimumStableJourneyFrameCount {
+      backIndex = index
+      break
+    }
+  }
+  guard let backIndex else {
+    throw HarnessFailure(
+      "browser journey recording is missing \(minimumStableJourneyFrameCount) stable returned-root frames"
+    )
+  }
+
+  let end = frames[backIndex].presentationTime + frames[backIndex].duration
+  let duration = end - start
+  let frameCount = backIndex - rootIndex + 1
+  guard duration.isFinite, duration > 0, duration <= maximumJourneyRecordingDuration else {
+    throw HarnessFailure(
+      "browser journey recording would be \(duration) seconds; maximum is \(maximumJourneyRecordingDuration)"
+    )
+  }
+  guard frameCount >= minimumJourneyRecordingFrameCount else {
+    throw HarnessFailure(
+      "browser journey recording would have \(frameCount) frames; expected at least \(minimumJourneyRecordingFrameCount)"
+    )
+  }
+  return JourneyRecordingWindow(
+    start: start,
+    duration: duration,
+    frameCount: frameCount
+  )
+}
+
+func waitForJourneyCaptureComplete(
+  markerExists: () -> Bool,
+  processIsRunning: () -> Bool,
+  now: () -> Date = Date.init,
+  sleep: (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
+  timeout: TimeInterval = 60
+) -> Bool {
+  let deadline = now().addingTimeInterval(timeout)
+  repeat {
+    if markerExists() { return true }
+    if !processIsRunning() { return false }
+    sleep(0.1)
+  } while now() < deadline
+  return false
+}
+
+func requireJourneyCaptureCompletion(
+  _ captureCompleted: Bool,
+  testOutput: ProcessOutput
+) throws {
+  guard !captureCompleted else { return }
+  let diagnostics = testOutput.combinedOutput
+  let suffix = diagnostics.isEmpty ? "" : "\n\(diagnostics)"
+  throw HarnessFailure(
+    "iOS journey did not signal capture completion within 60 seconds\(suffix)"
+  )
+}
+
+func performJourneyRecordingTrim(
+  source: URL,
+  output: URL,
+  root: JourneyFrameFingerprint,
+  nested: JourneyFrameFingerprint,
+  back: JourneyFrameFingerprint,
+  readFrames: (URL) throws -> [JourneyVideoFrame],
+  convert: (URL, URL, JourneyRecordingWindow) throws -> Void,
+  readDuration: (URL) throws -> TimeInterval
+) throws {
+  let frames = try readFrames(source)
+  let window = try journeyRecordingWindow(
+    frames: frames,
+    root: root,
+    nested: nested,
+    back: back
+  )
+  try convert(source, output, window)
+  let outputDuration = try readDuration(output)
+  guard outputDuration.isFinite,
+    outputDuration >= max(2, window.duration - 1),
+    outputDuration <= min(maximumJourneyRecordingDuration, window.duration + 1)
+  else {
+    throw HarnessFailure(
+      "trimmed browser journey recording is \(outputDuration) seconds; expected about \(window.duration)"
+    )
+  }
+  let outputFrames = try readFrames(output)
+  let firstDifference =
+    outputFrames.first.map { journeyFrameDifference($0.fingerprint, root) }
+    ?? .infinity
+  let lastDifference =
+    outputFrames.last.map { journeyFrameDifference($0.fingerprint, back) }
+    ?? .infinity
+  let nestedDifference =
+    outputFrames.map { journeyFrameDifference($0.fingerprint, nested) }.min()
+    ?? .infinity
+  guard outputFrames.count >= minimumJourneyRecordingFrameCount,
+    firstDifference <= maximumJourneyFrameDifference,
+    lastDifference <= maximumJourneyFrameDifference,
+    nestedDifference <= maximumJourneyFrameDifference
+  else {
+    throw HarnessFailure(
+      "trimmed browser journey recording does not preserve root, nested, and returned-root frame boundaries; frames=\(outputFrames.count), root=\(firstDifference), nested=\(nestedDifference), back=\(lastDifference)"
+    )
+  }
 }
 
 private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: ProcessRunner) throws {
@@ -412,37 +637,73 @@ public struct SimulatorHarness {
         try buildJourneyTests(platform: platform, session: session)
 
         let resultBundle = platformDirectory.appending(path: "files-browser.xcresult")
+        let rawRecording = platformDirectory.appending(path: ".files-browser-walk.raw.mp4")
         let recording = platformDirectory.appending(path: "files-browser-walk.mp4")
-        let recordingProcess = try startRecording(session: session, output: recording)
-        var recordingFinished = false
-        defer {
-          if !recordingFinished { _ = recordingProcess.interruptAndWait() }
-        }
-
-        _ = try runner.checked(
+        let testProcess = try runner.start(
           "xcodebuild",
           [
             "test-without-building",
+            "-quiet",
             "-workspace", "Putio.xcworkspace",
             "-scheme", platform.configuration.scheme,
             "-destination", "id=\(session.deviceIdentifier)",
             "-derivedDataPath", context.derivedData.path,
             "-resultBundlePath", resultBundle.path,
             "-parallel-testing-enabled", "NO",
+            "-collect-test-diagnostics", "never",
+            "-test-timeouts-enabled", "YES",
+            "-default-test-execution-time-allowance", "30",
+            "-maximum-test-execution-time-allowance", "60",
             "-only-testing:\(BrowserJourneyContract.testIdentifier)",
           ],
-          currentDirectory: context.root,
-          context: "run ios files-browser journey"
+          currentDirectory: context.root
         )
+        var testFinished = false
+        defer {
+          if !testFinished { _ = testProcess.interruptAndWait() }
+        }
 
+        let recordingProcess = try startRecording(session: session, output: rawRecording)
+        var recordingFinished = false
+        defer {
+          if !recordingFinished { _ = recordingProcess.interruptAndWait() }
+        }
+
+        let appContainer: URL
+        do {
+          appContainer = try waitForJourneyCaptureReady(
+            session: session,
+            testProcess: testProcess
+          )
+        } catch {
+          let testOutput = testProcess.wait()
+          testFinished = true
+          throw HarnessFailure("\(error)\n\(testOutput.combinedOutput)")
+        }
+
+        try signalJourneyRecordingStarted(appContainer: appContainer)
+
+        let captureCompleted = waitForJourneyCaptureComplete(
+          appContainer: appContainer,
+          testProcess: testProcess
+        )
         let recordingOutput = recordingProcess.interruptAndWait()
         recordingFinished = true
+        let testOutput = testProcess.wait()
+        testFinished = true
+
         guard recordingOutput.status == 0 else {
           throw HarnessFailure(
             "record ios files-browser journey failed\n\(recordingOutput.combinedOutput)")
         }
-        try requireNonemptyFile(recording, context: "browser journey recording")
-
+        try requireNonemptyFile(rawRecording, context: "raw browser journey recording")
+        guard testOutput.status == 0 else {
+          let details = journeyFailureDetails(resultBundle: resultBundle)
+          throw HarnessFailure(
+            "run ios files-browser journey failed\n\(testOutput.combinedOutput)\n\(details)"
+          )
+        }
+        try requireJourneyCaptureCompletion(captureCompleted, testOutput: testOutput)
         let summary = platformDirectory.appending(path: "files-browser-test-summary.json")
         let screenshots = try extractJourneyResults(
           resultBundle: resultBundle,
@@ -455,12 +716,22 @@ public struct SimulatorHarness {
           screenshots[0], context: "browser root attachment")
         let nestedPixels = try requireMeaningfulScreenshot(
           screenshots[1], context: "browser nested attachment")
-        _ = try requireMeaningfulScreenshot(
+        let backPixels = try requireMeaningfulScreenshot(
           screenshots[2], context: "browser back attachment")
         guard rootPixels.differsMeaningfully(from: nestedPixels) else {
           throw HarnessFailure(
             "browser journey root and nested screenshots do not differ meaningfully")
         }
+
+        try trimJourneyRecording(
+          source: rawRecording,
+          output: recording,
+          root: rootPixels,
+          nested: nestedPixels,
+          back: backPixels
+        )
+        try fileManager.removeItem(at: rawRecording)
+        try requireNonemptyFile(recording, context: "browser journey recording")
 
         try requireCleanSource()
         try requireRevision(sourceRevision)
@@ -1059,7 +1330,249 @@ public struct SimulatorHarness {
       Thread.sleep(forTimeInterval: 0.1)
     }
     _ = process.interruptAndWait()
-    throw HarnessFailure("recording did not start within 8 seconds")
+    throw HarnessFailure("recording did not start within 30 seconds")
+  }
+
+  private func waitForJourneyCaptureReady(
+    session: SimulatorSession,
+    testProcess: RunningProcess
+  ) throws -> URL {
+    let deadline = Date().addingTimeInterval(300)
+    repeat {
+      guard testProcess.isRunning else {
+        throw HarnessFailure("iOS journey test exited before its capture gate became ready")
+      }
+      let containerOutput = try runner.run(
+        "xcrun",
+        [
+          "simctl", "get_app_container", session.deviceIdentifier,
+          HarnessPlatform.ios.configuration.bundleIdentifier, "data",
+        ]
+      )
+      let containerPath = containerOutput.stdout.trimmingCharacters(
+        in: .whitespacesAndNewlines
+      )
+      if containerOutput.status == 0, !containerPath.isEmpty {
+        let appContainer = URL(fileURLWithPath: containerPath)
+        let readyMarker = appContainer.appending(
+          path: "tmp/\(BrowserJourneyContract.captureReadyMarkerName)"
+        )
+        if fileManager.fileExists(atPath: readyMarker.path) {
+          return appContainer
+        }
+      }
+      Thread.sleep(forTimeInterval: 0.1)
+    } while Date() < deadline
+    throw HarnessFailure("iOS journey capture gate did not become ready within 300 seconds")
+  }
+
+  private func signalJourneyRecordingStarted(appContainer: URL) throws {
+    let marker = appContainer.appending(
+      path: "tmp/\(BrowserJourneyContract.recordingStartedMarkerName)"
+    )
+    try Data().write(to: marker, options: .atomic)
+  }
+
+  private func waitForJourneyCaptureComplete(
+    appContainer: URL,
+    testProcess: RunningProcess
+  ) -> Bool {
+    let marker = appContainer.appending(
+      path: "tmp/\(BrowserJourneyContract.captureCompleteMarkerName)"
+    )
+    return PutioHarnessKit.waitForJourneyCaptureComplete(
+      markerExists: { self.fileManager.fileExists(atPath: marker.path) },
+      processIsRunning: { testProcess.isRunning }
+    )
+  }
+
+  private func journeyFailureDetails(resultBundle: URL) -> String {
+    guard fileManager.fileExists(atPath: resultBundle.path),
+      let output = try? runner.run(
+        "xcrun",
+        [
+          "xcresulttool", "get", "test-results", "tests",
+          "--path", resultBundle.path,
+          "--compact",
+        ]
+      ), output.status == 0
+    else {
+      return "journey failure details unavailable"
+    }
+    return output.stdout.split(separator: "\n", omittingEmptySubsequences: false)
+      .suffix(80)
+      .joined(separator: "\n")
+  }
+
+  private func trimJourneyRecording(
+    source: URL,
+    output: URL,
+    root: DecodedPixels,
+    nested: DecodedPixels,
+    back: DecodedPixels
+  ) throws {
+    let references = (
+      root: journeyFingerprint(from: root),
+      nested: journeyFingerprint(from: nested),
+      back: journeyFingerprint(from: back)
+    )
+    try performJourneyRecordingTrim(
+      source: source,
+      output: output,
+      root: references.root,
+      nested: references.nested,
+      back: references.back,
+      readFrames: { try self.journeyVideoFrames(at: $0) },
+      convert: { source, output, window in
+        _ = try self.runner.checked(
+          "xcrun",
+          [
+            "avconvert",
+            "--source", source.path,
+            "--output", output.path,
+            "--preset", "PresetHighestQuality",
+            "--start", String(window.start),
+            "--duration", String(window.duration),
+            "--replace",
+          ],
+          context: "trim browser journey recording"
+        )
+      },
+      readDuration: { try self.mediaDuration(of: $0) }
+    )
+  }
+
+  private func journeyVideoFrames(at url: URL) throws -> [JourneyVideoFrame] {
+    let asset = AVURLAsset(url: url)
+    guard let track = try loadVideoTracks(from: asset).first else {
+      throw HarnessFailure("browser journey recording has no video track")
+    }
+    let reader = try AVAssetReader(asset: asset)
+    let output = AVAssetReaderTrackOutput(
+      track: track,
+      outputSettings: [
+        kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+      ]
+    )
+    output.alwaysCopiesSampleData = false
+    guard reader.canAdd(output) else {
+      throw HarnessFailure("browser journey video track cannot be decoded")
+    }
+    reader.add(output)
+    guard reader.startReading() else {
+      throw HarnessFailure("browser journey video reader could not start")
+    }
+
+    var frames: [JourneyVideoFrame] = []
+    while let sample = output.copyNextSampleBuffer() {
+      guard let pixelBuffer = CMSampleBufferGetImageBuffer(sample) else { continue }
+      let presentationTime = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sample))
+      let sampleDuration = CMTimeGetSeconds(CMSampleBufferGetDuration(sample))
+      guard presentationTime.isFinite else { continue }
+      let duration = sampleDuration.isFinite && sampleDuration > 0 ? sampleDuration : 1.0 / 60.0
+      frames.append(
+        JourneyVideoFrame(
+          presentationTime: presentationTime,
+          duration: duration,
+          fingerprint: try journeyFingerprint(from: pixelBuffer)
+        )
+      )
+    }
+    guard reader.status == .completed else {
+      throw HarnessFailure(
+        "browser journey video decode failed: \(reader.error?.localizedDescription ?? "unknown error")"
+      )
+    }
+    return frames
+  }
+
+  private func loadVideoTracks(from asset: AVURLAsset) throws -> [AVAssetTrack] {
+    let semaphore = DispatchSemaphore(value: 0)
+    let lock = NSLock()
+    nonisolated(unsafe) var result: Result<[AVAssetTrack], Error>?
+    Task {
+      let loaded: Result<[AVAssetTrack], Error>
+      do {
+        loaded = .success(try await asset.loadTracks(withMediaType: .video))
+      } catch {
+        loaded = .failure(error)
+      }
+      lock.withLock { result = loaded }
+      semaphore.signal()
+    }
+    semaphore.wait()
+    guard let loaded = lock.withLock({ result }) else {
+      throw HarnessFailure("browser journey video tracks are missing")
+    }
+    return try loaded.get()
+  }
+
+  private func journeyFingerprint(from pixels: DecodedPixels) -> JourneyFrameFingerprint {
+    journeyFingerprint(width: pixels.width, height: pixels.height) { x, y, channel in
+      pixels.data[(y * pixels.width + x) * 4 + channel]
+    }
+  }
+
+  private func journeyFingerprint(from pixelBuffer: CVPixelBuffer) throws
+    -> JourneyFrameFingerprint
+  {
+    CVPixelBufferLockBaseAddress(pixelBuffer, .readOnly)
+    defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, .readOnly) }
+    guard let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer) else {
+      throw HarnessFailure("browser journey video frame has no pixel data")
+    }
+    let width = CVPixelBufferGetWidth(pixelBuffer)
+    let height = CVPixelBufferGetHeight(pixelBuffer)
+    let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
+    let bytes = baseAddress.assumingMemoryBound(to: UInt8.self)
+    return journeyFingerprint(width: width, height: height) { x, y, channel in
+      let bgraChannel = channel == 0 ? 2 : channel == 2 ? 0 : channel
+      return bytes[y * bytesPerRow + x * 4 + bgraChannel]
+    }
+  }
+
+  private func journeyFingerprint(
+    width: Int,
+    height: Int,
+    channel: (Int, Int, Int) -> UInt8
+  ) -> JourneyFrameFingerprint {
+    let columns = 64
+    let rows = 128
+    let minimumY = height / 10
+    let sampledHeight = height * 8 / 10
+    var samples: [UInt8] = []
+    samples.reserveCapacity(columns * rows * 3)
+    for row in 0..<rows {
+      let y = minimumY + (row * sampledHeight + sampledHeight / 2) / rows
+      for column in 0..<columns {
+        let x = (column * width + width / 2) / columns
+        for colorChannel in 0..<3 {
+          samples.append(channel(min(x, width - 1), min(y, height - 1), colorChannel))
+        }
+      }
+    }
+    return JourneyFrameFingerprint(samples: samples)
+  }
+
+  private func mediaDuration(of url: URL) throws -> TimeInterval {
+    let semaphore = DispatchSemaphore(value: 0)
+    let lock = NSLock()
+    nonisolated(unsafe) var result: Result<CMTime, Error>?
+    Task {
+      let loaded: Result<CMTime, Error>
+      do {
+        loaded = .success(try await AVURLAsset(url: url).load(.duration))
+      } catch {
+        loaded = .failure(error)
+      }
+      lock.withLock { result = loaded }
+      semaphore.signal()
+    }
+    semaphore.wait()
+    let loaded = lock.withLock { result }
+    guard let loaded else { throw HarnessFailure("media duration missing") }
+    let duration = try loaded.get()
+    return CMTimeGetSeconds(duration)
   }
 
   private func failureDiagnostics(in directory: URL) -> String {
@@ -1194,6 +1707,8 @@ public struct SimulatorHarness {
     }
     let contentArea = (maximumX - minimumX) * (maximumY - minimumY)
     return DecodedPixels(
+      width: image.width,
+      height: image.height,
       data: Data(bytes),
       visibleContentPixelCount: visibleContentPixelCount,
       minimumContentPixelCount: max(128, contentArea / 1_000)
@@ -1211,6 +1726,8 @@ public struct SimulatorHarness {
 }
 
 private struct DecodedPixels {
+  let width: Int
+  let height: Int
   let data: Data
   let visibleContentPixelCount: Int
   let minimumContentPixelCount: Int

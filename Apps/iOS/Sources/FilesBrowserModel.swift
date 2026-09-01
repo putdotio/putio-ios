@@ -28,6 +28,10 @@ struct PutioFileRoute: Identifiable, Hashable, Sendable {
   var id: PutioFileID {
     item.id
   }
+
+  var videoPlaybackRoute: PutioFileRoute? {
+    item.kind == .video ? self : nil
+  }
 }
 
 enum PutioBrowserErrorKind: Hashable, Sendable {

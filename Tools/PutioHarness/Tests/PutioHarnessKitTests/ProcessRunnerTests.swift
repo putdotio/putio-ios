@@ -26,3 +26,30 @@ import Testing
   #expect(recovery.status == 0)
   #expect(recovery.stdout == "ok")
 }
+
+@Test func startedProcessDrainsLargeOutputWithoutPipeBackpressure() throws {
+  let byteCount = 262_144
+  let process = try ProcessRunner().start(
+    "/bin/sh",
+    [
+      "-c",
+      "head -c \(byteCount) /dev/zero; head -c \(byteCount) /dev/zero >&2",
+    ]
+  )
+
+  let output = process.wait()
+
+  #expect(output.status == 0)
+  #expect(output.stdout.utf8.count == byteCount)
+  #expect(output.stderr.utf8.count == byteCount)
+}
+
+@Test func processCaptureReadFailurePreservesDiagnostics() {
+  let missingCapture = FileManager.default.temporaryDirectory.appending(
+    path: "putio-harness-missing-capture-\(UUID().uuidString.lowercased())")
+
+  let capture = processCaptureContents(at: missingCapture, label: "stdout")
+
+  #expect(capture.contents.isEmpty)
+  #expect(capture.failure?.contains("read child stdout capture:") == true)
+}

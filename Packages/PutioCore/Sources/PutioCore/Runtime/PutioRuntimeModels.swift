@@ -92,6 +92,42 @@ public struct PutioFolderContents: Equatable, Sendable {
   }
 }
 
+public struct PutioPlaybackSource: Equatable, Sendable, CustomStringConvertible,
+  CustomDebugStringConvertible, CustomReflectable
+{
+  public let url: URL
+  public let startFromSeconds: Int
+
+  public init(url: URL, startFromSeconds: Int) {
+    self.url = url
+    self.startFromSeconds = startFromSeconds
+  }
+
+  public var description: String {
+    "PutioPlaybackSource(url: <redacted>, startFromSeconds: \(startFromSeconds))"
+  }
+
+  public var debugDescription: String {
+    description
+  }
+
+  public var customMirror: Mirror {
+    Mirror(
+      self,
+      children: [
+        "url": "<redacted>",
+        "startFromSeconds": startFromSeconds,
+      ],
+      displayStyle: .struct
+    )
+  }
+}
+
+public enum PutioPlaybackResolution: Equatable, Sendable {
+  case ready(PutioPlaybackSource)
+  case conversionRequired
+}
+
 public enum PutioRuntimeError: Error, Equatable, Sendable {
   case authenticationRequired
   case sessionExpired

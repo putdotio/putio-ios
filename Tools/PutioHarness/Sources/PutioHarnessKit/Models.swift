@@ -291,6 +291,9 @@ public struct ProofManifest: Codable, Equatable, Sendable {
 enum BrowserJourneyContract {
   static let testIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testRootNestedFolderAndNativeBack"
+  static let captureReadyMarkerName = "putio-harness-journey-ready"
+  static let recordingStartedMarkerName = "putio-harness-journey-recording"
+  static let captureCompleteMarkerName = "putio-harness-journey-complete"
   static let attachmentNames = [
     "files-browser-root",
     "files-browser-nested",

@@ -56,6 +56,10 @@ import Foundation
         return (200, #"{"status":"OK"}"#)
       case "GET /v2/files/list":
         return filesListFixture(url: url)
+      case "GET /v2/files/411":
+        return (200, playbackFile(id: 411, name: "Nested Movie.mkv", startFrom: 90))
+      case "GET /v2/files/412":
+        return (200, playbackFile(id: 412, name: "Root Movie.mkv", startFrom: 0))
       default:
         return (
           404,
@@ -176,9 +180,18 @@ import Foundation
             "created_at": "2026-08-28T10:00:00Z",
             "updated_at": "2026-08-29T10:00:00Z",
             "start_from": 0
+          },
+          {
+            "id": 413,
+            "name": "Document.pdf",
+            "file_type": "PDF",
+            "parent_id": 0,
+            "size": 1048576,
+            "created_at": "2026-08-28T10:00:00Z",
+            "updated_at": "2026-08-29T10:00:00Z"
           }
         ],
-        "total": 2
+        "total": 3
       }
       """
 
@@ -208,5 +221,19 @@ import Foundation
         "total": 1
       }
       """
+
+    private static func playbackFile(id: Int, name: String, startFrom: Int) -> String {
+      """
+      {
+        "file": {
+          "id": \(id),
+          "name": "\(name)",
+          "file_type": "VIDEO",
+          "need_convert": false,
+          "start_from": \(startFrom)
+        }
+      }
+      """
+    }
   }
 #endif

@@ -45,6 +45,24 @@ final class PutioFileRouteTests: XCTestCase {
     }
   }
 
+  func testOnlyVideoRoutesRefineIntoPlaybackRoutes() throws {
+    let video = PutioFileRoute(item: BrowserTestFixtures.item(id: 20, kind: .video))
+    XCTAssertEqual(try XCTUnwrap(video.videoPlaybackRoute), video)
+
+    let nonVideoKinds: [PutioFileKind] = [
+      .audio,
+      .image,
+      .pdf,
+      .other("ARCHIVE"),
+    ]
+    for (index, kind) in nonVideoKinds.enumerated() {
+      let route = PutioFileRoute(
+        item: BrowserTestFixtures.item(id: 21 + index, kind: kind)
+      )
+      XCTAssertNil(route.videoPlaybackRoute, "\(kind) unexpectedly opened the video player")
+    }
+  }
+
   func testRowPresentationUsesRawNameSizeRelativeDateAndWatchedState() throws {
     let item = BrowserTestFixtures.item(
       id: 12,

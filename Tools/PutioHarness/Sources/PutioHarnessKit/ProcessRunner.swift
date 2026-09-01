@@ -11,6 +11,81 @@ public struct ProcessOutput: Sendable {
   }
 }
 
+func processCaptureContents(at url: URL, label: String) -> (contents: String, failure: String?) {
+  do {
+    return (try String(contentsOf: url, encoding: .utf8), nil)
+  } catch {
+    return ("", "read child \(label) capture: \(error)")
+  }
+}
+
+private final class ProcessCapture: @unchecked Sendable {
+  private let directory: URL
+  private let stdoutURL: URL
+  private let stderrURL: URL
+  private let stdoutHandle: FileHandle
+  private let stderrHandle: FileHandle
+  private var stdoutIsOpen = true
+  private var stderrIsOpen = true
+
+  init(fileManager: FileManager = .default) throws {
+    directory = fileManager.temporaryDirectory
+      .appending(path: "putio-harness-process-\(UUID().uuidString.lowercased())")
+    try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+    stdoutURL = directory.appending(path: "stdout")
+    stderrURL = directory.appending(path: "stderr")
+    fileManager.createFile(atPath: stdoutURL.path, contents: nil)
+    fileManager.createFile(atPath: stderrURL.path, contents: nil)
+    stdoutHandle = try FileHandle(forWritingTo: stdoutURL)
+    stderrHandle = try FileHandle(forWritingTo: stderrURL)
+  }
+
+  func attach(to process: Process) {
+    process.standardOutput = stdoutHandle
+    process.standardError = stderrHandle
+  }
+
+  func output(status: Int32) -> ProcessOutput {
+    let closeFailure = closeHandles()
+    let stdoutCapture = processCaptureContents(at: stdoutURL, label: "stdout")
+    let stderrCapture = processCaptureContents(at: stderrURL, label: "stderr")
+    var stderr = stderrCapture.contents
+    let failures = [stdoutCapture.failure, stderrCapture.failure, closeFailure].compactMap { $0 }
+    if !failures.isEmpty {
+      let diagnostics = failures.joined(separator: "\n")
+      stderr += stderr.isEmpty ? diagnostics : "\n\(diagnostics)"
+    }
+    try? FileManager.default.removeItem(at: directory)
+    return ProcessOutput(status: status, stdout: stdoutCapture.contents, stderr: stderr)
+  }
+
+  func discard() {
+    _ = closeHandles()
+    try? FileManager.default.removeItem(at: directory)
+  }
+
+  private func closeHandles() -> String? {
+    var failures: [String] = []
+    if stdoutIsOpen {
+      do {
+        try stdoutHandle.close()
+        stdoutIsOpen = false
+      } catch {
+        failures.append("close child stdout capture: \(error)")
+      }
+    }
+    if stderrIsOpen {
+      do {
+        try stderrHandle.close()
+        stderrIsOpen = false
+      } catch {
+        failures.append("close child stderr capture: \(error)")
+      }
+    }
+    return failures.isEmpty ? nil : failures.joined(separator: "\n")
+  }
+}
+
 public final class ChildProcessLifecycle: @unchecked Sendable {
   public static let shared = ChildProcessLifecycle()
 
@@ -55,26 +130,32 @@ public final class ChildProcessLifecycle: @unchecked Sendable {
 
 public final class RunningProcess: @unchecked Sendable {
   private let process: Process
-  private let stdoutPipe: Pipe
-  private let stderrPipe: Pipe
+  private let capture: ProcessCapture
   private var result: ProcessOutput?
 
-  fileprivate init(process: Process, stdoutPipe: Pipe, stderrPipe: Pipe) {
+  fileprivate init(process: Process, capture: ProcessCapture) {
     self.process = process
-    self.stdoutPipe = stdoutPipe
-    self.stderrPipe = stderrPipe
+    self.capture = capture
   }
 
   public func interruptAndWait() -> ProcessOutput {
+    finish(interrupt: true)
+  }
+
+  public func wait() -> ProcessOutput {
+    finish(interrupt: false)
+  }
+
+  public var isRunning: Bool {
+    process.isRunning
+  }
+
+  private func finish(interrupt: Bool) -> ProcessOutput {
     if let result { return result }
-    if process.isRunning { process.interrupt() }
+    if interrupt, process.isRunning { process.interrupt() }
     process.waitUntilExit()
     ChildProcessLifecycle.shared.release(process)
-    let stdout =
-      String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-    let stderr =
-      String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-    let output = ProcessOutput(status: process.terminationStatus, stdout: stdout, stderr: stderr)
+    let output = capture.output(status: process.terminationStatus)
     result = output
     return output
   }
@@ -90,24 +171,8 @@ public struct ProcessRunner: Sendable {
     removingEnvironment: Set<String> = [],
     currentDirectory: URL? = nil
   ) throws -> ProcessOutput {
-    let captureDirectory = FileManager.default.temporaryDirectory
-      .appending(path: "putio-harness-process-\(UUID().uuidString.lowercased())")
-    try FileManager.default.createDirectory(at: captureDirectory, withIntermediateDirectories: true)
-    defer { try? FileManager.default.removeItem(at: captureDirectory) }
-    let stdoutURL = captureDirectory.appending(path: "stdout")
-    let stderrURL = captureDirectory.appending(path: "stderr")
-    FileManager.default.createFile(atPath: stdoutURL.path, contents: nil)
-    FileManager.default.createFile(atPath: stderrURL.path, contents: nil)
-    let stdoutHandle = try FileHandle(forWritingTo: stdoutURL)
-    var stdoutIsOpen = true
-    defer {
-      if stdoutIsOpen { try? stdoutHandle.close() }
-    }
-    let stderrHandle = try FileHandle(forWritingTo: stderrURL)
-    var stderrIsOpen = true
-    defer {
-      if stderrIsOpen { try? stderrHandle.close() }
-    }
+    let capture = try ProcessCapture()
+    defer { capture.discard() }
 
     let process = configuredProcess(
       executable,
@@ -116,18 +181,11 @@ public struct ProcessRunner: Sendable {
       removingEnvironment: removingEnvironment,
       currentDirectory: currentDirectory
     )
-    process.standardOutput = stdoutHandle
-    process.standardError = stderrHandle
+    capture.attach(to: process)
     try ChildProcessLifecycle.shared.launch(process)
     defer { ChildProcessLifecycle.shared.release(process) }
     process.waitUntilExit()
-    try stdoutHandle.close()
-    stdoutIsOpen = false
-    try stderrHandle.close()
-    stderrIsOpen = false
-    let stdout = String(data: try Data(contentsOf: stdoutURL), encoding: .utf8) ?? ""
-    let stderr = String(data: try Data(contentsOf: stderrURL), encoding: .utf8) ?? ""
-    return ProcessOutput(status: process.terminationStatus, stdout: stdout, stderr: stderr)
+    return capture.output(status: process.terminationStatus)
   }
 
   public func checked(
@@ -165,12 +223,15 @@ public struct ProcessRunner: Sendable {
       removingEnvironment: removingEnvironment,
       currentDirectory: currentDirectory
     )
-    let stdoutPipe = Pipe()
-    let stderrPipe = Pipe()
-    process.standardOutput = stdoutPipe
-    process.standardError = stderrPipe
-    try ChildProcessLifecycle.shared.launch(process)
-    return RunningProcess(process: process, stdoutPipe: stdoutPipe, stderrPipe: stderrPipe)
+    let capture = try ProcessCapture()
+    capture.attach(to: process)
+    do {
+      try ChildProcessLifecycle.shared.launch(process)
+      return RunningProcess(process: process, capture: capture)
+    } catch {
+      capture.discard()
+      throw error
+    }
   }
 
   private func configuredProcess(
