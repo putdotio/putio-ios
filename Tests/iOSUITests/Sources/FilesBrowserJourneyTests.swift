@@ -49,23 +49,26 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(done.waitForExistence(timeout: 5), "video screen never appeared")
     let loading = element(identifier: "video.loading")
     XCTAssertTrue(loading.waitForNonExistence(timeout: 5), "video source never resolved")
-    XCTAssertFalse(
-      element(identifier: "video.conversion-required").exists,
-      "video unexpectedly requires conversion"
-    )
-    let playbackError = element(identifier: "video.error")
+    let conversionError = element(identifier: "video.error")
     XCTAssertTrue(
-      playbackError.waitForExistence(timeout: 10),
-      "malformed HLS fixture did not produce a recoverable playback failure"
+      conversionError.waitForExistence(timeout: 5),
+      "first conversion request did not produce a recoverable failure"
     )
     let retry = app.buttons["Try again"]
-    XCTAssertTrue(retry.isHittable, "playback retry is not tappable")
+    XCTAssertTrue(retry.isHittable, "conversion retry is not tappable")
     retry.tap()
     XCTAssertTrue(
-      element(identifier: "video.ready").waitForExistence(timeout: 10),
-      "bundled HLS fixture never became ready"
+      element(identifier: "video.conversion-progress").waitForExistence(timeout: 5),
+      "conversion progress never appeared"
     )
-    XCTAssertFalse(playbackError.exists, "playback error remained after retry")
+    XCTAssertTrue(
+      element(identifier: "video.ready").waitForExistence(timeout: 10),
+      "converted video never became ready through native HLS"
+    )
+    let conversionHistory = element(identifier: "video.conversion-history")
+    XCTAssertTrue(conversionHistory.exists, "conversion state history is not observable")
+    XCTAssertEqual(conversionHistory.value as? String, "queued,converting,completed")
+    XCTAssertFalse(conversionError.exists, "conversion error remained after retry")
     let resumePosition = element(identifier: "video.resume-position")
     XCTAssertTrue(resumePosition.exists, "resolved resume position is not observable")
     XCTAssertEqual(resumePosition.value as? String, "90")
@@ -152,17 +155,21 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let done = element(identifier: "video.done")
     XCTAssertTrue(done.waitForExistence(timeout: 5), "video screen never appeared")
-    let playbackError = element(identifier: "video.error")
+    let conversionError = element(identifier: "video.error")
     XCTAssertTrue(
-      playbackError.waitForExistence(timeout: 10),
-      "malformed HLS fixture did not produce a recoverable playback failure"
+      conversionError.waitForExistence(timeout: 5),
+      "first conversion request did not produce a recoverable failure"
     )
     let retry = app.buttons["Try again"]
-    XCTAssertTrue(retry.isHittable, "playback retry is not tappable")
+    XCTAssertTrue(retry.isHittable, "conversion retry is not tappable")
     retry.tap()
     XCTAssertTrue(
+      element(identifier: "video.conversion-progress").waitForExistence(timeout: 5),
+      "conversion progress never appeared"
+    )
+    XCTAssertTrue(
       element(identifier: "video.ready").waitForExistence(timeout: 10),
-      "bundled HLS fixture never became ready"
+      "converted video never became ready through native HLS"
     )
 
     let resumePosition = element(identifier: "video.resume-position")

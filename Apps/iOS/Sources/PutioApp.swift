@@ -250,6 +250,7 @@ private struct MainTabView: View {
         route: route,
         remembersPlaybackPosition: account.rememberVideoTime,
         showsHarnessReadiness: scenario == .filesBrowser,
+        conversionPollInterval: scenario == .filesBrowser ? .milliseconds(1_200) : .seconds(3),
         positionPipeline: playbackPositionPipeline,
         reportPosition: { fileID, seconds in
           try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: seconds)
@@ -258,6 +259,12 @@ private struct MainTabView: View {
               harnessReportedPosition = (fileID, seconds)
             }
           #endif
+        },
+        startConversion: { fileID in
+          try await runtime.startVideoConversion(fileID: fileID)
+        },
+        loadConversionStatus: { fileID in
+          try await runtime.videoConversionStatus(fileID: fileID)
         },
         resolve: { fileID in
           try await resolvePlaybackSource(fileID: fileID)
@@ -314,7 +321,7 @@ private struct MainTabView: View {
       }
       harnessPlaybackAttempt += 1
       let fixtureURL: URL
-      if harnessPlaybackAttempt == 1 {
+      if fileID.rawValue != 411, harnessPlaybackAttempt == 1 {
         guard
           let invalidFixture = Bundle.main.url(
             forResource: "runtime-proof-invalid",
@@ -338,7 +345,7 @@ private struct MainTabView: View {
         }
         fixtureURL = baseURL.appending(path: "runtime-proof.m3u8")
       }
-      if harnessPlaybackAttempt == 1 {
+      if fileID.rawValue != 411, harnessPlaybackAttempt == 1 {
         do {
           let tracks = try await AVURLAsset(url: fixtureURL).loadTracks(
             withMediaType: .video

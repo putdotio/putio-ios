@@ -62,6 +62,37 @@ public final class PutioRuntime {
     }
   }
 
+  public func startVideoConversion(fileID: PutioFileID) async throws {
+    _ = try await performAuthenticatedOperation {
+      try await sdk.startMp4Conversion(fileID: fileID.rawValue)
+    }
+  }
+
+  public func videoConversionStatus(fileID: PutioFileID) async throws
+    -> PutioVideoConversionStatus
+  {
+    let conversion = try await performAuthenticatedOperation {
+      try await sdk.getMp4ConversionStatus(fileID: fileID.rawValue)
+    }
+    let progress = Double(conversion.percentDone)
+    guard progress.isFinite, (0...1).contains(progress) else {
+      throw PutioRuntimeError.invalidResponse
+    }
+
+    switch conversion.status {
+    case .queued:
+      return .queued
+    case .converting:
+      return .converting(progress: progress)
+    case .completed:
+      return .completed
+    case .error, .notAvailable:
+      return .failed
+    default:
+      throw PutioRuntimeError.invalidResponse
+    }
+  }
+
   private func performAuthenticatedOperation<Value>(
     _ operation: () async throws -> Value
   ) async throws -> Value {
