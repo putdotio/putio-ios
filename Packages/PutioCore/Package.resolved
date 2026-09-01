@@ -1,12 +1,13 @@
 {
-  "originHash" : "54da1ba6cb7144cc7241afede4ab723dc4558cf725a8a496aaf8615f18d597e1",
+  "originHash" : "dc121176b63dcf6ae5e814b9ee803cae69682b062142c4c9b72c3b589b7eb2b6",
   "pins" : [
     {
       "identity" : "putio-sdk-swift",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/putdotio/putio-sdk-swift",
       "state" : {
-        "revision" : "f30692806fcb19eaf4e5ce89028a758c36dcd1ec"
+        "revision" : "bfdc5df176d8948c231190a14bc86c86fc7effe5",
+        "version" : "3.5.0"
       }
     }
   ],
