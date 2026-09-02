@@ -311,9 +311,34 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     firstRename.tap()
 
+    let createdFolderButton = app.buttons["files.item.415"]
+    XCTAssertTrue(
+      createdFolderButton.waitForExistence(timeout: 3),
+      "folder control disappeared while rename was pending"
+    )
+    let disabled = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "enabled == false"),
+      object: createdFolderButton
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [disabled], timeout: 3),
+      .completed,
+      "folder navigation did not become disabled while rename was pending"
+    )
+    XCTAssertEqual(createdFolderButton.label, "Weekend")
+    let createdFolderScreen = element(identifier: "files.screen.415")
+    XCTAssertFalse(
+      createdFolderScreen.waitForExistence(timeout: 1),
+      "folder navigation remained enabled while rename was pending"
+    )
+
     let renameFailure = app.staticTexts["Could not rename item"]
     XCTAssertTrue(renameFailure.waitForExistence(timeout: 5), "rename failure was not surfaced")
-    XCTAssertEqual(createdFolder.label, "Watch Later", "failed rename did not roll back")
+    XCTAssertTrue(
+      createdFolderButton.waitForExistence(timeout: 5) && createdFolderButton.isHittable,
+      "folder navigation did not re-enable after rename failure"
+    )
+    XCTAssertEqual(createdFolderButton.label, "Watch Later", "failed rename did not roll back")
     XCTAssertTrue(
       renameFailure.waitForNonExistence(timeout: 5), "rename failure toast did not clear")
 
@@ -344,15 +369,20 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let delete = openContextMenu(
       for: renamedFolder,
-      actionLabel: "Move to Trash"
+      actionLabel: "Remove"
     )
     addScreenshot(named: "runtime-file-actions")
     delete.tap()
     let confirmDelete = app.buttons["files.delete-confirm"].firstMatch
-    XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5), "trash confirmation never appeared")
-    XCTAssertEqual(confirmDelete.label, "Move to Trash")
+    XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5), "remove confirmation never appeared")
+    XCTAssertEqual(confirmDelete.label, "Remove")
+    XCTAssertTrue(app.staticTexts["put.io will apply your current Trash setting."].exists)
     confirmDelete.tap()
-    XCTAssertTrue(renamedFolder.waitForNonExistence(timeout: 5), "trashed folder remained visible")
+    XCTAssertTrue(
+      app.staticTexts["Item removed"].waitForExistence(timeout: 5),
+      "neutral remove success was not surfaced"
+    )
+    XCTAssertTrue(renamedFolder.waitForNonExistence(timeout: 5), "removed folder remained visible")
 
     app.buttons["Account"].tap()
     let signOut = element(identifier: "auth.sign-out")

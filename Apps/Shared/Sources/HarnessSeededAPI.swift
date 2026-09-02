@@ -1,10 +1,39 @@
 import Foundation
 
 #if DEBUG
+  final class HarnessResponseDeliveryGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var generation: UInt64 = 0
+
+    func begin() -> UInt64 {
+      lock.lock()
+      generation &+= 1
+      let activeGeneration = generation
+      lock.unlock()
+      return activeGeneration
+    }
+
+    func cancel() {
+      lock.lock()
+      generation &+= 1
+      lock.unlock()
+    }
+
+    func deliver(generation activeGeneration: UInt64, callbacks: () -> Void) {
+      lock.lock()
+      guard generation == activeGeneration else {
+        lock.unlock()
+        return
+      }
+      callbacks()
+      lock.unlock()
+    }
+  }
+
   // Deterministic in-process API for signed-in harness scenarios, mirroring
   // the legacy app's E2E mock approach. Anything outside the seeded session
   // and browser surface fails loudly with a named fixture gap.
-  final class HarnessSeededAPI: URLProtocol {
+  final class HarnessSeededAPI: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var isEnabled = false
     nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 589, 414: 37]
     nonisolated(unsafe) private static var conversionStarted = false
@@ -17,6 +46,7 @@ import Foundation
     private static let playbackPositionLock = NSLock()
     private static let conversionLock = NSLock()
     private static let fileActionsLock = NSLock()
+    private let deliveryGate = HarnessResponseDeliveryGate()
 
     static let token = "putio-harness-session-token"
 
@@ -52,8 +82,11 @@ import Foundation
     }
 
     override func startLoading() {
+      let generation = deliveryGate.begin()
       guard let url = request.url else {
-        client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+        deliveryGate.deliver(generation: generation) {
+          self.client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+        }
         return
       }
       let (statusCode, body) = Self.fixture(for: request)
@@ -63,12 +96,24 @@ import Foundation
         httpVersion: nil,
         headerFields: ["Content-Type": "application/json"]
       )!
-      client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-      client?.urlProtocol(self, didLoad: Data(body.utf8))
-      client?.urlProtocolDidFinishLoading(self)
+      let deliverResponse: @Sendable () -> Void = { [weak self] in
+        self?.deliveryGate.deliver(generation: generation) {
+          guard let self else { return }
+          self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+          self.client?.urlProtocol(self, didLoad: Data(body.utf8))
+          self.client?.urlProtocolDidFinishLoading(self)
+        }
+      }
+      if statusCode == 503, url.path == "/v2/files/rename" {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
+      } else {
+        deliverResponse()
+      }
     }
 
-    override func stopLoading() {}
+    override func stopLoading() {
+      deliveryGate.cancel()
+    }
 
     private static func fixture(for request: URLRequest) -> (Int, String) {
       guard let url = request.url else {
@@ -268,8 +313,8 @@ import Foundation
       }
 
       fileActionsLock.lock()
-      defer { fileActionsLock.unlock() }
       guard actionFolders[fileID] != nil else {
+        fileActionsLock.unlock()
         return (
           404,
           fixtureError(
@@ -280,7 +325,12 @@ import Foundation
         )
       }
       renameAttempts += 1
-      guard renameAttempts > 1 else {
+      let attempt = renameAttempts
+      if attempt > 1 {
+        actionFolders[fileID] = name
+      }
+      fileActionsLock.unlock()
+      guard attempt > 1 else {
         return (
           503,
           fixtureError(
@@ -290,7 +340,6 @@ import Foundation
           )
         )
       }
-      actionFolders[fileID] = name
       return (200, #"{"status":"OK"}"#)
     }
 

@@ -9,7 +9,6 @@ typealias PutioRootLoaded = @MainActor @Sendable () -> Void
 struct FilesBrowserView: View {
   private let load: PutioFolderLoad
   private let actions: PutioFileActions?
-  private let trashEnabled: Bool
   private let onFileSelected: PutioFileSelection
   private let onRootLoaded: PutioRootLoaded
   private let onReturnToRoot: @MainActor @Sendable () -> Void
@@ -18,7 +17,6 @@ struct FilesBrowserView: View {
 
   init(
     runtime: PutioRuntime,
-    trashEnabled: Bool,
     onFileSelected: @escaping PutioFileSelection,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
@@ -28,7 +26,6 @@ struct FilesBrowserView: View {
       try await runtime.listFiles(parentID: folderID)
     }
     actions = PutioFileActions(runtime: runtime)
-    self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
@@ -38,7 +35,6 @@ struct FilesBrowserView: View {
   init(
     load: @escaping PutioFolderLoad,
     actions: PutioFileActions? = nil,
-    trashEnabled: Bool = true,
     onFileSelected: @escaping PutioFileSelection,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
@@ -46,7 +42,6 @@ struct FilesBrowserView: View {
   ) {
     self.load = load
     self.actions = actions
-    self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
@@ -59,7 +54,6 @@ struct FilesBrowserView: View {
         route: .root,
         load: load,
         actions: actions,
-        trashEnabled: trashEnabled,
         onLoaded: onRootLoaded,
         refreshRequests: refreshRequests,
         onFileSelected: onFileSelected
@@ -69,7 +63,6 @@ struct FilesBrowserView: View {
           route: route,
           load: load,
           actions: actions,
-          trashEnabled: trashEnabled,
           refreshRequests: refreshRequests,
           onFileSelected: onFileSelected
         )
@@ -101,13 +94,11 @@ struct PutioFolderScreen: View {
   private let onLoaded: @MainActor @Sendable () -> Void
   private let onFileSelected: PutioFileSelection
   private let refreshRequests: PutioFolderRefreshRequests
-  private let trashEnabled: Bool
 
   init(
     route: PutioFolderRoute,
     load: @escaping PutioFolderLoad,
     actions: PutioFileActions? = nil,
-    trashEnabled: Bool = true,
     initialContents: PutioFolderContents? = nil,
     relativeTo relativeDateReference: Date? = nil,
     locale: Locale = .current,
@@ -121,7 +112,6 @@ struct PutioFolderScreen: View {
         folderID: route.id,
         load: load,
         actions: actions,
-        trashEnabled: trashEnabled,
         initialContents: initialContents
       )
     )
@@ -129,7 +119,6 @@ struct PutioFolderScreen: View {
     self.locale = locale
     self.onLoaded = onLoaded
     self.refreshRequests = refreshRequests
-    self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
   }
 
@@ -151,6 +140,7 @@ struct PutioFolderScreen: View {
       }
     }
     .navigationTitle(route.title)
+    .navigationBarBackButtonHidden(fileActionPending)
     .putioContentBackground()
     .toolbar {
       if model.supportsActions {
@@ -159,7 +149,7 @@ struct PutioFolderScreen: View {
             editorName = ""
             editor = .createFolder
           }
-          .disabled(model.activeAction != nil)
+          .disabled(!model.canStartAction || actionRequest != nil)
           .accessibilityIdentifier("files.new-folder")
         }
       }
@@ -300,6 +290,7 @@ struct PutioFolderScreen: View {
         content: NavigationLink(value: folderRoute) {
           PutioFileRow(presentation.row, showsFolderDisclosure: false)
         }
+        .disabled(fileActionPending)
         .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
       )
     } else if let fileRoute = presentation.fileRoute {
@@ -312,6 +303,7 @@ struct PutioFolderScreen: View {
             PutioFileRow(presentation.row)
           }
           .buttonStyle(.plain)
+          .disabled(fileActionPending)
           .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
           .accessibilityValue(Text(videoAccessibilityValue(for: presentation.item)))
         )
@@ -345,12 +337,12 @@ struct PutioFolderScreen: View {
         editorName = item.name
         editor = .rename(item)
       }
-      .disabled(model.activeAction != nil)
+      .disabled(!model.canStartAction || actionRequest != nil)
       .accessibilityIdentifier("files.rename.\(item.id.rawValue)")
       Button(deleteActionTitle, role: .destructive) {
         pendingDeletion = item
       }
-      .disabled(model.activeAction != nil)
+      .disabled(!model.canStartAction || actionRequest != nil)
       .accessibilityIdentifier("files.delete.\(item.id.rawValue)")
     }
   }
@@ -445,7 +437,7 @@ struct PutioFolderScreen: View {
   }
 
   private var deleteActionTitle: String {
-    trashEnabled ? "Move to Trash" : "Delete"
+    "Remove"
   }
 
   private var deleteConfirmationTitle: String {
@@ -454,9 +446,11 @@ struct PutioFolderScreen: View {
   }
 
   private var deleteConfirmationMessage: String {
-    trashEnabled
-      ? "You can restore this item from Trash."
-      : "This item will be permanently deleted."
+    "put.io will apply your current Trash setting."
+  }
+
+  private var fileActionPending: Bool {
+    actionRequest != nil || model.activeAction != nil
   }
 
   private func submitEditor() {
@@ -505,7 +499,7 @@ struct PutioFolderScreen: View {
     case .delete(_, let name):
       PutioToast(
         variant: .success,
-        title: trashEnabled ? "Moved to Trash" : "Item deleted",
+        title: "Item removed",
         message: name
       )
     }

@@ -636,11 +636,16 @@ public struct SimulatorHarness {
             resultBundle: platformDirectory.appending(path: ".file-actions.xcresult"),
             attachmentName: BrowserJourneyContract.fileActionsAttachmentName,
             artifactDirectory: platformDirectory,
+            defaultExecutionTimeAllowance: 60,
             maximumExecutionTimeAllowance: 90
           )
         else {
           throw HarnessFailure("file-actions preflight did not produce its screenshot")
         }
+        _ = try requireMeaningfulScreenshot(
+          fileActionsScreenshot,
+          context: "runtime file-actions attachment"
+        )
         _ = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.unsupportedFileTestIdentifier,
           platform: platform,
@@ -882,6 +887,7 @@ public struct SimulatorHarness {
     resultBundle: URL,
     attachmentName: String? = nil,
     artifactDirectory: URL? = nil,
+    defaultExecutionTimeAllowance: Int = 30,
     maximumExecutionTimeAllowance: Int = 60
   ) throws -> URL? {
     defer { try? fileManager.removeItem(at: resultBundle) }
@@ -898,7 +904,7 @@ public struct SimulatorHarness {
         "-parallel-testing-enabled", "NO",
         "-collect-test-diagnostics", "never",
         "-test-timeouts-enabled", "YES",
-        "-default-test-execution-time-allowance", "30",
+        "-default-test-execution-time-allowance", String(defaultExecutionTimeAllowance),
         "-maximum-test-execution-time-allowance", String(maximumExecutionTimeAllowance),
         "-only-testing:\(identifier)",
       ],

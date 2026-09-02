@@ -439,6 +439,32 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.actionOutcome, .succeeded(.createFolder(name: "Season 2")))
   }
 
+  func testFileActionsBecomeAvailableOnlyAfterTheFolderLoads() async {
+    let contents = BrowserTestFixtures.contents(items: [])
+    let actions = PutioFileActions(
+      createFolder: { _, _ in throw PutioRuntimeError.unknown },
+      renameFile: { _, _ in throw PutioRuntimeError.unknown },
+      deleteFile: { _ in throw PutioRuntimeError.unknown }
+    )
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in contents },
+      actions: actions
+    )
+    let failedModel = PutioFolderModel(
+      folderID: .root,
+      load: { _ in throw PutioRuntimeError.transient },
+      actions: actions
+    )
+
+    XCTAssertFalse(model.canStartAction)
+    XCTAssertFalse(failedModel.canStartAction)
+    await model.loadIfNeeded()
+    await failedModel.loadIfNeeded()
+    XCTAssertTrue(model.canStartAction)
+    XCTAssertFalse(failedModel.canStartAction)
+  }
+
   func testRenameIsOptimisticAndRollsBackWithRecoverableFailure() async {
     let mutation = SuspendedFileMutation()
     let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
@@ -456,6 +482,7 @@ final class PutioFolderModelTests: XCTestCase {
 
     let task = Task { await model.rename(item, to: "Renamed.mkv") }
     await mutation.waitUntilStarted()
+    XCTAssertFalse(model.canStartAction)
     guard case .loaded(let optimistic) = model.state else {
       return XCTFail("expected loaded, got \(model.state)")
     }
@@ -473,6 +500,7 @@ final class PutioFolderModelTests: XCTestCase {
       .rename(fileID: item.id, oldName: "Original.mkv", newName: "Renamed.mkv")
     )
     XCTAssertEqual(failure.title, "Could not rename item")
+    XCTAssertTrue(model.canStartAction)
   }
 
   func testMutationSupersedesAnInFlightRefresh() async {
@@ -511,34 +539,200 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(optimistic))
   }
 
-  func testDeleteFailureTitleMatchesTheAccountTrashSetting() async {
+  func testRenameUsesTheLatestLoadedItemSnapshot() async {
+    let staleEditorItem = BrowserTestFixtures.item(
+      id: 7,
+      name: "Original.mkv",
+      sizeBytes: 1_024,
+      resumePositionSeconds: 0
+    )
+    let latestItem = BrowserTestFixtures.item(
+      id: 7,
+      name: "Server Original.mkv",
+      sizeBytes: 8_192,
+      resumePositionSeconds: 137
+    )
+    let latestContents = BrowserTestFixtures.contents(items: [latestItem], hasMore: true)
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in latestContents },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { fileID, name in
+          XCTAssertEqual(fileID, latestItem.id)
+          XCTAssertEqual(name, "Renamed.mkv")
+        },
+        deleteFile: { _ in throw PutioRuntimeError.unknown }
+      ),
+      initialContents: latestContents
+    )
+
+    await model.rename(staleEditorItem, to: "Renamed.mkv")
+
+    guard case .loaded(let renamedContents) = model.state else {
+      return XCTFail("expected loaded, got \(model.state)")
+    }
+    guard let renamedItem = renamedContents.items.first else {
+      return XCTFail("renamed item is missing")
+    }
+    XCTAssertEqual(renamedItem.id, latestItem.id)
+    XCTAssertEqual(renamedItem.parentID, latestItem.parentID)
+    XCTAssertEqual(renamedItem.name, "Renamed.mkv")
+    XCTAssertEqual(renamedItem.kind, latestItem.kind)
+    XCTAssertEqual(renamedItem.sizeBytes, latestItem.sizeBytes)
+    XCTAssertEqual(renamedItem.createdAt, latestItem.createdAt)
+    XCTAssertEqual(renamedItem.updatedAt, latestItem.updatedAt)
+    XCTAssertEqual(renamedItem.resumePositionSeconds, latestItem.resumePositionSeconds)
+    XCTAssertTrue(renamedContents.hasMore)
+    XCTAssertEqual(
+      model.actionOutcome,
+      .succeeded(
+        .rename(
+          fileID: latestItem.id,
+          oldName: "Server Original.mkv",
+          newName: "Renamed.mkv"
+        )
+      )
+    )
+  }
+
+  func testRefreshRequestedDuringMutationRunsAfterItSettles() async {
+    let loader = ControlledFolderLoader()
+    let mutation = SuspendedFileMutation()
+    let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
+    let original = BrowserTestFixtures.contents(items: [item])
+    let refreshed = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 7, name: "Renamed.mkv", sizeBytes: 8_192)]
+    )
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { folderID in try await loader.load(folderID: folderID) },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in try await mutation.run() },
+        deleteFile: { _ in throw PutioRuntimeError.unknown }
+      ),
+      initialContents: original
+    )
+
+    let rename = Task { await model.rename(item, to: "Renamed.mkv") }
+    await mutation.waitUntilStarted()
+    await model.refresh()
+    let queuedRequestCount = await loader.requestCount()
+    XCTAssertEqual(queuedRequestCount, 0)
+
+    await mutation.succeed()
+    await loader.waitForRequestCount(1)
+    let refreshedFolderID = await loader.folderID(for: 0)
+    XCTAssertEqual(refreshedFolderID, .root)
+    await loader.succeed(request: 0, with: refreshed)
+    await rename.value
+
+    XCTAssertEqual(model.state, .loaded(refreshed))
+    XCTAssertEqual(
+      model.actionOutcome,
+      .succeeded(.rename(fileID: item.id, oldName: "Original.mkv", newName: "Renamed.mkv"))
+    )
+  }
+
+  func testQueuedRefreshRunsAfterMutationCancellation() async {
+    let loader = ControlledFolderLoader()
+    let mutation = SuspendedFileMutation()
+    let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
+    let original = BrowserTestFixtures.contents(items: [item])
+    let refreshed = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 7, name: "Server.mkv", sizeBytes: 8_192)]
+    )
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { folderID in try await loader.load(folderID: folderID) },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in try await mutation.run() },
+        deleteFile: { _ in throw PutioRuntimeError.unknown }
+      ),
+      initialContents: original
+    )
+
+    let rename = Task { await model.rename(item, to: "Renamed.mkv") }
+    await mutation.waitUntilStarted()
+    await model.refresh()
+    rename.cancel()
+    await mutation.succeed()
+    await loader.waitForRequestCount(1)
+    await loader.succeed(request: 0, with: refreshed)
+    await rename.value
+
+    XCTAssertEqual(model.state, .loaded(refreshed))
+    XCTAssertNil(model.activeAction)
+    XCTAssertNil(model.actionOutcome)
+  }
+
+  func testQueuedRefreshesCoalesceAfterMutationFailure() async {
+    let loader = ControlledFolderLoader()
+    let mutation = SuspendedFileMutation()
+    let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
+    let original = BrowserTestFixtures.contents(items: [item])
+    let refreshed = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 7, name: "Server.mkv", sizeBytes: 8_192)]
+    )
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { folderID in try await loader.load(folderID: folderID) },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in try await mutation.run() },
+        deleteFile: { _ in throw PutioRuntimeError.unknown }
+      ),
+      initialContents: original
+    )
+
+    let rename = Task { await model.rename(item, to: "Renamed.mkv") }
+    await mutation.waitUntilStarted()
+    await model.refresh()
+    await model.refresh()
+    let queuedRequestCount = await loader.requestCount()
+    XCTAssertEqual(queuedRequestCount, 0)
+
+    await mutation.fail(with: PutioRuntimeError.transient)
+    await loader.waitForRequestCount(1)
+    await loader.succeed(request: 0, with: refreshed)
+    await rename.value
+
+    let finalRequestCount = await loader.requestCount()
+    XCTAssertEqual(finalRequestCount, 1)
+    XCTAssertEqual(model.state, .loaded(refreshed))
+    guard case .failed(let action, let failure) = model.actionOutcome else {
+      return XCTFail("expected failed action, got \(String(describing: model.actionOutcome))")
+    }
+    XCTAssertEqual(
+      action,
+      .rename(fileID: item.id, oldName: "Original.mkv", newName: "Renamed.mkv")
+    )
+    XCTAssertEqual(failure.title, "Could not rename item")
+  }
+
+  func testDeleteFailureTitleDoesNotPromiseTrashDisposition() async {
     let item = BrowserTestFixtures.item(id: 7, name: "Episode.mkv")
     let original = BrowserTestFixtures.contents(items: [item])
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.transient }
+      ),
+      initialContents: original
+    )
 
-    for (trashEnabled, expectedTitle) in [
-      (true, "Could not move item to Trash"),
-      (false, "Could not delete item"),
-    ] {
-      let model = PutioFolderModel(
-        folderID: .root,
-        load: { _ in original },
-        actions: PutioFileActions(
-          createFolder: { _, _ in throw PutioRuntimeError.unknown },
-          renameFile: { _, _ in throw PutioRuntimeError.unknown },
-          deleteFile: { _ in throw PutioRuntimeError.transient }
-        ),
-        trashEnabled: trashEnabled,
-        initialContents: original
-      )
+    await model.delete(item)
 
-      await model.delete(item)
-
-      guard case .failed(_, let failure) = model.actionOutcome else {
-        return XCTFail("expected failed action, got \(String(describing: model.actionOutcome))")
-      }
-      XCTAssertEqual(failure.title, expectedTitle)
-      XCTAssertEqual(model.state, .loaded(original))
+    guard case .failed(_, let failure) = model.actionOutcome else {
+      return XCTFail("expected failed action, got \(String(describing: model.actionOutcome))")
     }
+    XCTAssertEqual(failure.title, "Could not remove item")
+    XCTAssertEqual(model.state, .loaded(original))
   }
 
   func testDeleteIsOptimisticAndSettlesAfterServerSuccess() async {

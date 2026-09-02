@@ -182,7 +182,7 @@ struct PutioFileActionFailure: Equatable, Sendable {
   let title: String
   let message: String
 
-  init?(action: PutioFileAction, error: Error, trashEnabled: Bool) {
+  init?(action: PutioFileAction, error: Error) {
     guard let browserFailure = PutioBrowserErrorPresentation(error: error) else {
       return nil
     }
@@ -192,7 +192,7 @@ struct PutioFileActionFailure: Equatable, Sendable {
     case .rename:
       title = "Could not rename item"
     case .delete:
-      title = trashEnabled ? "Could not move item to Trash" : "Could not delete item"
+      title = "Could not remove item"
     }
     message = browserFailure.message
   }
@@ -215,25 +215,28 @@ final class PutioFolderModel {
 
   @ObservationIgnored private let load: PutioFolderLoad
   @ObservationIgnored private let actions: PutioFileActions?
-  @ObservationIgnored private let trashEnabled: Bool
   @ObservationIgnored private var generation: UInt64 = 0
+  @ObservationIgnored private var refreshRequestedWhileActionActive = false
 
   init(
     folderID: PutioFileID,
     load: @escaping PutioFolderLoad,
     actions: PutioFileActions? = nil,
-    trashEnabled: Bool = true,
     initialContents: PutioFolderContents? = nil
   ) {
     self.folderID = folderID
     self.load = load
     self.actions = actions
-    self.trashEnabled = trashEnabled
     state = initialContents.map { .loaded($0) } ?? .loading
   }
 
   var supportsActions: Bool {
     actions != nil
+  }
+
+  var canStartAction: Bool {
+    guard supportsActions, activeAction == nil, case .loaded = state else { return false }
+    return true
   }
 
   func loadIfNeeded() async {
@@ -250,12 +253,16 @@ final class PutioFolderModel {
   }
 
   func refresh() async {
-    guard case .loaded = state, activeAction == nil else { return }
+    guard case .loaded = state else { return }
+    guard activeAction == nil else {
+      refreshRequestedWhileActionActive = true
+      return
+    }
     await performLoad(mode: .refresh)
   }
 
   func createFolder(name: String) async {
-    guard let actions, activeAction == nil, case .loaded(let contents) = state else { return }
+    guard let actions, canStartAction, case .loaded(let contents) = state else { return }
     let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !name.isEmpty else { return }
     let action = PutioFileAction.createFolder(name: name)
@@ -271,18 +278,24 @@ final class PutioFolderModel {
     } catch {
       settleFailure(action: action, error: error, rollback: contents)
     }
+    await performQueuedRefreshIfNeeded()
   }
 
   func rename(_ item: PutioFileItem, to proposedName: String) async {
-    guard let actions, activeAction == nil, case .loaded(let contents) = state else { return }
+    guard let actions, canStartAction, case .loaded(let contents) = state else { return }
+    guard let currentItem = contents.items.first(where: { $0.id == item.id }) else { return }
     let name = proposedName.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !name.isEmpty, name != item.name else { return }
-    let action = PutioFileAction.rename(fileID: item.id, oldName: item.name, newName: name)
+    guard !name.isEmpty, name != currentItem.name else { return }
+    let action = PutioFileAction.rename(
+      fileID: currentItem.id,
+      oldName: currentItem.name,
+      newName: name
+    )
     begin(action)
-    state = .loaded(contents.replacing(item.renamed(to: name)))
+    state = .loaded(contents.replacing(currentItem.renamed(to: name)))
 
     do {
-      try await actions.renameFile(item.id, name)
+      try await actions.renameFile(currentItem.id, name)
       try Task.checkCancellation()
       guard activeAction == action else { return }
       activeAction = nil
@@ -290,16 +303,18 @@ final class PutioFolderModel {
     } catch {
       settleFailure(action: action, error: error, rollback: contents)
     }
+    await performQueuedRefreshIfNeeded()
   }
 
   func delete(_ item: PutioFileItem) async {
-    guard let actions, activeAction == nil, case .loaded(let contents) = state else { return }
-    let action = PutioFileAction.delete(fileID: item.id, name: item.name)
+    guard let actions, canStartAction, case .loaded(let contents) = state else { return }
+    guard let currentItem = contents.items.first(where: { $0.id == item.id }) else { return }
+    let action = PutioFileAction.delete(fileID: currentItem.id, name: currentItem.name)
     begin(action)
-    state = .loaded(contents.removing(item.id))
+    state = .loaded(contents.removing(currentItem.id))
 
     do {
-      try await actions.deleteFile(item.id)
+      try await actions.deleteFile(currentItem.id)
       try Task.checkCancellation()
       guard activeAction == action else { return }
       activeAction = nil
@@ -307,6 +322,7 @@ final class PutioFolderModel {
     } catch {
       settleFailure(action: action, error: error, rollback: contents)
     }
+    await performQueuedRefreshIfNeeded()
   }
 
   func clearActionOutcome() {
@@ -317,6 +333,15 @@ final class PutioFolderModel {
     generation &+= 1
     activeAction = action
     actionOutcome = nil
+  }
+
+  private func performQueuedRefreshIfNeeded() async {
+    guard refreshRequestedWhileActionActive else { return }
+    refreshRequestedWhileActionActive = false
+    let refreshTask = Task { @MainActor [weak self] in
+      await self?.refresh()
+    }
+    await refreshTask.value
   }
 
   private func performLoad(mode: LoadMode) async {
@@ -378,8 +403,7 @@ final class PutioFolderModel {
     }
     actionOutcome = PutioFileActionFailure(
       action: action,
-      error: error,
-      trashEnabled: trashEnabled
+      error: error
     ).map {
       .failed(action, $0)
     }

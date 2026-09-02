@@ -170,6 +170,41 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertFalse(root.items.contains { $0.id == created.id })
   }
 
+  func testCancellingSeededRenameDoesNotWaitForDelayedFixture() async throws {
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
+    await runtime.session.restore()
+    let created = try await runtime.createFolder(name: "Watch Later", parentID: .root)
+    let clock = ContinuousClock()
+    let startedAt = clock.now
+    let rename = Task {
+      try await runtime.renameFile(fileID: created.id, name: "Weekend")
+    }
+
+    try await Task.sleep(for: .milliseconds(100))
+    rename.cancel()
+
+    do {
+      try await rename.value
+      XCTFail("expected the delayed rename to be cancelled")
+    } catch {
+      XCTAssertTrue(error is CancellationError, "unexpected cancellation error: \(error)")
+    }
+    XCTAssertLessThan(startedAt.duration(to: clock.now), .seconds(2))
+  }
+
+  func testCancelledHarnessDeliverySuppressesItsCallbacks() {
+    let gate = HarnessResponseDeliveryGate()
+    let generation = gate.begin()
+    var callbackCount = 0
+
+    gate.cancel()
+    gate.deliver(generation: generation) {
+      callbackCount += 1
+    }
+
+    XCTAssertEqual(callbackCount, 0)
+  }
+
   private func completeSeededConversion(runtime: PutioRuntime, fileID: PutioFileID) async throws {
     do {
       try await runtime.startVideoConversion(fileID: fileID)
