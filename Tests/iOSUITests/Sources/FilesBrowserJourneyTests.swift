@@ -38,7 +38,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertFalse(bulkMove.isEnabled)
 
     let selectAll = app.buttons["files.selection.select-all"]
-    XCTAssertTrue(waitUntilHittable(selectAll, timeout: 5))
+    XCTAssertTrue(
+      waitUntilHittable(selectAll, timeout: 5),
+      "select-all action is not hittable: \(selectAll.debugDescription)"
+    )
     selectAll.tap()
     XCTAssertEqual(successFolder.value as? String, "Selected")
     XCTAssertEqual(retryFolder.value as? String, "Selected")
@@ -553,7 +556,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let bulkMove = app.buttons["files.bulk.move"]
     XCTAssertFalse(bulkMove.isEnabled)
     let selectAll = app.buttons["files.selection.select-all"]
-    XCTAssertTrue(waitUntilHittable(selectAll, timeout: 5))
+    XCTAssertTrue(
+      waitUntilHittable(selectAll, timeout: 5),
+      "select-all action is not hittable: \(selectAll.debugDescription)"
+    )
     selectAll.tap()
     XCTAssertEqual(bulkRetryFolder.value as? String, "Selected")
     XCTAssertEqual(bulkSuccessFolder.value as? String, "Selected")
@@ -615,7 +621,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(movedBulkRetryFolder.value as? String, "Selected")
     XCTAssertEqual(movedBulkSuccessFolder.value as? String, "Selected")
     let bulkRemove = app.buttons["files.bulk.remove"]
-    XCTAssertTrue(waitUntilHittable(bulkRemove, timeout: 5), "bulk Remove is disabled")
+    XCTAssertTrue(
+      waitUntilHittable(bulkRemove, timeout: 5),
+      "bulk Remove is not hittable: \(bulkRemove.debugDescription)"
+    )
     bulkRemove.tap()
     XCTAssertTrue(app.staticTexts["Remove 2 items?"].waitForExistence(timeout: 5))
     let confirmBulkRemove = app.buttons["files.bulk.remove-confirm"].firstMatch

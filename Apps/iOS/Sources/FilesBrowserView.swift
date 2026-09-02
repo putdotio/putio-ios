@@ -175,7 +175,7 @@ struct PutioFolderScreen: View {
         }
       }
       if model.supportsActions, isEditing, !currentItems.isEmpty {
-        ToolbarItem(placement: .bottomBar) {
+        ToolbarItemGroup(placement: .bottomBar) {
           Button(allLoadedItemsAreSelected ? "Deselect All" : "Select All") {
             toggleAllLoadedItems()
           }
@@ -184,9 +184,6 @@ struct PutioFolderScreen: View {
             allLoadedItemsAreSelected
               ? "files.selection.deselect-all" : "files.selection.select-all"
           )
-        }
-        ToolbarSpacer(.flexible, placement: .bottomBar)
-        ToolbarItemGroup(placement: .bottomBar) {
           Button("Move") {
             let items = selectedItems
             guard !items.isEmpty else { return }
@@ -202,6 +199,7 @@ struct PutioFolderScreen: View {
         }
       }
     }
+    .modifier(PutioSelectionTabBarVisibility(isEditing: isEditing))
     .environment(\.editMode, $editMode)
     .sheet(isPresented: editorPresented) {
       NavigationStack {
@@ -963,6 +961,18 @@ private struct PutioBulkProgressSurface: ViewModifier {
         .regular,
         in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
       )
+    }
+  }
+}
+
+private struct PutioSelectionTabBarVisibility: ViewModifier {
+  let isEditing: Bool
+
+  @ViewBuilder func body(content: Content) -> some View {
+    if isEditing {
+      content.toolbar(.hidden, for: .tabBar)
+    } else {
+      content
     }
   }
 }
