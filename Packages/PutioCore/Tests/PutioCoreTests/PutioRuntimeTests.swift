@@ -201,6 +201,7 @@ final class PutioRuntimeTests: XCTestCase {
   private static let filesRoute = "GET /v2/files/list"
   private static let createFolderRoute = "POST /v2/files/create-folder"
   private static let renameFileRoute = "POST /v2/files/rename"
+  private static let moveFilesRoute = "POST /v2/files/move"
   private static let deleteFilesRoute = "POST /v2/files/delete"
   private static let nextVideoRoute = "GET /v2/files/411/next-file"
   private static let playbackRoute = "GET /v2/files/411"
@@ -399,6 +400,118 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(bodies[1]["file_id"] as? Int, 91)
     XCTAssertEqual(bodies[1]["name"] as? String, "Season Two")
     XCTAssertEqual(bodies[2]["file_ids"] as? String, "91")
+  }
+
+  func testMoveFileUsesSingleItemSDKRequestAndAcceptsAnEmptyErrorList() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"OK","errors":[]}"#,
+      for: Self.moveFilesRoute
+    )
+
+    try await runtime.moveFile(
+      fileID: PutioFileID(rawValue: 91),
+      to: PutioFileID(rawValue: 7)
+    )
+
+    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    XCTAssertEqual(request.httpMethod, "POST")
+    XCTAssertEqual(request.url?.path, "/v2/files/move")
+    let body = try XCTUnwrap(requestBodyData(for: request))
+    let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    XCTAssertEqual(json["file_ids"] as? String, "91")
+    XCTAssertEqual(json["parent_id"] as? Int, 7)
+  }
+
+  func testMoveFileMapsAReportedItemFailureWithoutExpiringTheSession() async {
+    let cases: [(Int, PutioRuntimeError)] = [
+      (403, .unknown),
+      (404, .notFound),
+      (408, .transient),
+      (429, .rateLimited),
+      (500, .transient),
+    ]
+
+    for (statusCode, expected) in cases {
+      RuntimeMockURLProtocol.reset()
+      let (runtime, tokenStore) = await makeSignedInRuntime()
+      RuntimeMockURLProtocol.setFixture(
+        """
+        {
+          "status": "OK",
+          "errors": [
+            {
+              "error_type": "MOVE_FAILED",
+              "id": 91,
+              "name": "Season 2",
+              "status_code": \(statusCode)
+            }
+          ]
+        }
+        """,
+        for: Self.moveFilesRoute
+      )
+
+      await assertRuntimeError(expected) {
+        try await runtime.moveFile(
+          fileID: PutioFileID(rawValue: 91),
+          to: PutioFileID(rawValue: 7)
+        )
+      }
+
+      guard case .signedIn = runtime.session.state else {
+        return XCTFail("a structured item failure must preserve the signed-in session")
+      }
+      XCTAssertEqual(try? tokenStore.read(), "stored-token")
+    }
+  }
+
+  func testMoveFileRejectsContradictoryOrMismatchedStructuredResponses() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    let responses = [
+      #"{"status":"ERROR","errors":[]}"#,
+      """
+      {
+        "status": "OK",
+        "errors": [
+          {
+            "error_type": "MOVE_FAILED",
+            "id": 92,
+            "status_code": 404
+          }
+        ]
+      }
+      """,
+    ]
+
+    for response in responses {
+      RuntimeMockURLProtocol.setFixture(response, for: Self.moveFilesRoute)
+      await assertRuntimeError(.invalidResponse) {
+        try await runtime.moveFile(
+          fileID: PutioFileID(rawValue: 91),
+          to: PutioFileID(rawValue: 7)
+        )
+      }
+    }
+  }
+
+  func testMoveFileAuthenticationFailureUsesTheSharedSessionBoundary() async {
+    let (runtime, tokenStore) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR","error_type":"invalid_grant"}"#,
+      statusCode: 401,
+      for: Self.moveFilesRoute
+    )
+
+    await assertRuntimeError(.sessionExpired) {
+      try await runtime.moveFile(
+        fileID: PutioFileID(rawValue: 91),
+        to: PutioFileID(rawValue: 7)
+      )
+    }
+
+    XCTAssertEqual(runtime.session.state, .signedOut(.sessionExpired))
+    XCTAssertNil(try? tokenStore.read())
   }
 
   func testFindNextVideoMapsAppOwnedSuccessorAndVideoQuery() async throws {

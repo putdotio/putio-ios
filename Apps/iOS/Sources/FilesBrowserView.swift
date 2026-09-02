@@ -87,11 +87,13 @@ struct PutioFolderScreen: View {
   @State private var editor: FileEditor?
   @State private var editorName = ""
   @State private var pendingDeletion: PutioFileItem?
+  @State private var pendingMove: PutioFileItem?
   @State private var actionRequest: FileActionRequest?
   @State private var startedActionRequest: FileActionRequest?
   @State private var toast: PutioToast?
   private let relativeDateReference: Date?
   private let locale: Locale
+  private let load: PutioFolderLoad
   private let onLoaded: @MainActor @Sendable () -> Void
   private let onFileSelected: PutioFileSelection
   private let refreshRequests: PutioFolderRefreshRequests
@@ -118,6 +120,7 @@ struct PutioFolderScreen: View {
     )
     self.relativeDateReference = relativeDateReference
     self.locale = locale
+    self.load = load
     self.onLoaded = onLoaded
     self.refreshRequests = refreshRequests
     self.onFileSelected = onFileSelected
@@ -179,6 +182,16 @@ struct PutioFolderScreen: View {
         }
       }
       .presentationDetents([.height(220)])
+    }
+    .sheet(item: $pendingMove) { item in
+      PutioMovePicker(
+        item: item,
+        load: load,
+        onMove: { destination in
+          pendingMove = nil
+          actionRequest = .move(item, destination)
+        }
+      )
     }
     .confirmationDialog(
       deleteConfirmationTitle,
@@ -334,6 +347,11 @@ struct PutioFolderScreen: View {
   @ViewBuilder
   private func actionButtons(for item: PutioFileItem) -> some View {
     if model.supportsActions {
+      Button("Move") {
+        pendingMove = item
+      }
+      .disabled(!model.canStartAction || actionRequest != nil)
+      .accessibilityIdentifier("files.move.\(item.id.rawValue)")
       Button("Rename") {
         editorName = item.name
         editor = .rename(item)
@@ -480,6 +498,8 @@ struct PutioFolderScreen: View {
         await model.rename(item, to: name)
       case .delete(let item):
         await model.delete(item)
+      case .move(let item, let destination):
+        await model.move(item, to: destination)
       }
     }
     guard actionRequest == request else { return }
@@ -511,6 +531,12 @@ struct PutioFolderScreen: View {
         title: "Item removed",
         message: name
       )
+    case .move(_, let name, _, _, let destinationName):
+      PutioToast(
+        variant: .success,
+        title: "Item moved",
+        message: "\(name) to \(destinationName)"
+      )
     }
   }
 
@@ -533,5 +559,122 @@ struct PutioFolderScreen: View {
     case createFolder(String)
     case rename(PutioFileItem, String)
     case delete(PutioFileItem)
+    case move(PutioFileItem, PutioFolderRoute)
+  }
+}
+
+@MainActor
+private struct PutioMovePicker: View {
+  let item: PutioFileItem
+  let load: PutioFolderLoad
+  let onMove: @MainActor (PutioFolderRoute) -> Void
+
+  @Environment(\.dismiss) private var dismiss
+  @State private var path: [PutioFolderRoute] = []
+
+  var body: some View {
+    NavigationStack(path: $path) {
+      PutioMoveDestinationScreen(route: .root, item: item, load: load, onMove: onMove)
+        .navigationDestination(for: PutioFolderRoute.self) { route in
+          PutioMoveDestinationScreen(route: route, item: item, load: load, onMove: onMove)
+        }
+    }
+    .toolbar {
+      ToolbarItem(placement: .cancellationAction) {
+        Button("Cancel", role: .cancel) {
+          dismiss()
+        }
+        .accessibilityIdentifier("files.move-cancel")
+      }
+    }
+    .accessibilityIdentifier("files.move-picker")
+  }
+}
+
+@MainActor
+private struct PutioMoveDestinationScreen: View {
+  let route: PutioFolderRoute
+  let item: PutioFileItem
+  let onMove: @MainActor (PutioFolderRoute) -> Void
+
+  @State private var model: PutioFolderModel
+
+  init(
+    route: PutioFolderRoute,
+    item: PutioFileItem,
+    load: @escaping PutioFolderLoad,
+    onMove: @escaping @MainActor (PutioFolderRoute) -> Void
+  ) {
+    self.route = route
+    self.item = item
+    self.onMove = onMove
+    _model = State(initialValue: PutioFolderModel(folderID: route.id, load: load))
+  }
+
+  var body: some View {
+    Group {
+      switch model.state {
+      case .loading:
+        PutioLoadingStateView(title: "Loading folders")
+      case .failed(let failure):
+        PutioErrorStateView(
+          title: failure.title,
+          message: failure.message,
+          retryTitle: "Try again"
+        ) {
+          Task { await model.retry() }
+        }
+      case .loaded(let contents):
+        destinationList(contents)
+      }
+    }
+    .navigationTitle(route.title)
+    .navigationBarTitleDisplayMode(.inline)
+    .putioContentBackground()
+    .toolbar {
+      ToolbarItem(placement: .confirmationAction) {
+        Button("Move Here") {
+          onMove(route)
+        }
+        .disabled(!canMoveHere)
+        .accessibilityIdentifier("files.move-here.\(route.id.rawValue)")
+      }
+    }
+    .task(id: route.id) {
+      await model.loadIfNeeded()
+    }
+    .accessibilityIdentifier("files.move-screen.\(route.id.rawValue)")
+  }
+
+  @ViewBuilder
+  private func destinationList(_ contents: PutioFolderContents) -> some View {
+    let folders = policy.folders(in: contents)
+    if folders.isEmpty {
+      PutioEmptyStateView(
+        icon: .folderFill,
+        title: "No folders here",
+        message: canMoveHere ? "Move the item here or go back." : "Choose another folder."
+      )
+    } else {
+      List(folders) { folder in
+        NavigationLink(value: PutioFolderRoute(id: folder.id, title: folder.name)) {
+          PutioFileRow(
+            PutioBrowserItemPresentation(item: folder).row,
+            showsFolderDisclosure: false
+          )
+        }
+        .accessibilityIdentifier("files.move-folder.\(folder.id.rawValue)")
+        .listRowBackground(PutioTheme.Colors.background)
+      }
+      .listStyle(.plain)
+    }
+  }
+
+  private var canMoveHere: Bool {
+    policy.canMove(to: route)
+  }
+
+  private var policy: PutioMovePickerPolicy {
+    PutioMovePickerPolicy(item: item)
   }
 }

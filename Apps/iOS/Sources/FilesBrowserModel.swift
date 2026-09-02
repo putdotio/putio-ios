@@ -10,11 +10,14 @@ typealias PutioFileRename =
   @MainActor @Sendable (PutioFileID, String) async throws -> Void
 typealias PutioFileDelete =
   @MainActor @Sendable (PutioFileID) async throws -> Void
+typealias PutioFileMove =
+  @MainActor @Sendable (PutioFileID, PutioFileID) async throws -> Void
 
 struct PutioFileActions: Sendable {
   let createFolder: PutioFolderCreate
   let renameFile: PutioFileRename
   let deleteFile: PutioFileDelete
+  let moveFile: PutioFileMove
 
   init(runtime: PutioRuntime) {
     createFolder = { name, parentID in
@@ -26,16 +29,21 @@ struct PutioFileActions: Sendable {
     deleteFile = { fileID in
       try await runtime.deleteFile(fileID: fileID)
     }
+    moveFile = { fileID, parentID in
+      try await runtime.moveFile(fileID: fileID, to: parentID)
+    }
   }
 
   init(
     createFolder: @escaping PutioFolderCreate,
     renameFile: @escaping PutioFileRename,
-    deleteFile: @escaping PutioFileDelete
+    deleteFile: @escaping PutioFileDelete,
+    moveFile: @escaping PutioFileMove = { _, _ in throw PutioRuntimeError.unknown }
   ) {
     self.createFolder = createFolder
     self.renameFile = renameFile
     self.deleteFile = deleteFile
+    self.moveFile = moveFile
   }
 }
 
@@ -55,6 +63,20 @@ struct PutioFolderRefreshRequests: Equatable, Sendable {
 
   func sequence(for folderID: PutioFileID) -> UInt64? {
     sequences[folderID]
+  }
+}
+
+struct PutioMovePickerPolicy: Sendable {
+  let item: PutioFileItem
+
+  func canMove(to destination: PutioFolderRoute) -> Bool {
+    destination.id != item.parentID && destination.id != item.id
+  }
+
+  func folders(in contents: PutioFolderContents) -> [PutioFileItem] {
+    contents.items.filter { candidate in
+      candidate.kind == .folder && candidate.id != item.id
+    }
   }
 }
 
@@ -176,6 +198,13 @@ enum PutioFileAction: Equatable, Sendable {
   case createFolder(name: String)
   case rename(fileID: PutioFileID, oldName: String, newName: String)
   case delete(fileID: PutioFileID, name: String)
+  case move(
+    fileID: PutioFileID,
+    name: String,
+    sourceParentID: PutioFileID,
+    destinationID: PutioFileID,
+    destinationName: String
+  )
 }
 
 struct PutioFileActionFailure: Equatable, Sendable {
@@ -193,6 +222,8 @@ struct PutioFileActionFailure: Equatable, Sendable {
       title = "Could not rename item"
     case .delete:
       title = "Could not remove item"
+    case .move:
+      title = "Could not move item"
     }
     message = browserFailure.message
   }
@@ -304,6 +335,26 @@ final class PutioFolderModel {
 
     await run(action, rollback: contents) {
       try await actions.deleteFile(currentItem.id)
+      return nil
+    }
+  }
+
+  func move(_ item: PutioFileItem, to destination: PutioFolderRoute) async {
+    guard let actions, canStartAction, case .loaded(let contents) = state else { return }
+    guard let currentItem = contents.items.first(where: { $0.id == item.id }) else { return }
+    guard destination.id != currentItem.parentID, destination.id != currentItem.id else { return }
+    let action = PutioFileAction.move(
+      fileID: currentItem.id,
+      name: currentItem.name,
+      sourceParentID: currentItem.parentID,
+      destinationID: destination.id,
+      destinationName: destination.title
+    )
+    begin(action)
+    state = .loaded(contents.removing(currentItem.id))
+
+    await run(action, rollback: contents) {
+      try await actions.moveFile(currentItem.id, destination.id)
       return nil
     }
   }

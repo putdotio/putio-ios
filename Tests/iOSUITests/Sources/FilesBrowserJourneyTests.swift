@@ -367,8 +367,58 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "rename retry did not update the folder"
     )
 
+    openContextMenu(for: renamedFolder, actionLabel: "Move").tap()
+    XCTAssertTrue(
+      element(identifier: "files.move-screen.0").waitForExistence(timeout: 5),
+      "move picker did not open at Files"
+    )
+    let moveToCurrentFolder = app.buttons["files.move-here.0"]
+    XCTAssertTrue(moveToCurrentFolder.exists, "current-folder move action is missing")
+    XCTAssertFalse(moveToCurrentFolder.isEnabled, "moving to the current folder is enabled")
+    XCTAssertFalse(
+      element(identifier: "files.move-folder.415").exists,
+      "source folder is available as its own move destination"
+    )
+
+    let harnessDestination = element(identifier: "files.move-folder.410")
+    XCTAssertTrue(
+      waitUntilHittable(harnessDestination, timeout: 5),
+      "Harness Folder is not available as a move destination"
+    )
+    harnessDestination.tap()
+    XCTAssertTrue(
+      element(identifier: "files.move-screen.410").waitForExistence(timeout: 5),
+      "move picker did not enter Harness Folder"
+    )
+    let moveHere = app.buttons["files.move-here.410"]
+    XCTAssertTrue(waitUntilHittable(moveHere, timeout: 5), "Move Here is not tappable")
+    moveHere.tap()
+
+    XCTAssertTrue(
+      app.staticTexts["Item moved"].waitForExistence(timeout: 5),
+      "move success was not surfaced"
+    )
+    XCTAssertTrue(
+      renamedFolder.waitForNonExistence(timeout: 5),
+      "moved folder remained in its source list"
+    )
+
+    let harnessFolder = element(identifier: "files.item.410")
+    XCTAssertTrue(waitUntilHittable(harnessFolder, timeout: 5))
+    harnessFolder.tap()
+    XCTAssertTrue(
+      element(identifier: "files.screen.410").waitForExistence(timeout: 5),
+      "Harness Folder did not open after the move"
+    )
+    let movedFolder = element(identifier: "files.item.415")
+    XCTAssertTrue(
+      movedFolder.waitForExistence(timeout: 5),
+      "moved folder is missing at destination"
+    )
+    XCTAssertEqual(movedFolder.label, "Weekend")
+
     let delete = openContextMenu(
-      for: renamedFolder,
+      for: movedFolder,
       actionLabel: "Remove"
     )
     addScreenshot(named: "runtime-file-actions")
@@ -382,7 +432,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       app.staticTexts["Item removed"].waitForExistence(timeout: 5),
       "neutral remove success was not surfaced"
     )
-    XCTAssertTrue(renamedFolder.waitForNonExistence(timeout: 5), "removed folder remained visible")
+    XCTAssertTrue(movedFolder.waitForNonExistence(timeout: 5), "removed folder remained visible")
 
     app.buttons["Account"].tap()
     let signOut = element(identifier: "auth.sign-out")
