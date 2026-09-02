@@ -54,10 +54,11 @@ struct PutioFolderRoute: Identifiable, Sendable {
   static let root = PutioFolderRoute(id: .root, title: "Files")
 }
 
-struct PutioFolderRefreshRequests: Equatable, Sendable {
+@Observable
+final class PutioFolderRefreshRequests {
   private var sequences: [PutioFileID: UInt64] = [:]
 
-  mutating func request(folderID: PutioFileID) {
+  func request(folderID: PutioFileID) {
     sequences[folderID, default: 0] &+= 1
   }
 

@@ -356,14 +356,14 @@ import Foundation
         let rawFileIDs = payload["file_ids"] as? String,
         let fileID = Int(rawFileIDs),
         let parentID = payload["parent_id"] as? Int,
-        parentID == 410
+        parentID == 0 || parentID == 410
       else {
         return (
           400,
           fixtureError(
             statusCode: 400,
             type: "HARNESS_MOVE_INPUT_REQUIRED",
-            message: "The move fixture requires one file id and Harness Folder as destination"
+            message: "The move fixture requires one file id and a seeded destination"
           )
         )
       }

@@ -417,8 +417,35 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     XCTAssertEqual(movedFolder.label, "Weekend")
 
+    openContextMenu(for: movedFolder, actionLabel: "Move").tap()
+    XCTAssertTrue(
+      element(identifier: "files.move-screen.0").waitForExistence(timeout: 5),
+      "move picker did not reopen at Files"
+    )
+    let moveBackToRoot = app.buttons["files.move-here.0"]
+    XCTAssertTrue(waitUntilHittable(moveBackToRoot, timeout: 5), "moving back to Files is disabled")
+    moveBackToRoot.tap()
+    XCTAssertTrue(
+      app.staticTexts["Weekend to Files"].waitForExistence(timeout: 5),
+      "move back to Files did not settle"
+    )
+
+    let backToFiles = app.navigationBars["Harness Folder"].buttons["Files"]
+    XCTAssertTrue(waitUntilHittable(backToFiles, timeout: 5), "Files back button is unavailable")
+    backToFiles.tap()
+    XCTAssertTrue(
+      element(identifier: "files.screen.0").waitForExistence(timeout: 5),
+      "Files did not reappear after moving to the ancestor"
+    )
+    let movedFolderAtRoot = element(identifier: "files.item.415")
+    XCTAssertTrue(
+      waitUntilHittable(movedFolderAtRoot, timeout: 5),
+      "ancestor Files list did not refresh after the move"
+    )
+    XCTAssertEqual(movedFolderAtRoot.label, "Weekend")
+
     let delete = openContextMenu(
-      for: movedFolder,
+      for: movedFolderAtRoot,
       actionLabel: "Remove"
     )
     addScreenshot(named: "runtime-file-actions")
@@ -432,7 +459,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
       app.staticTexts["Item removed"].waitForExistence(timeout: 5),
       "neutral remove success was not surfaced"
     )
-    XCTAssertTrue(movedFolder.waitForNonExistence(timeout: 5), "removed folder remained visible")
+    XCTAssertTrue(
+      movedFolderAtRoot.waitForNonExistence(timeout: 5), "removed folder remained visible")
 
     app.buttons["Account"].tap()
     let signOut = element(identifier: "auth.sign-out")

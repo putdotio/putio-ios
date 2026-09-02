@@ -512,6 +512,9 @@ struct PutioFolderScreen: View {
     guard let outcome = model.actionOutcome else { return }
     switch outcome {
     case .succeeded(let action):
+      if case .move(_, _, _, let destinationID, _) = action {
+        refreshRequests.request(folderID: destinationID)
+      }
       toast = successToast(for: action)
     case .failed(_, let failure):
       toast = PutioToast(variant: .danger, title: failure.title, message: failure.message)

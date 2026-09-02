@@ -292,7 +292,7 @@ final class PutioFolderModelTests: XCTestCase {
   func testPlaybackRefreshSequencesAreIndependentPerFolder() {
     let firstFolder = PutioFileID(rawValue: 42)
     let secondFolder = PutioFileID(rawValue: 7)
-    var requests = PutioFolderRefreshRequests()
+    let requests = PutioFolderRefreshRequests()
 
     requests.request(folderID: firstFolder)
     let firstSequence = requests.sequence(for: firstFolder)
