@@ -183,6 +183,59 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertFalse(root.items.contains { $0.id == created.id })
   }
 
+  func testSeededFileActionsMoveMultipleCreatedFoldersThroughPerItemRequests() async throws {
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
+    await runtime.session.restore()
+
+    var created = [PutioFileItem]()
+    for name in ["First", "Second", "Third"] {
+      created.append(try await runtime.createFolder(name: name, parentID: .root))
+    }
+    XCTAssertEqual(created.map(\.id.rawValue), [415, 416, 417])
+
+    let destinationID = PutioFileID(rawValue: 410)
+    for folder in created {
+      try await runtime.moveFile(fileID: folder.id, to: destinationID)
+    }
+
+    let root = try await runtime.listFiles(parentID: .root)
+    let destination = try await runtime.listFiles(parentID: destinationID)
+    XCTAssertTrue(Set(root.items.map(\.id)).isDisjoint(with: created.map(\.id)))
+    XCTAssertEqual(
+      destination.items.filter { created.map(\.id).contains($0.id) }.map(\.name),
+      ["First", "Second", "Third"]
+    )
+  }
+
+  func testSeededFileActionsDeleteMultipleCreatedFoldersAndRetryOneFailure() async throws {
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
+    await runtime.session.restore()
+
+    let first = try await runtime.createFolder(name: "First", parentID: .root)
+    let retry = try await runtime.createFolder(name: "Retry", parentID: .root)
+    let third = try await runtime.createFolder(name: "Third", parentID: .root)
+    XCTAssertEqual(
+      [first.id.rawValue, retry.id.rawValue, third.id.rawValue],
+      [415, HarnessSeededAPI.bulkDeleteFailureFolderID, 417]
+    )
+
+    try await runtime.deleteFile(fileID: first.id)
+    do {
+      try await runtime.deleteFile(fileID: retry.id)
+      XCTFail("expected the first delete of the second created folder to fail")
+    } catch {
+      XCTAssertEqual(error as? PutioRuntimeError, .transient)
+    }
+    try await runtime.deleteFile(fileID: third.id)
+
+    var root = try await runtime.listFiles(parentID: .root)
+    XCTAssertEqual(root.items.filter { $0.id.rawValue >= 415 }.map(\.id), [retry.id])
+
+    try await runtime.deleteFile(fileID: retry.id)
+    root = try await runtime.listFiles(parentID: .root)
+    XCTAssertFalse(root.items.contains { $0.id == retry.id })
+  }
+
   func testCancellingSeededRenameDoesNotWaitForDelayedFixture() async throws {
     let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
     await runtime.session.restore()

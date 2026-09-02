@@ -68,15 +68,30 @@ final class PutioFolderRefreshRequests {
 }
 
 struct PutioMovePickerPolicy: Sendable {
-  let item: PutioFileItem
+  let items: [PutioFileItem]
+
+  init(item: PutioFileItem) {
+    items = [item]
+  }
+
+  init(items: [PutioFileItem]) {
+    self.items = items
+  }
 
   func canMove(to destination: PutioFolderRoute) -> Bool {
-    destination.id != item.parentID && destination.id != item.id
+    !items.isEmpty
+      && items.allSatisfy { item in
+        destination.id != item.parentID
+          && !(item.kind == .folder && destination.id == item.id)
+      }
   }
 
   func folders(in contents: PutioFolderContents) -> [PutioFileItem] {
-    contents.items.filter { candidate in
-      candidate.kind == .folder && candidate.id != item.id
+    let selectedFolderIDs = Set(
+      items.lazy.filter { $0.kind == .folder }.map(\.id)
+    )
+    return contents.items.filter { candidate in
+      candidate.kind == .folder && !selectedFolderIDs.contains(candidate.id)
     }
   }
 }

@@ -636,8 +636,8 @@ public struct SimulatorHarness {
             resultBundle: platformDirectory.appending(path: ".file-actions.xcresult"),
             attachmentName: BrowserJourneyContract.fileActionsAttachmentName,
             artifactDirectory: platformDirectory,
-            defaultExecutionTimeAllowance: 90,
-            maximumExecutionTimeAllowance: 90
+            defaultExecutionTimeAllowance: 180,
+            maximumExecutionTimeAllowance: 180
           )
         else {
           throw HarnessFailure("file-actions preflight did not produce its screenshot")

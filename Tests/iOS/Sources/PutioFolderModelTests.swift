@@ -177,6 +177,32 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(policy.canMove(to: PutioFolderRoute(id: eligible.id, title: eligible.name)))
   }
 
+  func testBulkMovePickerExcludesEverySelectedFolderAndCurrentParent() {
+    let firstFolder = BrowserTestFixtures.item(
+      id: 7, parentID: 42, name: "First", kind: .folder)
+    let selectedFile = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Episode.mkv")
+    let secondFolder = BrowserTestFixtures.item(
+      id: 9, parentID: 42, name: "Second", kind: .folder)
+    let eligible = BrowserTestFixtures.item(
+      id: 10, parentID: 42, name: "Destination", kind: .folder)
+    let policy = PutioMovePickerPolicy(items: [firstFolder, selectedFile, secondFolder])
+
+    XCTAssertEqual(
+      policy.folders(
+        in: BrowserTestFixtures.contents(
+          items: [firstFolder, selectedFile, secondFolder, eligible]
+        )
+      ),
+      [eligible]
+    )
+    XCTAssertFalse(
+      policy.canMove(to: PutioFolderRoute(id: PutioFileID(rawValue: 42), title: "Current")))
+    XCTAssertFalse(policy.canMove(to: PutioFolderRoute(id: firstFolder.id, title: "First")))
+    XCTAssertFalse(policy.canMove(to: PutioFolderRoute(id: secondFolder.id, title: "Second")))
+    XCTAssertTrue(policy.canMove(to: PutioFolderRoute(id: eligible.id, title: "Destination")))
+    XCTAssertFalse(PutioMovePickerPolicy(items: []).canMove(to: .root))
+  }
+
   func testInitialLoadRunsOnceAndUsesStableFolderID() async {
     let loader = ControlledFolderLoader()
     let loaded = BrowserTestFixtures.contents(
@@ -1105,6 +1131,7 @@ final class PutioFolderModelTests: XCTestCase {
     let caller = Task { await model.move([first, second], to: destination) }
     await mutations.waitForRequestCount(1)
     caller.cancel()
+    let rejoin = Task { await model.waitForActiveAction() }
     await Task.yield()
 
     XCTAssertEqual(
@@ -1120,7 +1147,7 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(secondRequestedID, second.id)
     XCTAssertEqual(secondDestinationID, destination.id)
     await mutations.fail(request: 1, with: PutioRuntimeError.notFound)
-    await model.waitForActiveAction()
+    await rejoin.value
     await caller.value
 
     XCTAssertEqual(
