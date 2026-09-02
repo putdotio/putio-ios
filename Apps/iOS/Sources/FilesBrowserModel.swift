@@ -276,6 +276,11 @@ struct PutioBulkFileOutcome: Equatable, Sendable {
   var completedCount: Int {
     succeeded.count + failures.count
   }
+
+  func retryableItems(in currentItems: [PutioFileItem]) -> [PutioFileItem] {
+    let currentItemsByID = Dictionary(uniqueKeysWithValues: currentItems.map { ($0.id, $0) })
+    return failures.compactMap { currentItemsByID[$0.item.id] }
+  }
 }
 
 @MainActor

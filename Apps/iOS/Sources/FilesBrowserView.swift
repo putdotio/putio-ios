@@ -150,7 +150,7 @@ struct PutioFolderScreen: View {
     .navigationBarBackButtonHidden(fileActionPending)
     .putioContentBackground()
     .toolbar {
-      if model.supportsActions, !currentItems.isEmpty {
+      if model.supportsActions, !currentItems.isEmpty || isEditing {
         ToolbarItemGroup(placement: .primaryAction) {
           if !isEditing {
             Button("New Folder") {
@@ -612,7 +612,7 @@ struct PutioFolderScreen: View {
   }
 
   private var isEditing: Bool {
-    editMode.isEditing
+    editMode == .active
   }
 
   private var selectedItems: [PutioFileItem] {
@@ -728,8 +728,13 @@ struct PutioFolderScreen: View {
   }
 
   private func retryBulkFailures(_ outcome: PutioBulkFileOutcome) {
-    let items = outcome.failures.map(\.item)
+    let items = outcome.retryableItems(in: currentItems)
     model.clearBulkOutcome()
+    guard !items.isEmpty else {
+      selectedIDs = []
+      editMode = .inactive
+      return
+    }
     switch outcome.action {
     case .delete:
       actionRequest = .bulkDelete(items)

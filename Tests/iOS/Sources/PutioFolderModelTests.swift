@@ -177,6 +177,22 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(policy.canMove(to: PutioFolderRoute(id: eligible.id, title: eligible.name)))
   }
 
+  func testBulkOutcomeRetriesOnlyFailuresStillPresentInTheAuthoritativeFolder() {
+    let stale = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Stale.mkv")
+    let current = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Current.mkv")
+    let refreshed = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Refreshed.mkv")
+    let outcome = PutioBulkFileOutcome(
+      action: .delete,
+      succeeded: [],
+      failures: [
+        PutioBulkFileItemFailure(item: stale, error: .transient, presentation: nil),
+        PutioBulkFileItemFailure(item: current, error: .transient, presentation: nil),
+      ]
+    )
+
+    XCTAssertEqual(outcome.retryableItems(in: [refreshed]), [refreshed])
+  }
+
   func testBulkMovePickerExcludesEverySelectedFolderAndCurrentParent() {
     let firstFolder = BrowserTestFixtures.item(
       id: 7, parentID: 42, name: "First", kind: .folder)
