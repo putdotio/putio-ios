@@ -34,7 +34,15 @@ Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` 
 
 `screenshot` and `record` accept `--scenario signed-out|gallery|signed-in`. The `gallery` scenario launches the iOS or tvOS component gallery. The iOS-only `signed-in` scenario uses a deterministic in-process API, restores a session, bootstraps the account screen, and signs out after a few seconds. Other commands and unsupported platforms reject these scenarios.
 
-`journey --platform ios --scenario files-browser` proves the runnable alpha loop with real accessibility input. Two unrecorded 1/1 preflights prove the unsupported PDF row is visible but not actionable and that a final playback position resolves again after reopening the video. The recorded 1/1 XCUITest then signs in through the real session transition using a deterministic OAuth callback, terminates and relaunches the app to prove Keychain restoration, browses root folder `0` and folder `410`, and opens video `411`. The first MP4 conversion start fails transiently and must reach the retryable error state. Retry starts conversion, observes queued and converting states, completes, resolves the SDK-owned playback source again, and loads valid HLS through the harness's process-local loopback server until `AVPlayerItem` reports `readyToPlay`. The test then dismisses playback, returns to root with the native Back control, opens Account, and signs out. HTTP API responses and OAuth input are deterministic fixtures; the session store, SDK conversion and playback-source resolution, app UI, AVFoundation readiness, navigation, and sign-out are real. AVFoundation does not use the fixture `URLSession`; the typed harness owns the separate loopback transport for the built HLS files.
+`journey --platform ios --scenario files-browser` proves the runnable alpha loop with real accessibility input. Three unrecorded `1/1` preflights cover:
+
+- File actions: create, optimistic rename, delayed failure rollback, retry, neutral removal, and a meaningful `runtime-file-actions.png` screenshot.
+- Unsupported files: the PDF row remains visible but is not actionable.
+- Resume persistence: a final playback position resolves again after reopening the video.
+
+The recorded `1/1` XCUITest signs in through the real session transition using a deterministic OAuth callback, terminates and relaunches the app to prove Keychain restoration, browses root folder `0` and folder `410`, and opens video `411`. The first MP4 conversion start fails transiently and reaches the retryable error state. Retry starts conversion, observes queued and converting states, completes, resolves the SDK-owned playback source again, and loads valid HLS through the process-local loopback server until `AVPlayerItem` reports `readyToPlay`. The test dismisses playback, returns to root with the native Back control, opens Account, and signs out.
+
+HTTP API responses and OAuth input are deterministic fixtures. The session store, SDK conversion and playback-source resolution, app UI, AVFoundation readiness, navigation, and sign-out are real. AVFoundation uses the harness-owned loopback transport for built HLS files, not the fixture `URLSession`.
 
 `test --platform <ios|tvos>` runs snapshot suites on an ephemeral simulator via `xcodebuild test`. iOS runs the unhosted `PutioSnapshotTests` component gallery and the app-hosted `PutioFeatureTests`; tvOS runs `PutioTVSnapshotTests`. Baselines are committed under `Tests/ComponentSnapshots/__Snapshots__/<platform>/`; comparison tolerates small antialiasing drift between Simulator runtimes. Liquid Glass cannot be rasterized off-screen, so the suite renders glass surfaces with their bordered/material fallbacks (`PUTIO_SNAPSHOT_RASTER`); review the real glass appearance through the gallery captures. After an intentional visual change run `test --platform <platform> --snapshots record`, which records the baselines and re-asserts against what it wrote, then review and commit the image diff. `mise run verify` runs both platforms' suites.
 
@@ -65,6 +73,7 @@ The runtime-proof journey applies the same clean-source and pinned-revision chec
 
 ```text
 build/proof/<run-id>/ios/
+├── runtime-file-actions.png
 ├── runtime-playback.png
 ├── runtime-sign-in.png
 ├── runtime-signed-out.png
@@ -73,7 +82,7 @@ build/proof/<run-id>/ios/
 └── manifest.json
 ```
 
-The journey requires exactly `1/1` passing UI test, three meaningful screenshots, and different sign-in and playback frames. One `simctl recordVideo` stream starts before XCTest and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 30 seconds and removes the raw recording and intermediate Xcode result bundle after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
+The journey requires each preflight and the recorded UI test to pass exactly `1/1`. It requires four meaningful screenshots, including the file-actions proof, and different sign-in and playback frames. One `simctl recordVideo` stream starts before the recorded test and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 30 seconds and removes raw/intermediate capture files after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
 
 Capture never uploads implicitly. Publish one reviewed artifact only after a pull request exists:
 

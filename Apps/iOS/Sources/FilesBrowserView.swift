@@ -8,6 +8,7 @@ typealias PutioRootLoaded = @MainActor @Sendable () -> Void
 @MainActor
 struct FilesBrowserView: View {
   private let load: PutioFolderLoad
+  private let actions: PutioFileActions?
   private let onFileSelected: PutioFileSelection
   private let onRootLoaded: PutioRootLoaded
   private let onReturnToRoot: @MainActor @Sendable () -> Void
@@ -24,6 +25,7 @@ struct FilesBrowserView: View {
     load = { folderID in
       try await runtime.listFiles(parentID: folderID)
     }
+    actions = PutioFileActions(runtime: runtime)
     self.onFileSelected = onFileSelected
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
@@ -32,12 +34,14 @@ struct FilesBrowserView: View {
 
   init(
     load: @escaping PutioFolderLoad,
+    actions: PutioFileActions? = nil,
     onFileSelected: @escaping PutioFileSelection,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests()
   ) {
     self.load = load
+    self.actions = actions
     self.onFileSelected = onFileSelected
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
@@ -49,6 +53,7 @@ struct FilesBrowserView: View {
       PutioFolderScreen(
         route: .root,
         load: load,
+        actions: actions,
         onLoaded: onRootLoaded,
         refreshRequests: refreshRequests,
         onFileSelected: onFileSelected
@@ -57,6 +62,7 @@ struct FilesBrowserView: View {
         PutioFolderScreen(
           route: route,
           load: load,
+          actions: actions,
           refreshRequests: refreshRequests,
           onFileSelected: onFileSelected
         )
@@ -78,6 +84,12 @@ struct PutioFolderScreen: View {
   @State private var retryRequest: RetryRequest?
   @State private var retrySequence: UInt64 = 0
   @State private var reportedLoaded = false
+  @State private var editor: FileEditor?
+  @State private var editorName = ""
+  @State private var pendingDeletion: PutioFileItem?
+  @State private var actionRequest: FileActionRequest?
+  @State private var startedActionRequest: FileActionRequest?
+  @State private var toast: PutioToast?
   private let relativeDateReference: Date?
   private let locale: Locale
   private let onLoaded: @MainActor @Sendable () -> Void
@@ -87,6 +99,7 @@ struct PutioFolderScreen: View {
   init(
     route: PutioFolderRoute,
     load: @escaping PutioFolderLoad,
+    actions: PutioFileActions? = nil,
     initialContents: PutioFolderContents? = nil,
     relativeTo relativeDateReference: Date? = nil,
     locale: Locale = .current,
@@ -99,6 +112,7 @@ struct PutioFolderScreen: View {
       initialValue: PutioFolderModel(
         folderID: route.id,
         load: load,
+        actions: actions,
         initialContents: initialContents
       )
     )
@@ -127,13 +141,78 @@ struct PutioFolderScreen: View {
       }
     }
     .navigationTitle(route.title)
+    .navigationBarBackButtonHidden(fileActionPending)
     .putioContentBackground()
+    .toolbar {
+      if model.supportsActions {
+        ToolbarItem(placement: .primaryAction) {
+          Button("New Folder") {
+            editorName = ""
+            editor = .createFolder
+          }
+          .disabled(!model.canStartAction || actionRequest != nil)
+          .accessibilityIdentifier("files.new-folder")
+        }
+      }
+    }
+    .sheet(isPresented: editorPresented) {
+      NavigationStack {
+        Form {
+          TextField("Name", text: $editorName)
+            .accessibilityIdentifier("files.action-name")
+        }
+        .navigationTitle(editorTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+          ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel", role: .cancel) {
+              editor = nil
+            }
+          }
+          ToolbarItem(placement: .confirmationAction) {
+            Button(editorSubmitTitle) {
+              submitEditor()
+            }
+            .disabled(!editorNameIsValid)
+            .accessibilityIdentifier("files.action-submit")
+          }
+        }
+      }
+      .presentationDetents([.height(220)])
+    }
+    .confirmationDialog(
+      deleteConfirmationTitle,
+      isPresented: deleteConfirmationPresented,
+      titleVisibility: .visible
+    ) {
+      Button(deleteActionTitle, role: .destructive) {
+        guard let item = pendingDeletion else { return }
+        actionRequest = .delete(item)
+        pendingDeletion = nil
+      }
+      .accessibilityIdentifier("files.delete-confirm")
+      Button("Cancel", role: .cancel) {
+        pendingDeletion = nil
+      }
+    } message: {
+      Text(deleteConfirmationMessage)
+    }
+    .putioToast($toast)
     .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
     .task(id: route.id) {
       await model.loadIfNeeded()
     }
     .task(id: retryRequest) {
       await runRetryRequest()
+    }
+    .task(id: actionRequest) {
+      await runActionRequest()
+    }
+    .task(id: toast) {
+      guard let presentedToast = toast else { return }
+      try? await Task.sleep(for: .seconds(3))
+      guard !Task.isCancelled, toast == presentedToast else { return }
+      toast = nil
     }
     .task(id: refreshRequests.sequence(for: route.id)) {
       guard refreshRequests.sequence(for: route.id) != nil else { return }
@@ -207,24 +286,65 @@ struct PutioFolderScreen: View {
   @ViewBuilder
   private func row(_ presentation: PutioBrowserItemPresentation) -> some View {
     if let folderRoute = presentation.folderRoute {
-      NavigationLink(value: folderRoute) {
-        PutioFileRow(presentation.row, showsFolderDisclosure: false)
-      }
-      .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
+      fileActions(
+        for: presentation.item,
+        content: NavigationLink(value: folderRoute) {
+          PutioFileRow(presentation.row, showsFolderDisclosure: false)
+        }
+        .disabled(fileActionPending)
+        .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
+      )
     } else if let fileRoute = presentation.fileRoute {
       if fileRoute.videoPlaybackRoute != nil {
-        Button {
-          onFileSelected(fileRoute)
-        } label: {
-          PutioFileRow(presentation.row)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
-        .accessibilityValue(Text(videoAccessibilityValue(for: presentation.item)))
-      } else {
-        PutioFileRow(presentation.row)
+        fileActions(
+          for: presentation.item,
+          content: Button {
+            onFileSelected(fileRoute)
+          } label: {
+            PutioFileRow(presentation.row)
+          }
+          .buttonStyle(.plain)
+          .disabled(fileActionPending)
           .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
+          .accessibilityValue(Text(videoAccessibilityValue(for: presentation.item)))
+        )
+      } else {
+        fileActions(
+          for: presentation.item,
+          content: PutioFileRow(presentation.row)
+            .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
+        )
       }
+    }
+  }
+
+  private func fileActions<Content: View>(
+    for item: PutioFileItem,
+    content: Content
+  ) -> some View {
+    content
+      .contextMenu {
+        actionButtons(for: item)
+      }
+      .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+        actionButtons(for: item)
+      }
+  }
+
+  @ViewBuilder
+  private func actionButtons(for item: PutioFileItem) -> some View {
+    if model.supportsActions {
+      Button("Rename") {
+        editorName = item.name
+        editor = .rename(item)
+      }
+      .disabled(!model.canStartAction || actionRequest != nil)
+      .accessibilityIdentifier("files.rename.\(item.id.rawValue)")
+      Button(deleteActionTitle, role: .destructive) {
+        pendingDeletion = item
+      }
+      .disabled(!model.canStartAction || actionRequest != nil)
+      .accessibilityIdentifier("files.delete.\(item.id.rawValue)")
     }
   }
 
@@ -276,6 +396,124 @@ struct PutioFolderScreen: View {
     retryRequest = nil
   }
 
+  private var editorPresented: Binding<Bool> {
+    Binding(
+      get: { editor != nil },
+      set: { isPresented in
+        if !isPresented { editor = nil }
+      }
+    )
+  }
+
+  private var deleteConfirmationPresented: Binding<Bool> {
+    Binding(
+      get: { pendingDeletion != nil },
+      set: { isPresented in
+        if !isPresented { pendingDeletion = nil }
+      }
+    )
+  }
+
+  private var editorTitle: String {
+    switch editor {
+    case .createFolder: "New Folder"
+    case .rename: "Rename Item"
+    case nil: "Edit Item"
+    }
+  }
+
+  private var editorSubmitTitle: String {
+    switch editor {
+    case .createFolder: "Create"
+    case .rename: "Rename"
+    case nil: "Save"
+    }
+  }
+
+  private var editorNameIsValid: Bool {
+    let name = editorName.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !name.isEmpty else { return false }
+    guard case .rename(let item) = editor else { return true }
+    return name != item.name
+  }
+
+  private var deleteActionTitle: String {
+    "Remove"
+  }
+
+  private var deleteConfirmationTitle: String {
+    guard let item = pendingDeletion else { return deleteActionTitle }
+    return "\(deleteActionTitle) “\(item.name)”?"
+  }
+
+  private var deleteConfirmationMessage: String {
+    "put.io will apply your current Trash setting."
+  }
+
+  private var fileActionPending: Bool {
+    actionRequest != nil || model.activeAction != nil
+  }
+
+  private func submitEditor() {
+    guard editorNameIsValid, let editor else { return }
+    switch editor {
+    case .createFolder:
+      actionRequest = .createFolder(editorName)
+    case .rename(let item):
+      actionRequest = .rename(item, editorName)
+    }
+    self.editor = nil
+  }
+
+  private func runActionRequest() async {
+    guard let request = actionRequest else { return }
+    // `.task(id:)` re-runs when the screen reappears mid-mutation; rejoin
+    // the model-owned mutation instead of starting a duplicate.
+    if startedActionRequest == request {
+      await model.waitForActiveAction()
+    } else {
+      startedActionRequest = request
+      switch request {
+      case .createFolder(let name):
+        await model.createFolder(name: name)
+      case .rename(let item, let name):
+        await model.rename(item, to: name)
+      case .delete(let item):
+        await model.delete(item)
+      }
+    }
+    guard actionRequest == request else { return }
+    actionRequest = nil
+    startedActionRequest = nil
+    presentActionOutcome()
+  }
+
+  private func presentActionOutcome() {
+    guard let outcome = model.actionOutcome else { return }
+    switch outcome {
+    case .succeeded(let action):
+      toast = successToast(for: action)
+    case .failed(_, let failure):
+      toast = PutioToast(variant: .danger, title: failure.title, message: failure.message)
+    }
+    model.clearActionOutcome()
+  }
+
+  private func successToast(for action: PutioFileAction) -> PutioToast {
+    switch action {
+    case .createFolder(let name):
+      PutioToast(variant: .success, title: "Folder created", message: name)
+    case .rename(_, _, let newName):
+      PutioToast(variant: .success, title: "Item renamed", message: newName)
+    case .delete(_, let name):
+      PutioToast(
+        variant: .success,
+        title: "Item removed",
+        message: name
+      )
+    }
+  }
+
   private enum RetryKind: Equatable {
     case load
     case refresh
@@ -284,5 +522,16 @@ struct PutioFolderScreen: View {
   private struct RetryRequest: Equatable {
     let id: UInt64
     let kind: RetryKind
+  }
+
+  private enum FileEditor: Equatable {
+    case createFolder
+    case rename(PutioFileItem)
+  }
+
+  private enum FileActionRequest: Equatable {
+    case createFolder(String)
+    case rename(PutioFileItem, String)
+    case delete(PutioFileItem)
   }
 }

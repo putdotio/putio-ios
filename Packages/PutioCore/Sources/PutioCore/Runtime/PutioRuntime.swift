@@ -39,6 +39,25 @@ public final class PutioRuntime {
     )
   }
 
+  public func createFolder(name: String, parentID: PutioFileID) async throws -> PutioFileItem {
+    let folder = try await performAuthenticatedOperation {
+      try await sdk.createFolder(name: name, parentID: parentID.rawValue)
+    }
+    return snapshot(folder)
+  }
+
+  public func renameFile(fileID: PutioFileID, name: String) async throws {
+    _ = try await performAuthenticatedOperation {
+      try await sdk.renameFile(fileID: fileID.rawValue, name: name)
+    }
+  }
+
+  public func deleteFile(fileID: PutioFileID) async throws {
+    _ = try await performAuthenticatedOperation {
+      try await sdk.deleteFiles(fileIDs: [fileID.rawValue])
+    }
+  }
+
   public func findNextVideo(after fileID: PutioFileID) async throws -> PutioNextVideo? {
     let nextFile = try await performAuthenticatedOperation {
       try await sdk.findNextFileIfAvailable(fileID: fileID.rawValue, fileType: .video)

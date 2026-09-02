@@ -9,6 +9,7 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     super.setUp()
     HarnessSeededAPI.resetPlaybackPositions()
     HarnessSeededAPI.resetVideoConversion()
+    HarnessSeededAPI.resetFileActions()
   }
 
   func testRootFolderAndNestedFileFlow() async throws {
@@ -138,6 +139,70 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertEqual(source.startFromSeconds, 37)
     let finalSuccessor = try await runtime.findNextVideo(after: nextVideo.id)
     XCTAssertNil(finalSuccessor)
+  }
+
+  func testSeededFileActionsCreateRenameRetryAndDelete() async throws {
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
+    await runtime.session.restore()
+
+    let created = try await runtime.createFolder(name: "Watch Later", parentID: .root)
+    XCTAssertEqual(created.id, PutioFileID(rawValue: 415))
+    XCTAssertEqual(created.name, "Watch Later")
+    XCTAssertEqual(created.kind, .folder)
+    var root = try await runtime.listFiles(parentID: .root)
+    XCTAssertEqual(root.items.first { $0.id == created.id }?.name, "Watch Later")
+
+    do {
+      try await runtime.renameFile(fileID: created.id, name: "Weekend")
+      XCTFail("expected the first seeded rename to fail")
+    } catch {
+      XCTAssertEqual(error as? PutioRuntimeError, .transient)
+    }
+    root = try await runtime.listFiles(parentID: .root)
+    XCTAssertEqual(root.items.first { $0.id == created.id }?.name, "Watch Later")
+
+    try await runtime.renameFile(fileID: created.id, name: "Weekend")
+    root = try await runtime.listFiles(parentID: .root)
+    XCTAssertEqual(root.items.first { $0.id == created.id }?.name, "Weekend")
+
+    try await runtime.deleteFile(fileID: created.id)
+    root = try await runtime.listFiles(parentID: .root)
+    XCTAssertFalse(root.items.contains { $0.id == created.id })
+  }
+
+  func testCancellingSeededRenameDoesNotWaitForDelayedFixture() async throws {
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
+    await runtime.session.restore()
+    let created = try await runtime.createFolder(name: "Watch Later", parentID: .root)
+    let clock = ContinuousClock()
+    let startedAt = clock.now
+    let rename = Task {
+      try await runtime.renameFile(fileID: created.id, name: "Weekend")
+    }
+
+    try await Task.sleep(for: .milliseconds(100))
+    rename.cancel()
+
+    do {
+      try await rename.value
+      XCTFail("expected the delayed rename to be cancelled")
+    } catch {
+      XCTAssertTrue(error is CancellationError, "unexpected cancellation error: \(error)")
+    }
+    XCTAssertLessThan(startedAt.duration(to: clock.now), .seconds(2))
+  }
+
+  func testCancelledHarnessDeliverySuppressesItsCallbacks() {
+    let gate = HarnessResponseDeliveryGate()
+    let generation = gate.begin()
+    var callbackCount = 0
+
+    gate.cancel()
+    gate.deliver(generation: generation) {
+      callbackCount += 1
+    }
+
+    XCTAssertEqual(callbackCount, 0)
   }
 
   private func completeSeededConversion(runtime: PutioRuntime, fileID: PutioFileID) async throws {

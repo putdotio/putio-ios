@@ -295,6 +295,9 @@ enum BrowserJourneyContract {
     "PutioUITests/FilesBrowserJourneyTests/testUnsupportedFileIsNotActionable"
   static let resumePersistenceTestIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen"
+  static let fileActionsTestIdentifier =
+    "PutioUITests/FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash"
+  static let fileActionsAttachmentName = "runtime-file-actions"
   static let attachmentNames = [
     "runtime-sign-in",
     "runtime-playback",

@@ -54,7 +54,8 @@ final class PutioSessionStoreTests: XCTestCase {
   private static let rejectedValidation = #"{"result": false}"#
   private static func accountInfo(
     rememberVideoTime: Bool,
-    suggestNextVideo: Bool = true
+    suggestNextVideo: Bool = true,
+    trashEnabled: Bool = true
   ) -> String {
     """
     {
@@ -76,7 +77,7 @@ final class PutioSessionStoreTests: XCTestCase {
           "next_episode": \(suggestNextVideo),
           "start_from": \(rememberVideoTime),
           "history_enabled": true,
-          "trash_enabled": true,
+          "trash_enabled": \(trashEnabled),
           "sort_by": "NAME_ASC",
           "show_optimistic_usage": false,
           "two_factor_enabled": false,
@@ -135,6 +136,7 @@ final class PutioSessionStoreTests: XCTestCase {
         email: "tests@example.com",
         suggestNextVideo: true,
         rememberVideoTime: true,
+        trashEnabled: true,
         storage: PutioAccountSnapshot.Storage(
           availableBytes: 10,
           totalBytes: 30,
@@ -158,6 +160,22 @@ final class PutioSessionStoreTests: XCTestCase {
       return XCTFail("expected signedIn, got \(store.state)")
     }
     XCTAssertFalse(account.rememberVideoTime)
+  }
+
+  func testRestoreMapsDisabledTrashSetting() async {
+    SessionMockURLProtocol.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    SessionMockURLProtocol.fixtures["GET /v2/account/info"] = (
+      200,
+      Self.accountInfo(rememberVideoTime: true, trashEnabled: false)
+    )
+    let (store, _) = makeStore(token: "stored-token")
+
+    await store.restore()
+
+    guard case .signedIn(let account) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertFalse(account.trashEnabled)
   }
 
   func testRestoreMapsDisabledNextVideoSetting() async {

@@ -18,6 +18,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
   public let email: String
   public let suggestNextVideo: Bool
   public let rememberVideoTime: Bool
+  public let trashEnabled: Bool
   public let storage: Storage
 
   public init(
@@ -26,6 +27,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     email: String,
     suggestNextVideo: Bool,
     rememberVideoTime: Bool,
+    trashEnabled: Bool,
     storage: Storage
   ) {
     self.id = id
@@ -33,6 +35,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     self.email = email
     self.suggestNextVideo = suggestNextVideo
     self.rememberVideoTime = rememberVideoTime
+    self.trashEnabled = trashEnabled
     self.storage = storage
   }
 }

@@ -1,18 +1,52 @@
 import Foundation
 
 #if DEBUG
+  final class HarnessResponseDeliveryGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var generation: UInt64 = 0
+
+    func begin() -> UInt64 {
+      lock.lock()
+      generation &+= 1
+      let activeGeneration = generation
+      lock.unlock()
+      return activeGeneration
+    }
+
+    func cancel() {
+      lock.lock()
+      generation &+= 1
+      lock.unlock()
+    }
+
+    func deliver(generation activeGeneration: UInt64, callbacks: () -> Void) {
+      lock.lock()
+      guard generation == activeGeneration else {
+        lock.unlock()
+        return
+      }
+      callbacks()
+      lock.unlock()
+    }
+  }
+
   // Deterministic in-process API for signed-in harness scenarios, mirroring
   // the legacy app's E2E mock approach. Anything outside the seeded session
   // and browser surface fails loudly with a named fixture gap.
-  final class HarnessSeededAPI: URLProtocol {
+  final class HarnessSeededAPI: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var isEnabled = false
     nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 589, 414: 37]
     nonisolated(unsafe) private static var conversionStarted = false
     nonisolated(unsafe) private static var conversionCompleted = false
     nonisolated(unsafe) private static var conversionStartAttempts = 0
     nonisolated(unsafe) private static var conversionStatusLoads = 0
+    nonisolated(unsafe) private static var actionFolders: [Int: String] = [:]
+    nonisolated(unsafe) private static var nextActionFolderID = 415
+    nonisolated(unsafe) private static var renameAttempts = 0
     private static let playbackPositionLock = NSLock()
     private static let conversionLock = NSLock()
+    private static let fileActionsLock = NSLock()
+    private let deliveryGate = HarnessResponseDeliveryGate()
 
     static let token = "putio-harness-session-token"
 
@@ -31,6 +65,14 @@ import Foundation
       conversionLock.unlock()
     }
 
+    static func resetFileActions() {
+      fileActionsLock.lock()
+      actionFolders = [:]
+      nextActionFolderID = 415
+      renameAttempts = 0
+      fileActionsLock.unlock()
+    }
+
     override class func canInit(with request: URLRequest) -> Bool {
       isEnabled && request.url?.host == "api.put.io"
     }
@@ -40,8 +82,11 @@ import Foundation
     }
 
     override func startLoading() {
+      let generation = deliveryGate.begin()
       guard let url = request.url else {
-        client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+        deliveryGate.deliver(generation: generation) {
+          self.client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+        }
         return
       }
       let (statusCode, body) = Self.fixture(for: request)
@@ -51,12 +96,24 @@ import Foundation
         httpVersion: nil,
         headerFields: ["Content-Type": "application/json"]
       )!
-      client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-      client?.urlProtocol(self, didLoad: Data(body.utf8))
-      client?.urlProtocolDidFinishLoading(self)
+      let deliverResponse: @Sendable () -> Void = { [weak self] in
+        self?.deliveryGate.deliver(generation: generation) {
+          guard let self else { return }
+          self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+          self.client?.urlProtocol(self, didLoad: Data(body.utf8))
+          self.client?.urlProtocolDidFinishLoading(self)
+        }
+      }
+      if statusCode == 503, url.path == "/v2/files/rename" {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
+      } else {
+        deliverResponse()
+      }
     }
 
-    override func stopLoading() {}
+    override func stopLoading() {
+      deliveryGate.cancel()
+    }
 
     private static func fixture(for request: URLRequest) -> (Int, String) {
       guard let url = request.url else {
@@ -78,6 +135,12 @@ import Foundation
         return (200, #"{"status":"OK"}"#)
       case "GET /v2/files/list":
         return filesListFixture(url: url)
+      case "POST /v2/files/create-folder":
+        return createFolder(request: request)
+      case "POST /v2/files/rename":
+        return renameFile(request: request)
+      case "POST /v2/files/delete":
+        return deleteFiles(request: request)
       case "GET /v2/files/411":
         return (
           200,
@@ -206,6 +269,112 @@ import Foundation
       return (200, #"{"status":"OK"}"#)
     }
 
+    private static func createFolder(request: URLRequest) -> (Int, String) {
+      guard
+        let payload = requestPayload(request),
+        let name = payload["name"] as? String,
+        !name.isEmpty,
+        let parentID = payload["parent_id"] as? Int,
+        parentID == 0
+      else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400,
+            type: "HARNESS_FOLDER_INPUT_REQUIRED",
+            message: "The create-folder fixture requires a root parent and name"
+          )
+        )
+      }
+
+      fileActionsLock.lock()
+      let id = nextActionFolderID
+      nextActionFolderID += 1
+      actionFolders[id] = name
+      fileActionsLock.unlock()
+      return (200, folderEnvelope(id: id, name: name))
+    }
+
+    private static func renameFile(request: URLRequest) -> (Int, String) {
+      guard
+        let payload = requestPayload(request),
+        let fileID = payload["file_id"] as? Int,
+        let name = payload["name"] as? String,
+        !name.isEmpty
+      else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400,
+            type: "HARNESS_RENAME_INPUT_REQUIRED",
+            message: "The rename fixture requires a file id and name"
+          )
+        )
+      }
+
+      fileActionsLock.lock()
+      guard actionFolders[fileID] != nil else {
+        fileActionsLock.unlock()
+        return (
+          404,
+          fixtureError(
+            statusCode: 404,
+            type: "HARNESS_FILE_NOT_FOUND",
+            message: "The rename fixture only changes harness-created folders"
+          )
+        )
+      }
+      renameAttempts += 1
+      let attempt = renameAttempts
+      if attempt > 1 {
+        actionFolders[fileID] = name
+      }
+      fileActionsLock.unlock()
+      guard attempt > 1 else {
+        return (
+          503,
+          fixtureError(
+            statusCode: 503,
+            type: "HARNESS_TRANSIENT_RENAME_FAILURE",
+            message: "The first rename request fails for rollback proof"
+          )
+        )
+      }
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func deleteFiles(request: URLRequest) -> (Int, String) {
+      guard
+        let payload = requestPayload(request),
+        let rawFileIDs = payload["file_ids"] as? String,
+        let fileID = Int(rawFileIDs)
+      else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400,
+            type: "HARNESS_DELETE_INPUT_REQUIRED",
+            message: "The delete fixture requires one file id"
+          )
+        )
+      }
+
+      fileActionsLock.lock()
+      let removed = actionFolders.removeValue(forKey: fileID)
+      fileActionsLock.unlock()
+      guard removed != nil else {
+        return (
+          404,
+          fixtureError(
+            statusCode: 404,
+            type: "HARNESS_FILE_NOT_FOUND",
+            message: "The delete fixture only changes harness-created folders"
+          )
+        )
+      }
+      return (200, #"{"status":"OK"}"#)
+    }
+
     private static func startVideoConversion() -> (Int, String) {
       conversionLock.lock()
       defer { conversionLock.unlock() }
@@ -278,6 +447,11 @@ import Foundation
       return body
     }
 
+    private static func requestPayload(_ request: URLRequest) -> [String: Any]? {
+      guard let body = requestBodyData(request) else { return nil }
+      return try? JSONSerialization.jsonObject(with: body) as? [String: Any]
+    }
+
     private static let accountInfo = """
       {
         "info": {
@@ -314,50 +488,88 @@ import Foundation
       """
 
     private static var rootFiles: String {
-      """
-      {
-        "parent": {
-          "id": 0,
-          "name": "Your Files",
-          "file_type": "FOLDER",
-          "parent_id": 0,
-          "size": 0,
-          "created_at": "2026-08-01T10:00:00Z",
-          "updated_at": "2026-08-01T10:00:00Z"
-        },
-        "files": [
-          {
-            "id": 410,
-            "name": "Harness Folder",
+      fileActionsLock.lock()
+      let mutableFolders = actionFolders.sorted { $0.key < $1.key }
+      fileActionsLock.unlock()
+      let mutableFolderRows = mutableFolders.map { id, name in
+        folderObject(id: id, name: name)
+      }
+      let extraRows =
+        mutableFolderRows.isEmpty ? "" : ",\n" + mutableFolderRows.joined(separator: ",\n")
+      return """
+        {
+          "parent": {
+            "id": 0,
+            "name": "Your Files",
             "file_type": "FOLDER",
             "parent_id": 0,
             "size": 0,
-            "created_at": "2026-08-28T10:00:00Z",
-            "updated_at": "2026-08-29T10:00:00Z"
+            "created_at": "2026-08-01T10:00:00Z",
+            "updated_at": "2026-08-01T10:00:00Z"
           },
-          {
-            "id": 412,
-            "name": "Root Movie.mkv",
-            "file_type": "VIDEO",
-            "parent_id": 0,
-            "size": 734003200,
-            "created_at": "2026-08-28T10:00:00Z",
-            "updated_at": "2026-08-29T10:00:00Z",
-            "start_from": \(playbackPosition(fileID: 412))
-          },
-          {
-            "id": 413,
-            "name": "Document.pdf",
-            "file_type": "PDF",
-            "parent_id": 0,
-            "size": 1048576,
-            "created_at": "2026-08-28T10:00:00Z",
-            "updated_at": "2026-08-29T10:00:00Z"
-          }
-        ],
-        "total": 3
+          "files": [
+            {
+              "id": 410,
+              "name": "Harness Folder",
+              "file_type": "FOLDER",
+              "parent_id": 0,
+              "size": 0,
+              "created_at": "2026-08-28T10:00:00Z",
+              "updated_at": "2026-08-29T10:00:00Z"
+            },
+            {
+              "id": 412,
+              "name": "Root Movie.mkv",
+              "file_type": "VIDEO",
+              "parent_id": 0,
+              "size": 734003200,
+              "created_at": "2026-08-28T10:00:00Z",
+              "updated_at": "2026-08-29T10:00:00Z",
+              "start_from": \(playbackPosition(fileID: 412))
+            },
+            {
+              "id": 413,
+              "name": "Document.pdf",
+              "file_type": "PDF",
+              "parent_id": 0,
+              "size": 1048576,
+              "created_at": "2026-08-28T10:00:00Z",
+              "updated_at": "2026-08-29T10:00:00Z"
+            }\(extraRows)
+          ],
+          "total": \(3 + mutableFolders.count)
+        }
+        """
+    }
+
+    private static func folderEnvelope(id: Int, name: String) -> String {
+      """
+      {
+        "file": \(folderObject(id: id, name: name))
       }
       """
+    }
+
+    private static func folderObject(id: Int, name: String) -> String {
+      """
+      {
+        "id": \(id),
+        "name": \(jsonString(name)),
+        "file_type": "FOLDER",
+        "parent_id": 0,
+        "size": 0,
+        "created_at": "2026-09-01T20:00:00Z",
+        "updated_at": "2026-09-01T20:00:00Z"
+      }
+      """
+    }
+
+    private static func jsonString(_ value: String) -> String {
+      guard
+        let data = try? JSONSerialization.data(withJSONObject: value, options: .fragmentsAllowed),
+        let encoded = String(data: data, encoding: .utf8)
+      else { return "\"\"" }
+      return encoded
     }
 
     private static var nestedFiles: String {

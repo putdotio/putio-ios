@@ -61,6 +61,11 @@ import Testing
       == "PutioUITests/FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen"
   )
   #expect(
+    BrowserJourneyContract.fileActionsTestIdentifier
+      == "PutioUITests/FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash"
+  )
+  #expect(BrowserJourneyContract.fileActionsAttachmentName == "runtime-file-actions")
+  #expect(
     BrowserJourneyContract.attachmentNames
       == ["runtime-sign-in", "runtime-playback", "runtime-signed-out"]
   )

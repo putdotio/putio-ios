@@ -262,6 +262,135 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
+  func testFileActionsCreateRenameRollbackRetryAndTrash() {
+    app.launch()
+
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
+    signIn.tap()
+
+    let root = element(identifier: "files.screen.0")
+    XCTAssertTrue(root.waitForExistence(timeout: 10), "signed-in root browser never appeared")
+    let newFolder = app.buttons["files.new-folder"]
+    XCTAssertTrue(
+      waitUntilHittable(newFolder, timeout: 5),
+      "new-folder action is not tappable"
+    )
+    newFolder.tap()
+
+    XCTAssertTrue(app.staticTexts["New Folder"].waitForExistence(timeout: 5))
+    let createNameField = element(identifier: "files.action-name")
+    XCTAssertTrue(
+      createNameField.waitForExistence(timeout: 5),
+      "new-folder name field never appeared"
+    )
+    createNameField.tap()
+    createNameField.typeText("Watch Later")
+    XCTAssertEqual(createNameField.value as? String, "Watch Later")
+    let create = app.buttons["Create"]
+    XCTAssertTrue(
+      waitUntilHittable(create, timeout: 5),
+      "create-folder action is not tappable"
+    )
+    create.tap()
+
+    let createdFolder = element(identifier: "files.item.415")
+    XCTAssertTrue(createdFolder.waitForExistence(timeout: 5), "created folder never appeared")
+    XCTAssertEqual(createdFolder.label, "Watch Later")
+
+    openContextMenu(for: createdFolder, actionLabel: "Rename").tap()
+    XCTAssertTrue(app.staticTexts["Rename Item"].waitForExistence(timeout: 5))
+    let firstRenameField = element(identifier: "files.action-name")
+    XCTAssertTrue(firstRenameField.waitForExistence(timeout: 5), "rename name field never appeared")
+    replaceText(in: firstRenameField, currentValue: "Watch Later", with: "Weekend")
+    XCTAssertEqual(firstRenameField.value as? String, "Weekend")
+    let firstRename = app.buttons["Rename"]
+    XCTAssertTrue(
+      waitUntilHittable(firstRename, timeout: 5),
+      "rename action is not tappable"
+    )
+    firstRename.tap()
+
+    let createdFolderButton = app.buttons["files.item.415"]
+    XCTAssertTrue(
+      createdFolderButton.waitForExistence(timeout: 3),
+      "folder control disappeared while rename was pending"
+    )
+    let disabled = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "enabled == false"),
+      object: createdFolderButton
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [disabled], timeout: 3),
+      .completed,
+      "folder navigation did not become disabled while rename was pending"
+    )
+    XCTAssertEqual(createdFolderButton.label, "Weekend")
+    let createdFolderScreen = element(identifier: "files.screen.415")
+    XCTAssertFalse(
+      createdFolderScreen.waitForExistence(timeout: 1),
+      "folder navigation remained enabled while rename was pending"
+    )
+
+    let renameFailure = app.staticTexts["Could not rename item"]
+    XCTAssertTrue(renameFailure.waitForExistence(timeout: 5), "rename failure was not surfaced")
+    XCTAssertTrue(
+      createdFolderButton.waitForExistence(timeout: 5) && createdFolderButton.isHittable,
+      "folder navigation did not re-enable after rename failure"
+    )
+    XCTAssertEqual(createdFolderButton.label, "Watch Later", "failed rename did not roll back")
+    XCTAssertTrue(
+      renameFailure.waitForNonExistence(timeout: 5), "rename failure toast did not clear")
+
+    openContextMenu(for: createdFolder, actionLabel: "Rename").tap()
+    XCTAssertTrue(app.staticTexts["Rename Item"].waitForExistence(timeout: 5))
+    let retryRenameField = element(identifier: "files.action-name")
+    XCTAssertTrue(
+      retryRenameField.waitForExistence(timeout: 5), "retry rename field never appeared")
+    replaceText(in: retryRenameField, currentValue: "Watch Later", with: "Weekend")
+    XCTAssertEqual(retryRenameField.value as? String, "Weekend")
+    let retryRename = app.buttons["Rename"]
+    XCTAssertTrue(
+      waitUntilHittable(retryRename, timeout: 5),
+      "retry rename action is not tappable"
+    )
+    retryRename.tap()
+
+    let renamedFolder = element(identifier: "files.item.415")
+    let renamed = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label == %@", "Weekend"),
+      object: renamedFolder
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [renamed], timeout: 5),
+      .completed,
+      "rename retry did not update the folder"
+    )
+
+    let delete = openContextMenu(
+      for: renamedFolder,
+      actionLabel: "Remove"
+    )
+    addScreenshot(named: "runtime-file-actions")
+    delete.tap()
+    let confirmDelete = app.buttons["files.delete-confirm"].firstMatch
+    XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5), "remove confirmation never appeared")
+    XCTAssertEqual(confirmDelete.label, "Remove")
+    XCTAssertTrue(app.staticTexts["put.io will apply your current Trash setting."].exists)
+    confirmDelete.tap()
+    XCTAssertTrue(
+      app.staticTexts["Item removed"].waitForExistence(timeout: 5),
+      "neutral remove success was not surfaced"
+    )
+    XCTAssertTrue(renamedFolder.waitForNonExistence(timeout: 5), "removed folder remained visible")
+
+    app.buttons["Account"].tap()
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+  }
+
   private func reportedPlaybackSeconds(from value: String?) -> Int? {
     let prefix = "id=411;seconds="
     guard let value, value.hasPrefix(prefix) else {
@@ -272,6 +401,35 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private func element(identifier: String) -> XCUIElement {
     app.descendants(matching: .any)[identifier]
+  }
+
+  private func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "hittable == true"),
+      object: element
+    )
+    return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+  }
+
+  private func openContextMenu(
+    for row: XCUIElement,
+    actionLabel: String
+  ) -> XCUIElement {
+    XCTAssertTrue(row.isHittable, "file row is not available for its context menu")
+    row.press(forDuration: 1)
+    let action = app.buttons[actionLabel]
+    XCTAssertTrue(action.waitForExistence(timeout: 5), "file context-menu action never appeared")
+    return action
+  }
+
+  private func replaceText(
+    in field: XCUIElement,
+    currentValue: String,
+    with replacement: String
+  ) {
+    field.tap()
+    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentValue.count))
+    field.typeText(replacement)
   }
 
   private func addScreenshot(named name: String) {
