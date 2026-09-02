@@ -330,7 +330,7 @@ struct PutioFolderScreen: View {
     }
     .task(id: refreshRequests.sequence(for: route.id)) {
       guard refreshRequests.sequence(for: route.id) != nil else { return }
-      await model.refresh()
+      _ = await model.refresh()
     }
     .onChange(of: model.state, initial: true) { _, state in
       if case .loaded(let contents) = state, !fileActionPending {
@@ -365,7 +365,7 @@ struct PutioFolderScreen: View {
         .padding(PutioTheme.Spacing.space4)
       }
       .refreshable {
-        await model.refresh()
+        _ = await model.refresh()
       }
       .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
     } else {
@@ -402,7 +402,7 @@ struct PutioFolderScreen: View {
       }
       .listStyle(.plain)
       .refreshable {
-        await model.refresh()
+        _ = await model.refresh()
       }
       .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
     }
@@ -533,7 +533,7 @@ struct PutioFolderScreen: View {
         retryRequest = nil
         return
       }
-      await model.refresh()
+      _ = await model.refresh()
     }
     guard retryRequest == request else { return }
     retryRequest = nil
@@ -668,8 +668,7 @@ struct PutioFolderScreen: View {
       case .bulkMove(let items, let destination):
         await model.move(items, to: destination)
       case .bulkRetry(let outcome):
-        await model.refresh()
-        if model.refreshFailure == nil {
+        if await model.refresh() {
           let items = outcome.retryableItems(in: currentItems)
           model.clearBulkOutcome()
           if items.isEmpty {
@@ -683,6 +682,8 @@ struct PutioFolderScreen: View {
               await model.move(items, to: destination)
             }
           }
+        } else {
+          model.restoreBulkOutcome(outcome)
         }
       }
     }

@@ -376,7 +376,8 @@ final class PutioFolderModelTests: XCTestCase {
     await loader.waitForRequestCount(1)
     XCTAssertEqual(model.state, .loaded(original))
     await loader.fail(request: 0, with: PutioRuntimeError.rateLimited)
-    await failedRefresh.value
+    let failedRefreshSucceeded = await failedRefresh.value
+    XCTAssertFalse(failedRefreshSucceeded)
 
     XCTAssertEqual(model.state, .loaded(original))
     XCTAssertEqual(model.refreshFailure?.kind, .rateLimited)
@@ -386,7 +387,8 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(original))
     XCTAssertNil(model.refreshFailure)
     await loader.succeed(request: 1, with: refreshed)
-    await successfulRefresh.value
+    let successfulRefreshSucceeded = await successfulRefresh.value
+    XCTAssertTrue(successfulRefreshSucceeded)
 
     XCTAssertEqual(model.state, .loaded(refreshed))
     XCTAssertNil(model.refreshFailure)
@@ -456,7 +458,8 @@ final class PutioFolderModelTests: XCTestCase {
     let refreshTask = Task { await model.refresh() }
     await probe.waitUntilStarted()
     refreshTask.cancel()
-    await refreshTask.value
+    let refreshSucceeded = await refreshTask.value
+    XCTAssertFalse(refreshSucceeded)
 
     XCTAssertEqual(model.state, .loaded(original))
     XCTAssertNil(model.refreshFailure)
@@ -487,9 +490,9 @@ final class PutioFolderModelTests: XCTestCase {
     let second = Task { await model.refresh() }
     await loader.waitForRequestCount(2)
     await loader.succeed(request: 1, with: newest)
-    await second.value
+    _ = await second.value
     await loader.succeed(request: 0, with: stale)
-    await first.value
+    _ = await first.value
     XCTAssertEqual(model.state, .loaded(newest))
 
     let third = Task { await model.refresh() }
@@ -497,9 +500,9 @@ final class PutioFolderModelTests: XCTestCase {
     let fourth = Task { await model.refresh() }
     await loader.waitForRequestCount(4)
     await loader.succeed(request: 3, with: newestAgain)
-    await fourth.value
+    _ = await fourth.value
     await loader.fail(request: 2, with: PutioRuntimeError.transient)
-    await third.value
+    _ = await third.value
 
     XCTAssertEqual(model.state, .loaded(newestAgain))
     XCTAssertNil(model.refreshFailure)
@@ -524,9 +527,9 @@ final class PutioFolderModelTests: XCTestCase {
     let current = Task { await model.refresh() }
     await loader.waitForRequestCount(2)
     await loader.succeed(request: 1, with: newest)
-    await current.value
+    _ = await current.value
     await loader.fail(request: 0, with: CancellationError())
-    await stale.value
+    _ = await stale.value
 
     XCTAssertEqual(model.state, .loaded(newest))
     XCTAssertNil(model.refreshFailure)
@@ -653,7 +656,7 @@ final class PutioFolderModelTests: XCTestCase {
     await mutation.waitUntilStarted()
 
     await loader.succeed(request: 0, with: stale)
-    await refresh.value
+    _ = await refresh.value
     guard case .loaded(let optimistic) = model.state else {
       return XCTFail("expected loaded, got \(model.state)")
     }
@@ -1301,7 +1304,7 @@ final class PutioFolderModelTests: XCTestCase {
     let bulk = Task { await model.delete([first, second]) }
     await mutations.waitForRequestCount(1)
     await loader.succeed(request: 0, with: stale)
-    await staleRefresh.value
+    _ = await staleRefresh.value
     await model.refresh()
     await model.refresh()
     let queuedRequestCount = await loader.requestCount()
@@ -1430,7 +1433,7 @@ final class PutioFolderModelTests: XCTestCase {
     let rename = Task { await model.rename(item, to: "Renamed.mkv") }
     await mutation.waitUntilStarted()
     await loader.succeed(request: 0, with: stale)
-    await refresh.value
+    _ = await refresh.value
 
     await mutation.succeed()
     await rename.value

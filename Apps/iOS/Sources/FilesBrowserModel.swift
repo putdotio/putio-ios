@@ -334,20 +334,21 @@ final class PutioFolderModel {
     // re-entered. Starting a new request here supersedes that unwind via
     // the generation check, so a late restore cannot strand the spinner.
     guard case .loading = state else { return }
-    await performLoad(mode: .replace)
+    _ = await performLoad(mode: .replace)
   }
 
   func retry() async {
-    await performLoad(mode: .replace)
+    _ = await performLoad(mode: .replace)
   }
 
-  func refresh() async {
-    guard case .loaded = state else { return }
+  @discardableResult
+  func refresh() async -> Bool {
+    guard case .loaded = state else { return false }
     guard !mutationIsActive else {
       refreshRequestedWhileActionActive = true
-      return
+      return false
     }
-    await performLoad(mode: .refresh)
+    return await performLoad(mode: .refresh)
   }
 
   func createFolder(name: String) async {
@@ -463,6 +464,11 @@ final class PutioFolderModel {
 
   func clearBulkOutcome() {
     bulkOutcome = nil
+  }
+
+  func restoreBulkOutcome(_ outcome: PutioBulkFileOutcome) {
+    guard bulkOutcome == nil, !mutationIsActive else { return }
+    bulkOutcome = outcome
   }
 
   private func begin(_ action: PutioFileAction) {
@@ -628,11 +634,11 @@ final class PutioFolderModel {
     guard refreshRequestedWhileActionActive else { return }
     refreshRequestedWhileActionActive = false
     Task { @MainActor [weak self] in
-      await self?.refresh()
+      _ = await self?.refresh()
     }
   }
 
-  private func performLoad(mode: LoadMode) async {
+  private func performLoad(mode: LoadMode) async -> Bool {
     let previousState = state
     let previousRefreshFailure = refreshFailure
     generation += 1
@@ -656,21 +662,22 @@ final class PutioFolderModel {
       try Task.checkCancellation()
       let contents = try await load(folderID)
       try Task.checkCancellation()
-      guard requestGeneration == generation else { return }
+      guard requestGeneration == generation else { return false }
       state = .loaded(contents)
       refreshFailure = nil
+      return true
     } catch {
-      guard requestGeneration == generation else { return }
+      guard requestGeneration == generation else { return false }
       if Task.isCancelled {
         state = previousState
         refreshFailure = previousRefreshFailure
-        return
+        return false
       }
 
       guard let presentation = PutioBrowserErrorPresentation(error: error) else {
         state = previousState
         refreshFailure = nil
-        return
+        return false
       }
       switch mode {
       case .replace:
@@ -680,6 +687,7 @@ final class PutioFolderModel {
         state = previousState
         refreshFailure = presentation
       }
+      return false
     }
   }
 
