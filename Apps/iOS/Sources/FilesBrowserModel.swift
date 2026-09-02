@@ -216,6 +216,8 @@ final class PutioFolderModel {
   @ObservationIgnored private let load: PutioFolderLoad
   @ObservationIgnored private let actions: PutioFileActions?
   @ObservationIgnored private var generation: UInt64 = 0
+  @ObservationIgnored private var inFlightLoadGeneration: UInt64?
+  @ObservationIgnored private var actionTask: Task<Void, Never>?
   @ObservationIgnored private var refreshRequestedWhileActionActive = false
 
   init(
@@ -268,17 +270,10 @@ final class PutioFolderModel {
     let action = PutioFileAction.createFolder(name: name)
     begin(action)
 
-    do {
+    await run(action, rollback: contents) { [folderID] in
       let folder = try await actions.createFolder(name, folderID)
-      try Task.checkCancellation()
-      guard activeAction == action else { return }
-      state = .loaded(contents.appending(folder))
-      activeAction = nil
-      actionOutcome = .succeeded(action)
-    } catch {
-      settleFailure(action: action, error: error, rollback: contents)
+      return contents.appending(folder)
     }
-    await performQueuedRefreshIfNeeded()
   }
 
   func rename(_ item: PutioFileItem, to proposedName: String) async {
@@ -294,16 +289,10 @@ final class PutioFolderModel {
     begin(action)
     state = .loaded(contents.replacing(currentItem.renamed(to: name)))
 
-    do {
+    await run(action, rollback: contents) {
       try await actions.renameFile(currentItem.id, name)
-      try Task.checkCancellation()
-      guard activeAction == action else { return }
-      activeAction = nil
-      actionOutcome = .succeeded(action)
-    } catch {
-      settleFailure(action: action, error: error, rollback: contents)
+      return nil
     }
-    await performQueuedRefreshIfNeeded()
   }
 
   func delete(_ item: PutioFileItem) async {
@@ -313,16 +302,16 @@ final class PutioFolderModel {
     begin(action)
     state = .loaded(contents.removing(currentItem.id))
 
-    do {
+    await run(action, rollback: contents) {
       try await actions.deleteFile(currentItem.id)
-      try Task.checkCancellation()
-      guard activeAction == action else { return }
-      activeAction = nil
-      actionOutcome = .succeeded(action)
-    } catch {
-      settleFailure(action: action, error: error, rollback: contents)
+      return nil
     }
-    await performQueuedRefreshIfNeeded()
+  }
+
+  /// Suspends until the active mutation, if any, has settled. Callers whose
+  /// own task was cancelled mid-mutation use this to rejoin the outcome.
+  func waitForActiveAction() async {
+    await actionTask?.value
   }
 
   func clearActionOutcome() {
@@ -330,18 +319,51 @@ final class PutioFolderModel {
   }
 
   private func begin(_ action: PutioFileAction) {
+    // Superseding an in-flight refresh drops its response, so the server
+    // state it carried must be fetched again once this action settles.
+    if inFlightLoadGeneration == generation {
+      refreshRequestedWhileActionActive = true
+    }
     generation &+= 1
     activeAction = action
     actionOutcome = nil
   }
 
-  private func performQueuedRefreshIfNeeded() async {
+  // The mutation runs in a model-owned task: a screen that disappears
+  // (tab switch, pop) cancels its view task, but the server may already
+  // have applied the request, so the outcome must still be observed.
+  private func run(
+    _ action: PutioFileAction,
+    rollback: PutioFolderContents,
+    operation: @escaping @MainActor @Sendable () async throws -> PutioFolderContents?
+  ) async {
+    let task = Task { @MainActor [weak self] in
+      guard let self else { return }
+      do {
+        let updated = try await operation()
+        guard activeAction == action else { return }
+        if let updated {
+          state = .loaded(updated)
+        }
+        activeAction = nil
+        actionOutcome = .succeeded(action)
+      } catch {
+        settleFailure(action: action, error: error, rollback: rollback)
+      }
+      startQueuedRefreshIfNeeded()
+    }
+    actionTask = task
+    await task.value
+  }
+
+  // The refresh outlives the mutation call so the caller's UI lock releases
+  // as soon as the action settles, and a cancelled caller cannot abort it.
+  private func startQueuedRefreshIfNeeded() {
     guard refreshRequestedWhileActionActive else { return }
     refreshRequestedWhileActionActive = false
-    let refreshTask = Task { @MainActor [weak self] in
+    Task { @MainActor [weak self] in
       await self?.refresh()
     }
-    await refreshTask.value
   }
 
   private func performLoad(mode: LoadMode) async {
@@ -349,6 +371,12 @@ final class PutioFolderModel {
     let previousRefreshFailure = refreshFailure
     generation += 1
     let requestGeneration = generation
+    inFlightLoadGeneration = requestGeneration
+    defer {
+      if inFlightLoadGeneration == requestGeneration {
+        inFlightLoadGeneration = nil
+      }
+    }
 
     switch mode {
     case .replace:

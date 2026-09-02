@@ -88,6 +88,7 @@ struct PutioFolderScreen: View {
   @State private var editorName = ""
   @State private var pendingDeletion: PutioFileItem?
   @State private var actionRequest: FileActionRequest?
+  @State private var startedActionRequest: FileActionRequest?
   @State private var toast: PutioToast?
   private let relativeDateReference: Date?
   private let locale: Locale
@@ -466,16 +467,24 @@ struct PutioFolderScreen: View {
 
   private func runActionRequest() async {
     guard let request = actionRequest else { return }
-    switch request {
-    case .createFolder(let name):
-      await model.createFolder(name: name)
-    case .rename(let item, let name):
-      await model.rename(item, to: name)
-    case .delete(let item):
-      await model.delete(item)
+    // `.task(id:)` re-runs when the screen reappears mid-mutation; rejoin
+    // the model-owned mutation instead of starting a duplicate.
+    if startedActionRequest == request {
+      await model.waitForActiveAction()
+    } else {
+      startedActionRequest = request
+      switch request {
+      case .createFolder(let name):
+        await model.createFolder(name: name)
+      case .rename(let item, let name):
+        await model.rename(item, to: name)
+      case .delete(let item):
+        await model.delete(item)
+      }
     }
     guard actionRequest == request else { return }
     actionRequest = nil
+    startedActionRequest = nil
     presentActionOutcome()
   }
 

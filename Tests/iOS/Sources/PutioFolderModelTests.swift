@@ -94,6 +94,13 @@ private actor SuspendedFileMutation {
 
 @MainActor
 final class PutioFolderModelTests: XCTestCase {
+  private func waitForState(_ model: PutioFolderModel, _ expected: PutioFolderLoadState) async {
+    let deadline = ContinuousClock.now + .seconds(5)
+    while model.state != expected, ContinuousClock.now < deadline {
+      await Task.yield()
+    }
+  }
+
   func testInitialLoadRunsOnceAndUsesStableFolderID() async {
     let loader = ControlledFolderLoader()
     let loaded = BrowserTestFixtures.contents(
@@ -627,6 +634,7 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(refreshedFolderID, .root)
     await loader.succeed(request: 0, with: refreshed)
     await rename.value
+    await waitForState(model, .loaded(refreshed))
 
     XCTAssertEqual(model.state, .loaded(refreshed))
     XCTAssertEqual(
@@ -635,7 +643,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
   }
 
-  func testQueuedRefreshRunsAfterMutationCancellation() async {
+  func testQueuedRefreshRunsAfterCallerCancellation() async {
     let loader = ControlledFolderLoader()
     let mutation = SuspendedFileMutation()
     let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
@@ -662,10 +670,14 @@ final class PutioFolderModelTests: XCTestCase {
     await loader.waitForRequestCount(1)
     await loader.succeed(request: 0, with: refreshed)
     await rename.value
+    await waitForState(model, .loaded(refreshed))
 
     XCTAssertEqual(model.state, .loaded(refreshed))
     XCTAssertNil(model.activeAction)
-    XCTAssertNil(model.actionOutcome)
+    XCTAssertEqual(
+      model.actionOutcome,
+      .succeeded(.rename(fileID: item.id, oldName: "Original.mkv", newName: "Renamed.mkv"))
+    )
   }
 
   func testQueuedRefreshesCoalesceAfterMutationFailure() async {
@@ -698,6 +710,7 @@ final class PutioFolderModelTests: XCTestCase {
     await loader.waitForRequestCount(1)
     await loader.succeed(request: 0, with: refreshed)
     await rename.value
+    await waitForState(model, .loaded(refreshed))
 
     let finalRequestCount = await loader.requestCount()
     XCTAssertEqual(finalRequestCount, 1)
@@ -768,7 +781,117 @@ final class PutioFolderModelTests: XCTestCase {
     )
   }
 
-  func testMutationCancellationRestoresTheExactPriorContents() async {
+  func testMutationOutlivesACancelledCallerAndSettlesTheServerOutcome() async {
+    let mutation = SuspendedFileMutation()
+    let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
+    let original = BrowserTestFixtures.contents(items: [item])
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in try await mutation.run() },
+        deleteFile: { _ in throw PutioRuntimeError.unknown }
+      ),
+      initialContents: original
+    )
+
+    let caller = Task { await model.rename(item, to: "Renamed.mkv") }
+    await mutation.waitUntilStarted()
+    caller.cancel()
+    await Task.yield()
+    XCTAssertEqual(
+      model.activeAction,
+      .rename(fileID: item.id, oldName: "Original.mkv", newName: "Renamed.mkv")
+    )
+
+    await mutation.succeed()
+    await model.waitForActiveAction()
+    await caller.value
+
+    guard case .loaded(let contents) = model.state else {
+      return XCTFail("expected loaded, got \(model.state)")
+    }
+    XCTAssertEqual(contents.items.first?.name, "Renamed.mkv")
+    XCTAssertNil(model.activeAction)
+    XCTAssertEqual(
+      model.actionOutcome,
+      .succeeded(.rename(fileID: item.id, oldName: "Original.mkv", newName: "Renamed.mkv"))
+    )
+  }
+
+  func testMutationRefetchesARefreshItSuperseded() async {
+    let loader = ControlledFolderLoader()
+    let mutation = SuspendedFileMutation()
+    let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
+    let original = BrowserTestFixtures.contents(items: [item])
+    let stale = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 99, name: "Stale.mkv")]
+    )
+    let refreshed = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 7, name: "Renamed.mkv", sizeBytes: 8_192)]
+    )
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { folderID in try await loader.load(folderID: folderID) },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in try await mutation.run() },
+        deleteFile: { _ in throw PutioRuntimeError.unknown }
+      ),
+      initialContents: original
+    )
+
+    let refresh = Task { await model.refresh() }
+    await loader.waitForRequestCount(1)
+    let rename = Task { await model.rename(item, to: "Renamed.mkv") }
+    await mutation.waitUntilStarted()
+    await loader.succeed(request: 0, with: stale)
+    await refresh.value
+
+    await mutation.succeed()
+    await rename.value
+    await loader.waitForRequestCount(2)
+    await loader.succeed(request: 1, with: refreshed)
+    await waitForState(model, .loaded(refreshed))
+
+    XCTAssertEqual(model.state, .loaded(refreshed))
+    XCTAssertNil(model.activeAction)
+  }
+
+  func testQueuedRefreshDoesNotExtendTheMutationCall() async {
+    let loader = ControlledFolderLoader()
+    let mutation = SuspendedFileMutation()
+    let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
+    let original = BrowserTestFixtures.contents(items: [item])
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { folderID in try await loader.load(folderID: folderID) },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in try await mutation.run() },
+        deleteFile: { _ in throw PutioRuntimeError.unknown }
+      ),
+      initialContents: original
+    )
+
+    let rename = Task { await model.rename(item, to: "Renamed.mkv") }
+    await mutation.waitUntilStarted()
+    await model.refresh()
+    await mutation.succeed()
+
+    // The mutation call returns while the queued refresh is still pending.
+    await rename.value
+    await loader.waitForRequestCount(1)
+    XCTAssertNil(model.activeAction)
+    XCTAssertEqual(
+      model.actionOutcome,
+      .succeeded(.rename(fileID: item.id, oldName: "Original.mkv", newName: "Renamed.mkv"))
+    )
+    await loader.succeed(request: 0, with: original)
+  }
+
+  func testTransportCancellationRestoresTheExactPriorContents() async {
     let mutation = SuspendedFileMutation()
     let item = BrowserTestFixtures.item(id: 7, name: "Episode.mkv")
     let original = BrowserTestFixtures.contents(items: [item])
@@ -785,8 +908,7 @@ final class PutioFolderModelTests: XCTestCase {
 
     let task = Task { await model.delete(item) }
     await mutation.waitUntilStarted()
-    task.cancel()
-    await mutation.succeed()
+    await mutation.fail(with: CancellationError())
     await task.value
 
     XCTAssertEqual(model.state, .loaded(original))
