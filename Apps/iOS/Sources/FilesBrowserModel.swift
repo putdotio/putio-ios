@@ -235,6 +235,34 @@ enum PutioFileActionOutcome: Equatable, Sendable {
   case failed(PutioFileAction, PutioFileActionFailure)
 }
 
+enum PutioBulkFileAction: Equatable, Sendable {
+  case delete
+  case move(destination: PutioFolderRoute)
+}
+
+struct PutioBulkFileProgress: Equatable, Sendable {
+  let action: PutioBulkFileAction
+  let completedCount: Int
+  let totalCount: Int
+  let currentItem: PutioFileItem
+}
+
+struct PutioBulkFileItemFailure: Equatable, Sendable {
+  let item: PutioFileItem
+  let error: PutioRuntimeError
+  let presentation: PutioFileActionFailure?
+}
+
+struct PutioBulkFileOutcome: Equatable, Sendable {
+  let action: PutioBulkFileAction
+  let succeeded: [PutioFileItem]
+  let failures: [PutioBulkFileItemFailure]
+
+  var completedCount: Int {
+    succeeded.count + failures.count
+  }
+}
+
 @MainActor
 @Observable
 final class PutioFolderModel {
@@ -244,6 +272,9 @@ final class PutioFolderModel {
   private(set) var refreshFailure: PutioBrowserErrorPresentation?
   private(set) var activeAction: PutioFileAction?
   private(set) var actionOutcome: PutioFileActionOutcome?
+  private(set) var activeBulkAction: PutioBulkFileAction?
+  private(set) var bulkProgress: PutioBulkFileProgress?
+  private(set) var bulkOutcome: PutioBulkFileOutcome?
 
   @ObservationIgnored private let load: PutioFolderLoad
   @ObservationIgnored private let actions: PutioFileActions?
@@ -269,8 +300,12 @@ final class PutioFolderModel {
   }
 
   var canStartAction: Bool {
-    guard supportsActions, activeAction == nil, case .loaded = state else { return false }
+    guard supportsActions, !mutationIsActive, case .loaded = state else { return false }
     return true
+  }
+
+  private var mutationIsActive: Bool {
+    activeAction != nil || activeBulkAction != nil
   }
 
   func loadIfNeeded() async {
@@ -288,7 +323,7 @@ final class PutioFolderModel {
 
   func refresh() async {
     guard case .loaded = state else { return }
-    guard activeAction == nil else {
+    guard !mutationIsActive else {
       refreshRequestedWhileActionActive = true
       return
     }
@@ -360,6 +395,42 @@ final class PutioFolderModel {
     }
   }
 
+  func delete(_ selectedItems: [PutioFileItem]) async {
+    guard
+      let actions,
+      canStartAction,
+      case .loaded(let contents) = state,
+      let items = latestItems(for: selectedItems, in: contents)
+    else { return }
+
+    let action = PutioBulkFileAction.delete
+    beginBulk(action, items: items)
+    state = .loaded(contents.removing(Set(items.map(\.id))))
+
+    await runBulk(action, items: items, originalContents: contents) { item in
+      try await actions.deleteFile(item.id)
+    }
+  }
+
+  func move(_ selectedItems: [PutioFileItem], to destination: PutioFolderRoute) async {
+    guard
+      let actions,
+      canStartAction,
+      case .loaded(let contents) = state,
+      let items = latestItems(for: selectedItems, in: contents),
+      items.allSatisfy({ $0.parentID != destination.id }),
+      !items.contains(where: { $0.kind == .folder && $0.id == destination.id })
+    else { return }
+
+    let action = PutioBulkFileAction.move(destination: destination)
+    beginBulk(action, items: items)
+    state = .loaded(contents.removing(Set(items.map(\.id))))
+
+    await runBulk(action, items: items, originalContents: contents) { item in
+      try await actions.moveFile(item.id, destination.id)
+    }
+  }
+
   /// Suspends until the active mutation, if any, has settled. Callers whose
   /// own task was cancelled mid-mutation use this to rejoin the outcome.
   func waitForActiveAction() async {
@@ -368,6 +439,10 @@ final class PutioFolderModel {
 
   func clearActionOutcome() {
     actionOutcome = nil
+  }
+
+  func clearBulkOutcome() {
+    bulkOutcome = nil
   }
 
   private func begin(_ action: PutioFileAction) {
@@ -379,6 +454,21 @@ final class PutioFolderModel {
     generation &+= 1
     activeAction = action
     actionOutcome = nil
+  }
+
+  private func beginBulk(_ action: PutioBulkFileAction, items: [PutioFileItem]) {
+    if inFlightLoadGeneration == generation {
+      refreshRequestedWhileActionActive = true
+    }
+    generation &+= 1
+    activeBulkAction = action
+    bulkOutcome = nil
+    bulkProgress = PutioBulkFileProgress(
+      action: action,
+      completedCount: 0,
+      totalCount: items.count,
+      currentItem: items[0]
+    )
   }
 
   // The mutation runs in a model-owned task: a screen that disappears
@@ -406,6 +496,90 @@ final class PutioFolderModel {
     }
     actionTask = task
     await task.value
+  }
+
+  private func runBulk(
+    _ action: PutioBulkFileAction,
+    items: [PutioFileItem],
+    originalContents: PutioFolderContents,
+    operation: @escaping @MainActor @Sendable (PutioFileItem) async throws -> Void
+  ) async {
+    let task = Task { @MainActor [weak self] in
+      guard let self else { return }
+      var removedIDs = Set(items.map(\.id))
+      var succeeded: [PutioFileItem] = []
+      var failures: [PutioBulkFileItemFailure] = []
+
+      for (index, item) in items.enumerated() {
+        do {
+          try await operation(item)
+          succeeded.append(item)
+        } catch {
+          removedIDs.remove(item.id)
+          let itemAction = singleAction(for: action, item: item)
+          failures.append(
+            PutioBulkFileItemFailure(
+              item: item,
+              error: error as? PutioRuntimeError ?? .unknown,
+              presentation: PutioFileActionFailure(action: itemAction, error: error)
+            )
+          )
+          state = .loaded(originalContents.removing(removedIDs))
+        }
+
+        if let nextItem = items.dropFirst(index + 1).first {
+          bulkProgress = PutioBulkFileProgress(
+            action: action,
+            completedCount: index + 1,
+            totalCount: items.count,
+            currentItem: nextItem
+          )
+        }
+      }
+
+      guard activeBulkAction == action else { return }
+      state = .loaded(originalContents.removing(removedIDs))
+      activeBulkAction = nil
+      bulkProgress = nil
+      bulkOutcome = PutioBulkFileOutcome(
+        action: action,
+        succeeded: succeeded,
+        failures: failures
+      )
+      startQueuedRefreshIfNeeded()
+    }
+    actionTask = task
+    await task.value
+  }
+
+  private func latestItems(
+    for selectedItems: [PutioFileItem],
+    in contents: PutioFolderContents
+  ) -> [PutioFileItem]? {
+    let selectedIDs = selectedItems.map(\.id)
+    guard !selectedIDs.isEmpty, Set(selectedIDs).count == selectedIDs.count else { return nil }
+    let itemsByID = Dictionary(uniqueKeysWithValues: contents.items.map { ($0.id, $0) })
+    let latestItems = selectedIDs.compactMap { itemsByID[$0] }
+    guard latestItems.count == selectedIDs.count else { return nil }
+    return latestItems
+  }
+
+  private func singleAction(
+    for action: PutioBulkFileAction,
+    item: PutioFileItem
+  ) -> PutioFileAction {
+    switch action {
+    case .delete:
+      return .delete(fileID: item.id, name: item.name)
+    case .move(let destination):
+      return .move(
+        fileID: item.id,
+        name: item.name,
+        sourceParentID: item.parentID,
+        destinationID: destination.id,
+        destinationName: destination.title
+      )
+    }
   }
 
   // The refresh outlives the mutation call so the caller's UI lock releases
@@ -505,6 +679,14 @@ extension PutioFolderContents {
 
   fileprivate func removing(_ id: PutioFileID) -> PutioFolderContents {
     PutioFolderContents(folder: folder, items: items.filter { $0.id != id }, hasMore: hasMore)
+  }
+
+  fileprivate func removing(_ ids: Set<PutioFileID>) -> PutioFolderContents {
+    PutioFolderContents(
+      folder: folder,
+      items: items.filter { !ids.contains($0.id) },
+      hasMore: hasMore
+    )
   }
 }
 

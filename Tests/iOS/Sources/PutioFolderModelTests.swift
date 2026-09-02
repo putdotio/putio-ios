@@ -92,6 +92,67 @@ private actor SuspendedFileMutation {
   }
 }
 
+private actor ControlledBulkMutation {
+  private struct PendingRequest {
+    let fileID: PutioFileID
+    let destinationID: PutioFileID?
+    let continuation: CheckedContinuation<Void, any Error>
+  }
+
+  private var nextRequest = 0
+  private var pending: [Int: PendingRequest] = [:]
+
+  func run(fileID: PutioFileID, destinationID: PutioFileID? = nil) async throws {
+    let request = nextRequest
+    nextRequest += 1
+    try await withCheckedThrowingContinuation { continuation in
+      pending[request] = PendingRequest(
+        fileID: fileID,
+        destinationID: destinationID,
+        continuation: continuation
+      )
+    }
+  }
+
+  func waitForRequestCount(_ expected: Int) async {
+    while nextRequest < expected {
+      await Task.yield()
+    }
+  }
+
+  func requestCount() -> Int {
+    nextRequest
+  }
+
+  func fileID(for request: Int) -> PutioFileID {
+    guard let pending = pending[request] else {
+      preconditionFailure("request \(request) is not pending")
+    }
+    return pending.fileID
+  }
+
+  func destinationID(for request: Int) -> PutioFileID? {
+    guard let pending = pending[request] else {
+      preconditionFailure("request \(request) is not pending")
+    }
+    return pending.destinationID
+  }
+
+  func succeed(request: Int) {
+    guard let pending = pending.removeValue(forKey: request) else {
+      preconditionFailure("request \(request) is not pending")
+    }
+    pending.continuation.resume()
+  }
+
+  func fail(request: Int, with error: Error) {
+    guard let pending = pending.removeValue(forKey: request) else {
+      preconditionFailure("request \(request) is not pending")
+    }
+    pending.continuation.resume(throwing: error)
+  }
+}
+
 @MainActor
 final class PutioFolderModelTests: XCTestCase {
   private func waitForState(_ model: PutioFolderModel, _ expected: PutioFolderLoadState) async {
@@ -908,6 +969,280 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(original))
     XCTAssertNil(model.activeAction)
     XCTAssertNil(model.actionOutcome)
+  }
+
+  func testBulkDeleteReportsProgressAndRestoresOnlyTheFailedLatestSnapshot() async {
+    let mutations = ControlledBulkMutation()
+    let leading = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Leading.mkv")
+    let failed = BrowserTestFixtures.item(
+      id: 8,
+      parentID: 42,
+      name: "Server Failed.mkv",
+      sizeBytes: 8_192,
+      resumePositionSeconds: 137
+    )
+    let middle = BrowserTestFixtures.item(id: 9, parentID: 42, name: "Middle.mkv")
+    let succeeded = BrowserTestFixtures.item(id: 10, parentID: 42, name: "Server Success.mkv")
+    let trailing = BrowserTestFixtures.item(id: 11, parentID: 42, name: "Trailing.mkv")
+    let original = BrowserTestFixtures.contents(
+      folderID: 42,
+      items: [leading, failed, middle, succeeded, trailing],
+      hasMore: true
+    )
+    let staleFailed = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Stale Failed")
+    let staleSucceeded = BrowserTestFixtures.item(id: 10, parentID: 42, name: "Stale Success")
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { fileID in try await mutations.run(fileID: fileID) }
+      ),
+      initialContents: original
+    )
+
+    let task = Task { await model.delete([staleFailed, staleSucceeded]) }
+    await mutations.waitForRequestCount(1)
+
+    let firstRequestedID = await mutations.fileID(for: 0)
+    XCTAssertEqual(firstRequestedID, failed.id)
+    XCTAssertEqual(
+      model.state,
+      .loaded(
+        BrowserTestFixtures.contents(
+          folderID: 42,
+          items: [leading, middle, trailing],
+          hasMore: true
+        )
+      )
+    )
+    XCTAssertEqual(
+      model.bulkProgress,
+      PutioBulkFileProgress(
+        action: .delete,
+        completedCount: 0,
+        totalCount: 2,
+        currentItem: failed
+      )
+    )
+    XCTAssertFalse(model.canStartAction)
+
+    await mutations.fail(request: 0, with: PutioRuntimeError.transient)
+    await mutations.waitForRequestCount(2)
+
+    let secondRequestedID = await mutations.fileID(for: 1)
+    XCTAssertEqual(secondRequestedID, succeeded.id)
+    XCTAssertEqual(
+      model.state,
+      .loaded(
+        BrowserTestFixtures.contents(
+          folderID: 42,
+          items: [leading, failed, middle, trailing],
+          hasMore: true
+        )
+      )
+    )
+    XCTAssertEqual(
+      model.bulkProgress,
+      PutioBulkFileProgress(
+        action: .delete,
+        completedCount: 1,
+        totalCount: 2,
+        currentItem: succeeded
+      )
+    )
+
+    await mutations.succeed(request: 1)
+    await task.value
+
+    guard let outcome = model.bulkOutcome else {
+      return XCTFail("expected an aggregate bulk outcome")
+    }
+    XCTAssertEqual(outcome.action, .delete)
+    XCTAssertEqual(outcome.succeeded, [succeeded])
+    XCTAssertEqual(outcome.completedCount, 2)
+    XCTAssertEqual(outcome.failures.count, 1)
+    XCTAssertEqual(outcome.failures[0].item, failed)
+    XCTAssertEqual(outcome.failures[0].error, .transient)
+    XCTAssertEqual(outcome.failures[0].presentation?.title, "Could not remove item")
+    XCTAssertEqual(
+      model.state,
+      .loaded(
+        BrowserTestFixtures.contents(
+          folderID: 42,
+          items: [leading, failed, middle, trailing],
+          hasMore: true
+        )
+      )
+    )
+    XCTAssertNil(model.activeBulkAction)
+    XCTAssertNil(model.bulkProgress)
+    XCTAssertTrue(model.canStartAction)
+  }
+
+  func testBulkMoveUsesEveryPerItemBoundaryAndSurvivesCallerCancellation() async {
+    let mutations = ControlledBulkMutation()
+    let first = BrowserTestFixtures.item(id: 7, parentID: 42, name: "First.mkv")
+    let second = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Second.mkv")
+    let survivor = BrowserTestFixtures.item(id: 9, parentID: 42, name: "Survivor.mkv")
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [first, second, survivor])
+    let destination = PutioFolderRoute(id: PutioFileID(rawValue: 91), title: "Season 2")
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        moveFile: { fileID, destinationID in
+          try await mutations.run(fileID: fileID, destinationID: destinationID)
+        }
+      ),
+      initialContents: original
+    )
+
+    let caller = Task { await model.move([first, second], to: destination) }
+    await mutations.waitForRequestCount(1)
+    caller.cancel()
+    await Task.yield()
+
+    XCTAssertEqual(
+      model.state,
+      .loaded(BrowserTestFixtures.contents(folderID: 42, items: [survivor]))
+    )
+    let firstDestinationID = await mutations.destinationID(for: 0)
+    XCTAssertEqual(firstDestinationID, destination.id)
+    await mutations.succeed(request: 0)
+    await mutations.waitForRequestCount(2)
+    let secondRequestedID = await mutations.fileID(for: 1)
+    let secondDestinationID = await mutations.destinationID(for: 1)
+    XCTAssertEqual(secondRequestedID, second.id)
+    XCTAssertEqual(secondDestinationID, destination.id)
+    await mutations.fail(request: 1, with: PutioRuntimeError.notFound)
+    await model.waitForActiveAction()
+    await caller.value
+
+    XCTAssertEqual(
+      model.state,
+      .loaded(BrowserTestFixtures.contents(folderID: 42, items: [second, survivor]))
+    )
+    XCTAssertEqual(model.bulkOutcome?.succeeded, [first])
+    XCTAssertEqual(model.bulkOutcome?.failures.map(\.item), [second])
+    XCTAssertEqual(model.bulkOutcome?.failures.map(\.error), [.notFound])
+  }
+
+  func testBulkActionsRejectEmptyStaleDuplicateAndInvalidMoveSelections() async {
+    let folder = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Folder", kind: .folder)
+    let file = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Episode.mkv")
+    let stale = BrowserTestFixtures.item(id: 99, parentID: 42, name: "Gone.mkv")
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [folder, file])
+    var operationCount = 0
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in operationCount += 1 },
+        moveFile: { _, _ in operationCount += 1 }
+      ),
+      initialContents: original
+    )
+
+    await model.delete([])
+    await model.delete([stale])
+    await model.delete([file, file])
+    await model.move([file], to: PutioFolderRoute(id: file.parentID, title: "Current"))
+    await model.move([folder, file], to: PutioFolderRoute(id: folder.id, title: folder.name))
+
+    XCTAssertEqual(operationCount, 0)
+    XCTAssertEqual(model.state, .loaded(original))
+    XCTAssertNil(model.activeBulkAction)
+    XCTAssertNil(model.bulkProgress)
+    XCTAssertNil(model.bulkOutcome)
+  }
+
+  func testBulkMutationKeepsAllMutationsExclusive() async {
+    let mutations = ControlledBulkMutation()
+    let first = BrowserTestFixtures.item(id: 7, parentID: 42, name: "First.mkv")
+    let second = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Second.mkv")
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [first, second])
+    var renameCount = 0
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in renameCount += 1 },
+        deleteFile: { fileID in try await mutations.run(fileID: fileID) }
+      ),
+      initialContents: original
+    )
+
+    let bulk = Task { await model.delete([first, second]) }
+    await mutations.waitForRequestCount(1)
+    await model.rename(second, to: "Renamed.mkv")
+    await model.delete(second)
+    await model.delete([second])
+
+    XCTAssertEqual(renameCount, 0)
+    let blockedRequestCount = await mutations.requestCount()
+    XCTAssertEqual(blockedRequestCount, 1)
+    await mutations.succeed(request: 0)
+    await mutations.waitForRequestCount(2)
+    await mutations.succeed(request: 1)
+    await bulk.value
+  }
+
+  func testBulkRefreshRequestsCoalesceAfterTheEntireOperation() async {
+    let loader = ControlledFolderLoader()
+    let mutations = ControlledBulkMutation()
+    let first = BrowserTestFixtures.item(id: 7, parentID: 42, name: "First.mkv")
+    let second = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Second.mkv")
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [first, second])
+    let stale = BrowserTestFixtures.contents(
+      folderID: 42,
+      items: [BrowserTestFixtures.item(id: 99, parentID: 42, name: "Stale.mkv")]
+    )
+    let refreshed = BrowserTestFixtures.contents(folderID: 42, items: [])
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { folderID in try await loader.load(folderID: folderID) },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { fileID in try await mutations.run(fileID: fileID) }
+      ),
+      initialContents: original
+    )
+
+    let staleRefresh = Task { await model.refresh() }
+    await loader.waitForRequestCount(1)
+    let bulk = Task { await model.delete([first, second]) }
+    await mutations.waitForRequestCount(1)
+    await loader.succeed(request: 0, with: stale)
+    await staleRefresh.value
+    await model.refresh()
+    await model.refresh()
+    let queuedRequestCount = await loader.requestCount()
+    XCTAssertEqual(queuedRequestCount, 1)
+
+    await mutations.succeed(request: 0)
+    await mutations.waitForRequestCount(2)
+    let midOperationRequestCount = await loader.requestCount()
+    XCTAssertEqual(midOperationRequestCount, 1)
+    await mutations.succeed(request: 1)
+    await bulk.value
+    await loader.waitForRequestCount(2)
+    let replayedRequestCount = await loader.requestCount()
+    XCTAssertEqual(replayedRequestCount, 2)
+    await loader.succeed(request: 1, with: refreshed)
+    await waitForState(model, .loaded(refreshed))
+
+    XCTAssertEqual(model.state, .loaded(refreshed))
+    let finalRequestCount = await loader.requestCount()
+    XCTAssertEqual(finalRequestCount, 2)
   }
 
   func testMutationOutlivesACancelledCallerAndSettlesTheServerOutcome() async {
