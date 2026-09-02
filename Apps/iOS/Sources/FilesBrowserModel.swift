@@ -283,6 +283,11 @@ struct PutioBulkFileOutcome: Equatable, Sendable {
   }
 }
 
+enum PutioBulkRetryPreparation: Equatable, Sendable {
+  case ready([PutioFileItem])
+  case failed
+}
+
 @MainActor
 @Observable
 final class PutioFolderModel {
@@ -469,6 +474,15 @@ final class PutioFolderModel {
   func restoreBulkOutcome(_ outcome: PutioBulkFileOutcome) {
     guard bulkOutcome == nil, !mutationIsActive else { return }
     bulkOutcome = outcome
+  }
+
+  func prepareBulkRetry(_ outcome: PutioBulkFileOutcome) async -> PutioBulkRetryPreparation {
+    guard await refresh(), case .loaded(let contents) = state else {
+      restoreBulkOutcome(outcome)
+      return .failed
+    }
+    bulkOutcome = nil
+    return .ready(outcome.retryableItems(in: contents.items))
   }
 
   private func begin(_ action: PutioFileAction) {

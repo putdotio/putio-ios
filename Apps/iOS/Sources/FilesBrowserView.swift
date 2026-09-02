@@ -668,9 +668,8 @@ struct PutioFolderScreen: View {
       case .bulkMove(let items, let destination):
         await model.move(items, to: destination)
       case .bulkRetry(let outcome):
-        if await model.refresh() {
-          let items = outcome.retryableItems(in: currentItems)
-          model.clearBulkOutcome()
+        switch await model.prepareBulkRetry(outcome) {
+        case .ready(let items):
           if items.isEmpty {
             selectedIDs = []
             editMode = .inactive
@@ -682,8 +681,8 @@ struct PutioFolderScreen: View {
               await model.move(items, to: destination)
             }
           }
-        } else {
-          model.restoreBulkOutcome(outcome)
+        case .failed:
+          break
         }
       }
     }
@@ -710,7 +709,7 @@ struct PutioFolderScreen: View {
 
   private func presentBulkOutcome() {
     guard let outcome = model.bulkOutcome else { return }
-    if case .move(let destination) = outcome.action, !outcome.succeeded.isEmpty {
+    if case .move(let destination) = outcome.action {
       refreshRequests.request(folderID: destination.id)
     }
 

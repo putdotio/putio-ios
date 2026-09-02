@@ -193,6 +193,33 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(outcome.retryableItems(in: [refreshed]), [refreshed])
   }
 
+  func testBulkRetryPreparationRestoresOutcomeWhenReconciliationFails() async {
+    let loader = ControlledFolderLoader()
+    let item = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Retry.mkv")
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [item])
+    let outcome = PutioBulkFileOutcome(
+      action: .delete,
+      succeeded: [],
+      failures: [
+        PutioBulkFileItemFailure(item: item, error: .transient, presentation: nil)
+      ]
+    )
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { folderID in try await loader.load(folderID: folderID) },
+      initialContents: original
+    )
+
+    let preparation = Task { await model.prepareBulkRetry(outcome) }
+    await loader.waitForRequestCount(1)
+    await loader.fail(request: 0, with: PutioRuntimeError.transient)
+
+    let result = await preparation.value
+    XCTAssertEqual(result, .failed)
+    XCTAssertEqual(model.bulkOutcome, outcome)
+    XCTAssertEqual(model.state, .loaded(original))
+  }
+
   func testBulkMovePickerExcludesEverySelectedFolderAndCurrentParent() {
     let firstFolder = BrowserTestFixtures.item(
       id: 7, parentID: 42, name: "First", kind: .folder)

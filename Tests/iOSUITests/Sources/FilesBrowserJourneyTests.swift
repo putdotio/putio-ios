@@ -74,13 +74,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     confirm.tap()
     let progress = element(identifier: "files.bulk.progress")
     XCTAssertTrue(progress.waitForExistence(timeout: 5))
-    let progressValue = progress.value as? String
-    XCTAssertTrue(
-      (progress.label == "Removing item 1 of 2…"
-        && progressValue == "Bulk Success. 0 of 2 complete.")
-        || (progress.label == "Removing item 2 of 2…"
-          && progressValue == "Bulk Retry. 1 of 2 complete.")
-    )
+    assertBulkProgress(progress, itemNames: ["Bulk Success", "Bulk Retry"])
     XCTAssertTrue(
       app.staticTexts["Some items couldn’t be removed"].waitForExistence(timeout: 10)
     )
@@ -632,13 +626,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     confirmBulkRemove.tap()
     let bulkProgress = element(identifier: "files.bulk.progress")
     XCTAssertTrue(bulkProgress.waitForExistence(timeout: 5))
-    let bulkProgressValue = bulkProgress.value as? String
-    XCTAssertTrue(
-      (bulkProgress.label == "Removing item 1 of 2…"
-        && bulkProgressValue == "Bulk Retry. 0 of 2 complete.")
-        || (bulkProgress.label == "Removing item 2 of 2…"
-          && bulkProgressValue == "Bulk Success. 1 of 2 complete.")
-    )
+    assertBulkProgress(bulkProgress, itemNames: ["Bulk Retry", "Bulk Success"])
 
     XCTAssertTrue(
       app.staticTexts["Some items couldn’t be removed"].waitForExistence(timeout: 10),
@@ -685,6 +673,23 @@ final class FilesBrowserJourneyTests: XCTestCase {
       object: element
     )
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+  }
+
+  private func assertBulkProgress(_ progress: XCUIElement, itemNames: Set<String>) {
+    let completedCount: Int
+    switch progress.label {
+    case "Removing item 1 of 2…":
+      completedCount = 0
+    case "Removing item 2 of 2…":
+      completedCount = 1
+    default:
+      return XCTFail("unexpected bulk progress label: \(progress.label)")
+    }
+    let value = progress.value as? String
+    XCTAssertTrue(
+      itemNames.contains { value == "\($0). \(completedCount) of 2 complete." },
+      "unexpected bulk progress value: \(value ?? "nil")"
+    )
   }
 
   private func openContextMenu(
