@@ -333,7 +333,7 @@ struct PutioFolderScreen: View {
       await model.refresh()
     }
     .onChange(of: model.state, initial: true) { _, state in
-      if case .loaded(let contents) = state {
+      if case .loaded(let contents) = state, !fileActionPending {
         selectedIDs.formIntersection(contents.items.map(\.id))
       }
       guard !reportedLoaded, case .loaded = state else { return }
@@ -667,6 +667,23 @@ struct PutioFolderScreen: View {
         await model.delete(items)
       case .bulkMove(let items, let destination):
         await model.move(items, to: destination)
+      case .bulkRetry(let outcome):
+        await model.refresh()
+        if model.refreshFailure == nil {
+          let items = outcome.retryableItems(in: currentItems)
+          model.clearBulkOutcome()
+          if items.isEmpty {
+            selectedIDs = []
+            editMode = .inactive
+          } else {
+            switch outcome.action {
+            case .delete:
+              await model.delete(items)
+            case .move(let destination):
+              await model.move(items, to: destination)
+            }
+          }
+        }
       }
     }
     guard actionRequest == request else { return }
@@ -728,19 +745,7 @@ struct PutioFolderScreen: View {
   }
 
   private func retryBulkFailures(_ outcome: PutioBulkFileOutcome) {
-    let items = outcome.retryableItems(in: currentItems)
-    model.clearBulkOutcome()
-    guard !items.isEmpty else {
-      selectedIDs = []
-      editMode = .inactive
-      return
-    }
-    switch outcome.action {
-    case .delete:
-      actionRequest = .bulkDelete(items)
-    case .move(let destination):
-      actionRequest = .bulkMove(items, destination)
-    }
+    actionRequest = .bulkRetry(outcome)
   }
 
   private func bulkProgressTitle(_ progress: PutioBulkFileProgress) -> String {
@@ -820,6 +825,7 @@ struct PutioFolderScreen: View {
     case move(PutioFileItem, PutioFolderRoute)
     case bulkDelete([PutioFileItem])
     case bulkMove([PutioFileItem], PutioFolderRoute)
+    case bulkRetry(PutioBulkFileOutcome)
   }
 
   private struct MoveSelection: Equatable, Identifiable {
