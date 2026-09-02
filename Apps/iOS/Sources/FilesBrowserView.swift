@@ -394,7 +394,7 @@ struct PutioFolderScreen: View {
     if isEditing {
       PutioFileRow(
         presentation.row,
-        showsFolderDisclosure: presentation.folderRoute == nil
+        showsFolderDisclosure: false
       )
       .contentShape(Rectangle())
       .accessibilityElement(children: .combine)

@@ -24,9 +24,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     signIn.tap()
     XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
 
-    let unsupportedFile = app.staticTexts["Document.pdf"]
-    XCTAssertTrue(unsupportedFile.exists && unsupportedFile.isHittable)
-    unsupportedFile.tap()
+    let unsupportedFile = tapUnsupportedFileBeforeEditing()
 
     let successFolder = createFolder(named: "Bulk Success", expectedID: 415)
     let retryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
@@ -345,9 +343,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let root = element(identifier: "files.screen.0")
     XCTAssertTrue(root.waitForExistence(timeout: 10), "signed-in root browser never appeared")
-    let unsupportedFile = app.staticTexts["Document.pdf"]
-    XCTAssertTrue(unsupportedFile.exists && unsupportedFile.isHittable)
-    unsupportedFile.tap()
+    tapUnsupportedFileBeforeEditing()
     let newFolder = app.buttons["files.new-folder"]
     XCTAssertTrue(
       waitUntilHittable(newFolder, timeout: 5),
@@ -685,6 +681,15 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let action = app.buttons[actionLabel]
     XCTAssertTrue(action.waitForExistence(timeout: 5), "file context-menu action never appeared")
     return action
+  }
+
+  @discardableResult
+  private func tapUnsupportedFileBeforeEditing() -> XCUIElement {
+    // The unsupported row intentionally has no actionable container outside Edit mode.
+    let unsupportedFile = app.staticTexts["Document.pdf"]
+    XCTAssertTrue(unsupportedFile.exists && unsupportedFile.isHittable)
+    unsupportedFile.tap()
+    return unsupportedFile
   }
 
   private func createFolder(named name: String, expectedID: Int) -> XCUIElement {

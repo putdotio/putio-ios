@@ -561,6 +561,7 @@ final class PutioFolderModel {
         succeeded: succeeded,
         failures: failures
       )
+      refreshRequestedWhileActionActive = true
       startQueuedRefreshIfNeeded()
     }
     actionTask = task

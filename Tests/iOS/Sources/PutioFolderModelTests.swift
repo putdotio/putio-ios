@@ -1015,11 +1015,16 @@ final class PutioFolderModelTests: XCTestCase {
       items: [leading, failed, middle, succeeded, trailing],
       hasMore: true
     )
+    let reconciled = BrowserTestFixtures.contents(
+      folderID: 42,
+      items: [leading, failed, middle, trailing],
+      hasMore: true
+    )
     let staleFailed = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Stale Failed")
     let staleSucceeded = BrowserTestFixtures.item(id: 10, parentID: 42, name: "Stale Success")
     let model = PutioFolderModel(
       folderID: PutioFileID(rawValue: 42),
-      load: { _ in original },
+      load: { _ in reconciled },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
         renameFile: { _, _ in throw PutioRuntimeError.unknown },
@@ -1081,6 +1086,7 @@ final class PutioFolderModelTests: XCTestCase {
 
     await mutations.succeed(request: 1)
     await task.value
+    await waitForState(model, .loaded(reconciled))
 
     guard let outcome = model.bulkOutcome else {
       return XCTFail("expected an aggregate bulk outcome")
@@ -1094,13 +1100,7 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(outcome.failures[0].presentation?.title, "Could not remove item")
     XCTAssertEqual(
       model.state,
-      .loaded(
-        BrowserTestFixtures.contents(
-          folderID: 42,
-          items: [leading, failed, middle, trailing],
-          hasMore: true
-        )
-      )
+      .loaded(reconciled)
     )
     XCTAssertNil(model.activeBulkAction)
     XCTAssertNil(model.bulkProgress)
@@ -1113,10 +1113,11 @@ final class PutioFolderModelTests: XCTestCase {
     let second = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Second.mkv")
     let survivor = BrowserTestFixtures.item(id: 9, parentID: 42, name: "Survivor.mkv")
     let original = BrowserTestFixtures.contents(folderID: 42, items: [first, second, survivor])
+    let reconciled = BrowserTestFixtures.contents(folderID: 42, items: [second, survivor])
     let destination = PutioFolderRoute(id: PutioFileID(rawValue: 91), title: "Season 2")
     let model = PutioFolderModel(
       folderID: PutioFileID(rawValue: 42),
-      load: { _ in original },
+      load: { _ in reconciled },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
         renameFile: { _, _ in throw PutioRuntimeError.unknown },
@@ -1149,11 +1150,9 @@ final class PutioFolderModelTests: XCTestCase {
     await mutations.fail(request: 1, with: PutioRuntimeError.notFound)
     await rejoin.value
     await caller.value
+    await waitForState(model, .loaded(reconciled))
 
-    XCTAssertEqual(
-      model.state,
-      .loaded(BrowserTestFixtures.contents(folderID: 42, items: [second, survivor]))
-    )
+    XCTAssertEqual(model.state, .loaded(reconciled))
     XCTAssertEqual(model.bulkOutcome?.succeeded, [first])
     XCTAssertEqual(model.bulkOutcome?.failures.map(\.item), [second])
     XCTAssertEqual(model.bulkOutcome?.failures.map(\.error), [.notFound])
@@ -1270,6 +1269,46 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(refreshed))
     let finalRequestCount = await loader.requestCount()
     XCTAssertEqual(finalRequestCount, 2)
+  }
+
+  func testBulkCompletionRefreshesTheSourceFolder() async {
+    let loader = ControlledFolderLoader()
+    let mutations = ControlledBulkMutation()
+    let first = BrowserTestFixtures.item(id: 7, parentID: 42, name: "First.mkv")
+    let second = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Second.mkv")
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [first, second])
+    let reconciled = BrowserTestFixtures.contents(
+      folderID: 42,
+      items: [BrowserTestFixtures.item(id: 9, parentID: 42, name: "Server Added.mkv")]
+    )
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { folderID in try await loader.load(folderID: folderID) },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { fileID in try await mutations.run(fileID: fileID) }
+      ),
+      initialContents: original
+    )
+
+    let bulk = Task { await model.delete([first, second]) }
+    await mutations.waitForRequestCount(1)
+    await mutations.succeed(request: 0)
+    await mutations.waitForRequestCount(2)
+    await mutations.succeed(request: 1)
+    await bulk.value
+
+    await loader.waitForRequestCount(1)
+    let refreshedFolderID = await loader.folderID(for: 0)
+    XCTAssertEqual(refreshedFolderID, PutioFileID(rawValue: 42))
+    await loader.succeed(request: 0, with: reconciled)
+    await waitForState(model, .loaded(reconciled))
+
+    XCTAssertEqual(model.state, .loaded(reconciled))
+    XCTAssertEqual(model.bulkOutcome?.succeeded, [first, second])
+    let requestCount = await loader.requestCount()
+    XCTAssertEqual(requestCount, 1)
   }
 
   func testMutationOutlivesACancelledCallerAndSettlesTheServerOutcome() async {
