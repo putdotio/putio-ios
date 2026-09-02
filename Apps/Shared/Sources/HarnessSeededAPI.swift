@@ -97,7 +97,8 @@ import Foundation
         }
         return
       }
-      let (statusCode, body) = Self.fixture(for: request)
+      let replayableRequest = Self.replayableRequest(request)
+      let (statusCode, body) = Self.fixture(for: replayableRequest)
       let response = HTTPURLResponse(
         url: url,
         statusCode: statusCode,
@@ -112,7 +113,7 @@ import Foundation
           self.client?.urlProtocolDidFinishLoading(self)
         }
       }
-      if Self.shouldDelayBulkDeleteResponse(request) {
+      if Self.shouldDelayBulkDeleteResponse(replayableRequest) {
         DispatchQueue.global().asyncAfter(deadline: .now() + 1.5, execute: deliverResponse)
       } else if statusCode == 503, url.path == "/v2/files/rename" {
         DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
@@ -515,6 +516,16 @@ import Foundation
         body.append(buffer, count: count)
       }
       return body
+    }
+
+    private static func replayableRequest(_ request: URLRequest) -> URLRequest {
+      guard request.httpBody == nil, request.httpBodyStream != nil,
+        let body = requestBodyData(request)
+      else { return request }
+      var replayableRequest = request
+      replayableRequest.httpBodyStream = nil
+      replayableRequest.httpBody = body
+      return replayableRequest
     }
 
     private static func requestPayload(_ request: URLRequest) -> [String: Any]? {

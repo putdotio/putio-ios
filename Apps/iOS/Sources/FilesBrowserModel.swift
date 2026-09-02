@@ -530,15 +530,34 @@ final class PutioFolderModel {
           try await operation(item)
           succeeded.append(item)
         } catch {
+          let runtimeError = error as? PutioRuntimeError ?? .unknown
           removedIDs.remove(item.id)
           let itemAction = singleAction(for: action, item: item)
           failures.append(
             PutioBulkFileItemFailure(
               item: item,
-              error: error as? PutioRuntimeError ?? .unknown,
+              error: runtimeError,
               presentation: PutioFileActionFailure(action: itemAction, error: error)
             )
           )
+          if runtimeError == .rateLimited {
+            for deferredItem in items.dropFirst(index + 1) {
+              removedIDs.remove(deferredItem.id)
+              let deferredAction = singleAction(for: action, item: deferredItem)
+              failures.append(
+                PutioBulkFileItemFailure(
+                  item: deferredItem,
+                  error: .rateLimited,
+                  presentation: PutioFileActionFailure(
+                    action: deferredAction,
+                    error: PutioRuntimeError.rateLimited
+                  )
+                )
+              )
+            }
+            state = .loaded(originalContents.removing(removedIDs))
+            break
+          }
           state = .loaded(originalContents.removing(removedIDs))
         }
 

@@ -1107,6 +1107,43 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(model.canStartAction)
   }
 
+  func testBulkDeleteStopsAfterRateLimitAndDefersRemainingItemsForRetry() async {
+    let mutations = ControlledBulkMutation()
+    let first = BrowserTestFixtures.item(id: 7, parentID: 42, name: "First.mkv")
+    let second = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Second.mkv")
+    let third = BrowserTestFixtures.item(id: 9, parentID: 42, name: "Third.mkv")
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [first, second, third])
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { fileID in try await mutations.run(fileID: fileID) }
+      ),
+      initialContents: original
+    )
+
+    let task = Task { await model.delete([first, second, third]) }
+    await mutations.waitForRequestCount(1)
+    await mutations.fail(request: 0, with: PutioRuntimeError.rateLimited)
+    await task.value
+
+    let requestCount = await mutations.requestCount()
+    XCTAssertEqual(requestCount, 1)
+    XCTAssertEqual(model.state, .loaded(original))
+    XCTAssertEqual(model.bulkOutcome?.succeeded, [])
+    XCTAssertEqual(model.bulkOutcome?.failures.map(\.item), [first, second, third])
+    XCTAssertEqual(
+      model.bulkOutcome?.failures.map(\.error),
+      [
+        .rateLimited, .rateLimited, .rateLimited,
+      ])
+    XCTAssertNil(model.activeBulkAction)
+    XCTAssertNil(model.bulkProgress)
+    XCTAssertTrue(model.canStartAction)
+  }
+
   func testBulkMoveUsesEveryPerItemBoundaryAndSurvivesCallerCancellation() async {
     let mutations = ControlledBulkMutation()
     let first = BrowserTestFixtures.item(id: 7, parentID: 42, name: "First.mkv")

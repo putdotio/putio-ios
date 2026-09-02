@@ -86,6 +86,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     retry.tap()
     XCTAssertTrue(app.staticTexts["Removed 1 item."].waitForExistence(timeout: 10))
     XCTAssertTrue(retryFolder.waitForNonExistence(timeout: 5))
+
+    app.buttons["Account"].tap()
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
   func testRunnableAlphaLoop() {

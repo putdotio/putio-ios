@@ -174,9 +174,33 @@ struct PutioFolderScreen: View {
           .accessibilityIdentifier("files.new-folder")
         }
       }
-    }
-    .safeAreaInset(edge: .bottom, spacing: 0) {
-      bulkActionsBar
+      if model.supportsActions, isEditing, !currentItems.isEmpty {
+        ToolbarItem(placement: .bottomBar) {
+          Button(allLoadedItemsAreSelected ? "Deselect All" : "Select All") {
+            toggleAllLoadedItems()
+          }
+          .disabled(fileActionPending)
+          .accessibilityIdentifier(
+            allLoadedItemsAreSelected
+              ? "files.selection.deselect-all" : "files.selection.select-all"
+          )
+        }
+        ToolbarSpacer(.flexible, placement: .bottomBar)
+        ToolbarItemGroup(placement: .bottomBar) {
+          Button("Move") {
+            let items = selectedItems
+            guard !items.isEmpty else { return }
+            pendingMove = MoveSelection(items: items, isBulk: true)
+          }
+          .disabled(selectedIDs.isEmpty || fileActionPending)
+          .accessibilityIdentifier("files.bulk.move")
+          Button("Remove", role: .destructive) {
+            pendingBulkDeletion = selectedItems
+          }
+          .disabled(selectedIDs.isEmpty || fileActionPending)
+          .accessibilityIdentifier("files.bulk.remove")
+        }
+      }
     }
     .environment(\.editMode, $editMode)
     .sheet(isPresented: editorPresented) {
@@ -280,10 +304,7 @@ struct PutioFolderScreen: View {
         }
         .controlSize(.large)
         .padding(PutioTheme.Spacing.space4)
-        .background(
-          .regularMaterial,
-          in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
-        )
+        .modifier(PutioBulkProgressSurface())
         .accessibilityIdentifier("files.bulk.progress")
         .accessibilityLabel(Text(bulkProgressTitle(progress)))
         .accessibilityValue(
@@ -602,41 +623,6 @@ struct PutioFolderScreen: View {
 
   private var allLoadedItemsAreSelected: Bool {
     !currentItems.isEmpty && selectedIDs == Set(currentItems.map(\.id))
-  }
-
-  @ViewBuilder
-  private var bulkActionsBar: some View {
-    if model.supportsActions, isEditing, !currentItems.isEmpty {
-      HStack(spacing: PutioTheme.Spacing.space3) {
-        Button(allLoadedItemsAreSelected ? "Deselect All" : "Select All") {
-          toggleAllLoadedItems()
-        }
-        .disabled(fileActionPending)
-        .accessibilityIdentifier(
-          allLoadedItemsAreSelected
-            ? "files.selection.deselect-all" : "files.selection.select-all"
-        )
-        Spacer()
-        Button("Move") {
-          let items = selectedItems
-          guard !items.isEmpty else { return }
-          pendingMove = MoveSelection(items: items, isBulk: true)
-        }
-        .disabled(selectedIDs.isEmpty || fileActionPending)
-        .accessibilityIdentifier("files.bulk.move")
-        Button("Remove", role: .destructive) {
-          pendingBulkDeletion = selectedItems
-        }
-        .disabled(selectedIDs.isEmpty || fileActionPending)
-        .accessibilityIdentifier("files.bulk.remove")
-      }
-      .padding(.horizontal, PutioTheme.Spacing.space4)
-      .padding(.vertical, PutioTheme.Spacing.space2)
-      .background(.bar)
-      .overlay(alignment: .top) {
-        Divider()
-      }
-    }
   }
 
   private func toggleAllLoadedItems() {
@@ -962,5 +948,21 @@ private struct PutioMoveDestinationScreen: View {
 
   private var policy: PutioMovePickerPolicy {
     PutioMovePickerPolicy(items: items)
+  }
+}
+
+private struct PutioBulkProgressSurface: ViewModifier {
+  @ViewBuilder func body(content: Content) -> some View {
+    if HarnessRendering.usesRasterFallback {
+      content.background(
+        .regularMaterial,
+        in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
+      )
+    } else {
+      content.glassEffect(
+        .regular,
+        in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
+      )
+    }
   }
 }
