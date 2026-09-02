@@ -114,7 +114,7 @@ import Foundation
         }
       }
       if Self.shouldDelayBulkDeleteResponse(replayableRequest) {
-        DispatchQueue.global().asyncAfter(deadline: .now() + 1.5, execute: deliverResponse)
+        DispatchQueue.global().asyncAfter(deadline: .now() + 4, execute: deliverResponse)
       } else if statusCode == 503, url.path == "/v2/files/rename" {
         DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
       } else {

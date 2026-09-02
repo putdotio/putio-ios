@@ -626,7 +626,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     confirmBulkRemove.tap()
     let bulkProgress = element(identifier: "files.bulk.progress")
     XCTAssertTrue(bulkProgress.waitForExistence(timeout: 5))
+    XCTAssertFalse(app.buttons["BackButton"].isHittable, "back remained active during bulk work")
+    XCTAssertFalse(app.buttons["Account"].isHittable, "tab remained active during bulk work")
     assertBulkProgress(bulkProgress, itemNames: ["Bulk Retry", "Bulk Success"])
+    app.swipeRight()
+    XCTAssertTrue(
+      element(identifier: "files.screen.410").exists,
+      "edge swipe replaced the route during bulk work"
+    )
 
     XCTAssertTrue(
       app.staticTexts["Some items couldn’t be removed"].waitForExistence(timeout: 10),

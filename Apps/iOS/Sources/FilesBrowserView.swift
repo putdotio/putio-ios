@@ -723,7 +723,7 @@ struct PutioFolderScreen: View {
       )
       model.clearBulkOutcome()
     } else {
-      selectedIDs = Set(outcome.failures.map(\.item.id))
+      selectedIDs = Set(outcome.retryableItems(in: currentItems).map(\.id))
       editMode = .active
     }
   }
