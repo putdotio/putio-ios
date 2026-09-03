@@ -74,7 +74,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     confirm.tap()
     let progress = element(identifier: "files.bulk.progress")
     XCTAssertTrue(progress.waitForExistence(timeout: 5))
-    assertBulkProgress(progress, itemNames: ["Bulk Success", "Bulk Retry"])
+    assertCurrentBulkProgress(progress, itemNames: ["Bulk Success", "Bulk Retry"])
     XCTAssertTrue(
       app.staticTexts["Some items couldn’t be removed"].waitForExistence(timeout: 10)
     )
@@ -628,7 +628,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(bulkProgress.waitForExistence(timeout: 5))
     XCTAssertFalse(app.buttons["BackButton"].isHittable, "back remained active during bulk work")
     XCTAssertFalse(app.buttons["Account"].isHittable, "tab remained active during bulk work")
-    assertBulkProgress(bulkProgress, itemNames: ["Bulk Retry", "Bulk Success"])
+    assertBulkProgressAdvances(bulkProgress, itemNames: ["Bulk Retry", "Bulk Success"])
+    let survivingRow = element(identifier: "files.item.411")
+    XCTAssertEqual(survivingRow.value as? String, "Not selected")
+    survivingRow.tap()
+    XCTAssertEqual(survivingRow.value as? String, "Not selected")
+    XCTAssertFalse(app.buttons["files.selection.select-all"].isEnabled)
     app.swipeRight()
     XCTAssertTrue(
       element(identifier: "files.screen.410").exists,
@@ -720,7 +725,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
   }
 
-  private func assertBulkProgress(_ progress: XCUIElement, itemNames: Set<String>) {
+  private func assertCurrentBulkProgress(_ progress: XCUIElement, itemNames: Set<String>) {
     let completedCount: Int
     switch progress.label {
     case "Removing item 1 of 2…":
@@ -735,6 +740,22 @@ final class FilesBrowserJourneyTests: XCTestCase {
       itemNames.contains { value == "\($0). \(completedCount) of 2 complete." },
       "unexpected bulk progress value: \(value ?? "nil")"
     )
+  }
+
+  private func assertBulkProgressAdvances(_ progress: XCUIElement, itemNames: [String]) {
+    for (index, itemName) in itemNames.enumerated() {
+      let label = "Removing item \(index + 1) of \(itemNames.count)…"
+      let value = "\(itemName). \(index) of \(itemNames.count) complete."
+      let expectation = XCTNSPredicateExpectation(
+        predicate: NSPredicate(format: "label == %@ AND value == %@", label, value),
+        object: progress
+      )
+      XCTAssertEqual(
+        XCTWaiter.wait(for: [expectation], timeout: 5),
+        .completed,
+        "bulk progress did not reach \(label) for \(itemName)"
+      )
+    }
   }
 
   private func openContextMenu(

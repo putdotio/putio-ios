@@ -58,6 +58,7 @@ import Foundation
     static let token = "putio-harness-session-token"
     static let bulkDeleteFailureFolderID = 416
     static let ambiguousMoveFailureFolderID = 418
+    private static let bulkDeleteProgressFolderIDs: Set<Int> = [416, 417]
 
     static func resetPlaybackPositions() {
       playbackPositionLock.lock()
@@ -136,7 +137,7 @@ import Foundation
         let rawFileIDs = payload["file_ids"] as? String,
         let fileID = Int(rawFileIDs)
       else { return false }
-      return fileID >= bulkDeleteFailureFolderID
+      return bulkDeleteProgressFolderIDs.contains(fileID)
     }
 
     private static func fixture(for request: URLRequest) -> (Int, String) {
