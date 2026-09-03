@@ -59,5 +59,5 @@
 
 - [Harness contract](./docs/HARNESS.md)
 - Simulator devices are ephemeral, uniquely named, headless, and deleted after every command
-- Deterministic proof is secret-free; live smoke uses only the `devs-fe-auto` put.io CLI profile
+- Deterministic proof is secret-free; live smoke uses only the `devs-auto` put.io CLI profile
 - Proof artifacts and provenance manifests live under ignored `build/proof/`

@@ -172,7 +172,7 @@ public enum HarnessInvocation: Equatable, Sendable {
 }
 
 enum LiveFixtureContract {
-  static let profile = "devs-fe-auto"
+  static let profile = "devs-auto"
   static let rootFolder = "putio-ios-harness"
 }
 
