@@ -655,6 +655,44 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "retried bulk item remained visible"
     )
 
+    let ambiguousMoveFolder = createFolder(named: "Ambiguous Move", expectedID: 418)
+    let ambiguousEdit = app.buttons["files.selection.toggle"]
+    XCTAssertTrue(waitUntilHittable(ambiguousEdit, timeout: 5))
+    ambiguousEdit.tap()
+    ambiguousMoveFolder.tap()
+    XCTAssertEqual(ambiguousMoveFolder.value as? String, "Selected")
+    let ambiguousBulkMove = app.buttons["files.bulk.move"]
+    XCTAssertTrue(waitUntilHittable(ambiguousBulkMove, timeout: 5))
+    ambiguousBulkMove.tap()
+    let moveAmbiguousToRoot = app.buttons["files.move-here.0"]
+    XCTAssertTrue(waitUntilHittable(moveAmbiguousToRoot, timeout: 5))
+    moveAmbiguousToRoot.tap()
+
+    XCTAssertTrue(
+      app.staticTexts["Could not move items"].waitForExistence(timeout: 10),
+      "ambiguous bulk-move failure was not surfaced"
+    )
+    XCTAssertTrue(
+      ambiguousMoveFolder.waitForNonExistence(timeout: 5),
+      "authoritative source refresh did not remove the applied move"
+    )
+    let dismissAmbiguousMove = app.buttons["files.bulk.dismiss"].firstMatch
+    XCTAssertTrue(waitUntilHittable(dismissAmbiguousMove, timeout: 5))
+    dismissAmbiguousMove.tap()
+    XCTAssertTrue(waitUntilHittable(ambiguousEdit, timeout: 5))
+    ambiguousEdit.tap()
+
+    let backToRefreshedRoot = app.navigationBars["Harness Folder"].buttons["Files"]
+    XCTAssertTrue(waitUntilHittable(backToRefreshedRoot, timeout: 5))
+    backToRefreshedRoot.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    let appliedMoveAtRoot = element(identifier: "files.item.418")
+    XCTAssertTrue(
+      waitUntilHittable(appliedMoveAtRoot, timeout: 5),
+      "already-loaded destination did not refresh after the ambiguous move"
+    )
+    XCTAssertEqual(appliedMoveAtRoot.label, "Ambiguous Move")
+
     app.buttons["Account"].tap()
     let signOut = element(identifier: "auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")

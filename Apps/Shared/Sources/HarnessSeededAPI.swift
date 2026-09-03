@@ -49,6 +49,7 @@ import Foundation
     nonisolated(unsafe) private static var nextActionFolderID = 415
     nonisolated(unsafe) private static var renameAttempts = 0
     nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
+    nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
     private static let playbackPositionLock = NSLock()
     private static let conversionLock = NSLock()
     private static let fileActionsLock = NSLock()
@@ -56,6 +57,7 @@ import Foundation
 
     static let token = "putio-harness-session-token"
     static let bulkDeleteFailureFolderID = 416
+    static let ambiguousMoveFailureFolderID = 418
 
     static func resetPlaybackPositions() {
       playbackPositionLock.lock()
@@ -78,6 +80,7 @@ import Foundation
       nextActionFolderID = 415
       renameAttempts = 0
       bulkDeleteFailureDelivered = false
+      ambiguousMoveFailureDelivered = false
       fileActionsLock.unlock()
     }
 
@@ -397,6 +400,18 @@ import Foundation
         )
       }
       actionFolders[fileID]?.parentID = parentID
+      if fileID == ambiguousMoveFailureFolderID, !ambiguousMoveFailureDelivered {
+        ambiguousMoveFailureDelivered = true
+        fileActionsLock.unlock()
+        return (
+          503,
+          fixtureError(
+            statusCode: 503,
+            type: "HARNESS_AMBIGUOUS_MOVE_FAILURE",
+            message: "The move is applied before its first response fails"
+          )
+        )
+      }
       fileActionsLock.unlock()
       return (200, #"{"status":"OK","errors":[]}"#)
     }

@@ -1241,6 +1241,52 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.bulkOutcome?.failures.map(\.error), [.notFound])
   }
 
+  func testBulkMoveReconcilesAnAppliedMutationReportedAsFailure() async {
+    let loader = ControlledFolderLoader()
+    let mutations = ControlledBulkMutation()
+    let moved = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Moved.mkv")
+    let survivor = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Survivor.mkv")
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [moved, survivor])
+    let reconciled = BrowserTestFixtures.contents(folderID: 42, items: [survivor])
+    let destination = PutioFolderRoute(id: PutioFileID(rawValue: 91), title: "Season 2")
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { folderID in try await loader.load(folderID: folderID) },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        moveFile: { fileID, destinationID in
+          try await mutations.run(fileID: fileID, destinationID: destinationID)
+        }
+      ),
+      initialContents: original
+    )
+
+    let bulk = Task { await model.move([moved], to: destination) }
+    await mutations.waitForRequestCount(1)
+    let requestedDestinationID = await mutations.destinationID(for: 0)
+    XCTAssertEqual(requestedDestinationID, destination.id)
+    await mutations.fail(request: 0, with: PutioRuntimeError.transient)
+    await bulk.value
+
+    XCTAssertEqual(model.state, .loaded(original))
+    await loader.waitForRequestCount(1)
+    let refreshedFolderID = await loader.folderID(for: 0)
+    XCTAssertEqual(refreshedFolderID, PutioFileID(rawValue: 42))
+    await loader.succeed(request: 0, with: reconciled)
+    await waitForState(model, .loaded(reconciled))
+
+    guard let outcome = model.bulkOutcome else {
+      return XCTFail("expected an aggregate bulk outcome")
+    }
+    XCTAssertEqual(outcome.succeeded, [])
+    XCTAssertEqual(outcome.failures.map(\.item), [moved])
+    XCTAssertEqual(outcome.failures.map(\.error), [.transient])
+    XCTAssertEqual(outcome.retryableItems(in: reconciled.items), [])
+    XCTAssertEqual(model.state, .loaded(reconciled))
+  }
+
   func testBulkActionsRejectEmptyStaleDuplicateAndInvalidMoveSelections() async {
     let folder = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Folder", kind: .folder)
     let file = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Episode.mkv")

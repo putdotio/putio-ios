@@ -286,6 +286,7 @@ struct PutioFolderScreen: View {
       Button("Done", role: .cancel) {
         model.clearBulkOutcome()
       }
+      .accessibilityIdentifier("files.bulk.dismiss")
     } message: { outcome in
       Text(bulkOutcomeMessage(outcome))
     }
