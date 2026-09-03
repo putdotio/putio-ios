@@ -56,12 +56,19 @@ final class FilesBrowserRenderingTests: XCTestCase {
       PutioFolderScreen(
         route: .root,
         load: { _ in contents },
+        actions: PutioFileActions(
+          createFolder: { _, _ in BrowserTestFixtures.item(id: 999, kind: .folder) },
+          renameFile: { _, _ in },
+          deleteFile: { _ in },
+          moveFile: { _, _ in }
+        ),
         initialContents: contents,
         relativeTo: BrowserTestFixtures.referenceDate,
         locale: Locale(identifier: "en_US"),
         onFileSelected: { _ in }
       )
     }
+    .tint(PutioTheme.Colors.accent)
     let viewport = CGSize(width: 390, height: 844)
 
     let defaultImage = try assertRenderingSnapshot(

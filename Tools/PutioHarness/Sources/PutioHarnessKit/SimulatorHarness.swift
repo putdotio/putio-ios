@@ -647,6 +647,15 @@ public struct SimulatorHarness {
           context: "runtime file-actions attachment"
         )
         _ = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.trashDisabledTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".trash-disabled.xcresult"),
+          defaultExecutionTimeAllowance: 60,
+          maximumExecutionTimeAllowance: 60
+        )
+        _ = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.unsupportedFileTestIdentifier,
           platform: platform,
           session: session,

@@ -5,6 +5,46 @@ import XCTest
 @testable import Putio
 
 final class PutioFileRouteTests: XCTestCase {
+  func testDeletionPresentationDistinguishesTrashFromPermanentDeletion() {
+    let trash = PutioFileDeletionPresentation(trashEnabled: true)
+    XCTAssertEqual(trash.actionTitle, "Trash")
+    XCTAssertEqual(trash.confirmationTitle(itemName: "Weekend"), "Move “Weekend” to Trash?")
+    XCTAssertEqual(trash.confirmationTitle(itemCount: 2), "Move 2 items to Trash?")
+    XCTAssertEqual(trash.confirmationMessage(itemCount: 1), "You can restore this item from Trash.")
+    XCTAssertEqual(
+      trash.progressTitle(currentItem: 1, totalItems: 2), "Moving item 1 of 2 to Trash…")
+    XCTAssertEqual(
+      trash.failureTitle(allItemsFailed: false), "Some items couldn’t be moved to Trash")
+    XCTAssertEqual(
+      trash.outcomeMessage(succeeded: 1, failed: 1),
+      "Moved 1 item to Trash. 1 couldn’t be moved to Trash.")
+
+    let permanentDelete = PutioFileDeletionPresentation(trashEnabled: false)
+    XCTAssertEqual(permanentDelete.actionTitle, "Delete")
+    XCTAssertEqual(
+      permanentDelete.confirmationTitle(itemName: "Weekend"),
+      "Delete “Weekend” permanently?"
+    )
+    XCTAssertEqual(
+      permanentDelete.confirmationTitle(itemCount: 2),
+      "Delete 2 items permanently?"
+    )
+    XCTAssertEqual(
+      permanentDelete.confirmationMessage(itemCount: 1), "This item cannot be restored.")
+    XCTAssertEqual(
+      permanentDelete.progressTitle(currentItem: 1, totalItems: 2),
+      "Deleting item 1 of 2…"
+    )
+    XCTAssertEqual(
+      permanentDelete.failureTitle(allItemsFailed: false),
+      "Some items couldn’t be deleted"
+    )
+    XCTAssertEqual(
+      permanentDelete.outcomeMessage(succeeded: 1, failed: 1),
+      "Deleted 1 item. 1 couldn’t be deleted."
+    )
+  }
+
   func testFolderRouteIdentityAndHashUseOnlyStableID() {
     let original = PutioFolderRoute(id: PutioFileID(rawValue: 42), title: "Original")
     let renamed = PutioFolderRoute(id: PutioFileID(rawValue: 42), title: "Renamed")
