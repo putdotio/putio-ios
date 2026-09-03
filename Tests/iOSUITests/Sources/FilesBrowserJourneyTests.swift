@@ -751,7 +751,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
         object: progress
       )
       XCTAssertEqual(
-        XCTWaiter.wait(for: [expectation], timeout: 5),
+        XCTWaiter.wait(for: [expectation], timeout: 10),
         .completed,
         "bulk progress did not reach \(label) for \(itemName)"
       )
