@@ -655,6 +655,25 @@ public struct SimulatorHarness {
           defaultExecutionTimeAllowance: 60,
           maximumExecutionTimeAllowance: 60
         )
+        guard
+          let trashManagementScreenshot = try runJourneyPreflightTest(
+            identifier: BrowserJourneyContract.trashManagementTestIdentifier,
+            platform: platform,
+            session: session,
+            mediaBaseURL: mediaBaseURL,
+            resultBundle: platformDirectory.appending(path: ".trash-management.xcresult"),
+            attachmentName: BrowserJourneyContract.trashManagementAttachmentName,
+            artifactDirectory: platformDirectory,
+            defaultExecutionTimeAllowance: 90,
+            maximumExecutionTimeAllowance: 90
+          )
+        else {
+          throw HarnessFailure("trash-management preflight did not produce its screenshot")
+        }
+        _ = try requireMeaningfulScreenshot(
+          trashManagementScreenshot,
+          context: "runtime trash-management attachment"
+        )
         _ = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.unsupportedFileTestIdentifier,
           platform: platform,
@@ -753,7 +772,8 @@ public struct SimulatorHarness {
 
         try requireCleanSource()
         try requireRevision(sourceRevision)
-        let artifactURLs = [fileActionsScreenshot] + screenshots + [recording, summary]
+        let artifactURLs =
+          [fileActionsScreenshot, trashManagementScreenshot] + screenshots + [recording, summary]
         let manifest = try writeManifest(
           platform: platform,
           command: "journey",

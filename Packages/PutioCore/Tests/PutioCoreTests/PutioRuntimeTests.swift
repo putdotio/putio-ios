@@ -203,6 +203,12 @@ final class PutioRuntimeTests: XCTestCase {
   private static let renameFileRoute = "POST /v2/files/rename"
   private static let moveFilesRoute = "POST /v2/files/move"
   private static let deleteFilesRoute = "POST /v2/files/delete"
+  private static let trashListRoute = "GET /v2/trash/list"
+  private static let trashContinueRoute = "POST /v2/trash/list/continue"
+  private static let trashRestoreRoute = "POST /v2/trash/restore"
+  private static let trashDeleteRoute = "POST /v2/trash/delete"
+  private static let trashEmptyRoute = "POST /v2/trash/empty"
+  private static let restoredTrashFileRoute = "GET /v2/files/91"
   private static let nextVideoRoute = "GET /v2/files/411/next-file"
   private static let playbackRoute = "GET /v2/files/411"
   private static let playbackPositionRoute = "POST /v2/files/411/start-from/set"
@@ -512,6 +518,131 @@ final class PutioRuntimeTests: XCTestCase {
 
     XCTAssertEqual(runtime.session.state, .signedOut(.sessionExpired))
     XCTAssertNil(try? tokenStore.read())
+  }
+
+  func testListTrashMapsAppOwnedPageAndItemValues() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      """
+      {
+        "cursor": "trash-page-2",
+        "total": 3,
+        "trash_size": 4096,
+        "files": [
+          {
+            "id": 91,
+            "name": "Old episode.mkv",
+            "file_type": "VIDEO",
+            "parent_id": 7,
+            "size": 2048,
+            "created_at": "2026-08-28T10:00:00Z",
+            "deleted_at": "2026-09-01T11:00:00Z",
+            "expiration_date": "2026-10-01T11:00:00Z"
+          }
+        ]
+      }
+      """,
+      for: Self.trashListRoute
+    )
+
+    let page = try await runtime.listTrash()
+
+    XCTAssertEqual(page.nextCursor, "trash-page-2")
+    XCTAssertEqual(page.totalCount, 3)
+    XCTAssertEqual(page.sizeBytes, 4_096)
+    let item = try XCTUnwrap(page.items.first)
+    XCTAssertEqual(item.id, PutioFileID(rawValue: 91))
+    XCTAssertEqual(item.parentID, PutioFileID(rawValue: 7))
+    XCTAssertEqual(item.name, "Old episode.mkv")
+    XCTAssertEqual(item.kind, .video)
+    XCTAssertEqual(item.sizeBytes, 2_048)
+    XCTAssertEqual(
+      item.deletedAt,
+      try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-09-01T11:00:00Z"))
+    )
+    XCTAssertEqual(
+      item.expiresAt,
+      try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-10-01T11:00:00Z"))
+    )
+  }
+
+  func testListTrashContinuationUsesCursorRequestAndDropsEmptyNextCursor() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"cursor":"","trash_size":0,"files":[]}"#,
+      for: Self.trashContinueRoute
+    )
+
+    let page = try await runtime.listTrash(cursor: "trash-page-2")
+
+    XCTAssertNil(page.nextCursor)
+    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    XCTAssertEqual(request.httpMethod, "POST")
+    XCTAssertEqual(request.url?.path, "/v2/trash/list/continue")
+    let body = try XCTUnwrap(requestBodyData(for: request))
+    let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    XCTAssertEqual(json["cursor"] as? String, "trash-page-2")
+  }
+
+  func testTrashMutationsUseSingleItemSDKRequests() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
+    RuntimeMockURLProtocol.setFixture(
+      """
+      {
+        "file": {
+          "id": 91,
+          "name": "Old episode.mkv",
+          "file_type": "VIDEO",
+          "parent_id": 7,
+          "size": 2048,
+          "created_at": "2026-08-28T10:00:00Z",
+          "updated_at": "2026-09-03T10:00:00Z"
+        }
+      }
+      """,
+      for: Self.restoredTrashFileRoute
+    )
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashDeleteRoute)
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
+    let fileID = PutioFileID(rawValue: 91)
+
+    let restoredItem = try await runtime.restoreTrashItem(fileID: fileID)
+    try await runtime.permanentlyDeleteTrashItem(fileID: fileID)
+    try await runtime.emptyTrash()
+
+    XCTAssertEqual(restoredItem.parentID, PutioFileID(rawValue: 7))
+    let requests = RuntimeMockURLProtocol.capturedRequests().suffix(4)
+    XCTAssertEqual(
+      requests.compactMap { $0.url?.path },
+      ["/v2/trash/restore", "/v2/files/91", "/v2/trash/delete", "/v2/trash/empty"]
+    )
+    XCTAssertEqual(requests.map(\.httpMethod), ["POST", "GET", "POST", "POST"])
+    for request in [
+      requests[requests.startIndex], requests[requests.index(requests.startIndex, offsetBy: 2)],
+    ] {
+      let body = try XCTUnwrap(requestBodyData(for: request))
+      let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+      XCTAssertEqual(json["file_ids"] as? String, "91")
+      XCTAssertNil(json["cursor"])
+    }
+  }
+
+  func testTrashMutationsRejectNonOKStatuses() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(#"{"status":"ERROR"}"#, for: Self.trashRestoreRoute)
+    RuntimeMockURLProtocol.setFixture(#"{"status":"ERROR"}"#, for: Self.trashDeleteRoute)
+    RuntimeMockURLProtocol.setFixture(#"{"status":"ERROR"}"#, for: Self.trashEmptyRoute)
+
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.restoreTrashItem(fileID: PutioFileID(rawValue: 91))
+    }
+    await assertRuntimeError(.invalidResponse) {
+      try await runtime.permanentlyDeleteTrashItem(fileID: PutioFileID(rawValue: 91))
+    }
+    await assertRuntimeError(.invalidResponse) {
+      try await runtime.emptyTrash()
+    }
   }
 
   func testFindNextVideoMapsAppOwnedSuccessorAndVideoQuery() async throws {
@@ -1042,6 +1173,8 @@ final class PutioRuntimeTests: XCTestCase {
     requireSendable(PutioFileKind.self)
     requireSendable(PutioFileItem.self)
     requireSendable(PutioFolderContents.self)
+    requireSendable(PutioTrashItem.self)
+    requireSendable(PutioTrashPage.self)
     requireSendable(PutioNextVideo.self)
     requireSendable(PutioPlaybackSource.self)
     requireSendable(PutioPlaybackResolution.self)

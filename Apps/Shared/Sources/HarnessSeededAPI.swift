@@ -47,10 +47,12 @@ import Foundation
     nonisolated(unsafe) private static var conversionStartAttempts = 0
     nonisolated(unsafe) private static var conversionStatusLoads = 0
     nonisolated(unsafe) private static var actionFolders: [Int: ActionFolder] = [:]
+    nonisolated(unsafe) private static var trashFolders = initialTrashFolders
     nonisolated(unsafe) private static var nextActionFolderID = 415
     nonisolated(unsafe) private static var renameAttempts = 0
     nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
     nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
+    nonisolated(unsafe) private static var trashDeleteFailureDelivered = false
     private static let playbackPositionLock = NSLock()
     private static let conversionLock = NSLock()
     private static let fileActionsLock = NSLock()
@@ -59,6 +61,9 @@ import Foundation
     static let token = "putio-harness-session-token"
     static let bulkDeleteFailureFolderID = 416
     static let ambiguousMoveFailureFolderID = 418
+    static let trashRestoreFolderID = 419
+    static let trashDeleteFolderID = 420
+    static let trashEmptyFolderID = 421
     private static let bulkDeleteProgressFolderIDs: Set<Int> = [416, 417]
 
     static func resetPlaybackPositions() {
@@ -79,10 +84,12 @@ import Foundation
     static func resetFileActions() {
       fileActionsLock.lock()
       actionFolders = [:]
+      trashFolders = initialTrashFolders
       nextActionFolderID = 415
       renameAttempts = 0
       bulkDeleteFailureDelivered = false
       ambiguousMoveFailureDelivered = false
+      trashDeleteFailureDelivered = false
       fileActionsLock.unlock()
     }
 
@@ -149,6 +156,11 @@ import Foundation
         )
       }
       let routeKey = "\(request.httpMethod ?? "GET") \(url.path)"
+      if request.httpMethod == "GET", let fileID = dynamicFileID(from: url.path),
+        let response = actionFolderResponse(fileID: fileID)
+      {
+        return response
+      }
       switch routeKey {
       case "GET /v2/oauth2/validate":
         return (
@@ -169,6 +181,16 @@ import Foundation
         return deleteFiles(request: request)
       case "POST /v2/files/move":
         return moveFiles(request: request)
+      case "GET /v2/trash/list":
+        return listTrash()
+      case "POST /v2/trash/list/continue":
+        return (200, #"{"cursor":"","total":0,"trash_size":0,"files":[]}"#)
+      case "POST /v2/trash/restore":
+        return restoreTrash(request: request)
+      case "POST /v2/trash/delete":
+        return permanentlyDeleteTrash(request: request)
+      case "POST /v2/trash/empty":
+        return emptyTrash()
       case "GET /v2/files/411":
         return (
           200,
@@ -458,9 +480,149 @@ import Foundation
           )
         )
       }
-      actionFolders.removeValue(forKey: fileID)
+      if trashEnabled, let folder = actionFolders.removeValue(forKey: fileID) {
+        trashFolders[fileID] = folder
+      } else {
+        actionFolders.removeValue(forKey: fileID)
+      }
       fileActionsLock.unlock()
       return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func listTrash() -> (Int, String) {
+      fileActionsLock.lock()
+      let rows = trashFolders.sorted { $0.key < $1.key }.map { id, folder in
+        trashFolderObject(id: id, folder: folder)
+      }
+      fileActionsLock.unlock()
+      return (
+        200,
+        """
+        {
+          "cursor": "",
+          "total": \(rows.count),
+          "trash_size": \(rows.count * 2048),
+          "files": [\(rows.joined(separator: ","))]
+        }
+        """
+      )
+    }
+
+    private static var initialTrashFolders: [Int: ActionFolder] {
+      [
+        trashRestoreFolderID: ActionFolder(name: "Restore Me", parentID: 0),
+        trashDeleteFolderID: ActionFolder(name: "Delete Me", parentID: 410),
+        trashEmptyFolderID: ActionFolder(name: "Empty Me", parentID: 0),
+      ]
+    }
+
+    private static func restoreTrash(request: URLRequest) -> (Int, String) {
+      guard let fileID = trashFileID(from: request) else {
+        return trashMutationInputError()
+      }
+      fileActionsLock.lock()
+      guard let folder = trashFolders.removeValue(forKey: fileID) else {
+        fileActionsLock.unlock()
+        return trashNotFoundError()
+      }
+      actionFolders[fileID] = folder
+      fileActionsLock.unlock()
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func permanentlyDeleteTrash(request: URLRequest) -> (Int, String) {
+      guard let fileID = trashFileID(from: request) else {
+        return trashMutationInputError()
+      }
+      fileActionsLock.lock()
+      guard trashFolders[fileID] != nil else {
+        fileActionsLock.unlock()
+        return trashNotFoundError()
+      }
+      if fileID == trashDeleteFolderID, !trashDeleteFailureDelivered {
+        trashDeleteFailureDelivered = true
+        fileActionsLock.unlock()
+        return (
+          503,
+          fixtureError(
+            statusCode: 503,
+            type: "HARNESS_TRANSIENT_TRASH_DELETE_FAILURE",
+            message: "The first permanent delete fails for retry proof"
+          )
+        )
+      }
+      trashFolders.removeValue(forKey: fileID)
+      fileActionsLock.unlock()
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func emptyTrash() -> (Int, String) {
+      fileActionsLock.lock()
+      trashFolders = [:]
+      fileActionsLock.unlock()
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func trashFileID(from request: URLRequest) -> Int? {
+      guard
+        let payload = requestPayload(request),
+        let rawFileIDs = payload["file_ids"] as? String,
+        !rawFileIDs.contains(",")
+      else { return nil }
+      return Int(rawFileIDs)
+    }
+
+    private static func trashMutationInputError() -> (Int, String) {
+      (
+        400,
+        fixtureError(
+          statusCode: 400,
+          type: "HARNESS_TRASH_INPUT_REQUIRED",
+          message: "The Trash fixture requires one file id"
+        )
+      )
+    }
+
+    private static func trashNotFoundError() -> (Int, String) {
+      (
+        404,
+        fixtureError(
+          statusCode: 404,
+          type: "HARNESS_TRASH_FILE_NOT_FOUND",
+          message: "The Trash fixture only changes seeded Trash folders"
+        )
+      )
+    }
+
+    private static func dynamicFileID(from path: String) -> Int? {
+      let prefix = "/v2/files/"
+      guard path.hasPrefix(prefix) else { return nil }
+      let suffix = path.dropFirst(prefix.count)
+      guard !suffix.contains("/") else { return nil }
+      return Int(suffix)
+    }
+
+    private static func actionFolderResponse(fileID: Int) -> (Int, String)? {
+      fileActionsLock.lock()
+      let folder = actionFolders[fileID]
+      fileActionsLock.unlock()
+      guard let folder else { return nil }
+      return (200, folderEnvelope(id: fileID, name: folder.name, parentID: folder.parentID))
+    }
+
+    private static func trashFolderObject(id: Int, folder: ActionFolder) -> String {
+      """
+      {
+        "id": \(id),
+        "name": \(jsonString(folder.name)),
+        "file_type": "FOLDER",
+        "parent_id": \(folder.parentID),
+        "size": 2048,
+        "created_at": "2026-08-28T10:00:00Z",
+        "deleted_at": "2026-09-02T10:00:00Z",
+        "expiration_date": "2026-10-02T10:00:00Z"
+      }
+      """
     }
 
     private static func startVideoConversion() -> (Int, String) {

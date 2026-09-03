@@ -74,6 +74,47 @@ public final class PutioRuntime {
     }
   }
 
+  public func listTrash(cursor: String? = nil) async throws -> PutioTrashPage {
+    let result = try await performAuthenticatedOperation {
+      if let cursor {
+        return try await sdk.continueListTrash(cursor: cursor)
+      }
+      return try await sdk.listTrash()
+    }
+
+    return PutioTrashPage(
+      items: result.files.map(trashSnapshot),
+      nextCursor: result.cursor?.isEmpty == false ? result.cursor : nil,
+      totalCount: result.total,
+      sizeBytes: result.trashSize
+    )
+  }
+
+  public func restoreTrashItem(fileID: PutioFileID) async throws -> PutioFileItem {
+    let response = try await performAuthenticatedOperation {
+      try await sdk.restoreTrashFiles(fileIDs: [fileID.rawValue], cursor: nil)
+    }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+    let restoredFile = try await performAuthenticatedOperation {
+      try await sdk.getFile(fileID: fileID.rawValue)
+    }
+    return snapshot(restoredFile)
+  }
+
+  public func permanentlyDeleteTrashItem(fileID: PutioFileID) async throws {
+    let response = try await performAuthenticatedOperation {
+      try await sdk.deleteTrashFiles(fileIDs: [fileID.rawValue], cursor: nil)
+    }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+  }
+
+  public func emptyTrash() async throws {
+    let response = try await performAuthenticatedOperation {
+      try await sdk.emptyTrash()
+    }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+  }
+
   public func findNextVideo(after fileID: PutioFileID) async throws -> PutioNextVideo? {
     let nextFile = try await performAuthenticatedOperation {
       try await sdk.findNextFileIfAvailable(fileID: fileID.rawValue, fileType: .video)
@@ -226,6 +267,18 @@ public final class PutioRuntime {
       createdAt: file.createdAt,
       updatedAt: file.updatedAt,
       resumePositionSeconds: file.startFrom
+    )
+  }
+
+  private func trashSnapshot(_ file: PutioTrashFile) -> PutioTrashItem {
+    PutioTrashItem(
+      id: PutioFileID(rawValue: file.id),
+      parentID: PutioFileID(rawValue: file.parentID),
+      name: file.name,
+      kind: kind(for: file.type),
+      sizeBytes: file.size,
+      deletedAt: file.deletedAt,
+      expiresAt: file.expiresOn
     )
   }
 

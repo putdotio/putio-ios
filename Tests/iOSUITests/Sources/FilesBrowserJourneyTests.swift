@@ -247,6 +247,70 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
+  func testTrashManagementRestoreRetryDeleteAndEmpty() {
+    app.launch()
+
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
+
+    app.buttons["Account"].tap()
+    let trashEntry = element(identifier: "account.trash")
+    XCTAssertTrue(waitUntilHittable(trashEntry, timeout: 5))
+    trashEntry.tap()
+
+    let restoreRow = app.staticTexts["Restore Me"]
+    XCTAssertTrue(restoreRow.waitForExistence(timeout: 10))
+    addScreenshot(named: "runtime-trash-loaded")
+    let restoreActions = app.buttons["trash.item.419.actions"]
+    XCTAssertTrue(waitUntilHittable(restoreActions, timeout: 5))
+    restoreActions.tap()
+    let restore = app.buttons["trash.restore.419"]
+    XCTAssertTrue(waitUntilHittable(restore, timeout: 5))
+    restore.tap()
+    XCTAssertTrue(app.staticTexts["Item restored"].waitForExistence(timeout: 5))
+    XCTAssertTrue(restoreRow.waitForNonExistence(timeout: 5))
+
+    app.buttons["Files"].tap()
+    XCTAssertTrue(
+      element(identifier: "files.item.419").waitForExistence(timeout: 10),
+      "restored item did not return to its authoritative root destination"
+    )
+    app.buttons["Account"].tap()
+
+    let deleteRow = app.staticTexts["Delete Me"]
+    XCTAssertTrue(deleteRow.waitForExistence(timeout: 5))
+    permanentlyDeleteTrashItem(id: 420, name: "Delete Me")
+    XCTAssertTrue(
+      app.staticTexts["Could not permanently delete item"].waitForExistence(timeout: 5)
+    )
+    XCTAssertTrue(deleteRow.exists, "failed permanent delete removed the row")
+
+    permanentlyDeleteTrashItem(id: 420, name: "Delete Me")
+    XCTAssertTrue(app.staticTexts["Item deleted"].waitForExistence(timeout: 5))
+    XCTAssertTrue(deleteRow.waitForNonExistence(timeout: 5))
+
+    let emptyTrash = app.buttons["trash.empty"]
+    XCTAssertTrue(waitUntilHittable(emptyTrash, timeout: 5))
+    emptyTrash.tap()
+    XCTAssertTrue(app.staticTexts["Empty Trash permanently?"].waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      app.staticTexts["Every item in Trash will be deleted and cannot be restored."].exists
+    )
+    let confirmEmpty = app.buttons["trash.empty-confirm"].firstMatch
+    XCTAssertTrue(waitUntilHittable(confirmEmpty, timeout: 5))
+    confirmEmpty.tap()
+    XCTAssertTrue(app.staticTexts["Trash is empty"].waitForExistence(timeout: 10))
+    addScreenshot(named: "runtime-trash-empty")
+
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+  }
+
   func testUnsupportedFileIsNotActionable() {
     app.launch()
 
@@ -271,6 +335,22 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+  }
+
+  private func permanentlyDeleteTrashItem(id: Int, name: String) {
+    let actions = app.buttons["trash.item.\(id).actions"]
+    XCTAssertTrue(waitUntilHittable(actions, timeout: 5))
+    actions.tap()
+    let delete = app.buttons["trash.delete.\(id)"]
+    XCTAssertTrue(waitUntilHittable(delete, timeout: 5))
+    delete.tap()
+    XCTAssertTrue(
+      app.staticTexts["Delete “\(name)” permanently?"].waitForExistence(timeout: 5)
+    )
+    XCTAssertTrue(app.staticTexts["This item cannot be restored."].exists)
+    let confirm = app.buttons["trash.delete-confirm"].firstMatch
+    XCTAssertTrue(waitUntilHittable(confirm, timeout: 5))
+    confirm.tap()
   }
 
   func testPlaybackPositionPersistsAcrossReopen() {

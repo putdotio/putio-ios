@@ -106,6 +106,53 @@ public struct PutioFolderContents: Equatable, Sendable {
   }
 }
 
+public struct PutioTrashItem: Identifiable, Hashable, Sendable {
+  public let id: PutioFileID
+  public let parentID: PutioFileID
+  public let name: String
+  public let kind: PutioFileKind
+  public let sizeBytes: Int64
+  public let deletedAt: Date
+  public let expiresAt: Date
+
+  public init(
+    id: PutioFileID,
+    parentID: PutioFileID,
+    name: String,
+    kind: PutioFileKind,
+    sizeBytes: Int64,
+    deletedAt: Date,
+    expiresAt: Date
+  ) {
+    self.id = id
+    self.parentID = parentID
+    self.name = name
+    self.kind = kind
+    self.sizeBytes = sizeBytes
+    self.deletedAt = deletedAt
+    self.expiresAt = expiresAt
+  }
+}
+
+public struct PutioTrashPage: Equatable, Sendable {
+  public let items: [PutioTrashItem]
+  public let nextCursor: String?
+  public let totalCount: Int?
+  public let sizeBytes: Int64
+
+  public init(
+    items: [PutioTrashItem],
+    nextCursor: String?,
+    totalCount: Int?,
+    sizeBytes: Int64
+  ) {
+    self.items = items
+    self.nextCursor = nextCursor
+    self.totalCount = totalCount
+    self.sizeBytes = sizeBytes
+  }
+}
+
 public struct PutioNextVideo: Equatable, Sendable {
   public let id: PutioFileID
   public let parentID: PutioFileID
