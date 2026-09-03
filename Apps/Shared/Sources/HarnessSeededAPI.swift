@@ -301,14 +301,14 @@ import Foundation
         let name = payload["name"] as? String,
         !name.isEmpty,
         let parentID = payload["parent_id"] as? Int,
-        parentID == 0
+        parentID == 0 || parentID == 410
       else {
         return (
           400,
           fixtureError(
             statusCode: 400,
             type: "HARNESS_FOLDER_INPUT_REQUIRED",
-            message: "The create-folder fixture requires a root parent and name"
+            message: "The create-folder fixture requires a seeded parent and name"
           )
         )
       }
