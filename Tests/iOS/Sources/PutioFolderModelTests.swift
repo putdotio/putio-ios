@@ -220,6 +220,43 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(original))
   }
 
+  func testBulkRetryJoinsCompletionRefreshInsteadOfDiscardingItsResult() async {
+    let loader = ControlledFolderLoader()
+    let item = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Moved.mkv")
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [item])
+    let reconciled = BrowserTestFixtures.contents(folderID: 42, items: [])
+    var loadCount = 0
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { folderID in
+        loadCount += 1
+        guard loadCount == 1 else { throw PutioRuntimeError.rateLimited }
+        return try await loader.load(folderID: folderID)
+      },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.transient }
+      ),
+      initialContents: original
+    )
+
+    await model.delete([item])
+    await loader.waitForRequestCount(1)
+    guard let outcome = model.bulkOutcome else {
+      return XCTFail("expected an aggregate bulk outcome")
+    }
+    let completion = Task { await loader.succeed(request: 0, with: reconciled) }
+    let preparation = await model.prepareBulkRetry(outcome)
+    await completion.value
+
+    XCTAssertEqual(preparation, .ready([]))
+    XCTAssertEqual(loadCount, 1)
+    XCTAssertEqual(model.state, .loaded(reconciled))
+    XCTAssertNil(model.bulkOutcome)
+    XCTAssertNil(model.refreshFailure)
+  }
+
   func testBulkMovePickerExcludesEverySelectedFolderAndCurrentParent() {
     let firstFolder = BrowserTestFixtures.item(
       id: 7, parentID: 42, name: "First", kind: .folder)
