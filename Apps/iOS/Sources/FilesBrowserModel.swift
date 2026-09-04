@@ -306,6 +306,7 @@ final class PutioFolderModel {
   @ObservationIgnored private var generation: UInt64 = 0
   @ObservationIgnored private var inFlightLoadGeneration: UInt64?
   @ObservationIgnored private var actionTask: Task<Void, Never>?
+  @ObservationIgnored private var queuedRefresh: (id: UUID, task: Task<Bool, Never>)?
   @ObservationIgnored private var refreshRequestedWhileActionActive = false
 
   init(
@@ -477,7 +478,13 @@ final class PutioFolderModel {
   }
 
   func prepareBulkRetry(_ outcome: PutioBulkFileOutcome) async -> PutioBulkRetryPreparation {
-    guard await refresh(), case .loaded(let contents) = state else {
+    let refreshed: Bool
+    if let queuedRefresh {
+      refreshed = await queuedRefresh.task.value
+    } else {
+      refreshed = await refresh()
+    }
+    guard refreshed, case .loaded(let contents) = state else {
       restoreBulkOutcome(outcome)
       return .failed
     }
@@ -647,9 +654,15 @@ final class PutioFolderModel {
   private func startQueuedRefreshIfNeeded() {
     guard refreshRequestedWhileActionActive else { return }
     refreshRequestedWhileActionActive = false
-    Task { @MainActor [weak self] in
-      _ = await self?.refresh()
+    let id = UUID()
+    let task = Task { @MainActor [weak self] in
+      guard let self else { return false }
+      defer {
+        if queuedRefresh?.id == id { queuedRefresh = nil }
+      }
+      return await refresh()
     }
+    queuedRefresh = (id, task)
   }
 
   private func performLoad(mode: LoadMode) async -> Bool {

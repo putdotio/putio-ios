@@ -189,12 +189,12 @@ struct PutioFolderScreen: View {
             guard !items.isEmpty else { return }
             pendingMove = MoveSelection(items: items, isBulk: true)
           }
-          .disabled(selectedIDs.isEmpty || fileActionPending)
+          .disabled(selectedItems.isEmpty || fileActionPending)
           .accessibilityIdentifier("files.bulk.move")
           Button("Remove", role: .destructive) {
             pendingBulkDeletion = selectedItems
           }
-          .disabled(selectedIDs.isEmpty || fileActionPending)
+          .disabled(selectedItems.isEmpty || fileActionPending)
           .accessibilityIdentifier("files.bulk.remove")
         }
       }
@@ -690,6 +690,7 @@ struct PutioFolderScreen: View {
     guard actionRequest == request else { return }
     actionRequest = nil
     startedActionRequest = nil
+    selectedIDs.formIntersection(currentItems.map(\.id))
     presentActionOutcome()
     presentBulkOutcome()
   }
