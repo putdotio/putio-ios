@@ -207,6 +207,7 @@ private struct MainTabView: View {
       Tab {
         FilesBrowserView(
           runtime: runtime,
+          trashEnabled: account.trashEnabled,
           onFileSelected: { route in selectFile(route) },
           refreshRequests: folderRefreshRequests
         )

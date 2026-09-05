@@ -635,7 +635,9 @@ public struct SimulatorHarness {
             mediaBaseURL: mediaBaseURL,
             resultBundle: platformDirectory.appending(path: ".sign-out-recovery.xcresult"),
             attachmentName: BrowserJourneyContract.signOutFailureAttachmentName,
-            artifactDirectory: platformDirectory
+            artifactDirectory: platformDirectory,
+            defaultExecutionTimeAllowance: 60,
+            maximumExecutionTimeAllowance: 90
           )
         else {
           throw HarnessFailure("sign-out recovery preflight did not produce its screenshot")
@@ -654,8 +656,8 @@ public struct SimulatorHarness {
             resultBundle: platformDirectory.appending(path: ".file-actions.xcresult"),
             attachmentName: BrowserJourneyContract.fileActionsAttachmentName,
             artifactDirectory: platformDirectory,
-            defaultExecutionTimeAllowance: 60,
-            maximumExecutionTimeAllowance: 90
+            defaultExecutionTimeAllowance: 240,
+            maximumExecutionTimeAllowance: 240
           )
         else {
           throw HarnessFailure("file-actions preflight did not produce its screenshot")
@@ -663,6 +665,15 @@ public struct SimulatorHarness {
         _ = try requireMeaningfulScreenshot(
           fileActionsScreenshot,
           context: "runtime file-actions attachment"
+        )
+        _ = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.trashDisabledTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".trash-disabled.xcresult"),
+          defaultExecutionTimeAllowance: 60,
+          maximumExecutionTimeAllowance: 60
         )
         _ = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.unsupportedFileTestIdentifier,

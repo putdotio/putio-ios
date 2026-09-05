@@ -34,10 +34,11 @@ Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` 
 
 `screenshot` and `record` accept `--scenario signed-out|gallery|signed-in`. The `gallery` scenario launches the iOS or tvOS component gallery. The iOS-only `signed-in` scenario uses a deterministic in-process API, restores a session, bootstraps the account screen, and signs out after a few seconds. Other commands and unsupported platforms reject these scenarios.
 
-`journey --platform ios --scenario files-browser` proves the runnable alpha loop with real accessibility input. Four unrecorded `1/1` preflights cover:
+`journey --platform ios --scenario files-browser` proves the runnable alpha loop with real accessibility input. Five unrecorded `1/1` preflights cover:
 
 - Sign-out recovery: the existing signed-in scenario uses a one-time credential-removal failure and seeded logout failure, shows the recovery message, captures `runtime-sign-out-failure.png`, and completes sign-out after an explicit retry. Default signed-in captures keep successful sign-out behavior.
-- File actions: create, optimistic rename, delayed failure rollback, retry, neutral removal, and a meaningful `runtime-file-actions.png` screenshot.
+- File actions: create, optimistic rename, delayed rollback and retry, move, bulk partial-failure recovery, and a meaningful `runtime-file-actions.png` screenshot.
+- Trash semantics: visible per-row actions plus Trash-enabled and permanent-delete copy from the seeded account setting.
 - Unsupported files: the PDF row remains visible but is not actionable.
 - Resume persistence: a final playback position resolves again after reopening the video.
 

@@ -52,6 +52,22 @@ public final class PutioRuntime {
     }
   }
 
+  public func moveFile(fileID: PutioFileID, to parentID: PutioFileID) async throws {
+    let response = try await performAuthenticatedOperation {
+      try await sdk.moveFiles(fileIDs: [fileID.rawValue], parentID: parentID.rawValue)
+    }
+
+    guard response.status == "OK" else {
+      throw PutioRuntimeError.invalidResponse
+    }
+    guard !response.errors.isEmpty else { return }
+    guard response.errors.count == 1, response.errors[0].id == fileID.rawValue else {
+      throw PutioRuntimeError.invalidResponse
+    }
+
+    throw runtimeError(forStructuredStatusCode: response.errors[0].statusCode)
+  }
+
   public func deleteFile(fileID: PutioFileID) async throws {
     _ = try await performAuthenticatedOperation {
       try await sdk.deleteFiles(fileIDs: [fileID.rawValue])
@@ -185,6 +201,19 @@ public final class PutioRuntime {
       return .sessionExpired
     }
     return .authenticationRequired
+  }
+
+  private func runtimeError(forStructuredStatusCode statusCode: Int) -> PutioRuntimeError {
+    switch statusCode {
+    case 404:
+      return .notFound
+    case 429:
+      return .rateLimited
+    case 408, 500...599:
+      return .transient
+    default:
+      return .unknown
+    }
   }
 
   private func snapshot(_ file: PutioFile) -> PutioFileItem {

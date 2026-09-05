@@ -34,16 +34,24 @@ import Foundation
   // the legacy app's E2E mock approach. Anything outside the seeded session
   // and browser surface fails loudly with a named fixture gap.
   final class HarnessSeededAPI: URLProtocol, @unchecked Sendable {
+    private struct ActionFolder {
+      var name: String
+      var parentID: Int
+    }
+
     nonisolated(unsafe) static var isEnabled = false
+    nonisolated(unsafe) static var trashEnabled = true
     nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 589, 414: 37]
     nonisolated(unsafe) private static var conversionStarted = false
     nonisolated(unsafe) private static var conversionCompleted = false
     nonisolated(unsafe) private static var conversionStartAttempts = 0
     nonisolated(unsafe) private static var conversionStatusLoads = 0
-    nonisolated(unsafe) private static var actionFolders: [Int: String] = [:]
+    nonisolated(unsafe) private static var actionFolders: [Int: ActionFolder] = [:]
     nonisolated(unsafe) private static var nextActionFolderID = 415
     nonisolated(unsafe) private static var renameAttempts = 0
     nonisolated(unsafe) private static var logoutFailuresRemaining = 0
+    nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
+    nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
     private static let playbackPositionLock = NSLock()
     private static let conversionLock = NSLock()
     private static let fileActionsLock = NSLock()
@@ -51,6 +59,9 @@ import Foundation
     private let deliveryGate = HarnessResponseDeliveryGate()
 
     static let token = "putio-harness-session-token"
+    static let bulkDeleteFailureFolderID = 416
+    static let ambiguousMoveFailureFolderID = 418
+    private static let bulkDeleteProgressFolderIDs: Set<Int> = [416, 417]
 
     static func configureSignOutFailure(_ enabled: Bool) {
       logoutLock.withLock { logoutFailuresRemaining = enabled ? 1 : 0 }
@@ -76,6 +87,8 @@ import Foundation
       actionFolders = [:]
       nextActionFolderID = 415
       renameAttempts = 0
+      bulkDeleteFailureDelivered = false
+      ambiguousMoveFailureDelivered = false
       fileActionsLock.unlock()
     }
 
@@ -95,7 +108,8 @@ import Foundation
         }
         return
       }
-      let (statusCode, body) = Self.fixture(for: request)
+      let replayableRequest = Self.replayableRequest(request)
+      let (statusCode, body) = Self.fixture(for: replayableRequest)
       let response = HTTPURLResponse(
         url: url,
         statusCode: statusCode,
@@ -110,7 +124,9 @@ import Foundation
           self.client?.urlProtocolDidFinishLoading(self)
         }
       }
-      if statusCode == 503, url.path == "/v2/files/rename" {
+      if Self.shouldDelayBulkDeleteResponse(replayableRequest) {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 8, execute: deliverResponse)
+      } else if statusCode == 503, url.path == "/v2/files/rename" {
         DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
       } else {
         deliverResponse()
@@ -119,6 +135,16 @@ import Foundation
 
     override func stopLoading() {
       deliveryGate.cancel()
+    }
+
+    private static func shouldDelayBulkDeleteResponse(_ request: URLRequest) -> Bool {
+      guard
+        request.url?.path == "/v2/files/delete",
+        let payload = requestPayload(request),
+        let rawFileIDs = payload["file_ids"] as? String,
+        let fileID = Int(rawFileIDs)
+      else { return false }
+      return bulkDeleteProgressFolderIDs.contains(fileID)
     }
 
     private static func fixture(for request: URLRequest) -> (Int, String) {
@@ -158,6 +184,8 @@ import Foundation
         return renameFile(request: request)
       case "POST /v2/files/delete":
         return deleteFiles(request: request)
+      case "POST /v2/files/move":
+        return moveFiles(request: request)
       case "GET /v2/files/411":
         return (
           200,
@@ -292,14 +320,14 @@ import Foundation
         let name = payload["name"] as? String,
         !name.isEmpty,
         let parentID = payload["parent_id"] as? Int,
-        parentID == 0
+        parentID == 0 || parentID == 410
       else {
         return (
           400,
           fixtureError(
             statusCode: 400,
             type: "HARNESS_FOLDER_INPUT_REQUIRED",
-            message: "The create-folder fixture requires a root parent and name"
+            message: "The create-folder fixture requires a seeded parent and name"
           )
         )
       }
@@ -307,9 +335,9 @@ import Foundation
       fileActionsLock.lock()
       let id = nextActionFolderID
       nextActionFolderID += 1
-      actionFolders[id] = name
+      actionFolders[id] = ActionFolder(name: name, parentID: parentID)
       fileActionsLock.unlock()
-      return (200, folderEnvelope(id: id, name: name))
+      return (200, folderEnvelope(id: id, name: name, parentID: parentID))
     }
 
     private static func renameFile(request: URLRequest) -> (Int, String) {
@@ -344,7 +372,7 @@ import Foundation
       renameAttempts += 1
       let attempt = renameAttempts
       if attempt > 1 {
-        actionFolders[fileID] = name
+        actionFolders[fileID]?.name = name
       }
       fileActionsLock.unlock()
       guard attempt > 1 else {
@@ -358,6 +386,53 @@ import Foundation
         )
       }
       return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func moveFiles(request: URLRequest) -> (Int, String) {
+      guard
+        let payload = requestPayload(request),
+        let rawFileIDs = payload["file_ids"] as? String,
+        let fileID = Int(rawFileIDs),
+        let parentID = payload["parent_id"] as? Int,
+        parentID == 0 || parentID == 410
+      else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400,
+            type: "HARNESS_MOVE_INPUT_REQUIRED",
+            message: "The move fixture requires one file id and a seeded destination"
+          )
+        )
+      }
+
+      fileActionsLock.lock()
+      guard actionFolders[fileID] != nil else {
+        fileActionsLock.unlock()
+        return (
+          404,
+          fixtureError(
+            statusCode: 404,
+            type: "HARNESS_FILE_NOT_FOUND",
+            message: "The move fixture only changes harness-created folders"
+          )
+        )
+      }
+      actionFolders[fileID]?.parentID = parentID
+      if fileID == ambiguousMoveFailureFolderID, !ambiguousMoveFailureDelivered {
+        ambiguousMoveFailureDelivered = true
+        fileActionsLock.unlock()
+        return (
+          503,
+          fixtureError(
+            statusCode: 503,
+            type: "HARNESS_AMBIGUOUS_MOVE_FAILURE",
+            message: "The move is applied before its first response fails"
+          )
+        )
+      }
+      fileActionsLock.unlock()
+      return (200, #"{"status":"OK","errors":[]}"#)
     }
 
     private static func deleteFiles(request: URLRequest) -> (Int, String) {
@@ -377,9 +452,8 @@ import Foundation
       }
 
       fileActionsLock.lock()
-      let removed = actionFolders.removeValue(forKey: fileID)
-      fileActionsLock.unlock()
-      guard removed != nil else {
+      guard actionFolders[fileID] != nil else {
+        fileActionsLock.unlock()
         return (
           404,
           fixtureError(
@@ -389,6 +463,20 @@ import Foundation
           )
         )
       }
+      if fileID == bulkDeleteFailureFolderID, !bulkDeleteFailureDelivered {
+        bulkDeleteFailureDelivered = true
+        fileActionsLock.unlock()
+        return (
+          503,
+          fixtureError(
+            statusCode: 503,
+            type: "HARNESS_TRANSIENT_DELETE_FAILURE",
+            message: "The first delete of the second created folder fails for retry proof"
+          )
+        )
+      }
+      actionFolders.removeValue(forKey: fileID)
+      fileActionsLock.unlock()
       return (200, #"{"status":"OK"}"#)
     }
 
@@ -464,12 +552,23 @@ import Foundation
       return body
     }
 
+    private static func replayableRequest(_ request: URLRequest) -> URLRequest {
+      guard request.httpBody == nil, request.httpBodyStream != nil,
+        let body = requestBodyData(request)
+      else { return request }
+      var replayableRequest = request
+      replayableRequest.httpBodyStream = nil
+      replayableRequest.httpBody = body
+      return replayableRequest
+    }
+
     private static func requestPayload(_ request: URLRequest) -> [String: Any]? {
       guard let body = requestBodyData(request) else { return nil }
       return try? JSONSerialization.jsonObject(with: body) as? [String: Any]
     }
 
-    private static let accountInfo = """
+    private static var accountInfo: String {
+      """
       {
         "info": {
           "user_id": 1001,
@@ -493,7 +592,7 @@ import Foundation
             "next_episode": true,
             "start_from": true,
             "history_enabled": true,
-            "trash_enabled": true,
+            "trash_enabled": \(trashEnabled),
             "sort_by": "NAME_ASC",
             "show_optimistic_usage": false,
             "two_factor_enabled": false,
@@ -503,13 +602,17 @@ import Foundation
         }
       }
       """
+    }
 
     private static var rootFiles: String {
       fileActionsLock.lock()
-      let mutableFolders = actionFolders.sorted { $0.key < $1.key }
+      let mutableFolders =
+        actionFolders
+        .filter { $0.value.parentID == 0 }
+        .sorted { $0.key < $1.key }
       fileActionsLock.unlock()
-      let mutableFolderRows = mutableFolders.map { id, name in
-        folderObject(id: id, name: name)
+      let mutableFolderRows = mutableFolders.map { id, folder in
+        folderObject(id: id, name: folder.name, parentID: folder.parentID)
       }
       let extraRows =
         mutableFolderRows.isEmpty ? "" : ",\n" + mutableFolderRows.joined(separator: ",\n")
@@ -559,21 +662,21 @@ import Foundation
         """
     }
 
-    private static func folderEnvelope(id: Int, name: String) -> String {
-      """
-      {
-        "file": \(folderObject(id: id, name: name))
-      }
-      """
+    private static func folderEnvelope(id: Int, name: String, parentID: Int) -> String {
+      return """
+          {
+          "file": \(folderObject(id: id, name: name, parentID: parentID))
+        }
+        """
     }
 
-    private static func folderObject(id: Int, name: String) -> String {
+    private static func folderObject(id: Int, name: String, parentID: Int) -> String {
       """
       {
         "id": \(id),
         "name": \(jsonString(name)),
         "file_type": "FOLDER",
-        "parent_id": 0,
+        "parent_id": \(parentID),
         "size": 0,
         "created_at": "2026-09-01T20:00:00Z",
         "updated_at": "2026-09-01T20:00:00Z"
@@ -590,32 +693,43 @@ import Foundation
     }
 
     private static var nestedFiles: String {
-      """
-      {
-        "parent": {
-          "id": 410,
-          "name": "Harness Folder",
-          "file_type": "FOLDER",
-          "parent_id": 0,
-          "size": 0,
-          "created_at": "2026-08-28T10:00:00Z",
-          "updated_at": "2026-08-29T10:00:00Z"
-        },
-        "files": [
-          {
-            "id": 411,
-            "name": "Nested Movie.mkv",
-            "file_type": "VIDEO",
-            "parent_id": 410,
-            "size": 1073741824,
-            "created_at": "2026-08-28T11:00:00Z",
-            "updated_at": "2026-08-29T11:00:00Z",
-            "start_from": \(playbackPosition(fileID: 411))
-          }
-        ],
-        "total": 1
+      fileActionsLock.lock()
+      let mutableFolders =
+        actionFolders
+        .filter { $0.value.parentID == 410 }
+        .sorted { $0.key < $1.key }
+      fileActionsLock.unlock()
+      let mutableFolderRows = mutableFolders.map { id, folder in
+        folderObject(id: id, name: folder.name, parentID: folder.parentID)
       }
-      """
+      let extraRows =
+        mutableFolderRows.isEmpty ? "" : ",\n" + mutableFolderRows.joined(separator: ",\n")
+      return """
+        {
+          "parent": {
+            "id": 410,
+            "name": "Harness Folder",
+            "file_type": "FOLDER",
+            "parent_id": 0,
+            "size": 0,
+            "created_at": "2026-08-28T10:00:00Z",
+            "updated_at": "2026-08-29T10:00:00Z"
+          },
+          "files": [
+            {
+              "id": 411,
+              "name": "Nested Movie.mkv",
+              "file_type": "VIDEO",
+              "parent_id": 410,
+              "size": 1073741824,
+              "created_at": "2026-08-28T11:00:00Z",
+              "updated_at": "2026-08-29T11:00:00Z",
+              "start_from": \(playbackPosition(fileID: 411))
+            }\(extraRows)
+          ],
+          "total": \(1 + mutableFolders.count)
+        }
+        """
     }
 
     private static func playbackFile(id: Int, name: String, startFrom: Int) -> String {

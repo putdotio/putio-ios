@@ -16,6 +16,83 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
   }
 
+  func testBulkSelectionControls() {
+    app.launch()
+
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
+
+    let unsupportedFile = tapUnsupportedFileBeforeEditing()
+
+    let successFolder = createFolder(named: "Bulk Success", expectedID: 415)
+    let retryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
+    let edit = app.buttons["files.selection.toggle"]
+    XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
+    edit.tap()
+    XCTAssertEqual(edit.label, "Done", "selection control did not enter edit mode")
+    let bulkMove = app.buttons["files.bulk.move"]
+    XCTAssertTrue(bulkMove.waitForExistence(timeout: 5), "bulk toolbar did not appear")
+    XCTAssertEqual(unsupportedFile.value as? String, "Not selected")
+    XCTAssertFalse(bulkMove.isEnabled)
+
+    let selectAll = app.buttons["files.selection.select-all"]
+    XCTAssertTrue(
+      waitUntilHittable(selectAll, timeout: 5),
+      "select-all action is not hittable: \(selectAll.debugDescription)"
+    )
+    selectAll.tap()
+    XCTAssertEqual(successFolder.value as? String, "Selected")
+    XCTAssertEqual(retryFolder.value as? String, "Selected")
+    XCTAssertTrue(bulkMove.isEnabled)
+    let deselectAll = app.buttons["files.selection.deselect-all"]
+    XCTAssertTrue(waitUntilHittable(deselectAll, timeout: 5))
+    deselectAll.tap()
+    XCTAssertEqual(successFolder.value as? String, "Not selected")
+    XCTAssertEqual(retryFolder.value as? String, "Not selected")
+    XCTAssertFalse(bulkMove.isEnabled)
+
+    successFolder.tap()
+    XCTAssertEqual(successFolder.value as? String, "Selected")
+    successFolder.tap()
+    XCTAssertEqual(successFolder.value as? String, "Not selected")
+
+    successFolder.tap()
+    retryFolder.tap()
+    XCTAssertEqual(successFolder.value as? String, "Selected")
+    XCTAssertEqual(retryFolder.value as? String, "Selected")
+    XCTAssertTrue(bulkMove.isEnabled)
+    XCTAssertTrue(waitUntilHittable(bulkMove, timeout: 5))
+
+    let bulkRemove = app.buttons["files.bulk.remove"]
+    XCTAssertTrue(waitUntilHittable(bulkRemove, timeout: 5))
+    XCTAssertEqual(bulkRemove.label, "Trash")
+    bulkRemove.tap()
+    XCTAssertTrue(app.staticTexts["Move 2 items to Trash?"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["You can restore these items from Trash."].exists)
+    let confirm = app.buttons["files.bulk.remove-confirm"].firstMatch
+    XCTAssertTrue(waitUntilHittable(confirm, timeout: 5))
+    confirm.tap()
+    let progress = element(identifier: "files.bulk.progress")
+    XCTAssertTrue(progress.waitForExistence(timeout: 5))
+    assertCurrentBulkProgress(progress, itemNames: ["Bulk Success", "Bulk Retry"])
+    XCTAssertTrue(
+      app.staticTexts["Some items couldn’t be moved to Trash"].waitForExistence(timeout: 10)
+    )
+    let retry = app.buttons["files.bulk.retry"].firstMatch
+    XCTAssertTrue(waitUntilHittable(retry, timeout: 5))
+    retry.tap()
+    XCTAssertTrue(app.staticTexts["Moved 1 item to Trash."].waitForExistence(timeout: 10))
+    XCTAssertTrue(retryFolder.waitForNonExistence(timeout: 5))
+
+    app.buttons["Account"].tap()
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+  }
+
   func testRunnableAlphaLoop() {
     app.launch()
 
@@ -155,6 +232,49 @@ final class FilesBrowserJourneyTests: XCTestCase {
     retry.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "retry did not complete sign-out")
     XCTAssertFalse(retry.exists)
+  }
+
+  func testTrashDisabledUsesPermanentDeleteCopyAndVisibleMenu() {
+    app.launchArguments.append("--putio-harness-trash-disabled")
+    app.launch()
+
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
+    signIn.tap()
+    XCTAssertTrue(
+      element(identifier: "files.screen.0").waitForExistence(timeout: 10),
+      "signed-in root browser never appeared"
+    )
+
+    let folder = createFolder(named: "Delete Forever", expectedID: 415)
+    let moreActions = app.buttons["files.actions.415"]
+    XCTAssertTrue(
+      waitUntilHittable(moreActions, timeout: 5),
+      "visible more-actions control is unavailable"
+    )
+    XCTAssertEqual(moreActions.label, "More actions for Delete Forever")
+    moreActions.tap()
+
+    let delete = app.buttons["files.delete.415"]
+    XCTAssertTrue(delete.waitForExistence(timeout: 5), "permanent Delete action is unavailable")
+    XCTAssertEqual(delete.label, "Delete")
+    delete.tap()
+    XCTAssertTrue(
+      app.staticTexts["Delete “Delete Forever” permanently?"].waitForExistence(timeout: 5)
+    )
+    XCTAssertTrue(app.staticTexts["This item cannot be restored."].exists)
+    let confirm = app.buttons["files.delete-confirm"].firstMatch
+    XCTAssertTrue(waitUntilHittable(confirm, timeout: 5))
+    XCTAssertEqual(confirm.label, "Delete")
+    confirm.tap()
+    XCTAssertTrue(app.staticTexts["Item deleted"].waitForExistence(timeout: 5))
+    XCTAssertTrue(folder.waitForNonExistence(timeout: 5))
+
+    app.buttons["Account"].tap()
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
   func testUnsupportedFileIsNotActionable() {
@@ -301,6 +421,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let root = element(identifier: "files.screen.0")
     XCTAssertTrue(root.waitForExistence(timeout: 10), "signed-in root browser never appeared")
+    tapUnsupportedFileBeforeEditing()
     let newFolder = app.buttons["files.new-folder"]
     XCTAssertTrue(
       waitUntilHittable(newFolder, timeout: 5),
@@ -397,22 +518,264 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "rename retry did not update the folder"
     )
 
-    let delete = openContextMenu(
-      for: renamedFolder,
-      actionLabel: "Remove"
+    openContextMenu(for: renamedFolder, actionLabel: "Move").tap()
+    XCTAssertTrue(
+      element(identifier: "files.move-screen.0").waitForExistence(timeout: 5),
+      "move picker did not open at Files"
     )
-    addScreenshot(named: "runtime-file-actions")
+    let moveToCurrentFolder = app.buttons["files.move-here.0"]
+    XCTAssertTrue(moveToCurrentFolder.exists, "current-folder move action is missing")
+    XCTAssertFalse(moveToCurrentFolder.isEnabled, "moving to the current folder is enabled")
+    XCTAssertFalse(
+      element(identifier: "files.move-folder.415").exists,
+      "source folder is available as its own move destination"
+    )
+
+    let harnessDestination = element(identifier: "files.move-folder.410")
+    XCTAssertTrue(
+      waitUntilHittable(harnessDestination, timeout: 5),
+      "Harness Folder is not available as a move destination"
+    )
+    harnessDestination.tap()
+    XCTAssertTrue(
+      element(identifier: "files.move-screen.410").waitForExistence(timeout: 5),
+      "move picker did not enter Harness Folder"
+    )
+    let moveHere = app.buttons["files.move-here.410"]
+    XCTAssertTrue(waitUntilHittable(moveHere, timeout: 5), "Move Here is not tappable")
+    moveHere.tap()
+
+    XCTAssertTrue(
+      app.staticTexts["Item moved"].waitForExistence(timeout: 5),
+      "move success was not surfaced"
+    )
+    XCTAssertTrue(
+      renamedFolder.waitForNonExistence(timeout: 5),
+      "moved folder remained in its source list"
+    )
+
+    let harnessFolder = element(identifier: "files.item.410")
+    XCTAssertTrue(waitUntilHittable(harnessFolder, timeout: 5))
+    harnessFolder.tap()
+    XCTAssertTrue(
+      element(identifier: "files.screen.410").waitForExistence(timeout: 5),
+      "Harness Folder did not open after the move"
+    )
+    let movedFolder = element(identifier: "files.item.415")
+    XCTAssertTrue(
+      movedFolder.waitForExistence(timeout: 5),
+      "moved folder is missing at destination"
+    )
+    XCTAssertEqual(movedFolder.label, "Weekend")
+
+    openContextMenu(for: movedFolder, actionLabel: "Move").tap()
+    XCTAssertTrue(
+      element(identifier: "files.move-screen.0").waitForExistence(timeout: 5),
+      "move picker did not reopen at Files"
+    )
+    let moveBackToRoot = app.buttons["files.move-here.0"]
+    XCTAssertTrue(waitUntilHittable(moveBackToRoot, timeout: 5), "moving back to Files is disabled")
+    moveBackToRoot.tap()
+    XCTAssertTrue(
+      app.staticTexts["Weekend to Files"].waitForExistence(timeout: 5),
+      "move back to Files did not settle"
+    )
+
+    let backToFiles = app.navigationBars["Harness Folder"].buttons["Files"]
+    XCTAssertTrue(waitUntilHittable(backToFiles, timeout: 5), "Files back button is unavailable")
+    backToFiles.tap()
+    XCTAssertTrue(
+      element(identifier: "files.screen.0").waitForExistence(timeout: 5),
+      "Files did not reappear after moving to the ancestor"
+    )
+    let movedFolderAtRoot = element(identifier: "files.item.415")
+    XCTAssertTrue(
+      waitUntilHittable(movedFolderAtRoot, timeout: 5),
+      "ancestor Files list did not refresh after the move"
+    )
+    XCTAssertEqual(movedFolderAtRoot.label, "Weekend")
+
+    let delete = openContextMenu(
+      for: movedFolderAtRoot,
+      actionLabel: "Trash"
+    )
     delete.tap()
     let confirmDelete = app.buttons["files.delete-confirm"].firstMatch
-    XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5), "remove confirmation never appeared")
-    XCTAssertEqual(confirmDelete.label, "Remove")
-    XCTAssertTrue(app.staticTexts["put.io will apply your current Trash setting."].exists)
+    XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5), "Trash confirmation never appeared")
+    XCTAssertEqual(confirmDelete.label, "Trash")
+    XCTAssertTrue(app.staticTexts["You can restore this item from Trash."].exists)
     confirmDelete.tap()
     XCTAssertTrue(
-      app.staticTexts["Item removed"].waitForExistence(timeout: 5),
-      "neutral remove success was not surfaced"
+      app.staticTexts["Moved to Trash"].waitForExistence(timeout: 5),
+      "Trash success was not surfaced"
     )
-    XCTAssertTrue(renamedFolder.waitForNonExistence(timeout: 5), "removed folder remained visible")
+    XCTAssertTrue(
+      movedFolderAtRoot.waitForNonExistence(timeout: 5), "trashed folder remained visible")
+
+    let bulkRetryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
+    let bulkSuccessFolder = createFolder(named: "Bulk Success", expectedID: 417)
+    let edit = app.buttons["files.selection.toggle"]
+    XCTAssertTrue(waitUntilHittable(edit, timeout: 5), "file selection control is unavailable")
+    edit.tap()
+    XCTAssertTrue(
+      app.buttons["files.bulk.move"].waitForExistence(timeout: 5),
+      "bulk toolbar did not appear in edit mode"
+    )
+    XCTAssertEqual(element(identifier: "files.item.413").value as? String, "Not selected")
+    let bulkMove = app.buttons["files.bulk.move"]
+    XCTAssertFalse(bulkMove.isEnabled)
+    let selectAll = app.buttons["files.selection.select-all"]
+    XCTAssertTrue(
+      waitUntilHittable(selectAll, timeout: 5),
+      "select-all action is not hittable: \(selectAll.debugDescription)"
+    )
+    selectAll.tap()
+    XCTAssertEqual(bulkRetryFolder.value as? String, "Selected")
+    XCTAssertEqual(bulkSuccessFolder.value as? String, "Selected")
+    XCTAssertTrue(bulkMove.isEnabled)
+    let deselectAll = app.buttons["files.selection.deselect-all"]
+    XCTAssertTrue(waitUntilHittable(deselectAll, timeout: 5))
+    deselectAll.tap()
+    XCTAssertEqual(bulkRetryFolder.value as? String, "Not selected")
+    XCTAssertEqual(bulkSuccessFolder.value as? String, "Not selected")
+    XCTAssertFalse(bulkMove.isEnabled)
+
+    bulkRetryFolder.tap()
+    XCTAssertEqual(bulkRetryFolder.value as? String, "Selected")
+    bulkRetryFolder.tap()
+    XCTAssertEqual(bulkRetryFolder.value as? String, "Not selected")
+    bulkRetryFolder.tap()
+    bulkSuccessFolder.tap()
+    XCTAssertEqual(bulkRetryFolder.value as? String, "Selected")
+    XCTAssertEqual(bulkSuccessFolder.value as? String, "Selected")
+
+    XCTAssertTrue(bulkMove.isEnabled, "bulk Move did not enable for the selected rows")
+    XCTAssertTrue(waitUntilHittable(bulkMove, timeout: 5), "bulk Move is disabled")
+    bulkMove.tap()
+    let bulkDestination = element(identifier: "files.move-folder.410")
+    XCTAssertTrue(
+      waitUntilHittable(bulkDestination, timeout: 5),
+      "Harness Folder is unavailable for the bulk move"
+    )
+    bulkDestination.tap()
+    let bulkMoveHere = app.buttons["files.move-here.410"]
+    XCTAssertTrue(waitUntilHittable(bulkMoveHere, timeout: 5), "bulk Move Here is disabled")
+    bulkMoveHere.tap()
+    XCTAssertTrue(
+      app.staticTexts["Moved 2 items."].waitForExistence(timeout: 10),
+      "bulk move did not settle"
+    )
+
+    let harnessFolderAfterBulkMove = element(identifier: "files.item.410")
+    XCTAssertTrue(waitUntilHittable(harnessFolderAfterBulkMove, timeout: 5))
+    harnessFolderAfterBulkMove.tap()
+    XCTAssertTrue(
+      element(identifier: "files.screen.410").waitForExistence(timeout: 5),
+      "Harness Folder did not open for bulk removal"
+    )
+    let movedBulkRetryFolder = element(identifier: "files.item.416")
+    let movedBulkSuccessFolder = element(identifier: "files.item.417")
+    XCTAssertTrue(waitUntilHittable(movedBulkRetryFolder, timeout: 5))
+    XCTAssertTrue(waitUntilHittable(movedBulkSuccessFolder, timeout: 5))
+
+    let nestedEdit = app.buttons["files.selection.toggle"]
+    XCTAssertTrue(waitUntilHittable(nestedEdit, timeout: 5))
+    nestedEdit.tap()
+    XCTAssertTrue(
+      app.buttons["files.bulk.remove"].waitForExistence(timeout: 5),
+      "nested bulk toolbar did not appear in edit mode"
+    )
+    movedBulkRetryFolder.tap()
+    movedBulkSuccessFolder.tap()
+    XCTAssertEqual(movedBulkRetryFolder.value as? String, "Selected")
+    XCTAssertEqual(movedBulkSuccessFolder.value as? String, "Selected")
+    let bulkRemove = app.buttons["files.bulk.remove"]
+    XCTAssertTrue(
+      waitUntilHittable(bulkRemove, timeout: 5),
+      "bulk Trash is not hittable: \(bulkRemove.debugDescription)"
+    )
+    XCTAssertEqual(bulkRemove.label, "Trash")
+    bulkRemove.tap()
+    XCTAssertTrue(app.staticTexts["Move 2 items to Trash?"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["You can restore these items from Trash."].exists)
+    let confirmBulkRemove = app.buttons["files.bulk.remove-confirm"].firstMatch
+    XCTAssertTrue(waitUntilHittable(confirmBulkRemove, timeout: 5))
+    confirmBulkRemove.tap()
+    let bulkProgress = element(identifier: "files.bulk.progress")
+    XCTAssertTrue(bulkProgress.waitForExistence(timeout: 5))
+    XCTAssertFalse(app.buttons["BackButton"].isHittable, "back remained active during bulk work")
+    XCTAssertFalse(app.buttons["Account"].isHittable, "tab remained active during bulk work")
+    assertBulkProgressAdvances(bulkProgress, itemNames: ["Bulk Retry", "Bulk Success"])
+    let survivingRow = element(identifier: "files.item.411")
+    XCTAssertEqual(survivingRow.value as? String, "Not selected")
+    survivingRow.tap()
+    XCTAssertEqual(survivingRow.value as? String, "Not selected")
+    XCTAssertFalse(app.buttons["files.selection.select-all"].isEnabled)
+    app.swipeRight()
+    XCTAssertTrue(
+      element(identifier: "files.screen.410").exists,
+      "edge swipe replaced the route during bulk work"
+    )
+
+    XCTAssertTrue(
+      app.staticTexts["Some items couldn’t be moved to Trash"].waitForExistence(timeout: 10),
+      "partial bulk-Trash failure was not surfaced"
+    )
+    XCTAssertTrue(
+      app.staticTexts["Moved 1 item to Trash. 1 couldn’t be moved to Trash."].exists
+    )
+    addScreenshot(named: "runtime-file-actions")
+    XCTAssertTrue(movedBulkRetryFolder.exists, "failed bulk item was not restored")
+    XCTAssertFalse(movedBulkSuccessFolder.exists, "successful bulk item was restored")
+    let retryBulkRemove = app.buttons["files.bulk.retry"].firstMatch
+    XCTAssertTrue(waitUntilHittable(retryBulkRemove, timeout: 5), "bulk retry is unavailable")
+    retryBulkRemove.tap()
+    XCTAssertTrue(
+      app.staticTexts["Moved 1 item to Trash."].waitForExistence(timeout: 10),
+      "failed bulk item did not succeed on retry"
+    )
+    XCTAssertTrue(
+      movedBulkRetryFolder.waitForNonExistence(timeout: 5),
+      "retried bulk item remained visible"
+    )
+
+    let ambiguousMoveFolder = createFolder(named: "Ambiguous Move", expectedID: 418)
+    let ambiguousEdit = app.buttons["files.selection.toggle"]
+    XCTAssertTrue(waitUntilHittable(ambiguousEdit, timeout: 5))
+    ambiguousEdit.tap()
+    ambiguousMoveFolder.tap()
+    XCTAssertEqual(ambiguousMoveFolder.value as? String, "Selected")
+    let ambiguousBulkMove = app.buttons["files.bulk.move"]
+    XCTAssertTrue(waitUntilHittable(ambiguousBulkMove, timeout: 5))
+    ambiguousBulkMove.tap()
+    let moveAmbiguousToRoot = app.buttons["files.move-here.0"]
+    XCTAssertTrue(waitUntilHittable(moveAmbiguousToRoot, timeout: 5))
+    moveAmbiguousToRoot.tap()
+
+    XCTAssertTrue(
+      app.staticTexts["Could not move items"].waitForExistence(timeout: 10),
+      "ambiguous bulk-move failure was not surfaced"
+    )
+    XCTAssertTrue(
+      ambiguousMoveFolder.waitForNonExistence(timeout: 5),
+      "authoritative source refresh did not remove the applied move"
+    )
+    let dismissAmbiguousMove = app.buttons["files.bulk.dismiss"].firstMatch
+    XCTAssertTrue(waitUntilHittable(dismissAmbiguousMove, timeout: 5))
+    dismissAmbiguousMove.tap()
+    XCTAssertTrue(waitUntilHittable(ambiguousEdit, timeout: 5))
+    ambiguousEdit.tap()
+
+    let backToRefreshedRoot = app.navigationBars["Harness Folder"].buttons["Files"]
+    XCTAssertTrue(waitUntilHittable(backToRefreshedRoot, timeout: 5))
+    backToRefreshedRoot.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    let appliedMoveAtRoot = element(identifier: "files.item.418")
+    XCTAssertTrue(
+      waitUntilHittable(appliedMoveAtRoot, timeout: 5),
+      "already-loaded destination did not refresh after the ambiguous move"
+    )
+    XCTAssertEqual(appliedMoveAtRoot.label, "Ambiguous Move")
 
     app.buttons["Account"].tap()
     let signOut = element(identifier: "auth.sign-out")
@@ -441,6 +804,39 @@ final class FilesBrowserJourneyTests: XCTestCase {
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
   }
 
+  private func assertCurrentBulkProgress(_ progress: XCUIElement, itemNames: Set<String>) {
+    let completedCount: Int
+    switch progress.label {
+    case "Moving item 1 of 2 to Trash…":
+      completedCount = 0
+    case "Moving item 2 of 2 to Trash…":
+      completedCount = 1
+    default:
+      return XCTFail("unexpected bulk progress label: \(progress.label)")
+    }
+    let value = progress.value as? String
+    XCTAssertTrue(
+      itemNames.contains { value == "\($0). \(completedCount) of 2 complete." },
+      "unexpected bulk progress value: \(value ?? "nil")"
+    )
+  }
+
+  private func assertBulkProgressAdvances(_ progress: XCUIElement, itemNames: [String]) {
+    for (index, itemName) in itemNames.enumerated() {
+      let label = "Moving item \(index + 1) of \(itemNames.count) to Trash…"
+      let value = "\(itemName). \(index) of \(itemNames.count) complete."
+      let expectation = XCTNSPredicateExpectation(
+        predicate: NSPredicate(format: "label == %@ AND value == %@", label, value),
+        object: progress
+      )
+      XCTAssertEqual(
+        XCTWaiter.wait(for: [expectation], timeout: 10),
+        .completed,
+        "bulk progress did not reach \(label) for \(itemName)"
+      )
+    }
+  }
+
   private func openContextMenu(
     for row: XCUIElement,
     actionLabel: String
@@ -450,6 +846,33 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let action = app.buttons[actionLabel]
     XCTAssertTrue(action.waitForExistence(timeout: 5), "file context-menu action never appeared")
     return action
+  }
+
+  @discardableResult
+  private func tapUnsupportedFileBeforeEditing() -> XCUIElement {
+    // The unsupported row intentionally has no actionable container outside Edit mode.
+    let unsupportedFile = app.staticTexts["Document.pdf"]
+    XCTAssertTrue(unsupportedFile.exists && unsupportedFile.isHittable)
+    unsupportedFile.tap()
+    return unsupportedFile
+  }
+
+  private func createFolder(named name: String, expectedID: Int) -> XCUIElement {
+    let newFolder = app.buttons["files.new-folder"]
+    XCTAssertTrue(waitUntilHittable(newFolder, timeout: 5), "new-folder action is unavailable")
+    newFolder.tap()
+    let field = element(identifier: "files.action-name")
+    XCTAssertTrue(field.waitForExistence(timeout: 5), "new-folder field did not appear")
+    field.tap()
+    field.typeText(name)
+    let create = app.buttons["Create"]
+    XCTAssertTrue(waitUntilHittable(create, timeout: 5), "create-folder action is unavailable")
+    create.tap()
+    let folder = element(identifier: "files.item.\(expectedID)")
+    XCTAssertTrue(
+      folder.waitForExistence(timeout: 5), "created folder \(expectedID) did not appear")
+    XCTAssertEqual(folder.label, name)
+    return folder
   }
 
   private func replaceText(
