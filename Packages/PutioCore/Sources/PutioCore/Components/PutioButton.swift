@@ -16,11 +16,7 @@ public enum PutioButtonSize: CaseIterable, Sendable {
   case extraSmall
 }
 
-// One Button, native first, on every shell: the tiers map onto the stock
-// Liquid Glass button styles with token tints, and the titles carry the brand
-// face at the medium control weight — the shipping app's recipe of native box
-// plus brand type. tvOS uses the system focus treatment; the TV contract's
-// solid-focus rule is deliberately overridden for buttons (see DESIGN.md).
+// Content actions use stock bordered styles, brand labels, and semantic tints.
 public struct PutioButton: View {
   private let title: String
   private let icon: PutioIcon?
@@ -76,12 +72,11 @@ public struct PutioButton: View {
       prominentButton(role: nil, foreground: PutioTheme.Components.Button.primaryForeground)
         .tint(PutioTheme.Colors.accent)
     case .secondary:
-      styledSecondary(
-        Button(action: action) {
-          label
-        }
-      )
-      .tint(PutioTheme.Colors.textPrimary)
+      Button(action: action) {
+        label
+      }
+      .buttonStyle(.bordered)
+      .tint(PutioTheme.Colors.accent)
     case .ghost:
       Button(action: action) {
         label
@@ -104,38 +99,10 @@ public struct PutioButton: View {
   }
 
   private func prominentButton(role: ButtonRole?, foreground: Color) -> some View {
-    styledProminent(
-      Button(role: role, action: action) {
-        label.foregroundStyle(foreground)
-      }
-    )
-  }
-
-  // Liquid Glass cannot be rasterized off-screen, so the snapshot lane
-  // asserts the bordered fallbacks; captures review the real glass. The
-  // macOS 15 test host predates glass and keeps the bordered styles.
-  @ViewBuilder private func styledProminent(_ button: some View) -> some View {
-    #if os(macOS)
-      button.buttonStyle(.borderedProminent)
-    #else
-      if HarnessRendering.usesRasterFallback {
-        button.buttonStyle(.borderedProminent)
-      } else {
-        button.buttonStyle(.glassProminent)
-      }
-    #endif
-  }
-
-  @ViewBuilder private func styledSecondary(_ button: some View) -> some View {
-    #if os(macOS)
-      button.buttonStyle(.bordered)
-    #else
-      if HarnessRendering.usesRasterFallback {
-        button.buttonStyle(.bordered)
-      } else {
-        button.buttonStyle(.glass)
-      }
-    #endif
+    Button(role: role, action: action) {
+      label.foregroundStyle(foreground)
+    }
+    .buttonStyle(.borderedProminent)
   }
 }
 

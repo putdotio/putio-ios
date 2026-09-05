@@ -39,20 +39,18 @@ public struct PutioFileRowModel: Equatable, Sendable {
 
 // The central list row. On iOS and watchOS it is plain content for a native
 // List: system separators, insets, and row heights per the HIG, with every
-// metric scaled so icons and gaps track the user's text size. tvOS keeps the
-// contract's painted row with the solid focus fill.
+// metric scaled so icons and gaps track the user's text size. NavigationLink
+// owns disclosure; tvOS keeps its folder indicator pending the native browser.
 public struct PutioFileRow: View {
   private let model: PutioFileRowModel
-  private let showsFolderDisclosure: Bool
 
   @PutioScaledMetric private var iconSize: CGFloat
   @PutioScaledMetric private var indicatorSize: CGFloat
   @PutioScaledMetric private var contentGap: CGFloat
   @PutioScaledMetric private var textGap: CGFloat
 
-  public init(_ model: PutioFileRowModel, showsFolderDisclosure: Bool = true) {
+  public init(_ model: PutioFileRowModel) {
     self.model = model
-    self.showsFolderDisclosure = showsFolderDisclosure
     _iconSize = PutioScaledMetric(PutioFileRowLayout.iconSize)
     _indicatorSize = PutioScaledMetric(PutioFileRowLayout.indicatorSize)
     _contentGap = PutioScaledMetric(PutioTheme.ScaledMetrics.contentGap)
@@ -106,50 +104,19 @@ public struct PutioFileRow: View {
           .foregroundStyle(PutioTheme.Colors.textSecondary)
           .accessibilityLabel(Text("Watched"))
       }
-      if rendersFolderDisclosure {
-        Image(putioIcon: .caretRight)
-          .resizable()
-          .scaledToFit()
-          .frame(width: indicatorSize, height: indicatorSize)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
-      }
+      #if os(tvOS)
+        if model.kind == .folder {
+          Image(putioIcon: .caretRight)
+            .resizable()
+            .scaledToFit()
+            .frame(width: indicatorSize, height: indicatorSize)
+            .foregroundStyle(PutioTheme.Colors.textSecondary)
+        }
+      #endif
     }
   }
 
-  var rendersFolderDisclosure: Bool {
-    model.kind == .folder && showsFolderDisclosure
-  }
 }
-
-#if os(tvOS)
-  // TV rows go transparent to the solid active fill on focus, per the TV
-  // contract: a fill, never a lift.
-  public struct PutioListRowButtonStyle: ButtonStyle {
-    @Environment(\.isFocused) private var isFocused
-
-    public init() {}
-
-    public func makeBody(configuration: Configuration) -> some View {
-      configuration.label
-        .background(fill(isPressed: configuration.isPressed), in: shape)
-        .animation(
-          PutioTheme.Motion.easingOut.animation(duration: PutioTheme.Motion.durationFast),
-          value: configuration.isPressed
-        )
-    }
-
-    private var shape: RoundedRectangle {
-      RoundedRectangle(cornerRadius: PutioTheme.TV.radius)
-    }
-
-    private func fill(isPressed: Bool) -> Color {
-      if isFocused { return PutioTheme.Colors.surfaceActive }
-      return isPressed
-        ? PutioTheme.Components.FileRow.backgroundActive
-        : PutioTheme.Components.FileRow.background
-    }
-  }
-#endif
 
 enum PutioFileRowLayout {
   #if os(tvOS)

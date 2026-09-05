@@ -189,33 +189,35 @@ private struct FilesGallery: View {
             } label: {
               PutioFileRow(GalleryFixtures.folderRow)
             }
-            .buttonStyle(PutioListRowButtonStyle())
+            .buttonStyle(.bordered)
           }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(GalleryLayout.pagePadding)
       }
     #else
-      List {
-        Section {
-          ForEach(Array(GalleryFixtures.fileRows.enumerated()), id: \.offset) { _, model in
-            PutioFileRow(model)
+      NavigationStack {
+        List {
+          Section {
+            ForEach(Array(GalleryFixtures.fileRows.enumerated()), id: \.offset) { _, model in
+              PutioFileRow(model)
+            }
+          } header: {
+            GalleryTitle(page: .files)
           }
-        } header: {
-          GalleryTitle(page: .files)
-        }
-        .listRowBackground(PutioTheme.Colors.background)
-        Section("As button") {
-          Button {
-          } label: {
-            PutioFileRow(GalleryFixtures.folderRow)
+          .listRowBackground(PutioTheme.Colors.background)
+          Section("Native navigation") {
+            NavigationLink {
+              PutioEmptyStateView(title: "Folder is empty")
+            } label: {
+              PutioFileRow(GalleryFixtures.folderRow)
+            }
           }
-          .buttonStyle(.plain)
+          .listRowBackground(PutioTheme.Colors.background)
         }
-        .listRowBackground(PutioTheme.Colors.background)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
       }
-      .listStyle(.plain)
-      .scrollContentBackground(.hidden)
     #endif
   }
 }

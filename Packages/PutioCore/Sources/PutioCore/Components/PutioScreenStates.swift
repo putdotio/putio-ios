@@ -53,6 +53,7 @@ public struct PutioEmptyStateView: View {
     ContentUnavailableView {
       Label {
         Text(title)
+          .putioFont(PutioScreenStateLayout.titleFont)
       } icon: {
         Image(putioIcon: icon)
           .resizable()
@@ -63,6 +64,7 @@ public struct PutioEmptyStateView: View {
     } description: {
       if let message {
         Text(message)
+          .putioFont(PutioScreenStateLayout.messageFont)
       }
     } actions: {
       if let actionTitle, let action {
@@ -97,6 +99,7 @@ public struct PutioErrorStateView: View {
     ContentUnavailableView {
       Label {
         Text(title)
+          .putioFont(PutioScreenStateLayout.titleFont)
       } icon: {
         Image(putioIcon: .warningCircle)
           .resizable()
@@ -107,6 +110,7 @@ public struct PutioErrorStateView: View {
     } description: {
       if let message {
         Text(message)
+          .putioFont(PutioScreenStateLayout.messageFont)
       }
     } actions: {
       if let retryTitle, let retry {
@@ -138,6 +142,7 @@ extension View {
 
 enum PutioScreenStateLayout {
   #if os(tvOS)
+    static let titleFont = PutioTheme.TV.Typography.label
     static let messageFont = PutioTheme.TV.Typography.body
     static let contentGap = PutioTheme.TV.Spacing.medium
     static let iconSize = PutioMetricRole(
@@ -145,6 +150,7 @@ enum PutioScreenStateLayout {
       relativeTo: .title
     )
   #else
+    static let titleFont = PutioTheme.Typography.subheading
     static let messageFont = PutioTheme.Typography.body
     static let contentGap = PutioTheme.Spacing.space3
     // ios-e15: the empty-state glyph is 52pt in --solid.

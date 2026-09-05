@@ -1,68 +1,94 @@
 # Design Principles
 
-The rule for every Apple surface in this repository:
+Use native platform elements with the put.io theme. Never port web component
+recipes.
 
-**Native platform elements, put.io theme on top. Never port the web app's
-component recipes.**
+The adoption baseline is [`@putdotio/design` 3.3.0](https://github.com/putdotio/putio-design/releases/tag/v3.3.0),
+including [Apple contract 0.2.0](https://github.com/putdotio/putio-design/blob/v3.3.0/platforms/apple/DESIGN.md).
+The package, lockfile, coverage manifest, generated adapter, and provenance test
+name that exact version. Its 532-token graph has no value changes from 3.0.0;
+all existing generated, aliased, and excluded classifications remain valid.
+Version 3.1.0 is an intermediate contract checkpoint with the same token graph.
 
-`@putdotio/design` is canonical for *values* — colors, type scale, spacing,
-radii, motion, icons (Phosphor), and the dark-only decision (#82). Its
-`components.css` and the web previews are the **web binding** of those values,
-not a spec for native controls. The old "Claude design" concept galleries were
-concepts, nothing more.
+The package owns colors, type scales, spacing, motion, and Phosphor icons.
+Apple owns controls, layout behavior, focus, and presentation. Android follows
+its own platform conventions. Roku uses shared tokens plus custom SceneGraph
+conventions; web TV uses the web binding at a 10-foot scale.
 
-This repo sits in the native tier of put.io's design binding model: web
-surfaces carry the full put.io component system; native apps (this repo,
-Android) take tokens only and build every component from the platform's human
-interface guidelines; Roku takes tokens with more room for put.io conventions;
-the web TV app applies the design system restrained to a generic 10-foot look.
+## Native controls and content
 
-## What this means in practice
+- Use stock `Button`, `List`, `Form`, `Toggle`, `Picker`, `NavigationLink`,
+  sheets, `ProgressView`, `Gauge`, and `ContentUnavailableView`.
+- Content actions use `.borderedProminent`, `.bordered`, or `.borderless`.
+  Floating layers may use Liquid Glass; never put glass inside glass. Plain
+  glass stays neutral and at most one prominent glass capsule appears on a
+  screen. The Up Next overlay owns one glass surface with bordered actions.
+- Set the app accent tint once. System back controls, selection, and retry
+  actions inherit it. Semantic destructive and success actions retain their
+  roles. App-authored text may use the generated foreground roles.
+- App-authored content uses GT America through `putioFont`; control labels use
+  its medium face. System tab labels, navigation titles, search fields, and
+  other system-rendered chrome keep SF.
+- File-type icons use yellow Phosphor assets. Native tab glyphs have an intrinsic
+  24pt box; Search keeps the system glyph. Preserve raw filenames and per-glyph
+  font fallback.
+- Let native lists own insets, separators, row heights, and disclosure. A folder
+  row is content; `NavigationLink` supplies its accessory. Rows in edit mode or
+  Trash have no navigation accessory.
+- Keep content backgrounds opaque and dark. Use Dynamic Type for content,
+  adjacent icons, and meaningful gaps through `PutioScaledMetric`. Native
+  controls own their geometry; use spacing tokens where the platform leaves
+  the choice open.
+- Let `AVPlayerViewController` own video transport, AirPlay, and Picture in
+  Picture. App text over video uses white at fixed opacities: full white for
+  headings and 78% for secondary text, following the tagged player card.
+  Accent tint crosses onto video; theme-surface foreground colors do not.
 
-- Use stock SwiftUI controls, containers, and presentations: `Button` styles,
-  `List`, `Form`, `Toggle`, `Picker`, `.sheet`, `ProgressView`,
-  `ContentUnavailableView`, system materials. If Apple ships the element, use
-  Apple's element.
-- Liquid Glass belongs to the floating layer, per the HIG: on iOS, buttons use
-  `.glassProminent`/`.glass` and floating overlays (toasts) use `glassEffect`.
-  The content layer — lists, rows, forms, screen states — stays opaque; do not
-  put glass on content.
-- Theme through the generated adapter only: tint is brand yellow
-  (`PutioTheme.Colors.accent`), file/type icons are yellow Phosphor glyphs,
-  text uses the brand faces via `putioFont`, semantic colors come from
-  `PutioTheme`. No hand-picked values.
-- Follow the Human Interface Guidelines for layout: system list metrics,
-  breathing room, minimum touch targets, and Dynamic Type everywhere — every
-  icon and gap that sits next to text scales with the text
-  (`PutioScaledMetric`).
-- Do not invent custom-painted buttons, fields, switches, or sheet chrome on
-  iOS or watchOS. Custom drawing is reserved for genuinely brandless gaps
-  (e.g. nothing in UIKit/SwiftUI renders a file row — compose one from native
-  parts, yellow icon included).
-- The shipping App Store app is the look reference: native iOS chrome,
-  put.io color, type, and icons on top.
+## Apple ruling map
 
-## The tvOS exception (narrowed)
+| Ruling from putio-design#44 | Implementation |
+| --- | --- |
+| Stock Gauge geometry and track | `PutioDownloadStateButton` keeps the stock intrinsic 47pt ring, approximately 7pt stroke, and tint-derived track. The 44pt target is a minimum. |
+| Five download states | Idle, Queued, Downloading, Downloaded, and Failed remain distinct. Failed reuses the idle glyph and announces retry; the owning row carries its reason. |
+| Native progress tracks | `ProgressView` and `Gauge` own the unfilled track; the app supplies only tint. |
+| One system accent | Shell tint and secondary content actions use `PutioTheme.Colors.accent`; authored semantic text and destructive actions keep their roles. |
+| Floating glass and content actions | `PutioButton` uses bordered content styles. Toasts and Up Next own their floating surface; their children add no glass. |
+| Brand content, system chrome | Screen-state titles/descriptions and form labels use generated brand roles. Tab/navigation/search chrome retains SF. |
+| Tab glyph box | Existing intrinsic 24pt Phosphor assets remain unchanged. |
+| Native folder disclosure | The shared row has no iOS/watchOS caret or disclosure flag. The gallery uses a real `NavigationLink`; live folder and move-destination links own their accessory. |
 
-**Buttons are system Liquid Glass on every shell — including tvOS and
-watchOS — with the system focus treatment.** This is a deliberate product
-override (2026-08) of the upstream TV contract's "solid focus, no materials"
-rule for buttons: native tvOS focus behavior wins over web-TV parity.
+## tvOS and watchOS
 
-The rest of the TV contract in `@putdotio/design`'s DESIGN.md still stands
-for non-button TV surfaces: solid token fills for rows, toasts, and modals,
-one `tv.radius`, row focus as a solid fill. TV has no mono face; numerics use
-GT America tabular figures.
+Native tvOS focus belongs to `UIFocusSystem`: use stock control styles for lift,
+shadow, and parallax. Do not replace focus with a custom fill-only button style.
+Non-control TV surfaces retain solid token backgrounds and the `tv` type,
+spacing, radius, and overscan roles. TV numerics use GT America tabular figures;
+there is no mono face. The shared row retains a tvOS folder indicator until the
+native browser in #141 owns that presentation.
 
-The product's TV family feel is the shipped TV app's generic list-first
-10-foot interface: tvOS aligns with that direction — same content shapes,
-density, and calm file-browser character — without giving up tvOS platform
-characteristics like the system focus treatment. Revisit the non-button rules
-when the tvOS browse slice lands and the upstream contract is updated.
+Watch remains counts, states, and remote control, with one action per screen
+and no file browser or text entry. The system owns time and navigation chrome.
+
+The released contract also describes feature behavior that is not implemented
+by this adoption. These contracts remain gates on their owning rollout issues:
+
+| Contract | Owning issue and verdict |
+| --- | --- |
+| tvOS TabView and device sign-in | #140; deferred until the tvOS shell/auth slice |
+| tvOS system search and suggestions | #141; deferred to the native browser/search slice |
+| tvOS account values, boolean cycling, full-screen choosers | #143; preserve that issue's deliberate exclusion of playback-type settings despite the older preview card |
+| tvOS custom pre-play resume overlay and native focus | #142; deferred to playback |
+| Watch counts, states, and phone handoff | #154; deferred to the paired companion |
+| Continue Watching discovery | #152; its post-v1 scope supersedes the older card's blanket exclusion of a discovery row |
+
+These deferrals do not close the feature issues. The adoption preserves their
+product and dependency gates.
 
 ## Verification
 
-Component and theming changes are asserted by the snapshot gallery
-(`mise run harness -- test --platform <ios|tvos>`) and reviewed as image
-diffs. If a change makes a control look less like stock iOS, it is wrong
-unless this document says otherwise.
+Run `mise run tokens`, inspect generated provenance and token-value parity, and
+run `mise run verify`. Intentional component changes require recorded, inspected,
+and re-asserted iOS/tvOS snapshot baselines. Use the headless gallery and affected
+platform proof to inspect real native materials, focus, and Dynamic Type;
+off-screen raster snapshots cannot prove Liquid Glass. Run the files-browser
+journey for folder disclosure, Trash, and playback interactions.

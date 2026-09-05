@@ -133,12 +133,16 @@ private struct PutioFormRowLabel: View {
 }
 
 enum PutioFormLayout {
+  static let titleFont = PutioFontRole(
+    fontName: PutioTheme.Components.Button.label.fontName,
+    size: valueFont.size,
+    lineHeight: valueFont.lineHeight,
+    textStyle: valueFont.textStyle
+  )
   #if os(tvOS)
-    static let titleFont = PutioTheme.TV.Typography.body
     static let valueFont = PutioTheme.TV.Typography.body
     static let labelFont = PutioTheme.TV.Typography.caption
   #else
-    static let titleFont = PutioTheme.Typography.body
     static let valueFont = PutioTheme.Typography.body
     static let labelFont = PutioTheme.Typography.caption
   #endif

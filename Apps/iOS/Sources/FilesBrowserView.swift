@@ -552,8 +552,7 @@ struct PutioFolderScreen: View {
   private func row(_ presentation: PutioBrowserItemPresentation) -> some View {
     if isEditing {
       PutioFileRow(
-        presentation.row,
-        showsFolderDisclosure: false
+        presentation.row
       )
       .contentShape(Rectangle())
       .accessibilityElement(children: .combine)
@@ -563,7 +562,7 @@ struct PutioFolderScreen: View {
       fileActions(
         for: presentation.item,
         content: NavigationLink(value: folderRoute) {
-          PutioFileRow(presentation.row, showsFolderDisclosure: false)
+          PutioFileRow(presentation.row)
         }
         .disabled(fileActionPending)
         .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
@@ -1111,8 +1110,7 @@ private struct PutioMoveDestinationScreen: View {
       List(folders) { folder in
         NavigationLink(value: PutioFolderRoute(id: folder.id, title: folder.name)) {
           PutioFileRow(
-            PutioBrowserItemPresentation(item: folder).row,
-            showsFolderDisclosure: false
+            PutioBrowserItemPresentation(item: folder).row
           )
         }
         .accessibilityIdentifier("files.move-folder.\(folder.id.rawValue)")
