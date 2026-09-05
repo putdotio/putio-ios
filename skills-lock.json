@@ -1,12 +1,6 @@
 {
   "version": 1,
   "skills": {
-    "migrating-to-tuist-generated-projects": {
-      "source": "tuist/agent-skills",
-      "sourceType": "github",
-      "skillPath": "skills/migrate/SKILL.md",
-      "computedHash": "458f8047ce1b93820c9d27d2267750904cd0384fd5a0e7f5b0f1079dbe9d19a9"
-    },
     "using-tuist-generated-projects": {
       "source": "tuist/agent-skills",
       "sourceType": "github",

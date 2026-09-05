@@ -36,13 +36,15 @@
 - Keep checked-in defaults open-source-safe and require no account, token, or secret for generation and verification
 - Use the typed harness for runtime proof; do not open Simulator.app from automation
 - Keep capture local by default and invoke the separate `publish` command only after reviewing the artifact
+- Finish in-scope edits, `mise run verify`, and fixes without pausing; ask before `publish`, TestFlight or store actions, signing changes, and anything outside the task
+- Done means `mise run verify` passed, the affected shell ran in its simulator or the harness proof passed, and change-caused failures were fixed
 
 ## Tuist
 
 - Tuist is pinned in `mise.toml`
 - `Tuist.swift`, `Project.swift`, and `Tuist/Package.swift` define the generated workspace
 - Tuist is used locally for project generation only; hosted cache, analytics, previews, and account-backed features are out of scope
-- Follow the project-local skills under `.agents/skills` when migrating or working with generated projects
+- Follow the project-local skill under `.agents/skills` when working with generated projects
 
 ## Verification Matrix
 
