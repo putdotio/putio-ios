@@ -40,6 +40,7 @@ import Foundation
     }
 
     nonisolated(unsafe) static var isEnabled = false
+    nonisolated(unsafe) static var trashEnabled = true
     nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 589, 414: 37]
     nonisolated(unsafe) private static var conversionStarted = false
     nonisolated(unsafe) private static var conversionCompleted = false
@@ -549,7 +550,8 @@ import Foundation
       return try? JSONSerialization.jsonObject(with: body) as? [String: Any]
     }
 
-    private static let accountInfo = """
+    private static var accountInfo: String {
+      """
       {
         "info": {
           "user_id": 1001,
@@ -573,7 +575,7 @@ import Foundation
             "next_episode": true,
             "start_from": true,
             "history_enabled": true,
-            "trash_enabled": true,
+            "trash_enabled": \(trashEnabled),
             "sort_by": "NAME_ASC",
             "show_optimistic_usage": false,
             "two_factor_enabled": false,
@@ -583,6 +585,7 @@ import Foundation
         }
       }
       """
+    }
 
     private static var rootFiles: String {
       fileActionsLock.lock()

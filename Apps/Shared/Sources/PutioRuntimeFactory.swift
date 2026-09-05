@@ -13,6 +13,9 @@ enum PutioRuntimeFactory {
   static func make(scenario: HarnessScenario) -> PutioRuntime {
     #if DEBUG
       if scenario == .signedIn || scenario == .filesBrowser {
+        HarnessSeededAPI.trashEnabled = !ProcessInfo.processInfo.arguments.contains(
+          "--putio-harness-trash-disabled"
+        )
         HarnessSeededAPI.isEnabled = true
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [HarnessSeededAPI.self]

@@ -5,10 +5,119 @@ import SwiftUI
 typealias PutioFileSelection = @MainActor @Sendable (PutioFileRoute) -> Void
 typealias PutioRootLoaded = @MainActor @Sendable () -> Void
 
+struct PutioFileDeletionPresentation: Equatable, Sendable {
+  let trashEnabled: Bool
+
+  var actionTitle: String {
+    trashEnabled
+      ? String(localized: "Trash", comment: "File action that moves an item to Trash")
+      : String(localized: "Delete", comment: "File action that permanently deletes an item")
+  }
+
+  var singleSuccessTitle: String {
+    trashEnabled
+      ? String(localized: "Moved to Trash", comment: "File action success title")
+      : String(localized: "Item deleted", comment: "Permanent file deletion success title")
+  }
+
+  var bulkSuccessTitle: String {
+    trashEnabled
+      ? String(localized: "Items moved to Trash", comment: "Bulk file action success title")
+      : String(localized: "Items deleted", comment: "Bulk permanent deletion success title")
+  }
+
+  var singleFailureTitle: String {
+    trashEnabled
+      ? String(localized: "Could not move item to Trash", comment: "File action failure title")
+      : String(localized: "Could not delete item", comment: "Permanent deletion failure title")
+  }
+
+  func confirmationTitle(itemName: String) -> String {
+    if trashEnabled {
+      return String(
+        localized: "Move “\(itemName)” to Trash?",
+        comment: "Confirmation title for moving one file to Trash"
+      )
+    }
+    return String(
+      localized: "Delete “\(itemName)” permanently?",
+      comment: "Confirmation title for permanently deleting one file"
+    )
+  }
+
+  func confirmationTitle(itemCount: Int) -> String {
+    if trashEnabled {
+      return String(
+        localized: "Move \(itemCount) \(itemNoun(itemCount)) to Trash?",
+        comment: "Confirmation title for moving selected files to Trash"
+      )
+    }
+    return String(
+      localized: "Delete \(itemCount) \(itemNoun(itemCount)) permanently?",
+      comment: "Confirmation title for permanently deleting selected files"
+    )
+  }
+
+  func confirmationMessage(itemCount: Int) -> String {
+    if trashEnabled {
+      return itemCount == 1
+        ? String(localized: "You can restore this item from Trash.")
+        : String(localized: "You can restore these items from Trash.")
+    }
+    return itemCount == 1
+      ? String(localized: "This item cannot be restored.")
+      : String(localized: "These items cannot be restored.")
+  }
+
+  func progressTitle(currentItem: Int, totalItems: Int) -> String {
+    if trashEnabled {
+      return String(
+        localized: "Moving item \(currentItem) of \(totalItems) to Trash…",
+        comment: "Progress title for a bulk Trash action"
+      )
+    }
+    return String(
+      localized: "Deleting item \(currentItem) of \(totalItems)…",
+      comment: "Progress title for bulk permanent deletion"
+    )
+  }
+
+  func failureTitle(allItemsFailed: Bool) -> String {
+    switch (trashEnabled, allItemsFailed) {
+    case (true, true):
+      String(localized: "Could not move items to Trash")
+    case (true, false):
+      String(localized: "Some items couldn’t be moved to Trash")
+    case (false, true):
+      String(localized: "Could not delete items")
+    case (false, false):
+      String(localized: "Some items couldn’t be deleted")
+    }
+  }
+
+  func outcomeMessage(succeeded: Int, failed: Int) -> String {
+    let successText =
+      trashEnabled
+      ? String(localized: "Moved \(succeeded) \(itemNoun(succeeded)) to Trash.")
+      : String(localized: "Deleted \(succeeded) \(itemNoun(succeeded)).")
+    guard failed > 0 else { return successText }
+    let failureText =
+      trashEnabled
+      ? String(localized: "\(failed) couldn’t be moved to Trash.")
+      : String(localized: "\(failed) couldn’t be deleted.")
+    return "\(successText) \(failureText)"
+  }
+
+  private func itemNoun(_ count: Int) -> String {
+    count == 1 ? String(localized: "item") : String(localized: "items")
+  }
+}
+
 @MainActor
 struct FilesBrowserView: View {
   private let load: PutioFolderLoad
   private let actions: PutioFileActions?
+  private let trashEnabled: Bool
   private let onFileSelected: PutioFileSelection
   private let onRootLoaded: PutioRootLoaded
   private let onReturnToRoot: @MainActor @Sendable () -> Void
@@ -17,6 +126,7 @@ struct FilesBrowserView: View {
 
   init(
     runtime: PutioRuntime,
+    trashEnabled: Bool,
     onFileSelected: @escaping PutioFileSelection,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
@@ -26,6 +136,7 @@ struct FilesBrowserView: View {
       try await runtime.listFiles(parentID: folderID)
     }
     actions = PutioFileActions(runtime: runtime)
+    self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
@@ -35,6 +146,7 @@ struct FilesBrowserView: View {
   init(
     load: @escaping PutioFolderLoad,
     actions: PutioFileActions? = nil,
+    trashEnabled: Bool = true,
     onFileSelected: @escaping PutioFileSelection,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
@@ -42,6 +154,7 @@ struct FilesBrowserView: View {
   ) {
     self.load = load
     self.actions = actions
+    self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
@@ -54,6 +167,7 @@ struct FilesBrowserView: View {
         route: .root,
         load: load,
         actions: actions,
+        trashEnabled: trashEnabled,
         onLoaded: onRootLoaded,
         refreshRequests: refreshRequests,
         onFileSelected: onFileSelected
@@ -63,6 +177,7 @@ struct FilesBrowserView: View {
           route: route,
           load: load,
           actions: actions,
+          trashEnabled: trashEnabled,
           refreshRequests: refreshRequests,
           onFileSelected: onFileSelected
         )
@@ -97,6 +212,7 @@ struct PutioFolderScreen: View {
   private let relativeDateReference: Date?
   private let locale: Locale
   private let load: PutioFolderLoad
+  private let trashEnabled: Bool
   private let onLoaded: @MainActor @Sendable () -> Void
   private let onFileSelected: PutioFileSelection
   private let refreshRequests: PutioFolderRefreshRequests
@@ -105,6 +221,7 @@ struct PutioFolderScreen: View {
     route: PutioFolderRoute,
     load: @escaping PutioFolderLoad,
     actions: PutioFileActions? = nil,
+    trashEnabled: Bool = true,
     initialContents: PutioFolderContents? = nil,
     relativeTo relativeDateReference: Date? = nil,
     locale: Locale = .current,
@@ -124,6 +241,7 @@ struct PutioFolderScreen: View {
     self.relativeDateReference = relativeDateReference
     self.locale = locale
     self.load = load
+    self.trashEnabled = trashEnabled
     self.onLoaded = onLoaded
     self.refreshRequests = refreshRequests
     self.onFileSelected = onFileSelected
@@ -191,7 +309,7 @@ struct PutioFolderScreen: View {
           }
           .disabled(selectedItems.isEmpty || fileActionPending)
           .accessibilityIdentifier("files.bulk.move")
-          Button("Remove", role: .destructive) {
+          Button(deleteActionTitle, role: .destructive) {
             pendingBulkDeletion = selectedItems
           }
           .disabled(selectedItems.isEmpty || fileActionPending)
@@ -262,7 +380,7 @@ struct PutioFolderScreen: View {
       isPresented: bulkDeleteConfirmationPresented,
       titleVisibility: .visible
     ) {
-      Button("Remove", role: .destructive) {
+      Button(deleteActionTitle, role: .destructive) {
         let items = pendingBulkDeletion
         pendingBulkDeletion = []
         actionRequest = .bulkDelete(items)
@@ -457,13 +575,28 @@ struct PutioFolderScreen: View {
     for item: PutioFileItem,
     content: Content
   ) -> some View {
-    content
-      .contextMenu {
-        actionButtons(for: item)
+    HStack(spacing: PutioTheme.Spacing.space2) {
+      content
+        .frame(maxWidth: .infinity, alignment: .leading)
+      if model.supportsActions {
+        Menu {
+          actionButtons(for: item)
+        } label: {
+          PutioIconView(.dotsThreeCircle, size: PutioTheme.ScaledMetrics.buttonIconSize)
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .accessibilityLabel(Text("More actions for \(item.name)"))
+        .accessibilityIdentifier("files.actions.\(item.id.rawValue)")
+        .disabled(!model.canStartAction || actionRequest != nil)
       }
-      .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-        actionButtons(for: item)
-      }
+    }
+    .contextMenu {
+      actionButtons(for: item)
+    }
+    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+      actionButtons(for: item)
+    }
   }
 
   @ViewBuilder
@@ -582,16 +715,16 @@ struct PutioFolderScreen: View {
   }
 
   private var deleteActionTitle: String {
-    "Remove"
+    deletionPresentation.actionTitle
   }
 
   private var deleteConfirmationTitle: String {
     guard let item = pendingDeletion else { return deleteActionTitle }
-    return "\(deleteActionTitle) “\(item.name)”?"
+    return deletionPresentation.confirmationTitle(itemName: item.name)
   }
 
   private var deleteConfirmationMessage: String {
-    "put.io will apply your current Trash setting."
+    deletionPresentation.confirmationMessage(itemCount: max(pendingBulkDeletion.count, 1))
   }
 
   private var bulkDeleteConfirmationPresented: Binding<Bool> {
@@ -604,7 +737,11 @@ struct PutioFolderScreen: View {
   }
 
   private var bulkDeleteConfirmationTitle: String {
-    "Remove \(pendingBulkDeletion.count) \(itemNoun(pendingBulkDeletion.count))?"
+    deletionPresentation.confirmationTitle(itemCount: pendingBulkDeletion.count)
+  }
+
+  private var deletionPresentation: PutioFileDeletionPresentation {
+    PutioFileDeletionPresentation(trashEnabled: trashEnabled)
   }
 
   private var currentItems: [PutioFileItem] {
@@ -703,8 +840,14 @@ struct PutioFolderScreen: View {
         refreshRequests.request(folderID: destinationID)
       }
       toast = successToast(for: action)
-    case .failed(_, let failure):
-      toast = PutioToast(variant: .danger, title: failure.title, message: failure.message)
+    case .failed(let action, let failure):
+      let title: String
+      if case .delete = action {
+        title = deletionPresentation.singleFailureTitle
+      } else {
+        title = failure.title
+      }
+      toast = PutioToast(variant: .danger, title: title, message: failure.message)
     }
     model.clearActionOutcome()
   }
@@ -741,9 +884,14 @@ struct PutioFolderScreen: View {
 
   private var bulkFailureTitle: String {
     guard let outcome = model.bulkOutcome else { return "Could not update items" }
+    if outcome.action == .delete {
+      return deletionPresentation.failureTitle(
+        allItemsFailed: outcome.failures.count == outcome.completedCount
+      )
+    }
     return outcome.failures.count == outcome.completedCount
-      ? "Could not \(bulkActionVerb(outcome.action)) items"
-      : "Some items couldn’t be \(bulkActionPastParticiple(outcome.action))"
+      ? "Could not move items"
+      : "Some items couldn’t be moved"
   }
 
   private func retryBulkFailures(_ outcome: PutioBulkFileOutcome) {
@@ -751,33 +899,29 @@ struct PutioFolderScreen: View {
   }
 
   private func bulkProgressTitle(_ progress: PutioBulkFileProgress) -> String {
-    let verb = progress.action == .delete ? "Removing" : "Moving"
     let currentCount = min(progress.completedCount + 1, progress.totalCount)
-    return "\(verb) item \(currentCount) of \(progress.totalCount)…"
+    if progress.action == .delete {
+      return deletionPresentation.progressTitle(
+        currentItem: currentCount,
+        totalItems: progress.totalCount
+      )
+    }
+    return "Moving item \(currentCount) of \(progress.totalCount)…"
   }
 
   private func bulkSuccessTitle(_ action: PutioBulkFileAction) -> String {
-    action == .delete ? "Items removed" : "Items moved"
+    action == .delete ? deletionPresentation.bulkSuccessTitle : "Items moved"
   }
 
   private func bulkOutcomeMessage(_ outcome: PutioBulkFileOutcome) -> String {
     let succeeded = outcome.succeeded.count
     let failed = outcome.failures.count
-    let successText = "\(bulkActionPastTense(outcome.action)) \(succeeded) \(itemNoun(succeeded))."
+    if outcome.action == .delete {
+      return deletionPresentation.outcomeMessage(succeeded: succeeded, failed: failed)
+    }
+    let successText = "Moved \(succeeded) \(itemNoun(succeeded))."
     guard failed > 0 else { return successText }
-    return "\(successText) \(failed) couldn’t be \(bulkActionPastParticiple(outcome.action))."
-  }
-
-  private func bulkActionVerb(_ action: PutioBulkFileAction) -> String {
-    action == .delete ? "remove" : "move"
-  }
-
-  private func bulkActionPastTense(_ action: PutioBulkFileAction) -> String {
-    action == .delete ? "Removed" : "Moved"
-  }
-
-  private func bulkActionPastParticiple(_ action: PutioBulkFileAction) -> String {
-    action == .delete ? "removed" : "moved"
+    return "\(successText) \(failed) couldn’t be moved."
   }
 
   private func itemNoun(_ count: Int) -> String {
@@ -793,7 +937,7 @@ struct PutioFolderScreen: View {
     case .delete(_, let name):
       PutioToast(
         variant: .success,
-        title: "Item removed",
+        title: deletionPresentation.singleSuccessTitle,
         message: name
       )
     case .move(_, let name, _, _, let destinationName):

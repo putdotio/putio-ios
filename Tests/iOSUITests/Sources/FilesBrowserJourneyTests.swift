@@ -67,8 +67,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let bulkRemove = app.buttons["files.bulk.remove"]
     XCTAssertTrue(waitUntilHittable(bulkRemove, timeout: 5))
+    XCTAssertEqual(bulkRemove.label, "Trash")
     bulkRemove.tap()
-    XCTAssertTrue(app.staticTexts["Remove 2 items?"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Move 2 items to Trash?"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["You can restore these items from Trash."].exists)
     let confirm = app.buttons["files.bulk.remove-confirm"].firstMatch
     XCTAssertTrue(waitUntilHittable(confirm, timeout: 5))
     confirm.tap()
@@ -76,12 +78,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(progress.waitForExistence(timeout: 5))
     assertCurrentBulkProgress(progress, itemNames: ["Bulk Success", "Bulk Retry"])
     XCTAssertTrue(
-      app.staticTexts["Some items couldn’t be removed"].waitForExistence(timeout: 10)
+      app.staticTexts["Some items couldn’t be moved to Trash"].waitForExistence(timeout: 10)
     )
     let retry = app.buttons["files.bulk.retry"].firstMatch
     XCTAssertTrue(waitUntilHittable(retry, timeout: 5))
     retry.tap()
-    XCTAssertTrue(app.staticTexts["Removed 1 item."].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["Moved 1 item to Trash."].waitForExistence(timeout: 10))
     XCTAssertTrue(retryFolder.waitForNonExistence(timeout: 5))
 
     app.buttons["Account"].tap()
@@ -200,6 +202,49 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
     addScreenshot(named: "runtime-signed-out")
+  }
+
+  func testTrashDisabledUsesPermanentDeleteCopyAndVisibleMenu() {
+    app.launchArguments.append("--putio-harness-trash-disabled")
+    app.launch()
+
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
+    signIn.tap()
+    XCTAssertTrue(
+      element(identifier: "files.screen.0").waitForExistence(timeout: 10),
+      "signed-in root browser never appeared"
+    )
+
+    let folder = createFolder(named: "Delete Forever", expectedID: 415)
+    let moreActions = app.buttons["files.actions.415"]
+    XCTAssertTrue(
+      waitUntilHittable(moreActions, timeout: 5),
+      "visible more-actions control is unavailable"
+    )
+    XCTAssertEqual(moreActions.label, "More actions for Delete Forever")
+    moreActions.tap()
+
+    let delete = app.buttons["files.delete.415"]
+    XCTAssertTrue(delete.waitForExistence(timeout: 5), "permanent Delete action is unavailable")
+    XCTAssertEqual(delete.label, "Delete")
+    delete.tap()
+    XCTAssertTrue(
+      app.staticTexts["Delete “Delete Forever” permanently?"].waitForExistence(timeout: 5)
+    )
+    XCTAssertTrue(app.staticTexts["This item cannot be restored."].exists)
+    let confirm = app.buttons["files.delete-confirm"].firstMatch
+    XCTAssertTrue(waitUntilHittable(confirm, timeout: 5))
+    XCTAssertEqual(confirm.label, "Delete")
+    confirm.tap()
+    XCTAssertTrue(app.staticTexts["Item deleted"].waitForExistence(timeout: 5))
+    XCTAssertTrue(folder.waitForNonExistence(timeout: 5))
+
+    app.buttons["Account"].tap()
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
   func testUnsupportedFileIsNotActionable() {
@@ -522,20 +567,20 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let delete = openContextMenu(
       for: movedFolderAtRoot,
-      actionLabel: "Remove"
+      actionLabel: "Trash"
     )
     delete.tap()
     let confirmDelete = app.buttons["files.delete-confirm"].firstMatch
-    XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5), "remove confirmation never appeared")
-    XCTAssertEqual(confirmDelete.label, "Remove")
-    XCTAssertTrue(app.staticTexts["put.io will apply your current Trash setting."].exists)
+    XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5), "Trash confirmation never appeared")
+    XCTAssertEqual(confirmDelete.label, "Trash")
+    XCTAssertTrue(app.staticTexts["You can restore this item from Trash."].exists)
     confirmDelete.tap()
     XCTAssertTrue(
-      app.staticTexts["Item removed"].waitForExistence(timeout: 5),
-      "neutral remove success was not surfaced"
+      app.staticTexts["Moved to Trash"].waitForExistence(timeout: 5),
+      "Trash success was not surfaced"
     )
     XCTAssertTrue(
-      movedFolderAtRoot.waitForNonExistence(timeout: 5), "removed folder remained visible")
+      movedFolderAtRoot.waitForNonExistence(timeout: 5), "trashed folder remained visible")
 
     let bulkRetryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
     let bulkSuccessFolder = createFolder(named: "Bulk Success", expectedID: 417)
@@ -617,10 +662,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let bulkRemove = app.buttons["files.bulk.remove"]
     XCTAssertTrue(
       waitUntilHittable(bulkRemove, timeout: 5),
-      "bulk Remove is not hittable: \(bulkRemove.debugDescription)"
+      "bulk Trash is not hittable: \(bulkRemove.debugDescription)"
     )
+    XCTAssertEqual(bulkRemove.label, "Trash")
     bulkRemove.tap()
-    XCTAssertTrue(app.staticTexts["Remove 2 items?"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Move 2 items to Trash?"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["You can restore these items from Trash."].exists)
     let confirmBulkRemove = app.buttons["files.bulk.remove-confirm"].firstMatch
     XCTAssertTrue(waitUntilHittable(confirmBulkRemove, timeout: 5))
     confirmBulkRemove.tap()
@@ -641,10 +688,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
 
     XCTAssertTrue(
-      app.staticTexts["Some items couldn’t be removed"].waitForExistence(timeout: 10),
-      "partial bulk-remove failure was not surfaced"
+      app.staticTexts["Some items couldn’t be moved to Trash"].waitForExistence(timeout: 10),
+      "partial bulk-Trash failure was not surfaced"
     )
-    XCTAssertTrue(app.staticTexts["Removed 1 item. 1 couldn’t be removed."].exists)
+    XCTAssertTrue(
+      app.staticTexts["Moved 1 item to Trash. 1 couldn’t be moved to Trash."].exists
+    )
     addScreenshot(named: "runtime-file-actions")
     XCTAssertTrue(movedBulkRetryFolder.exists, "failed bulk item was not restored")
     XCTAssertFalse(movedBulkSuccessFolder.exists, "successful bulk item was restored")
@@ -652,7 +701,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(retryBulkRemove, timeout: 5), "bulk retry is unavailable")
     retryBulkRemove.tap()
     XCTAssertTrue(
-      app.staticTexts["Removed 1 item."].waitForExistence(timeout: 10),
+      app.staticTexts["Moved 1 item to Trash."].waitForExistence(timeout: 10),
       "failed bulk item did not succeed on retry"
     )
     XCTAssertTrue(
@@ -728,9 +777,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
   private func assertCurrentBulkProgress(_ progress: XCUIElement, itemNames: Set<String>) {
     let completedCount: Int
     switch progress.label {
-    case "Removing item 1 of 2…":
+    case "Moving item 1 of 2 to Trash…":
       completedCount = 0
-    case "Removing item 2 of 2…":
+    case "Moving item 2 of 2 to Trash…":
       completedCount = 1
     default:
       return XCTFail("unexpected bulk progress label: \(progress.label)")
@@ -744,7 +793,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private func assertBulkProgressAdvances(_ progress: XCUIElement, itemNames: [String]) {
     for (index, itemName) in itemNames.enumerated() {
-      let label = "Removing item \(index + 1) of \(itemNames.count)…"
+      let label = "Moving item \(index + 1) of \(itemNames.count) to Trash…"
       let value = "\(itemName). \(index) of \(itemNames.count) complete."
       let expectation = XCTNSPredicateExpectation(
         predicate: NSPredicate(format: "label == %@ AND value == %@", label, value),
