@@ -43,12 +43,18 @@ import Foundation
     nonisolated(unsafe) private static var actionFolders: [Int: String] = [:]
     nonisolated(unsafe) private static var nextActionFolderID = 415
     nonisolated(unsafe) private static var renameAttempts = 0
+    nonisolated(unsafe) private static var logoutFailuresRemaining = 0
     private static let playbackPositionLock = NSLock()
     private static let conversionLock = NSLock()
     private static let fileActionsLock = NSLock()
+    private static let logoutLock = NSLock()
     private let deliveryGate = HarnessResponseDeliveryGate()
 
     static let token = "putio-harness-session-token"
+
+    static func configureSignOutFailure(_ enabled: Bool) {
+      logoutLock.withLock { logoutFailuresRemaining = enabled ? 1 : 0 }
+    }
 
     static func resetPlaybackPositions() {
       playbackPositionLock.lock()
@@ -132,7 +138,18 @@ import Foundation
       case "GET /v2/account/info":
         return (200, accountInfo)
       case "POST /v2/oauth/grants/logout":
-        return (200, #"{"status":"OK"}"#)
+        return logoutLock.withLock {
+          if logoutFailuresRemaining > 0 {
+            logoutFailuresRemaining -= 1
+            return (
+              503,
+              fixtureError(
+                statusCode: 503, type: "HARNESS_LOGOUT_FAILURE",
+                message: "Retry the fixture sign-out")
+            )
+          }
+          return (200, #"{"status":"OK"}"#)
+        }
       case "GET /v2/files/list":
         return filesListFixture(url: url)
       case "POST /v2/files/create-folder":

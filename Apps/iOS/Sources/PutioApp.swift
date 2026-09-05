@@ -59,6 +59,8 @@ private struct SessionRootView: View {
         PutioLoadingStateView(title: "Signing in…")
       case .signingOut:
         PutioLoadingStateView(title: "Signing out…")
+      case .signOutFailed(let failure):
+        SignOutFailureView(session: runtime.session, failure: failure)
       case .signedOut(let reason):
         SignInView(session: runtime.session, reason: reason, scenario: scenario)
       case .signedIn(let account):
@@ -66,13 +68,43 @@ private struct SessionRootView: View {
           runtime: runtime,
           account: account,
           scenario: scenario,
-          autoSignOutAfterSeconds: scenario == .signedIn ? 5 : nil
+          autoSignOutAfterSeconds: scenario == .signedIn
+            && !PutioRuntimeFactory.usesSignOutFailureFixture(scenario: scenario) ? 5 : nil
         )
       }
     }
     .background(PutioTheme.Colors.background)
     .task {
       await runtime.session.restore()
+    }
+  }
+}
+
+private struct SignOutFailureView: View {
+  let session: PutioSessionStore
+  let failure: PutioSignOutFailure
+
+  var body: some View {
+    ContentUnavailableView {
+      Text("Sign-out did not finish")
+    } description: {
+      Text(message)
+    } actions: {
+      PutioButton("Try signing out again", tier: .primary) {
+        Task { await session.signOut() }
+      }
+      .accessibilityIdentifier("auth.retry-sign-out")
+    }
+  }
+
+  private var message: String {
+    switch failure {
+    case .credentialRemoval:
+      "Saved sign-in details could not be removed. Try again before closing the app."
+    case .revocation:
+      "put.io could not revoke your session. Check your connection and try again."
+    case .credentialRemovalAndRevocation:
+      "Saved sign-in details could not be removed and put.io could not revoke your session. Check your connection and try again before closing the app."
     }
   }
 }

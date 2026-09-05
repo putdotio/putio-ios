@@ -34,8 +34,9 @@ Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` 
 
 `screenshot` and `record` accept `--scenario signed-out|gallery|signed-in`. The `gallery` scenario launches the iOS or tvOS component gallery. The iOS-only `signed-in` scenario uses a deterministic in-process API, restores a session, bootstraps the account screen, and signs out after a few seconds. Other commands and unsupported platforms reject these scenarios.
 
-`journey --platform ios --scenario files-browser` proves the runnable alpha loop with real accessibility input. Three unrecorded `1/1` preflights cover:
+`journey --platform ios --scenario files-browser` proves the runnable alpha loop with real accessibility input. Four unrecorded `1/1` preflights cover:
 
+- Sign-out recovery: the existing signed-in scenario uses a one-time credential-removal failure and seeded logout failure, shows the recovery message, captures `runtime-sign-out-failure.png`, and completes sign-out after an explicit retry. Default signed-in captures keep successful sign-out behavior.
 - File actions: create, optimistic rename, delayed failure rollback, retry, neutral removal, and a meaningful `runtime-file-actions.png` screenshot.
 - Unsupported files: the PDF row remains visible but is not actionable.
 - Resume persistence: a final playback position resolves again after reopening the video.
@@ -74,6 +75,7 @@ The runtime-proof journey applies the same clean-source and pinned-revision chec
 ```text
 build/proof/<run-id>/ios/
 ├── runtime-file-actions.png
+├── runtime-sign-out-failure.png
 ├── runtime-playback.png
 ├── runtime-sign-in.png
 ├── runtime-signed-out.png
@@ -82,7 +84,7 @@ build/proof/<run-id>/ios/
 └── manifest.json
 ```
 
-The journey requires each preflight and the recorded UI test to pass exactly `1/1`. It requires four meaningful screenshots, including the file-actions proof, and different sign-in and playback frames. One `simctl recordVideo` stream starts before the recorded test and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 30 seconds and removes raw/intermediate capture files after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
+The journey requires each preflight and the recorded UI test to pass exactly `1/1`. It requires five meaningful screenshots, including file-actions and sign-out recovery proof, and different sign-in and playback frames. One `simctl recordVideo` stream starts before the recorded test and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 30 seconds and removes raw/intermediate capture files after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
 
 Capture never uploads implicitly. Publish one reviewed artifact only after a pull request exists:
 

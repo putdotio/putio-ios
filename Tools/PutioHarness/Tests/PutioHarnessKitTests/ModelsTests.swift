@@ -66,6 +66,11 @@ import Testing
   )
   #expect(BrowserJourneyContract.fileActionsAttachmentName == "runtime-file-actions")
   #expect(
+    BrowserJourneyContract.signOutRecoveryTestIdentifier
+      == "PutioUITests/FilesBrowserJourneyTests/testSignOutFailureRecoversWithExplicitRetry"
+  )
+  #expect(BrowserJourneyContract.signOutFailureAttachmentName == "runtime-sign-out-failure")
+  #expect(
     BrowserJourneyContract.attachmentNames
       == ["runtime-sign-in", "runtime-playback", "runtime-signed-out"]
   )

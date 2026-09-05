@@ -10,14 +10,21 @@ public enum PutioSignedOutReason: Equatable, Sendable {
 }
 
 // Closed session lifecycle: signedOut -> authenticating -> signedIn ->
-// signingOut -> signedOut. `unknown` exists only until the first restore()
-// resolves on launch.
+// signingOut -> signedOut or signOutFailed -> signingOut. `unknown` exists
+// only until the first restore() resolves on launch.
 public enum PutioSessionState: Equatable, Sendable {
   case unknown
   case signedOut(PutioSignedOutReason?)
   case authenticating
   case signedIn(PutioAccountSnapshot)
   case signingOut
+  case signOutFailed(PutioSignOutFailure)
+}
+
+public enum PutioSignOutFailure: Equatable, Sendable {
+  case credentialRemoval
+  case revocation
+  case credentialRemovalAndRevocation
 }
 
 public enum PutioSessionOperationError: Error, Equatable, Sendable {
@@ -41,6 +48,9 @@ public final class PutioSessionStore {
   private let callbackHost = "auth"
   private var pendingOAuthState: String?
   private var pendingOAuthGeneration: UInt64?
+  // Kept only for a deliberate revocation retry; failed sign-out never leaves
+  // this credential active on the shared SDK.
+  private var pendingSignOutToken: String?
 
   init(
     sdk: PutioSDK,
@@ -58,7 +68,7 @@ public final class PutioSessionStore {
     switch state {
     case .unknown, .signedOut:
       break
-    case .authenticating, .signedIn, .signingOut:
+    case .authenticating, .signedIn, .signingOut, .signOutFailed:
       return
     }
     pendingOAuthState = nil
@@ -97,7 +107,7 @@ public final class PutioSessionStore {
     switch state {
     case .unknown, .signedOut:
       break
-    case .authenticating, .signedIn, .signingOut:
+    case .authenticating, .signedIn, .signingOut, .signOutFailed:
       throw PutioSessionOperationError.signInUnavailable
     }
     let oauthState = try PutioSDK.generateOAuthState()
@@ -149,6 +159,10 @@ public final class PutioSessionStore {
   }
 
   public func cancelSignIn() {
+    switch state {
+    case .signingOut, .signOutFailed: return
+    default: break
+    }
     pendingOAuthState = nil
     pendingOAuthGeneration = nil
     _ = advanceAuthenticationGeneration()
@@ -158,6 +172,10 @@ public final class PutioSessionStore {
   public func failSignIn(_ error: Error) {
     if error as? PutioSessionOperationError == .signInUnavailable {
       return
+    }
+    switch state {
+    case .signingOut, .signOutFailed: return
+    default: break
     }
     pendingOAuthState = nil
     pendingOAuthGeneration = nil
@@ -169,15 +187,41 @@ public final class PutioSessionStore {
   // MARK: - Sign out
 
   public func signOut() async {
+    switch state {
+    case .signingOut: return
+    case .signOutFailed: break
+    default:
+      pendingSignOutToken = sdk.config.token.isEmpty ? nil : sdk.config.token
+    }
     pendingOAuthState = nil
     pendingOAuthGeneration = nil
     let generation = advanceAuthenticationGeneration()
     state = .signingOut
-    try? tokenStore.clear()
-    _ = try? await sdk.logout()
+    var credentialRemovalFailed = false
+    do {
+      try tokenStore.clear()
+    } catch {
+      credentialRemovalFailed = true
+    }
+    var revocationFailed = false
+    if let token = pendingSignOutToken {
+      sdk.setToken(token: token)
+      do {
+        _ = try await sdk.logout()
+      } catch {
+        // An already rejected token no longer needs revocation.
+        revocationFailed = !isAuthRejection(error)
+      }
+    }
     guard generation == authenticationGeneration else { return }
     sdk.clearToken()
-    state = .signedOut(.userSignedOut)
+    if !revocationFailed { pendingSignOutToken = nil }
+    switch (credentialRemovalFailed, revocationFailed) {
+    case (false, false): state = .signedOut(.userSignedOut)
+    case (true, false): state = .signOutFailed(.credentialRemoval)
+    case (false, true): state = .signOutFailed(.revocation)
+    case (true, true): state = .signOutFailed(.credentialRemovalAndRevocation)
+    }
   }
 
   func expireSession() {

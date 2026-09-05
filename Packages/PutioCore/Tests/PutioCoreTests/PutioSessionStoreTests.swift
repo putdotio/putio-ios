@@ -6,10 +6,12 @@ import XCTest
 final class SessionMockURLProtocol: URLProtocol {
   nonisolated(unsafe) static var fixtures: [String: (Int, String)] = [:]
   nonisolated(unsafe) static var networkFailureRoutes: Set<String> = []
+  nonisolated(unsafe) static var requests: [URLRequest] = []
 
   static func reset() {
     fixtures = [:]
     networkFailureRoutes = []
+    requests = []
   }
 
   override class func canInit(with request: URLRequest) -> Bool {
@@ -21,6 +23,7 @@ final class SessionMockURLProtocol: URLProtocol {
   }
 
   override func startLoading() {
+    Self.requests.append(request)
     guard let url = request.url else {
       client?.urlProtocol(self, didFailWithError: URLError(.badURL))
       return
@@ -45,6 +48,25 @@ final class SessionMockURLProtocol: URLProtocol {
   }
 
   override func stopLoading() {}
+}
+
+private final class FailingClearTokenStore: PutioTokenStore, @unchecked Sendable {
+  private let lock = NSLock()
+  private let storage = PutioInMemoryTokenStore(token: "stored-token")
+  private var clearFails = true
+
+  func allowClear() {
+    lock.withLock { clearFails = false }
+  }
+
+  func read() throws -> String? { try storage.read() }
+  func write(_ token: String) throws { try storage.write(token) }
+  func clear() throws {
+    try lock.withLock {
+      if clearFails { throw URLError(.cannotWriteToFile) }
+      try storage.clear()
+    }
+  }
 }
 
 @MainActor
@@ -95,14 +117,18 @@ final class PutioSessionStoreTests: XCTestCase {
   }
 
   private func makeStore(token: String?) -> (PutioSessionStore, PutioInMemoryTokenStore) {
+    let tokenStore = PutioInMemoryTokenStore(token: token)
+    return (makeStore(tokenStore: tokenStore).0, tokenStore)
+  }
+
+  private func makeStore(tokenStore: PutioTokenStore) -> (PutioSessionStore, PutioSDK) {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [SessionMockURLProtocol.self]
     let sdk = PutioSDK(
       config: PutioSDKConfig(clientID: "3001", clientName: "tests"),
       urlSession: URLSession(configuration: configuration)
     )
-    let tokenStore = PutioInMemoryTokenStore(token: token)
-    return (PutioSessionStore(sdk: sdk, tokenStore: tokenStore), tokenStore)
+    return (PutioSessionStore(sdk: sdk, tokenStore: tokenStore), sdk)
   }
 
   private func stubSignedInRoutes() {
@@ -316,6 +342,94 @@ final class PutioSessionStoreTests: XCTestCase {
 
     XCTAssertEqual(store.state, .signedOut(.userSignedOut))
     XCTAssertNil(try tokenStore.read())
+  }
+
+  func testFailedCredentialRemovalBlocksSessionRecoveryUntilRetry() async throws {
+    stubSignedInRoutes()
+    let tokenStore = FailingClearTokenStore()
+    let (store, sdk) = makeStore(tokenStore: tokenStore)
+    await store.restore()
+    await store.signOut()
+
+    XCTAssertEqual(store.state, .signOutFailed(.credentialRemoval))
+    XCTAssertEqual(try tokenStore.read(), "stored-token")
+    XCTAssertTrue(sdk.config.token.isEmpty)
+    await store.restore()
+    XCTAssertThrowsError(try store.beginSignIn())
+    store.cancelSignIn()
+    store.failSignIn(URLError(.cancelled))
+    XCTAssertEqual(store.state, .signOutFailed(.credentialRemoval))
+
+    tokenStore.allowClear()
+    await store.signOut()
+    XCTAssertEqual(store.state, .signedOut(.userSignedOut))
+    XCTAssertNil(try tokenStore.read())
+    XCTAssertEqual(
+      SessionMockURLProtocol.requests.filter {
+        $0.url?.path == "/v2/oauth/grants/logout"
+      }.count, 1, "successful revocation must not be repeated for a local cleanup retry")
+  }
+
+  func testFailedRevocationRetainsOnlyAnInactiveCredentialForRetry() async throws {
+    stubSignedInRoutes()
+    let tokenStore = PutioInMemoryTokenStore(token: "stored-token")
+    let (store, sdk) = makeStore(tokenStore: tokenStore)
+    await store.restore()
+    SessionMockURLProtocol.networkFailureRoutes = ["POST /v2/oauth/grants/logout"]
+    await store.signOut()
+
+    XCTAssertEqual(store.state, .signOutFailed(.revocation))
+    XCTAssertNil(try tokenStore.read())
+    XCTAssertTrue(sdk.config.token.isEmpty)
+    SessionMockURLProtocol.networkFailureRoutes = []
+    await store.signOut()
+    XCTAssertEqual(store.state, .signedOut(.userSignedOut))
+    XCTAssertEqual(
+      SessionMockURLProtocol.requests.last?.value(forHTTPHeaderField: "Authorization"),
+      "token stored-token")
+    XCTAssertTrue(sdk.config.token.isEmpty)
+  }
+
+  func testCombinedSignOutFailureRemainsExplicitAndRetainedTokenCanRestoreInANewInstance()
+    async throws
+  {
+    stubSignedInRoutes()
+    let tokenStore = FailingClearTokenStore()
+    let (store, sdk) = makeStore(tokenStore: tokenStore)
+    await store.restore()
+    SessionMockURLProtocol.networkFailureRoutes = ["POST /v2/oauth/grants/logout"]
+    await store.signOut()
+
+    XCTAssertEqual(store.state, .signOutFailed(.credentialRemovalAndRevocation))
+    XCTAssertTrue(sdk.config.token.isEmpty)
+    await store.restore()
+    XCTAssertEqual(store.state, .signOutFailed(.credentialRemovalAndRevocation))
+
+    let (relaunched, _) = makeStore(tokenStore: tokenStore)
+    await relaunched.restore()
+    guard case .signedIn = relaunched.state else {
+      return XCTFail("without durable sign-out intent, a still-valid persisted token can restore")
+    }
+    tokenStore.allowClear()
+    SessionMockURLProtocol.networkFailureRoutes = []
+    await store.signOut()
+    XCTAssertEqual(store.state, .signedOut(.userSignedOut))
+    let (afterCleanup, _) = makeStore(tokenStore: tokenStore)
+    await afterCleanup.restore()
+    XCTAssertEqual(afterCleanup.state, .signedOut(nil))
+  }
+
+  func testRejectedTokenCompletesRevocationDuringRetry() async {
+    stubSignedInRoutes()
+    let (store, _) = makeStore(token: "stored-token")
+    await store.restore()
+    SessionMockURLProtocol.networkFailureRoutes = ["POST /v2/oauth/grants/logout"]
+    await store.signOut()
+    SessionMockURLProtocol.networkFailureRoutes = []
+    SessionMockURLProtocol.fixtures["POST /v2/oauth/grants/logout"] =
+      (401, #"{"status":"ERROR","error_type":"invalid_grant"}"#)
+    await store.signOut()
+    XCTAssertEqual(store.state, .signedOut(.userSignedOut))
   }
 
   func testCancelSignInReturnsToSignedOutWithoutError() async throws {

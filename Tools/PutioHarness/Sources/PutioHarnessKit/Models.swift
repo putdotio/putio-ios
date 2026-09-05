@@ -298,6 +298,9 @@ enum BrowserJourneyContract {
   static let fileActionsTestIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash"
   static let fileActionsAttachmentName = "runtime-file-actions"
+  static let signOutRecoveryTestIdentifier =
+    "PutioUITests/FilesBrowserJourneyTests/testSignOutFailureRecoversWithExplicitRetry"
+  static let signOutFailureAttachmentName = "runtime-sign-out-failure"
   static let attachmentNames = [
     "runtime-sign-in",
     "runtime-playback",

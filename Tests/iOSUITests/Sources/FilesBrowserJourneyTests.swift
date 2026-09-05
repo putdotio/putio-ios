@@ -127,6 +127,36 @@ final class FilesBrowserJourneyTests: XCTestCase {
     addScreenshot(named: "runtime-signed-out")
   }
 
+  func testSignOutFailureRecoversWithExplicitRetry() {
+    app.launchArguments = [
+      "--putio-harness-scenario", "signed-in", "--putio-harness-sign-out-failure",
+    ]
+    app.launch()
+    let account = app.buttons["Account"]
+    XCTAssertTrue(account.waitForExistence(timeout: 10), "seeded session did not restore")
+    account.tap()
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    signOut.tap()
+    let retry = element(identifier: "auth.retry-sign-out")
+    XCTAssertTrue(retry.waitForExistence(timeout: 15), "failed sign-out did not offer retry")
+    XCTAssertTrue(app.staticTexts["Sign-out did not finish"].exists)
+    XCTAssertTrue(
+      app.staticTexts.matching(
+        NSPredicate(
+          format: "label == %@",
+          "Saved sign-in details could not be removed and put.io could not revoke your session. Check your connection and try again before closing the app."
+        )
+      ).firstMatch.exists)
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertFalse(signIn.exists, "failed sign-out must not offer a new sign-in")
+    addScreenshot(named: "runtime-sign-out-failure")
+    XCTAssertTrue(retry.isHittable, "sign-out retry is not tappable")
+    retry.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "retry did not complete sign-out")
+    XCTAssertFalse(retry.exists)
+  }
+
   func testUnsupportedFileIsNotActionable() {
     app.launch()
 
