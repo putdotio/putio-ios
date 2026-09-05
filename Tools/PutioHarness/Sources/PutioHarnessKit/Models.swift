@@ -300,6 +300,9 @@ enum BrowserJourneyContract {
   static let trashDisabledTestIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyAndVisibleMenu"
   static let fileActionsAttachmentName = "runtime-file-actions"
+  static let signOutRecoveryTestIdentifier =
+    "PutioUITests/FilesBrowserJourneyTests/testSignOutFailureRecoversWithExplicitRetry"
+  static let signOutFailureAttachmentName = "runtime-sign-out-failure"
   static let attachmentNames = [
     "runtime-sign-in",
     "runtime-playback",

@@ -17,18 +17,26 @@ enum PutioRuntimeFactory {
           "--putio-harness-trash-disabled"
         )
         HarnessSeededAPI.isEnabled = true
+        let failSignOut = usesSignOutFailureFixture(scenario: scenario)
+        HarnessSeededAPI.configureSignOutFailure(failSignOut)
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [HarnessSeededAPI.self]
         // Bounds only stray requests to hosts the mock does not claim; mocked
         // responses return in-process.
         configuration.timeoutIntervalForRequest = 10
         configuration.timeoutIntervalForResource = 10
+        let tokenStore: PutioTokenStore
+        if failSignOut {
+          tokenStore = HarnessFailOnceTokenStore()
+        } else if scenario == .filesBrowser {
+          tokenStore = PutioKeychainTokenStore()
+        } else {
+          tokenStore = PutioInMemoryTokenStore(token: HarnessSeededAPI.token)
+        }
         return PutioRuntime(
           clientID: clientID,
           clientName: clientName,
-          tokenStore: scenario == .filesBrowser
-            ? PutioKeychainTokenStore()
-            : PutioInMemoryTokenStore(token: HarnessSeededAPI.token),
+          tokenStore: tokenStore,
           urlSession: URLSession(configuration: configuration)
         )
       }
@@ -38,6 +46,15 @@ enum PutioRuntimeFactory {
       clientName: clientName,
       tokenStore: PutioKeychainTokenStore()
     )
+  }
+
+  static func usesSignOutFailureFixture(scenario: HarnessScenario) -> Bool {
+    #if DEBUG
+      scenario == .signedIn
+        && ProcessInfo.processInfo.arguments.contains("--putio-harness-sign-out-failure")
+    #else
+      false
+    #endif
   }
 
   #if DEBUG
@@ -83,8 +100,27 @@ enum PutioRuntimeFactory {
 }
 
 #if DEBUG
+  private final class HarnessFailOnceTokenStore: PutioTokenStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private let storage = PutioInMemoryTokenStore(token: HarnessSeededAPI.token)
+    private var failurePending = true
+
+    func read() throws -> String? { try storage.read() }
+    func write(_ token: String) throws { try storage.write(token) }
+    func clear() throws {
+      try lock.withLock {
+        if failurePending {
+          failurePending = false
+          throw HarnessRuntimeError.credentialRemovalFixture
+        }
+        try storage.clear()
+      }
+    }
+  }
+
   private enum HarnessRuntimeError: Error {
     case invalidOAuthCallback
     case missingOAuthState
+    case credentialRemovalFixture
   }
 #endif

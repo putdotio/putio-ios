@@ -70,6 +70,12 @@ OpenType tabular figures on tvOS.
 
 Production identities and delivery lanes are tracked separately.
 
+If removing saved credentials or revoking the session fails, the app reports that
+sign-out did not finish and offers a retry. It blocks restoring or starting a
+session in that app instance until sign-out succeeds. If both operations fail,
+closing and reopening the app can still restore the retained token; finish the
+retry before closing the app. Sign-out intent is not persisted separately.
+
 ## Docs
 
 - [Apple Platform Harness](./docs/HARNESS.md)

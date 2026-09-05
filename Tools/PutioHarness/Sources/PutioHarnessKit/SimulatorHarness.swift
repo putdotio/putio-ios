@@ -628,6 +628,26 @@ public struct SimulatorHarness {
         let mediaBaseURL = try mediaServer.start()
 
         guard
+          let signOutFailureScreenshot = try runJourneyPreflightTest(
+            identifier: BrowserJourneyContract.signOutRecoveryTestIdentifier,
+            platform: platform,
+            session: session,
+            mediaBaseURL: mediaBaseURL,
+            resultBundle: platformDirectory.appending(path: ".sign-out-recovery.xcresult"),
+            attachmentName: BrowserJourneyContract.signOutFailureAttachmentName,
+            artifactDirectory: platformDirectory,
+            defaultExecutionTimeAllowance: 60,
+            maximumExecutionTimeAllowance: 90
+          )
+        else {
+          throw HarnessFailure("sign-out recovery preflight did not produce its screenshot")
+        }
+        _ = try requireMeaningfulScreenshot(
+          signOutFailureScreenshot,
+          context: "runtime sign-out failure attachment"
+        )
+
+        guard
           let fileActionsScreenshot = try runJourneyPreflightTest(
             identifier: BrowserJourneyContract.fileActionsTestIdentifier,
             platform: platform,
@@ -753,7 +773,9 @@ public struct SimulatorHarness {
 
         try requireCleanSource()
         try requireRevision(sourceRevision)
-        let artifactURLs = [fileActionsScreenshot] + screenshots + [recording, summary]
+        let artifactURLs =
+          [signOutFailureScreenshot, fileActionsScreenshot] + screenshots
+          + [recording, summary]
         let manifest = try writeManifest(
           platform: platform,
           command: "journey",
