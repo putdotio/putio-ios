@@ -87,10 +87,13 @@ struct PutioFolderScreen: View {
   @State private var editor: FileEditor?
   @State private var editorName = ""
   @State private var pendingDeletion: PutioFileItem?
-  @State private var pendingMove: PutioFileItem?
+  @State private var pendingBulkDeletion: [PutioFileItem] = []
+  @State private var pendingMove: MoveSelection?
   @State private var actionRequest: FileActionRequest?
   @State private var startedActionRequest: FileActionRequest?
   @State private var toast: PutioToast?
+  @State private var selectedIDs: Set<PutioFileID> = []
+  @State private var editMode: EditMode = .inactive
   private let relativeDateReference: Date?
   private let locale: Locale
   private let load: PutioFolderLoad
@@ -147,7 +150,21 @@ struct PutioFolderScreen: View {
     .navigationBarBackButtonHidden(fileActionPending)
     .putioContentBackground()
     .toolbar {
-      if model.supportsActions {
+      if model.supportsActions, !currentItems.isEmpty || isEditing {
+        ToolbarItemGroup(placement: .primaryAction) {
+          if !isEditing {
+            Button("New Folder") {
+              editorName = ""
+              editor = .createFolder
+            }
+            .disabled(!model.canStartAction || actionRequest != nil)
+            .accessibilityIdentifier("files.new-folder")
+          }
+          EditButton()
+            .disabled(fileActionPending)
+            .accessibilityIdentifier("files.selection.toggle")
+        }
+      } else if model.supportsActions {
         ToolbarItem(placement: .primaryAction) {
           Button("New Folder") {
             editorName = ""
@@ -157,7 +174,33 @@ struct PutioFolderScreen: View {
           .accessibilityIdentifier("files.new-folder")
         }
       }
+      if model.supportsActions, isEditing, !currentItems.isEmpty {
+        ToolbarItemGroup(placement: .bottomBar) {
+          Button(allLoadedItemsAreSelected ? "Deselect All" : "Select All") {
+            toggleAllLoadedItems()
+          }
+          .disabled(fileActionPending)
+          .accessibilityIdentifier(
+            allLoadedItemsAreSelected
+              ? "files.selection.deselect-all" : "files.selection.select-all"
+          )
+          Button("Move") {
+            let items = selectedItems
+            guard !items.isEmpty else { return }
+            pendingMove = MoveSelection(items: items, isBulk: true)
+          }
+          .disabled(selectedItems.isEmpty || fileActionPending)
+          .accessibilityIdentifier("files.bulk.move")
+          Button("Remove", role: .destructive) {
+            pendingBulkDeletion = selectedItems
+          }
+          .disabled(selectedItems.isEmpty || fileActionPending)
+          .accessibilityIdentifier("files.bulk.remove")
+        }
+      }
     }
+    .modifier(PutioSelectionTabBarVisibility(isEditing: isEditing))
+    .environment(\.editMode, $editMode)
     .sheet(isPresented: editorPresented) {
       NavigationStack {
         Form {
@@ -183,13 +226,17 @@ struct PutioFolderScreen: View {
       }
       .presentationDetents([.height(220)])
     }
-    .sheet(item: $pendingMove) { item in
+    .sheet(item: $pendingMove) { selection in
       PutioMovePicker(
-        item: item,
+        items: selection.items,
         load: load,
         onMove: { destination in
           pendingMove = nil
-          actionRequest = .move(item, destination)
+          if selection.isBulk {
+            actionRequest = .bulkMove(selection.items, destination)
+          } else if let item = selection.items.first {
+            actionRequest = .move(item, destination)
+          }
         }
       )
     }
@@ -210,8 +257,63 @@ struct PutioFolderScreen: View {
     } message: {
       Text(deleteConfirmationMessage)
     }
+    .confirmationDialog(
+      bulkDeleteConfirmationTitle,
+      isPresented: bulkDeleteConfirmationPresented,
+      titleVisibility: .visible
+    ) {
+      Button("Remove", role: .destructive) {
+        let items = pendingBulkDeletion
+        pendingBulkDeletion = []
+        actionRequest = .bulkDelete(items)
+      }
+      .accessibilityIdentifier("files.bulk.remove-confirm")
+      Button("Cancel", role: .cancel) {
+        pendingBulkDeletion = []
+      }
+    } message: {
+      Text(deleteConfirmationMessage)
+    }
+    .alert(
+      bulkFailureTitle,
+      isPresented: bulkFailurePresented,
+      presenting: model.bulkOutcome
+    ) { outcome in
+      Button("Try Again") {
+        retryBulkFailures(outcome)
+      }
+      .accessibilityIdentifier("files.bulk.retry")
+      Button("Done", role: .cancel) {
+        model.clearBulkOutcome()
+      }
+      .accessibilityIdentifier("files.bulk.dismiss")
+    } message: { outcome in
+      Text(bulkOutcomeMessage(outcome))
+    }
     .putioToast($toast)
-    .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
+    .overlay {
+      if let progress = model.bulkProgress {
+        ProgressView(
+          value: Double(progress.completedCount),
+          total: Double(progress.totalCount)
+        ) {
+          Text(bulkProgressTitle(progress))
+        } currentValueLabel: {
+          Text(progress.currentItem.name)
+        }
+        .controlSize(.large)
+        .padding(PutioTheme.Spacing.space4)
+        .modifier(PutioBulkProgressSurface())
+        .accessibilityIdentifier("files.bulk.progress")
+        .accessibilityLabel(Text(bulkProgressTitle(progress)))
+        .accessibilityValue(
+          Text(
+            "\(progress.currentItem.name). \(progress.completedCount) of "
+              + "\(progress.totalCount) complete."
+          )
+        )
+      }
+    }
     .task(id: route.id) {
       await model.loadIfNeeded()
     }
@@ -229,12 +331,20 @@ struct PutioFolderScreen: View {
     }
     .task(id: refreshRequests.sequence(for: route.id)) {
       guard refreshRequests.sequence(for: route.id) != nil else { return }
-      await model.refresh()
+      _ = await model.refresh()
     }
     .onChange(of: model.state, initial: true) { _, state in
+      if case .loaded(let contents) = state, !fileActionPending {
+        selectedIDs.formIntersection(contents.items.map(\.id))
+      }
       guard !reportedLoaded, case .loaded = state else { return }
       reportedLoaded = true
       onLoaded()
+    }
+    .onChange(of: editMode) { _, mode in
+      if mode != .active, !fileActionPending {
+        selectedIDs = []
+      }
     }
   }
 
@@ -256,10 +366,11 @@ struct PutioFolderScreen: View {
         .padding(PutioTheme.Spacing.space4)
       }
       .refreshable {
-        await model.refresh()
+        _ = await model.refresh()
       }
+      .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
     } else {
-      List {
+      List(selection: isEditing && !fileActionPending ? $selectedIDs : nil) {
         ForEach(
           contents.items.map {
             PutioBrowserItemPresentation(
@@ -270,6 +381,7 @@ struct PutioFolderScreen: View {
           }
         ) { item in
           row(item)
+            .tag(item.id)
             .listRowBackground(PutioTheme.Colors.background)
         }
 
@@ -291,14 +403,24 @@ struct PutioFolderScreen: View {
       }
       .listStyle(.plain)
       .refreshable {
-        await model.refresh()
+        _ = await model.refresh()
       }
+      .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
     }
   }
 
   @ViewBuilder
   private func row(_ presentation: PutioBrowserItemPresentation) -> some View {
-    if let folderRoute = presentation.folderRoute {
+    if isEditing {
+      PutioFileRow(
+        presentation.row,
+        showsFolderDisclosure: false
+      )
+      .contentShape(Rectangle())
+      .accessibilityElement(children: .combine)
+      .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
+      .accessibilityValue(Text(selectionAccessibilityValue(for: presentation.item)))
+    } else if let folderRoute = presentation.folderRoute {
       fileActions(
         for: presentation.item,
         content: NavigationLink(value: folderRoute) {
@@ -348,7 +470,7 @@ struct PutioFolderScreen: View {
   private func actionButtons(for item: PutioFileItem) -> some View {
     if model.supportsActions {
       Button("Move") {
-        pendingMove = item
+        pendingMove = MoveSelection(items: [item], isBulk: false)
       }
       .disabled(!model.canStartAction || actionRequest != nil)
       .accessibilityIdentifier("files.move.\(item.id.rawValue)")
@@ -387,6 +509,10 @@ struct PutioFolderScreen: View {
     return "Watched, resume position \(item.resumePositionSeconds) seconds"
   }
 
+  private func selectionAccessibilityValue(for item: PutioFileItem) -> String {
+    selectedIDs.contains(item.id) ? "Selected" : "Not selected"
+  }
+
   private func requestRetry(_ kind: RetryKind) {
     retrySequence &+= 1
     retryRequest = RetryRequest(id: retrySequence, kind: kind)
@@ -408,7 +534,7 @@ struct PutioFolderScreen: View {
         retryRequest = nil
         return
       }
-      await model.refresh()
+      _ = await model.refresh()
     }
     guard retryRequest == request else { return }
     retryRequest = nil
@@ -468,8 +594,46 @@ struct PutioFolderScreen: View {
     "put.io will apply your current Trash setting."
   }
 
+  private var bulkDeleteConfirmationPresented: Binding<Bool> {
+    Binding(
+      get: { !pendingBulkDeletion.isEmpty },
+      set: { isPresented in
+        if !isPresented { pendingBulkDeletion = [] }
+      }
+    )
+  }
+
+  private var bulkDeleteConfirmationTitle: String {
+    "Remove \(pendingBulkDeletion.count) \(itemNoun(pendingBulkDeletion.count))?"
+  }
+
+  private var currentItems: [PutioFileItem] {
+    guard case .loaded(let contents) = model.state else { return [] }
+    return contents.items
+  }
+
+  private var isEditing: Bool {
+    editMode == .active
+  }
+
+  private var selectedItems: [PutioFileItem] {
+    currentItems.filter { selectedIDs.contains($0.id) }
+  }
+
+  private var allLoadedItemsAreSelected: Bool {
+    !currentItems.isEmpty && selectedIDs == Set(currentItems.map(\.id))
+  }
+
+  private func toggleAllLoadedItems() {
+    if allLoadedItemsAreSelected {
+      selectedIDs = []
+    } else {
+      selectedIDs = Set(currentItems.map(\.id))
+    }
+  }
+
   private var fileActionPending: Bool {
-    actionRequest != nil || model.activeAction != nil
+    actionRequest != nil || model.activeAction != nil || model.activeBulkAction != nil
   }
 
   private func submitEditor() {
@@ -500,12 +664,35 @@ struct PutioFolderScreen: View {
         await model.delete(item)
       case .move(let item, let destination):
         await model.move(item, to: destination)
+      case .bulkDelete(let items):
+        await model.delete(items)
+      case .bulkMove(let items, let destination):
+        await model.move(items, to: destination)
+      case .bulkRetry(let outcome):
+        switch await model.prepareBulkRetry(outcome) {
+        case .ready(let items):
+          if items.isEmpty {
+            selectedIDs = []
+            editMode = .inactive
+          } else {
+            switch outcome.action {
+            case .delete:
+              await model.delete(items)
+            case .move(let destination):
+              await model.move(items, to: destination)
+            }
+          }
+        case .failed:
+          break
+        }
       }
     }
     guard actionRequest == request else { return }
     actionRequest = nil
     startedActionRequest = nil
+    selectedIDs.formIntersection(currentItems.map(\.id))
     presentActionOutcome()
+    presentBulkOutcome()
   }
 
   private func presentActionOutcome() {
@@ -520,6 +707,81 @@ struct PutioFolderScreen: View {
       toast = PutioToast(variant: .danger, title: failure.title, message: failure.message)
     }
     model.clearActionOutcome()
+  }
+
+  private func presentBulkOutcome() {
+    guard let outcome = model.bulkOutcome else { return }
+    if case .move(let destination) = outcome.action {
+      refreshRequests.request(folderID: destination.id)
+    }
+
+    if outcome.failures.isEmpty {
+      selectedIDs = []
+      editMode = .inactive
+      toast = PutioToast(
+        variant: .success,
+        title: bulkSuccessTitle(outcome.action),
+        message: bulkOutcomeMessage(outcome)
+      )
+      model.clearBulkOutcome()
+    } else {
+      selectedIDs = Set(outcome.retryableItems(in: currentItems).map(\.id))
+      editMode = .active
+    }
+  }
+
+  private var bulkFailurePresented: Binding<Bool> {
+    Binding(
+      get: { model.bulkOutcome?.failures.isEmpty == false },
+      set: { isPresented in
+        if !isPresented { model.clearBulkOutcome() }
+      }
+    )
+  }
+
+  private var bulkFailureTitle: String {
+    guard let outcome = model.bulkOutcome else { return "Could not update items" }
+    return outcome.failures.count == outcome.completedCount
+      ? "Could not \(bulkActionVerb(outcome.action)) items"
+      : "Some items couldn’t be \(bulkActionPastParticiple(outcome.action))"
+  }
+
+  private func retryBulkFailures(_ outcome: PutioBulkFileOutcome) {
+    actionRequest = .bulkRetry(outcome)
+  }
+
+  private func bulkProgressTitle(_ progress: PutioBulkFileProgress) -> String {
+    let verb = progress.action == .delete ? "Removing" : "Moving"
+    let currentCount = min(progress.completedCount + 1, progress.totalCount)
+    return "\(verb) item \(currentCount) of \(progress.totalCount)…"
+  }
+
+  private func bulkSuccessTitle(_ action: PutioBulkFileAction) -> String {
+    action == .delete ? "Items removed" : "Items moved"
+  }
+
+  private func bulkOutcomeMessage(_ outcome: PutioBulkFileOutcome) -> String {
+    let succeeded = outcome.succeeded.count
+    let failed = outcome.failures.count
+    let successText = "\(bulkActionPastTense(outcome.action)) \(succeeded) \(itemNoun(succeeded))."
+    guard failed > 0 else { return successText }
+    return "\(successText) \(failed) couldn’t be \(bulkActionPastParticiple(outcome.action))."
+  }
+
+  private func bulkActionVerb(_ action: PutioBulkFileAction) -> String {
+    action == .delete ? "remove" : "move"
+  }
+
+  private func bulkActionPastTense(_ action: PutioBulkFileAction) -> String {
+    action == .delete ? "Removed" : "Moved"
+  }
+
+  private func bulkActionPastParticiple(_ action: PutioBulkFileAction) -> String {
+    action == .delete ? "removed" : "moved"
+  }
+
+  private func itemNoun(_ count: Int) -> String {
+    count == 1 ? "item" : "items"
   }
 
   private func successToast(for action: PutioFileAction) -> PutioToast {
@@ -563,12 +825,24 @@ struct PutioFolderScreen: View {
     case rename(PutioFileItem, String)
     case delete(PutioFileItem)
     case move(PutioFileItem, PutioFolderRoute)
+    case bulkDelete([PutioFileItem])
+    case bulkMove([PutioFileItem], PutioFolderRoute)
+    case bulkRetry(PutioBulkFileOutcome)
+  }
+
+  private struct MoveSelection: Equatable, Identifiable {
+    let items: [PutioFileItem]
+    let isBulk: Bool
+
+    var id: [PutioFileID] {
+      items.map(\.id)
+    }
   }
 }
 
 @MainActor
 private struct PutioMovePicker: View {
-  let item: PutioFileItem
+  let items: [PutioFileItem]
   let load: PutioFolderLoad
   let onMove: @MainActor (PutioFolderRoute) -> Void
 
@@ -577,9 +851,9 @@ private struct PutioMovePicker: View {
 
   var body: some View {
     NavigationStack(path: $path) {
-      PutioMoveDestinationScreen(route: .root, item: item, load: load, onMove: onMove)
+      PutioMoveDestinationScreen(route: .root, items: items, load: load, onMove: onMove)
         .navigationDestination(for: PutioFolderRoute.self) { route in
-          PutioMoveDestinationScreen(route: route, item: item, load: load, onMove: onMove)
+          PutioMoveDestinationScreen(route: route, items: items, load: load, onMove: onMove)
         }
     }
     .toolbar {
@@ -597,19 +871,19 @@ private struct PutioMovePicker: View {
 @MainActor
 private struct PutioMoveDestinationScreen: View {
   let route: PutioFolderRoute
-  let item: PutioFileItem
+  let items: [PutioFileItem]
   let onMove: @MainActor (PutioFolderRoute) -> Void
 
   @State private var model: PutioFolderModel
 
   init(
     route: PutioFolderRoute,
-    item: PutioFileItem,
+    items: [PutioFileItem],
     load: @escaping PutioFolderLoad,
     onMove: @escaping @MainActor (PutioFolderRoute) -> Void
   ) {
     self.route = route
-    self.item = item
+    self.items = items
     self.onMove = onMove
     _model = State(initialValue: PutioFolderModel(folderID: route.id, load: load))
   }
@@ -656,7 +930,7 @@ private struct PutioMoveDestinationScreen: View {
       PutioEmptyStateView(
         icon: .folderFill,
         title: "No folders here",
-        message: canMoveHere ? "Move the item here or go back." : "Choose another folder."
+        message: canMoveHere ? emptyDestinationMessage : "Choose another folder."
       )
     } else {
       List(folders) { folder in
@@ -673,11 +947,45 @@ private struct PutioMoveDestinationScreen: View {
     }
   }
 
+  private var emptyDestinationMessage: String {
+    items.count == 1
+      ? "Move this item here or go back."
+      : "Move the selected items here or go back."
+  }
+
   private var canMoveHere: Bool {
     policy.canMove(to: route)
   }
 
   private var policy: PutioMovePickerPolicy {
-    PutioMovePickerPolicy(item: item)
+    PutioMovePickerPolicy(items: items)
+  }
+}
+
+private struct PutioBulkProgressSurface: ViewModifier {
+  @ViewBuilder func body(content: Content) -> some View {
+    if HarnessRendering.usesRasterFallback {
+      content.background(
+        .regularMaterial,
+        in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
+      )
+    } else {
+      content.glassEffect(
+        .regular,
+        in: RoundedRectangle(cornerRadius: PutioTheme.Radius.large)
+      )
+    }
+  }
+}
+
+private struct PutioSelectionTabBarVisibility: ViewModifier {
+  let isEditing: Bool
+
+  @ViewBuilder func body(content: Content) -> some View {
+    if isEditing {
+      content.toolbar(.hidden, for: .tabBar)
+    } else {
+      content
+    }
   }
 }

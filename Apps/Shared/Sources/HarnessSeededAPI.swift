@@ -48,12 +48,17 @@ import Foundation
     nonisolated(unsafe) private static var actionFolders: [Int: ActionFolder] = [:]
     nonisolated(unsafe) private static var nextActionFolderID = 415
     nonisolated(unsafe) private static var renameAttempts = 0
+    nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
+    nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
     private static let playbackPositionLock = NSLock()
     private static let conversionLock = NSLock()
     private static let fileActionsLock = NSLock()
     private let deliveryGate = HarnessResponseDeliveryGate()
 
     static let token = "putio-harness-session-token"
+    static let bulkDeleteFailureFolderID = 416
+    static let ambiguousMoveFailureFolderID = 418
+    private static let bulkDeleteProgressFolderIDs: Set<Int> = [416, 417]
 
     static func resetPlaybackPositions() {
       playbackPositionLock.lock()
@@ -75,6 +80,8 @@ import Foundation
       actionFolders = [:]
       nextActionFolderID = 415
       renameAttempts = 0
+      bulkDeleteFailureDelivered = false
+      ambiguousMoveFailureDelivered = false
       fileActionsLock.unlock()
     }
 
@@ -94,7 +101,8 @@ import Foundation
         }
         return
       }
-      let (statusCode, body) = Self.fixture(for: request)
+      let replayableRequest = Self.replayableRequest(request)
+      let (statusCode, body) = Self.fixture(for: replayableRequest)
       let response = HTTPURLResponse(
         url: url,
         statusCode: statusCode,
@@ -109,7 +117,9 @@ import Foundation
           self.client?.urlProtocolDidFinishLoading(self)
         }
       }
-      if statusCode == 503, url.path == "/v2/files/rename" {
+      if Self.shouldDelayBulkDeleteResponse(replayableRequest) {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 8, execute: deliverResponse)
+      } else if statusCode == 503, url.path == "/v2/files/rename" {
         DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
       } else {
         deliverResponse()
@@ -118,6 +128,16 @@ import Foundation
 
     override func stopLoading() {
       deliveryGate.cancel()
+    }
+
+    private static func shouldDelayBulkDeleteResponse(_ request: URLRequest) -> Bool {
+      guard
+        request.url?.path == "/v2/files/delete",
+        let payload = requestPayload(request),
+        let rawFileIDs = payload["file_ids"] as? String,
+        let fileID = Int(rawFileIDs)
+      else { return false }
+      return bulkDeleteProgressFolderIDs.contains(fileID)
     }
 
     private static func fixture(for request: URLRequest) -> (Int, String) {
@@ -282,14 +302,14 @@ import Foundation
         let name = payload["name"] as? String,
         !name.isEmpty,
         let parentID = payload["parent_id"] as? Int,
-        parentID == 0
+        parentID == 0 || parentID == 410
       else {
         return (
           400,
           fixtureError(
             statusCode: 400,
             type: "HARNESS_FOLDER_INPUT_REQUIRED",
-            message: "The create-folder fixture requires a root parent and name"
+            message: "The create-folder fixture requires a seeded parent and name"
           )
         )
       }
@@ -381,6 +401,18 @@ import Foundation
         )
       }
       actionFolders[fileID]?.parentID = parentID
+      if fileID == ambiguousMoveFailureFolderID, !ambiguousMoveFailureDelivered {
+        ambiguousMoveFailureDelivered = true
+        fileActionsLock.unlock()
+        return (
+          503,
+          fixtureError(
+            statusCode: 503,
+            type: "HARNESS_AMBIGUOUS_MOVE_FAILURE",
+            message: "The move is applied before its first response fails"
+          )
+        )
+      }
       fileActionsLock.unlock()
       return (200, #"{"status":"OK","errors":[]}"#)
     }
@@ -402,9 +434,8 @@ import Foundation
       }
 
       fileActionsLock.lock()
-      let removed = actionFolders.removeValue(forKey: fileID)
-      fileActionsLock.unlock()
-      guard removed != nil else {
+      guard actionFolders[fileID] != nil else {
+        fileActionsLock.unlock()
         return (
           404,
           fixtureError(
@@ -414,6 +445,20 @@ import Foundation
           )
         )
       }
+      if fileID == bulkDeleteFailureFolderID, !bulkDeleteFailureDelivered {
+        bulkDeleteFailureDelivered = true
+        fileActionsLock.unlock()
+        return (
+          503,
+          fixtureError(
+            statusCode: 503,
+            type: "HARNESS_TRANSIENT_DELETE_FAILURE",
+            message: "The first delete of the second created folder fails for retry proof"
+          )
+        )
+      }
+      actionFolders.removeValue(forKey: fileID)
+      fileActionsLock.unlock()
       return (200, #"{"status":"OK"}"#)
     }
 
@@ -487,6 +532,16 @@ import Foundation
         body.append(buffer, count: count)
       }
       return body
+    }
+
+    private static func replayableRequest(_ request: URLRequest) -> URLRequest {
+      guard request.httpBody == nil, request.httpBodyStream != nil,
+        let body = requestBodyData(request)
+      else { return request }
+      var replayableRequest = request
+      replayableRequest.httpBodyStream = nil
+      replayableRequest.httpBody = body
+      return replayableRequest
     }
 
     private static func requestPayload(_ request: URLRequest) -> [String: Any]? {
