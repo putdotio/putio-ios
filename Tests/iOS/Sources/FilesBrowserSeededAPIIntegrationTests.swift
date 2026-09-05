@@ -165,6 +165,19 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     root = try await runtime.listFiles(parentID: .root)
     XCTAssertEqual(root.items.first { $0.id == created.id }?.name, "Weekend")
 
+    let harnessFolderID = PutioFileID(rawValue: 410)
+    try await runtime.moveFile(fileID: created.id, to: harnessFolderID)
+    root = try await runtime.listFiles(parentID: .root)
+    var nested = try await runtime.listFiles(parentID: harnessFolderID)
+    XCTAssertFalse(root.items.contains { $0.id == created.id })
+    XCTAssertEqual(nested.items.first { $0.id == created.id }?.name, "Weekend")
+
+    try await runtime.moveFile(fileID: created.id, to: .root)
+    root = try await runtime.listFiles(parentID: .root)
+    nested = try await runtime.listFiles(parentID: harnessFolderID)
+    XCTAssertEqual(root.items.first { $0.id == created.id }?.name, "Weekend")
+    XCTAssertFalse(nested.items.contains { $0.id == created.id })
+
     try await runtime.deleteFile(fileID: created.id)
     root = try await runtime.listFiles(parentID: .root)
     XCTAssertFalse(root.items.contains { $0.id == created.id })

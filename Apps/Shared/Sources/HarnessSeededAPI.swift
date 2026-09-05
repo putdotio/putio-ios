@@ -34,13 +34,18 @@ import Foundation
   // the legacy app's E2E mock approach. Anything outside the seeded session
   // and browser surface fails loudly with a named fixture gap.
   final class HarnessSeededAPI: URLProtocol, @unchecked Sendable {
+    private struct ActionFolder {
+      var name: String
+      var parentID: Int
+    }
+
     nonisolated(unsafe) static var isEnabled = false
     nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 589, 414: 37]
     nonisolated(unsafe) private static var conversionStarted = false
     nonisolated(unsafe) private static var conversionCompleted = false
     nonisolated(unsafe) private static var conversionStartAttempts = 0
     nonisolated(unsafe) private static var conversionStatusLoads = 0
-    nonisolated(unsafe) private static var actionFolders: [Int: String] = [:]
+    nonisolated(unsafe) private static var actionFolders: [Int: ActionFolder] = [:]
     nonisolated(unsafe) private static var nextActionFolderID = 415
     nonisolated(unsafe) private static var renameAttempts = 0
     private static let playbackPositionLock = NSLock()
@@ -141,6 +146,8 @@ import Foundation
         return renameFile(request: request)
       case "POST /v2/files/delete":
         return deleteFiles(request: request)
+      case "POST /v2/files/move":
+        return moveFiles(request: request)
       case "GET /v2/files/411":
         return (
           200,
@@ -290,9 +297,9 @@ import Foundation
       fileActionsLock.lock()
       let id = nextActionFolderID
       nextActionFolderID += 1
-      actionFolders[id] = name
+      actionFolders[id] = ActionFolder(name: name, parentID: parentID)
       fileActionsLock.unlock()
-      return (200, folderEnvelope(id: id, name: name))
+      return (200, folderEnvelope(id: id, name: name, parentID: parentID))
     }
 
     private static func renameFile(request: URLRequest) -> (Int, String) {
@@ -327,7 +334,7 @@ import Foundation
       renameAttempts += 1
       let attempt = renameAttempts
       if attempt > 1 {
-        actionFolders[fileID] = name
+        actionFolders[fileID]?.name = name
       }
       fileActionsLock.unlock()
       guard attempt > 1 else {
@@ -341,6 +348,41 @@ import Foundation
         )
       }
       return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func moveFiles(request: URLRequest) -> (Int, String) {
+      guard
+        let payload = requestPayload(request),
+        let rawFileIDs = payload["file_ids"] as? String,
+        let fileID = Int(rawFileIDs),
+        let parentID = payload["parent_id"] as? Int,
+        parentID == 0 || parentID == 410
+      else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400,
+            type: "HARNESS_MOVE_INPUT_REQUIRED",
+            message: "The move fixture requires one file id and a seeded destination"
+          )
+        )
+      }
+
+      fileActionsLock.lock()
+      guard actionFolders[fileID] != nil else {
+        fileActionsLock.unlock()
+        return (
+          404,
+          fixtureError(
+            statusCode: 404,
+            type: "HARNESS_FILE_NOT_FOUND",
+            message: "The move fixture only changes harness-created folders"
+          )
+        )
+      }
+      actionFolders[fileID]?.parentID = parentID
+      fileActionsLock.unlock()
+      return (200, #"{"status":"OK","errors":[]}"#)
     }
 
     private static func deleteFiles(request: URLRequest) -> (Int, String) {
@@ -489,10 +531,13 @@ import Foundation
 
     private static var rootFiles: String {
       fileActionsLock.lock()
-      let mutableFolders = actionFolders.sorted { $0.key < $1.key }
+      let mutableFolders =
+        actionFolders
+        .filter { $0.value.parentID == 0 }
+        .sorted { $0.key < $1.key }
       fileActionsLock.unlock()
-      let mutableFolderRows = mutableFolders.map { id, name in
-        folderObject(id: id, name: name)
+      let mutableFolderRows = mutableFolders.map { id, folder in
+        folderObject(id: id, name: folder.name, parentID: folder.parentID)
       }
       let extraRows =
         mutableFolderRows.isEmpty ? "" : ",\n" + mutableFolderRows.joined(separator: ",\n")
@@ -542,21 +587,21 @@ import Foundation
         """
     }
 
-    private static func folderEnvelope(id: Int, name: String) -> String {
-      """
-      {
-        "file": \(folderObject(id: id, name: name))
-      }
-      """
+    private static func folderEnvelope(id: Int, name: String, parentID: Int) -> String {
+      return """
+          {
+          "file": \(folderObject(id: id, name: name, parentID: parentID))
+        }
+        """
     }
 
-    private static func folderObject(id: Int, name: String) -> String {
+    private static func folderObject(id: Int, name: String, parentID: Int) -> String {
       """
       {
         "id": \(id),
         "name": \(jsonString(name)),
         "file_type": "FOLDER",
-        "parent_id": 0,
+        "parent_id": \(parentID),
         "size": 0,
         "created_at": "2026-09-01T20:00:00Z",
         "updated_at": "2026-09-01T20:00:00Z"
@@ -573,32 +618,43 @@ import Foundation
     }
 
     private static var nestedFiles: String {
-      """
-      {
-        "parent": {
-          "id": 410,
-          "name": "Harness Folder",
-          "file_type": "FOLDER",
-          "parent_id": 0,
-          "size": 0,
-          "created_at": "2026-08-28T10:00:00Z",
-          "updated_at": "2026-08-29T10:00:00Z"
-        },
-        "files": [
-          {
-            "id": 411,
-            "name": "Nested Movie.mkv",
-            "file_type": "VIDEO",
-            "parent_id": 410,
-            "size": 1073741824,
-            "created_at": "2026-08-28T11:00:00Z",
-            "updated_at": "2026-08-29T11:00:00Z",
-            "start_from": \(playbackPosition(fileID: 411))
-          }
-        ],
-        "total": 1
+      fileActionsLock.lock()
+      let mutableFolders =
+        actionFolders
+        .filter { $0.value.parentID == 410 }
+        .sorted { $0.key < $1.key }
+      fileActionsLock.unlock()
+      let mutableFolderRows = mutableFolders.map { id, folder in
+        folderObject(id: id, name: folder.name, parentID: folder.parentID)
       }
-      """
+      let extraRows =
+        mutableFolderRows.isEmpty ? "" : ",\n" + mutableFolderRows.joined(separator: ",\n")
+      return """
+        {
+          "parent": {
+            "id": 410,
+            "name": "Harness Folder",
+            "file_type": "FOLDER",
+            "parent_id": 0,
+            "size": 0,
+            "created_at": "2026-08-28T10:00:00Z",
+            "updated_at": "2026-08-29T10:00:00Z"
+          },
+          "files": [
+            {
+              "id": 411,
+              "name": "Nested Movie.mkv",
+              "file_type": "VIDEO",
+              "parent_id": 410,
+              "size": 1073741824,
+              "created_at": "2026-08-28T11:00:00Z",
+              "updated_at": "2026-08-29T11:00:00Z",
+              "start_from": \(playbackPosition(fileID: 411))
+            }\(extraRows)
+          ],
+          "total": \(1 + mutableFolders.count)
+        }
+        """
     }
 
     private static func playbackFile(id: Int, name: String, startFrom: Int) -> String {

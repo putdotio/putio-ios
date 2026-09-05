@@ -636,7 +636,7 @@ public struct SimulatorHarness {
             resultBundle: platformDirectory.appending(path: ".file-actions.xcresult"),
             attachmentName: BrowserJourneyContract.fileActionsAttachmentName,
             artifactDirectory: platformDirectory,
-            defaultExecutionTimeAllowance: 60,
+            defaultExecutionTimeAllowance: 90,
             maximumExecutionTimeAllowance: 90
           )
         else {

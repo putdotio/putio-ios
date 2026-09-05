@@ -101,6 +101,21 @@ final class PutioFolderModelTests: XCTestCase {
     }
   }
 
+  func testMovePickerShowsOnlyReachableFolderDestinations() {
+    let source = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Source", kind: .folder)
+    let eligible = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Destination", kind: .folder)
+    let file = BrowserTestFixtures.item(id: 9, parentID: 42, name: "Episode.mkv")
+    let policy = PutioMovePickerPolicy(item: source)
+
+    XCTAssertEqual(
+      policy.folders(in: BrowserTestFixtures.contents(items: [source, eligible, file])),
+      [eligible]
+    )
+    XCTAssertFalse(policy.canMove(to: PutioFolderRoute(id: source.parentID, title: "Current")))
+    XCTAssertFalse(policy.canMove(to: PutioFolderRoute(id: source.id, title: source.name)))
+    XCTAssertTrue(policy.canMove(to: PutioFolderRoute(id: eligible.id, title: eligible.name)))
+  }
+
   func testInitialLoadRunsOnceAndUsesStableFolderID() async {
     let loader = ControlledFolderLoader()
     let loaded = BrowserTestFixtures.contents(
@@ -277,7 +292,7 @@ final class PutioFolderModelTests: XCTestCase {
   func testPlaybackRefreshSequencesAreIndependentPerFolder() {
     let firstFolder = PutioFileID(rawValue: 42)
     let secondFolder = PutioFileID(rawValue: 7)
-    var requests = PutioFolderRefreshRequests()
+    let requests = PutioFolderRefreshRequests()
 
     requests.request(folderID: firstFolder)
     let firstSequence = requests.sequence(for: firstFolder)
@@ -779,6 +794,120 @@ final class PutioFolderModelTests: XCTestCase {
       model.actionOutcome,
       .succeeded(.delete(fileID: item.id, name: "Episode.mkv"))
     )
+  }
+
+  func testMoveUsesTheLatestItemAndOptimisticallyRemovesIt() async {
+    let mutation = SuspendedFileMutation()
+    let staleItem = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Old Name.mkv")
+    let currentItem = BrowserTestFixtures.item(
+      id: 7,
+      parentID: 42,
+      name: "Episode.mkv",
+      sizeBytes: 8_192,
+      resumePositionSeconds: 137
+    )
+    let survivor = BrowserTestFixtures.item(id: 8, parentID: 42)
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [currentItem, survivor])
+    let destination = PutioFolderRoute(id: PutioFileID(rawValue: 91), title: "Season 2")
+    let expectedAction = PutioFileAction.move(
+      fileID: currentItem.id,
+      name: currentItem.name,
+      sourceParentID: currentItem.parentID,
+      destinationID: destination.id,
+      destinationName: destination.title
+    )
+    let optimistic = PutioFolderContents(
+      folder: original.folder,
+      items: [survivor],
+      hasMore: original.hasMore
+    )
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        moveFile: { fileID, parentID in
+          XCTAssertEqual(fileID, currentItem.id)
+          XCTAssertEqual(parentID, destination.id)
+          try await mutation.run()
+        }
+      ),
+      initialContents: original
+    )
+
+    let task = Task { await model.move(staleItem, to: destination) }
+    await mutation.waitUntilStarted()
+
+    XCTAssertEqual(model.state, .loaded(optimistic))
+    XCTAssertEqual(model.activeAction, expectedAction)
+
+    await mutation.succeed()
+    await task.value
+
+    XCTAssertEqual(model.state, .loaded(optimistic))
+    XCTAssertEqual(model.actionOutcome, .succeeded(expectedAction))
+  }
+
+  func testMoveFailureRestoresTheExactPriorContents() async {
+    let item = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Episode.mkv")
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [item], hasMore: true)
+    let destination = PutioFolderRoute(id: PutioFileID(rawValue: 91), title: "Season 2")
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        moveFile: { _, _ in throw PutioRuntimeError.transient }
+      ),
+      initialContents: original
+    )
+
+    await model.move(item, to: destination)
+
+    XCTAssertEqual(model.state, .loaded(original))
+    guard case .failed(let action, let failure) = model.actionOutcome else {
+      return XCTFail("expected failed move, got \(String(describing: model.actionOutcome))")
+    }
+    XCTAssertEqual(
+      action,
+      .move(
+        fileID: item.id,
+        name: item.name,
+        sourceParentID: item.parentID,
+        destinationID: destination.id,
+        destinationName: destination.title
+      )
+    )
+    XCTAssertEqual(failure.title, "Could not move item")
+  }
+
+  func testMoveRejectsTheCurrentParentAndTheSourceFolder() async {
+    let item = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Folder", kind: .folder)
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [item])
+    var moveCount = 0
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        moveFile: { _, _ in moveCount += 1 }
+      ),
+      initialContents: original
+    )
+
+    await model.move(item, to: PutioFolderRoute(id: item.parentID, title: "Current"))
+    await model.move(item, to: PutioFolderRoute(id: item.id, title: item.name))
+
+    XCTAssertEqual(moveCount, 0)
+    XCTAssertEqual(model.state, .loaded(original))
+    XCTAssertNil(model.activeAction)
+    XCTAssertNil(model.actionOutcome)
   }
 
   func testMutationOutlivesACancelledCallerAndSettlesTheServerOutcome() async {
