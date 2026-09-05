@@ -209,6 +209,7 @@ private struct FilesGallery: View {
           Section("Native navigation") {
             NavigationLink {
               PutioEmptyStateView(title: "Folder is empty")
+                .putioContentBackground()
             } label: {
               PutioFileRow(GalleryFixtures.folderRow)
             }
@@ -216,7 +217,7 @@ private struct FilesGallery: View {
           .listRowBackground(PutioTheme.Colors.background)
         }
         .listStyle(.plain)
-        .scrollContentBackground(.hidden)
+        .putioContentBackground()
       }
     #endif
   }
