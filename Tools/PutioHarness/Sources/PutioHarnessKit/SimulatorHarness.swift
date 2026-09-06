@@ -247,15 +247,6 @@ private struct SimulatorDevice: Decodable {
   let udid: String
 }
 
-private func cleanupSimulators(named names: [String], runner: ProcessRunner) throws {
-  let output = try runner.checked(
-    "xcrun", ["simctl", "list", "devices", "-j"], context: "locate owned Simulators")
-  let devices = try JSONDecoder().decode(SimulatorDeviceList.self, from: Data(output.stdout.utf8))
-  let identifiers = devices.devices.values.flatMap { $0 }.filter { names.contains($0.name) }.map(
-    \.udid)
-  if !identifiers.isEmpty { try cleanupSimulatorIdentifiers(identifiers, runner: runner) }
-}
-
 public final class SimulatorLifecycle: @unchecked Sendable {
   public static let shared = SimulatorLifecycle()
 
@@ -1130,11 +1121,14 @@ public struct SimulatorHarness {
     let deviceName = "putio-harness-\(platform.rawValue)-\(suffix)"
 
     do {
-      try SimulatorLifecycle.shared.register {
-        try cleanupSimulators(named: [deviceName], runner: runner)
-      }
+      // Cleanup targets the exact devices this session creates. Name-based
+      // lookup would let a colliding run ID delete another process's device.
+      try requireNoSimulator(named: deviceName)
       let deviceIdentifier = try createDevice(
         name: deviceName, type: deviceType.identifier, runtime: runtime.identifier)
+      try SimulatorLifecycle.shared.register {
+        try cleanupSimulatorIdentifiers([deviceIdentifier], runner: runner)
+      }
       var companionIdentifier: String?
       if platform == .watchos {
         guard
@@ -1149,14 +1143,15 @@ public struct SimulatorHarness {
           )
         }
         let phoneName = "putio-harness-watch-companion-\(suffix)"
-        try SimulatorLifecycle.shared.register {
-          try cleanupSimulators(named: [phoneName], runner: runner)
-        }
+        try requireNoSimulator(named: phoneName)
         let phoneIdentifier = try createDevice(
           name: phoneName,
           type: phoneType.identifier,
           runtime: phoneRuntime.identifier
         )
+        try SimulatorLifecycle.shared.register {
+          try cleanupSimulatorIdentifiers([phoneIdentifier], runner: runner)
+        }
         companionIdentifier = phoneIdentifier
         let pairIdentifier = try runner.checked(
           "xcrun",
@@ -1217,6 +1212,19 @@ public struct SimulatorHarness {
       context: "list Simulator device types"
     )
     return try JSONDecoder().decode(DeviceTypeList.self, from: Data(output.stdout.utf8)).devicetypes
+  }
+
+  private func requireNoSimulator(named name: String) throws {
+    let output = try runner.checked(
+      "xcrun", ["simctl", "list", "devices", "-j"], context: "check Simulator name ownership")
+    let devices = try JSONDecoder().decode(
+      SimulatorDeviceList.self, from: Data(output.stdout.utf8))
+    let owners = devices.devices.values.flatMap { $0 }.filter { $0.name == name }
+    guard owners.isEmpty else {
+      throw HarnessFailure(
+        "Simulator \(name) already exists (\(owners.map(\.udid).joined(separator: ", "))); choose a run ID whose first 24 characters are unique"
+      )
+    }
   }
 
   private func createDevice(name: String, type: String, runtime: String) throws -> String {

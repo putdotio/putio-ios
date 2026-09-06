@@ -51,7 +51,7 @@ HTTP API responses and OAuth input are deterministic fixtures. The session store
 
 All simulator commands are headless. The harness never opens Simulator.app. `boot`, `launch`, `exercise`, and capture runs create uniquely named devices and pair watchOS with an ephemeral iPhone companion. `launch`, `exercise`, and capture wait for a rendered app frame. Every created device is shut down, deleted, and verified absent on success or failure. `build` does not create devices.
 
-`boot --run-id <id>` names its device `putio-harness-<platform>-<first 24 characters of id>`; use a unique ID when checking ownership. The interruption check uses that exact name and preserves preexisting devices and devices created by other processes.
+`boot --run-id <id>` names its device `putio-harness-<platform>-<first 24 characters of id>` and refuses to start when a device with that name already exists, so a colliding ID cannot claim another run's Simulator. Cleanup targets the exact devices the run created, never a name. The interruption check uses that exact name to find the owned device and preserves preexisting devices and devices created by other processes.
 
 `exercise` launches the selected app, relaunches it with the explicit exercised scenario, requires the fixed semantic marker in its Simulator data container, and confirms the final visible state transition while the process remains alive. The iOS exercised state uses an accessibility Dynamic Type size so proof also covers adaptive typography and content-coupled metrics. The launch scenario is shared by iOS, watchOS, and tvOS so automation never encounters custom-URL confirmation UI.
 

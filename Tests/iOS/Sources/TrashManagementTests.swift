@@ -427,7 +427,7 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertTrue(model.canMutate)
   }
 
-  func testTombstonesSurviveContinuationUntilAFullRefresh() async {
+  func testTombstonesSurviveUntilACompleteListingConfirmsTheRemoval() async {
     let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
     let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
     let c = trashItem(id: 93, name: "C.pdf", kind: .pdf)
@@ -438,7 +438,11 @@ final class TrashManagementTests: XCTestCase {
         // Fresh first page after deleting b, then a lagging continuation.
         .success(page(items: [a], cursor: "f1", totalCount: 2)),
         .success(page(items: [b, c], totalCount: 2)),
-        // A full refresh starts from what the server says.
+        // A lagging full refresh still lists b.
+        .success(page(items: [a, b, c], totalCount: 3)),
+        // The server catches up and omits b: the tombstone is released.
+        .success(page(items: [a, c], totalCount: 2)),
+        // If b is trashed again later it may show up again.
         .success(page(items: [a, b, c], totalCount: 3)),
       ],
       deleteResults: [.success(.refreshed)]
@@ -455,11 +459,41 @@ final class TrashManagementTests: XCTestCase {
 
     await model.loadMore()
     XCTAssertEqual(model.page?.items, [a, c], "a lagging continuation cannot resurrect b")
-    XCTAssertEqual(model.page?.totalCount, 1)
+    XCTAssertEqual(model.page?.totalCount, 2, "aggregates are the server's, not row counts")
 
     await model.refresh()
-    XCTAssertEqual(model.page?.items, [a, b, c])
-    XCTAssertEqual(stub.loadedCursors, [nil, "n1", nil, "f1", nil])
+    XCTAssertEqual(model.page?.items, [a, c], "a lagging refresh cannot resurrect b either")
+
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [a, c])
+
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [a, b, c], "a confirmed removal no longer hides b")
+    XCTAssertEqual(stub.loadedCursors, [nil, "n1", nil, "f1", nil, nil, nil])
+  }
+
+  func testEmptyingTombstonesEveryListedItemAgainstALaggingRefresh() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let stub = TrashActionsStub(
+      pages: [
+        .success(page(items: [a, b], totalCount: 2)),
+        .success(page(items: [a, b], totalCount: 2)),
+        .success(page(items: [], totalCount: 0)),
+      ],
+      emptyResults: [.success(.refreshed)]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    await model.empty()
+    XCTAssertEqual(model.page?.items, [])
+
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [], "a lagging refresh cannot undo emptying")
+
+    await model.refresh()
+    XCTAssertEqual(model.page, page(items: [], totalCount: 0, sizeBytes: 0))
   }
 
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
@@ -477,8 +511,8 @@ final class TrashManagementTests: XCTestCase {
 
     XCTAssertEqual(model.page?.items, [second])
     XCTAssertEqual(model.page?.nextCursor, "fresh")
-    XCTAssertEqual(model.page?.totalCount, 1)
-    XCTAssertEqual(model.page?.sizeBytes, 4096 - item.sizeBytes)
+    XCTAssertEqual(model.page?.totalCount, 2, "server aggregates pass through unchanged")
+    XCTAssertEqual(model.page?.sizeBytes, 4096)
   }
 
   func testRemovingWithPendingContinuationDropsTheCursorWhenReloadFails() async {

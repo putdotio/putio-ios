@@ -131,8 +131,11 @@ final class PutioTrashModel {
   // re-entering the screen cannot strand it on the loading state.
   @ObservationIgnored private var loadGeneration: UInt64 = 0
   // Items removed by a committed mutation. Lagging listings and their
-  // continuations must not resurrect them; a full refresh starts fresh.
+  // continuations must not resurrect them. A tombstone is dropped only once
+  // a complete listing (first page through the final continuation) no longer
+  // contains the item, which is the server confirming the removal.
   @ObservationIgnored private var removedIDs: Set<PutioFileID> = []
+  @ObservationIgnored private var seenSinceFirstPage: Set<PutioFileID> = []
 
   init(
     actions: PutioTrashActions,
@@ -190,7 +193,7 @@ final class PutioTrashModel {
     do {
       let nextPage = try await actions.load(cursor)
       let existingIDs = Set(currentPage.items.map(\.id))
-      let fresh = excludingRemoved(nextPage)
+      let fresh = excludingRemoved(nextPage, startsListing: false)
       let newItems = fresh.items.filter { !existingIDs.contains($0.id) }
       state = .loaded(
         PutioTrashPage(
@@ -236,6 +239,11 @@ final class PutioTrashModel {
   func empty() async {
     await mutate(.empty) {
       let result = try await actions.empty()
+      // Everything listed so far is gone; a lagging refresh must not bring
+      // any of it back.
+      if let currentPage = page {
+        removedIDs.formUnion(currentPage.items.map(\.id))
+      }
       state = .loaded(
         PutioTrashPage(items: [], nextCursor: nil, totalCount: 0, sizeBytes: 0)
       )
@@ -281,8 +289,7 @@ final class PutioTrashModel {
       await reloadStaleStorage()
       let loadedPage = try await actions.load(nil)
       guard generation == loadGeneration else { return }
-      removedIDs.removeAll()
-      state = .loaded(loadedPage)
+      state = .loaded(excludingRemoved(loadedPage, startsListing: true))
       hasLoaded = true
     } catch is CancellationError {
       guard generation == loadGeneration else { return }
@@ -344,7 +351,7 @@ final class PutioTrashModel {
     )
     guard currentPage.nextCursor != nil else { return }
     do {
-      state = .loaded(excludingRemoved(try await actions.load(nil)))
+      state = .loaded(excludingRemoved(try await actions.load(nil), startsListing: true))
     } catch {
       // The mutation is committed; keep the local page and drop the stale
       // cursor so Load More cannot replay it. Pull to refresh recovers.
@@ -364,15 +371,24 @@ final class PutioTrashModel {
   }
 
   // A lagging listing may still contain committed removals; never resurrect
-  // a row the user removed, and keep the totals consistent with the rows.
-  private func excludingRemoved(_ listing: PutioTrashPage) -> PutioTrashPage {
-    let resurrected = listing.items.filter { removedIDs.contains($0.id) }
-    guard !resurrected.isEmpty else { return listing }
+  // a row the user removed. `totalCount` and `sizeBytes` are server
+  // aggregates for the whole Trash, not sums of the rows shown, so they pass
+  // through unchanged; a complete listing confirms which tombstones can go.
+  private func excludingRemoved(
+    _ listing: PutioTrashPage, startsListing: Bool
+  ) -> PutioTrashPage {
+    if startsListing { seenSinceFirstPage.removeAll() }
+    seenSinceFirstPage.formUnion(listing.items.map(\.id))
+    if listing.nextCursor == nil {
+      // The server has now listed everything; anything it omitted is gone.
+      removedIDs = removedIDs.intersection(seenSinceFirstPage)
+    }
+    guard listing.items.contains(where: { removedIDs.contains($0.id) }) else { return listing }
     return PutioTrashPage(
       items: listing.items.filter { !removedIDs.contains($0.id) },
       nextCursor: listing.nextCursor,
-      totalCount: listing.totalCount.map { max(0, $0 - resurrected.count) },
-      sizeBytes: max(0, listing.sizeBytes - resurrected.reduce(0) { $0 + $1.sizeBytes })
+      totalCount: listing.totalCount,
+      sizeBytes: listing.sizeBytes
     )
   }
 

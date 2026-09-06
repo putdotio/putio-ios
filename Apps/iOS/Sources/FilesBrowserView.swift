@@ -449,9 +449,11 @@ struct PutioFolderScreen: View {
     }
     .task(id: refreshRequests.sequence(for: route.id)) {
       guard let sequence = refreshRequests.sequence(for: route.id) else { return }
-      _ = await model.refresh()
-      // A cancelled refresh leaves the request pending for the next appearance.
-      guard !Task.isCancelled else { return }
+      // A request stays pending until a refresh actually ran: a cancelled
+      // task, a folder still loading, or one queued behind a mutation all
+      // leave it for the next opportunity.
+      let refreshed = await model.refresh()
+      guard refreshed, !Task.isCancelled else { return }
       refreshRequests.markConsumed(sequence, for: route.id)
     }
     .onChange(of: model.state, initial: true) { _, state in
