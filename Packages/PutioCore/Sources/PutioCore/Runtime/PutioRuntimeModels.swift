@@ -158,6 +158,16 @@ public enum PutioTrashRestoreResult: Equatable, Sendable {
   case restoredDestinationUnknown
 }
 
+/// Outcome of a committed destructive Trash mutation. `storageRefreshed` is
+/// `false` when the account storage snapshot could not be reloaded afterwards.
+public struct PutioTrashMutationResult: Equatable, Sendable {
+  public let storageRefreshed: Bool
+
+  public init(storageRefreshed: Bool) {
+    self.storageRefreshed = storageRefreshed
+  }
+}
+
 public struct PutioNextVideo: Equatable, Sendable {
   public let id: PutioFileID
   public let parentID: PutioFileID

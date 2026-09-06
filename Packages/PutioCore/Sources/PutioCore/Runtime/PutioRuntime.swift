@@ -105,19 +105,29 @@ public final class PutioRuntime {
     }
   }
 
-  public func permanentlyDeleteTrashItem(fileID: PutioFileID) async throws {
+  /// Deletes one trashed file. The deletion is committed once this returns;
+  /// the result only reports whether the account storage snapshot followed.
+  public func permanentlyDeleteTrashItem(
+    fileID: PutioFileID
+  ) async throws -> PutioTrashMutationResult {
     let response = try await performAuthenticatedOperation {
       try await sdk.deleteTrashFiles(fileIDs: [fileID.rawValue], cursor: nil)
     }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
-    await session.refreshAccount()
+    return PutioTrashMutationResult(storageRefreshed: await session.refreshAccount())
   }
 
-  public func emptyTrash() async throws {
+  public func emptyTrash() async throws -> PutioTrashMutationResult {
     let response = try await performAuthenticatedOperation {
       try await sdk.emptyTrash()
     }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+    return PutioTrashMutationResult(storageRefreshed: await session.refreshAccount())
+  }
+
+  /// Retries only the account storage snapshot after a committed Trash
+  /// mutation whose refresh failed.
+  public func refreshAccountStorage() async -> Bool {
     await session.refreshAccount()
   }
 

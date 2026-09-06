@@ -5,8 +5,10 @@ import SwiftUI
 typealias PutioTrashLoad = @MainActor @Sendable (String?) async throws -> PutioTrashPage
 typealias PutioTrashRestore =
   @MainActor @Sendable (PutioFileID) async throws -> PutioTrashRestoreResult
-typealias PutioTrashItemMutation = @MainActor @Sendable (PutioFileID) async throws -> Void
-typealias PutioTrashEmpty = @MainActor @Sendable () async throws -> Void
+typealias PutioTrashItemMutation =
+  @MainActor @Sendable (PutioFileID) async throws -> PutioTrashMutationResult
+typealias PutioTrashEmpty = @MainActor @Sendable () async throws -> PutioTrashMutationResult
+typealias PutioTrashStorageRefresh = @MainActor @Sendable () async -> Bool
 typealias PutioTrashDidRestore = @MainActor @Sendable (PutioFileID?) -> Void
 
 struct PutioTrashActions: Sendable {
@@ -14,6 +16,7 @@ struct PutioTrashActions: Sendable {
   let restore: PutioTrashRestore
   let permanentlyDelete: PutioTrashItemMutation
   let empty: PutioTrashEmpty
+  let refreshStorage: PutioTrashStorageRefresh
 
   init(runtime: PutioRuntime) {
     load = { cursor in try await runtime.listTrash(cursor: cursor) }
@@ -22,18 +25,21 @@ struct PutioTrashActions: Sendable {
       try await runtime.permanentlyDeleteTrashItem(fileID: fileID)
     }
     empty = { try await runtime.emptyTrash() }
+    refreshStorage = { await runtime.refreshAccountStorage() }
   }
 
   init(
     load: @escaping PutioTrashLoad,
     restore: @escaping PutioTrashRestore,
     permanentlyDelete: @escaping PutioTrashItemMutation,
-    empty: @escaping PutioTrashEmpty
+    empty: @escaping PutioTrashEmpty,
+    refreshStorage: @escaping PutioTrashStorageRefresh = { true }
   ) {
     self.load = load
     self.restore = restore
     self.permanentlyDelete = permanentlyDelete
     self.empty = empty
+    self.refreshStorage = refreshStorage
   }
 }
 
@@ -74,8 +80,10 @@ enum PutioTrashMutation: Equatable, Sendable {
 
 enum PutioTrashMutationOutcome: Equatable, Sendable {
   case restored(PutioTrashItem)
-  case permanentlyDeleted(PutioTrashItem)
-  case emptied
+  /// `storageRefreshed` is false when the deletion committed but the account
+  /// storage totals could not be reloaded; the next Trash refresh retries them.
+  case permanentlyDeleted(PutioTrashItem, storageRefreshed: Bool = true)
+  case emptied(storageRefreshed: Bool = true)
   case failed(PutioTrashMutation, PutioTrashErrorPresentation)
 }
 
@@ -89,6 +97,9 @@ final class PutioTrashModel {
   private(set) var isLoadingMore = false
   private(set) var paginationFailure: PutioTrashErrorPresentation?
   private(set) var refreshFailure: PutioTrashErrorPresentation?
+  /// Set when a committed deletion could not reload account storage. Cleared
+  /// once a Trash refresh reloads it.
+  private(set) var isStorageStale = false
 
   @ObservationIgnored private let actions: PutioTrashActions
   @ObservationIgnored private let onRestored: PutioTrashDidRestore
@@ -137,6 +148,7 @@ final class PutioTrashModel {
     else { return }
 
     isLoadingMore = true
+    let previousPaginationFailure = paginationFailure
     paginationFailure = nil
     defer { isLoadingMore = false }
     do {
@@ -152,6 +164,7 @@ final class PutioTrashModel {
         )
       )
     } catch is CancellationError {
+      paginationFailure = previousPaginationFailure
       return
     } catch {
       paginationFailure = PutioTrashErrorPresentation(
@@ -177,22 +190,28 @@ final class PutioTrashModel {
 
   func permanentlyDelete(_ item: PutioTrashItem) async {
     await mutate(.permanentlyDelete(item)) {
-      try await actions.permanentlyDelete(item.id)
+      let result = try await actions.permanentlyDelete(item.id)
       remove(item.id)
-      mutationOutcome = .permanentlyDeleted(item)
+      recordStorageRefresh(result)
+      mutationOutcome = .permanentlyDeleted(item, storageRefreshed: result.storageRefreshed)
     }
   }
 
   func empty() async {
     await mutate(.empty) {
-      try await actions.empty()
+      let result = try await actions.empty()
       state = .loaded(
         PutioTrashPage(items: [], nextCursor: nil, totalCount: 0, sizeBytes: 0)
       )
       refreshFailure = nil
       paginationFailure = nil
-      mutationOutcome = .emptied
+      recordStorageRefresh(result)
+      mutationOutcome = .emptied(storageRefreshed: result.storageRefreshed)
     }
+  }
+
+  private func recordStorageRefresh(_ result: PutioTrashMutationResult) {
+    if !result.storageRefreshed { isStorageStale = true }
   }
 
   func clearMutationOutcome() {
@@ -204,14 +223,22 @@ final class PutioTrashModel {
     isRefreshing = true
     defer { isRefreshing = false }
     let previousPage = page
+    let previousRefreshFailure = refreshFailure
+    let previousPaginationFailure = paginationFailure
     if previousPage == nil { state = .loading }
     paginationFailure = nil
     refreshFailure = nil
     do {
+      if isStorageStale, await actions.refreshStorage() {
+        isStorageStale = false
+      }
       let loadedPage = try await actions.load(nil)
       state = .loaded(loadedPage)
       hasLoaded = true
     } catch is CancellationError {
+      // A cancelled retry must not hide the failure the user was retrying.
+      refreshFailure = previousRefreshFailure
+      paginationFailure = previousPaginationFailure
       return
     } catch {
       if let previousPage {
@@ -488,15 +515,26 @@ struct TrashManagementView: View {
     }
   }
 
+  private static let staleStorageMessage =
+    "Storage totals could not be updated. Pull to refresh Trash to retry."
+
   private func present(_ outcome: PutioTrashMutationOutcome?) {
     guard let outcome else { return }
     switch outcome {
     case .restored(let item):
       toast = PutioToast(variant: .success, title: "Item restored", message: item.name)
-    case .permanentlyDeleted(let item):
-      toast = PutioToast(variant: .success, title: "Item deleted", message: item.name)
-    case .emptied:
-      toast = PutioToast(variant: .success, title: "Trash emptied")
+    case .permanentlyDeleted(let item, let storageRefreshed):
+      toast = PutioToast(
+        variant: storageRefreshed ? .success : .info,
+        title: "Item deleted",
+        message: storageRefreshed ? item.name : Self.staleStorageMessage
+      )
+    case .emptied(let storageRefreshed):
+      toast = PutioToast(
+        variant: storageRefreshed ? .success : .info,
+        title: "Trash emptied",
+        message: storageRefreshed ? nil : Self.staleStorageMessage
+      )
     case .failed(_, let failure):
       toast = PutioToast(variant: .danger, title: failure.title, message: failure.message)
     }

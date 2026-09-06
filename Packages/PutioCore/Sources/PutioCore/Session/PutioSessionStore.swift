@@ -235,20 +235,26 @@ public final class PutioSessionStore {
 
   // MARK: - Account bootstrap
 
-  func refreshAccount() async {
-    guard case .signedIn = state else { return }
+  /// Reloads the signed-in account snapshot. Returns `false` when the snapshot
+  /// could not be updated so callers can tell the user that storage totals are
+  /// stale; an authentication rejection expires the session instead.
+  @discardableResult
+  func refreshAccount() async -> Bool {
+    guard case .signedIn = state else { return false }
     let generation = authenticationGeneration
     do {
       let account = try await sdk.getAccountInfo()
       guard generation == authenticationGeneration, !Task.isCancelled,
         case .signedIn = state
-      else { return }
+      else { return false }
       state = .signedIn(snapshot(account))
+      return true
     } catch {
       guard generation == authenticationGeneration, !Task.isCancelled,
         case .signedIn = state
-      else { return }
+      else { return false }
       if isAuthRejection(error) { expireSession() }
+      return false
     }
   }
 

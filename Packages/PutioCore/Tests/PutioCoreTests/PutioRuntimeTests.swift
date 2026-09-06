@@ -612,7 +612,8 @@ final class PutioRuntimeTests: XCTestCase {
       Self.accountInfo.replacingOccurrences(of: "\"used\": 20", with: "\"used\": 10"),
       for: "GET /v2/account/info"
     )
-    try await runtime.permanentlyDeleteTrashItem(fileID: fileID)
+    let deleteOutcome = try await runtime.permanentlyDeleteTrashItem(fileID: fileID)
+    XCTAssertTrue(deleteOutcome.storageRefreshed)
     guard case .signedIn(let afterDelete) = runtime.session.state else {
       return XCTFail("expected account after deletion")
     }
@@ -621,7 +622,8 @@ final class PutioRuntimeTests: XCTestCase {
       Self.accountInfo.replacingOccurrences(of: "\"used\": 20", with: "\"used\": 0"),
       for: "GET /v2/account/info"
     )
-    try await runtime.emptyTrash()
+    let emptyOutcome = try await runtime.emptyTrash()
+    XCTAssertTrue(emptyOutcome.storageRefreshed)
     guard case .signedIn(let afterEmpty) = runtime.session.state else {
       return XCTFail("expected account after emptying Trash")
     }
@@ -676,10 +678,24 @@ final class PutioRuntimeTests: XCTestCase {
       for: "GET /v2/account/info"
     )
 
-    try await runtime.permanentlyDeleteTrashItem(fileID: PutioFileID(rawValue: 91))
+    let deleteResult = try await runtime.permanentlyDeleteTrashItem(
+      fileID: PutioFileID(rawValue: 91))
     XCTAssertEqual(runtime.session.state, originalState)
-    try await runtime.emptyTrash()
+    XCTAssertFalse(deleteResult.storageRefreshed)
+    let emptyResult = try await runtime.emptyTrash()
     XCTAssertEqual(runtime.session.state, originalState)
+    XCTAssertFalse(emptyResult.storageRefreshed)
+
+    RuntimeMockURLProtocol.setFixture(
+      Self.accountInfo.replacingOccurrences(of: "\"used\": 20", with: "\"used\": 5"),
+      for: "GET /v2/account/info"
+    )
+    let refreshed = await runtime.refreshAccountStorage()
+    XCTAssertTrue(refreshed)
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("expected a signed-in account after the storage retry")
+    }
+    XCTAssertEqual(account.storage.usedBytes, 5)
   }
 
   func testTrashAccountRefreshAuthFailureExpiresSessionWithoutFailingMutation() async throws {
@@ -691,7 +707,7 @@ final class PutioRuntimeTests: XCTestCase {
       for: "GET /v2/account/info"
     )
 
-    try await runtime.emptyTrash()
+    _ = try await runtime.emptyTrash()
 
     XCTAssertEqual(runtime.session.state, .signedOut(.sessionExpired))
     XCTAssertNil(try tokenStore.read())
@@ -723,7 +739,7 @@ final class PutioRuntimeTests: XCTestCase {
         URL(string: "putio://auth#access_token=fresh-token&state=\(oauthState)"))
       await runtime.session.completeSignIn(callbackURL: callback)
       RuntimeMockURLProtocol.releaseFixture(for: route)
-      try await mutation.value
+      _ = try await mutation.value
 
       guard case .signedIn(let account) = runtime.session.state else {
         return XCTFail("old account HTTP \(statusCode) response expired the new session")
@@ -743,10 +759,10 @@ final class PutioRuntimeTests: XCTestCase {
       _ = try await runtime.restoreTrashItem(fileID: PutioFileID(rawValue: 91))
     }
     await assertRuntimeError(.invalidResponse) {
-      try await runtime.permanentlyDeleteTrashItem(fileID: PutioFileID(rawValue: 91))
+      _ = try await runtime.permanentlyDeleteTrashItem(fileID: PutioFileID(rawValue: 91))
     }
     await assertRuntimeError(.invalidResponse) {
-      try await runtime.emptyTrash()
+      _ = try await runtime.emptyTrash()
     }
   }
 
