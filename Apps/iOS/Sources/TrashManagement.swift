@@ -9,6 +9,7 @@ typealias PutioTrashItemMutation =
   @MainActor @Sendable (PutioFileID) async throws -> PutioTrashMutationResult
 typealias PutioTrashEmpty = @MainActor @Sendable () async throws -> PutioTrashMutationResult
 typealias PutioTrashStorageRefresh = @MainActor @Sendable () async -> Bool
+typealias PutioTrashStorageIsStale = @MainActor @Sendable () -> Bool
 typealias PutioTrashDidRestore = @MainActor @Sendable (PutioFileID?) -> Void
 
 struct PutioTrashActions: Sendable {
@@ -17,6 +18,8 @@ struct PutioTrashActions: Sendable {
   let permanentlyDelete: PutioTrashItemMutation
   let empty: PutioTrashEmpty
   let refreshStorage: PutioTrashStorageRefresh
+  /// The session owns stale-storage state so it survives leaving Trash.
+  let isStorageStale: PutioTrashStorageIsStale
 
   init(runtime: PutioRuntime) {
     load = { cursor in try await runtime.listTrash(cursor: cursor) }
@@ -26,6 +29,7 @@ struct PutioTrashActions: Sendable {
     }
     empty = { try await runtime.emptyTrash() }
     refreshStorage = { await runtime.refreshAccountStorage() }
+    isStorageStale = { runtime.session.isAccountStorageStale }
   }
 
   init(
@@ -33,13 +37,15 @@ struct PutioTrashActions: Sendable {
     restore: @escaping PutioTrashRestore,
     permanentlyDelete: @escaping PutioTrashItemMutation,
     empty: @escaping PutioTrashEmpty,
-    refreshStorage: @escaping PutioTrashStorageRefresh = { true }
+    refreshStorage: @escaping PutioTrashStorageRefresh = { true },
+    isStorageStale: @escaping PutioTrashStorageIsStale = { false }
   ) {
     self.load = load
     self.restore = restore
     self.permanentlyDelete = permanentlyDelete
     self.empty = empty
     self.refreshStorage = refreshStorage
+    self.isStorageStale = isStorageStale
   }
 }
 
@@ -51,6 +57,11 @@ struct PutioTrashErrorPresentation: Equatable, Sendable {
     self.title = title
     self.message = message
   }
+
+  static let staleStorage = PutioTrashErrorPresentation(
+    title: "Storage totals are out of date",
+    message: "Account storage could not be updated after the last deletion."
+  )
 
   init?(title: String, error: Error) {
     self.title = title
@@ -102,16 +113,15 @@ final class PutioTrashModel {
   private(set) var isLoadingMore = false
   private(set) var paginationFailure: PutioTrashErrorPresentation?
   private(set) var refreshFailure: PutioTrashErrorPresentation?
-  /// Set when a committed deletion could not reload account storage. Cleared
-  /// once a storage retry or a later mutation reloads it.
-  private(set) var isStorageStale = false
-  /// Visible while `isStorageStale`; the retry only reloads account storage.
+  private(set) var isRefreshingStorage = false
+
+  /// Mirrors the session's stale-storage state; the retry only reloads
+  /// account storage.
+  var isStorageStale: Bool { actions.isStorageStale() }
+
   var storageFailure: PutioTrashErrorPresentation? {
     guard isStorageStale else { return nil }
-    return PutioTrashErrorPresentation(
-      title: "Storage totals are out of date",
-      message: "Account storage could not be updated after the last deletion."
-    )
+    return PutioTrashErrorPresentation.staleStorage
   }
 
   @ObservationIgnored private let actions: PutioTrashActions
@@ -139,7 +149,7 @@ final class PutioTrashModel {
   }
 
   var canMutate: Bool {
-    activeMutation == nil && !isRefreshing && !isLoadingMore
+    activeMutation == nil && !isRefreshing && !isLoadingMore && !isRefreshingStorage
   }
 
   func loadIfNeeded() async {
@@ -154,7 +164,7 @@ final class PutioTrashModel {
   /// Retries only the account storage snapshot after a committed deletion
   /// could not reload it.
   func retryStorageRefresh() async {
-    guard !isRefreshing, activeMutation == nil else { return }
+    guard canMutate else { return }
     await reloadStaleStorage()
   }
 
@@ -212,7 +222,6 @@ final class PutioTrashModel {
     await mutate(.permanentlyDelete(item)) {
       let result = try await actions.permanentlyDelete(item.id)
       await remove(item.id)
-      recordStorageRefresh(result)
       mutationOutcome = .permanentlyDeleted(item, storageRefreshed: result.storageRefreshed)
     }
   }
@@ -225,19 +234,15 @@ final class PutioTrashModel {
       )
       refreshFailure = nil
       paginationFailure = nil
-      recordStorageRefresh(result)
       mutationOutcome = .emptied(storageRefreshed: result.storageRefreshed)
     }
   }
 
   private func reloadStaleStorage() async {
-    guard isStorageStale else { return }
-    if await actions.refreshStorage() { isStorageStale = false }
-  }
-
-  private func recordStorageRefresh(_ result: PutioTrashMutationResult) {
-    // The latest successful refresh reflects every earlier deletion too.
-    isStorageStale = !result.storageRefreshed
+    guard isStorageStale, !isRefreshingStorage else { return }
+    isRefreshingStorage = true
+    defer { isRefreshingStorage = false }
+    _ = await actions.refreshStorage()
   }
 
   func clearMutationOutcome() {
@@ -245,7 +250,9 @@ final class PutioTrashModel {
   }
 
   private func load() async {
-    guard activeMutation == nil, !isRefreshing, !isLoadingMore else { return }
+    guard activeMutation == nil, !isRefreshing, !isLoadingMore, !isRefreshingStorage else {
+      return
+    }
     isRefreshing = true
     defer { isRefreshing = false }
     let previousPage = page
@@ -553,10 +560,11 @@ struct TrashManagementView: View {
         PutioErrorStateView(
           title: failure.title,
           message: failure.message,
-          retryTitle: "Update storage"
+          retryTitle: model.isRefreshingStorage ? "Updating…" : "Update storage"
         ) {
           Task { await model.retryStorageRefresh() }
         }
+        .disabled(model.isRefreshingStorage)
         .accessibilityIdentifier("trash.storage-retry")
       }
     }

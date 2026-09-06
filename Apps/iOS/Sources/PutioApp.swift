@@ -533,6 +533,7 @@ private struct AccountView: View {
   let runtime: PutioRuntime
   let account: PutioAccountSnapshot
   let refreshRequests: PutioFolderRefreshRequests
+  @State private var isRefreshingStorage = false
 
   var body: some View {
     List {
@@ -545,14 +546,24 @@ private struct AccountView: View {
           LabeledContent("Used", value: byteText(account.storage.usedBytes))
           LabeledContent("Available", value: byteText(account.storage.availableBytes))
           LabeledContent("Total", value: byteText(account.storage.totalBytes))
-          NavigationLink("Trash") {
-            TrashManagementView(runtime: runtime) { destinationID in
-              if let destinationID {
-                refreshRequests.request(folderID: destinationID)
-              } else {
-                refreshRequests.requestAllLoadedFolders()
+          if runtime.session.isAccountStorageStale {
+            // Stale-storage state outlives the Trash screen that caused it.
+            PutioErrorStateView(
+              title: PutioTrashErrorPresentation.staleStorage.title,
+              message: PutioTrashErrorPresentation.staleStorage.message,
+              retryTitle: isRefreshingStorage ? "Updating…" : "Update storage"
+            ) {
+              Task {
+                isRefreshingStorage = true
+                defer { isRefreshingStorage = false }
+                _ = await runtime.refreshAccountStorage()
               }
             }
+            .disabled(isRefreshingStorage)
+            .accessibilityIdentifier("account.storage-retry")
+          }
+          NavigationLink("Trash") {
+            TrashManagementView(runtime: runtime, onRestored: reconcileRestoredFile)
           }
           .accessibilityIdentifier("account.trash")
         }
@@ -572,6 +583,23 @@ private struct AccountView: View {
 
   private func byteText(_ bytes: Int64) -> String {
     PutioFileRowModel.sizeText(bytes: bytes)
+  }
+
+  private func reconcileRestoredFile(destinationID: PutioFileID?) {
+    PutioRestoredFileReconciliation.apply(destinationID: destinationID, to: refreshRequests)
+  }
+}
+
+/// Maps a Trash restore back onto the Files browser: a known destination
+/// refreshes that folder; an unknown one refreshes every loaded folder.
+enum PutioRestoredFileReconciliation {
+  @MainActor
+  static func apply(destinationID: PutioFileID?, to requests: PutioFolderRefreshRequests) {
+    if let destinationID {
+      requests.request(folderID: destinationID)
+    } else {
+      requests.requestAllLoadedFolders()
+    }
   }
 }
 

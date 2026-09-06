@@ -678,10 +678,12 @@ final class PutioRuntimeTests: XCTestCase {
       for: "GET /v2/account/info"
     )
 
+    XCTAssertFalse(runtime.session.isAccountStorageStale)
     let deleteResult = try await runtime.permanentlyDeleteTrashItem(
       fileID: PutioFileID(rawValue: 91))
     XCTAssertEqual(runtime.session.state, originalState)
     XCTAssertFalse(deleteResult.storageRefreshed)
+    XCTAssertTrue(runtime.session.isAccountStorageStale, "the session remembers stale storage")
     let emptyResult = try await runtime.emptyTrash()
     XCTAssertEqual(runtime.session.state, originalState)
     XCTAssertFalse(emptyResult.storageRefreshed)
@@ -692,10 +694,54 @@ final class PutioRuntimeTests: XCTestCase {
     )
     let refreshed = await runtime.refreshAccountStorage()
     XCTAssertTrue(refreshed)
+    XCTAssertFalse(runtime.session.isAccountStorageStale)
     guard case .signedIn(let account) = runtime.session.state else {
       return XCTFail("expected a signed-in account after the storage retry")
     }
     XCTAssertEqual(account.storage.usedBytes, 5)
+  }
+
+  func testStaleStorageDoesNotOutliveTheSession() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR","error_type":"TEMPORARY_ERROR"}"#,
+      statusCode: 503,
+      for: "GET /v2/account/info"
+    )
+    _ = try await runtime.emptyTrash()
+    XCTAssertTrue(runtime.session.isAccountStorageStale)
+
+    await runtime.session.signOut()
+    XCTAssertFalse(runtime.session.isAccountStorageStale)
+  }
+
+  func testOlderSuccessfulRefreshAppliesWhenTheNewerRefreshFailed() async throws {
+    let route = "GET /v2/account/info"
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.gateFixture(
+      Self.accountInfo.replacingOccurrences(of: "\"used\": 20", with: "\"used\": 99"),
+      for: route
+    )
+    let older = Task { await runtime.refreshAccountStorage() }
+    guard await waitForRequest(route, count: 2) else {
+      older.cancel()
+      RuntimeMockURLProtocol.releaseFixture(for: route)
+      return XCTFail("the gated account refresh did not start")
+    }
+
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR","error_type":"TEMPORARY_ERROR"}"#, statusCode: 503, for: route)
+    let newer = await runtime.refreshAccountStorage()
+    XCTAssertFalse(newer)
+
+    RuntimeMockURLProtocol.releaseFixture(for: route)
+    let olderResult = await older.value
+    XCTAssertTrue(olderResult)
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("expected a signed-in account")
+    }
+    XCTAssertEqual(account.storage.usedBytes, 99, "the only successful response is the truth")
   }
 
   func testOlderAccountRefreshCannotOverwriteANewerSnapshotInTheSameSession() async throws {

@@ -486,6 +486,26 @@ final class PutioFolderModelTests: XCTestCase {
     )
   }
 
+  func testRestoredFileReconciliationTargetsKnownFolderOrEveryLoadedFolder() {
+    let destination = PutioFileID(rawValue: 42)
+    let otherFolder = PutioFileID(rawValue: 7)
+    let requests = PutioFolderRefreshRequests()
+
+    PutioRestoredFileReconciliation.apply(destinationID: destination, to: requests)
+    XCTAssertEqual(
+      requests.sequence(for: destination),
+      PutioFolderRefreshRequests.Sequence(folder: 1, allFolders: 0)
+    )
+    XCTAssertNil(requests.sequence(for: otherFolder), "a known destination refreshes only itself")
+
+    PutioRestoredFileReconciliation.apply(destinationID: nil, to: requests)
+    XCTAssertEqual(
+      requests.sequence(for: otherFolder),
+      PutioFolderRefreshRequests.Sequence(folder: 0, allFolders: 1),
+      "an unknown destination refreshes every loaded folder"
+    )
+  }
+
   func testRefreshSessionExpiryPreservesRowsWithoutAnInlineBrowserError() async {
     let original = BrowserTestFixtures.contents(
       items: [BrowserTestFixtures.item(id: 1)]

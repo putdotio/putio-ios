@@ -114,7 +114,8 @@ public final class PutioRuntime {
       try await sdk.deleteTrashFiles(fileIDs: [fileID.rawValue], cursor: nil)
     }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
-    return PutioTrashMutationResult(storageRefreshed: await session.refreshAccount())
+    return PutioTrashMutationResult(
+      storageRefreshed: await session.refreshAccountAfterStorageMutation())
   }
 
   public func emptyTrash() async throws -> PutioTrashMutationResult {
@@ -122,11 +123,12 @@ public final class PutioRuntime {
       try await sdk.emptyTrash()
     }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
-    return PutioTrashMutationResult(storageRefreshed: await session.refreshAccount())
+    return PutioTrashMutationResult(
+      storageRefreshed: await session.refreshAccountAfterStorageMutation())
   }
 
   /// Retries only the account storage snapshot after a committed Trash
-  /// mutation whose refresh failed.
+  /// mutation whose refresh failed. See `PutioSessionStore.isAccountStorageStale`.
   public func refreshAccountStorage() async -> Bool {
     await session.refreshAccount()
   }

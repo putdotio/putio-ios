@@ -32,6 +32,27 @@ private final class SuspendedTrashRefresh {
   }
 }
 
+@MainActor
+private final class SuspendedStorageRefresh {
+  private var continuation: CheckedContinuation<Bool, Never>?
+  private(set) var requestCount = 0
+  private(set) var isStale = false
+
+  func markStale() { isStale = true }
+
+  func refresh() async -> Bool {
+    requestCount += 1
+    let refreshed = await withCheckedContinuation { continuation = $0 }
+    if refreshed { isStale = false }
+    return refreshed
+  }
+
+  func resume(with refreshed: Bool) {
+    continuation?.resume(returning: refreshed)
+    continuation = nil
+  }
+}
+
 extension PutioTrashMutationResult {
   fileprivate static let refreshed = PutioTrashMutationResult(storageRefreshed: true)
   fileprivate static let storageStale = PutioTrashMutationResult(storageRefreshed: false)
@@ -44,6 +65,7 @@ private final class TrashActionsStub {
   var deleteResults: [Result<PutioTrashMutationResult, PutioRuntimeError>]
   var emptyResults: [Result<PutioTrashMutationResult, PutioRuntimeError>]
   var storageRefreshResults: [Bool]
+  private(set) var isStorageStale = false
   private(set) var loadedCursors: [String?] = []
   private(set) var restoredIDs: [PutioFileID] = []
   private(set) var deletedIDs: [PutioFileID] = []
@@ -79,19 +101,27 @@ private final class TrashActionsStub {
   func permanentlyDelete(fileID: PutioFileID) async throws -> PutioTrashMutationResult {
     deletedIDs.append(fileID)
     guard !deleteResults.isEmpty else { throw PutioRuntimeError.unknown }
-    return try deleteResults.removeFirst().get()
+    return record(try deleteResults.removeFirst().get())
   }
 
   func empty() async throws -> PutioTrashMutationResult {
     emptyRequests += 1
     guard !emptyResults.isEmpty else { throw PutioRuntimeError.unknown }
-    return try emptyResults.removeFirst().get()
+    return record(try emptyResults.removeFirst().get())
   }
 
   func refreshStorage() async -> Bool {
     storageRefreshRequests += 1
-    guard !storageRefreshResults.isEmpty else { return true }
-    return storageRefreshResults.removeFirst()
+    let refreshed = storageRefreshResults.isEmpty ? true : storageRefreshResults.removeFirst()
+    if refreshed { isStorageStale = false }
+    return refreshed
+  }
+
+  // Mirrors PutioSessionStore: a committed mutation marks storage stale until
+  // any later refresh succeeds.
+  private func record(_ result: PutioTrashMutationResult) -> PutioTrashMutationResult {
+    isStorageStale = !result.storageRefreshed
+    return result
   }
 }
 
@@ -409,6 +439,44 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(stub.storageRefreshRequests, 2, "no retry once storage is current")
   }
 
+  func testStorageRetrySerializesAndLocksMutations() async {
+    let item = trashItem(id: 91, name: "First.pdf", kind: .pdf)
+    let gate = SuspendedStorageRefresh()
+    var deletes = 0
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { _ in self.page(items: [item], totalCount: 1) },
+        restore: { _ in throw PutioRuntimeError.unknown },
+        permanentlyDelete: { _ in
+          deletes += 1
+          return .refreshed
+        },
+        empty: { .refreshed },
+        refreshStorage: { await gate.refresh() },
+        isStorageStale: { gate.isStale }
+      )
+    )
+
+    await model.loadIfNeeded()
+    gate.markStale()
+    let first = Task { await model.retryStorageRefresh() }
+    while gate.requestCount < 1 { await Task.yield() }
+    XCTAssertTrue(model.isRefreshingStorage)
+    XCTAssertFalse(model.canMutate)
+
+    await model.retryStorageRefresh()
+    await model.permanentlyDelete(item)
+    await model.refresh()
+    XCTAssertEqual(gate.requestCount, 1, "overlapping retries must not start new requests")
+    XCTAssertEqual(deletes, 0, "mutations wait for the storage retry")
+
+    gate.resume(with: true)
+    await first.value
+    XCTAssertFalse(model.isRefreshingStorage)
+    XCTAssertTrue(model.canMutate)
+    XCTAssertNil(model.storageFailure)
+  }
+
   func testLaterSuccessfulMutationClearsStaleStorage() async {
     let first = trashItem(id: 91, name: "First.pdf", kind: .pdf)
     let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)
@@ -490,7 +558,8 @@ final class TrashManagementTests: XCTestCase {
         restore: { try await stub.restore(fileID: $0) },
         permanentlyDelete: { try await stub.permanentlyDelete(fileID: $0) },
         empty: { try await stub.empty() },
-        refreshStorage: { await stub.refreshStorage() }
+        refreshStorage: { await stub.refreshStorage() },
+        isStorageStale: { stub.isStorageStale }
       ),
       onRestored: onRestored
     )
