@@ -20,14 +20,14 @@ trap cleanup EXIT
 for signal_name in INT TERM; do
   log_file="$(mktemp)"
   run_id="$(uuidgen | tr '[:upper:]' '[:lower:]' | cut -c 1-24)"
-  device_name="putio-harness-ios-$run_id"
+  device_prefix="putio-harness-ios-$run_id-"
   ./scripts/harness.sh boot --platform ios --run-id "$run_id" >"$log_file" 2>&1 &
   harness_pid=$!
   owned_id=""
 
   for _ in {1..200}; do
-    owned_id="$(xcrun simctl list devices -j | jq -r --arg name "$device_name" \
-      '[.devices[][] | select(.name == $name)] | if length == 1 then .[0].udid else empty end')"
+    owned_id="$(xcrun simctl list devices -j | jq -r --arg prefix "$device_prefix" \
+      '[.devices[][] | select(.name | startswith($prefix))] | if length == 1 then .[0].udid else empty end')"
     [[ -n "$owned_id" ]] && break
     sleep 0.05
   done

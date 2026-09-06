@@ -200,6 +200,7 @@ private struct MainTabView: View {
   @State private var harnessReportedPosition: (fileID: PutioFileID, seconds: Int)?
   @State private var playbackPositionPipeline = PutioPlaybackPositionPipeline()
   @State private var folderRefreshRequests = PutioFolderRefreshRequests()
+  @State private var trashReconciliation = PutioTrashReconciliation()
   @State private var presentedVideoRoute: PutioVideoRoute?
 
   var body: some View {
@@ -257,7 +258,8 @@ private struct MainTabView: View {
           AccountView(
             runtime: runtime,
             account: account,
-            refreshRequests: folderRefreshRequests
+            refreshRequests: folderRefreshRequests,
+            trashReconciliation: trashReconciliation
           )
         }
       } label: {
@@ -533,6 +535,7 @@ private struct AccountView: View {
   let runtime: PutioRuntime
   let account: PutioAccountSnapshot
   let refreshRequests: PutioFolderRefreshRequests
+  let trashReconciliation: PutioTrashReconciliation
   @State private var isRefreshingStorage = false
 
   var body: some View {
@@ -564,7 +567,11 @@ private struct AccountView: View {
             .accessibilityIdentifier("account.storage-retry")
           }
           NavigationLink("Trash") {
-            TrashManagementView(runtime: runtime, onRestored: reconcileRestoredFile)
+            TrashManagementView(
+              runtime: runtime,
+              reconciliation: trashReconciliation,
+              onRestored: reconcileRestoredFile
+            )
           }
           .accessibilityIdentifier("account.trash")
         }

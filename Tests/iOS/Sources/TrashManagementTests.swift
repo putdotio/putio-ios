@@ -478,7 +478,7 @@ final class TrashManagementTests: XCTestCase {
     let unloaded = trashItem(id: 92, name: "B.pdf", kind: .pdf)
     // Trashed after emptying: a genuinely new item that must show up.
     let later = trashItem(
-      id: 93, name: "C.pdf", kind: .pdf, deletedAt: Date().addingTimeInterval(3_600))
+      id: 93, name: "C.pdf", kind: .pdf, deletedAt: Date(timeIntervalSince1970: 1_756_723_201))
     let stub = TrashActionsStub(
       pages: [
         .success(page(items: [a], cursor: "n1", totalCount: 2)),
@@ -502,6 +502,72 @@ final class TrashManagementTests: XCTestCase {
 
     await model.refresh()
     XCTAssertEqual(model.page, page(items: [], totalCount: 0, sizeBytes: 0))
+  }
+
+  func testTombstonesSurviveReopeningTrashAndReleaseARetrashedGeneration() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let bAgain = trashItem(
+      id: 92, name: "B.pdf", kind: .pdf, deletedAt: Date(timeIntervalSince1970: 1_756_809_600))
+    let shared = PutioTrashReconciliation()
+    let first = TrashActionsStub(
+      pages: [.success(page(items: [a, b], totalCount: 2))],
+      deleteResults: [.success(.refreshed)]
+    )
+    let firstVisit = model(first, reconciliation: shared)
+    await firstVisit.loadIfNeeded()
+    await firstVisit.permanentlyDelete(b)
+    XCTAssertEqual(firstVisit.page?.items, [a])
+
+    // Pop and reopen: a new model, the same reconciliation state.
+    let second = TrashActionsStub(pages: [
+      .success(page(items: [a, b], totalCount: 2)),
+      .success(page(items: [a, bAgain], totalCount: 2)),
+    ])
+    let secondVisit = model(second, reconciliation: shared)
+    await secondVisit.loadIfNeeded()
+    XCTAssertEqual(secondVisit.page?.items, [a], "a lagging listing cannot resurrect b")
+
+    await secondVisit.refresh()
+    XCTAssertEqual(
+      secondVisit.page?.items, [a, bAgain], "the same file trashed again is a new generation")
+  }
+
+  func testRestoreCancelledDuringDestinationLookupStillReconciles() async {
+    let item = trashItem(id: 91, name: "Restored.mkv")
+    var destinations: [PutioFileID?] = []
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { _ in self.page(items: [item], totalCount: 1) },
+        restore: { _ in throw CancellationError() },
+        permanentlyDelete: { _ in .refreshed },
+        empty: { .refreshed }
+      )
+    ) { destinations.append($0) }
+
+    await model.loadIfNeeded()
+    await model.restore(item)
+
+    XCTAssertEqual(model.page?.items, [])
+    XCTAssertEqual(destinations, [nil], "a committed restore still refreshes the browser")
+    XCTAssertEqual(model.mutationOutcome, .restored(item))
+  }
+
+  func testReappearanceRefreshesACachedTrashScreen() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let stub = TrashActionsStub(pages: [
+      .success(page(items: [a], totalCount: 1)),
+      .success(page(items: [a, b], totalCount: 2)),
+    ])
+    let model = model(stub)
+
+    await model.refreshOnAppear()
+    XCTAssertEqual(model.page?.items, [a])
+
+    await model.refreshOnAppear()
+    XCTAssertEqual(model.page?.items, [a, b], "items trashed from Files appear on return")
+    XCTAssertEqual(stub.loadedCursors, [nil, nil])
   }
 
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
@@ -710,6 +776,7 @@ final class TrashManagementTests: XCTestCase {
 
   private func model(
     _ stub: TrashActionsStub,
+    reconciliation: PutioTrashReconciliation? = nil,
     onRestored: @escaping PutioTrashDidRestore = { _ in }
   ) -> PutioTrashModel {
     PutioTrashModel(
@@ -721,6 +788,7 @@ final class TrashManagementTests: XCTestCase {
         refreshStorage: { await stub.refreshStorage() },
         isStorageStale: { stub.isStorageStale }
       ),
+      reconciliation: reconciliation,
       onRestored: onRestored
     )
   }

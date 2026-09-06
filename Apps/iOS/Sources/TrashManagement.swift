@@ -12,6 +12,73 @@ typealias PutioTrashStorageRefresh = @MainActor @Sendable () async -> Bool
 typealias PutioTrashStorageIsStale = @MainActor @Sendable () -> Bool
 typealias PutioTrashDidRestore = @MainActor @Sendable (PutioFileID?) -> Void
 
+/// Committed Trash removals the server may not list consistently yet. Owned
+/// by the composition root so it survives popping and reopening Trash; the
+/// server confirms each removal by omitting it from a complete listing.
+@MainActor
+@Observable
+final class PutioTrashReconciliation {
+  /// One trashed generation of a file: the same file re-trashed later has a
+  /// newer `deletedAt` and is a different generation.
+  struct Removal: Hashable, Sendable {
+    let id: PutioFileID
+    let deletedAt: Date
+  }
+
+  @ObservationIgnored private(set) var removals: Set<Removal> = []
+  /// Set after emptying: every item trashed at or before this instant is
+  /// gone. Server-provided `deletedAt` values of the rows loaded at the time
+  /// bound it, not the device clock.
+  @ObservationIgnored private(set) var emptiedThrough: Date?
+  @ObservationIgnored private var seenSinceFirstPage: Set<Removal> = []
+  @ObservationIgnored private var sawEmptiedItemSinceFirstPage = false
+
+  init() {}
+
+  func recordRemoval(of item: PutioTrashItem) {
+    removals.insert(Removal(id: item.id, deletedAt: item.deletedAt))
+  }
+
+  /// `loaded` are the rows known at emptying. Emptying removes rows never
+  /// loaded too, so the cutoff is the newest known deletion time.
+  func recordEmptied(loaded: [PutioTrashItem]) {
+    guard let newest = loaded.map(\.deletedAt).max() else { return }
+    emptiedThrough = max(emptiedThrough ?? .distantPast, newest)
+  }
+
+  func isRemoved(_ item: PutioTrashItem) -> Bool {
+    if removals.contains(Removal(id: item.id, deletedAt: item.deletedAt)) { return true }
+    guard let emptiedThrough else { return false }
+    return item.deletedAt <= emptiedThrough
+  }
+
+  /// Filters a listing page and, on the final page of a complete listing,
+  /// releases every tombstone the server no longer reports.
+  func reconcile(_ listing: PutioTrashPage, startsListing: Bool) -> PutioTrashPage {
+    if startsListing {
+      seenSinceFirstPage.removeAll()
+      sawEmptiedItemSinceFirstPage = false
+    }
+    seenSinceFirstPage.formUnion(listing.items.map { Removal(id: $0.id, deletedAt: $0.deletedAt) })
+    let survivors = listing.items.filter { !isRemoved($0) }
+    if let emptiedThrough, listing.items.contains(where: { $0.deletedAt <= emptiedThrough }) {
+      sawEmptiedItemSinceFirstPage = true
+    }
+    if listing.nextCursor == nil {
+      removals = removals.intersection(seenSinceFirstPage)
+      if !sawEmptiedItemSinceFirstPage { emptiedThrough = nil }
+    }
+    guard survivors.count != listing.items.count else { return listing }
+    // totalCount and sizeBytes are server aggregates, not row sums.
+    return PutioTrashPage(
+      items: survivors,
+      nextCursor: listing.nextCursor,
+      totalCount: listing.totalCount,
+      sizeBytes: listing.sizeBytes
+    )
+  }
+}
+
 struct PutioTrashActions: Sendable {
   let load: PutioTrashLoad
   let restore: PutioTrashRestore
@@ -130,31 +197,28 @@ final class PutioTrashModel {
   // Supersedes an initial load that is still unwinding after cancellation so
   // re-entering the screen cannot strand it on the loading state.
   @ObservationIgnored private var loadGeneration: UInt64 = 0
-  // Items removed by a committed mutation. Lagging listings and their
-  // continuations must not resurrect them. A tombstone is dropped only once
-  // a complete listing (first page through the final continuation) no longer
-  // contains the item, which is the server confirming the removal.
-  @ObservationIgnored private var removedIDs: Set<PutioFileID> = []
-  @ObservationIgnored private var seenSinceFirstPage: Set<PutioFileID> = []
-  // Emptying removes rows that were never loaded, so it tombstones by time:
-  // anything trashed at or before this instant is gone. Released once a
-  // complete listing contains no such item.
-  @ObservationIgnored private var emptiedThrough: Date?
-  @ObservationIgnored private var sawEmptiedItemSinceFirstPage = false
+  @ObservationIgnored private let reconciliation: PutioTrashReconciliation
 
   init(
     actions: PutioTrashActions,
+    reconciliation: PutioTrashReconciliation? = nil,
     onRestored: @escaping PutioTrashDidRestore = { _ in }
   ) {
     self.actions = actions
+    self.reconciliation = reconciliation ?? PutioTrashReconciliation()
     self.onRestored = onRestored
   }
 
   convenience init(
     runtime: PutioRuntime,
+    reconciliation: PutioTrashReconciliation,
     onRestored: @escaping PutioTrashDidRestore = { _ in }
   ) {
-    self.init(actions: PutioTrashActions(runtime: runtime), onRestored: onRestored)
+    self.init(
+      actions: PutioTrashActions(runtime: runtime),
+      reconciliation: reconciliation,
+      onRestored: onRestored
+    )
   }
 
   var page: PutioTrashPage? {
@@ -169,6 +233,16 @@ final class PutioTrashModel {
   func loadIfNeeded() async {
     guard !hasLoaded else { return }
     await load(initial: true)
+  }
+
+  /// Called on every appearance. The Account stack keeps this screen alive
+  /// across tab switches, and Files may have trashed more items meanwhile.
+  func refreshOnAppear() async {
+    if hasLoaded {
+      await refresh()
+    } else {
+      await loadIfNeeded()
+    }
   }
 
   func refresh() async {
@@ -198,7 +272,7 @@ final class PutioTrashModel {
     do {
       let nextPage = try await actions.load(cursor)
       let existingIDs = Set(currentPage.items.map(\.id))
-      let fresh = excludingRemoved(nextPage, startsListing: false)
+      let fresh = reconciliation.reconcile(nextPage, startsListing: false)
       let newItems = fresh.items.filter { !existingIDs.contains($0.id) }
       state = .loaded(
         PutioTrashPage(
@@ -221,8 +295,18 @@ final class PutioTrashModel {
 
   func restore(_ item: PutioTrashItem) async {
     await mutate(.restore(item)) {
-      let result = try await actions.restore(item.id)
-      await remove(item.id)
+      let result: PutioTrashRestoreResult
+      do {
+        result = try await actions.restore(item.id)
+      } catch is CancellationError {
+        // The runtime only throws cancellation after the restore committed;
+        // the row is gone and the browser needs the broad reconciliation.
+        await remove(item)
+        onRestored(nil)
+        mutationOutcome = .restored(item)
+        return
+      }
+      await remove(item)
       switch result {
       case .restored(let destinationID):
         onRestored(destinationID)
@@ -236,7 +320,7 @@ final class PutioTrashModel {
   func permanentlyDelete(_ item: PutioTrashItem) async {
     await mutate(.permanentlyDelete(item)) {
       let result = try await actions.permanentlyDelete(item.id)
-      await remove(item.id)
+      await remove(item)
       mutationOutcome = .permanentlyDeleted(item, storageRefreshed: result.storageRefreshed)
     }
   }
@@ -246,8 +330,7 @@ final class PutioTrashModel {
       let result = try await actions.empty()
       // Everything trashed up to now is gone, including rows never loaded;
       // a lagging refresh must not bring any of it back.
-      let latestLoaded = page?.items.map(\.deletedAt).max() ?? .distantPast
-      emptiedThrough = max(Date(), latestLoaded)
+      reconciliation.recordEmptied(loaded: page?.items ?? [])
       state = .loaded(
         PutioTrashPage(items: [], nextCursor: nil, totalCount: 0, sizeBytes: 0)
       )
@@ -293,7 +376,7 @@ final class PutioTrashModel {
       await reloadStaleStorage()
       let loadedPage = try await actions.load(nil)
       guard generation == loadGeneration else { return }
-      state = .loaded(excludingRemoved(loadedPage, startsListing: true))
+      state = .loaded(reconciliation.reconcile(loadedPage, startsListing: true))
       hasLoaded = true
     } catch is CancellationError {
       guard generation == loadGeneration else { return }
@@ -340,10 +423,11 @@ final class PutioTrashModel {
 
   // Removes the row locally, then replaces the page when a continuation was
   // pending: the pre-mutation cursor is opaque and may skip or resurrect rows.
-  private func remove(_ id: PutioFileID) async {
+  private func remove(_ item: PutioTrashItem) async {
     guard let currentPage = page else { return }
-    removedIDs.insert(id)
-    let removedSize = currentPage.items.first { $0.id == id }?.sizeBytes ?? 0
+    let id = item.id
+    reconciliation.recordRemoval(of: item)
+    let removedSize = item.sizeBytes
     let items = currentPage.items.filter { $0.id != id }
     state = .loaded(
       PutioTrashPage(
@@ -355,7 +439,7 @@ final class PutioTrashModel {
     )
     guard currentPage.nextCursor != nil else { return }
     do {
-      state = .loaded(excludingRemoved(try await actions.load(nil), startsListing: true))
+      state = .loaded(reconciliation.reconcile(try await actions.load(nil), startsListing: true))
     } catch {
       // The mutation is committed; keep the local page and drop the stale
       // cursor so Load More cannot replay it. Pull to refresh recovers.
@@ -372,42 +456,6 @@ final class PutioTrashModel {
           title: "Could not refresh Trash", error: error)
       }
     }
-  }
-
-  // A lagging listing may still contain committed removals; never resurrect
-  // a row the user removed. `totalCount` and `sizeBytes` are server
-  // aggregates for the whole Trash, not sums of the rows shown, so they pass
-  // through unchanged; a complete listing confirms which tombstones can go.
-  private func excludingRemoved(
-    _ listing: PutioTrashPage, startsListing: Bool
-  ) -> PutioTrashPage {
-    if startsListing {
-      seenSinceFirstPage.removeAll()
-      sawEmptiedItemSinceFirstPage = false
-    }
-    seenSinceFirstPage.formUnion(listing.items.map(\.id))
-    let survivors = listing.items.filter { !isTombstoned($0) }
-    if survivors.count != listing.items.count, emptiedThrough != nil {
-      sawEmptiedItemSinceFirstPage = true
-    }
-    if listing.nextCursor == nil {
-      // The server has now listed everything; anything it omitted is gone.
-      removedIDs = removedIDs.intersection(seenSinceFirstPage)
-      if !sawEmptiedItemSinceFirstPage { emptiedThrough = nil }
-    }
-    guard survivors.count != listing.items.count else { return listing }
-    return PutioTrashPage(
-      items: survivors,
-      nextCursor: listing.nextCursor,
-      totalCount: listing.totalCount,
-      sizeBytes: listing.sizeBytes
-    )
-  }
-
-  private func isTombstoned(_ item: PutioTrashItem) -> Bool {
-    if removedIDs.contains(item.id) { return true }
-    guard let emptiedThrough else { return false }
-    return item.deletedAt <= emptiedThrough
   }
 
   private func failureTitle(for mutation: PutioTrashMutation) -> String {
@@ -427,9 +475,12 @@ struct TrashManagementView: View {
 
   init(
     runtime: PutioRuntime,
+    reconciliation: PutioTrashReconciliation,
     onRestored: @escaping PutioTrashDidRestore
   ) {
-    _model = State(initialValue: PutioTrashModel(runtime: runtime, onRestored: onRestored))
+    _model = State(
+      initialValue: PutioTrashModel(
+        runtime: runtime, reconciliation: reconciliation, onRestored: onRestored))
   }
 
   init(
@@ -509,7 +560,7 @@ struct TrashManagementView: View {
           .accessibilityIdentifier("trash.progress")
       }
     }
-    .task { await model.loadIfNeeded() }
+    .task { await model.refreshOnAppear() }
     .onChange(of: model.mutationOutcome) { _, outcome in
       present(outcome)
     }

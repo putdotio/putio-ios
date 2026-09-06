@@ -100,6 +100,10 @@ public final class PutioRuntime {
         try await sdk.getFile(fileID: fileID.rawValue)
       }
       return .restored(destinationID: snapshot(restoredFile).parentID)
+    } catch is CancellationError {
+      // The restore is committed; the caller decides how to reconcile a
+      // cancelled lookup rather than being told the destination is unknown.
+      throw CancellationError()
     } catch {
       return .restoredDestinationUnknown
     }

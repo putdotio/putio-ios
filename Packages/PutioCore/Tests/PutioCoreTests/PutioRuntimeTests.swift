@@ -649,6 +649,29 @@ final class PutioRuntimeTests: XCTestCase {
     }
   }
 
+  func testRestoreSurfacesCancellationDuringDestinationLookup() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
+    RuntimeMockURLProtocol.gateFixture(#"{"status":"OK"}"#, for: Self.restoredTrashFileRoute)
+
+    let restore = Task { try await runtime.restoreTrashItem(fileID: PutioFileID(rawValue: 91)) }
+    guard await waitForRequest(Self.restoredTrashFileRoute) else {
+      restore.cancel()
+      RuntimeMockURLProtocol.releaseFixture(for: Self.restoredTrashFileRoute)
+      return XCTFail("the destination lookup did not start")
+    }
+    restore.cancel()
+    RuntimeMockURLProtocol.releaseFixture(for: Self.restoredTrashFileRoute)
+
+    do {
+      let result = try await restore.value
+      XCTFail("expected cancellation, got \(result)")
+    } catch is CancellationError {
+    } catch {
+      XCTFail("expected CancellationError, got \(error)")
+    }
+  }
+
   func testRestorePreservesCommittedMutationWhenDestinationLookupFails() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)

@@ -1150,7 +1150,9 @@ public struct SimulatorHarness {
       throw HarnessFailure("no \(config.deviceFamily) Simulator device type is installed")
     }
 
-    let suffix = String(runID.prefix(24))
+    // The full run ID plus a per-process nonce: two runs can never share a
+    // name even with identical IDs, so the pre-claim name fallback is safe.
+    let suffix = "\(runID)-\(String(UUID().uuidString.prefix(8)).lowercased())"
     let deviceName = "putio-harness-\(platform.rawValue)-\(suffix)"
 
     do {

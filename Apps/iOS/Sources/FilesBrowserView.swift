@@ -679,7 +679,12 @@ struct PutioFolderScreen: View {
         retryRequest = nil
         return
       }
+      // A fresh load already reflects any refresh request made before it.
+      let pending = refreshRequests.sequence(for: route.id)
       await model.retry()
+      if model.isLoaded, let pending, !Task.isCancelled {
+        refreshRequests.markConsumed(pending, for: route.id)
+      }
     case .refresh:
       guard model.refreshFailure != nil else {
         retryRequest = nil

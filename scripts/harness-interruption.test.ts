@@ -26,7 +26,7 @@ if (path.basename(process.argv[1]) === "swift") {
     });
   }
   add("aaa-unrelated", "another-agent-device");
-  setTimeout(() => add(owned, "putio-harness-ios-" + runID), 150);
+  setTimeout(() => add(owned, "putio-harness-ios-" + runID + "-deadbeef"), 150);
   setTimeout(() => process.exit(99), 5000);
 } else if (args[0] === "simctl" && args[1] === "list") {
   console.log(JSON.stringify({ devices: { runtime: fs.readdirSync(devices).map(file => JSON.parse(fs.readFileSync(path.join(devices, file), "utf8"))) } }));
