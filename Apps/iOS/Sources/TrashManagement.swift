@@ -324,7 +324,19 @@ final class PutioTrashModel {
     guard currentPage.nextCursor != nil else { return }
     do {
       let reloaded = try await actions.load(nil)
-      state = .loaded(reloaded)
+      // A lagging listing may still contain the committed item; never
+      // resurrect a row the user just removed.
+      let survivors = reloaded.items.filter { $0.id != id }
+      let resurrected = reloaded.items.count - survivors.count
+      state = .loaded(
+        PutioTrashPage(
+          items: survivors,
+          nextCursor: reloaded.nextCursor,
+          totalCount: reloaded.totalCount.map { max(0, $0 - resurrected) },
+          sizeBytes: resurrected == 0
+            ? reloaded.sizeBytes : max(0, reloaded.sizeBytes - removedSize)
+        )
+      )
     } catch {
       // The mutation is committed; keep the local page and drop the stale
       // cursor so Load More cannot replay it. Pull to refresh recovers.

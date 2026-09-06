@@ -249,7 +249,7 @@ final class TrashManagementTests: XCTestCase {
 
     await model.loadIfNeeded()
     let refresh = Task { await model.refresh() }
-    while loader.requestCount < 2 { await Task.yield() }
+    await waitUntil("the suspended refresh started") { loader.requestCount >= 2 }
 
     XCTAssertTrue(model.isRefreshing)
     XCTAssertFalse(model.canMutate)
@@ -377,6 +377,25 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(stub.storageRefreshRequests, 2, "refresh stops retrying once storage is current")
   }
 
+  func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
+    let item = trashItem(id: 91, name: "First.pdf", kind: .pdf)
+    let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)
+    let lagging = page(items: [item, second], cursor: "fresh", totalCount: 2, sizeBytes: 4096)
+    let stub = TrashActionsStub(
+      pages: [.success(page(items: [item], cursor: "next", totalCount: 2)), .success(lagging)],
+      deleteResults: [.success(.refreshed)]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    await model.permanentlyDelete(item)
+
+    XCTAssertEqual(model.page?.items, [second])
+    XCTAssertEqual(model.page?.nextCursor, "fresh")
+    XCTAssertEqual(model.page?.totalCount, 1)
+    XCTAssertEqual(model.page?.sizeBytes, 4096 - item.sizeBytes)
+  }
+
   func testRemovingWithPendingContinuationDropsTheCursorWhenReloadFails() async {
     let item = trashItem(id: 91, name: "First.pdf", kind: .pdf)
     let stub = TrashActionsStub(
@@ -460,7 +479,7 @@ final class TrashManagementTests: XCTestCase {
     await model.loadIfNeeded()
     gate.markStale()
     let first = Task { await model.retryStorageRefresh() }
-    while gate.requestCount < 1 { await Task.yield() }
+    await waitUntil("the storage retry started") { gate.requestCount >= 1 }
     XCTAssertTrue(model.isRefreshingStorage)
     XCTAssertFalse(model.canMutate)
 
@@ -537,7 +556,7 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(model.refreshFailure?.title, "Could not refresh Trash")
 
     let retry = Task { await model.refresh() }
-    while loader.requestCount < 2 { await Task.yield() }
+    await waitUntil("the suspended refresh started") { loader.requestCount >= 2 }
     XCTAssertNil(model.refreshFailure, "the in-flight retry hides the failure")
     retry.cancel()
     loader.fail(with: CancellationError())
@@ -546,6 +565,20 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(model.page, original)
     XCTAssertEqual(model.refreshFailure?.title, "Could not refresh Trash")
     XCTAssertTrue(model.canMutate)
+  }
+
+  /// Yields until `condition` holds, failing the test instead of hanging the
+  /// job when the awaited asynchronous step never starts.
+  private func waitUntil(
+    _ description: String,
+    file: StaticString = #filePath,
+    line: UInt = #line,
+    _ condition: () -> Bool
+  ) async {
+    for _ in 0..<2_000 where !condition() {
+      await Task.yield()
+    }
+    XCTAssertTrue(condition(), "timed out waiting for \(description)", file: file, line: line)
   }
 
   private func model(

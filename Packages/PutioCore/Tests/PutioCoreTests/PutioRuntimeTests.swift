@@ -716,6 +716,36 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertFalse(runtime.session.isAccountStorageStale)
   }
 
+  func testRefreshStartedBeforeAMutationCannotClearStaleStorage() async throws {
+    let route = "GET /v2/account/info"
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.gateFixture(Self.accountInfo, for: route)
+    let preMutation = Task { await runtime.refreshAccountStorage() }
+    guard await waitForRequest(route, count: 2) else {
+      preMutation.cancel()
+      RuntimeMockURLProtocol.releaseFixture(for: route)
+      return XCTFail("the gated account refresh did not start")
+    }
+
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR","error_type":"TEMPORARY_ERROR"}"#, statusCode: 503, for: route)
+    let emptied = try await runtime.emptyTrash()
+    XCTAssertFalse(emptied.storageRefreshed)
+    XCTAssertTrue(runtime.session.isAccountStorageStale)
+
+    RuntimeMockURLProtocol.releaseFixture(for: route)
+    let preMutationResult = await preMutation.value
+    XCTAssertFalse(preMutationResult, "a pre-mutation snapshot does not satisfy the retry")
+    XCTAssertTrue(runtime.session.isAccountStorageStale, "stale storage stays visible")
+
+    RuntimeMockURLProtocol.setFixture(
+      Self.accountInfo.replacingOccurrences(of: "\"used\": 20", with: "\"used\": 0"), for: route)
+    let retried = await runtime.refreshAccountStorage()
+    XCTAssertTrue(retried)
+    XCTAssertFalse(runtime.session.isAccountStorageStale)
+  }
+
   func testOlderSuccessfulRefreshAppliesWhenTheNewerRefreshFailed() async throws {
     let route = "GET /v2/account/info"
     let (runtime, _) = await makeSignedInRuntime()

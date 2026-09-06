@@ -674,6 +674,13 @@ public struct SimulatorHarness {
         for screenshot in preflightScreenshots {
           _ = try requireMeaningfulScreenshot(screenshot, context: "journey preflight attachment")
         }
+        // Only now is every preflight fully validated; until here a blank
+        // screenshot still needs its bundle for diagnosis.
+        for bundle in [
+          ".sign-out-recovery.xcresult", ".file-actions.xcresult", ".trash-management.xcresult",
+        ] {
+          try? fileManager.removeItem(at: platformDirectory.appending(path: bundle))
+        }
         _ = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.unsupportedFileTestIdentifier,
           platform: platform,
@@ -994,7 +1001,7 @@ public struct SimulatorHarness {
         destination, context: "journey preflight screenshot \(attachmentName)")
       return destination
     }
-    try? fileManager.removeItem(at: resultBundle)
+    // The caller removes the bundle after it has validated the screenshots.
     return artifacts
   }
 

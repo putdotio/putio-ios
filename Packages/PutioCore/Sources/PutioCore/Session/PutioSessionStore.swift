@@ -49,6 +49,9 @@ public final class PutioSessionStore {
   // response cannot overwrite a newer snapshot.
   private var accountRefreshSequence: UInt64 = 0
   private var lastAppliedAccountRefresh: UInt64 = 0
+  // Sequence value at the most recent committed storage mutation. Only a
+  // refresh that started after it observed the mutation's effect.
+  private var lastStorageMutationSequence: UInt64 = 0
 
   private let sdk: PutioSDK
   private let tokenStore: PutioTokenStore
@@ -252,6 +255,7 @@ public final class PutioSessionStore {
   @discardableResult
   func refreshAccountAfterStorageMutation() async -> Bool {
     isAccountStorageStale = true
+    lastStorageMutationSequence = accountRefreshSequence
     return await refreshAccount()
   }
 
@@ -272,8 +276,10 @@ public final class PutioSessionStore {
       if lastAppliedAccountRefresh > sequence { return true }
       lastAppliedAccountRefresh = sequence
       state = .signedIn(snapshot(account))
-      isAccountStorageStale = false
-      return true
+      // A request that started before the mutation carries pre-mutation totals.
+      let observedMutation = sequence > lastStorageMutationSequence
+      if observedMutation { isAccountStorageStale = false }
+      return observedMutation || !isAccountStorageStale
     } catch {
       guard generation == authenticationGeneration, !Task.isCancelled,
         case .signedIn = state
@@ -311,6 +317,7 @@ public final class PutioSessionStore {
     isAccountStorageStale = false
     lastAppliedAccountRefresh = 0
     accountRefreshSequence = 0
+    lastStorageMutationSequence = 0
     return authenticationGeneration
   }
 
