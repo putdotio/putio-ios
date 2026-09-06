@@ -448,8 +448,11 @@ struct PutioFolderScreen: View {
       toast = nil
     }
     .task(id: refreshRequests.sequence(for: route.id)) {
-      guard refreshRequests.sequence(for: route.id) != nil else { return }
+      guard let sequence = refreshRequests.sequence(for: route.id) else { return }
       _ = await model.refresh()
+      // A cancelled refresh leaves the request pending for the next appearance.
+      guard !Task.isCancelled else { return }
+      refreshRequests.markConsumed(sequence, for: route.id)
     }
     .onChange(of: model.state, initial: true) { _, state in
       if case .loaded(let contents) = state, !fileActionPending {

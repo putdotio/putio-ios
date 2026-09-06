@@ -63,6 +63,7 @@ final class PutioFolderRefreshRequests {
 
   private var sequences: [PutioFileID: UInt64] = [:]
   private var allFoldersSequence: UInt64 = 0
+  private var consumed: [PutioFileID: Sequence] = [:]
 
   func request(folderID: PutioFileID) {
     sequences[folderID, default: 0] &+= 1
@@ -72,10 +73,18 @@ final class PutioFolderRefreshRequests {
     allFoldersSequence &+= 1
   }
 
+  /// The request `folderID` has not yet honored, or nil. A folder screen
+  /// consumes it after refreshing so later appearances do not refresh again.
   func sequence(for folderID: PutioFileID) -> Sequence? {
-    let folderSequence = sequences[folderID, default: 0]
-    guard folderSequence > 0 || allFoldersSequence > 0 else { return nil }
-    return Sequence(folder: folderSequence, allFolders: allFoldersSequence)
+    let current = Sequence(
+      folder: sequences[folderID, default: 0], allFolders: allFoldersSequence)
+    guard current.folder > 0 || current.allFolders > 0 else { return nil }
+    guard consumed[folderID] != current else { return nil }
+    return current
+  }
+
+  func markConsumed(_ sequence: Sequence, for folderID: PutioFileID) {
+    consumed[folderID] = sequence
   }
 }
 

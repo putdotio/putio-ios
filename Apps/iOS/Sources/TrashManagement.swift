@@ -127,6 +127,12 @@ final class PutioTrashModel {
   @ObservationIgnored private let actions: PutioTrashActions
   @ObservationIgnored private let onRestored: PutioTrashDidRestore
   @ObservationIgnored private var hasLoaded = false
+  // Supersedes an initial load that is still unwinding after cancellation so
+  // re-entering the screen cannot strand it on the loading state.
+  @ObservationIgnored private var loadGeneration: UInt64 = 0
+  // Items removed by a committed mutation. Lagging listings and their
+  // continuations must not resurrect them; a full refresh starts fresh.
+  @ObservationIgnored private var removedIDs: Set<PutioFileID> = []
 
   init(
     actions: PutioTrashActions,
@@ -154,11 +160,11 @@ final class PutioTrashModel {
 
   func loadIfNeeded() async {
     guard !hasLoaded else { return }
-    await load()
+    await load(initial: true)
   }
 
   func refresh() async {
-    await load()
+    await load(initial: false)
   }
 
   /// Retries only the account storage snapshot after a committed deletion
@@ -184,13 +190,14 @@ final class PutioTrashModel {
     do {
       let nextPage = try await actions.load(cursor)
       let existingIDs = Set(currentPage.items.map(\.id))
-      let newItems = nextPage.items.filter { !existingIDs.contains($0.id) }
+      let fresh = excludingRemoved(nextPage)
+      let newItems = fresh.items.filter { !existingIDs.contains($0.id) }
       state = .loaded(
         PutioTrashPage(
           items: currentPage.items + newItems,
-          nextCursor: nextPage.nextCursor,
-          totalCount: nextPage.totalCount ?? currentPage.totalCount,
-          sizeBytes: nextPage.sizeBytes
+          nextCursor: fresh.nextCursor,
+          totalCount: fresh.totalCount ?? currentPage.totalCount,
+          sizeBytes: fresh.sizeBytes
         )
       )
     } catch is CancellationError {
@@ -249,12 +256,21 @@ final class PutioTrashModel {
     mutationOutcome = nil
   }
 
-  private func load() async {
-    guard activeMutation == nil, !isRefreshing, !isLoadingMore, !isRefreshingStorage else {
-      return
+  private func load(initial: Bool) async {
+    if initial {
+      // An initial load may supersede one still unwinding after cancellation.
+      guard page == nil else { return }
+    } else {
+      guard activeMutation == nil, !isRefreshing, !isLoadingMore, !isRefreshingStorage else {
+        return
+      }
     }
+    loadGeneration &+= 1
+    let generation = loadGeneration
     isRefreshing = true
-    defer { isRefreshing = false }
+    defer {
+      if generation == loadGeneration { isRefreshing = false }
+    }
     let previousPage = page
     let previousRefreshFailure = refreshFailure
     let previousPaginationFailure = paginationFailure
@@ -264,14 +280,18 @@ final class PutioTrashModel {
     do {
       await reloadStaleStorage()
       let loadedPage = try await actions.load(nil)
+      guard generation == loadGeneration else { return }
+      removedIDs.removeAll()
       state = .loaded(loadedPage)
       hasLoaded = true
     } catch is CancellationError {
+      guard generation == loadGeneration else { return }
       // A cancelled retry must not hide the failure the user was retrying.
       refreshFailure = previousRefreshFailure
       paginationFailure = previousPaginationFailure
       return
     } catch {
+      guard generation == loadGeneration else { return }
       if let previousPage {
         state = .loaded(previousPage)
         refreshFailure = PutioTrashErrorPresentation(title: "Could not refresh Trash", error: error)
@@ -311,6 +331,7 @@ final class PutioTrashModel {
   // pending: the pre-mutation cursor is opaque and may skip or resurrect rows.
   private func remove(_ id: PutioFileID) async {
     guard let currentPage = page else { return }
+    removedIDs.insert(id)
     let removedSize = currentPage.items.first { $0.id == id }?.sizeBytes ?? 0
     let items = currentPage.items.filter { $0.id != id }
     state = .loaded(
@@ -323,20 +344,7 @@ final class PutioTrashModel {
     )
     guard currentPage.nextCursor != nil else { return }
     do {
-      let reloaded = try await actions.load(nil)
-      // A lagging listing may still contain the committed item; never
-      // resurrect a row the user just removed.
-      let survivors = reloaded.items.filter { $0.id != id }
-      let resurrected = reloaded.items.count - survivors.count
-      state = .loaded(
-        PutioTrashPage(
-          items: survivors,
-          nextCursor: reloaded.nextCursor,
-          totalCount: reloaded.totalCount.map { max(0, $0 - resurrected) },
-          sizeBytes: resurrected == 0
-            ? reloaded.sizeBytes : max(0, reloaded.sizeBytes - removedSize)
-        )
-      )
+      state = .loaded(excludingRemoved(try await actions.load(nil)))
     } catch {
       // The mutation is committed; keep the local page and drop the stale
       // cursor so Load More cannot replay it. Pull to refresh recovers.
@@ -353,6 +361,19 @@ final class PutioTrashModel {
           title: "Could not refresh Trash", error: error)
       }
     }
+  }
+
+  // A lagging listing may still contain committed removals; never resurrect
+  // a row the user removed, and keep the totals consistent with the rows.
+  private func excludingRemoved(_ listing: PutioTrashPage) -> PutioTrashPage {
+    let resurrected = listing.items.filter { removedIDs.contains($0.id) }
+    guard !resurrected.isEmpty else { return listing }
+    return PutioTrashPage(
+      items: listing.items.filter { !removedIDs.contains($0.id) },
+      nextCursor: listing.nextCursor,
+      totalCount: listing.totalCount.map { max(0, $0 - resurrected.count) },
+      sizeBytes: max(0, listing.sizeBytes - resurrected.reduce(0) { $0 + $1.sizeBytes })
+    )
   }
 
   private func failureTitle(for mutation: PutioTrashMutation) -> String {

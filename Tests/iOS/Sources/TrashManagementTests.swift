@@ -53,6 +53,26 @@ private final class SuspendedStorageRefresh {
   }
 }
 
+@MainActor
+private final class ControlledTrashLoader {
+  private var pending: [Int: CheckedContinuation<PutioTrashPage, any Error>] = [:]
+  private(set) var requestCount = 0
+
+  func load(cursor: String?) async throws -> PutioTrashPage {
+    let request = requestCount
+    requestCount += 1
+    return try await withCheckedThrowingContinuation { pending[request] = $0 }
+  }
+
+  func succeed(request: Int, with page: PutioTrashPage) {
+    pending.removeValue(forKey: request)?.resume(returning: page)
+  }
+
+  func fail(request: Int, with error: any Error) {
+    pending.removeValue(forKey: request)?.resume(throwing: error)
+  }
+}
+
 extension PutioTrashMutationResult {
   fileprivate static let refreshed = PutioTrashMutationResult(storageRefreshed: true)
   fileprivate static let storageStale = PutioTrashMutationResult(storageRefreshed: false)
@@ -375,6 +395,71 @@ final class TrashManagementTests: XCTestCase {
 
     await model.refresh()
     XCTAssertEqual(stub.storageRefreshRequests, 2, "refresh stops retrying once storage is current")
+  }
+
+  func testReentryDuringCancelledInitialLoadRestartsTheLoad() async {
+    let loader = ControlledTrashLoader()
+    let loaded = page(items: [trashItem(id: 91, name: "A.pdf", kind: .pdf)], totalCount: 1)
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { try await loader.load(cursor: $0) },
+        restore: { _ in throw PutioRuntimeError.unknown },
+        permanentlyDelete: { _ in .refreshed },
+        empty: { .refreshed }
+      )
+    )
+
+    let firstVisit = Task { await model.loadIfNeeded() }
+    await waitUntil("the first load started") { loader.requestCount >= 1 }
+    firstVisit.cancel()
+
+    // The next visit starts before the cancelled attempt finishes unwinding.
+    let secondVisit = Task { await model.loadIfNeeded() }
+    await waitUntil("the second load started") { loader.requestCount >= 2 }
+    loader.succeed(request: 1, with: loaded)
+    await secondVisit.value
+    XCTAssertEqual(model.state, .loaded(loaded))
+
+    loader.fail(request: 0, with: CancellationError())
+    await firstVisit.value
+    XCTAssertEqual(model.state, .loaded(loaded), "the late unwind must not clobber the result")
+    XCTAssertFalse(model.isRefreshing)
+    XCTAssertTrue(model.canMutate)
+  }
+
+  func testTombstonesSurviveContinuationUntilAFullRefresh() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let c = trashItem(id: 93, name: "C.pdf", kind: .pdf)
+    let stub = TrashActionsStub(
+      pages: [
+        .success(page(items: [a], cursor: "n1", totalCount: 3)),
+        .success(page(items: [b], cursor: "n2", totalCount: 3)),
+        // Fresh first page after deleting b, then a lagging continuation.
+        .success(page(items: [a], cursor: "f1", totalCount: 2)),
+        .success(page(items: [b, c], totalCount: 2)),
+        // A full refresh starts from what the server says.
+        .success(page(items: [a, b, c], totalCount: 3)),
+      ],
+      deleteResults: [.success(.refreshed)]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    await model.loadMore()
+    XCTAssertEqual(model.page?.items, [a, b])
+
+    await model.permanentlyDelete(b)
+    XCTAssertEqual(model.page?.items, [a])
+    XCTAssertEqual(model.page?.nextCursor, "f1")
+
+    await model.loadMore()
+    XCTAssertEqual(model.page?.items, [a, c], "a lagging continuation cannot resurrect b")
+    XCTAssertEqual(model.page?.totalCount, 1)
+
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [a, b, c])
+    XCTAssertEqual(stub.loadedCursors, [nil, "n1", nil, "f1", nil])
   }
 
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
