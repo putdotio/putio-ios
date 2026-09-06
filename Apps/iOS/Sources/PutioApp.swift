@@ -254,7 +254,11 @@ private struct MainTabView: View {
       }
       Tab {
         NavigationStack {
-          AccountView(session: runtime.session, account: account)
+          AccountView(
+            runtime: runtime,
+            account: account,
+            refreshRequests: folderRefreshRequests
+          )
         }
       } label: {
         Label {
@@ -526,8 +530,9 @@ private struct HarnessFileSelectionProbe: View {
 #endif
 
 private struct AccountView: View {
-  let session: PutioSessionStore
+  let runtime: PutioRuntime
   let account: PutioAccountSnapshot
+  let refreshRequests: PutioFolderRefreshRequests
 
   var body: some View {
     List {
@@ -540,10 +545,20 @@ private struct AccountView: View {
           LabeledContent("Used", value: byteText(account.storage.usedBytes))
           LabeledContent("Available", value: byteText(account.storage.availableBytes))
           LabeledContent("Total", value: byteText(account.storage.totalBytes))
+          NavigationLink("Trash") {
+            TrashManagementView(runtime: runtime) { destinationID in
+              if let destinationID {
+                refreshRequests.request(folderID: destinationID)
+              } else {
+                refreshRequests.requestAllLoadedFolders()
+              }
+            }
+          }
+          .accessibilityIdentifier("account.trash")
         }
         Section {
           Button("Sign out", role: .destructive) {
-            Task { await session.signOut() }
+            Task { await runtime.session.signOut() }
           }
           .accessibilityIdentifier("auth.sign-out")
         }

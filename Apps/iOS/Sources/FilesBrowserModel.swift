@@ -56,14 +56,26 @@ struct PutioFolderRoute: Identifiable, Sendable {
 
 @Observable
 final class PutioFolderRefreshRequests {
+  struct Sequence: Equatable, Sendable {
+    let folder: UInt64
+    let allFolders: UInt64
+  }
+
   private var sequences: [PutioFileID: UInt64] = [:]
+  private var allFoldersSequence: UInt64 = 0
 
   func request(folderID: PutioFileID) {
     sequences[folderID, default: 0] &+= 1
   }
 
-  func sequence(for folderID: PutioFileID) -> UInt64? {
-    sequences[folderID]
+  func requestAllLoadedFolders() {
+    allFoldersSequence &+= 1
+  }
+
+  func sequence(for folderID: PutioFileID) -> Sequence? {
+    let folderSequence = sequences[folderID, default: 0]
+    guard folderSequence > 0 || allFoldersSequence > 0 else { return nil }
+    return Sequence(folder: folderSequence, allFolders: allFoldersSequence)
   }
 }
 

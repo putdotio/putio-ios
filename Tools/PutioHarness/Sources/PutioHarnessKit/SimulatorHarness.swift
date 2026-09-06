@@ -421,8 +421,8 @@ public struct SimulatorHarness {
     try runInstalledApp(platform, shouldExercise: false)
   }
 
-  public func boot(_ platform: HarnessPlatform) throws -> SurfaceRun {
-    try withSession(platform: platform, runID: UUID().uuidString.lowercased()) { _ in
+  public func boot(_ platform: HarnessPlatform, runID: String? = nil) throws -> SurfaceRun {
+    try withSession(platform: platform, runID: runID ?? UUID().uuidString.lowercased()) { _ in
       SurfaceRun(
         platform: platform,
         artifacts: [],
@@ -627,44 +627,27 @@ public struct SimulatorHarness {
         }
         let mediaBaseURL = try mediaServer.start()
 
-        guard
-          let signOutFailureScreenshot = try runJourneyPreflightTest(
-            identifier: BrowserJourneyContract.signOutRecoveryTestIdentifier,
-            platform: platform,
-            session: session,
-            mediaBaseURL: mediaBaseURL,
-            resultBundle: platformDirectory.appending(path: ".sign-out-recovery.xcresult"),
-            attachmentName: BrowserJourneyContract.signOutFailureAttachmentName,
-            artifactDirectory: platformDirectory,
-            defaultExecutionTimeAllowance: 60,
-            maximumExecutionTimeAllowance: 90
-          )
-        else {
-          throw HarnessFailure("sign-out recovery preflight did not produce its screenshot")
-        }
-        _ = try requireMeaningfulScreenshot(
-          signOutFailureScreenshot,
-          context: "runtime sign-out failure attachment"
+        let signOutFailureScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.signOutRecoveryTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".sign-out-recovery.xcresult"),
+          attachmentNames: [BrowserJourneyContract.signOutFailureAttachmentName],
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 60,
+          maximumExecutionTimeAllowance: 90
         )
-
-        guard
-          let fileActionsScreenshot = try runJourneyPreflightTest(
-            identifier: BrowserJourneyContract.fileActionsTestIdentifier,
-            platform: platform,
-            session: session,
-            mediaBaseURL: mediaBaseURL,
-            resultBundle: platformDirectory.appending(path: ".file-actions.xcresult"),
-            attachmentName: BrowserJourneyContract.fileActionsAttachmentName,
-            artifactDirectory: platformDirectory,
-            defaultExecutionTimeAllowance: 240,
-            maximumExecutionTimeAllowance: 240
-          )
-        else {
-          throw HarnessFailure("file-actions preflight did not produce its screenshot")
-        }
-        _ = try requireMeaningfulScreenshot(
-          fileActionsScreenshot,
-          context: "runtime file-actions attachment"
+        let fileActionsScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.fileActionsTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".file-actions.xcresult"),
+          attachmentNames: [BrowserJourneyContract.fileActionsAttachmentName],
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 240,
+          maximumExecutionTimeAllowance: 240
         )
         _ = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.trashDisabledTestIdentifier,
@@ -675,6 +658,20 @@ public struct SimulatorHarness {
           defaultExecutionTimeAllowance: 60,
           maximumExecutionTimeAllowance: 60
         )
+        let trashManagementScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.trashManagementTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".trash-management.xcresult"),
+          attachmentNames: BrowserJourneyContract.trashManagementAttachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 90,
+          maximumExecutionTimeAllowance: 90
+        )
+        for screenshot in signOutFailureScreenshots + fileActionsScreenshots + trashManagementScreenshots {
+          _ = try requireMeaningfulScreenshot(screenshot, context: "journey preflight attachment")
+        }
         _ = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.unsupportedFileTestIdentifier,
           platform: platform,
@@ -774,8 +771,8 @@ public struct SimulatorHarness {
         try requireCleanSource()
         try requireRevision(sourceRevision)
         let artifactURLs =
-          [signOutFailureScreenshot, fileActionsScreenshot] + screenshots
-          + [recording, summary]
+          signOutFailureScreenshots + fileActionsScreenshots + trashManagementScreenshots
+          + screenshots + [recording, summary]
         let manifest = try writeManifest(
           platform: platform,
           command: "journey",
@@ -794,7 +791,7 @@ public struct SimulatorHarness {
         )
       }
     } catch {
-      try? fileManager.removeItem(at: platformDirectory)
+      try? fileManager.removeItem(at: platformDirectory.appending(path: "manifest.json"))
       throw error
     }
   }
@@ -916,12 +913,11 @@ public struct SimulatorHarness {
     session: SimulatorSession,
     mediaBaseURL: URL,
     resultBundle: URL,
-    attachmentName: String? = nil,
+    attachmentNames: [String] = [],
     artifactDirectory: URL? = nil,
     defaultExecutionTimeAllowance: Int = 30,
     maximumExecutionTimeAllowance: Int = 60
-  ) throws -> URL? {
-    defer { try? fileManager.removeItem(at: resultBundle) }
+  ) throws -> [URL] {
     let testOutput = try runner.run(
       "xcodebuild",
       [
@@ -961,7 +957,13 @@ public struct SimulatorHarness {
       context: "read journey preflight test summary"
     )
     _ = try requirePassingJourneySummary(Data(summaryOutput.stdout.utf8))
-    guard let attachmentName, let artifactDirectory else { return nil }
+    guard !attachmentNames.isEmpty else {
+      try? fileManager.removeItem(at: resultBundle)
+      return []
+    }
+    guard let artifactDirectory else {
+      throw HarnessFailure("journey preflight attachments require an artifact directory")
+    }
 
     let attachmentsDirectory = artifactDirectory.appending(path: ".preflight-attachments")
     defer { try? fileManager.removeItem(at: attachmentsDirectory) }
@@ -976,18 +978,23 @@ public struct SimulatorHarness {
     )
     let selected = try selectJourneyAttachmentFiles(
       from: Data(contentsOf: attachmentsDirectory.appending(path: "manifest.json")),
-      expectedNames: [attachmentName]
+      expectedNames: attachmentNames
     )
-    guard let exportedName = selected[attachmentName] else {
-      throw HarnessFailure("journey preflight attachment selection lost \(attachmentName)")
+    let artifacts = try attachmentNames.map { attachmentName in
+      guard let exportedName = selected[attachmentName] else {
+        throw HarnessFailure("journey preflight attachment selection lost \(attachmentName)")
+      }
+      let source = attachmentsDirectory.appending(path: exportedName)
+      try requireNonemptyFile(source, context: "journey preflight attachment \(attachmentName)")
+      let destination = artifactDirectory.appending(
+        path: BrowserJourneyContract.artifactFileName(for: attachmentName))
+      try fileManager.copyItem(at: source, to: destination)
+      try requireNonemptyFile(
+        destination, context: "journey preflight screenshot \(attachmentName)")
+      return destination
     }
-    let source = attachmentsDirectory.appending(path: exportedName)
-    try requireNonemptyFile(source, context: "journey preflight attachment \(attachmentName)")
-    let destination = artifactDirectory.appending(
-      path: BrowserJourneyContract.artifactFileName(for: attachmentName))
-    try fileManager.copyItem(at: source, to: destination)
-    try requireNonemptyFile(destination, context: "journey preflight screenshot \(attachmentName)")
-    return destination
+    try? fileManager.removeItem(at: resultBundle)
+    return artifacts
   }
 
   public func defaultRunID() throws -> String {

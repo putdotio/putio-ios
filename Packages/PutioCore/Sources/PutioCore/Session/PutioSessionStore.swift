@@ -235,6 +235,23 @@ public final class PutioSessionStore {
 
   // MARK: - Account bootstrap
 
+  func refreshAccount() async {
+    guard case .signedIn = state else { return }
+    let generation = authenticationGeneration
+    do {
+      let account = try await sdk.getAccountInfo()
+      guard generation == authenticationGeneration, !Task.isCancelled,
+        case .signedIn = state
+      else { return }
+      state = .signedIn(snapshot(account))
+    } catch {
+      guard generation == authenticationGeneration, !Task.isCancelled,
+        case .signedIn = state
+      else { return }
+      if isAuthRejection(error) { expireSession() }
+    }
+  }
+
   private func bootstrap(
     failure: (String) -> PutioSignedOutReason,
     generation: UInt64

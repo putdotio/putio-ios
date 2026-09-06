@@ -468,10 +468,22 @@ final class PutioFolderModelTests: XCTestCase {
     requests.request(folderID: secondFolder)
 
     XCTAssertEqual(requests.sequence(for: firstFolder), firstSequence)
-    XCTAssertEqual(requests.sequence(for: secondFolder), 1)
+    XCTAssertEqual(
+      requests.sequence(for: secondFolder),
+      PutioFolderRefreshRequests.Sequence(folder: 1, allFolders: 0)
+    )
 
     requests.request(folderID: firstFolder)
-    XCTAssertEqual(requests.sequence(for: firstFolder), 2)
+    XCTAssertEqual(
+      requests.sequence(for: firstFolder),
+      PutioFolderRefreshRequests.Sequence(folder: 2, allFolders: 0)
+    )
+
+    requests.requestAllLoadedFolders()
+    XCTAssertEqual(
+      requests.sequence(for: secondFolder),
+      PutioFolderRefreshRequests.Sequence(folder: 1, allFolders: 1)
+    )
   }
 
   func testRefreshSessionExpiryPreservesRowsWithoutAnInlineBrowserError() async {
