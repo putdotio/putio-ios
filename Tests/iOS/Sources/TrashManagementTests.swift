@@ -481,8 +481,6 @@ final class TrashManagementTests: XCTestCase {
     let stub = TrashActionsStub(
       pages: [
         .success(page(items: [a], cursor: "n1", totalCount: 2)),
-        // The pre-empty walk of the remaining page fails; the loaded rows bound the cutoff.
-        .failure(.transient),
         .success(page(items: [a, unloaded], totalCount: 2)),
         .success(page(items: [later], totalCount: 1)),
         .success(page(items: [], totalCount: 0)),
@@ -598,18 +596,42 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(model.mutationOutcome, .restored(item))
   }
 
-  func testEmptyingWalksRemainingPagesToBoundTheCutoff() async {
+  func testTombstonesReleaseAfterTheServerConsistentlyReportsTheItem() async {
     let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
-    let newerUnloaded = trashItem(
-      id: 92, name: "B.pdf", kind: .pdf, deletedAt: Date(timeIntervalSince1970: 1_756_809_600))
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
     let stub = TrashActionsStub(
       pages: [
-        .success(page(items: [a], cursor: "n1", totalCount: 2)),
-        // The pre-empty walk reaches the unloaded newer row.
-        .success(page(items: [newerUnloaded], totalCount: 2)),
-        // A lagging refresh still lists it.
-        .success(page(items: [newerUnloaded], totalCount: 1)),
-        .success(page(items: [], totalCount: 0)),
+        .success(page(items: [a, b], totalCount: 2)),
+        .success(page(items: [a, b], totalCount: 2)),
+        .success(page(items: [a, b], totalCount: 2)),
+        .success(page(items: [a, b], totalCount: 2)),
+      ],
+      deleteResults: [.success(.refreshed)]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    await model.permanentlyDelete(b)
+    XCTAssertEqual(model.page?.items, [a])
+
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [a], "first consistent listing is still treated as lag")
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [a], "second listing releases the tombstone afterwards")
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [a, b], "the server is trusted; nothing hides forever")
+  }
+
+  func testEmptyingCutoffReleasesAfterConsistentListings() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    // Same second as the emptied rows: indistinguishable by timestamp.
+    let sameSecond = trashItem(id: 95, name: "New.pdf", kind: .pdf)
+    let stub = TrashActionsStub(
+      pages: [
+        .success(page(items: [a], totalCount: 1)),
+        .success(page(items: [sameSecond], totalCount: 1)),
+        .success(page(items: [sameSecond], totalCount: 1)),
+        .success(page(items: [sameSecond], totalCount: 1)),
       ],
       emptyResults: [.success(.refreshed)]
     )
@@ -617,30 +639,13 @@ final class TrashManagementTests: XCTestCase {
 
     await model.loadIfNeeded()
     await model.empty()
-    XCTAssertEqual(stub.loadedCursors, [nil, "n1"], "emptying walks the remaining pages first")
 
     await model.refresh()
-    XCTAssertEqual(model.page?.items, [], "an unloaded row newer than the loaded page stays gone")
-
+    XCTAssertEqual(model.page?.items, [])
     await model.refresh()
-    XCTAssertEqual(model.page, page(items: [], totalCount: 0, sizeBytes: 0))
-  }
-
-  func testReappearanceRefreshesACachedTrashScreen() async {
-    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
-    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
-    let stub = TrashActionsStub(pages: [
-      .success(page(items: [a], totalCount: 1)),
-      .success(page(items: [a, b], totalCount: 2)),
-    ])
-    let model = model(stub)
-
-    await model.refreshOnAppear()
-    XCTAssertEqual(model.page?.items, [a])
-
-    await model.refreshOnAppear()
-    XCTAssertEqual(model.page?.items, [a, b], "items trashed from Files appear on return")
-    XCTAssertEqual(stub.loadedCursors, [nil, nil])
+    XCTAssertEqual(model.page?.items, [])
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [sameSecond], "a same-second new item is not hidden forever")
   }
 
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {

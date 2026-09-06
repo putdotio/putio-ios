@@ -13,8 +13,14 @@ typealias PutioTrashStorageIsStale = @MainActor @Sendable () -> Bool
 typealias PutioTrashDidRestore = @MainActor @Sendable (PutioFileID?) -> Void
 
 /// Committed Trash removals the server may not list consistently yet. Owned
-/// by the composition root so it survives popping and reopening Trash; the
-/// server confirms each removal by omitting it from a complete listing.
+/// by the composition root so it survives popping and reopening Trash.
+///
+/// Every tombstone is bounded: it is released when a complete listing omits
+/// the item, and also after `consistentListingsBeforeTrust` complete listings
+/// that still report it. `deletedAt` has second precision, so a same-second
+/// re-trash or a file trashed in the same second as an emptying could match
+/// a tombstone; the bound guarantees such an item is hidden for at most a
+/// couple of refreshes, never permanently.
 @MainActor
 @Observable
 final class PutioTrashReconciliation {
@@ -25,36 +31,42 @@ final class PutioTrashReconciliation {
     let deletedAt: Date
   }
 
-  @ObservationIgnored private(set) var removals: Set<Removal> = []
+  static let consistentListingsBeforeTrust = 2
+
+  /// Complete listings in which each removal has still appeared.
+  @ObservationIgnored private(set) var removals: [Removal: Int] = [:]
   /// Set after emptying: every item trashed at or before this instant is
-  /// gone. Server-provided `deletedAt` values of the rows loaded at the time
-  /// bound it, not the device clock.
+  /// treated as gone. Bounded by the rows loaded at the time (server
+  /// `deletedAt` values, never the device clock).
   @ObservationIgnored private(set) var emptiedThrough: Date?
+  @ObservationIgnored private var emptiedListings = 0
   @ObservationIgnored private var seenSinceFirstPage: Set<Removal> = []
   @ObservationIgnored private var sawEmptiedItemSinceFirstPage = false
 
   init() {}
 
   func recordRemoval(of item: PutioTrashItem) {
-    removals.insert(Removal(id: item.id, deletedAt: item.deletedAt))
+    removals[Removal(id: item.id, deletedAt: item.deletedAt)] = 0
   }
 
-  /// `known` is every row the client could enumerate before emptying, which
-  /// the model walks to the last page. The cutoff is the newest of those
-  /// deletion times; an empty Trash has nothing to protect.
-  func recordEmptied(known: [PutioTrashItem]) {
-    guard let newest = known.map(\.deletedAt).max() else { return }
+  /// `loaded` are the rows known at emptying; rows on unloaded pages are
+  /// covered only when their deletion is not newer than the newest loaded
+  /// one. The bound above heals any gap after a couple of refreshes.
+  func recordEmptied(loaded: [PutioTrashItem]) {
+    guard let newest = loaded.map(\.deletedAt).max() else { return }
     emptiedThrough = max(emptiedThrough ?? .distantPast, newest)
+    emptiedListings = 0
   }
 
   func isRemoved(_ item: PutioTrashItem) -> Bool {
-    if removals.contains(Removal(id: item.id, deletedAt: item.deletedAt)) { return true }
+    if removals[Removal(id: item.id, deletedAt: item.deletedAt)] != nil { return true }
     guard let emptiedThrough else { return false }
     return item.deletedAt <= emptiedThrough
   }
 
-  /// Filters a listing page and, on the final page of a complete listing,
-  /// releases every tombstone the server no longer reports.
+  /// Filters a listing page. On the final page of a complete listing it
+  /// releases every tombstone the server omitted, and every tombstone the
+  /// server has now reported `consistentListingsBeforeTrust` times.
   func reconcile(_ listing: PutioTrashPage, startsListing: Bool) -> PutioTrashPage {
     if startsListing {
       seenSinceFirstPage.removeAll()
@@ -65,10 +77,7 @@ final class PutioTrashReconciliation {
     if let emptiedThrough, listing.items.contains(where: { $0.deletedAt <= emptiedThrough }) {
       sawEmptiedItemSinceFirstPage = true
     }
-    if listing.nextCursor == nil {
-      removals = removals.intersection(seenSinceFirstPage)
-      if !sawEmptiedItemSinceFirstPage { emptiedThrough = nil }
-    }
+    if listing.nextCursor == nil { settleCompleteListing() }
     guard survivors.count != listing.items.count else { return listing }
     // totalCount and sizeBytes are server aggregates, not row sums.
     return PutioTrashPage(
@@ -77,6 +86,24 @@ final class PutioTrashReconciliation {
       totalCount: listing.totalCount,
       sizeBytes: listing.sizeBytes
     )
+  }
+
+  private func settleCompleteListing() {
+    for (removal, listings) in removals {
+      guard seenSinceFirstPage.contains(removal) else {
+        removals[removal] = nil
+        continue
+      }
+      let reported = listings + 1
+      removals[removal] = reported < Self.consistentListingsBeforeTrust ? reported : nil
+    }
+    guard emptiedThrough != nil else { return }
+    if !sawEmptiedItemSinceFirstPage {
+      emptiedThrough = nil
+    } else {
+      emptiedListings += 1
+      if emptiedListings >= Self.consistentListingsBeforeTrust { emptiedThrough = nil }
+    }
   }
 }
 
@@ -321,12 +348,11 @@ final class PutioTrashModel {
 
   func empty() async {
     await mutate(.empty) {
-      // Emptying deletes every row, loaded or not. The cutoff must cover the
-      // newest deletion on the server, so walk the remaining pages first;
-      // if that fails the mutation still proceeds with the best-known bound.
-      let known = await allKnownItemsBeforeEmptying()
       let result = try await actions.empty()
-      reconciliation.recordEmptied(known: known)
+      // Everything trashed up to now is gone; a lagging refresh must not
+      // bring the loaded rows back. The bound in the reconciliation heals
+      // anything this cutoff misjudges.
+      reconciliation.recordEmptied(loaded: page?.items ?? [])
       state = .loaded(
         PutioTrashPage(items: [], nextCursor: nil, totalCount: 0, sizeBytes: 0)
       )
@@ -334,20 +360,6 @@ final class PutioTrashModel {
       paginationFailure = nil
       mutationOutcome = .emptied(storageRefreshed: result.storageRefreshed)
     }
-  }
-
-  private func allKnownItemsBeforeEmptying() async -> [PutioTrashItem] {
-    guard let currentPage = page else { return [] }
-    var items = currentPage.items
-    var cursor = currentPage.nextCursor
-    var pagesWalked = 0
-    while let next = cursor, pagesWalked < 50 {
-      guard let more = try? await actions.load(next) else { break }
-      items += more.items
-      cursor = more.nextCursor
-      pagesWalked += 1
-    }
-    return items
   }
 
   private func reloadStaleStorage() async {
