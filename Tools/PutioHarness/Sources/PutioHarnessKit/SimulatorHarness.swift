@@ -1262,7 +1262,7 @@ public struct SimulatorHarness {
     let owners = devices.devices.values.flatMap { $0 }.filter { $0.name == name }
     guard owners.isEmpty else {
       throw HarnessFailure(
-        "Simulator \(name) already exists (\(owners.map(\.udid).joined(separator: ", "))); choose a run ID whose first 24 characters are unique"
+        "Simulator \(name) already exists (\(owners.map(\.udid).joined(separator: ", "))); a previous run left it behind. Delete it with xcrun simctl delete <udid>, then retry"
       )
     }
   }

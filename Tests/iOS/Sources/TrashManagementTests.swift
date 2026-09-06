@@ -15,7 +15,6 @@ private final class SuspendedTrashRefresh {
   }
 
   func load(cursor: String?) async throws -> PutioTrashPage {
-    XCTAssertNil(cursor)
     requestCount += 1
     if requestCount == 1 { return initialPage }
     return try await withCheckedThrowingContinuation { continuation = $0 }
@@ -482,6 +481,8 @@ final class TrashManagementTests: XCTestCase {
     let stub = TrashActionsStub(
       pages: [
         .success(page(items: [a], cursor: "n1", totalCount: 2)),
+        // The pre-empty walk of the remaining page fails; the loaded rows bound the cutoff.
+        .failure(.transient),
         .success(page(items: [a, unloaded], totalCount: 2)),
         .success(page(items: [later], totalCount: 1)),
         .success(page(items: [], totalCount: 0)),
@@ -536,14 +537,11 @@ final class TrashManagementTests: XCTestCase {
   func testRestoreCancelledDuringDestinationLookupStillReconciles() async {
     let item = trashItem(id: 91, name: "Restored.mkv")
     var destinations: [PutioFileID?] = []
-    let model = PutioTrashModel(
-      actions: PutioTrashActions(
-        load: { _ in self.page(items: [item], totalCount: 1) },
-        restore: { _ in throw CancellationError() },
-        permanentlyDelete: { _ in .refreshed },
-        empty: { .refreshed }
-      )
-    ) { destinations.append($0) }
+    let stub = TrashActionsStub(
+      pages: [.success(page(items: [item], totalCount: 1))],
+      restoreResults: [.success(.restoredLookupCancelled)]
+    )
+    let model = model(stub) { destinations.append($0) }
 
     await model.loadIfNeeded()
     await model.restore(item)
@@ -551,6 +549,81 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(model.page?.items, [])
     XCTAssertEqual(destinations, [nil], "a committed restore still refreshes the browser")
     XCTAssertEqual(model.mutationOutcome, .restored(item))
+  }
+
+  func testRestoreCancelledBeforeCommitLeavesTheItemAlone() async {
+    let item = trashItem(id: 91, name: "Restored.mkv")
+    var destinations: [PutioFileID?] = []
+    let shared = PutioTrashReconciliation()
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { _ in self.page(items: [item], totalCount: 1) },
+        restore: { _ in throw CancellationError() },
+        permanentlyDelete: { _ in .refreshed },
+        empty: { .refreshed }
+      ),
+      reconciliation: shared
+    ) { destinations.append($0) }
+
+    await model.loadIfNeeded()
+    await model.restore(item)
+
+    XCTAssertEqual(model.page?.items, [item], "an uncommitted restore removes nothing")
+    XCTAssertTrue(destinations.isEmpty)
+    XCTAssertNil(model.mutationOutcome)
+    XCTAssertFalse(shared.isRemoved(item), "no tombstone for an uncommitted restore")
+  }
+
+  func testRestoreNotifiesTheBrowserBeforeRepairingPagination() async {
+    let item = trashItem(id: 91, name: "Restored.mkv")
+    let loader = SuspendedTrashRefresh(
+      initialPage: page(items: [item], cursor: "next", totalCount: 2))
+    var destinations: [PutioFileID?] = []
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { try await loader.load(cursor: $0) },
+        restore: { _ in .restored(destinationID: PutioFileID(rawValue: 7)) },
+        permanentlyDelete: { _ in .refreshed },
+        empty: { .refreshed }
+      )
+    ) { destinations.append($0) }
+
+    await model.loadIfNeeded()
+    let restore = Task { await model.restore(item) }
+    await waitUntil("the pagination repair started") { loader.requestCount >= 2 }
+
+    XCTAssertEqual(destinations, [PutioFileID(rawValue: 7)], "browser refresh is not blocked")
+    loader.fail(with: PutioRuntimeError.transient)
+    await restore.value
+    XCTAssertEqual(model.mutationOutcome, .restored(item))
+  }
+
+  func testEmptyingWalksRemainingPagesToBoundTheCutoff() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let newerUnloaded = trashItem(
+      id: 92, name: "B.pdf", kind: .pdf, deletedAt: Date(timeIntervalSince1970: 1_756_809_600))
+    let stub = TrashActionsStub(
+      pages: [
+        .success(page(items: [a], cursor: "n1", totalCount: 2)),
+        // The pre-empty walk reaches the unloaded newer row.
+        .success(page(items: [newerUnloaded], totalCount: 2)),
+        // A lagging refresh still lists it.
+        .success(page(items: [newerUnloaded], totalCount: 1)),
+        .success(page(items: [], totalCount: 0)),
+      ],
+      emptyResults: [.success(.refreshed)]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    await model.empty()
+    XCTAssertEqual(stub.loadedCursors, [nil, "n1"], "emptying walks the remaining pages first")
+
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [], "an unloaded row newer than the loaded page stays gone")
+
+    await model.refresh()
+    XCTAssertEqual(model.page, page(items: [], totalCount: 0, sizeBytes: 0))
   }
 
   func testReappearanceRefreshesACachedTrashScreen() async {

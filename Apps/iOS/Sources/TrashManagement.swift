@@ -39,10 +39,11 @@ final class PutioTrashReconciliation {
     removals.insert(Removal(id: item.id, deletedAt: item.deletedAt))
   }
 
-  /// `loaded` are the rows known at emptying. Emptying removes rows never
-  /// loaded too, so the cutoff is the newest known deletion time.
-  func recordEmptied(loaded: [PutioTrashItem]) {
-    guard let newest = loaded.map(\.deletedAt).max() else { return }
+  /// `known` is every row the client could enumerate before emptying, which
+  /// the model walks to the last page. The cutoff is the newest of those
+  /// deletion times; an empty Trash has nothing to protect.
+  func recordEmptied(known: [PutioTrashItem]) {
+    guard let newest = known.map(\.deletedAt).max() else { return }
     emptiedThrough = max(emptiedThrough ?? .distantPast, newest)
   }
 
@@ -295,24 +296,17 @@ final class PutioTrashModel {
 
   func restore(_ item: PutioTrashItem) async {
     await mutate(.restore(item)) {
-      let result: PutioTrashRestoreResult
-      do {
-        result = try await actions.restore(item.id)
-      } catch is CancellationError {
-        // The runtime only throws cancellation after the restore committed;
-        // the row is gone and the browser needs the broad reconciliation.
-        await remove(item)
-        onRestored(nil)
-        mutationOutcome = .restored(item)
-        return
-      }
-      await remove(item)
+      // Any result means the restore committed; a throw means it did not.
+      let result = try await actions.restore(item.id)
+      // Tell the browser first: the pagination repair below is best effort
+      // and must not delay the restored file appearing in Files.
       switch result {
       case .restored(let destinationID):
         onRestored(destinationID)
-      case .restoredDestinationUnknown:
+      case .restoredDestinationUnknown, .restoredLookupCancelled:
         onRestored(nil)
       }
+      await remove(item)
       mutationOutcome = .restored(item)
     }
   }
@@ -327,10 +321,12 @@ final class PutioTrashModel {
 
   func empty() async {
     await mutate(.empty) {
+      // Emptying deletes every row, loaded or not. The cutoff must cover the
+      // newest deletion on the server, so walk the remaining pages first;
+      // if that fails the mutation still proceeds with the best-known bound.
+      let known = await allKnownItemsBeforeEmptying()
       let result = try await actions.empty()
-      // Everything trashed up to now is gone, including rows never loaded;
-      // a lagging refresh must not bring any of it back.
-      reconciliation.recordEmptied(loaded: page?.items ?? [])
+      reconciliation.recordEmptied(known: known)
       state = .loaded(
         PutioTrashPage(items: [], nextCursor: nil, totalCount: 0, sizeBytes: 0)
       )
@@ -338,6 +334,20 @@ final class PutioTrashModel {
       paginationFailure = nil
       mutationOutcome = .emptied(storageRefreshed: result.storageRefreshed)
     }
+  }
+
+  private func allKnownItemsBeforeEmptying() async -> [PutioTrashItem] {
+    guard let currentPage = page else { return [] }
+    var items = currentPage.items
+    var cursor = currentPage.nextCursor
+    var pagesWalked = 0
+    while let next = cursor, pagesWalked < 50 {
+      guard let more = try? await actions.load(next) else { break }
+      items += more.items
+      cursor = more.nextCursor
+      pagesWalked += 1
+    }
+    return items
   }
 
   private func reloadStaleStorage() async {

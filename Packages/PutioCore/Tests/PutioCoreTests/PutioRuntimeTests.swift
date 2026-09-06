@@ -663,12 +663,30 @@ final class PutioRuntimeTests: XCTestCase {
     restore.cancel()
     RuntimeMockURLProtocol.releaseFixture(for: Self.restoredTrashFileRoute)
 
+    let result = try await restore.value
+    XCTAssertEqual(result, .restoredLookupCancelled, "the restore itself is committed")
+  }
+
+  func testRestoreCancelledBeforeCommitThrows() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.gateFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
+
+    let restore = Task { try await runtime.restoreTrashItem(fileID: PutioFileID(rawValue: 91)) }
+    guard await waitForRequest(Self.trashRestoreRoute) else {
+      restore.cancel()
+      RuntimeMockURLProtocol.releaseFixture(for: Self.trashRestoreRoute)
+      return XCTFail("the restore request did not start")
+    }
+    restore.cancel()
+    RuntimeMockURLProtocol.releaseFixture(for: Self.trashRestoreRoute)
+
     do {
       let result = try await restore.value
-      XCTFail("expected cancellation, got \(result)")
-    } catch is CancellationError {
+      XCTFail("expected an error before commit, got \(result)")
     } catch {
-      XCTFail("expected CancellationError, got \(error)")
+      XCTAssertTrue(
+        error is CancellationError || (error as? URLError)?.code == .cancelled,
+        "unexpected error \(error)")
     }
   }
 

@@ -153,9 +153,14 @@ public struct PutioTrashPage: Equatable, Sendable {
   }
 }
 
+/// Every case means the restore committed; only the destination lookup that
+/// follows can fail or be cancelled.
 public enum PutioTrashRestoreResult: Equatable, Sendable {
   case restored(destinationID: PutioFileID)
   case restoredDestinationUnknown
+  /// The caller was cancelled after the restore committed; the destination
+  /// was never requested to completion.
+  case restoredLookupCancelled
 }
 
 /// Outcome of a committed destructive Trash mutation. `storageRefreshed` is

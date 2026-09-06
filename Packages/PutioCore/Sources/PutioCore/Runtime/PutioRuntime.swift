@@ -101,9 +101,9 @@ public final class PutioRuntime {
       }
       return .restored(destinationID: snapshot(restoredFile).parentID)
     } catch is CancellationError {
-      // The restore is committed; the caller decides how to reconcile a
-      // cancelled lookup rather than being told the destination is unknown.
-      throw CancellationError()
+      // The restore is committed. Reporting that as a distinct result lets
+      // the caller reconcile without mistaking it for a pre-commit cancel.
+      return .restoredLookupCancelled
     } catch {
       return .restoredDestinationUnknown
     }
