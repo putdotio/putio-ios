@@ -47,6 +47,11 @@ struct PutioTrashErrorPresentation: Equatable, Sendable {
   let title: String
   let message: String
 
+  init(title: String, message: String) {
+    self.title = title
+    self.message = message
+  }
+
   init?(title: String, error: Error) {
     self.title = title
     switch error as? PutioRuntimeError {
@@ -98,8 +103,16 @@ final class PutioTrashModel {
   private(set) var paginationFailure: PutioTrashErrorPresentation?
   private(set) var refreshFailure: PutioTrashErrorPresentation?
   /// Set when a committed deletion could not reload account storage. Cleared
-  /// once a Trash refresh reloads it.
+  /// once a storage retry or a later mutation reloads it.
   private(set) var isStorageStale = false
+  /// Visible while `isStorageStale`; the retry only reloads account storage.
+  var storageFailure: PutioTrashErrorPresentation? {
+    guard isStorageStale else { return nil }
+    return PutioTrashErrorPresentation(
+      title: "Storage totals are out of date",
+      message: "Account storage could not be updated after the last deletion."
+    )
+  }
 
   @ObservationIgnored private let actions: PutioTrashActions
   @ObservationIgnored private let onRestored: PutioTrashDidRestore
@@ -136,6 +149,13 @@ final class PutioTrashModel {
 
   func refresh() async {
     await load()
+  }
+
+  /// Retries only the account storage snapshot after a committed deletion
+  /// could not reload it.
+  func retryStorageRefresh() async {
+    guard !isRefreshing, activeMutation == nil else { return }
+    await reloadStaleStorage()
   }
 
   func loadMore() async {
@@ -177,7 +197,7 @@ final class PutioTrashModel {
   func restore(_ item: PutioTrashItem) async {
     await mutate(.restore(item)) {
       let result = try await actions.restore(item.id)
-      remove(item.id)
+      await remove(item.id)
       switch result {
       case .restored(let destinationID):
         onRestored(destinationID)
@@ -191,7 +211,7 @@ final class PutioTrashModel {
   func permanentlyDelete(_ item: PutioTrashItem) async {
     await mutate(.permanentlyDelete(item)) {
       let result = try await actions.permanentlyDelete(item.id)
-      remove(item.id)
+      await remove(item.id)
       recordStorageRefresh(result)
       mutationOutcome = .permanentlyDeleted(item, storageRefreshed: result.storageRefreshed)
     }
@@ -210,8 +230,14 @@ final class PutioTrashModel {
     }
   }
 
+  private func reloadStaleStorage() async {
+    guard isStorageStale else { return }
+    if await actions.refreshStorage() { isStorageStale = false }
+  }
+
   private func recordStorageRefresh(_ result: PutioTrashMutationResult) {
-    if !result.storageRefreshed { isStorageStale = true }
+    // The latest successful refresh reflects every earlier deletion too.
+    isStorageStale = !result.storageRefreshed
   }
 
   func clearMutationOutcome() {
@@ -229,9 +255,7 @@ final class PutioTrashModel {
     paginationFailure = nil
     refreshFailure = nil
     do {
-      if isStorageStale, await actions.refreshStorage() {
-        isStorageStale = false
-      }
+      await reloadStaleStorage()
       let loadedPage = try await actions.load(nil)
       state = .loaded(loadedPage)
       hasLoaded = true
@@ -276,7 +300,9 @@ final class PutioTrashModel {
     }
   }
 
-  private func remove(_ id: PutioFileID) {
+  // Removes the row locally, then replaces the page when a continuation was
+  // pending: the pre-mutation cursor is opaque and may skip or resurrect rows.
+  private func remove(_ id: PutioFileID) async {
     guard let currentPage = page else { return }
     let removedSize = currentPage.items.first { $0.id == id }?.sizeBytes ?? 0
     let items = currentPage.items.filter { $0.id != id }
@@ -288,6 +314,26 @@ final class PutioTrashModel {
         sizeBytes: max(0, currentPage.sizeBytes - removedSize)
       )
     )
+    guard currentPage.nextCursor != nil else { return }
+    do {
+      let reloaded = try await actions.load(nil)
+      state = .loaded(reloaded)
+    } catch {
+      // The mutation is committed; keep the local page and drop the stale
+      // cursor so Load More cannot replay it. Pull to refresh recovers.
+      state = .loaded(
+        PutioTrashPage(
+          items: items,
+          nextCursor: nil,
+          totalCount: currentPage.totalCount.map { max(0, $0 - 1) },
+          sizeBytes: max(0, currentPage.sizeBytes - removedSize)
+        )
+      )
+      if !(error is CancellationError) {
+        refreshFailure = PutioTrashErrorPresentation(
+          title: "Could not refresh Trash", error: error)
+      }
+    }
   }
 
   private func failureTitle(for mutation: PutioTrashMutation) -> String {
@@ -403,7 +449,9 @@ struct TrashManagementView: View {
 
   @ViewBuilder
   private func loadedContent(_ page: PutioTrashPage) -> some View {
-    if page.items.isEmpty && page.nextCursor == nil && model.refreshFailure == nil {
+    if page.items.isEmpty && page.nextCursor == nil && model.refreshFailure == nil
+      && model.storageFailure == nil
+    {
       ScrollView {
         PutioEmptyStateView(
           icon: .trash,
@@ -426,6 +474,7 @@ struct TrashManagementView: View {
             }
           }
         }
+        storageFailureSection
         ForEach(page.items) { item in
           HStack {
             PutioFileRow(rowModel(for: item), showsFolderDisclosure: false)
@@ -497,6 +546,22 @@ struct TrashManagementView: View {
     return "Delete “\(pendingDeletion.name)” permanently?"
   }
 
+  @ViewBuilder
+  private var storageFailureSection: some View {
+    if let failure = model.storageFailure {
+      Section {
+        PutioErrorStateView(
+          title: failure.title,
+          message: failure.message,
+          retryTitle: "Update storage"
+        ) {
+          Task { await model.retryStorageRefresh() }
+        }
+        .accessibilityIdentifier("trash.storage-retry")
+      }
+    }
+  }
+
   private func rowModel(for item: PutioTrashItem) -> PutioFileRowModel {
     PutioFileRowModel(
       name: item.name,
@@ -516,7 +581,7 @@ struct TrashManagementView: View {
   }
 
   private static let staleStorageMessage =
-    "Storage totals could not be updated. Pull to refresh Trash to retry."
+    "Storage totals could not be updated. Use Update storage to retry."
 
   private func present(_ outcome: PutioTrashMutationOutcome?) {
     guard let outcome else { return }

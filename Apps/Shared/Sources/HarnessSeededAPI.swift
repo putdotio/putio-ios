@@ -138,7 +138,10 @@ import Foundation
       if Self.shouldDelayBulkDeleteResponse(replayableRequest) {
         DispatchQueue.global().asyncAfter(deadline: .now() + 8, execute: deliverResponse)
       } else if url.path == "/v2/trash/restore" {
-        DispatchQueue.global().asyncAfter(deadline: .now() + 8, execute: deliverResponse)
+        // Long enough for the journey to observe the in-flight progress overlay
+        // and leave the screen, short enough that the destination refresh has
+        // margin inside the journey's wait.
+        DispatchQueue.global().asyncAfter(deadline: .now() + 3, execute: deliverResponse)
       } else if statusCode == 503, url.path == "/v2/files/rename" {
         DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
       } else {

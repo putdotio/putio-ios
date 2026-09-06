@@ -258,10 +258,12 @@ final class TrashManagementTests: XCTestCase {
     }
   }
 
-  func testRemovingLoadedPrefixKeepsContinuationAndEmptyTrashFeedback() async {
+  func testRemovingWithPendingContinuationReloadsInsteadOfReusingTheCursor() async {
     let item = trashItem(id: 91, name: "First.pdf", kind: .pdf)
+    let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)
+    let reloaded = page(items: [second], cursor: "fresh", totalCount: 1)
     let stub = TrashActionsStub(
-      pages: [.success(page(items: [item], cursor: "next", totalCount: 2))],
+      pages: [.success(page(items: [item], cursor: "next", totalCount: 2)), .success(reloaded)],
       deleteResults: [.success(.refreshed)],
       emptyResults: [.success(.refreshed)]
     )
@@ -270,9 +272,9 @@ final class TrashManagementTests: XCTestCase {
     await model.loadIfNeeded()
     await model.permanentlyDelete(item)
 
-    XCTAssertEqual(model.page?.items, [])
-    XCTAssertEqual(model.page?.nextCursor, "next")
-    XCTAssertEqual(model.page?.totalCount, 1)
+    XCTAssertEqual(stub.loadedCursors, [nil, nil], "the pre-mutation cursor must not be replayed")
+    XCTAssertEqual(model.page, reloaded)
+    XCTAssertEqual(model.mutationOutcome, .permanentlyDeleted(item))
 
     await model.empty()
 
@@ -343,6 +345,89 @@ final class TrashManagementTests: XCTestCase {
 
     await model.refresh()
     XCTAssertEqual(stub.storageRefreshRequests, 2, "refresh stops retrying once storage is current")
+  }
+
+  func testRemovingWithPendingContinuationDropsTheCursorWhenReloadFails() async {
+    let item = trashItem(id: 91, name: "First.pdf", kind: .pdf)
+    let stub = TrashActionsStub(
+      pages: [.success(page(items: [item], cursor: "next", totalCount: 2)), .failure(.transient)],
+      deleteResults: [.success(.refreshed)]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    await model.permanentlyDelete(item)
+
+    XCTAssertEqual(model.page?.items, [])
+    XCTAssertNil(model.page?.nextCursor)
+    XCTAssertEqual(model.page?.totalCount, 1)
+    XCTAssertEqual(model.refreshFailure?.title, "Could not refresh Trash")
+    XCTAssertEqual(model.mutationOutcome, .permanentlyDeleted(item))
+
+    await model.loadMore()
+    XCTAssertEqual(stub.loadedCursors, [nil, nil], "a dropped cursor cannot be loaded")
+  }
+
+  func testRemovingWithoutContinuationDoesNotReload() async {
+    let item = trashItem(id: 91, name: "Only.pdf", kind: .pdf)
+    let stub = TrashActionsStub(
+      pages: [.success(page(items: [item], totalCount: 1))],
+      deleteResults: [.success(.refreshed)]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    await model.permanentlyDelete(item)
+
+    XCTAssertEqual(stub.loadedCursors, [nil])
+    XCTAssertEqual(model.page, page(items: [], totalCount: 0, sizeBytes: 0))
+  }
+
+  func testStorageRetryIsVisibleUntilItSucceedsAndLaterRefreshClearsIt() async {
+    let first = trashItem(id: 91, name: "First.pdf", kind: .pdf)
+    let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)
+    let stub = TrashActionsStub(
+      pages: [.success(page(items: [first, second], totalCount: 2))],
+      deleteResults: [.success(.storageStale), .success(.refreshed)],
+      storageRefreshResults: [false, true]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    await model.permanentlyDelete(first)
+    XCTAssertEqual(model.storageFailure?.title, "Storage totals are out of date")
+
+    await model.retryStorageRefresh()
+    XCTAssertEqual(stub.storageRefreshRequests, 1)
+    XCTAssertNotNil(model.storageFailure, "a failed retry stays visible")
+
+    await model.retryStorageRefresh()
+    XCTAssertEqual(stub.storageRefreshRequests, 2)
+    XCTAssertNil(model.storageFailure)
+
+    await model.retryStorageRefresh()
+    XCTAssertEqual(stub.storageRefreshRequests, 2, "no retry once storage is current")
+  }
+
+  func testLaterSuccessfulMutationClearsStaleStorage() async {
+    let first = trashItem(id: 91, name: "First.pdf", kind: .pdf)
+    let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)
+    let stub = TrashActionsStub(
+      pages: [.success(page(items: [first, second], totalCount: 2))],
+      deleteResults: [.success(.storageStale), .success(.refreshed)]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    await model.permanentlyDelete(first)
+    XCTAssertTrue(model.isStorageStale)
+
+    await model.permanentlyDelete(second)
+    XCTAssertFalse(model.isStorageStale, "the latest snapshot covers earlier deletions")
+    XCTAssertEqual(model.mutationOutcome, .permanentlyDeleted(second))
+
+    await model.refresh()
+    XCTAssertEqual(stub.storageRefreshRequests, 0)
   }
 
   func testEmptyingWithStaleStorageReportsIt() async {

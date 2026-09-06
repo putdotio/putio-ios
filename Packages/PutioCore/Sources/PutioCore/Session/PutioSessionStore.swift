@@ -41,6 +41,9 @@ public struct PutioSignInRequest: Sendable {
 public final class PutioSessionStore {
   public private(set) var state: PutioSessionState = .unknown
   private(set) var authenticationGeneration: UInt64 = 0
+  // Orders overlapping account refreshes inside one session so a slow older
+  // response cannot overwrite a newer snapshot.
+  private var accountRefreshSequence: UInt64 = 0
 
   private let sdk: PutioSDK
   private let tokenStore: PutioTokenStore
@@ -242,11 +245,15 @@ public final class PutioSessionStore {
   func refreshAccount() async -> Bool {
     guard case .signedIn = state else { return false }
     let generation = authenticationGeneration
+    accountRefreshSequence &+= 1
+    let sequence = accountRefreshSequence
     do {
       let account = try await sdk.getAccountInfo()
       guard generation == authenticationGeneration, !Task.isCancelled,
         case .signedIn = state
       else { return false }
+      // A newer refresh already applied or will apply a fresher snapshot.
+      guard sequence == accountRefreshSequence else { return true }
       state = .signedIn(snapshot(account))
       return true
     } catch {

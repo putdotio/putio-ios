@@ -698,6 +698,37 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(account.storage.usedBytes, 5)
   }
 
+  func testOlderAccountRefreshCannotOverwriteANewerSnapshotInTheSameSession() async throws {
+    let route = "GET /v2/account/info"
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.gateFixture(
+      Self.accountInfo.replacingOccurrences(of: "\"used\": 20", with: "\"used\": 99"),
+      for: route
+    )
+    let older = Task { await runtime.refreshAccountStorage() }
+    guard await waitForRequest(route, count: 2) else {
+      older.cancel()
+      RuntimeMockURLProtocol.releaseFixture(for: route)
+      return XCTFail("the gated account refresh did not start")
+    }
+
+    RuntimeMockURLProtocol.setFixture(
+      Self.accountInfo.replacingOccurrences(of: "\"used\": 20", with: "\"used\": 5"),
+      for: route
+    )
+    let newer = await runtime.refreshAccountStorage()
+    XCTAssertTrue(newer)
+
+    RuntimeMockURLProtocol.releaseFixture(for: route)
+    let olderResult = await older.value
+    XCTAssertTrue(olderResult, "the older refresh still succeeded for its caller")
+
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("expected a signed-in account")
+    }
+    XCTAssertEqual(account.storage.usedBytes, 5, "the slower older response must not win")
+  }
+
   func testTrashAccountRefreshAuthFailureExpiresSessionWithoutFailingMutation() async throws {
     let (runtime, tokenStore) = await makeSignedInRuntime()
     RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
