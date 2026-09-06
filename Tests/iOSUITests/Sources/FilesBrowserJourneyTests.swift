@@ -288,6 +288,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.buttons["Account"].tap()
     let trashEntry = element(identifier: "account.trash")
     XCTAssertTrue(waitUntilHittable(trashEntry, timeout: 5))
+    let usedStorage = element(identifier: "account.storage-used")
+    XCTAssertTrue(usedStorage.waitForExistence(timeout: 5))
+    let usedBeforeDeletions = usedStorage.label
     trashEntry.tap()
 
     let restoreRow = app.staticTexts["Restore Me"]
@@ -373,6 +376,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     addScreenshot(named: "runtime-trash-empty")
 
     app.navigationBars.buttons.element(boundBy: 0).tap()
+    XCTAssertTrue(usedStorage.waitForExistence(timeout: 5))
+    let storageChanged = expectation(
+      for: NSPredicate(format: "label != %@", usedBeforeDeletions), evaluatedWith: usedStorage)
+    wait(for: [storageChanged], timeout: 5)
+    XCTAssertNotEqual(
+      usedStorage.label, usedBeforeDeletions, "emptying Trash did not change account storage")
     let signOut = element(identifier: "auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()

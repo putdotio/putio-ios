@@ -544,6 +544,7 @@ private struct AccountView: View {
         }
         Section("Storage") {
           LabeledContent("Used", value: byteText(account.storage.usedBytes))
+            .accessibilityIdentifier("account.storage-used")
           LabeledContent("Available", value: byteText(account.storage.availableBytes))
           LabeledContent("Total", value: byteText(account.storage.totalBytes))
           if runtime.session.isAccountStorageStale {

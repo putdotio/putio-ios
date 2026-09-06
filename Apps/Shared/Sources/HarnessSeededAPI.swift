@@ -56,6 +56,11 @@ import Foundation
     nonisolated(unsafe) private static var trashDeleteFailureDelivered = false
     nonisolated(unsafe) private static var trashListRequests = 0
     nonisolated(unsafe) private static var trashEmptyRefreshFailed = false
+    // Bytes freed by permanent deletions; account storage reflects them.
+    nonisolated(unsafe) private static var trashFreedBytes: Int64 = 0
+    private static let trashFolderBytes: Int64 = 1_073_741_824
+    private static let diskTotalBytes: Int64 = 1_099_511_627_776
+    private static let diskUsedBytes: Int64 = 30_617_800_704
     private static let playbackPositionLock = NSLock()
     private static let conversionLock = NSLock()
     private static let fileActionsLock = NSLock()
@@ -100,6 +105,7 @@ import Foundation
       trashDeleteFailureDelivered = false
       trashListRequests = 0
       trashEmptyRefreshFailed = false
+      trashFreedBytes = 0
       fileActionsLock.unlock()
     }
 
@@ -543,7 +549,7 @@ import Foundation
         {
           "cursor": "\(cursor)",
           "total": \(folders.count),
-          "trash_size": \(folders.count * 2048),
+          "trash_size": \(Int64(folders.count) * trashFolderBytes),
           "files": [\(rows.joined(separator: ","))]
         }
         """
@@ -579,7 +585,7 @@ import Foundation
         {
           "cursor": "",
           "total": \(folders.count),
-          "trash_size": \(folders.count * 2048),
+          "trash_size": \(Int64(folders.count) * trashFolderBytes),
           "files": [\(rows.joined(separator: ","))]
         }
         """
@@ -630,12 +636,14 @@ import Foundation
         )
       }
       trashFolders.removeValue(forKey: fileID)
+      trashFreedBytes += trashFolderBytes
       fileActionsLock.unlock()
       return (200, #"{"status":"OK"}"#)
     }
 
     private static func emptyTrash() -> (Int, String) {
       fileActionsLock.lock()
+      trashFreedBytes += Int64(trashFolders.count) * trashFolderBytes
       trashFolders = [:]
       fileActionsLock.unlock()
       return (200, #"{"status":"OK"}"#)
@@ -695,7 +703,7 @@ import Foundation
         "name": \(jsonString(folder.name)),
         "file_type": "FOLDER",
         "parent_id": \(folder.parentID),
-        "size": 2048,
+        "size": \(trashFolderBytes),
         "created_at": "2026-08-28T10:00:00Z",
         "deleted_at": "2026-09-02T10:00:00Z",
         "expiration_date": "2026-10-02T10:00:00Z"
@@ -791,40 +799,43 @@ import Foundation
     }
 
     private static var accountInfo: String {
-      """
-      {
-        "info": {
-          "user_id": 1001,
-          "username": "moviebuff",
-          "mail": "harness@example.com",
-          "avatar_url": "https://static.put.io/e2e-avatar.png",
-          "user_hash": "harness-hash",
-          "features": {},
-          "download_token": "harness-download-token",
-          "trash_size": 189792256,
-          "account_active": true,
-          "files_will_be_deleted_at": "",
-          "password_last_changed_at": "",
-          "disk": {
-            "avail": 1068893827072,
-            "size": 1099511627776,
-            "used": 30617800704
-          },
-          "settings": {
-            "tunnel_route_name": "default",
-            "next_episode": true,
-            "start_from": true,
-            "history_enabled": true,
-            "trash_enabled": \(trashEnabled),
-            "sort_by": "NAME_ASC",
-            "show_optimistic_usage": false,
-            "two_factor_enabled": false,
-            "hide_subtitles": false,
-            "dont_autoselect_subtitles": false
+      let (usedBytes, trashSizeBytes) = fileActionsLock.withLock {
+        (diskUsedBytes - trashFreedBytes, Int64(trashFolders.count) * trashFolderBytes)
+      }
+      return """
+        {
+          "info": {
+            "user_id": 1001,
+            "username": "moviebuff",
+            "mail": "harness@example.com",
+            "avatar_url": "https://static.put.io/e2e-avatar.png",
+            "user_hash": "harness-hash",
+            "features": {},
+            "download_token": "harness-download-token",
+            "trash_size": \(trashSizeBytes),
+            "account_active": true,
+            "files_will_be_deleted_at": "",
+            "password_last_changed_at": "",
+            "disk": {
+              "avail": \(diskTotalBytes - usedBytes),
+              "size": \(diskTotalBytes),
+              "used": \(usedBytes)
+            },
+            "settings": {
+              "tunnel_route_name": "default",
+              "next_episode": true,
+              "start_from": true,
+              "history_enabled": true,
+              "trash_enabled": \(trashEnabled),
+              "sort_by": "NAME_ASC",
+              "show_optimistic_usage": false,
+              "two_factor_enabled": false,
+              "hide_subtitles": false,
+              "dont_autoselect_subtitles": false
+            }
           }
         }
-      }
-      """
+        """
     }
 
     private static var rootFiles: String {

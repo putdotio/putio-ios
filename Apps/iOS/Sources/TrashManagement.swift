@@ -136,6 +136,11 @@ final class PutioTrashModel {
   // contains the item, which is the server confirming the removal.
   @ObservationIgnored private var removedIDs: Set<PutioFileID> = []
   @ObservationIgnored private var seenSinceFirstPage: Set<PutioFileID> = []
+  // Emptying removes rows that were never loaded, so it tombstones by time:
+  // anything trashed at or before this instant is gone. Released once a
+  // complete listing contains no such item.
+  @ObservationIgnored private var emptiedThrough: Date?
+  @ObservationIgnored private var sawEmptiedItemSinceFirstPage = false
 
   init(
     actions: PutioTrashActions,
@@ -239,11 +244,10 @@ final class PutioTrashModel {
   func empty() async {
     await mutate(.empty) {
       let result = try await actions.empty()
-      // Everything listed so far is gone; a lagging refresh must not bring
-      // any of it back.
-      if let currentPage = page {
-        removedIDs.formUnion(currentPage.items.map(\.id))
-      }
+      // Everything trashed up to now is gone, including rows never loaded;
+      // a lagging refresh must not bring any of it back.
+      let latestLoaded = page?.items.map(\.deletedAt).max() ?? .distantPast
+      emptiedThrough = max(Date(), latestLoaded)
       state = .loaded(
         PutioTrashPage(items: [], nextCursor: nil, totalCount: 0, sizeBytes: 0)
       )
@@ -377,19 +381,33 @@ final class PutioTrashModel {
   private func excludingRemoved(
     _ listing: PutioTrashPage, startsListing: Bool
   ) -> PutioTrashPage {
-    if startsListing { seenSinceFirstPage.removeAll() }
+    if startsListing {
+      seenSinceFirstPage.removeAll()
+      sawEmptiedItemSinceFirstPage = false
+    }
     seenSinceFirstPage.formUnion(listing.items.map(\.id))
+    let survivors = listing.items.filter { !isTombstoned($0) }
+    if survivors.count != listing.items.count, emptiedThrough != nil {
+      sawEmptiedItemSinceFirstPage = true
+    }
     if listing.nextCursor == nil {
       // The server has now listed everything; anything it omitted is gone.
       removedIDs = removedIDs.intersection(seenSinceFirstPage)
+      if !sawEmptiedItemSinceFirstPage { emptiedThrough = nil }
     }
-    guard listing.items.contains(where: { removedIDs.contains($0.id) }) else { return listing }
+    guard survivors.count != listing.items.count else { return listing }
     return PutioTrashPage(
-      items: listing.items.filter { !removedIDs.contains($0.id) },
+      items: survivors,
       nextCursor: listing.nextCursor,
       totalCount: listing.totalCount,
       sizeBytes: listing.sizeBytes
     )
+  }
+
+  private func isTombstoned(_ item: PutioTrashItem) -> Bool {
+    if removedIDs.contains(item.id) { return true }
+    guard let emptiedThrough else { return false }
+    return item.deletedAt <= emptiedThrough
   }
 
   private func failureTitle(for mutation: PutioTrashMutation) -> String {

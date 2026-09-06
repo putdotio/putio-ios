@@ -238,6 +238,30 @@ private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: Proces
   }
 }
 
+/// One Simulator this run owns. Before `claim`, only the verified-unowned name
+/// identifies it; afterwards cleanup uses the exact UDID.
+private final class OwnedSimulator: @unchecked Sendable {
+  private let name: String
+  private let lock = NSLock()
+  private var identifier: String?
+
+  init(name: String) {
+    self.name = name
+  }
+
+  func claim(_ identifier: String) {
+    lock.withLock { self.identifier = identifier }
+  }
+
+  func cleanup(runner: ProcessRunner) throws {
+    if let identifier = lock.withLock({ identifier }) {
+      try cleanupSimulatorIdentifiers([identifier], runner: runner)
+    } else {
+      try cleanupSimulators(named: [name], runner: runner)
+    }
+  }
+}
+
 private struct SimulatorDeviceList: Decodable {
   let devices: [String: [SimulatorDevice]]
 }
@@ -245,6 +269,15 @@ private struct SimulatorDeviceList: Decodable {
 private struct SimulatorDevice: Decodable {
   let name: String
   let udid: String
+}
+
+private func cleanupSimulators(named names: [String], runner: ProcessRunner) throws {
+  let output = try runner.checked(
+    "xcrun", ["simctl", "list", "devices", "-j"], context: "locate owned Simulators")
+  let devices = try JSONDecoder().decode(SimulatorDeviceList.self, from: Data(output.stdout.utf8))
+  let identifiers = devices.devices.values.flatMap { $0 }.filter { names.contains($0.name) }.map(
+    \.udid)
+  if !identifiers.isEmpty { try cleanupSimulatorIdentifiers(identifiers, runner: runner) }
 }
 
 public final class SimulatorLifecycle: @unchecked Sendable {
@@ -1121,14 +1154,17 @@ public struct SimulatorHarness {
     let deviceName = "putio-harness-\(platform.rawValue)-\(suffix)"
 
     do {
-      // Cleanup targets the exact devices this session creates. Name-based
-      // lookup would let a colliding run ID delete another process's device.
+      // Cleanup targets the exact device this session creates. The name is
+      // only a fallback for a signal that lands before `simctl create`
+      // returns, and it is safe then because the name was verified unowned.
       try requireNoSimulator(named: deviceName)
+      let ownedDevice = OwnedSimulator(name: deviceName)
+      try SimulatorLifecycle.shared.register {
+        try ownedDevice.cleanup(runner: runner)
+      }
       let deviceIdentifier = try createDevice(
         name: deviceName, type: deviceType.identifier, runtime: runtime.identifier)
-      try SimulatorLifecycle.shared.register {
-        try cleanupSimulatorIdentifiers([deviceIdentifier], runner: runner)
-      }
+      ownedDevice.claim(deviceIdentifier)
       var companionIdentifier: String?
       if platform == .watchos {
         guard
@@ -1144,14 +1180,16 @@ public struct SimulatorHarness {
         }
         let phoneName = "putio-harness-watch-companion-\(suffix)"
         try requireNoSimulator(named: phoneName)
+        let ownedPhone = OwnedSimulator(name: phoneName)
+        try SimulatorLifecycle.shared.register {
+          try ownedPhone.cleanup(runner: runner)
+        }
         let phoneIdentifier = try createDevice(
           name: phoneName,
           type: phoneType.identifier,
           runtime: phoneRuntime.identifier
         )
-        try SimulatorLifecycle.shared.register {
-          try cleanupSimulatorIdentifiers([phoneIdentifier], runner: runner)
-        }
+        ownedPhone.claim(phoneIdentifier)
         companionIdentifier = phoneIdentifier
         let pairIdentifier = try runner.checked(
           "xcrun",

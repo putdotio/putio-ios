@@ -472,13 +472,18 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(stub.loadedCursors, [nil, "n1", nil, "f1", nil, nil, nil])
   }
 
-  func testEmptyingTombstonesEveryListedItemAgainstALaggingRefresh() async {
+  func testEmptyingTombstonesUnloadedItemsAgainstALaggingRefresh() async {
     let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
-    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    // Never loaded before emptying, but trashed before it.
+    let unloaded = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    // Trashed after emptying: a genuinely new item that must show up.
+    let later = trashItem(
+      id: 93, name: "C.pdf", kind: .pdf, deletedAt: Date().addingTimeInterval(3_600))
     let stub = TrashActionsStub(
       pages: [
-        .success(page(items: [a, b], totalCount: 2)),
-        .success(page(items: [a, b], totalCount: 2)),
+        .success(page(items: [a], cursor: "n1", totalCount: 2)),
+        .success(page(items: [a, unloaded], totalCount: 2)),
+        .success(page(items: [later], totalCount: 1)),
         .success(page(items: [], totalCount: 0)),
       ],
       emptyResults: [.success(.refreshed)]
@@ -490,7 +495,10 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(model.page?.items, [])
 
     await model.refresh()
-    XCTAssertEqual(model.page?.items, [], "a lagging refresh cannot undo emptying")
+    XCTAssertEqual(model.page?.items, [], "a lagging refresh cannot resurrect unloaded rows")
+
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [later], "items trashed after emptying still appear")
 
     await model.refresh()
     XCTAssertEqual(model.page, page(items: [], totalCount: 0, sizeBytes: 0))
@@ -735,7 +743,8 @@ final class TrashManagementTests: XCTestCase {
     id: Int,
     name: String,
     kind: PutioFileKind = .video,
-    parentID: Int = 7
+    parentID: Int = 7,
+    deletedAt: Date = Date(timeIntervalSince1970: 1_756_723_200)
   ) -> PutioTrashItem {
     PutioTrashItem(
       id: PutioFileID(rawValue: id),
@@ -743,7 +752,7 @@ final class TrashManagementTests: XCTestCase {
       name: name,
       kind: kind,
       sizeBytes: 2_048,
-      deletedAt: Date(timeIntervalSince1970: 1_756_723_200),
+      deletedAt: deletedAt,
       expiresAt: Date(timeIntervalSince1970: 1_759_315_200)
     )
   }
