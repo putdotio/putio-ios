@@ -669,7 +669,9 @@ public struct SimulatorHarness {
           defaultExecutionTimeAllowance: 90,
           maximumExecutionTimeAllowance: 90
         )
-        for screenshot in signOutFailureScreenshots + fileActionsScreenshots + trashManagementScreenshots {
+        let preflightScreenshots =
+          signOutFailureScreenshots + fileActionsScreenshots + trashManagementScreenshots
+        for screenshot in preflightScreenshots {
           _ = try requireMeaningfulScreenshot(screenshot, context: "journey preflight attachment")
         }
         _ = try runJourneyPreflightTest(
@@ -771,8 +773,7 @@ public struct SimulatorHarness {
         try requireCleanSource()
         try requireRevision(sourceRevision)
         let artifactURLs =
-          signOutFailureScreenshots + fileActionsScreenshots + trashManagementScreenshots
-          + screenshots + [recording, summary]
+          preflightScreenshots + screenshots + [recording, summary]
         let manifest = try writeManifest(
           platform: platform,
           command: "journey",
