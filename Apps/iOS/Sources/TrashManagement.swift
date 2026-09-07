@@ -71,6 +71,10 @@ final class PutioTrashReconciliation {
   /// Drops every row a committed mutation has since removed. Used after any
   /// await that captured a page before another screen could mutate.
   func prune(_ page: PutioTrashPage) -> PutioTrashPage {
+    // A committed emptying leaves nothing to page through or aggregate.
+    if isEmptyingPending {
+      return PutioTrashPage(items: [], nextCursor: nil, totalCount: 0, sizeBytes: 0)
+    }
     let survivors = page.items.filter { !isRemoved($0) }
     guard survivors.count != page.items.count else { return page }
     let removedBytes = page.items.filter { isRemoved($0) }.reduce(Int64(0)) { $0 + $1.sizeBytes }
@@ -439,7 +443,9 @@ final class PutioTrashModel {
     guard isStorageStale else { return }
     if isRefreshingStorage {
       // Another load owns the retry; only wait if we are still current.
-      while isRefreshingStorage, generation == loadGeneration { await Task.yield() }
+      while isRefreshingStorage, generation == loadGeneration, !Task.isCancelled {
+        await Task.yield()
+      }
       return
     }
     await reloadStaleStorage()
@@ -551,10 +557,18 @@ final class PutioTrashModel {
     )
     guard currentPage.nextCursor != nil else { return }
     do {
+      let epoch = reconciliation.emptyingEpoch
       let reloaded = try await actions.load(nil)
       reconciliation.abandonListing(listingID)
       listingID = UUID()
-      state = .loaded(reconciliation.reconcile(reloaded, listingID: listingID, startsListing: true))
+      // See load(initial:): a response requested before an emptying never
+      // opens a listing that could settle the emptying cutoff.
+      let startsListing = epoch == reconciliation.emptyingEpoch
+      state = .loaded(
+        reconciliation.reconcile(reloaded, listingID: listingID, startsListing: startsListing))
+      // The fresh listing supersedes any earlier list failure.
+      refreshFailure = nil
+      paginationFailure = nil
     } catch {
       // The mutation is committed; keep the shown page (already pruned of
       // this row and of anything another screen removed meanwhile) and drop
