@@ -36,6 +36,10 @@ final class PutioTrashReconciliation {
   /// Bumped on every committed removal or emptying so a Trash screen that
   /// did not perform the mutation can drop the rows it already shows.
   private(set) var version: UInt64 = 0
+  /// Bumped on every emptying. A first-page request that started under an
+  /// older epoch carries pre-empty rows and must not open a listing that could
+  /// settle the emptying cutoff.
+  @ObservationIgnored private(set) var emptyingEpoch: UInt64 = 0
   /// Complete listings in which each removal has still appeared.
   @ObservationIgnored private(set) var removals: [Removal: Int] = [:]
   /// Set after emptying. Emptying deletes rows on pages never loaded, whose
@@ -60,7 +64,23 @@ final class PutioTrashReconciliation {
     // Only listings started after the emptying may settle the cutoff: a walk
     // begun before it carries pre-empty pages and proves nothing about lag.
     seenByListing.removeAll()
+    emptyingEpoch &+= 1
     version &+= 1
+  }
+
+  /// Drops every row a committed mutation has since removed. Used after any
+  /// await that captured a page before another screen could mutate.
+  func prune(_ page: PutioTrashPage) -> PutioTrashPage {
+    let survivors = page.items.filter { !isRemoved($0) }
+    guard survivors.count != page.items.count else { return page }
+    let removedBytes = page.items.filter { isRemoved($0) }.reduce(Int64(0)) { $0 + $1.sizeBytes }
+    let removedCount = page.items.count - survivors.count
+    return PutioTrashPage(
+      items: survivors,
+      nextCursor: page.nextCursor,
+      totalCount: page.totalCount.map { max(0, $0 - removedCount) },
+      sizeBytes: max(0, page.sizeBytes - removedBytes)
+    )
   }
 
   func isRemoved(_ item: PutioTrashItem) -> Bool {
@@ -288,19 +308,8 @@ final class PutioTrashModel {
   /// original model updates only itself when the mutation commits.
   func applyReconciliation() {
     guard let currentPage = page else { return }
-    let survivors = currentPage.items.filter { !reconciliation.isRemoved($0) }
-    guard survivors.count != currentPage.items.count else { return }
-    let removedBytes = currentPage.items.filter { reconciliation.isRemoved($0) }
-      .reduce(Int64(0)) { $0 + $1.sizeBytes }
-    let removedCount = currentPage.items.count - survivors.count
-    state = .loaded(
-      PutioTrashPage(
-        items: survivors,
-        nextCursor: currentPage.nextCursor,
-        totalCount: currentPage.totalCount.map { max(0, $0 - removedCount) },
-        sizeBytes: max(0, currentPage.sizeBytes - removedBytes)
-      )
-    )
+    let pruned = reconciliation.prune(currentPage)
+    if pruned != currentPage { state = .loaded(pruned) }
   }
 
   func loadIfNeeded() async {
@@ -351,17 +360,20 @@ final class PutioTrashModel {
     defer { isLoadingMore = false }
     do {
       let nextPage = try await actions.load(cursor)
-      let existingIDs = Set(currentPage.items.map(\.id))
+      // Another screen may have pruned this page while the request was in
+      // flight; append onto what is shown now, then prune the merge too.
+      let shownPage = page ?? currentPage
+      let existingIDs = Set(shownPage.items.map(\.id))
       let fresh = reconciliation.reconcile(nextPage, listingID: listingID, startsListing: false)
       let newItems = fresh.items.filter { !existingIDs.contains($0.id) }
       state = .loaded(
-        PutioTrashPage(
-          items: currentPage.items + newItems,
-          nextCursor: fresh.nextCursor,
-          totalCount: fresh.totalCount ?? currentPage.totalCount,
-          sizeBytes: fresh.sizeBytes
-        )
-      )
+        reconciliation.prune(
+          PutioTrashPage(
+            items: shownPage.items + newItems,
+            nextCursor: fresh.nextCursor,
+            totalCount: fresh.totalCount ?? shownPage.totalCount,
+            sizeBytes: fresh.sizeBytes
+          )))
     } catch is CancellationError {
       paginationFailure = previousPaginationFailure
       return
@@ -463,12 +475,17 @@ final class PutioTrashModel {
     do {
       await reloadStaleStorage(for: generation)
       guard generation == loadGeneration else { return }
+      let epoch = reconciliation.emptyingEpoch
       let loadedPage = try await actions.load(nil)
       guard generation == loadGeneration else { return }
       reconciliation.abandonListing(listingID)
       listingID = UUID()
+      // A response requested before an emptying carries pre-empty rows: it is
+      // still filtered, but it never opens a listing that could settle the
+      // emptying cutoff.
+      let startsListing = epoch == reconciliation.emptyingEpoch
       state = .loaded(
-        reconciliation.reconcile(loadedPage, listingID: listingID, startsListing: true))
+        reconciliation.reconcile(loadedPage, listingID: listingID, startsListing: startsListing))
       hasLoaded = true
     } catch is CancellationError {
       guard generation == loadGeneration else { return }
@@ -480,8 +497,9 @@ final class PutioTrashModel {
       return
     } catch {
       guard generation == loadGeneration else { return }
-      if let previousPage {
-        state = .loaded(previousPage)
+      if let shownPage = page ?? previousPage {
+        // The shown page may already reflect another screen's mutation.
+        state = .loaded(reconciliation.prune(shownPage))
         refreshFailure = PutioTrashErrorPresentation(title: "Could not refresh Trash", error: error)
       } else if let failure = PutioTrashErrorPresentation(
         title: "Could not load Trash",
@@ -538,16 +556,19 @@ final class PutioTrashModel {
       listingID = UUID()
       state = .loaded(reconciliation.reconcile(reloaded, listingID: listingID, startsListing: true))
     } catch {
-      // The mutation is committed; keep the local page and drop the stale
-      // cursor so Load More cannot replay it. Pull to refresh recovers.
+      // The mutation is committed; keep the shown page (already pruned of
+      // this row and of anything another screen removed meanwhile) and drop
+      // the stale cursor so Load More cannot replay it. Pull to refresh
+      // recovers.
+      let shownPage = page ?? currentPage
       state = .loaded(
-        PutioTrashPage(
-          items: items,
-          nextCursor: nil,
-          totalCount: currentPage.totalCount.map { max(0, $0 - 1) },
-          sizeBytes: max(0, currentPage.sizeBytes - removedSize)
-        )
-      )
+        reconciliation.prune(
+          PutioTrashPage(
+            items: shownPage.items.filter { $0.id != id },
+            nextCursor: nil,
+            totalCount: shownPage.totalCount,
+            sizeBytes: shownPage.sizeBytes
+          )))
       if !(error is CancellationError) {
         refreshFailure = PutioTrashErrorPresentation(
           title: "Could not refresh Trash", error: error)

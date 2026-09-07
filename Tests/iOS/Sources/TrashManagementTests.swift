@@ -905,7 +905,7 @@ final class TrashManagementTests: XCTestCase {
     await screenA.empty()
 
     await screenB.loadMore()
-    XCTAssertEqual(screenB.page?.items, [a, b], "the continuation is filtered")
+    XCTAssertEqual(screenB.page?.items, [], "the emptied rows already shown are pruned too")
     XCTAssertEqual(shared.pendingListingCount, 0)
     XCTAssertTrue(
       shared.isEmptyingPending, "a pre-empty walk does not count as a consistent listing")
@@ -950,6 +950,154 @@ final class TrashManagementTests: XCTestCase {
     reopened.applyReconciliation()
     XCTAssertEqual(reopened.page?.items, [a], "the reopened screen drops the committed row")
     XCTAssertEqual(reopened.page?.totalCount, 1)
+  }
+
+  /// A model whose listing requests are held open so another screen can
+  /// commit a mutation while this one is suspended.
+  private func heldModel(
+    _ loader: ControlledTrashLoader,
+    reconciliation: PutioTrashReconciliation,
+    deleteResults: [Result<PutioTrashMutationResult, PutioRuntimeError>] = []
+  ) -> PutioTrashModel {
+    let stub = TrashActionsStub(pages: [], deleteResults: deleteResults)
+    return PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { try await loader.load(cursor: $0) },
+        restore: { _ in throw PutioRuntimeError.unknown },
+        permanentlyDelete: { try await stub.permanentlyDelete(fileID: $0) },
+        empty: { .refreshed }
+      ),
+      reconciliation: reconciliation
+    )
+  }
+
+  func testPaginationAppendsOntoThePageAnotherScreenPrunedMeanwhile() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let c = trashItem(id: 93, name: "C.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let loader = ControlledTrashLoader()
+    let held = heldModel(loader, reconciliation: shared)
+    let other = model(
+      TrashActionsStub(
+        pages: [.success(page(items: [a, b, c], totalCount: 3))],
+        deleteResults: [.success(.refreshed)]),
+      reconciliation: shared)
+
+    let firstLoad = Task { await held.loadIfNeeded() }
+    await waitUntil("the first page request") { loader.requestCount == 1 }
+    loader.succeed(request: 0, with: page(items: [a, b], cursor: "n1", totalCount: 3))
+    await firstLoad.value
+
+    let more = Task { await held.loadMore() }
+    await waitUntil("the continuation request") { loader.requestCount == 2 }
+    await other.loadIfNeeded()
+    await other.permanentlyDelete(b)
+    held.applyReconciliation()
+    XCTAssertEqual(held.page?.items, [a])
+
+    loader.succeed(request: 1, with: page(items: [c], totalCount: 3))
+    await more.value
+    XCTAssertEqual(held.page?.items, [a, c], "the continuation must not resurrect b")
+  }
+
+  func testAFailedRefreshKeepsThePageAnotherScreenPrunedMeanwhile() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let loader = ControlledTrashLoader()
+    let held = heldModel(loader, reconciliation: shared)
+    let other = model(
+      TrashActionsStub(
+        pages: [.success(page(items: [a, b], totalCount: 2))],
+        deleteResults: [.success(.refreshed)]),
+      reconciliation: shared)
+
+    let firstLoad = Task { await held.loadIfNeeded() }
+    await waitUntil("the first page request") { loader.requestCount == 1 }
+    loader.succeed(request: 0, with: page(items: [a, b], totalCount: 2))
+    await firstLoad.value
+
+    let refresh = Task { await held.refresh() }
+    await waitUntil("the refresh request") { loader.requestCount == 2 }
+    await other.loadIfNeeded()
+    await other.permanentlyDelete(b)
+    held.applyReconciliation()
+    XCTAssertEqual(held.page?.items, [a])
+
+    loader.fail(request: 1, with: PutioRuntimeError.transient)
+    await refresh.value
+    XCTAssertEqual(held.page?.items, [a], "the failure path must not restore b")
+    XCTAssertNotNil(held.refreshFailure)
+  }
+
+  func testAFailedMutationRepairKeepsRowsAnotherScreenRemovedMeanwhile() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let c = trashItem(id: 93, name: "C.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let loader = ControlledTrashLoader()
+    let held = heldModel(loader, reconciliation: shared, deleteResults: [.success(.refreshed)])
+    let other = model(
+      TrashActionsStub(
+        pages: [.success(page(items: [a, b, c], totalCount: 3))],
+        deleteResults: [.success(.refreshed)]),
+      reconciliation: shared)
+
+    let firstLoad = Task { await held.loadIfNeeded() }
+    await waitUntil("the first page request") { loader.requestCount == 1 }
+    loader.succeed(request: 0, with: page(items: [a, b, c], cursor: "n1", totalCount: 3))
+    await firstLoad.value
+
+    // Deleting a with a cursor pending triggers a first-page repair request.
+    let deletion = Task { await held.permanentlyDelete(a) }
+    await waitUntil("the repair request") { loader.requestCount == 2 }
+    await other.loadIfNeeded()
+    await other.permanentlyDelete(b)
+    held.applyReconciliation()
+    XCTAssertEqual(held.page?.items, [c])
+
+    loader.fail(request: 1, with: PutioRuntimeError.transient)
+    await deletion.value
+    XCTAssertEqual(held.page?.items, [c], "the repair fallback must not restore b")
+    XCTAssertNil(held.page?.nextCursor)
+  }
+
+  func testAFirstPageRequestedBeforeEmptyingCannotSettleTheCutoff() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let loader = ControlledTrashLoader()
+    let held = heldModel(loader, reconciliation: shared)
+    let other = model(
+      TrashActionsStub(
+        pages: [
+          .success(page(items: [a], totalCount: 1)),
+          // Two lagging post-empty listings.
+          .success(page(items: [a], totalCount: 1)),
+          .success(page(items: [a], totalCount: 1)),
+        ],
+        emptyResults: [.success(.refreshed)]),
+      reconciliation: shared)
+
+    let firstLoad = Task { await held.loadIfNeeded() }
+    await waitUntil("the first page request") { loader.requestCount == 1 }
+    loader.succeed(request: 0, with: page(items: [a], totalCount: 1))
+    await firstLoad.value
+
+    let refresh = Task { await held.refresh() }
+    await waitUntil("the refresh request") { loader.requestCount == 2 }
+    await other.loadIfNeeded()
+    await other.empty()
+    // The pre-empty response lands after the emptying.
+    loader.succeed(request: 1, with: page(items: [a], totalCount: 1))
+    await refresh.value
+    XCTAssertEqual(held.page?.items, [], "the stale response is still filtered")
+    XCTAssertTrue(shared.isEmptyingPending, "a pre-empty request cannot count as a listing")
+
+    await other.refresh()
+    XCTAssertEqual(other.page?.items, [])
+    await other.refresh()
+    XCTAssertEqual(other.page?.items, [], "the cutoff still needs two post-empty listings")
   }
 
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
