@@ -53,6 +53,9 @@ final class PutioTrashReconciliation {
   func recordEmptied() {
     isEmptyingPending = true
     emptiedListings = 0
+    // Only listings started after the emptying may settle the cutoff: a walk
+    // begun before it carries pre-empty pages and proves nothing about lag.
+    seenByListing.removeAll()
   }
 
   func isRemoved(_ item: PutioTrashItem) -> Bool {

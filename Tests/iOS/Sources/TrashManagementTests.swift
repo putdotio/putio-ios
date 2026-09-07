@@ -863,6 +863,43 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(shared.pendingListingCount, 0)
   }
 
+  func testAListingStartedBeforeEmptyingCannotSettleTheCutoff() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let c = trashItem(id: 93, name: "C.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let stub = TrashActionsStub(
+      pages: [
+        // Screen B starts a walk that is still open when A empties.
+        .success(page(items: [a, b], cursor: "b1", totalCount: 3)),
+        .success(page(items: [a, b, c], totalCount: 3)),
+        // B's continuation lands after the empty and completes its walk.
+        .success(page(items: [c], totalCount: 3)),
+        // Two lagging post-empty listings from A.
+        .success(page(items: [a, b, c], totalCount: 3)),
+        .success(page(items: [a, b, c], totalCount: 3)),
+      ],
+      emptyResults: [.success(.refreshed)]
+    )
+    let screenB = model(stub, reconciliation: shared)
+    let screenA = model(stub, reconciliation: shared)
+
+    await screenB.loadIfNeeded()
+    await screenA.loadIfNeeded()
+    await screenA.empty()
+
+    await screenB.loadMore()
+    XCTAssertEqual(screenB.page?.items, [a, b], "the continuation is filtered")
+    XCTAssertEqual(shared.pendingListingCount, 0)
+    XCTAssertTrue(
+      shared.isEmptyingPending, "a pre-empty walk does not count as a consistent listing")
+
+    await screenA.refresh()
+    XCTAssertEqual(screenA.page?.items, [])
+    await screenA.refresh()
+    XCTAssertEqual(screenA.page?.items, [], "the cutoff needs two listings started after the empty")
+  }
+
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
     let item = trashItem(id: 91, name: "First.pdf", kind: .pdf)
     let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)
