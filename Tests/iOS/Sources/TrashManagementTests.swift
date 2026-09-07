@@ -483,7 +483,7 @@ final class TrashManagementTests: XCTestCase {
         .success(page(items: [a], cursor: "n1", totalCount: 2)),
         .success(page(items: [a, unloaded], totalCount: 2)),
         .success(page(items: [later], totalCount: 1)),
-        .success(page(items: [], totalCount: 0)),
+        .success(page(items: [later], totalCount: 1)),
       ],
       emptyResults: [.success(.refreshed)]
     )
@@ -497,10 +497,10 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(model.page?.items, [], "a lagging refresh cannot resurrect unloaded rows")
 
     await model.refresh()
-    XCTAssertEqual(model.page?.items, [later], "items trashed after emptying still appear")
+    XCTAssertEqual(model.page?.items, [], "the second listing still counts as lag")
 
     await model.refresh()
-    XCTAssertEqual(model.page, page(items: [], totalCount: 0, sizeBytes: 0))
+    XCTAssertEqual(model.page?.items, [later], "items trashed after emptying appear once trusted")
   }
 
   func testTombstonesSurviveReopeningTrashAndReleaseARetrashedGeneration() async {
