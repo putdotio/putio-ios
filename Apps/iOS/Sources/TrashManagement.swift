@@ -36,10 +36,6 @@ final class PutioTrashReconciliation {
   /// Bumped on every committed removal or emptying so a Trash screen that
   /// did not perform the mutation can drop the rows it already shows.
   private(set) var version: UInt64 = 0
-  /// Bumped on every emptying. A first-page request that started under an
-  /// older epoch carries pre-empty rows and must not open a listing that could
-  /// settle the emptying cutoff.
-  @ObservationIgnored private(set) var emptyingEpoch: UInt64 = 0
   /// Complete listings in which each removal has still appeared.
   @ObservationIgnored private(set) var removals: [Removal: Int] = [:]
   /// Set after emptying. Emptying deletes rows on pages never loaded, whose
@@ -64,7 +60,6 @@ final class PutioTrashReconciliation {
     // Only listings started after the emptying may settle the cutoff: a walk
     // begun before it carries pre-empty pages and proves nothing about lag.
     seenByListing.removeAll()
-    emptyingEpoch &+= 1
     version &+= 1
   }
 
@@ -336,45 +331,40 @@ final class PutioTrashModel {
   private func repairIfRequested() async {
     guard repairRequested, canMutate, !Task.isCancelled else { return }
     repairRequested = false
-    // Only a page that still holds a pre-mutation cursor needs the repair:
-    // a fresh first page replaced it, or a failed reload already dropped it
-    // and left the refresh failure with its retry.
-    guard let currentPage = page, currentPage.nextCursor != nil else { return }
-    reconciliation.abandonListing(listingID)
-    state = .loaded(
-      PutioTrashPage(
-        items: currentPage.items,
-        nextCursor: nil,
-        totalCount: currentPage.totalCount,
-        sizeBytes: currentPage.sizeBytes
-      ))
-    paginationFailure = nil
+    guard let currentPage = page else { return }
+    if currentPage.nextCursor != nil {
+      reconciliation.abandonListing(listingID)
+      state = .loaded(
+        PutioTrashPage(
+          items: currentPage.items,
+          nextCursor: nil,
+          totalCount: currentPage.totalCount,
+          sizeBytes: currentPage.sizeBytes
+        ))
+      paginationFailure = nil
+    }
     await load(initial: false, supersedesRefresh: false)
   }
 
-  /// One first-page response with what the caller needs to apply it: whether
-  /// it may open a listing (requested under the current emptying epoch) and
-  /// whether another screen committed while it was in flight, in which case
-  /// its cursor predates that mutation and a repair is due.
+  /// One first-page response with what the caller needs to apply it. A
+  /// response requested before another screen's mutation (any removal or
+  /// emptying bumps `version`) is still filtered, but it proves nothing about
+  /// what the server knows after that mutation: it never opens a listing that
+  /// could release tombstones or settle the emptying cutoff, and if it carries
+  /// a cursor that cursor predates the mutation, so a repair is due.
   private struct FirstPage {
     let page: PutioTrashPage
-    let startsListing: Bool
     let crossedMutation: Bool
   }
 
   private func fetchFirstPage() async throws -> FirstPage {
-    let epoch = reconciliation.emptyingEpoch
     let version = reconciliation.version
     let page = try await actions.load(nil)
-    return FirstPage(
-      page: page,
-      startsListing: epoch == reconciliation.emptyingEpoch,
-      crossedMutation: version != reconciliation.version
-    )
+    return FirstPage(page: page, crossedMutation: version != reconciliation.version)
   }
 
   private func show(_ first: FirstPage) {
-    state = .loaded(openListing(first.page, startsListing: first.startsListing))
+    state = .loaded(openListing(first.page, startsListing: !first.crossedMutation))
     if first.crossedMutation, page?.nextCursor != nil { repairRequested = true }
   }
 
@@ -406,7 +396,10 @@ final class PutioTrashModel {
     isVisible = true
     if hasLoaded {
       // Appearance may follow a tab switch that cancelled the previous
-      // refresh; supersede it instead of being refused by its flag.
+      // refresh; supersede it instead of being refused by its flag. A
+      // mutation or continuation still running refuses the reload; Files may
+      // have trashed more items meanwhile, so it runs once that work settles.
+      if activeMutation != nil || isLoadingMore { repairRequested = true }
       await load(initial: false, supersedesRefresh: true)
     } else {
       await loadIfNeeded()

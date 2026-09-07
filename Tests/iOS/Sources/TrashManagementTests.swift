@@ -1067,9 +1067,14 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(held.page?.items, [c])
 
     loader.fail(request: 1, with: PutioRuntimeError.transient)
+    // The other screen's mutation queued a reload; it runs once the delete
+    // settles and fails too, so the fallback page is what stays visible.
+    await waitUntil("the queued reload") { loader.requestCount == 3 }
+    loader.fail(request: 2, with: PutioRuntimeError.transient)
     await deletion.value
     XCTAssertEqual(held.page?.items, [c], "the repair fallback must not restore b")
     XCTAssertNil(held.page?.nextCursor)
+    XCTAssertNotNil(held.refreshFailure)
   }
 
   func testAFirstPageRequestedBeforeEmptyingCannotSettleTheCutoff() async {
@@ -1429,6 +1434,74 @@ final class TrashManagementTests: XCTestCase {
     // Load More has nothing to walk; pull to refresh recovers.
     await held.loadMore()
     XCTAssertEqual(loader.requestCount, 3)
+  }
+
+  func testAFirstPageRequestedBeforeARemovalCannotReleaseItsTombstone() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let loader = ControlledTrashLoader()
+    let held = heldModel(loader, reconciliation: shared)
+    let other = model(
+      TrashActionsStub(
+        pages: [
+          .success(page(items: [a, b], totalCount: 2)),
+          // Lagging post-delete listing.
+          .success(page(items: [a, b], totalCount: 2)),
+        ],
+        deleteResults: [.success(.refreshed)]),
+      reconciliation: shared)
+
+    let firstLoad = Task { await held.loadIfNeeded() }
+    await waitUntil("the first page request") { loader.requestCount == 1 }
+    loader.succeed(request: 0, with: page(items: [a, b], totalCount: 2))
+    await firstLoad.value
+
+    let refresh = Task { await held.refresh() }
+    await waitUntil("the refresh request") { loader.requestCount == 2 }
+    await other.loadIfNeeded()
+    await other.permanentlyDelete(b)
+    // A pre-delete response that happens to omit b (say, b was on a page the
+    // server had not reached) must not confirm the delete.
+    loader.succeed(request: 1, with: page(items: [a], totalCount: 1))
+    await refresh.value
+    XCTAssertEqual(held.page?.items, [a])
+    XCTAssertTrue(shared.isRemoved(b), "a pre-mutation listing releases nothing")
+
+    await other.refresh()
+    XCTAssertEqual(other.page?.items, [a], "the lagging listing cannot resurrect b")
+  }
+
+  func testAnAppearanceRefreshRefusedByABusyMutationRunsOnceItSettles() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let newer = trashItem(id: 95, name: "Newer.pdf", kind: .pdf)
+    let gate = GatedTrashDelete()
+    let stub = TrashActionsStub(pages: [
+      .success(page(items: [a], totalCount: 1)),
+      // The reload requested while the delete was running.
+      .success(page(items: [newer], totalCount: 1)),
+    ])
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { try await stub.load(cursor: $0) },
+        restore: { _ in throw PutioRuntimeError.unknown },
+        permanentlyDelete: { try await gate.permanentlyDelete(fileID: $0) },
+        empty: { .refreshed }
+      ))
+
+    await model.refreshOnAppear()
+    let deletion = Task { await model.permanentlyDelete(a) }
+    await waitUntil("the delete to be in flight") { gate.requestCount == 1 }
+
+    // Tab away and back while the delete is still running.
+    model.abandonListing()
+    await model.refreshOnAppear()
+    XCTAssertEqual(stub.loadedCursors, [nil], "the busy model refuses the reload for now")
+
+    gate.resume(with: .refreshed)
+    await deletion.value
+    XCTAssertEqual(stub.loadedCursors, [nil, nil], "the appearance reload ran afterwards")
+    XCTAssertEqual(model.page?.items, [newer])
   }
 
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
