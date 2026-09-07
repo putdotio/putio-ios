@@ -498,7 +498,7 @@ struct PutioVideoPlaybackView: View {
   var body: some View {
     ZStack(alignment: .topTrailing) {
       content
-      PutioButton("Done", tier: .primary) {
+      PutioButton("Done", tier: .primary, presentation: .floating) {
         onDismiss()
       }
       .padding(PutioTheme.Spacing.space4)
@@ -704,14 +704,15 @@ struct PutioNextVideoOverlay: View {
   let onPlay: () -> Void
   let onCancel: () -> Void
 
+  // Video chrome uses fixed white opacities under Apple contract 0.2.0.
   var body: some View {
     VStack(alignment: .leading, spacing: PutioTheme.Spacing.space3) {
       Text("Up Next")
         .putioFont(PutioTheme.Typography.heading)
-        .foregroundStyle(PutioTheme.Colors.textPrimary)
+        .foregroundStyle(.white)
       Text(nextVideo.name)
         .putioFont(PutioTheme.Typography.body)
-        .foregroundStyle(PutioTheme.Colors.textSecondary)
+        .foregroundStyle(.white.opacity(0.78))
         .accessibilityLabel("Up next, \(nextVideo.name)")
         .accessibilityIdentifier("video.next-title")
       HStack(spacing: PutioTheme.Spacing.space2) {

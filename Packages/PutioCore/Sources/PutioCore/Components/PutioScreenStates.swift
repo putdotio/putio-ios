@@ -53,6 +53,7 @@ public struct PutioEmptyStateView: View {
     ContentUnavailableView {
       Label {
         Text(title)
+          .putioFont(PutioScreenStateLayout.titleFont)
       } icon: {
         Image(putioIcon: icon)
           .resizable()
@@ -63,6 +64,7 @@ public struct PutioEmptyStateView: View {
     } description: {
       if let message {
         Text(message)
+          .putioFont(PutioScreenStateLayout.messageFont)
       }
     } actions: {
       if let actionTitle, let action {
@@ -76,19 +78,24 @@ public struct PutioErrorStateView: View {
   private let title: String
   private let message: String?
   private let retryTitle: String?
+  private let retryIdentifier: String?
   private let retry: (() -> Void)?
 
   @PutioScaledMetric private var iconSize: CGFloat
 
+  /// `retryIdentifier` lands on the retry button itself so UI tests can tap
+  /// it as a button rather than through the whole state view.
   public init(
     title: String,
     message: String? = nil,
     retryTitle: String? = nil,
+    retryIdentifier: String? = nil,
     retry: (() -> Void)? = nil
   ) {
     self.title = title
     self.message = message
     self.retryTitle = retryTitle
+    self.retryIdentifier = retryIdentifier
     self.retry = retry
     _iconSize = PutioScaledMetric(PutioScreenStateLayout.iconSize)
   }
@@ -97,6 +104,7 @@ public struct PutioErrorStateView: View {
     ContentUnavailableView {
       Label {
         Text(title)
+          .putioFont(PutioScreenStateLayout.titleFont)
       } icon: {
         Image(putioIcon: .warningCircle)
           .resizable()
@@ -107,12 +115,14 @@ public struct PutioErrorStateView: View {
     } description: {
       if let message {
         Text(message)
+          .putioFont(PutioScreenStateLayout.messageFont)
       }
     } actions: {
       if let retryTitle, let retry {
         PutioButton(retryTitle, icon: .arrowCounterClockwise, tier: .secondary, size: .medium) {
           retry()
         }
+        .accessibilityIdentifier(retryIdentifier ?? "")
       }
     }
   }
@@ -138,6 +148,7 @@ extension View {
 
 enum PutioScreenStateLayout {
   #if os(tvOS)
+    static let titleFont = PutioTheme.TV.Typography.label
     static let messageFont = PutioTheme.TV.Typography.body
     static let contentGap = PutioTheme.TV.Spacing.medium
     static let iconSize = PutioMetricRole(
@@ -145,6 +156,7 @@ enum PutioScreenStateLayout {
       relativeTo: .title
     )
   #else
+    static let titleFont = PutioTheme.Typography.subheading
     static let messageFont = PutioTheme.Typography.body
     static let contentGap = PutioTheme.Spacing.space3
     // ios-e15: the empty-state glyph is 52pt in --solid.

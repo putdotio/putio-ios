@@ -298,3 +298,95 @@ private func journeyTrimFixture() -> (
   }
   return (root, nested, back, frames)
 }
+
+@Test func journeyRecordingWindowAcceptsAHeldStaticReturnedRootFrame() throws {
+  // A fully static screen is a single held sample in a variable-frame-rate
+  // recording; it must count as settled without further samples.
+  let root = JourneyFrameFingerprint(samples: [10])
+  let nested = JourneyFrameFingerprint(samples: [100])
+  let back = JourneyFrameFingerprint(samples: [200])
+  var frames = (0..<15).map { index in
+    JourneyVideoFrame(presentationTime: Double(index) / 10, duration: 0.1, fingerprint: root)
+  }
+  frames += (0..<15).map { index in
+    JourneyVideoFrame(
+      presentationTime: 1.5 + Double(index) / 10, duration: 0.1, fingerprint: nested)
+  }
+  // The decoder reports a bogus short duration; the next sample's timestamp
+  // is what proves the frame was held.
+  frames.append(JourneyVideoFrame(presentationTime: 3.0, duration: 0.003, fingerprint: back))
+  frames.append(
+    JourneyVideoFrame(
+      presentationTime: 4.4, duration: 0.1, fingerprint: JourneyFrameFingerprint(samples: [250])))
+
+  let window = try journeyRecordingWindow(frames: frames, root: root, nested: nested, back: back)
+
+  #expect(abs(window.start - 0.5) < 0.000_001)
+  // The trimmed proof keeps the whole held interval (3.0 to 4.4).
+  #expect(abs(window.duration - 3.9) < 0.000_001)
+}
+
+@Test func journeyRecordingWindowDoesNotTrustALoneTerminalFrameDuration() {
+  let root = JourneyFrameFingerprint(samples: [10])
+  let nested = JourneyFrameFingerprint(samples: [100])
+  let back = JourneyFrameFingerprint(samples: [200])
+  var frames = (0..<15).map { index in
+    JourneyVideoFrame(presentationTime: Double(index) / 10, duration: 0.1, fingerprint: root)
+  }
+  frames += (0..<15).map { index in
+    JourneyVideoFrame(
+      presentationTime: 1.5 + Double(index) / 10, duration: 0.1, fingerprint: nested)
+  }
+  // A single final sample claiming a long duration has no timestamp behind it.
+  frames.append(JourneyVideoFrame(presentationTime: 3.0, duration: 2.0, fingerprint: back))
+
+  #expect(throws: HarnessFailure.self) {
+    try journeyRecordingWindow(frames: frames, root: root, nested: nested, back: back)
+  }
+}
+
+@Test func journeyRecordingWindowStillRejectsAFlickeringReturnedRoot() {
+  let root = JourneyFrameFingerprint(samples: [10])
+  let nested = JourneyFrameFingerprint(samples: [100])
+  let back = JourneyFrameFingerprint(samples: [200])
+  var frames = (0..<15).map { index in
+    JourneyVideoFrame(presentationTime: Double(index) / 10, duration: 0.1, fingerprint: root)
+  }
+  frames += (0..<15).map { index in
+    JourneyVideoFrame(
+      presentationTime: 1.5 + Double(index) / 10, duration: 0.1, fingerprint: nested)
+  }
+  // Two short back samples separated by an unrelated frame never settle.
+  frames.append(JourneyVideoFrame(presentationTime: 3.0, duration: 0.05, fingerprint: back))
+  frames.append(
+    JourneyVideoFrame(
+      presentationTime: 3.05, duration: 0.05, fingerprint: JourneyFrameFingerprint(samples: [250])))
+  frames.append(JourneyVideoFrame(presentationTime: 3.1, duration: 0.05, fingerprint: back))
+
+  #expect(throws: HarnessFailure.self) {
+    try journeyRecordingWindow(frames: frames, root: root, nested: nested, back: back)
+  }
+}
+
+@Test func journeyRecordingWindowEndsAtTheSuccessorTimestampNotABogusLongDuration() throws {
+  let root = JourneyFrameFingerprint(samples: [10])
+  let nested = JourneyFrameFingerprint(samples: [100])
+  let back = JourneyFrameFingerprint(samples: [200])
+  var frames = (0..<15).map { index in
+    JourneyVideoFrame(presentationTime: Double(index) / 10, duration: 0.1, fingerprint: root)
+  }
+  frames += (0..<15).map { index in
+    JourneyVideoFrame(
+      presentationTime: 1.5 + Double(index) / 10, duration: 0.1, fingerprint: nested)
+  }
+  // Held 0.4 s by timestamp, but the decoder claims 30 s.
+  frames.append(JourneyVideoFrame(presentationTime: 3.0, duration: 30, fingerprint: back))
+  frames.append(
+    JourneyVideoFrame(
+      presentationTime: 3.4, duration: 0.1, fingerprint: JourneyFrameFingerprint(samples: [250])))
+
+  let window = try journeyRecordingWindow(frames: frames, root: root, nested: nested, back: back)
+
+  #expect(abs(window.start - 0.5) < 0.000_001)
+  #expect(abs(window.duration - 2.9) < 0.000_001)
+}

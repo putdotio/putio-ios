@@ -166,7 +166,7 @@ private struct ButtonsPage: View {
     }
     GallerySection(caption: "Disabled") {
       PutioButton("Primary", tier: .primary) {}.disabled(true)
-      PutioButton("Ghost", tier: .ghost) {}.disabled(true)
+      PutioButton("Secondary", tier: .secondary) {}.disabled(true)
     }
   }
 }
@@ -185,37 +185,43 @@ private struct FilesGallery: View {
             }
           }
           GallerySection(caption: "As button") {
+            // A row is content, not an action: the stock card style lifts it
+            // on focus instead of painting an accent fill behind fixed brand
+            // colors, which is what the TV contract means by native focus.
             Button {
             } label: {
               PutioFileRow(GalleryFixtures.folderRow)
             }
-            .buttonStyle(PutioListRowButtonStyle())
+            .buttonStyle(.card)
           }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(GalleryLayout.pagePadding)
       }
     #else
-      List {
-        Section {
-          ForEach(Array(GalleryFixtures.fileRows.enumerated()), id: \.offset) { _, model in
-            PutioFileRow(model)
+      NavigationStack {
+        List {
+          Section {
+            ForEach(Array(GalleryFixtures.fileRows.enumerated()), id: \.offset) { _, model in
+              PutioFileRow(model)
+            }
+          } header: {
+            GalleryTitle(page: .files)
           }
-        } header: {
-          GalleryTitle(page: .files)
-        }
-        .listRowBackground(PutioTheme.Colors.background)
-        Section("As button") {
-          Button {
-          } label: {
-            PutioFileRow(GalleryFixtures.folderRow)
+          .listRowBackground(PutioTheme.Colors.background)
+          Section("Native navigation") {
+            NavigationLink {
+              PutioEmptyStateView(title: "Folder is empty")
+                .putioContentBackground()
+            } label: {
+              PutioFileRow(GalleryFixtures.folderRow)
+            }
           }
-          .buttonStyle(.plain)
+          .listRowBackground(PutioTheme.Colors.background)
         }
-        .listRowBackground(PutioTheme.Colors.background)
+        .listStyle(.plain)
+        .putioContentBackground()
       }
-      .listStyle(.plain)
-      .scrollContentBackground(.hidden)
     #endif
   }
 }
@@ -405,7 +411,6 @@ enum GalleryFixtures {
     switch tier {
     case .primary: "Primary"
     case .secondary: "Secondary"
-    case .ghost: "Ghost"
     case .success: "Success"
     case .danger: "Danger"
     case .info: "Info"

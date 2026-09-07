@@ -843,7 +843,7 @@ struct TrashManagementView: View {
         }
         ForEach(page.items) { item in
           HStack {
-            PutioFileRow(rowModel(for: item), showsFolderDisclosure: false)
+            PutioFileRow(rowModel(for: item))
             Menu {
               Button("Restore") {
                 Task { await model.restore(item) }

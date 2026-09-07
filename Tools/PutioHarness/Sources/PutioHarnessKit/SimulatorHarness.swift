@@ -21,6 +21,21 @@ let minimumJourneyRecordingFrameCount = 12
 let maximumJourneyFrameDifference = 10.0
 let maximumStableJourneyFrameDifference = 1.0
 let minimumStableJourneyFrameCount = 3
+/// Screen recordings are variable frame rate: a fully static screen is one
+/// held sample, so stability is also satisfied by settled frames that together
+/// stay on screen this long. Held time is measured between presentation
+/// timestamps; decoder sample durations are not reliable for these files.
+let minimumStableJourneyFrameDuration: TimeInterval = 0.25
+
+/// How long `frames[index]` stayed on screen, measured to the next sample's
+/// timestamp. The final sample has no successor and its decoder duration is
+/// not trusted, so it contributes nothing: a lone terminal frame never proves
+/// a hold on its own.
+func journeyFrameHeldDuration(_ frames: [JourneyVideoFrame], _ index: Int) -> TimeInterval {
+  let next = frames.index(after: index)
+  guard next < frames.endIndex else { return 0 }
+  return max(frames[next].presentationTime - frames[index].presentationTime, 0)
+}
 
 struct JourneyFrameFingerprint: Equatable, Sendable {
   let samples: [UInt8]
@@ -120,6 +135,7 @@ func journeyRecordingWindow(
     bestBackDifference + maximumStableJourneyFrameDifference
   )
   var stableBackFrameCount = 0
+  var stableBackDuration: TimeInterval = 0
   var backIndex: Int?
   for index in frames.indices.dropFirst(nestedIndex + 1) {
     let followsStableFrame =
@@ -130,21 +146,41 @@ func journeyRecordingWindow(
       ) <= maximumStableJourneyFrameDifference
     if backDifferences[index] <= settledBackThreshold {
       stableBackFrameCount = followsStableFrame ? stableBackFrameCount + 1 : 1
+      stableBackDuration =
+        (followsStableFrame ? stableBackDuration : 0) + journeyFrameHeldDuration(frames, index)
     } else {
       stableBackFrameCount = 0
+      stableBackDuration = 0
     }
-    if stableBackFrameCount == minimumStableJourneyFrameCount {
+    if stableBackFrameCount >= minimumStableJourneyFrameCount
+      || stableBackDuration >= minimumStableJourneyFrameDuration
+    {
       backIndex = index
       break
     }
   }
   guard let backIndex else {
+    let tail = frames.indices.dropFirst(nestedIndex + 1).suffix(12).map { index in
+      let time = String(format: "%.3f", frames[index].presentationTime)
+      let held = String(format: "%.3f", journeyFrameHeldDuration(frames, index))
+      let difference = String(format: "%.2f", backDifferences[index])
+      return "\(time)s held \(held)s diff \(difference)"
+    }
     throw HarnessFailure(
-      "browser journey recording is missing \(minimumStableJourneyFrameCount) stable returned-root frames"
+      "browser journey recording is missing a settled returned-root frame: "
+        + "\(minimumStableJourneyFrameCount) samples or \(minimumStableJourneyFrameDuration)s held "
+        + "within \(settledBackThreshold) of the screenshot (best \(bestBackDifference)). "
+        + "Trailing frames after nested:\n" + tail.joined(separator: "\n")
     )
   }
 
-  let end = frames[backIndex].presentationTime + frames[backIndex].duration
+  // Keep the whole settled hold in the proof. A successor's timestamp is the
+  // truth about how long the frame showed; the sample's own duration is only
+  // used for the final frame, which has no successor.
+  let heldDuration = journeyFrameHeldDuration(frames, backIndex)
+  let end =
+    frames[backIndex].presentationTime
+    + (backIndex == frames.indices.last ? frames[backIndex].duration : heldDuration)
   let duration = end - start
   let frameCount = backIndex - rootIndex + 1
   guard duration.isFinite, duration > 0, duration <= maximumJourneyRecordingDuration else {

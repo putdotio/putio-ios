@@ -3,10 +3,17 @@ import SwiftUI
 public enum PutioButtonTier: CaseIterable, Sendable {
   case primary
   case secondary
-  case ghost
   case success
   case danger
   case info
+}
+
+/// Where the button sits. Content actions on opaque surfaces use the stock
+/// bordered styles. A button floating over media with no parent surface of
+/// its own is the one place the Apple contract wants a glass layer.
+public enum PutioButtonPresentation: Sendable {
+  case content
+  case floating
 }
 
 public enum PutioButtonSize: CaseIterable, Sendable {
@@ -16,16 +23,13 @@ public enum PutioButtonSize: CaseIterable, Sendable {
   case extraSmall
 }
 
-// One Button, native first, on every shell: the tiers map onto the stock
-// Liquid Glass button styles with token tints, and the titles carry the brand
-// face at the medium control weight — the shipping app's recipe of native box
-// plus brand type. tvOS uses the system focus treatment; the TV contract's
-// solid-focus rule is deliberately overridden for buttons (see DESIGN.md).
+// Content actions use stock bordered styles, brand labels, and semantic tints.
 public struct PutioButton: View {
   private let title: String
   private let icon: PutioIcon?
   private let tier: PutioButtonTier
   private let size: PutioButtonSize
+  private let presentation: PutioButtonPresentation
   private let action: () -> Void
 
   @PutioScaledMetric private var contentGap: CGFloat
@@ -36,12 +40,14 @@ public struct PutioButton: View {
     icon: PutioIcon? = nil,
     tier: PutioButtonTier = .secondary,
     size: PutioButtonSize = .regular,
+    presentation: PutioButtonPresentation = .content,
     action: @escaping () -> Void
   ) {
     self.title = title
     self.icon = icon
     self.tier = tier
     self.size = size
+    self.presentation = presentation
     self.action = action
     _contentGap = PutioScaledMetric(PutioTheme.ScaledMetrics.buttonContentGap)
     _iconSize = PutioScaledMetric(PutioTheme.ScaledMetrics.buttonIconSize)
@@ -76,18 +82,15 @@ public struct PutioButton: View {
       prominentButton(role: nil, foreground: PutioTheme.Components.Button.primaryForeground)
         .tint(PutioTheme.Colors.accent)
     case .secondary:
-      styledSecondary(
-        Button(action: action) {
-          label
-        }
-      )
-      .tint(PutioTheme.Colors.textPrimary)
-    case .ghost:
-      Button(action: action) {
-        label
-      }
-      .buttonStyle(.borderless)
-      .tint(PutioTheme.Colors.accent)
+      #if os(tvOS)
+        // A tinted bordered button on tvOS paints the focus fill and the
+        // label in the same accent; the system default fill keeps the label
+        // legible, which is the TV contract's native focus.
+        plainButton.tint(nil)
+      #else
+        plainButton
+          .tint(PutioTheme.Colors.accent)
+      #endif
     case .success:
       prominentButton(role: nil, foreground: PutioTheme.Components.Button.successForeground)
         .tint(PutioTheme.Colors.success)
@@ -103,37 +106,36 @@ public struct PutioButton: View {
     }
   }
 
-  private func prominentButton(role: ButtonRole?, foreground: Color) -> some View {
-    styledProminent(
-      Button(role: role, action: action) {
-        label.foregroundStyle(foreground)
-      }
-    )
+  @ViewBuilder private var plainButton: some View {
+    let button = Button(action: action) { label }
+    switch presentation {
+    case .content: button.buttonStyle(.bordered)
+    case .floating: styledFloating(button, prominent: false)
+    }
   }
 
-  // Liquid Glass cannot be rasterized off-screen, so the snapshot lane
-  // asserts the bordered fallbacks; captures review the real glass. The
-  // macOS 15 test host predates glass and keeps the bordered styles.
-  @ViewBuilder private func styledProminent(_ button: some View) -> some View {
-    #if os(macOS)
-      button.buttonStyle(.borderedProminent)
-    #else
-      if HarnessRendering.usesRasterFallback {
-        button.buttonStyle(.borderedProminent)
-      } else {
-        button.buttonStyle(.glassProminent)
-      }
-    #endif
+  @ViewBuilder private func prominentButton(role: ButtonRole?, foreground: Color) -> some View {
+    let button = Button(role: role, action: action) { label.foregroundStyle(foreground) }
+    switch presentation {
+    case .content: button.buttonStyle(.borderedProminent)
+    case .floating: styledFloating(button, prominent: true)
+    }
   }
 
-  @ViewBuilder private func styledSecondary(_ button: some View) -> some View {
+  // Liquid Glass cannot be rasterized off-screen, so the snapshot lane and the
+  // macOS test host assert the bordered fallbacks; captures review real glass.
+  @ViewBuilder private func styledFloating(_ button: some View, prominent: Bool) -> some View {
     #if os(macOS)
-      button.buttonStyle(.bordered)
+      if prominent { button.buttonStyle(.borderedProminent) } else { button.buttonStyle(.bordered) }
     #else
       if HarnessRendering.usesRasterFallback {
-        button.buttonStyle(.bordered)
+        if prominent {
+          button.buttonStyle(.borderedProminent)
+        } else {
+          button.buttonStyle(.bordered)
+        }
       } else {
-        button.buttonStyle(.glass)
+        if prominent { button.buttonStyle(.glassProminent) } else { button.buttonStyle(.glass) }
       }
     #endif
   }
