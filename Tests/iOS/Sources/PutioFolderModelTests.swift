@@ -573,9 +573,11 @@ final class PutioFolderModelTests: XCTestCase {
     let requests = PutioFolderRefreshRequests()
     var token: PutioFolderRefreshRegistration? = PutioFolderRefreshRegistration(
       folderID: folder, requests: requests)
+    // A throwaway instance that was never activated must not touch anything.
+    _ = PutioFolderRefreshRegistration(folderID: folder, requests: requests)
+    token?.activate()
     requests.requestAllLoadedFolders()
     XCTAssertNotNil(requests.sequence(for: folder))
-    _ = token
 
     token = nil
     for _ in 0..<50 where requests.sequence(for: folder) != nil { await Task.yield() }

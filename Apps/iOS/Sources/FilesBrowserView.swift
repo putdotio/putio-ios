@@ -441,7 +441,7 @@ struct PutioFolderScreen: View {
       }
     }
     .task(id: route.id) {
-      _ = refreshRegistration
+      refreshRegistration.activate()
       let pending = refreshRequests.sequence(for: route.id)
       // A fresh initial load already reflects any request that predates it.
       let loaded = await model.loadIfNeeded()

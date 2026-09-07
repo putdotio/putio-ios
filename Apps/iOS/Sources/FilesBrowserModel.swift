@@ -109,18 +109,29 @@ final class PutioFolderRefreshRequests {
 /// Lives in a folder screen's `@State`. SwiftUI releases that state only when
 /// the screen is discarded (a pop, not a tab switch), which is exactly when
 /// the folder's refresh registration should go.
+///
+/// The view struct's initializer runs on every parent re-render and builds a
+/// throwaway instance each time; only the instance SwiftUI retains ever calls
+/// `activate()`, so only that one registers and unregisters.
 @MainActor
 final class PutioFolderRefreshRegistration {
   private let folderID: PutioFileID
   private let requests: PutioFolderRefreshRequests
+  private var isActive = false
 
   init(folderID: PutioFileID, requests: PutioFolderRefreshRequests) {
     self.folderID = folderID
     self.requests = requests
+  }
+
+  func activate() {
+    guard !isActive else { return }
+    isActive = true
     requests.register(folderID: folderID)
   }
 
   deinit {
+    guard isActive else { return }
     let folderID = self.folderID
     let requests = self.requests
     Task { @MainActor in requests.unregister(folderID: folderID) }
