@@ -21,6 +21,19 @@ let minimumJourneyRecordingFrameCount = 12
 let maximumJourneyFrameDifference = 10.0
 let maximumStableJourneyFrameDifference = 1.0
 let minimumStableJourneyFrameCount = 3
+/// Screen recordings are variable frame rate: a fully static screen is one
+/// held sample, so stability is also satisfied by settled frames that together
+/// stay on screen this long. Held time is measured between presentation
+/// timestamps; decoder sample durations are not reliable for these files.
+let minimumStableJourneyFrameDuration: TimeInterval = 0.25
+
+/// How long `frames[index]` stayed on screen: until the next sample, or its
+/// own duration for the final one.
+func journeyFrameHeldDuration(_ frames: [JourneyVideoFrame], _ index: Int) -> TimeInterval {
+  let next = frames.index(after: index)
+  guard next < frames.endIndex else { return max(frames[index].duration, 0) }
+  return max(frames[next].presentationTime - frames[index].presentationTime, 0)
+}
 
 struct JourneyFrameFingerprint: Equatable, Sendable {
   let samples: [UInt8]
@@ -120,6 +133,7 @@ func journeyRecordingWindow(
     bestBackDifference + maximumStableJourneyFrameDifference
   )
   var stableBackFrameCount = 0
+  var stableBackDuration: TimeInterval = 0
   var backIndex: Int?
   for index in frames.indices.dropFirst(nestedIndex + 1) {
     let followsStableFrame =
@@ -130,17 +144,31 @@ func journeyRecordingWindow(
       ) <= maximumStableJourneyFrameDifference
     if backDifferences[index] <= settledBackThreshold {
       stableBackFrameCount = followsStableFrame ? stableBackFrameCount + 1 : 1
+      stableBackDuration =
+        (followsStableFrame ? stableBackDuration : 0) + journeyFrameHeldDuration(frames, index)
     } else {
       stableBackFrameCount = 0
+      stableBackDuration = 0
     }
-    if stableBackFrameCount == minimumStableJourneyFrameCount {
+    if stableBackFrameCount >= minimumStableJourneyFrameCount
+      || stableBackDuration >= minimumStableJourneyFrameDuration
+    {
       backIndex = index
       break
     }
   }
   guard let backIndex else {
+    let tail = frames.indices.dropFirst(nestedIndex + 1).suffix(12).map { index in
+      let time = String(format: "%.3f", frames[index].presentationTime)
+      let held = String(format: "%.3f", journeyFrameHeldDuration(frames, index))
+      let difference = String(format: "%.2f", backDifferences[index])
+      return "\(time)s held \(held)s diff \(difference)"
+    }
     throw HarnessFailure(
-      "browser journey recording is missing \(minimumStableJourneyFrameCount) stable returned-root frames"
+      "browser journey recording is missing a settled returned-root frame: "
+        + "\(minimumStableJourneyFrameCount) samples or \(minimumStableJourneyFrameDuration)s held "
+        + "within \(settledBackThreshold) of the screenshot (best \(bestBackDifference)). "
+        + "Trailing frames after nested:\n" + tail.joined(separator: "\n")
     )
   }
 
