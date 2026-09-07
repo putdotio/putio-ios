@@ -49,11 +49,15 @@ final class PutioTrashReconciliation {
     removals[Removal(id: item.id, deletedAt: item.deletedAt)] = 0
   }
 
-  /// `loaded` are the rows known at emptying; rows on unloaded pages are
-  /// covered only when their deletion is not newer than the newest loaded
-  /// one. The bound above heals any gap after a couple of refreshes.
+  /// `loaded` are the rows shown at emptying. Rows the server listed but
+  /// tombstones filtered, and earlier removals, bound the cutoff too, so a
+  /// page that looks empty still protects the unloaded pages behind it.
+  /// Unloaded rows newer than every known one are covered by the bound
+  /// above after a couple of refreshes.
   func recordEmptied(loaded: [PutioTrashItem]) {
-    guard let newest = loaded.map(\.deletedAt).max() else { return }
+    let known =
+      loaded.map(\.deletedAt) + seenSinceFirstPage.map(\.deletedAt) + removals.keys.map(\.deletedAt)
+    guard let newest = known.max() else { return }
     emptiedThrough = max(emptiedThrough ?? .distantPast, newest)
     emptiedListings = 0
   }

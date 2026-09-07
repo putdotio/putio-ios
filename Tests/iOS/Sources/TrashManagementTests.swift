@@ -648,6 +648,37 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(model.page?.items, [sameSecond], "a same-second new item is not hidden forever")
   }
 
+  func testEmptyingAFilteredFirstPageStillProtectsUnloadedRows() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let unloaded = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let stub = TrashActionsStub(
+      pages: [
+        .success(page(items: [a], cursor: "n1", totalCount: 2)),
+        // After deleting a, the reload still lists a (lagging) with a cursor:
+        // the visible page is empty but Trash is not.
+        .success(page(items: [a], cursor: "l1", totalCount: 2)),
+        // Lagging post-empty listing.
+        .success(page(items: [a, unloaded], totalCount: 2)),
+        .success(page(items: [], totalCount: 0)),
+      ],
+      deleteResults: [.success(.refreshed)],
+      emptyResults: [.success(.refreshed)]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    await model.permanentlyDelete(a)
+    XCTAssertEqual(model.page?.items, [])
+    XCTAssertEqual(model.page?.nextCursor, "l1")
+
+    await model.empty()
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [], "filtered rows still bound the emptying cutoff")
+
+    await model.refresh()
+    XCTAssertEqual(model.page, page(items: [], totalCount: 0, sizeBytes: 0))
+  }
+
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
     let item = trashItem(id: 91, name: "First.pdf", kind: .pdf)
     let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)

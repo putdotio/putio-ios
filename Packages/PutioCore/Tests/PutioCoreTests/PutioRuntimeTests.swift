@@ -683,10 +683,11 @@ final class PutioRuntimeTests: XCTestCase {
     do {
       let result = try await restore.value
       XCTFail("expected an error before commit, got \(result)")
+    } catch is CancellationError {
+      // The runtime normalizes URLSession cancellation to CancellationError,
+      // so callers only ever classify one representation.
     } catch {
-      XCTAssertTrue(
-        error is CancellationError || (error as? URLError)?.code == .cancelled,
-        "unexpected error \(error)")
+      XCTFail("expected CancellationError, got \(error)")
     }
   }
 
