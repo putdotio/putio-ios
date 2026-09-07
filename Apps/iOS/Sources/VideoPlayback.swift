@@ -498,7 +498,7 @@ struct PutioVideoPlaybackView: View {
   var body: some View {
     ZStack(alignment: .topTrailing) {
       content
-      PutioButton("Done", tier: .primary) {
+      PutioButton("Done", tier: .primary, presentation: .floating) {
         onDismiss()
       }
       .padding(PutioTheme.Spacing.space4)

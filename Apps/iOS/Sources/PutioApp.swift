@@ -85,15 +85,13 @@ private struct SignOutFailureView: View {
   let failure: PutioSignOutFailure
 
   var body: some View {
-    ContentUnavailableView {
-      Text("Sign-out did not finish")
-    } description: {
-      Text(message)
-    } actions: {
-      PutioButton("Try signing out again", tier: .primary) {
-        Task { await session.signOut() }
-      }
-      .accessibilityIdentifier("auth.retry-sign-out")
+    PutioErrorStateView(
+      title: "Sign-out did not finish",
+      message: message,
+      retryTitle: "Try signing out again",
+      retryIdentifier: "auth.retry-sign-out"
+    ) {
+      Task { await session.signOut() }
     }
   }
 
@@ -131,7 +129,7 @@ private struct SignInView: View {
       }
       .accessibilityIdentifier("auth.sign-in")
       if case .restoreFailed = reason {
-        PutioButton("Try again", icon: .arrowCounterClockwise, tier: .ghost) {
+        PutioButton("Try again", icon: .arrowCounterClockwise, tier: .secondary) {
           Task { await session.restore() }
         }
       }

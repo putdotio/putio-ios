@@ -166,7 +166,7 @@ private struct ButtonsPage: View {
     }
     GallerySection(caption: "Disabled") {
       PutioButton("Primary", tier: .primary) {}.disabled(true)
-      PutioButton("Ghost", tier: .ghost) {}.disabled(true)
+      PutioButton("Secondary", tier: .secondary) {}.disabled(true)
     }
   }
 }
@@ -408,7 +408,6 @@ enum GalleryFixtures {
     switch tier {
     case .primary: "Primary"
     case .secondary: "Secondary"
-    case .ghost: "Ghost"
     case .success: "Success"
     case .danger: "Danger"
     case .info: "Info"

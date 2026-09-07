@@ -101,7 +101,6 @@ public struct PutioPickerRow<Option: Hashable>: View {
         PutioFormRowLabel(title: title, subtitle: nil)
       }
       .pickerStyle(.menu)
-      .tint(PutioTheme.Colors.textSecondary)
     #endif
   }
 

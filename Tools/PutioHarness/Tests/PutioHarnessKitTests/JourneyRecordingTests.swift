@@ -322,7 +322,27 @@ private func journeyTrimFixture() -> (
   let window = try journeyRecordingWindow(frames: frames, root: root, nested: nested, back: back)
 
   #expect(abs(window.start - 0.5) < 0.000_001)
-  #expect(window.duration > 2.5)
+  // The trimmed proof keeps the whole held interval (3.0 to 4.4).
+  #expect(abs(window.duration - 3.9) < 0.000_001)
+}
+
+@Test func journeyRecordingWindowDoesNotTrustALoneTerminalFrameDuration() {
+  let root = JourneyFrameFingerprint(samples: [10])
+  let nested = JourneyFrameFingerprint(samples: [100])
+  let back = JourneyFrameFingerprint(samples: [200])
+  var frames = (0..<15).map { index in
+    JourneyVideoFrame(presentationTime: Double(index) / 10, duration: 0.1, fingerprint: root)
+  }
+  frames += (0..<15).map { index in
+    JourneyVideoFrame(
+      presentationTime: 1.5 + Double(index) / 10, duration: 0.1, fingerprint: nested)
+  }
+  // A single final sample claiming a long duration has no timestamp behind it.
+  frames.append(JourneyVideoFrame(presentationTime: 3.0, duration: 2.0, fingerprint: back))
+
+  #expect(throws: HarnessFailure.self) {
+    try journeyRecordingWindow(frames: frames, root: root, nested: nested, back: back)
+  }
 }
 
 @Test func journeyRecordingWindowStillRejectsAFlickeringReturnedRoot() {

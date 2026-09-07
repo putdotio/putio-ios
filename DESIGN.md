@@ -19,10 +19,12 @@ conventions; web TV uses the web binding at a 10-foot scale.
 
 - Use stock `Button`, `List`, `Form`, `Toggle`, `Picker`, `NavigationLink`,
   sheets, `ProgressView`, `Gauge`, and `ContentUnavailableView`.
-- Content actions use `.borderedProminent`, `.bordered`, or `.borderless`.
-  Floating layers may use Liquid Glass; never put glass inside glass. Plain
-  glass stays neutral and at most one prominent glass capsule appears on a
-  screen. The Up Next overlay owns one glass surface with bordered actions.
+- Content actions use `.borderedProminent` or `.bordered`. A button floating
+  over media with no surface of its own (the video Done control) uses the
+  stock glass styles through `PutioButton(presentation: .floating)`. Never put
+  glass inside glass: plain glass stays neutral, at most one prominent glass
+  capsule appears on a screen, and the Up Next overlay owns one glass surface
+  with bordered actions.
 - Set the app accent tint once. System back controls, selection, and retry
   actions inherit it. Semantic destructive and success actions retain their
   roles. App-authored text may use the generated foreground roles.
@@ -51,9 +53,9 @@ conventions; web TV uses the web binding at a 10-foot scale.
 | Stock Gauge geometry and track | `PutioDownloadStateButton` keeps the stock intrinsic 47pt ring, approximately 7pt stroke, and tint-derived track. The 44pt target is a minimum. |
 | Five download states | Idle, Queued, Downloading, Downloaded, and Failed remain distinct. Failed reuses the idle glyph and announces retry; the owning row carries its reason. |
 | Native progress tracks | `ProgressView` and `Gauge` own the unfilled track; the app supplies only tint. |
-| One system accent | Shell tint and secondary content actions use `PutioTheme.Colors.accent`; authored semantic text and destructive actions keep their roles. |
-| Floating glass and content actions | `PutioButton` uses bordered content styles. Toasts and Up Next own their floating surface; their children add no glass. |
-| Brand content, system chrome | Screen-state titles/descriptions and form labels use generated brand roles. Tab/navigation/search chrome retains SF. |
+| One system accent | Shell tint, secondary content actions, and stock pickers inherit `PutioTheme.Colors.accent`; authored semantic text and destructive actions keep their roles. |
+| Floating glass and content actions | `PutioButton` uses bordered content styles by default and stock glass only for the one standalone floating control. Toasts and Up Next own their floating surface; their children add no glass. |
+| Brand content, system chrome | Every screen state, including sign-out failure, renders through the branded state components, so titles, descriptions, and form labels use generated brand roles. Tab/navigation/search chrome retains SF. |
 | Tab glyph box | Existing intrinsic 24pt Phosphor assets remain unchanged. |
 | Native folder disclosure | The shared row has no iOS/watchOS caret or disclosure flag. The gallery uses a real `NavigationLink`; live folder and move-destination links own their accessory. |
 

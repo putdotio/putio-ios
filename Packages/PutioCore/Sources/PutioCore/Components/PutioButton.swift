@@ -3,10 +3,17 @@ import SwiftUI
 public enum PutioButtonTier: CaseIterable, Sendable {
   case primary
   case secondary
-  case ghost
   case success
   case danger
   case info
+}
+
+/// Where the button sits. Content actions on opaque surfaces use the stock
+/// bordered styles. A button floating over media with no parent surface of
+/// its own is the one place the Apple contract wants a glass layer.
+public enum PutioButtonPresentation: Sendable {
+  case content
+  case floating
 }
 
 public enum PutioButtonSize: CaseIterable, Sendable {
@@ -22,6 +29,7 @@ public struct PutioButton: View {
   private let icon: PutioIcon?
   private let tier: PutioButtonTier
   private let size: PutioButtonSize
+  private let presentation: PutioButtonPresentation
   private let action: () -> Void
 
   @PutioScaledMetric private var contentGap: CGFloat
@@ -32,12 +40,14 @@ public struct PutioButton: View {
     icon: PutioIcon? = nil,
     tier: PutioButtonTier = .secondary,
     size: PutioButtonSize = .regular,
+    presentation: PutioButtonPresentation = .content,
     action: @escaping () -> Void
   ) {
     self.title = title
     self.icon = icon
     self.tier = tier
     self.size = size
+    self.presentation = presentation
     self.action = action
     _contentGap = PutioScaledMetric(PutioTheme.ScaledMetrics.buttonContentGap)
     _iconSize = PutioScaledMetric(PutioTheme.ScaledMetrics.buttonIconSize)
@@ -72,17 +82,8 @@ public struct PutioButton: View {
       prominentButton(role: nil, foreground: PutioTheme.Components.Button.primaryForeground)
         .tint(PutioTheme.Colors.accent)
     case .secondary:
-      Button(action: action) {
-        label
-      }
-      .buttonStyle(.bordered)
-      .tint(PutioTheme.Colors.accent)
-    case .ghost:
-      Button(action: action) {
-        label
-      }
-      .buttonStyle(.borderless)
-      .tint(PutioTheme.Colors.accent)
+      plainButton
+        .tint(PutioTheme.Colors.accent)
     case .success:
       prominentButton(role: nil, foreground: PutioTheme.Components.Button.successForeground)
         .tint(PutioTheme.Colors.success)
@@ -98,11 +99,38 @@ public struct PutioButton: View {
     }
   }
 
-  private func prominentButton(role: ButtonRole?, foreground: Color) -> some View {
-    Button(role: role, action: action) {
-      label.foregroundStyle(foreground)
+  @ViewBuilder private var plainButton: some View {
+    let button = Button(action: action) { label }
+    switch presentation {
+    case .content: button.buttonStyle(.bordered)
+    case .floating: styledFloating(button, prominent: false)
     }
-    .buttonStyle(.borderedProminent)
+  }
+
+  @ViewBuilder private func prominentButton(role: ButtonRole?, foreground: Color) -> some View {
+    let button = Button(role: role, action: action) { label.foregroundStyle(foreground) }
+    switch presentation {
+    case .content: button.buttonStyle(.borderedProminent)
+    case .floating: styledFloating(button, prominent: true)
+    }
+  }
+
+  // Liquid Glass cannot be rasterized off-screen, so the snapshot lane and the
+  // macOS test host assert the bordered fallbacks; captures review real glass.
+  @ViewBuilder private func styledFloating(_ button: some View, prominent: Bool) -> some View {
+    #if os(macOS)
+      if prominent { button.buttonStyle(.borderedProminent) } else { button.buttonStyle(.bordered) }
+    #else
+      if HarnessRendering.usesRasterFallback {
+        if prominent {
+          button.buttonStyle(.borderedProminent)
+        } else {
+          button.buttonStyle(.bordered)
+        }
+      } else {
+        if prominent { button.buttonStyle(.glassProminent) } else { button.buttonStyle(.glass) }
+      }
+    #endif
   }
 }
 

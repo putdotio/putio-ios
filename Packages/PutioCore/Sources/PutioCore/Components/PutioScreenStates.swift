@@ -78,19 +78,24 @@ public struct PutioErrorStateView: View {
   private let title: String
   private let message: String?
   private let retryTitle: String?
+  private let retryIdentifier: String?
   private let retry: (() -> Void)?
 
   @PutioScaledMetric private var iconSize: CGFloat
 
+  /// `retryIdentifier` lands on the retry button itself so UI tests can tap
+  /// it as a button rather than through the whole state view.
   public init(
     title: String,
     message: String? = nil,
     retryTitle: String? = nil,
+    retryIdentifier: String? = nil,
     retry: (() -> Void)? = nil
   ) {
     self.title = title
     self.message = message
     self.retryTitle = retryTitle
+    self.retryIdentifier = retryIdentifier
     self.retry = retry
     _iconSize = PutioScaledMetric(PutioScreenStateLayout.iconSize)
   }
@@ -117,6 +122,7 @@ public struct PutioErrorStateView: View {
         PutioButton(retryTitle, icon: .arrowCounterClockwise, tier: .secondary, size: .medium) {
           retry()
         }
+        .accessibilityIdentifier(retryIdentifier ?? "")
       }
     }
   }

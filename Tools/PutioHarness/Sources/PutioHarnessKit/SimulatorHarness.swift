@@ -27,11 +27,13 @@ let minimumStableJourneyFrameCount = 3
 /// timestamps; decoder sample durations are not reliable for these files.
 let minimumStableJourneyFrameDuration: TimeInterval = 0.25
 
-/// How long `frames[index]` stayed on screen: until the next sample, or its
-/// own duration for the final one.
+/// How long `frames[index]` stayed on screen, measured to the next sample's
+/// timestamp. The final sample has no successor and its decoder duration is
+/// not trusted, so it contributes nothing: a lone terminal frame never proves
+/// a hold on its own.
 func journeyFrameHeldDuration(_ frames: [JourneyVideoFrame], _ index: Int) -> TimeInterval {
   let next = frames.index(after: index)
-  guard next < frames.endIndex else { return max(frames[index].duration, 0) }
+  guard next < frames.endIndex else { return 0 }
   return max(frames[next].presentationTime - frames[index].presentationTime, 0)
 }
 
@@ -172,7 +174,11 @@ func journeyRecordingWindow(
     )
   }
 
-  let end = frames[backIndex].presentationTime + frames[backIndex].duration
+  // Keep the whole settled hold in the proof, not just the sample's own
+  // (unreliable) duration.
+  let end =
+    frames[backIndex].presentationTime
+    + max(frames[backIndex].duration, journeyFrameHeldDuration(frames, backIndex))
   let duration = end - start
   let frameCount = backIndex - rootIndex + 1
   guard duration.isFinite, duration > 0, duration <= maximumJourneyRecordingDuration else {
