@@ -73,6 +73,14 @@ final class PutioFolderRefreshRequests {
     if registeredAt[folderID] == nil { registeredAt[folderID] = allFoldersSequence }
   }
 
+  /// A popped screen reloads on return, so nothing pending needs to survive.
+  /// Called from the screen's registration token when SwiftUI discards it.
+  func unregister(folderID: PutioFileID) {
+    registeredAt[folderID] = nil
+    consumed[folderID] = nil
+    sequences[folderID] = nil
+  }
+
   func request(folderID: PutioFileID) {
     sequences[folderID, default: 0] &+= 1
   }
@@ -95,6 +103,27 @@ final class PutioFolderRefreshRequests {
 
   func markConsumed(_ sequence: Sequence, for folderID: PutioFileID) {
     consumed[folderID] = sequence
+  }
+}
+
+/// Lives in a folder screen's `@State`. SwiftUI releases that state only when
+/// the screen is discarded (a pop, not a tab switch), which is exactly when
+/// the folder's refresh registration should go.
+@MainActor
+final class PutioFolderRefreshRegistration {
+  private let folderID: PutioFileID
+  private let requests: PutioFolderRefreshRequests
+
+  init(folderID: PutioFileID, requests: PutioFolderRefreshRequests) {
+    self.folderID = folderID
+    self.requests = requests
+    requests.register(folderID: folderID)
+  }
+
+  deinit {
+    let folderID = self.folderID
+    let requests = self.requests
+    Task { @MainActor in requests.unregister(folderID: folderID) }
   }
 }
 

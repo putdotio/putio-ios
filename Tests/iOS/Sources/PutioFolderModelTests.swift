@@ -553,6 +553,35 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertFalse(second, "an already loaded folder does not reload")
   }
 
+  func testUnregisteringAFolderDropsItsPendingState() {
+    let folder = PutioFileID(rawValue: 42)
+    let requests = PutioFolderRefreshRequests()
+    requests.register(folderID: folder)
+    requests.requestAllLoadedFolders()
+    requests.request(folderID: folder)
+    XCTAssertNotNil(requests.sequence(for: folder))
+
+    requests.unregister(folderID: folder)
+    XCTAssertNil(requests.sequence(for: folder), "a popped screen owes nothing")
+
+    requests.register(folderID: folder)
+    XCTAssertNil(requests.sequence(for: folder), "re-registering starts from the current baseline")
+  }
+
+  func testRegistrationTokenUnregistersWhenReleased() async {
+    let folder = PutioFileID(rawValue: 42)
+    let requests = PutioFolderRefreshRequests()
+    var token: PutioFolderRefreshRegistration? = PutioFolderRefreshRegistration(
+      folderID: folder, requests: requests)
+    requests.requestAllLoadedFolders()
+    XCTAssertNotNil(requests.sequence(for: folder))
+    _ = token
+
+    token = nil
+    for _ in 0..<50 where requests.sequence(for: folder) != nil { await Task.yield() }
+    XCTAssertNil(requests.sequence(for: folder), "releasing the token unregisters the folder")
+  }
+
   func testRestoredFileReconciliationTargetsKnownFolderOrEveryLoadedFolder() {
     let destination = PutioFileID(rawValue: 42)
     let otherFolder = PutioFileID(rawValue: 7)

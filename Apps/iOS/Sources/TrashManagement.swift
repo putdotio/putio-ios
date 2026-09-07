@@ -60,6 +60,14 @@ final class PutioTrashReconciliation {
     return removals[Removal(id: item.id, deletedAt: item.deletedAt)] != nil
   }
 
+  /// Drops the accumulator of a listing that will not be walked to its end.
+  func abandonListing(_ listingID: UUID) {
+    seenByListing[listingID] = nil
+  }
+
+  /// Listings started but not yet completed or abandoned.
+  var pendingListingCount: Int { seenByListing.count }
+
   /// Filters a listing page. On the final page of a complete listing it
   /// releases every tombstone the server omitted, and every tombstone the
   /// server has now reported `consistentListingsBeforeTrust` times.
@@ -269,6 +277,11 @@ final class PutioTrashModel {
 
   /// Called on every appearance. The Account stack keeps this screen alive
   /// across tab switches, and Files may have trashed more items meanwhile.
+  /// The screen is leaving; a partially walked listing will not complete.
+  func abandonListing() {
+    reconciliation.abandonListing(listingID)
+  }
+
   func refreshOnAppear() async {
     if hasLoaded {
       // Appearance may follow a tab switch that cancelled the previous
@@ -374,6 +387,19 @@ final class PutioTrashModel {
     _ = await actions.refreshStorage()
   }
 
+  /// Runs the storage retry for a load of `generation`. A superseded load
+  /// skips the listing afterwards, but a still-current one proceeds even if
+  /// an older load holds the storage flag.
+  private func reloadStaleStorage(for generation: UInt64) async {
+    guard isStorageStale else { return }
+    if isRefreshingStorage {
+      // Another load owns the retry; only wait if we are still current.
+      while isRefreshingStorage, generation == loadGeneration { await Task.yield() }
+      return
+    }
+    await reloadStaleStorage()
+  }
+
   func clearMutationOutcome() {
     mutationOutcome = nil
   }
@@ -383,8 +409,10 @@ final class PutioTrashModel {
       // An initial load may supersede one still unwinding after cancellation.
       guard page == nil else { return }
     } else {
-      guard activeMutation == nil, !isLoadingMore, !isRefreshingStorage else { return }
-      guard supersedesRefresh || !isRefreshing else { return }
+      guard activeMutation == nil, !isLoadingMore else { return }
+      // A superseding appearance may interrupt a prior refresh at any point,
+      // including while it waits on the storage retry.
+      guard supersedesRefresh || (!isRefreshing && !isRefreshingStorage) else { return }
     }
     loadGeneration &+= 1
     let generation = loadGeneration
@@ -400,9 +428,11 @@ final class PutioTrashModel {
     paginationFailure = nil
     refreshFailure = nil
     do {
-      await reloadStaleStorage()
+      await reloadStaleStorage(for: generation)
+      guard generation == loadGeneration else { return }
       let loadedPage = try await actions.load(nil)
       guard generation == loadGeneration else { return }
+      reconciliation.abandonListing(listingID)
       listingID = UUID()
       state = .loaded(
         reconciliation.reconcile(loadedPage, listingID: listingID, startsListing: true))
@@ -471,6 +501,7 @@ final class PutioTrashModel {
     guard currentPage.nextCursor != nil else { return }
     do {
       let reloaded = try await actions.load(nil)
+      reconciliation.abandonListing(listingID)
       listingID = UUID()
       state = .loaded(reconciliation.reconcile(reloaded, listingID: listingID, startsListing: true))
     } catch {
@@ -594,6 +625,7 @@ struct TrashManagementView: View {
       }
     }
     .task { await model.refreshOnAppear() }
+    .onDisappear { model.abandonListing() }
     .onChange(of: model.mutationOutcome) { _, outcome in
       present(outcome)
     }

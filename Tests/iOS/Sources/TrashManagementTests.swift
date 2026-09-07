@@ -780,6 +780,63 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(first.page?.items, [b])
   }
 
+  func testReappearanceSupersedesARefreshParkedInTheStorageRetry() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let gate = SuspendedStorageRefresh()
+    var loads = 0
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { _ in
+          loads += 1
+          return self.page(items: loads == 1 ? [a] : [a, b], totalCount: loads)
+        },
+        restore: { _ in throw PutioRuntimeError.unknown },
+        permanentlyDelete: { _ in .refreshed },
+        empty: { .refreshed },
+        refreshStorage: { await gate.refresh() },
+        isStorageStale: { gate.isStale }
+      )
+    )
+
+    await model.refreshOnAppear()
+    XCTAssertEqual(model.page?.items, [a])
+    gate.markStale()
+
+    // Leaving the tab cancels this appearance while it waits on storage.
+    let leaving = Task { await model.refreshOnAppear() }
+    await waitUntil("the storage retry started") { gate.requestCount >= 1 }
+    leaving.cancel()
+
+    // Returning must still list Trash once storage settles.
+    let returning = Task { await model.refreshOnAppear() }
+    await Task.yield()
+    gate.resume(with: true)
+    await returning.value
+    await leaving.value
+    XCTAssertEqual(model.page?.items, [a, b], "the superseding appearance listed Trash")
+    XCTAssertFalse(model.isRefreshing)
+    XCTAssertFalse(model.isRefreshingStorage)
+  }
+
+  func testAbandonedListingsDoNotAccumulate() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let stub = TrashActionsStub(pages: [
+      .success(page(items: [a], cursor: "n1", totalCount: 2)),
+      .success(page(items: [a], cursor: "n2", totalCount: 2)),
+      .success(page(items: [a], cursor: "n3", totalCount: 2)),
+    ])
+    let model = model(stub, reconciliation: shared)
+
+    await model.loadIfNeeded()
+    await model.refresh()
+    await model.refresh()
+    model.abandonListing()
+
+    XCTAssertEqual(shared.pendingListingCount, 0, "superseded and abandoned listings are dropped")
+  }
+
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
     let item = trashItem(id: 91, name: "First.pdf", kind: .pdf)
     let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)

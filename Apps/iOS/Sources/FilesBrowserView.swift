@@ -214,6 +214,7 @@ struct PutioFolderScreen: View {
   @State private var toast: PutioToast?
   @State private var selectedIDs: Set<PutioFileID> = []
   @State private var editMode: EditMode = .inactive
+  @State private var refreshRegistration: PutioFolderRefreshRegistration
   private let relativeDateReference: Date?
   private let locale: Locale
   private let load: PutioFolderLoad
@@ -243,6 +244,8 @@ struct PutioFolderScreen: View {
         initialContents: initialContents
       )
     )
+    _refreshRegistration = State(
+      initialValue: PutioFolderRefreshRegistration(folderID: route.id, requests: refreshRequests))
     self.relativeDateReference = relativeDateReference
     self.locale = locale
     self.load = load
@@ -438,7 +441,7 @@ struct PutioFolderScreen: View {
       }
     }
     .task(id: route.id) {
-      refreshRequests.register(folderID: route.id)
+      _ = refreshRegistration
       let pending = refreshRequests.sequence(for: route.id)
       // A fresh initial load already reflects any request that predates it.
       let loaded = await model.loadIfNeeded()
