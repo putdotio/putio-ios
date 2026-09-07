@@ -66,7 +66,9 @@ shadow, and parallax. Do not replace focus with a custom fill-only button style.
 Non-control TV surfaces retain solid token backgrounds and the `tv` type,
 spacing, radius, and overscan roles. TV numerics use GT America tabular figures;
 there is no mono face. The shared row retains a tvOS folder indicator until the
-native browser in #141 owns that presentation.
+native browser in #141 owns that presentation, and a row used as a control takes
+the stock `.card` style so focus lifts it rather than filling behind its fixed
+brand colors.
 
 Watch remains counts, states, and remote control, with one action per screen
 and no file browser or text entry. The system owns time and navigation chrome.

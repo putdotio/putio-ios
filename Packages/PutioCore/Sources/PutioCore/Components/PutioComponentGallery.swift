@@ -185,11 +185,14 @@ private struct FilesGallery: View {
             }
           }
           GallerySection(caption: "As button") {
+            // A row is content, not an action: the stock card style lifts it
+            // on focus instead of painting an accent fill behind fixed brand
+            // colors, which is what the TV contract means by native focus.
             Button {
             } label: {
               PutioFileRow(GalleryFixtures.folderRow)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.card)
           }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
