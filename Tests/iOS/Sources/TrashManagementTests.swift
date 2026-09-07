@@ -1504,6 +1504,40 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(model.page?.items, [newer])
   }
 
+  func testAListingStartedBeforeARemovalCannotReleaseItsTombstone() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let c = trashItem(id: 93, name: "C.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let walker = model(
+      TrashActionsStub(pages: [
+        .success(page(items: [a], cursor: "n1", totalCount: 3)),
+        // The server already dropped b by the time the continuation runs.
+        .success(page(items: [c], totalCount: 2)),
+      ]),
+      reconciliation: shared)
+    let other = model(
+      TrashActionsStub(
+        pages: [
+          .success(page(items: [a, b, c], totalCount: 3)),
+          // Lagging listing after the delete.
+          .success(page(items: [a, b, c], totalCount: 3)),
+        ],
+        deleteResults: [.success(.refreshed)]),
+      reconciliation: shared)
+
+    await walker.loadIfNeeded()
+    await other.loadIfNeeded()
+    await other.permanentlyDelete(b)
+    await walker.loadMore()
+
+    XCTAssertEqual(walker.page?.items, [a, c])
+    XCTAssertTrue(
+      shared.isRemoved(b), "a listing that began before the delete cannot confirm it")
+    await other.refresh()
+    XCTAssertEqual(other.page?.items, [a, c], "the lagging listing cannot resurrect b")
+  }
+
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
     let item = trashItem(id: 91, name: "First.pdf", kind: .pdf)
     let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)

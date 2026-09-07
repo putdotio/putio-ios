@@ -36,8 +36,17 @@ final class PutioTrashReconciliation {
   /// Bumped on every committed removal or emptying so a Trash screen that
   /// did not perform the mutation can drop the rows it already shows.
   private(set) var version: UInt64 = 0
-  /// Complete listings in which each removal has still appeared.
-  @ObservationIgnored private(set) var removals: [Removal: Int] = [:]
+  /// A committed removal: how many complete listings have still reported it,
+  /// and the `version` it was recorded at. A listing that started earlier
+  /// neither counts nor releases it; that listing's pages predate the commit.
+  private struct Tombstone {
+    var listings: Int
+    let version: UInt64
+  }
+
+  @ObservationIgnored private var removals: [Removal: Tombstone] = [:]
+  /// `version` at which each open listing started.
+  @ObservationIgnored private var listingVersions: [UUID: UInt64] = [:]
   /// Set after emptying. Emptying deletes rows on pages never loaded, whose
   /// deletion times are unknown, so every listed row is treated as lag until
   /// a complete listing is empty or the bound above expires.
@@ -50,8 +59,9 @@ final class PutioTrashReconciliation {
   init() {}
 
   func recordRemoval(of item: PutioTrashItem) {
-    removals[Removal(id: item.id, deletedAt: item.deletedAt)] = 0
     version &+= 1
+    removals[Removal(id: item.id, deletedAt: item.deletedAt)] = Tombstone(
+      listings: 0, version: version)
   }
 
   func recordEmptied() {
@@ -60,6 +70,7 @@ final class PutioTrashReconciliation {
     // Only listings started after the emptying may settle the cutoff: a walk
     // begun before it carries pre-empty pages and proves nothing about lag.
     seenByListing.removeAll()
+    listingVersions.removeAll()
     version &+= 1
   }
 
@@ -93,6 +104,7 @@ final class PutioTrashReconciliation {
   /// Drops the accumulator of a listing that will not be walked to its end.
   func abandonListing(_ listingID: UUID) {
     seenByListing[listingID] = nil
+    listingVersions[listingID] = nil
   }
 
   /// Listings started but not yet completed or abandoned.
@@ -105,7 +117,10 @@ final class PutioTrashReconciliation {
   func reconcile(
     _ listing: PutioTrashPage, listingID: UUID, startsListing: Bool
   ) -> PutioTrashPage {
-    if startsListing { seenByListing[listingID] = [] }
+    if startsListing {
+      seenByListing[listingID] = []
+      listingVersions[listingID] = version
+    }
     // A continuation of an abandoned listing still gets filtered, but it can
     // never complete that listing: its earlier pages are gone.
     if var seen = seenByListing[listingID] {
@@ -114,8 +129,10 @@ final class PutioTrashReconciliation {
     }
     let survivors = listing.items.filter { !isRemoved($0) }
     if listing.nextCursor == nil {
-      if let seen = seenByListing.removeValue(forKey: listingID) {
-        settleCompleteListing(seen: seen)
+      if let seen = seenByListing.removeValue(forKey: listingID),
+        let startedAt = listingVersions.removeValue(forKey: listingID)
+      {
+        settleCompleteListing(seen: seen, startedAt: startedAt)
       }
     }
     guard survivors.count != listing.items.count else { return listing }
@@ -128,14 +145,18 @@ final class PutioTrashReconciliation {
     )
   }
 
-  private func settleCompleteListing(seen: Set<Removal>) {
-    for (removal, listings) in removals {
+  private func settleCompleteListing(seen: Set<Removal>, startedAt: UInt64) {
+    for (removal, tombstone) in removals {
+      // Recorded after this listing began: its pages say nothing about it.
+      guard tombstone.version <= startedAt else { continue }
       guard seen.contains(removal) else {
         removals[removal] = nil
         continue
       }
-      let reported = listings + 1
-      removals[removal] = reported < Self.consistentListingsBeforeTrust ? reported : nil
+      let reported = tombstone.listings + 1
+      removals[removal] =
+        reported < Self.consistentListingsBeforeTrust
+        ? Tombstone(listings: reported, version: tombstone.version) : nil
     }
     guard isEmptyingPending else { return }
     if seen.isEmpty {

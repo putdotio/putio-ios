@@ -444,6 +444,18 @@ final class PutioFolderModel {
     return await performLoad(mode: .refresh)
   }
 
+  /// Like `refresh()`, but a call that lands during a mutation waits for the
+  /// refresh queued behind that mutation and reports its result, so a pending
+  /// folder request can be consumed by the refresh that actually served it.
+  func refreshWhenIdle() async -> Bool {
+    guard case .loaded = state else { return false }
+    guard mutationIsActive else { return await performLoad(mode: .refresh) }
+    refreshRequestedWhileActionActive = true
+    await actionTask?.value
+    guard let queuedRefresh else { return false }
+    return await queuedRefresh.task.value
+  }
+
   func createFolder(name: String) async {
     guard let actions, canStartAction, case .loaded(let contents) = state else { return }
     let name = name.trimmingCharacters(in: .whitespacesAndNewlines)

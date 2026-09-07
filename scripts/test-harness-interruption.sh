@@ -19,7 +19,9 @@ trap cleanup EXIT
 
 for signal_name in INT TERM; do
   log_file="$(mktemp)"
-  run_id="$(uuidgen | tr '[:upper:]' '[:lower:]' | cut -c 1-24)"
+  # Portable: uuidgen is absent on minimal Linux images, and reading a fixed
+  # byte count avoids the SIGPIPE a truncating pipeline raises under pipefail.
+  run_id="$(head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n')"
   device_prefix="putio-harness-ios-$run_id-"
   ./scripts/harness.sh boot --platform ios --run-id "$run_id" >"$log_file" 2>&1 &
   harness_pid=$!

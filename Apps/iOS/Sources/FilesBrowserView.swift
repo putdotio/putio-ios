@@ -466,9 +466,9 @@ struct PutioFolderScreen: View {
       id: PendingRefresh(sequence: refreshRequests.sequence(for: route.id), loaded: model.isLoaded)
     ) {
       guard model.isLoaded, let sequence = refreshRequests.sequence(for: route.id) else { return }
-      // A request stays pending until a refresh actually ran: a cancelled
-      // task or one queued behind a mutation leaves it for the next chance.
-      let refreshed = await model.refresh()
+      // A request stays pending until a refresh actually ran. One queued
+      // behind a mutation is awaited so its success consumes the request too.
+      let refreshed = await model.refreshWhenIdle()
       guard refreshed, !Task.isCancelled else { return }
       refreshRequests.markConsumed(sequence, for: route.id)
     }
@@ -693,7 +693,12 @@ struct PutioFolderScreen: View {
         retryRequest = nil
         return
       }
-      _ = await model.refresh()
+      // A successful retry is as current as the pending request asked for.
+      let pending = refreshRequests.sequence(for: route.id)
+      let refreshed = await model.refresh()
+      if refreshed, let pending, !Task.isCancelled {
+        refreshRequests.markConsumed(pending, for: route.id)
+      }
     }
     guard retryRequest == request else { return }
     retryRequest = nil

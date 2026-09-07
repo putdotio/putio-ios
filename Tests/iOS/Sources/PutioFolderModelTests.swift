@@ -976,6 +976,42 @@ final class PutioFolderModelTests: XCTestCase {
     )
   }
 
+  func testRefreshWhenIdleReportsTheRefreshQueuedBehindAMutation() async {
+    let loader = ControlledFolderLoader()
+    let mutation = SuspendedFileMutation()
+    let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
+    let original = BrowserTestFixtures.contents(items: [item])
+    let refreshed = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 7, name: "Server.mkv", sizeBytes: 8_192)]
+    )
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { folderID in try await loader.load(folderID: folderID) },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in try await mutation.run() },
+        deleteFile: { _ in throw PutioRuntimeError.unknown }
+      ),
+      initialContents: original
+    )
+
+    let rename = Task { await model.rename(item, to: "Renamed.mkv") }
+    await mutation.waitUntilStarted()
+    // A pending folder request lands mid-mutation and waits for the refresh
+    // that the settling mutation queues, instead of reporting false.
+    let pending = Task { await model.refreshWhenIdle() }
+    await mutation.succeed()
+    await loader.waitForRequestCount(1)
+    await loader.succeed(request: 0, with: refreshed)
+    await rename.value
+
+    let served = await pending.value
+    XCTAssertTrue(served, "the queued refresh served the pending request")
+    XCTAssertEqual(model.state, .loaded(refreshed))
+    let requests = await loader.requestCount()
+    XCTAssertEqual(requests, 1, "no second refresh for the same request")
+  }
+
   func testQueuedRefreshRunsAfterCallerCancellation() async {
     let loader = ControlledFolderLoader()
     let mutation = SuspendedFileMutation()

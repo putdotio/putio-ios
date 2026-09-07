@@ -796,7 +796,6 @@ public struct SimulatorHarness {
           summary: summary,
           directory: platformDirectory
         )
-        try fileManager.removeItem(at: resultBundle)
 
         let rootPixels = try requireMeaningfulScreenshot(
           screenshots[0], context: "runtime sign-in attachment")
@@ -821,6 +820,9 @@ public struct SimulatorHarness {
 
         try requireCleanSource()
         try requireRevision(sourceRevision)
+        // The XCTest bundle is diagnostic evidence for every check above; it
+        // goes only once the run is proven good.
+        try fileManager.removeItem(at: resultBundle)
         let artifactURLs =
           preflightScreenshots + screenshots + [recording, summary]
         let manifest = try writeManifest(
