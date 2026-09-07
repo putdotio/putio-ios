@@ -56,14 +56,94 @@ struct PutioFolderRoute: Identifiable, Sendable {
 
 @Observable
 final class PutioFolderRefreshRequests {
+  struct Sequence: Equatable, Sendable {
+    let folder: UInt64
+    let allFolders: UInt64
+  }
+
   private var sequences: [PutioFileID: UInt64] = [:]
+  private var allFoldersSequence: UInt64 = 0
+  private var consumed: [PutioFileID: Sequence] = [:]
+  // Broadcast sequence when each folder screen first registered. A broadcast
+  // only reaches folders that existed when it was sent; folders opened later
+  // load fresh data anyway.
+  private var registeredAt: [PutioFileID: UInt64] = [:]
+  // The screen instance currently owning each folder's registration, so a
+  // late unregister from a discarded screen cannot evict its replacement.
+  private var owners: [PutioFileID: UUID] = [:]
+
+  func register(folderID: PutioFileID, owner: UUID = UUID()) {
+    owners[folderID] = owner
+    if registeredAt[folderID] == nil { registeredAt[folderID] = allFoldersSequence }
+  }
+
+  /// A popped screen reloads on return, so nothing pending needs to survive.
+  /// Called from the screen's registration token when SwiftUI discards it.
+  /// Ignored when another screen has since registered the same folder.
+  func unregister(folderID: PutioFileID, owner: UUID? = nil) {
+    if let owner, owners[folderID] != owner { return }
+    owners[folderID] = nil
+    registeredAt[folderID] = nil
+    consumed[folderID] = nil
+    sequences[folderID] = nil
+  }
 
   func request(folderID: PutioFileID) {
     sequences[folderID, default: 0] &+= 1
   }
 
-  func sequence(for folderID: PutioFileID) -> UInt64? {
-    sequences[folderID]
+  func requestAllLoadedFolders() {
+    allFoldersSequence &+= 1
+  }
+
+  /// The request `folderID` has not yet honored, or nil. A folder screen
+  /// consumes it after refreshing so later appearances do not refresh again.
+  func sequence(for folderID: PutioFileID) -> Sequence? {
+    let broadcastBaseline = registeredAt[folderID] ?? allFoldersSequence
+    let current = Sequence(
+      folder: sequences[folderID, default: 0],
+      allFolders: allFoldersSequence > broadcastBaseline ? allFoldersSequence : 0)
+    guard current.folder > 0 || current.allFolders > 0 else { return nil }
+    guard consumed[folderID] != current else { return nil }
+    return current
+  }
+
+  func markConsumed(_ sequence: Sequence, for folderID: PutioFileID) {
+    consumed[folderID] = sequence
+  }
+}
+
+/// Lives in a folder screen's `@State`. SwiftUI releases that state only when
+/// the screen is discarded (a pop, not a tab switch), which is exactly when
+/// the folder's refresh registration should go.
+///
+/// The view struct's initializer runs on every parent re-render and builds a
+/// throwaway instance each time; only the instance SwiftUI retains ever calls
+/// `activate()`, so only that one registers and unregisters.
+@MainActor
+final class PutioFolderRefreshRegistration {
+  private let folderID: PutioFileID
+  private let requests: PutioFolderRefreshRequests
+  private let owner = UUID()
+  private var isActive = false
+
+  init(folderID: PutioFileID, requests: PutioFolderRefreshRequests) {
+    self.folderID = folderID
+    self.requests = requests
+  }
+
+  func activate() {
+    guard !isActive else { return }
+    isActive = true
+    requests.register(folderID: folderID, owner: owner)
+  }
+
+  deinit {
+    guard isActive else { return }
+    let folderID = self.folderID
+    let requests = self.requests
+    let owner = self.owner
+    Task { @MainActor in requests.unregister(folderID: folderID, owner: owner) }
   }
 }
 
@@ -306,7 +386,10 @@ final class PutioFolderModel {
   @ObservationIgnored private var generation: UInt64 = 0
   @ObservationIgnored private var inFlightLoadGeneration: UInt64?
   @ObservationIgnored private var actionTask: Task<Void, Never>?
-  @ObservationIgnored private var queuedRefresh: (id: UUID, task: Task<Bool, Never>)?
+  // The refresh queued behind the latest mutation. Retained until the next
+  // mutation starts (or a bulk retry consumes it) so late waiters read its
+  // result instead of a cleared slot.
+  @ObservationIgnored private var queuedRefresh: Task<Bool, Never>?
   @ObservationIgnored private var refreshRequestedWhileActionActive = false
 
   init(
@@ -334,13 +417,20 @@ final class PutioFolderModel {
     activeAction != nil || activeBulkAction != nil
   }
 
-  func loadIfNeeded() async {
+  var isLoaded: Bool {
+    if case .loaded = state { return true }
+    return false
+  }
+
+  /// Returns true when this call performed a successful load.
+  @discardableResult
+  func loadIfNeeded() async -> Bool {
     // `.loading` means the initial attempt never settled — including a
     // cancelled attempt that is still unwinding when the screen is
     // re-entered. Starting a new request here supersedes that unwind via
     // the generation check, so a late restore cannot strand the spinner.
-    guard case .loading = state else { return }
-    _ = await performLoad(mode: .replace)
+    guard case .loading = state else { return false }
+    return await performLoad(mode: .replace)
   }
 
   func retry() async {
@@ -355,6 +445,18 @@ final class PutioFolderModel {
       return false
     }
     return await performLoad(mode: .refresh)
+  }
+
+  /// Like `refresh()`, but a call that lands during a mutation waits for the
+  /// refresh queued behind that mutation and reports its result, so a pending
+  /// folder request can be consumed by the refresh that actually served it.
+  func refreshWhenIdle() async -> Bool {
+    guard case .loaded = state else { return false }
+    guard mutationIsActive else { return await performLoad(mode: .refresh) }
+    refreshRequestedWhileActionActive = true
+    await actionTask?.value
+    guard let queuedRefresh else { return false }
+    return await queuedRefresh.value
   }
 
   func createFolder(name: String) async {
@@ -480,7 +582,9 @@ final class PutioFolderModel {
   func prepareBulkRetry(_ outcome: PutioBulkFileOutcome) async -> PutioBulkRetryPreparation {
     let refreshed: Bool
     if let queuedRefresh {
-      refreshed = await queuedRefresh.task.value
+      refreshed = await queuedRefresh.value
+      // A retry prepared later must fetch fresh state, not reuse this one.
+      self.queuedRefresh = nil
     } else {
       refreshed = await refresh()
     }
@@ -493,6 +597,7 @@ final class PutioFolderModel {
   }
 
   private func begin(_ action: PutioFileAction) {
+    queuedRefresh = nil
     // Superseding an in-flight refresh drops its response, so the server
     // state it carried must be fetched again once this action settles.
     if inFlightLoadGeneration == generation {
@@ -504,6 +609,7 @@ final class PutioFolderModel {
   }
 
   private func beginBulk(_ action: PutioBulkFileAction, items: [PutioFileItem]) {
+    queuedRefresh = nil
     if inFlightLoadGeneration == generation {
       refreshRequestedWhileActionActive = true
     }
@@ -654,15 +760,10 @@ final class PutioFolderModel {
   private func startQueuedRefreshIfNeeded() {
     guard refreshRequestedWhileActionActive else { return }
     refreshRequestedWhileActionActive = false
-    let id = UUID()
-    let task = Task { @MainActor [weak self] in
+    queuedRefresh = Task { @MainActor [weak self] in
       guard let self else { return false }
-      defer {
-        if queuedRefresh?.id == id { queuedRefresh = nil }
-      }
       return await refresh()
     }
-    queuedRefresh = (id, task)
   }
 
   private func performLoad(mode: LoadMode) async -> Bool {

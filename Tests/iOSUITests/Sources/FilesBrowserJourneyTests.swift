@@ -277,6 +277,126 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
+  func testTrashManagementRestoreRetryDeleteAndEmpty() {
+    app.launch()
+
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
+
+    app.buttons["Account"].tap()
+    let trashEntry = element(identifier: "account.trash")
+    XCTAssertTrue(waitUntilHittable(trashEntry, timeout: 5))
+    let usedStorage = element(identifier: "account.storage-used")
+    XCTAssertTrue(usedStorage.waitForExistence(timeout: 5))
+    let usedBeforeDeletions = usedStorage.label
+    trashEntry.tap()
+
+    let restoreRow = app.staticTexts["Restore Me"]
+    XCTAssertTrue(restoreRow.waitForExistence(timeout: 10))
+    let refreshStart = restoreRow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+    refreshStart.press(
+      forDuration: 0.1,
+      thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.85)),
+      withVelocity: .slow,
+      thenHoldForDuration: 1
+    )
+    let refreshError = app.staticTexts["Could not refresh Trash"]
+    XCTAssertTrue(refreshError.waitForExistence(timeout: 5), app.debugDescription)
+    XCTAssertTrue(restoreRow.exists, "failed refresh discarded the loaded Trash page")
+    addScreenshot(named: "runtime-trash-refresh-error")
+    let retryRefresh = app.buttons["Try again"]
+    XCTAssertTrue(waitUntilHittable(retryRefresh, timeout: 5))
+    retryRefresh.tap()
+    XCTAssertTrue(refreshError.waitForNonExistence(timeout: 5))
+    XCTAssertFalse(app.staticTexts["Empty Me"].exists)
+    let loadMore = app.buttons["trash.load-more"]
+    XCTAssertTrue(waitUntilHittable(loadMore, timeout: 5))
+    loadMore.tap()
+    XCTAssertTrue(app.staticTexts["Empty Me"].waitForExistence(timeout: 5))
+    XCTAssertTrue(loadMore.waitForNonExistence(timeout: 5))
+    addScreenshot(named: "runtime-trash-loaded")
+    let restoreActions = app.buttons["trash.item.419.actions"]
+    XCTAssertTrue(waitUntilHittable(restoreActions, timeout: 5))
+    restoreActions.tap()
+    let restore = app.buttons["trash.restore.419"]
+    XCTAssertTrue(waitUntilHittable(restore, timeout: 5))
+    restore.tap()
+    XCTAssertTrue(element(identifier: "trash.progress").waitForExistence(timeout: 5))
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+
+    app.buttons["Files"].tap()
+    XCTAssertTrue(
+      element(identifier: "files.item.419").waitForExistence(timeout: 10),
+      "restored item did not return to its authoritative root destination"
+    )
+    app.buttons["Account"].tap()
+    XCTAssertTrue(waitUntilHittable(trashEntry, timeout: 5))
+    trashEntry.tap()
+    XCTAssertTrue(app.staticTexts["Delete Me"].waitForExistence(timeout: 5))
+    XCTAssertTrue(restoreRow.waitForNonExistence(timeout: 5))
+
+    let deleteRow = app.staticTexts["Delete Me"]
+    XCTAssertTrue(deleteRow.waitForExistence(timeout: 5))
+    permanentlyDeleteTrashItem(id: 420, name: "Delete Me")
+    XCTAssertTrue(
+      app.staticTexts["Could not permanently delete item"].waitForExistence(timeout: 5)
+    )
+    XCTAssertTrue(deleteRow.exists, "failed permanent delete removed the row")
+
+    permanentlyDeleteTrashItem(id: 420, name: "Delete Me")
+    XCTAssertTrue(app.staticTexts["Item deleted"].waitForExistence(timeout: 5))
+    XCTAssertTrue(deleteRow.waitForNonExistence(timeout: 5))
+
+    let emptyTrash = app.buttons["trash.empty"]
+    XCTAssertTrue(waitUntilHittable(emptyTrash, timeout: 5))
+    emptyTrash.tap()
+    XCTAssertTrue(app.staticTexts["Empty Trash permanently?"].waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      app.staticTexts["Every item in Trash will be deleted and cannot be restored."].exists
+    )
+    let confirmEmpty = app.buttons["trash.empty-confirm"].firstMatch
+    XCTAssertTrue(waitUntilHittable(confirmEmpty, timeout: 5))
+    confirmEmpty.tap()
+    XCTAssertTrue(app.staticTexts["Trash is empty"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["Trash emptied"].waitForExistence(timeout: 5))
+    // The seeded account refresh after emptying fails once: the stale-storage
+    // warning must stay visible with its own retry, alongside the empty state.
+    let staleStorage = app.staticTexts["Storage totals are out of date"]
+    XCTAssertTrue(staleStorage.waitForExistence(timeout: 5), app.debugDescription)
+    XCTAssertTrue(app.staticTexts["Trash is empty"].exists, "empty state hidden behind the error")
+    let updateStorage = app.buttons["Update storage"]
+    XCTAssertTrue(waitUntilHittable(updateStorage, timeout: 5))
+    updateStorage.tap()
+    XCTAssertTrue(staleStorage.waitForNonExistence(timeout: 5), "storage retry did not clear")
+    let emptyRefreshStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.25))
+    emptyRefreshStart.press(
+      forDuration: 0.1,
+      thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.85)),
+      withVelocity: .slow,
+      thenHoldForDuration: 1
+    )
+    XCTAssertTrue(refreshError.waitForExistence(timeout: 5), app.debugDescription)
+    XCTAssertTrue(waitUntilHittable(retryRefresh, timeout: 5))
+    retryRefresh.tap()
+    XCTAssertTrue(refreshError.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Trash is empty"].waitForExistence(timeout: 5))
+    addScreenshot(named: "runtime-trash-empty")
+
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    XCTAssertTrue(usedStorage.waitForExistence(timeout: 5))
+    let storageChanged = expectation(
+      for: NSPredicate(format: "label != %@", usedBeforeDeletions), evaluatedWith: usedStorage)
+    wait(for: [storageChanged], timeout: 5)
+    XCTAssertNotEqual(
+      usedStorage.label, usedBeforeDeletions, "emptying Trash did not change account storage")
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+  }
+
   func testUnsupportedFileIsNotActionable() {
     app.launch()
 
@@ -301,6 +421,22 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+  }
+
+  private func permanentlyDeleteTrashItem(id: Int, name: String) {
+    let actions = app.buttons["trash.item.\(id).actions"]
+    XCTAssertTrue(waitUntilHittable(actions, timeout: 5))
+    actions.tap()
+    let delete = app.buttons["trash.delete.\(id)"]
+    XCTAssertTrue(waitUntilHittable(delete, timeout: 5))
+    delete.tap()
+    XCTAssertTrue(
+      app.staticTexts["Delete “\(name)” permanently?"].waitForExistence(timeout: 5)
+    )
+    XCTAssertTrue(app.staticTexts["This item cannot be restored."].exists)
+    let confirm = app.buttons["trash.delete-confirm"].firstMatch
+    XCTAssertTrue(waitUntilHittable(confirm, timeout: 5))
+    confirm.tap()
   }
 
   func testPlaybackPositionPersistsAcrossReopen() {

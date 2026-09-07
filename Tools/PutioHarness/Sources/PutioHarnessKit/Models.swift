@@ -129,7 +129,7 @@ public enum JourneyScenario: String, CaseIterable, Equatable, Sendable {
 
   var fixtureSet: String {
     switch self {
-    case .filesBrowser: "seeded-runtime-loop-v3"
+    case .filesBrowser: "seeded-runtime-loop-v4"
     }
   }
 }
@@ -299,10 +299,15 @@ enum BrowserJourneyContract {
     "PutioUITests/FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash"
   static let trashDisabledTestIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyAndVisibleMenu"
+  static let trashManagementTestIdentifier =
+    "PutioUITests/FilesBrowserJourneyTests/testTrashManagementRestoreRetryDeleteAndEmpty"
   static let fileActionsAttachmentName = "runtime-file-actions"
   static let signOutRecoveryTestIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testSignOutFailureRecoversWithExplicitRetry"
   static let signOutFailureAttachmentName = "runtime-sign-out-failure"
+  static let trashManagementAttachmentNames = [
+    "runtime-trash-refresh-error", "runtime-trash-loaded", "runtime-trash-empty",
+  ]
   static let attachmentNames = [
     "runtime-sign-in",
     "runtime-playback",

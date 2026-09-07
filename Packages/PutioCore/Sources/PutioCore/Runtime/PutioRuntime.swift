@@ -74,6 +74,69 @@ public final class PutioRuntime {
     }
   }
 
+  public func listTrash(cursor: String? = nil) async throws -> PutioTrashPage {
+    let result = try await performAuthenticatedOperation {
+      if let cursor {
+        return try await sdk.continueListTrash(cursor: cursor)
+      }
+      return try await sdk.listTrash()
+    }
+
+    return PutioTrashPage(
+      items: result.files.map(trashSnapshot),
+      nextCursor: result.cursor?.isEmpty == false ? result.cursor : nil,
+      totalCount: result.total,
+      sizeBytes: result.trashSize
+    )
+  }
+
+  public func restoreTrashItem(fileID: PutioFileID) async throws -> PutioTrashRestoreResult {
+    let response = try await performAuthenticatedMutation {
+      try await sdk.restoreTrashFiles(fileIDs: [fileID.rawValue], cursor: nil)
+    }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+    do {
+      let restoredFile = try await performAuthenticatedOperation {
+        try await sdk.getFile(fileID: fileID.rawValue)
+      }
+      return .restored(destinationID: snapshot(restoredFile).parentID)
+    } catch is CancellationError {
+      // The restore is committed. Reporting that as a distinct result lets
+      // the caller reconcile without mistaking it for a pre-commit cancel.
+      return .restoredLookupCancelled
+    } catch {
+      return .restoredDestinationUnknown
+    }
+  }
+
+  /// Deletes one trashed file. The deletion is committed once this returns;
+  /// the result only reports whether the account storage snapshot followed.
+  public func permanentlyDeleteTrashItem(
+    fileID: PutioFileID
+  ) async throws -> PutioTrashMutationResult {
+    let response = try await performAuthenticatedMutation {
+      try await sdk.deleteTrashFiles(fileIDs: [fileID.rawValue], cursor: nil)
+    }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+    return PutioTrashMutationResult(
+      storageRefreshed: await session.refreshAccountAfterStorageMutation())
+  }
+
+  public func emptyTrash() async throws -> PutioTrashMutationResult {
+    let response = try await performAuthenticatedMutation {
+      try await sdk.emptyTrash()
+    }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+    return PutioTrashMutationResult(
+      storageRefreshed: await session.refreshAccountAfterStorageMutation())
+  }
+
+  /// Retries only the account storage snapshot after a committed Trash
+  /// mutation whose refresh failed. See `PutioSessionStore.isAccountStorageStale`.
+  public func refreshAccountStorage() async -> Bool {
+    await session.refreshAccount()
+  }
+
   public func findNextVideo(after fileID: PutioFileID) async throws -> PutioNextVideo? {
     let nextFile = try await performAuthenticatedOperation {
       try await sdk.findNextFileIfAvailable(fileID: fileID.rawValue, fileType: .video)
@@ -144,6 +207,22 @@ public final class PutioRuntime {
   private func performAuthenticatedOperation<Value>(
     _ operation: () async throws -> Value
   ) async throws -> Value {
+    try await performAuthenticatedOperation(commits: false, operation)
+  }
+
+  /// A committing operation keeps a decoded success even if the task was
+  /// cancelled while the response was in flight: the server already applied
+  /// it, and callers must reconcile rather than treat it as never sent.
+  private func performAuthenticatedMutation<Value>(
+    _ operation: () async throws -> Value
+  ) async throws -> Value {
+    try await performAuthenticatedOperation(commits: true, operation)
+  }
+
+  private func performAuthenticatedOperation<Value>(
+    commits: Bool,
+    _ operation: () async throws -> Value
+  ) async throws -> Value {
     guard case .signedIn = session.state else {
       throw currentSessionError
     }
@@ -152,7 +231,7 @@ public final class PutioRuntime {
     do {
       try Task.checkCancellation()
       let result = try await operation()
-      try Task.checkCancellation()
+      if !commits { try Task.checkCancellation() }
 
       guard
         authenticationGeneration == session.authenticationGeneration,
@@ -226,6 +305,18 @@ public final class PutioRuntime {
       createdAt: file.createdAt,
       updatedAt: file.updatedAt,
       resumePositionSeconds: file.startFrom
+    )
+  }
+
+  private func trashSnapshot(_ file: PutioTrashFile) -> PutioTrashItem {
+    PutioTrashItem(
+      id: PutioFileID(rawValue: file.id),
+      parentID: PutioFileID(rawValue: file.parentID),
+      name: file.name,
+      kind: kind(for: file.type),
+      sizeBytes: file.size,
+      deletedAt: file.deletedAt,
+      expiresAt: file.expiresOn
     )
   }
 

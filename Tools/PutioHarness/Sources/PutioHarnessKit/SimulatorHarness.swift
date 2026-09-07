@@ -238,6 +238,33 @@ private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: Proces
   }
 }
 
+/// One Simulator this run owns. Before `claim`, only the verified-unowned name
+/// identifies it; afterwards cleanup uses the exact UDID.
+final class OwnedSimulator: @unchecked Sendable {
+  private let name: String
+  private let lock = NSLock()
+  private var identifier: String?
+
+  init(name: String) {
+    self.name = name
+  }
+
+  func claim(_ identifier: String) {
+    lock.withLock { self.identifier = identifier }
+  }
+
+  func cleanup(
+    runner: ProcessRunner, attempts: Int = 10, retryDelay: TimeInterval = 0.2
+  ) throws {
+    if let identifier = lock.withLock({ identifier }) {
+      try cleanupSimulatorIdentifiers([identifier], runner: runner)
+    } else {
+      try cleanupSimulators(
+        named: [name], runner: runner, attempts: attempts, retryDelay: retryDelay)
+    }
+  }
+}
+
 private struct SimulatorDeviceList: Decodable {
   let devices: [String: [SimulatorDevice]]
 }
@@ -247,13 +274,28 @@ private struct SimulatorDevice: Decodable {
   let udid: String
 }
 
-private func cleanupSimulators(named names: [String], runner: ProcessRunner) throws {
-  let output = try runner.checked(
-    "xcrun", ["simctl", "list", "devices", "-j"], context: "locate owned Simulators")
-  let devices = try JSONDecoder().decode(SimulatorDeviceList.self, from: Data(output.stdout.utf8))
-  let identifiers = devices.devices.values.flatMap { $0 }.filter { names.contains($0.name) }.map(
-    \.udid)
-  if !identifiers.isEmpty { try cleanupSimulatorIdentifiers(identifiers, runner: runner) }
+/// A terminated `simctl create` client does not abort the request already
+/// accepted by CoreSimulatorService, and the device can appear a moment after
+/// the client died. The lookup is retried within a short bound so that window
+/// cannot leak the device; the names were verified unowned, so a late match is
+/// ours.
+private func cleanupSimulators(
+  named names: [String], runner: ProcessRunner, attempts: Int = 10,
+  retryDelay: TimeInterval = 0.2
+) throws {
+  for attempt in 1...max(1, attempts) {
+    let output = try runner.checked(
+      "xcrun", ["simctl", "list", "devices", "-j"], context: "locate owned Simulators")
+    let devices = try JSONDecoder().decode(
+      SimulatorDeviceList.self, from: Data(output.stdout.utf8))
+    let identifiers = devices.devices.values.flatMap { $0 }.filter { names.contains($0.name) }
+      .map(\.udid)
+    if !identifiers.isEmpty {
+      try cleanupSimulatorIdentifiers(identifiers, runner: runner)
+      return
+    }
+    if attempt < attempts { Thread.sleep(forTimeInterval: retryDelay) }
+  }
 }
 
 public final class SimulatorLifecycle: @unchecked Sendable {
@@ -421,8 +463,8 @@ public struct SimulatorHarness {
     try runInstalledApp(platform, shouldExercise: false)
   }
 
-  public func boot(_ platform: HarnessPlatform) throws -> SurfaceRun {
-    try withSession(platform: platform, runID: UUID().uuidString.lowercased()) { _ in
+  public func boot(_ platform: HarnessPlatform, runID: String? = nil) throws -> SurfaceRun {
+    try withSession(platform: platform, runID: runID ?? UUID().uuidString.lowercased()) { _ in
       SurfaceRun(
         platform: platform,
         artifacts: [],
@@ -627,44 +669,27 @@ public struct SimulatorHarness {
         }
         let mediaBaseURL = try mediaServer.start()
 
-        guard
-          let signOutFailureScreenshot = try runJourneyPreflightTest(
-            identifier: BrowserJourneyContract.signOutRecoveryTestIdentifier,
-            platform: platform,
-            session: session,
-            mediaBaseURL: mediaBaseURL,
-            resultBundle: platformDirectory.appending(path: ".sign-out-recovery.xcresult"),
-            attachmentName: BrowserJourneyContract.signOutFailureAttachmentName,
-            artifactDirectory: platformDirectory,
-            defaultExecutionTimeAllowance: 60,
-            maximumExecutionTimeAllowance: 90
-          )
-        else {
-          throw HarnessFailure("sign-out recovery preflight did not produce its screenshot")
-        }
-        _ = try requireMeaningfulScreenshot(
-          signOutFailureScreenshot,
-          context: "runtime sign-out failure attachment"
+        let signOutFailureScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.signOutRecoveryTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".sign-out-recovery.xcresult"),
+          attachmentNames: [BrowserJourneyContract.signOutFailureAttachmentName],
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 60,
+          maximumExecutionTimeAllowance: 90
         )
-
-        guard
-          let fileActionsScreenshot = try runJourneyPreflightTest(
-            identifier: BrowserJourneyContract.fileActionsTestIdentifier,
-            platform: platform,
-            session: session,
-            mediaBaseURL: mediaBaseURL,
-            resultBundle: platformDirectory.appending(path: ".file-actions.xcresult"),
-            attachmentName: BrowserJourneyContract.fileActionsAttachmentName,
-            artifactDirectory: platformDirectory,
-            defaultExecutionTimeAllowance: 240,
-            maximumExecutionTimeAllowance: 240
-          )
-        else {
-          throw HarnessFailure("file-actions preflight did not produce its screenshot")
-        }
-        _ = try requireMeaningfulScreenshot(
-          fileActionsScreenshot,
-          context: "runtime file-actions attachment"
+        let fileActionsScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.fileActionsTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".file-actions.xcresult"),
+          attachmentNames: [BrowserJourneyContract.fileActionsAttachmentName],
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 240,
+          maximumExecutionTimeAllowance: 240
         )
         _ = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.trashDisabledTestIdentifier,
@@ -675,6 +700,29 @@ public struct SimulatorHarness {
           defaultExecutionTimeAllowance: 60,
           maximumExecutionTimeAllowance: 60
         )
+        let trashManagementScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.trashManagementTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".trash-management.xcresult"),
+          attachmentNames: BrowserJourneyContract.trashManagementAttachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 90,
+          maximumExecutionTimeAllowance: 90
+        )
+        let preflightScreenshots =
+          signOutFailureScreenshots + fileActionsScreenshots + trashManagementScreenshots
+        for screenshot in preflightScreenshots {
+          _ = try requireMeaningfulScreenshot(screenshot, context: "journey preflight attachment")
+        }
+        // Only now is every preflight fully validated; until here a blank
+        // screenshot still needs its bundle for diagnosis.
+        for bundle in [
+          ".sign-out-recovery.xcresult", ".file-actions.xcresult", ".trash-management.xcresult",
+        ] {
+          try? fileManager.removeItem(at: platformDirectory.appending(path: bundle))
+        }
         _ = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.unsupportedFileTestIdentifier,
           platform: platform,
@@ -748,7 +796,6 @@ public struct SimulatorHarness {
           summary: summary,
           directory: platformDirectory
         )
-        try fileManager.removeItem(at: resultBundle)
 
         let rootPixels = try requireMeaningfulScreenshot(
           screenshots[0], context: "runtime sign-in attachment")
@@ -773,9 +820,11 @@ public struct SimulatorHarness {
 
         try requireCleanSource()
         try requireRevision(sourceRevision)
+        // The XCTest bundle is diagnostic evidence for every check above; it
+        // goes only once the run is proven good.
+        try fileManager.removeItem(at: resultBundle)
         let artifactURLs =
-          [signOutFailureScreenshot, fileActionsScreenshot] + screenshots
-          + [recording, summary]
+          preflightScreenshots + screenshots + [recording, summary]
         let manifest = try writeManifest(
           platform: platform,
           command: "journey",
@@ -794,7 +843,7 @@ public struct SimulatorHarness {
         )
       }
     } catch {
-      try? fileManager.removeItem(at: platformDirectory)
+      try? fileManager.removeItem(at: platformDirectory.appending(path: "manifest.json"))
       throw error
     }
   }
@@ -916,12 +965,11 @@ public struct SimulatorHarness {
     session: SimulatorSession,
     mediaBaseURL: URL,
     resultBundle: URL,
-    attachmentName: String? = nil,
+    attachmentNames: [String] = [],
     artifactDirectory: URL? = nil,
     defaultExecutionTimeAllowance: Int = 30,
     maximumExecutionTimeAllowance: Int = 60
-  ) throws -> URL? {
-    defer { try? fileManager.removeItem(at: resultBundle) }
+  ) throws -> [URL] {
     let testOutput = try runner.run(
       "xcodebuild",
       [
@@ -961,7 +1009,13 @@ public struct SimulatorHarness {
       context: "read journey preflight test summary"
     )
     _ = try requirePassingJourneySummary(Data(summaryOutput.stdout.utf8))
-    guard let attachmentName, let artifactDirectory else { return nil }
+    guard !attachmentNames.isEmpty else {
+      try? fileManager.removeItem(at: resultBundle)
+      return []
+    }
+    guard let artifactDirectory else {
+      throw HarnessFailure("journey preflight attachments require an artifact directory")
+    }
 
     let attachmentsDirectory = artifactDirectory.appending(path: ".preflight-attachments")
     defer { try? fileManager.removeItem(at: attachmentsDirectory) }
@@ -976,18 +1030,23 @@ public struct SimulatorHarness {
     )
     let selected = try selectJourneyAttachmentFiles(
       from: Data(contentsOf: attachmentsDirectory.appending(path: "manifest.json")),
-      expectedNames: [attachmentName]
+      expectedNames: attachmentNames
     )
-    guard let exportedName = selected[attachmentName] else {
-      throw HarnessFailure("journey preflight attachment selection lost \(attachmentName)")
+    let artifacts = try attachmentNames.map { attachmentName in
+      guard let exportedName = selected[attachmentName] else {
+        throw HarnessFailure("journey preflight attachment selection lost \(attachmentName)")
+      }
+      let source = attachmentsDirectory.appending(path: exportedName)
+      try requireNonemptyFile(source, context: "journey preflight attachment \(attachmentName)")
+      let destination = artifactDirectory.appending(
+        path: BrowserJourneyContract.artifactFileName(for: attachmentName))
+      try fileManager.copyItem(at: source, to: destination)
+      try requireNonemptyFile(
+        destination, context: "journey preflight screenshot \(attachmentName)")
+      return destination
     }
-    let source = attachmentsDirectory.appending(path: exportedName)
-    try requireNonemptyFile(source, context: "journey preflight attachment \(attachmentName)")
-    let destination = artifactDirectory.appending(
-      path: BrowserJourneyContract.artifactFileName(for: attachmentName))
-    try fileManager.copyItem(at: source, to: destination)
-    try requireNonemptyFile(destination, context: "journey preflight screenshot \(attachmentName)")
-    return destination
+    // The caller removes the bundle after it has validated the screenshots.
+    return artifacts
   }
 
   public func defaultRunID() throws -> String {
@@ -1111,15 +1170,23 @@ public struct SimulatorHarness {
       throw HarnessFailure("no \(config.deviceFamily) Simulator device type is installed")
     }
 
-    let suffix = String(runID.prefix(24))
+    // The full run ID plus a per-process nonce: two runs can never share a
+    // name even with identical IDs, so the pre-claim name fallback is safe.
+    let suffix = "\(runID)-\(String(UUID().uuidString.prefix(8)).lowercased())"
     let deviceName = "putio-harness-\(platform.rawValue)-\(suffix)"
 
     do {
+      // Cleanup targets the exact device this session creates. The name is
+      // only a fallback for a signal that lands before `simctl create`
+      // returns, and it is safe then because the name was verified unowned.
+      try requireNoSimulator(named: deviceName)
+      let ownedDevice = OwnedSimulator(name: deviceName)
       try SimulatorLifecycle.shared.register {
-        try cleanupSimulators(named: [deviceName], runner: runner)
+        try ownedDevice.cleanup(runner: runner)
       }
       let deviceIdentifier = try createDevice(
         name: deviceName, type: deviceType.identifier, runtime: runtime.identifier)
+      ownedDevice.claim(deviceIdentifier)
       var companionIdentifier: String?
       if platform == .watchos {
         guard
@@ -1134,14 +1201,17 @@ public struct SimulatorHarness {
           )
         }
         let phoneName = "putio-harness-watch-companion-\(suffix)"
+        try requireNoSimulator(named: phoneName)
+        let ownedPhone = OwnedSimulator(name: phoneName)
         try SimulatorLifecycle.shared.register {
-          try cleanupSimulators(named: [phoneName], runner: runner)
+          try ownedPhone.cleanup(runner: runner)
         }
         let phoneIdentifier = try createDevice(
           name: phoneName,
           type: phoneType.identifier,
           runtime: phoneRuntime.identifier
         )
+        ownedPhone.claim(phoneIdentifier)
         companionIdentifier = phoneIdentifier
         let pairIdentifier = try runner.checked(
           "xcrun",
@@ -1202,6 +1272,19 @@ public struct SimulatorHarness {
       context: "list Simulator device types"
     )
     return try JSONDecoder().decode(DeviceTypeList.self, from: Data(output.stdout.utf8)).devicetypes
+  }
+
+  private func requireNoSimulator(named name: String) throws {
+    let output = try runner.checked(
+      "xcrun", ["simctl", "list", "devices", "-j"], context: "check Simulator name ownership")
+    let devices = try JSONDecoder().decode(
+      SimulatorDeviceList.self, from: Data(output.stdout.utf8))
+    let owners = devices.devices.values.flatMap { $0 }.filter { $0.name == name }
+    guard owners.isEmpty else {
+      throw HarnessFailure(
+        "Simulator \(name) already exists (\(owners.map(\.udid).joined(separator: ", "))); a previous run left it behind. Delete it with xcrun simctl delete <udid>, then retry"
+      )
+    }
   }
 
   private func createDevice(name: String, type: String, runtime: String) throws -> String {

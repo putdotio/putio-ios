@@ -5,6 +5,50 @@ import XCTest
 
 @MainActor
 final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
+  func testSeededTrashSupportsListRestoreDeleteAndEmpty() async throws {
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
+    await runtime.session.restore()
+
+    let initialPage = try await runtime.listTrash()
+    XCTAssertEqual(initialPage.items.map(\.id.rawValue), [419, 420])
+    let cursor = try XCTUnwrap(initialPage.nextCursor)
+
+    do {
+      _ = try await runtime.listTrash()
+      XCTFail("expected the first Trash refresh to fail")
+    } catch {
+      XCTAssertEqual(error as? PutioRuntimeError, .transient)
+    }
+    let refreshedPage = try await runtime.listTrash()
+    XCTAssertEqual(refreshedPage.items, initialPage.items)
+
+    let continuedPage = try await runtime.listTrash(cursor: cursor)
+    XCTAssertEqual(continuedPage.items.map(\.id.rawValue), [421])
+    XCTAssertNil(continuedPage.nextCursor)
+
+    let restored = try await runtime.restoreTrashItem(fileID: PutioFileID(rawValue: 419))
+    XCTAssertEqual(restored, .restored(destinationID: .root))
+    do {
+      try await runtime.permanentlyDeleteTrashItem(fileID: PutioFileID(rawValue: 420))
+      XCTFail("expected the first permanent-delete fixture request to fail")
+    } catch {
+      XCTAssertEqual(error as? PutioRuntimeError, .transient)
+    }
+    try await runtime.permanentlyDeleteTrashItem(fileID: PutioFileID(rawValue: 420))
+    let pageAfterDeletingPrefix = try await runtime.listTrash(cursor: cursor)
+    XCTAssertEqual(pageAfterDeletingPrefix.items.map(\.id.rawValue), [421])
+    try await runtime.emptyTrash()
+
+    do {
+      _ = try await runtime.listTrash()
+      XCTFail("expected the first empty Trash refresh to fail")
+    } catch {
+      XCTAssertEqual(error as? PutioRuntimeError, .transient)
+    }
+    let emptyPage = try await runtime.listTrash()
+    XCTAssertTrue(emptyPage.items.isEmpty)
+  }
+
   override func setUp() {
     super.setUp()
     HarnessSeededAPI.resetPlaybackPositions()

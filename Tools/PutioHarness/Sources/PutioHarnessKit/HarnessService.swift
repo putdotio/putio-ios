@@ -93,7 +93,7 @@ public struct HarnessService {
       }
     case .boot:
       guard let platform = platforms.first else { throw HarnessFailure("no platform selected") }
-      runs.append(try simulator.boot(platform))
+      runs.append(try simulator.boot(platform, runID: requestedRunID))
     case .launch:
       guard let platform = platforms.first else { throw HarnessFailure("no platform selected") }
       runs.append(try simulator.launch(platform))
