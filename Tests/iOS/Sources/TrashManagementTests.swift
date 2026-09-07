@@ -679,6 +679,42 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(model.page, page(items: [], totalCount: 0, sizeBytes: 0))
   }
 
+  func testReappearanceSupersedesACancelledRefresh() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let loader = ControlledTrashLoader()
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { try await loader.load(cursor: $0) },
+        restore: { _ in throw PutioRuntimeError.unknown },
+        permanentlyDelete: { _ in .refreshed },
+        empty: { .refreshed }
+      )
+    )
+
+    let firstAppearance = Task { await model.refreshOnAppear() }
+    await waitUntil("the initial load started") { loader.requestCount >= 1 }
+    loader.succeed(request: 0, with: page(items: [a], totalCount: 1))
+    await firstAppearance.value
+
+    // Leaving the tab cancels the appearance refresh mid-flight.
+    let leaving = Task { await model.refreshOnAppear() }
+    await waitUntil("the cancelled refresh started") { loader.requestCount >= 2 }
+    leaving.cancel()
+
+    // Returning before the cancelled request unwinds must still refresh.
+    let returning = Task { await model.refreshOnAppear() }
+    await waitUntil("the superseding refresh started") { loader.requestCount >= 3 }
+    loader.succeed(request: 2, with: page(items: [a, b], totalCount: 2))
+    await returning.value
+    XCTAssertEqual(model.page?.items, [a, b])
+
+    loader.fail(request: 1, with: CancellationError())
+    await leaving.value
+    XCTAssertEqual(model.page?.items, [a, b], "the late unwind must not clobber the result")
+    XCTAssertFalse(model.isRefreshing)
+  }
+
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
     let item = trashItem(id: 91, name: "First.pdf", kind: .pdf)
     let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)

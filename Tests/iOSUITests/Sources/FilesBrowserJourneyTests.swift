@@ -361,6 +361,15 @@ final class FilesBrowserJourneyTests: XCTestCase {
     confirmEmpty.tap()
     XCTAssertTrue(app.staticTexts["Trash is empty"].waitForExistence(timeout: 10))
     XCTAssertTrue(app.staticTexts["Trash emptied"].waitForExistence(timeout: 5))
+    // The seeded account refresh after emptying fails once: the stale-storage
+    // warning must stay visible with its own retry, alongside the empty state.
+    let staleStorage = app.staticTexts["Storage totals are out of date"]
+    XCTAssertTrue(staleStorage.waitForExistence(timeout: 5), app.debugDescription)
+    XCTAssertTrue(app.staticTexts["Trash is empty"].exists, "empty state hidden behind the error")
+    let updateStorage = app.buttons["Update storage"]
+    XCTAssertTrue(waitUntilHittable(updateStorage, timeout: 5))
+    updateStorage.tap()
+    XCTAssertTrue(staleStorage.waitForNonExistence(timeout: 5), "storage retry did not clear")
     let emptyRefreshStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.25))
     emptyRefreshStart.press(
       forDuration: 0.1,

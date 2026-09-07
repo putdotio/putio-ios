@@ -256,14 +256,16 @@ final class PutioTrashModel {
   /// across tab switches, and Files may have trashed more items meanwhile.
   func refreshOnAppear() async {
     if hasLoaded {
-      await refresh()
+      // Appearance may follow a tab switch that cancelled the previous
+      // refresh; supersede it instead of being refused by its flag.
+      await load(initial: false, supersedesRefresh: true)
     } else {
       await loadIfNeeded()
     }
   }
 
   func refresh() async {
-    await load(initial: false)
+    await load(initial: false, supersedesRefresh: false)
   }
 
   /// Retries only the account storage snapshot after a committed deletion
@@ -361,14 +363,13 @@ final class PutioTrashModel {
     mutationOutcome = nil
   }
 
-  private func load(initial: Bool) async {
+  private func load(initial: Bool, supersedesRefresh: Bool = false) async {
     if initial {
       // An initial load may supersede one still unwinding after cancellation.
       guard page == nil else { return }
     } else {
-      guard activeMutation == nil, !isRefreshing, !isLoadingMore, !isRefreshingStorage else {
-        return
-      }
+      guard activeMutation == nil, !isLoadingMore, !isRefreshingStorage else { return }
+      guard supersedesRefresh || !isRefreshing else { return }
     }
     loadGeneration &+= 1
     let generation = loadGeneration
@@ -584,16 +585,10 @@ struct TrashManagementView: View {
 
   @ViewBuilder
   private func loadedContent(_ page: PutioTrashPage) -> some View {
-    if page.items.isEmpty && page.nextCursor == nil && model.refreshFailure == nil
-      && model.storageFailure == nil
-    {
+    let isEmpty = page.items.isEmpty && page.nextCursor == nil
+    if isEmpty && model.refreshFailure == nil && model.storageFailure == nil {
       ScrollView {
-        PutioEmptyStateView(
-          icon: .trash,
-          title: "Trash is empty",
-          message: "Items you move to Trash appear here until they expire."
-        )
-        .containerRelativeFrame([.horizontal, .vertical])
+        emptyState.containerRelativeFrame([.horizontal, .vertical])
       }
       .refreshable { await model.refresh() }
     } else {
@@ -610,6 +605,10 @@ struct TrashManagementView: View {
           }
         }
         storageFailureSection
+        if isEmpty {
+          // The page is still empty; errors above do not change that.
+          Section { emptyState }.listRowBackground(Color.clear)
+        }
         ForEach(page.items) { item in
           HStack {
             PutioFileRow(rowModel(for: item), showsFolderDisclosure: false)
@@ -623,8 +622,10 @@ struct TrashManagementView: View {
               }
               .accessibilityIdentifier("trash.delete.\(item.id.rawValue)")
             } label: {
-              Image(putioIcon: .dotsThreeCircle)
+              PutioIconView(.dotsThreeCircle, size: PutioTheme.ScaledMetrics.buttonIconSize)
                 .foregroundStyle(PutioTheme.Colors.accent)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
             }
             .disabled(!model.canMutate)
             .accessibilityLabel("More actions for \(item.name)")
@@ -679,6 +680,14 @@ struct TrashManagementView: View {
   private var deletionConfirmationTitle: String {
     guard let pendingDeletion else { return "Delete permanently?" }
     return "Delete “\(pendingDeletion.name)” permanently?"
+  }
+
+  private var emptyState: some View {
+    PutioEmptyStateView(
+      icon: .trash,
+      title: "Trash is empty",
+      message: "Items you move to Trash appear here until they expire."
+    )
   }
 
   @ViewBuilder

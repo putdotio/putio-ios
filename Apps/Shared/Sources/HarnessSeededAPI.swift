@@ -58,6 +58,9 @@ import Foundation
     nonisolated(unsafe) private static var trashEmptyRefreshFailed = false
     // Bytes freed by permanent deletions; account storage reflects them.
     nonisolated(unsafe) private static var trashFreedBytes: Int64 = 0
+    // The account refresh right after emptying fails once so the journey
+    // proves the stale-storage warning and its retry.
+    nonisolated(unsafe) private static var accountRefreshFailuresRemaining = 0
     private static let trashFolderBytes: Int64 = 1_073_741_824
     private static let diskTotalBytes: Int64 = 1_099_511_627_776
     private static let diskUsedBytes: Int64 = 30_617_800_704
@@ -106,6 +109,7 @@ import Foundation
       trashListRequests = 0
       trashEmptyRefreshFailed = false
       trashFreedBytes = 0
+      accountRefreshFailuresRemaining = 0
       fileActionsLock.unlock()
     }
 
@@ -189,7 +193,18 @@ import Foundation
           #"{"result": true, "token_id": 1, "token_scope": "default", "user_id": 1001}"#
         )
       case "GET /v2/account/info":
-        return (200, accountInfo)
+        return fileActionsLock.withLock {
+          if accountRefreshFailuresRemaining > 0 {
+            accountRefreshFailuresRemaining -= 1
+            return (
+              503,
+              fixtureError(
+                statusCode: 503, type: "HARNESS_TRANSIENT_ACCOUNT_REFRESH_FAILURE",
+                message: "The account refresh after emptying fails once for retry proof")
+            )
+          }
+          return (200, accountInfoLocked)
+        }
       case "POST /v2/oauth/grants/logout":
         return logoutLock.withLock {
           if logoutFailuresRemaining > 0 {
@@ -645,6 +660,7 @@ import Foundation
       fileActionsLock.lock()
       trashFreedBytes += Int64(trashFolders.count) * trashFolderBytes
       trashFolders = [:]
+      accountRefreshFailuresRemaining = 1
       fileActionsLock.unlock()
       return (200, #"{"status":"OK"}"#)
     }
@@ -799,9 +815,13 @@ import Foundation
     }
 
     private static var accountInfo: String {
-      let (usedBytes, trashSizeBytes) = fileActionsLock.withLock {
-        (diskUsedBytes - trashFreedBytes, Int64(trashFolders.count) * trashFolderBytes)
-      }
+      fileActionsLock.withLock { accountInfoLocked }
+    }
+
+    // Caller holds fileActionsLock.
+    private static var accountInfoLocked: String {
+      let usedBytes = diskUsedBytes - trashFreedBytes
+      let trashSizeBytes = Int64(trashFolders.count) * trashFolderBytes
       return """
         {
           "info": {
