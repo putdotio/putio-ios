@@ -462,16 +462,117 @@ final class PutioFolderModelTests: XCTestCase {
     let firstFolder = PutioFileID(rawValue: 42)
     let secondFolder = PutioFileID(rawValue: 7)
     let requests = PutioFolderRefreshRequests()
+    requests.register(folderID: firstFolder)
+    requests.register(folderID: secondFolder)
 
     requests.request(folderID: firstFolder)
     let firstSequence = requests.sequence(for: firstFolder)
     requests.request(folderID: secondFolder)
 
     XCTAssertEqual(requests.sequence(for: firstFolder), firstSequence)
-    XCTAssertEqual(requests.sequence(for: secondFolder), 1)
+    XCTAssertEqual(
+      requests.sequence(for: secondFolder),
+      PutioFolderRefreshRequests.Sequence(folder: 1, allFolders: 0)
+    )
 
     requests.request(folderID: firstFolder)
-    XCTAssertEqual(requests.sequence(for: firstFolder), 2)
+    XCTAssertEqual(
+      requests.sequence(for: firstFolder),
+      PutioFolderRefreshRequests.Sequence(folder: 2, allFolders: 0)
+    )
+
+    requests.requestAllLoadedFolders()
+    XCTAssertEqual(
+      requests.sequence(for: secondFolder),
+      PutioFolderRefreshRequests.Sequence(folder: 1, allFolders: 1)
+    )
+  }
+
+  func testConsumedRefreshRequestsStopRefreshingOnLaterAppearances() {
+    let folder = PutioFileID(rawValue: 42)
+    let other = PutioFileID(rawValue: 7)
+    let requests = PutioFolderRefreshRequests()
+    requests.register(folderID: folder)
+    requests.register(folderID: other)
+
+    requests.requestAllLoadedFolders()
+    guard let broadcast = requests.sequence(for: folder) else {
+      return XCTFail("the broadcast should reach every folder")
+    }
+    XCTAssertEqual(broadcast, PutioFolderRefreshRequests.Sequence(folder: 0, allFolders: 1))
+
+    requests.markConsumed(broadcast, for: folder)
+    XCTAssertNil(requests.sequence(for: folder), "a consumed broadcast does not refresh again")
+    XCTAssertNotNil(requests.sequence(for: other), "other folders still see the broadcast")
+
+    requests.request(folderID: folder)
+    XCTAssertEqual(
+      requests.sequence(for: folder),
+      PutioFolderRefreshRequests.Sequence(folder: 1, allFolders: 1),
+      "a newer targeted request reopens the folder"
+    )
+  }
+
+  func testBroadcastRefreshReachesOnlyFoldersRegisteredBeforeIt() {
+    let existing = PutioFileID(rawValue: 42)
+    let openedLater = PutioFileID(rawValue: 7)
+    let requests = PutioFolderRefreshRequests()
+    requests.register(folderID: existing)
+
+    requests.requestAllLoadedFolders()
+    requests.register(folderID: openedLater)
+
+    XCTAssertEqual(
+      requests.sequence(for: existing),
+      PutioFolderRefreshRequests.Sequence(folder: 0, allFolders: 1)
+    )
+    XCTAssertNil(
+      requests.sequence(for: openedLater),
+      "a folder opened after the broadcast loads fresh data and owes no refresh")
+    XCTAssertNil(
+      requests.sequence(for: PutioFileID(rawValue: 99)),
+      "an unregistered folder is not pending either")
+
+    requests.requestAllLoadedFolders()
+    XCTAssertEqual(
+      requests.sequence(for: openedLater),
+      PutioFolderRefreshRequests.Sequence(folder: 0, allFolders: 2),
+      "a later broadcast reaches it"
+    )
+  }
+
+  func testInitialLoadReportsWhetherItRan() async {
+    let loaded = BrowserTestFixtures.contents(items: [BrowserTestFixtures.item(id: 1)])
+    let model = PutioFolderModel(folderID: .root) { _ in loaded }
+
+    let first = await model.loadIfNeeded()
+    XCTAssertTrue(first)
+    XCTAssertTrue(model.isLoaded)
+
+    let second = await model.loadIfNeeded()
+    XCTAssertFalse(second, "an already loaded folder does not reload")
+  }
+
+  func testRestoredFileReconciliationTargetsKnownFolderOrEveryLoadedFolder() {
+    let destination = PutioFileID(rawValue: 42)
+    let otherFolder = PutioFileID(rawValue: 7)
+    let requests = PutioFolderRefreshRequests()
+    requests.register(folderID: destination)
+    requests.register(folderID: otherFolder)
+
+    PutioRestoredFileReconciliation.apply(destinationID: destination, to: requests)
+    XCTAssertEqual(
+      requests.sequence(for: destination),
+      PutioFolderRefreshRequests.Sequence(folder: 1, allFolders: 0)
+    )
+    XCTAssertNil(requests.sequence(for: otherFolder), "a known destination refreshes only itself")
+
+    PutioRestoredFileReconciliation.apply(destinationID: nil, to: requests)
+    XCTAssertEqual(
+      requests.sequence(for: otherFolder),
+      PutioFolderRefreshRequests.Sequence(folder: 0, allFolders: 1),
+      "an unknown destination refreshes every loaded folder"
+    )
   }
 
   func testRefreshSessionExpiryPreservesRowsWithoutAnInlineBrowserError() async {

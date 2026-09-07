@@ -192,6 +192,11 @@ struct FilesBrowserView: View {
 }
 
 @MainActor
+private struct PendingRefresh: Equatable {
+  let sequence: PutioFolderRefreshRequests.Sequence?
+  let loaded: Bool
+}
+
 struct PutioFolderScreen: View {
   let route: PutioFolderRoute
 
@@ -433,7 +438,12 @@ struct PutioFolderScreen: View {
       }
     }
     .task(id: route.id) {
-      await model.loadIfNeeded()
+      refreshRequests.register(folderID: route.id)
+      let pending = refreshRequests.sequence(for: route.id)
+      // A fresh initial load already reflects any request that predates it.
+      let loaded = await model.loadIfNeeded()
+      guard loaded, let pending, !Task.isCancelled else { return }
+      refreshRequests.markConsumed(pending, for: route.id)
     }
     .task(id: retryRequest) {
       await runRetryRequest()
@@ -447,9 +457,17 @@ struct PutioFolderScreen: View {
       guard !Task.isCancelled, toast == presentedToast else { return }
       toast = nil
     }
-    .task(id: refreshRequests.sequence(for: route.id)) {
-      guard refreshRequests.sequence(for: route.id) != nil else { return }
-      _ = await model.refresh()
+    // Keyed on the loaded flag too, so a request that arrived while the
+    // initial load was in flight is retried once the folder is loaded.
+    .task(
+      id: PendingRefresh(sequence: refreshRequests.sequence(for: route.id), loaded: model.isLoaded)
+    ) {
+      guard model.isLoaded, let sequence = refreshRequests.sequence(for: route.id) else { return }
+      // A request stays pending until a refresh actually ran: a cancelled
+      // task or one queued behind a mutation leaves it for the next chance.
+      let refreshed = await model.refresh()
+      guard refreshed, !Task.isCancelled else { return }
+      refreshRequests.markConsumed(sequence, for: route.id)
     }
     .onChange(of: model.state, initial: true) { _, state in
       if case .loaded(let contents) = state, !fileActionPending {
@@ -661,7 +679,12 @@ struct PutioFolderScreen: View {
         retryRequest = nil
         return
       }
+      // A fresh load already reflects any refresh request made before it.
+      let pending = refreshRequests.sequence(for: route.id)
       await model.retry()
+      if model.isLoaded, let pending, !Task.isCancelled {
+        refreshRequests.markConsumed(pending, for: route.id)
+      }
     case .refresh:
       guard model.refreshFailure != nil else {
         retryRequest = nil

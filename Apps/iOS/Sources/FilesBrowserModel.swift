@@ -56,14 +56,45 @@ struct PutioFolderRoute: Identifiable, Sendable {
 
 @Observable
 final class PutioFolderRefreshRequests {
+  struct Sequence: Equatable, Sendable {
+    let folder: UInt64
+    let allFolders: UInt64
+  }
+
   private var sequences: [PutioFileID: UInt64] = [:]
+  private var allFoldersSequence: UInt64 = 0
+  private var consumed: [PutioFileID: Sequence] = [:]
+  // Broadcast sequence when each folder screen first registered. A broadcast
+  // only reaches folders that existed when it was sent; folders opened later
+  // load fresh data anyway.
+  private var registeredAt: [PutioFileID: UInt64] = [:]
+
+  func register(folderID: PutioFileID) {
+    if registeredAt[folderID] == nil { registeredAt[folderID] = allFoldersSequence }
+  }
 
   func request(folderID: PutioFileID) {
     sequences[folderID, default: 0] &+= 1
   }
 
-  func sequence(for folderID: PutioFileID) -> UInt64? {
-    sequences[folderID]
+  func requestAllLoadedFolders() {
+    allFoldersSequence &+= 1
+  }
+
+  /// The request `folderID` has not yet honored, or nil. A folder screen
+  /// consumes it after refreshing so later appearances do not refresh again.
+  func sequence(for folderID: PutioFileID) -> Sequence? {
+    let broadcastBaseline = registeredAt[folderID] ?? allFoldersSequence
+    let current = Sequence(
+      folder: sequences[folderID, default: 0],
+      allFolders: allFoldersSequence > broadcastBaseline ? allFoldersSequence : 0)
+    guard current.folder > 0 || current.allFolders > 0 else { return nil }
+    guard consumed[folderID] != current else { return nil }
+    return current
+  }
+
+  func markConsumed(_ sequence: Sequence, for folderID: PutioFileID) {
+    consumed[folderID] = sequence
   }
 }
 
@@ -334,13 +365,20 @@ final class PutioFolderModel {
     activeAction != nil || activeBulkAction != nil
   }
 
-  func loadIfNeeded() async {
+  var isLoaded: Bool {
+    if case .loaded = state { return true }
+    return false
+  }
+
+  /// Returns true when this call performed a successful load.
+  @discardableResult
+  func loadIfNeeded() async -> Bool {
     // `.loading` means the initial attempt never settled — including a
     // cancelled attempt that is still unwinding when the screen is
     // re-entered. Starting a new request here supersedes that unwind via
     // the generation check, so a late restore cannot strand the spinner.
-    guard case .loading = state else { return }
-    _ = await performLoad(mode: .replace)
+    guard case .loading = state else { return false }
+    return await performLoad(mode: .replace)
   }
 
   func retry() async {

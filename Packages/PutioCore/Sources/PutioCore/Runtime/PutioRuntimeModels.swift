@@ -106,6 +106,73 @@ public struct PutioFolderContents: Equatable, Sendable {
   }
 }
 
+public struct PutioTrashItem: Identifiable, Hashable, Sendable {
+  public let id: PutioFileID
+  public let parentID: PutioFileID
+  public let name: String
+  public let kind: PutioFileKind
+  public let sizeBytes: Int64
+  public let deletedAt: Date
+  public let expiresAt: Date
+
+  public init(
+    id: PutioFileID,
+    parentID: PutioFileID,
+    name: String,
+    kind: PutioFileKind,
+    sizeBytes: Int64,
+    deletedAt: Date,
+    expiresAt: Date
+  ) {
+    self.id = id
+    self.parentID = parentID
+    self.name = name
+    self.kind = kind
+    self.sizeBytes = sizeBytes
+    self.deletedAt = deletedAt
+    self.expiresAt = expiresAt
+  }
+}
+
+public struct PutioTrashPage: Equatable, Sendable {
+  public let items: [PutioTrashItem]
+  public let nextCursor: String?
+  public let totalCount: Int?
+  public let sizeBytes: Int64
+
+  public init(
+    items: [PutioTrashItem],
+    nextCursor: String?,
+    totalCount: Int?,
+    sizeBytes: Int64
+  ) {
+    self.items = items
+    self.nextCursor = nextCursor
+    self.totalCount = totalCount
+    self.sizeBytes = sizeBytes
+  }
+}
+
+/// Every case means the restore committed; only the destination lookup that
+/// follows can fail or be cancelled.
+public enum PutioTrashRestoreResult: Equatable, Sendable {
+  case restored(destinationID: PutioFileID)
+  case restoredDestinationUnknown
+  /// The caller was cancelled after the restore committed; the destination
+  /// was never requested to completion.
+  case restoredLookupCancelled
+}
+
+/// Outcome of a committed destructive Trash mutation. `storageRefreshed` is
+/// `false` when the account storage snapshot could not be reloaded afterwards.
+public struct PutioTrashMutationResult: Equatable, Sendable {
+  public let storageRefreshed: Bool
+
+  public init(storageRefreshed: Bool) {
+    self.storageRefreshed = storageRefreshed
+  }
+}
+
 public struct PutioNextVideo: Equatable, Sendable {
   public let id: PutioFileID
   public let parentID: PutioFileID

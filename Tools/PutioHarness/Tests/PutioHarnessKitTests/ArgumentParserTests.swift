@@ -21,14 +21,14 @@ import Testing
 
 @Test func parsesStandaloneBoot() throws {
   let invocation = try HarnessArgumentParser.parse([
-    "boot", "--platform", "watchos", "--output", "json",
+    "boot", "--platform", "watchos", "--run-id", "owned-boot", "--output", "json",
   ])
   #expect(
     invocation
       == .surface(
         command: .boot,
         platforms: .one(.watchos),
-        runID: nil,
+        runID: "owned-boot",
         recordSeconds: 3,
         scenario: .signedOut,
         output: .json

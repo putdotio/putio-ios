@@ -39,6 +39,7 @@ Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` 
 - Sign-out recovery: the existing signed-in scenario uses a one-time credential-removal failure and seeded logout failure, shows the recovery message, captures `runtime-sign-out-failure.png`, and completes sign-out after an explicit retry. Default signed-in captures keep successful sign-out behavior.
 - File actions: create, optimistic rename, delayed rollback and retry, move, bulk partial-failure recovery, and a meaningful `runtime-file-actions.png` screenshot.
 - Trash semantics: visible per-row actions plus Trash-enabled and permanent-delete copy from the seeded account setting.
+- Trash management: list, retained-page refresh failure and retry, restore to the authoritative parent, retry after a transient permanent-delete failure, and confirmed emptying with success feedback. The empty state also supports pull-to-refresh failure and retry. Meaningful `runtime-trash-refresh-error.png`, `runtime-trash-loaded.png`, and `runtime-trash-empty.png` screenshots are retained in the proof manifest.
 - Unsupported files: the PDF row remains visible but is not actionable.
 - Resume persistence: a final playback position resolves again after reopening the video.
 
@@ -49,6 +50,8 @@ HTTP API responses and OAuth input are deterministic fixtures. The session store
 `test --platform <ios|tvos>` runs snapshot suites on an ephemeral simulator via `xcodebuild test`. iOS runs the unhosted `PutioSnapshotTests` component gallery and the app-hosted `PutioFeatureTests`; tvOS runs `PutioTVSnapshotTests`. Baselines are committed under `Tests/ComponentSnapshots/__Snapshots__/<platform>/`; comparison tolerates small antialiasing drift between Simulator runtimes. Liquid Glass cannot be rasterized off-screen, so the suite renders glass surfaces with their bordered/material fallbacks (`PUTIO_SNAPSHOT_RASTER`); review the real glass appearance through the gallery captures. After an intentional visual change run `test --platform <platform> --snapshots record`, which records the baselines and re-asserts against what it wrote, then review and commit the image diff. `mise run verify` runs both platforms' suites.
 
 All simulator commands are headless. The harness never opens Simulator.app. `boot`, `launch`, `exercise`, and capture runs create uniquely named devices and pair watchOS with an ephemeral iPhone companion. `launch`, `exercise`, and capture wait for a rendered app frame. Every created device is shut down, deleted, and verified absent on success or failure. `build` does not create devices.
+
+`boot --run-id <id>` names its device `putio-harness-<platform>-<id>-<8-character nonce>`, so two runs never share a name even with the same ID. Cleanup is registered before creation and targets the exact device the run created; the name is used only if a signal lands before `simctl create` returns. The interruption check locates the owned device by that `putio-harness-ios-<id>-` prefix and preserves preexisting devices and devices created by other processes.
 
 `exercise` launches the selected app, relaunches it with the explicit exercised scenario, requires the fixed semantic marker in its Simulator data container, and confirms the final visible state transition while the process remains alive. The iOS exercised state uses an accessibility Dynamic Type size so proof also covers adaptive typography and content-coupled metrics. The launch scenario is shared by iOS, watchOS, and tvOS so automation never encounters custom-URL confirmation UI.
 
@@ -77,6 +80,9 @@ The runtime-proof journey applies the same clean-source and pinned-revision chec
 build/proof/<run-id>/ios/
 ├── runtime-file-actions.png
 ├── runtime-sign-out-failure.png
+├── runtime-trash-refresh-error.png
+├── runtime-trash-loaded.png
+├── runtime-trash-empty.png
 ├── runtime-playback.png
 ├── runtime-sign-in.png
 ├── runtime-signed-out.png
@@ -85,7 +91,9 @@ build/proof/<run-id>/ios/
 └── manifest.json
 ```
 
-The journey requires each preflight and the recorded UI test to pass exactly `1/1`. It requires five meaningful screenshots, including file-actions and sign-out recovery proof, and different sign-in and playback frames. One `simctl recordVideo` stream starts before the recorded test and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 30 seconds and removes raw/intermediate capture files after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
+Failed journeys retain local diagnostics, including failed `.xcresult` bundles, under the run directory. They emit no success manifest; inspect them locally and choose a new run ID for the retry. Only reviewed successful proof is published.
+
+The journey requires each preflight and the recorded UI test to pass exactly `1/1`. It requires eight meaningful screenshots, including file actions, sign-out recovery, and all three Trash states, and different sign-in and playback frames. One `simctl recordVideo` stream starts before the recorded test and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 30 seconds and removes raw/intermediate capture files after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
 
 Capture never uploads implicitly. Publish one reviewed artifact only after a pull request exists:
 

@@ -40,7 +40,18 @@ public struct PutioSignInRequest: Sendable {
 @Observable
 public final class PutioSessionStore {
   public private(set) var state: PutioSessionState = .unknown
+  /// True while a committed storage mutation has not been reflected in the
+  /// signed-in snapshot. Owned here so it survives leaving the screen that
+  /// caused it; any later successful refresh clears it.
+  public private(set) var isAccountStorageStale = false
   private(set) var authenticationGeneration: UInt64 = 0
+  // Orders overlapping account refreshes inside one session so a slow older
+  // response cannot overwrite a newer snapshot.
+  private var accountRefreshSequence: UInt64 = 0
+  private var lastAppliedAccountRefresh: UInt64 = 0
+  // Sequence value at the most recent committed storage mutation. Only a
+  // refresh that started after it observed the mutation's effect.
+  private var lastStorageMutationSequence: UInt64 = 0
 
   private let sdk: PutioSDK
   private let tokenStore: PutioTokenStore
@@ -235,6 +246,49 @@ public final class PutioSessionStore {
 
   // MARK: - Account bootstrap
 
+  /// Reloads the signed-in account snapshot. Returns `false` when the snapshot
+  /// could not be updated so callers can tell the user that storage totals are
+  /// stale; an authentication rejection expires the session instead.
+  /// Reloads the account after a committed mutation changed storage. The
+  /// mutation itself is already durable; this only tracks whether the
+  /// snapshot followed. Returns `false` when the snapshot is still stale.
+  @discardableResult
+  func refreshAccountAfterStorageMutation() async -> Bool {
+    isAccountStorageStale = true
+    lastStorageMutationSequence = accountRefreshSequence
+    return await refreshAccount()
+  }
+
+  @discardableResult
+  func refreshAccount() async -> Bool {
+    guard case .signedIn = state else { return false }
+    let generation = authenticationGeneration
+    accountRefreshSequence &+= 1
+    let sequence = accountRefreshSequence
+    do {
+      let account = try await sdk.getAccountInfo()
+      guard generation == authenticationGeneration, !Task.isCancelled,
+        case .signedIn = state
+      else { return false }
+      // A newer response already applied a fresher snapshot: report its
+      // success. A newer request that failed leaves ours as the latest
+      // truth, so apply it.
+      if lastAppliedAccountRefresh > sequence { return true }
+      lastAppliedAccountRefresh = sequence
+      state = .signedIn(snapshot(account))
+      // A request that started before the mutation carries pre-mutation totals.
+      let observedMutation = sequence > lastStorageMutationSequence
+      if observedMutation { isAccountStorageStale = false }
+      return observedMutation || !isAccountStorageStale
+    } catch {
+      guard generation == authenticationGeneration, !Task.isCancelled,
+        case .signedIn = state
+      else { return false }
+      if isAuthRejection(error) { expireSession() }
+      return false
+    }
+  }
+
   private func bootstrap(
     failure: (String) -> PutioSignedOutReason,
     generation: UInt64
@@ -259,6 +313,11 @@ public final class PutioSessionStore {
   @discardableResult
   private func advanceAuthenticationGeneration() -> UInt64 {
     authenticationGeneration += 1
+    // A new session boundary starts from a fresh bootstrap snapshot.
+    isAccountStorageStale = false
+    lastAppliedAccountRefresh = 0
+    accountRefreshSequence = 0
+    lastStorageMutationSequence = 0
     return authenticationGeneration
   }
 
