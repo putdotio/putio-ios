@@ -386,7 +386,9 @@ final class PutioTrashModel {
 
   private func show(_ first: FirstPage) {
     state = .loaded(openListing(first.page, startsListing: !first.crossedMutation))
-    if first.crossedMutation, page?.nextCursor != nil { repairRequested = true }
+    // A fresh first page is the repair; only a cursor obtained across a
+    // mutation still needs one.
+    repairRequested = first.crossedMutation && page?.nextCursor != nil
   }
 
   func loadIfNeeded() async {
@@ -675,6 +677,8 @@ final class PutioTrashModel {
             totalCount: shownPage.totalCount,
             sizeBytes: shownPage.sizeBytes
           )))
+      // Load More has nothing left to retry once the cursor is gone.
+      paginationFailure = nil
       if !(error is CancellationError) {
         refreshFailure = PutioTrashErrorPresentation(
           title: "Could not refresh Trash", error: error)
@@ -752,6 +756,8 @@ struct TrashManagementView: View {
       Button("Delete Permanently", role: .destructive) {
         guard let item = pendingDeletion else { return }
         pendingDeletion = nil
+        // Another screen may have removed this row while the dialog was up.
+        guard model.page?.items.contains(item) == true else { return }
         Task { await model.permanentlyDelete(item) }
       }
       .accessibilityIdentifier("trash.delete-confirm")
@@ -765,6 +771,8 @@ struct TrashManagementView: View {
       titleVisibility: .visible
     ) {
       Button("Empty Trash", role: .destructive) {
+        // Another screen may have emptied Trash while the dialog was up.
+        guard model.page?.items.isEmpty == false else { return }
         Task { await model.empty() }
       }
       .accessibilityIdentifier("trash.empty-confirm")
@@ -787,7 +795,14 @@ struct TrashManagementView: View {
     .task { await model.refreshOnAppear() }
     .onDisappear { model.abandonListing() }
     .onChange(of: model.reconciliationVersion) { _, _ in
-      Task { await model.applyReconciliation() }
+      Task {
+        await model.applyReconciliation()
+        // Confirmations for rows another screen has since removed are moot.
+        if let pending = pendingDeletion, model.page?.items.contains(pending) != true {
+          pendingDeletion = nil
+        }
+        if model.page?.items.isEmpty == true { emptyConfirmationPresented = false }
+      }
     }
     .onChange(of: model.mutationOutcome) { _, outcome in
       present(outcome)

@@ -386,7 +386,10 @@ final class PutioFolderModel {
   @ObservationIgnored private var generation: UInt64 = 0
   @ObservationIgnored private var inFlightLoadGeneration: UInt64?
   @ObservationIgnored private var actionTask: Task<Void, Never>?
-  @ObservationIgnored private var queuedRefresh: (id: UUID, task: Task<Bool, Never>)?
+  // The refresh queued behind the latest mutation. Retained until the next
+  // mutation starts (or a bulk retry consumes it) so late waiters read its
+  // result instead of a cleared slot.
+  @ObservationIgnored private var queuedRefresh: Task<Bool, Never>?
   @ObservationIgnored private var refreshRequestedWhileActionActive = false
 
   init(
@@ -453,7 +456,7 @@ final class PutioFolderModel {
     refreshRequestedWhileActionActive = true
     await actionTask?.value
     guard let queuedRefresh else { return false }
-    return await queuedRefresh.task.value
+    return await queuedRefresh.value
   }
 
   func createFolder(name: String) async {
@@ -579,7 +582,9 @@ final class PutioFolderModel {
   func prepareBulkRetry(_ outcome: PutioBulkFileOutcome) async -> PutioBulkRetryPreparation {
     let refreshed: Bool
     if let queuedRefresh {
-      refreshed = await queuedRefresh.task.value
+      refreshed = await queuedRefresh.value
+      // A retry prepared later must fetch fresh state, not reuse this one.
+      self.queuedRefresh = nil
     } else {
       refreshed = await refresh()
     }
@@ -592,6 +597,7 @@ final class PutioFolderModel {
   }
 
   private func begin(_ action: PutioFileAction) {
+    queuedRefresh = nil
     // Superseding an in-flight refresh drops its response, so the server
     // state it carried must be fetched again once this action settles.
     if inFlightLoadGeneration == generation {
@@ -603,6 +609,7 @@ final class PutioFolderModel {
   }
 
   private func beginBulk(_ action: PutioBulkFileAction, items: [PutioFileItem]) {
+    queuedRefresh = nil
     if inFlightLoadGeneration == generation {
       refreshRequestedWhileActionActive = true
     }
@@ -753,15 +760,10 @@ final class PutioFolderModel {
   private func startQueuedRefreshIfNeeded() {
     guard refreshRequestedWhileActionActive else { return }
     refreshRequestedWhileActionActive = false
-    let id = UUID()
-    let task = Task { @MainActor [weak self] in
+    queuedRefresh = Task { @MainActor [weak self] in
       guard let self else { return false }
-      defer {
-        if queuedRefresh?.id == id { queuedRefresh = nil }
-      }
       return await refresh()
     }
-    queuedRefresh = (id, task)
   }
 
   private func performLoad(mode: LoadMode) async -> Bool {
