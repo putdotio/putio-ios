@@ -568,6 +568,22 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNil(requests.sequence(for: folder), "re-registering starts from the current baseline")
   }
 
+  func testALateUnregisterFromAnOldScreenDoesNotEvictItsReplacement() {
+    let folder = PutioFileID(rawValue: 42)
+    let requests = PutioFolderRefreshRequests()
+    let old = UUID()
+    let new = UUID()
+    requests.register(folderID: folder, owner: old)
+    requests.register(folderID: folder, owner: new)
+    requests.requestAllLoadedFolders()
+
+    requests.unregister(folderID: folder, owner: old)
+    XCTAssertNotNil(requests.sequence(for: folder), "the new screen keeps its pending refresh")
+
+    requests.unregister(folderID: folder, owner: new)
+    XCTAssertNil(requests.sequence(for: folder))
+  }
+
   func testRegistrationTokenUnregistersWhenReleased() async {
     let folder = PutioFileID(rawValue: 42)
     let requests = PutioFolderRefreshRequests()

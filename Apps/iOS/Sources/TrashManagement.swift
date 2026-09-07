@@ -76,12 +76,14 @@ final class PutioTrashReconciliation {
     _ listing: PutioTrashPage, listingID: UUID, startsListing: Bool
   ) -> PutioTrashPage {
     if startsListing { seenByListing[listingID] = [] }
-    seenByListing[listingID, default: []].formUnion(
-      listing.items.map { Removal(id: $0.id, deletedAt: $0.deletedAt) })
+    // A continuation of an abandoned listing still gets filtered, but it can
+    // never complete that listing: its earlier pages are gone.
+    if var seen = seenByListing[listingID] {
+      seen.formUnion(listing.items.map { Removal(id: $0.id, deletedAt: $0.deletedAt) })
+      seenByListing[listingID] = seen
+    }
     let survivors = listing.items.filter { !isRemoved($0) }
     if listing.nextCursor == nil {
-      // A continuation whose first page this object never saw (only possible
-      // across process boundaries) is not a complete listing.
       if let seen = seenByListing.removeValue(forKey: listingID) {
         settleCompleteListing(seen: seen)
       }

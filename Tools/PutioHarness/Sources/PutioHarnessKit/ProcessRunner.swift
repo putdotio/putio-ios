@@ -162,7 +162,14 @@ public final class RunningProcess: @unchecked Sendable {
 }
 
 public struct ProcessRunner: Sendable {
-  public init() {}
+  /// Overrides applied to every child before per-call `environment`, so tests
+  /// can redirect PATH without mutating the process-global environment, which
+  /// Foundation snapshots on first access.
+  private let baseEnvironment: [String: String]
+
+  public init(environment: [String: String] = [:]) {
+    baseEnvironment = environment
+  }
 
   public func run(
     _ executable: String,
@@ -244,8 +251,9 @@ public struct ProcessRunner: Sendable {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
     process.arguments = [executable] + arguments
-    var childEnvironment = ProcessInfo.processInfo.environment.merging(environment) { _, override in
-      override
+    var childEnvironment = ProcessInfo.processInfo.environment
+    for overrides in [baseEnvironment, environment] {
+      childEnvironment.merge(overrides) { _, override in override }
     }
     for key in removingEnvironment { childEnvironment.removeValue(forKey: key) }
     process.environment = childEnvironment

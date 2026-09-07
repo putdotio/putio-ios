@@ -837,6 +837,32 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(shared.pendingListingCount, 0, "superseded and abandoned listings are dropped")
   }
 
+  func testAContinuationOfAnAbandonedListingCannotSettleTombstones() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let stub = TrashActionsStub(
+      pages: [
+        .success(page(items: [a, b], cursor: "n1", totalCount: 2)),
+        // Reload after delete lags and keeps a, with a continuation.
+        .success(page(items: [a], cursor: "r1", totalCount: 2)),
+        // The continuation that finishes after the screen was left.
+        .success(page(items: [b], totalCount: 2)),
+      ],
+      deleteResults: [.success(.refreshed)]
+    )
+    let model = model(stub, reconciliation: shared)
+
+    await model.loadIfNeeded()
+    await model.permanentlyDelete(a)
+    model.abandonListing()
+
+    await model.loadMore()
+    XCTAssertEqual(model.page?.items, [b])
+    XCTAssertTrue(shared.isRemoved(a), "an orphaned last page is not a complete listing")
+    XCTAssertEqual(shared.pendingListingCount, 0)
+  }
+
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
     let item = trashItem(id: 91, name: "First.pdf", kind: .pdf)
     let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)

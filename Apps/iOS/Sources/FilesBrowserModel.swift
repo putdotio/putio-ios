@@ -68,14 +68,21 @@ final class PutioFolderRefreshRequests {
   // only reaches folders that existed when it was sent; folders opened later
   // load fresh data anyway.
   private var registeredAt: [PutioFileID: UInt64] = [:]
+  // The screen instance currently owning each folder's registration, so a
+  // late unregister from a discarded screen cannot evict its replacement.
+  private var owners: [PutioFileID: UUID] = [:]
 
-  func register(folderID: PutioFileID) {
+  func register(folderID: PutioFileID, owner: UUID = UUID()) {
+    owners[folderID] = owner
     if registeredAt[folderID] == nil { registeredAt[folderID] = allFoldersSequence }
   }
 
   /// A popped screen reloads on return, so nothing pending needs to survive.
   /// Called from the screen's registration token when SwiftUI discards it.
-  func unregister(folderID: PutioFileID) {
+  /// Ignored when another screen has since registered the same folder.
+  func unregister(folderID: PutioFileID, owner: UUID? = nil) {
+    if let owner, owners[folderID] != owner { return }
+    owners[folderID] = nil
     registeredAt[folderID] = nil
     consumed[folderID] = nil
     sequences[folderID] = nil
@@ -117,6 +124,7 @@ final class PutioFolderRefreshRequests {
 final class PutioFolderRefreshRegistration {
   private let folderID: PutioFileID
   private let requests: PutioFolderRefreshRequests
+  private let owner = UUID()
   private var isActive = false
 
   init(folderID: PutioFileID, requests: PutioFolderRefreshRequests) {
@@ -127,14 +135,15 @@ final class PutioFolderRefreshRegistration {
   func activate() {
     guard !isActive else { return }
     isActive = true
-    requests.register(folderID: folderID)
+    requests.register(folderID: folderID, owner: owner)
   }
 
   deinit {
     guard isActive else { return }
     let folderID = self.folderID
     let requests = self.requests
-    Task { @MainActor in requests.unregister(folderID: folderID) }
+    let owner = self.owner
+    Task { @MainActor in requests.unregister(folderID: folderID, owner: owner) }
   }
 }
 

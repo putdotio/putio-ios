@@ -240,7 +240,7 @@ private func cleanupSimulatorIdentifiers(_ identifiers: [String], runner: Proces
 
 /// One Simulator this run owns. Before `claim`, only the verified-unowned name
 /// identifies it; afterwards cleanup uses the exact UDID.
-private final class OwnedSimulator: @unchecked Sendable {
+final class OwnedSimulator: @unchecked Sendable {
   private let name: String
   private let lock = NSLock()
   private var identifier: String?

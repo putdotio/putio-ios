@@ -814,10 +814,6 @@ import Foundation
       return try? JSONSerialization.jsonObject(with: body) as? [String: Any]
     }
 
-    private static var accountInfo: String {
-      fileActionsLock.withLock { accountInfoLocked }
-    }
-
     // Caller holds fileActionsLock.
     private static var accountInfoLocked: String {
       let usedBytes = diskUsedBytes - trashFreedBytes
