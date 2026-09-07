@@ -86,6 +86,11 @@ private final class GatedTrashDelete {
     continuation?.resume(returning: result)
     continuation = nil
   }
+
+  func fail(with error: any Error) {
+    continuation?.resume(throwing: error)
+    continuation = nil
+  }
 }
 
 extension PutioTrashMutationResult {
@@ -1315,6 +1320,115 @@ final class TrashManagementTests: XCTestCase {
     }
     await model.refresh()
     XCTAssertEqual(model.page?.items, [later], "two complete walks release the cutoff")
+  }
+
+  func testACrossScreenRepairIsQueuedWhileAMutationIsRunning() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let c = trashItem(id: 93, name: "C.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let gate = GatedTrashDelete()
+    let busyStub = TrashActionsStub(pages: [
+      .success(page(items: [a, b], cursor: "n1", totalCount: 3)),
+      // The queued repair once the mutation settles.
+      .success(page(items: [b, c], totalCount: 2)),
+    ])
+    let busy = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { try await busyStub.load(cursor: $0) },
+        restore: { _ in throw PutioRuntimeError.unknown },
+        permanentlyDelete: { try await gate.permanentlyDelete(fileID: $0) },
+        empty: { .refreshed }
+      ),
+      reconciliation: shared
+    )
+    let other = model(
+      TrashActionsStub(
+        pages: [.success(page(items: [a, b, c], totalCount: 3))],
+        deleteResults: [.success(.refreshed)]),
+      reconciliation: shared)
+
+    await busy.loadIfNeeded()
+    let deletion = Task { await busy.permanentlyDelete(a) }
+    await waitUntil("the delete to be in flight") { gate.requestCount == 1 }
+
+    await other.loadIfNeeded()
+    await other.permanentlyDelete(c)
+    await busy.applyReconciliation()
+    XCTAssertEqual(busy.page?.items, [a, b], "the busy model prunes but cannot reload yet")
+    XCTAssertEqual(busyStub.loadedCursors, [nil])
+
+    // The delete fails, so its own repair never runs; the queued one must.
+    gate.fail(with: PutioRuntimeError.transient)
+    await deletion.value
+    XCTAssertEqual(busyStub.loadedCursors, [nil, nil], "the repair ran once the mutation settled")
+    XCTAssertEqual(busy.page?.items, [b], "the fresh page is pruned of the other screen's delete")
+    XCTAssertNil(busy.page?.nextCursor)
+  }
+
+  func testAFirstPageCursorObtainedAcrossAMutationIsRepaired() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let c = trashItem(id: 93, name: "C.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let loader = ControlledTrashLoader()
+    let held = heldModel(loader, reconciliation: shared)
+    let other = model(
+      TrashActionsStub(
+        pages: [.success(page(items: [a, b, c], totalCount: 3))],
+        deleteResults: [.success(.refreshed)]),
+      reconciliation: shared)
+
+    let firstLoad = Task { await held.loadIfNeeded() }
+    await waitUntil("the first page request") { loader.requestCount == 1 }
+    await other.loadIfNeeded()
+    await other.permanentlyDelete(b)
+    // The reconciliation callback finds the model refreshing and cannot run.
+    await held.applyReconciliation()
+    // The pre-mutation response arrives with a pre-mutation cursor.
+    loader.succeed(request: 0, with: page(items: [a, b], cursor: "n1", totalCount: 3))
+    await waitUntil("the repair reload") { loader.requestCount == 2 }
+    loader.succeed(request: 1, with: page(items: [a, c], totalCount: 2))
+    await firstLoad.value
+
+    XCTAssertEqual(held.page?.items, [a, c], "the stale cursor was replaced by a fresh listing")
+    XCTAssertNil(held.page?.nextCursor)
+  }
+
+  func testAFailedRepairAfterAStaleContinuationDoesNotRestoreTheCursor() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let c = trashItem(id: 93, name: "C.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let loader = ControlledTrashLoader()
+    let held = heldModel(loader, reconciliation: shared)
+    let other = model(
+      TrashActionsStub(
+        pages: [.success(page(items: [a, b, c], totalCount: 3))],
+        deleteResults: [.success(.refreshed)]),
+      reconciliation: shared)
+
+    let firstLoad = Task { await held.loadIfNeeded() }
+    await waitUntil("the first page request") { loader.requestCount == 1 }
+    loader.succeed(request: 0, with: page(items: [a], cursor: "n1", totalCount: 3))
+    await firstLoad.value
+
+    let more = Task { await held.loadMore() }
+    await waitUntil("the continuation request") { loader.requestCount == 2 }
+    await other.loadIfNeeded()
+    await other.permanentlyDelete(b)
+    loader.succeed(request: 1, with: page(items: [b, c], totalCount: 3))
+    await waitUntil("the repair reload") { loader.requestCount == 3 }
+    loader.fail(request: 2, with: PutioRuntimeError.transient)
+    await more.value
+
+    XCTAssertEqual(held.page?.items, [a])
+    XCTAssertNil(held.page?.nextCursor, "a failed repair must not hand the stale cursor back")
+    XCTAssertNotNil(held.refreshFailure)
+    XCTAssertEqual(shared.pendingListingCount, 0)
+    // Load More has nothing to walk; pull to refresh recovers.
+    await held.loadMore()
+    XCTAssertEqual(loader.requestCount, 3)
   }
 
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
