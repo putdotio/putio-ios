@@ -367,3 +367,26 @@ private func journeyTrimFixture() -> (
     try journeyRecordingWindow(frames: frames, root: root, nested: nested, back: back)
   }
 }
+
+@Test func journeyRecordingWindowEndsAtTheSuccessorTimestampNotABogusLongDuration() throws {
+  let root = JourneyFrameFingerprint(samples: [10])
+  let nested = JourneyFrameFingerprint(samples: [100])
+  let back = JourneyFrameFingerprint(samples: [200])
+  var frames = (0..<15).map { index in
+    JourneyVideoFrame(presentationTime: Double(index) / 10, duration: 0.1, fingerprint: root)
+  }
+  frames += (0..<15).map { index in
+    JourneyVideoFrame(
+      presentationTime: 1.5 + Double(index) / 10, duration: 0.1, fingerprint: nested)
+  }
+  // Held 0.4 s by timestamp, but the decoder claims 30 s.
+  frames.append(JourneyVideoFrame(presentationTime: 3.0, duration: 30, fingerprint: back))
+  frames.append(
+    JourneyVideoFrame(
+      presentationTime: 3.4, duration: 0.1, fingerprint: JourneyFrameFingerprint(samples: [250])))
+
+  let window = try journeyRecordingWindow(frames: frames, root: root, nested: nested, back: back)
+
+  #expect(abs(window.start - 0.5) < 0.000_001)
+  #expect(abs(window.duration - 2.9) < 0.000_001)
+}

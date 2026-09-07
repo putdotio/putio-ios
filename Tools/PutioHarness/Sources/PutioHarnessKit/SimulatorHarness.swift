@@ -174,11 +174,13 @@ func journeyRecordingWindow(
     )
   }
 
-  // Keep the whole settled hold in the proof, not just the sample's own
-  // (unreliable) duration.
+  // Keep the whole settled hold in the proof. A successor's timestamp is the
+  // truth about how long the frame showed; the sample's own duration is only
+  // used for the final frame, which has no successor.
+  let heldDuration = journeyFrameHeldDuration(frames, backIndex)
   let end =
     frames[backIndex].presentationTime
-    + max(frames[backIndex].duration, journeyFrameHeldDuration(frames, backIndex))
+    + (backIndex == frames.indices.last ? frames[backIndex].duration : heldDuration)
   let duration = end - start
   let frameCount = backIndex - rootIndex + 1
   guard duration.isFinite, duration > 0, duration <= maximumJourneyRecordingDuration else {

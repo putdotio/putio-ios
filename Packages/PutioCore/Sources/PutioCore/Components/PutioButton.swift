@@ -82,8 +82,15 @@ public struct PutioButton: View {
       prominentButton(role: nil, foreground: PutioTheme.Components.Button.primaryForeground)
         .tint(PutioTheme.Colors.accent)
     case .secondary:
-      plainButton
-        .tint(PutioTheme.Colors.accent)
+      #if os(tvOS)
+        // A tinted bordered button on tvOS paints the focus fill and the
+        // label in the same accent; the system default fill keeps the label
+        // legible, which is the TV contract's native focus.
+        plainButton.tint(nil)
+      #else
+        plainButton
+          .tint(PutioTheme.Colors.accent)
+      #endif
     case .success:
       prominentButton(role: nil, foreground: PutioTheme.Components.Button.successForeground)
         .tint(PutioTheme.Colors.success)

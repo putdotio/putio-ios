@@ -53,7 +53,7 @@ conventions; web TV uses the web binding at a 10-foot scale.
 | Stock Gauge geometry and track | `PutioDownloadStateButton` keeps the stock intrinsic 47pt ring, approximately 7pt stroke, and tint-derived track. The 44pt target is a minimum. |
 | Five download states | Idle, Queued, Downloading, Downloaded, and Failed remain distinct. Failed reuses the idle glyph and announces retry; the owning row carries its reason. |
 | Native progress tracks | `ProgressView` and `Gauge` own the unfilled track; the app supplies only tint. |
-| One system accent | Shell tint, secondary content actions, and stock pickers inherit `PutioTheme.Colors.accent`; authored semantic text and destructive actions keep their roles. |
+| One system accent | Shell tint, secondary content actions, and stock pickers inherit `PutioTheme.Colors.accent`; authored semantic text and destructive actions keep their roles. On tvOS a secondary action keeps the system focus fill, because an accent fill under an accent label is unreadable. |
 | Floating glass and content actions | `PutioButton` uses bordered content styles by default and stock glass only for the one standalone floating control. Toasts and Up Next own their floating surface; their children add no glass. |
 | Brand content, system chrome | Every screen state, including sign-out failure, renders through the branded state components, so titles, descriptions, and form labels use generated brand roles. Tab/navigation/search chrome retains SF. |
 | Tab glyph box | Existing intrinsic 24pt Phosphor assets remain unchanged. |
