@@ -70,10 +70,14 @@ final class PutioTrashReconciliation {
 
   /// Drops every row a committed mutation has since removed. Used after any
   /// await that captured a page before another screen could mutate.
-  func prune(_ page: PutioTrashPage) -> PutioTrashPage {
-    // A committed emptying leaves nothing to page through or aggregate.
+  /// `keepingCursor` preserves a continuation while an emptying is pending:
+  /// a lagging listing must still be walked to its last page so it can count
+  /// toward the emptying bound. A page another screen emptied out from under
+  /// this one has nothing left to walk and is normalized instead.
+  func prune(_ page: PutioTrashPage, keepingCursor: Bool = true) -> PutioTrashPage {
     if isEmptyingPending {
-      return PutioTrashPage(items: [], nextCursor: nil, totalCount: 0, sizeBytes: 0)
+      return PutioTrashPage(
+        items: [], nextCursor: keepingCursor ? page.nextCursor : nil, totalCount: 0, sizeBytes: 0)
     }
     let survivors = page.items.filter { !isRemoved($0) }
     guard survivors.count != page.items.count else { return page }
@@ -315,7 +319,7 @@ final class PutioTrashModel {
   /// original model updates only itself when the mutation commits.
   func applyReconciliation() {
     guard let currentPage = page else { return }
-    let pruned = reconciliation.prune(currentPage)
+    let pruned = reconciliation.prune(currentPage, keepingCursor: false)
     if pruned != currentPage { state = .loaded(pruned) }
   }
 

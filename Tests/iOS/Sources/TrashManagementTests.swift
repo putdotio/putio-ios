@@ -1240,6 +1240,42 @@ final class TrashManagementTests: XCTestCase {
       shared.pendingListingCount, 0, "a listing opened after the pop is abandoned at once")
   }
 
+  func testAMultiPageLaggingListingStillSettlesTheEmptyingCutoff() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let c = trashItem(id: 93, name: "C.pdf", kind: .pdf)
+    let later = trashItem(id: 94, name: "Later.pdf", kind: .pdf)
+    let stub = TrashActionsStub(
+      pages: [
+        .success(page(items: [a], totalCount: 3)),
+        // Two lagging post-empty listings, each three pages long.
+        .success(page(items: [a], cursor: "p1", totalCount: 3)),
+        .success(page(items: [b], cursor: "p2", totalCount: 3)),
+        .success(page(items: [c], totalCount: 3)),
+        .success(page(items: [a], cursor: "q1", totalCount: 3)),
+        .success(page(items: [b], cursor: "q2", totalCount: 3)),
+        .success(page(items: [c], totalCount: 3)),
+        .success(page(items: [later], totalCount: 1)),
+      ],
+      emptyResults: [.success(.refreshed)]
+    )
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    await model.empty()
+
+    for _ in 0..<2 {
+      await model.refresh()
+      XCTAssertEqual(model.page?.items, [])
+      XCTAssertNotNil(model.page?.nextCursor, "the lagging listing must remain walkable")
+      await model.loadMore()
+      await model.loadMore()
+      XCTAssertEqual(model.page?.items, [])
+    }
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [later], "two complete walks release the cutoff")
+  }
+
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
     let item = trashItem(id: 91, name: "First.pdf", kind: .pdf)
     let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)
