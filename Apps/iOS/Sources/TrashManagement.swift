@@ -317,10 +317,17 @@ final class PutioTrashModel {
   /// Drops rows another screen has since removed or emptied. A screen that
   /// was popped mid-mutation and reopened loads the pre-mutation rows; the
   /// original model updates only itself when the mutation commits.
-  func applyReconciliation() {
+  func applyReconciliation() async {
     guard let currentPage = page else { return }
     let pruned = reconciliation.prune(currentPage, keepingCursor: false)
     if pruned != currentPage { state = .loaded(pruned) }
+    // A continuation cursor obtained before another screen's mutation is
+    // opaque and may skip rows, so it is dropped along with any retry that
+    // depended on it, and the page is reloaded from the start. A busy model
+    // (mutation, refresh, or continuation in flight) repairs itself instead.
+    guard currentPage.nextCursor != nil else { return }
+    paginationFailure = nil
+    await load(initial: false, supersedesRefresh: false)
   }
 
   func loadIfNeeded() async {
@@ -382,10 +389,17 @@ final class PutioTrashModel {
     let previousPaginationFailure = paginationFailure
     paginationFailure = nil
     defer { isLoadingMore = false }
+    let version = reconciliation.version
     do {
       let nextPage = try await actions.load(cursor)
-      // Another screen may have pruned this page while the request was in
-      // flight; append onto what is shown now, then prune the merge too.
+      if reconciliation.version != version {
+        // Another screen committed a mutation while this continuation was in
+        // flight. The cursor predates it and may have skipped rows; discard
+        // the continuation and reload from the first page.
+        isLoadingMore = false
+        await load(initial: false, supersedesRefresh: false)
+        return
+      }
       let shownPage = page ?? currentPage
       let existingIDs = Set(shownPage.items.map(\.id))
       let fresh = reconciliation.reconcile(nextPage, listingID: listingID, startsListing: false)
@@ -709,7 +723,7 @@ struct TrashManagementView: View {
     .task { await model.refreshOnAppear() }
     .onDisappear { model.abandonListing() }
     .onChange(of: model.reconciliationVersion) { _, _ in
-      model.applyReconciliation()
+      Task { await model.applyReconciliation() }
     }
     .onChange(of: model.mutationOutcome) { _, outcome in
       present(outcome)

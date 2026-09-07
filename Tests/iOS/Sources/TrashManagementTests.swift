@@ -947,7 +947,7 @@ final class TrashManagementTests: XCTestCase {
     gate.resume(with: .refreshed)
     await deletion.value
     XCTAssertNotEqual(reopened.reconciliationVersion, versionBefore)
-    reopened.applyReconciliation()
+    await reopened.applyReconciliation()
     XCTAssertEqual(reopened.page?.items, [a], "the reopened screen drops the committed row")
     XCTAssertEqual(reopened.page?.totalCount, 1)
   }
@@ -993,12 +993,16 @@ final class TrashManagementTests: XCTestCase {
     await waitUntil("the continuation request") { loader.requestCount == 2 }
     await other.loadIfNeeded()
     await other.permanentlyDelete(b)
-    held.applyReconciliation()
+    await held.applyReconciliation()
     XCTAssertEqual(held.page?.items, [a])
 
+    // The continuation predates the mutation: its response is discarded and
+    // the page is reloaded from the start instead.
     loader.succeed(request: 1, with: page(items: [c], totalCount: 3))
+    await waitUntil("the first-page reload") { loader.requestCount == 3 }
+    loader.succeed(request: 2, with: page(items: [a, c], totalCount: 2))
     await more.value
-    XCTAssertEqual(held.page?.items, [a, c], "the continuation must not resurrect b")
+    XCTAssertEqual(held.page?.items, [a, c], "the stale continuation must not be merged")
   }
 
   func testAFailedRefreshKeepsThePageAnotherScreenPrunedMeanwhile() async {
@@ -1022,7 +1026,7 @@ final class TrashManagementTests: XCTestCase {
     await waitUntil("the refresh request") { loader.requestCount == 2 }
     await other.loadIfNeeded()
     await other.permanentlyDelete(b)
-    held.applyReconciliation()
+    await held.applyReconciliation()
     XCTAssertEqual(held.page?.items, [a])
 
     loader.fail(request: 1, with: PutioRuntimeError.transient)
@@ -1054,7 +1058,7 @@ final class TrashManagementTests: XCTestCase {
     await waitUntil("the repair request") { loader.requestCount == 2 }
     await other.loadIfNeeded()
     await other.permanentlyDelete(b)
-    held.applyReconciliation()
+    await held.applyReconciliation()
     XCTAssertEqual(held.page?.items, [c])
 
     loader.fail(request: 1, with: PutioRuntimeError.transient)
@@ -1104,7 +1108,10 @@ final class TrashManagementTests: XCTestCase {
     let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
     let shared = PutioTrashReconciliation()
     let paginated = model(
-      TrashActionsStub(pages: [.success(page(items: [a], cursor: "n1", totalCount: 5))]),
+      TrashActionsStub(pages: [
+        .success(page(items: [a], cursor: "n1", totalCount: 5)),
+        .success(page(items: [], totalCount: 0)),
+      ]),
       reconciliation: shared)
     let other = model(
       TrashActionsStub(
@@ -1114,11 +1121,45 @@ final class TrashManagementTests: XCTestCase {
     await paginated.loadIfNeeded()
     await other.loadIfNeeded()
     await other.empty()
-    paginated.applyReconciliation()
+    await paginated.applyReconciliation()
 
     XCTAssertEqual(
       paginated.page, page(items: [], totalCount: 0, sizeBytes: 0),
       "no rows, no cursor, and zero aggregates after another screen emptied")
+    XCTAssertNil(paginated.refreshFailure)
+    XCTAssertNil(paginated.paginationFailure)
+  }
+
+  func testACrossScreenRemovalRepairsAPaginatedPageFromTheStart() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let c = trashItem(id: 93, name: "C.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let paginatedStub = TrashActionsStub(pages: [
+      .success(page(items: [a, b], cursor: "n1", totalCount: 3)),
+      .failure(.transient),
+      // The repair after another screen deleted b lists what remains.
+      .success(page(items: [a, c], totalCount: 2)),
+    ])
+    let paginated = model(paginatedStub, reconciliation: shared)
+    let other = model(
+      TrashActionsStub(
+        pages: [.success(page(items: [a, b, c], totalCount: 3))],
+        deleteResults: [.success(.refreshed)]),
+      reconciliation: shared)
+
+    await paginated.loadIfNeeded()
+    await paginated.loadMore()
+    XCTAssertNotNil(paginated.paginationFailure)
+
+    await other.loadIfNeeded()
+    await other.permanentlyDelete(b)
+    await paginated.applyReconciliation()
+
+    XCTAssertEqual(paginated.page?.items, [a, c], "the stale cursor is not walked; c is recovered")
+    XCTAssertNil(paginated.page?.nextCursor)
+    XCTAssertNil(paginated.paginationFailure, "a retry bound to the dropped cursor is cleared")
+    XCTAssertEqual(paginatedStub.loadedCursors, [nil, "n1", nil])
   }
 
   func testARepairReloadRequestedBeforeEmptyingCannotSettleTheCutoff() async {
