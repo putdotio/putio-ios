@@ -557,8 +557,11 @@ private struct AccountView: View {
               message: PutioTrashErrorPresentation.staleStorage.message,
               retryTitle: isRefreshingStorage ? "Updating…" : "Update storage"
             ) {
+              // Flip the flag before suspending so a second tap cannot start
+              // another refresh, and only the one owner clears it.
+              guard !isRefreshingStorage else { return }
+              isRefreshingStorage = true
               Task {
-                isRefreshingStorage = true
                 defer { isRefreshingStorage = false }
                 _ = await runtime.refreshAccountStorage()
               }

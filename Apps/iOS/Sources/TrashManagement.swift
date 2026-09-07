@@ -40,7 +40,9 @@ final class PutioTrashReconciliation {
   /// a complete listing is empty or the bound above expires.
   @ObservationIgnored private(set) var isEmptyingPending = false
   @ObservationIgnored private var emptiedListings = 0
-  @ObservationIgnored private var seenSinceFirstPage: Set<Removal> = []
+  /// Rows seen so far per listing. Listings are identified by the caller so
+  /// concurrent walks from different Trash screens cannot merge into one.
+  @ObservationIgnored private var seenByListing: [UUID: Set<Removal>] = [:]
 
   init() {}
 
@@ -61,11 +63,21 @@ final class PutioTrashReconciliation {
   /// Filters a listing page. On the final page of a complete listing it
   /// releases every tombstone the server omitted, and every tombstone the
   /// server has now reported `consistentListingsBeforeTrust` times.
-  func reconcile(_ listing: PutioTrashPage, startsListing: Bool) -> PutioTrashPage {
-    if startsListing { seenSinceFirstPage.removeAll() }
-    seenSinceFirstPage.formUnion(listing.items.map { Removal(id: $0.id, deletedAt: $0.deletedAt) })
+  /// `listingID` ties a first page and its continuations together.
+  func reconcile(
+    _ listing: PutioTrashPage, listingID: UUID, startsListing: Bool
+  ) -> PutioTrashPage {
+    if startsListing { seenByListing[listingID] = [] }
+    seenByListing[listingID, default: []].formUnion(
+      listing.items.map { Removal(id: $0.id, deletedAt: $0.deletedAt) })
     let survivors = listing.items.filter { !isRemoved($0) }
-    if listing.nextCursor == nil { settleCompleteListing() }
+    if listing.nextCursor == nil {
+      // A continuation whose first page this object never saw (only possible
+      // across process boundaries) is not a complete listing.
+      if let seen = seenByListing.removeValue(forKey: listingID) {
+        settleCompleteListing(seen: seen)
+      }
+    }
     guard survivors.count != listing.items.count else { return listing }
     // totalCount and sizeBytes are server aggregates, not row sums.
     return PutioTrashPage(
@@ -76,9 +88,9 @@ final class PutioTrashReconciliation {
     )
   }
 
-  private func settleCompleteListing() {
+  private func settleCompleteListing(seen: Set<Removal>) {
     for (removal, listings) in removals {
-      guard seenSinceFirstPage.contains(removal) else {
+      guard seen.contains(removal) else {
         removals[removal] = nil
         continue
       }
@@ -86,7 +98,7 @@ final class PutioTrashReconciliation {
       removals[removal] = reported < Self.consistentListingsBeforeTrust ? reported : nil
     }
     guard isEmptyingPending else { return }
-    if seenSinceFirstPage.isEmpty {
+    if seen.isEmpty {
       // The server confirms the empty Trash.
       isEmptyingPending = false
     } else {
@@ -215,6 +227,9 @@ final class PutioTrashModel {
   // re-entering the screen cannot strand it on the loading state.
   @ObservationIgnored private var loadGeneration: UInt64 = 0
   @ObservationIgnored private let reconciliation: PutioTrashReconciliation
+  // Identifies the listing the current page belongs to, so its
+  // continuations reconcile against the same accumulator.
+  @ObservationIgnored private var listingID = UUID()
 
   init(
     actions: PutioTrashActions,
@@ -291,7 +306,7 @@ final class PutioTrashModel {
     do {
       let nextPage = try await actions.load(cursor)
       let existingIDs = Set(currentPage.items.map(\.id))
-      let fresh = reconciliation.reconcile(nextPage, startsListing: false)
+      let fresh = reconciliation.reconcile(nextPage, listingID: listingID, startsListing: false)
       let newItems = fresh.items.filter { !existingIDs.contains($0.id) }
       state = .loaded(
         PutioTrashPage(
@@ -378,6 +393,7 @@ final class PutioTrashModel {
       if generation == loadGeneration { isRefreshing = false }
     }
     let previousPage = page
+    let previousState = state
     let previousRefreshFailure = refreshFailure
     let previousPaginationFailure = paginationFailure
     if previousPage == nil { state = .loading }
@@ -387,11 +403,15 @@ final class PutioTrashModel {
       await reloadStaleStorage()
       let loadedPage = try await actions.load(nil)
       guard generation == loadGeneration else { return }
-      state = .loaded(reconciliation.reconcile(loadedPage, startsListing: true))
+      listingID = UUID()
+      state = .loaded(
+        reconciliation.reconcile(loadedPage, listingID: listingID, startsListing: true))
       hasLoaded = true
     } catch is CancellationError {
       guard generation == loadGeneration else { return }
-      // A cancelled retry must not hide the failure the user was retrying.
+      // A cancelled retry must not hide the failure the user was retrying,
+      // nor strand a failed screen on the loading spinner.
+      if !hasLoaded, case .failed = previousState { state = previousState }
       refreshFailure = previousRefreshFailure
       paginationFailure = previousPaginationFailure
       return
@@ -450,7 +470,9 @@ final class PutioTrashModel {
     )
     guard currentPage.nextCursor != nil else { return }
     do {
-      state = .loaded(reconciliation.reconcile(try await actions.load(nil), startsListing: true))
+      let reloaded = try await actions.load(nil)
+      listingID = UUID()
+      state = .loaded(reconciliation.reconcile(reloaded, listingID: listingID, startsListing: true))
     } catch {
       // The mutation is committed; keep the local page and drop the stale
       // cursor so Load More cannot replay it. Pull to refresh recovers.

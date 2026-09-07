@@ -715,6 +715,71 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertFalse(model.isRefreshing)
   }
 
+  func testCancelledRetryFromFailureRestoresTheFailedState() async {
+    let loader = ControlledTrashLoader()
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { try await loader.load(cursor: $0) },
+        restore: { _ in throw PutioRuntimeError.unknown },
+        permanentlyDelete: { _ in .refreshed },
+        empty: { .refreshed }
+      )
+    )
+
+    let initial = Task { await model.loadIfNeeded() }
+    await waitUntil("the initial load started") { loader.requestCount >= 1 }
+    loader.fail(request: 0, with: PutioRuntimeError.transient)
+    await initial.value
+    guard case .failed = model.state else { return XCTFail("expected failed, got \(model.state)") }
+
+    let retry = Task { await model.refresh() }
+    await waitUntil("the retry started") { loader.requestCount >= 2 }
+    XCTAssertEqual(model.state, .loading)
+    retry.cancel()
+    loader.fail(request: 1, with: CancellationError())
+    await retry.value
+
+    guard case .failed = model.state else {
+      return XCTFail("a cancelled retry must not strand the spinner, got \(model.state)")
+    }
+    XCTAssertFalse(model.isRefreshing)
+  }
+
+  func testConcurrentListingsFromTwoScreensDoNotMergeIntoOneCompleteListing() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    // Screen one: delete a; its reload lags and still lists a, with more pages.
+    let one = TrashActionsStub(
+      pages: [
+        .success(page(items: [a, b], cursor: "n1", totalCount: 2)),
+        .success(page(items: [a], cursor: "r1", totalCount: 1)),
+        .success(page(items: [b], totalCount: 1)),
+      ],
+      deleteResults: [.success(.refreshed)]
+    )
+    let first = model(one, reconciliation: shared)
+    await first.loadIfNeeded()
+    await first.permanentlyDelete(a)
+    XCTAssertEqual(first.page?.items, [])
+
+    // Screen two starts a fresh listing whose first page omits a and is
+    // not complete yet.
+    let two = TrashActionsStub(pages: [
+      .success(page(items: [b], cursor: "x1", totalCount: 2))
+    ])
+    let second = model(two, reconciliation: shared)
+    await second.loadIfNeeded()
+    XCTAssertEqual(second.page?.items, [b])
+
+    // Screen one's continuation completes screen one's listing, which did
+    // report a on its first page. With a shared accumulator that listing
+    // would have been judged by screen two's pages and released a early.
+    await first.loadMore()
+    XCTAssertTrue(shared.isRemoved(a), "a was reported once in its own listing; still tombstoned")
+    XCTAssertEqual(first.page?.items, [b])
+  }
+
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
     let item = trashItem(id: 91, name: "First.pdf", kind: .pdf)
     let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)

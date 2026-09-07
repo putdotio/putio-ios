@@ -91,7 +91,7 @@ public final class PutioRuntime {
   }
 
   public func restoreTrashItem(fileID: PutioFileID) async throws -> PutioTrashRestoreResult {
-    let response = try await performAuthenticatedOperation {
+    let response = try await performAuthenticatedMutation {
       try await sdk.restoreTrashFiles(fileIDs: [fileID.rawValue], cursor: nil)
     }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
@@ -114,7 +114,7 @@ public final class PutioRuntime {
   public func permanentlyDeleteTrashItem(
     fileID: PutioFileID
   ) async throws -> PutioTrashMutationResult {
-    let response = try await performAuthenticatedOperation {
+    let response = try await performAuthenticatedMutation {
       try await sdk.deleteTrashFiles(fileIDs: [fileID.rawValue], cursor: nil)
     }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
@@ -123,7 +123,7 @@ public final class PutioRuntime {
   }
 
   public func emptyTrash() async throws -> PutioTrashMutationResult {
-    let response = try await performAuthenticatedOperation {
+    let response = try await performAuthenticatedMutation {
       try await sdk.emptyTrash()
     }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
@@ -207,6 +207,22 @@ public final class PutioRuntime {
   private func performAuthenticatedOperation<Value>(
     _ operation: () async throws -> Value
   ) async throws -> Value {
+    try await performAuthenticatedOperation(commits: false, operation)
+  }
+
+  /// A committing operation keeps a decoded success even if the task was
+  /// cancelled while the response was in flight: the server already applied
+  /// it, and callers must reconcile rather than treat it as never sent.
+  private func performAuthenticatedMutation<Value>(
+    _ operation: () async throws -> Value
+  ) async throws -> Value {
+    try await performAuthenticatedOperation(commits: true, operation)
+  }
+
+  private func performAuthenticatedOperation<Value>(
+    commits: Bool,
+    _ operation: () async throws -> Value
+  ) async throws -> Value {
     guard case .signedIn = session.state else {
       throw currentSessionError
     }
@@ -215,7 +231,7 @@ public final class PutioRuntime {
     do {
       try Task.checkCancellation()
       let result = try await operation()
-      try Task.checkCancellation()
+      if !commits { try Task.checkCancellation() }
 
       guard
         authenticationGeneration == session.authenticationGeneration,
