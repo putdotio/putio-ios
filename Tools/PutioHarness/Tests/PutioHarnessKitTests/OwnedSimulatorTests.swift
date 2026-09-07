@@ -7,6 +7,7 @@ import Testing
 /// `xcrun` ahead on the runner's PATH, recording every simctl invocation.
 private func withFakeSimctl<T>(
   devices: [(udid: String, name: String)],
+  listedAfterCalls: Int = 0,
   _ body: (ProcessRunner, URL) throws -> T
 ) throws -> T {
   let root = FileManager.default.temporaryDirectory.appending(
@@ -19,8 +20,14 @@ private func withFakeSimctl<T>(
     #!/bin/sh
     echo "$@" >> "\(log.path)"
     if [ "$2" = "list" ]; then
+      lists=$(grep -c "simctl list" "\(log.path)")
       case " $* " in
-        *" -j "*) echo '{"devices":{"runtime":[\(list)]}}';;
+        *" -j "*)
+          if [ "$lists" -gt \(listedAfterCalls) ]; then
+            echo '{"devices":{"runtime":[\(list)]}}'
+          else
+            echo '{"devices":{"runtime":[]}}'
+          fi;;
         *) echo '';;
       esac
     fi
@@ -57,6 +64,30 @@ struct OwnedSimulatorTests {
       #expect(recorded.contains("simctl shutdown aaaa"))
       #expect(recorded.contains("simctl delete aaaa"))
       #expect(!recorded.contains { $0.contains("bbbb") })
+    }
+  }
+
+  @Test func unclaimedOwnedSimulatorRetriesUntilALateCreateIsListed() throws {
+    // CoreSimulatorService finishes the create after the client was killed:
+    // the first lookups see nothing, the third sees the device.
+    try withFakeSimctl(
+      devices: [("aaaa", "putio-harness-ios-run-1-deadbeef")], listedAfterCalls: 2
+    ) { runner, log in
+      let owned = OwnedSimulator(name: "putio-harness-ios-run-1-deadbeef")
+      try? owned.cleanup(runner: runner, attempts: 5, retryDelay: 0.01)
+      let recorded = calls(log)
+      #expect(recorded.filter { $0.hasPrefix("simctl list") }.count >= 3)
+      #expect(recorded.contains("simctl delete aaaa"))
+    }
+  }
+
+  @Test func unclaimedOwnedSimulatorStopsAfterTheRetryBound() throws {
+    try withFakeSimctl(devices: [], listedAfterCalls: 100) { runner, log in
+      let owned = OwnedSimulator(name: "putio-harness-ios-run-1-deadbeef")
+      try owned.cleanup(runner: runner, attempts: 3, retryDelay: 0.01)
+      let recorded = calls(log)
+      #expect(recorded.filter { $0.hasPrefix("simctl list") }.count == 3)
+      #expect(!recorded.contains { $0.contains("delete") })
     }
   }
 

@@ -33,6 +33,9 @@ final class PutioTrashReconciliation {
 
   static let consistentListingsBeforeTrust = 2
 
+  /// Bumped on every committed removal or emptying so a Trash screen that
+  /// did not perform the mutation can drop the rows it already shows.
+  private(set) var version: UInt64 = 0
   /// Complete listings in which each removal has still appeared.
   @ObservationIgnored private(set) var removals: [Removal: Int] = [:]
   /// Set after emptying. Emptying deletes rows on pages never loaded, whose
@@ -48,6 +51,7 @@ final class PutioTrashReconciliation {
 
   func recordRemoval(of item: PutioTrashItem) {
     removals[Removal(id: item.id, deletedAt: item.deletedAt)] = 0
+    version &+= 1
   }
 
   func recordEmptied() {
@@ -56,6 +60,7 @@ final class PutioTrashReconciliation {
     // Only listings started after the emptying may settle the cutoff: a walk
     // begun before it carries pre-empty pages and proves nothing about lag.
     seenByListing.removeAll()
+    version &+= 1
   }
 
   func isRemoved(_ item: PutioTrashItem) -> Bool {
@@ -273,6 +278,29 @@ final class PutioTrashModel {
 
   var canMutate: Bool {
     activeMutation == nil && !isRefreshing && !isLoadingMore && !isRefreshingStorage
+  }
+
+  /// Changes whenever another Trash screen commits a mutation.
+  var reconciliationVersion: UInt64 { reconciliation.version }
+
+  /// Drops rows another screen has since removed or emptied. A screen that
+  /// was popped mid-mutation and reopened loads the pre-mutation rows; the
+  /// original model updates only itself when the mutation commits.
+  func applyReconciliation() {
+    guard let currentPage = page else { return }
+    let survivors = currentPage.items.filter { !reconciliation.isRemoved($0) }
+    guard survivors.count != currentPage.items.count else { return }
+    let removedBytes = currentPage.items.filter { reconciliation.isRemoved($0) }
+      .reduce(Int64(0)) { $0 + $1.sizeBytes }
+    let removedCount = currentPage.items.count - survivors.count
+    state = .loaded(
+      PutioTrashPage(
+        items: survivors,
+        nextCursor: currentPage.nextCursor,
+        totalCount: currentPage.totalCount.map { max(0, $0 - removedCount) },
+        sizeBytes: max(0, currentPage.sizeBytes - removedBytes)
+      )
+    )
   }
 
   func loadIfNeeded() async {
@@ -631,6 +659,9 @@ struct TrashManagementView: View {
     }
     .task { await model.refreshOnAppear() }
     .onDisappear { model.abandonListing() }
+    .onChange(of: model.reconciliationVersion) { _, _ in
+      model.applyReconciliation()
+    }
     .onChange(of: model.mutationOutcome) { _, outcome in
       present(outcome)
     }

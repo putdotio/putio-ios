@@ -253,11 +253,14 @@ final class OwnedSimulator: @unchecked Sendable {
     lock.withLock { self.identifier = identifier }
   }
 
-  func cleanup(runner: ProcessRunner) throws {
+  func cleanup(
+    runner: ProcessRunner, attempts: Int = 10, retryDelay: TimeInterval = 0.2
+  ) throws {
     if let identifier = lock.withLock({ identifier }) {
       try cleanupSimulatorIdentifiers([identifier], runner: runner)
     } else {
-      try cleanupSimulators(named: [name], runner: runner)
+      try cleanupSimulators(
+        named: [name], runner: runner, attempts: attempts, retryDelay: retryDelay)
     }
   }
 }
@@ -271,13 +274,28 @@ private struct SimulatorDevice: Decodable {
   let udid: String
 }
 
-private func cleanupSimulators(named names: [String], runner: ProcessRunner) throws {
-  let output = try runner.checked(
-    "xcrun", ["simctl", "list", "devices", "-j"], context: "locate owned Simulators")
-  let devices = try JSONDecoder().decode(SimulatorDeviceList.self, from: Data(output.stdout.utf8))
-  let identifiers = devices.devices.values.flatMap { $0 }.filter { names.contains($0.name) }.map(
-    \.udid)
-  if !identifiers.isEmpty { try cleanupSimulatorIdentifiers(identifiers, runner: runner) }
+/// A terminated `simctl create` client does not abort the request already
+/// accepted by CoreSimulatorService, and the device can appear a moment after
+/// the client died. The lookup is retried within a short bound so that window
+/// cannot leak the device; the names were verified unowned, so a late match is
+/// ours.
+private func cleanupSimulators(
+  named names: [String], runner: ProcessRunner, attempts: Int = 10,
+  retryDelay: TimeInterval = 0.2
+) throws {
+  for attempt in 1...max(1, attempts) {
+    let output = try runner.checked(
+      "xcrun", ["simctl", "list", "devices", "-j"], context: "locate owned Simulators")
+    let devices = try JSONDecoder().decode(
+      SimulatorDeviceList.self, from: Data(output.stdout.utf8))
+    let identifiers = devices.devices.values.flatMap { $0 }.filter { names.contains($0.name) }
+      .map(\.udid)
+    if !identifiers.isEmpty {
+      try cleanupSimulatorIdentifiers(identifiers, runner: runner)
+      return
+    }
+    if attempt < attempts { Thread.sleep(forTimeInterval: retryDelay) }
+  }
 }
 
 public final class SimulatorLifecycle: @unchecked Sendable {

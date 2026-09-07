@@ -72,6 +72,22 @@ private final class ControlledTrashLoader {
   }
 }
 
+@MainActor
+private final class GatedTrashDelete {
+  private var continuation: CheckedContinuation<PutioTrashMutationResult, any Error>?
+  private(set) var requestCount = 0
+
+  func permanentlyDelete(fileID: PutioFileID) async throws -> PutioTrashMutationResult {
+    requestCount += 1
+    return try await withCheckedThrowingContinuation { continuation = $0 }
+  }
+
+  func resume(with result: PutioTrashMutationResult) {
+    continuation?.resume(returning: result)
+    continuation = nil
+  }
+}
+
 extension PutioTrashMutationResult {
   fileprivate static let refreshed = PutioTrashMutationResult(storageRefreshed: true)
   fileprivate static let storageStale = PutioTrashMutationResult(storageRefreshed: false)
@@ -898,6 +914,42 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(screenA.page?.items, [])
     await screenA.refresh()
     XCTAssertEqual(screenA.page?.items, [], "the cutoff needs two listings started after the empty")
+  }
+
+  func testAReopenedScreenDropsRowsAnotherScreenRemovesLater() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let gate = GatedTrashDelete()
+    let first = TrashActionsStub(pages: [.success(page(items: [a, b], totalCount: 2))])
+    let popped = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { try await first.load(cursor: $0) },
+        restore: { try await first.restore(fileID: $0) },
+        permanentlyDelete: { try await gate.permanentlyDelete(fileID: $0) },
+        empty: { try await first.empty() },
+        refreshStorage: { await first.refreshStorage() },
+        isStorageStale: { first.isStorageStale }
+      ),
+      reconciliation: shared
+    )
+    await popped.loadIfNeeded()
+    // The delete is in flight when the screen is popped and reopened.
+    let deletion = Task { await popped.permanentlyDelete(b) }
+    await waitUntil("the delete to be in flight") { gate.requestCount == 1 }
+
+    let second = TrashActionsStub(pages: [.success(page(items: [a, b], totalCount: 2))])
+    let reopened = model(second, reconciliation: shared)
+    await reopened.loadIfNeeded()
+    XCTAssertEqual(reopened.page?.items, [a, b], "nothing is committed yet")
+    let versionBefore = reopened.reconciliationVersion
+
+    gate.resume(with: .refreshed)
+    await deletion.value
+    XCTAssertNotEqual(reopened.reconciliationVersion, versionBefore)
+    reopened.applyReconciliation()
+    XCTAssertEqual(reopened.page?.items, [a], "the reopened screen drops the committed row")
+    XCTAssertEqual(reopened.page?.totalCount, 1)
   }
 
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
