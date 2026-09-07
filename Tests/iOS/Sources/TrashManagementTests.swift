@@ -1215,6 +1215,31 @@ final class TrashManagementTests: XCTestCase {
     await observer.value
   }
 
+  func testARepairReloadAfterThePopDoesNotLeaveAListingOpen() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let loader = ControlledTrashLoader()
+    let held = heldModel(loader, reconciliation: shared, deleteResults: [.success(.refreshed)])
+
+    let firstLoad = Task { await held.loadIfNeeded() }
+    await waitUntil("the first page request") { loader.requestCount == 1 }
+    loader.succeed(request: 0, with: page(items: [a, b], cursor: "n1", totalCount: 2))
+    await firstLoad.value
+
+    let deletion = Task { await held.permanentlyDelete(a) }
+    await waitUntil("the repair request") { loader.requestCount == 2 }
+    // The user pops the screen while the repair is in flight.
+    held.abandonListing()
+    XCTAssertEqual(shared.pendingListingCount, 0)
+
+    loader.succeed(request: 1, with: page(items: [b], cursor: "n2", totalCount: 1))
+    await deletion.value
+    XCTAssertEqual(held.page?.items, [b])
+    XCTAssertEqual(
+      shared.pendingListingCount, 0, "a listing opened after the pop is abandoned at once")
+  }
+
   func testReloadAfterMutationNeverResurrectsTheCommittedItem() async {
     let item = trashItem(id: 91, name: "First.pdf", kind: .pdf)
     let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)

@@ -265,6 +265,9 @@ final class PutioTrashModel {
   @ObservationIgnored private let actions: PutioTrashActions
   @ObservationIgnored private let onRestored: PutioTrashDidRestore
   @ObservationIgnored private var hasLoaded = false
+  // Set by appearance, cleared by disappearance. Listings opened while the
+  // screen is gone are abandoned at once; see openListing.
+  @ObservationIgnored private var isVisible = true
   // Supersedes an initial load that is still unwinding after cancellation so
   // re-entering the screen cannot strand it on the loading state.
   @ObservationIgnored private var loadGeneration: UInt64 = 0
@@ -325,10 +328,23 @@ final class PutioTrashModel {
   /// across tab switches, and Files may have trashed more items meanwhile.
   /// The screen is leaving; a partially walked listing will not complete.
   func abandonListing() {
+    isVisible = false
     reconciliation.abandonListing(listingID)
   }
 
+  /// A request that outlives the screen (a mutation repair, a late refresh)
+  /// must not leave a listing open that nothing will ever walk or abandon.
+  private func openListing(_ page: PutioTrashPage, startsListing: Bool) -> PutioTrashPage {
+    reconciliation.abandonListing(listingID)
+    listingID = UUID()
+    let reconciled = reconciliation.reconcile(
+      page, listingID: listingID, startsListing: startsListing)
+    if !isVisible { reconciliation.abandonListing(listingID) }
+    return reconciled
+  }
+
   func refreshOnAppear() async {
+    isVisible = true
     if hasLoaded {
       // Appearance may follow a tab switch that cancelled the previous
       // refresh; supersede it instead of being refused by its flag.
@@ -484,14 +500,11 @@ final class PutioTrashModel {
       let epoch = reconciliation.emptyingEpoch
       let loadedPage = try await actions.load(nil)
       guard generation == loadGeneration else { return }
-      reconciliation.abandonListing(listingID)
-      listingID = UUID()
       // A response requested before an emptying carries pre-empty rows: it is
       // still filtered, but it never opens a listing that could settle the
       // emptying cutoff.
       let startsListing = epoch == reconciliation.emptyingEpoch
-      state = .loaded(
-        reconciliation.reconcile(loadedPage, listingID: listingID, startsListing: startsListing))
+      state = .loaded(openListing(loadedPage, startsListing: startsListing))
       hasLoaded = true
     } catch is CancellationError {
       guard generation == loadGeneration else { return }
@@ -559,13 +572,10 @@ final class PutioTrashModel {
     do {
       let epoch = reconciliation.emptyingEpoch
       let reloaded = try await actions.load(nil)
-      reconciliation.abandonListing(listingID)
-      listingID = UUID()
       // See load(initial:): a response requested before an emptying never
       // opens a listing that could settle the emptying cutoff.
       let startsListing = epoch == reconciliation.emptyingEpoch
-      state = .loaded(
-        reconciliation.reconcile(reloaded, listingID: listingID, startsListing: startsListing))
+      state = .loaded(openListing(reloaded, startsListing: startsListing))
       // The fresh listing supersedes any earlier list failure.
       refreshFailure = nil
       paginationFailure = nil
