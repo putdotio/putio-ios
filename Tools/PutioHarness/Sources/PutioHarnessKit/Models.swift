@@ -307,6 +307,11 @@ enum BrowserJourneyContract {
     "PutioUITests/FilesBrowserJourneyTests/testSearchPaginationRetryAndFolderRestoration"
   static let folderReconciliationTestIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testRenamingAndDeletingOpenFolderReconcilesOtherTabs"
+  static let historyTestIdentifier =
+    "PutioUITests/HistoryJourneyTests/testHistoryPagingNavigationMutationsAndSettingGate"
+  static let historyAttachmentNames = [
+    "runtime-history-loaded", "runtime-history-error", "runtime-history-empty",
+  ]
   static let searchResultsAttachmentName = "runtime-search-results"
   static let sortedRootAttachmentName = "runtime-sorted-root"
   static let fileActionsAttachmentName = "runtime-file-actions"

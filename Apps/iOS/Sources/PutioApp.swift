@@ -235,21 +235,20 @@ private struct MainTabView: View {
           Image(putioIcon: .arrowCircleDown)
         }
       }
-      Tab {
-        NavigationStack {
-          PutioEmptyStateView(
-            icon: .clockCounterClockwise,
-            title: "No activity",
-            message: "What happens on your account appears here."
+      if account.historyEnabled {
+        Tab {
+          HistoryView(
+            runtime: runtime,
+            trashEnabled: account.trashEnabled,
+            refreshRequests: folderRefreshRequests,
+            onFileSelected: { route in selectFile(route) }
           )
-          .navigationTitle("Activity")
-          .putioContentBackground()
-        }
-      } label: {
-        Label {
-          Text("Activity")
-        } icon: {
-          Image(putioIcon: .clockCounterClockwise)
+        } label: {
+          Label {
+            Text("History")
+          } icon: {
+            Image(putioIcon: .clockCounterClockwise)
+          }
         }
       }
       Tab {

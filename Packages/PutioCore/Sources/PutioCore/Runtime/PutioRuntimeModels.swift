@@ -18,6 +18,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
   public let email: String
   public let suggestNextVideo: Bool
   public let rememberVideoTime: Bool
+  public let historyEnabled: Bool
   public let trashEnabled: Bool
   public let storage: Storage
 
@@ -27,6 +28,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     email: String,
     suggestNextVideo: Bool,
     rememberVideoTime: Bool,
+    historyEnabled: Bool,
     trashEnabled: Bool,
     storage: Storage
   ) {
@@ -35,6 +37,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     self.email = email
     self.suggestNextVideo = suggestNextVideo
     self.rememberVideoTime = rememberVideoTime
+    self.historyEnabled = historyEnabled
     self.trashEnabled = trashEnabled
     self.storage = storage
   }
@@ -279,4 +282,48 @@ public enum PutioRuntimeError: Error, Equatable, Sendable {
   case transient
   case invalidResponse
   case unknown
+}
+
+public enum PutioHistoryEventKind: Equatable, Sendable {
+  case upload(name: String, sizeBytes: Int64, fileID: PutioFileID?)
+  case fileShared(name: String, sharingUserName: String, fileID: PutioFileID?)
+  case transferCompleted(name: String, sizeBytes: Int64, fileID: PutioFileID?)
+  case transferError(name: String)
+  case fileFromRSSDeleted(name: String, sizeBytes: Int64)
+  case rssFilterPaused(title: String)
+  case transferFromRSSError(name: String)
+  case transferCallbackError(name: String)
+}
+
+public struct PutioHistoryEventItem: Identifiable, Equatable, Sendable {
+  public let id: Int
+  public let createdAt: Date
+  public let kind: PutioHistoryEventKind
+
+  public init(id: Int, createdAt: Date, kind: PutioHistoryEventKind) {
+    self.id = id
+    self.createdAt = createdAt
+    self.kind = kind
+  }
+
+  public var fileID: PutioFileID? {
+    switch kind {
+    case .upload(_, _, let fileID), .fileShared(_, _, let fileID),
+      .transferCompleted(_, _, let fileID):
+      fileID
+    default:
+      nil
+    }
+  }
+}
+
+public struct PutioHistoryPage: Equatable, Sendable {
+  public let items: [PutioHistoryEventItem]
+  /// Last raw event ID, including events outside the supported presentation kinds.
+  public let nextBefore: Int?
+
+  public init(items: [PutioHistoryEventItem], nextBefore: Int?) {
+    self.items = items
+    self.nextBefore = nextBefore
+  }
 }

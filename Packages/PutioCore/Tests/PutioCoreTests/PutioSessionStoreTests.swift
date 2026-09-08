@@ -77,6 +77,7 @@ final class PutioSessionStoreTests: XCTestCase {
   private static func accountInfo(
     rememberVideoTime: Bool,
     suggestNextVideo: Bool = true,
+    historyEnabled: Bool = true,
     trashEnabled: Bool = true
   ) -> String {
     """
@@ -98,7 +99,7 @@ final class PutioSessionStoreTests: XCTestCase {
           "tunnel_route_name": "default",
           "next_episode": \(suggestNextVideo),
           "start_from": \(rememberVideoTime),
-          "history_enabled": true,
+          "history_enabled": \(historyEnabled),
           "trash_enabled": \(trashEnabled),
           "sort_by": "NAME_ASC",
           "show_optimistic_usage": false,
@@ -140,6 +141,19 @@ final class PutioSessionStoreTests: XCTestCase {
     SessionMockURLProtocol.fixtures["POST /v2/oauth/grants/logout"] = (200, #"{"status":"OK"}"#)
   }
 
+  func testDisabledHistoryIsPreservedInAccountSnapshot() async {
+    SessionMockURLProtocol.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    SessionMockURLProtocol.fixtures["GET /v2/account/info"] = (
+      200, Self.accountInfo(rememberVideoTime: true, historyEnabled: false)
+    )
+    let (store, _) = makeStore(token: "stored-token")
+    await store.restore()
+    guard case .signedIn(let account) = store.state else {
+      return XCTFail("expected a restored account")
+    }
+    XCTAssertFalse(account.historyEnabled)
+  }
+
   func testRestoreWithoutTokenLandsSignedOut() async {
     let (store, _) = makeStore(token: nil)
     await store.restore()
@@ -162,6 +176,7 @@ final class PutioSessionStoreTests: XCTestCase {
         email: "tests@example.com",
         suggestNextVideo: true,
         rememberVideoTime: true,
+        historyEnabled: true,
         trashEnabled: true,
         storage: PutioAccountSnapshot.Storage(
           availableBytes: 10,
