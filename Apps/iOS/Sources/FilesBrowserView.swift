@@ -123,11 +123,15 @@ struct FilesBrowserView: View {
   private let onRootLoaded: PutioRootLoaded
   private let onReturnToRoot: @MainActor @Sendable () -> Void
   private let refreshRequests: PutioFolderRefreshRequests
+  private let accountID: Int?
+  private let navigationRestoration = PutioFilesNavigationRestoration()
   @State private var path: [PutioFolderRoute] = []
+  @State private var didRestoreNavigation = false
 
   init(
     runtime: PutioRuntime,
     trashEnabled: Bool,
+    accountID: Int,
     onFileSelected: @escaping PutioFileSelection,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
@@ -140,6 +144,7 @@ struct FilesBrowserView: View {
       try await runtime.continueFiles(cursor: cursor)
     }
     actions = PutioFileActions(runtime: runtime)
+    self.accountID = accountID
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
     self.onRootLoaded = onRootLoaded
@@ -158,6 +163,7 @@ struct FilesBrowserView: View {
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests()
   ) {
     self.load = load
+    self.accountID = nil
     self.continueLoad = continueLoad
     self.actions = actions
     self.trashEnabled = trashEnabled
@@ -192,9 +198,22 @@ struct FilesBrowserView: View {
       }
     }
     .onChange(of: path) { oldPath, newPath in
+      if didRestoreNavigation, let accountID {
+        navigationRestoration.save(path: newPath, for: accountID)
+      }
       if !oldPath.isEmpty, newPath.isEmpty {
         onReturnToRoot()
       }
+    }
+    .disabled(!didRestoreNavigation)
+    .task {
+      guard !didRestoreNavigation else { return }
+      if let accountID {
+        let restored = await navigationRestoration.restore(accountID: accountID, load: load)
+        guard !Task.isCancelled else { return }
+        path = restored
+      }
+      didRestoreNavigation = true
     }
   }
 }

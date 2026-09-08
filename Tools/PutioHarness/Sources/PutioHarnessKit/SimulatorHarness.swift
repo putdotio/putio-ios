@@ -757,9 +757,20 @@ public struct SimulatorHarness {
           defaultExecutionTimeAllowance: 90,
           maximumExecutionTimeAllowance: 90
         )
+        let searchScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.searchAndRestorationTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".search-restoration.xcresult"),
+          attachmentNames: [BrowserJourneyContract.searchResultsAttachmentName],
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 180,
+          maximumExecutionTimeAllowance: 180
+        )
         let preflightScreenshots =
           signOutFailureScreenshots + fileActionsScreenshots + trashManagementScreenshots
-          + sortedRootScreenshots
+          + sortedRootScreenshots + searchScreenshots
         for screenshot in preflightScreenshots {
           _ = try requireMeaningfulScreenshot(screenshot, context: "journey preflight attachment")
         }
@@ -767,7 +778,7 @@ public struct SimulatorHarness {
         // outlive the checks above.
         for bundle in [
           ".sign-out-recovery.xcresult", ".file-actions.xcresult", ".trash-management.xcresult",
-          ".sort-continuation.xcresult",
+          ".sort-continuation.xcresult", ".search-restoration.xcresult",
         ] {
           try? fileManager.removeItem(at: platformDirectory.appending(path: bundle))
         }

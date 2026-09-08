@@ -49,6 +49,7 @@ import Foundation
     nonisolated(unsafe) private static var actionFolders: [Int: ActionFolder] = [:]
     nonisolated(unsafe) private static var trashFolders = initialTrashFolders
     nonisolated(unsafe) private static var nextActionFolderID = 415
+    nonisolated(unsafe) private static var searchRetryFailed = false
     nonisolated(unsafe) private static var renameAttempts = 0
     nonisolated(unsafe) private static var logoutFailuresRemaining = 0
     nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
@@ -104,6 +105,7 @@ import Foundation
       actionFolders = [:]
       trashFolders = initialTrashFolders
       nextActionFolderID = 415
+      searchRetryFailed = false
       renameAttempts = 0
       bulkDeleteFailureDelivered = false
       ambiguousMoveFailureDelivered = false
@@ -212,6 +214,58 @@ import Foundation
       )
     }
 
+    private static func searchFiles(url: URL) -> (Int, String) {
+      let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+        .queryItems?.first { $0.name == "query" }?.value?.lowercased()
+      if query == "retry" {
+        let shouldFail = fileActionsLock.withLock {
+          if searchRetryFailed { return false }
+          searchRetryFailed = true
+          return true
+        }
+        if shouldFail {
+          return (
+            503,
+            fixtureError(
+              statusCode: 503, type: "HARNESS_SEARCH_RETRY",
+              message: "The first search fails for retry proof")
+          )
+        }
+      }
+      guard query == "harness" || query == "retry" else {
+        return (200, #"{"total":0,"files":[]}"#)
+      }
+      return (
+        200,
+        """
+        {"total":2,"cursor":"search-harness-page-2","files":[
+          \(folderObject(id: 410, name: "Harness Folder", parentID: 0))
+        ]}
+        """
+      )
+    }
+
+    private static func continueSearch(request: URLRequest) -> (Int, String) {
+      guard requestPayload(request)?["cursor"] as? String == "search-harness-page-2" else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400, type: "HARNESS_SEARCH_CURSOR_INVALID",
+            message: "The search fixture requires its continuation cursor")
+        )
+      }
+      return (
+        200,
+        """
+        {"total":2,"files":[{
+          "id":411,"name":"Nested Movie.mkv","file_type":"VIDEO","parent_id":410,
+          "size":1073741824,"created_at":"2026-08-28T11:00:00Z",
+          "updated_at":"2026-08-29T11:00:00Z","start_from":\(playbackPosition(fileID: 411))
+        }]}
+        """
+      )
+    }
+
     private static func setSortBy(request: URLRequest) -> (Int, String) {
       guard
         let payload = requestPayload(request),
@@ -281,6 +335,10 @@ import Foundation
         return filesListFixture(url: url)
       case "POST /v2/files/list/continue":
         return continueFiles(request: request)
+      case "GET /v2/files/search":
+        return searchFiles(url: url)
+      case "POST /v2/files/search/continue":
+        return continueSearch(request: request)
       case "POST /v2/files/set-sort-by":
         return setSortBy(request: request)
       case "POST /v2/files/create-folder":

@@ -440,6 +440,75 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
+  func testSearchPaginationRetryAndFolderRestoration() {
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
+
+    app.buttons["Search"].tap()
+    let searchField = app.searchFields.firstMatch
+    XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+    searchField.tap()
+    searchField.typeText("Harness\n")
+    let folderResult = element(identifier: "files.search-item.410")
+    let videoResult = element(identifier: "files.search-item.411")
+    XCTAssertTrue(folderResult.waitForExistence(timeout: 10))
+    XCTAssertTrue(videoResult.waitForExistence(timeout: 10), "search continuation never appended")
+    addScreenshot(named: "runtime-search-results")
+    folderResult.tap()
+    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 10))
+    XCTAssertTrue(element(identifier: "files.item.411").exists)
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+
+    replaceSearchQuery("no-matching-file", in: searchField)
+    XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 10))
+    XCTAssertFalse(folderResult.exists)
+    replaceSearchQuery("retry", in: searchField)
+    let retry = element(identifier: "files.search-retry")
+    XCTAssertTrue(retry.waitForExistence(timeout: 10))
+    retry.tap()
+    XCTAssertTrue(videoResult.waitForExistence(timeout: 10))
+
+    app.buttons["Files"].tap()
+    let folder = element(identifier: "files.item.410")
+    XCTAssertTrue(folder.waitForExistence(timeout: 5))
+    folder.tap()
+    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 10))
+    app.terminate()
+    app.launch()
+    XCTAssertTrue(
+      element(identifier: "files.screen.410").waitForExistence(timeout: 15),
+      "relaunch did not restore the folder for the signed-in account")
+    let back = app.navigationBars.buttons["BackButton"]
+    XCTAssertTrue(waitUntilHittable(back, timeout: 5))
+    back.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    folder.tap()
+    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 5))
+    app.buttons["Account"].tap()
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertFalse(element(identifier: "files.screen.410").exists)
+    app.buttons["Account"].tap()
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+  }
+
+  private func replaceSearchQuery(_ query: String, in field: XCUIElement) {
+    field.tap()
+    let currentValue = field.value as? String ?? ""
+    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentValue.count))
+    field.typeText(query + "\n")
+  }
+
   func testUnsupportedFileIsNotActionable() {
     app.launch()
 

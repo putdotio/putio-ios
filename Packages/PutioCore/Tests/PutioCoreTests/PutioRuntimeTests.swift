@@ -200,6 +200,8 @@ private final class RuntimeMockURLProtocol: URLProtocol, @unchecked Sendable {
 final class PutioRuntimeTests: XCTestCase {
   private static let filesRoute = "GET /v2/files/list"
   private static let filesContinueRoute = "POST /v2/files/list/continue"
+  private static let searchRoute = "GET /v2/files/search"
+  private static let searchContinueRoute = "POST /v2/files/search/continue"
   private static let setSortRoute = "POST /v2/files/set-sort-by"
   private static let createFolderRoute = "POST /v2/files/create-folder"
   private static let renameFileRoute = "POST /v2/files/rename"
@@ -379,6 +381,111 @@ final class PutioRuntimeTests: XCTestCase {
     let body = try XCTUnwrap(requestBodyData(for: request))
     let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
     XCTAssertEqual(json["cursor"] as? String, "files-page-2")
+  }
+
+  func testSearchEncodesQueryAndMapsAppOwnedResults() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"total":2,"cursor":"search-page-2","files":[{"id":31,"name":"Summer & snow.mkv","file_type":"VIDEO","parent_id":42,"size":1024,"start_from":12,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z","stream_url":"https://example.com/stream-secret"}]}"#,
+      for: Self.searchRoute
+    )
+
+    let query = "Summer & snow + 東京?"
+    let page = try await runtime.searchFiles(query: query)
+
+    XCTAssertEqual(page.totalCount, 2)
+    XCTAssertEqual(page.nextCursor, "search-page-2")
+    let item = try XCTUnwrap(page.items.first)
+    XCTAssertEqual(item.id, PutioFileID(rawValue: 31))
+    XCTAssertEqual(item.parentID, PutioFileID(rawValue: 42))
+    XCTAssertEqual(item.name, "Summer & snow.mkv")
+    XCTAssertEqual(item.kind, .video)
+    XCTAssertEqual(item.sizeBytes, 1024)
+    XCTAssertEqual(item.resumePositionSeconds, 12)
+    XCTAssertFalse(String(reflecting: page).contains("stream-secret"))
+    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    XCTAssertEqual(request.httpMethod, "GET")
+    XCTAssertEqual(request.url?.path, "/v2/files/search")
+    let components = try XCTUnwrap(
+      request.url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }
+    )
+    XCTAssertEqual(components.queryItems?.first { $0.name == "query" }?.value, query)
+    XCTAssertEqual(components.queryItems?.first { $0.name == "per_page" }?.value, "50")
+    XCTAssertEqual(
+      request.value(forHTTPHeaderField: "Authorization")?.lowercased(), "token stored-token")
+  }
+
+  func testSearchContinuationPostsOpaqueCursorAndMapsFinalPage() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"total":2,"cursor":"","files":[{"id":32,"name":"Page 2.mkv","file_type":"VIDEO","parent_id":42,"size":1,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}]}"#,
+      for: Self.searchContinueRoute
+    )
+
+    let cursor = "opaque+/= search cursor"
+    let page = try await runtime.continueFileSearch(cursor: cursor)
+
+    XCTAssertEqual(page.totalCount, 2)
+    XCTAssertNil(page.nextCursor)
+    XCTAssertEqual(page.items.map(\.id), [PutioFileID(rawValue: 32)])
+    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    XCTAssertEqual(request.httpMethod, "POST")
+    XCTAssertEqual(request.url?.path, "/v2/files/search/continue")
+    let body = try XCTUnwrap(requestBodyData(for: request))
+    let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    XCTAssertEqual(json["cursor"] as? String, cursor)
+    XCTAssertEqual(
+      request.value(forHTTPHeaderField: "Authorization")?.lowercased(), "token stored-token")
+  }
+
+  func testSearchRejectsNegativeTotalsAndNonadvancingContinuation() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(#"{"total":-1,"files":[]}"#, for: Self.searchRoute)
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.searchFiles(query: "video")
+    }
+    RuntimeMockURLProtocol.setFixture(
+      #"{"total":3,"cursor":"same-page","files":[]}"#, for: Self.searchContinueRoute)
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.continueFileSearch(cursor: "same-page")
+    }
+    RuntimeMockURLProtocol.setFixture(#"{"total":0,"files":[]}"#, for: Self.searchRoute)
+    let emptyPage = try await runtime.searchFiles(query: "missing")
+    XCTAssertEqual(emptyPage, PutioFileSearchPage(items: [], nextCursor: nil, totalCount: 0))
+  }
+
+  func testUnauthenticatedRuntimeRejectsSearchAndContinuationWithoutRequests() async {
+    let (runtime, _) = makeRuntime(token: nil)
+    await assertRuntimeError(.authenticationRequired) {
+      _ = try await runtime.searchFiles(query: "video")
+    }
+    await assertRuntimeError(.authenticationRequired) {
+      _ = try await runtime.continueFileSearch(cursor: "next-page")
+    }
+    XCTAssertTrue(RuntimeMockURLProtocol.capturedRequests().isEmpty)
+  }
+
+  func testSearchAuthenticationFailuresExpireSessionAndBlockFurtherRequests() async {
+    for route in [Self.searchRoute, Self.searchContinueRoute] {
+      RuntimeMockURLProtocol.reset()
+      let (runtime, tokenStore) = await makeSignedInRuntime()
+      RuntimeMockURLProtocol.setFixture(
+        #"{"status":"ERROR","error_type":"invalid_grant"}"#, statusCode: 401, for: route)
+      await assertRuntimeError(.sessionExpired) {
+        if route == Self.searchRoute {
+          _ = try await runtime.searchFiles(query: "video")
+        } else {
+          _ = try await runtime.continueFileSearch(cursor: "next-page")
+        }
+      }
+      XCTAssertEqual(runtime.session.state, .signedOut(.sessionExpired))
+      XCTAssertNil(try? tokenStore.read())
+      let requestCount = RuntimeMockURLProtocol.capturedRequests().count
+      await assertRuntimeError(.sessionExpired) {
+        _ = try await runtime.searchFiles(query: "video")
+      }
+      XCTAssertEqual(RuntimeMockURLProtocol.capturedRequests().count, requestCount)
+    }
   }
 
   func testSetFolderSortPostsTheServerKey() async throws {

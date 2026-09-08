@@ -71,6 +71,7 @@ private struct SessionRootView: View {
           autoSignOutAfterSeconds: scenario == .signedIn
             && !PutioRuntimeFactory.usesSignOutFailureFixture(scenario: scenario) ? 5 : nil
         )
+        .id(account.id)
       }
     }
     .background(PutioTheme.Colors.background)
@@ -191,7 +192,6 @@ private struct MainTabView: View {
   let scenario: HarnessScenario
   let autoSignOutAfterSeconds: TimeInterval?
 
-  @State private var searchText = ""
   @State private var selectedFileRoute: PutioFileRoute?
   @State private var selectedVideoRoute: PutioVideoRoute?
   @State private var harnessPlaybackAttempt = 0
@@ -207,6 +207,7 @@ private struct MainTabView: View {
         FilesBrowserView(
           runtime: runtime,
           trashEnabled: account.trashEnabled,
+          accountID: account.id,
           onFileSelected: { route in selectFile(route) },
           refreshRequests: folderRefreshRequests
         )
@@ -268,16 +269,12 @@ private struct MainTabView: View {
         }
       }
       Tab(role: .search) {
-        NavigationStack {
-          PutioEmptyStateView(
-            icon: .file,
-            title: "Search your files",
-            message: "Find files by their stored name."
-          )
-          .navigationTitle("Search")
-          .putioContentBackground()
-          .searchable(text: $searchText, prompt: "Search in Files")
-        }
+        FilesSearchView(
+          runtime: runtime,
+          trashEnabled: account.trashEnabled,
+          refreshRequests: folderRefreshRequests,
+          onFileSelected: { route in selectFile(route) }
+        )
       }
     }
     // Shrink-on-scroll is opt-in on iOS 26 and part of the ios-e10 treatment.
@@ -358,6 +355,7 @@ private struct MainTabView: View {
       guard let autoSignOutAfterSeconds else { return }
       try? await Task.sleep(for: .seconds(autoSignOutAfterSeconds))
       guard !Task.isCancelled else { return }
+      PutioFilesNavigationRestoration().clear(accountID: account.id)
       await runtime.session.signOut()
     }
   }
@@ -578,6 +576,7 @@ private struct AccountView: View {
         }
         Section {
           Button("Sign out", role: .destructive) {
+            PutioFilesNavigationRestoration().clear(accountID: account.id)
             Task { await runtime.session.signOut() }
           }
           .accessibilityIdentifier("auth.sign-out")

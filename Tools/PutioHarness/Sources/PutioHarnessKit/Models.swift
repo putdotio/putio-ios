@@ -303,6 +303,9 @@ enum BrowserJourneyContract {
     "PutioUITests/FilesBrowserJourneyTests/testTrashManagementRestoreRetryDeleteAndEmpty"
   static let sortAndContinuationTestIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testSortRoundTripAndContinuationAppendsTheSecondPage"
+  static let searchAndRestorationTestIdentifier =
+    "PutioUITests/FilesBrowserJourneyTests/testSearchPaginationRetryAndFolderRestoration"
+  static let searchResultsAttachmentName = "runtime-search-results"
   static let sortedRootAttachmentName = "runtime-sorted-root"
   static let fileActionsAttachmentName = "runtime-file-actions"
   static let signOutRecoveryTestIdentifier =

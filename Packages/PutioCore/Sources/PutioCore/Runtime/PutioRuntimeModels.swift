@@ -137,6 +137,18 @@ public struct PutioFolderContents: Equatable, Sendable {
   }
 }
 
+public struct PutioFileSearchPage: Equatable, Sendable {
+  public let items: [PutioFileItem]
+  public let nextCursor: String?
+  public let totalCount: Int
+
+  public init(items: [PutioFileItem], nextCursor: String?, totalCount: Int) {
+    self.items = items
+    self.nextCursor = nextCursor
+    self.totalCount = totalCount
+  }
+}
+
 public struct PutioTrashItem: Identifiable, Hashable, Sendable {
   public let id: PutioFileID
   public let parentID: PutioFileID
