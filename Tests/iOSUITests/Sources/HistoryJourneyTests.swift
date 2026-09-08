@@ -89,10 +89,17 @@ final class HistoryJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(clear))
     clear.tap()
     XCTAssertTrue(app.staticTexts["Clear all history?"].waitForExistence(timeout: 5))
-    app.buttons["Cancel"].tap()
+    let cancel = app.buttons["Cancel"].firstMatch
+    if cancel.exists {
+      cancel.tap()
+    } else {
+      // Native popovers cancel by tapping outside their content.
+      app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)).tap()
+    }
+    XCTAssertTrue(app.staticTexts["Clear all history?"].waitForNonExistence(timeout: 5))
     XCTAssertTrue(folderEvent.exists, "cancel cleared history")
     clear.tap()
-    let confirm = app.buttons["history.clear-confirm"]
+    let confirm = app.buttons["history.clear-confirm"].firstMatch
     XCTAssertTrue(waitUntilHittable(confirm))
     confirm.tap()
     XCTAssertTrue(mutationRetry.waitForExistence(timeout: 10))
