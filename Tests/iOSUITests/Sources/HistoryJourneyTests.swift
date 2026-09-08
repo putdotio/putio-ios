@@ -74,6 +74,8 @@ final class HistoryJourneyTests: XCTestCase {
     XCTAssertTrue(folderEvent.waitForExistence(timeout: 5))
 
     reveal(missingEvent)
+    missingEvent.tap()
+    XCTAssertTrue(openRetry.waitForExistence(timeout: 10))
     missingEvent.swipeLeft()
     let delete = app.buttons["Delete"]
     XCTAssertTrue(waitUntilHittable(delete))
@@ -84,6 +86,7 @@ final class HistoryJourneyTests: XCTestCase {
     mutationRetry.tap()
     XCTAssertTrue(missingEvent.waitForNonExistence(timeout: 10))
     XCTAssertTrue(mutationRetry.waitForNonExistence(timeout: 5))
+    XCTAssertFalse(openRetry.exists, "deleted event left an obsolete navigation retry")
 
     let clear = app.buttons["history.clear"]
     XCTAssertTrue(waitUntilHittable(clear))

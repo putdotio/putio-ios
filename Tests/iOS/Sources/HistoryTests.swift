@@ -180,6 +180,59 @@ final class HistoryTests: XCTestCase {
     XCTAssertNil(model.openFailure)
   }
 
+  func testClearingHistoryRemovesFailedFileLookupAndItsRetry() async {
+    var lookups = 0
+    let event = PutioHistoryEventItem(
+      id: 30, createdAt: .now,
+      kind: .upload(name: "Missing file", sizeBytes: 0, fileID: PutioFileID(rawValue: 10)))
+    let model = model(
+      list: { _ in PutioHistoryPage(items: [event], nextBefore: nil) },
+      file: { _ in
+        lookups += 1
+        throw PutioRuntimeError.notFound
+      })
+    await model.loadIfNeeded()
+    await model.openFile(event: event)
+    XCTAssertNotNil(model.openFailure)
+    await model.clear()
+    XCTAssertEqual(model.page?.items, [])
+    XCTAssertNil(model.openFailure)
+    await model.retryOpen()
+    XCTAssertEqual(lookups, 1)
+  }
+
+  func testDeletingFailedLookupEventClearsOnlyItsNavigationFailure() async {
+    let event = PutioHistoryEventItem(
+      id: 30, createdAt: .now,
+      kind: .upload(name: "Missing file", sizeBytes: 0, fileID: PutioFileID(rawValue: 10)))
+    let model = model(list: { _ in
+      PutioHistoryPage(items: [event, Self.event(20)], nextBefore: nil)
+    })
+    await model.loadIfNeeded()
+    await model.openFile(event: event)
+    await model.delete(eventID: 20)
+    XCTAssertNotNil(model.openFailure)
+    await model.delete(eventID: 30)
+    XCTAssertNil(model.openFailure)
+    await model.retryOpen()
+    XCTAssertNil(model.openFailure)
+  }
+
+  func testLoadedEventsRegroupWhenCalendarDayAdvances() async throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
+    let firstDay = try XCTUnwrap(
+      calendar.date(from: DateComponents(year: 2026, month: 3, day: 8, hour: 23)))
+    let nextDay = try XCTUnwrap(calendar.date(byAdding: .hour, value: 2, to: firstDay))
+    let model = model(list: { _ in
+      PutioHistoryPage(items: [Self.event(30, at: firstDay)], nextBefore: nil)
+    })
+    await model.loadIfNeeded()
+    XCTAssertEqual(model.daySections(now: firstDay, calendar: calendar).map(\.id), [.today])
+    XCTAssertEqual(model.daySections(now: nextDay, calendar: calendar).map(\.id), [.yesterday])
+    XCTAssertEqual(model.page?.items.map(\.id), [30])
+  }
+
   func testInitialLoadRestartsBeforeCancelledRequestUnwinds() async throws {
     let pending = PendingHistoryPage()
     defer { pending.cancel() }

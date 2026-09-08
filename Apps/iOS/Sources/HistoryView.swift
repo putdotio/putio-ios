@@ -8,6 +8,8 @@ struct HistoryView: View {
   let refreshRequests: PutioFolderRefreshRequests
   let onFileSelected: PutioFileSelection
 
+  @Environment(\.scenePhase) private var scenePhase
+  @State private var groupingDate = Date.now
   @State private var model: PutioHistoryModel
   @State private var path: [PutioFolderRoute] = []
   @State private var clearConfirmationPresented = false
@@ -66,7 +68,14 @@ struct HistoryView: View {
           )
         }
         .task { await model.loadIfNeeded() }
+        .onAppear { groupingDate = .now }
         .onDisappear { model.cancelOpen() }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
+          groupingDate = .now
+        }
+        .onChange(of: scenePhase) { _, phase in
+          if phase == .active { groupingDate = .now }
+        }
         .onChange(of: model.openedFile) { _, file in
           guard let file else { return }
           model.clearOpenedFile()
@@ -135,7 +144,7 @@ struct HistoryView: View {
           .listRowBackground(PutioTheme.Colors.background)
           .accessibilityIdentifier("history.progress")
       }
-      ForEach(PutioHistorySection.group(page.items)) { section in
+      ForEach(PutioHistorySection.group(page.items, now: groupingDate)) { section in
         Section(section.title) {
           ForEach(section.items) { event in
             eventRow(event)

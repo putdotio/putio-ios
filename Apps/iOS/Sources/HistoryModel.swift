@@ -187,11 +187,13 @@ final class PutioHistoryModel {
         switch operation {
         case .delete(let id):
           try await actions.delete(id)
+          if failedOpen?.id == id || openingEventID == id { cancelOpen() }
           state = .loaded(
             PutioHistoryPage(
               items: page.items.filter { $0.id != id }, nextBefore: page.nextBefore))
         case .clear:
           try await actions.clear()
+          cancelOpen()
           state = .loaded(PutioHistoryPage(items: [], nextBefore: nil))
         }
         refreshFailure = nil
