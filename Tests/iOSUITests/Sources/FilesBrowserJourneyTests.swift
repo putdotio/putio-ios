@@ -424,11 +424,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
     openBrowseMenu()
     let nameSort = app.buttons["files.sort.name"]
     XCTAssertTrue(waitUntilHittable(nameSort, timeout: 5), "name sort is unavailable")
-    XCTAssertEqual(nameSort.value as? String, "Ascending")
+    assertSortDirection("Ascending", on: nameSort)
     nameSort.tap()
     XCTAssertTrue(app.staticTexts["Sorting changed"].waitForExistence(timeout: 10))
     openBrowseMenu()
-    XCTAssertEqual(nameSort.value as? String, "Descending")
+    assertSortDirection("Descending", on: nameSort)
     dismissMenu()
     let firstRow = app.cells.firstMatch
     XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
@@ -985,6 +985,20 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.7)).tap()
   }
 
+  private func assertSortDirection(_ direction: String, on row: XCUIElement) {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in
+        row.isEnabled && row.isSelected
+          && (row.label.contains(direction) || row.staticTexts[direction].exists)
+      },
+      object: row
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [expectation], timeout: 5), .completed,
+      "selected sort row did not show \(direction): \(row.debugDescription)"
+    )
+  }
+
   private func assertMovePickerCreationAndSorting(for row: XCUIElement) {
     openContextMenu(for: row, actionLabel: "Move").tap()
     XCTAssertTrue(element(identifier: "files.move-screen.0").waitForExistence(timeout: 5))
@@ -1000,23 +1014,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(sizeSort.waitForNonExistence(timeout: 5), "sort selection did not dismiss menu")
     XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
     menu.tap()
-    let ascending = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "value == %@ AND enabled == true", "Ascending"),
-      object: sizeSort
-    )
-    XCTAssertEqual(
-      XCTWaiter.wait(for: [ascending], timeout: 5), .completed,
-      "new sort key did not start ascending"
-    )
+    assertSortDirection("Ascending", on: sizeSort)
     sizeSort.tap()
     XCTAssertTrue(sizeSort.waitForNonExistence(timeout: 5), "sort selection did not dismiss menu")
     XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
     menu.tap()
-    let descending = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "value == %@ AND enabled == true", "Descending"),
-      object: sizeSort
-    )
-    XCTAssertEqual(XCTWaiter.wait(for: [descending], timeout: 5), .completed)
+    assertSortDirection("Descending", on: sizeSort)
 
     let newFolder = app.buttons["files.move-new-folder"]
     XCTAssertTrue(waitUntilHittable(newFolder, timeout: 5))

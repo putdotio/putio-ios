@@ -1437,19 +1437,16 @@ struct PutioFolderSortRows: View {
         onSelect(key.selection(from: current))
       } label: {
         if let current, current.key == key {
-          Label {
-            Text(key.title)
-            Text(current.directionTitle)
-          } icon: {
-            Image(systemName: "checkmark")
-          }
+          // Menu subtitles must be direct children of the button label.
+          Text(key.title)
+          Text(current.directionTitle)
+          Image(systemName: "checkmark")
         } else {
           Text(key.title)
         }
       }
       .disabled(isDisabled)
       .accessibilityIdentifier("files.sort.\(key)")
-      .accessibilityValue(current?.key == key ? current?.directionTitle ?? "" : "")
     }
   }
 }
