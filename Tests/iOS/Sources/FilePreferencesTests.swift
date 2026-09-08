@@ -24,7 +24,6 @@ final class FilePreferencesTests: XCTestCase {
     let session = PreferencesSessionFixture()
     let original = session.account
     var attempts: [PutioFilePreferencesMutation] = []
-    var committed: [PutioFilePreferencesMutation] = []
     let model = model(
       session: session,
       save: { intent in
@@ -32,15 +31,13 @@ final class FilePreferencesTests: XCTestCase {
         if attempts.count == 1 { throw PutioRuntimeError.transient }
         session.account = Self.account(trash: false)
         return PutioAccountPreferencesMutationResult(accountRefreshed: true)
-      }, onCommitted: { committed.append($0) })
+      })
     await model.save(.trash(false))
     XCTAssertEqual(session.account, original)
     XCTAssertNotNil(model.failure)
     XCTAssertEqual(model.failedMutation, .trash(false))
-    XCTAssertTrue(committed.isEmpty)
     await model.retrySave()
     XCTAssertEqual(attempts, [.trash(false), .trash(false)])
-    XCTAssertTrue(committed.isEmpty)
     XCTAssertEqual(model.account?.trashEnabled, false)
     XCTAssertNil(model.failedMutation)
   }
@@ -49,7 +46,6 @@ final class FilePreferencesTests: XCTestCase {
     let session = PreferencesSessionFixture()
     var mutations = 0
     var reads = 0
-    var committed: [PutioFilePreferencesMutation] = []
     let model = model(
       session: session,
       save: { _ in
@@ -64,9 +60,8 @@ final class FilePreferencesTests: XCTestCase {
         session.account = Self.account(history: false)
         session.isStale = false
         return true
-      }, onCommitted: { committed.append($0) })
+      })
     await model.save(.history(false))
-    XCTAssertTrue(committed.isEmpty)
     XCTAssertNil(model.failedMutation)
     XCTAssertTrue(model.isStale)
     XCTAssertFalse(model.canSave)
@@ -86,7 +81,6 @@ final class FilePreferencesTests: XCTestCase {
   func testUnknownSaveOutcomeOffersRefreshWithoutRepeatingDestructiveWrite() async {
     let session = PreferencesSessionFixture()
     var writes = 0
-    var notifications: [PutioFilePreferencesMutation] = []
     let model = model(
       session: session,
       save: { _ in
@@ -98,24 +92,21 @@ final class FilePreferencesTests: XCTestCase {
         session.account = Self.account(trash: false)
         session.isStale = false
         return true
-      }, onCommitted: { notifications.append($0) })
+      })
     await model.save(.trash(false))
     XCTAssertTrue(model.isStale)
     XCTAssertNil(model.failedMutation)
     XCTAssertFalse(model.canSave)
     XCTAssertFalse(model.failure?.contains("Saved") ?? true)
-    XCTAssertTrue(notifications.isEmpty)
     await model.retrySave()
     await model.retryRefresh()
     XCTAssertEqual(writes, 1)
-    XCTAssertTrue(notifications.isEmpty)
     XCTAssertFalse(model.isStale)
     XCTAssertEqual(model.account?.trashEnabled, false)
   }
 
   func testUnknownDisableDoesNotReportCommittedWhenRefreshShowsTrashStillEnabled() async {
     let session = PreferencesSessionFixture()
-    var notifications: [PutioFilePreferencesMutation] = []
     let model = model(
       session: session,
       save: { _ in
@@ -125,10 +116,9 @@ final class FilePreferencesTests: XCTestCase {
       refresh: {
         session.isStale = false
         return true
-      }, onCommitted: { notifications.append($0) })
+      })
     await model.save(.trash(false))
     await model.retryRefresh()
-    XCTAssertTrue(notifications.isEmpty)
     XCTAssertEqual(model.account?.trashEnabled, true)
     XCTAssertTrue(model.canSave)
   }
@@ -209,27 +199,34 @@ final class FilePreferencesTests: XCTestCase {
     XCTAssertTrue(model.canSave)
   }
 
-  func testOnlyFolderSortResetNeedsExplicitNotificationWhenRefreshFails() async {
+  func testRecreatedScreenBlocksWritesAndRefreshDuringSessionOwnedMutation() async {
     let session = PreferencesSessionFixture()
-    var notifications: [PutioFilePreferencesMutation] = []
+    session.isUpdating = true
+    var writes = 0
+    var reads = 0
     let model = model(
       session: session,
       save: { _ in
-        session.isStale = true
-        return PutioAccountPreferencesMutationResult(accountRefreshed: false)
+        writes += 1
+        return PutioAccountPreferencesMutationResult(accountRefreshed: true)
       },
       refresh: {
-        session.isStale = false
+        reads += 1
         return true
-      }, onCommitted: { notifications.append($0) })
-    let intents: [PutioFilePreferencesMutation] = [
-      .defaultSort(.dateAddedDescending), .resetFolderSorts, .trash(false), .history(false),
-    ]
-    for intent in intents {
-      await model.save(intent)
-      await model.retryRefresh()
-    }
-    XCTAssertEqual(notifications, [.resetFolderSorts])
+      })
+    XCTAssertTrue(model.isSaving)
+    XCTAssertTrue(model.isBusy)
+    XCTAssertFalse(model.canSave)
+    await model.save(.resetFolderSorts)
+    await model.save(.trash(false))
+    await model.retryRefresh()
+    XCTAssertEqual(writes, 0)
+    XCTAssertEqual(reads, 0)
+    session.isUpdating = false
+    XCTAssertFalse(model.isSaving)
+    XCTAssertTrue(model.canSave)
+    await model.save(.resetFolderSorts)
+    XCTAssertEqual(writes, 1)
   }
 
   func testMutationSerializesOtherOperationsAndSurvivesCallerCancellation() async throws {
@@ -238,7 +235,6 @@ final class FilePreferencesTests: XCTestCase {
     defer { gate.cancel() }
     var mutations = 0
     var refreshes = 0
-    var committed = 0
     let model = model(
       session: session,
       save: { _ in
@@ -250,7 +246,7 @@ final class FilePreferencesTests: XCTestCase {
       refresh: {
         refreshes += 1
         return true
-      }, onCommitted: { _ in committed += 1 })
+      })
     let saving = Task { await model.save(.defaultSort(.sizeDescending)) }
     defer { saving.cancel() }
     try await gate.waitForRequest()
@@ -264,7 +260,6 @@ final class FilePreferencesTests: XCTestCase {
     gate.finish()
     await saving.value
     XCTAssertEqual(model.account?.defaultSort, .sizeDescending)
-    XCTAssertEqual(committed, 0)
     XCTAssertFalse(model.isBusy)
   }
 
@@ -300,13 +295,12 @@ final class FilePreferencesTests: XCTestCase {
       PutioAccountPreferencesMutationResult = { _ in
         PutioAccountPreferencesMutationResult(accountRefreshed: true)
       },
-    refresh: @escaping @MainActor @Sendable () async -> Bool = { true },
-    onCommitted: @escaping @MainActor @Sendable (PutioFilePreferencesMutation) -> Void = { _ in }
+    refresh: @escaping @MainActor @Sendable () async -> Bool = { true }
   ) -> PutioFilePreferencesModel {
     PutioFilePreferencesModel(
       actions: PutioFilePreferencesActions(
-        save: save, refresh: refresh, account: { session.account }, isStale: { session.isStale }),
-      onCommitted: onCommitted)
+        save: save, refresh: refresh, account: { session.account }, isStale: { session.isStale },
+        isUpdating: { session.isUpdating }))
   }
 
   fileprivate static func account(
@@ -324,6 +318,7 @@ final class FilePreferencesTests: XCTestCase {
 private final class PreferencesSessionFixture {
   var account: PutioAccountSnapshot? = FilePreferencesTests.account()
   var isStale = false
+  var isUpdating = false
 }
 
 @MainActor

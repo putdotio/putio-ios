@@ -16,6 +16,7 @@ struct PutioFilePreferencesActions: Sendable {
   let refresh: @MainActor @Sendable () async -> Bool
   let account: @MainActor @Sendable () -> PutioAccountSnapshot?
   let isStale: @MainActor @Sendable () -> Bool
+  let isUpdating: @MainActor @Sendable () -> Bool
 
   init(runtime: PutioRuntime) {
     save = { mutation in
@@ -32,6 +33,7 @@ struct PutioFilePreferencesActions: Sendable {
       return nil
     }
     isStale = { runtime.session.isAccountPreferencesStale }
+    isUpdating = { runtime.session.isUpdatingAccountPreferences }
   }
 
   init(
@@ -40,12 +42,14 @@ struct PutioFilePreferencesActions: Sendable {
       PutioAccountPreferencesMutationResult,
     refresh: @escaping @MainActor @Sendable () async -> Bool,
     account: @escaping @MainActor @Sendable () -> PutioAccountSnapshot?,
-    isStale: @escaping @MainActor @Sendable () -> Bool
+    isStale: @escaping @MainActor @Sendable () -> Bool,
+    isUpdating: @escaping @MainActor @Sendable () -> Bool
   ) {
     self.save = save
     self.refresh = refresh
     self.account = account
     self.isStale = isStale
+    self.isUpdating = isUpdating
   }
 }
 
@@ -57,20 +61,14 @@ final class PutioFilePreferencesModel {
   private(set) var failure: String?
   private(set) var failedMutation: PutioFilePreferencesMutation?
   @ObservationIgnored private let actions: PutioFilePreferencesActions
-  @ObservationIgnored private let onCommitted:
-    @MainActor @Sendable (PutioFilePreferencesMutation) -> Void
-
-  init(
-    actions: PutioFilePreferencesActions,
-    onCommitted: @escaping @MainActor @Sendable (PutioFilePreferencesMutation) -> Void = { _ in }
-  ) {
+  init(actions: PutioFilePreferencesActions) {
     self.actions = actions
-    self.onCommitted = onCommitted
   }
 
   var account: PutioAccountSnapshot? { actions.account() }
   var isStale: Bool { actions.isStale() }
-  var isBusy: Bool { saving != nil || isRefreshing }
+  var isSaving: Bool { saving != nil || actions.isUpdating() }
+  var isBusy: Bool { isSaving || isRefreshing }
   var canSave: Bool { !isBusy && !isStale && account != nil }
 
   func save(_ mutation: PutioFilePreferencesMutation) async {
@@ -84,7 +82,6 @@ final class PutioFilePreferencesModel {
       defer { saving = nil }
       do {
         let result = try await actions.save(mutation)
-        if mutation == .resetFolderSorts { onCommitted(mutation) }
         if !result.accountRefreshed {
           failure =
             "Saved, but the latest account settings could not be loaded. Refresh to continue."

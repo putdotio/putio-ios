@@ -141,6 +141,14 @@ public final class PutioRuntime {
   }
 
   public func resetFolderSorts() async throws -> PutioAccountPreferencesMutationResult {
+    guard case .signedIn = session.state else { throw currentSessionError }
+    guard !session.isUpdatingAccountPreferences else { throw PutioRuntimeError.transient }
+    let generation = session.authenticationGeneration
+    session.beginAccountPreferencesUpdate()
+    defer {
+      session.invalidateFolderSorts(generation: generation)
+      session.endAccountPreferencesUpdate(generation: generation)
+    }
     let response = try await performAuthenticatedOperation(commits: true) {
       try await sdk.resetFileSpecificSortSettings()
     }

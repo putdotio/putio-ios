@@ -259,8 +259,7 @@ private struct MainTabView: View {
             runtime: runtime,
             account: account,
             refreshRequests: folderRefreshRequests,
-            trashReconciliation: trashReconciliation,
-            onPreferenceCommitted: preferenceCommitted
+            trashReconciliation: trashReconciliation
           )
         }
       } label: {
@@ -351,6 +350,9 @@ private struct MainTabView: View {
         }
       #endif
     }
+    .onChange(of: runtime.session.folderSortsRevision) {
+      folderRefreshRequests.requestAllLoadedFolders()
+    }
     .onChange(of: account) { previous, current in
       PutioAccountPreferencesReconciliation.apply(
         previous: previous, current: current,
@@ -367,12 +369,6 @@ private struct MainTabView: View {
       guard !Task.isCancelled else { return }
       PutioFilesNavigationRestoration().clear(accountID: account.id)
       await runtime.session.signOut()
-    }
-  }
-
-  private func preferenceCommitted(_ mutation: PutioFilePreferencesMutation) {
-    if mutation == .resetFolderSorts {
-      folderRefreshRequests.requestAllLoadedFolders()
     }
   }
 
@@ -548,7 +544,6 @@ private struct AccountView: View {
   let account: PutioAccountSnapshot
   let refreshRequests: PutioFolderRefreshRequests
   let trashReconciliation: PutioTrashReconciliation
-  let onPreferenceCommitted: @MainActor @Sendable (PutioFilePreferencesMutation) -> Void
   @State private var isRefreshingStorage = false
 
   var body: some View {
@@ -563,8 +558,7 @@ private struct AccountView: View {
             FilePreferencesView(
               runtime: runtime,
               refreshRequests: refreshRequests,
-              trashReconciliation: trashReconciliation,
-              onCommitted: onPreferenceCommitted
+              trashReconciliation: trashReconciliation
             )
           }
           .accessibilityIdentifier("account.file-preferences")

@@ -47,6 +47,7 @@ public final class PutioSessionStore {
   /// A preference write has completed, but its account snapshot remains unconfirmed.
   public private(set) var isAccountPreferencesStale = false
   public private(set) var isUpdatingAccountPreferences = false
+  public private(set) var folderSortsRevision: UInt64 = 0
   private var lastPreferencesMutationSequence: UInt64 = 0
   private(set) var authenticationGeneration: UInt64 = 0
   // Orders overlapping account refreshes inside one session so a slow older
@@ -258,6 +259,13 @@ public final class PutioSessionStore {
     isAccountStorageStale = true
     lastStorageMutationSequence = accountRefreshSequence
     return await refreshAccount()
+  }
+
+  func invalidateFolderSorts(generation: UInt64) {
+    guard generation == authenticationGeneration, case .signedIn = state else { return }
+    // A reset may commit even when its response is lost. Mounted folders must
+    // reload independently of the preferences screen that started the write.
+    folderSortsRevision &+= 1
   }
 
   func beginAccountPreferencesUpdate() {

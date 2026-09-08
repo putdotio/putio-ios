@@ -520,6 +520,7 @@ final class PutioRuntimeTests: XCTestCase {
       #"{"status":"OK"}"#, for: "POST /v2/files/remove-sort-by-settings")
     let reset = try await runtime.resetFolderSorts()
     XCTAssertTrue(reset.accountRefreshed)
+    XCTAssertEqual(runtime.session.folderSortsRevision, 1)
   }
 
   func testCommittedTrashDisableHasRefreshOnlyRecoveryAndKeepsAcknowledgedSetting() async throws {
@@ -571,6 +572,8 @@ final class PutioRuntimeTests: XCTestCase {
     await assertRuntimeError(.transient) {
       try await runtime.deleteFile(fileID: PutioFileID(rawValue: 411))
     }
+    await assertRuntimeError(.transient) { _ = try await runtime.resetFolderSorts() }
+    XCTAssertEqual(runtime.session.folderSortsRevision, 0)
     XCTAssertEqual(RuntimeMockURLProtocol.capturedRequests().count, requests)
     RuntimeMockURLProtocol.setFixture(
       Self.accountInfo.replacingOccurrences(
@@ -586,12 +589,53 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertFalse(account.trashEnabled)
   }
 
+  func testPendingFolderSortResetSerializesSettingsWritesAndOtherResets() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let route = "POST /v2/files/remove-sort-by-settings"
+    RuntimeMockURLProtocol.gateFixture(#"{"status":"OK"}"#, for: route)
+    let resetting = Task { try await runtime.resetFolderSorts() }
+    defer {
+      resetting.cancel()
+      RuntimeMockURLProtocol.releaseFixture(for: route)
+    }
+    guard await waitForRequest(route) else { return XCTFail("reset never started") }
+    XCTAssertTrue(runtime.session.isUpdatingAccountPreferences)
+    let requests = RuntimeMockURLProtocol.capturedRequests().count
+    await assertRuntimeError(.transient) { _ = try await runtime.setTrashEnabled(false) }
+    await assertRuntimeError(.transient) { _ = try await runtime.resetFolderSorts() }
+    XCTAssertEqual(RuntimeMockURLProtocol.capturedRequests().count, requests)
+    XCTAssertEqual(runtime.session.folderSortsRevision, 0)
+    RuntimeMockURLProtocol.releaseFixture(for: route)
+    _ = try await resetting.value
+    XCTAssertFalse(runtime.session.isUpdatingAccountPreferences)
+    XCTAssertEqual(runtime.session.folderSortsRevision, 1)
+  }
+
+  func testFolderSortResetCompletionAfterSignOutDoesNotInvalidateAnotherSession() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    let route = "POST /v2/files/remove-sort-by-settings"
+    RuntimeMockURLProtocol.gateFixture(#"{"status":"OK"}"#, for: route)
+    let resetting = Task { try await runtime.resetFolderSorts() }
+    defer {
+      resetting.cancel()
+      RuntimeMockURLProtocol.releaseFixture(for: route)
+    }
+    guard await waitForRequest(route) else { return XCTFail("reset never started") }
+    await runtime.session.signOut()
+    RuntimeMockURLProtocol.releaseFixture(for: route)
+    await assertRuntimeError(.authenticationRequired) { _ = try await resetting.value }
+    XCTAssertFalse(runtime.session.isUpdatingAccountPreferences)
+    XCTAssertEqual(runtime.session.folderSortsRevision, 0)
+  }
+
   func testRejectedFolderSortResetDoesNotReportSuccessFromUnchangedAccountSettings() async {
     let (runtime, _) = await makeSignedInRuntime()
     RuntimeMockURLProtocol.setFixture(
       #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/files/remove-sort-by-settings")
     await assertRuntimeError(.transient) { _ = try await runtime.resetFolderSorts() }
     XCTAssertFalse(runtime.session.isAccountPreferencesStale)
+    XCTAssertEqual(runtime.session.folderSortsRevision, 1)
+    XCTAssertFalse(runtime.session.isUpdatingAccountPreferences)
   }
 
   func testAmbiguousTrashDisableBlocksDeletionUntilAccountCanBeReconciled() async throws {

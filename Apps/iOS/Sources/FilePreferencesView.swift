@@ -13,15 +13,14 @@ struct FilePreferencesView: View {
   init(
     runtime: PutioRuntime,
     refreshRequests: PutioFolderRefreshRequests,
-    trashReconciliation: PutioTrashReconciliation,
-    onCommitted: @escaping @MainActor @Sendable (PutioFilePreferencesMutation) -> Void
+    trashReconciliation: PutioTrashReconciliation
   ) {
     self.runtime = runtime
     self.refreshRequests = refreshRequests
     self.trashReconciliation = trashReconciliation
     _model = State(
       initialValue: PutioFilePreferencesModel(
-        actions: PutioFilePreferencesActions(runtime: runtime), onCommitted: onCommitted))
+        actions: PutioFilePreferencesActions(runtime: runtime)))
   }
 
   var body: some View {
@@ -35,7 +34,7 @@ struct FilePreferencesView: View {
           Button(model.isRefreshing ? "Refreshing…" : "Refresh account") {
             Task { await model.retryRefresh() }
           }
-          .disabled(model.isRefreshing || model.saving != nil)
+          .disabled(model.isBusy)
           .accessibilityIdentifier("settings.refresh")
         }
         .listRowBackground(PutioTheme.Colors.surface)
@@ -103,7 +102,7 @@ struct FilePreferencesView: View {
         .disabled(isBusy || model.isStale)
         .listRowBackground(PutioTheme.Colors.surface)
       }
-      if model.saving != nil {
+      if model.isSaving {
         ProgressView("Saving settings")
           .listRowBackground(PutioTheme.Colors.surface)
           .accessibilityIdentifier("settings.saving")
@@ -138,7 +137,7 @@ struct FilePreferencesView: View {
     }
   }
 
-  private var isBusy: Bool { model.saving != nil || model.isRefreshing }
+  private var isBusy: Bool { model.isBusy }
 
   private var defaultSort: Binding<PutioFolderSort?> {
     Binding(
