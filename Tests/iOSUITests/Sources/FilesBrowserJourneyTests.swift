@@ -1033,7 +1033,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let destination = element(identifier: "files.move-folder.419")
     XCTAssertTrue(destination.waitForExistence(timeout: 5), "new move destination did not appear")
     XCTAssertTrue(destination.label.contains("Move Destination"))
-    app.buttons["files.move-cancel"].tap()
+    destination.tap()
+    XCTAssertTrue(element(identifier: "files.move-screen.419").waitForExistence(timeout: 5))
+    let cancel = app.buttons["files.move-cancel"]
+    XCTAssertTrue(waitUntilHittable(cancel, timeout: 5), "nested move folder lost Cancel")
+    cancel.tap()
+    XCTAssertTrue(element(identifier: "files.move-picker").waitForNonExistence(timeout: 5))
     XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
     XCTAssertTrue(
       element(identifier: "files.item.419").waitForExistence(timeout: 5),

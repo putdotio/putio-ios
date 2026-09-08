@@ -1165,26 +1165,27 @@ private struct PutioMovePicker: View {
 
   var body: some View {
     NavigationStack(path: $path) {
-      PutioMoveDestinationScreen(
-        route: .root, items: items, load: load, actions: actions,
-        refreshRequests: refreshRequests, onMove: onMove
-      )
-      .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
-          Button("Cancel", role: .cancel) {
-            dismiss()
-          }
-          .accessibilityIdentifier("files.move-cancel")
+      destination(.root)
+        .navigationDestination(for: PutioFolderRoute.self) { route in
+          destination(route)
         }
-      }
-      .navigationDestination(for: PutioFolderRoute.self) { route in
-        PutioMoveDestinationScreen(
-          route: route, items: items, load: load, actions: actions,
-          refreshRequests: refreshRequests, onMove: onMove
-        )
-      }
     }
     .accessibilityIdentifier("files.move-picker")
+  }
+
+  private func destination(_ route: PutioFolderRoute) -> some View {
+    PutioMoveDestinationScreen(
+      route: route, items: items, load: load, actions: actions,
+      refreshRequests: refreshRequests, onMove: onMove
+    )
+    .toolbar {
+      ToolbarItem(placement: .cancellationAction) {
+        Button("Cancel", role: .cancel) {
+          dismiss()
+        }
+        .accessibilityIdentifier("files.move-cancel")
+      }
+    }
   }
 }
 
