@@ -83,6 +83,29 @@ final class HistoryTests: XCTestCase {
     XCTAssertEqual(model.page, Self.page([]))
   }
 
+  func testRefreshDiscardsFailedDeletionOnlyWhenItsTargetIsNoLongerLoaded() async {
+    var items = [30, 20]
+    var deleteCalls = 0
+    let model = model(
+      list: { _ in Self.page(items) },
+      delete: { _ in
+        deleteCalls += 1
+        throw PutioRuntimeError.transient
+      })
+    await model.loadIfNeeded()
+    await model.delete(eventID: 30)
+    await model.refresh()
+    XCTAssertEqual(model.failedMutation, .delete(30))
+    XCTAssertNotNil(model.mutationFailure)
+    items = []
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [])
+    XCTAssertNil(model.failedMutation)
+    XCTAssertNil(model.mutationFailure)
+    await model.retryMutation()
+    XCTAssertEqual(deleteCalls, 1)
+  }
+
   func testClearSupersedesInflightPageAndLateResponseCannotRestoreDeletedEvents() async throws {
     let pending = PendingHistoryPage()
     defer { pending.cancel() }
