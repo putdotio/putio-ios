@@ -12,6 +12,27 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     HarnessSeededAPI.resetFileActions()
   }
 
+  func testSeededHistoryOpensAuthoritativeFolderAndVideoMetadata() async throws {
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
+    await runtime.session.restore()
+    let events = try await runtime.listHistory()
+    let folderEvent = try XCTUnwrap(events.items.first { $0.id == 810 })
+    let videoEvent = try XCTUnwrap(events.items.first { $0.id == 809 })
+    let folder = try await runtime.getFile(fileID: XCTUnwrap(folderEvent.fileID))
+    let video = try await runtime.getFile(fileID: XCTUnwrap(videoEvent.fileID))
+    XCTAssertEqual(folder.kind, .folder)
+    XCTAssertEqual(video.kind, .video)
+    XCTAssertEqual(video.parentID, folder.id)
+    XCTAssertNotNil(PutioBrowserItemPresentation(item: video).fileRoute?.videoPlaybackRoute)
+    let missingEvent = try XCTUnwrap(events.items.first { $0.id == 808 })
+    do {
+      _ = try await runtime.getFile(fileID: XCTUnwrap(missingEvent.fileID))
+      XCTFail("expected missing event file to remain unavailable")
+    } catch {
+      XCTAssertEqual(error as? PutioRuntimeError, .notFound)
+    }
+  }
+
   func testSeededTrashSupportsListRestoreDeleteAndEmpty() async throws {
     let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
     await runtime.session.restore()
