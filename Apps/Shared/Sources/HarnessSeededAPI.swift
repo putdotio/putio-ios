@@ -46,9 +46,14 @@ import Foundation
     nonisolated(unsafe) private static var conversionCompleted = false
     nonisolated(unsafe) private static var conversionStartAttempts = 0
     nonisolated(unsafe) private static var conversionStatusLoads = 0
+    nonisolated(unsafe) private static var harnessFolderDeleted = false
+    nonisolated(unsafe) private static var harnessFolderName = "Harness Folder"
     nonisolated(unsafe) private static var actionFolders: [Int: ActionFolder] = [:]
     nonisolated(unsafe) private static var trashFolders = initialTrashFolders
     nonisolated(unsafe) private static var nextActionFolderID = 415
+    nonisolated(unsafe) private static var searchRetryFailed = false
+    nonisolated(unsafe) private static var emptySearchLoads = 0
+    nonisolated(unsafe) private static var searchContinuationFailed = false
     nonisolated(unsafe) private static var renameAttempts = 0
     nonisolated(unsafe) private static var logoutFailuresRemaining = 0
     nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
@@ -102,8 +107,13 @@ import Foundation
     static func resetFileActions() {
       fileActionsLock.lock()
       actionFolders = [:]
+      harnessFolderDeleted = false
+      harnessFolderName = "Harness Folder"
       trashFolders = initialTrashFolders
       nextActionFolderID = 415
+      searchRetryFailed = false
+      emptySearchLoads = 0
+      searchContinuationFailed = false
       renameAttempts = 0
       bulkDeleteFailureDelivered = false
       ambiguousMoveFailureDelivered = false
@@ -212,6 +222,91 @@ import Foundation
       )
     }
 
+    private static func searchFiles(url: URL) -> (Int, String) {
+      guard !fileActionsLock.withLock({ harnessFolderDeleted }) else {
+        return (200, #"{"total":0,"files":[]}"#)
+      }
+      let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+        .queryItems?.first { $0.name == "query" }?.value?.lowercased()
+      if query == "no-matching-file" {
+        let shouldFail = fileActionsLock.withLock {
+          emptySearchLoads += 1
+          return emptySearchLoads == 2
+        }
+        if shouldFail {
+          return (
+            503,
+            fixtureError(
+              statusCode: 503, type: "HARNESS_EMPTY_SEARCH_REFRESH",
+              message: "The empty search refresh fails once for retry proof")
+          )
+        }
+      }
+      if query == "retry" {
+        let shouldFail = fileActionsLock.withLock {
+          if searchRetryFailed { return false }
+          searchRetryFailed = true
+          return true
+        }
+        if shouldFail {
+          return (
+            503,
+            fixtureError(
+              statusCode: 503, type: "HARNESS_SEARCH_RETRY",
+              message: "The first search fails for retry proof")
+          )
+        }
+      }
+      guard query == "harness" || query == "retry" else {
+        return (200, #"{"total":0,"files":[]}"#)
+      }
+      return (
+        200,
+        """
+        {"total":2,"cursor":"search-harness-page-2","files":[
+          \(folderObject(id: 410, name: fileActionsLock.withLock { harnessFolderName }, parentID: 0))
+        ]}
+        """
+      )
+    }
+
+    private static func continueSearch(request: URLRequest) -> (Int, String) {
+      guard requestPayload(request)?["cursor"] as? String == "search-harness-page-2" else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400, type: "HARNESS_SEARCH_CURSOR_INVALID",
+            message: "The search fixture requires its continuation cursor")
+        )
+      }
+      guard !fileActionsLock.withLock({ harnessFolderDeleted }) else {
+        return (200, #"{"total":0,"files":[]}"#)
+      }
+      let shouldFail = fileActionsLock.withLock {
+        if searchContinuationFailed { return false }
+        searchContinuationFailed = true
+        return true
+      }
+      if shouldFail {
+        return (
+          503,
+          fixtureError(
+            statusCode: 503, type: "HARNESS_SEARCH_CONTINUATION_RETRY",
+            message: "The first search continuation fails for retry proof")
+        )
+      }
+      return (
+        200,
+        """
+        {"total":2,"files":[{
+          "id":411,"name":"Nested Movie.mkv","file_type":"VIDEO","parent_id":410,
+          "size":1073741824,"created_at":"2026-08-28T11:00:00Z",
+          "updated_at":"2026-08-29T11:00:00Z","start_from":\(playbackPosition(fileID: 411))
+        }]}
+        """
+      )
+    }
+
     private static func setSortBy(request: URLRequest) -> (Int, String) {
       guard
         let payload = requestPayload(request),
@@ -281,6 +376,10 @@ import Foundation
         return filesListFixture(url: url)
       case "POST /v2/files/list/continue":
         return continueFiles(request: request)
+      case "GET /v2/files/search":
+        return searchFiles(url: url)
+      case "POST /v2/files/search/continue":
+        return continueSearch(request: request)
       case "POST /v2/files/set-sort-by":
         return setSortBy(request: request)
       case "POST /v2/files/create-folder":
@@ -366,6 +465,26 @@ import Foundation
         .first(where: { $0.name == "parent_id" })?
         .value
         .flatMap(Int.init)
+      if let parentID {
+        let deleted = fileActionsLock.withLock {
+          harnessFolderDeleted && (parentID == 410 || actionFolders[parentID]?.parentID == 410)
+        }
+        if deleted {
+          return (
+            404,
+            fixtureError(
+              statusCode: 404, type: "FOLDER_NOT_FOUND",
+              message: "The folder or its ancestor was deleted")
+          )
+        }
+        let child = fileActionsLock.withLock { actionFolders[parentID] }
+        if let child, child.name == "Deleted Ancestor Child" {
+          return (
+            200,
+            "{\"parent\":\(folderObject(id: parentID, name: child.name, parentID: child.parentID)),\"files\":[],\"total\":0}"
+          )
+        }
+      }
       switch parentID {
       case 0:
         return (200, rootFiles)
@@ -476,6 +595,11 @@ import Foundation
       }
 
       fileActionsLock.lock()
+      if fileID == 410, !harnessFolderDeleted {
+        harnessFolderName = name
+        fileActionsLock.unlock()
+        return (200, #"{"status":"OK"}"#)
+      }
       guard actionFolders[fileID] != nil else {
         fileActionsLock.unlock()
         return (
@@ -570,6 +694,12 @@ import Foundation
       }
 
       fileActionsLock.lock()
+      if fileID == 410 {
+        harnessFolderDeleted = true
+        if trashEnabled { trashFolders[410] = ActionFolder(name: harnessFolderName, parentID: 0) }
+        fileActionsLock.unlock()
+        return (200, #"{"status":"OK"}"#)
+      }
       guard actionFolders[fileID] != nil else {
         fileActionsLock.unlock()
         return (
@@ -926,6 +1056,8 @@ import Foundation
         actionFolders
         .filter { $0.value.parentID == 0 }
         .sorted { $0.key < $1.key }
+      let folderName = harnessFolderName
+      let folderDeleted = harnessFolderDeleted
       let sortBy = folderSorts[0] ?? "NAME_ASC"
       fileActionsLock.unlock()
       let mutableFolderRows = mutableFolders.map { id, folder in
@@ -936,7 +1068,7 @@ import Foundation
           """
           {
             "id": 410,
-            "name": "Harness Folder",
+            "name": \(jsonString(folderName)),
             "file_type": "FOLDER",
             "parent_id": 0,
             "size": 0,
@@ -968,6 +1100,7 @@ import Foundation
           }
           """,
         ] + mutableFolderRows
+      if folderDeleted { rows.removeFirst() }
       // Only the two name orders are modelled; the journey proves the
       // round trip, not the server's comparator.
       if sortBy == "NAME_DESC" { rows.reverse() }
@@ -987,7 +1120,7 @@ import Foundation
           "files": [
             \(rows.joined(separator: ",\n"))
           ],
-          "total": \(4 + mutableFolders.count)
+          "total": \(4 + mutableFolders.count - (folderDeleted ? 1 : 0))
         }
         """
     }
@@ -1024,6 +1157,7 @@ import Foundation
 
     private static var nestedFiles: String {
       fileActionsLock.lock()
+      let folderName = harnessFolderName
       let mutableFolders =
         actionFolders
         .filter { $0.value.parentID == 410 }
@@ -1038,7 +1172,7 @@ import Foundation
         {
           "parent": {
             "id": 410,
-            "name": "Harness Folder",
+            "name": \(jsonString(folderName)),
             "file_type": "FOLDER",
             "parent_id": 0,
             "size": 0,

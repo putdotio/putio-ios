@@ -34,17 +34,19 @@ Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` 
 
 `screenshot` and `record` accept `--scenario signed-out|gallery|signed-in`. The `gallery` scenario launches the iOS or tvOS component gallery. The iOS-only `signed-in` scenario uses a deterministic in-process API, restores a session, bootstraps the account screen, and signs out after a few seconds. Other commands and unsupported platforms reject these scenarios.
 
-`journey --platform ios --scenario files-browser` proves the runnable alpha loop with real accessibility input. Seven unrecorded `1/1` preflights cover:
+`journey --platform ios --scenario files-browser` proves the runnable alpha loop with real accessibility input. Nine unrecorded `1/1` preflights cover:
 
 - Sign-out recovery: the existing signed-in scenario uses a one-time credential-removal failure and seeded logout failure, shows the recovery message, captures `runtime-sign-out-failure.png`, and completes sign-out after an explicit retry. Default signed-in captures keep successful sign-out behavior.
 - File actions: menu-based creation and selection, context-menu rename, swipe move and Trash, delayed rollback and retry, bulk partial-failure recovery, move-picker sorting and folder creation, and a meaningful `runtime-file-actions.png` screenshot.
 - Trash semantics: row context-menu actions plus Trash-enabled and permanent-delete copy from the seeded account setting.
 - Trash management: list, retained-page refresh failure and retry, restore to the authoritative parent, retry after a transient permanent-delete failure, and confirmed emptying with success feedback. The empty state also supports pull-to-refresh failure and retry. Meaningful `runtime-trash-refresh-error.png`, `runtime-trash-loaded.png`, and `runtime-trash-empty.png` screenshots are retained in the proof manifest.
 - Sort and continuation: the root's second page appends without a tap, the sort menu round-trips `NAME_DESC` through the server and reloads in the new order, and a meaningful `runtime-sorted-root.png` screenshot is retained.
+- Search and restoration: search retries a failed second page, appends results, and opens folder and video results. Empty results support pull-to-refresh and retry. Opening the same folder in Files and Search keeps both listings current after a mutation. A relaunch restores the Files folder, native Back returns to root, and signing out clears the saved folder before the next sign-in. `runtime-search-results.png` is retained.
+- Folder reconciliation: renaming a folder updates its heading in another tab; deleting it removes stale contents from that folder and its open descendant. The empty descendant stays responsive before deletion.
 - Unsupported files: the PDF row remains visible but is not actionable.
 - Resume persistence: a final playback position resolves again after reopening the video.
 
-The recorded `1/1` XCUITest signs in through the real session transition using a deterministic OAuth callback, terminates and relaunches the app to prove Keychain restoration, browses root folder `0` and folder `410`, and opens video `411`. The first MP4 conversion start fails transiently and reaches the retryable error state. Retry starts conversion, observes queued and converting states, completes, resolves the SDK-owned playback source again, and loads valid HLS through the process-local loopback server until `AVPlayerItem` reports `readyToPlay`. The test dismisses playback, returns to root with the native Back control, opens Account, and signs out.
+The recorded `1/1` XCUITest signs in through the real session transition using a deterministic OAuth callback, browses root folder `0` and folder `410`, and opens video `411`. The first MP4 conversion start fails transiently and reaches the retryable error state. Retry starts conversion, observes queued and converting states, completes, resolves the SDK-owned playback source again, and loads valid HLS through the process-local loopback server until `AVPlayerItem` reports `readyToPlay`. The test dismisses playback, returns to root with the native Back control, opens Account, and signs out.
 
 HTTP API responses and OAuth input are deterministic fixtures. The session store, SDK conversion and playback-source resolution, app UI, AVFoundation readiness, navigation, and sign-out are real. AVFoundation uses the harness-owned loopback transport for built HLS files, not the fixture `URLSession`.
 
@@ -85,6 +87,7 @@ build/proof/<run-id>/ios/
 ├── runtime-trash-loaded.png
 ├── runtime-trash-empty.png
 ├── runtime-sorted-root.png
+├── runtime-search-results.png
 ├── runtime-playback.png
 ├── runtime-sign-in.png
 ├── runtime-signed-out.png
@@ -95,7 +98,7 @@ build/proof/<run-id>/ios/
 
 Failed journeys retain local diagnostics, including failed `.xcresult` bundles, under the run directory. They emit no success manifest; inspect them locally and choose a new run ID for the retry. Only reviewed successful proof is published.
 
-The journey requires each preflight and the recorded UI test to pass exactly `1/1`. It requires eight meaningful screenshots, including file actions, sign-out recovery, and all three Trash states, and different sign-in and playback frames. One `simctl recordVideo` stream starts before the recorded test and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 30 seconds and removes raw/intermediate capture files after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
+The journey requires each preflight and the recorded UI test to pass exactly `1/1`. It requires ten meaningful screenshots, including file actions, sign-out recovery, and all three Trash states, and different sign-in and playback frames. One `simctl recordVideo` stream starts before the recorded test and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 30 seconds and removes raw/intermediate capture files after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
 
 Capture never uploads implicitly. Publish one reviewed artifact only after a pull request exists:
 

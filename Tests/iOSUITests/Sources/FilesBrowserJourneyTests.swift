@@ -440,6 +440,193 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
+  func testSearchPaginationRetryAndFolderRestoration() {
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
+
+    let folder = element(identifier: "files.item.410")
+    XCTAssertTrue(waitUntilHittable(folder, timeout: 5))
+    folder.tap()
+    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 10))
+    XCTAssertFalse(element(identifier: "files.item.415").exists)
+
+    app.buttons["Search"].tap()
+    let searchField = app.searchFields.firstMatch
+    XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+    searchField.tap()
+    searchField.typeText("Harness\n")
+    let folderResult = element(identifier: "files.search-item.410")
+    let videoResult = element(identifier: "files.search-item.411")
+    XCTAssertTrue(folderResult.waitForExistence(timeout: 10))
+    let moreRetry = app.buttons["files.search-more-retry"]
+    XCTAssertTrue(moreRetry.waitForExistence(timeout: 10))
+    XCTAssertTrue(folderResult.exists, "failed continuation removed the first page")
+    moreRetry.tap()
+    XCTAssertTrue(videoResult.waitForExistence(timeout: 10), "search continuation never appended")
+    addScreenshot(named: "runtime-search-results")
+    videoResult.tap()
+    XCTAssertTrue(element(identifier: "video.error").waitForExistence(timeout: 5))
+    app.buttons["Try again"].tap()
+    XCTAssertTrue(element(identifier: "video.ready").waitForExistence(timeout: 15))
+    element(identifier: "video.done").tap()
+    XCTAssertTrue(folderResult.waitForExistence(timeout: 10))
+    folderResult.tap()
+    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 10))
+    XCTAssertTrue(element(identifier: "files.item.411").exists)
+    createFolder(named: "Cross-tab Refresh", expectedID: 415)
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 5))
+    let crossTabFolder = element(identifier: "files.item.415")
+    XCTAssertTrue(
+      crossTabFolder.waitForExistence(timeout: 10),
+      "the Files folder did not refresh after its Search counterpart was popped"
+    )
+    XCTAssertEqual(crossTabFolder.label, "Cross-tab Refresh")
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    app.buttons["Search"].tap()
+    XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+
+    replaceSearchQuery("no-matching-file", in: searchField)
+    XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 10))
+    XCTAssertFalse(folderResult.exists)
+    let refreshStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+    let refreshEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+    refreshStart.press(forDuration: 0.1, thenDragTo: refreshEnd)
+    let emptyRefreshRetry = app.buttons["files.search-retry"]
+    XCTAssertTrue(emptyRefreshRetry.waitForExistence(timeout: 10))
+    emptyRefreshRetry.tap()
+    XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 10))
+    replaceSearchQuery("retry", in: searchField)
+    let retry = element(identifier: "files.search-retry")
+    XCTAssertTrue(retry.waitForExistence(timeout: 10))
+    retry.tap()
+    XCTAssertTrue(videoResult.waitForExistence(timeout: 10))
+
+    app.buttons["Files"].tap()
+    XCTAssertTrue(folder.waitForExistence(timeout: 5))
+    folder.tap()
+    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 10))
+    app.terminate()
+    app.launch()
+    XCTAssertTrue(
+      element(identifier: "files.screen.410").waitForExistence(timeout: 15),
+      "relaunch did not restore the folder for the signed-in account")
+    let back = app.navigationBars.buttons["BackButton"]
+    XCTAssertTrue(waitUntilHittable(back, timeout: 5))
+    back.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    folder.tap()
+    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 5))
+    app.buttons["Account"].tap()
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertFalse(element(identifier: "files.screen.410").exists)
+    app.buttons["Account"].tap()
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+  }
+
+  func testRenamingAndDeletingOpenFolderReconcilesOtherTabs() {
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
+    app.buttons["Search"].tap()
+    let search = app.searchFields.firstMatch
+    XCTAssertTrue(waitUntilHittable(search, timeout: 5))
+    search.tap()
+    search.typeText("Harness\n")
+    let folderResult = element(identifier: "files.search-item.410")
+    XCTAssertTrue(waitUntilHittable(folderResult, timeout: 10))
+    folderResult.tap()
+    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 10))
+    XCTAssertTrue(element(identifier: "files.item.411").exists)
+    let child = createFolder(named: "Deleted Ancestor Child", expectedID: 415)
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    let folder = element(identifier: "files.item.410")
+    openContextMenu(for: folder, actionLabel: "Rename").tap()
+    let name = element(identifier: "files.action-name")
+    XCTAssertTrue(name.waitForExistence(timeout: 5))
+    replaceText(in: name, currentValue: "Harness Folder", with: "Renamed Harness")
+    app.buttons["Rename"].tap()
+    let renamed = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label == %@ AND enabled == true", "Renamed Harness"),
+      object: folder
+    )
+    XCTAssertEqual(XCTWaiter.wait(for: [renamed], timeout: 10), .completed)
+    app.buttons["Search"].tap()
+    XCTAssertTrue(
+      app.navigationBars["Renamed Harness"].waitForExistence(timeout: 10),
+      "the open Search folder kept its old name after a rename in Files"
+    )
+    XCTAssertTrue(waitUntilHittable(child, timeout: 5))
+    child.tap()
+    XCTAssertTrue(element(identifier: "files.screen.415").waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["This folder is empty"].waitForExistence(timeout: 5))
+    XCTAssertFalse(app.staticTexts["Folder not found"].exists)
+
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    let trash = openContextMenu(for: folder, actionLabel: "Trash")
+    trash.tap()
+    let confirm = app.buttons["files.delete-confirm"].firstMatch
+    XCTAssertTrue(waitUntilHittable(confirm, timeout: 5))
+    confirm.tap()
+    XCTAssertTrue(folder.waitForNonExistence(timeout: 10))
+
+    app.buttons["Search"].tap()
+    XCTAssertTrue(app.navigationBars["Deleted Ancestor Child"].waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      app.staticTexts["Folder not found"].waitForExistence(timeout: 10),
+      "the open descendant kept its listing after its ancestor was deleted"
+    )
+    XCTAssertFalse(app.staticTexts["This folder is empty"].exists)
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(app.navigationBars["Renamed Harness"].waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      app.staticTexts["Folder not found"].waitForExistence(timeout: 10),
+      "the deleted folder kept its listing when returning from its descendant"
+    )
+    XCTAssertFalse(
+      element(identifier: "files.item.411").exists, "deleted folder kept a playable video")
+    XCTAssertFalse(
+      element(identifier: "files.item.415").exists, "deleted folder kept its child row")
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 10))
+    XCTAssertFalse(folderResult.exists, "search kept the deleted folder")
+    XCTAssertFalse(element(identifier: "files.search-item.411").exists)
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    app.buttons["Account"].tap()
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+  }
+
+  private func replaceSearchQuery(_ query: String, in field: XCUIElement) {
+    field.tap()
+    let clear = field.buttons["Clear text"]
+    XCTAssertTrue(waitUntilHittable(clear, timeout: 5))
+    clear.tap()
+    field.typeText(query + "\n")
+    XCTAssertEqual(field.value as? String, query)
+  }
+
   func testUnsupportedFileIsNotActionable() {
     app.launch()
 

@@ -66,6 +66,7 @@ struct PutioFolderRoute: Identifiable, Sendable {
 
 @Observable
 final class PutioFolderRefreshRequests {
+  private(set) var revision: UInt64 = 0
   struct Sequence: Equatable, Sendable {
     let folder: UInt64
     let allFolders: UInt64
@@ -73,53 +74,63 @@ final class PutioFolderRefreshRequests {
 
   private var sequences: [PutioFileID: UInt64] = [:]
   private var allFoldersSequence: UInt64 = 0
-  private var consumed: [PutioFileID: Sequence] = [:]
-  // Broadcast sequence when each folder screen first registered. A broadcast
-  // only reaches folders that existed when it was sent; folders opened later
-  // load fresh data anyway.
-  private var registeredAt: [PutioFileID: UInt64] = [:]
-  // The screen instance currently owning each folder's registration, so a
-  // late unregister from a discarded screen cannot evict its replacement.
-  private var owners: [PutioFileID: UUID] = [:]
-
-  func register(folderID: PutioFileID, owner: UUID = UUID()) {
-    owners[folderID] = owner
-    if registeredAt[folderID] == nil { registeredAt[folderID] = allFoldersSequence }
+  private struct Registration {
+    var broadcastSequence: UInt64 = 0
+    var folderSequence: UInt64 = 0
+    var consumed: Sequence?
   }
 
-  /// A popped screen reloads on return, so nothing pending needs to survive.
-  /// Called from the screen's registration token when SwiftUI discards it.
-  /// Ignored when another screen has since registered the same folder.
-  func unregister(folderID: PutioFileID, owner: UUID? = nil) {
-    if let owner, owners[folderID] != owner { return }
-    owners[folderID] = nil
-    registeredAt[folderID] = nil
-    consumed[folderID] = nil
-    sequences[folderID] = nil
+  private var registrations: [PutioFileID: [UUID: Registration]] = [:]
+
+  func register(folderID: PutioFileID, owner: UUID) {
+    guard registrations[folderID]?[owner] == nil else { return }
+    registrations[folderID, default: [:]][owner] = Registration()
   }
 
-  func request(folderID: PutioFileID) {
+  func unregister(folderID: PutioFileID, owner: UUID) {
+    registrations[folderID]?[owner] = nil
+    if registrations[folderID]?.isEmpty == true {
+      registrations[folderID] = nil
+      sequences[folderID] = nil
+    }
+  }
+
+  func request(folderID: PutioFileID, excludingOwner: UUID? = nil) {
+    revision &+= 1
     sequences[folderID, default: 0] &+= 1
+    let owners = registrations[folderID].map { Array($0.keys) } ?? []
+    for owner in owners {
+      guard owner != excludingOwner else { continue }
+      registrations[folderID]?[owner]?.folderSequence = sequences[folderID, default: 0]
+    }
   }
 
-  func requestAllLoadedFolders() {
+  func requestAllLoadedFolders(excludingOwner: UUID? = nil) {
+    revision &+= 1
     allFoldersSequence &+= 1
+    for folderID in Array(registrations.keys) {
+      let owners = registrations[folderID].map { Array($0.keys) } ?? []
+      for owner in owners {
+        guard owner != excludingOwner else { continue }
+        registrations[folderID]?[owner]?.broadcastSequence = allFoldersSequence
+      }
+    }
   }
 
-  /// The request `folderID` has not yet honored, or nil. A folder screen
-  /// consumes it after refreshing so later appearances do not refresh again.
-  func sequence(for folderID: PutioFileID) -> Sequence? {
-    let broadcastBaseline = registeredAt[folderID] ?? allFoldersSequence
+  /// Each mounted screen consumes its own refresh, including when Files and
+  /// Search both display the same folder.
+  func sequence(for folderID: PutioFileID, owner: UUID) -> Sequence? {
+    guard let registration = registrations[folderID]?[owner] else { return nil }
     let current = Sequence(
-      folder: sequences[folderID, default: 0],
-      allFolders: allFoldersSequence > broadcastBaseline ? allFoldersSequence : 0)
+      folder: registration.folderSequence,
+      allFolders: registration.broadcastSequence)
     guard current.folder > 0 || current.allFolders > 0 else { return nil }
-    guard consumed[folderID] != current else { return nil }
+    guard registration.consumed != current else { return nil }
     return current
   }
 
-  func markConsumed(_ sequence: Sequence, for folderID: PutioFileID) {
-    consumed[folderID] = sequence
+  func markConsumed(_ sequence: Sequence, for folderID: PutioFileID, owner: UUID) {
+    registrations[folderID]?[owner]?.consumed = sequence
   }
 }
 
@@ -134,7 +145,7 @@ final class PutioFolderRefreshRequests {
 final class PutioFolderRefreshRegistration {
   private let folderID: PutioFileID
   private let requests: PutioFolderRefreshRequests
-  private let owner = UUID()
+  let owner = UUID()
   private var isActive = false
 
   init(folderID: PutioFileID, requests: PutioFolderRefreshRequests) {
@@ -927,8 +938,13 @@ final class PutioFolderModel {
         state = .failed(presentation)
         refreshFailure = nil
       case .refresh:
-        state = previousState
-        refreshFailure = presentation
+        if presentation.kind == .notFound {
+          state = .failed(presentation)
+          refreshFailure = nil
+        } else {
+          state = previousState
+          refreshFailure = presentation
+        }
       }
       return false
     }

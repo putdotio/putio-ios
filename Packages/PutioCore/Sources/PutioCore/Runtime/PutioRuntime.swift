@@ -41,6 +41,32 @@ public final class PutioRuntime {
     return folderContents(from: result)
   }
 
+  public func searchFiles(query: String) async throws -> PutioFileSearchPage {
+    let result = try await performAuthenticatedOperation {
+      try await sdk.searchFiles(query: PutioFileSearchQuery(keyword: query))
+    }
+    return try searchPage(from: result)
+  }
+
+  public func continueFileSearch(cursor: String) async throws -> PutioFileSearchPage {
+    let result = try await performAuthenticatedOperation {
+      try await sdk.continueFileSearch(cursor: cursor)
+    }
+    if let nextCursor = result.cursor, !nextCursor.isEmpty, nextCursor == cursor {
+      throw PutioRuntimeError.invalidResponse
+    }
+    return try searchPage(from: result)
+  }
+
+  private func searchPage(from result: PutioFileSearchResponse) throws -> PutioFileSearchPage {
+    guard result.total >= 0 else { throw PutioRuntimeError.invalidResponse }
+    return PutioFileSearchPage(
+      items: result.files.map(snapshot),
+      nextCursor: result.cursor?.isEmpty == false ? result.cursor : nil,
+      totalCount: result.total
+    )
+  }
+
   /// Persists the folder's sort on the server. Callers reload the folder to see
   /// the new order.
   public func setFolderSort(folderID: PutioFileID, sort: PutioFolderSort) async throws {

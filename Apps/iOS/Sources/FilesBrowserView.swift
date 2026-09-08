@@ -123,11 +123,15 @@ struct FilesBrowserView: View {
   private let onRootLoaded: PutioRootLoaded
   private let onReturnToRoot: @MainActor @Sendable () -> Void
   private let refreshRequests: PutioFolderRefreshRequests
+  private let accountID: Int?
+  private let navigationRestoration = PutioFilesNavigationRestoration()
   @State private var path: [PutioFolderRoute] = []
+  @State private var didRestoreNavigation = false
 
   init(
     runtime: PutioRuntime,
     trashEnabled: Bool,
+    accountID: Int,
     onFileSelected: @escaping PutioFileSelection,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
@@ -140,6 +144,7 @@ struct FilesBrowserView: View {
       try await runtime.continueFiles(cursor: cursor)
     }
     actions = PutioFileActions(runtime: runtime)
+    self.accountID = accountID
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
     self.onRootLoaded = onRootLoaded
@@ -158,6 +163,7 @@ struct FilesBrowserView: View {
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests()
   ) {
     self.load = load
+    self.accountID = nil
     self.continueLoad = continueLoad
     self.actions = actions
     self.trashEnabled = trashEnabled
@@ -192,9 +198,22 @@ struct FilesBrowserView: View {
       }
     }
     .onChange(of: path) { oldPath, newPath in
+      if didRestoreNavigation, let accountID {
+        navigationRestoration.save(path: newPath, for: accountID)
+      }
       if !oldPath.isEmpty, newPath.isEmpty {
         onReturnToRoot()
       }
+    }
+    .disabled(!didRestoreNavigation)
+    .task {
+      guard !didRestoreNavigation else { return }
+      if let accountID {
+        let restored = await navigationRestoration.restore(accountID: accountID, load: load)
+        guard !Task.isCancelled else { return }
+        path = restored
+      }
+      didRestoreNavigation = true
     }
   }
 }
@@ -223,6 +242,7 @@ struct PutioFolderScreen: View {
   @State private var selectedIDs: Set<PutioFileID> = []
   @State private var editMode: EditMode = .inactive
   @State private var refreshRegistration: PutioFolderRefreshRegistration
+  @State private var lastKnownFolderName: String?
   private let relativeDateReference: Date?
   private let locale: Locale
   private let load: PutioFolderLoad
@@ -267,6 +287,16 @@ struct PutioFolderScreen: View {
     self.onFileSelected = onFileSelected
   }
 
+  private var folderTitle: String {
+    guard route.id != .root else { return route.title }
+    if case .loaded(let contents) = model.state,
+      let folder = contents.folder, folder.id == route.id
+    {
+      return folder.name
+    }
+    return lastKnownFolderName ?? route.title
+  }
+
   var body: some View {
     Group {
       switch model.state {
@@ -284,7 +314,7 @@ struct PutioFolderScreen: View {
         }
       }
     }
-    .navigationTitle(route.title)
+    .navigationTitle(folderTitle)
     .navigationBarTitleDisplayMode(.inline)
     .navigationBarBackButtonHidden(fileActionPending || isEditing)
     .putioContentBackground()
@@ -452,11 +482,11 @@ struct PutioFolderScreen: View {
     }
     .task(id: route.id) {
       refreshRegistration.activate()
-      let pending = refreshRequests.sequence(for: route.id)
+      let pending = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
       // A fresh initial load already reflects any request that predates it.
       let loaded = await model.loadIfNeeded()
       guard loaded, let pending, !Task.isCancelled else { return }
-      refreshRequests.markConsumed(pending, for: route.id)
+      refreshRequests.markConsumed(pending, for: route.id, owner: refreshRegistration.owner)
     }
     .task(id: retryRequest) {
       await runRetryRequest()
@@ -473,16 +503,25 @@ struct PutioFolderScreen: View {
     // Keyed on the loaded flag too, so a request that arrived while the
     // initial load was in flight is retried once the folder is loaded.
     .task(
-      id: PendingRefresh(sequence: refreshRequests.sequence(for: route.id), loaded: model.isLoaded)
+      id: PendingRefresh(
+        sequence: refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner),
+        loaded: model.isLoaded)
     ) {
-      guard model.isLoaded, let sequence = refreshRequests.sequence(for: route.id) else { return }
+      guard model.isLoaded,
+        let sequence = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
+      else { return }
       // A request stays pending until a refresh actually ran. One queued
       // behind a mutation is awaited so its success consumes the request too.
       let refreshed = await model.refreshWhenIdle()
       guard refreshed, !Task.isCancelled else { return }
-      refreshRequests.markConsumed(sequence, for: route.id)
+      refreshRequests.markConsumed(sequence, for: route.id, owner: refreshRegistration.owner)
     }
     .onChange(of: model.state, initial: true) { _, state in
+      if case .loaded(let contents) = state,
+        let folder = contents.folder, folder.id == route.id
+      {
+        lastKnownFolderName = folder.name
+      }
       if case .loaded(let contents) = state, !fileActionPending {
         selectedIDs.formIntersection(contents.items.map(\.id))
       }
@@ -500,22 +539,25 @@ struct PutioFolderScreen: View {
   @ViewBuilder
   private func loadedContent(_ contents: PutioFolderContents) -> some View {
     if contents.items.isEmpty, !contents.hasMore {
-      ScrollView {
-        VStack(spacing: PutioTheme.Spacing.space4) {
-          PutioEmptyStateView(
-            icon: .folderFill,
-            title: "This folder is empty",
-            message: "Files added here appear in this list."
-          )
-          if let refreshFailure = model.refreshFailure {
-            refreshFailureRow(refreshFailure)
+      GeometryReader { geometry in
+        ScrollView {
+          VStack(spacing: PutioTheme.Spacing.space4) {
+            PutioEmptyStateView(
+              icon: .folderFill,
+              title: "This folder is empty",
+              message: "Files added here appear in this list."
+            )
+            if let refreshFailure = model.refreshFailure {
+              refreshFailureRow(refreshFailure)
+            }
           }
+          .padding(PutioTheme.Spacing.space4)
+          .frame(minHeight: geometry.size.height)
         }
-        .containerRelativeFrame([.horizontal, .vertical])
-        .padding(PutioTheme.Spacing.space4)
-      }
-      .refreshable {
-        _ = await model.refresh()
+        .scrollBounceBehavior(.always)
+        .refreshable {
+          _ = await model.refresh()
+        }
       }
       .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
     } else {
@@ -801,10 +843,10 @@ struct PutioFolderScreen: View {
         return
       }
       // A fresh load already reflects any refresh request made before it.
-      let pending = refreshRequests.sequence(for: route.id)
+      let pending = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
       await model.retry()
       if model.isLoaded, let pending, !Task.isCancelled {
-        refreshRequests.markConsumed(pending, for: route.id)
+        refreshRequests.markConsumed(pending, for: route.id, owner: refreshRegistration.owner)
       }
     case .refresh:
       guard model.refreshFailure != nil else {
@@ -812,10 +854,10 @@ struct PutioFolderScreen: View {
         return
       }
       // A successful retry is as current as the pending request asked for.
-      let pending = refreshRequests.sequence(for: route.id)
+      let pending = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
       let refreshed = await model.refresh()
       if refreshed, let pending, !Task.isCancelled {
-        refreshRequests.markConsumed(pending, for: route.id)
+        refreshRequests.markConsumed(pending, for: route.id, owner: refreshRegistration.owner)
       }
     }
     guard retryRequest == request else { return }
@@ -985,11 +1027,29 @@ struct PutioFolderScreen: View {
 
   private func presentActionOutcome() {
     guard let outcome = model.actionOutcome else { return }
+    // A failed mutation may still have reached the server. Notify siblings;
+    // this screen's model already reconciles its own mutation outcome.
+    let action =
+      switch outcome {
+      case .succeeded(let action), .failed(let action, _): action
+      }
+    if case .delete = action {
+      // A deleted folder can contain any of the other mounted destinations.
+      refreshRequests.requestAllLoadedFolders(excludingOwner: refreshRegistration.owner)
+    } else {
+      refreshRequests.request(folderID: route.id, excludingOwner: refreshRegistration.owner)
+    }
+    switch action {
+    case .rename(let fileID, _, _):
+      refreshRequests.request(folderID: fileID)
+    case .move(let fileID, _, _, let destinationID, _):
+      refreshRequests.request(folderID: fileID)
+      refreshRequests.request(folderID: destinationID)
+    default:
+      break
+    }
     switch outcome {
     case .succeeded(let action):
-      if case .move(_, _, _, let destinationID, _) = action {
-        refreshRequests.request(folderID: destinationID)
-      }
       toast = successToast(for: action)
     case .failed(let action, let failure):
       let title: String
@@ -1005,8 +1065,17 @@ struct PutioFolderScreen: View {
 
   private func presentBulkOutcome() {
     guard let outcome = model.bulkOutcome else { return }
+    if case .delete = outcome.action {
+      refreshRequests.requestAllLoadedFolders(excludingOwner: refreshRegistration.owner)
+    } else {
+      refreshRequests.request(folderID: route.id, excludingOwner: refreshRegistration.owner)
+    }
     if case .move(let destination) = outcome.action {
       refreshRequests.request(folderID: destination.id)
+      let movedIDs = Set(outcome.succeeded.map(\.id) + outcome.failures.map { $0.item.id })
+      for id in movedIDs {
+        refreshRequests.request(folderID: id)
+      }
     }
 
     if outcome.failures.isEmpty {
@@ -1357,10 +1426,10 @@ private struct PutioMoveDestinationScreen: View {
 
   private func presentActionOutcome() {
     guard let outcome = model.actionOutcome else { return }
+    refreshRequests.request(folderID: route.id)
     switch outcome {
     case .succeeded(let action):
       if case .createFolder = action { newFolderName = "" }
-      refreshRequests.request(folderID: route.id)
     case .failed(_, let failure):
       toast = PutioToast(variant: .danger, title: failure.title, message: failure.message)
     }
