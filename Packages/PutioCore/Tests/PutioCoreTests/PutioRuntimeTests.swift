@@ -199,6 +199,8 @@ private final class RuntimeMockURLProtocol: URLProtocol, @unchecked Sendable {
 @MainActor
 final class PutioRuntimeTests: XCTestCase {
   private static let filesRoute = "GET /v2/files/list"
+  private static let filesContinueRoute = "POST /v2/files/list/continue"
+  private static let setSortRoute = "POST /v2/files/set-sort-by"
   private static let createFolderRoute = "POST /v2/files/create-folder"
   private static let renameFileRoute = "POST /v2/files/rename"
   private static let moveFilesRoute = "POST /v2/files/move"
@@ -293,16 +295,19 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertFalse(accountDescription.contains("private-avatar"))
   }
 
-  func testListMapsAppOwnedValuesAndPreservesOnlyHasMore() async throws {
+  func testListMapsAppOwnedValuesAndKeepsCursorAndSort() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(Self.filesList(cursor: "next-page"), for: Self.filesRoute)
+    RuntimeMockURLProtocol.setFixture(
+      Self.filesList(cursor: "next-page", sortBy: "DATE_DESC"), for: Self.filesRoute)
 
     let contents = try await runtime.listFiles(parentID: .root)
 
     XCTAssertEqual(contents.folder?.id, .root)
     XCTAssertEqual(contents.folder?.name, "Your Files")
     XCTAssertEqual(contents.folder?.kind, .folder)
+    XCTAssertEqual(contents.nextCursor, "next-page")
     XCTAssertTrue(contents.hasMore)
+    XCTAssertEqual(contents.sort, .dateAddedDescending)
     XCTAssertEqual(
       contents.items.map(\.kind),
       [.video, .audio, .image, .pdf, .folder, .other("ARCHIVE")]
@@ -334,11 +339,60 @@ final class PutioRuntimeTests: XCTestCase {
 
     RuntimeMockURLProtocol.setFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
     let nilCursorContents = try await runtime.listFiles()
+    XCTAssertNil(nilCursorContents.nextCursor)
     XCTAssertFalse(nilCursorContents.hasMore)
 
     RuntimeMockURLProtocol.setFixture(Self.filesList(cursor: ""), for: Self.filesRoute)
     let emptyCursorContents = try await runtime.listFiles()
+    XCTAssertNil(emptyCursorContents.nextCursor)
     XCTAssertFalse(emptyCursorContents.hasMore)
+  }
+
+  func testUnknownAndMissingSortKeysMapToNil() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+
+    RuntimeMockURLProtocol.setFixture(
+      Self.filesList(cursor: nil, sortBy: "FUTURE_KEY"), for: Self.filesRoute)
+    let unknownSort = try await runtime.listFiles().sort
+    XCTAssertNil(unknownSort)
+
+    RuntimeMockURLProtocol.setFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
+    let missingSort = try await runtime.listFiles().sort
+    XCTAssertNil(missingSort)
+  }
+
+  func testContinueFilesPostsTheCursorAndAppendsNothingItself() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"cursor":"","files":[{"id":31,"name":"Page 2.mkv","file_type":"VIDEO","parent_id":0,"size":1,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}]}"#,
+      for: Self.filesContinueRoute
+    )
+
+    let page = try await runtime.continueFiles(cursor: "files-page-2")
+
+    XCTAssertNil(page.folder)
+    XCTAssertNil(page.nextCursor)
+    XCTAssertEqual(page.items.map(\.id), [PutioFileID(rawValue: 31)])
+    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    XCTAssertEqual(request.httpMethod, "POST")
+    XCTAssertEqual(request.url?.path, "/v2/files/list/continue")
+    let body = try XCTUnwrap(requestBodyData(for: request))
+    let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    XCTAssertEqual(json["cursor"] as? String, "files-page-2")
+  }
+
+  func testSetFolderSortPostsTheServerKey() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.setSortRoute)
+
+    try await runtime.setFolderSort(folderID: PutioFileID(rawValue: 42), sort: .sizeDescending)
+
+    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    XCTAssertEqual(request.url?.path, "/v2/files/set-sort-by")
+    let body = try XCTUnwrap(requestBodyData(for: request))
+    let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    XCTAssertEqual(json["file_id"] as? Int, 42)
+    XCTAssertEqual(json["sort_by"] as? String, "SIZE_DESC")
   }
 
   func testListSendsTheRequestedParentID() async throws {
@@ -1572,12 +1626,14 @@ final class PutioRuntimeTests: XCTestCase {
       .value
   }
 
-  private static func filesList(cursor: String?) -> String {
+  private static func filesList(cursor: String?, sortBy: String? = nil) -> String {
     let cursorField = cursor.map { "\"cursor\": \"\($0)\"," } ?? ""
+    let sortField = sortBy.map { "\"sort_by\": \"\($0)\"," } ?? ""
     return """
       {
         \(cursorField)
         "parent": {
+          \(sortField)
           "id": 0,
           "name": "Your Files",
           "file_type": "FOLDER",

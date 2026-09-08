@@ -94,15 +94,46 @@ public struct PutioFileItem: Identifiable, Hashable, Sendable {
   }
 }
 
+/// Server-side folder ordering. Raw values are the put.io `sort_by` keys shared
+/// with the web and Android apps; unknown server values decode as `nil`.
+public enum PutioFolderSort: String, CaseIterable, Hashable, Sendable {
+  case nameAscending = "NAME_ASC"
+  case nameDescending = "NAME_DESC"
+  case sizeAscending = "SIZE_ASC"
+  case sizeDescending = "SIZE_DESC"
+  case dateAddedAscending = "DATE_ASC"
+  case dateAddedDescending = "DATE_DESC"
+  case dateModifiedAscending = "MODIFIED_ASC"
+  case dateModifiedDescending = "MODIFIED_DESC"
+  case typeAscending = "TYPE_ASC"
+  case typeDescending = "TYPE_DESC"
+  case watchStatusAscending = "WATCH_ASC"
+  case watchStatusDescending = "WATCH_DESC"
+}
+
 public struct PutioFolderContents: Equatable, Sendable {
   public let folder: PutioFileItem?
   public let items: [PutioFileItem]
-  public let hasMore: Bool
+  /// Continuation token for the next page, or `nil` when the listing is complete.
+  public let nextCursor: String?
+  /// The folder's own sort as reported by the server, or `nil` when it inherits
+  /// the account default or reports an unknown key.
+  public let sort: PutioFolderSort?
 
-  public init(folder: PutioFileItem?, items: [PutioFileItem], hasMore: Bool) {
+  public init(
+    folder: PutioFileItem?,
+    items: [PutioFileItem],
+    nextCursor: String? = nil,
+    sort: PutioFolderSort? = nil
+  ) {
     self.folder = folder
     self.items = items
-    self.hasMore = hasMore
+    self.nextCursor = nextCursor
+    self.sort = sort
+  }
+
+  public var hasMore: Bool {
+    nextCursor != nil
   }
 }
 

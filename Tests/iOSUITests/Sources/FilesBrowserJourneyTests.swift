@@ -397,6 +397,51 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
+  func testSortRoundTripAndContinuationAppendsTheSecondPage() {
+    app.launch()
+
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
+    signIn.tap()
+    let root = element(identifier: "files.screen.0")
+    XCTAssertTrue(root.waitForExistence(timeout: 10), "signed-in root browser never appeared")
+
+    // Continuation: the second page lands without a tap once the footer renders.
+    let secondPageRow = app.staticTexts["Season Pack.zip"]
+    XCTAssertTrue(secondPageRow.waitForExistence(timeout: 10), "continuation page never appended")
+    XCTAssertFalse(element(identifier: "files.more.0").exists, "load-more footer lingered")
+
+    let sort = app.buttons["files.sort"]
+    XCTAssertTrue(waitUntilHittable(sort, timeout: 5), "sort menu is unavailable")
+    XCTAssertEqual(sort.value as? String, "Name, A to Z")
+    sort.tap()
+    let descending = app.buttons["Name, Z to A"]
+    XCTAssertTrue(waitUntilHittable(descending, timeout: 5), "sort option never appeared")
+    descending.tap()
+    XCTAssertTrue(app.staticTexts["Sorting changed"].waitForExistence(timeout: 10))
+    XCTAssertEqual(sort.value as? String, "Name, Z to A")
+    let firstRow = app.cells.firstMatch
+    XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      firstRow.staticTexts["Document.pdf"].exists,
+      "reload did not apply the server order: \(firstRow.debugDescription)"
+    )
+    addScreenshot(named: "runtime-sorted-root")
+
+    // The folder keeps its sort across a relaunch because the server owns it.
+    app.terminate()
+    app.launch()
+    XCTAssertTrue(root.waitForExistence(timeout: 10), "relaunch did not restore the browser")
+    XCTAssertTrue(waitUntilHittable(sort, timeout: 5))
+    XCTAssertEqual(sort.value as? String, "Name, Z to A")
+
+    app.buttons["Account"].tap()
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+  }
+
   func testUnsupportedFileIsNotActionable() {
     app.launch()
 

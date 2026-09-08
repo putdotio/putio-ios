@@ -47,7 +47,7 @@ import Testing
 }
 
 @Test func browserJourneyContractUsesSeededFixtureAndExactTest() {
-  #expect(JourneyScenario.filesBrowser.fixtureSet == "seeded-runtime-loop-v4")
+  #expect(JourneyScenario.filesBrowser.fixtureSet == "seeded-runtime-loop-v5")
   #expect(
     BrowserJourneyContract.testIdentifier
       == "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
@@ -73,6 +73,11 @@ import Testing
       == "PutioUITests/FilesBrowserJourneyTests/testTrashManagementRestoreRetryDeleteAndEmpty"
   )
   #expect(BrowserJourneyContract.fileActionsAttachmentName == "runtime-file-actions")
+  #expect(
+    BrowserJourneyContract.sortAndContinuationTestIdentifier
+      == "PutioUITests/FilesBrowserJourneyTests/testSortRoundTripAndContinuationAppendsTheSecondPage"
+  )
+  #expect(BrowserJourneyContract.sortedRootAttachmentName == "runtime-sorted-root")
   #expect(
     BrowserJourneyContract.signOutRecoveryTestIdentifier
       == "PutioUITests/FilesBrowserJourneyTests/testSignOutFailureRecoversWithExplicitRetry"

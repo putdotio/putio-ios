@@ -28,7 +28,8 @@ enum BrowserTestFixtures {
   static func contents(
     folderID: Int = 0,
     items: [PutioFileItem],
-    hasMore: Bool = false
+    hasMore: Bool = false,
+    sort: PutioFolderSort? = nil
   ) -> PutioFolderContents {
     PutioFolderContents(
       folder: item(
@@ -39,7 +40,8 @@ enum BrowserTestFixtures {
         sizeBytes: 0
       ),
       items: items,
-      hasMore: hasMore
+      nextCursor: hasMore ? "next" : nil,
+      sort: sort
     )
   }
 }
