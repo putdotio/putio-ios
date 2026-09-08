@@ -1276,6 +1276,7 @@ private struct PutioMoveDestinationScreen: View {
             Label("More", systemImage: "ellipsis.circle")
           }
           .accessibilityIdentifier("files.move-menu")
+          .accessibilityValue(model.sort?.title ?? "Account default")
         }
       }
       ToolbarItem(placement: .confirmationAction) {

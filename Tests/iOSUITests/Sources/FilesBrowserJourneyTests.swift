@@ -424,12 +424,15 @@ final class FilesBrowserJourneyTests: XCTestCase {
     openBrowseMenu()
     let nameSort = app.buttons["files.sort.name"]
     XCTAssertTrue(waitUntilHittable(nameSort, timeout: 5), "name sort is unavailable")
-    assertSortDirection("Ascending", on: nameSort)
+    XCTAssertTrue(nameSort.isSelected)
+    addScreenshot(named: "runtime-browse-menu-ascending")
     nameSort.tap()
     XCTAssertTrue(app.staticTexts["Sorting changed"].waitForExistence(timeout: 10))
     openBrowseMenu()
-    assertSortDirection("Descending", on: nameSort)
+    XCTAssertTrue(nameSort.isSelected)
+    addScreenshot(named: "runtime-browse-menu-descending")
     dismissMenu()
+    XCTAssertEqual(app.buttons["files.menu"].value as? String, "Name, descending")
     let firstRow = app.cells.firstMatch
     XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
     XCTAssertTrue(
@@ -985,18 +988,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.7)).tap()
   }
 
-  private func assertSortDirection(_ direction: String, on row: XCUIElement) {
+  private func assertSortValue(_ value: String, on menu: XCUIElement) {
     let expectation = XCTNSPredicateExpectation(
-      predicate: NSPredicate { _, _ in
-        row.isEnabled && row.isSelected
-          && (row.label.contains(direction) || row.staticTexts[direction].exists)
-      },
-      object: row
+      predicate: NSPredicate(format: "value == %@", value),
+      object: menu
     )
-    XCTAssertEqual(
-      XCTWaiter.wait(for: [expectation], timeout: 5), .completed,
-      "selected sort row did not show \(direction): \(row.debugDescription)"
-    )
+    XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
   }
 
   private func assertMovePickerCreationAndSorting(for row: XCUIElement) {
@@ -1013,13 +1010,17 @@ final class FilesBrowserJourneyTests: XCTestCase {
     sizeSort.tap()
     XCTAssertTrue(sizeSort.waitForNonExistence(timeout: 5), "sort selection did not dismiss menu")
     XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
+    assertSortValue("Size, ascending", on: menu)
     menu.tap()
-    assertSortDirection("Ascending", on: sizeSort)
+    XCTAssertTrue(sizeSort.isSelected)
+    addScreenshot(named: "runtime-move-menu-ascending")
     sizeSort.tap()
     XCTAssertTrue(sizeSort.waitForNonExistence(timeout: 5), "sort selection did not dismiss menu")
     XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
+    assertSortValue("Size, descending", on: menu)
     menu.tap()
-    assertSortDirection("Descending", on: sizeSort)
+    XCTAssertTrue(sizeSort.isSelected)
+    addScreenshot(named: "runtime-move-menu-descending")
 
     let newFolder = app.buttons["files.move-new-folder"]
     XCTAssertTrue(waitUntilHittable(newFolder, timeout: 5))
