@@ -44,6 +44,10 @@ public final class PutioSessionStore {
   /// signed-in snapshot. Owned here so it survives leaving the screen that
   /// caused it; any later successful refresh clears it.
   public private(set) var isAccountStorageStale = false
+  /// A preference write has completed, but its account snapshot remains unconfirmed.
+  public private(set) var isAccountPreferencesStale = false
+  public private(set) var isUpdatingAccountPreferences = false
+  private var lastPreferencesMutationSequence: UInt64 = 0
   private(set) var authenticationGeneration: UInt64 = 0
   // Orders overlapping account refreshes inside one session so a slow older
   // response cannot overwrite a newer snapshot.
@@ -256,9 +260,42 @@ public final class PutioSessionStore {
     return await refreshAccount()
   }
 
+  func beginAccountPreferencesUpdate() {
+    isUpdatingAccountPreferences = true
+  }
+
+  func endAccountPreferencesUpdate(generation: UInt64) {
+    guard authenticationGeneration == generation else { return }
+    isUpdatingAccountPreferences = false
+  }
+
+  func applyAcknowledgedPreferences(
+    defaultSort: PutioFolderSort? = nil, trashEnabled: Bool? = nil, historyEnabled: Bool? = nil
+  ) {
+    guard case .signedIn(let account) = state else { return }
+    state = .signedIn(
+      PutioAccountSnapshot(
+        id: account.id, username: account.username, email: account.email,
+        suggestNextVideo: account.suggestNextVideo, rememberVideoTime: account.rememberVideoTime,
+        defaultSort: defaultSort ?? account.defaultSort,
+        historyEnabled: historyEnabled ?? account.historyEnabled,
+        trashEnabled: trashEnabled ?? account.trashEnabled, storage: account.storage))
+  }
+
+  @discardableResult
+  func refreshAccountAfterPreferencesMutation(storageChanged: Bool) async -> Bool {
+    isAccountPreferencesStale = true
+    lastPreferencesMutationSequence = accountRefreshSequence
+    if storageChanged {
+      isAccountStorageStale = true
+      lastStorageMutationSequence = accountRefreshSequence
+    }
+    return await refreshAccount()
+  }
+
   /// Reloads the signed-in account snapshot. Returns `false` when the snapshot
-  /// could not be updated so callers can tell the user that storage totals are
-  /// stale; an authentication rejection expires the session instead.
+  /// could not be updated so callers retain stale storage or preference warnings;
+  /// an authentication rejection expires the session instead.
   @discardableResult
   func refreshAccount() async -> Bool {
     guard case .signedIn = state else { return false }
@@ -273,13 +310,17 @@ public final class PutioSessionStore {
       // A newer response already applied a fresher snapshot: report its
       // success. A newer request that failed leaves ours as the latest
       // truth, so apply it.
-      if lastAppliedAccountRefresh > sequence { return true }
+      if lastAppliedAccountRefresh > sequence {
+        return !isAccountStorageStale && !isAccountPreferencesStale
+      }
+      guard sequence > lastStorageMutationSequence,
+        sequence > lastPreferencesMutationSequence
+      else { return false }
       lastAppliedAccountRefresh = sequence
       state = .signedIn(snapshot(account))
-      // A request that started before the mutation carries pre-mutation totals.
-      let observedMutation = sequence > lastStorageMutationSequence
-      if observedMutation { isAccountStorageStale = false }
-      return observedMutation || !isAccountStorageStale
+      isAccountStorageStale = false
+      isAccountPreferencesStale = false
+      return true
     } catch {
       guard generation == authenticationGeneration, !Task.isCancelled,
         case .signedIn = state
@@ -315,6 +356,9 @@ public final class PutioSessionStore {
     authenticationGeneration += 1
     // A new session boundary starts from a fresh bootstrap snapshot.
     isAccountStorageStale = false
+    isAccountPreferencesStale = false
+    isUpdatingAccountPreferences = false
+    lastPreferencesMutationSequence = 0
     lastAppliedAccountRefresh = 0
     accountRefreshSequence = 0
     lastStorageMutationSequence = 0
@@ -332,6 +376,7 @@ public final class PutioSessionStore {
       email: account.mail,
       suggestNextVideo: account.settings.suggestNextVideo,
       rememberVideoTime: account.settings.rememberVideoTime,
+      defaultSort: PutioFolderSort(rawValue: account.settings.sortBy),
       historyEnabled: account.settings.historyEnabled,
       trashEnabled: account.settings.trashEnabled,
       storage: PutioAccountSnapshot.Storage(

@@ -199,6 +199,7 @@ private struct MainTabView: View {
   @State private var playbackPositionPipeline = PutioPlaybackPositionPipeline()
   @State private var folderRefreshRequests = PutioFolderRefreshRequests()
   @State private var trashReconciliation = PutioTrashReconciliation()
+  @State private var historyRevision: UInt64 = 0
   @State private var presentedVideoRoute: PutioVideoRoute?
 
   var body: some View {
@@ -243,6 +244,7 @@ private struct MainTabView: View {
             refreshRequests: folderRefreshRequests,
             onFileSelected: { route in selectFile(route) }
           )
+          .id(historyRevision)
         } label: {
           Label {
             Text("History")
@@ -257,7 +259,8 @@ private struct MainTabView: View {
             runtime: runtime,
             account: account,
             refreshRequests: folderRefreshRequests,
-            trashReconciliation: trashReconciliation
+            trashReconciliation: trashReconciliation,
+            onPreferenceCommitted: preferenceCommitted
           )
         }
       } label: {
@@ -348,6 +351,14 @@ private struct MainTabView: View {
         }
       #endif
     }
+    .onChange(of: account) { previous, current in
+      PutioAccountPreferencesReconciliation.apply(
+        previous: previous, current: current,
+        folders: folderRefreshRequests, trash: trashReconciliation)
+      if previous.id == current.id, previous.historyEnabled != current.historyEnabled {
+        historyRevision &+= 1
+      }
+    }
     .task {
       // The harness signed-in scenario records the full loop: restored
       // session, account bootstrap, then sign-out back to the sign-in screen.
@@ -356,6 +367,12 @@ private struct MainTabView: View {
       guard !Task.isCancelled else { return }
       PutioFilesNavigationRestoration().clear(accountID: account.id)
       await runtime.session.signOut()
+    }
+  }
+
+  private func preferenceCommitted(_ mutation: PutioFilePreferencesMutation) {
+    if mutation == .resetFolderSorts {
+      folderRefreshRequests.requestAllLoadedFolders()
     }
   }
 
@@ -531,6 +548,7 @@ private struct AccountView: View {
   let account: PutioAccountSnapshot
   let refreshRequests: PutioFolderRefreshRequests
   let trashReconciliation: PutioTrashReconciliation
+  let onPreferenceCommitted: @MainActor @Sendable (PutioFilePreferencesMutation) -> Void
   @State private var isRefreshingStorage = false
 
   var body: some View {
@@ -539,6 +557,17 @@ private struct AccountView: View {
         Section {
           LabeledContent("Username", value: account.username)
           LabeledContent("Email", value: account.email)
+        }
+        Section {
+          NavigationLink("File Preferences") {
+            FilePreferencesView(
+              runtime: runtime,
+              refreshRequests: refreshRequests,
+              trashReconciliation: trashReconciliation,
+              onCommitted: onPreferenceCommitted
+            )
+          }
+          .accessibilityIdentifier("account.file-preferences")
         }
         Section("Storage") {
           LabeledContent("Used", value: byteText(account.storage.usedBytes))
@@ -594,6 +623,25 @@ private struct AccountView: View {
 
   private func reconcileRestoredFile(destinationID: PutioFileID?) {
     PutioRestoredFileReconciliation.apply(destinationID: destinationID, to: refreshRequests)
+  }
+}
+
+/// Account changes can arrive after the settings screen has been dismissed,
+/// including through a storage refresh following an uncertain settings write.
+enum PutioAccountPreferencesReconciliation {
+  @MainActor
+  static func apply(
+    previous: PutioAccountSnapshot, current: PutioAccountSnapshot,
+    folders: PutioFolderRefreshRequests, trash: PutioTrashReconciliation
+  ) {
+    guard previous.id == current.id else { return }
+    if previous.defaultSort != current.defaultSort || previous.trashEnabled != current.trashEnabled
+    {
+      folders.requestAllLoadedFolders()
+    }
+    if previous.trashEnabled && !current.trashEnabled {
+      trash.recordEmptied()
+    }
   }
 }
 

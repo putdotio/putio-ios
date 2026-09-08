@@ -176,6 +176,7 @@ final class PutioSessionStoreTests: XCTestCase {
         email: "tests@example.com",
         suggestNextVideo: true,
         rememberVideoTime: true,
+        defaultSort: .nameAscending,
         historyEnabled: true,
         trashEnabled: true,
         storage: PutioAccountSnapshot.Storage(

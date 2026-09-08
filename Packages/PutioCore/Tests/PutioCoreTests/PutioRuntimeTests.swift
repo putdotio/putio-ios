@@ -488,6 +488,204 @@ final class PutioRuntimeTests: XCTestCase {
     }
   }
 
+  func testPreferenceWritesUseTypedSDKPatchesAndRefreshAuthoritativeSnapshot() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let settingsRoute = "POST /v2/account/settings"
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: settingsRoute)
+    RuntimeMockURLProtocol.setFixture(
+      Self.accountInfo.replacingOccurrences(of: "NAME_ASC", with: "SIZE_DESC"),
+      for: "GET /v2/account/info")
+    let sorted = try await runtime.setDefaultFolderSort(.sizeDescending)
+    XCTAssertTrue(sorted.accountRefreshed)
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertEqual(account.defaultSort, .sizeDescending)
+    _ = try await runtime.setTrashEnabled(true)
+    _ = try await runtime.setHistoryEnabled(false)
+    let writes = RuntimeMockURLProtocol.capturedRequests().filter {
+      $0.url?.path == "/v2/account/settings"
+    }
+    let bodies = try writes.map { request in
+      try XCTUnwrap(
+        JSONSerialization.jsonObject(with: XCTUnwrap(requestBodyData(for: request)))
+          as? [String: Any])
+    }
+    XCTAssertEqual(bodies.count, 3)
+    XCTAssertEqual(bodies[0]["sort_by"] as? String, "SIZE_DESC")
+    XCTAssertEqual(bodies[1]["trash_enabled"] as? Bool, true)
+    XCTAssertEqual(bodies[2]["history_enabled"] as? Bool, false)
+    XCTAssertTrue(bodies.allSatisfy { $0.count == 1 })
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"OK"}"#, for: "POST /v2/files/remove-sort-by-settings")
+    let reset = try await runtime.resetFolderSorts()
+    XCTAssertTrue(reset.accountRefreshed)
+  }
+
+  func testCommittedTrashDisableHasRefreshOnlyRecoveryAndKeepsAcknowledgedSetting() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/settings")
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "GET /v2/account/info")
+    let result = try await runtime.setTrashEnabled(false)
+    XCTAssertFalse(result.accountRefreshed)
+    XCTAssertTrue(runtime.session.isAccountPreferencesStale)
+    XCTAssertTrue(runtime.session.isAccountStorageStale)
+    guard case .signedIn(let stale) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertFalse(stale.trashEnabled, "committed disable must not offer recoverable Trash")
+    RuntimeMockURLProtocol.setFixture(
+      Self.accountInfo.replacingOccurrences(
+        of: "\"trash_enabled\": true", with: "\"trash_enabled\": false"),
+      for: "GET /v2/account/info")
+    let refreshed = await runtime.refreshAccountPreferences()
+    XCTAssertTrue(refreshed)
+    XCTAssertFalse(runtime.session.isAccountPreferencesStale)
+    XCTAssertFalse(runtime.session.isAccountStorageStale)
+    guard case .signedIn(let current) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertFalse(current.trashEnabled)
+    XCTAssertEqual(
+      RuntimeMockURLProtocol.capturedRequests().filter { $0.url?.path == "/v2/account/settings" }
+        .count, 1)
+  }
+
+  func testPendingTrashDisableBlocksDeletionEvenAfterUnrelatedAccountRefresh() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let route = "POST /v2/account/settings"
+    RuntimeMockURLProtocol.gateFixture(#"{"status":"OK"}"#, for: route)
+    let saving = Task { try await runtime.setTrashEnabled(false) }
+    defer {
+      saving.cancel()
+      RuntimeMockURLProtocol.releaseFixture(for: route)
+    }
+    guard await waitForRequest(route, count: 1) else {
+      return XCTFail("preference write never started")
+    }
+    XCTAssertTrue(runtime.session.isUpdatingAccountPreferences)
+    _ = await runtime.refreshAccountPreferences()
+    XCTAssertTrue(runtime.session.isUpdatingAccountPreferences)
+    let requests = RuntimeMockURLProtocol.capturedRequests().count
+    await assertRuntimeError(.transient) {
+      try await runtime.deleteFile(fileID: PutioFileID(rawValue: 411))
+    }
+    XCTAssertEqual(RuntimeMockURLProtocol.capturedRequests().count, requests)
+    RuntimeMockURLProtocol.setFixture(
+      Self.accountInfo.replacingOccurrences(
+        of: "\"trash_enabled\": true", with: "\"trash_enabled\": false"),
+      for: "GET /v2/account/info")
+    RuntimeMockURLProtocol.releaseFixture(for: route)
+    let result = try await saving.value
+    XCTAssertTrue(result.accountRefreshed)
+    XCTAssertFalse(runtime.session.isUpdatingAccountPreferences)
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertFalse(account.trashEnabled)
+  }
+
+  func testRejectedFolderSortResetDoesNotReportSuccessFromUnchangedAccountSettings() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/files/remove-sort-by-settings")
+    await assertRuntimeError(.transient) { _ = try await runtime.resetFolderSorts() }
+    XCTAssertFalse(runtime.session.isAccountPreferencesStale)
+  }
+
+  func testAmbiguousTrashDisableBlocksDeletionUntilAccountCanBeReconciled() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/settings")
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "GET /v2/account/info")
+    await assertRuntimeError(.transient) { _ = try await runtime.setTrashEnabled(false) }
+    XCTAssertTrue(runtime.session.isAccountPreferencesStale)
+    XCTAssertTrue(runtime.session.isAccountStorageStale)
+    let requests = RuntimeMockURLProtocol.capturedRequests().count
+    await assertRuntimeError(.transient) {
+      try await runtime.deleteFile(fileID: PutioFileID(rawValue: 411))
+    }
+    XCTAssertEqual(RuntimeMockURLProtocol.capturedRequests().count, requests)
+    RuntimeMockURLProtocol.setFixture(
+      Self.accountInfo.replacingOccurrences(
+        of: "\"trash_enabled\": true", with: "\"trash_enabled\": false"),
+      for: "GET /v2/account/info")
+    let refreshed = await runtime.refreshAccountPreferences()
+    XCTAssertTrue(refreshed)
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertFalse(account.trashEnabled)
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/files/delete")
+    try await runtime.deleteFile(fileID: PutioFileID(rawValue: 411))
+    XCTAssertEqual(
+      RuntimeMockURLProtocol.capturedRequests().filter { $0.url?.path == "/v2/account/settings" }
+        .count, 1)
+  }
+
+  func testLostWriteResponseAcceptsAuthoritativelyAppliedPreference() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/settings")
+    RuntimeMockURLProtocol.setFixture(
+      Self.accountInfo.replacingOccurrences(
+        of: "\"trash_enabled\": true", with: "\"trash_enabled\": false"),
+      for: "GET /v2/account/info")
+    let result = try await runtime.setTrashEnabled(false)
+    XCTAssertTrue(result.accountRefreshed)
+    XCTAssertFalse(runtime.session.isAccountPreferencesStale)
+    XCTAssertEqual(
+      RuntimeMockURLProtocol.capturedRequests().filter { $0.url?.path == "/v2/account/settings" }
+        .count, 1)
+  }
+
+  func testOldAccountResponseCannotOverwritePreferencesAfterCommittedMutation() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let route = "GET /v2/account/info"
+    RuntimeMockURLProtocol.gateFixture(
+      Self.accountInfo.replacingOccurrences(of: "NAME_ASC", with: "DATE_DESC"), for: route)
+    let older = Task { await runtime.refreshAccountPreferences() }
+    guard await waitForRequest(route, count: 2) else {
+      older.cancel()
+      RuntimeMockURLProtocol.releaseFixture(for: route)
+      return XCTFail("old refresh never started")
+    }
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/settings")
+    RuntimeMockURLProtocol.setFixture(#"{"status":"ERROR"}"#, statusCode: 503, for: route)
+    let saved = try await runtime.setHistoryEnabled(false)
+    XCTAssertFalse(saved.accountRefreshed)
+    RuntimeMockURLProtocol.releaseFixture(for: route)
+    let oldResult = await older.value
+    XCTAssertFalse(oldResult)
+    XCTAssertTrue(runtime.session.isAccountPreferencesStale)
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertEqual(
+      account.defaultSort, .nameAscending, "obsolete response must not apply any fields")
+    await runtime.session.signOut()
+    XCTAssertFalse(runtime.session.isAccountPreferencesStale)
+  }
+
+  func testRejectedPreferenceIsReconciledAndUnknownSortStaysNil() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/settings")
+    await assertRuntimeError(.transient) { _ = try await runtime.setHistoryEnabled(false) }
+    XCTAssertFalse(runtime.session.isAccountPreferencesStale)
+    RuntimeMockURLProtocol.setFixture(
+      Self.accountInfo.replacingOccurrences(of: "NAME_ASC", with: "FUTURE_SORT"),
+      for: "GET /v2/account/info")
+    let refreshed = await runtime.refreshAccountPreferences()
+    XCTAssertTrue(refreshed)
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertNil(account.defaultSort)
+  }
+
   func testHistoryMapsSupportedEventsAndUsesRawPageBoundary() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     RuntimeMockURLProtocol.setFixture(
