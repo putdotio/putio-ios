@@ -884,7 +884,11 @@ final class PutioFolderModel {
       if inFlightLoadGeneration == requestGeneration {
         inFlightLoadGeneration = nil
       }
-      continuationEpoch &+= 1
+      // A superseded load settling late must not rekey the footer and cancel
+      // a continuation the current load legitimately started.
+      if requestGeneration == generation {
+        continuationEpoch &+= 1
+      }
     }
 
     isLoadingMore = false

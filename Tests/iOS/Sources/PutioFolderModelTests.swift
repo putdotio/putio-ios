@@ -1962,6 +1962,39 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(model.canLoadMore)
   }
 
+  func testAStaleRefreshSettlingLateDoesNotRekeyTheContinuation() async {
+    let first = BrowserTestFixtures.item(id: 1)
+    let initial = BrowserTestFixtures.contents(items: [first], hasMore: true)
+    let loader = ControlledFolderLoader()
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { folderID in try await loader.load(folderID: folderID) },
+      continueLoad: { _ in try await loader.load(folderID: .root) },
+      initialContents: initial
+    )
+
+    let staleRefresh = Task { await model.refresh() }
+    await loader.waitForRequestCount(1)
+    let currentRefresh = Task { await model.refresh() }
+    await loader.waitForRequestCount(2)
+    await loader.succeed(request: 1, with: initial)
+    _ = await currentRefresh.value
+    let keyAfterCurrent = model.continuationKey
+
+    let loadMore = Task { await model.loadMore() }
+    await loader.waitForRequestCount(3)
+    XCTAssertTrue(model.isLoadingMore)
+    await loader.succeed(request: 0, with: initial)
+    _ = await staleRefresh.value
+
+    XCTAssertEqual(model.continuationKey, keyAfterCurrent, "a stale load must not rekey")
+    XCTAssertTrue(model.isLoadingMore, "the valid continuation keeps running")
+    await loader.succeed(
+      request: 2, with: PutioFolderContents(folder: nil, items: [BrowserTestFixtures.item(id: 2)]))
+    let appended = await loadMore.value
+    XCTAssertTrue(appended)
+  }
+
   // MARK: Sort
 
   func testSetSortPersistsThenReloadsAndReportsTheAction() async {
