@@ -1076,27 +1076,73 @@ struct PutioBrowserItemPresentation: Equatable, Identifiable, Sendable {
   }
 }
 
-struct PutioFolderSortPresentation: Identifiable, Hashable {
-  let sort: PutioFolderSort
-
-  var id: PutioFolderSort { sort }
-
-  static let allCases = PutioFolderSort.allCases.map(PutioFolderSortPresentation.init)
+/// A sort key as the Files app presents it: one row per key, direction as a
+/// subtitle, and re-selecting the current key flips direction.
+enum PutioFolderSortKey: CaseIterable, Hashable {
+  case name, size, dateAdded, dateModified, type, watchStatus
 
   var title: String {
-    switch sort {
-    case .nameAscending: "Name, A to Z"
-    case .nameDescending: "Name, Z to A"
-    case .sizeAscending: "Size, smallest first"
-    case .sizeDescending: "Size, largest first"
-    case .dateAddedAscending: "Date added, oldest first"
-    case .dateAddedDescending: "Date added, newest first"
-    case .dateModifiedAscending: "Date modified, oldest first"
-    case .dateModifiedDescending: "Date modified, newest first"
-    case .typeAscending: "Type, A to Z"
-    case .typeDescending: "Type, Z to A"
-    case .watchStatusAscending: "Unwatched first"
-    case .watchStatusDescending: "Watched first"
+    switch self {
+    case .name: "Name"
+    case .size: "Size"
+    case .dateAdded: "Date Added"
+    case .dateModified: "Date Modified"
+    case .type: "Kind"
+    case .watchStatus: "Watched"
     }
+  }
+
+  func sort(ascending: Bool) -> PutioFolderSort {
+    switch (self, ascending) {
+    case (.name, true): .nameAscending
+    case (.name, false): .nameDescending
+    case (.size, true): .sizeAscending
+    case (.size, false): .sizeDescending
+    case (.dateAdded, true): .dateAddedAscending
+    case (.dateAdded, false): .dateAddedDescending
+    case (.dateModified, true): .dateModifiedAscending
+    case (.dateModified, false): .dateModifiedDescending
+    case (.type, true): .typeAscending
+    case (.type, false): .typeDescending
+    case (.watchStatus, true): .watchStatusAscending
+    case (.watchStatus, false): .watchStatusDescending
+    }
+  }
+
+  /// The sort to request when the user taps this key while `current` applies.
+  func selection(from current: PutioFolderSort?) -> PutioFolderSort {
+    guard let current, current.key == self else { return sort(ascending: true) }
+    return sort(ascending: !current.isAscending)
+  }
+}
+
+extension PutioFolderSort {
+  var key: PutioFolderSortKey {
+    switch self {
+    case .nameAscending, .nameDescending: .name
+    case .sizeAscending, .sizeDescending: .size
+    case .dateAddedAscending, .dateAddedDescending: .dateAdded
+    case .dateModifiedAscending, .dateModifiedDescending: .dateModified
+    case .typeAscending, .typeDescending: .type
+    case .watchStatusAscending, .watchStatusDescending: .watchStatus
+    }
+  }
+
+  var isAscending: Bool {
+    switch self {
+    case .nameAscending, .sizeAscending, .dateAddedAscending, .dateModifiedAscending,
+      .typeAscending, .watchStatusAscending:
+      true
+    default:
+      false
+    }
+  }
+
+  var directionTitle: String {
+    isAscending ? "Ascending" : "Descending"
+  }
+
+  var title: String {
+    "\(key.title), \(directionTitle.lowercased())"
   }
 }

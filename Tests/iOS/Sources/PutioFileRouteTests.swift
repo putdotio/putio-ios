@@ -5,6 +5,16 @@ import XCTest
 @testable import Putio
 
 final class PutioFileRouteTests: XCTestCase {
+  func testSortSelectionFlipsActiveKeyAndStartsNewKeysAscending() {
+    XCTAssertEqual(PutioFolderSortKey.name.selection(from: nil), .nameAscending)
+    XCTAssertEqual(PutioFolderSortKey.name.selection(from: .nameAscending), .nameDescending)
+    XCTAssertEqual(PutioFolderSortKey.name.selection(from: .nameDescending), .nameAscending)
+    XCTAssertEqual(PutioFolderSortKey.size.selection(from: .nameDescending), .sizeAscending)
+    XCTAssertEqual(
+      PutioFolderSortKey.watchStatus.selection(from: .watchStatusAscending),
+      .watchStatusDescending)
+  }
+
   func testDeletionPresentationDistinguishesTrashFromPermanentDeletion() {
     let trash = PutioFileDeletionPresentation(trashEnabled: true)
     XCTAssertEqual(trash.actionTitle, "Trash")

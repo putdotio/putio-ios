@@ -226,6 +226,7 @@ struct PutioFolderScreen: View {
   private let relativeDateReference: Date?
   private let locale: Locale
   private let load: PutioFolderLoad
+  private let actions: PutioFileActions?
   private let trashEnabled: Bool
   private let onLoaded: @MainActor @Sendable () -> Void
   private let onFileSelected: PutioFileSelection
@@ -258,6 +259,7 @@ struct PutioFolderScreen: View {
       initialValue: PutioFolderRefreshRegistration(folderID: route.id, requests: refreshRequests))
     self.relativeDateReference = relativeDateReference
     self.locale = locale
+    self.actions = actions
     self.load = load
     self.trashEnabled = trashEnabled
     self.onLoaded = onLoaded
@@ -283,56 +285,51 @@ struct PutioFolderScreen: View {
       }
     }
     .navigationTitle(route.title)
-    .navigationBarBackButtonHidden(fileActionPending)
+    .navigationBarTitleDisplayMode(.inline)
+    .navigationBarBackButtonHidden(fileActionPending || isEditing)
     .putioContentBackground()
     .toolbar {
-      if model.supportsActions, !currentItems.isEmpty || isEditing {
-        ToolbarItemGroup(placement: .primaryAction) {
-          if !isEditing {
-            sortMenu
-            Button("New Folder") {
-              editorName = ""
-              editor = .createFolder
-            }
-            .disabled(!model.canStartAction || actionRequest != nil)
-            .accessibilityIdentifier("files.new-folder")
-          }
-          EditButton()
-            .disabled(fileActionPending)
-            .accessibilityIdentifier("files.selection.toggle")
-        }
-      } else if model.supportsActions {
-        ToolbarItem(placement: .primaryAction) {
-          Button("New Folder") {
-            editorName = ""
-            editor = .createFolder
-          }
-          .disabled(!model.canStartAction || actionRequest != nil)
-          .accessibilityIdentifier("files.new-folder")
-        }
-      }
-      if model.supportsActions, isEditing, !currentItems.isEmpty {
-        ToolbarItemGroup(placement: .bottomBar) {
+      if model.supportsActions, isEditing {
+        ToolbarItem(placement: .topBarLeading) {
           Button(allLoadedItemsAreSelected ? "Deselect All" : "Select All") {
             toggleAllLoadedItems()
           }
-          .disabled(fileActionPending)
+          .disabled(fileActionPending || currentItems.isEmpty)
           .accessibilityIdentifier(
             allLoadedItemsAreSelected
               ? "files.selection.deselect-all" : "files.selection.select-all"
           )
-          Button("Move") {
-            let items = selectedItems
-            guard !items.isEmpty else { return }
-            pendingMove = MoveSelection(items: items, isBulk: true)
+        }
+        ToolbarItem(placement: .principal) {
+          Text("Select Items")
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button {
+            editMode = .inactive
+          } label: {
+            Label("Done", systemImage: "checkmark")
+          }
+          .disabled(fileActionPending)
+          .accessibilityLabel("Done")
+          .accessibilityIdentifier("files.selection.toggle")
+        }
+        ToolbarItemGroup(placement: .bottomBar) {
+          bulkMoveButton
+          Spacer()
+          bulkDeleteButton
+          Spacer()
+          Menu {
+            bulkMoveButton
+            bulkDeleteButton
+          } label: {
+            Label("More", systemImage: "ellipsis.circle")
           }
           .disabled(selectedItems.isEmpty || fileActionPending)
-          .accessibilityIdentifier("files.bulk.move")
-          Button(deleteActionTitle, role: .destructive) {
-            pendingBulkDeletion = selectedItems
-          }
-          .disabled(selectedItems.isEmpty || fileActionPending)
-          .accessibilityIdentifier("files.bulk.remove")
+          .accessibilityIdentifier("files.selection.menu")
+        }
+      } else if model.supportsActions {
+        ToolbarItem(placement: .primaryAction) {
+          browseMenu
         }
       }
     }
@@ -367,6 +364,8 @@ struct PutioFolderScreen: View {
       PutioMovePicker(
         items: selection.items,
         load: load,
+        actions: actions,
+        refreshRequests: refreshRequests,
         onMove: { destination in
           pendingMove = nil
           if selection.isBulk {
@@ -619,30 +618,63 @@ struct PutioFolderScreen: View {
       actionButtons(for: item)
     }
     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-      actionButtons(for: item)
+      if model.supportsActions {
+        deleteButton(for: item)
+          .tint(PutioTheme.Colors.destructive)
+      }
+    }
+    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+      if model.supportsActions {
+        moveButton(for: item)
+          .tint(PutioTheme.Colors.accent)
+      }
     }
   }
 
   @ViewBuilder
   private func actionButtons(for item: PutioFileItem) -> some View {
     if model.supportsActions {
-      Button("Move") {
-        pendingMove = MoveSelection(items: [item], isBulk: false)
+      ControlGroup {
+        moveButton(for: item)
       }
-      .disabled(!model.canStartAction || actionRequest != nil)
-      .accessibilityIdentifier("files.move.\(item.id.rawValue)")
-      Button("Rename") {
-        editorName = item.name
-        editor = .rename(item)
+      Section {
+        renameButton(for: item)
       }
-      .disabled(!model.canStartAction || actionRequest != nil)
-      .accessibilityIdentifier("files.rename.\(item.id.rawValue)")
-      Button(deleteActionTitle, role: .destructive) {
-        pendingDeletion = item
+      Section {
+        deleteButton(for: item)
       }
-      .disabled(!model.canStartAction || actionRequest != nil)
-      .accessibilityIdentifier("files.delete.\(item.id.rawValue)")
     }
+  }
+
+  private func moveButton(for item: PutioFileItem) -> some View {
+    Button {
+      pendingMove = MoveSelection(items: [item], isBulk: false)
+    } label: {
+      Label("Move", systemImage: "folder")
+    }
+    .disabled(!model.canStartAction || actionRequest != nil)
+    .accessibilityIdentifier("files.move.\(item.id.rawValue)")
+  }
+
+  private func renameButton(for item: PutioFileItem) -> some View {
+    Button {
+      editorName = item.name
+      editor = .rename(item)
+    } label: {
+      Label("Rename", systemImage: "pencil")
+    }
+    .disabled(!model.canStartAction || actionRequest != nil)
+    .accessibilityIdentifier("files.rename.\(item.id.rawValue)")
+  }
+
+  private func deleteButton(for item: PutioFileItem) -> some View {
+    Button(role: .destructive) {
+      pendingDeletion = item
+    } label: {
+      Label(deleteActionTitle, systemImage: "trash")
+    }
+    .disabled(!model.canStartAction || actionRequest != nil)
+    .accessibilityIdentifier("files.delete.\(item.id.rawValue)")
   }
 
   private func refreshFailureRow(_ failure: PutioBrowserErrorPresentation) -> some View {
@@ -661,37 +693,66 @@ struct PutioFolderScreen: View {
     .accessibilityIdentifier("files.refresh-error.\(route.id.rawValue)")
   }
 
-  private var sortMenu: some View {
-    Menu {
-      if model.sort == nil {
-        Text("Using the account default")
-      }
-      Picker("Sort by", selection: sortSelection) {
-        ForEach(PutioFolderSortPresentation.allCases) { presentation in
-          Text(presentation.title).tag(Optional(presentation.sort))
-        }
-      }
-      .pickerStyle(.inline)
+  private var bulkMoveButton: some View {
+    Button {
+      let items = selectedItems
+      guard !items.isEmpty else { return }
+      pendingMove = MoveSelection(items: items, isBulk: true)
     } label: {
-      Label("Sort", systemImage: "arrow.up.arrow.down")
+      Label("Move", systemImage: "folder")
     }
-    .disabled(!model.canStartAction || actionRequest != nil)
-    .accessibilityIdentifier("files.sort")
+    .disabled(selectedItems.isEmpty || fileActionPending)
+    .accessibilityIdentifier("files.bulk.move")
+  }
+
+  private var bulkDeleteButton: some View {
+    Button(role: .destructive) {
+      pendingBulkDeletion = selectedItems
+    } label: {
+      Label(deleteActionTitle, systemImage: "trash")
+    }
+    .disabled(selectedItems.isEmpty || fileActionPending)
+    .accessibilityIdentifier("files.bulk.remove")
+  }
+
+  private var browseMenu: some View {
+    Menu {
+      Button {
+        editMode = .active
+      } label: {
+        Label("Select", systemImage: "checkmark.circle")
+      }
+      .disabled(fileActionPending || currentItems.isEmpty)
+      .accessibilityIdentifier("files.selection.toggle")
+      Button {
+        editorName = ""
+        editor = .createFolder
+      } label: {
+        Label("New Folder", systemImage: "folder.badge.plus")
+      }
+      .disabled(!model.canStartAction || actionRequest != nil)
+      .accessibilityIdentifier("files.new-folder")
+      Section {
+        sortSection
+      }
+    } label: {
+      Label("More", systemImage: "ellipsis.circle")
+    }
+    .accessibilityIdentifier("files.menu")
     .accessibilityValue(sortAccessibilityValue)
   }
 
-  private var sortAccessibilityValue: String {
-    model.sort.map { PutioFolderSortPresentation(sort: $0).title } ?? "Account default"
+  private var sortSection: some View {
+    PutioFolderSortRows(
+      current: model.sort,
+      isDisabled: !model.canStartAction || actionRequest != nil
+    ) { sort in
+      actionRequest = .sort(sort)
+    }
   }
 
-  private var sortSelection: Binding<PutioFolderSort?> {
-    Binding(
-      get: { model.sort },
-      set: { sort in
-        guard let sort, sort != model.sort else { return }
-        actionRequest = .sort(sort)
-      }
-    )
+  private var sortAccessibilityValue: String {
+    model.sort?.title ?? "Account default"
   }
 
   @ViewBuilder
@@ -1036,7 +1097,7 @@ struct PutioFolderScreen: View {
       PutioToast(
         variant: .success,
         title: "Sorting changed",
-        message: PutioFolderSortPresentation(sort: sort).title
+        message: sort.title
       )
     case .rename(_, _, let newName):
       PutioToast(variant: .success, title: "Item renamed", message: newName)
@@ -1095,6 +1156,8 @@ struct PutioFolderScreen: View {
 private struct PutioMovePicker: View {
   let items: [PutioFileItem]
   let load: PutioFolderLoad
+  let actions: PutioFileActions?
+  let refreshRequests: PutioFolderRefreshRequests
   let onMove: @MainActor (PutioFolderRoute) -> Void
 
   @Environment(\.dismiss) private var dismiss
@@ -1102,10 +1165,16 @@ private struct PutioMovePicker: View {
 
   var body: some View {
     NavigationStack(path: $path) {
-      PutioMoveDestinationScreen(route: .root, items: items, load: load, onMove: onMove)
-        .navigationDestination(for: PutioFolderRoute.self) { route in
-          PutioMoveDestinationScreen(route: route, items: items, load: load, onMove: onMove)
-        }
+      PutioMoveDestinationScreen(
+        route: .root, items: items, load: load, actions: actions,
+        refreshRequests: refreshRequests, onMove: onMove
+      )
+      .navigationDestination(for: PutioFolderRoute.self) { route in
+        PutioMoveDestinationScreen(
+          route: route, items: items, load: load, actions: actions,
+          refreshRequests: refreshRequests, onMove: onMove
+        )
+      }
     }
     .toolbar {
       ToolbarItem(placement: .cancellationAction) {
@@ -1126,17 +1195,25 @@ private struct PutioMoveDestinationScreen: View {
   let onMove: @MainActor (PutioFolderRoute) -> Void
 
   @State private var model: PutioFolderModel
+  private let refreshRequests: PutioFolderRefreshRequests
+  @State private var toast: PutioToast?
+  @State private var newFolderName = ""
+  @State private var newFolderPresented = false
 
   init(
     route: PutioFolderRoute,
     items: [PutioFileItem],
     load: @escaping PutioFolderLoad,
+    actions: PutioFileActions? = nil,
+    refreshRequests: PutioFolderRefreshRequests,
     onMove: @escaping @MainActor (PutioFolderRoute) -> Void
   ) {
     self.route = route
     self.items = items
     self.onMove = onMove
-    _model = State(initialValue: PutioFolderModel(folderID: route.id, load: load))
+    self.refreshRequests = refreshRequests
+    _model = State(
+      initialValue: PutioFolderModel(folderID: route.id, load: load, actions: actions))
   }
 
   var body: some View {
@@ -1153,25 +1230,118 @@ private struct PutioMoveDestinationScreen: View {
           Task { await model.retry() }
         }
       case .loaded(let contents):
-        destinationList(contents)
+        VStack(spacing: PutioTheme.Spacing.space3) {
+          if let failure = model.refreshFailure {
+            VStack(spacing: PutioTheme.Spacing.space2) {
+              Text("Could not refresh")
+                .putioFont(PutioTheme.Typography.subheading)
+              Text(failure.message)
+                .putioFont(PutioTheme.Typography.caption)
+                .foregroundStyle(PutioTheme.Colors.textSecondary)
+              Button("Try again") {
+                Task { await model.refresh() }
+              }
+            }
+            .padding(PutioTheme.Spacing.space4)
+          }
+          destinationList(contents)
+        }
       }
     }
     .navigationTitle(route.title)
     .navigationBarTitleDisplayMode(.inline)
     .putioContentBackground()
     .toolbar {
+      if model.supportsActions {
+        ToolbarItem(placement: .primaryAction) {
+          Menu {
+            Button {
+              newFolderPresented = true
+            } label: {
+              Label("New Folder", systemImage: "folder.badge.plus")
+            }
+            .disabled(!model.canStartAction)
+            .accessibilityIdentifier("files.move-new-folder")
+            Section {
+              PutioFolderSortRows(current: model.sort, isDisabled: !model.canStartAction) {
+                sort in
+                Task {
+                  await model.setSort(sort)
+                  presentActionOutcome()
+                }
+              }
+            }
+          } label: {
+            Label("More", systemImage: "ellipsis.circle")
+          }
+          .accessibilityIdentifier("files.move-menu")
+        }
+      }
       ToolbarItem(placement: .confirmationAction) {
-        Button("Move Here") {
+        Button("Move") {
           onMove(route)
         }
+        .buttonStyle(.borderedProminent)
         .disabled(!canMoveHere)
         .accessibilityIdentifier("files.move-here.\(route.id.rawValue)")
       }
     }
+    .safeAreaInset(edge: .bottom) {
+      moveSummary
+    }
+    .alert("New Folder", isPresented: $newFolderPresented) {
+      TextField("Name", text: $newFolderName)
+        .accessibilityIdentifier("files.move-new-folder-name")
+      Button("Create") {
+        let name = newFolderName
+        Task {
+          await model.createFolder(name: name)
+          presentActionOutcome()
+        }
+      }
+      .disabled(newFolderName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+      Button("Cancel", role: .cancel) {}
+    }
     .task(id: route.id) {
       await model.loadIfNeeded()
     }
+    .putioToast($toast)
+    .task(id: toast) {
+      guard let presentedToast = toast else { return }
+      try? await Task.sleep(for: .seconds(3))
+      guard !Task.isCancelled, toast == presentedToast else { return }
+      toast = nil
+    }
+    .navigationBarBackButtonHidden(model.activeAction != nil)
+    .interactiveDismissDisabled(model.activeAction != nil)
     .accessibilityIdentifier("files.move-screen.\(route.id.rawValue)")
+  }
+
+  private var moveSummary: some View {
+    HStack(spacing: PutioTheme.Spacing.space3) {
+      if let first = items.first {
+        PutioIconView(
+          first.kind == .folder ? .folderFill : .file,
+          size: PutioTheme.ScaledMetrics.buttonIconSize
+        )
+        .foregroundStyle(PutioTheme.Components.FileRow.icon)
+      }
+      VStack(alignment: .leading, spacing: PutioTheme.Spacing.space1) {
+        Text("Move")
+          .putioFont(PutioTheme.Typography.caption)
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+        Text(items.count == 1 ? items[0].name : "\(items.count) items")
+          .putioFont(PutioTheme.Typography.body)
+          .foregroundStyle(PutioTheme.Colors.textPrimary)
+          .lineLimit(1)
+      }
+      Spacer()
+    }
+    .padding(PutioTheme.Spacing.space4)
+    .background(PutioTheme.Colors.surface, in: .rect(cornerRadius: PutioTheme.Radius.large))
+    .padding(.horizontal, PutioTheme.Spacing.space4)
+    .accessibilityElement(children: .combine)
+    .accessibilityIdentifier("files.move-summary")
   }
 
   @ViewBuilder
@@ -1190,11 +1360,24 @@ private struct PutioMoveDestinationScreen: View {
             PutioBrowserItemPresentation(item: folder).row
           )
         }
+        .disabled(model.activeAction != nil)
         .accessibilityIdentifier("files.move-folder.\(folder.id.rawValue)")
         .listRowBackground(PutioTheme.Colors.background)
       }
       .listStyle(.plain)
     }
+  }
+
+  private func presentActionOutcome() {
+    guard let outcome = model.actionOutcome else { return }
+    switch outcome {
+    case .succeeded(let action):
+      if case .createFolder = action { newFolderName = "" }
+      refreshRequests.request(folderID: route.id)
+    case .failed(_, let failure):
+      toast = PutioToast(variant: .danger, title: failure.title, message: failure.message)
+    }
+    model.clearActionOutcome()
   }
 
   private var emptyDestinationMessage: String {
@@ -1204,7 +1387,7 @@ private struct PutioMoveDestinationScreen: View {
   }
 
   private var canMoveHere: Bool {
-    policy.canMove(to: route)
+    model.isLoaded && model.activeAction == nil && policy.canMove(to: route)
   }
 
   private var policy: PutioMovePickerPolicy {
@@ -1236,6 +1419,37 @@ private struct PutioSelectionTabBarVisibility: ViewModifier {
       content.toolbar(.hidden, for: .tabBar)
     } else {
       content
+    }
+  }
+}
+
+struct PutioFolderSortRows: View {
+  let current: PutioFolderSort?
+  let isDisabled: Bool
+  let onSelect: @MainActor (PutioFolderSort) -> Void
+
+  var body: some View {
+    if current == nil {
+      Text("Using the account default")
+    }
+    ForEach(PutioFolderSortKey.allCases, id: \.self) { key in
+      Button {
+        onSelect(key.selection(from: current))
+      } label: {
+        if let current, current.key == key {
+          Label {
+            Text(key.title)
+            Text(current.directionTitle)
+          } icon: {
+            Image(systemName: "checkmark")
+          }
+        } else {
+          Text(key.title)
+        }
+      }
+      .disabled(isDisabled)
+      .accessibilityIdentifier("files.sort.\(key)")
+      .accessibilityValue(current?.key == key ? current?.directionTitle ?? "" : "")
     }
   }
 }
