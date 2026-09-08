@@ -1169,19 +1169,19 @@ private struct PutioMovePicker: View {
         route: .root, items: items, load: load, actions: actions,
         refreshRequests: refreshRequests, onMove: onMove
       )
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel", role: .cancel) {
+            dismiss()
+          }
+          .accessibilityIdentifier("files.move-cancel")
+        }
+      }
       .navigationDestination(for: PutioFolderRoute.self) { route in
         PutioMoveDestinationScreen(
           route: route, items: items, load: load, actions: actions,
           refreshRequests: refreshRequests, onMove: onMove
         )
-      }
-    }
-    .toolbar {
-      ToolbarItem(placement: .cancellationAction) {
-        Button("Cancel", role: .cancel) {
-          dismiss()
-        }
-        .accessibilityIdentifier("files.move-cancel")
       }
     }
     .accessibilityIdentifier("files.move-picker")
@@ -1248,6 +1248,7 @@ private struct PutioMoveDestinationScreen: View {
         }
       }
     }
+    .accessibilityIdentifier("files.move-screen.\(route.id.rawValue)")
     .navigationTitle(route.title)
     .navigationBarTitleDisplayMode(.inline)
     .putioContentBackground()
@@ -1314,7 +1315,6 @@ private struct PutioMoveDestinationScreen: View {
     }
     .navigationBarBackButtonHidden(model.activeAction != nil)
     .interactiveDismissDisabled(model.activeAction != nil)
-    .accessibilityIdentifier("files.move-screen.\(route.id.rawValue)")
   }
 
   private var moveSummary: some View {
