@@ -663,9 +663,12 @@ struct PutioFolderScreen: View {
 
   private var sortMenu: some View {
     Menu {
+      if model.sort == nil {
+        Text("Using the account default")
+      }
       Picker("Sort by", selection: sortSelection) {
         ForEach(PutioFolderSortPresentation.allCases) { presentation in
-          Text(presentation.title).tag(presentation.sort)
+          Text(presentation.title).tag(Optional(presentation.sort))
         }
       }
       .pickerStyle(.inline)
@@ -674,14 +677,18 @@ struct PutioFolderScreen: View {
     }
     .disabled(!model.canStartAction || actionRequest != nil)
     .accessibilityIdentifier("files.sort")
-    .accessibilityValue(PutioFolderSortPresentation(sort: model.sort).title)
+    .accessibilityValue(sortAccessibilityValue)
   }
 
-  private var sortSelection: Binding<PutioFolderSort> {
+  private var sortAccessibilityValue: String {
+    model.sort.map { PutioFolderSortPresentation(sort: $0).title } ?? "Account default"
+  }
+
+  private var sortSelection: Binding<PutioFolderSort?> {
     Binding(
       get: { model.sort },
       set: { sort in
-        guard sort != model.sort else { return }
+        guard let sort, sort != model.sort else { return }
         actionRequest = .sort(sort)
       }
     )
@@ -716,7 +723,7 @@ struct PutioFolderScreen: View {
         Spacer()
       }
       .accessibilityIdentifier("files.more.\(route.id.rawValue)")
-      .task(id: model.nextCursor) {
+      .task(id: model.continuationKey) {
         await model.loadMore()
       }
     }

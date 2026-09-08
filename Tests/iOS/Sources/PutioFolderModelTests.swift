@@ -892,7 +892,7 @@ final class PutioFolderModelTests: XCTestCase {
       sizeBytes: 8_192,
       resumePositionSeconds: 137
     )
-    let latestContents = BrowserTestFixtures.contents(items: [latestItem], hasMore: true)
+    let latestContents = BrowserTestFixtures.contents(items: [latestItem])
     let model = PutioFolderModel(
       folderID: .root,
       load: { _ in latestContents },
@@ -923,7 +923,6 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(renamedItem.createdAt, latestItem.createdAt)
     XCTAssertEqual(renamedItem.updatedAt, latestItem.updatedAt)
     XCTAssertEqual(renamedItem.resumePositionSeconds, latestItem.resumePositionSeconds)
-    XCTAssertTrue(renamedContents.hasMore)
     XCTAssertEqual(
       model.actionOutcome,
       .succeeded(
@@ -1897,6 +1896,60 @@ final class PutioFolderModelTests: XCTestCase {
 
     XCTAssertFalse(appended)
     XCTAssertEqual(model.state, .loaded(refreshed))
+  }
+
+  func testCommittedMutationDropsTheCursorAndReloadsTheFolder() async {
+    let item = BrowserTestFixtures.item(id: 1)
+    let survivor = BrowserTestFixtures.item(id: 2)
+    let initial = BrowserTestFixtures.contents(items: [item, survivor], hasMore: true)
+    let reloaded = BrowserTestFixtures.contents(items: [survivor], hasMore: true)
+    let loader = ControlledFolderLoader()
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { folderID in try await loader.load(folderID: folderID) },
+      continueLoad: { _ in
+        XCTFail("the stale cursor must not be continued")
+        throw PutioRuntimeError.unknown
+      },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in }
+      ),
+      initialContents: initial
+    )
+
+    await model.delete(item)
+
+    XCTAssertEqual(model.state, .loaded(BrowserTestFixtures.contents(items: [survivor])))
+    XCTAssertFalse(model.canLoadMore)
+    await loader.waitForRequestCount(1)
+    await loader.succeed(request: 0, with: reloaded)
+    await waitForState(model, .loaded(reloaded))
+    XCTAssertTrue(model.canLoadMore)
+  }
+
+  func testSupersededContinuationRestartsThroughANewKey() async {
+    let first = BrowserTestFixtures.item(id: 1)
+    let initial = BrowserTestFixtures.contents(items: [first], hasMore: true)
+    let loader = ControlledFolderLoader()
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in initial },
+      continueLoad: { _ in try await loader.load(folderID: .root) },
+      initialContents: initial
+    )
+    let keyBefore = model.continuationKey
+
+    let loadMore = Task { await model.loadMore() }
+    await loader.waitForRequestCount(1)
+    _ = await model.refresh()
+    await loader.succeed(request: 0, with: PutioFolderContents(folder: nil, items: []))
+    _ = await loadMore.value
+
+    XCTAssertEqual(model.nextCursor, keyBefore.cursor, "the refreshed page kept the cursor")
+    XCTAssertNotEqual(model.continuationKey, keyBefore, "the view task must start again")
+    XCTAssertTrue(model.canLoadMore)
   }
 
   // MARK: Sort

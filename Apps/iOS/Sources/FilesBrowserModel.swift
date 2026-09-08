@@ -390,6 +390,9 @@ final class PutioFolderModel {
   private(set) var refreshFailure: PutioBrowserErrorPresentation?
   private(set) var isLoadingMore = false
   private(set) var loadMoreFailure: PutioBrowserErrorPresentation?
+  // Bumped whenever a load or mutation settles, so a continuation the
+  // settling work superseded starts again even when the cursor is unchanged.
+  private(set) var continuationEpoch: UInt64 = 0
   private(set) var activeAction: PutioFileAction?
   private(set) var actionOutcome: PutioFileActionOutcome?
   private(set) var activeBulkAction: PutioBulkFileAction?
@@ -447,16 +450,26 @@ final class PutioFolderModel {
     return contents.nextCursor != nil
   }
 
+  struct ContinuationKey: Hashable {
+    let cursor: String?
+    let epoch: UInt64
+  }
+
   var nextCursor: String? {
     if case .loaded(let contents) = state { return contents.nextCursor }
     return nil
   }
 
-  /// The folder's server-side sort, or the account default when the server
-  /// reports none.
-  var sort: PutioFolderSort {
-    if case .loaded(let contents) = state, let sort = contents.sort { return sort }
-    return .nameAscending
+  /// Identity for the view task that fetches the next page.
+  var continuationKey: ContinuationKey {
+    ContinuationKey(cursor: nextCursor, epoch: continuationEpoch)
+  }
+
+  /// The folder's own server-side sort, or `nil` when it inherits the account
+  /// default. Inherited folders accept any explicit choice.
+  var sort: PutioFolderSort? {
+    if case .loaded(let contents) = state { return contents.sort }
+    return nil
   }
 
   /// Appends the next page. Any full reload in flight or started meanwhile
@@ -488,24 +501,20 @@ final class PutioFolderModel {
   }
 
   /// Persists `sort` on the server, then reloads so the list reflects the
-  /// server's order. The server call is the action; the reload runs as the
-  /// queued refresh, so a reload failure surfaces as `refreshFailure` over
-  /// the committed sort instead of reporting the sort itself as failed.
+  /// server's order. The server call is the action; the reload is the single
+  /// refresh queued behind it, so a reload failure surfaces as
+  /// `refreshFailure` over the committed sort instead of failing the sort.
   func setSort(_ sort: PutioFolderSort) async {
     guard let actions, canStartAction, case .loaded(let contents) = state else { return }
     guard sort != self.sort else { return }
     let action = PutioFileAction.sort(folderID: folderID, sort: sort)
     begin(action)
 
-    await run(action, rollback: contents) { [folderID] in
+    await run(action, rollback: contents, reconciles: true) { [folderID] in
       try await actions.setSort(folderID, sort)
       return contents.sorted(by: sort)
     }
-    if case .succeeded = actionOutcome {
-      refreshRequestedWhileActionActive = true
-      startQueuedRefreshIfNeeded()
-      _ = await queuedRefresh?.value
-    }
+    _ = await queuedRefresh?.value
   }
 
   /// Returns true when this call performed a successful load.
@@ -720,6 +729,7 @@ final class PutioFolderModel {
   private func run(
     _ action: PutioFileAction,
     rollback: PutioFolderContents,
+    reconciles: Bool = false,
     operation: @escaping @MainActor @Sendable () async throws -> PutioFolderContents?
   ) async {
     let task = Task { @MainActor [weak self] in
@@ -730,12 +740,20 @@ final class PutioFolderModel {
         if let updated {
           state = .loaded(updated)
         }
+        // A committed mutation invalidates the server's cursor for this
+        // listing, so remaining pages are fetched again from a fresh first
+        // page rather than continued from the stale one.
+        if case .loaded(let settled) = state, reconciles || settled.hasMore {
+          state = .loaded(settled.droppingCursor())
+          refreshRequestedWhileActionActive = true
+        }
         activeAction = nil
         actionOutcome = .succeeded(action)
       } catch {
         settleFailure(action: action, error: error, rollback: rollback)
       }
       startQueuedRefreshIfNeeded()
+      continuationEpoch &+= 1
     }
     actionTask = task
     await task.value
@@ -786,7 +804,7 @@ final class PutioFolderModel {
       }
 
       guard activeBulkAction == action else { return }
-      state = .loaded(originalContents.removing(removedIDs))
+      state = .loaded(originalContents.removing(removedIDs).droppingCursor())
       activeBulkAction = nil
       bulkProgress = nil
       bulkOutcome = PutioBulkFileOutcome(
@@ -796,6 +814,7 @@ final class PutioFolderModel {
       )
       refreshRequestedWhileActionActive = true
       startQueuedRefreshIfNeeded()
+      continuationEpoch &+= 1
     }
     actionTask = task
     await task.value
@@ -865,6 +884,7 @@ final class PutioFolderModel {
       if inFlightLoadGeneration == requestGeneration {
         inFlightLoadGeneration = nil
       }
+      continuationEpoch &+= 1
     }
 
     isLoadingMore = false
@@ -963,6 +983,10 @@ extension PutioFolderContents {
 
   fileprivate func sorted(by sort: PutioFolderSort) -> PutioFolderContents {
     PutioFolderContents(folder: folder, items: items, nextCursor: nextCursor, sort: sort)
+  }
+
+  fileprivate func droppingCursor() -> PutioFolderContents {
+    PutioFolderContents(folder: folder, items: items, nextCursor: nil, sort: sort)
   }
 
   private func withItems(_ items: [PutioFileItem]) -> PutioFolderContents {
