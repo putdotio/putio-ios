@@ -1367,6 +1367,8 @@ import Foundation
             "id": \(id),
             "name": "\(name)",
             "file_type": "VIDEO",
+            "parent_id": \(id == 411 ? 410 : 0),
+            "created_at": "2026-09-01T12:00:00",
             "need_convert": \(needsConversion),
             "start_from": \(startFrom)
           }
