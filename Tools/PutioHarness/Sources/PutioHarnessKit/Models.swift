@@ -298,7 +298,7 @@ enum BrowserJourneyContract {
   static let fileActionsTestIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash"
   static let trashDisabledTestIdentifier =
-    "PutioUITests/FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyAndVisibleMenu"
+    "PutioUITests/FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"
   static let trashManagementTestIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testTrashManagementRestoreRetryDeleteAndEmpty"
   static let sortAndContinuationTestIdentifier =

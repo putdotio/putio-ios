@@ -598,37 +598,23 @@ struct PutioFolderScreen: View {
     for item: PutioFileItem,
     content: Content
   ) -> some View {
-    HStack(spacing: PutioTheme.Spacing.space2) {
-      content
-        .frame(maxWidth: .infinity, alignment: .leading)
-      if model.supportsActions {
-        Menu {
-          actionButtons(for: item)
-        } label: {
-          PutioIconView(.dotsThreeCircle, size: PutioTheme.ScaledMetrics.buttonIconSize)
-            .frame(minWidth: 44, minHeight: 44)
-            .contentShape(Rectangle())
+    content
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .contextMenu {
+        actionButtons(for: item)
+      }
+      .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+        if model.supportsActions {
+          deleteButton(for: item)
+            .tint(PutioTheme.Colors.destructive)
         }
-        .accessibilityLabel(Text("More actions for \(item.name)"))
-        .accessibilityIdentifier("files.actions.\(item.id.rawValue)")
-        .disabled(!model.canStartAction || actionRequest != nil)
       }
-    }
-    .contextMenu {
-      actionButtons(for: item)
-    }
-    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-      if model.supportsActions {
-        deleteButton(for: item)
-          .tint(PutioTheme.Colors.destructive)
+      .swipeActions(edge: .leading, allowsFullSwipe: false) {
+        if model.supportsActions {
+          moveButton(for: item)
+            .tint(PutioTheme.Colors.accent)
+        }
       }
-    }
-    .swipeActions(edge: .leading, allowsFullSwipe: false) {
-      if model.supportsActions {
-        moveButton(for: item)
-          .tint(PutioTheme.Colors.accent)
-      }
-    }
   }
 
   @ViewBuilder
