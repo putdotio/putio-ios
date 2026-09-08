@@ -175,8 +175,16 @@ struct FilesSearchView: View {
       }
     case .loaded(let page):
       if page.items.isEmpty, page.nextCursor == nil, model.refreshFailure == nil {
-        PutioEmptyStateView(
-          icon: .file, title: "No results", message: "Try a different file name.")
+        GeometryReader { geometry in
+          ScrollView {
+            PutioEmptyStateView(
+              icon: .file, title: "No results", message: "Try a different file name."
+            )
+            .frame(minHeight: geometry.size.height)
+          }
+          .scrollBounceBehavior(.always)
+          .refreshable { await model.update(query: query, debounced: false) }
+        }
       } else {
         List {
           if let failure = model.refreshFailure {

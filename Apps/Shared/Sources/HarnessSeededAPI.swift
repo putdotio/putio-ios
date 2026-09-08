@@ -50,6 +50,7 @@ import Foundation
     nonisolated(unsafe) private static var trashFolders = initialTrashFolders
     nonisolated(unsafe) private static var nextActionFolderID = 415
     nonisolated(unsafe) private static var searchRetryFailed = false
+    nonisolated(unsafe) private static var emptySearchLoads = 0
     nonisolated(unsafe) private static var renameAttempts = 0
     nonisolated(unsafe) private static var logoutFailuresRemaining = 0
     nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
@@ -106,6 +107,7 @@ import Foundation
       trashFolders = initialTrashFolders
       nextActionFolderID = 415
       searchRetryFailed = false
+      emptySearchLoads = 0
       renameAttempts = 0
       bulkDeleteFailureDelivered = false
       ambiguousMoveFailureDelivered = false
@@ -217,6 +219,20 @@ import Foundation
     private static func searchFiles(url: URL) -> (Int, String) {
       let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?
         .queryItems?.first { $0.name == "query" }?.value?.lowercased()
+      if query == "no-matching-file" {
+        let shouldFail = fileActionsLock.withLock {
+          emptySearchLoads += 1
+          return emptySearchLoads == 2
+        }
+        if shouldFail {
+          return (
+            503,
+            fixtureError(
+              statusCode: 503, type: "HARNESS_EMPTY_SEARCH_REFRESH",
+              message: "The empty search refresh fails once for retry proof")
+          )
+        }
+      }
       if query == "retry" {
         let shouldFail = fileActionsLock.withLock {
           if searchRetryFailed { return false }

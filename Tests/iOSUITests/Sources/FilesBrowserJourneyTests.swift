@@ -466,6 +466,13 @@ final class FilesBrowserJourneyTests: XCTestCase {
     replaceSearchQuery("no-matching-file", in: searchField)
     XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 10))
     XCTAssertFalse(folderResult.exists)
+    let refreshStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+    let refreshEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
+    refreshStart.press(forDuration: 0.1, thenDragTo: refreshEnd)
+    let emptyRefreshRetry = app.buttons["files.search-retry"]
+    XCTAssertTrue(emptyRefreshRetry.waitForExistence(timeout: 10))
+    emptyRefreshRetry.tap()
+    XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 10))
     replaceSearchQuery("retry", in: searchField)
     let retry = element(identifier: "files.search-retry")
     XCTAssertTrue(retry.waitForExistence(timeout: 10))
