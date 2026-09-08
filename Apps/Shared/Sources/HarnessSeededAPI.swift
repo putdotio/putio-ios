@@ -51,6 +51,12 @@ import Foundation
     nonisolated(unsafe) private static var actionFolders: [Int: ActionFolder] = [:]
     nonisolated(unsafe) private static var trashFolders = initialTrashFolders
     nonisolated(unsafe) private static var nextActionFolderID = 415
+    nonisolated(unsafe) private static var historyRootLoads = 0
+    nonisolated(unsafe) private static var historyPageFailed = false
+    nonisolated(unsafe) private static var historyDeleteFailed = false
+    nonisolated(unsafe) private static var historyClearFailed = false
+    nonisolated(unsafe) private static var historyDeletedIDs: Set<Int> = []
+    nonisolated(unsafe) private static var historyCleared = false
     nonisolated(unsafe) private static var searchRetryFailed = false
     nonisolated(unsafe) private static var emptySearchLoads = 0
     nonisolated(unsafe) private static var searchContinuationFailed = false
@@ -111,6 +117,12 @@ import Foundation
       harnessFolderName = "Harness Folder"
       trashFolders = initialTrashFolders
       nextActionFolderID = 415
+      historyRootLoads = 0
+      historyPageFailed = false
+      historyDeleteFailed = false
+      historyClearFailed = false
+      historyDeletedIDs = []
+      historyCleared = false
       searchRetryFailed = false
       emptySearchLoads = 0
       searchContinuationFailed = false
@@ -220,6 +232,136 @@ import Foundation
         }
         """
       )
+    }
+
+    private static func historyFailure(_ operation: String) -> (Int, String) {
+      (
+        503,
+        fixtureError(
+          statusCode: 503, type: "HARNESS_HISTORY_RETRY", message: "Retry History \(operation)")
+      )
+    }
+
+    private static func listHistory(url: URL) -> (Int, String) {
+      fileActionsLock.lock()
+      defer { fileActionsLock.unlock() }
+      let before = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+        .first(where: { $0.name == "before" })?.value
+      if historyCleared {
+        return (200, #"{"status":"OK","has_more":false,"events":[]}"#)
+      }
+      if before == nil {
+        historyRootLoads += 1
+        if historyRootLoads == 2 { return historyFailure("refresh") }
+      } else {
+        guard before == "807" else {
+          return (
+            400,
+            fixtureError(
+              statusCode: 400, type: "HARNESS_HISTORY_CURSOR",
+              message: "History must continue after the last raw event")
+          )
+        }
+        if !historyPageFailed {
+          historyPageFailed = true
+          return historyFailure("continuation")
+        }
+      }
+      let today = Calendar.current.startOfDay(for: Date())
+      let formatter = ISO8601DateFormatter()
+      func event(_ id: Int, _ type: String, daysAgo: Int = 0, fields: String = "") -> String {
+        let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: today) ?? today
+        return
+          "{\"id\":\(id),\"user_id\":1,\"type\":\(jsonString(type)),\"created_at\":\(jsonString(formatter.string(from: date)))\(fields.isEmpty ? "" : "," + fields)}"
+      }
+      let rows: [(Int, String)]
+      if before == nil {
+        rows = [
+          (
+            810,
+            event(
+              810, "upload", fields: #""file_name":"Harness Folder","file_size":0,"file_id":410"#)
+          ),
+          (
+            809,
+            event(
+              809, "transfer_completed",
+              fields:
+                #""transfer_name":"Nested Movie.mkv","transfer_size":1073741824,"file_id":411"#)
+          ),
+          (
+            808,
+            event(
+              808, "file_shared",
+              fields:
+                #""file_name":"Missing Share.pdf","file_size":1024,"sharing_user_name":"Fixture Friend","file_id":999"#
+            )
+          ),
+          (807, event(807, "future_event")),
+        ]
+      } else {
+        rows = [
+          (
+            806,
+            event(
+              806, "transfer_error", daysAgo: 1, fields: #""transfer_name":"Failed Download.zip""#)
+          ),
+          (
+            805,
+            event(
+              805, "file_from_rss_deleted_for_space", daysAgo: 1,
+              fields: #""file_name":"Expired Episode.mkv","file_size":1024"#)
+          ),
+          (
+            804,
+            event(
+              804, "rss_filter_paused", daysAgo: 1, fields: #""rss_filter_title":"Weekly Episodes""#
+            )
+          ),
+          (
+            803,
+            event(
+              803, "transfer_from_rss_error", daysAgo: 3,
+              fields: #""transfer_name":"Missing Episode.mkv""#)
+          ),
+          (
+            802,
+            event(
+              802, "transfer_callback_error", daysAgo: 3,
+              fields: #""transfer_name":"Callback Episode.mkv""#)
+          ),
+          (
+            801,
+            event(
+              801, "upload", daysAgo: 3,
+              fields: #""file_name":"Earlier Upload.txt","file_size":2048,"file_id":0"#)
+          ),
+        ]
+      }
+      let events = rows.filter { !historyDeletedIDs.contains($0.0) }.map(\.1).joined(separator: ",")
+      return (200, "{\"status\":\"OK\",\"has_more\":\(before == nil),\"events\":[\(events)]}")
+    }
+
+    private static func deleteHistory(id: Int) -> (Int, String) {
+      fileActionsLock.lock()
+      defer { fileActionsLock.unlock() }
+      if !historyDeleteFailed {
+        historyDeleteFailed = true
+        return historyFailure("deletion")
+      }
+      historyDeletedIDs.insert(id)
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func clearHistory() -> (Int, String) {
+      fileActionsLock.lock()
+      defer { fileActionsLock.unlock() }
+      if !historyClearFailed {
+        historyClearFailed = true
+        return historyFailure("clearing")
+      }
+      historyCleared = true
+      return (200, #"{"status":"OK"}"#)
     }
 
     private static func searchFiles(url: URL) -> (Int, String) {
@@ -372,6 +514,20 @@ import Foundation
           }
           return (200, #"{"status":"OK"}"#)
         }
+      case "GET /v2/events/list":
+        return listHistory(url: url)
+      case "POST /v2/events/delete":
+        return clearHistory()
+      case "POST /v2/events/delete/808":
+        return deleteHistory(id: 808)
+      case "GET /v2/files/410":
+        return (200, folderEnvelope(id: 410, name: "Harness Folder", parentID: 0))
+      case "GET /v2/files/999":
+        return (
+          404,
+          fixtureError(
+            statusCode: 404, type: "FILE_NOT_FOUND", message: "This file no longer exists")
+        )
       case "GET /v2/files/list":
         return filesListFixture(url: url)
       case "POST /v2/files/list/continue":
@@ -1037,7 +1193,7 @@ import Foundation
               "tunnel_route_name": "default",
               "next_episode": true,
               "start_from": true,
-              "history_enabled": true,
+              "history_enabled": \( !ProcessInfo.processInfo.arguments.contains("--putio-harness-history-disabled") ),
               "trash_enabled": \(trashEnabled),
               "sort_by": "NAME_ASC",
               "show_optimistic_usage": false,
@@ -1211,6 +1367,9 @@ import Foundation
             "id": \(id),
             "name": "\(name)",
             "file_type": "VIDEO",
+            "parent_id": \(id == 411 ? 410 : 0),
+            "created_at": "2026-09-01T12:00:00",
+            "updated_at": "2026-09-01T12:00:00",
             "need_convert": \(needsConversion),
             "start_from": \(startFrom)
           }
