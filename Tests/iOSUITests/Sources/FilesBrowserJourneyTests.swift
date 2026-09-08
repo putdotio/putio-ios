@@ -532,10 +532,75 @@ final class FilesBrowserJourneyTests: XCTestCase {
     signIn.tap()
     XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
     XCTAssertFalse(element(identifier: "files.screen.410").exists)
+    assertDeletingOpenFolderInvalidatesItsDescendants()
     app.buttons["Account"].tap()
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+  }
+
+  private func assertDeletingOpenFolderInvalidatesItsDescendants() {
+    app.buttons["Search"].tap()
+    let search = app.searchFields.firstMatch
+    XCTAssertTrue(waitUntilHittable(search, timeout: 5))
+    search.tap()
+    search.typeText("Harness\n")
+    let folderResult = element(identifier: "files.search-item.410")
+    XCTAssertTrue(waitUntilHittable(folderResult, timeout: 10))
+    folderResult.tap()
+    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 10))
+    XCTAssertTrue(element(identifier: "files.item.411").exists)
+    let child = createFolder(named: "Deleted Ancestor Child", expectedID: 415)
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    let folder = element(identifier: "files.item.410")
+    openContextMenu(for: folder, actionLabel: "Rename").tap()
+    let name = element(identifier: "files.action-name")
+    XCTAssertTrue(name.waitForExistence(timeout: 5))
+    replaceText(in: name, currentValue: "Harness Folder", with: "Renamed Harness")
+    app.buttons["Rename"].tap()
+    let renamed = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label == %@ AND enabled == true", "Renamed Harness"),
+      object: folder
+    )
+    XCTAssertEqual(XCTWaiter.wait(for: [renamed], timeout: 10), .completed)
+    app.buttons["Search"].tap()
+    XCTAssertTrue(
+      app.navigationBars["Renamed Harness"].waitForExistence(timeout: 10),
+      "the open Search folder kept its old name after a rename in Files"
+    )
+    XCTAssertTrue(waitUntilHittable(child, timeout: 5))
+    child.tap()
+    XCTAssertTrue(element(identifier: "files.screen.415").waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["This folder is empty"].waitForExistence(timeout: 5))
+    XCTAssertFalse(app.staticTexts["Folder not found"].exists)
+
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    let trash = openContextMenu(for: folder, actionLabel: "Trash")
+    trash.tap()
+    let confirm = app.buttons["files.delete-confirm"].firstMatch
+    XCTAssertTrue(waitUntilHittable(confirm, timeout: 5))
+    confirm.tap()
+    XCTAssertTrue(folder.waitForNonExistence(timeout: 10))
+
+    app.buttons["Search"].tap()
+    XCTAssertTrue(app.navigationBars["Deleted Ancestor Child"].waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      app.staticTexts["Folder not found"].waitForExistence(timeout: 10),
+      "the open descendant kept its listing after its ancestor was deleted"
+    )
+    XCTAssertFalse(app.staticTexts["This folder is empty"].exists)
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(app.navigationBars["Renamed Harness"].waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      app.staticTexts["Folder not found"].waitForExistence(timeout: 10),
+      "the deleted folder kept its listing when returning from its descendant"
+    )
+    XCTAssertFalse(
+      element(identifier: "files.item.411").exists, "deleted folder kept a playable video")
+    XCTAssertFalse(
+      element(identifier: "files.item.415").exists, "deleted folder kept its child row")
   }
 
   private func replaceSearchQuery(_ query: String, in field: XCUIElement) {

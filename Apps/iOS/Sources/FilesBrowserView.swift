@@ -242,6 +242,7 @@ struct PutioFolderScreen: View {
   @State private var selectedIDs: Set<PutioFileID> = []
   @State private var editMode: EditMode = .inactive
   @State private var refreshRegistration: PutioFolderRefreshRegistration
+  @State private var lastKnownFolderName: String?
   private let relativeDateReference: Date?
   private let locale: Locale
   private let load: PutioFolderLoad
@@ -286,6 +287,16 @@ struct PutioFolderScreen: View {
     self.onFileSelected = onFileSelected
   }
 
+  private var folderTitle: String {
+    guard route.id != .root else { return route.title }
+    if case .loaded(let contents) = model.state,
+      let folder = contents.folder, folder.id == route.id
+    {
+      return folder.name
+    }
+    return lastKnownFolderName ?? route.title
+  }
+
   var body: some View {
     Group {
       switch model.state {
@@ -303,7 +314,7 @@ struct PutioFolderScreen: View {
         }
       }
     }
-    .navigationTitle(route.title)
+    .navigationTitle(folderTitle)
     .navigationBarTitleDisplayMode(.inline)
     .navigationBarBackButtonHidden(fileActionPending || isEditing)
     .putioContentBackground()
@@ -506,6 +517,11 @@ struct PutioFolderScreen: View {
       refreshRequests.markConsumed(sequence, for: route.id, owner: refreshRegistration.owner)
     }
     .onChange(of: model.state, initial: true) { _, state in
+      if case .loaded(let contents) = state,
+        let folder = contents.folder, folder.id == route.id
+      {
+        lastKnownFolderName = folder.name
+      }
       if case .loaded(let contents) = state, !fileActionPending {
         selectedIDs.formIntersection(contents.items.map(\.id))
       }
@@ -1008,19 +1024,31 @@ struct PutioFolderScreen: View {
 
   private func presentActionOutcome() {
     guard let outcome = model.actionOutcome else { return }
-    // A failed mutation may still have reached the server. Reconcile every
-    // mounted copy of the source, and both sides of a move, after it settles.
-    refreshRequests.request(folderID: route.id, excludingOwner: refreshRegistration.owner)
+    // A failed mutation may still have reached the server. Notify siblings;
+    // this screen's model already reconciles its own mutation outcome.
+    let action =
+      switch outcome {
+      case .succeeded(let action), .failed(let action, _): action
+      }
+    if case .delete = action {
+      // A deleted folder can contain any of the other mounted destinations.
+      refreshRequests.requestAllLoadedFolders(excludingOwner: refreshRegistration.owner)
+    } else {
+      refreshRequests.request(folderID: route.id, excludingOwner: refreshRegistration.owner)
+    }
+    switch action {
+    case .rename(let fileID, _, _):
+      refreshRequests.request(folderID: fileID)
+    case .move(let fileID, _, _, let destinationID, _):
+      refreshRequests.request(folderID: fileID)
+      refreshRequests.request(folderID: destinationID)
+    default:
+      break
+    }
     switch outcome {
     case .succeeded(let action):
-      if case .move(_, _, _, let destinationID, _) = action {
-        refreshRequests.request(folderID: destinationID)
-      }
       toast = successToast(for: action)
     case .failed(let action, let failure):
-      if case .move(_, _, _, let destinationID, _) = action {
-        refreshRequests.request(folderID: destinationID)
-      }
       let title: String
       if case .delete = action {
         title = deletionPresentation.singleFailureTitle
@@ -1034,9 +1062,17 @@ struct PutioFolderScreen: View {
 
   private func presentBulkOutcome() {
     guard let outcome = model.bulkOutcome else { return }
-    refreshRequests.request(folderID: route.id, excludingOwner: refreshRegistration.owner)
+    if case .delete = outcome.action {
+      refreshRequests.requestAllLoadedFolders(excludingOwner: refreshRegistration.owner)
+    } else {
+      refreshRequests.request(folderID: route.id, excludingOwner: refreshRegistration.owner)
+    }
     if case .move(let destination) = outcome.action {
       refreshRequests.request(folderID: destination.id)
+      let movedIDs = Set(outcome.succeeded.map(\.id) + outcome.failures.map { $0.item.id })
+      for id in movedIDs {
+        refreshRequests.request(folderID: id)
+      }
     }
 
     if outcome.failures.isEmpty {

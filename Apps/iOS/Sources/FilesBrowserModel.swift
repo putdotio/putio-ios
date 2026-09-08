@@ -75,7 +75,7 @@ final class PutioFolderRefreshRequests {
   private var sequences: [PutioFileID: UInt64] = [:]
   private var allFoldersSequence: UInt64 = 0
   private struct Registration {
-    let broadcastBaseline: UInt64
+    var broadcastSequence: UInt64 = 0
     var folderSequence: UInt64 = 0
     var consumed: Sequence?
   }
@@ -84,8 +84,7 @@ final class PutioFolderRefreshRequests {
 
   func register(folderID: PutioFileID, owner: UUID) {
     guard registrations[folderID]?[owner] == nil else { return }
-    registrations[folderID, default: [:]][owner] = Registration(
-      broadcastBaseline: allFoldersSequence)
+    registrations[folderID, default: [:]][owner] = Registration()
   }
 
   func unregister(folderID: PutioFileID, owner: UUID) {
@@ -106,9 +105,16 @@ final class PutioFolderRefreshRequests {
     }
   }
 
-  func requestAllLoadedFolders() {
+  func requestAllLoadedFolders(excludingOwner: UUID? = nil) {
     revision &+= 1
     allFoldersSequence &+= 1
+    for folderID in Array(registrations.keys) {
+      let owners = registrations[folderID].map { Array($0.keys) } ?? []
+      for owner in owners {
+        guard owner != excludingOwner else { continue }
+        registrations[folderID]?[owner]?.broadcastSequence = allFoldersSequence
+      }
+    }
   }
 
   /// Each mounted screen consumes its own refresh, including when Files and
@@ -117,7 +123,7 @@ final class PutioFolderRefreshRequests {
     guard let registration = registrations[folderID]?[owner] else { return nil }
     let current = Sequence(
       folder: registration.folderSequence,
-      allFolders: allFoldersSequence > registration.broadcastBaseline ? allFoldersSequence : 0)
+      allFolders: registration.broadcastSequence)
     guard current.folder > 0 || current.allFolders > 0 else { return nil }
     guard registration.consumed != current else { return nil }
     return current
@@ -932,8 +938,13 @@ final class PutioFolderModel {
         state = .failed(presentation)
         refreshFailure = nil
       case .refresh:
-        state = previousState
-        refreshFailure = presentation
+        if presentation.kind == .notFound {
+          state = .failed(presentation)
+          refreshFailure = nil
+        } else {
+          state = previousState
+          refreshFailure = presentation
+        }
       }
       return false
     }

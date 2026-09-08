@@ -458,6 +458,49 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNil(model.refreshFailure)
   }
 
+  func testMissingFolderRefreshHidesStaleChildrenAndRetryCanRecover() async {
+    let original = BrowserTestFixtures.contents(
+      folderID: 42, items: [BrowserTestFixtures.item(id: 1, parentID: 42)], hasMore: true)
+    let recovered = BrowserTestFixtures.contents(folderID: 42, items: [])
+    var missing = true
+    var continuationCalls = 0
+    var deleteCalls = 0
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { _ in
+        if missing { throw PutioRuntimeError.notFound }
+        return recovered
+      },
+      continueLoad: { _ in
+        continuationCalls += 1
+        return original
+      },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in }, deleteFile: { _ in deleteCalls += 1 }),
+      initialContents: original)
+    XCTAssertTrue(model.canLoadMore)
+    XCTAssertTrue(model.canStartAction)
+    let refreshed = await model.refresh()
+    XCTAssertFalse(refreshed)
+    guard case .failed(let failure) = model.state else {
+      return XCTFail("A removed folder must not retain actionable stale children")
+    }
+    XCTAssertEqual(failure.kind, .notFound)
+    XCTAssertNil(model.refreshFailure)
+    XCTAssertNil(model.nextCursor)
+    XCTAssertFalse(model.canLoadMore)
+    XCTAssertFalse(model.canStartAction)
+    await model.loadMore()
+    await model.delete(original.items[0])
+    XCTAssertEqual(continuationCalls, 0)
+    XCTAssertEqual(deleteCalls, 0)
+    missing = false
+    await model.retry()
+    XCTAssertEqual(model.state, .loaded(recovered))
+    XCTAssertTrue(model.canStartAction)
+  }
+
   func testPlaybackRefreshSequencesAreIndependentPerFolder() {
     let firstFolder = PutioFileID(rawValue: 42)
     let secondFolder = PutioFileID(rawValue: 7)
@@ -574,6 +617,35 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNil(
       requests.sequence(for: folder, owner: owner),
       "re-registering starts from the current baseline")
+  }
+
+  func testBroadcastExclusionPreservesOwnersPendingRefreshAndReachesOtherFolders() throws {
+    let source = PutioFileID(rawValue: 42)
+    let descendant = PutioFileID(rawValue: 43)
+    let requests = PutioFolderRefreshRequests()
+    let files = UUID()
+    let search = UUID()
+    let nested = UUID()
+    requests.register(folderID: source, owner: files)
+    requests.register(folderID: source, owner: search)
+    requests.register(folderID: descendant, owner: nested)
+    requests.requestAllLoadedFolders(excludingOwner: files)
+    XCTAssertNil(requests.sequence(for: source, owner: files))
+    XCTAssertNotNil(requests.sequence(for: source, owner: search))
+    XCTAssertNotNil(requests.sequence(for: descendant, owner: nested))
+
+    requests.request(folderID: source)
+    requests.requestAllLoadedFolders()
+    let earlier = try XCTUnwrap(requests.sequence(for: source, owner: files))
+    requests.requestAllLoadedFolders(excludingOwner: files)
+    XCTAssertEqual(requests.sequence(for: source, owner: files), earlier)
+    XCTAssertNotEqual(requests.sequence(for: source, owner: search), earlier)
+    requests.markConsumed(earlier, for: source, owner: files)
+    XCTAssertNil(requests.sequence(for: source, owner: files))
+    XCTAssertNotNil(requests.sequence(for: source, owner: search))
+    let newOwner = UUID()
+    requests.register(folderID: descendant, owner: newOwner)
+    XCTAssertNil(requests.sequence(for: descendant, owner: newOwner))
   }
 
   func testMutationNotificationExcludesItsScreenWithoutConsumingEarlierRefresh() throws {
