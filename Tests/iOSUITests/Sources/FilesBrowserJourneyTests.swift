@@ -609,6 +609,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 10))
     XCTAssertFalse(folderResult.exists, "search kept the deleted folder")
     XCTAssertFalse(element(identifier: "files.search-item.411").exists)
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
     app.buttons["Account"].tap()
     let signOut = element(identifier: "auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
