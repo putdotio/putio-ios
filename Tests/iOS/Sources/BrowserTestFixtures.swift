@@ -45,3 +45,18 @@ enum BrowserTestFixtures {
     )
   }
 }
+
+extension PutioFileItem {
+  func renamed(to name: String) -> PutioFileItem {
+    PutioFileItem(
+      id: id,
+      parentID: parentID,
+      name: name,
+      kind: kind,
+      sizeBytes: sizeBytes,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      resumePositionSeconds: resumePositionSeconds
+    )
+  }
+}

@@ -510,7 +510,7 @@ final class PutioFolderModel {
     let action = PutioFileAction.sort(folderID: folderID, sort: sort)
     begin(action)
 
-    await run(action, rollback: contents, reconciles: true) { [folderID] in
+    await run(action, rollback: contents) { [folderID] in
       try await actions.setSort(folderID, sort)
       return contents.sorted(by: sort)
     }
@@ -729,7 +729,6 @@ final class PutioFolderModel {
   private func run(
     _ action: PutioFileAction,
     rollback: PutioFolderContents,
-    reconciles: Bool = false,
     operation: @escaping @MainActor @Sendable () async throws -> PutioFolderContents?
   ) async {
     let task = Task { @MainActor [weak self] in
@@ -740,10 +739,11 @@ final class PutioFolderModel {
         if let updated {
           state = .loaded(updated)
         }
-        // A committed mutation invalidates the server's cursor for this
-        // listing, so remaining pages are fetched again from a fresh first
-        // page rather than continued from the stale one.
-        if case .loaded(let settled) = state, reconciles || settled.hasMore {
+        // A committed mutation invalidates the server's cursor and may
+        // change where rows sit under the folder's sort, so the folder
+        // reloads from a fresh first page rather than trusting the
+        // optimistic rows or continuing the stale listing.
+        if case .loaded(let settled) = state {
           state = .loaded(settled.droppingCursor())
           refreshRequestedWhileActionActive = true
         }

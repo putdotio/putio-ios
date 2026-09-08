@@ -755,9 +755,11 @@ final class PutioFolderModelTests: XCTestCase {
       name: "Season 2",
       kind: .folder
     )
+    let reconciled = BrowserTestFixtures.contents(folderID: 42, items: [created])
+    let loader = ControlledFolderLoader()
     let model = PutioFolderModel(
       folderID: PutioFileID(rawValue: 42),
-      load: { _ in original },
+      load: { folderID in try await loader.load(folderID: folderID) },
       actions: PutioFileActions(
         createFolder: { name, parentID in
           XCTAssertEqual(name, "Season 2")
@@ -777,6 +779,10 @@ final class PutioFolderModelTests: XCTestCase {
     }
     XCTAssertEqual(contents.items, [created])
     XCTAssertEqual(model.actionOutcome, .succeeded(.createFolder(name: "Season 2")))
+    // The server owns ordering, so the folder reloads behind the optimistic row.
+    await loader.waitForRequestCount(1)
+    await loader.succeed(request: 0, with: reconciled)
+    await waitForState(model, .loaded(reconciled))
   }
 
   func testFileActionsBecomeAvailableOnlyAfterTheFolderLoads() async {
@@ -895,7 +901,7 @@ final class PutioFolderModelTests: XCTestCase {
     let latestContents = BrowserTestFixtures.contents(items: [latestItem])
     let model = PutioFolderModel(
       folderID: .root,
-      load: { _ in latestContents },
+      load: { _ in BrowserTestFixtures.contents(items: [latestItem.renamed(to: "Renamed.mkv")]) },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
         renameFile: { fileID, name in
@@ -1121,9 +1127,10 @@ final class PutioFolderModelTests: XCTestCase {
     let item = BrowserTestFixtures.item(id: 7, name: "Episode.mkv")
     let survivor = BrowserTestFixtures.item(id: 8)
     let original = BrowserTestFixtures.contents(items: [item, survivor])
+    let reconciled = BrowserTestFixtures.contents(items: [survivor])
     let model = PutioFolderModel(
       folderID: .root,
-      load: { _ in original },
+      load: { _ in reconciled },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
         renameFile: { _, _ in throw PutioRuntimeError.unknown },
@@ -1143,6 +1150,7 @@ final class PutioFolderModelTests: XCTestCase {
     await task.value
 
     XCTAssertEqual(model.state, .loaded(optimistic))
+    await waitForState(model, .loaded(reconciled))
     XCTAssertEqual(
       model.actionOutcome,
       .succeeded(.delete(fileID: item.id, name: "Episode.mkv"))
@@ -1176,7 +1184,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
     let model = PutioFolderModel(
       folderID: PutioFileID(rawValue: 42),
-      load: { _ in original },
+      load: { _ in optimistic },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
         renameFile: { _, _ in throw PutioRuntimeError.unknown },
@@ -1201,6 +1209,7 @@ final class PutioFolderModelTests: XCTestCase {
 
     XCTAssertEqual(model.state, .loaded(optimistic))
     XCTAssertEqual(model.actionOutcome, .succeeded(expectedAction))
+    await waitForState(model, .loaded(optimistic))
   }
 
   func testMoveFailureRestoresTheExactPriorContents() async {
@@ -1647,9 +1656,10 @@ final class PutioFolderModelTests: XCTestCase {
     let mutation = SuspendedFileMutation()
     let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
     let original = BrowserTestFixtures.contents(items: [item])
+    let renamed = BrowserTestFixtures.contents(items: [item.renamed(to: "Renamed.mkv")])
     let model = PutioFolderModel(
       folderID: .root,
-      load: { _ in original },
+      load: { _ in renamed },
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
         renameFile: { _, _ in try await mutation.run() },
