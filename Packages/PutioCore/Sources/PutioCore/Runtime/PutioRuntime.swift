@@ -28,14 +28,33 @@ public final class PutioRuntime {
 
   public func listFiles(parentID: PutioFileID = .root) async throws -> PutioFolderContents {
     let result = try await performAuthenticatedOperation {
-      let result = try await sdk.getFiles(parentID: parentID.rawValue)
-      return result
+      try await sdk.getFiles(parentID: parentID.rawValue)
     }
+    return folderContents(from: result)
+  }
 
-    return PutioFolderContents(
+  /// Fetches the page after `cursor` for a listing started by `listFiles`.
+  public func continueFiles(cursor: String) async throws -> PutioFolderContents {
+    let result = try await performAuthenticatedOperation {
+      try await sdk.continueFiles(cursor: cursor)
+    }
+    return folderContents(from: result)
+  }
+
+  /// Persists the folder's sort on the server. Callers reload the folder to see
+  /// the new order.
+  public func setFolderSort(folderID: PutioFileID, sort: PutioFolderSort) async throws {
+    _ = try await performAuthenticatedOperation(commits: true) {
+      try await sdk.setSortBy(fileId: folderID.rawValue, sortBy: sort.rawValue)
+    }
+  }
+
+  private func folderContents(from result: PutioFilesListResult) -> PutioFolderContents {
+    PutioFolderContents(
       folder: result.parent.map(snapshot),
       items: result.children.map(snapshot),
-      hasMore: result.cursor?.isEmpty == false
+      nextCursor: result.cursor?.isEmpty == false ? result.cursor : nil,
+      sort: result.parent.flatMap { PutioFolderSort(rawValue: $0.sortBy) }
     )
   }
 

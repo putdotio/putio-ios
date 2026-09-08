@@ -55,6 +55,8 @@ import Foundation
     nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
     nonisolated(unsafe) private static var trashDeleteFailureDelivered = false
     nonisolated(unsafe) private static var trashListRequests = 0
+    // Server-side sort per folder id; only keys the app can decode are stored.
+    nonisolated(unsafe) private static var folderSorts: [Int: String] = [:]
     nonisolated(unsafe) private static var trashEmptyRefreshFailed = false
     // Bytes freed by permanent deletions; account storage reflects them.
     nonisolated(unsafe) private static var trashFreedBytes: Int64 = 0
@@ -107,6 +109,7 @@ import Foundation
       ambiguousMoveFailureDelivered = false
       trashDeleteFailureDelivered = false
       trashListRequests = 0
+      folderSorts = [:]
       trashEmptyRefreshFailed = false
       trashFreedBytes = 0
       accountRefreshFailuresRemaining = 0
@@ -173,6 +176,62 @@ import Foundation
       return bulkDeleteProgressFolderIDs.contains(fileID)
     }
 
+    // The root's second page holds one archive so the browser proves cursor
+    // continuation without changing the first-page rows the journeys pin.
+    private static func continueFiles(request: URLRequest) -> (Int, String) {
+      guard
+        let payload = requestPayload(request),
+        payload["cursor"] as? String == rootContinuationCursor
+      else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400,
+            type: "HARNESS_FILES_CURSOR_INVALID",
+            message: "The files fixture requires the root continuation cursor"
+          )
+        )
+      }
+      return (
+        200,
+        """
+        {
+          "files": [
+            {
+              "id": \(rootContinuationFileID),
+              "name": "Season Pack.zip",
+              "file_type": "ARCHIVE",
+              "parent_id": 0,
+              "size": 2147483648,
+              "created_at": "2026-08-27T10:00:00Z",
+              "updated_at": "2026-08-27T10:00:00Z"
+            }
+          ]
+        }
+        """
+      )
+    }
+
+    private static func setSortBy(request: URLRequest) -> (Int, String) {
+      guard
+        let payload = requestPayload(request),
+        let fileID = payload["file_id"] as? Int,
+        let sortBy = payload["sort_by"] as? String,
+        !sortBy.isEmpty
+      else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400,
+            type: "HARNESS_SORT_INPUT_REQUIRED",
+            message: "The sort fixture requires file_id and sort_by"
+          )
+        )
+      }
+      fileActionsLock.withLock { folderSorts[fileID] = sortBy }
+      return (200, #"{"status":"OK"}"#)
+    }
+
     private static func fixture(for request: URLRequest) -> (Int, String) {
       guard let url = request.url else {
         return (
@@ -220,6 +279,10 @@ import Foundation
         }
       case "GET /v2/files/list":
         return filesListFixture(url: url)
+      case "POST /v2/files/list/continue":
+        return continueFiles(request: request)
+      case "POST /v2/files/set-sort-by":
+        return setSortBy(request: request)
       case "POST /v2/files/create-folder":
         return createFolder(request: request)
       case "POST /v2/files/rename":
@@ -293,6 +356,9 @@ import Foundation
         )
       }
     }
+
+    static let rootContinuationCursor = "files-root-page-2"
+    static let rootContinuationFileID = 422
 
     private static func filesListFixture(url: URL) -> (Int, String) {
       let parentID = URLComponents(url: url, resolvingAgainstBaseURL: false)?
@@ -860,54 +926,68 @@ import Foundation
         actionFolders
         .filter { $0.value.parentID == 0 }
         .sorted { $0.key < $1.key }
+      let sortBy = folderSorts[0] ?? "NAME_ASC"
       fileActionsLock.unlock()
       let mutableFolderRows = mutableFolders.map { id, folder in
         folderObject(id: id, name: folder.name, parentID: folder.parentID)
       }
-      let extraRows =
-        mutableFolderRows.isEmpty ? "" : ",\n" + mutableFolderRows.joined(separator: ",\n")
+      var rows =
+        [
+          """
+          {
+            "id": 410,
+            "name": "Harness Folder",
+            "file_type": "FOLDER",
+            "parent_id": 0,
+            "size": 0,
+            "created_at": "2026-08-28T10:00:00Z",
+            "updated_at": "2026-08-29T10:00:00Z"
+          }
+          """,
+          """
+          {
+            "id": 412,
+            "name": "Root Movie.mkv",
+            "file_type": "VIDEO",
+            "parent_id": 0,
+            "size": 734003200,
+            "created_at": "2026-08-28T10:00:00Z",
+            "updated_at": "2026-08-29T10:00:00Z",
+            "start_from": \(playbackPosition(fileID: 412))
+          }
+          """,
+          """
+          {
+            "id": 413,
+            "name": "Document.pdf",
+            "file_type": "PDF",
+            "parent_id": 0,
+            "size": 1048576,
+            "created_at": "2026-08-28T10:00:00Z",
+            "updated_at": "2026-08-29T10:00:00Z"
+          }
+          """,
+        ] + mutableFolderRows
+      // Only the two name orders are modelled; the journey proves the
+      // round trip, not the server's comparator.
+      if sortBy == "NAME_DESC" { rows.reverse() }
       return """
         {
+          "cursor": \(jsonString(rootContinuationCursor)),
           "parent": {
             "id": 0,
             "name": "Your Files",
             "file_type": "FOLDER",
             "parent_id": 0,
             "size": 0,
+            "sort_by": \(jsonString(sortBy)),
             "created_at": "2026-08-01T10:00:00Z",
             "updated_at": "2026-08-01T10:00:00Z"
           },
           "files": [
-            {
-              "id": 410,
-              "name": "Harness Folder",
-              "file_type": "FOLDER",
-              "parent_id": 0,
-              "size": 0,
-              "created_at": "2026-08-28T10:00:00Z",
-              "updated_at": "2026-08-29T10:00:00Z"
-            },
-            {
-              "id": 412,
-              "name": "Root Movie.mkv",
-              "file_type": "VIDEO",
-              "parent_id": 0,
-              "size": 734003200,
-              "created_at": "2026-08-28T10:00:00Z",
-              "updated_at": "2026-08-29T10:00:00Z",
-              "start_from": \(playbackPosition(fileID: 412))
-            },
-            {
-              "id": 413,
-              "name": "Document.pdf",
-              "file_type": "PDF",
-              "parent_id": 0,
-              "size": 1048576,
-              "created_at": "2026-08-28T10:00:00Z",
-              "updated_at": "2026-08-29T10:00:00Z"
-            }\(extraRows)
+            \(rows.joined(separator: ",\n"))
           ],
-          "total": \(3 + mutableFolders.count)
+          "total": \(4 + mutableFolders.count)
         }
         """
     }

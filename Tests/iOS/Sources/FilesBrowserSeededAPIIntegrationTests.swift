@@ -82,12 +82,39 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
       root.items.map(\.id),
       [folderID, PutioFileID(rawValue: 412), PutioFileID(rawValue: 413)]
     )
+    XCTAssertEqual(root.sort, .nameAscending)
+    XCTAssertEqual(root.nextCursor, HarnessSeededAPI.rootContinuationCursor)
+    XCTAssertNil(nested.nextCursor)
     XCTAssertEqual(folderRoute.id, folderID)
     XCTAssertEqual(nested.folder?.id, folderID)
     XCTAssertEqual(nested.items.map(\.id), [fileID])
     XCTAssertEqual(fileRoute.id, fileID)
     XCTAssertEqual(fileRoute.item.parentID, folderID)
     XCTAssertEqual(fileRoute.item.kind, .video)
+  }
+
+  func testSeededRootContinuesOncePerCursorAndPersistsSort() async throws {
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
+    await runtime.session.restore()
+
+    let root = try await runtime.listFiles(parentID: .root)
+    let cursor = try XCTUnwrap(root.nextCursor)
+    let page = try await runtime.continueFiles(cursor: cursor)
+    XCTAssertEqual(
+      page.items.map(\.id), [PutioFileID(rawValue: HarnessSeededAPI.rootContinuationFileID)])
+    XCTAssertEqual(page.items.first?.kind, .other("ARCHIVE"))
+    XCTAssertNil(page.nextCursor)
+    do {
+      _ = try await runtime.continueFiles(cursor: "stale")
+      XCTFail("expected an unknown cursor to be rejected")
+    } catch {
+      XCTAssertNotNil(error as? PutioRuntimeError)
+    }
+
+    try await runtime.setFolderSort(folderID: .root, sort: .nameDescending)
+    let sorted = try await runtime.listFiles(parentID: .root)
+    XCTAssertEqual(sorted.sort, .nameDescending)
+    XCTAssertEqual(sorted.items.map(\.id), root.items.reversed().map(\.id))
   }
 
   func testSeededConversionTransitionsNestedVideoToPlayback() async throws {

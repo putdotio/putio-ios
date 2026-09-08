@@ -116,6 +116,7 @@ struct PutioFileDeletionPresentation: Equatable, Sendable {
 @MainActor
 struct FilesBrowserView: View {
   private let load: PutioFolderLoad
+  private let continueLoad: PutioFolderContinue
   private let actions: PutioFileActions?
   private let trashEnabled: Bool
   private let onFileSelected: PutioFileSelection
@@ -135,6 +136,9 @@ struct FilesBrowserView: View {
     load = { folderID in
       try await runtime.listFiles(parentID: folderID)
     }
+    continueLoad = { cursor in
+      try await runtime.continueFiles(cursor: cursor)
+    }
     actions = PutioFileActions(runtime: runtime)
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
@@ -145,6 +149,7 @@ struct FilesBrowserView: View {
 
   init(
     load: @escaping PutioFolderLoad,
+    continueLoad: @escaping PutioFolderContinue = { _ in throw PutioRuntimeError.unknown },
     actions: PutioFileActions? = nil,
     trashEnabled: Bool = true,
     onFileSelected: @escaping PutioFileSelection,
@@ -153,6 +158,7 @@ struct FilesBrowserView: View {
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests()
   ) {
     self.load = load
+    self.continueLoad = continueLoad
     self.actions = actions
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
@@ -166,6 +172,7 @@ struct FilesBrowserView: View {
       PutioFolderScreen(
         route: .root,
         load: load,
+        continueLoad: continueLoad,
         actions: actions,
         trashEnabled: trashEnabled,
         onLoaded: onRootLoaded,
@@ -176,6 +183,7 @@ struct FilesBrowserView: View {
         PutioFolderScreen(
           route: route,
           load: load,
+          continueLoad: continueLoad,
           actions: actions,
           trashEnabled: trashEnabled,
           refreshRequests: refreshRequests,
@@ -226,6 +234,7 @@ struct PutioFolderScreen: View {
   init(
     route: PutioFolderRoute,
     load: @escaping PutioFolderLoad,
+    continueLoad: PutioFolderContinue? = nil,
     actions: PutioFileActions? = nil,
     trashEnabled: Bool = true,
     initialContents: PutioFolderContents? = nil,
@@ -240,6 +249,7 @@ struct PutioFolderScreen: View {
       initialValue: PutioFolderModel(
         folderID: route.id,
         load: load,
+        continueLoad: continueLoad,
         actions: actions,
         initialContents: initialContents
       )
@@ -279,6 +289,7 @@ struct PutioFolderScreen: View {
       if model.supportsActions, !currentItems.isEmpty || isEditing {
         ToolbarItemGroup(placement: .primaryAction) {
           if !isEditing {
+            sortMenu
             Button("New Folder") {
               editorName = ""
               editor = .createFolder
@@ -489,7 +500,7 @@ struct PutioFolderScreen: View {
 
   @ViewBuilder
   private func loadedContent(_ contents: PutioFolderContents) -> some View {
-    if contents.items.isEmpty {
+    if contents.items.isEmpty, !contents.hasMore {
       ScrollView {
         VStack(spacing: PutioTheme.Spacing.space4) {
           PutioEmptyStateView(
@@ -525,13 +536,8 @@ struct PutioFolderScreen: View {
         }
 
         if contents.hasMore {
-          Section {
-          } footer: {
-            Text("More files are available in this folder.")
-              .putioFont(PutioTheme.Typography.caption)
-              .foregroundStyle(PutioTheme.Colors.textSecondary)
-              .accessibilityIdentifier("files.more.\(route.id.rawValue)")
-          }
+          loadMoreRow
+            .listRowBackground(PutioTheme.Colors.background)
         }
 
         if let refreshFailure = model.refreshFailure {
@@ -653,6 +659,74 @@ struct PutioFolderScreen: View {
       .buttonStyle(.borderless)
     }
     .accessibilityIdentifier("files.refresh-error.\(route.id.rawValue)")
+  }
+
+  private var sortMenu: some View {
+    Menu {
+      if model.sort == nil {
+        Text("Using the account default")
+      }
+      Picker("Sort by", selection: sortSelection) {
+        ForEach(PutioFolderSortPresentation.allCases) { presentation in
+          Text(presentation.title).tag(Optional(presentation.sort))
+        }
+      }
+      .pickerStyle(.inline)
+    } label: {
+      Label("Sort", systemImage: "arrow.up.arrow.down")
+    }
+    .disabled(!model.canStartAction || actionRequest != nil)
+    .accessibilityIdentifier("files.sort")
+    .accessibilityValue(sortAccessibilityValue)
+  }
+
+  private var sortAccessibilityValue: String {
+    model.sort.map { PutioFolderSortPresentation(sort: $0).title } ?? "Account default"
+  }
+
+  private var sortSelection: Binding<PutioFolderSort?> {
+    Binding(
+      get: { model.sort },
+      set: { sort in
+        guard let sort, sort != model.sort else { return }
+        actionRequest = .sort(sort)
+      }
+    )
+  }
+
+  @ViewBuilder
+  private var loadMoreRow: some View {
+    if let failure = model.loadMoreFailure {
+      VStack(alignment: .leading, spacing: PutioTheme.Spacing.space2) {
+        Text("Could not load more files")
+          .putioFont(PutioTheme.Typography.subheading)
+          .foregroundStyle(PutioTheme.Colors.textPrimary)
+        Text(failure.message)
+          .putioFont(PutioTheme.Typography.body)
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+        Button("Try again") {
+          Task { await model.loadMore() }
+        }
+        .buttonStyle(.borderless)
+      }
+      .accessibilityIdentifier("files.more-error.\(route.id.rawValue)")
+    } else {
+      HStack {
+        Spacer()
+        if model.isLoadingMore {
+          ProgressView()
+        } else {
+          Text("Loading more files")
+            .putioFont(PutioTheme.Typography.caption)
+            .foregroundStyle(PutioTheme.Colors.textSecondary)
+        }
+        Spacer()
+      }
+      .accessibilityIdentifier("files.more.\(route.id.rawValue)")
+      .task(id: model.continuationKey) {
+        await model.loadMore()
+      }
+    }
   }
 
   private func videoAccessibilityValue(for item: PutioFileItem) -> String {
@@ -823,6 +897,8 @@ struct PutioFolderScreen: View {
       switch request {
       case .createFolder(let name):
         await model.createFolder(name: name)
+      case .sort(let sort):
+        await model.setSort(sort)
       case .rename(let item, let name):
         await model.rename(item, to: name)
       case .delete(let item):
@@ -956,6 +1032,12 @@ struct PutioFolderScreen: View {
     switch action {
     case .createFolder(let name):
       PutioToast(variant: .success, title: "Folder created", message: name)
+    case .sort(_, let sort):
+      PutioToast(
+        variant: .success,
+        title: "Sorting changed",
+        message: PutioFolderSortPresentation(sort: sort).title
+      )
     case .rename(_, _, let newName):
       PutioToast(variant: .success, title: "Item renamed", message: newName)
     case .delete(_, let name):
@@ -990,6 +1072,7 @@ struct PutioFolderScreen: View {
 
   private enum FileActionRequest: Equatable {
     case createFolder(String)
+    case sort(PutioFolderSort)
     case rename(PutioFileItem, String)
     case delete(PutioFileItem)
     case move(PutioFileItem, PutioFolderRoute)
