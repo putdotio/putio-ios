@@ -299,19 +299,31 @@ private func journeyTrimFixture() -> (
   return (root, nested, back, frames)
 }
 
-@Test func journeyRecordingWindowAcceptsAHeldStaticReturnedRootFrame() throws {
-  // A fully static screen is a single held sample in a variable-frame-rate
-  // recording; it must count as settled without further samples.
+/// Root and nested screens as regular 0.1 s samples ending at 3.0 s; each
+/// test appends its own returned-root tail.
+private func journeyHeldFrameFixture() -> (
+  root: JourneyFrameFingerprint,
+  nested: JourneyFrameFingerprint,
+  back: JourneyFrameFingerprint,
+  frames: [JourneyVideoFrame]
+) {
   let root = JourneyFrameFingerprint(samples: [10])
   let nested = JourneyFrameFingerprint(samples: [100])
   let back = JourneyFrameFingerprint(samples: [200])
-  var frames = (0..<15).map { index in
-    JourneyVideoFrame(presentationTime: Double(index) / 10, duration: 0.1, fingerprint: root)
-  }
-  frames += (0..<15).map { index in
+  let frames = (0..<30).map { index in
     JourneyVideoFrame(
-      presentationTime: 1.5 + Double(index) / 10, duration: 0.1, fingerprint: nested)
+      presentationTime: Double(index) / 10,
+      duration: 0.1,
+      fingerprint: index < 15 ? root : nested
+    )
   }
+  return (root, nested, back, frames)
+}
+
+@Test func journeyRecordingWindowAcceptsAHeldStaticReturnedRootFrame() throws {
+  // A fully static screen is a single held sample in a variable-frame-rate
+  // recording; it must count as settled without further samples.
+  var (root, nested, back, frames) = journeyHeldFrameFixture()
   // The decoder reports a bogus short duration; the next sample's timestamp
   // is what proves the frame was held.
   frames.append(JourneyVideoFrame(presentationTime: 3.0, duration: 0.003, fingerprint: back))
@@ -327,16 +339,7 @@ private func journeyTrimFixture() -> (
 }
 
 @Test func journeyRecordingWindowDoesNotTrustALoneTerminalFrameDuration() {
-  let root = JourneyFrameFingerprint(samples: [10])
-  let nested = JourneyFrameFingerprint(samples: [100])
-  let back = JourneyFrameFingerprint(samples: [200])
-  var frames = (0..<15).map { index in
-    JourneyVideoFrame(presentationTime: Double(index) / 10, duration: 0.1, fingerprint: root)
-  }
-  frames += (0..<15).map { index in
-    JourneyVideoFrame(
-      presentationTime: 1.5 + Double(index) / 10, duration: 0.1, fingerprint: nested)
-  }
+  var (root, nested, back, frames) = journeyHeldFrameFixture()
   // A single final sample claiming a long duration has no timestamp behind it.
   frames.append(JourneyVideoFrame(presentationTime: 3.0, duration: 2.0, fingerprint: back))
 
@@ -346,16 +349,7 @@ private func journeyTrimFixture() -> (
 }
 
 @Test func journeyRecordingWindowStillRejectsAFlickeringReturnedRoot() {
-  let root = JourneyFrameFingerprint(samples: [10])
-  let nested = JourneyFrameFingerprint(samples: [100])
-  let back = JourneyFrameFingerprint(samples: [200])
-  var frames = (0..<15).map { index in
-    JourneyVideoFrame(presentationTime: Double(index) / 10, duration: 0.1, fingerprint: root)
-  }
-  frames += (0..<15).map { index in
-    JourneyVideoFrame(
-      presentationTime: 1.5 + Double(index) / 10, duration: 0.1, fingerprint: nested)
-  }
+  var (root, nested, back, frames) = journeyHeldFrameFixture()
   // Two short back samples separated by an unrelated frame never settle.
   frames.append(JourneyVideoFrame(presentationTime: 3.0, duration: 0.05, fingerprint: back))
   frames.append(
@@ -369,16 +363,7 @@ private func journeyTrimFixture() -> (
 }
 
 @Test func journeyRecordingWindowEndsAtTheSuccessorTimestampNotABogusLongDuration() throws {
-  let root = JourneyFrameFingerprint(samples: [10])
-  let nested = JourneyFrameFingerprint(samples: [100])
-  let back = JourneyFrameFingerprint(samples: [200])
-  var frames = (0..<15).map { index in
-    JourneyVideoFrame(presentationTime: Double(index) / 10, duration: 0.1, fingerprint: root)
-  }
-  frames += (0..<15).map { index in
-    JourneyVideoFrame(
-      presentationTime: 1.5 + Double(index) / 10, duration: 0.1, fingerprint: nested)
-  }
+  var (root, nested, back, frames) = journeyHeldFrameFixture()
   // Held 0.4 s by timestamp, but the decoder claims 30 s.
   frames.append(JourneyVideoFrame(presentationTime: 3.0, duration: 30, fingerprint: back))
   frames.append(

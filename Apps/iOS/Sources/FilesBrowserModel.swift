@@ -668,35 +668,21 @@ final class PutioFolderModel {
           try await operation(item)
           succeeded.append(item)
         } catch {
-          let runtimeError = error as? PutioRuntimeError ?? .unknown
+          let failure = itemFailure(for: action, item: item, error: error)
           removedIDs.remove(item.id)
-          let itemAction = singleAction(for: action, item: item)
-          failures.append(
-            PutioBulkFileItemFailure(
-              item: item,
-              error: runtimeError,
-              presentation: PutioFileActionFailure(action: itemAction, error: error)
-            )
-          )
-          if runtimeError == .rateLimited {
+          failures.append(failure)
+          let rateLimited = failure.error == .rateLimited
+          if rateLimited {
             for deferredItem in items.dropFirst(index + 1) {
               removedIDs.remove(deferredItem.id)
-              let deferredAction = singleAction(for: action, item: deferredItem)
               failures.append(
-                PutioBulkFileItemFailure(
-                  item: deferredItem,
-                  error: .rateLimited,
-                  presentation: PutioFileActionFailure(
-                    action: deferredAction,
-                    error: PutioRuntimeError.rateLimited
-                  )
-                )
+                itemFailure(
+                  for: action, item: deferredItem, error: PutioRuntimeError.rateLimited)
               )
             }
-            state = .loaded(originalContents.removing(removedIDs))
-            break
           }
           state = .loaded(originalContents.removing(removedIDs))
+          if rateLimited { break }
         }
 
         if let nextItem = items.dropFirst(index + 1).first {
@@ -735,6 +721,19 @@ final class PutioFolderModel {
     let latestItems = selectedIDs.compactMap { itemsByID[$0] }
     guard latestItems.count == selectedIDs.count else { return nil }
     return latestItems
+  }
+
+  private func itemFailure(
+    for action: PutioBulkFileAction,
+    item: PutioFileItem,
+    error: Error
+  ) -> PutioBulkFileItemFailure {
+    PutioBulkFileItemFailure(
+      item: item,
+      error: error as? PutioRuntimeError ?? .unknown,
+      presentation: PutioFileActionFailure(
+        action: singleAction(for: action, item: item), error: error)
+    )
   }
 
   private func singleAction(

@@ -8,7 +8,6 @@ including [Apple contract 0.2.0](https://github.com/putdotio/putio-design/blob/v
 The package, lockfile, coverage manifest, generated adapter, and provenance test
 name that exact version. Its 532-token graph has no value changes from 3.0.0;
 all existing generated, aliased, and excluded classifications remain valid.
-Version 3.1.0 is an intermediate contract checkpoint with the same token graph.
 
 The package owns colors, type scales, spacing, motion, and Phosphor icons.
 Apple owns controls, layout behavior, focus, and presentation. Android follows
@@ -48,7 +47,7 @@ conventions; web TV uses the web binding at a 10-foot scale.
 
 ## Apple ruling map
 
-| Ruling from putio-design#44 | Implementation |
+| Ruling from [putio-design#44](https://github.com/putdotio/putio-design/issues/44) | Implementation |
 | --- | --- |
 | Stock Gauge geometry and track | `PutioDownloadStateButton` keeps the stock intrinsic 47pt ring, approximately 7pt stroke, and tint-derived track. The 44pt target is a minimum. |
 | Five download states | Idle, Queued, Downloading, Downloaded, and Failed remain distinct. Failed reuses the idle glyph and announces retry; the owning row carries its reason. |

@@ -396,8 +396,6 @@ final class PutioTrashModel {
     await load(initial: true)
   }
 
-  /// Called on every appearance. The Account stack keeps this screen alive
-  /// across tab switches, and Files may have trashed more items meanwhile.
   /// The screen is leaving; a partially walked listing will not complete.
   func abandonListing() {
     isVisible = false
@@ -415,6 +413,8 @@ final class PutioTrashModel {
     return reconciled
   }
 
+  /// Called on every appearance. The Account stack keeps this screen alive
+  /// across tab switches, and Files may have trashed more items meanwhile.
   func refreshOnAppear() async {
     isVisible = true
     if hasLoaded {

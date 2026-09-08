@@ -91,7 +91,7 @@ public final class PutioRuntime {
   }
 
   public func restoreTrashItem(fileID: PutioFileID) async throws -> PutioTrashRestoreResult {
-    let response = try await performAuthenticatedMutation {
+    let response = try await performAuthenticatedOperation(commits: true) {
       try await sdk.restoreTrashFiles(fileIDs: [fileID.rawValue], cursor: nil)
     }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
@@ -114,7 +114,7 @@ public final class PutioRuntime {
   public func permanentlyDeleteTrashItem(
     fileID: PutioFileID
   ) async throws -> PutioTrashMutationResult {
-    let response = try await performAuthenticatedMutation {
+    let response = try await performAuthenticatedOperation(commits: true) {
       try await sdk.deleteTrashFiles(fileIDs: [fileID.rawValue], cursor: nil)
     }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
@@ -123,7 +123,7 @@ public final class PutioRuntime {
   }
 
   public func emptyTrash() async throws -> PutioTrashMutationResult {
-    let response = try await performAuthenticatedMutation {
+    let response = try await performAuthenticatedOperation(commits: true) {
       try await sdk.emptyTrash()
     }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
@@ -204,23 +204,11 @@ public final class PutioRuntime {
     }
   }
 
-  private func performAuthenticatedOperation<Value>(
-    _ operation: () async throws -> Value
-  ) async throws -> Value {
-    try await performAuthenticatedOperation(commits: false, operation)
-  }
-
   /// A committing operation keeps a decoded success even if the task was
   /// cancelled while the response was in flight: the server already applied
   /// it, and callers must reconcile rather than treat it as never sent.
-  private func performAuthenticatedMutation<Value>(
-    _ operation: () async throws -> Value
-  ) async throws -> Value {
-    try await performAuthenticatedOperation(commits: true, operation)
-  }
-
   private func performAuthenticatedOperation<Value>(
-    commits: Bool,
+    commits: Bool = false,
     _ operation: () async throws -> Value
   ) async throws -> Value {
     guard case .signedIn = session.state else {

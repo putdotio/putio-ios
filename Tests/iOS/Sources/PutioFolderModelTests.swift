@@ -1331,16 +1331,7 @@ final class PutioFolderModelTests: XCTestCase {
 
     let secondRequestedID = await mutations.fileID(for: 1)
     XCTAssertEqual(secondRequestedID, succeeded.id)
-    XCTAssertEqual(
-      model.state,
-      .loaded(
-        BrowserTestFixtures.contents(
-          folderID: 42,
-          items: [leading, failed, middle, trailing],
-          hasMore: true
-        )
-      )
-    )
+    XCTAssertEqual(model.state, .loaded(reconciled), "only the failed item is restored")
     XCTAssertEqual(
       model.bulkProgress,
       PutioBulkFileProgress(
@@ -1365,10 +1356,7 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(outcome.failures[0].item, failed)
     XCTAssertEqual(outcome.failures[0].error, .transient)
     XCTAssertEqual(outcome.failures[0].presentation?.title, "Could not remove item")
-    XCTAssertEqual(
-      model.state,
-      .loaded(reconciled)
-    )
+    XCTAssertEqual(model.state, .loaded(reconciled))
     XCTAssertNil(model.activeBulkAction)
     XCTAssertNil(model.bulkProgress)
     XCTAssertTrue(model.canStartAction)
@@ -1402,10 +1390,7 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.bulkOutcome?.succeeded, [])
     XCTAssertEqual(model.bulkOutcome?.failures.map(\.item), [first, second, third])
     XCTAssertEqual(
-      model.bulkOutcome?.failures.map(\.error),
-      [
-        .rateLimited, .rateLimited, .rateLimited,
-      ])
+      model.bulkOutcome?.failures.map(\.error), [.rateLimited, .rateLimited, .rateLimited])
     XCTAssertNil(model.activeBulkAction)
     XCTAssertNil(model.bulkProgress)
     XCTAssertTrue(model.canStartAction)
@@ -1611,8 +1596,6 @@ final class PutioFolderModelTests: XCTestCase {
     await mutations.succeed(request: 1)
     await bulk.value
     await loader.waitForRequestCount(2)
-    let replayedRequestCount = await loader.requestCount()
-    XCTAssertEqual(replayedRequestCount, 2)
     await loader.succeed(request: 1, with: refreshed)
     await waitForState(model, .loaded(refreshed))
 

@@ -36,8 +36,6 @@ private func withFakeSimctl<T>(
   try script.write(to: xcrun, atomically: true, encoding: .utf8)
   try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: xcrun.path)
   defer { try? FileManager.default.removeItem(at: root) }
-  // Foundation snapshots the process environment on first access, so PATH is
-  // redirected per runner instead of through `setenv`.
   let originalPath = ProcessInfo.processInfo.environment["PATH"] ?? ""
   return try body(ProcessRunner(environment: ["PATH": "\(bin.path):\(originalPath)"]), log)
 }
@@ -55,10 +53,8 @@ struct OwnedSimulatorTests {
       ("bbbb", "another-agent-device"),
     ]) { runner, log in
       let owned = OwnedSimulator(name: "putio-harness-ios-run-1-deadbeef")
-      // Interrupted before `simctl create` returned: only the verified name
-      // identifies the device. The static fixture still lists it after
-      // deletion, so the verification step throws; the recorded calls are
-      // the contract under test.
+      // The static fixture still lists the device after deletion, so the
+      // post-delete verification throws; the recorded calls are the contract.
       try? owned.cleanup(runner: runner)
       let recorded = calls(log)
       #expect(recorded.contains("simctl shutdown aaaa"))

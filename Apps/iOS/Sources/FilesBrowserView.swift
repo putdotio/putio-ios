@@ -406,7 +406,7 @@ struct PutioFolderScreen: View {
       presenting: model.bulkOutcome
     ) { outcome in
       Button("Try Again") {
-        retryBulkFailures(outcome)
+        actionRequest = .bulkRetry(outcome)
       }
       .accessibilityIdentifier("files.bulk.retry")
       Button("Done", role: .cancel) {
@@ -551,13 +551,11 @@ struct PutioFolderScreen: View {
   @ViewBuilder
   private func row(_ presentation: PutioBrowserItemPresentation) -> some View {
     if isEditing {
-      PutioFileRow(
-        presentation.row
-      )
-      .contentShape(Rectangle())
-      .accessibilityElement(children: .combine)
-      .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
-      .accessibilityValue(Text(selectionAccessibilityValue(for: presentation.item)))
+      PutioFileRow(presentation.row)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
+        .accessibilityValue(Text(selectionAccessibilityValue(for: presentation.item)))
     } else if let folderRoute = presentation.folderRoute {
       fileActions(
         for: presentation.item,
@@ -922,10 +920,6 @@ struct PutioFolderScreen: View {
     return outcome.failures.count == outcome.completedCount
       ? "Could not move items"
       : "Some items couldn’t be moved"
-  }
-
-  private func retryBulkFailures(_ outcome: PutioBulkFileOutcome) {
-    actionRequest = .bulkRetry(outcome)
   }
 
   private func bulkProgressTitle(_ progress: PutioBulkFileProgress) -> String {

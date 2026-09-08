@@ -55,7 +55,8 @@
 - Component or theming change: `mise run harness -- test --platform <ios|tvos>` asserts the
   committed snapshot gallery; after an intentional visual change re-record with
   `--snapshots record` and commit the image diff
-- Agent runtime proof: `mise run harness -- proof --platform <ios|watchos|tvos>`
+- iOS file-browser change: `mise run harness -- journey --platform ios --scenario files-browser`
+- Agent runtime proof: `mise run harness -- proof --platform <ios|watchos|tvos|all>`
 
 ## Harness
 

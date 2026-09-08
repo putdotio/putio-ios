@@ -246,9 +246,6 @@ public final class PutioSessionStore {
 
   // MARK: - Account bootstrap
 
-  /// Reloads the signed-in account snapshot. Returns `false` when the snapshot
-  /// could not be updated so callers can tell the user that storage totals are
-  /// stale; an authentication rejection expires the session instead.
   /// Reloads the account after a committed mutation changed storage. The
   /// mutation itself is already durable; this only tracks whether the
   /// snapshot followed. Returns `false` when the snapshot is still stale.
@@ -259,6 +256,9 @@ public final class PutioSessionStore {
     return await refreshAccount()
   }
 
+  /// Reloads the signed-in account snapshot. Returns `false` when the snapshot
+  /// could not be updated so callers can tell the user that storage totals are
+  /// stale; an authentication rejection expires the session instead.
   @discardableResult
   func refreshAccount() async -> Bool {
     guard case .signedIn = state else { return false }
