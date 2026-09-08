@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class FilesSearchTests: XCTestCase {
-  func testWhitespaceDoesNotSearchAndCancellationStopsDebounce() async {
+  func testWhitespaceDoesNotSearchAndCancellationStopsDebounce() async throws {
     var keywords: [String] = []
     let model = PutioFileSearchModel(
       search: { keyword in
@@ -18,7 +18,8 @@ final class FilesSearchTests: XCTestCase {
     await model.update(query: " \n ")
     XCTAssertEqual(model.state, .idle)
     let task = Task { await model.update(query: "unsubmitted") }
-    while model.query != "unsubmitted" { await Task.yield() }
+    defer { task.cancel() }
+    try await waitForSearchCondition { model.query == "unsubmitted" }
     task.cancel()
     await task.value
     await model.update(query: "")
@@ -26,14 +27,15 @@ final class FilesSearchTests: XCTestCase {
     XCTAssertTrue(keywords.isEmpty)
   }
 
-  func testLatestQueryWinsEvenWhenOldRequestIgnoresCancellation() async {
+  func testLatestQueryWinsEvenWhenOldRequestIgnoresCancellation() async throws {
     let requests = ControlledSearch()
+    defer { requests.cancelPending() }
     let model = PutioFileSearchModel(
       search: { try await requests.load($0) }, continueSearch: { _ in Self.page([]) })
     let first = Task { await model.update(query: "old", debounced: false) }
-    await requests.waitForCount(1)
+    try await requests.waitForCount(1)
     let second = Task { await model.update(query: " new ", debounced: false) }
-    await requests.waitForCount(2)
+    try await requests.waitForCount(2)
     XCTAssertEqual(requests.keywords, ["old", "new"])
     requests.finish(1, with: .success(Self.page([2])))
     await second.value
@@ -43,12 +45,13 @@ final class FilesSearchTests: XCTestCase {
     XCTAssertEqual(model.query, "new")
   }
 
-  func testClearingQueryRejectsAnInFlightResult() async {
+  func testClearingQueryRejectsAnInFlightResult() async throws {
     let requests = ControlledSearch()
+    defer { requests.cancelPending() }
     let model = PutioFileSearchModel(
       search: { try await requests.load($0) }, continueSearch: { _ in Self.page([]) })
     let request = Task { await model.update(query: "old", debounced: false) }
-    await requests.waitForCount(1)
+    try await requests.waitForCount(1)
     await model.update(query: "")
     requests.finish(0, with: .success(Self.page([1])))
     await request.value
@@ -113,17 +116,18 @@ final class FilesSearchTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(Self.page([3], cursor: "next")))
   }
 
-  func testNewQueryDiscardsOldPageAndAllowsNewPagination() async {
+  func testNewQueryDiscardsOldPageAndAllowsNewPagination() async throws {
     let requests = ControlledSearch()
+    defer { requests.cancelPending() }
     let model = PutioFileSearchModel(
       search: { query in Self.page(query == "old" ? [1] : [3], cursor: query) },
       continueSearch: { try await requests.load($0) })
     await model.update(query: "old", debounced: false)
     let oldPage = Task { await model.loadMore() }
-    await requests.waitForCount(1)
+    try await requests.waitForCount(1)
     await model.update(query: "new", debounced: false)
     let newPage = Task { await model.loadMore() }
-    await requests.waitForCount(2)
+    try await requests.waitForCount(2)
     requests.finish(0, with: .success(Self.page([2])))
     await oldPage.value
     XCTAssertTrue(model.isLoadingMore)
@@ -148,15 +152,16 @@ final class FilesSearchTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(Self.page([1, 2], cursor: "b")))
   }
 
-  func testCancelledPageRestartsAfterAnEarlyReappearance() async {
+  func testCancelledPageRestartsAfterAnEarlyReappearance() async throws {
     let requests = ControlledSearch()
+    defer { requests.cancelPending() }
     let model = PutioFileSearchModel(
       search: { _ in Self.page([1], cursor: "second") },
       continueSearch: { try await requests.load($0) })
     await model.update(query: "movie", debounced: false)
     let originalEpoch = model.paginationEpoch
     let first = Task { await model.loadMore() }
-    await requests.waitForCount(1)
+    try await requests.waitForCount(1)
     first.cancel()
     await model.loadMore()
     XCTAssertEqual(requests.keywords.count, 1)
@@ -166,7 +171,7 @@ final class FilesSearchTests: XCTestCase {
     XCTAssertFalse(model.isLoadingMore)
     XCTAssertNil(model.loadMoreFailure)
     let restarted = Task { await model.loadMore() }
-    await requests.waitForCount(2)
+    try await requests.waitForCount(2)
     requests.finish(1, with: .success(Self.page([2])))
     await restarted.value
     XCTAssertEqual(model.state, .loaded(Self.page([1, 2])))
@@ -182,18 +187,42 @@ final class FilesSearchTests: XCTestCase {
 private final class ControlledSearch {
   private(set) var keywords: [String] = []
   private var pending: [Int: CheckedContinuation<PutioFileSearchPage, any Error>] = [:]
+  private var isClosed = false
 
   func load(_ keyword: String) async throws -> PutioFileSearchPage {
+    guard !isClosed else { throw CancellationError() }
     let index = keywords.count
     keywords.append(keyword)
     return try await withCheckedThrowingContinuation { pending[index] = $0 }
   }
 
-  func waitForCount(_ count: Int) async {
-    while keywords.count < count { await Task.yield() }
+  func waitForCount(_ count: Int) async throws {
+    try await waitForSearchCondition { self.keywords.count >= count }
+  }
+
+  func cancelPending() {
+    isClosed = true
+    let continuations = Array(pending.values)
+    pending.removeAll()
+    for continuation in continuations {
+      continuation.resume(throwing: CancellationError())
+    }
   }
 
   func finish(_ index: Int, with result: Result<PutioFileSearchPage, any Error>) {
     pending.removeValue(forKey: index)?.resume(with: result)
+  }
+}
+
+@MainActor
+private func waitForSearchCondition(_ condition: () -> Bool) async throws {
+  let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+  while !condition() {
+    guard ContinuousClock.now < deadline else {
+      throw NSError(
+        domain: "FilesSearchTests", code: 1,
+        userInfo: [NSLocalizedDescriptionKey: "Timed out waiting for the search request"])
+    }
+    try await Task.sleep(for: .milliseconds(1))
   }
 }

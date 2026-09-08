@@ -471,11 +471,11 @@ struct PutioFolderScreen: View {
     }
     .task(id: route.id) {
       refreshRegistration.activate()
-      let pending = refreshRequests.sequence(for: route.id)
+      let pending = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
       // A fresh initial load already reflects any request that predates it.
       let loaded = await model.loadIfNeeded()
       guard loaded, let pending, !Task.isCancelled else { return }
-      refreshRequests.markConsumed(pending, for: route.id)
+      refreshRequests.markConsumed(pending, for: route.id, owner: refreshRegistration.owner)
     }
     .task(id: retryRequest) {
       await runRetryRequest()
@@ -492,14 +492,18 @@ struct PutioFolderScreen: View {
     // Keyed on the loaded flag too, so a request that arrived while the
     // initial load was in flight is retried once the folder is loaded.
     .task(
-      id: PendingRefresh(sequence: refreshRequests.sequence(for: route.id), loaded: model.isLoaded)
+      id: PendingRefresh(
+        sequence: refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner),
+        loaded: model.isLoaded)
     ) {
-      guard model.isLoaded, let sequence = refreshRequests.sequence(for: route.id) else { return }
+      guard model.isLoaded,
+        let sequence = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
+      else { return }
       // A request stays pending until a refresh actually ran. One queued
       // behind a mutation is awaited so its success consumes the request too.
       let refreshed = await model.refreshWhenIdle()
       guard refreshed, !Task.isCancelled else { return }
-      refreshRequests.markConsumed(sequence, for: route.id)
+      refreshRequests.markConsumed(sequence, for: route.id, owner: refreshRegistration.owner)
     }
     .onChange(of: model.state, initial: true) { _, state in
       if case .loaded(let contents) = state, !fileActionPending {
@@ -820,10 +824,10 @@ struct PutioFolderScreen: View {
         return
       }
       // A fresh load already reflects any refresh request made before it.
-      let pending = refreshRequests.sequence(for: route.id)
+      let pending = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
       await model.retry()
       if model.isLoaded, let pending, !Task.isCancelled {
-        refreshRequests.markConsumed(pending, for: route.id)
+        refreshRequests.markConsumed(pending, for: route.id, owner: refreshRegistration.owner)
       }
     case .refresh:
       guard model.refreshFailure != nil else {
@@ -831,10 +835,10 @@ struct PutioFolderScreen: View {
         return
       }
       // A successful retry is as current as the pending request asked for.
-      let pending = refreshRequests.sequence(for: route.id)
+      let pending = refreshRequests.sequence(for: route.id, owner: refreshRegistration.owner)
       let refreshed = await model.refresh()
       if refreshed, let pending, !Task.isCancelled {
-        refreshRequests.markConsumed(pending, for: route.id)
+        refreshRequests.markConsumed(pending, for: route.id, owner: refreshRegistration.owner)
       }
     }
     guard retryRequest == request else { return }
@@ -1004,6 +1008,9 @@ struct PutioFolderScreen: View {
 
   private func presentActionOutcome() {
     guard let outcome = model.actionOutcome else { return }
+    // A failed mutation may still have reached the server. Reconcile every
+    // mounted copy of the source, and both sides of a move, after it settles.
+    refreshRequests.request(folderID: route.id, excludingOwner: refreshRegistration.owner)
     switch outcome {
     case .succeeded(let action):
       if case .move(_, _, _, let destinationID, _) = action {
@@ -1011,6 +1018,9 @@ struct PutioFolderScreen: View {
       }
       toast = successToast(for: action)
     case .failed(let action, let failure):
+      if case .move(_, _, _, let destinationID, _) = action {
+        refreshRequests.request(folderID: destinationID)
+      }
       let title: String
       if case .delete = action {
         title = deletionPresentation.singleFailureTitle
@@ -1024,6 +1034,7 @@ struct PutioFolderScreen: View {
 
   private func presentBulkOutcome() {
     guard let outcome = model.bulkOutcome else { return }
+    refreshRequests.request(folderID: route.id, excludingOwner: refreshRegistration.owner)
     if case .move(let destination) = outcome.action {
       refreshRequests.request(folderID: destination.id)
     }
@@ -1376,10 +1387,10 @@ private struct PutioMoveDestinationScreen: View {
 
   private func presentActionOutcome() {
     guard let outcome = model.actionOutcome else { return }
+    refreshRequests.request(folderID: route.id)
     switch outcome {
     case .succeeded(let action):
       if case .createFolder = action { newFolderName = "" }
-      refreshRequests.request(folderID: route.id)
     case .failed(_, let failure):
       toast = PutioToast(variant: .danger, title: failure.title, message: failure.message)
     }

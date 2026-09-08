@@ -447,6 +447,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     signIn.tap()
     XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
 
+    let folder = element(identifier: "files.item.410")
+    XCTAssertTrue(waitUntilHittable(folder, timeout: 5))
+    folder.tap()
+    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 10))
+    XCTAssertFalse(element(identifier: "files.item.415").exists)
+
     app.buttons["Search"].tap()
     let searchField = app.searchFields.firstMatch
     XCTAssertTrue(searchField.waitForExistence(timeout: 5))
@@ -470,7 +476,21 @@ final class FilesBrowserJourneyTests: XCTestCase {
     folderResult.tap()
     XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 10))
     XCTAssertTrue(element(identifier: "files.item.411").exists)
+    createFolder(named: "Cross-tab Refresh", expectedID: 415)
     app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 5))
+    let crossTabFolder = element(identifier: "files.item.415")
+    XCTAssertTrue(
+      crossTabFolder.waitForExistence(timeout: 10),
+      "the Files folder did not refresh after its Search counterpart was popped"
+    )
+    XCTAssertEqual(crossTabFolder.label, "Cross-tab Refresh")
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    app.buttons["Search"].tap()
     XCTAssertTrue(searchField.waitForExistence(timeout: 5))
 
     replaceSearchQuery("no-matching-file", in: searchField)
@@ -490,7 +510,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(videoResult.waitForExistence(timeout: 10))
 
     app.buttons["Files"].tap()
-    let folder = element(identifier: "files.item.410")
     XCTAssertTrue(folder.waitForExistence(timeout: 5))
     folder.tap()
     XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 10))
