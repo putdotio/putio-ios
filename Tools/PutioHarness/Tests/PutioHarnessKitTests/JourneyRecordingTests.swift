@@ -299,7 +299,7 @@ private func journeyTrimFixture() -> (
   return (root, nested, back, frames)
 }
 
-/// Root and nested screens as regular 0.1 s samples ending at 3.0 s; each
+/// Root and nested screens as regular 0.1 s samples ending at 2.9 s; each
 /// test appends its own returned-root tail.
 private func journeyHeldFrameFixture() -> (
   root: JourneyFrameFingerprint,
