@@ -768,6 +768,15 @@ public struct SimulatorHarness {
           defaultExecutionTimeAllowance: 180,
           maximumExecutionTimeAllowance: 180
         )
+        _ = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.folderReconciliationTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".folder-reconciliation.xcresult"),
+          defaultExecutionTimeAllowance: 120,
+          maximumExecutionTimeAllowance: 120
+        )
         let preflightScreenshots =
           signOutFailureScreenshots + fileActionsScreenshots + trashManagementScreenshots
           + sortedRootScreenshots + searchScreenshots
@@ -779,6 +788,7 @@ public struct SimulatorHarness {
         for bundle in [
           ".sign-out-recovery.xcresult", ".file-actions.xcresult", ".trash-management.xcresult",
           ".sort-continuation.xcresult", ".search-restoration.xcresult",
+          ".folder-reconciliation.xcresult",
         ] {
           try? fileManager.removeItem(at: platformDirectory.appending(path: bundle))
         }

@@ -532,14 +532,18 @@ final class FilesBrowserJourneyTests: XCTestCase {
     signIn.tap()
     XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
     XCTAssertFalse(element(identifier: "files.screen.410").exists)
-    assertDeletingOpenFolderInvalidatesItsDescendants()
     app.buttons["Account"].tap()
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
   }
 
-  private func assertDeletingOpenFolderInvalidatesItsDescendants() {
+  func testRenamingAndDeletingOpenFolderReconcilesOtherTabs() {
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    signIn.tap()
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
     app.buttons["Search"].tap()
     let search = app.searchFields.firstMatch
     XCTAssertTrue(waitUntilHittable(search, timeout: 5))
@@ -601,6 +605,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "files.item.411").exists, "deleted folder kept a playable video")
     XCTAssertFalse(
       element(identifier: "files.item.415").exists, "deleted folder kept its child row")
+    app.buttons["Account"].tap()
+    let signOut = element(identifier: "auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    signOut.tap()
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
   }
 
   private func replaceSearchQuery(_ query: String, in field: XCUIElement) {

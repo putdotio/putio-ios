@@ -539,22 +539,25 @@ struct PutioFolderScreen: View {
   @ViewBuilder
   private func loadedContent(_ contents: PutioFolderContents) -> some View {
     if contents.items.isEmpty, !contents.hasMore {
-      ScrollView {
-        VStack(spacing: PutioTheme.Spacing.space4) {
-          PutioEmptyStateView(
-            icon: .folderFill,
-            title: "This folder is empty",
-            message: "Files added here appear in this list."
-          )
-          if let refreshFailure = model.refreshFailure {
-            refreshFailureRow(refreshFailure)
+      GeometryReader { geometry in
+        ScrollView {
+          VStack(spacing: PutioTheme.Spacing.space4) {
+            PutioEmptyStateView(
+              icon: .folderFill,
+              title: "This folder is empty",
+              message: "Files added here appear in this list."
+            )
+            if let refreshFailure = model.refreshFailure {
+              refreshFailureRow(refreshFailure)
+            }
           }
+          .padding(PutioTheme.Spacing.space4)
+          .frame(minHeight: geometry.size.height)
         }
-        .containerRelativeFrame([.horizontal, .vertical])
-        .padding(PutioTheme.Spacing.space4)
-      }
-      .refreshable {
-        _ = await model.refresh()
+        .scrollBounceBehavior(.always)
+        .refreshable {
+          _ = await model.refresh()
+        }
       }
       .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
     } else {
