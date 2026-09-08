@@ -605,6 +605,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
       element(identifier: "files.item.411").exists, "deleted folder kept a playable video")
     XCTAssertFalse(
       element(identifier: "files.item.415").exists, "deleted folder kept its child row")
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 10))
+    XCTAssertFalse(folderResult.exists, "search kept the deleted folder")
+    XCTAssertFalse(element(identifier: "files.search-item.411").exists)
     app.buttons["Account"].tap()
     let signOut = element(identifier: "auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))

@@ -93,6 +93,25 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertEqual(fileRoute.item.kind, .video)
   }
 
+  func testSeededSearchRemovesDeletedFolderAndItsContinuation() async throws {
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
+    await runtime.session.restore()
+    let initial = try await runtime.searchFiles(query: "harness")
+    XCTAssertEqual(initial.items.map(\.id.rawValue), [410])
+    let cursor = try XCTUnwrap(initial.nextCursor)
+
+    try await runtime.deleteFile(fileID: PutioFileID(rawValue: 410))
+
+    for query in ["harness", "retry"] {
+      let refreshed = try await runtime.searchFiles(query: query)
+      XCTAssertTrue(refreshed.items.isEmpty)
+      XCTAssertNil(refreshed.nextCursor)
+    }
+    let continued = try await runtime.continueFileSearch(cursor: cursor)
+    XCTAssertTrue(continued.items.isEmpty)
+    XCTAssertNil(continued.nextCursor)
+  }
+
   func testSeededRootContinuesOncePerCursorAndPersistsSort() async throws {
     let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
     await runtime.session.restore()

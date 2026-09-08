@@ -223,6 +223,9 @@ import Foundation
     }
 
     private static func searchFiles(url: URL) -> (Int, String) {
+      guard !fileActionsLock.withLock({ harnessFolderDeleted }) else {
+        return (200, #"{"total":0,"files":[]}"#)
+      }
       let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?
         .queryItems?.first { $0.name == "query" }?.value?.lowercased()
       if query == "no-matching-file" {
@@ -275,6 +278,9 @@ import Foundation
             statusCode: 400, type: "HARNESS_SEARCH_CURSOR_INVALID",
             message: "The search fixture requires its continuation cursor")
         )
+      }
+      guard !fileActionsLock.withLock({ harnessFolderDeleted }) else {
+        return (200, #"{"total":0,"files":[]}"#)
       }
       let shouldFail = fileActionsLock.withLock {
         if searchContinuationFailed { return false }
