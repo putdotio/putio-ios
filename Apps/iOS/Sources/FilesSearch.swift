@@ -140,7 +140,6 @@ struct FilesSearchView: View {
         .navigationTitle("Search")
         .putioContentBackground()
         .searchable(text: $query, prompt: "Search in Files")
-        .accessibilityIdentifier("files.search")
         .task(id: Request(query: query, revision: refreshRequests.revision)) {
           await model.update(query: query)
         }

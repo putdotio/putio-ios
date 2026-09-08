@@ -504,9 +504,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private func replaceSearchQuery(_ query: String, in field: XCUIElement) {
     field.tap()
-    let currentValue = field.value as? String ?? ""
-    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentValue.count))
+    let clear = field.buttons["Clear text"]
+    XCTAssertTrue(waitUntilHittable(clear, timeout: 5))
+    clear.tap()
     field.typeText(query + "\n")
+    XCTAssertEqual(field.value as? String, query)
   }
 
   func testUnsupportedFileIsNotActionable() {
