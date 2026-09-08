@@ -106,6 +106,53 @@ final class HistoryTests: XCTestCase {
     XCTAssertEqual(deleteCalls, 1)
   }
 
+  func testRefreshDiscardsFailedLookupOnlyWhenItsEventIsNoLongerLoaded() async {
+    let event = PutioHistoryEventItem(
+      id: 30, createdAt: .now,
+      kind: .upload(name: "Missing file", sizeBytes: 0, fileID: PutioFileID(rawValue: 10)))
+    var items = [event]
+    var lookups = 0
+    let model = model(
+      list: { _ in PutioHistoryPage(items: items, nextBefore: nil) },
+      file: { _ in
+        lookups += 1
+        throw PutioRuntimeError.notFound
+      })
+    await model.loadIfNeeded()
+    await model.openFile(event: event)
+    await model.refresh()
+    XCTAssertNotNil(model.openFailure)
+    items = []
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [])
+    XCTAssertNil(model.openFailure)
+    await model.retryOpen()
+    XCTAssertEqual(lookups, 1)
+  }
+
+  func testRefreshClearsFailedClearOnlyAfterHistoryIsCompletelyEmpty() async {
+    var page = Self.page([30])
+    var clears = 0
+    let model = model(
+      list: { _ in page },
+      clear: {
+        clears += 1
+        throw PutioRuntimeError.transient
+      })
+    await model.loadIfNeeded()
+    await model.clear()
+    page = Self.page([], next: 20)
+    await model.refresh()
+    XCTAssertEqual(model.failedMutation, .clear)
+    XCTAssertNotNil(model.mutationFailure)
+    page = Self.page([])
+    await model.refresh()
+    XCTAssertNil(model.failedMutation)
+    XCTAssertNil(model.mutationFailure)
+    await model.retryMutation()
+    XCTAssertEqual(clears, 1)
+  }
+
   func testClearSupersedesInflightPageAndLateResponseCannotRestoreDeletedEvents() async throws {
     let pending = PendingHistoryPage()
     defer { pending.cancel() }

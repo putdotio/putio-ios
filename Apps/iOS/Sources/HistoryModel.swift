@@ -118,8 +118,13 @@ final class PutioHistoryModel {
       state = .loaded(
         PutioHistoryPage(
           items: page.items.filter { ids.insert($0.id).inserted }, nextBefore: page.nextBefore))
-      if case .delete(let id) = failedMutation, !page.items.contains(where: { $0.id == id }) {
-        clearMutationFailure()
+      switch failedMutation {
+      case .delete(let id) where !ids.contains(id): clearMutationFailure()
+      case .clear where page.items.isEmpty && page.nextBefore == nil: clearMutationFailure()
+      default: break
+      }
+      if let eventID = openingEventID ?? failedOpen?.id, !ids.contains(eventID) {
+        cancelOpen()
       }
     } catch {
       guard request == generation, !Task.isCancelled,
