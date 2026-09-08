@@ -66,7 +66,7 @@ import Testing
   )
   #expect(
     BrowserJourneyContract.trashDisabledTestIdentifier
-      == "PutioUITests/FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyAndVisibleMenu"
+      == "PutioUITests/FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"
   )
   #expect(
     BrowserJourneyContract.trashManagementTestIdentifier

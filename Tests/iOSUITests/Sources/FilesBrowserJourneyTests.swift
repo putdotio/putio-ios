@@ -244,7 +244,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertFalse(retry.exists)
   }
 
-  func testTrashDisabledUsesPermanentDeleteCopyAndVisibleMenu() {
+  func testTrashDisabledUsesPermanentDeleteCopyInContextMenu() {
     app.launchArguments.append("--putio-harness-trash-disabled")
     app.launch()
 
@@ -257,16 +257,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
 
     let folder = createFolder(named: "Delete Forever", expectedID: 415)
-    let moreActions = app.buttons["files.actions.415"]
-    XCTAssertTrue(
-      waitUntilHittable(moreActions, timeout: 5),
-      "visible more-actions control is unavailable"
-    )
-    XCTAssertEqual(moreActions.label, "More actions for Delete Forever")
-    moreActions.tap()
-
-    let delete = app.buttons["files.delete.415"]
-    XCTAssertTrue(delete.waitForExistence(timeout: 5), "permanent Delete action is unavailable")
+    XCTAssertFalse(app.buttons["files.actions.415"].exists)
+    let delete = openContextMenu(for: folder, actionLabel: "Delete")
     XCTAssertEqual(delete.label, "Delete")
     delete.tap()
     XCTAssertTrue(
