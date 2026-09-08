@@ -22,6 +22,7 @@ final class PutioFileSearchModel {
   private(set) var refreshFailure: PutioBrowserErrorPresentation?
   private(set) var loadMoreFailure: PutioBrowserErrorPresentation?
   private(set) var generation: UInt64 = 0
+  private(set) var paginationEpoch: UInt64 = 0
   @ObservationIgnored private let search: PutioFileSearch
   @ObservationIgnored private let continueSearch: PutioFileSearch
   @ObservationIgnored private let debounce: Duration
@@ -84,7 +85,12 @@ final class PutioFileSearchModel {
     let requestGeneration = generation
     isLoadingMore = true
     loadMoreFailure = nil
-    defer { if requestGeneration == generation { isLoadingMore = false } }
+    defer {
+      if requestGeneration == generation {
+        isLoadingMore = false
+        if Task.isCancelled { paginationEpoch &+= 1 }
+      }
+    }
     do {
       let page = try await continueSearch(cursor)
       guard requestGeneration == generation, !Task.isCancelled else { return }
@@ -215,7 +221,8 @@ struct FilesSearchView: View {
                 ProgressView("Loading more results")
                   .task(
                     id: PageRequest(
-                      cursor: cursor, generation: model.generation, isSearching: model.isSearching)
+                      cursor: cursor, generation: model.generation, isSearching: model.isSearching,
+                      epoch: model.paginationEpoch)
                   ) {
                     await model.loadMore()
                   }
@@ -258,5 +265,6 @@ struct FilesSearchView: View {
     let cursor: String
     let generation: UInt64
     let isSearching: Bool
+    let epoch: UInt64
   }
 }

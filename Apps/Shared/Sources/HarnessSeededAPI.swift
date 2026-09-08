@@ -51,6 +51,7 @@ import Foundation
     nonisolated(unsafe) private static var nextActionFolderID = 415
     nonisolated(unsafe) private static var searchRetryFailed = false
     nonisolated(unsafe) private static var emptySearchLoads = 0
+    nonisolated(unsafe) private static var searchContinuationFailed = false
     nonisolated(unsafe) private static var renameAttempts = 0
     nonisolated(unsafe) private static var logoutFailuresRemaining = 0
     nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
@@ -108,6 +109,7 @@ import Foundation
       nextActionFolderID = 415
       searchRetryFailed = false
       emptySearchLoads = 0
+      searchContinuationFailed = false
       renameAttempts = 0
       bulkDeleteFailureDelivered = false
       ambiguousMoveFailureDelivered = false
@@ -268,6 +270,19 @@ import Foundation
           fixtureError(
             statusCode: 400, type: "HARNESS_SEARCH_CURSOR_INVALID",
             message: "The search fixture requires its continuation cursor")
+        )
+      }
+      let shouldFail = fileActionsLock.withLock {
+        if searchContinuationFailed { return false }
+        searchContinuationFailed = true
+        return true
+      }
+      if shouldFail {
+        return (
+          503,
+          fixtureError(
+            statusCode: 503, type: "HARNESS_SEARCH_CONTINUATION_RETRY",
+            message: "The first search continuation fails for retry proof")
         )
       }
       return (

@@ -148,6 +148,30 @@ final class FilesSearchTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(Self.page([1, 2], cursor: "b")))
   }
 
+  func testCancelledPageRestartsAfterAnEarlyReappearance() async {
+    let requests = ControlledSearch()
+    let model = PutioFileSearchModel(
+      search: { _ in Self.page([1], cursor: "second") },
+      continueSearch: { try await requests.load($0) })
+    await model.update(query: "movie", debounced: false)
+    let originalEpoch = model.paginationEpoch
+    let first = Task { await model.loadMore() }
+    await requests.waitForCount(1)
+    first.cancel()
+    await model.loadMore()
+    XCTAssertEqual(requests.keywords.count, 1)
+    requests.finish(0, with: .failure(CancellationError()))
+    await first.value
+    XCTAssertNotEqual(model.paginationEpoch, originalEpoch)
+    XCTAssertFalse(model.isLoadingMore)
+    XCTAssertNil(model.loadMoreFailure)
+    let restarted = Task { await model.loadMore() }
+    await requests.waitForCount(2)
+    requests.finish(1, with: .success(Self.page([2])))
+    await restarted.value
+    XCTAssertEqual(model.state, .loaded(Self.page([1, 2])))
+  }
+
   private static func page(_ ids: [Int], cursor: String? = nil) -> PutioFileSearchPage {
     PutioFileSearchPage(
       items: ids.map { BrowserTestFixtures.item(id: $0) }, nextCursor: cursor, totalCount: 10)
