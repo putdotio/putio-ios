@@ -913,11 +913,11 @@ import Foundation
     }
 
     private static func folderEnvelope(id: Int, name: String, parentID: Int) -> String {
-      return """
-          {
-          "file": \(folderObject(id: id, name: name, parentID: parentID))
-        }
-        """
+      """
+      {
+        "file": \(folderObject(id: id, name: name, parentID: parentID))
+      }
+      """
     }
 
     private static func folderObject(id: Int, name: String, parentID: Int) -> String {

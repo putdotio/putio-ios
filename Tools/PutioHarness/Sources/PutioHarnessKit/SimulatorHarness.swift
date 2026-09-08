@@ -174,13 +174,12 @@ func journeyRecordingWindow(
     )
   }
 
-  // Keep the whole settled hold in the proof. A successor's timestamp is the
-  // truth about how long the frame showed; the sample's own duration is only
-  // used for the final frame, which has no successor.
-  let heldDuration = journeyFrameHeldDuration(frames, backIndex)
+  // The proof keeps the whole settled hold. Only the final frame, which has
+  // no successor timestamp, falls back to its decoder duration.
   let end =
     frames[backIndex].presentationTime
-    + (backIndex == frames.indices.last ? frames[backIndex].duration : heldDuration)
+    + (backIndex == frames.indices.last
+      ? frames[backIndex].duration : journeyFrameHeldDuration(frames, backIndex))
   let duration = end - start
   let frameCount = backIndex - rootIndex + 1
   guard duration.isFinite, duration > 0, duration <= maximumJourneyRecordingDuration else {
@@ -752,8 +751,8 @@ public struct SimulatorHarness {
         for screenshot in preflightScreenshots {
           _ = try requireMeaningfulScreenshot(screenshot, context: "journey preflight attachment")
         }
-        // Only now is every preflight fully validated; until here a blank
-        // screenshot still needs its bundle for diagnosis.
+        // A blank screenshot needs its bundle for diagnosis, so bundles
+        // outlive the checks above.
         for bundle in [
           ".sign-out-recovery.xcresult", ".file-actions.xcresult", ".trash-management.xcresult",
         ] {
@@ -995,6 +994,9 @@ public struct SimulatorHarness {
     }
   }
 
+  /// Runs one preflight UI test and exports `attachmentNames` as artifacts.
+  /// With attachments the result bundle is left for the caller, which deletes
+  /// it only after validating the screenshots.
   private func runJourneyPreflightTest(
     identifier: String,
     platform: HarnessPlatform,
@@ -1081,7 +1083,6 @@ public struct SimulatorHarness {
         destination, context: "journey preflight screenshot \(attachmentName)")
       return destination
     }
-    // The caller removes the bundle after it has validated the screenshots.
     return artifacts
   }
 
@@ -1206,15 +1207,12 @@ public struct SimulatorHarness {
       throw HarnessFailure("no \(config.deviceFamily) Simulator device type is installed")
     }
 
-    // The full run ID plus a per-process nonce: two runs can never share a
-    // name even with identical IDs, so the pre-claim name fallback is safe.
+    // The nonce keeps concurrent runs with the same run ID apart; the
+    // ownership check below makes the pre-claim name fallback safe.
     let suffix = "\(runID)-\(String(UUID().uuidString.prefix(8)).lowercased())"
     let deviceName = "putio-harness-\(platform.rawValue)-\(suffix)"
 
     do {
-      // Cleanup targets the exact device this session creates. The name is
-      // only a fallback for a signal that lands before `simctl create`
-      // returns, and it is safe then because the name was verified unowned.
       try requireNoSimulator(named: deviceName)
       let ownedDevice = OwnedSimulator(name: deviceName)
       try SimulatorLifecycle.shared.register {

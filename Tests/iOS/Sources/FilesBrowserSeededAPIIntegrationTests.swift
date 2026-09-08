@@ -5,6 +5,13 @@ import XCTest
 
 @MainActor
 final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
+  override func setUp() {
+    super.setUp()
+    HarnessSeededAPI.resetPlaybackPositions()
+    HarnessSeededAPI.resetVideoConversion()
+    HarnessSeededAPI.resetFileActions()
+  }
+
   func testSeededTrashSupportsListRestoreDeleteAndEmpty() async throws {
     let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
     await runtime.session.restore()
@@ -47,13 +54,6 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     }
     let emptyPage = try await runtime.listTrash()
     XCTAssertTrue(emptyPage.items.isEmpty)
-  }
-
-  override func setUp() {
-    super.setUp()
-    HarnessSeededAPI.resetPlaybackPositions()
-    HarnessSeededAPI.resetVideoConversion()
-    HarnessSeededAPI.resetFileActions()
   }
 
   func testRootFolderAndNestedFileFlow() async throws {

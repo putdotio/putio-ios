@@ -13,14 +13,13 @@ mise install
 mise run bootstrap
 ```
 
-Bootstrap validates Xcode, installs the pinned Tuist, Node.js, and pnpm releases through mise, resolves package dependencies, and generates `Putio.xcworkspace`. It requires no Tuist login or private configuration.
+`mise install` provides the pinned Tuist, Node.js, and pnpm releases. Bootstrap installs the locked Node dependencies, provisions the brand fonts, generates `Putio.xcworkspace`, and runs the harness doctor. It requires no Tuist login or private configuration.
 
-Bootstrap also downloads the licensed brand fonts from `static.put.io` into the ignored
-`Resources/BrandFonts` directory. `Config/BrandFonts.json` pins every URL, checksum, and destination
-platform. Run `mise run fonts-setup` to repair the local set or `mise run verify-fonts` for a read-only
-check. Verification intentionally fails when fonts are absent, partial, changed, or unlisted.
-`mise run fonts-setup` repairs all four states; because the directory is a generated build input, it
-removes unlisted OTF or TTF files before restoring the manifest set.
+`Config/BrandFonts.json` pins the URL, checksum, and destination platforms of every licensed font
+downloaded from `static.put.io` into the ignored `Resources/BrandFonts` directory. Font binaries are
+never committed. `mise run verify-fonts` fails when fonts are absent, partial, changed, or unlisted;
+`mise run fonts-setup` repairs all four states and removes unlisted OTF or TTF files from that
+directory before restoring the manifest set.
 
 For a machine-readable environment report:
 
@@ -57,7 +56,7 @@ Use fixed spacing tokens for structural layout. Add a semantic `PutioMetricRole`
 mise run verify
 ```
 
-This installs the locked token tooling, checks generated-output drift, runs the `PutioCore` and harness tests, then builds the iOS, watchOS, and tvOS schemes against generic simulators. Exercise the affected shell with the headless harness when a change alters runtime behavior.
+This installs the locked Node tooling, regenerates the workspace, runs the harness doctor, runs the tooling tests with token and font drift checks, lints with `swift format`, runs the `PutioCore` and harness package tests plus the simulator interruption check, builds the iOS, watchOS, and tvOS schemes against generic simulators, and asserts the iOS and tvOS snapshot suites.
 
 Use the headless harness for runtime-sensitive changes:
 
@@ -67,7 +66,7 @@ mise run harness -- proof --platform ios
 mise run harness -- journey --platform ios --scenario files-browser
 ```
 
-Run the browser journey for iOS file-browser changes. The harness never opens Simulator.app and deletes the isolated devices it creates. See [Apple Platform Harness](./docs/HARNESS.md) for structured output, watchOS pairing, proof manifests, live testing-profile readiness, and separate artifact publishing.
+Run the browser journey for iOS file-browser changes. The harness never opens Simulator.app and deletes the isolated devices it creates. See [Apple Platform Harness](./docs/HARNESS.md) for structured output, watchOS pairing, proof manifests, live `devs-auto` profile checks, and separate artifact publishing.
 
 ## Scope
 

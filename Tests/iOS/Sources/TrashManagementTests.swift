@@ -182,10 +182,8 @@ final class TrashManagementTests: XCTestCase {
     await model.loadMore()
 
     XCTAssertEqual(model.page?.items, [first, second])
-    XCTAssertEqual(model.page?.nextCursor, nil)
-    XCTAssertEqual(stub.loadedCursors.count, 2)
-    XCTAssertNil(stub.loadedCursors[0])
-    XCTAssertEqual(stub.loadedCursors[1], "next")
+    XCTAssertNil(model.page?.nextCursor)
+    XCTAssertEqual(stub.loadedCursors, [nil, "next"])
   }
 
   func testRestoreRemovesTrashItemAndReturnsAuthoritativeDestination() async {
@@ -219,8 +217,7 @@ final class TrashManagementTests: XCTestCase {
     await model.restore(item)
 
     XCTAssertEqual(model.page?.items, [])
-    XCTAssertEqual(destinations.count, 1)
-    XCTAssertNil(destinations[0])
+    XCTAssertEqual(destinations, [nil])
     XCTAssertEqual(model.mutationOutcome, .restored(item))
   }
 
@@ -1259,8 +1256,7 @@ final class TrashManagementTests: XCTestCase {
       await waiter.value
       settled = true
     }
-    await waitUntil("the cancelled waiter to return") { settled }
-    XCTAssertTrue(settled, "a cancelled task must not spin until the refresh completes")
+    await waitUntil("the cancelled waiter to return without the refresh completing") { settled }
     storage.resume(with: true)
     await owner.value
     await observer.value

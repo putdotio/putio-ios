@@ -30,29 +30,24 @@ mise install
 mise run bootstrap
 ```
 
-No Tuist account, application secret, or signing material is required.
-
-Bootstrap downloads the licensed GT America and Berkeley Mono files from their checksummed
-`static.put.io` sources into the ignored `Resources/BrandFonts` directory. Font binaries are never
-committed.
-The setup task also removes unlisted OTF or TTF files from that dedicated ignored directory before
-restoring the manifest set.
+No Tuist account, application secret, or signing material is required. Bootstrap also downloads the licensed GT America and Berkeley Mono fonts into the ignored `Resources/BrandFonts` directory; see [Contributing](./CONTRIBUTING.md#setup) for the manifest and repair commands.
 
 ## Commands
 
 ```bash
-mise run generate  # regenerate Putio.xcworkspace without opening Xcode
-mise run tokens    # regenerate the committed Swift design-token adapter
-mise run fonts-setup # provision the checksummed licensed fonts
-mise run open      # regenerate and open the workspace
-mise run test      # format-check and test PutioCore
-mise run build     # build all three app shells
-mise run verify    # test PutioCore and build all three app shells
+mise run generate     # regenerate Putio.xcworkspace without opening Xcode
+mise run open         # regenerate and open the workspace
+mise run tokens       # regenerate the committed Swift design-token adapter
+mise run fonts-setup  # provision the checksummed licensed fonts
+mise run test         # tooling tests, swift-format lint, PutioCore and harness tests
+mise run build        # build all three app shells
+mise run verify       # generate, doctor, test, build, and both snapshot suites
+mise run harness      # typed headless simulator harness (`-- help`)
 ```
 
 ## Design tokens
 
-`PutioCore` exposes the generated `PutioTheme` API consumed by every app shell. The dark-only app adapter emits semantic Swift roles plus a semantic color asset catalog from the exact `@putdotio/design` version in `pnpm-lock.yaml`; `mise run verify` rejects unclassified upstream tokens and stale generated output. Change token values in the design-system repository, bump the package here, audit `scripts/design-token-coverage.json`, then run `mise run tokens`.
+`PutioCore` exposes the generated `PutioTheme` API consumed by every app shell. The dark-only adapter emits semantic Swift roles plus a semantic color asset catalog from the exact `@putdotio/design` version in `pnpm-lock.yaml`. Change tokens through the procedure in [Contributing](./CONTRIBUTING.md#design-tokens).
 
 The raw spacing scale remains fixed. Content-coupled gaps and meaningful interface icons use generated `PutioMetricRole` values with an explicit Dynamic Type text style; structural layout, overscan, radii, borders, and minimum interaction geometry do not scale implicitly.
 
@@ -69,6 +64,8 @@ OpenType tabular figures on tvOS.
 - tvOS: `io.put.dev.tvos`
 
 Production identities and delivery lanes are tracked separately.
+
+## Sign-out recovery
 
 If removing saved credentials or revoking the session fails, the app reports that
 sign-out did not finish and offers a retry. It blocks restoring or starting a

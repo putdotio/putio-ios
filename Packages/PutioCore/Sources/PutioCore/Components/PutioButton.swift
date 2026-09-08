@@ -23,7 +23,6 @@ public enum PutioButtonSize: CaseIterable, Sendable {
   case extraSmall
 }
 
-// Content actions use stock bordered styles, brand labels, and semantic tints.
 public struct PutioButton: View {
   private let title: String
   private let icon: PutioIcon?

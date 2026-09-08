@@ -27,7 +27,7 @@ The workflow-blob checks fail closed if the legacy beta/release orchestration or
 - Release requires a three-component legacy App Store version such as `3.1.0` and forwards it to `main`.
 - Workflow names, run names, input descriptions, and the relay job summary identify the line as legacy iOS 3.x and record the protected-main SHA, reviewed delivery and guard blobs, and downstream delivery-run link.
 
-After this change merges to the default branch, verify registration without dispatching delivery:
+Verify registration without dispatching delivery:
 
 ```bash
 gh workflow list --repo putdotio/putio-ios
@@ -35,7 +35,7 @@ gh workflow view beta.yml --repo putdotio/putio-ios --ref next
 gh workflow view release.yml --repo putdotio/putio-ios --ref next
 ```
 
-A maintainer-approved beta dispatch is separate acceptance for [#162](https://github.com/putdotio/putio-ios/issues/162) before [#149](https://github.com/putdotio/putio-ios/issues/149) performs the App Store release.
+[#149](https://github.com/putdotio/putio-ios/issues/149) owns the App Store release of the legacy line.
 
 ## Branch-flip cleanup
 
