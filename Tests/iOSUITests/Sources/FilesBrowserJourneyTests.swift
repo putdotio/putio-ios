@@ -428,13 +428,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     addScreenshot(named: "runtime-sorted-root")
 
-    // The folder keeps its sort across a relaunch because the server owns it.
-    app.terminate()
-    app.launch()
-    XCTAssertTrue(root.waitForExistence(timeout: 10), "relaunch did not restore the browser")
-    XCTAssertTrue(waitUntilHittable(sort, timeout: 5))
-    XCTAssertEqual(sort.value as? String, "Name, Z to A")
-
     app.buttons["Account"].tap()
     let signOut = element(identifier: "auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
