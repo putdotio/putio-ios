@@ -1293,7 +1293,6 @@ private struct PutioMoveDestinationScreen: View {
     }
     .alert("New Folder", isPresented: $newFolderPresented) {
       TextField("Name", text: $newFolderName)
-        .accessibilityIdentifier("files.move-new-folder-name")
       Button("Create") {
         let name = newFolderName
         Task {

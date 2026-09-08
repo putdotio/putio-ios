@@ -1025,7 +1025,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let newFolder = app.buttons["files.move-new-folder"]
     XCTAssertTrue(waitUntilHittable(newFolder, timeout: 5))
     newFolder.tap()
-    let field = element(identifier: "files.move-new-folder-name")
+    let field = app.alerts["New Folder"].textFields.firstMatch
     XCTAssertTrue(field.waitForExistence(timeout: 5))
     field.tap()
     field.typeText("Move Destination")
