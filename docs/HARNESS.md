@@ -37,7 +37,7 @@ Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` 
 `journey --platform ios --scenario files-browser` proves the runnable alpha loop with real accessibility input. Seven unrecorded `1/1` preflights cover:
 
 - Sign-out recovery: the existing signed-in scenario uses a one-time credential-removal failure and seeded logout failure, shows the recovery message, captures `runtime-sign-out-failure.png`, and completes sign-out after an explicit retry. Default signed-in captures keep successful sign-out behavior.
-- File actions: create, optimistic rename, delayed rollback and retry, move, bulk partial-failure recovery, and a meaningful `runtime-file-actions.png` screenshot.
+- File actions: menu-based creation and selection, context-menu rename, swipe move and Trash, delayed rollback and retry, bulk partial-failure recovery, move-picker sorting and folder creation, and a meaningful `runtime-file-actions.png` screenshot.
 - Trash semantics: visible per-row actions plus Trash-enabled and permanent-delete copy from the seeded account setting.
 - Trash management: list, retained-page refresh failure and retry, restore to the authoritative parent, retry after a transient permanent-delete failure, and confirmed emptying with success feedback. The empty state also supports pull-to-refresh failure and retry. Meaningful `runtime-trash-refresh-error.png`, `runtime-trash-loaded.png`, and `runtime-trash-empty.png` screenshots are retained in the proof manifest.
 - Sort and continuation: the root's second page appends without a tap, the sort menu round-trips `NAME_DESC` through the server and reloads in the new order, and a meaningful `runtime-sorted-root.png` screenshot is retained.

@@ -28,10 +28,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let successFolder = createFolder(named: "Bulk Success", expectedID: 415)
     let retryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
+    openBrowseMenu()
     let edit = app.buttons["files.selection.toggle"]
     XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
     edit.tap()
-    XCTAssertEqual(edit.label, "Done", "selection control did not enter edit mode")
+    XCTAssertTrue(app.staticTexts["Select Items"].waitForExistence(timeout: 5))
+    XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
     let bulkMove = app.buttons["files.bulk.move"]
     XCTAssertTrue(bulkMove.waitForExistence(timeout: 5), "bulk toolbar did not appear")
     XCTAssertEqual(unsupportedFile.value as? String, "Not selected")
@@ -55,8 +57,16 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     successFolder.tap()
     XCTAssertEqual(successFolder.value as? String, "Selected")
-    successFolder.tap()
+    XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
+    edit.tap()
+    XCTAssertTrue(app.buttons["files.menu"].waitForExistence(timeout: 5))
+    XCTAssertTrue(bulkMove.waitForNonExistence(timeout: 5))
+    openBrowseMenu()
+    XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
+    edit.tap()
+    XCTAssertTrue(bulkMove.waitForExistence(timeout: 5))
     XCTAssertEqual(successFolder.value as? String, "Not selected")
+    XCTAssertFalse(bulkMove.isEnabled, "ending selection retained the previous selection")
 
     successFolder.tap()
     retryFolder.tap()
@@ -411,15 +421,18 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(secondPageRow.waitForExistence(timeout: 10), "continuation page never appended")
     XCTAssertFalse(element(identifier: "files.more.0").exists, "load-more footer lingered")
 
-    let sort = app.buttons["files.sort"]
-    XCTAssertTrue(waitUntilHittable(sort, timeout: 5), "sort menu is unavailable")
-    XCTAssertEqual(sort.value as? String, "Name, A to Z")
-    sort.tap()
-    let descending = app.buttons["Name, Z to A"]
-    XCTAssertTrue(waitUntilHittable(descending, timeout: 5), "sort option never appeared")
-    descending.tap()
+    openBrowseMenu()
+    let nameSort = app.buttons["files.sort.name"]
+    XCTAssertTrue(waitUntilHittable(nameSort, timeout: 5), "name sort is unavailable")
+    XCTAssertTrue(nameSort.isSelected)
+    addScreenshot(named: "runtime-browse-menu-ascending")
+    nameSort.tap()
     XCTAssertTrue(app.staticTexts["Sorting changed"].waitForExistence(timeout: 10))
-    XCTAssertEqual(sort.value as? String, "Name, Z to A")
+    openBrowseMenu()
+    XCTAssertTrue(nameSort.isSelected)
+    addScreenshot(named: "runtime-browse-menu-descending")
+    dismissMenu()
+    XCTAssertEqual(app.buttons["files.menu"].value as? String, "Name, descending")
     let firstRow = app.cells.firstMatch
     XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
     XCTAssertTrue(
@@ -596,6 +609,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let root = element(identifier: "files.screen.0")
     XCTAssertTrue(root.waitForExistence(timeout: 10), "signed-in root browser never appeared")
     tapUnsupportedFileBeforeEditing()
+    openBrowseMenu()
     let newFolder = app.buttons["files.new-folder"]
     XCTAssertTrue(
       waitUntilHittable(newFolder, timeout: 5),
@@ -716,7 +730,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "move picker did not enter Harness Folder"
     )
     let moveHere = app.buttons["files.move-here.410"]
-    XCTAssertTrue(waitUntilHittable(moveHere, timeout: 5), "Move Here is not tappable")
+    XCTAssertTrue(waitUntilHittable(moveHere, timeout: 5), "Move is not tappable")
     moveHere.tap()
 
     XCTAssertTrue(
@@ -742,7 +756,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     XCTAssertEqual(movedFolder.label, "Weekend")
 
-    openContextMenu(for: movedFolder, actionLabel: "Move").tap()
+    movedFolder.swipeRight()
+    let swipeMove = app.buttons["files.move.415"]
+    XCTAssertTrue(waitUntilHittable(swipeMove, timeout: 5), "leading swipe did not offer Move")
+    swipeMove.tap()
     XCTAssertTrue(
       element(identifier: "files.move-screen.0").waitForExistence(timeout: 5),
       "move picker did not reopen at Files"
@@ -769,11 +786,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     XCTAssertEqual(movedFolderAtRoot.label, "Weekend")
 
-    let delete = openContextMenu(
-      for: movedFolderAtRoot,
-      actionLabel: "Trash"
-    )
-    delete.tap()
+    movedFolderAtRoot.swipeLeft()
+    let swipeTrash = app.buttons["files.delete.415"]
+    XCTAssertTrue(waitUntilHittable(swipeTrash, timeout: 5), "trailing swipe did not offer Trash")
+    swipeTrash.tap()
     let confirmDelete = app.buttons["files.delete-confirm"].firstMatch
     XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5), "Trash confirmation never appeared")
     XCTAssertEqual(confirmDelete.label, "Trash")
@@ -788,6 +804,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let bulkRetryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
     let bulkSuccessFolder = createFolder(named: "Bulk Success", expectedID: 417)
+    openBrowseMenu()
     let edit = app.buttons["files.selection.toggle"]
     XCTAssertTrue(waitUntilHittable(edit, timeout: 5), "file selection control is unavailable")
     edit.tap()
@@ -833,7 +850,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     bulkDestination.tap()
     let bulkMoveHere = app.buttons["files.move-here.410"]
-    XCTAssertTrue(waitUntilHittable(bulkMoveHere, timeout: 5), "bulk Move Here is disabled")
+    XCTAssertTrue(waitUntilHittable(bulkMoveHere, timeout: 5), "bulk Move is disabled")
     bulkMoveHere.tap()
     XCTAssertTrue(
       app.staticTexts["Moved 2 items."].waitForExistence(timeout: 10),
@@ -852,6 +869,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(movedBulkRetryFolder, timeout: 5))
     XCTAssertTrue(waitUntilHittable(movedBulkSuccessFolder, timeout: 5))
 
+    openBrowseMenu()
     let nestedEdit = app.buttons["files.selection.toggle"]
     XCTAssertTrue(waitUntilHittable(nestedEdit, timeout: 5))
     nestedEdit.tap()
@@ -914,6 +932,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
 
     let ambiguousMoveFolder = createFolder(named: "Ambiguous Move", expectedID: 418)
+    openBrowseMenu()
     let ambiguousEdit = app.buttons["files.selection.toggle"]
     XCTAssertTrue(waitUntilHittable(ambiguousEdit, timeout: 5))
     ambiguousEdit.tap()
@@ -950,12 +969,82 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "already-loaded destination did not refresh after the ambiguous move"
     )
     XCTAssertEqual(appliedMoveAtRoot.label, "Ambiguous Move")
+    assertMovePickerCreationAndSorting(for: appliedMoveAtRoot)
 
     app.buttons["Account"].tap()
     let signOut = element(identifier: "auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+  }
+
+  private func openBrowseMenu() {
+    let menu = app.buttons["files.menu"]
+    XCTAssertTrue(waitUntilHittable(menu, timeout: 5), "browser menu is unavailable")
+    menu.tap()
+  }
+
+  private func dismissMenu() {
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.7)).tap()
+  }
+
+  private func assertSortValue(_ value: String, on menu: XCUIElement) {
+    let expectation = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@", value),
+      object: menu
+    )
+    XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)
+  }
+
+  private func assertMovePickerCreationAndSorting(for row: XCUIElement) {
+    openContextMenu(for: row, actionLabel: "Move").tap()
+    XCTAssertTrue(element(identifier: "files.move-screen.0").waitForExistence(timeout: 5))
+    let summary = element(identifier: "files.move-summary")
+    XCTAssertTrue(summary.waitForExistence(timeout: 5))
+    XCTAssertTrue(summary.label.contains("Ambiguous Move"), "move summary lost the source name")
+    let menu = app.buttons["files.move-menu"]
+    XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
+    menu.tap()
+    let sizeSort = app.buttons["files.sort.size"]
+    XCTAssertTrue(waitUntilHittable(sizeSort, timeout: 5))
+    sizeSort.tap()
+    XCTAssertTrue(sizeSort.waitForNonExistence(timeout: 5), "sort selection did not dismiss menu")
+    XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
+    assertSortValue("Size, ascending", on: menu)
+    menu.tap()
+    XCTAssertTrue(sizeSort.isSelected)
+    addScreenshot(named: "runtime-move-menu-ascending")
+    sizeSort.tap()
+    XCTAssertTrue(sizeSort.waitForNonExistence(timeout: 5), "sort selection did not dismiss menu")
+    XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
+    assertSortValue("Size, descending", on: menu)
+    menu.tap()
+    XCTAssertTrue(sizeSort.isSelected)
+    addScreenshot(named: "runtime-move-menu-descending")
+
+    let newFolder = app.buttons["files.move-new-folder"]
+    XCTAssertTrue(waitUntilHittable(newFolder, timeout: 5))
+    newFolder.tap()
+    let field = app.alerts["New Folder"].textFields.firstMatch
+    XCTAssertTrue(field.waitForExistence(timeout: 5))
+    field.tap()
+    field.typeText("Move Destination")
+    app.alerts.buttons["Create"].tap()
+    let destination = element(identifier: "files.move-folder.419")
+    XCTAssertTrue(destination.waitForExistence(timeout: 5), "new move destination did not appear")
+    XCTAssertTrue(destination.label.contains("Move Destination"))
+    destination.tap()
+    XCTAssertTrue(element(identifier: "files.move-screen.419").waitForExistence(timeout: 5))
+    let cancel = app.buttons["files.move-cancel"]
+    XCTAssertTrue(waitUntilHittable(cancel, timeout: 5), "nested move folder lost Cancel")
+    cancel.tap()
+    XCTAssertTrue(element(identifier: "files.move-picker").waitForNonExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      element(identifier: "files.item.419").waitForExistence(timeout: 5),
+      "folder created in the move picker did not reach the browser"
+    )
+    XCTAssertTrue(row.exists, "cancelling the move removed its source")
   }
 
   private func reportedPlaybackSeconds(from value: String?) -> Int? {
@@ -1032,6 +1121,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   private func createFolder(named name: String, expectedID: Int) -> XCUIElement {
+    openBrowseMenu()
     let newFolder = app.buttons["files.new-folder"]
     XCTAssertTrue(waitUntilHittable(newFolder, timeout: 5), "new-folder action is unavailable")
     newFolder.tap()
