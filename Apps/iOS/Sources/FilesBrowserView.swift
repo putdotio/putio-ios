@@ -500,7 +500,7 @@ struct PutioFolderScreen: View {
 
   @ViewBuilder
   private func loadedContent(_ contents: PutioFolderContents) -> some View {
-    if contents.items.isEmpty {
+    if contents.items.isEmpty, !contents.hasMore {
       ScrollView {
         VStack(spacing: PutioTheme.Spacing.space4) {
           PutioEmptyStateView(
@@ -716,7 +716,7 @@ struct PutioFolderScreen: View {
         Spacer()
       }
       .accessibilityIdentifier("files.more.\(route.id.rawValue)")
-      .task(id: model.state) {
+      .task(id: model.nextCursor) {
         await model.loadMore()
       }
     }

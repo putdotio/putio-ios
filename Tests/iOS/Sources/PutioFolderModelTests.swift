@@ -1847,6 +1847,31 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(model.canLoadMore)
   }
 
+  func testContinuationCannotStartWhileARefreshIsInFlight() async {
+    let first = BrowserTestFixtures.item(id: 1)
+    let initial = BrowserTestFixtures.contents(items: [first], hasMore: true)
+    let loader = ControlledFolderLoader()
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { folderID in try await loader.load(folderID: folderID) },
+      continueLoad: { _ in
+        XCTFail("continuation must wait for the refresh")
+        throw PutioRuntimeError.unknown
+      },
+      initialContents: initial
+    )
+
+    let refresh = Task { await model.refresh() }
+    await loader.waitForRequestCount(1)
+    XCTAssertFalse(model.canLoadMore)
+    let appended = await model.loadMore()
+    XCTAssertFalse(appended)
+    await loader.succeed(request: 0, with: initial)
+    _ = await refresh.value
+
+    XCTAssertTrue(model.canLoadMore)
+  }
+
   func testRefreshSupersedesAnInFlightContinuation() async {
     let first = BrowserTestFixtures.item(id: 1)
     let initial = BrowserTestFixtures.contents(items: [first], hasMore: true)
@@ -1904,13 +1929,44 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertFalse(model.canStartAction)
     await sortRequests.succeed(request: 0)
     await loader.waitForRequestCount(1)
+    XCTAssertNil(model.activeAction)
+    XCTAssertEqual(model.sort, .sizeDescending)
     await loader.succeed(request: 0, with: sorted)
     await task.value
 
     XCTAssertEqual(model.state, .loaded(sorted))
-    XCTAssertEqual(model.sort, .sizeDescending)
     XCTAssertEqual(
       model.actionOutcome, .succeeded(.sort(folderID: .root, sort: .sizeDescending)))
+    XCTAssertNil(model.refreshFailure)
+  }
+
+  func testCommittedSortSurvivesAFailedReloadAsARefreshFailure() async {
+    let item = BrowserTestFixtures.item(id: 1)
+    let original = BrowserTestFixtures.contents(items: [item], sort: .nameAscending)
+    let loader = ControlledFolderLoader()
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { folderID in try await loader.load(folderID: folderID) },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        setSort: { _, _ in }
+      ),
+      initialContents: original
+    )
+
+    let task = Task { await model.setSort(.sizeDescending) }
+    await loader.waitForRequestCount(1)
+    await loader.fail(request: 0, with: PutioRuntimeError.transient)
+    await task.value
+
+    XCTAssertEqual(
+      model.actionOutcome, .succeeded(.sort(folderID: .root, sort: .sizeDescending)))
+    XCTAssertEqual(model.sort, .sizeDescending)
+    XCTAssertEqual(
+      model.state, .loaded(BrowserTestFixtures.contents(items: [item], sort: .sizeDescending)))
+    XCTAssertEqual(model.refreshFailure?.title, "Could not load files")
   }
 
   func testSetSortToTheCurrentValueIsANoOp() async {

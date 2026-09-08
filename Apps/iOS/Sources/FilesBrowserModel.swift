@@ -442,9 +442,14 @@ final class PutioFolderModel {
 
   var canLoadMore: Bool {
     guard continueLoad != nil, !mutationIsActive, !isLoadingMore,
-      case .loaded(let contents) = state
+      inFlightLoadGeneration == nil, case .loaded(let contents) = state
     else { return false }
     return contents.nextCursor != nil
+  }
+
+  var nextCursor: String? {
+    if case .loaded(let contents) = state { return contents.nextCursor }
+    return nil
   }
 
   /// The folder's server-side sort, or the account default when the server
@@ -483,16 +488,23 @@ final class PutioFolderModel {
   }
 
   /// Persists `sort` on the server, then reloads so the list reflects the
-  /// server's order. A failure leaves the current order in place.
+  /// server's order. The server call is the action; the reload runs as the
+  /// queued refresh, so a reload failure surfaces as `refreshFailure` over
+  /// the committed sort instead of reporting the sort itself as failed.
   func setSort(_ sort: PutioFolderSort) async {
     guard let actions, canStartAction, case .loaded(let contents) = state else { return }
     guard sort != self.sort else { return }
     let action = PutioFileAction.sort(folderID: folderID, sort: sort)
     begin(action)
 
-    await run(action, rollback: contents) { [folderID, load] in
+    await run(action, rollback: contents) { [folderID] in
       try await actions.setSort(folderID, sort)
-      return try await load(folderID)
+      return contents.sorted(by: sort)
+    }
+    if case .succeeded = actionOutcome {
+      refreshRequestedWhileActionActive = true
+      startQueuedRefreshIfNeeded()
+      _ = await queuedRefresh?.value
     }
   }
 
@@ -947,6 +959,10 @@ extension PutioFolderContents {
 
   fileprivate func removing(_ ids: Set<PutioFileID>) -> PutioFolderContents {
     withItems(items.filter { !ids.contains($0.id) })
+  }
+
+  fileprivate func sorted(by sort: PutioFolderSort) -> PutioFolderContents {
+    PutioFolderContents(folder: folder, items: items, nextCursor: nextCursor, sort: sort)
   }
 
   private func withItems(_ items: [PutioFileItem]) -> PutioFolderContents {
