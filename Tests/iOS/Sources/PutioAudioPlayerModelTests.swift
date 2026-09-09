@@ -342,6 +342,27 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.model.state, .paused(track))
   }
 
+  func testSeekIsIgnoredBeforeDurationIsKnownOrWhileNotPlayable() async {
+    let h = makeHarness()
+    h.engine.durationSeconds = nil
+    await h.model.start()
+
+    h.model.seek(to: 500)
+    XCTAssertFalse(h.engine.events.contains { $0.hasPrefix("seek") })
+    await h.pipeline.waitForPendingReports(fileID: track.id)
+    XCTAssertTrue(h.reports.reports.isEmpty)
+
+    let stalled = makeHarness(resolve: { _ in
+      try await Task.sleep(for: .seconds(60))
+      throw PutioRuntimeError.transient
+    })
+    let start = Task { await stalled.model.start() }
+    await Task.yield()
+    stalled.nowPlaying.send(.seek(seconds: 30))
+    start.cancel()
+    XCTAssertTrue(stalled.engine.events.isEmpty)
+  }
+
   func testStopReportsFinalPositionClearsNowPlayingAndReleasesTheSession() async {
     let h = makeHarness()
     await h.model.start()

@@ -241,8 +241,15 @@ final class PutioAudioPlayerModel {
     }
   }
 
+  /// Seeks only while a track is loaded and its length is known, so a remote
+  /// scrub during loading or before metadata cannot persist a bogus position.
   func seek(to seconds: Int) {
-    let bounded = max(0, durationSeconds.map { min(seconds, $0) } ?? seconds)
+    switch state {
+    case .playing, .paused, .interrupted, .ended: break
+    case .loading, .failed: return
+    }
+    guard !isTransitioning, let duration = durationSeconds else { return }
+    let bounded = max(0, min(seconds, duration))
     awaitedSeconds = bounded
     engine.seek(to: bounded)
     elapsedSeconds = bounded
