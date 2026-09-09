@@ -416,6 +416,7 @@ struct PutioFolderScreen: View {
         actionRequest = .delete(item)
         pendingDeletion = nil
       }
+      .disabled(!model.canDelete)
       .accessibilityIdentifier("files.delete-confirm")
       Button("Cancel", role: .cancel) {
         pendingDeletion = nil
@@ -433,6 +434,7 @@ struct PutioFolderScreen: View {
         pendingBulkDeletion = []
         actionRequest = .bulkDelete(items)
       }
+      .disabled(!model.canDelete)
       .accessibilityIdentifier("files.bulk.remove-confirm")
       Button("Cancel", role: .cancel) {
         pendingBulkDeletion = []
@@ -701,7 +703,7 @@ struct PutioFolderScreen: View {
     } label: {
       Label(deleteActionTitle, systemImage: "trash")
     }
-    .disabled(!model.canStartAction || actionRequest != nil)
+    .disabled(!model.canDelete || actionRequest != nil)
     .accessibilityIdentifier("files.delete.\(item.id.rawValue)")
   }
 
@@ -739,7 +741,7 @@ struct PutioFolderScreen: View {
     } label: {
       Label(deleteActionTitle, systemImage: "trash")
     }
-    .disabled(selectedItems.isEmpty || fileActionPending)
+    .disabled(selectedItems.isEmpty || fileActionPending || !model.canDelete)
     .accessibilityIdentifier("files.bulk.remove")
   }
 

@@ -39,6 +39,117 @@ import Foundation
       var parentID: Int
     }
 
+    private struct FilePreferences: Codable {
+      var sortBy = "NAME_ASC"
+      var historyEnabled = true
+      var trashEnabled = true
+      var overridesReset = false
+      var historyCleared = false
+    }
+
+    private static let preferencesKey = "putio.harness.file-preferences.server"
+    private static var usesFilePreferences: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-file-preferences")
+    }
+    nonisolated(unsafe) private static var filePreferences: FilePreferences?
+    nonisolated(unsafe) private static var preferencesSaveFailed = false
+    nonisolated(unsafe) private static var preferencesRefreshFailed = false
+    nonisolated(unsafe) private static var preferencesSortCommitted = false
+
+    // Caller holds fileActionsLock. The separate namespace represents the fixture server across launches.
+    private static func prepareFilePreferencesLocked() {
+      guard usesFilePreferences, filePreferences == nil else { return }
+      if ProcessInfo.processInfo.arguments.contains("--putio-harness-reset-file-preferences") {
+        UserDefaults.standard.removeObject(forKey: preferencesKey)
+      }
+      let stored = UserDefaults.standard.data(forKey: preferencesKey)
+      filePreferences =
+        stored.flatMap { try? JSONDecoder().decode(FilePreferences.self, from: $0) }
+        ?? FilePreferences()
+      trashEnabled = filePreferences?.trashEnabled ?? true
+      historyCleared = filePreferences?.historyCleared ?? false
+      if !trashEnabled { trashFolders = [:] }
+    }
+
+    private static func persistFilePreferencesLocked() {
+      guard let filePreferences, let data = try? JSONEncoder().encode(filePreferences) else {
+        return
+      }
+      UserDefaults.standard.set(data, forKey: preferencesKey)
+    }
+
+    private static func updateFilePreferences(request: URLRequest) -> (Int, String) {
+      fileActionsLock.lock()
+      defer { fileActionsLock.unlock() }
+      prepareFilePreferencesLocked()
+      guard usesFilePreferences, let payload = requestPayload(request),
+        !payload.isEmpty,
+        Set(payload.keys).isSubset(of: ["sort_by", "trash_enabled", "history_enabled"])
+      else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400, type: "HARNESS_SETTINGS_INPUT",
+            message: "Expected a file-preferences patch")
+        )
+      }
+      if !preferencesSaveFailed {
+        preferencesSaveFailed = true
+        return (
+          503,
+          fixtureError(
+            statusCode: 503, type: "HARNESS_SETTINGS_SAVE", message: "Retry saving preferences")
+        )
+      }
+      if let sort = payload["sort_by"] as? String {
+        if preferencesSortCommitted, sort == filePreferences?.sortBy {
+          return (
+            409,
+            fixtureError(
+              statusCode: 409, type: "HARNESS_SETTINGS_ALREADY_COMMITTED",
+              message: "Refresh the account instead of repeating the committed save")
+          )
+        }
+        filePreferences?.sortBy = sort
+        preferencesSortCommitted = true
+      }
+      if let history = payload["history_enabled"] as? Bool {
+        filePreferences?.historyEnabled = history
+        if !history {
+          historyCleared = true
+          filePreferences?.historyCleared = true
+        }
+      }
+      if let trash = payload["trash_enabled"] as? Bool {
+        filePreferences?.trashEnabled = trash
+        trashEnabled = trash
+        if !trash {
+          trashFreedBytes += Int64(trashFolders.count) * trashFolderBytes
+          trashFolders = [:]
+        }
+      }
+      persistFilePreferencesLocked()
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    private static func resetFileSorts() -> (Int, String) {
+      fileActionsLock.lock()
+      defer { fileActionsLock.unlock() }
+      guard usesFilePreferences else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400, type: "HARNESS_SETTINGS_MODE",
+            message: "File preferences fixture is required")
+        )
+      }
+      prepareFilePreferencesLocked()
+      folderSorts = [:]
+      filePreferences?.overridesReset = true
+      persistFilePreferencesLocked()
+      return (200, #"{"status":"OK"}"#)
+    }
+
     nonisolated(unsafe) static var isEnabled = false
     nonisolated(unsafe) static var trashEnabled = true
     nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 589, 414: 37]
@@ -490,6 +601,16 @@ import Foundation
         )
       case "GET /v2/account/info":
         return fileActionsLock.withLock {
+          prepareFilePreferencesLocked()
+          if usesFilePreferences, preferencesSortCommitted, !preferencesRefreshFailed {
+            preferencesRefreshFailed = true
+            return (
+              503,
+              fixtureError(
+                statusCode: 503, type: "HARNESS_SETTINGS_REFRESH",
+                message: "The save committed; retry the account refresh")
+            )
+          }
           if accountRefreshFailuresRemaining > 0 {
             accountRefreshFailuresRemaining -= 1
             return (
@@ -501,6 +622,10 @@ import Foundation
           }
           return (200, accountInfoLocked)
         }
+      case "POST /v2/account/settings":
+        return updateFilePreferences(request: request)
+      case "POST /v2/files/remove-sort-by-settings":
+        return resetFileSorts()
       case "POST /v2/oauth/grants/logout":
         return logoutLock.withLock {
           if logoutFailuresRemaining > 0 {
@@ -892,7 +1017,7 @@ import Foundation
       fileActionsLock.lock()
       trashListRequests += 1
       let failEmptyRefresh = trashFolders.isEmpty && !trashEmptyRefreshFailed
-      if trashListRequests == 2 || failEmptyRefresh {
+      if !usesFilePreferences && (trashListRequests == 2 || failEmptyRefresh) {
         if failEmptyRefresh { trashEmptyRefreshFailed = true }
         fileActionsLock.unlock()
         return (
@@ -1168,6 +1293,12 @@ import Foundation
 
     // Caller holds fileActionsLock.
     private static var accountInfoLocked: String {
+      prepareFilePreferencesLocked()
+      let historyEnabled =
+        usesFilePreferences
+        ? filePreferences?.historyEnabled ?? true
+        : !ProcessInfo.processInfo.arguments.contains("--putio-harness-history-disabled")
+      let defaultSort = usesFilePreferences ? filePreferences?.sortBy ?? "NAME_ASC" : "NAME_ASC"
       let usedBytes = diskUsedBytes - trashFreedBytes
       let trashSizeBytes = Int64(trashFolders.count) * trashFolderBytes
       return """
@@ -1193,9 +1324,9 @@ import Foundation
               "tunnel_route_name": "default",
               "next_episode": true,
               "start_from": true,
-              "history_enabled": \( !ProcessInfo.processInfo.arguments.contains("--putio-harness-history-disabled") ),
+              "history_enabled": \(historyEnabled),
               "trash_enabled": \(trashEnabled),
-              "sort_by": "NAME_ASC",
+              "sort_by": \(jsonString(defaultSort)),
               "show_optimistic_usage": false,
               "two_factor_enabled": false,
               "hide_subtitles": false,
@@ -1212,9 +1343,16 @@ import Foundation
         actionFolders
         .filter { $0.value.parentID == 0 }
         .sorted { $0.key < $1.key }
+      prepareFilePreferencesLocked()
+      let inheritsDefault =
+        usesFilePreferences && filePreferences?.overridesReset == true
+        && folderSorts[0] == nil
+      let sortBy =
+        folderSorts[0]
+        ?? (inheritsDefault ? filePreferences?.sortBy ?? "NAME_ASC" : "NAME_ASC")
+      let parentSort = inheritsDefault ? "null" : jsonString(sortBy)
       let folderName = harnessFolderName
       let folderDeleted = harnessFolderDeleted
-      let sortBy = folderSorts[0] ?? "NAME_ASC"
       fileActionsLock.unlock()
       let mutableFolderRows = mutableFolders.map { id, folder in
         folderObject(id: id, name: folder.name, parentID: folder.parentID)
@@ -1269,7 +1407,7 @@ import Foundation
             "file_type": "FOLDER",
             "parent_id": 0,
             "size": 0,
-            "sort_by": \(jsonString(sortBy)),
+            "sort_by": \(parentSort),
             "created_at": "2026-08-01T10:00:00Z",
             "updated_at": "2026-08-01T10:00:00Z"
           },

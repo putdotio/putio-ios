@@ -199,6 +199,7 @@ private struct MainTabView: View {
   @State private var playbackPositionPipeline = PutioPlaybackPositionPipeline()
   @State private var folderRefreshRequests = PutioFolderRefreshRequests()
   @State private var trashReconciliation = PutioTrashReconciliation()
+  @State private var historyRevision: UInt64 = 0
   @State private var presentedVideoRoute: PutioVideoRoute?
 
   var body: some View {
@@ -243,6 +244,7 @@ private struct MainTabView: View {
             refreshRequests: folderRefreshRequests,
             onFileSelected: { route in selectFile(route) }
           )
+          .id(historyRevision)
         } label: {
           Label {
             Text("History")
@@ -347,6 +349,17 @@ private struct MainTabView: View {
           }
         }
       #endif
+    }
+    .onChange(of: runtime.session.folderSortsRevision) {
+      folderRefreshRequests.requestAllLoadedFolders()
+    }
+    .onChange(of: account) { previous, current in
+      PutioAccountPreferencesReconciliation.apply(
+        previous: previous, current: current,
+        folders: folderRefreshRequests, trash: trashReconciliation)
+      if previous.id == current.id, previous.historyEnabled != current.historyEnabled {
+        historyRevision &+= 1
+      }
     }
     .task {
       // The harness signed-in scenario records the full loop: restored
@@ -540,6 +553,16 @@ private struct AccountView: View {
           LabeledContent("Username", value: account.username)
           LabeledContent("Email", value: account.email)
         }
+        Section {
+          NavigationLink("File Preferences") {
+            FilePreferencesView(
+              runtime: runtime,
+              refreshRequests: refreshRequests,
+              trashReconciliation: trashReconciliation
+            )
+          }
+          .accessibilityIdentifier("account.file-preferences")
+        }
         Section("Storage") {
           LabeledContent("Used", value: byteText(account.storage.usedBytes))
             .accessibilityIdentifier("account.storage-used")
@@ -594,6 +617,25 @@ private struct AccountView: View {
 
   private func reconcileRestoredFile(destinationID: PutioFileID?) {
     PutioRestoredFileReconciliation.apply(destinationID: destinationID, to: refreshRequests)
+  }
+}
+
+/// Account changes can arrive after the settings screen has been dismissed,
+/// including through a storage refresh following an uncertain settings write.
+enum PutioAccountPreferencesReconciliation {
+  @MainActor
+  static func apply(
+    previous: PutioAccountSnapshot, current: PutioAccountSnapshot,
+    folders: PutioFolderRefreshRequests, trash: PutioTrashReconciliation
+  ) {
+    guard previous.id == current.id else { return }
+    if previous.defaultSort != current.defaultSort || previous.trashEnabled != current.trashEnabled
+    {
+      folders.requestAllLoadedFolders()
+    }
+    if previous.trashEnabled && !current.trashEnabled {
+      trash.recordEmptied()
+    }
   }
 }
 

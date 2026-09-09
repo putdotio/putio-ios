@@ -23,8 +23,12 @@ struct PutioFileActions: Sendable {
   let deleteFile: PutioFileDelete
   let moveFile: PutioFileMove
   let setSort: PutioFolderSortUpdate
+  let canDelete: @MainActor @Sendable () -> Bool
 
   init(runtime: PutioRuntime) {
+    canDelete = {
+      !runtime.session.isAccountPreferencesStale && !runtime.session.isUpdatingAccountPreferences
+    }
     setSort = { folderID, sort in
       try await runtime.setFolderSort(folderID: folderID, sort: sort)
     }
@@ -47,13 +51,15 @@ struct PutioFileActions: Sendable {
     renameFile: @escaping PutioFileRename,
     deleteFile: @escaping PutioFileDelete,
     moveFile: @escaping PutioFileMove = { _, _ in throw PutioRuntimeError.unknown },
-    setSort: @escaping PutioFolderSortUpdate = { _, _ in throw PutioRuntimeError.unknown }
+    setSort: @escaping PutioFolderSortUpdate = { _, _ in throw PutioRuntimeError.unknown },
+    canDelete: @escaping @MainActor @Sendable () -> Bool = { true }
   ) {
     self.createFolder = createFolder
     self.renameFile = renameFile
     self.deleteFile = deleteFile
     self.moveFile = moveFile
     self.setSort = setSort
+    self.canDelete = canDelete
   }
 }
 
@@ -445,6 +451,8 @@ final class PutioFolderModel {
     return true
   }
 
+  var canDelete: Bool { canStartAction && actions?.canDelete() == true }
+
   private var mutationIsActive: Bool {
     activeAction != nil || activeBulkAction != nil
   }
@@ -598,7 +606,7 @@ final class PutioFolderModel {
   }
 
   func delete(_ item: PutioFileItem) async {
-    guard let actions, canStartAction, case .loaded(let contents) = state else { return }
+    guard let actions, canDelete, case .loaded(let contents) = state else { return }
     guard let currentItem = contents.items.first(where: { $0.id == item.id }) else { return }
     let action = PutioFileAction.delete(fileID: currentItem.id, name: currentItem.name)
     begin(action)
@@ -633,7 +641,7 @@ final class PutioFolderModel {
   func delete(_ selectedItems: [PutioFileItem]) async {
     guard
       let actions,
-      canStartAction,
+      canDelete,
       case .loaded(let contents) = state,
       let items = latestItems(for: selectedItems, in: contents)
     else { return }

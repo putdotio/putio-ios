@@ -1257,6 +1257,31 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(failure.title, "Could not rename item")
   }
 
+  func testUnresolvedPreferencesPreventSingleAndBulkDeleteWithoutOptimisticRemoval() async {
+    let item = BrowserTestFixtures.item(id: 7, name: "Episode.mkv")
+    let original = BrowserTestFixtures.contents(items: [item])
+    var preferencesConfirmed = false
+    var deletions = 0
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in deletions += 1 },
+        canDelete: { preferencesConfirmed }
+      ), initialContents: original)
+    XCTAssertFalse(model.canDelete)
+    await model.delete(item)
+    await model.delete([item])
+    XCTAssertEqual(deletions, 0)
+    XCTAssertEqual(model.state, .loaded(original))
+    preferencesConfirmed = true
+    XCTAssertTrue(model.canDelete)
+    await model.delete(item)
+    XCTAssertEqual(deletions, 1)
+  }
+
   func testDeleteFailureTitleDoesNotPromiseTrashDisposition() async {
     let item = BrowserTestFixtures.item(id: 7, name: "Episode.mkv")
     let original = BrowserTestFixtures.contents(items: [item])

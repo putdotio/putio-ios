@@ -18,6 +18,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
   public let email: String
   public let suggestNextVideo: Bool
   public let rememberVideoTime: Bool
+  public let defaultSort: PutioFolderSort?
   public let historyEnabled: Bool
   public let trashEnabled: Bool
   public let storage: Storage
@@ -28,6 +29,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     email: String,
     suggestNextVideo: Bool,
     rememberVideoTime: Bool,
+    defaultSort: PutioFolderSort?,
     historyEnabled: Bool,
     trashEnabled: Bool,
     storage: Storage
@@ -37,6 +39,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     self.email = email
     self.suggestNextVideo = suggestNextVideo
     self.rememberVideoTime = rememberVideoTime
+    self.defaultSort = defaultSort
     self.historyEnabled = historyEnabled
     self.trashEnabled = trashEnabled
     self.storage = storage
@@ -325,5 +328,13 @@ public struct PutioHistoryPage: Equatable, Sendable {
   public init(items: [PutioHistoryEventItem], nextBefore: Int?) {
     self.items = items
     self.nextBefore = nextBefore
+  }
+}
+
+public struct PutioAccountPreferencesMutationResult: Equatable, Sendable {
+  public let accountRefreshed: Bool
+
+  public init(accountRefreshed: Bool) {
+    self.accountRefreshed = accountRefreshed
   }
 }
