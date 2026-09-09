@@ -274,10 +274,12 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertTrue(source.url.path.hasSuffix("/files/\(track.rawValue)/stream"))
     XCTAssertEqual(source.startFromSeconds, 0)
 
-    let next = try XCTUnwrap(try await runtime.findNextAudio(after: track))
+    let loadedNext = try await runtime.findNextAudio(after: track)
+    let next = try XCTUnwrap(loadedNext)
     XCTAssertEqual(next.id, PutioFileID(rawValue: HarnessSeededAPI.audioSuccessorFileID))
     XCTAssertEqual(next.parentID, .root)
-    XCTAssertNil(try await runtime.findNextAudio(after: next.id))
+    let finalSuccessor = try await runtime.findNextAudio(after: next.id)
+    XCTAssertNil(finalSuccessor)
 
     do {
       _ = try await runtime.resolveAudioPlaybackSource(fileID: PutioFileID(rawValue: 412))
