@@ -279,6 +279,20 @@ public enum PutioPlaybackResolution: Equatable, Sendable {
   case conversionRequired
 }
 
+/// The next audio file the server suggests after a track, or `nil` at the end
+/// of the folder.
+public struct PutioNextAudio: Equatable, Sendable {
+  public let id: PutioFileID
+  public let parentID: PutioFileID
+  public let name: String
+
+  public init(id: PutioFileID, parentID: PutioFileID, name: String) {
+    self.id = id
+    self.parentID = parentID
+    self.name = name
+  }
+}
+
 public enum PutioVideoConversionStatus: Equatable, Sendable {
   case queued
   case converting(progress: Double)

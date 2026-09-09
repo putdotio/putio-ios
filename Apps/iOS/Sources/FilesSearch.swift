@@ -242,7 +242,7 @@ struct FilesSearchView: View {
     Group {
       if let route = presentation.folderRoute {
         NavigationLink(value: route) { PutioFileRow(presentation.row) }
-      } else if let route = presentation.fileRoute, route.videoPlaybackRoute != nil {
+      } else if let route = presentation.fileRoute, route.isPlayable {
         Button {
           onFileSelected(route)
         } label: {

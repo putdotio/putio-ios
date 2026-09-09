@@ -1734,6 +1734,44 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(request.url?.path, "/v2/files/411/mp4")
   }
 
+  func testAudioPlaybackSourceMapsStreamURLAndPositionThroughTheSDK() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"file":{"id":430,"file_type":"AUDIO","start_from":45}}"#, for: "GET /v2/files/430")
+
+    let source = try await runtime.resolveAudioPlaybackSource(fileID: PutioFileID(rawValue: 430))
+
+    XCTAssertEqual(source.url.path, "/v2/files/430/stream")
+    XCTAssertEqual(source.startFromSeconds, 45)
+    XCTAssertFalse(String(describing: source).contains("stored-token"))
+  }
+
+  func testAudioPlaybackSourceRejectsNonAudioAsUnknown() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      Self.playbackFile(needConvert: false, startFrom: 0), for: Self.playbackRoute)
+
+    await assertRuntimeError(.unknown) {
+      _ = try await runtime.resolveAudioPlaybackSource(fileID: PutioFileID(rawValue: 411))
+    }
+  }
+
+  func testNextAudioUsesTheAudioFileTypeAndMapsTheSuccessor() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"next_file":{"id":431,"name":"Track 2.m4a","parent_id":7}}"#,
+      for: "GET /v2/files/430/next-file")
+
+    let next = try await runtime.findNextAudio(after: PutioFileID(rawValue: 430))
+
+    XCTAssertEqual(
+      next,
+      PutioNextAudio(
+        id: PutioFileID(rawValue: 431), parentID: PutioFileID(rawValue: 7), name: "Track 2.m4a"))
+    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    XCTAssertEqual(request.url?.query?.contains("file_type=AUDIO"), true)
+  }
+
   func testVideoConversionStatusMapsEveryKnownSDKState() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let cases: [(String, Int, PutioVideoConversionStatus)] = [
@@ -1814,6 +1852,16 @@ final class PutioRuntimeTests: XCTestCase {
     }
 
     XCTAssertTrue(RuntimeMockURLProtocol.capturedRequests().isEmpty)
+  }
+
+  func testMediaAgnosticPlaybackPositionReportSharesTheStartFromRoute() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.playbackPositionRoute)
+
+    try await runtime.reportPlaybackPosition(fileID: PutioFileID(rawValue: 411), seconds: 42)
+
+    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    XCTAssertEqual(request.url?.path, "/v2/files/411/start-from/set")
   }
 
   func testPlaybackPositionReportSendsExactPathAndBody() async throws {

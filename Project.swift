@@ -85,8 +85,9 @@ let project = Project(
             cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof-invalid.m3u8" "$destination/"
             cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof.m3u8" "$destination/"
             cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof-000.ts" "$destination/"
+            cp "${SRCROOT}/Tests/HarnessMedia/audio/runtime-proof-audio.m4a" "$destination/"
             """,
-          name: "Bundle runtime-proof HLS fixture",
+          name: "Bundle runtime-proof media fixtures",
           basedOnDependencyAnalysis: false
         )
       ],

@@ -109,7 +109,12 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertEqual(root.folder?.id, .root)
     XCTAssertEqual(
       root.items.map(\.id),
-      [folderID, PutioFileID(rawValue: 412), PutioFileID(rawValue: 413)]
+      [
+        folderID, PutioFileID(rawValue: 412),
+        PutioFileID(rawValue: HarnessSeededAPI.audioTrackFileID),
+        PutioFileID(rawValue: HarnessSeededAPI.audioSuccessorFileID),
+        PutioFileID(rawValue: 413),
+      ]
     )
     XCTAssertEqual(root.sort, .nameAscending)
     XCTAssertEqual(root.nextCursor, HarnessSeededAPI.rootContinuationCursor)
@@ -258,6 +263,30 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     XCTAssertEqual(source.startFromSeconds, 37)
     let finalSuccessor = try await runtime.findNextVideo(after: nextVideo.id)
     XCTAssertNil(finalSuccessor)
+  }
+
+  func testSeededAudioResolvesStreamAndSuccessorThroughTheSDK() async throws {
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
+    await runtime.session.restore()
+    let track = PutioFileID(rawValue: HarnessSeededAPI.audioTrackFileID)
+
+    let source = try await runtime.resolveAudioPlaybackSource(fileID: track)
+    XCTAssertTrue(source.url.path.hasSuffix("/files/\(track.rawValue)/stream"))
+    XCTAssertEqual(source.startFromSeconds, 0)
+
+    let loadedNext = try await runtime.findNextAudio(after: track)
+    let next = try XCTUnwrap(loadedNext)
+    XCTAssertEqual(next.id, PutioFileID(rawValue: HarnessSeededAPI.audioSuccessorFileID))
+    XCTAssertEqual(next.parentID, .root)
+    let finalSuccessor = try await runtime.findNextAudio(after: next.id)
+    XCTAssertNil(finalSuccessor)
+
+    do {
+      _ = try await runtime.resolveAudioPlaybackSource(fileID: PutioFileID(rawValue: 412))
+      XCTFail("expected the video file to be rejected for audio playback")
+    } catch {
+      XCTAssertEqual(error as? PutioRuntimeError, .unknown)
+    }
   }
 
   func testSeededFileActionsCreateRenameRetryAndDelete() async throws {
