@@ -628,7 +628,7 @@ struct PutioFolderScreen: View {
         .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
       )
     } else if let fileRoute = presentation.fileRoute {
-      if fileRoute.videoPlaybackRoute != nil {
+      if fileRoute.isPlayable {
         fileActions(
           for: presentation.item,
           content: Button {

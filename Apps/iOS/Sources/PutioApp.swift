@@ -258,6 +258,7 @@ private struct MainTabView: View {
   @State private var trashReconciliation = PutioTrashReconciliation()
   @State private var historyRevision: UInt64 = 0
   @State private var presentedVideoRoute: PutioVideoRoute?
+  @State private var presentedAudioRoute: PutioAudioRoute?
 
   var body: some View {
     TabView(selection: $selectedTab) {
@@ -393,6 +394,26 @@ private struct MainTabView: View {
         )
       }
     }
+    .sheet(item: $presentedAudioRoute) { route in
+      PutioAudioPlayerView(
+        route: route,
+        onDismiss: { presentedAudioRoute = nil },
+        showsHarnessReadiness: scenario == .filesBrowser,
+        positionPipeline: playbackPositionPipeline,
+        reportPosition: { fileID, seconds in
+          try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: seconds)
+        },
+        resolve: { fileID in try await resolveAudioSource(fileID: fileID) },
+        loadNext: { fileID in try await runtime.findNextAudio(after: fileID) }
+      )
+      .onDisappear {
+        Task { @MainActor in
+          await Task.yield()
+          await playbackPositionPipeline.waitForPendingReports(fileID: route.id)
+          folderRefreshRequests.request(folderID: route.parentID)
+        }
+      }
+    }
     .overlay(alignment: .topLeading) {
       if scenario == .filesBrowser, let selectedFileRoute {
         HarnessFileSelectionProbe(route: selectedFileRoute)
@@ -457,8 +478,11 @@ private struct MainTabView: View {
 
   private func selectFile(_ route: PutioFileRoute) {
     selectedFileRoute = route
-    guard let videoRoute = route.videoPlaybackRoute else { return }
-    presentVideo(videoRoute)
+    if let videoRoute = route.videoPlaybackRoute {
+      presentVideo(videoRoute)
+    } else if let audioRoute = route.audioPlaybackRoute {
+      presentedAudioRoute = audioRoute
+    }
   }
 
   private func presentVideo(_ route: PutioVideoRoute) {
@@ -483,6 +507,27 @@ private struct MainTabView: View {
       await playbackPositionPipeline.waitForPendingReports(fileID: route.id)
       folderRefreshRequests.request(folderID: route.parentID)
     }
+  }
+
+  private func resolveAudioSource(fileID: PutioFileID) async throws -> PutioPlaybackSource {
+    let source = try await runtime.resolveAudioPlaybackSource(fileID: fileID)
+    #if DEBUG
+      guard scenario == .filesBrowser else { return source }
+      guard
+        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
+        let baseURL = URL(string: baseURLString),
+        baseURL.scheme == "http",
+        baseURL.host == "127.0.0.1"
+      else {
+        throw HarnessPlaybackFixtureError.missingResource
+      }
+      return PutioPlaybackSource(
+        url: baseURL.appending(path: "runtime-proof-audio.m4a"),
+        startFromSeconds: source.startFromSeconds
+      )
+    #else
+      return source
+    #endif
   }
 
   private func resolvePlaybackSource(fileID: PutioFileID) async throws

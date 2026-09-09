@@ -224,6 +224,22 @@ struct PutioFileRoute: Identifiable, Hashable, Sendable {
     guard item.kind == .video else { return nil }
     return PutioVideoRoute(id: item.id, parentID: item.parentID, title: item.name)
   }
+
+  var audioPlaybackRoute: PutioAudioRoute? {
+    guard item.kind == .audio else { return nil }
+    return PutioAudioRoute(id: item.id, parentID: item.parentID, title: item.name)
+  }
+
+  /// A route that opens a player of any kind.
+  var isPlayable: Bool {
+    videoPlaybackRoute != nil || audioPlaybackRoute != nil
+  }
+}
+
+struct PutioAudioRoute: Identifiable, Equatable, Sendable {
+  let id: PutioFileID
+  let parentID: PutioFileID
+  let title: String
 }
 
 struct PutioVideoRoute: Identifiable, Sendable {

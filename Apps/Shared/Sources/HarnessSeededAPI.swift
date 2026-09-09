@@ -802,6 +802,21 @@ import Foundation
         )
       case "GET /v2/files/414/next-file":
         return (200, #"{"next_file":null}"#)
+      case "GET /v2/files/\(audioTrackFileID)":
+        return (200, audioFile(id: audioTrackFileID, name: "Harness Track.m4a"))
+      case "GET /v2/files/\(audioSuccessorFileID)":
+        return (200, audioFile(id: audioSuccessorFileID, name: "Harness Track 2.m4a"))
+      case "GET /v2/files/\(audioTrackFileID)/next-file":
+        return (
+          200,
+          #"{"next_file":{"id":\#(audioSuccessorFileID),"name":"Harness Track 2.m4a","parent_id":0}}"#
+        )
+      case "GET /v2/files/\(audioSuccessorFileID)/next-file":
+        return (200, #"{"next_file":null}"#)
+      case "POST /v2/files/\(audioTrackFileID)/start-from/set":
+        return setPlaybackPosition(request: request, fileID: audioTrackFileID)
+      case "POST /v2/files/\(audioSuccessorFileID)/start-from/set":
+        return setPlaybackPosition(request: request, fileID: audioSuccessorFileID)
       case "POST /v2/files/411/start-from/set":
         return setPlaybackPosition(request: request, fileID: 411)
       case "POST /v2/files/412/start-from/set":
@@ -822,6 +837,27 @@ import Foundation
 
     static let rootContinuationCursor = "files-root-page-2"
     static let rootContinuationFileID = 422
+    static let audioTrackFileID = 430
+    static let audioSuccessorFileID = 431
+
+    private static func audioObject(id: Int, name: String) -> String {
+      """
+      {
+        "id": \(id),
+        "name": \(jsonString(name)),
+        "file_type": "AUDIO",
+        "parent_id": 0,
+        "size": 17772,
+        "created_at": "2026-08-28T10:00:00Z",
+        "updated_at": "2026-08-29T10:00:00Z",
+        "start_from": \(playbackPosition(fileID: id))
+      }
+      """
+    }
+
+    private static func audioFile(id: Int, name: String) -> String {
+      #"{"status":"OK","file":"# + audioObject(id: id, name: name) + "}"
+    }
 
     private static func filesListFixture(url: URL) -> (Int, String) {
       let parentID = URLComponents(url: url, resolvingAgainstBaseURL: false)?
@@ -1465,6 +1501,8 @@ import Foundation
             "start_from": \(playbackPosition(fileID: 412))
           }
           """,
+          audioObject(id: audioTrackFileID, name: "Harness Track.m4a"),
+          audioObject(id: audioSuccessorFileID, name: "Harness Track 2.m4a"),
           """
           {
             "id": 413,
@@ -1497,7 +1535,7 @@ import Foundation
           "files": [
             \(rows.joined(separator: ",\n"))
           ],
-          "total": \(4 + mutableFolders.count - (folderDeleted ? 1 : 0))
+          "total": \(6 + mutableFolders.count - (folderDeleted ? 1 : 0))
         }
         """
     }

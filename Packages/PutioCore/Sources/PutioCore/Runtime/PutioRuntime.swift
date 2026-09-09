@@ -412,6 +412,25 @@ public final class PutioRuntime {
     }
   }
 
+  public func resolveAudioPlaybackSource(fileID: PutioFileID) async throws -> PutioPlaybackSource {
+    let source = try await performAuthenticatedOperation {
+      try await sdk.resolveAudioPlaybackSource(fileID: fileID.rawValue)
+    }
+    return PutioPlaybackSource(url: source.url, startFromSeconds: source.startFrom)
+  }
+
+  public func findNextAudio(after fileID: PutioFileID) async throws -> PutioNextAudio? {
+    let nextFile = try await performAuthenticatedOperation {
+      try await sdk.findNextFileIfAvailable(fileID: fileID.rawValue, fileType: .audio)
+    }
+    guard let nextFile else { return nil }
+    return PutioNextAudio(
+      id: PutioFileID(rawValue: nextFile.id),
+      parentID: PutioFileID(rawValue: nextFile.parentID),
+      name: nextFile.name
+    )
+  }
+
   public func reportVideoPlaybackPosition(fileID: PutioFileID, seconds: Int) async throws {
     _ = try await performAuthenticatedOperation {
       try await sdk.setStartFrom(fileID: fileID.rawValue, time: seconds)

@@ -82,7 +82,7 @@ struct HistoryView: View {
           let presentation = PutioBrowserItemPresentation(item: file)
           if let folder = presentation.folderRoute {
             path.append(folder)
-          } else if let route = presentation.fileRoute, route.videoPlaybackRoute != nil {
+          } else if let route = presentation.fileRoute, route.isPlayable {
             onFileSelected(route)
           } else {
             unsupportedFilePresented = true
