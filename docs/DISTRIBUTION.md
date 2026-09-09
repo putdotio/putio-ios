@@ -30,6 +30,7 @@ Distribution guidance for `putio-ios`.
 - checked-in `CURRENT_PROJECT_VERSION` stays at `1` as a baseline
 - fastlane temporarily updates tracked version metadata during archive time and restores the files afterward
 - Manual beta and release dispatches require `expected_sha` to equal both the workflow event SHA and the current protected `main` head. The validation job is secretless; only its immutable SHA output reaches the `release` Environment job.
+- App icons follow the put.io design-system flavors: `AppIconDev` locally, `AppIconNightly` on TestFlight, `AppIcon` on the App Store
 
 ## Release Secret Contract
 

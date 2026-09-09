@@ -11,6 +11,16 @@ Product interface glyphs use [Phosphor Icons](https://github.com/phosphor-icons/
 - Keep save-to-put.io, download-to-device, and stream/play as distinct metaphors
 - Do not replace brand artwork, app icons, media artwork, or other non-glyph imagery with Phosphor
 
+## App icons
+
+The three 1024×1024 marks come from `@putdotio/design/assets/*`:
+
+| Catalog | Asset | Channel |
+| --- | --- | --- |
+| `AppIconDev` | `app-icon-dev-blueprint.png` | local / `io.put.dev` |
+| `AppIconNightly` | `app-icon-nightly-stars.png` | TestFlight |
+| `AppIcon` | `app-icon-prod-dark.png` | App Store |
+
 ## Updating assets
 
 `Config/PhosphorIcons.json` pins the upstream npm tarball, its Subresource Integrity checksum, and the selected icon names and weights. Generated asset catalogs and source hashes are recorded in `Config/PhosphorIcons.lock.json`.

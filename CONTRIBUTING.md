@@ -99,7 +99,8 @@ suite — Dependabot and forks included.
 - Local signed builds default to:
   - bundle id `io.put.dev`
   - display name `put.io`
-  - primary icon `AppIconDev`
+  - primary icon `AppIconDev` (blueprint)
+- TestFlight uses `AppIconNightly`; App Store uses `AppIcon`
 - Keep the encrypted payload contract, `Config/Local.example.xcconfig`, and the
   renderer test aligned
 - CI beta and release builds use the release-secret contract in [Distribution](./docs/DISTRIBUTION.md)
