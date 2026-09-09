@@ -42,8 +42,19 @@ enum PutioAudioSpeed: Float, CaseIterable, Sendable {
   case fast = 1.5
   case fastest = 2
 
+  /// Locale-independent so the label, identifier, and persisted value agree.
   var title: String {
-    "\(rawValue.formatted(.number.precision(.fractionLength(0...2))))×"
+    switch self {
+    case .slower: "0.75×"
+    case .normal: "1×"
+    case .faster: "1.25×"
+    case .fast: "1.5×"
+    case .fastest: "2×"
+    }
+  }
+
+  var identifier: String {
+    String(title.dropLast())
   }
 }
 
@@ -764,7 +775,7 @@ struct PutioAudioPlayerView: View {
                 Text(speed.title)
               }
             }
-            .accessibilityIdentifier("audio.speed.\(speed.rawValue)")
+            .accessibilityIdentifier("audio.speed.\(speed.identifier)")
           }
         } label: {
           Text(model.speed.title)
