@@ -815,7 +815,7 @@ struct PutioAudioPlayerView: View {
         .accessibilityIdentifier("audio.loading")
     case .failed(_, let failure):
       PutioErrorStateView(
-        title: failure.title, message: failure.message, retryTitle: "Try again",
+        title: failure.audioTitle, message: failure.audioMessage, retryTitle: "Try again",
         retryIdentifier: "audio.retry"
       ) {
         Task { await model.retry() }
@@ -979,4 +979,23 @@ private struct PutioAudioRoutePicker: UIViewRepresentable {
   }
 
   func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
+}
+
+extension PutioVideoPlaybackFailure {
+  /// The shared failure kinds carry video wording; the audio sheet rewords them.
+  var audioTitle: String {
+    switch kind {
+    case .notFound: "Audio not found"
+    case .playback: "Could not play audio"
+    default: "Could not open audio"
+    }
+  }
+
+  var audioMessage: String {
+    switch kind {
+    case .playback: "The audio could not be played. Try again."
+    case .unknown: "put.io could not prepare this audio. Try again."
+    default: message
+    }
+  }
 }

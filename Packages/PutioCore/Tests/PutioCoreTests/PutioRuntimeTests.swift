@@ -1854,6 +1854,16 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertTrue(RuntimeMockURLProtocol.capturedRequests().isEmpty)
   }
 
+  func testMediaAgnosticPlaybackPositionReportSharesTheStartFromRoute() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.playbackPositionRoute)
+
+    try await runtime.reportPlaybackPosition(fileID: PutioFileID(rawValue: 411), seconds: 42)
+
+    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    XCTAssertEqual(request.url?.path, "/v2/files/411/start-from/set")
+  }
+
   func testPlaybackPositionReportSendsExactPathAndBody() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.playbackPositionRoute)

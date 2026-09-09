@@ -409,7 +409,7 @@ private struct MainTabView: View {
         showsHarnessReadiness: scenario == .filesBrowser,
         positionPipeline: playbackPositionPipeline,
         reportPosition: { fileID, seconds in
-          try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: seconds)
+          try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
         },
         resolve: { fileID in try await resolveAudioSource(fileID: fileID) },
         loadNext: { fileID in try await runtime.findNextAudio(after: fileID) }

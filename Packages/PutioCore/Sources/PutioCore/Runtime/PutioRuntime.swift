@@ -431,10 +431,16 @@ public final class PutioRuntime {
     )
   }
 
-  public func reportVideoPlaybackPosition(fileID: PutioFileID, seconds: Int) async throws {
+  /// Saves the resume position for any media file; put.io keeps one
+  /// `start_from` per file regardless of type.
+  public func reportPlaybackPosition(fileID: PutioFileID, seconds: Int) async throws {
     _ = try await performAuthenticatedOperation {
       try await sdk.setStartFrom(fileID: fileID.rawValue, time: seconds)
     }
+  }
+
+  public func reportVideoPlaybackPosition(fileID: PutioFileID, seconds: Int) async throws {
+    try await reportPlaybackPosition(fileID: fileID, seconds: seconds)
   }
 
   public func startVideoConversion(fileID: PutioFileID) async throws {
