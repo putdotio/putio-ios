@@ -54,7 +54,7 @@ enum PutioDeepLinkFailure: Error, Equatable {
     case .unavailable: String(localized: "This link cannot be opened in this app yet.")
     case .unsupportedFile: String(localized: "This file type cannot be opened yet.")
     case .historyDisabled: String(localized: "History is turned off in your account settings.")
-    case .missingFile: String(localized: "This item is no longer available.")
+    case .missingFile: String(localized: "This item could not be found.")
     case .connection: String(localized: "Check your connection and try again.")
     case .invalidResponse: String(localized: "put.io returned an invalid response. Try again.")
     }
@@ -183,7 +183,7 @@ final class PutioDeepLinkModel {
     var seen: Set<PutioFileID> = []
     while true {
       try Task.checkCancellation()
-      guard seen.insert(current.id).inserted, seen.count <= 64, current.parentID.rawValue >= 0
+      guard seen.insert(current.id).inserted, current.parentID.rawValue >= 0
       else {
         throw PutioDeepLinkFailure.invalidResponse
       }

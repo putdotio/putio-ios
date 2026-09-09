@@ -108,12 +108,6 @@ let project = Project(
         "CFBundleDisplayName": "put.io Nightly",
         "UIAppFonts": brandFontInfoPlist(for: "ios"),
         "UIBackgroundModes": ["audio"],
-        "CFBundleURLTypes": [
-          [
-            "CFBundleURLName": "putio", "CFBundleURLSchemes": ["putio"],
-            "CFBundleTypeRole": "Viewer",
-          ]
-        ],
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
       ]),

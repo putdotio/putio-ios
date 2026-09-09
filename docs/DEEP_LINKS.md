@@ -15,6 +15,8 @@ and `putio://put.io/files/410` use `/files/410` as the path. A host such as
 `putio://files/410` is not a route. The dispatcher also accepts HTTPS URLs
 on `put.io` and its subdomains when delivered to the app. Universal-link
 entitlements and domain association for the new app are separate work.
+Only the Putio target registers the canonical `putio` scheme; Nightly does not
+claim it when both app flavors are installed.
 
 Credentials, explicit ports, query strings, fragments, encoded path components,
 and malformed IDs are not accepted as navigation input. Foreign schemes and

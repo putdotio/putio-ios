@@ -97,6 +97,20 @@ final class DeepLinkTests: XCTestCase {
       model.destination, .files([folder(10), folder(20)], video: PutioFileRoute(item: video)))
   }
 
+  func testDeepFolderPathPreservesEveryAncestor() async throws {
+    let model = signedInModel()
+    model.receive(try url("/files/100"))
+    var requestedIDs: [Int] = []
+    await model.resolve(historyEnabled: true) { id in
+      requestedIDs.append(id.rawValue)
+      return BrowserTestFixtures.item(
+        id: id.rawValue, parentID: id.rawValue - 1, kind: .folder)
+    }
+    XCTAssertEqual(requestedIDs, Array((1...100).reversed()))
+    XCTAssertEqual(model.destination, .files((1...100).map(folder), video: nil))
+    XCTAssertNil(model.failure)
+  }
+
   func testMissingFileRetryAndUnsupportedTypesRemainRecoverable() async throws {
     let model = signedInModel()
     model.receive(try url("/files/10"))
