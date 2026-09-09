@@ -19,7 +19,7 @@ final class DeepLinkJourneyTests: XCTestCase {
     signIn()
     XCTAssertTrue(element("link.loading").waitForExistence(timeout: 5))
     screenshot("runtime-deep-link-loading")
-    XCTAssertTrue(element("link.error").waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["Cannot open link"].waitForExistence(timeout: 10))
     screenshot("runtime-deep-link-error")
     app.buttons["link.retry"].tap()
     XCTAssertTrue(element("files.screen.410").waitForExistence(timeout: 10))

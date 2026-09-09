@@ -704,6 +704,17 @@ public struct SimulatorHarness {
         }
         let mediaBaseURL = try mediaServer.start()
 
+        let deepLinkScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.deepLinksTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".deep-links.xcresult"),
+          attachmentNames: BrowserJourneyContract.deepLinksAttachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 180,
+          maximumExecutionTimeAllowance: 180
+        )
         let signOutFailureScreenshots = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.signOutRecoveryTestIdentifier,
           platform: platform,
@@ -784,17 +795,6 @@ public struct SimulatorHarness {
           mediaBaseURL: mediaBaseURL,
           resultBundle: platformDirectory.appending(path: ".history.xcresult"),
           attachmentNames: BrowserJourneyContract.historyAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 180,
-          maximumExecutionTimeAllowance: 180
-        )
-        let deepLinkScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.deepLinksTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".deep-links.xcresult"),
-          attachmentNames: BrowserJourneyContract.deepLinksAttachmentNames,
           artifactDirectory: platformDirectory,
           defaultExecutionTimeAllowance: 180,
           maximumExecutionTimeAllowance: 180

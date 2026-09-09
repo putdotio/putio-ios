@@ -105,7 +105,6 @@ private struct SessionRootView: View {
               retryIdentifier: "link.retry",
               retry: failure.canRetry ? { deepLinks.retry() } : nil
             )
-            .accessibilityIdentifier("link.error")
           } else {
             PutioLoadingStateView(title: "Opening link")
               .accessibilityIdentifier("link.loading")
