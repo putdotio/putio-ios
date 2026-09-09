@@ -15,7 +15,7 @@ final class DeepLinkJourneyTests: XCTestCase {
   }
 
   func testColdWarmAndSignedOutLinksUseExistingScreens() throws {
-    try open("putio:///files/410")
+    try openCold("putio:///files/410")
     signIn()
     XCTAssertTrue(element("link.loading").waitForExistence(timeout: 5))
     screenshot("runtime-deep-link-loading")
@@ -47,7 +47,7 @@ final class DeepLinkJourneyTests: XCTestCase {
     app.buttons["link.close"].tap()
 
     app.terminate()
-    try open("putio:///account")
+    try openCold("putio:///account")
     XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 10))
     XCTAssertFalse(element("auth.sign-in").exists)
     signOut()
@@ -60,8 +60,13 @@ final class DeepLinkJourneyTests: XCTestCase {
     signOut()
   }
 
-  private func open(_ value: String) throws {
+  private func openCold(_ value: String) throws {
     app.open(try XCTUnwrap(URL(string: value)))
+  }
+
+  private func open(_ value: String) throws {
+    XCTAssertEqual(app.state, .runningForeground)
+    XCUIDevice.shared.system.open(try XCTUnwrap(URL(string: value)))
   }
 
   private func signIn() {
