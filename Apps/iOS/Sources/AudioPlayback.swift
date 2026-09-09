@@ -153,6 +153,12 @@ final class PutioAudioPlayerModel {
   @ObservationIgnored private var resumesAfterInterruption = false
   @ObservationIgnored private var sessionIsActive = false
   @ObservationIgnored private var transitionTask: Task<Void, Never>?
+  /// Observer ticks are ignored until the engine confirms this position, so a
+  /// stale sample cannot undo a seek, a start position, or the end-of-track reset.
+  @ObservationIgnored private var awaitedSeconds: Int?
+  /// True between end or skip and the next load; the finished track no longer
+  /// accepts positions.
+  @ObservationIgnored private var isTransitioning = false
 
   init(
     track: PutioAudioTrack,
@@ -216,7 +222,7 @@ final class PutioAudioPlayerModel {
   }
 
   func pause() {
-    guard case .playing(let track) = state else { return }
+    guard case .playing(let track) = state, !isTransitioning else { return }
     engine.pause()
     state = .paused(track)
     reportCurrentPosition(force: true)
@@ -237,6 +243,7 @@ final class PutioAudioPlayerModel {
 
   func seek(to seconds: Int) {
     let bounded = max(0, durationSeconds.map { min(seconds, $0) } ?? seconds)
+    awaitedSeconds = bounded
     engine.seek(to: bounded)
     elapsedSeconds = bounded
     reportCurrentPosition(force: true)
@@ -253,15 +260,25 @@ final class PutioAudioPlayerModel {
   func skipToNext() {
     let current = track
     if case .playing = state { reportCurrentPosition(force: true) }
-    transitionTask?.cancel()
+    beginTransition()
     transitionTask = Task { [weak self] in await self?.advance(from: current) }
+  }
+
+  /// Freezes the current track: the engine stops, its generation is retired so
+  /// a late end or failure cannot start a second advance, and the reset holds.
+  private func beginTransition() {
+    generation &+= 1
+    transitionTask?.cancel()
+    engine.pause()
+    awaitedSeconds = nil
+    isTransitioning = true
   }
 
   func stop() {
     generation &+= 1
     transitionTask?.cancel()
     transitionTask = nil
-    if case .playing = state { reportCurrentPosition(force: true) }
+    if case .playing = state, !isTransitioning { reportCurrentPosition(force: true) }
     engine.stop()
     nowPlaying.clear()
     nowPlaying.detachCommands()
@@ -275,6 +292,7 @@ final class PutioAudioPlayerModel {
   private func load(track: PutioAudioTrack, startFromSeconds override: Int? = nil) async {
     generation &+= 1
     let requestGeneration = generation
+    isTransitioning = false
     state = .loading(track)
     elapsedSeconds = override ?? 0
     durationSeconds = nil
@@ -294,6 +312,7 @@ final class PutioAudioPlayerModel {
       elapsedSeconds = startFrom
       // The server already holds the start position; report only movement.
       lastReportedSeconds = startFrom
+      awaitedSeconds = startFrom > 0 ? startFrom : nil
       engine.load(url: source.url, startFromSeconds: startFrom)
       durationSeconds = engine.durationSeconds
       engine.play(rate: speed.rawValue)
@@ -314,6 +333,7 @@ final class PutioAudioPlayerModel {
     guard requestGeneration == generation, !Task.isCancelled else { return }
     do {
       guard let next = try await loadNext(completed.id) else {
+        isTransitioning = false
         state = .ended(completed)
         publishNowPlaying()
         return
@@ -323,6 +343,7 @@ final class PutioAudioPlayerModel {
       await load(track: PutioAudioTrack(id: next.id, parentID: next.parentID, title: next.name))
     } catch {
       guard requestGeneration == generation, !Task.isCancelled else { return }
+      isTransitioning = false
       state = .ended(completed)
       publishNowPlaying()
     }
@@ -337,17 +358,22 @@ final class PutioAudioPlayerModel {
       publishNowPlaying()
     }
     engine.onPositionChanged = { [weak self] seconds in
-      guard let self, self.isPlaying else { return }
+      guard let self, self.isPlaying, !self.isTransitioning else { return }
+      if let awaited = self.awaitedSeconds {
+        // Samples before the seek lands describe the old position.
+        guard abs(seconds - awaited) <= 1 else { return }
+        self.awaitedSeconds = nil
+      }
       self.elapsedSeconds = seconds
       if self.durationSeconds == nil { self.durationSeconds = self.engine.durationSeconds }
       self.reportCurrentPosition(force: false)
     }
     engine.onEnded = { [weak self] in
       guard let self, case .playing(let track) = state else { return }
+      beginTransition()
       lastReportedSeconds = 0
       positionPipeline.enqueue(
         fileID: track.id, position: 0, preservesOrdering: true, report: reportPosition)
-      transitionTask?.cancel()
       transitionTask = Task { [weak self] in await self?.advance(from: track) }
     }
     engine.onFailed = { [weak self] in
@@ -362,13 +388,13 @@ final class PutioAudioPlayerModel {
       notificationCenter.addObserver(
         forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
       ) { [weak self] notification in
-        MainActor.assumeIsolated { self?.handleInterruption(notification) }
+        Task { @MainActor [weak self] in self?.handleInterruption(notification) }
       })
     observers.append(
       notificationCenter.addObserver(
         forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main
       ) { [weak self] notification in
-        MainActor.assumeIsolated { self?.handleRouteChange(notification) }
+        Task { @MainActor [weak self] in self?.handleRouteChange(notification) }
       })
   }
 
@@ -526,17 +552,17 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
     endObserver = NotificationCenter.default.addObserver(
       forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main
     ) { [weak self] _ in
-      MainActor.assumeIsolated { self?.onEnded?() }
+      Task { @MainActor [weak self] in self?.onEnded?() }
     }
     failObserver = NotificationCenter.default.addObserver(
       forName: AVPlayerItem.failedToPlayToEndTimeNotification, object: item, queue: .main
     ) { [weak self] _ in
-      MainActor.assumeIsolated { self?.onFailed?() }
+      Task { @MainActor [weak self] in self?.onFailed?() }
     }
     timeObserver = player.addPeriodicTimeObserver(
       forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main
     ) { [weak self] time in
-      MainActor.assumeIsolated {
+      Task { @MainActor [weak self] in
         guard let self, let seconds = Self.seconds(time) else { return }
         self.onPositionChanged?(seconds)
       }
