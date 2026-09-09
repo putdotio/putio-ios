@@ -32,8 +32,9 @@ final class AccountJourneyTests: XCTestCase {
     XCTAssertEqual(XCTWaiter.wait(for: [opened], timeout: 5), .completed)
     app.buttons["Files"].tap()
     account.tap()
+    XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 5))
+    XCTAssertTrue(rating.waitForExistence(timeout: 5))
     XCTAssertEqual(requests.value as? String, expected)
-    XCTAssertTrue(app.navigationBars["Account"].exists)
     let signOut = app.descendants(matching: .any)["auth.sign-out"]
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     if !signOut.isHittable { app.swipeUp() }
