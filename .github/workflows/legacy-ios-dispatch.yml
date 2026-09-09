@@ -61,7 +61,7 @@ jobs:
           case "$OPERATION" in
             beta)
               workflow_file="beta.yml"
-              expected_workflow_blob="eb6ae278c53541ca4d528ed2415ab96003b9d398"
+              expected_workflow_blob="c27edd31d0bd3121d5171dc9075ad63af6b5eeda"
               ;;
             release)
               workflow_file="release.yml"
