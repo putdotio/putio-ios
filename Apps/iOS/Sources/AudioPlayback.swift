@@ -835,6 +835,7 @@ struct PutioAudioPlayerView: View {
         ),
         in: 0...Double(max(model.durationSeconds ?? 0, 1)),
         onEditingChanged: { editing in
+          if editing { scrubSeconds = Double(model.elapsedSeconds) }
           scrubbing = editing
           if !editing { model.seek(to: Int(scrubSeconds.rounded(.down))) }
         }
