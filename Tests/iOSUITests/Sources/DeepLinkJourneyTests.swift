@@ -56,6 +56,8 @@ final class DeepLinkJourneyTests: XCTestCase {
     app.terminate()
     app.launchArguments.append("--putio-harness-link-restoration")
     try openCold("putio:///files/412")
+    XCTAssertTrue(element("video.error").waitForExistence(timeout: 10))
+    app.buttons["Try again"].tap()
     XCTAssertTrue(element("video.ready").waitForExistence(timeout: 15))
     element("video.done").tap()
     XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 5))
