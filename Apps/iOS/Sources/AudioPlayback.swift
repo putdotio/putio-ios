@@ -258,7 +258,6 @@ final class PutioAudioPlayerModel {
   private func load(track: PutioAudioTrack, startFromSeconds override: Int? = nil) async {
     generation &+= 1
     let requestGeneration = generation
-    advancingTo = nil
     state = .loading(track)
     elapsedSeconds = override ?? 0
     durationSeconds = nil
@@ -269,18 +268,26 @@ final class PutioAudioPlayerModel {
       try Task.checkCancellation()
       guard requestGeneration == generation else { return }
       guard activateSession() else {
+        advancingTo = nil
         state = .failed(track, .playback)
+        publishNowPlaying()
         return
       }
       let startFrom = override ?? source.startFromSeconds
       elapsedSeconds = startFrom
+      // The server already holds the start position; report only movement.
+      lastReportedSeconds = startFrom
       engine.load(url: source.url, startFromSeconds: startFrom)
+      durationSeconds = engine.durationSeconds
       engine.play(rate: speed.rawValue)
+      advancingTo = nil
       state = .playing(track)
       publishNowPlaying()
     } catch {
       guard requestGeneration == generation, !Task.isCancelled else { return }
+      advancingTo = nil
       state = .failed(track, PutioVideoPlaybackFailure.resolving(error) ?? .playback)
+      publishNowPlaying()
     }
   }
 
@@ -417,13 +424,15 @@ final class PutioAudioPlayerModel {
 
   private static let reportCadence = 15
 
+  /// Reports every `reportCadence` seconds of movement while playing, and the
+  /// exact position on pause, seek, and teardown. A position the server already
+  /// holds is never sent twice.
   private func reportCurrentPosition(force: Bool) {
     let seconds = elapsedSeconds
-    if !force, let last = lastReportedSeconds, abs(seconds - last) < Self.reportCadence {
-      return
-    }
-    guard force || lastReportedSeconds != nil || seconds >= Self.reportCadence else {
-      lastReportedSeconds = lastReportedSeconds ?? 0
+    if let last = lastReportedSeconds {
+      if seconds == last { return }
+      if !force, abs(seconds - last) < Self.reportCadence { return }
+    } else if !force, seconds < Self.reportCadence {
       return
     }
     lastReportedSeconds = seconds

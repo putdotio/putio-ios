@@ -837,8 +837,8 @@ import Foundation
 
     static let rootContinuationCursor = "files-root-page-2"
     static let rootContinuationFileID = 422
-    static let audioTrackFileID = 430
-    static let audioSuccessorFileID = 431
+    static let audioTrackFileID = 408
+    static let audioSuccessorFileID = 409
 
     private static func audioObject(id: Int, name: String) -> String {
       """

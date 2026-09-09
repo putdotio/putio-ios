@@ -11,19 +11,19 @@ final class AudioJourneyTests: XCTestCase {
     let signIn = app.descendants(matching: .any)["auth.sign-in"]
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
     signIn.tap()
-    let track = app.descendants(matching: .any)["files.item.430"]
+    let track = app.descendants(matching: .any)["files.item.408"]
     XCTAssertTrue(track.waitForExistence(timeout: 10))
     track.tap()
 
     let state = app.descendants(matching: .any)["audio.state"]
     XCTAssertTrue(state.waitForExistence(timeout: 10))
-    XCTAssertTrue(waitForValue(state, "id=430;state=playing"))
+    XCTAssertTrue(waitForValue(state, "id=408;state=playing"))
     XCTAssertEqual(app.descendants(matching: .any)["audio.title"].label, "Harness Track.m4a")
 
     let playPause = app.buttons["audio.play-pause"]
     XCTAssertTrue(playPause.waitForExistence(timeout: 5))
     playPause.tap()
-    XCTAssertTrue(waitForValue(state, "id=430;state=paused"))
+    XCTAssertTrue(waitForValue(state, "id=408;state=paused"))
     let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
     attachment.name = "runtime-audio-player"
     attachment.lifetime = .keepAlways
@@ -38,17 +38,17 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertTrue(waitForValue(speed, "1.5×"))
 
     playPause.tap()
-    XCTAssertTrue(waitForValue(state, "id=430;state=playing"))
+    XCTAssertTrue(waitForValue(state, "id=408;state=playing"))
     // The four-second fixture ends on its own and the successor takes over.
-    XCTAssertTrue(waitForValue(state, "id=431;state=playing", timeout: 20))
+    XCTAssertTrue(waitForValue(state, "id=409;state=playing", timeout: 20))
     XCTAssertEqual(speed.value as? String, "1.5×")
-    XCTAssertTrue(waitForValue(state, "id=431;state=ended", timeout: 20))
+    XCTAssertTrue(waitForValue(state, "id=409;state=ended", timeout: 20))
     XCTAssertTrue(app.descendants(matching: .any)["audio.ended"].exists)
 
     app.buttons["audio.done"].tap()
     XCTAssertTrue(track.waitForExistence(timeout: 5))
     track.tap()
-    XCTAssertTrue(waitForValue(state, "id=430;state=playing", timeout: 10))
+    XCTAssertTrue(waitForValue(state, "id=408;state=playing", timeout: 10))
     XCTAssertEqual(speed.value as? String, "1.5×")
     app.buttons["audio.done"].tap()
 
