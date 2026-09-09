@@ -2,16 +2,19 @@ import Foundation
 import Observation
 import PutioCore
 
-enum PutioFilePreferencesMutation: Equatable, Sendable {
+enum PutioAccountPreferenceMutation: Equatable, Sendable {
   case defaultSort(PutioFolderSort)
   case resetFolderSorts
   case trash(Bool)
   case history(Bool)
+  case route(String)
+  case showSubtitles(Bool)
+  case dontAutoSelectSubtitles(Bool)
 }
 
-struct PutioFilePreferencesActions: Sendable {
+struct PutioAccountPreferenceActions: Sendable {
   let save:
-    @MainActor @Sendable (PutioFilePreferencesMutation) async throws ->
+    @MainActor @Sendable (PutioAccountPreferenceMutation) async throws ->
       PutioAccountPreferencesMutationResult
   let refresh: @MainActor @Sendable () async -> Bool
   let account: @MainActor @Sendable () -> PutioAccountSnapshot?
@@ -25,6 +28,10 @@ struct PutioFilePreferencesActions: Sendable {
       case .resetFolderSorts: try await runtime.resetFolderSorts()
       case .trash(let enabled): try await runtime.setTrashEnabled(enabled)
       case .history(let enabled): try await runtime.setHistoryEnabled(enabled)
+      case .route(let name): try await runtime.setPlaybackRoute(name: name)
+      case .showSubtitles(let show): try await runtime.setSubtitlesVisible(show)
+      case .dontAutoSelectSubtitles(let disabled):
+        try await runtime.setSubtitleAutoSelectionDisabled(disabled)
       }
     }
     refresh = { await runtime.refreshAccountPreferences() }
@@ -38,7 +45,7 @@ struct PutioFilePreferencesActions: Sendable {
 
   init(
     save:
-      @escaping @MainActor @Sendable (PutioFilePreferencesMutation) async throws ->
+      @escaping @MainActor @Sendable (PutioAccountPreferenceMutation) async throws ->
       PutioAccountPreferencesMutationResult,
     refresh: @escaping @MainActor @Sendable () async -> Bool,
     account: @escaping @MainActor @Sendable () -> PutioAccountSnapshot?,
@@ -55,13 +62,13 @@ struct PutioFilePreferencesActions: Sendable {
 
 @MainActor
 @Observable
-final class PutioFilePreferencesModel {
-  private(set) var saving: PutioFilePreferencesMutation?
+final class PutioAccountPreferencesModel {
+  private(set) var saving: PutioAccountPreferenceMutation?
   private(set) var isRefreshing = false
   private(set) var failure: String?
-  private(set) var failedMutation: PutioFilePreferencesMutation?
-  @ObservationIgnored private let actions: PutioFilePreferencesActions
-  init(actions: PutioFilePreferencesActions) {
+  private(set) var failedMutation: PutioAccountPreferenceMutation?
+  @ObservationIgnored private let actions: PutioAccountPreferenceActions
+  init(actions: PutioAccountPreferenceActions) {
     self.actions = actions
   }
 
@@ -71,7 +78,7 @@ final class PutioFilePreferencesModel {
   var isBusy: Bool { isSaving || isRefreshing }
   var canSave: Bool { !isBusy && !isStale && account != nil }
 
-  func save(_ mutation: PutioFilePreferencesMutation) async {
+  func save(_ mutation: PutioAccountPreferenceMutation) async {
     guard canSave else { return }
     saving = mutation
     failure = nil

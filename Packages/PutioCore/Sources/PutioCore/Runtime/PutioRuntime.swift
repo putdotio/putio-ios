@@ -140,6 +140,36 @@ public final class PutioRuntime {
     try await savePreferences(.init(historyEnabled: enabled))
   }
 
+  public func listPlaybackRoutes() async throws -> [PutioPlaybackRoute] {
+    let routes = try await performAuthenticatedOperation { try await sdk.getRoutes() }
+    var names = Set<String>()
+    return try routes.map { route in
+      guard !route.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+        names.insert(route.name).inserted
+      else { throw PutioRuntimeError.invalidResponse }
+      return PutioPlaybackRoute(name: route.name, description: route.description)
+    }
+  }
+
+  public func setPlaybackRoute(name: String) async throws -> PutioAccountPreferencesMutationResult {
+    guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      throw PutioRuntimeError.invalidResponse
+    }
+    return try await savePreferences(.init(tunnelRouteName: name))
+  }
+
+  public func setSubtitlesVisible(_ visible: Bool) async throws
+    -> PutioAccountPreferencesMutationResult
+  {
+    try await savePreferences(.init(hideSubtitles: !visible))
+  }
+
+  public func setSubtitleAutoSelectionDisabled(_ disabled: Bool) async throws
+    -> PutioAccountPreferencesMutationResult
+  {
+    try await savePreferences(.init(dontAutoSelectSubtitles: disabled))
+  }
+
   public func resetFolderSorts() async throws -> PutioAccountPreferencesMutationResult {
     guard case .signedIn = session.state else { throw currentSessionError }
     guard !session.isUpdatingAccountPreferences else { throw PutioRuntimeError.transient }
@@ -186,7 +216,10 @@ public final class PutioRuntime {
         generation == session.authenticationGeneration,
         defaultSort.map({ account.defaultSort == $0 }) ?? true,
         patch.trashEnabled.map({ account.trashEnabled == $0 }) ?? true,
-        patch.historyEnabled.map({ account.historyEnabled == $0 }) ?? true
+        patch.historyEnabled.map({ account.historyEnabled == $0 }) ?? true,
+        patch.tunnelRouteName.map({ account.routeName == $0 }) ?? true,
+        patch.hideSubtitles.map({ account.hideSubtitles == $0 }) ?? true,
+        patch.dontAutoSelectSubtitles.map({ account.dontAutoSelectSubtitles == $0 }) ?? true
       {
         return PutioAccountPreferencesMutationResult(accountRefreshed: true)
       }
@@ -196,7 +229,8 @@ public final class PutioRuntime {
     // reload fails. In particular, stale Trash copy must not promise recovery.
     session.applyAcknowledgedPreferences(
       defaultSort: defaultSort, trashEnabled: patch.trashEnabled,
-      historyEnabled: patch.historyEnabled)
+      historyEnabled: patch.historyEnabled, routeName: patch.tunnelRouteName,
+      hideSubtitles: patch.hideSubtitles, dontAutoSelectSubtitles: patch.dontAutoSelectSubtitles)
     return await preferencesMutationResult(storageChanged: storageChanged)
   }
 

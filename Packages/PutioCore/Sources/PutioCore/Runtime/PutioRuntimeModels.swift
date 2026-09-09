@@ -22,6 +22,9 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
   public let historyEnabled: Bool
   public let trashEnabled: Bool
   public let storage: Storage
+  public let routeName: String
+  public let hideSubtitles: Bool
+  public let dontAutoSelectSubtitles: Bool
 
   public init(
     id: Int,
@@ -32,7 +35,10 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     defaultSort: PutioFolderSort?,
     historyEnabled: Bool,
     trashEnabled: Bool,
-    storage: Storage
+    storage: Storage,
+    routeName: String = "default",
+    hideSubtitles: Bool = false,
+    dontAutoSelectSubtitles: Bool = false
   ) {
     self.id = id
     self.username = username
@@ -43,6 +49,9 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     self.historyEnabled = historyEnabled
     self.trashEnabled = trashEnabled
     self.storage = storage
+    self.routeName = routeName
+    self.hideSubtitles = hideSubtitles
+    self.dontAutoSelectSubtitles = dontAutoSelectSubtitles
   }
 }
 
@@ -336,5 +345,16 @@ public struct PutioAccountPreferencesMutationResult: Equatable, Sendable {
 
   public init(accountRefreshed: Bool) {
     self.accountRefreshed = accountRefreshed
+  }
+}
+
+public struct PutioPlaybackRoute: Equatable, Sendable, Identifiable {
+  public let name: String
+  public let description: String
+  public var id: String { name }
+
+  public init(name: String, description: String) {
+    self.name = name
+    self.description = description
   }
 }
