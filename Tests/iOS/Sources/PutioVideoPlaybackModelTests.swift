@@ -162,9 +162,11 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
       .success(.conversionRequired),
       .success(.ready(source)),
     ])
+    // The resolve miss after COMPLETED re-checks the conversion once.
     let conversion = VideoConversionStub(statusResults: [
       .success(.queued),
       .success(.converting(progress: 0.35)),
+      .success(.completed),
       .success(.completed),
     ])
     let model = PutioVideoPlaybackModel(
@@ -180,7 +182,7 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
 
     XCTAssertEqual(model.state, .ready(source))
     XCTAssertEqual(conversion.startRequests, [fileID])
-    XCTAssertEqual(conversion.statusRequests, [fileID, fileID, fileID])
+    XCTAssertEqual(conversion.statusRequests, [fileID, fileID, fileID, fileID])
     XCTAssertEqual(resolver.requestedIDs, [fileID, fileID, fileID])
     XCTAssertEqual(conversion.sleepDurations.count, 3)
   }

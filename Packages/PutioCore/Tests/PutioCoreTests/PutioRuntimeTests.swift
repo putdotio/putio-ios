@@ -1779,7 +1779,8 @@ final class PutioRuntimeTests: XCTestCase {
   func testVideoConversionTerminalRowsIgnoreProgress() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     for (status, expected) in [
-      ("ERROR", PutioVideoConversionStatus.failed), ("COMPLETED", .completed),
+      ("ERROR", PutioVideoConversionStatus.failed), ("NOT_AVAILABLE", .failed),
+      ("COMPLETED", .completed), ("IN_QUEUE", .queued),
     ] {
       RuntimeMockURLProtocol.setFixture(
         #"{"mp4":{"percent_done":-1,"status":"\#(status)"}}"#, for: Self.conversionStatusRoute)
