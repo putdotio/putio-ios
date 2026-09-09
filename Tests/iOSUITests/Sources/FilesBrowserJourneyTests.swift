@@ -207,6 +207,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     account.tap()
     let signOut = element(identifier: "auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    if !signOut.isHittable { app.swipeUp() }
     XCTAssertTrue(signOut.isHittable, "sign-out action is not tappable")
     signOut.tap()
 

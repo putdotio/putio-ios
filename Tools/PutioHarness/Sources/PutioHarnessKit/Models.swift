@@ -307,6 +307,9 @@ enum BrowserJourneyContract {
     "PutioUITests/FilesBrowserJourneyTests/testSearchPaginationRetryAndFolderRestoration"
   static let folderReconciliationTestIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testRenamingAndDeletingOpenFolderReconcilesOtherTabs"
+  static let accountRatingTestIdentifier =
+    "PutioUITests/AccountJourneyTests/testRatingLinkOpensReviewPageOnlyAfterExplicitTap"
+  static let accountRatingAttachmentName = "runtime-account-rating"
   static let playbackPreferencesTestIdentifier =
     "PutioUITests/PlaybackPreferencesJourneyTests/testProxyAndSubtitlesRetryAndPersistAcrossRelaunch"
   static let playbackPreferencesAttachmentName = "runtime-playback-preferences"
