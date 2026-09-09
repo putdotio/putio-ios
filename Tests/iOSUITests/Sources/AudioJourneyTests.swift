@@ -38,8 +38,10 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertTrue(waitForValue(speed, "1.5×"))
 
     playPause.tap()
-    XCTAssertTrue(waitForValue(state, "id=408;state=playing"))
-    // The four-second fixture ends on its own and the successor takes over.
+    // The four-second fixture may finish before the first poll lands, so the
+    // resumed track or its successor both prove playback continued.
+    XCTAssertTrue(
+      waitForValue(state, matchingAny: ["id=408;state=playing", "id=409;state=playing"]))
     XCTAssertTrue(waitForValue(state, "id=409;state=playing", timeout: 20))
     XCTAssertEqual(speed.value as? String, "1.5×")
     XCTAssertTrue(waitForValue(state, "id=409;state=ended", timeout: 20))
@@ -68,8 +70,14 @@ final class AudioJourneyTests: XCTestCase {
   private func waitForValue(_ element: XCUIElement, _ value: String, timeout: TimeInterval = 10)
     -> Bool
   {
+    waitForValue(element, matchingAny: [value], timeout: timeout)
+  }
+
+  private func waitForValue(
+    _ element: XCUIElement, matchingAny values: [String], timeout: TimeInterval = 10
+  ) -> Bool {
     let expectation = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "value == %@", value), object: element)
+      predicate: NSPredicate(format: "value IN %@", values), object: element)
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
   }
 }
