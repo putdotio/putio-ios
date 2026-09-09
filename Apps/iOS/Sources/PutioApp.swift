@@ -44,6 +44,7 @@ private struct HarnessExerciseView: View {
 private struct SessionRootView: View {
   private let scenario: HarnessScenario
   @State private var runtime: PutioRuntime
+  @State private var deepLinks = PutioDeepLinkModel()
 
   init(scenario: HarnessScenario) {
     self.scenario = scenario
@@ -67,6 +68,7 @@ private struct SessionRootView: View {
         MainTabView(
           runtime: runtime,
           account: account,
+          deepLinks: deepLinks,
           scenario: scenario,
           autoSignOutAfterSeconds: scenario == .signedIn
             && !PutioRuntimeFactory.usesSignOutFailureFixture(scenario: scenario) ? 5 : nil
@@ -75,6 +77,50 @@ private struct SessionRootView: View {
       }
     }
     .background(PutioTheme.Colors.background)
+    .onOpenURL { deepLinks.receive($0) }
+    .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+      if let url = activity.webpageURL { deepLinks.receive(url) }
+    }
+    .onChange(of: runtime.session.state, initial: true) { _, state in
+      deepLinks.updateSession(state)
+    }
+    .task(id: deepLinks.request) {
+      guard case .signedIn(let account) = runtime.session.state else { return }
+      await deepLinks.resolve(historyEnabled: account.historyEnabled) {
+        try await runtime.getFile(fileID: $0)
+      }
+    }
+    .sheet(
+      isPresented: Binding(
+        get: { deepLinks.presentsStatus },
+        set: { if !$0 { deepLinks.cancel() } }
+      )
+    ) {
+      NavigationStack {
+        Group {
+          if let failure = deepLinks.failure {
+            PutioErrorStateView(
+              title: "Cannot open link", message: failure.message,
+              retryTitle: failure.canRetry ? "Try again" : nil,
+              retryIdentifier: "link.retry",
+              retry: failure.canRetry ? { deepLinks.retry() } : nil
+            )
+          } else {
+            PutioLoadingStateView(title: "Opening link")
+              .accessibilityIdentifier("link.loading")
+          }
+        }
+        .putioContentBackground()
+        .navigationTitle("Open link")
+        .toolbar {
+          ToolbarItem(placement: .cancellationAction) {
+            Button("Close") { deepLinks.cancel() }
+              .accessibilityIdentifier("link.close")
+          }
+        }
+      }
+      .preferredColorScheme(.dark)
+    }
     .task {
       await runtime.session.restore()
     }
@@ -189,9 +235,14 @@ private struct SignInView: View {
 private struct MainTabView: View {
   let runtime: PutioRuntime
   let account: PutioAccountSnapshot
+  let deepLinks: PutioDeepLinkModel
   let scenario: HarnessScenario
   let autoSignOutAfterSeconds: TimeInterval?
 
+  private enum SelectedTab: Hashable { case files, transfers, history, account, search }
+  @State private var selectedTab: SelectedTab = .files
+  @State private var filesNavigation: PutioFilesNavigationRequest?
+  @State private var accountNavigationRevision: UInt64 = 0
   @State private var selectedFileRoute: PutioFileRoute?
   @State private var selectedVideoRoute: PutioVideoRoute?
   @State private var harnessPlaybackAttempt = 0
@@ -203,14 +254,15 @@ private struct MainTabView: View {
   @State private var presentedVideoRoute: PutioVideoRoute?
 
   var body: some View {
-    TabView {
-      Tab {
+    TabView(selection: $selectedTab) {
+      Tab(value: SelectedTab.files) {
         FilesBrowserView(
           runtime: runtime,
           trashEnabled: account.trashEnabled,
           accountID: account.id,
           onFileSelected: { route in selectFile(route) },
-          refreshRequests: folderRefreshRequests
+          refreshRequests: folderRefreshRequests,
+          navigationRequest: filesNavigation
         )
       } label: {
         Label {
@@ -219,7 +271,7 @@ private struct MainTabView: View {
           Image(putioIcon: .folderFill)
         }
       }
-      Tab {
+      Tab(value: SelectedTab.transfers) {
         NavigationStack {
           PutioEmptyStateView(
             icon: .arrowCircleDown,
@@ -237,7 +289,7 @@ private struct MainTabView: View {
         }
       }
       if account.historyEnabled {
-        Tab {
+        Tab(value: SelectedTab.history) {
           HistoryView(
             runtime: runtime,
             trashEnabled: account.trashEnabled,
@@ -253,7 +305,7 @@ private struct MainTabView: View {
           }
         }
       }
-      Tab {
+      Tab(value: SelectedTab.account) {
         NavigationStack {
           AccountView(
             runtime: runtime,
@@ -262,6 +314,7 @@ private struct MainTabView: View {
             trashReconciliation: trashReconciliation
           )
         }
+        .id(accountNavigationRevision)
       } label: {
         Label {
           Text("Account")
@@ -269,7 +322,7 @@ private struct MainTabView: View {
           Image(putioIcon: .userCircle)
         }
       }
-      Tab(role: .search) {
+      Tab(value: SelectedTab.search, role: .search) {
         FilesSearchView(
           runtime: runtime,
           trashEnabled: account.trashEnabled,
@@ -350,6 +403,23 @@ private struct MainTabView: View {
         }
       #endif
     }
+    .onChange(of: deepLinks.destination, initial: true) { _, destination in
+      guard let destination else { return }
+      deepLinks.consumeDestination()
+      dismissPresentedVideo()
+      switch destination {
+      case .files(let path, let video):
+        filesNavigation = PutioFilesNavigationRequest(path: path)
+        selectedTab = .files
+        if let video { selectFile(video) }
+      case .history:
+        historyRevision &+= 1
+        selectedTab = .history
+      case .account:
+        accountNavigationRevision &+= 1
+        selectedTab = .account
+      }
+    }
     .onChange(of: runtime.session.folderSortsRevision) {
       folderRefreshRequests.requestAllLoadedFolders()
     }
@@ -359,6 +429,7 @@ private struct MainTabView: View {
         folders: folderRefreshRequests, trash: trashReconciliation)
       if previous.id == current.id, previous.historyEnabled != current.historyEnabled {
         historyRevision &+= 1
+        if !current.historyEnabled, selectedTab == .history { selectedTab = .account }
       }
     }
     .task {

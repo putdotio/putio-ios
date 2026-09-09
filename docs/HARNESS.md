@@ -34,7 +34,7 @@ Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` 
 
 `screenshot` and `record` accept `--scenario signed-out|gallery|signed-in`. The `gallery` scenario launches the iOS or tvOS component gallery. The iOS-only `signed-in` scenario uses a deterministic in-process API, restores a session, bootstraps the account screen, and signs out after a few seconds. Other commands and unsupported platforms reject these scenarios.
 
-`journey --platform ios --scenario files-browser` proves the runnable alpha loop with real accessibility input. Twelve unrecorded `1/1` preflights cover:
+`journey --platform ios --scenario files-browser` proves the runnable alpha loop with real accessibility input. Thirteen unrecorded `1/1` preflights cover:
 
 - Sign-out recovery: the existing signed-in scenario uses a one-time credential-removal failure and seeded logout failure, shows the recovery message, captures `runtime-sign-out-failure.png`, and completes sign-out after an explicit retry. Default signed-in captures keep successful sign-out behavior.
 - File actions: menu-based creation and selection, context-menu rename, swipe move and Trash, delayed rollback and retry, bulk partial-failure recovery, move-picker sorting and folder creation, and a meaningful `runtime-file-actions.png` screenshot.
@@ -44,6 +44,7 @@ Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` 
 - Search and restoration: search retries a failed second page, appends results, and opens folder and video results. Empty results support pull-to-refresh and retry. Opening the same folder in Files and Search keeps both listings current after a mutation. A relaunch restores the Files folder, native Back returns to root, and signing out clears the saved folder before the next sign-in. `runtime-search-results.png` is retained.
 - Folder reconciliation: renaming a folder updates its heading in another tab; deleting it removes stale contents from that folder and its open descendant. The empty descendant stays responsive before deletion.
 - History: paging past unknown events, retained-list refresh and continuation retry, folder and video navigation, missing-file recovery, failed deletion and clear retry, clear cancellation, and the account setting gate. Captures `runtime-history-loaded.png`, `runtime-history-error.png`, and `runtime-history-empty.png`.
+- Deep links: cold and warm URL delivery to folder, video, History, and Account; signed-out intent replay, retained-session cold launch, lookup retry, explicit unavailable routes, and cold-link precedence over delayed saved-folder restoration with native Back ancestry. Captures `runtime-deep-link-loading.png`, `runtime-deep-link-error.png`, and `runtime-deep-link-folder.png`.
 - File preferences: failed save retry, refresh-only recovery after a committed save, default sort versus folder overrides, confirmed override reset, Trash and History confirmation cancellation, Trash cleanup, live History visibility, and authoritative settings after relaunch. Captures `runtime-file-preferences.png` and `runtime-file-preferences-refresh.png`. The dedicated fixture persists server preferences in a harness-only UserDefaults namespace; other scenarios keep their defaults.
 - Playback preferences: proxy-list failure and retry, failed save, refresh-only recovery after a committed save, subtitle-control visibility, and proxy/subtitle persistence across relaunch. Captures `runtime-playback-preferences.png`.
 - Unsupported files: the PDF row remains visible but is not actionable.
@@ -96,6 +97,9 @@ build/proof/<run-id>/ios/
 ├── runtime-history-loaded.png
 ├── runtime-history-error.png
 ├── runtime-history-empty.png
+├── runtime-deep-link-loading.png
+├── runtime-deep-link-error.png
+├── runtime-deep-link-folder.png
 ├── runtime-search-results.png
 ├── runtime-playback.png
 ├── runtime-sign-in.png
@@ -107,7 +111,7 @@ build/proof/<run-id>/ios/
 
 Failed journeys retain local diagnostics, including failed `.xcresult` bundles, under the run directory. They emit no success manifest; inspect them locally and choose a new run ID for the retry. Only reviewed successful proof is published.
 
-The journey requires each preflight and the recorded UI test to pass exactly `1/1`. It requires sixteen meaningful screenshots, including file actions, sign-out recovery, and all three Trash states, and different sign-in and playback frames. One `simctl recordVideo` stream starts before the recorded test and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 30 seconds and removes raw/intermediate capture files after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
+The journey requires each preflight and the recorded UI test to pass exactly `1/1`. It requires nineteen meaningful screenshots, including file actions, sign-out recovery, and all three Trash states, and different sign-in and playback frames. One `simctl recordVideo` stream starts before the recorded test and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 30 seconds and removes raw/intermediate capture files after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
 
 Capture never uploads implicitly. Publish one reviewed artifact only after a pull request exists:
 

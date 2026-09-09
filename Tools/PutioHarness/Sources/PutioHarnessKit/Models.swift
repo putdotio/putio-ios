@@ -310,6 +310,11 @@ enum BrowserJourneyContract {
   static let playbackPreferencesTestIdentifier =
     "PutioUITests/PlaybackPreferencesJourneyTests/testProxyAndSubtitlesRetryAndPersistAcrossRelaunch"
   static let playbackPreferencesAttachmentName = "runtime-playback-preferences"
+  static let deepLinksTestIdentifier =
+    "PutioUITests/DeepLinkJourneyTests/testColdWarmAndSignedOutLinksUseExistingScreens"
+  static let deepLinksAttachmentNames = [
+    "runtime-deep-link-loading", "runtime-deep-link-error", "runtime-deep-link-folder",
+  ]
   static let filePreferencesTestIdentifier =
     "PutioUITests/FilePreferencesJourneyTests/testFilePreferencesFailureRecoveryResetAndPersistence"
   static let filePreferencesAttachmentNames = [

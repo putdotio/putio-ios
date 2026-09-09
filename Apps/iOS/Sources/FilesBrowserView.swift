@@ -125,6 +125,8 @@ struct FilesBrowserView: View {
   private let refreshRequests: PutioFolderRefreshRequests
   private let accountID: Int?
   private let navigationRestoration = PutioFilesNavigationRestoration()
+  private let navigationRequest: PutioFilesNavigationRequest?
+  @State private var appliedNavigationRequest: UUID?
   @State private var path: [PutioFolderRoute] = []
   @State private var didRestoreNavigation = false
 
@@ -135,7 +137,8 @@ struct FilesBrowserView: View {
     onFileSelected: @escaping PutioFileSelection,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
-    refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests()
+    refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
+    navigationRequest: PutioFilesNavigationRequest? = nil
   ) {
     load = { folderID in
       try await runtime.listFiles(parentID: folderID)
@@ -150,6 +153,7 @@ struct FilesBrowserView: View {
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
     self.refreshRequests = refreshRequests
+    self.navigationRequest = navigationRequest
   }
 
   init(
@@ -160,7 +164,8 @@ struct FilesBrowserView: View {
     onFileSelected: @escaping PutioFileSelection,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
-    refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests()
+    refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
+    navigationRequest: PutioFilesNavigationRequest? = nil
   ) {
     self.load = load
     self.accountID = nil
@@ -171,6 +176,7 @@ struct FilesBrowserView: View {
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
     self.refreshRequests = refreshRequests
+    self.navigationRequest = navigationRequest
   }
 
   var body: some View {
@@ -206,7 +212,14 @@ struct FilesBrowserView: View {
       }
     }
     .disabled(!didRestoreNavigation)
-    .task {
+    .task(id: navigationRequest?.id) {
+      if let navigationRequest, appliedNavigationRequest != navigationRequest.id {
+        appliedNavigationRequest = navigationRequest.id
+        path = navigationRequest.path
+        didRestoreNavigation = true
+        if let accountID { navigationRestoration.save(path: path, for: accountID) }
+        return
+      }
       guard !didRestoreNavigation else { return }
       if let accountID {
         let restored = await navigationRestoration.restore(accountID: accountID, load: load)

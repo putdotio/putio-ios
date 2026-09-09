@@ -704,6 +704,17 @@ public struct SimulatorHarness {
         }
         let mediaBaseURL = try mediaServer.start()
 
+        let deepLinkScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.deepLinksTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".deep-links.xcresult"),
+          attachmentNames: BrowserJourneyContract.deepLinksAttachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 180,
+          maximumExecutionTimeAllowance: 180
+        )
         let signOutFailureScreenshots = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.signOutRecoveryTestIdentifier,
           platform: platform,
@@ -813,7 +824,7 @@ public struct SimulatorHarness {
         let preflightScreenshots =
           signOutFailureScreenshots + fileActionsScreenshots + trashManagementScreenshots
           + sortedRootScreenshots + searchScreenshots + historyScreenshots
-          + filePreferencesScreenshots + playbackPreferencesScreenshots
+          + filePreferencesScreenshots + playbackPreferencesScreenshots + deepLinkScreenshots
         for screenshot in preflightScreenshots {
           _ = try requireMeaningfulScreenshot(screenshot, context: "journey preflight attachment")
         }
@@ -823,7 +834,7 @@ public struct SimulatorHarness {
           ".sign-out-recovery.xcresult", ".file-actions.xcresult", ".trash-management.xcresult",
           ".sort-continuation.xcresult", ".search-restoration.xcresult",
           ".folder-reconciliation.xcresult",
-          ".history.xcresult",
+          ".history.xcresult", ".deep-links.xcresult",
           ".file-preferences.xcresult", ".playback-preferences.xcresult",
         ] {
           try? fileManager.removeItem(at: platformDirectory.appending(path: bundle))
