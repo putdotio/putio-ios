@@ -388,7 +388,8 @@ final class PutioAudioPlayerModel {
       transitionTask = Task { [weak self] in await self?.advance(from: track) }
     }
     engine.onFailed = { [weak self] in
-      guard let self else { return }
+      // A failure from the retired item during a transition is stale.
+      guard let self, !isTransitioning else { return }
       state = .failed(track, .playback)
       publishNowPlaying()
     }

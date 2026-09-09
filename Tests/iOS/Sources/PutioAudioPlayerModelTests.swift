@@ -62,6 +62,20 @@ private final class ReportRecorder {
 
 @MainActor
 final class PutioAudioPlayerModelTests: XCTestCase {
+  /// Yields until the condition holds or a short deadline passes, so a
+  /// regression fails the test instead of hanging it.
+  private func waitUntil(
+    _ condition: @MainActor () -> Bool, file: StaticString = #filePath, line: UInt = #line
+  ) async {
+    let deadline = ContinuousClock.now + .seconds(2)
+    while !condition() {
+      if ContinuousClock.now > deadline {
+        return XCTFail("condition not met before the deadline", file: file, line: line)
+      }
+      await Task.yield()
+    }
+  }
+
   private let track = PutioAudioTrack(
     id: PutioFileID(rawValue: 430), parentID: .root, title: "Track.m4a")
   private let successor = PutioNextAudio(
@@ -210,7 +224,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     // A terminal-time sample after the end must not undo the reset.
     h.engine.onPositionChanged?(240)
     let next = PutioAudioTrack(id: successor.id, parentID: .root, title: successor.name)
-    while h.model.state != .playing(next) { await Task.yield() }
+    await waitUntil { h.model.state == .playing(next) }
     await h.pipeline.waitForPendingReports(fileID: track.id)
 
     XCTAssertEqual(h.reports.reports.map(\.1), [200, 0])
@@ -225,7 +239,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     h.engine.onPositionChanged?(12)
 
     h.engine.onEnded?()
-    while h.model.state != .ended(track) { await Task.yield() }
+    await waitUntil { h.model.state == .ended(track) }
 
     XCTAssertEqual(h.engine.events.filter { $0.hasPrefix("load") }.count, 1)
     XCTAssertEqual(h.nowPlaying.published.last?.rate, 0)
@@ -233,7 +247,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.model.elapsedSeconds, 0)
 
     h.model.togglePlayPause()
-    while h.model.state != .playing(track) { await Task.yield() }
+    await waitUntil { h.model.state == .playing(track) }
     XCTAssertEqual(h.engine.events.last(where: { $0.hasPrefix("load") }), "load:430.m4a@0")
   }
 
@@ -286,7 +300,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.model.state, .loading(track), "a skip shows the transition immediately")
     XCTAssertEqual(h.nowPlaying.published.last?.rate, 0)
     let next = PutioAudioTrack(id: successor.id, parentID: .root, title: successor.name)
-    while h.model.state != .playing(next) { await Task.yield() }
+    await waitUntil { h.model.state == .playing(next) }
     await h.pipeline.waitForPendingReports(fileID: track.id)
 
     XCTAssertEqual(h.reports.reports.map(\.1), [180])
@@ -297,10 +311,10 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     await h.model.start()
     h.engine.onPositionChanged?(12)
     h.engine.onEnded?()
-    while h.model.state != .ended(track) { await Task.yield() }
+    await waitUntil { h.model.state == .ended(track) }
 
     h.nowPlaying.send(.play)
-    while h.model.state != .playing(track) { await Task.yield() }
+    await waitUntil { h.model.state == .playing(track) }
 
     XCTAssertEqual(h.engine.events.last(where: { $0.hasPrefix("load") }), "load:430.m4a@0")
   }
@@ -340,6 +354,19 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.model.elapsedSeconds, 20)
     h.nowPlaying.send(.toggle)
     XCTAssertEqual(h.model.state, .paused(track))
+  }
+
+  func testStaleEngineFailureDuringTransitionIsIgnored() async {
+    let h = makeHarness()
+    await h.model.start()
+    h.engine.onPositionChanged?(12)
+
+    h.model.skipToNext()
+    h.engine.onFailed?()
+    let next = PutioAudioTrack(id: successor.id, parentID: .root, title: successor.name)
+    await waitUntil { h.model.state == .playing(next) }
+
+    XCTAssertEqual(h.model.state, .playing(next))
   }
 
   func testSeekIsIgnoredBeforeDurationIsKnownOrWhileNotPlayable() async {
