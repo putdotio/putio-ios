@@ -193,6 +193,7 @@ import Foundation
     nonisolated(unsafe) private static var historyClearFailed = false
     nonisolated(unsafe) private static var historyDeletedIDs: Set<Int> = []
     nonisolated(unsafe) private static var historyCleared = false
+    nonisolated(unsafe) private static var deepLinkLookupFailed = false
     nonisolated(unsafe) private static var searchRetryFailed = false
     nonisolated(unsafe) private static var emptySearchLoads = 0
     nonisolated(unsafe) private static var searchContinuationFailed = false
@@ -259,6 +260,7 @@ import Foundation
       historyClearFailed = false
       historyDeletedIDs = []
       historyCleared = false
+      deepLinkLookupFailed = false
       searchRetryFailed = false
       emptySearchLoads = 0
       searchContinuationFailed = false
@@ -306,7 +308,9 @@ import Foundation
           self.client?.urlProtocolDidFinishLoading(self)
         }
       }
-      if Self.shouldDelayBulkDeleteResponse(replayableRequest) {
+      if statusCode == 503, url.path == "/v2/files/410" {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
+      } else if Self.shouldDelayBulkDeleteResponse(replayableRequest) {
         DispatchQueue.global().asyncAfter(deadline: .now() + 8, execute: deliverResponse)
       } else if url.path == "/v2/trash/restore" {
         // Long enough for the journey to observe the in-flight progress overlay
@@ -688,7 +692,28 @@ import Foundation
       case "POST /v2/events/delete/808":
         return deleteHistory(id: 808)
       case "GET /v2/files/410":
+        fileActionsLock.lock()
+        let failLookup =
+          ProcessInfo.processInfo.arguments.contains("--putio-harness-deep-links")
+          && !deepLinkLookupFailed
+        if failLookup { deepLinkLookupFailed = true }
+        fileActionsLock.unlock()
+        if failLookup {
+          return (
+            503,
+            fixtureError(statusCode: 503, type: "HARNESS_LINK_RETRY", message: "Retry file lookup")
+          )
+        }
         return (200, folderEnvelope(id: 410, name: "Harness Folder", parentID: 0))
+      case "GET /v2/files/413":
+        return (
+          200,
+          """
+          {"status":"OK","file":{"id":413,"parent_id":0,"name":"Document.pdf",
+          "file_type":"PDF","size":1024,"created_at":"2026-09-01T12:00:00Z",
+          "updated_at":"2026-09-01T12:00:00Z"}}
+          """
+        )
       case "GET /v2/files/999":
         return (
           404,

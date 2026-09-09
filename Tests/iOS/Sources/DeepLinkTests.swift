@@ -1,0 +1,216 @@
+import Foundation
+import PutioCore
+import XCTest
+
+@testable import Putio
+
+@MainActor
+final class DeepLinkTests: XCTestCase {
+  func testLegacyPathFormsAndOwnedHTTPSHosts() throws {
+    for value in [
+      "putio:///files/410", "putio://put.io/files/410", "https://put.io/files/410",
+      "https://app.put.io/files/410",
+    ] {
+      XCTAssertEqual(
+        PutioDeepLink.parse(try XCTUnwrap(URL(string: value))), .file(.init(rawValue: 410)))
+    }
+    XCTAssertEqual(PutioDeepLink.parse(try url("/files/0")), .file(.root))
+    XCTAssertEqual(PutioDeepLink.parse(try url("/history")), .history)
+    XCTAssertEqual(PutioDeepLink.parse(try url("/settings")), .account)
+    XCTAssertEqual(PutioDeepLink.parse(try url("/account")), .account)
+  }
+
+  func testForeignHostsAndAuthenticationCallbacksAreNotConsumed() throws {
+    for value in [
+      "https://evilput.io/files/1", "https://put.io.invalid/files/1", "http://put.io/files/1",
+      "other:///files/1", "putio://files/1", "putio://history",
+      "putio://auth#access_token=synthetic&state=synthetic",
+    ] {
+      XCTAssertNil(PutioDeepLink.parse(try XCTUnwrap(URL(string: value))))
+    }
+  }
+
+  func testMalformedOrDeferredOwnedRoutesHaveAnExplicitOutcome() throws {
+    for path in [
+      "/files", "/files/-1", "/files/+1", "/files/1/extra", "/files/999999999999999999999999",
+      "/files/1?oauth_token=synthetic", "/files/1#synthetic", "/files/%31", "/files//1",
+      "/downloads/1", "/link",
+    ] {
+      XCTAssertEqual(PutioDeepLink.parse(try url(path)), .unavailable, path)
+    }
+    XCTAssertEqual(
+      PutioDeepLink.parse(try XCTUnwrap(URL(string: "https://user:synthetic@put.io/files/1"))),
+      .unavailable)
+    XCTAssertEqual(
+      PutioDeepLink.parse(try XCTUnwrap(URL(string: "https://put.io:8443/files/1"))), .unavailable)
+  }
+
+  func testColdSignedOutIntentResolvesAfterSignInWithoutAnEarlyRequest() async throws {
+    let model = PutioDeepLinkModel()
+    model.receive(try url("/files/10"))
+    model.updateSession(.signedOut(nil))
+    var calls = 0
+    let load: @MainActor @Sendable (PutioFileID) async throws -> PutioFileItem = { id in
+      calls += 1
+      return BrowserTestFixtures.item(id: id.rawValue, kind: .folder)
+    }
+    await model.resolve(historyEnabled: true, file: load)
+    XCTAssertEqual(calls, 0)
+    model.updateSession(.authenticating)
+    model.updateSession(.signedIn(account()))
+    await model.resolve(historyEnabled: true, file: load)
+    XCTAssertEqual(calls, 1)
+    XCTAssertEqual(model.destination, .files([folder(10)], video: nil))
+    XCTAssertNil(model.pending)
+    model.consumeDestination()
+    await model.resolve(historyEnabled: true, file: load)
+    XCTAssertEqual(calls, 1)
+  }
+
+  func testWarmRootAndStaticRoutesDoNotFetchFileMetadata() async throws {
+    let model = signedInModel()
+    for (path, destination) in [
+      ("/files/0", PutioDeepLinkDestination.files([], video: nil)),
+      ("/history", .history), ("/account", .account),
+    ] {
+      model.receive(try url(path))
+      await model.resolve(historyEnabled: true) { _ in
+        XCTFail("static route fetched metadata")
+        throw PutioRuntimeError.unknown
+      }
+      XCTAssertEqual(model.destination, destination)
+    }
+  }
+
+  func testVideoBuildsAuthoritativeAncestorPath() async throws {
+    let model = signedInModel()
+    model.receive(try url("/files/30"))
+    let video = BrowserTestFixtures.item(id: 30, parentID: 20)
+    await model.resolve(historyEnabled: true) { id in
+      switch id.rawValue {
+      case 30: video
+      case 20: BrowserTestFixtures.item(id: 20, parentID: 10, kind: .folder)
+      default: BrowserTestFixtures.item(id: 10, kind: .folder)
+      }
+    }
+    XCTAssertEqual(
+      model.destination, .files([folder(10), folder(20)], video: PutioFileRoute(item: video)))
+  }
+
+  func testMissingFileRetryAndUnsupportedTypesRemainRecoverable() async throws {
+    let model = signedInModel()
+    model.receive(try url("/files/10"))
+    await model.resolve(historyEnabled: true) { _ in throw PutioRuntimeError.notFound }
+    XCTAssertEqual(model.failure, .missingFile)
+    model.retry()
+    await model.resolve(historyEnabled: true) { _ in BrowserTestFixtures.item(id: 10, kind: .folder)
+    }
+    XCTAssertEqual(model.destination, .files([folder(10)], video: nil))
+    model.receive(try url("/files/20"))
+    await model.resolve(historyEnabled: true) { _ in BrowserTestFixtures.item(id: 20, kind: .pdf) }
+    XCTAssertEqual(model.failure, .unsupportedFile)
+    XCTAssertFalse(try XCTUnwrap(model.failure).canRetry)
+    model.cancel()
+    XCTAssertFalse(model.presentsStatus)
+  }
+
+  func testDisabledHistoryCannotSelectAnAbsentTab() async throws {
+    let model = signedInModel()
+    model.receive(try url("/history"))
+    await model.resolve(historyEnabled: false) { _ in throw PutioRuntimeError.unknown }
+    XCTAssertEqual(model.failure, .historyDisabled)
+    XCTAssertNil(model.destination)
+  }
+
+  func testCyclesAndMismatchedMetadataFailWithoutNavigation() async throws {
+    for mismatch in [false, true] {
+      let model = signedInModel()
+      model.receive(try url("/files/10"))
+      await model.resolve(historyEnabled: true) { _ in
+        BrowserTestFixtures.item(id: mismatch ? 11 : 10, parentID: 10, kind: .folder)
+      }
+      XCTAssertEqual(model.failure, .invalidResponse)
+      XCTAssertNil(model.destination)
+    }
+  }
+
+  func testNewLinkSupersedesLateLookup() async throws {
+    let model = signedInModel()
+    let pending = PendingDeepLinkFile()
+    defer { pending.finish() }
+    model.receive(try url("/files/10"))
+    let task = Task { await model.resolve(historyEnabled: true) { _ in try await pending.load() } }
+    try await pending.waitForRequest()
+    model.receive(try url("/account"))
+    await model.resolve(historyEnabled: true) { _ in throw PutioRuntimeError.unknown }
+    pending.finish()
+    await task.value
+    XCTAssertEqual(model.destination, .account)
+    XCTAssertFalse(model.isLoading)
+  }
+
+  func testSignOutOrAccountSwitchRejectsLateLookupAndClearsIntent() async throws {
+    for nextState in [PutioSessionState.signingOut, .signedIn(account(id: 2))] {
+      let model = signedInModel()
+      let pending = PendingDeepLinkFile()
+      defer { pending.finish() }
+      model.receive(try url("/files/10"))
+      let task = Task {
+        await model.resolve(historyEnabled: true) { _ in try await pending.load() }
+      }
+      try await pending.waitForRequest()
+      model.updateSession(nextState)
+      pending.finish()
+      await task.value
+      model.updateSession(.signedIn(account(id: 2)))
+      XCTAssertNil(model.destination)
+      XCTAssertNil(model.pending)
+      XCTAssertFalse(model.isLoading)
+    }
+  }
+
+  private func signedInModel() -> PutioDeepLinkModel {
+    let model = PutioDeepLinkModel()
+    model.updateSession(.signedIn(account()))
+    return model
+  }
+
+  private func url(_ path: String) throws -> URL {
+    try XCTUnwrap(URL(string: "putio://put.io\(path)"))
+  }
+
+  private func folder(_ id: Int) -> PutioFolderRoute {
+    PutioFolderRoute(id: PutioFileID(rawValue: id), title: "File \(id)")
+  }
+
+  private func account(id: Int = 1) -> PutioAccountSnapshot {
+    PutioAccountSnapshot(
+      id: id, username: "Fixture", email: "fixture@example.invalid", suggestNextVideo: false,
+      rememberVideoTime: true, defaultSort: nil, historyEnabled: true, trashEnabled: true,
+      storage: .init(availableBytes: 1, totalBytes: 1, usedBytes: 0))
+  }
+}
+
+@MainActor
+private final class PendingDeepLinkFile {
+  private var continuation: CheckedContinuation<PutioFileItem, any Error>?
+
+  func load() async throws -> PutioFileItem {
+    try await withCheckedThrowingContinuation { continuation = $0 }
+  }
+
+  func waitForRequest() async throws {
+    let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+    while continuation == nil {
+      guard ContinuousClock.now < deadline else {
+        throw NSError(domain: "DeepLinkTests", code: 1)
+      }
+      try await Task.sleep(for: .milliseconds(1))
+    }
+  }
+
+  func finish() {
+    continuation?.resume(returning: BrowserTestFixtures.item(id: 10, kind: .folder))
+    continuation = nil
+  }
+}

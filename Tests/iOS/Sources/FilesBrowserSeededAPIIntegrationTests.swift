@@ -12,6 +12,14 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     HarnessSeededAPI.resetFileActions()
   }
 
+  func testSeededUnsupportedDeepLinkReturnsPDFMetadataThroughTheSDK() async throws {
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
+    await runtime.session.restore()
+    let file = try await runtime.getFile(fileID: PutioFileID(rawValue: 413))
+    XCTAssertEqual(file.kind, .pdf)
+    XCTAssertEqual(file.parentID, .root)
+  }
+
   func testSeededHistoryOpensAuthoritativeFolderAndVideoMetadata() async throws {
     let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
     await runtime.session.restore()
