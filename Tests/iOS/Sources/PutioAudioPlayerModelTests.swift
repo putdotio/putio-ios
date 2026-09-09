@@ -221,6 +221,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     h.engine.onPositionChanged?(200)
 
     h.engine.onEnded?()
+    XCTAssertEqual(h.nowPlaying.published.last?.elapsedSeconds, 0)
     // A terminal-time sample after the end must not undo the reset.
     h.engine.onPositionChanged?(240)
     let next = PutioAudioTrack(id: successor.id, parentID: .root, title: successor.name)

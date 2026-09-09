@@ -383,6 +383,7 @@ final class PutioAudioPlayerModel {
       beginTransition()
       elapsedSeconds = 0
       lastReportedSeconds = 0
+      publishNowPlaying()
       positionPipeline.enqueue(
         fileID: track.id, position: 0, preservesOrdering: true, report: reportPosition)
       transitionTask = Task { [weak self] in await self?.advance(from: track) }
