@@ -147,7 +147,7 @@ final class PutioAudioPlayerModel {
     engine: any PutioAudioEngine,
     nowPlaying: any PutioNowPlayingSurface,
     audioSession: any PutioAudioSessioning,
-    speedStore: PutioAudioSpeedStore = PutioAudioSpeedStore(),
+    speedStore: PutioAudioSpeedStore,
     positionPipeline: PutioPlaybackPositionPipeline,
     notificationCenter: NotificationCenter = .default,
     reportPosition: @escaping PutioPlaybackPositionReport,
@@ -236,8 +236,9 @@ final class PutioAudioPlayerModel {
   }
 
   func skipToNext() {
+    let current = track
     advanceTask?.cancel()
-    advanceTask = Task { await advance(from: track) }
+    advanceTask = Task { [weak self] in await self?.advance(from: current) }
   }
 
   func stop() {
@@ -279,7 +280,7 @@ final class PutioAudioPlayerModel {
       publishNowPlaying()
     } catch {
       guard requestGeneration == generation, !Task.isCancelled else { return }
-      state = .failed(track, PutioVideoPlaybackFailure.resolving(error) ?? .unknown)
+      state = .failed(track, PutioVideoPlaybackFailure.resolving(error) ?? .playback)
     }
   }
 
@@ -312,10 +313,10 @@ final class PutioAudioPlayerModel {
       publishNowPlaying()
     }
     engine.onPositionChanged = { [weak self] seconds in
-      guard let self, isPlaying else { return }
-      elapsedSeconds = seconds
-      if durationSeconds == nil { durationSeconds = engine.durationSeconds }
-      reportCurrentPosition(force: false)
+      guard let self, self.isPlaying else { return }
+      self.elapsedSeconds = seconds
+      if self.durationSeconds == nil { self.durationSeconds = self.engine.durationSeconds }
+      self.reportCurrentPosition(force: false)
     }
     engine.onEnded = { [weak self] in
       guard let self, case .playing(let track) = state else { return }
@@ -323,7 +324,7 @@ final class PutioAudioPlayerModel {
       positionPipeline.enqueue(
         fileID: track.id, position: 0, preservesOrdering: true, report: reportPosition)
       advanceTask?.cancel()
-      advanceTask = Task { await advance(from: track) }
+      advanceTask = Task { [weak self] in await self?.advance(from: track) }
     }
     engine.onFailed = { [weak self] in
       guard let self else { return }
@@ -504,7 +505,7 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
     ) { [weak self] time in
       MainActor.assumeIsolated {
         guard let self, let seconds = Self.seconds(time) else { return }
-        onPositionChanged?(seconds)
+        self.onPositionChanged?(seconds)
       }
     }
   }
@@ -648,6 +649,7 @@ struct PutioAudioPlayerView: View {
         engine: PutioSystemAudioEngine(),
         nowPlaying: PutioSystemNowPlayingSurface(),
         audioSession: PutioSystemAudioSession(),
+        speedStore: PutioAudioSpeedStore(),
         positionPipeline: positionPipeline,
         reportPosition: reportPosition,
         resolve: resolve,
