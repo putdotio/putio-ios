@@ -38,12 +38,14 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertTrue(waitForValue(speed, "1.5×"))
 
     playPause.tap()
-    // The four-second fixture may finish before the first poll lands, so the
-    // resumed track or its successor both prove playback continued.
-    XCTAssertTrue(
-      waitForValue(state, matchingAny: ["id=408;state=playing", "id=409;state=playing"]))
+    XCTAssertTrue(waitForValue(state, "id=408;state=playing"))
+    // Scrubbing near the end lets the track finish and the successor take over.
+    let scrubber = app.sliders["audio.scrubber"]
+    XCTAssertTrue(scrubber.waitForExistence(timeout: 5))
+    scrubber.adjust(toNormalizedSliderPosition: 0.95)
     XCTAssertTrue(waitForValue(state, "id=409;state=playing", timeout: 20))
     XCTAssertEqual(speed.value as? String, "1.5×")
+    scrubber.adjust(toNormalizedSliderPosition: 0.95)
     XCTAssertTrue(waitForValue(state, "id=409;state=ended", timeout: 20))
     XCTAssertTrue(app.descendants(matching: .any)["audio.ended"].exists)
 
@@ -70,14 +72,8 @@ final class AudioJourneyTests: XCTestCase {
   private func waitForValue(_ element: XCUIElement, _ value: String, timeout: TimeInterval = 10)
     -> Bool
   {
-    waitForValue(element, matchingAny: [value], timeout: timeout)
-  }
-
-  private func waitForValue(
-    _ element: XCUIElement, matchingAny values: [String], timeout: TimeInterval = 10
-  ) -> Bool {
     let expectation = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "value IN %@", values), object: element)
+      predicate: NSPredicate(format: "value == %@", value), object: element)
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
   }
 }

@@ -398,6 +398,14 @@ private struct MainTabView: View {
       PutioAudioPlayerView(
         route: route,
         onDismiss: { presentedAudioRoute = nil },
+        onClose: { track in
+          // The last track may differ from the tapped one after queue advance.
+          Task { @MainActor in
+            await Task.yield()
+            await playbackPositionPipeline.waitForPendingReports(fileID: track.id)
+            folderRefreshRequests.request(folderID: track.parentID)
+          }
+        },
         showsHarnessReadiness: scenario == .filesBrowser,
         positionPipeline: playbackPositionPipeline,
         reportPosition: { fileID, seconds in
@@ -406,13 +414,6 @@ private struct MainTabView: View {
         resolve: { fileID in try await resolveAudioSource(fileID: fileID) },
         loadNext: { fileID in try await runtime.findNextAudio(after: fileID) }
       )
-      .onDisappear {
-        Task { @MainActor in
-          await Task.yield()
-          await playbackPositionPipeline.waitForPendingReports(fileID: route.id)
-          folderRefreshRequests.request(folderID: route.parentID)
-        }
-      }
     }
     .overlay(alignment: .topLeading) {
       if scenario == .filesBrowser, let selectedFileRoute {

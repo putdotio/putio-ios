@@ -29,10 +29,12 @@ private final class AudioEngineSpy: PutioAudioEngine {
 private final class NowPlayingSpy: PutioNowPlayingSurface {
   private(set) var published: [PutioNowPlayingInfo] = []
   private(set) var clearCount = 0
+  private(set) var detachCount = 0
   private var handler: (@MainActor (PutioRemoteAudioCommand) -> Void)?
 
   func publish(_ info: PutioNowPlayingInfo) { published.append(info) }
   func clear() { clearCount += 1 }
+  func detachCommands() { detachCount += 1 }
   func setCommandHandler(_ handler: @escaping @MainActor (PutioRemoteAudioCommand) -> Void) {
     self.handler = handler
   }
@@ -136,9 +138,12 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     }
     XCTAssertEqual(failure.kind, .transient)
     XCTAssertEqual(h.nowPlaying.clearCount, 1)
+    XCTAssertEqual(h.nowPlaying.detachCount, 0, "a failure must keep lock-screen commands")
 
     await h.model.retry()
     XCTAssertEqual(h.model.state, .playing(track))
+    h.nowPlaying.send(.pause)
+    XCTAssertEqual(h.model.state, .paused(track))
   }
 
   func testPauseReportsPositionAndResumeContinuesAtTheChosenSpeed() async {
@@ -247,6 +252,33 @@ final class PutioAudioPlayerModelTests: XCTestCase {
           AVAudioSession.InterruptionOptions.shouldResume.rawValue,
       ])
     XCTAssertEqual(h.model.state, .playing(track))
+    // Each interruption releases the session; every resume activates again.
+    XCTAssertEqual(h.session.events.filter { $0 == "activate" }.count, 3)
+  }
+
+  func testSkipReportsTheAbandonedPositionBeforeAdvancing() async {
+    let h = makeHarness()
+    await h.model.start()
+    h.engine.onPositionChanged?(180)
+
+    h.nowPlaying.send(.next)
+    let next = PutioAudioTrack(id: successor.id, parentID: .root, title: successor.name)
+    while h.model.state != .playing(next) { await Task.yield() }
+    await h.pipeline.waitForPendingReports(fileID: track.id)
+
+    XCTAssertEqual(h.reports.reports.map(\.1), [180])
+  }
+
+  func testRemotePlayReplaysAnEndedFolderFromTheStart() async {
+    let h = makeHarness(loadNext: { _ in nil })
+    await h.model.start()
+    h.engine.onEnded?()
+    while h.model.state != .ended(track) { await Task.yield() }
+
+    h.nowPlaying.send(.play)
+    while h.model.state != .playing(track) { await Task.yield() }
+
+    XCTAssertEqual(h.engine.events.last(where: { $0.hasPrefix("load") }), "load:430.m4a@0")
   }
 
   func testUnpluggingHeadphonesPausesInsteadOfPlayingAloud() async {
@@ -288,6 +320,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.reports.reports.map(\.1), [90])
     XCTAssertEqual(h.engine.events.last, "stop")
     XCTAssertEqual(h.nowPlaying.clearCount, 1)
+    XCTAssertEqual(h.nowPlaying.detachCount, 1)
     XCTAssertEqual(h.session.events, ["activate", "deactivate"])
   }
 

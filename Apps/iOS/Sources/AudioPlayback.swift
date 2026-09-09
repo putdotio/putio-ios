@@ -99,6 +99,7 @@ protocol PutioNowPlayingSurface: AnyObject {
   func publish(_ info: PutioNowPlayingInfo)
   func clear()
   func setCommandHandler(_ handler: @escaping @MainActor (PutioRemoteAudioCommand) -> Void)
+  func detachCommands()
 }
 
 /// The audio transport. The system implementation wraps `AVPlayer`; tests
@@ -151,7 +152,7 @@ final class PutioAudioPlayerModel {
   @ObservationIgnored private var lastReportedSeconds: Int?
   @ObservationIgnored private var resumesAfterInterruption = false
   @ObservationIgnored private var sessionIsActive = false
-  @ObservationIgnored private var advanceTask: Task<Void, Never>?
+  @ObservationIgnored private var transitionTask: Task<Void, Never>?
 
   init(
     track: PutioAudioTrack,
@@ -205,7 +206,10 @@ final class PutioAudioPlayerModel {
     case .paused, .interrupted:
       resume()
     case .ended(let track):
-      Task { await load(track: track, startFromSeconds: 0) }
+      transitionTask?.cancel()
+      transitionTask = Task { [weak self] in
+        await self?.load(track: track, startFromSeconds: 0)
+      }
     case .loading, .failed:
       break
     }
@@ -248,17 +252,19 @@ final class PutioAudioPlayerModel {
 
   func skipToNext() {
     let current = track
-    advanceTask?.cancel()
-    advanceTask = Task { [weak self] in await self?.advance(from: current) }
+    if case .playing = state { reportCurrentPosition(force: true) }
+    transitionTask?.cancel()
+    transitionTask = Task { [weak self] in await self?.advance(from: current) }
   }
 
   func stop() {
     generation &+= 1
-    advanceTask?.cancel()
-    advanceTask = nil
+    transitionTask?.cancel()
+    transitionTask = nil
     if case .playing = state { reportCurrentPosition(force: true) }
     engine.stop()
     nowPlaying.clear()
+    nowPlaying.detachCommands()
     deactivateSession()
     for observer in observers { notificationCenter.removeObserver(observer) }
     observers = []
@@ -341,8 +347,8 @@ final class PutioAudioPlayerModel {
       lastReportedSeconds = 0
       positionPipeline.enqueue(
         fileID: track.id, position: 0, preservesOrdering: true, report: reportPosition)
-      advanceTask?.cancel()
-      advanceTask = Task { [weak self] in await self?.advance(from: track) }
+      transitionTask?.cancel()
+      transitionTask = Task { [weak self] in await self?.advance(from: track) }
     }
     engine.onFailed = { [weak self] in
       guard let self else { return }
@@ -374,6 +380,8 @@ final class PutioAudioPlayerModel {
     case .began:
       guard case .playing(let track) = state else { return }
       resumesAfterInterruption = true
+      // The system deactivated the session; resume must activate it again.
+      sessionIsActive = false
       engine.pause()
       state = .interrupted(track)
       reportCurrentPosition(force: true)
@@ -406,7 +414,8 @@ final class PutioAudioPlayerModel {
 
   private func handle(_ command: PutioRemoteAudioCommand) {
     switch command {
-    case .play: resume()
+    case .play:
+      if case .ended = state { togglePlayPause() } else { resume() }
     case .pause: pause()
     case .toggle: togglePlayPause()
     case .next: skipToNext()
@@ -480,6 +489,9 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
   private var timeObserver: Any?
   private var endObserver: NSObjectProtocol?
   private var failObserver: NSObjectProtocol?
+  private var itemIsReady = false
+  private var pendingStartSeconds = 0
+  private var pendingRate: Float?
 
   init() {
     player.automaticallyWaitsToMinimizeStalling = true
@@ -497,15 +509,16 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
   func load(url: URL, startFromSeconds: Int) {
     stopObserving()
     let item = AVPlayerItem(url: url)
+    itemIsReady = false
+    pendingStartSeconds = startFromSeconds
+    pendingRate = nil
     player.replaceCurrentItem(with: item)
-    if startFromSeconds > 0 {
-      player.seek(to: CMTime(seconds: Double(startFromSeconds), preferredTimescale: 600))
-    }
     statusObservation = item.observe(\.status, options: [.initial, .new]) { [weak self] item, _ in
       Task { @MainActor [weak self] in
+        guard let self, self.player.currentItem === item else { return }
         switch item.status {
-        case .readyToPlay: self?.onReady?()
-        case .failed: self?.onFailed?()
+        case .readyToPlay: self.handleReady()
+        case .failed: self.onFailed?()
         default: break
         }
       }
@@ -530,12 +543,18 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
     }
   }
 
+  /// Playback starts once the item is ready and any saved position has been
+  /// sought, so the first audible frame is the resumed one.
   func play(rate: Float) {
-    player.play()
-    player.rate = rate
+    guard itemIsReady else {
+      pendingRate = rate
+      return
+    }
+    player.playImmediately(atRate: rate)
   }
 
   func pause() {
+    pendingRate = nil
     player.pause()
   }
 
@@ -546,7 +565,40 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
   }
 
   func setRate(_ rate: Float) {
+    guard itemIsReady else {
+      pendingRate = rate
+      return
+    }
     player.rate = rate
+  }
+
+  private func handleReady() {
+    guard !itemIsReady else { return }
+    itemIsReady = true
+    let start = pendingStartSeconds
+    pendingStartSeconds = 0
+    let begin: @MainActor () -> Void = { [weak self] in
+      guard let self else { return }
+      if let rate = self.pendingRate {
+        self.pendingRate = nil
+        self.player.playImmediately(atRate: rate)
+      }
+      self.onReady?()
+    }
+    guard start > 0 else {
+      begin()
+      return
+    }
+    let item = player.currentItem
+    player.seek(
+      to: CMTime(seconds: Double(start), preferredTimescale: 600),
+      toleranceBefore: .zero, toleranceAfter: .zero
+    ) { [weak self] _ in
+      Task { @MainActor [weak self] in
+        guard let self, self.player.currentItem === item else { return }
+        begin()
+      }
+    }
   }
 
   func stop() {
@@ -596,10 +648,13 @@ final class PutioSystemNowPlayingSurface: PutioNowPlayingSurface {
 
   func clear() {
     MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
-    let center = MPRemoteCommandCenter.shared()
+  }
+
+  func detachCommands() {
+    handler = nil
     for (command, target) in targets { command.removeTarget(target) }
     targets = []
-    center.nextTrackCommand.isEnabled = false
+    MPRemoteCommandCenter.shared().nextTrackCommand.isEnabled = false
   }
 
   func setCommandHandler(_ handler: @escaping @MainActor (PutioRemoteAudioCommand) -> Void) {
@@ -621,9 +676,11 @@ final class PutioSystemNowPlayingSurface: PutioNowPlayingSurface {
     _ command: MPRemoteCommand,
     map: @escaping @Sendable (MPRemoteCommandEvent) -> PutioRemoteAudioCommand?
   ) {
+    // Command events arrive on the media framework's queue; the model is
+    // main-actor bound, so the hop is explicit.
     let target = command.addTarget { [weak self] event in
       guard let mapped = map(event) else { return .commandFailed }
-      MainActor.assumeIsolated { self?.handler?(mapped) }
+      Task { @MainActor [weak self] in self?.handler?(mapped) }
       return .success
     }
     targets.append((command, target))
@@ -650,11 +707,13 @@ struct PutioAudioPlayerView: View {
   @State private var scrubbing = false
   @State private var scrubSeconds: Double = 0
   private let onDismiss: @MainActor () -> Void
+  private let onClose: @MainActor (PutioAudioTrack) -> Void
   private let showsHarnessReadiness: Bool
 
   init(
     route: PutioAudioRoute,
     onDismiss: @escaping @MainActor () -> Void,
+    onClose: @escaping @MainActor (PutioAudioTrack) -> Void,
     showsHarnessReadiness: Bool = false,
     positionPipeline: PutioPlaybackPositionPipeline,
     reportPosition: @escaping PutioPlaybackPositionReport,
@@ -662,6 +721,7 @@ struct PutioAudioPlayerView: View {
     loadNext: @escaping PutioNextAudioLoad
   ) {
     self.onDismiss = onDismiss
+    self.onClose = onClose
     self.showsHarnessReadiness = showsHarnessReadiness
     _model = State(
       initialValue: PutioAudioPlayerModel(
@@ -713,7 +773,11 @@ struct PutioAudioPlayerView: View {
       }
     }
     .task { await model.start() }
-    .onDisappear { model.stop() }
+    .onDisappear {
+      let track = model.track
+      model.stop()
+      onClose(track)
+    }
     .overlay { harnessProbes }
   }
 
