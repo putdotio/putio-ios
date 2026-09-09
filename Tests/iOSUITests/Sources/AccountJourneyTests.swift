@@ -38,6 +38,9 @@ final class AccountJourneyTests: XCTestCase {
     let signOut = app.descendants(matching: .any)["auth.sign-out"]
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     if !signOut.isHittable { app.swipeUp() }
+    let signOutHittable = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "hittable == true"), object: signOut)
+    XCTAssertEqual(XCTWaiter.wait(for: [signOutHittable], timeout: 5), .completed)
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
   }
