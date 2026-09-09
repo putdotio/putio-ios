@@ -430,22 +430,21 @@ public final class PutioRuntime {
     let conversion = try await performAuthenticatedOperation {
       try await sdk.getMp4ConversionStatus(fileID: fileID.rawValue)
     }
-    let progress = Double(conversion.percentDone)
-    guard progress.isFinite, (0...1).contains(progress) else {
-      throw PutioRuntimeError.invalidResponse
-    }
-
     switch conversion.status {
-    case .queued:
-      return .queued
-    case .converting:
-      return .converting(progress: progress)
-    case .completed:
-      return .completed
     case .error, .notAvailable:
       return .failed
+    case .completed:
+      return .completed
+    case .queued:
+      return .queued
     default:
-      throw PutioRuntimeError.invalidResponse
+      // Unknown non-terminal statuses are still in progress. Only progress
+      // rows must carry a valid fraction.
+      let progress = Double(conversion.percentDone)
+      guard progress.isFinite, (0...1).contains(progress) else {
+        throw PutioRuntimeError.invalidResponse
+      }
+      return .converting(progress: progress)
     }
   }
 

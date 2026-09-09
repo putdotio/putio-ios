@@ -222,12 +222,15 @@ final class PutioVideoPlaybackModel {
     do {
       try Task.checkCancellation()
       try await startConversion(fileID)
+      // The server accepted the request. A cancellation from here on resumes
+      // by polling instead of re-posting a second conversion.
+      recovery = .pollConversion
       try Task.checkCancellation()
       guard requestGeneration == generation else { return }
       state = .conversionQueued
       await pollConversion(generation: requestGeneration)
     } catch {
-      handleConversionError(error, generation: requestGeneration, recovery: .startConversion)
+      handleConversionError(error, generation: requestGeneration, recovery: recovery)
     }
   }
 
@@ -263,12 +266,16 @@ final class PutioVideoPlaybackModel {
     }
   }
 
+  /// A completed conversion should resolve immediately. Each miss re-checks
+  /// the conversion so a `COMPLETED → ERROR` flip fails instead of spinning,
+  /// and the loop gives up after a bounded number of attempts.
   private func resolveConvertedSource(generation existingGeneration: UInt64? = nil) async {
     let requestGeneration = existingGeneration ?? nextGeneration()
     recovery = .resolveConvertedSource
     state = .conversionCompleted
 
     do {
+      var attempts = 0
       while requestGeneration == generation {
         try Task.checkCancellation()
         let resolution = try await resolve(fileID)
@@ -279,7 +286,26 @@ final class PutioVideoPlaybackModel {
           state = .ready(source)
           return
         case .conversionRequired:
-          try await sleep(conversionPollInterval)
+          attempts += 1
+          guard attempts < Self.maximumConvertedSourceAttempts else {
+            recovery = .startConversion
+            state = .failed(.conversion)
+            return
+          }
+          let status = try await loadConversionStatus(fileID)
+          try Task.checkCancellation()
+          guard requestGeneration == generation else { return }
+          switch status {
+          case .completed:
+            try await sleep(conversionPollInterval)
+          case .queued, .converting:
+            await pollConversion(generation: requestGeneration)
+            return
+          case .failed:
+            recovery = .startConversion
+            state = .failed(.conversion)
+            return
+          }
         }
       }
     } catch {
@@ -290,6 +316,9 @@ final class PutioVideoPlaybackModel {
       )
     }
   }
+
+  /// Resolution attempts after a completed conversion before giving up.
+  static let maximumConvertedSourceAttempts = 10
 
   private func nextGeneration() -> UInt64 {
     generation &+= 1
@@ -800,6 +829,7 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
 protocol PutioVideoPlayerDriving: AnyObject {
   var player: AVPlayer { get }
   var currentTime: CMTime { get }
+  var itemDuration: CMTime { get }
 
   func play()
   func seek(to time: CMTime, completion: @escaping @Sendable (Bool) -> Void)
@@ -858,6 +888,10 @@ private final class PutioSystemVideoPlayerDriver: PutioVideoPlayerDriving {
 
   var currentTime: CMTime {
     player.currentTime()
+  }
+
+  var itemDuration: CMTime {
+    player.currentItem?.duration ?? .invalid
   }
 
   init(item: AVPlayerItem) {
@@ -1206,10 +1240,24 @@ final class PutioSystemVideoPlayerCoordinator {
     onPlaybackEnded?()
   }
 
+  /// A time jump after EOF is a restart only when playback actually moved
+  /// back into the item. HLS discontinuities at the end jump to the duration,
+  /// and treating those as a restart would overwrite the zero reset.
   private func reportPlaybackRestarted(generation playbackGeneration: UInt64) {
-    guard generation == playbackGeneration, finalPositionEnqueued else { return }
+    guard generation == playbackGeneration, finalPositionEnqueued, let driver else { return }
+    guard !Self.isAtItemEnd(position: driver.currentTime, duration: driver.itemDuration) else {
+      return
+    }
     finalPositionEnqueued = false
     onPlaybackRestarted?()
+  }
+
+  private static func isAtItemEnd(position: CMTime, duration: CMTime) -> Bool {
+    guard duration.isValid, duration.isNumeric else { return false }
+    let seconds = CMTimeGetSeconds(position)
+    let total = CMTimeGetSeconds(duration)
+    guard seconds.isFinite, total.isFinite, total > 0 else { return false }
+    return seconds >= total - 1
   }
 
   private func startPositionReporting(generation playbackGeneration: UInt64) {

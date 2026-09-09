@@ -377,9 +377,15 @@ private struct MainTabView: View {
             )
           },
           onPlayNext: { nextVideo in
+            let completedRoute = selectedVideoRoute
             let nextRoute = PutioVideoRoute(nextVideo: nextVideo)
             selectedVideoRoute = nextRoute
             presentedVideoRoute = nextRoute
+            // The completed video's folder shows its watched state; the
+            // successor's folder is refreshed when that player is dismissed.
+            if let completedRoute, completedRoute.parentID != nextRoute.parentID {
+              refreshFolderAfterPlayback(completedRoute)
+            }
           },
           resolve: { fileID in
             try await resolvePlaybackSource(fileID: fileID)
@@ -464,9 +470,18 @@ private struct MainTabView: View {
     guard let dismissedRoute = selectedVideoRoute else { return }
     selectedVideoRoute = nil
     presentedVideoRoute = nil
+    refreshFolderAfterPlayback(dismissedRoute)
+  }
+
+  /// The player's final position report is enqueued by its teardown, which
+  /// runs in the SwiftUI commit that removes the route. Waiting one main-actor
+  /// turn before observing the pipeline makes that ordering explicit instead
+  /// of relying on run-loop scheduling.
+  private func refreshFolderAfterPlayback(_ route: PutioVideoRoute) {
     Task { @MainActor in
-      await playbackPositionPipeline.waitForPendingReports(fileID: dismissedRoute.id)
-      folderRefreshRequests.request(folderID: dismissedRoute.parentID)
+      await Task.yield()
+      await playbackPositionPipeline.waitForPendingReports(fileID: route.id)
+      folderRefreshRequests.request(folderID: route.parentID)
     }
   }
 

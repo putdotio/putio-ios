@@ -10,6 +10,7 @@ import XCTest
 private final class VideoPlayerDriverSpy: PutioVideoPlayerDriving {
   let player: AVPlayer
   var currentTime: CMTime = .zero
+  var itemDuration: CMTime = .invalid
   private(set) var events: [String] = []
   private(set) var positionObservationIntervals: [CMTime] = []
   private(set) var positionObservationRemovalCount = 0
@@ -832,6 +833,44 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
 
     XCTAssertEqual(restartCount, 1)
     XCTAssertEqual(reports.completed.map(\.1), [15, 0, 8])
+  }
+
+  func testTimeJumpToTheItemEndAfterEOFDoesNotUndoTheReset() async throws {
+    let notificationCenter = NotificationCenter()
+    let statusObservation = PlayerItemStatusObservationSpy()
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: PlaybackAudioSessionSpy(),
+      statusObservation: statusObservation,
+      notificationCenter: notificationCenter
+    )
+    let controller = AVPlayerViewController()
+    let reports = PlaybackPositionReportSpy()
+    var restartCount = 0
+
+    coordinator.start(
+      fileID: fileID,
+      source: source(startFromSeconds: 0),
+      reportPosition: { try await reports.report(fileID: $0, position: $1) },
+      in: controller,
+      onPlaybackRestarted: { restartCount += 1 },
+      onFailure: {}
+    )
+    let driver = try XCTUnwrap(capture.driver)
+    let item = try XCTUnwrap(capture.item)
+    statusObservation.emit(.readyToPlay)
+    await Task.yield()
+    driver.itemDuration = CMTime(seconds: 120, preferredTimescale: 600)
+    driver.currentTime = CMTime(seconds: 119.6, preferredTimescale: 600)
+
+    notificationCenter.post(name: AVPlayerItem.didPlayToEndTimeNotification, object: item)
+    // An end-of-item discontinuity jumps to the duration, not back into the video.
+    driver.currentTime = CMTime(seconds: 120, preferredTimescale: 600)
+    notificationCenter.post(name: AVPlayerItem.timeJumpedNotification, object: item)
+    coordinator.stop(controller: controller)
+    await coordinator.waitForPendingPositionReports()
+
+    XCTAssertEqual(restartCount, 0)
+    XCTAssertEqual(reports.completed.map(\.1), [0])
   }
 
   func testReplayWaitsForTransientEOFResetRetryBeforeReportingTheNewPosition() async throws {
