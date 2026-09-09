@@ -488,6 +488,118 @@ final class PutioRuntimeTests: XCTestCase {
     }
   }
 
+  func testPlaybackRoutesRejectAmbiguousIdentityAndPreserveDescriptions() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let route = "GET /v2/tunnel/routes"
+    RuntimeMockURLProtocol.setFixture(
+      #"{"routes":[{"name":"default","description":"Default proxy"},{"name":"edge","description":"Nearby proxy"}]}"#,
+      for: route)
+    let routes = try await runtime.listPlaybackRoutes()
+    XCTAssertEqual(
+      routes,
+      [
+        PutioPlaybackRoute(name: "default", description: "Default proxy"),
+        PutioPlaybackRoute(name: "edge", description: "Nearby proxy"),
+      ])
+    for body in [#"{"routes":[{"name":""}]}"#, #"{"routes":[{"name":"same"},{"name":"same"}]}"#] {
+      RuntimeMockURLProtocol.setFixture(body, for: route)
+      await assertRuntimeError(.invalidResponse) { _ = try await runtime.listPlaybackRoutes() }
+    }
+    let before = RuntimeMockURLProtocol.capturedRequests().count
+    await assertRuntimeError(.invalidResponse) { _ = try await runtime.setPlaybackRoute(name: " ") }
+    XCTAssertEqual(RuntimeMockURLProtocol.capturedRequests().count, before)
+  }
+
+  func testRejectedPlaybackPreferencesRemainFailuresWhenAccountValuesAreUnchanged() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/settings")
+    await assertRuntimeError(.transient) { _ = try await runtime.setPlaybackRoute(name: "edge") }
+    await assertRuntimeError(.transient) { _ = try await runtime.setSubtitlesVisible(false) }
+    await assertRuntimeError(.transient) {
+      _ = try await runtime.setSubtitleAutoSelectionDisabled(true)
+    }
+    XCTAssertFalse(runtime.session.isAccountPreferencesStale)
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertEqual(account.routeName, "default")
+    XCTAssertFalse(account.hideSubtitles)
+    XCTAssertFalse(account.dontAutoSelectSubtitles)
+  }
+
+  func testLostPlaybackPreferenceResponsesAcceptAuthoritativelyAppliedValues() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/settings")
+    RuntimeMockURLProtocol.setFixture(
+      Self.accountInfo
+        .replacingOccurrences(
+          of: #""tunnel_route_name": "default""#, with: #""tunnel_route_name": "edge""#
+        )
+        .replacingOccurrences(of: #""hide_subtitles": false"#, with: #""hide_subtitles": true"#)
+        .replacingOccurrences(
+          of: #""dont_autoselect_subtitles": false"#, with: #""dont_autoselect_subtitles": true"#),
+      for: "GET /v2/account/info")
+    let route = try await runtime.setPlaybackRoute(name: "edge")
+    let visibility = try await runtime.setSubtitlesVisible(false)
+    let selection = try await runtime.setSubtitleAutoSelectionDisabled(true)
+    XCTAssertTrue(route.accountRefreshed)
+    XCTAssertTrue(visibility.accountRefreshed)
+    XCTAssertTrue(selection.accountRefreshed)
+    XCTAssertFalse(runtime.session.isAccountPreferencesStale)
+    XCTAssertEqual(
+      RuntimeMockURLProtocol.capturedRequests().filter { $0.url?.path == "/v2/account/settings" }
+        .count, 3)
+  }
+
+  func testPlaybackPreferencesUseSingleFieldPatchesAndKeepAcknowledgedValues() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/settings")
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "GET /v2/account/info")
+    _ = try await runtime.setPlaybackRoute(name: "edge")
+    _ = try await runtime.setSubtitlesVisible(false)
+    _ = try await runtime.setSubtitleAutoSelectionDisabled(true)
+    _ = try await runtime.setTrashEnabled(false)
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertEqual(account.routeName, "edge")
+    XCTAssertTrue(account.hideSubtitles)
+    XCTAssertTrue(account.dontAutoSelectSubtitles)
+    XCTAssertFalse(account.trashEnabled)
+    XCTAssertTrue(runtime.session.isAccountPreferencesStale)
+    let writes = RuntimeMockURLProtocol.capturedRequests().filter {
+      $0.url?.path == "/v2/account/settings"
+    }
+    let bodies = try writes.map { request in
+      try XCTUnwrap(
+        JSONSerialization.jsonObject(with: XCTUnwrap(requestBodyData(for: request)))
+          as? [String: Any])
+    }
+    XCTAssertEqual(bodies.count, 4)
+    XCTAssertEqual(bodies[0]["tunnel_route_name"] as? String, "edge")
+    XCTAssertEqual(bodies[1]["hide_subtitles"] as? Bool, true)
+    XCTAssertEqual(bodies[2]["dont_autoselect_subtitles"] as? Bool, true)
+    XCTAssertTrue(bodies.allSatisfy { $0.count == 1 })
+    RuntimeMockURLProtocol.setFixture(
+      Self.accountInfo
+        .replacingOccurrences(
+          of: #""tunnel_route_name": "default""#, with: #""tunnel_route_name": "edge""#
+        )
+        .replacingOccurrences(of: #""hide_subtitles": false"#, with: #""hide_subtitles": true"#)
+        .replacingOccurrences(
+          of: #""dont_autoselect_subtitles": false"#, with: #""dont_autoselect_subtitles": true"#
+        )
+        .replacingOccurrences(of: #""trash_enabled": true"#, with: #""trash_enabled": false"#),
+      for: "GET /v2/account/info")
+    let refreshed = await runtime.refreshAccountPreferences()
+    XCTAssertTrue(refreshed)
+    XCTAssertEqual(runtime.session.state, .signedIn(account))
+
+  }
+
   func testPreferenceWritesUseTypedSDKPatchesAndRefreshAuthoritativeSnapshot() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let settingsRoute = "POST /v2/account/settings"

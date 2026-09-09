@@ -7,7 +7,7 @@ struct FilePreferencesView: View {
   let refreshRequests: PutioFolderRefreshRequests
   let trashReconciliation: PutioTrashReconciliation
 
-  @State private var model: PutioFilePreferencesModel
+  @State private var model: PutioAccountPreferencesModel
   @State private var confirmation: Confirmation?
 
   init(
@@ -19,8 +19,8 @@ struct FilePreferencesView: View {
     self.refreshRequests = refreshRequests
     self.trashReconciliation = trashReconciliation
     _model = State(
-      initialValue: PutioFilePreferencesModel(
-        actions: PutioFilePreferencesActions(runtime: runtime)))
+      initialValue: PutioAccountPreferencesModel(
+        actions: PutioAccountPreferenceActions(runtime: runtime)))
   }
 
   var body: some View {
@@ -161,7 +161,7 @@ struct FilePreferencesView: View {
       })
   }
 
-  private func save(_ mutation: PutioFilePreferencesMutation) {
+  private func save(_ mutation: PutioAccountPreferenceMutation) {
     confirmation = nil
     Task { await model.save(mutation) }
   }

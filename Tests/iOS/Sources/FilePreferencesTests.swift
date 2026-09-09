@@ -23,7 +23,7 @@ final class FilePreferencesTests: XCTestCase {
   func testFailedSavePreservesSnapshotAndExplicitRetryRepeatsOnlyFailedIntent() async {
     let session = PreferencesSessionFixture()
     let original = session.account
-    var attempts: [PutioFilePreferencesMutation] = []
+    var attempts: [PutioAccountPreferenceMutation] = []
     let model = model(
       session: session,
       save: { intent in
@@ -129,7 +129,7 @@ final class FilePreferencesTests: XCTestCase {
     let folders = PutioFolderRefreshRequests()
     let owner = UUID()
     folders.register(folderID: .root, owner: owner)
-    var preferences: PutioFilePreferencesModel? = model(
+    var preferences: PutioAccountPreferencesModel? = model(
       session: session,
       save: { _ in
         session.isStale = true
@@ -291,14 +291,14 @@ final class FilePreferencesTests: XCTestCase {
   private func model(
     session: PreferencesSessionFixture,
     save:
-      @escaping @MainActor @Sendable (PutioFilePreferencesMutation) async throws ->
+      @escaping @MainActor @Sendable (PutioAccountPreferenceMutation) async throws ->
       PutioAccountPreferencesMutationResult = { _ in
         PutioAccountPreferencesMutationResult(accountRefreshed: true)
       },
     refresh: @escaping @MainActor @Sendable () async -> Bool = { true }
-  ) -> PutioFilePreferencesModel {
-    PutioFilePreferencesModel(
-      actions: PutioFilePreferencesActions(
+  ) -> PutioAccountPreferencesModel {
+    PutioAccountPreferencesModel(
+      actions: PutioAccountPreferenceActions(
         save: save, refresh: refresh, account: { session.account }, isStale: { session.isStale },
         isUpdating: { session.isUpdating }))
   }

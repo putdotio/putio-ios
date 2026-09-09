@@ -278,7 +278,8 @@ public final class PutioSessionStore {
   }
 
   func applyAcknowledgedPreferences(
-    defaultSort: PutioFolderSort? = nil, trashEnabled: Bool? = nil, historyEnabled: Bool? = nil
+    defaultSort: PutioFolderSort? = nil, trashEnabled: Bool? = nil, historyEnabled: Bool? = nil,
+    routeName: String? = nil, hideSubtitles: Bool? = nil, dontAutoSelectSubtitles: Bool? = nil
   ) {
     guard case .signedIn(let account) = state else { return }
     state = .signedIn(
@@ -287,7 +288,10 @@ public final class PutioSessionStore {
         suggestNextVideo: account.suggestNextVideo, rememberVideoTime: account.rememberVideoTime,
         defaultSort: defaultSort ?? account.defaultSort,
         historyEnabled: historyEnabled ?? account.historyEnabled,
-        trashEnabled: trashEnabled ?? account.trashEnabled, storage: account.storage))
+        trashEnabled: trashEnabled ?? account.trashEnabled, storage: account.storage,
+        routeName: routeName ?? account.routeName,
+        hideSubtitles: hideSubtitles ?? account.hideSubtitles,
+        dontAutoSelectSubtitles: dontAutoSelectSubtitles ?? account.dontAutoSelectSubtitles))
   }
 
   @discardableResult
@@ -391,7 +395,10 @@ public final class PutioSessionStore {
         availableBytes: account.disk.available,
         totalBytes: account.disk.size,
         usedBytes: account.disk.used
-      )
+      ),
+      routeName: account.settings.routeName,
+      hideSubtitles: account.settings.hideSubtitles,
+      dontAutoSelectSubtitles: account.settings.dontAutoSelectSubtitles
     )
   }
 

@@ -45,16 +45,22 @@ import Foundation
       var trashEnabled = true
       var overridesReset = false
       var historyCleared = false
+      var routeName = "default"
+      var hideSubtitles = false
+      var dontAutoSelectSubtitles = false
     }
 
     private static let preferencesKey = "putio.harness.file-preferences.server"
     private static var usesFilePreferences: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-file-preferences")
+        || ProcessInfo.processInfo.arguments.contains("--putio-harness-playback-preferences")
     }
     nonisolated(unsafe) private static var filePreferences: FilePreferences?
     nonisolated(unsafe) private static var preferencesSaveFailed = false
     nonisolated(unsafe) private static var preferencesRefreshFailed = false
     nonisolated(unsafe) private static var preferencesSortCommitted = false
+    nonisolated(unsafe) private static var preferencesRouteCommitted = false
+    nonisolated(unsafe) private static var preferencesRoutesFailed = false
 
     // Caller holds fileActionsLock. The separate namespace represents the fixture server across launches.
     private static func prepareFilePreferencesLocked() {
@@ -84,7 +90,10 @@ import Foundation
       prepareFilePreferencesLocked()
       guard usesFilePreferences, let payload = requestPayload(request),
         !payload.isEmpty,
-        Set(payload.keys).isSubset(of: ["sort_by", "trash_enabled", "history_enabled"])
+        Set(payload.keys).isSubset(of: [
+          "sort_by", "trash_enabled", "history_enabled", "tunnel_route_name", "hide_subtitles",
+          "dont_autoselect_subtitles",
+        ])
       else {
         return (
           400,
@@ -112,6 +121,22 @@ import Foundation
         }
         filePreferences?.sortBy = sort
         preferencesSortCommitted = true
+      }
+      if let route = payload["tunnel_route_name"] as? String {
+        if preferencesRouteCommitted, route == filePreferences?.routeName {
+          return (
+            409,
+            fixtureError(
+              statusCode: 409, type: "HARNESS_SETTINGS_ALREADY_COMMITTED",
+              message: "Refresh instead of repeating a committed route write")
+          )
+        }
+        filePreferences?.routeName = route
+        preferencesRouteCommitted = true
+      }
+      if let hidden = payload["hide_subtitles"] as? Bool { filePreferences?.hideSubtitles = hidden }
+      if let disabled = payload["dont_autoselect_subtitles"] as? Bool {
+        filePreferences?.dontAutoSelectSubtitles = disabled
       }
       if let history = payload["history_enabled"] as? Bool {
         filePreferences?.historyEnabled = history
@@ -602,7 +627,9 @@ import Foundation
       case "GET /v2/account/info":
         return fileActionsLock.withLock {
           prepareFilePreferencesLocked()
-          if usesFilePreferences, preferencesSortCommitted, !preferencesRefreshFailed {
+          if usesFilePreferences, preferencesSortCommitted || preferencesRouteCommitted,
+            !preferencesRefreshFailed
+          {
             preferencesRefreshFailed = true
             return (
               503,
@@ -621,6 +648,21 @@ import Foundation
             )
           }
           return (200, accountInfoLocked)
+        }
+      case "GET /v2/tunnel/routes":
+        return fileActionsLock.withLock {
+          if !preferencesRoutesFailed {
+            preferencesRoutesFailed = true
+            return (
+              503,
+              fixtureError(
+                statusCode: 503, type: "HARNESS_ROUTES_RETRY", message: "Retry loading proxies")
+            )
+          }
+          return (
+            200,
+            #"{"routes":[{"name":"default","description":"Default proxy"},{"name":"edge","description":"Alternate proxy"}]}"#
+          )
         }
       case "POST /v2/account/settings":
         return updateFilePreferences(request: request)
@@ -1321,7 +1363,7 @@ import Foundation
               "used": \(usedBytes)
             },
             "settings": {
-              "tunnel_route_name": "default",
+              "tunnel_route_name": \(jsonString(filePreferences?.routeName ?? "default")),
               "next_episode": true,
               "start_from": true,
               "history_enabled": \(historyEnabled),
@@ -1329,8 +1371,8 @@ import Foundation
               "sort_by": \(jsonString(defaultSort)),
               "show_optimistic_usage": false,
               "two_factor_enabled": false,
-              "hide_subtitles": false,
-              "dont_autoselect_subtitles": false
+              "hide_subtitles": \(filePreferences?.hideSubtitles ?? false),
+              "dont_autoselect_subtitles": \(filePreferences?.dontAutoSelectSubtitles ?? false)
             }
           }
         }

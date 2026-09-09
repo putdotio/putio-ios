@@ -562,6 +562,10 @@ private struct AccountView: View {
             )
           }
           .accessibilityIdentifier("account.file-preferences")
+          NavigationLink("Playback Preferences") {
+            PlaybackPreferencesView(runtime: runtime)
+          }
+          .accessibilityIdentifier("account.playback-preferences")
         }
         Section("Storage") {
           LabeledContent("Used", value: byteText(account.storage.usedBytes))
