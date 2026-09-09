@@ -690,9 +690,11 @@ final class PutioSystemNowPlayingSurface: PutioNowPlayingSurface {
 
   func detachCommands() {
     handler = nil
-    for (command, target) in targets { command.removeTarget(target) }
+    for (command, target) in targets {
+      command.removeTarget(target)
+      command.isEnabled = false
+    }
     targets = []
-    MPRemoteCommandCenter.shared().nextTrackCommand.isEnabled = false
   }
 
   func setCommandHandler(_ handler: @escaping @MainActor (PutioRemoteAudioCommand) -> Void) {
@@ -706,7 +708,6 @@ final class PutioSystemNowPlayingSurface: PutioNowPlayingSurface {
       guard let event = event as? MPChangePlaybackPositionCommandEvent else { return nil }
       return .seek(seconds: Int(event.positionTime.rounded(.down)))
     }
-    center.nextTrackCommand.isEnabled = true
     center.previousTrackCommand.isEnabled = false
   }
 
@@ -721,6 +722,7 @@ final class PutioSystemNowPlayingSurface: PutioNowPlayingSurface {
       Task { @MainActor [weak self] in self?.handler?(mapped) }
       return .success
     }
+    command.isEnabled = true
     targets.append((command, target))
   }
 }
