@@ -162,9 +162,11 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
       .success(.conversionRequired),
       .success(.ready(source)),
     ])
+    // The resolve miss after COMPLETED re-checks the conversion once.
     let conversion = VideoConversionStub(statusResults: [
       .success(.queued),
       .success(.converting(progress: 0.35)),
+      .success(.completed),
       .success(.completed),
     ])
     let model = PutioVideoPlaybackModel(
@@ -180,7 +182,7 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
 
     XCTAssertEqual(model.state, .ready(source))
     XCTAssertEqual(conversion.startRequests, [fileID])
-    XCTAssertEqual(conversion.statusRequests, [fileID, fileID, fileID])
+    XCTAssertEqual(conversion.statusRequests, [fileID, fileID, fileID, fileID])
     XCTAssertEqual(resolver.requestedIDs, [fileID, fileID, fileID])
     XCTAssertEqual(conversion.sleepDurations.count, 3)
   }
@@ -268,6 +270,89 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
 
     XCTAssertEqual(model.state, .ready(source))
     XCTAssertEqual(conversion.startRequests, [fileID, fileID])
+  }
+
+  func testCancellationAfterAcceptedStartResumesByPollingNotRestarting() async {
+    let source = playbackSource()
+    let resolver = PlaybackResolverStub([
+      .success(.conversionRequired),
+      .success(.ready(source)),
+    ])
+    let suspendedStatus = SuspendedConversionStatus()
+    let model = PutioVideoPlaybackModel(
+      fileID: fileID,
+      startConversion: { try await suspendedStatus.start($0) },
+      loadConversionStatus: { try await suspendedStatus.load($0) },
+      resolve: { try await resolver.resolve($0) }
+    )
+
+    // Cancel while the first status poll is suspended: the start already
+    // committed, so the retry must not POST a second conversion.
+    let loadTask = Task { await model.loadIfNeeded() }
+    while suspendedStatus.requests == 0 {
+      await Task.yield()
+    }
+    loadTask.cancel()
+    await loadTask.value
+
+    await model.retry()
+
+    XCTAssertEqual(model.state, .ready(source))
+    XCTAssertEqual(suspendedStatus.startRequests, [fileID])
+  }
+
+  func testCompletedConversionThatFlipsToErrorFailsInsteadOfSpinning() async {
+    let resolver = PlaybackResolverStub([
+      .success(.conversionRequired),
+      .success(.conversionRequired),
+      .success(.conversionRequired),
+    ])
+    let conversion = VideoConversionStub(statusResults: [
+      .success(.completed),
+      .success(.completed),
+      .success(.failed),
+    ])
+    let model = conversionModel(resolver: resolver, conversion: conversion)
+
+    await model.loadIfNeeded()
+
+    XCTAssertEqual(conversionFailure(from: model), .conversion)
+    XCTAssertEqual(conversion.statusRequests.count, 3)
+    XCTAssertEqual(resolver.requestedIDs.count, 3)
+  }
+
+  func testCompletedConversionThatNeverResolvesGivesUpAfterBoundedAttempts() async {
+    let attempts = PutioVideoPlaybackModel.maximumConvertedSourceAttempts
+    let resolver = PlaybackResolverStub(
+      Array(repeating: .success(.conversionRequired), count: attempts + 1))
+    let conversion = VideoConversionStub(
+      statusResults: Array(repeating: .success(.completed), count: attempts + 1))
+    let model = conversionModel(resolver: resolver, conversion: conversion)
+
+    await model.loadIfNeeded()
+
+    XCTAssertEqual(conversionFailure(from: model), .conversion)
+    XCTAssertEqual(resolver.requestedIDs.count, attempts + 1)
+  }
+
+  func testCompletedConversionThatRegressesToConvertingResumesPolling() async {
+    let source = playbackSource()
+    let resolver = PlaybackResolverStub([
+      .success(.conversionRequired),
+      .success(.conversionRequired),
+      .success(.ready(source)),
+    ])
+    let conversion = VideoConversionStub(statusResults: [
+      .success(.completed),
+      .success(.converting(progress: 0.9)),
+      .success(.completed),
+    ])
+    let model = conversionModel(resolver: resolver, conversion: conversion)
+
+    await model.loadIfNeeded()
+
+    XCTAssertEqual(model.state, .ready(source))
+    XCTAssertEqual(conversion.startRequests, [fileID])
   }
 
   func testConversionPollingCancelsWithoutPresentingAnError() async {

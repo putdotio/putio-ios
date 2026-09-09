@@ -43,11 +43,11 @@ import Testing
   let root = JourneyFrameFingerprint(samples: [0])
   let nested = JourneyFrameFingerprint(samples: [100])
   let back = JourneyFrameFingerprint(samples: [200])
-  let frames = (0..<40).map { index in
+  let frames = (0..<60).map { index in
     JourneyVideoFrame(
       presentationTime: Double(index),
       duration: 1,
-      fingerprint: index < 3 ? root : index < 35 ? nested : back
+      fingerprint: index < 3 ? root : index < 55 ? nested : back
     )
   }
 

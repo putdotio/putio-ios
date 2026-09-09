@@ -95,3 +95,44 @@ private final class StopCounter: @unchecked Sendable {
   )
   #expect((missingResponse as? HTTPURLResponse)?.statusCode == 404)
 }
+
+@Test func harnessMediaServerFailsFastWhenTheListenerIsCancelledBeforeReady() throws {
+  let directory = FileManager.default.temporaryDirectory.appending(
+    path: "putio-harness-media-\(UUID().uuidString)"
+  )
+  let started = Date()
+  let server = try HarnessMediaServer(
+    mediaDirectory: directory,
+    startListener: { listener, queue in
+      // Cancelling before start reports `.cancelled` without ever passing
+      // through `.ready`.
+      listener.cancel()
+      listener.start(queue: queue)
+    }
+  )
+
+  #expect(throws: HarnessMediaServer.ServerError.cancelledBeforeReady) {
+    try server.start(timeout: 5)
+  }
+  #expect(Date().timeIntervalSince(started) < 4)
+}
+
+@Test func harnessMediaServerFailsFastWhenTheListenerIsWaiting() throws {
+  let directory = FileManager.default.temporaryDirectory.appending(
+    path: "putio-harness-media-\(UUID().uuidString)"
+  )
+  let started = Date()
+  let server = try HarnessMediaServer(
+    mediaDirectory: directory,
+    startListener: { listener, _ in
+      // Drive the state handler directly: a listener bound to a fixed
+      // loopback port cannot be made to wait deterministically.
+      listener.stateUpdateHandler?(.waiting(.posix(.EADDRINUSE)))
+    }
+  )
+
+  #expect(throws: HarnessMediaServer.ServerError.self) {
+    try server.start(timeout: 5)
+  }
+  #expect(Date().timeIntervalSince(started) < 4)
+}

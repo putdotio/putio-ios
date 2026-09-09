@@ -2,10 +2,12 @@ import Foundation
 import Network
 
 final class HarnessMediaServer: @unchecked Sendable {
-  private enum ServerError: Error {
+  enum ServerError: Error, Equatable {
     case failed(String)
     case missingPort
     case startupTimedOut
+    case cancelledBeforeReady
+    case waiting(String)
   }
 
   private let listener: NWListener
@@ -48,7 +50,15 @@ final class HarnessMediaServer: @unchecked Sendable {
         )
       case .failed(let error):
         resolveStartup(.failure(ServerError.failed(error.localizedDescription)))
-      default:
+      case .waiting(let error):
+        // The listener will not become ready without an external change;
+        // fail now instead of burning the startup timeout.
+        resolveStartup(.failure(ServerError.waiting(error.localizedDescription)))
+      case .cancelled:
+        resolveStartup(.failure(ServerError.cancelledBeforeReady))
+      case .setup:
+        break
+      @unknown default:
         break
       }
     }

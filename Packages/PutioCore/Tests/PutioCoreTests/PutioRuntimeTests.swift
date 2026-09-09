@@ -1763,10 +1763,36 @@ final class PutioRuntimeTests: XCTestCase {
     }
   }
 
-  func testVideoConversionRejectsUnknownStatusAndInvalidProgress() async {
+  func testVideoConversionTreatsUnknownStatusAsStillConverting() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"mp4":{"percent_done":35,"status":"PAUSED"}}"#, for: Self.conversionStatusRoute)
+
+    let conversion = try await runtime.videoConversionStatus(fileID: PutioFileID(rawValue: 411))
+
+    guard case .converting(let progress) = conversion else {
+      return XCTFail("expected an in-progress state, got \(conversion)")
+    }
+    XCTAssertEqual(progress, 0.35, accuracy: 0.001)
+  }
+
+  func testVideoConversionTerminalRowsIgnoreProgress() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    for (status, expected) in [
+      ("ERROR", PutioVideoConversionStatus.failed), ("NOT_AVAILABLE", .failed),
+      ("COMPLETED", .completed), ("IN_QUEUE", .queued),
+    ] {
+      RuntimeMockURLProtocol.setFixture(
+        #"{"mp4":{"percent_done":-1,"status":"\#(status)"}}"#, for: Self.conversionStatusRoute)
+      let conversion = try await runtime.videoConversionStatus(
+        fileID: PutioFileID(rawValue: 411))
+      XCTAssertEqual(conversion, expected)
+    }
+  }
+
+  func testVideoConversionRejectsInvalidProgressWhileConverting() async {
     let (runtime, _) = await makeSignedInRuntime()
     for body in [
-      #"{"mp4":{"percent_done":35,"status":"PAUSED"}}"#,
       #"{"mp4":{"percent_done":101,"status":"CONVERTING"}}"#,
       #"{"mp4":{"percent_done":-1,"status":"CONVERTING"}}"#,
     ] {
