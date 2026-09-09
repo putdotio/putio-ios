@@ -308,7 +308,11 @@ import Foundation
           self.client?.urlProtocolDidFinishLoading(self)
         }
       }
-      if statusCode == 503, url.path == "/v2/files/410" {
+      let restorationDelay = Self.deepLinkRestorationDelay(url)
+      if restorationDelay > 0 {
+        DispatchQueue.global().asyncAfter(
+          deadline: .now() + restorationDelay, execute: deliverResponse)
+      } else if statusCode == 503, url.path == "/v2/files/410" {
         DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: deliverResponse)
       } else if Self.shouldDelayBulkDeleteResponse(replayableRequest) {
         DispatchQueue.global().asyncAfter(deadline: .now() + 8, execute: deliverResponse)
@@ -326,6 +330,18 @@ import Foundation
 
     override func stopLoading() {
       deliveryGate.cancel()
+    }
+
+    private static func deepLinkRestorationDelay(_ url: URL) -> TimeInterval {
+      guard ProcessInfo.processInfo.arguments.contains("--putio-harness-link-restoration") else {
+        return 0
+      }
+      if url.path == "/v2/files/412" { return 1 }
+      guard url.path == "/v2/files/list",
+        URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+          .contains(where: { $0.name == "parent_id" && $0.value == "410" }) == true
+      else { return 0 }
+      return 5
     }
 
     private static func shouldDelayBulkDeleteResponse(_ request: URLRequest) -> Bool {

@@ -31,6 +31,7 @@ the SDK before navigation, and deep links take precedence over saved navigation
 restoration.
 
 The files-browser harness journey exercises native cold and warm URL delivery,
-signed-out intent replay, restored-session dispatch, video dismissal, and loading,
+signed-out intent replay, restored-session dispatch, conflicting saved-folder
+restoration, native Back ancestry, video dismissal, and loading,
 error, retry, and unsupported outcomes. Its published artifacts use synthetic
 files and URLs.
