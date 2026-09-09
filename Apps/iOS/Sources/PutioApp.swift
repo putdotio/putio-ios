@@ -19,6 +19,12 @@ struct PutioApp: App {
           SessionRootView(scenario: scenario)
         }
       }
+      #if DEBUG
+        .modifier(
+          HarnessRatingLinkCapture(
+            enabled: scenario == .filesBrowser
+              && ProcessInfo.processInfo.arguments.contains("--putio-harness-rating-link")))
+      #endif
       .preferredColorScheme(.dark)
       .tint(PutioTheme.Colors.accent)
     }
@@ -671,6 +677,14 @@ private struct AccountView: View {
           }
           .accessibilityIdentifier("account.trash")
         }
+        if let reviewURL = URL(
+          string: "https://apps.apple.com/app/id1260479699?action=write-review")
+        {
+          Section {
+            Link("Rate put.io on App Store", destination: reviewURL)
+              .accessibilityIdentifier("account.rate-app")
+          }
+        }
         Section {
           Button("Sign out", role: .destructive) {
             PutioFilesNavigationRestoration().clear(accountID: account.id)
@@ -762,3 +776,36 @@ private struct SignedOutProofView: View {
     }
   }
 }
+
+#if DEBUG
+  private struct HarnessRatingLinkCapture: ViewModifier {
+    let enabled: Bool
+    @State private var openedURLs: [URL] = []
+
+    func body(content: Content) -> some View {
+      if enabled {
+        content
+          .environment(
+            \.openURL,
+            OpenURLAction { url in
+              openedURLs.append(url)
+              return .handled
+            }
+          )
+          .overlay {
+            Color.clear
+              .frame(width: 1, height: 1)
+              .accessibilityElement()
+              .accessibilityLabel("External link requests")
+              .accessibilityValue(
+                "\(openedURLs.count)|\(openedURLs.last?.absoluteString ?? "")"
+              )
+              .accessibilityIdentifier("account.rating-link-requests")
+              .allowsHitTesting(false)
+          }
+      } else {
+        content
+      }
+    }
+  }
+#endif

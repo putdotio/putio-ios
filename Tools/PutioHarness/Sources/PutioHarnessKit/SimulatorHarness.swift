@@ -704,6 +704,15 @@ public struct SimulatorHarness {
         }
         let mediaBaseURL = try mediaServer.start()
 
+        let accountRatingScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.accountRatingTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".account-rating.xcresult"),
+          attachmentNames: [BrowserJourneyContract.accountRatingAttachmentName],
+          artifactDirectory: platformDirectory
+        )
         let deepLinkScreenshots = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.deepLinksTestIdentifier,
           platform: platform,
@@ -825,6 +834,7 @@ public struct SimulatorHarness {
           signOutFailureScreenshots + fileActionsScreenshots + trashManagementScreenshots
           + sortedRootScreenshots + searchScreenshots + historyScreenshots
           + filePreferencesScreenshots + playbackPreferencesScreenshots + deepLinkScreenshots
+          + accountRatingScreenshots
         for screenshot in preflightScreenshots {
           _ = try requireMeaningfulScreenshot(screenshot, context: "journey preflight attachment")
         }
@@ -836,6 +846,7 @@ public struct SimulatorHarness {
           ".folder-reconciliation.xcresult",
           ".history.xcresult", ".deep-links.xcresult",
           ".file-preferences.xcresult", ".playback-preferences.xcresult",
+          ".account-rating.xcresult",
         ] {
           try? fileManager.removeItem(at: platformDirectory.appending(path: bundle))
         }

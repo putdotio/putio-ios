@@ -34,7 +34,7 @@ Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` 
 
 `screenshot` and `record` accept `--scenario signed-out|gallery|signed-in`. The `gallery` scenario launches the iOS or tvOS component gallery. The iOS-only `signed-in` scenario uses a deterministic in-process API, restores a session, bootstraps the account screen, and signs out after a few seconds. Other commands and unsupported platforms reject these scenarios.
 
-`journey --platform ios --scenario files-browser` proves the runnable alpha loop with real accessibility input. Thirteen unrecorded `1/1` preflights cover:
+`journey --platform ios --scenario files-browser` proves the runnable alpha loop with real accessibility input. Fourteen unrecorded `1/1` preflights cover:
 
 - Sign-out recovery: the existing signed-in scenario uses a one-time credential-removal failure and seeded logout failure, shows the recovery message, captures `runtime-sign-out-failure.png`, and completes sign-out after an explicit retry. Default signed-in captures keep successful sign-out behavior.
 - File actions: menu-based creation and selection, context-menu rename, swipe move and Trash, delayed rollback and retry, bulk partial-failure recovery, move-picker sorting and folder creation, and a meaningful `runtime-file-actions.png` screenshot.
@@ -47,6 +47,7 @@ Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` 
 - Deep links: cold and warm URL delivery to folder, video, History, and Account; signed-out intent replay, retained-session cold launch, lookup retry, explicit unavailable routes, and cold-link precedence over delayed saved-folder restoration with native Back ancestry. Captures `runtime-deep-link-loading.png`, `runtime-deep-link-error.png`, and `runtime-deep-link-folder.png`.
 - File preferences: failed save retry, refresh-only recovery after a committed save, default sort versus folder overrides, confirmed override reset, Trash and History confirmation cancellation, Trash cleanup, live History visibility, and authoritative settings after relaunch. Captures `runtime-file-preferences.png` and `runtime-file-preferences-refresh.png`. The dedicated fixture persists server preferences in a harness-only UserDefaults namespace; other scenarios keep their defaults.
 - Playback preferences: proxy-list failure and retry, failed save, refresh-only recovery after a committed save, subtitle-control visibility, and proxy/subtitle persistence across relaunch. Captures `runtime-playback-preferences.png`.
+- Account rating: opening Account makes no URL-opening request; tapping the native rating link opens the fixed App Store review destination through a harness-only URL interceptor. Returning to Account does not repeat the request. `runtime-account-rating.png` captures the native entry; the journey does not open the store or submit a review.
 - Unsupported files: the PDF row remains visible but is not actionable.
 - Resume persistence: a final playback position resolves again after reopening the video.
 
@@ -91,6 +92,7 @@ build/proof/<run-id>/ios/
 ├── runtime-trash-loaded.png
 ├── runtime-trash-empty.png
 ├── runtime-sorted-root.png
+├── runtime-account-rating.png
 ├── runtime-playback-preferences.png
 ├── runtime-file-preferences.png
 ├── runtime-file-preferences-refresh.png
@@ -111,7 +113,7 @@ build/proof/<run-id>/ios/
 
 Failed journeys retain local diagnostics, including failed `.xcresult` bundles, under the run directory. They emit no success manifest; inspect them locally and choose a new run ID for the retry. Only reviewed successful proof is published.
 
-The journey requires each preflight and the recorded UI test to pass exactly `1/1`. It requires nineteen meaningful screenshots, including file actions, sign-out recovery, and all three Trash states, and different sign-in and playback frames. One `simctl recordVideo` stream starts before the recorded test and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 30 seconds and removes raw/intermediate capture files after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
+The journey requires each preflight and the recorded UI test to pass exactly `1/1`. It requires twenty meaningful screenshots, including file actions, sign-out recovery, and all three Trash states, and different sign-in and playback frames. One `simctl recordVideo` stream starts before the recorded test and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 30 seconds and removes raw/intermediate capture files after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
 
 Capture never uploads implicitly. Publish one reviewed artifact only after a pull request exists:
 
