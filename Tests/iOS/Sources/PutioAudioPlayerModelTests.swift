@@ -229,6 +229,8 @@ final class PutioAudioPlayerModelTests: XCTestCase {
 
     XCTAssertEqual(h.engine.events.filter { $0.hasPrefix("load") }.count, 1)
     XCTAssertEqual(h.nowPlaying.published.last?.rate, 0)
+    XCTAssertEqual(h.nowPlaying.published.last?.elapsedSeconds, 0)
+    XCTAssertEqual(h.model.elapsedSeconds, 0)
 
     h.model.togglePlayPause()
     while h.model.state != .playing(track) { await Task.yield() }
@@ -281,6 +283,8 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     h.engine.onPositionChanged?(180)
 
     h.nowPlaying.send(.next)
+    XCTAssertEqual(h.model.state, .loading(track), "a skip shows the transition immediately")
+    XCTAssertEqual(h.nowPlaying.published.last?.rate, 0)
     let next = PutioAudioTrack(id: successor.id, parentID: .root, title: successor.name)
     while h.model.state != .playing(next) { await Task.yield() }
     await h.pipeline.waitForPendingReports(fileID: track.id)

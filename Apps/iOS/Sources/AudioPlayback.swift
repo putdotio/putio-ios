@@ -272,6 +272,8 @@ final class PutioAudioPlayerModel {
     engine.pause()
     awaitedSeconds = nil
     isTransitioning = true
+    state = .loading(track)
+    publishNowPlaying()
   }
 
   func stop() {
@@ -334,6 +336,7 @@ final class PutioAudioPlayerModel {
     do {
       guard let next = try await loadNext(completed.id) else {
         isTransitioning = false
+        elapsedSeconds = 0
         state = .ended(completed)
         publishNowPlaying()
         return
@@ -371,6 +374,7 @@ final class PutioAudioPlayerModel {
     engine.onEnded = { [weak self] in
       guard let self, case .playing(let track) = state else { return }
       beginTransition()
+      elapsedSeconds = 0
       lastReportedSeconds = 0
       positionPipeline.enqueue(
         fileID: track.id, position: 0, preservesOrdering: true, report: reportPosition)
