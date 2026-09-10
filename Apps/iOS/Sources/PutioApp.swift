@@ -691,7 +691,7 @@ private struct MainTabView: View {
       onCast: castAction,
       refreshRequests: folderRefreshRequests,
       navigationRequest: filesNavigation,
-      castButton: { PutioCastButton(model: cast) }
+      castButton: { AnyView(PutioCastButton(model: cast)) }
     )
   }
 

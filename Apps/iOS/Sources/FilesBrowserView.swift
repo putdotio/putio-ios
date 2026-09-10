@@ -146,10 +146,10 @@ struct FilesBrowserView: View {
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
     navigationRequest: PutioFilesNavigationRequest? = nil,
-    @ViewBuilder castButton: () -> some View = { EmptyView() }
+    castButton: (() -> AnyView)? = nil
   ) {
     self.onCast = onCast
-    self.castButton = AnyView(castButton())
+    self.castButton = castButton?()
     load = { folderID in
       try await runtime.listFiles(parentID: folderID)
     }
