@@ -82,6 +82,12 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     if let castStateObservation {
       NotificationCenter.default.removeObserver(castStateObservation)
     }
+    // Nothing can complete these once the delegate is gone; resume them so
+    // awaiting tasks do not hang teardown.
+    for request in pendingRequestObjects.values { request.cancel() }
+    for continuation in pendingRequests.values {
+      continuation.resume(throwing: PutioCastControllerError(failure: .receiver))
+    }
   }
 
   func presentDevicePicker() {
