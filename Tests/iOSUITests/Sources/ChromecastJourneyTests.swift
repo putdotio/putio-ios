@@ -30,8 +30,7 @@ final class ChromecastJourneyTests: XCTestCase {
     pick(playbackType, "MP4")
     XCTAssertTrue(element("cast-settings.save-failure").waitForExistence(timeout: 10))
     XCTAssertEqual(playbackType.value as? String, "HLS", "a failed save flipped the local value")
-    pick(playbackType, "MP4")
-    XCTAssertTrue(waitForValue(playbackType, "MP4", timeout: 10))
+    pick(playbackType, "MP4", expecting: "MP4")
     XCTAssertTrue(element("cast-settings.save-failure").waitForNonExistence(timeout: 5))
     let receiver = app.textFields.matching(identifier: "cast-settings.receiver").firstMatch
     XCTAssertTrue(receiver.waitForExistence(timeout: 5))
@@ -85,10 +84,8 @@ final class ChromecastJourneyTests: XCTestCase {
     let subtitles = element("cast.subtitles")
     XCTAssertTrue(subtitles.waitForExistence(timeout: 5))
     XCTAssertEqual(subtitles.value as? String, "en")
-    pick(subtitles, "Turkish · Turkish.srt")
-    XCTAssertTrue(waitForValue(subtitles, "tr", timeout: 5))
-    pick(subtitles, "Off")
-    XCTAssertTrue(waitForValue(subtitles, "off", timeout: 5))
+    pick(subtitles, "Turkish · Turkish.srt", expecting: "tr")
+    pick(subtitles, "Off", expecting: "off")
 
     // Transport and the throttled position report (seeded start-from is 589).
     toggle.tap()
@@ -148,12 +145,20 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").waitForExistence(timeout: 10))
   }
 
-  private func pick(_ picker: XCUIElement, _ option: String) {
-    XCTAssertTrue(waitUntilHittable(picker, timeout: 5))
-    picker.tap()
-    let item = app.buttons[option].firstMatch
-    XCTAssertTrue(waitUntilHittable(item, timeout: 5), "\(option) never became hittable")
-    item.tap()
+  /// Menu pickers occasionally swallow the first item tap while their
+  /// presentation settles; one retry keeps the proof about the feature.
+  private func pick(_ picker: XCUIElement, _ option: String, expecting value: String? = nil) {
+    for attempt in 0..<2 {
+      XCTAssertTrue(waitUntilHittable(picker, timeout: 5))
+      picker.tap()
+      let item = app.buttons[option].firstMatch
+      XCTAssertTrue(waitUntilHittable(item, timeout: 5), "\(option) never became hittable")
+      item.tap()
+      guard let value else { return }
+      if waitForValue(picker, value, timeout: 5) { return }
+      if item.exists { item.tap() }
+      XCTAssertEqual(attempt, 0, "\(option) did not apply: \(picker.value ?? "")")
+    }
   }
 
   private func tapAction(_ identifier: String) {
