@@ -127,6 +127,57 @@ final class FilePreviewTests: XCTestCase {
     XCTAssertEqual(model.state, .loading)
   }
 
+  func testLargeImagesAreDownsampledToTheDisplayCap() async throws {
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1
+    let wide = UIGraphicsImageRenderer(size: CGSize(width: 900, height: 30), format: format)
+      .pngData { context in
+        UIColor.blue.setFill()
+        context.fill(CGRect(x: 0, y: 0, width: 900, height: 30))
+      }
+    let image = try await PutioPreviewModel.decodeImage(wide, maximumPixels: 300)
+    let decoded = try XCTUnwrap(image)
+    XCTAssertEqual(decoded.size.width * decoded.scale, 300)
+    XCTAssertEqual(decoded.size.height * decoded.scale, 10)
+  }
+
+  func testDownloaderEnforcesTheByteCapAndMapsStatuses() async throws {
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [PreviewStubURLProtocol.self]
+    let url = URL(string: "https://preview.test/file")!
+
+    PreviewStubURLProtocol.response = (200, ["Content-Length": "32"], Data(count: 32))
+    do {
+      _ = try await PutioPreviewDownloader.download(url, limit: 16, configuration: configuration)
+      XCTFail("declared oversize body was accepted")
+    } catch is PutioPreviewTooLargeError {}
+
+    PreviewStubURLProtocol.response = (200, [:], Data(count: 40))
+    do {
+      _ = try await PutioPreviewDownloader.download(url, limit: 16, configuration: configuration)
+      XCTFail("streamed oversize body was accepted")
+    } catch is PutioPreviewTooLargeError {}
+
+    PreviewStubURLProtocol.response = (200, [:], Data(count: 12))
+    let data = try await PutioPreviewDownloader.download(
+      url, limit: 16, configuration: configuration)
+    XCTAssertEqual(data.count, 12)
+
+    for (status, expected) in [
+      (401, PutioRuntimeError.sessionExpired), (403, .sessionExpired), (404, .notFound),
+      (429, .rateLimited), (503, .transient), (418, .unknown),
+    ] {
+      PreviewStubURLProtocol.response = (status, [:], Data())
+      do {
+        _ = try await PutioPreviewDownloader.download(
+          url, limit: 16, configuration: configuration)
+        XCTFail("\(status) was accepted")
+      } catch let error as PutioRuntimeError {
+        XCTAssertEqual(error, expected, "\(status)")
+      }
+    }
+  }
+
   private static func pngData() -> Data {
     let format = UIGraphicsImageRendererFormat()
     format.scale = 1
@@ -136,4 +187,28 @@ final class FilePreviewTests: XCTestCase {
       context.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
     }
   }
+}
+
+private final class PreviewStubURLProtocol: URLProtocol, @unchecked Sendable {
+  nonisolated(unsafe) static var response: (Int, [String: String], Data) = (200, [:], Data())
+
+  override class func canInit(with request: URLRequest) -> Bool { true }
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+  override func startLoading() {
+    let (status, headers, body) = Self.response
+    let response = HTTPURLResponse(
+      url: request.url!, statusCode: status, httpVersion: nil, headerFields: headers)!
+    client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+    // Deliver in small chunks so the streamed cap trips mid-body.
+    var offset = 0
+    while offset < body.count {
+      let end = min(offset + 8, body.count)
+      client?.urlProtocol(self, didLoad: body[offset..<end])
+      offset = end
+    }
+    client?.urlProtocolDidFinishLoading(self)
+  }
+
+  override func stopLoading() {}
 }

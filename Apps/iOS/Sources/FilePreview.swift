@@ -1,3 +1,4 @@
+import ImageIO
 import PDFKit
 import PutioCore
 import SwiftUI
@@ -85,30 +86,97 @@ typealias PutioPreviewDownload = @MainActor @Sendable (PutioFileID) async throws
 
 struct PutioPreviewTooLargeError: Error {}
 
-/// Streams a preview body with a hard byte cap so a large original cannot
-/// exhaust memory. The cap covers every image and document the app previews;
-/// larger files stay on put.io.
+/// Downloads a preview body with a hard byte cap so a large original cannot
+/// exhaust memory. The response is inspected before any body arrives and the
+/// task is cancelled the moment the cap is crossed. Larger files stay on
+/// put.io. 401/403 surface as session loss so the signed-out shell takes over.
 enum PutioPreviewDownloader {
   static let maximumBytes = 64 * 1024 * 1024
 
-  static func download(_ url: URL, session: URLSession = .shared) async throws -> Data {
-    let (bytes, response) = try await session.bytes(from: url)
-    guard let http = response as? HTTPURLResponse else { throw PutioRuntimeError.invalidResponse }
+  static func download(
+    _ url: URL,
+    limit: Int = maximumBytes,
+    configuration: URLSessionConfiguration = .ephemeral
+  ) async throws -> Data {
+    let collector = PutioBoundedBodyCollector(limit: limit)
+    let session = URLSession(configuration: configuration, delegate: collector, delegateQueue: nil)
+    defer { session.finishTasksAndInvalidate() }
+    let (data, http) = try await collector.run(session.dataTask(with: url))
     switch http.statusCode {
-    case 200...299: break
+    case 200...299: return data
+    case 401, 403: throw PutioRuntimeError.sessionExpired
     case 404: throw PutioRuntimeError.notFound
     case 429: throw PutioRuntimeError.rateLimited
     case 408, 500...599: throw PutioRuntimeError.transient
     default: throw PutioRuntimeError.unknown
     }
-    if http.expectedContentLength > Int64(maximumBytes) { throw PutioPreviewTooLargeError() }
-    var data = Data()
-    data.reserveCapacity(max(0, Int(clamping: http.expectedContentLength)))
-    for try await byte in bytes {
-      data.append(byte)
-      if data.count > maximumBytes { throw PutioPreviewTooLargeError() }
+  }
+}
+
+private final class PutioBoundedBodyCollector: NSObject, URLSessionDataDelegate,
+  @unchecked Sendable
+{
+  private let limit: Int
+  private let lock = NSLock()
+  private var body = Data()
+  private var response: HTTPURLResponse?
+  private var tooLarge = false
+  private var continuation: CheckedContinuation<(Data, HTTPURLResponse), Error>?
+
+  init(limit: Int) {
+    self.limit = limit
+  }
+
+  func run(_ task: URLSessionDataTask) async throws -> (Data, HTTPURLResponse) {
+    try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { continuation in
+        lock.withLock { self.continuation = continuation }
+        task.resume()
+      }
+    } onCancel: {
+      task.cancel()
     }
-    return data
+  }
+
+  func urlSession(
+    _ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse,
+    completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+  ) {
+    guard let http = response as? HTTPURLResponse else {
+      completionHandler(.cancel)
+      return
+    }
+    let oversized = http.expectedContentLength > Int64(limit)
+    lock.withLock {
+      self.response = http
+      if oversized { tooLarge = true }
+    }
+    completionHandler(oversized ? .cancel : .allow)
+  }
+
+  func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+    let exceeded = lock.withLock {
+      body.append(data)
+      if body.count > limit { tooLarge = true }
+      return tooLarge
+    }
+    if exceeded { dataTask.cancel() }
+  }
+
+  func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+    let (continuation, result):
+      (CheckedContinuation<(Data, HTTPURLResponse), Error>?, Result<(Data, HTTPURLResponse), Error>) =
+        lock.withLock {
+          let continuation = self.continuation
+          self.continuation = nil
+          if tooLarge { return (continuation, .failure(PutioPreviewTooLargeError())) }
+          if let error { return (continuation, .failure(error)) }
+          guard let response else {
+            return (continuation, .failure(PutioRuntimeError.invalidResponse))
+          }
+          return (continuation, .success((body, response)))
+        }
+    continuation?.resume(with: result)
   }
 }
 
@@ -162,25 +230,49 @@ final class PutioPreviewModel {
     generation &+= 1
   }
 
-  /// Images decode and pre-render off the main actor; UIImage is Sendable.
-  /// PDFDocument is not, and PDFKit parses pages lazily on its own threads, so
-  /// the document is created here on the main actor.
+  /// The longest edge a decoded preview bitmap may have; ImageIO downsamples
+  /// larger originals so the byte cap also bounds decoded memory.
+  static let maximumImagePixels = 4096
+
+  /// Images decode on the generic executor through a structured child call so
+  /// cancelling the load cancels the decode. PDFDocument is not Sendable and
+  /// PDFKit parses pages lazily on its own threads, so it stays on the main
+  /// actor.
   private static func decode(_ data: Data, kind: PutioPreviewRoute.Kind) async throws
     -> PutioPreviewState
   {
     switch kind {
     case .image:
-      let image = await Task.detached(priority: .userInitiated) {
-        UIImage(data: data)?.preparingForDisplay()
-      }.value
+      let image = try await decodeImage(data, maximumPixels: maximumImagePixels)
       guard let image else { return .failed(.unreadable(kind: kind)) }
       return .image(image)
     case .pdf:
+      try Task.checkCancellation()
       guard let document = PDFDocument(data: data), document.pageCount > 0 else {
         return .failed(.unreadable(kind: kind))
       }
       return .document(document)
     }
+  }
+
+  nonisolated static func decodeImage(_ data: Data, maximumPixels: Int) async throws -> UIImage? {
+    try Task.checkCancellation()
+    let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
+    guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions) else {
+      return nil
+    }
+    let options =
+      [
+        kCGImageSourceCreateThumbnailFromImageAlways: true,
+        kCGImageSourceCreateThumbnailWithTransform: true,
+        kCGImageSourceShouldCacheImmediately: true,
+        kCGImageSourceThumbnailMaxPixelSize: maximumPixels,
+      ] as CFDictionary
+    guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options) else {
+      return nil
+    }
+    try Task.checkCancellation()
+    return UIImage(cgImage: cgImage)
   }
 }
 

@@ -570,10 +570,17 @@ private struct MainTabView: View {
   }
 
   /// Previews download the whole file; the tokened URL never leaves this call.
+  /// A rejected token on the raw GET is re-checked through the runtime, which
+  /// signs the account out when the session really expired.
   private func downloadPreview(fileID: PutioFileID) async throws -> Data {
     let source = try await runtime.resolveFileDownloadSource(fileID: fileID)
     let url = try harnessPreviewURL(for: source) ?? source.url
-    return try await PutioPreviewDownloader.download(url)
+    do {
+      return try await PutioPreviewDownloader.download(url)
+    } catch PutioRuntimeError.sessionExpired {
+      _ = try await runtime.getFile(fileID: fileID)
+      throw PutioRuntimeError.transient
+    }
   }
 
   /// The seeded scenario serves local fixtures instead of api.put.io downloads.
