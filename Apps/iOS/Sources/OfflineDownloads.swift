@@ -196,6 +196,8 @@ protocol PutioOfflineDownloadEngine: AnyObject {
   var onProgress: ((PutioFileID, Double) -> Void)? { get set }
   var onLocation: ((PutioFileID, URL) -> Void)? { get set }
   var onFinished: ((PutioFileID, Error?) -> Void)? { get set }
+  /// The engine confirmed a cancellation the queue asked for.
+  var onCancelled: ((PutioFileID) -> Void)? { get set }
 
   /// Inspects the asset without downloading it.
   func inventory(url: URL) async throws -> PutioOfflineInventory
@@ -288,6 +290,7 @@ final class PutioOfflineQueue {
     engine.onProgress = { [weak self] id, progress in self?.engineProgressed(id, progress) }
     engine.onLocation = { [weak self] id, url in self?.engineLocated(id, url) }
     engine.onFinished = { [weak self] id, error in self?.engineFinished(id, error) }
+    engine.onCancelled = { [weak self] id in self?.suspended.remove(id) }
     recomputeStorage()
   }
 
@@ -315,7 +318,15 @@ final class PutioOfflineQueue {
     for index in items.indices {
       switch items[index].stage {
       case .downloading(let progress) where !alive.contains(items[index].id):
-        items[index].stage = .paused(progress: progress)
+        // A package that finished while the app was gone is on disk with its
+        // path recorded; finish it instead of pausing a download that is over.
+        if let localPath = items[index].localPath, progress >= 1,
+          fileManager.fileExists(atPath: Self.localURL(for: localPath).path)
+        {
+          finishRestored(fileID: items[index].id, localPath: localPath)
+        } else {
+          items[index].stage = .paused(progress: progress)
+        }
       case .paused where alive.contains(items[index].id):
         // The system kept the task; it resumes in place instead of restarting.
         suspended.insert(items[index].id)
@@ -327,6 +338,22 @@ final class PutioOfflineQueue {
     }
     persist()
     schedule()
+  }
+
+  private func finishRestored(fileID: PutioFileID, localPath: String) {
+    let url = Self.localURL(for: localPath)
+    let readTracks = readTracks
+    Task { @MainActor [weak self] in
+      let tracks = await readTracks(url)
+      guard let self else { return }
+      update(fileID) {
+        $0.stage = .completed
+        $0.storedBytes = Self.directorySize(url, fileManager: fileManager)
+        $0.storedAudioTracks = tracks.audio
+        $0.storedSubtitleTracks = tracks.subtitles
+      }
+      recomputeStorage()
+    }
   }
 
   func item(for fileID: PutioFileID) -> PutioOfflineItem? {
@@ -555,7 +582,10 @@ final class PutioOfflineQueue {
       // The engine's own awaits may have let pause or remove run; the queue
       // is the owner, so a task it no longer wants is cancelled here.
       if Task.isCancelled || self.item(for: fileID).map({ isPaused($0.stage) }) != false {
+        // The pause raced the engine: nothing was suspended, so a later
+        // Resume must re-queue rather than resume a task that is gone.
         engine.cancel(fileID: fileID)
+        suspended.remove(fileID)
         return
       }
     } catch is CancellationError {
@@ -618,6 +648,10 @@ final class PutioOfflineQueue {
     update(fileID) { $0.localPath = Self.relativePath(for: url) }
   }
 
+  /// `suspend()` on an AVAssetDownloadTask does not stop a transfer that is
+  /// already finishing. A success that lands on a paused row is real: the
+  /// package exists, so it completes rather than being thrown away.
+
   private func engineFinished(_ fileID: PutioFileID, _ error: Error?) {
     guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
     suspended.remove(fileID)
@@ -636,8 +670,10 @@ final class PutioOfflineQueue {
       schedule()
       return
     }
-    // A completion for an item the user paused or removed meanwhile is stale.
-    guard case .downloading = items[index].stage else { return }
+    switch items[index].stage {
+    case .downloading, .paused: break
+    default: return
+    }
     let url = Self.localURL(for: localPath)
     let readTracks = readTracks
     Task { @MainActor [weak self] in

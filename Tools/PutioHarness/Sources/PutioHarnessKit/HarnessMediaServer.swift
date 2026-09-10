@@ -176,7 +176,7 @@ final class HarnessMediaServer: @unchecked Sendable {
 
     let fileURL = mediaDirectory.appending(path: resource.name)
     guard let fileData = try? Data(contentsOf: fileURL) else {
-      send(status: "500 Internal Server Error", headers: [:], body: Data(), over: connection)
+      send(status: "404 Not Found", headers: [:], body: Data(), over: connection)
       return
     }
 

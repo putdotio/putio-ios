@@ -13,6 +13,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   var onProgress: ((PutioFileID, Double) -> Void)?
   var onLocation: ((PutioFileID, URL) -> Void)?
   var onFinished: ((PutioFileID, Error?) -> Void)?
+  var onCancelled: ((PutioFileID) -> Void)?
 
   /// One background session per process. iOS rejects a second session with
   /// the same identifier, and the tab view that owns the engine is rebuilt on
@@ -86,7 +87,9 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
             PutioOfflineQueue.track($0).languageCode == PutioOfflineLanguage.normalize(language)
           })
         else { return nil }
-        let selection = asset.preferredMediaSelection.mutableCopy() as! AVMutableMediaSelection
+        guard
+          let selection = asset.preferredMediaSelection.mutableCopy() as? AVMutableMediaSelection
+        else { return nil }
         selection.select(option, in: group)
         return selection
       }
@@ -180,15 +183,30 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     _ fileID: PutioFileID, task: URLSessionTask, _ error: Error?
   ) {
     if let current = tasks[fileID], current !== task { return }
+    // Cancellation by the queue is the one case it does not want reported.
+    if let error, (error as? URLError)?.code == .cancelled {
+      tasks[fileID] = nil
+      progressObservations[fileID] = nil
+      onCancelled?(fileID)
+      return
+    }
     tasks[fileID] = nil
     progressObservations[fileID] = nil
-    // A cancelled task is a queue decision; the queue already knows.
-    if let error, (error as? URLError)?.code == .cancelled { return }
     onFinished?(fileID, error)
   }
 
-  fileprivate func isCurrent(_ task: URLSessionTask, for fileID: PutioFileID) -> Bool {
-    tasks[fileID] === task
+  /// Replayed events for tasks the map never saw (finished before restore)
+  /// are accepted; live events for a replaced task are stale and dropped.
+  fileprivate func replay(_ event: PutioOfflineDownloadRelay.Event) {
+    switch event {
+    case .progress(let fileID, let progress):
+      handleProgress(fileID, progress)
+    case .location(let fileID, let url, let task):
+      guard tasks[fileID] == nil || tasks[fileID] === task else { return }
+      handleLocation(fileID, url)
+    case .completion(let fileID, let task, let error):
+      handleCompletion(fileID, task: task, error)
+    }
   }
 }
 
@@ -197,11 +215,35 @@ enum PutioOfflineEngineError: Error {
 }
 
 /// The session's delegate. It holds the current engine weakly so the session
-/// never keeps a stale engine alive.
+/// never keeps a stale engine alive. Events that arrive before any engine
+/// has claimed the relay (a background relaunch) are buffered and replayed
+/// to the first engine that restores, so a finished download is recorded.
 private final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
   @unchecked Sendable
 {
-  @MainActor weak var engine: PutioSystemOfflineDownloadEngine?
+  enum Event {
+    case progress(PutioFileID, Double)
+    case location(PutioFileID, URL, task: URLSessionTask)
+    case completion(PutioFileID, task: URLSessionTask, error: Error?)
+  }
+
+  @MainActor private(set) var buffered: [Event] = []
+  @MainActor weak var engine: PutioSystemOfflineDownloadEngine? {
+    didSet {
+      guard let engine, !buffered.isEmpty else { return }
+      let events = buffered
+      buffered = []
+      for event in events { engine.replay(event) }
+    }
+  }
+
+  @MainActor fileprivate func deliver(_ event: Event) {
+    guard let engine else {
+      buffered.append(event)
+      return
+    }
+    engine.replay(event)
+  }
 
   private static func fileID(_ task: URLSessionTask) -> PutioFileID? {
     task.taskDescription.flatMap(Int.init).map(PutioFileID.init(rawValue:))
@@ -216,7 +258,7 @@ private final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate
     let expected = timeRangeExpectedToLoad.duration.seconds
     let progress = expected > 0 ? min(1, loaded / expected) : 0
     guard let fileID = Self.fileID(assetDownloadTask) else { return }
-    Task { @MainActor in self.engine?.handleProgress(fileID, progress) }
+    Task { @MainActor in self.deliver(.progress(fileID, progress)) }
   }
 
   func urlSession(
@@ -224,12 +266,7 @@ private final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate
     didFinishDownloadingTo location: URL
   ) {
     guard let fileID = Self.fileID(assetDownloadTask) else { return }
-    Task { @MainActor in
-      guard let engine = self.engine, engine.isCurrent(assetDownloadTask, for: fileID) else {
-        return
-      }
-      engine.handleLocation(fileID, location)
-    }
+    Task { @MainActor in self.deliver(.location(fileID, location, task: assetDownloadTask)) }
   }
 
   /// Configuration-based tasks announce the final location up front.
@@ -237,12 +274,7 @@ private final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate
     _ session: URLSession, assetDownloadTask: AVAssetDownloadTask, willDownloadTo location: URL
   ) {
     guard let fileID = Self.fileID(assetDownloadTask) else { return }
-    Task { @MainActor in
-      guard let engine = self.engine, engine.isCurrent(assetDownloadTask, for: fileID) else {
-        return
-      }
-      engine.handleLocation(fileID, location)
-    }
+    Task { @MainActor in self.deliver(.location(fileID, location, task: assetDownloadTask)) }
   }
 
   func urlSession(
@@ -252,7 +284,7 @@ private final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate
 
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
     guard let fileID = Self.fileID(task) else { return }
-    Task { @MainActor in self.engine?.handleCompletion(fileID, task: task, error) }
+    Task { @MainActor in self.deliver(.completion(fileID, task: task, error: error)) }
   }
 
   func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {

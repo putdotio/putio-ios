@@ -55,7 +55,7 @@ final class DownloadsJourneyTests: XCTestCase {
     details.tap()
     XCTAssertTrue(element("downloads.detail.412").waitForExistence(timeout: 5))
     XCTAssertTrue(element("downloads.detail.audio.en").waitForExistence(timeout: 5))
-    XCTAssertTrue(element("downloads.detail.audio.tr").exists)
+    XCTAssertTrue(element("downloads.detail.audio.tr").waitForExistence(timeout: 5))
     screenshot("runtime-downloads-detail")
     app.buttons["downloads.detail.done"].tap()
 

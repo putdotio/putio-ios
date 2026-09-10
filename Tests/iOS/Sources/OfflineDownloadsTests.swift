@@ -11,6 +11,7 @@ final class OfflineDownloadsTests: XCTestCase {
     var onProgress: ((PutioFileID, Double) -> Void)?
     var onLocation: ((PutioFileID, URL) -> Void)?
     var onFinished: ((PutioFileID, Error?) -> Void)?
+    var onCancelled: ((PutioFileID) -> Void)?
     var started: [(PutioFileID, [String])] = []
     var paused: [PutioFileID] = []
     var resumed: [PutioFileID] = []
@@ -25,7 +26,10 @@ final class OfflineDownloadsTests: XCTestCase {
     }
     func pause(fileID: PutioFileID) { paused.append(fileID) }
     func resume(fileID: PutioFileID) { resumed.append(fileID) }
-    func cancel(fileID: PutioFileID) { cancelled.append(fileID) }
+    func cancel(fileID: PutioFileID) {
+      cancelled.append(fileID)
+      onCancelled?(fileID)
+    }
     func restoreTasks() async -> [PutioFileID] { alive }
     func stop() {}
 
@@ -54,6 +58,38 @@ final class OfflineDownloadsTests: XCTestCase {
       for waiter in waiters { waiter.resume() }
       waiters = []
     }
+  }
+
+  /// An engine whose start() blocks on the gate, so a pause can land while
+  /// the engine is still creating its task.
+  private final class SlowStartEngine: PutioOfflineDownloadEngine {
+    var onProgress: ((PutioFileID, Double) -> Void)?
+    var onLocation: ((PutioFileID, URL) -> Void)?
+    var onFinished: ((PutioFileID, Error?) -> Void)?
+    var onCancelled: ((PutioFileID) -> Void)?
+    var started: [PutioFileID] = []
+    var resumed: [PutioFileID] = []
+    var cancelled: [PutioFileID] = []
+    private let gate: AsyncGate
+
+    init(gate: AsyncGate) { self.gate = gate }
+
+    func inventory(url: URL) async throws -> PutioOfflineInventory {
+      PutioOfflineInventory(videoBytes: 0, audioOptions: [], subtitleTracks: [])
+    }
+    func start(fileID: PutioFileID, url: URL, title: String, audioLanguages: [String]) async throws
+    {
+      await gate.wait()
+      started.append(fileID)
+    }
+    func pause(fileID: PutioFileID) {}
+    func resume(fileID: PutioFileID) { resumed.append(fileID) }
+    func cancel(fileID: PutioFileID) {
+      cancelled.append(fileID)
+      onCancelled?(fileID)
+    }
+    func restoreTasks() async -> [PutioFileID] { [] }
+    func stop() {}
   }
 
   private var directory: URL!
@@ -267,6 +303,66 @@ final class OfflineDownloadsTests: XCTestCase {
       estimatedBytes: 900_000_000)
     await settle()
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .failed(.storage))
+    XCTAssertTrue(engine.started.isEmpty)
+  }
+
+  func testPauseDuringEngineStartReQueuesOnResume() async {
+    let gate = AsyncGate()
+    let slowEngine = SlowStartEngine(gate: gate)
+    engine = FakeEngine()
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: slowEngine,
+      conversionPollInterval: .zero, sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in
+        .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in })
+    queue.enqueue(fileID: PutioFileID(rawValue: 7), parentID: .root, name: "g", kind: .video)
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 7))?.stage, .downloading(progress: 0))
+    queue.pause(fileID: PutioFileID(rawValue: 7))
+    await gate.open()
+    await settle()
+    XCTAssertEqual(slowEngine.cancelled, [PutioFileID(rawValue: 7)])
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 7))?.stage, .paused(progress: 0))
+    queue.resume(fileID: PutioFileID(rawValue: 7))
+    await gate.open()
+    await settle()
+    XCTAssertTrue(slowEngine.resumed.isEmpty, "there was no task to resume in place")
+    XCTAssertEqual(slowEngine.started.count, 2)
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 7))?.stage, .downloading(progress: 0))
+  }
+
+  func testCompletionThatRacesAPauseStillCompletes() async {
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    await settle()
+    engine.onProgress?(PutioFileID(rawValue: 1), 0.99)
+    queue.pause(fileID: PutioFileID(rawValue: 1))
+    engine.finish(PutioFileID(rawValue: 1), at: directory)
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .completed)
+    XCTAssertNotNil(queue.localSource(for: PutioFileID(rawValue: 1)))
+  }
+
+  func testRestoreFinishesAPackageThatCompletedWhileTheAppWasGone() async throws {
+    let store = PutioOfflineStore(directory: directory)
+    let location = directory.appending(path: "done.movpkg")
+    try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+    try Data(count: 256).write(to: location.appending(path: "seg.bin"))
+    let item = PutioOfflineItem(
+      id: PutioFileID(rawValue: 8), parentID: .root, name: "h", kind: .video, createdAt: .now,
+      stage: .downloading(progress: 1), localPath: location.path, storedBytes: 0,
+      selectedAudioLanguages: [], storedAudioTracks: [], storedSubtitleTracks: [],
+      resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: 0)
+    store.save(items: [item], concurrencyLimit: 2)
+    let queue = makeQueue()
+    await queue.restore()
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 8))?.stage, .completed)
+    XCTAssertGreaterThan(queue.storedBytes, 0)
     XCTAssertTrue(engine.started.isEmpty)
   }
 

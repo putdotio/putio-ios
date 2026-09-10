@@ -286,7 +286,7 @@ private struct MainTabView: View {
       initialValue: PutioOfflineQueueFactory.make(runtime: runtime, scenario: scenario))
   }
 
-  private enum SelectedTab: Hashable { case files, transfers, history, account, search }
+  private enum SelectedTab: Hashable { case files, downloads, history, account, search }
   @State private var selectedTab: SelectedTab = .files
   @State private var filesNavigation: PutioFilesNavigationRequest?
   @State private var accountNavigationRevision: UInt64 = 0
@@ -328,7 +328,7 @@ private struct MainTabView: View {
           Image(putioIcon: .folderFill)
         }
       }
-      Tab(value: SelectedTab.transfers) {
+      Tab(value: SelectedTab.downloads) {
         NavigationStack {
           PutioOfflineDownloadsView(queue: offlineQueue) { item in openOffline(item) }
         }
@@ -650,7 +650,7 @@ private struct MainTabView: View {
       fileID: route.id, parentID: route.item.parentID, name: route.item.name,
       kind: route.item.kind == .audio ? .audio : .video, audioLanguages: audioLanguages,
       estimatedBytes: estimatedBytes)
-    selectedTab = .transfers
+    selectedTab = .downloads
     // The seeded journey proves the queue, not the system prompt; the prompt
     // would cover the row in its screenshot.
     guard scenario != .filesBrowser else { return }
