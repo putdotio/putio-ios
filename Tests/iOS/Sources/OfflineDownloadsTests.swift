@@ -428,6 +428,87 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertFalse(PutioOfflineQueue.fits(estimatedBytes: 100, freeBytes: 150 * 1024 * 1024))
   }
 
+  func testRestoredPackagesRefillSlotsAndNotify() async throws {
+    let store = PutioOfflineStore(directory: directory)
+    var items: [PutioOfflineItem] = []
+    for id in [20, 21] {
+      let location = directory.appending(path: "\(id).movpkg")
+      try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+      try Data(count: 128).write(to: location.appending(path: "seg.bin"))
+      items.append(
+        PutioOfflineItem(
+          id: PutioFileID(rawValue: id), parentID: .root, name: "\(id)", kind: .video,
+          createdAt: .now, stage: .downloading(progress: 0.95), localPath: location.path,
+          storedBytes: 0, selectedAudioLanguages: [], storedAudioTracks: [],
+          storedSubtitleTracks: [], resumePositionSeconds: 0, pendingPositionSeconds: nil,
+          estimatedBytes: 0))
+    }
+    items.append(
+      PutioOfflineItem(
+        id: PutioFileID(rawValue: 22), parentID: .root, name: "22", kind: .audio, createdAt: .now,
+        stage: .queued, localPath: nil, storedBytes: 0, selectedAudioLanguages: [],
+        storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
+        pendingPositionSeconds: nil, estimatedBytes: 0))
+    store.save(items: items, concurrencyLimit: 2)
+    var notified: [Int] = []
+    let queue = PutioOfflineQueue(
+      store: store, engine: engine, conversionPollInterval: .zero, sleep: { _ in },
+      availableStorage: { 1_000_000_000 },
+      readTracks: { _ in ([], []) },
+      notifyCompletion: { notified.append($0.id.rawValue) },
+      resolve: { fileID, _ in
+        .ready(
+          PutioPlaybackSource(
+            url: URL(string: "https://media.test/\(fileID.rawValue)")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in })
+    await queue.restore()
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 20))?.stage, .completed)
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 21))?.stage, .completed)
+    XCTAssertEqual(Set(notified), [20, 21])
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [22], "freed slots started the queued item")
+  }
+
+  func testSystemCancellationPausesADownloadingRow() async {
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    await settle()
+    engine.onProgress?(PutioFileID(rawValue: 1), 0.3)
+    engine.onCancelled?(PutioFileID(rawValue: 1))
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .paused(progress: 0.3))
+    queue.resume(fileID: PutioFileID(rawValue: 1))
+    await settle()
+    XCTAssertEqual(engine.started.count, 2, "resume re-queued; there was no task to resume")
+  }
+
+  func testConversionRequiredVideosKeepEveryLanguageAfterConversion() async {
+    resolutions[30] = [.conversionRequired]
+    engine.inventory = PutioOfflineInventory(
+      videoBytes: 10,
+      audioOptions: [
+        PutioOfflineAudioOption(languageCode: "en", displayName: "English", estimatedBytes: 1),
+        PutioOfflineAudioOption(languageCode: "tr", displayName: "Turkish", estimatedBytes: 1),
+      ], subtitleTracks: [])
+    let queue = makeQueue()
+    queue.enqueue(
+      fileID: PutioFileID(rawValue: 30), parentID: .root, name: "m", kind: .video,
+      awaitsLanguageSelection: true)
+    await settle()
+    XCTAssertEqual(engine.started.first?.1, ["en", "tr"])
+    XCTAssertEqual(
+      queue.item(for: PutioFileID(rawValue: 30))?.selectedAudioLanguages, ["en", "tr"])
+  }
+
+  func testTaskDescriptionsCarryTheAccount() {
+    XCTAssertEqual(PutioSystemOfflineDownloadEngine.parse("7:412")?.accountID, 7)
+    XCTAssertEqual(PutioSystemOfflineDownloadEngine.parse("7:412")?.fileID.rawValue, 412)
+    XCTAssertNil(PutioSystemOfflineDownloadEngine.parse("412")?.accountID)
+    XCTAssertEqual(PutioSystemOfflineDownloadEngine.parse("412")?.fileID.rawValue, 412)
+    XCTAssertNil(PutioSystemOfflineDownloadEngine.parse("x"))
+  }
+
   func testEngineFailureRefillsTheSlot() async {
     let queue = makeQueue()
     queue.setConcurrencyLimit(1)

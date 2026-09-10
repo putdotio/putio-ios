@@ -62,6 +62,9 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
 
   /// The picker's estimate at enqueue time, enforced again before start.
   var estimatedBytes: Int64
+  /// Set when the item was queued before its asset could be inspected; the
+  /// queue selects every language once conversion finishes.
+  var awaitsLanguageSelection: Bool = false
 }
 
 struct PutioOfflineTrack: Codable, Equatable, Hashable, Sendable {
@@ -298,7 +301,7 @@ final class PutioOfflineQueue {
     engine.onProgress = { [weak self] id, progress in self?.engineProgressed(id, progress) }
     engine.onLocation = { [weak self] id, url in self?.engineLocated(id, url) }
     engine.onFinished = { [weak self] id, error in self?.engineFinished(id, error) }
-    engine.onCancelled = { [weak self] id in self?.suspended.remove(id) }
+    engine.onCancelled = { [weak self] id in self?.engineCancelled(id) }
     recomputeStorage()
   }
 
@@ -328,8 +331,10 @@ final class PutioOfflineQueue {
       case .downloading(let progress) where !alive.contains(items[index].id):
         // A package that finished while the app was gone is on disk with its
         // path recorded; finish it instead of pausing a download that is over.
-        if let localPath = items[index].localPath, progress >= 1,
-          fileManager.fileExists(atPath: Self.localURL(for: localPath).path)
+        // Progress persists in 5% steps, so a package can be whole while the
+        // document says 0.95; a readable asset on disk is the real signal.
+        if let localPath = items[index].localPath,
+          Self.directorySize(Self.localURL(for: localPath), fileManager: fileManager) > 0
         {
           finishRestored(fileID: items[index].id, localPath: localPath)
         } else {
@@ -361,6 +366,8 @@ final class PutioOfflineQueue {
         $0.storedSubtitleTracks = tracks.subtitles
       }
       recomputeStorage()
+      if let completed = self.item(for: fileID) { notifyCompletion(completed) }
+      schedule()
     }
   }
 
@@ -370,25 +377,47 @@ final class PutioOfflineQueue {
 
   // MARK: Enqueue
 
-  func inventory(fileID: PutioFileID, kind: PutioOfflineItem.Kind) async throws
-    -> PutioOfflineInventory?
-  {
-    guard kind == .video else { return nil }
-    guard case .ready(let source) = try await resolve(fileID, kind) else { return nil }
-    return try await engine.inventory(url: source.url)
+  /// A video that still needs conversion has no stream to inspect, so the
+  /// picker cannot run; `needsConversion` tells the caller the languages
+  /// will be chosen after conversion instead.
+  enum InventoryResult {
+    case ready(PutioOfflineInventory)
+    case needsConversion
+    case notApplicable
+  }
+
+  func inventory(fileID: PutioFileID, kind: PutioOfflineItem.Kind) async throws -> InventoryResult {
+    guard kind == .video else { return .notApplicable }
+    guard case .ready(let source) = try await resolve(fileID, kind) else { return .needsConversion }
+    return .ready(try await engine.inventory(url: source.url))
+  }
+
+  /// After conversion the asset is inspectable; the queue keeps every
+  /// language available so the stored asset is complete.
+  private func selectAllLanguagesIfUnset(fileID: PutioFileID, url: URL) async {
+    guard let item = item(for: fileID), item.selectedAudioLanguages.isEmpty,
+      item.kind == .video, item.awaitsLanguageSelection
+    else { return }
+    guard let inventory = try? await engine.inventory(url: url) else { return }
+    update(fileID) {
+      $0.selectedAudioLanguages = inventory.audioOptions.map(\.languageCode)
+      $0.awaitsLanguageSelection = false
+    }
   }
 
   @discardableResult
   func enqueue(
     fileID: PutioFileID, parentID: PutioFileID, name: String, kind: PutioOfflineItem.Kind,
-    audioLanguages: [String] = [], estimatedBytes: Int64 = 0
+    audioLanguages: [String] = [], estimatedBytes: Int64 = 0,
+    awaitsLanguageSelection: Bool = false
   ) -> PutioOfflineItem {
     if let existing = item(for: fileID) { return existing }
-    let item = PutioOfflineItem(
+    var item = PutioOfflineItem(
       id: fileID, parentID: parentID, name: name, kind: kind, createdAt: .now, stage: .queued,
       localPath: nil, storedBytes: 0, selectedAudioLanguages: audioLanguages,
       storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
       pendingPositionSeconds: nil, estimatedBytes: estimatedBytes)
+    item.awaitsLanguageSelection = awaitsLanguageSelection
     items.append(item)
     persist()
     schedule()
@@ -404,10 +433,14 @@ final class PutioOfflineQueue {
       engine.pause(fileID: fileID)
       suspended.insert(fileID)
       items[index].stage = .paused(progress: progress)
-    case .queued, .converting:
+    case .queued:
       workers[fileID]?.cancel()
       workers[fileID] = nil
       items[index].stage = .paused(progress: 0)
+    case .converting(let progress):
+      workers[fileID]?.cancel()
+      workers[fileID] = nil
+      items[index].stage = .paused(progress: progress)
     default:
       return
     }
@@ -563,6 +596,9 @@ final class PutioOfflineQueue {
       try Task.checkCancellation()
       if case .conversionRequired = resolution {
         resolution = try await convert(fileID: fileID)
+        if case .ready(let converted) = resolution {
+          await selectAllLanguagesIfUnset(fileID: fileID, url: converted.url)
+        }
       }
       // Every await above may have let pause or remove run; nothing below
       // touches the engine unless this worker still owns a live item.
@@ -584,7 +620,7 @@ final class PutioOfflineQueue {
       }
       try await engine.start(
         fileID: fileID, url: source.url, title: item.name,
-        audioLanguages: item.selectedAudioLanguages)
+        audioLanguages: current.selectedAudioLanguages)
       // The engine's own awaits may have let pause or remove run; the queue
       // is the owner, so a task it no longer wants is cancelled here.
       if Task.isCancelled || self.item(for: fileID).map({ isPaused($0.stage) }) != false {
@@ -657,6 +693,18 @@ final class PutioOfflineQueue {
     else { return }
     let persisting = Int(progress * 20) != Int(previous * 20) || progress >= 1
     update(fileID, persisting: persisting) { $0.stage = .downloading(progress: progress) }
+  }
+
+  /// A cancellation the queue did not ask for (system, replaced task) must
+  /// not leave a downloading row with no task behind it.
+  private func engineCancelled(_ fileID: PutioFileID) {
+    suspended.remove(fileID)
+    guard let index = items.firstIndex(where: { $0.id == fileID }),
+      case .downloading(let progress) = items[index].stage, workers[fileID] == nil
+    else { return }
+    items[index].stage = .paused(progress: progress)
+    persist()
+    schedule()
   }
 
   private func engineLocated(_ fileID: PutioFileID, _ url: URL) {

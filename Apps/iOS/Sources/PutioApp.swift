@@ -625,14 +625,21 @@ private struct MainTabView: View {
     let kind: PutioOfflineItem.Kind = route.item.kind == .audio ? .audio : .video
     offlineQueue.refreshStorage()
     var estimate: Int64 = route.item.sizeBytes
+    var awaitsLanguages = false
     do {
-      if let inventory = try await offlineQueue.inventory(fileID: route.id, kind: kind) {
+      switch try await offlineQueue.inventory(fileID: route.id, kind: kind) {
+      case .ready(let inventory):
         if inventory.audioOptions.count > 1 {
           trackPicker = PutioOfflineTrackPickerRequest(route: route, inventory: inventory)
           return
         }
         estimate = inventory.estimatedBytes(
           selecting: inventory.audioOptions.map(\.languageCode))
+      case .needsConversion:
+        // No stream to inspect yet; every language is kept after conversion.
+        awaitsLanguages = true
+      case .notApplicable:
+        break
       }
     } catch {
       offlineFailure =
@@ -641,16 +648,18 @@ private struct MainTabView: View {
           kind: .resolution, message: "The file could not be inspected. Try again.")
       return
     }
-    enqueueDownload(route, audioLanguages: [], estimatedBytes: estimate)
+    enqueueDownload(
+      route, audioLanguages: [], estimatedBytes: estimate, awaitsLanguageSelection: awaitsLanguages)
   }
 
   private func enqueueDownload(
-    _ route: PutioFileRoute, audioLanguages: [String], estimatedBytes: Int64
+    _ route: PutioFileRoute, audioLanguages: [String], estimatedBytes: Int64,
+    awaitsLanguageSelection: Bool = false
   ) {
     offlineQueue.enqueue(
       fileID: route.id, parentID: route.item.parentID, name: route.item.name,
       kind: route.item.kind == .audio ? .audio : .video, audioLanguages: audioLanguages,
-      estimatedBytes: estimatedBytes)
+      estimatedBytes: estimatedBytes, awaitsLanguageSelection: awaitsLanguageSelection)
     selectedTab = .downloads
     // The seeded journey proves the queue, not the system prompt; the prompt
     // would cover the row in its screenshot.
@@ -1108,7 +1117,8 @@ enum PutioOfflineQueueFactory {
     #else
       let harness = false
     #endif
-    let engine: any PutioOfflineDownloadEngine = PutioSystemOfflineDownloadEngine()
+    let engine: any PutioOfflineDownloadEngine = PutioSystemOfflineDownloadEngine(
+      accountID: accountID)
     return PutioOfflineQueue(
       store: PutioOfflineStore(
         directory: harness
