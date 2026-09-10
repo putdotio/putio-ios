@@ -19,7 +19,8 @@ final class OfflineDownloadsTests: XCTestCase {
     var inventory = PutioOfflineInventory(videoBytes: 1_000, audioOptions: [], subtitleTracks: [])
 
     func inventory(url: URL) async throws -> PutioOfflineInventory { inventory }
-    func start(fileID: PutioFileID, url: URL, title: String, audioLanguages: [String]) throws {
+    func start(fileID: PutioFileID, url: URL, title: String, audioLanguages: [String]) async throws
+    {
       started.append((fileID, audioLanguages))
     }
     func pause(fileID: PutioFileID) { paused.append(fileID) }
@@ -34,6 +35,24 @@ final class OfflineDownloadsTests: XCTestCase {
       try? Data(count: 512).write(to: location.appending(path: "segment.bin"))
       onLocation?(id, location)
       onFinished?(id, nil)
+    }
+  }
+
+  /// A one-shot latch for tests that interleave a queue action with an
+  /// in-flight resolution.
+  private actor AsyncGate {
+    private var opened = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+      if opened { return }
+      await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func open() {
+      opened = true
+      for waiter in waiters { waiter.resume() }
+      waiters = []
     }
   }
 
@@ -135,13 +154,102 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(restored.item(for: PutioFileID(rawValue: 2))?.stage, .completed)
     XCTAssertNotNil(restored.localSource(for: PutioFileID(rawValue: 2)))
 
-    // A task the system kept alive stays downloading.
+    // A task the system kept alive stays downloading and finishes in place.
+    let survivorStore = PutioOfflineStore(directory: directory)
+    var (items, limit) = survivorStore.load()
+    items[0].stage = .downloading(progress: 0.4)
+    survivorStore.save(items: items, concurrencyLimit: limit)
     let survivor = FakeEngine()
     survivor.alive = [PutioFileID(rawValue: 1)]
     engine = survivor
     let persisted = makeQueue()
     await persisted.restore()
-    XCTAssertEqual(persisted.item(for: PutioFileID(rawValue: 1))?.stage, .paused(progress: 0.4))
+    await settle()
+    XCTAssertEqual(
+      persisted.item(for: PutioFileID(rawValue: 1))?.stage, .downloading(progress: 0.4))
+    XCTAssertTrue(survivor.started.isEmpty, "a live task must not be restarted")
+    survivor.finish(PutioFileID(rawValue: 1), at: directory)
+    await settle()
+    XCTAssertEqual(persisted.item(for: PutioFileID(rawValue: 1))?.stage, .completed)
+  }
+
+  func testPausedTaskKeptAliveResumesInPlace() async {
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    await settle()
+    engine.onProgress?(PutioFileID(rawValue: 1), 0.5)
+    queue.pause(fileID: PutioFileID(rawValue: 1))
+    queue.resume(fileID: PutioFileID(rawValue: 1))
+    await settle()
+    XCTAssertEqual(engine.resumed, [PutioFileID(rawValue: 1)])
+    XCTAssertEqual(engine.started.count, 1, "a suspended task resumes without a new download")
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .downloading(progress: 0.5))
+  }
+
+  func testAuthenticationLossIsAStableFailureNotALoop() async {
+    var attempts = 0
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in
+        attempts += 1
+        throw PutioRuntimeError.sessionExpired
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in })
+    queue.enqueue(fileID: PutioFileID(rawValue: 3), parentID: .root, name: "c", kind: .video)
+    await settle()
+    XCTAssertEqual(attempts, 1)
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 3))?.stage, .failed(.authentication))
+    XCTAssertTrue(PutioOfflineFailure.authentication.canRetry)
+  }
+
+  func testPauseDuringResolutionWinsOverTheWorker() async {
+    let gate = AsyncGate()
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in
+        await gate.wait()
+        return .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in })
+    queue.enqueue(fileID: PutioFileID(rawValue: 4), parentID: .root, name: "d", kind: .video)
+    await settle()
+    queue.pause(fileID: PutioFileID(rawValue: 4))
+    await gate.open()
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 4))?.stage, .paused(progress: 0))
+    XCTAssertTrue(engine.started.isEmpty, "a paused item must not start a download")
+  }
+
+  func testEngineFailureRefillsTheSlot() async {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(1)
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1])
+    engine.onFinished?(PutioFileID(rawValue: 1), URLError(.networkConnectionLost))
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1, 2])
+  }
+
+  func testCorruptDocumentIsSetAsideAndLimitIsClamped() throws {
+    let store = PutioOfflineStore(directory: directory)
+    try Data("not json".utf8).write(to: directory.appending(path: "queue.json"))
+    let loaded = store.load()
+    XCTAssertTrue(loaded.items.isEmpty)
+    XCTAssertTrue(
+      FileManager.default.fileExists(atPath: directory.appending(path: "queue.corrupt.json").path))
+    try Data(#"{"version":1,"items":[],"concurrencyLimit":9}"#.utf8)
+      .write(to: directory.appending(path: "queue.json"))
+    XCTAssertEqual(store.load().concurrencyLimit, PutioOfflineQueue.defaultConcurrencyLimit)
+    try Data(#"{"version":2,"items":[],"concurrencyLimit":1}"#.utf8)
+      .write(to: directory.appending(path: "queue.json"))
+    XCTAssertTrue(store.load().items.isEmpty)
   }
 
   func testConversionHandoffKeepsOneIdentityAndSelectedTracks() async {
@@ -221,7 +329,7 @@ final class OfflineDownloadsTests: XCTestCase {
     notFound.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
     // The default resolver succeeds; force notFound through a fresh resolver.
     XCTAssertTrue(PutioOfflineFailure.resolving(PutioRuntimeError.notFound)?.canRetry == false)
-    XCTAssertNil(PutioOfflineFailure.resolving(PutioRuntimeError.sessionExpired))
+    XCTAssertEqual(PutioOfflineFailure.resolving(PutioRuntimeError.sessionExpired), .authentication)
   }
 
   func testPositionsRecordLocallyAndSyncWhenReportingRecovers() async {

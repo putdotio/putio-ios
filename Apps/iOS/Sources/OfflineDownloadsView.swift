@@ -165,7 +165,12 @@ struct PutioOfflineDownloadsView: View {
       }
       .accessibilityIdentifier("downloads.details.\(item.id.rawValue)")
     case .failed:
-      EmptyView()
+      Button(role: .destructive) {
+        pendingRemoval = [item.id]
+      } label: {
+        Label("Remove", systemImage: "trash")
+      }
+      .accessibilityIdentifier("downloads.remove.\(item.id.rawValue)")
     }
   }
 

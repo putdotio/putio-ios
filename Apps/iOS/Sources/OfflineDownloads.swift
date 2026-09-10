@@ -73,12 +73,16 @@ struct PutioOfflineFailure: Codable, Equatable, Sendable {
     case download
     case storage
     case notFound
+    case authentication
   }
 
   let kind: Kind
   let message: String
 
   var canRetry: Bool { kind != .notFound }
+
+  static let authentication = Self(
+    kind: .authentication, message: "Sign in again to continue this download.")
 
   static let download = Self(kind: .download, message: "The download could not finish. Try again.")
   static let conversion = Self(
@@ -89,7 +93,7 @@ struct PutioOfflineFailure: Codable, Equatable, Sendable {
 
   static func resolving(_ error: Error) -> Self? {
     switch error as? PutioRuntimeError {
-    case .authenticationRequired, .sessionExpired: nil
+    case .authenticationRequired, .sessionExpired: .authentication
     case .notFound: .notFound
     case .rateLimited:
       Self(kind: .resolution, message: "put.io is receiving too many requests. Try again shortly.")
@@ -148,15 +152,32 @@ struct PutioOfflineStore: Sendable {
 
   private var fileURL: URL { directory.appending(path: "queue.json") }
 
+  static let version = 1
+
+  /// A document that fails to decode is set aside as `queue.corrupt.json`
+  /// rather than silently replaced, so stored assets can still be recovered.
   func load() -> (items: [PutioOfflineItem], concurrencyLimit: Int) {
-    guard let data = try? Data(contentsOf: fileURL),
-      let document = try? JSONDecoder().decode(Document.self, from: data)
-    else { return ([], PutioOfflineQueue.defaultConcurrencyLimit) }
-    return (document.items, document.concurrencyLimit)
+    guard let data = try? Data(contentsOf: fileURL) else {
+      return ([], PutioOfflineQueue.defaultConcurrencyLimit)
+    }
+    guard let document = try? JSONDecoder().decode(Document.self, from: data),
+      document.version == Self.version
+    else {
+      try? FileManager.default.removeItem(at: corruptURL)
+      try? FileManager.default.moveItem(at: fileURL, to: corruptURL)
+      return ([], PutioOfflineQueue.defaultConcurrencyLimit)
+    }
+    let limit =
+      PutioOfflineQueue.concurrencyLimits.contains(document.concurrencyLimit)
+      ? document.concurrencyLimit : PutioOfflineQueue.defaultConcurrencyLimit
+    return (document.items, limit)
   }
 
+  private var corruptURL: URL { directory.appending(path: "queue.corrupt.json") }
+
   func save(items: [PutioOfflineItem], concurrencyLimit: Int) {
-    let document = Document(version: 1, items: items, concurrencyLimit: concurrencyLimit)
+    let document = Document(
+      version: Self.version, items: items, concurrencyLimit: concurrencyLimit)
     guard let data = try? JSONEncoder().encode(document) else { return }
     try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     try? data.write(to: fileURL, options: .atomic)
@@ -175,7 +196,7 @@ protocol PutioOfflineDownloadEngine: AnyObject {
 
   /// Inspects the asset without downloading it.
   func inventory(url: URL) async throws -> PutioOfflineInventory
-  func start(fileID: PutioFileID, url: URL, title: String, audioLanguages: [String]) throws
+  func start(fileID: PutioFileID, url: URL, title: String, audioLanguages: [String]) async throws
   func pause(fileID: PutioFileID)
   func resume(fileID: PutioFileID)
   func cancel(fileID: PutioFileID)
@@ -217,7 +238,10 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let availableStorage: @MainActor () -> Int64
   @ObservationIgnored private let fileManager: FileManager
   @ObservationIgnored private let readTracks: PutioOfflineTrackReader
+  @ObservationIgnored private let notifyCompletion: @MainActor (PutioOfflineItem) -> Void
   @ObservationIgnored private var workers: [PutioFileID: Task<Void, Never>] = [:]
+  /// File ids whose engine task is suspended and can be resumed in place.
+  @ObservationIgnored private var suspended: Set<PutioFileID> = []
   @ObservationIgnored private var restored = false
   @ObservationIgnored private var syncTask: Task<Void, Never>?
 
@@ -231,6 +255,7 @@ final class PutioOfflineQueue {
     readTracks: @escaping PutioOfflineTrackReader = {
       await PutioOfflineQueue.storedTracks(at: $0)
     },
+    notifyCompletion: @escaping @MainActor (PutioOfflineItem) -> Void = { _ in },
     resolve: @escaping PutioOfflineResolve,
     startConversion: @escaping PutioOfflineConversionStart,
     conversionStatus: @escaping PutioOfflineConversionStatus,
@@ -243,6 +268,7 @@ final class PutioOfflineQueue {
     self.availableStorage = availableStorage
     self.fileManager = fileManager
     self.readTracks = readTracks
+    self.notifyCompletion = notifyCompletion
     self.resolve = resolve
     self.startConversion = startConversion
     self.conversionStatus = conversionStatus
@@ -281,6 +307,9 @@ final class PutioOfflineQueue {
       switch items[index].stage {
       case .downloading(let progress) where !alive.contains(items[index].id):
         items[index].stage = .paused(progress: progress)
+      case .paused where alive.contains(items[index].id):
+        // The system kept the task; it resumes in place instead of restarting.
+        suspended.insert(items[index].id)
       case .converting:
         items[index].stage = .queued
       default:
@@ -329,6 +358,7 @@ final class PutioOfflineQueue {
     switch items[index].stage {
     case .downloading(let progress):
       engine.pause(fileID: fileID)
+      suspended.insert(fileID)
       items[index].stage = .paused(progress: progress)
     case .queued, .converting:
       workers[fileID]?.cancel()
@@ -341,10 +371,19 @@ final class PutioOfflineQueue {
     schedule()
   }
 
+  /// A suspended engine task resumes in place; anything else re-queues and
+  /// goes through resolution again.
   func resume(fileID: PutioFileID) {
     guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
-    guard case .paused = items[index].stage else { return }
-    items[index].stage = .queued
+    guard case .paused(let progress) = items[index].stage else { return }
+    if suspended.contains(fileID) {
+      guard inFlightCount < concurrencyLimit else { return }
+      suspended.remove(fileID)
+      items[index].stage = .downloading(progress: progress)
+      engine.resume(fileID: fileID)
+    } else {
+      items[index].stage = .queued
+    }
     persist()
     schedule()
   }
@@ -361,6 +400,7 @@ final class PutioOfflineQueue {
     for fileID in fileIDs {
       workers[fileID]?.cancel()
       workers[fileID] = nil
+      suspended.remove(fileID)
       engine.cancel(fileID: fileID)
       if let item = item(for: fileID), let localPath = item.localPath {
         try? fileManager.removeItem(at: Self.localURL(for: localPath))
@@ -436,11 +476,14 @@ final class PutioOfflineQueue {
 
   // MARK: Scheduling
 
+  /// A worker resolving or converting occupies a slot before its item is
+  /// marked downloading, so in-flight is workers plus engine-owned downloads.
+  private var inFlightCount: Int {
+    items.filter { $0.isActive || workers[$0.id] != nil }.count
+  }
+
   private func schedule() {
-    // A worker resolving or converting occupies a slot before its item is
-    // marked downloading, so in-flight is workers plus engine-owned downloads.
-    let inFlight = items.filter { $0.isActive || workers[$0.id] != nil }.count
-    var slots = max(0, concurrencyLimit - inFlight)
+    var slots = max(0, concurrencyLimit - inFlightCount)
     for item in items where slots > 0 && item.stage == .queued && workers[item.id] == nil {
       slots -= 1
       workers[item.id] = Task { @MainActor [weak self] in
@@ -460,6 +503,10 @@ final class PutioOfflineQueue {
       if case .conversionRequired = resolution {
         resolution = try await convert(fileID: fileID)
       }
+      // Every await above may have let pause or remove run; nothing below
+      // touches the engine unless this worker still owns a live item.
+      try Task.checkCancellation()
+      guard let current = self.item(for: fileID), !isPaused(current.stage) else { return }
       guard case .ready(let source) = resolution else {
         fail(fileID, .conversion)
         return
@@ -468,22 +515,36 @@ final class PutioOfflineQueue {
         fail(fileID, .storage)
         return
       }
-      update(fileID) { $0.stage = .downloading(progress: 0) }
-      try engine.start(
+      update(fileID) {
+        $0.stage = .downloading(progress: 0)
+        $0.resumePositionSeconds = source.startFromSeconds
+      }
+      try await engine.start(
         fileID: fileID, url: source.url, title: item.name,
         audioLanguages: item.selectedAudioLanguages)
-      update(fileID) { $0.resumePositionSeconds = source.startFromSeconds }
+      try Task.checkCancellation()
     } catch is CancellationError {
+      // Pause or remove ran while the engine was starting; they own the task.
       return
+    } catch PutioOfflineEngineError.missingLanguages {
+      fail(
+        fileID,
+        PutioOfflineFailure(
+          kind: .resolution, message: "A selected audio language is no longer available."))
     } catch is PutioOfflineConversionError {
       fail(fileID, .conversion)
     } catch {
-      if let failure = PutioOfflineFailure.resolving(error) {
-        fail(fileID, failure)
-      } else {
-        update(fileID) { $0.stage = .queued }
-      }
+      fail(
+        fileID,
+        PutioOfflineFailure.resolving(error)
+          ?? PutioOfflineFailure(
+            kind: .resolution, message: "put.io could not prepare this file. Try again."))
     }
+  }
+
+  private func isPaused(_ stage: PutioOfflineItem.Stage) -> Bool {
+    if case .paused = stage { return true }
+    return false
   }
 
   static let minimumFreeBytes: Int64 = 200 * 1024 * 1024
@@ -508,10 +569,14 @@ final class PutioOfflineQueue {
     }
   }
 
+  /// Progress persists at 5% steps so a kill mid-download restores close to
+  /// where it was without rewriting the document on every callback.
   private func engineProgressed(_ fileID: PutioFileID, _ progress: Double) {
-    update(fileID, persisting: false) {
-      if case .downloading = $0.stage { $0.stage = .downloading(progress: progress) }
-    }
+    guard let index = items.firstIndex(where: { $0.id == fileID }),
+      case .downloading(let previous) = items[index].stage
+    else { return }
+    let persisting = Int(progress * 20) != Int(previous * 20) || progress >= 1
+    update(fileID, persisting: persisting) { $0.stage = .downloading(progress: progress) }
   }
 
   private func engineLocated(_ fileID: PutioFileID, _ url: URL) {
@@ -520,30 +585,35 @@ final class PutioOfflineQueue {
 
   private func engineFinished(_ fileID: PutioFileID, _ error: Error?) {
     guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
+    suspended.remove(fileID)
     if let error {
       if case .paused = items[index].stage { return }
       if (error as? URLError)?.code == .cancelled { return }
       let failure: PutioOfflineFailure =
         (error as NSError).code == NSFileWriteOutOfSpaceError ? .storage : .download
       fail(fileID, failure)
+      schedule()
       return
     }
     guard let localPath = items[index].localPath else {
       fail(fileID, .download)
+      schedule()
       return
     }
     let url = Self.localURL(for: localPath)
     let readTracks = readTracks
     Task { @MainActor [weak self] in
       let tracks = await readTracks(url)
-      self?.update(fileID) {
+      guard let self else { return }
+      update(fileID) {
         $0.stage = .completed
-        $0.storedBytes = Self.directorySize(url, fileManager: self?.fileManager ?? .default)
+        $0.storedBytes = Self.directorySize(url, fileManager: fileManager)
         $0.storedAudioTracks = tracks.audio
         $0.storedSubtitleTracks = tracks.subtitles
       }
-      self?.recomputeStorage()
-      self?.schedule()
+      recomputeStorage()
+      if let completed = self.item(for: fileID) { notifyCompletion(completed) }
+      schedule()
     }
   }
 

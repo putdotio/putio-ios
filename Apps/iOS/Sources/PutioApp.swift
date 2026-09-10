@@ -5,6 +5,7 @@ import SwiftUI
 
 @main
 struct PutioApp: App {
+  @UIApplicationDelegateAdaptor(PutioAppDelegate.self) private var appDelegate
   private let scenario = HarnessScenario.parse(arguments: ProcessInfo.processInfo.arguments)
 
   var body: some Scene {
@@ -28,6 +29,22 @@ struct PutioApp: App {
       .preferredColorScheme(.dark)
       .tint(PutioTheme.Colors.accent)
     }
+  }
+}
+
+/// iOS relaunches the app for background download events and expects the
+/// completion handler back once the session has delivered them.
+final class PutioAppDelegate: NSObject, UIApplicationDelegate {
+  func application(
+    _ application: UIApplication,
+    handleEventsForBackgroundURLSession identifier: String,
+    completionHandler: @escaping () -> Void
+  ) {
+    guard identifier == PutioSystemOfflineDownloadEngine.sessionIdentifier else {
+      completionHandler()
+      return
+    }
+    PutioSystemOfflineDownloadEngine.backgroundCompletion = completionHandler
   }
 }
 
@@ -1084,6 +1101,10 @@ enum PutioOfflineQueueFactory {
           : nil),
       engine: engine,
       conversionPollInterval: harness ? .milliseconds(1_200) : .seconds(3),
+      notifyCompletion: { item in
+        guard !harness else { return }
+        PutioOfflineNotifications.notifyCompletion(item)
+      },
       resolve: { fileID, kind in
         switch kind {
         case .audio:
