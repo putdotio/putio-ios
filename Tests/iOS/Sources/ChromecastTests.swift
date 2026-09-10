@@ -9,7 +9,7 @@ private final class CastControllerStub: PutioCastControlling {
   var connection: PutioCastConnection = .connected(deviceName: "Living Room")
   var onConnectionChanged: ((PutioCastConnection) -> Void)?
   var onMediaStatusChanged: ((PutioCastMediaStatus?) -> Void)?
-  let providesSystemCastButton = false
+  var providesSystemCastButton = false
   private(set) var loads: [(PutioCastMedia, String?)] = []
   private(set) var commands: [String] = []
   var loadResults: [Result<Void, PutioCastControllerError>] = []
@@ -405,6 +405,18 @@ final class ChromecastTests: XCTestCase {
     XCTAssertEqual(PutioCastReceiver.effectiveAppID(defaults: defaults), "ABCD1234")
     XCTAssertEqual(
       PutioCastReceiver.bundledAppID(bundle: Bundle(for: ChromecastTests.self)), "CC1AD845")
+  }
+
+  func testSystemCastButtonStaysMountedBeforeDiscovery() {
+    let controller = CastControllerStub()
+    controller.providesSystemCastButton = true
+    controller.connection = .unavailable
+    let (model, _) = makeModel(controller: controller, resolutions: [])
+    XCTAssertTrue(model.showsCastButton, "Google's button owns first-tap discovery")
+    let stub = CastControllerStub()
+    stub.connection = .unavailable
+    let (stubModel, _) = makeModel(controller: stub, resolutions: [])
+    XCTAssertFalse(stubModel.showsCastButton)
   }
 
   func testClockFormatting() {

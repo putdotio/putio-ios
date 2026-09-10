@@ -208,7 +208,10 @@ final class PutioCastModel {
     }
   #endif
   var providesSystemCastButton: Bool { controller.providesSystemCastButton }
-  var showsCastButton: Bool { connection != .unavailable }
+  /// Google's button stays mounted before discovery: with discovery starting
+  /// on the first tap, hiding it would leave no way to find a receiver. The
+  /// stub button hides when its controller reports no devices.
+  var showsCastButton: Bool { providesSystemCastButton || connection != .unavailable }
 
   /// A bar or sheet has something to show once a file is being prepared,
   /// is loaded on the receiver, or failed on the way there.
@@ -480,6 +483,8 @@ final class PutioCastModel {
     presentsControls = false
     pendingRoute = nil
     guard hadMedia else { return }
+    // A cast that starts while this stop is in flight supersedes it inside
+    // the controller, so the stop cannot idle the newer media.
     Task { @MainActor [weak self] in
       guard let self, request + 1 == generation else { return }
       try? await controller.stop()
@@ -553,6 +558,9 @@ final class PutioCastModel {
     lastReportedSeconds = seconds
     reportedPosition = (media.id, seconds)
     let report = reportPosition
+    // Not generation-guarded on purpose: the report names its own file and
+    // second, so a session end or a newer cast never makes it wrong, and the
+    // final flush must outlive the session that produced it.
     Task { @MainActor in
       try? await report(media.id, seconds)
     }
