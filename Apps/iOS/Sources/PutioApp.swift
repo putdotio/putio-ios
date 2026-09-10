@@ -622,6 +622,9 @@ private struct MainTabView: View {
       fileID: route.id, parentID: route.item.parentID, name: route.item.name,
       kind: route.item.kind == .audio ? .audio : .video, audioLanguages: audioLanguages)
     selectedTab = .transfers
+    // The seeded journey proves the queue, not the system prompt; the prompt
+    // would cover the row in its screenshot.
+    guard scenario != .filesBrowser else { return }
     Task { await PutioOfflineNotifications.requestPermissionIfNeeded() }
   }
 
