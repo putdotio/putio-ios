@@ -36,14 +36,13 @@ enum PutioDeepLink: Equatable {
 }
 
 enum PutioDeepLinkDestination: Equatable {
-  case files([PutioFolderRoute], video: PutioFileRoute?)
+  case files([PutioFolderRoute], file: PutioFileRoute?)
   case history
   case account
 }
 
 enum PutioDeepLinkFailure: Error, Equatable {
   case unavailable
-  case unsupportedFile
   case historyDisabled
   case missingFile
   case connection
@@ -52,7 +51,6 @@ enum PutioDeepLinkFailure: Error, Equatable {
   var message: String {
     switch self {
     case .unavailable: String(localized: "This link cannot be opened in this app yet.")
-    case .unsupportedFile: String(localized: "This file type cannot be opened yet.")
     case .historyDisabled: String(localized: "History is turned off in your account settings.")
     case .missingFile: String(localized: "This item could not be found.")
     case .connection: String(localized: "Check your connection and try again.")
@@ -172,12 +170,9 @@ final class PutioDeepLinkModel {
     _ id: PutioFileID,
     file: @MainActor @Sendable (PutioFileID) async throws -> PutioFileItem
   ) async throws -> PutioDeepLinkDestination {
-    if id == .root { return .files([], video: nil) }
+    if id == .root { return .files([], file: nil) }
     let item = try await file(id)
     guard item.id == id else { throw PutioDeepLinkFailure.invalidResponse }
-    guard item.kind == .folder || item.kind == .video else {
-      throw PutioDeepLinkFailure.unsupportedFile
-    }
     var path: [PutioFolderRoute] = []
     var current = item
     var seen: Set<PutioFileID> = []
@@ -199,7 +194,7 @@ final class PutioDeepLinkModel {
       }
       current = parent
     }
-    return .files(path, video: item.kind == .video ? PutioFileRoute(item: item) : nil)
+    return .files(path, file: item.kind == .folder ? nil : PutioFileRoute(item: item))
   }
 }
 

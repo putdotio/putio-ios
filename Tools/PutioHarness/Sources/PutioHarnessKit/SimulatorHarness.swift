@@ -703,6 +703,14 @@ public struct SimulatorHarness {
           mediaDirectory.appending(path: "runtime-proof-audio.m4a"),
           context: "runtime-proof audio fixture"
         )
+        try requireNonemptyFile(
+          mediaDirectory.appending(path: "runtime-proof-image.png"),
+          context: "runtime-proof image fixture"
+        )
+        try requireNonemptyFile(
+          mediaDirectory.appending(path: "runtime-proof-document.pdf"),
+          context: "runtime-proof document fixture"
+        )
         let mediaServer = try HarnessMediaServer(mediaDirectory: mediaDirectory)
         defer { mediaServer.stop() }
         try SimulatorLifecycle.shared.register {
@@ -726,6 +734,17 @@ public struct SimulatorHarness {
           mediaBaseURL: mediaBaseURL,
           resultBundle: platformDirectory.appending(path: ".audio.xcresult"),
           attachmentNames: [BrowserJourneyContract.audioAttachmentName],
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 120,
+          maximumExecutionTimeAllowance: 120
+        )
+        let previewScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.previewsTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".previews.xcresult"),
+          attachmentNames: BrowserJourneyContract.previewsAttachmentNames,
           artifactDirectory: platformDirectory,
           defaultExecutionTimeAllowance: 120,
           maximumExecutionTimeAllowance: 120
@@ -851,7 +870,7 @@ public struct SimulatorHarness {
           signOutFailureScreenshots + fileActionsScreenshots + trashManagementScreenshots
           + sortedRootScreenshots + searchScreenshots + historyScreenshots
           + filePreferencesScreenshots + playbackPreferencesScreenshots + deepLinkScreenshots
-          + accountRatingScreenshots + audioScreenshots
+          + accountRatingScreenshots + audioScreenshots + previewScreenshots
         for screenshot in preflightScreenshots {
           _ = try requireMeaningfulScreenshot(screenshot, context: "journey preflight attachment")
         }
@@ -863,17 +882,10 @@ public struct SimulatorHarness {
           ".folder-reconciliation.xcresult",
           ".history.xcresult", ".deep-links.xcresult",
           ".file-preferences.xcresult", ".playback-preferences.xcresult",
-          ".account-rating.xcresult", ".audio.xcresult",
+          ".account-rating.xcresult", ".audio.xcresult", ".previews.xcresult",
         ] {
           try? fileManager.removeItem(at: platformDirectory.appending(path: bundle))
         }
-        _ = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.unsupportedFileTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".unsupported-file.xcresult")
-        )
         _ = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.resumePersistenceTestIdentifier,
           platform: platform,

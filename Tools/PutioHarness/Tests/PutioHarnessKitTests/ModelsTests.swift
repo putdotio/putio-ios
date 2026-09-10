@@ -53,8 +53,14 @@ import Testing
       == "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
   )
   #expect(
-    BrowserJourneyContract.unsupportedFileTestIdentifier
-      == "PutioUITests/FilesBrowserJourneyTests/testUnsupportedFileIsNotActionable"
+    BrowserJourneyContract.previewsTestIdentifier
+      == "PutioUITests/PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes"
+  )
+  #expect(
+    BrowserJourneyContract.previewsAttachmentNames == [
+      "runtime-preview-image", "runtime-preview-document", "runtime-preview-error",
+      "runtime-preview-unsupported", "runtime-vlc-missing",
+    ]
   )
   #expect(
     BrowserJourneyContract.resumePersistenceTestIdentifier

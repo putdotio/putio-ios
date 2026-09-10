@@ -61,6 +61,7 @@ let project = Project(
         "CFBundleDisplayName": "put.io",
         "UIAppFonts": brandFontInfoPlist(for: "ios"),
         "UIBackgroundModes": ["audio"],
+        "LSApplicationQueriesSchemes": ["vlc-x-callback"],
         "CFBundleURLTypes": [
           [
             "CFBundleURLName": "putio", "CFBundleURLSchemes": ["putio"],
@@ -86,6 +87,8 @@ let project = Project(
             cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof.m3u8" "$destination/"
             cp "${SRCROOT}/Tests/HarnessMedia/direct-hls/runtime-proof-000.ts" "$destination/"
             cp "${SRCROOT}/Tests/HarnessMedia/audio/runtime-proof-audio.m4a" "$destination/"
+            cp "${SRCROOT}/Tests/HarnessMedia/previews/runtime-proof-image.png" "$destination/"
+            cp "${SRCROOT}/Tests/HarnessMedia/previews/runtime-proof-document.pdf" "$destination/"
             """,
           name: "Bundle runtime-proof media fixtures",
           basedOnDependencyAnalysis: false
@@ -109,6 +112,7 @@ let project = Project(
         "CFBundleDisplayName": "put.io Nightly",
         "UIAppFonts": brandFontInfoPlist(for: "ios"),
         "UIBackgroundModes": ["audio"],
+        "LSApplicationQueriesSchemes": ["vlc-x-callback"],
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
       ]),

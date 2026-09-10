@@ -120,6 +120,7 @@ struct FilesBrowserView: View {
   private let actions: PutioFileActions?
   private let trashEnabled: Bool
   private let onFileSelected: PutioFileSelection
+  private let onExternalPlayback: PutioFileSelection?
   private let onRootLoaded: PutioRootLoaded
   private let onReturnToRoot: @MainActor @Sendable () -> Void
   private let refreshRequests: PutioFolderRefreshRequests
@@ -135,6 +136,7 @@ struct FilesBrowserView: View {
     trashEnabled: Bool,
     accountID: Int,
     onFileSelected: @escaping PutioFileSelection,
+    onExternalPlayback: PutioFileSelection? = nil,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
@@ -150,6 +152,7 @@ struct FilesBrowserView: View {
     self.accountID = accountID
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
+    self.onExternalPlayback = onExternalPlayback
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
     self.refreshRequests = refreshRequests
@@ -162,6 +165,7 @@ struct FilesBrowserView: View {
     actions: PutioFileActions? = nil,
     trashEnabled: Bool = true,
     onFileSelected: @escaping PutioFileSelection,
+    onExternalPlayback: PutioFileSelection? = nil,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
@@ -173,6 +177,7 @@ struct FilesBrowserView: View {
     self.actions = actions
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
+    self.onExternalPlayback = onExternalPlayback
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
     self.refreshRequests = refreshRequests
@@ -189,7 +194,8 @@ struct FilesBrowserView: View {
         trashEnabled: trashEnabled,
         onLoaded: onRootLoaded,
         refreshRequests: refreshRequests,
-        onFileSelected: onFileSelected
+        onFileSelected: onFileSelected,
+        onExternalPlayback: onExternalPlayback
       )
       .navigationDestination(for: PutioFolderRoute.self) { route in
         PutioFolderScreen(
@@ -199,7 +205,8 @@ struct FilesBrowserView: View {
           actions: actions,
           trashEnabled: trashEnabled,
           refreshRequests: refreshRequests,
-          onFileSelected: onFileSelected
+          onFileSelected: onFileSelected,
+          onExternalPlayback: onExternalPlayback
         )
       }
     }
@@ -263,6 +270,7 @@ struct PutioFolderScreen: View {
   private let trashEnabled: Bool
   private let onLoaded: @MainActor @Sendable () -> Void
   private let onFileSelected: PutioFileSelection
+  private let onExternalPlayback: PutioFileSelection?
   private let refreshRequests: PutioFolderRefreshRequests
 
   init(
@@ -276,7 +284,8 @@ struct PutioFolderScreen: View {
     locale: Locale = .current,
     onLoaded: @escaping @MainActor @Sendable () -> Void = {},
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
-    onFileSelected: @escaping PutioFileSelection
+    onFileSelected: @escaping PutioFileSelection,
+    onExternalPlayback: PutioFileSelection? = nil
   ) {
     self.route = route
     _model = State(
@@ -298,6 +307,7 @@ struct PutioFolderScreen: View {
     self.onLoaded = onLoaded
     self.refreshRequests = refreshRequests
     self.onFileSelected = onFileSelected
+    self.onExternalPlayback = onExternalPlayback
   }
 
   private var folderTitle: String {
@@ -628,26 +638,18 @@ struct PutioFolderScreen: View {
         .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
       )
     } else if let fileRoute = presentation.fileRoute {
-      if fileRoute.isPlayable {
-        fileActions(
-          for: presentation.item,
-          content: Button {
-            onFileSelected(fileRoute)
-          } label: {
-            PutioFileRow(presentation.row)
-          }
-          .buttonStyle(.plain)
-          .disabled(fileActionPending)
-          .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
-          .accessibilityValue(Text(videoAccessibilityValue(for: presentation.item)))
-        )
-      } else {
-        fileActions(
-          for: presentation.item,
-          content: PutioFileRow(presentation.row)
-            .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
-        )
-      }
+      fileActions(
+        for: presentation.item,
+        content: Button {
+          onFileSelected(fileRoute)
+        } label: {
+          PutioFileRow(presentation.row)
+        }
+        .buttonStyle(.plain)
+        .disabled(fileActionPending)
+        .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
+        .accessibilityValue(Text(fileAccessibilityValue(for: fileRoute)))
+      )
     }
   }
 
@@ -676,6 +678,19 @@ struct PutioFolderScreen: View {
 
   @ViewBuilder
   private func actionButtons(for item: PutioFileItem) -> some View {
+    if let route = PutioBrowserItemPresentation(item: item).fileRoute,
+      route.supportsExternalPlayback, let onExternalPlayback
+    {
+      Section {
+        Button {
+          onExternalPlayback(route)
+        } label: {
+          Label("Open in VLC", systemImage: "play.rectangle")
+        }
+        .disabled(fileActionPending)
+        .accessibilityIdentifier("files.open-in-vlc.\(item.id.rawValue)")
+      }
+    }
     if model.supportsActions {
       ControlGroup {
         moveButton(for: item)
@@ -833,9 +848,16 @@ struct PutioFolderScreen: View {
     }
   }
 
-  private func videoAccessibilityValue(for item: PutioFileItem) -> String {
-    guard item.isWatched else { return "Not watched" }
-    return "Watched, resume position \(item.resumePositionSeconds) seconds"
+  private func fileAccessibilityValue(for route: PutioFileRoute) -> String {
+    switch route.openAction {
+    case .video, .audio:
+      guard route.item.isWatched else { return "Not watched" }
+      return "Watched, resume position \(route.item.resumePositionSeconds) seconds"
+    case .preview(let preview):
+      return preview.kind == .image ? "Image" : "Document"
+    case .unsupported:
+      return "Unsupported file"
+    }
   }
 
   private func selectionAccessibilityValue(for item: PutioFileItem) -> String {

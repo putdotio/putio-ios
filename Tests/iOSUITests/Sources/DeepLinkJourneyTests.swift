@@ -37,19 +37,19 @@ final class DeepLinkJourneyTests: XCTestCase {
     XCTAssertTrue(element("video.ready").waitForNonExistence(timeout: 5))
 
     try open("putio:///files/413")
-    XCTAssertTrue(
-      app.staticTexts["This file type cannot be opened yet."].waitForExistence(timeout: 10))
-    XCTAssertFalse(app.buttons["link.retry"].exists)
-    app.buttons["link.close"].tap()
+    XCTAssertTrue(element("preview.screen.413").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("preview.document").waitForExistence(timeout: 10))
+    app.buttons["preview.done"].tap()
+    XCTAssertTrue(element("preview.screen.413").waitForNonExistence(timeout: 5))
     try open("putio:///downloads/411")
     XCTAssertTrue(
       app.staticTexts["This link cannot be opened in this app yet."].waitForExistence(timeout: 5))
     app.buttons["link.close"].tap()
 
+    // The PDF lives in the root, so its link reset the Files stack to root.
     app.buttons["Files"].tap()
-    XCTAssertTrue(element("files.screen.410").waitForExistence(timeout: 5))
-    app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 5))
+    XCTAssertFalse(app.navigationBars.buttons["BackButton"].exists)
     element("files.item.410").tap()
     XCTAssertTrue(element("files.screen.410").waitForExistence(timeout: 5))
 

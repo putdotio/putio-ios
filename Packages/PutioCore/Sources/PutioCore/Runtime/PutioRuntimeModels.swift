@@ -274,6 +274,41 @@ public struct PutioPlaybackSource: Equatable, Sendable, CustomStringConvertible,
   }
 }
 
+/// A tokened put.io download URL for a single file, resolved for previews and
+/// external players. The URL is a bearer credential and is redacted from every
+/// textual rendering.
+public struct PutioFileDownloadSource: Equatable, Sendable, CustomStringConvertible,
+  CustomDebugStringConvertible, CustomReflectable
+{
+  public let id: PutioFileID
+  public let kind: PutioFileKind
+  public let name: String
+  public let url: URL
+
+  public init(id: PutioFileID, kind: PutioFileKind, name: String, url: URL) {
+    self.id = id
+    self.kind = kind
+    self.name = name
+    self.url = url
+  }
+
+  public var description: String {
+    "PutioFileDownloadSource(id: \(id.rawValue), kind: \(kind), url: <redacted>)"
+  }
+
+  public var debugDescription: String {
+    description
+  }
+
+  public var customMirror: Mirror {
+    Mirror(
+      self,
+      children: ["id": id, "kind": kind, "name": name, "url": "<redacted>"],
+      displayStyle: .struct
+    )
+  }
+}
+
 public enum PutioPlaybackResolution: Equatable, Sendable {
   case ready(PutioPlaybackSource)
   case conversionRequired

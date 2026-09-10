@@ -49,7 +49,7 @@ Platform values are `ios`, `watchos`, and `tvos`. `all` is supported by `build` 
 - Playback preferences: proxy-list failure and retry, failed save, refresh-only recovery after a committed save, subtitle-control visibility, and proxy/subtitle persistence across relaunch. Captures `runtime-playback-preferences.png`.
 - Account rating: opening Account makes no URL-opening request; tapping the native rating link opens the fixed App Store review destination through a harness-only URL interceptor. Returning to Account does not repeat the request. `runtime-account-rating.png` captures the native entry; the journey does not open the store or submit a review.
 - Audio: tapping a seeded track opens the native Now Playing sheet, plays the local fixture, pauses, changes speed, scrubs to the end, auto-advances to the folder successor, reaches end of folder, and keeps the chosen speed on reopen. Captures `runtime-audio-player.png`.
-- Unsupported files: the PDF row remains visible but is not actionable.
+- Previews: the seeded image fails its first lookup and recovers through retry, then renders with zoom and pan; the PDF renders through PDFKit; the archive opens the unsupported explanation sheet instead of a spinner or dead row; "Open in VLC" reports the not-installed outcome with a store link, and with the harness VLC stub installed it hands the tokened stream URL off once with a return link to the folder. Captures `runtime-preview-error.png`, `runtime-preview-image.png`, `runtime-preview-document.png`, `runtime-preview-unsupported.png`, and `runtime-vlc-missing.png`.
 - Resume persistence: a final playback position resolves again after reopening the video.
 
 The recorded `1/1` XCUITest signs in through the real session transition using a deterministic OAuth callback, browses root folder `0` and folder `410`, and opens video `411`. The first MP4 conversion start fails transiently and reaches the retryable error state. Retry starts conversion, observes queued and converting states, completes, resolves the SDK-owned playback source again, and loads valid HLS through the process-local loopback server until `AVPlayerItem` reports `readyToPlay`. The test dismisses playback, returns to root with the native Back control, opens Account, and signs out.
@@ -95,6 +95,11 @@ build/proof/<run-id>/ios/
 ├── runtime-sorted-root.png
 ├── runtime-account-rating.png
 ├── runtime-audio-player.png
+├── runtime-preview-error.png
+├── runtime-preview-image.png
+├── runtime-preview-document.png
+├── runtime-preview-unsupported.png
+├── runtime-vlc-missing.png
 ├── runtime-playback-preferences.png
 ├── runtime-file-preferences.png
 ├── runtime-file-preferences-refresh.png
@@ -115,7 +120,7 @@ build/proof/<run-id>/ios/
 
 Failed journeys retain local diagnostics, including failed `.xcresult` bundles, under the run directory. They emit no success manifest; inspect them locally and choose a new run ID for the retry. Only reviewed successful proof is published.
 
-The journey requires each preflight and the recorded UI test to pass exactly `1/1`. It requires twenty-one meaningful screenshots, including file actions, sign-out recovery, and all three Trash states, and different sign-in and playback frames. One `simctl recordVideo` stream starts before the recorded test and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 45 seconds and removes raw/intermediate capture files after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
+The journey requires each preflight and the recorded UI test to pass exactly `1/1`. It requires twenty-six meaningful screenshots, including file actions, sign-out recovery, and all three Trash states, and different sign-in and playback frames. One `simctl recordVideo` stream starts before the recorded test and stops immediately after it exits. The harness publishes at most one second of stable initial sign-in context, re-encodes through the first stable post-sign-out frame, and requires the playback landmark between those matching endpoint screens. It rejects a recording longer than 45 seconds and removes raw/intermediate capture files after extraction. Startup, relaunch setup, and teardown outside the screenshot-matched window never enter the published walk.
 
 Capture never uploads implicitly. Publish one reviewed artifact only after a pull request exists:
 

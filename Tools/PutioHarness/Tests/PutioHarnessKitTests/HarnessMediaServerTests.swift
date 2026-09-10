@@ -90,6 +90,20 @@ private final class StopCounter: @unchecked Sendable {
       == "bytes 2-4/6"
   )
 
+  let image = Data([0x89, 0x50, 0x4E, 0x47])
+  try image.write(to: directory.appending(path: "runtime-proof-image.png"))
+  let document = Data("%PDF-1.4".utf8)
+  try document.write(to: directory.appending(path: "runtime-proof-document.pdf"))
+  for (name, contentType, expected) in [
+    ("runtime-proof-image.png", "image/png", image),
+    ("runtime-proof-document.pdf", "application/pdf", document),
+  ] {
+    let (data, response) = try await URLSession.shared.data(from: baseURL.appending(path: name))
+    #expect(data == expected)
+    #expect(
+      (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type") == contentType)
+  }
+
   let (_, missingResponse) = try await URLSession.shared.data(
     from: baseURL.appending(path: "../not-allowlisted")
   )
