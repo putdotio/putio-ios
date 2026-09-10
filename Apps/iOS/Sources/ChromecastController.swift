@@ -103,6 +103,8 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     loadedFileID = nil
     let subtitles = media.subtitles
     let builder = GCKMediaInformationBuilder(contentURL: media.url)
+    // HLS keeps the current app's proven `.none`: put.io playlists carry no
+    // stable duration and the receiver derives seekability from the stream.
     builder.streamType = media.playbackType == .hls ? .none : .buffered
     builder.contentType = media.playbackType == .hls ? "application/x-mpegURL" : "video/mp4"
     if media.durationSeconds > 0 { builder.streamDuration = media.durationSeconds }
