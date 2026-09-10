@@ -31,6 +31,12 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   /// Set by the app delegate when iOS relaunches us for session events.
   static var backgroundCompletion: (() -> Void)?
 
+  /// Forces the shared session into existence so a background relaunch that
+  /// never reaches the signed-in shell still receives its events.
+  static func activateBackgroundSession() {
+    _ = sharedSession
+  }
+
   /// SwiftUI evaluates `State(initialValue:)` on every parent update, so
   /// engines are constructed more often than they are used. Only the engine
   /// that actually owns tasks claims the relay, at the moments it takes them.
@@ -168,12 +174,21 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     onLocation?(fileID, url)
   }
 
-  fileprivate func handleCompletion(_ fileID: PutioFileID, _ error: Error?) {
+  /// Completions for a task the map has already replaced are stale and must
+  /// not touch the replacement's bookkeeping.
+  fileprivate func handleCompletion(
+    _ fileID: PutioFileID, task: URLSessionTask, _ error: Error?
+  ) {
+    if let current = tasks[fileID], current !== task { return }
     tasks[fileID] = nil
     progressObservations[fileID] = nil
     // A cancelled task is a queue decision; the queue already knows.
     if let error, (error as? URLError)?.code == .cancelled { return }
     onFinished?(fileID, error)
+  }
+
+  fileprivate func isCurrent(_ task: URLSessionTask, for fileID: PutioFileID) -> Bool {
+    tasks[fileID] === task
   }
 }
 
@@ -209,7 +224,12 @@ private final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate
     didFinishDownloadingTo location: URL
   ) {
     guard let fileID = Self.fileID(assetDownloadTask) else { return }
-    Task { @MainActor in self.engine?.handleLocation(fileID, location) }
+    Task { @MainActor in
+      guard let engine = self.engine, engine.isCurrent(assetDownloadTask, for: fileID) else {
+        return
+      }
+      engine.handleLocation(fileID, location)
+    }
   }
 
   /// Configuration-based tasks announce the final location up front.
@@ -217,7 +237,12 @@ private final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate
     _ session: URLSession, assetDownloadTask: AVAssetDownloadTask, willDownloadTo location: URL
   ) {
     guard let fileID = Self.fileID(assetDownloadTask) else { return }
-    Task { @MainActor in self.engine?.handleLocation(fileID, location) }
+    Task { @MainActor in
+      guard let engine = self.engine, engine.isCurrent(assetDownloadTask, for: fileID) else {
+        return
+      }
+      engine.handleLocation(fileID, location)
+    }
   }
 
   func urlSession(
@@ -227,7 +252,7 @@ private final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate
 
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
     guard let fileID = Self.fileID(task) else { return }
-    Task { @MainActor in self.engine?.handleCompletion(fileID, error) }
+    Task { @MainActor in self.engine?.handleCompletion(fileID, task: task, error) }
   }
 
   func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {

@@ -225,6 +225,51 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertTrue(engine.started.isEmpty, "a paused item must not start a download")
   }
 
+  func testResumeAtTheLimitWaitsForASlot() async {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(1)
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    await settle()
+    engine.onProgress?(PutioFileID(rawValue: 1), 0.5)
+    queue.pause(fileID: PutioFileID(rawValue: 1))
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1, 2])
+    queue.resume(fileID: PutioFileID(rawValue: 1))
+    XCTAssertTrue(engine.resumed.isEmpty, "no slot was free")
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .paused(progress: 0.5))
+    engine.finish(PutioFileID(rawValue: 2), at: directory)
+    await settle()
+    XCTAssertEqual(engine.resumed, [PutioFileID(rawValue: 1)])
+    XCTAssertEqual(engine.started.count, 2, "the suspended task resumed without a restart")
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .downloading(progress: 0.5))
+  }
+
+  func testFailedDownloadsDropTheirPartialPackage() async throws {
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    await settle()
+    let location = directory.appending(path: "partial.movpkg")
+    try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+    try Data(count: 64).write(to: location.appending(path: "seg.bin"))
+    engine.onLocation?(PutioFileID(rawValue: 1), location)
+    engine.onFinished?(PutioFileID(rawValue: 1), URLError(.networkConnectionLost))
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .failed(.download))
+    XCTAssertNil(queue.item(for: PutioFileID(rawValue: 1))?.localPath)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: location.path))
+    XCTAssertEqual(queue.storedBytes, 0)
+  }
+
+  func testEstimateBeyondFreeSpaceFailsBeforeStarting() async {
+    let queue = makeQueue(availableBytes: 500_000_000)
+    queue.enqueue(
+      fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video,
+      estimatedBytes: 900_000_000)
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .failed(.storage))
+    XCTAssertTrue(engine.started.isEmpty)
+  }
+
   func testEngineFailureRefillsTheSlot() async {
     let queue = makeQueue()
     queue.setConcurrencyLimit(1)

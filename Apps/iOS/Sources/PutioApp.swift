@@ -45,6 +45,9 @@ final class PutioAppDelegate: NSObject, UIApplicationDelegate {
       return
     }
     PutioSystemOfflineDownloadEngine.backgroundCompletion = completionHandler
+    // A relaunch for download events may never reach the signed-in shell
+    // that builds an engine; the session itself must exist to drain them.
+    PutioSystemOfflineDownloadEngine.activateBackgroundSession()
   }
 }
 
@@ -488,7 +491,9 @@ private struct MainTabView: View {
         preferredLanguages: PutioOfflineQueueFactory.preferredLanguages(scenario: scenario),
         onConfirm: { languages in
           trackPicker = nil
-          enqueueDownload(request.route, audioLanguages: languages)
+          enqueueDownload(
+            request.route, audioLanguages: languages,
+            estimatedBytes: request.inventory.estimatedBytes(selecting: languages))
         },
         onCancel: { trackPicker = nil }
       )
@@ -617,12 +622,16 @@ private struct MainTabView: View {
   /// Multi-audio videos go through the picker; everything else queues directly.
   private func requestDownload(_ route: PutioFileRoute) async {
     let kind: PutioOfflineItem.Kind = route.item.kind == .audio ? .audio : .video
+    offlineQueue.refreshStorage()
+    var estimate: Int64 = route.item.sizeBytes
     do {
-      if let inventory = try await offlineQueue.inventory(fileID: route.id, kind: kind),
-        inventory.audioOptions.count > 1
-      {
-        trackPicker = PutioOfflineTrackPickerRequest(route: route, inventory: inventory)
-        return
+      if let inventory = try await offlineQueue.inventory(fileID: route.id, kind: kind) {
+        if inventory.audioOptions.count > 1 {
+          trackPicker = PutioOfflineTrackPickerRequest(route: route, inventory: inventory)
+          return
+        }
+        estimate = inventory.estimatedBytes(
+          selecting: inventory.audioOptions.map(\.languageCode))
       }
     } catch {
       offlineFailure =
@@ -631,13 +640,16 @@ private struct MainTabView: View {
           kind: .resolution, message: "The file could not be inspected. Try again.")
       return
     }
-    enqueueDownload(route, audioLanguages: [])
+    enqueueDownload(route, audioLanguages: [], estimatedBytes: estimate)
   }
 
-  private func enqueueDownload(_ route: PutioFileRoute, audioLanguages: [String]) {
+  private func enqueueDownload(
+    _ route: PutioFileRoute, audioLanguages: [String], estimatedBytes: Int64
+  ) {
     offlineQueue.enqueue(
       fileID: route.id, parentID: route.item.parentID, name: route.item.name,
-      kind: route.item.kind == .audio ? .audio : .video, audioLanguages: audioLanguages)
+      kind: route.item.kind == .audio ? .audio : .video, audioLanguages: audioLanguages,
+      estimatedBytes: estimatedBytes)
     selectedTab = .transfers
     // The seeded journey proves the queue, not the system prompt; the prompt
     // would cover the row in its screenshot.

@@ -259,6 +259,11 @@ struct PutioFileRoute: Identifiable, Hashable, Sendable {
   var supportsExternalPlayback: Bool {
     isPlayable
   }
+
+  /// Media the offline queue can store: the same set the players handle.
+  var supportsOfflineDownload: Bool {
+    isPlayable
+  }
 }
 
 enum PutioFileOpenAction: Equatable, Sendable {

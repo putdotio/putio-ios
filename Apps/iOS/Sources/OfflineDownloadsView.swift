@@ -50,7 +50,10 @@ struct PutioOfflineDownloadsView: View {
       PutioOfflineDetailView(item: queue.item(for: item.id) ?? item)
         .preferredColorScheme(.dark)
     }
-    .task { await queue.restore() }
+    .task {
+      await queue.restore()
+      queue.refreshStorage()
+    }
     .accessibilityIdentifier("downloads.screen")
   }
 
@@ -147,8 +150,10 @@ struct PutioOfflineDownloadsView: View {
       Button {
         queue.resume(fileID: item.id)
       } label: {
-        Label("Resume", systemImage: "play")
+        Label(
+          queue.isWaitingForSlot(item.id) ? "Waiting for a slot" : "Resume", systemImage: "play")
       }
+      .disabled(queue.isWaitingForSlot(item.id))
       .accessibilityIdentifier("downloads.resume.\(item.id.rawValue)")
     case .failed(let failure) where failure.canRetry:
       Button {
@@ -205,7 +210,9 @@ struct PutioOfflineDownloadsView: View {
     case .queued: "Waiting"
     case .converting(let progress): "Converting · \(percent(progress))"
     case .downloading(let progress): "Downloading · \(percent(progress))"
-    case .paused(let progress): "Paused · \(percent(progress))"
+    case .paused(let progress):
+      queue.isWaitingForSlot(item.id)
+        ? "Waiting for a slot · \(percent(progress))" : "Paused · \(percent(progress))"
     case .completed: byteText(item.storedBytes)
     case .failed(let failure): failure.message
     }
