@@ -196,8 +196,9 @@ import Foundation
     nonisolated(unsafe) private static var deepLinkLookupFailed = false
     /// The previews journey opens the image once against a failing lookup so
     /// the error state and retry are exercised before the fixture renders.
-    /// `--putio-harness-offline-positions-fail` makes every start-from set
-    /// return 503 so the downloads journey proves local recording and sync.
+    /// `--putio-harness-offline-positions-fail` makes the seeded root video's
+    /// start-from set return 503 so the downloads journey proves local
+    /// recording and sync; other files keep reporting normally.
     private static var offlinePositionsFail: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-offline-positions-fail")
     }
