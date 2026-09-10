@@ -208,8 +208,13 @@ private final class PreviewStubURLProtocol: URLProtocol, @unchecked Sendable {
 
   override func startLoading() {
     let (status, headers, body) = Self.response
-    let response = HTTPURLResponse(
-      url: request.url!, statusCode: status, httpVersion: nil, headerFields: headers)!
+    guard let url = request.url,
+      let response = HTTPURLResponse(
+        url: url, statusCode: status, httpVersion: nil, headerFields: headers)
+    else {
+      client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+      return
+    }
     client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
     // Deliver in small chunks so the streamed cap trips mid-body.
     var offset = 0
