@@ -816,6 +816,58 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.unreservedBytes, 700_000_000)
   }
 
+  func testEventJournalRoundTripsPerAccount() throws {
+    let dir = FileManager.default.temporaryDirectory.appending(path: "journal-\(UUID())")
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let entries = [
+      PutioOfflineEventJournal.Entry(
+        description: "7:412", location: "/tmp/a.movpkg", completed: true, failed: false),
+      PutioOfflineEventJournal.Entry(
+        description: "8:413", location: nil, completed: false, failed: true),
+    ]
+    PutioOfflineEventJournal.save(entries)
+    XCTAssertEqual(PutioOfflineEventJournal.load(), entries)
+    PutioOfflineEventJournal.save([])
+    XCTAssertTrue(PutioOfflineEventJournal.load().isEmpty)
+  }
+
+  func testSyncPointerSurvivesAWaitersFollowUpPass() async {
+    let gate = AsyncGate()
+    var attempts = 0
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in
+        .ready(PutioPlaybackSource(url: URL(string: "https://media.test/x")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in
+        attempts += 1
+        if attempts == 1 { throw PutioRuntimeError.transient }
+        if attempts == 2 { await gate.wait() }
+      })
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    await settle()
+    engine.finish(PutioFileID(rawValue: 1), at: directory)
+    await settle()
+    await queue.recordPosition(fileID: PutioFileID(rawValue: 1), seconds: 5)
+    let sync1 = Task { await queue.syncPendingPositions() }
+    await settle()
+    let sync2 = Task { await queue.syncPendingPositions() }
+    await settle()
+    // sync1 finished its pass; sync2's follow-up is parked on the gate.
+    // A third caller must join that follow-up, not start a fourth loop.
+    let sync3 = Task { await queue.syncPendingPositions() }
+    await settle()
+    await gate.open()
+    await sync1.value
+    await sync2.value
+    await sync3.value
+    XCTAssertEqual(attempts, 2, "the third caller joined the running pass")
+    XCTAssertEqual(queue.pendingPositionCount, 0)
+  }
+
   func testTaskDescriptionsCarryTheAccount() {
     XCTAssertEqual(PutioSystemOfflineDownloadEngine.parse("7:412")?.accountID, 7)
     XCTAssertEqual(PutioSystemOfflineDownloadEngine.parse("7:412")?.fileID.rawValue, 412)

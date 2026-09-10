@@ -174,6 +174,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   /// keep the newest and cancel the rest.
   func restoreTasks() async -> [PutioFileID] {
     claimRelay()
+    PutioOfflineEventJournal.replay(into: self)
     let restored = await session.allTasks
     var ids: [PutioFileID] = []
     for task in restored {
@@ -209,7 +210,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     onProgress?(fileID, progress)
   }
 
-  fileprivate func handleLocation(_ fileID: PutioFileID, _ url: URL) {
+  func handleLocation(_ fileID: PutioFileID, _ url: URL) {
     onLocation?(fileID, url)
   }
 
@@ -261,7 +262,7 @@ enum PutioOfflineEngineError: Error {
 /// never keeps a stale engine alive. Events that arrive before any engine
 /// has claimed the relay (a background relaunch) are buffered and replayed
 /// to the first engine that restores, so a finished download is recorded.
-private final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
+final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
   @unchecked Sendable
 {
   enum Event {
@@ -356,10 +357,93 @@ private final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate
     Task { @MainActor in self.deliver(.completion(task: task, error: error)) }
   }
 
+  /// Events that arrived while no engine was listening are written to a
+  /// journal before the system completion handler runs, so a suspension right
+  /// after it cannot lose a finished download. The next engine to restore
+  /// replays the journal.
   func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
     Task { @MainActor in
+      PutioOfflineEventJournal.append(self.buffered)
       PutioSystemOfflineDownloadEngine.backgroundCompletion?()
       PutioSystemOfflineDownloadEngine.backgroundCompletion = nil
     }
+  }
+}
+
+/// A tiny on-disk record of location and completion events delivered while
+/// the app was not ready to handle them. Keyed by task description so the
+/// owning account's engine can claim its entries.
+enum PutioOfflineEventJournal {
+  struct Entry: Codable, Equatable {
+    let description: String
+    var location: String?
+    var completed: Bool
+    var failed: Bool
+  }
+
+  static var fileURL: URL {
+    FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+      .appending(path: "OfflineDownloads/events.json")
+  }
+
+  @MainActor static func append(_ events: [PutioOfflineDownloadRelay.Event]) {
+    guard !events.isEmpty else { return }
+    var entries = load()
+    for event in events {
+      guard let description = event.task.taskDescription else { continue }
+      let index = entries.firstIndex { $0.description == description }
+      var entry =
+        index.map { entries[$0] }
+        ?? Entry(description: description, location: nil, completed: false, failed: false)
+      switch event {
+      case .location(_, let url): entry.location = url.path
+      case .completion(_, let error):
+        entry.completed = error == nil
+        entry.failed = error != nil
+      case .progress: continue
+      }
+      if let index { entries[index] = entry } else { entries.append(entry) }
+    }
+    save(entries)
+  }
+
+  static func load() -> [Entry] {
+    guard let data = try? Data(contentsOf: fileURL) else { return [] }
+    return (try? JSONDecoder().decode([Entry].self, from: data)) ?? []
+  }
+
+  static func save(_ entries: [Entry]) {
+    try? FileManager.default.createDirectory(
+      at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+    if entries.isEmpty {
+      try? FileManager.default.removeItem(at: fileURL)
+      return
+    }
+    guard let data = try? JSONEncoder().encode(entries) else { return }
+    try? data.write(to: fileURL, options: .atomic)
+  }
+
+  /// Hands this account's entries to the engine and removes them.
+  @MainActor static func replay(into engine: PutioSystemOfflineDownloadEngine) {
+    var entries = load()
+    var remaining: [Entry] = []
+    for entry in entries {
+      guard let parsed = PutioSystemOfflineDownloadEngine.parse(entry.description),
+        parsed.accountID == engine.accountID
+      else {
+        remaining.append(entry)
+        continue
+      }
+      if let location = entry.location {
+        engine.handleLocation(parsed.fileID, URL(fileURLWithPath: location))
+      }
+      if entry.completed {
+        engine.onFinished?(parsed.fileID, nil)
+      } else if entry.failed {
+        engine.onFinished?(parsed.fileID, URLError(.unknown))
+      }
+    }
+    entries = remaining
+    save(entries)
   }
 }

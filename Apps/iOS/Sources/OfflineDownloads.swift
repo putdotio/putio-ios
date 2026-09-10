@@ -608,7 +608,8 @@ final class PutioOfflineQueue {
     }
     syncTask = task
     await task.value
-    syncTask = nil
+    // A waiter may already have replaced the pointer with its follow-up pass.
+    if syncTask == task { syncTask = nil }
   }
 
   // MARK: Scheduling
