@@ -238,8 +238,10 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
       case .buffering: .buffering
       case .playing: .playing
       case .paused: .paused
-      case .unknown: .idle
-      @unknown default: .idle
+      // Unknown is transitional, not end of playback; only a real idle
+      // status ends the session surface.
+      case .unknown: .loading
+      @unknown default: .loading
       }
     let subtitles = loadedSubtitles
     let activeKey = mediaStatus.activeTrackIDs?.lazy.compactMap { id -> String? in

@@ -390,8 +390,9 @@ final class ChromecastTests: XCTestCase {
   }
 
   func testReceiverIDValidationAndOverride() {
-    let defaults = UserDefaults(suiteName: "ChromecastTests.\(UUID().uuidString)")!
-    defer { defaults.removePersistentDomain(forName: defaults.description) }
+    let suite = "ChromecastTests.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
     XCTAssertTrue(PutioCastReceiver.isValid("CC1AD845"))
     XCTAssertFalse(PutioCastReceiver.isValid("cc1ad845"))
     XCTAssertFalse(PutioCastReceiver.isValid("CC1AD84"))

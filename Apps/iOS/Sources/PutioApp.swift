@@ -1354,7 +1354,8 @@ enum PutioCastControllerFactory {
       if !usesGoogleCast(scenario: scenario) {
         controller = PutioHarnessCastController(
           failLoadsBeforeSuccess: ProcessInfo.processInfo.arguments.contains(
-            "--putio-harness-cast-load-fails-once") ? 1 : 0)
+            "--putio-harness-cast-load-fails-once") ? 1 : 0,
+          hasReceiver: harness)
       } else {
         controller = PutioGoogleCastController()
       }

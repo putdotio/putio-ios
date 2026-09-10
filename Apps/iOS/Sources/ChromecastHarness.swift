@@ -25,8 +25,11 @@
     @ObservationIgnored private var failuresRemaining: Int
     @ObservationIgnored private var clock: Task<Void, Never>?
 
-    init(failLoadsBeforeSuccess: Int = 0) {
+    /// Gallery and exercised launches configure no Cast context and show no
+    /// Cast control, so their stub reports no receiver at all.
+    init(failLoadsBeforeSuccess: Int = 0, hasReceiver: Bool = true) {
       failuresRemaining = failLoadsBeforeSuccess
+      connection = hasReceiver ? .disconnected : .unavailable
     }
 
     func presentDevicePicker() {
