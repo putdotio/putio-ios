@@ -83,9 +83,14 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
       NotificationCenter.default.removeObserver(castStateObservation)
     }
     // Nothing can complete these once the delegate is gone; resume them so
-    // awaiting tasks do not hang teardown.
-    for request in pendingRequestObjects.values { request.cancel() }
-    for continuation in pendingRequests.values {
+    // awaiting tasks do not hang teardown. Tables are drained first so a late
+    // delegate callback for a cancelled request finds nothing to resume.
+    let abandoned = Array(pendingRequestObjects.values)
+    pendingRequestObjects.removeAll()
+    let continuations = Array(pendingRequests.values)
+    pendingRequests.removeAll()
+    for request in abandoned { request.cancel() }
+    for continuation in continuations {
       continuation.resume(throwing: PutioCastControllerError(failure: .receiver))
     }
   }
@@ -199,10 +204,12 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     }
   }
 
+  /// Continuations leave the table before anything resumes them, so a late
+  /// delegate callback for a cancelled request finds nothing to resume.
   private func abandonPendingRequests() {
-    let abandoned = pendingRequestObjects.values
+    let abandoned = Array(pendingRequestObjects.values)
     pendingRequestObjects.removeAll()
-    let continuations = pendingRequests.values
+    let continuations = Array(pendingRequests.values)
     pendingRequests.removeAll()
     for request in abandoned { request.cancel() }
     for continuation in continuations {

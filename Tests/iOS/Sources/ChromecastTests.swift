@@ -392,6 +392,10 @@ final class ChromecastTests: XCTestCase {
   func testReceiverIDComesFromTheBundleWithAPublicFallback() {
     XCTAssertEqual(PutioCastReceiver.appID(bundle: Bundle(for: ChromecastTests.self)), "CC1AD845")
     XCTAssertEqual(PutioCastReceiver.appID(bundle: .main), "CC1AD845")
+    XCTAssertTrue(PutioCastReceiver.isValid("ABCD1234"))
+    for bad in ["$(PUTIO_CHROMECAST_RECEIVER_APP_ID)", "abcd1234", "ABCD123", "ABCD123G", ""] {
+      XCTAssertFalse(PutioCastReceiver.isValid(bad), bad)
+    }
   }
 
   func testClockFormatting() {

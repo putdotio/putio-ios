@@ -597,9 +597,16 @@ extension PutioCastFailure {
 enum PutioCastReceiver {
   static let fallbackAppID = "CC1AD845"
 
+  /// Receiver IDs are eight uppercase hexadecimal characters; anything else
+  /// (including an unexpanded build-setting placeholder) falls back.
   static func appID(bundle: Bundle = .main) -> String {
     let configured = bundle.object(forInfoDictionaryKey: "PUTIO_CHROMECAST_RECEIVER_APP_ID")
     let trimmed = (configured as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-    return trimmed.isEmpty ? fallbackAppID : trimmed
+    return isValid(trimmed) ? trimmed : fallbackAppID
+  }
+
+  static func isValid(_ candidate: String) -> Bool {
+    candidate.count == 8
+      && candidate.allSatisfy { $0.isHexDigit && ($0.isNumber || $0.isUppercase) }
   }
 }
