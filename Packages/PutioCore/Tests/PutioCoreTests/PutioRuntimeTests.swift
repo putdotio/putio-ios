@@ -2296,6 +2296,8 @@ final class PutioRuntimeTests: XCTestCase {
         {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/en?oauth_token=stored-token"},
         {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/tr"},
         {"key":"tr","language":"Turkish","language_code":"tur","name":"Dup.srt","source":"x","url":"https://api.put.io/v2/files/412/subtitles/tr"},
+        {"key":"de","language":"German","language_code":"ger","name":"Other.srt","source":"x","url":"https://evil.example/v2/files/412/subtitles/de"},
+        {"key":"fr","language":"French","language_code":"fre","name":"Plain.srt","source":"x","url":"http://api.put.io/v2/files/412/subtitles/fr"},
         {"key":"","language":"","language_code":"","name":"","source":"","url":""}
       ]}
       """, for: "GET /v2/files/412/subtitles")
@@ -2309,7 +2311,9 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(converted.parentID, PutioFileID(rawValue: 7))
     XCTAssertNil(converted.artworkURL, "insecure artwork is dropped")
     XCTAssertEqual(converted.url.path, "/v2/files/412/mp4/download")
-    XCTAssertEqual(converted.subtitles.map(\.key), ["en", "tr"])
+    XCTAssertEqual(
+      converted.subtitles.map(\.key), ["en", "tr"],
+      "duplicate, foreign-host, and plain-http tracks never carry the token")
     XCTAssertEqual(converted.defaultSubtitleKey, "tr")
     let subtitle = try XCTUnwrap(
       URLComponents(url: converted.subtitles[0].url, resolvingAgainstBaseURL: false))

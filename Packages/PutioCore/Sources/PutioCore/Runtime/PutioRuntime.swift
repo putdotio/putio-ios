@@ -520,13 +520,18 @@ public final class PutioRuntime {
       let response = try await performAuthenticatedOperation {
         try await sdk.getSubtitles(fileID: fileID.rawValue)
       }
+      // The receiver fetches tracks itself, without the app's header, so the
+      // token rides on the URL; only the API host may receive it.
+      let apiHost = URL(string: sdk.config.baseURL)?.host
       var keys = Set<String>()
       let subtitles = response.subtitles.compactMap { subtitle -> PutioCastSubtitle? in
         guard !subtitle.key.isEmpty, keys.insert(subtitle.key).inserted,
-          var components = URLComponents(string: subtitle.url), components.scheme == "https"
+          var components = URLComponents(string: subtitle.url), components.scheme == "https",
+          let apiHost, components.host == apiHost
         else { return nil }
-        // The receiver fetches tracks itself, without the app's header.
-        var items = (components.queryItems ?? []).filter { $0.name != "oauth_token" }
+        var items = (components.queryItems ?? []).filter {
+          $0.name != "oauth_token" && $0.name != "format"
+        }
         items.append(URLQueryItem(name: "oauth_token", value: token))
         items.append(URLQueryItem(name: "format", value: "webvtt"))
         components.queryItems = items
