@@ -724,6 +724,46 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(engine.started.map(\.0.rawValue), [1])
   }
 
+  func testReQueueDropsThePreviousPartialPackage() async throws {
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 70), parentID: .root, name: "t", kind: .video)
+    await settle()
+    let location = directory.appending(path: "partial-70.movpkg")
+    try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+    try Data(count: 64).write(to: location.appending(path: "seg.bin"))
+    engine.onLocation?(PutioFileID(rawValue: 70), location)
+    engine.onProgress?(PutioFileID(rawValue: 70), 0.3)
+    engine.onCancelled?(PutioFileID(rawValue: 70))
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 70))?.stage, .paused(progress: 0.3))
+    queue.resume(fileID: PutioFileID(rawValue: 70))
+    await settle()
+    XCTAssertEqual(engine.started.count, 2)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: location.path))
+    XCTAssertNil(queue.item(for: PutioFileID(rawValue: 70))?.localPath)
+  }
+
+  func testHLSPackageIsCompleteOnlyWhenEverySegmentExists() throws {
+    let package = directory.appending(path: "check.movpkg")
+    try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
+    try Data("#EXTM3U\n#EXTINF:10,\nseg-0.ts\n#EXTINF:10,\nseg-1.ts\n#EXT-X-ENDLIST\n".utf8)
+      .write(to: package.appending(path: "index.m3u8"))
+    try Data(count: 8).write(to: package.appending(path: "seg-0.ts"))
+    XCTAssertFalse(PutioOfflineQueue.packageIsComplete(at: package))
+    try Data(count: 8).write(to: package.appending(path: "seg-1.ts"))
+    XCTAssertTrue(PutioOfflineQueue.packageIsComplete(at: package))
+    try Data().write(to: package.appending(path: "seg-1.ts"))
+    XCTAssertFalse(PutioOfflineQueue.packageIsComplete(at: package))
+  }
+
+  func testUnreservedBytesSubtractInFlightEstimates() async {
+    let queue = makeQueue(availableBytes: 1_000_000_000)
+    queue.enqueue(
+      fileID: PutioFileID(rawValue: 71), parentID: .root, name: "u", kind: .video,
+      estimatedBytes: 300_000_000)
+    await settle()
+    XCTAssertEqual(queue.unreservedBytes, 700_000_000)
+  }
+
   func testTaskDescriptionsCarryTheAccount() {
     XCTAssertEqual(PutioSystemOfflineDownloadEngine.parse("7:412")?.accountID, 7)
     XCTAssertEqual(PutioSystemOfflineDownloadEngine.parse("7:412")?.fileID.rawValue, 412)

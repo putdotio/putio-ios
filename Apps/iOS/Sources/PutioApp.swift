@@ -488,7 +488,7 @@ private struct MainTabView: View {
     .sheet(item: $trackPicker) { request in
       PutioOfflineTrackPickerView(
         name: request.route.item.name, inventory: request.inventory,
-        availableBytes: offlineQueue.availableBytes,
+        availableBytes: offlineQueue.unreservedBytes,
         preferredLanguages: PutioOfflineQueueFactory.preferredLanguages(scenario: scenario),
         onConfirm: { languages in
           trackPicker = nil

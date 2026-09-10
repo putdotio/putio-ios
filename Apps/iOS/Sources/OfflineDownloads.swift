@@ -658,15 +658,14 @@ final class PutioOfflineQueue {
       availableBytes = free
       // Other active downloads have not written their bytes yet; their
       // estimates come off the free space before this one is admitted.
-      let reserved =
-        items
-        .filter { $0.id != fileID && ($0.isActive || workers[$0.id] != nil) }
-        .map { max(0, $0.estimatedBytes - $0.storedBytes) }
-        .reduce(0, +)
+      let reserved = reservedBytes(excluding: fileID)
       guard Self.fits(estimatedBytes: current.estimatedBytes, freeBytes: free - reserved) else {
         fail(fileID, .storage)
         return
       }
+      // A restart never reuses a package from an earlier attempt; the new
+      // task writes to a fresh destination and the old bytes would leak.
+      deleteLocalAsset(for: fileID)
       update(fileID) {
         $0.stage = .downloading(progress: 0)
         $0.resumePositionSeconds = source.startFromSeconds
@@ -817,6 +816,19 @@ final class PutioOfflineQueue {
     recomputeStorage()
   }
 
+  /// Free space after other in-flight downloads take their share: the figure
+  /// both the picker and the start gate compare an estimate against.
+  var unreservedBytes: Int64 {
+    availableBytes - reservedBytes(excluding: nil)
+  }
+
+  private func reservedBytes(excluding fileID: PutioFileID?) -> Int64 {
+    items
+      .filter { $0.id != fileID && ($0.isActive || workers[$0.id] != nil) }
+      .map { max(0, $0.estimatedBytes - $0.storedBytes) }
+      .reduce(0, +)
+  }
+
   /// A failure that lands after the user paused keeps the pause; the retry
   /// path re-queues from there.
   private func fail(_ fileID: PutioFileID, _ failure: PutioOfflineFailure) {
@@ -879,14 +891,41 @@ final class PutioOfflineQueue {
     return total
   }
 
-  /// A package is finished when AVFoundation reports it playable with a
-  /// finite duration; a partial download fails one of those.
+  /// A package is finished when AVFoundation can play it with a finite
+  /// duration and, for an HLS package, every segment its playlists name is
+  /// on disk. `isPlayable` alone turns true once the playlists exist, long
+  /// before the media does.
   nonisolated static func assetIsPlayable(at url: URL) async -> Bool {
     let asset = AVURLAsset(url: url)
-    guard let (playable, duration) = try? await asset.load(.isPlayable, .duration) else {
-      return false
+    guard let (playable, duration) = try? await asset.load(.isPlayable, .duration),
+      playable, duration.isNumeric, duration.seconds > 0
+    else { return false }
+    return packageIsComplete(at: url)
+  }
+
+  /// Walks every `.m3u8` in a `.movpkg` and checks each referenced segment
+  /// resolves to a non-empty file. Non-HLS packages pass trivially.
+  nonisolated static func packageIsComplete(at url: URL, fileManager: FileManager = .default)
+    -> Bool
+  {
+    guard let enumerator = fileManager.enumerator(at: url, includingPropertiesForKeys: nil) else {
+      return true
     }
-    return playable && duration.isNumeric && duration.seconds > 0
+    var playlists: [URL] = []
+    for case let file as URL in enumerator where file.pathExtension == "m3u8" {
+      playlists.append(file)
+    }
+    for playlist in playlists {
+      guard let text = try? String(contentsOf: playlist, encoding: .utf8) else { return false }
+      for line in text.split(separator: "\n") {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, !trimmed.hasPrefix("#"), !trimmed.contains("://") else { continue }
+        let segment = playlist.deletingLastPathComponent().appending(path: trimmed)
+        let size = (try? segment.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+        guard size > 0 else { return false }
+      }
+    }
+    return true
   }
 
   nonisolated static func storedTracks(at url: URL) async
