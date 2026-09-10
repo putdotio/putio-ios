@@ -525,10 +525,11 @@ public final class PutioRuntime {
         guard !subtitle.key.isEmpty, keys.insert(subtitle.key).inserted,
           var components = URLComponents(string: subtitle.url), components.scheme == "https"
         else { return nil }
-        components.queryItems =
-          (components.queryItems ?? []) + [
-            URLQueryItem(name: "format", value: "webvtt")
-          ]
+        // The receiver fetches tracks itself, without the app's header.
+        var items = (components.queryItems ?? []).filter { $0.name != "oauth_token" }
+        items.append(URLQueryItem(name: "oauth_token", value: token))
+        items.append(URLQueryItem(name: "format", value: "webvtt"))
+        components.queryItems = items
         guard let url = components.url else { return nil }
         return PutioCastSubtitle(
           key: subtitle.key, language: subtitle.language, languageCode: subtitle.languageCode,

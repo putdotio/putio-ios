@@ -2294,7 +2294,7 @@ final class PutioRuntimeTests: XCTestCase {
       """
       {"default":"tr","subtitles":[
         {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/en?oauth_token=stored-token"},
-        {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/tr?oauth_token=stored-token"},
+        {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/tr"},
         {"key":"tr","language":"Turkish","language_code":"tur","name":"Dup.srt","source":"x","url":"https://api.put.io/v2/files/412/subtitles/tr"},
         {"key":"","language":"","language_code":"","name":"","source":"","url":""}
       ]}
@@ -2314,7 +2314,12 @@ final class PutioRuntimeTests: XCTestCase {
     let subtitle = try XCTUnwrap(
       URLComponents(url: converted.subtitles[0].url, resolvingAgainstBaseURL: false))
     XCTAssertEqual(subtitle.queryItems?.map(\.name), ["oauth_token", "format"])
-    XCTAssertEqual(subtitle.queryItems?.last?.value, "webvtt")
+    XCTAssertEqual(subtitle.queryItems?.map(\.value), ["stored-token", "webvtt"])
+    let untokened = try XCTUnwrap(
+      URLComponents(url: converted.subtitles[1].url, resolvingAgainstBaseURL: false))
+    XCTAssertEqual(
+      untokened.queryItems?.map(\.value), ["stored-token", "webvtt"],
+      "the receiver fetches tracks without the app's header")
     XCTAssertFalse(String(reflecting: converted).contains("stored-token"))
 
     RuntimeMockURLProtocol.setFixture(file(false, false), for: "GET /v2/files/412")

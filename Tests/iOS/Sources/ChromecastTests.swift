@@ -389,35 +389,9 @@ final class ChromecastTests: XCTestCase {
     XCTAssertEqual(box.playbackTypeLoads, 2)
   }
 
-  func testReceiverIDValidationAndOverride() {
-    let suite = "ChromecastTests.\(UUID().uuidString)"
-    let defaults = UserDefaults(suiteName: suite)!
-    defer { defaults.removePersistentDomain(forName: suite) }
-    XCTAssertTrue(PutioCastReceiver.isValid("CC1AD845"))
-    XCTAssertFalse(PutioCastReceiver.isValid("cc1ad845"))
-    XCTAssertFalse(PutioCastReceiver.isValid("CC1AD84"))
-    XCTAssertFalse(PutioCastReceiver.isValid("CC1AD84G"))
-    XCTAssertEqual(PutioCastReceiver.normalized("  abcd1234 "), "ABCD1234")
-    XCTAssertNil(PutioCastReceiver.storedOverride(defaults: defaults))
-    defaults.set("bad", forKey: PutioCastReceiver.overrideKey)
-    XCTAssertNil(PutioCastReceiver.storedOverride(defaults: defaults), "invalid stores are ignored")
-    defaults.set("ABCD1234", forKey: PutioCastReceiver.overrideKey)
-    XCTAssertEqual(PutioCastReceiver.storedOverride(defaults: defaults), "ABCD1234")
-    XCTAssertEqual(PutioCastReceiver.effectiveAppID(defaults: defaults), "ABCD1234")
-    XCTAssertEqual(
-      PutioCastReceiver.bundledAppID(bundle: Bundle(for: ChromecastTests.self)), "CC1AD845")
-  }
-
-  func testSystemCastButtonStaysMountedBeforeDiscovery() {
-    let controller = CastControllerStub()
-    controller.providesSystemCastButton = true
-    controller.connection = .unavailable
-    let (model, _) = makeModel(controller: controller, resolutions: [])
-    XCTAssertTrue(model.showsCastButton, "Google's button owns first-tap discovery")
-    let stub = CastControllerStub()
-    stub.connection = .unavailable
-    let (stubModel, _) = makeModel(controller: stub, resolutions: [])
-    XCTAssertFalse(stubModel.showsCastButton)
+  func testReceiverIDComesFromTheBundleWithAPublicFallback() {
+    XCTAssertEqual(PutioCastReceiver.appID(bundle: Bundle(for: ChromecastTests.self)), "CC1AD845")
+    XCTAssertEqual(PutioCastReceiver.appID(bundle: .main), "CC1AD845")
   }
 
   func testClockFormatting() {

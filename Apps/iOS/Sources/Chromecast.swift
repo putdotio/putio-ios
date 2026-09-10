@@ -591,35 +591,15 @@ extension PutioCastFailure {
   }
 }
 
-/// The receiver app identifier, resolved from the build setting with an
-/// optional local override. Google's Cast context is configured once per
-/// process, so an override applies at the next launch.
+/// The receiver app identifier. It is a build setting because iOS scopes
+/// Cast discovery to the `_<id>._googlecast._tcp` Bonjour service declared
+/// in Info.plist, which cannot change at runtime.
 enum PutioCastReceiver {
-  static let overrideKey = "putio.cast.receiver-app-id"
   static let fallbackAppID = "CC1AD845"
 
-  static func bundledAppID(bundle: Bundle = .main) -> String {
+  static func appID(bundle: Bundle = .main) -> String {
     let configured = bundle.object(forInfoDictionaryKey: "PUTIO_CHROMECAST_RECEIVER_APP_ID")
     let trimmed = (configured as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     return trimmed.isEmpty ? fallbackAppID : trimmed
-  }
-
-  static func storedOverride(defaults: UserDefaults = .standard) -> String? {
-    guard let stored = defaults.string(forKey: overrideKey), isValid(stored) else { return nil }
-    return stored
-  }
-
-  static func effectiveAppID(bundle: Bundle = .main, defaults: UserDefaults = .standard) -> String {
-    storedOverride(defaults: defaults) ?? bundledAppID(bundle: bundle)
-  }
-
-  /// Receiver IDs are 8 uppercase hexadecimal characters.
-  static func isValid(_ candidate: String) -> Bool {
-    candidate.count == 8
-      && candidate.allSatisfy { $0.isHexDigit && ($0.isNumber || $0.isUppercase) }
-  }
-
-  static func normalized(_ candidate: String) -> String {
-    candidate.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
   }
 }

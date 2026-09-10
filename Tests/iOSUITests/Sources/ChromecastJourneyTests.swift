@@ -32,24 +32,10 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertEqual(playbackType.value as? String, "HLS", "a failed save flipped the local value")
     pick(playbackType, "MP4", expecting: "MP4")
     XCTAssertTrue(element("cast-settings.save-failure").waitForNonExistence(timeout: 5))
-    let receiver = app.textFields.matching(identifier: "cast-settings.receiver").firstMatch
+    let receiver = element("cast-settings.receiver")
     XCTAssertTrue(receiver.waitForExistence(timeout: 5))
-    receiver.tap()
-    receiver.typeText("nope")
-    app.buttons["cast-settings.receiver.save"].tap()
-    XCTAssertTrue(
-      app.staticTexts["Enter the 8-character receiver app ID."].waitForExistence(timeout: 5))
-    receiver.tap()
-    receiver.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 4) + "abcd1234")
-    app.buttons["cast-settings.receiver.save"].tap()
-    let footer = element("cast-settings.receiver.footer")
-    XCTAssertTrue(
-      waitUntil(timeout: 5) { (footer.label).contains("ABCD1234") },
-      "receiver override did not apply: \(footer.label)")
-    if app.keyboards.count > 0 { app.buttons["Return"].firstMatch.tap() }
+    XCTAssertEqual(receiver.value as? String, "CC1AD845")
     screenshot("runtime-cast-settings")
-    app.buttons["cast-settings.receiver.reset"].tap()
-    XCTAssertTrue(waitUntil(timeout: 5) { footer.label.contains("built-in receiver") })
     app.navigationBars.buttons["BackButton"].tap()
 
     // Connect through the stub picker from the Files toolbar.

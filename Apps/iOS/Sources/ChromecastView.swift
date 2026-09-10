@@ -310,23 +310,10 @@ struct PutioCastControlsView: View {
 }
 
 /// The feature-owned Chromecast settings: the server-side playback type and
-/// the local receiver override. Account settings link here.
+/// the receiver this build discovers. Account settings link here.
 struct PutioCastPreferencesView: View {
   let model: PutioCastModel
-  @State private var receiverDraft: String
-  @State private var receiverOverride: String?
-  @State private var receiverError: String?
-  private let bundledAppID: String
-  private let defaults: UserDefaults
-
-  init(model: PutioCastModel, defaults: UserDefaults = .standard) {
-    self.model = model
-    self.defaults = defaults
-    bundledAppID = PutioCastReceiver.bundledAppID()
-    let override = PutioCastReceiver.storedOverride(defaults: defaults)
-    _receiverOverride = State(initialValue: override)
-    _receiverDraft = State(initialValue: override ?? "")
-  }
+  private let receiverAppID = PutioCastReceiver.appID()
 
   var body: some View {
     Form {
@@ -365,33 +352,13 @@ struct PutioCastPreferencesView: View {
       }
       .listRowBackground(PutioTheme.Colors.surface)
       Section {
-        PutioFormField(
-          label: "Receiver app ID", placeholder: bundledAppID, text: $receiverDraft,
-          errorText: receiverError
-        )
-        .textInputAutocapitalization(.characters)
-        .autocorrectionDisabled()
-        .accessibilityIdentifier("cast-settings.receiver")
-        .onChange(of: receiverDraft) { _, _ in receiverError = nil }
-        Button("Save receiver") { saveReceiver() }
-          .disabled(PutioCastReceiver.normalized(receiverDraft) == (receiverOverride ?? ""))
-          .accessibilityIdentifier("cast-settings.receiver.save")
-        if receiverOverride != nil {
-          Button("Use default receiver", role: .destructive) {
-            receiverDraft = ""
-            saveReceiver()
-          }
-          .accessibilityIdentifier("cast-settings.receiver.reset")
-        }
-      } header: {
-        Text("Receiver")
+        LabeledContent("Receiver app ID", value: receiverAppID)
+          .accessibilityElement(children: .ignore)
+          .accessibilityLabel("Receiver app ID")
+          .accessibilityValue(receiverAppID)
+          .accessibilityIdentifier("cast-settings.receiver")
       } footer: {
-        Text(
-          receiverOverride == nil
-            ? "Using the built-in receiver. A custom receiver applies the next time the app launches."
-            : "Custom receiver \(receiverOverride ?? "") applies the next time the app launches."
-        )
-        .accessibilityIdentifier("cast-settings.receiver.footer")
+        Text("Discovery is limited to this receiver; it is fixed per build.")
       }
       .listRowBackground(PutioTheme.Colors.surface)
     }
@@ -399,24 +366,5 @@ struct PutioCastPreferencesView: View {
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
     .task { await model.loadPlaybackTypeIfNeeded() }
-  }
-
-  private func saveReceiver() {
-    let candidate = PutioCastReceiver.normalized(receiverDraft)
-    if candidate.isEmpty {
-      defaults.removeObject(forKey: PutioCastReceiver.overrideKey)
-      receiverOverride = nil
-      receiverDraft = ""
-      receiverError = nil
-      return
-    }
-    guard PutioCastReceiver.isValid(candidate) else {
-      receiverError = "Enter the 8-character receiver app ID."
-      return
-    }
-    defaults.set(candidate, forKey: PutioCastReceiver.overrideKey)
-    receiverOverride = candidate
-    receiverDraft = candidate
-    receiverError = nil
   }
 }

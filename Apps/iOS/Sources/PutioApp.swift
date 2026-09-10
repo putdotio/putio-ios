@@ -13,7 +13,7 @@ struct PutioApp: App {
     // drives a stub receiver instead and never touches the SDK.
     if PutioCastControllerFactory.usesGoogleCast(scenario: scenario) {
       PutioGoogleCastController.configureSharedContext(
-        receiverAppID: PutioCastReceiver.effectiveAppID())
+        receiverAppID: PutioCastReceiver.appID())
     }
   }
 
