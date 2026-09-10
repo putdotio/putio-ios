@@ -499,6 +499,7 @@ private struct MainTabView: View {
       guard let destination else { return }
       deepLinks.consumeDestination()
       dismissPresentedVideo()
+      presentedAudioRoute = nil
       presentedPreviewRoute = nil
       presentedUnsupportedRoute = nil
       switch destination {
@@ -572,15 +573,7 @@ private struct MainTabView: View {
   private func downloadPreview(fileID: PutioFileID) async throws -> Data {
     let source = try await runtime.resolveFileDownloadSource(fileID: fileID)
     let url = try harnessPreviewURL(for: source) ?? source.url
-    let (data, response) = try await URLSession.shared.data(from: url)
-    guard let http = response as? HTTPURLResponse else { throw PutioRuntimeError.invalidResponse }
-    switch http.statusCode {
-    case 200...299: return data
-    case 404: throw PutioRuntimeError.notFound
-    case 429: throw PutioRuntimeError.rateLimited
-    case 408, 500...599: throw PutioRuntimeError.transient
-    default: throw PutioRuntimeError.unknown
-    }
+    return try await PutioPreviewDownloader.download(url)
   }
 
   /// The seeded scenario serves local fixtures instead of api.put.io downloads.

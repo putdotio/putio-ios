@@ -36,7 +36,8 @@ final class FilePreviewTests: XCTestCase {
   func testUnsupportedTypeNamesReadNaturally() {
     XCTAssertEqual(PutioUnsupportedFileView.typeName(for: .other("ARCHIVE")), "archive")
     XCTAssertEqual(PutioUnsupportedFileView.typeName(for: .other("DISK_IMAGE")), "disk image")
-    XCTAssertEqual(PutioUnsupportedFileView.typeName(for: .other("")), "this type of")
+    XCTAssertNil(PutioUnsupportedFileView.typeName(for: .other("")))
+    XCTAssertNil(PutioUnsupportedFileView.typeName(for: .other("  ")))
   }
 
   func testImagePreviewDecodesRetriesAndReportsUnreadableData() async throws {
@@ -86,6 +87,36 @@ final class FilePreviewTests: XCTestCase {
     await loaded.load()
     guard case .document(let document) = loaded.state else { return XCTFail("\(loaded.state)") }
     XCTAssertEqual(document.pageCount, 1)
+  }
+
+  func testOversizedPreviewsAreRejectedBeforeDecoding() async {
+    let route = PutioPreviewRoute(
+      id: PutioFileID(rawValue: 8), parentID: .root, title: "Huge.png", kind: .image)
+    let model = PutioPreviewModel(route: route) { _ in throw PutioPreviewTooLargeError() }
+    await model.load()
+    guard case .failed(let failure) = model.state else { return XCTFail("\(model.state)") }
+    XCTAssertEqual(failure.kind, .tooLarge)
+    XCTAssertEqual(failure.title, "Image too large to preview")
+  }
+
+  func testReloadCancelsTheInFlightDownload() async {
+    let route = PutioPreviewRoute(
+      id: PutioFileID(rawValue: 9), parentID: .root, title: "Slow.png", kind: .image)
+    var attempts = 0
+    let model = PutioPreviewModel(route: route) { _ in
+      attempts += 1
+      if attempts == 1 {
+        try await Task.sleep(for: .seconds(10))
+        XCTFail("the first download was not cancelled")
+      }
+      return Self.pngData()
+    }
+    let first = Task { await model.load() }
+    await Task.yield()
+    await model.retry()
+    await first.value
+    guard case .image = model.state else { return XCTFail("\(model.state)") }
+    XCTAssertEqual(attempts, 2)
   }
 
   func testSessionLossLeavesThePreviewLoadingForTheSignedOutShell() async {

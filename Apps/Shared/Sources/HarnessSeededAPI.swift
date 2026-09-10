@@ -414,7 +414,10 @@ import Foundation
       }
       if before == nil {
         historyRootLoads += 1
-        if historyRootLoads == 2 { return historyFailure("refresh") }
+        // The refresh failure belongs to the History journey; previews only
+        // need a loaded list to open the image event from.
+        let previews = ProcessInfo.processInfo.arguments.contains("--putio-harness-previews")
+        if historyRootLoads == 2, !previews { return historyFailure("refresh") }
       } else {
         guard before == "807" else {
           return (
@@ -436,7 +439,7 @@ import Foundation
         return
           "{\"id\":\(id),\"user_id\":1,\"type\":\(jsonString(type)),\"created_at\":\(jsonString(formatter.string(from: date)))\(fields.isEmpty ? "" : "," + fields)}"
       }
-      let rows: [(Int, String)]
+      var rows: [(Int, String)]
       if before == nil {
         rows = [
           (
@@ -461,6 +464,16 @@ import Foundation
           ),
           (807, event(807, "future_event")),
         ]
+        if ProcessInfo.processInfo.arguments.contains("--putio-harness-previews") {
+          rows.insert(
+            (
+              811,
+              event(
+                811, "upload",
+                fields:
+                  #""file_name":"Harness Poster.png","file_size":1856,"file_id":\#(imageFileID)"#)
+            ), at: 0)
+        }
       } else {
         rows = [
           (
@@ -560,6 +573,17 @@ import Foundation
               message: "The first search fails for retry proof")
           )
         }
+      }
+      if query == "poster" {
+        return (
+          200,
+          """
+          {"total":2,"files":[
+            \(previewObject(id: imageFileID, name: "Harness Poster.png", type: "IMAGE", size: 1856)),
+            \(previewObject(id: archiveFileID, name: "Harness Bundle.zip", type: "ARCHIVE", size: 4096))
+          ]}
+          """
+        )
       }
       guard query == "harness" || query == "retry" else {
         return (200, #"{"total":0,"files":[]}"#)

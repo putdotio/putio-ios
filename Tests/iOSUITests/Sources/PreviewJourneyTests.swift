@@ -56,6 +56,37 @@ final class PreviewJourneyTests: XCTestCase {
     app.buttons["unsupported.done"].tap()
     XCTAssertTrue(element("unsupported.screen.407").waitForNonExistence(timeout: 5))
 
+    // Search and History dispatch through the same routing table.
+    app.buttons["Search"].tap()
+    let search = app.searchFields.firstMatch
+    XCTAssertTrue(search.waitForExistence(timeout: 5))
+    search.tap()
+    search.typeText("poster\n")
+    let searchImage = element("files.search-item.406")
+    XCTAssertTrue(searchImage.waitForExistence(timeout: 10))
+    searchImage.tap()
+    XCTAssertTrue(element("preview.image").waitForExistence(timeout: 10))
+    app.buttons["preview.done"].tap()
+    let searchArchive = element("files.search-item.407")
+    XCTAssertTrue(searchArchive.waitForExistence(timeout: 5))
+    searchArchive.tap()
+    XCTAssertTrue(element("unsupported.screen.407").waitForExistence(timeout: 5))
+    app.buttons["unsupported.done"].tap()
+    // The Search tab collapses the tab bar; Files restores it.
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 5))
+    let history = app.buttons["History"]
+    XCTAssertTrue(history.waitForExistence(timeout: 5))
+    history.tap()
+    let historyImage = element("history.item.811")
+    XCTAssertTrue(historyImage.waitForExistence(timeout: 10))
+    historyImage.tap()
+    XCTAssertTrue(element("preview.image").waitForExistence(timeout: 10))
+    app.buttons["preview.done"].tap()
+    XCTAssertTrue(element("preview.screen.406").waitForNonExistence(timeout: 5))
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 5))
+
     // VLC handoff without VLC: the explicit not-installed outcome with a store link.
     let requests = element("vlc.requests")
     XCTAssertTrue(requests.waitForExistence(timeout: 5))

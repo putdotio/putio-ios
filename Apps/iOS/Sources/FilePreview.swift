@@ -27,6 +27,7 @@ struct PutioPreviewFailure: Equatable {
     case transient
     case invalidResponse
     case unreadable
+    case tooLarge
     case unknown
   }
 
@@ -36,6 +37,11 @@ struct PutioPreviewFailure: Equatable {
 
   static func resolving(_ error: Error, kind previewKind: PutioPreviewRoute.Kind) -> Self? {
     let noun = previewKind == .image ? "image" : "document"
+    if error is PutioPreviewTooLargeError {
+      return Self(
+        kind: .tooLarge, title: "\(noun.capitalized) too large to preview",
+        message: "Open it on put.io from a browser instead.")
+    }
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired:
       return nil
@@ -77,6 +83,35 @@ struct PutioPreviewFailure: Equatable {
 
 typealias PutioPreviewDownload = @MainActor @Sendable (PutioFileID) async throws -> Data
 
+struct PutioPreviewTooLargeError: Error {}
+
+/// Streams a preview body with a hard byte cap so a large original cannot
+/// exhaust memory. The cap covers every image and document the app previews;
+/// larger files stay on put.io.
+enum PutioPreviewDownloader {
+  static let maximumBytes = 64 * 1024 * 1024
+
+  static func download(_ url: URL, session: URLSession = .shared) async throws -> Data {
+    let (bytes, response) = try await session.bytes(from: url)
+    guard let http = response as? HTTPURLResponse else { throw PutioRuntimeError.invalidResponse }
+    switch http.statusCode {
+    case 200...299: break
+    case 404: throw PutioRuntimeError.notFound
+    case 429: throw PutioRuntimeError.rateLimited
+    case 408, 500...599: throw PutioRuntimeError.transient
+    default: throw PutioRuntimeError.unknown
+    }
+    if http.expectedContentLength > Int64(maximumBytes) { throw PutioPreviewTooLargeError() }
+    var data = Data()
+    data.reserveCapacity(max(0, Int(clamping: http.expectedContentLength)))
+    for try await byte in bytes {
+      data.append(byte)
+      if data.count > maximumBytes { throw PutioPreviewTooLargeError() }
+    }
+    return data
+  }
+}
+
 @MainActor
 @Observable
 final class PutioPreviewModel {
@@ -84,42 +119,61 @@ final class PutioPreviewModel {
   private(set) var state: PutioPreviewState = .loading
   private let download: PutioPreviewDownload
   private var generation: UInt64 = 0
+  private var loadTask: Task<Void, Never>?
 
   init(route: PutioPreviewRoute, download: @escaping PutioPreviewDownload) {
     self.route = route
     self.download = download
   }
 
+  /// A new load cancels the previous one so at most one body is in flight.
   func load() async {
+    loadTask?.cancel()
     generation &+= 1
     let request = generation
     state = .loading
-    do {
-      let data = try await download(route.id)
-      try Task.checkCancellation()
-      guard request == generation else { return }
-      state = Self.decode(data, kind: route.kind)
-    } catch {
-      guard request == generation, !Task.isCancelled, !(error is CancellationError) else {
-        return
+    let task = Task { [weak self] in
+      guard let self else { return }
+      do {
+        let data = try await download(route.id)
+        try Task.checkCancellation()
+        let decoded = try await Self.decode(data, kind: route.kind)
+        guard request == generation, !Task.isCancelled else { return }
+        state = decoded
+      } catch {
+        guard request == generation, !Task.isCancelled, !(error is CancellationError) else {
+          return
+        }
+        guard let failure = PutioPreviewFailure.resolving(error, kind: route.kind) else { return }
+        state = .failed(failure)
       }
-      guard let failure = PutioPreviewFailure.resolving(error, kind: route.kind) else { return }
-      state = .failed(failure)
     }
+    loadTask = task
+    await task.value
   }
 
   func retry() async {
     await load()
   }
 
-  /// Decoding happens off the main actor; UIImage and PDFDocument are immutable
-  /// once created and safe to hand back.
-  nonisolated private static func decode(_ data: Data, kind: PutioPreviewRoute.Kind)
+  func cancel() {
+    loadTask?.cancel()
+    loadTask = nil
+    generation &+= 1
+  }
+
+  /// Images decode and pre-render off the main actor; UIImage is Sendable.
+  /// PDFDocument is not, and PDFKit parses pages lazily on its own threads, so
+  /// the document is created here on the main actor.
+  private static func decode(_ data: Data, kind: PutioPreviewRoute.Kind) async throws
     -> PutioPreviewState
   {
     switch kind {
     case .image:
-      guard let image = UIImage(data: data) else { return .failed(.unreadable(kind: kind)) }
+      let image = await Task.detached(priority: .userInitiated) {
+        UIImage(data: data)?.preparingForDisplay()
+      }.value
+      guard let image else { return .failed(.unreadable(kind: kind)) }
       return .image(image)
     case .pdf:
       guard let document = PDFDocument(data: data), document.pageCount > 0 else {
@@ -158,6 +212,7 @@ struct PutioPreviewView: View {
         }
     }
     .task { await model.load() }
+    .onDisappear { model.cancel() }
     .accessibilityIdentifier("preview.screen.\(model.route.id.rawValue)")
   }
 
@@ -200,6 +255,7 @@ struct PutioZoomableImageView: UIViewRepresentable {
   }
 
   func updateUIView(_ scrollView: PutioZoomingScrollView, context: Context) {
+    // SwiftUI re-runs this on unrelated invalidations; only a new image resets zoom.
     scrollView.update(image: image, title: title)
   }
 }
@@ -231,12 +287,15 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
   required init?(coder: NSCoder) { nil }
 
   func update(image: UIImage, title: String) {
-    imageView.image = image
     imageView.accessibilityLabel = title
+    guard imageView.image !== image else { return }
+    imageView.image = image
     fittedSize = .zero
     setNeedsLayout()
   }
 
+  /// Fits the image into the bounds at 1x so pinch, pan, and double tap act on
+  /// the picture itself; letterboxing lives in the content inset.
   override func layoutSubviews() {
     super.layoutSubviews()
     guard bounds.size != fittedSize, bounds.width > 0, bounds.height > 0 else {
@@ -245,8 +304,13 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
     }
     fittedSize = bounds.size
     zoomScale = 1
-    imageView.frame = CGRect(origin: .zero, size: bounds.size)
-    contentSize = bounds.size
+    let imageSize = imageView.image?.size ?? .zero
+    let scale =
+      imageSize.width > 0 && imageSize.height > 0
+      ? min(bounds.width / imageSize.width, bounds.height / imageSize.height) : 1
+    let fitted = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+    imageView.frame = CGRect(origin: .zero, size: fitted)
+    contentSize = fitted
     center()
   }
 
@@ -319,16 +383,20 @@ struct PutioUnsupportedFileView: View {
   }
 
   private var message: String {
-    let typeName = PutioUnsupportedFileView.typeName(for: route.item.kind)
+    let subject =
+      PutioUnsupportedFileView.typeName(for: route.item.kind).map { "\($0) files" }
+      ?? "this type of file"
     return
-      "put.io for iOS can’t display \(typeName) files yet. You can move, rename, or delete it from Files, or open it on put.io from a browser."
+      "put.io for iOS can’t display \(subject) yet. You can move, rename, or delete it from Files, or open it on put.io from a browser."
   }
 
-  static func typeName(for kind: PutioFileKind) -> String {
+  /// `nil` when the server sent no usable type name.
+  static func typeName(for kind: PutioFileKind) -> String? {
     switch kind {
     case .other(let raw):
       let normalized = raw.replacingOccurrences(of: "_", with: " ").lowercased()
-      return normalized.isEmpty ? "this type of" : normalized
+        .trimmingCharacters(in: .whitespaces)
+      return normalized.isEmpty ? nil : normalized
     case .folder: return "folder"
     case .video: return "video"
     case .audio: return "audio"

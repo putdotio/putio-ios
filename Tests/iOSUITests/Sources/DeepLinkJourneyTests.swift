@@ -46,7 +46,7 @@ final class DeepLinkJourneyTests: XCTestCase {
       app.staticTexts["This link cannot be opened in this app yet."].waitForExistence(timeout: 5))
     app.buttons["link.close"].tap()
 
-    // The PDF lives in the root, so its link reset the Files stack to root.
+    // The PDF lives in the root, so its link resets the Files stack to root.
     app.buttons["Files"].tap()
     XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 5))
     XCTAssertFalse(app.navigationBars.buttons["BackButton"].exists)
