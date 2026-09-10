@@ -156,6 +156,8 @@ private final class PutioBoundedBodyCollector: NSObject, URLSessionDataDelegate,
 
   func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
     let exceeded = lock.withLock {
+      // Chunks that land after the cap trips are dropped, not buffered.
+      guard !tooLarge else { return true }
       body.append(data)
       if body.count > limit { tooLarge = true }
       return tooLarge
@@ -234,8 +236,9 @@ final class PutioPreviewModel {
   /// larger originals so the byte cap also bounds decoded memory.
   static let maximumImagePixels = 4096
 
-  /// Images decode on the generic executor through a structured child call so
-  /// cancelling the load cancels the decode. PDFDocument is not Sendable and
+  /// Images decode on the global concurrent executor through a structured
+  /// `@concurrent` call, so the main actor stays free and cancelling the load
+  /// cancels the decode. PDFDocument is not Sendable and
   /// PDFKit parses pages lazily on its own threads, so it stays on the main
   /// actor.
   private static func decode(_ data: Data, kind: PutioPreviewRoute.Kind) async throws
@@ -255,6 +258,7 @@ final class PutioPreviewModel {
     }
   }
 
+  @concurrent
   nonisolated static func decodeImage(_ data: Data, maximumPixels: Int) async throws -> UIImage? {
     try Task.checkCancellation()
     let sourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
@@ -410,15 +414,22 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
 
   func scrollViewDidZoom(_ scrollView: UIScrollView) { center() }
 
+  /// Zooms 3x into the tapped point of the fitted image. The rect is in the
+  /// image view's own coordinates: its unzoomed bounds divided by the target
+  /// scale, clamped to the picture so the focal point stays on the image.
   @objc private func toggleZoom(_ recognizer: UITapGestureRecognizer) {
     if zoomScale > minimumZoomScale {
       setZoomScale(minimumZoomScale, animated: true)
       return
     }
-    let point = recognizer.location(in: imageView)
     let scale = min(maximumZoomScale, 3)
-    let size = CGSize(width: bounds.width / scale, height: bounds.height / scale)
-    let origin = CGPoint(x: point.x - size.width / 2, y: point.y - size.height / 2)
+    let fitted = imageView.bounds.size
+    guard fitted.width > 0, fitted.height > 0 else { return }
+    let size = CGSize(width: fitted.width / scale, height: fitted.height / scale)
+    let point = recognizer.location(in: imageView)
+    let origin = CGPoint(
+      x: min(max(0, point.x - size.width / 2), fitted.width - size.width),
+      y: min(max(0, point.y - size.height / 2), fitted.height - size.height))
     zoom(to: CGRect(origin: origin, size: size), animated: true)
   }
 
