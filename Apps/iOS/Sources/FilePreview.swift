@@ -156,11 +156,14 @@ private final class PutioBoundedBodyCollector: NSObject, URLSessionDataDelegate,
 
   func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
     let exceeded = lock.withLock {
-      // Chunks that land after the cap trips are dropped, not buffered.
+      // Nothing past the cap is ever buffered, including the chunk that trips it.
       guard !tooLarge else { return true }
+      if body.count + data.count > limit {
+        tooLarge = true
+        return true
+      }
       body.append(data)
-      if body.count > limit { tooLarge = true }
-      return tooLarge
+      return false
     }
     if exceeded { dataTask.cancel() }
   }
@@ -400,6 +403,7 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
     }
     fittedSize = bounds.size
     zoomScale = 1
+    contentOffset = .zero
     let imageSize = imageView.image?.size ?? .zero
     let scale =
       imageSize.width > 0 && imageSize.height > 0
@@ -413,6 +417,14 @@ final class PutioZoomingScrollView: UIScrollView, UIScrollViewDelegate {
   func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
 
   func scrollViewDidZoom(_ scrollView: UIScrollView) { center() }
+
+  func scrollViewDidEndZooming(
+    _ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat
+  ) {
+    // Back at 1x the picture is smaller than the bounds; any leftover pan
+    // offset would park it off-center.
+    if scale <= minimumZoomScale { setContentOffset(.zero, animated: false) }
+  }
 
   /// Zooms 3x into the tapped point of the fitted image. The rect is in the
   /// image view's own coordinates: its unzoomed bounds divided by the target

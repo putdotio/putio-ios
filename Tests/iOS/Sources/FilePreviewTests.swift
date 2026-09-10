@@ -163,6 +163,17 @@ final class FilePreviewTests: XCTestCase {
       url, limit: 16, configuration: configuration)
     XCTAssertEqual(data.count, 12)
 
+    // Exactly at the cap is allowed; one byte over is rejected.
+    PreviewStubURLProtocol.response = (200, [:], Data(count: 16))
+    let full = try await PutioPreviewDownloader.download(
+      url, limit: 16, configuration: configuration)
+    XCTAssertEqual(full.count, 16)
+    PreviewStubURLProtocol.response = (200, [:], Data(count: 17))
+    do {
+      _ = try await PutioPreviewDownloader.download(url, limit: 16, configuration: configuration)
+      XCTFail("body one byte over the cap was accepted")
+    } catch is PutioPreviewTooLargeError {}
+
     for (status, expected) in [
       (401, PutioRuntimeError.sessionExpired), (403, .sessionExpired), (404, .notFound),
       (429, .rateLimited), (503, .transient), (418, .unknown),

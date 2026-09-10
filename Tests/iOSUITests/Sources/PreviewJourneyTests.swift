@@ -91,7 +91,8 @@ final class PreviewJourneyTests: XCTestCase {
     let requests = element("vlc.requests")
     XCTAssertTrue(requests.waitForExistence(timeout: 5))
     XCTAssertEqual(requests.value as? String, "0|")
-    XCTAssertFalse(app.buttons["files.open-in-vlc.407"].exists)
+    assertNoVLCAction(fileID: 407)
+    assertNoVLCAction(fileID: 406)
     openInVLC(fileID: 412)
     XCTAssertTrue(app.staticTexts["VLC is not installed"].waitForExistence(timeout: 5))
     screenshot("runtime-vlc-missing")
@@ -122,6 +123,17 @@ final class PreviewJourneyTests: XCTestCase {
     if !signOut.isHittable { app.swipeUp() }
     signOut.tap()
     XCTAssertTrue(element("auth.sign-in").waitForExistence(timeout: 10))
+  }
+
+  /// Preview and unsupported rows show a context menu without the handoff.
+  private func assertNoVLCAction(fileID: Int) {
+    let row = element("files.item.\(fileID)")
+    XCTAssertTrue(row.waitForExistence(timeout: 5))
+    row.press(forDuration: 1)
+    XCTAssertTrue(app.buttons["files.rename.\(fileID)"].waitForExistence(timeout: 5))
+    XCTAssertFalse(app.buttons["files.open-in-vlc.\(fileID)"].exists)
+    app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.25)).tap()
+    XCTAssertTrue(app.buttons["files.rename.\(fileID)"].waitForNonExistence(timeout: 5))
   }
 
   private func openInVLC(fileID: Int) {
