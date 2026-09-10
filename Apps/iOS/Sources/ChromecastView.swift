@@ -286,7 +286,16 @@ struct PutioCastControlsView: View {
     .pickerStyle(.menu)
     .disabled(model.status == nil)
     .accessibilityIdentifier("cast.subtitles")
-    .accessibilityValue(model.status?.activeSubtitleKey ?? "off")
+    .accessibilityValue(activeSubtitleName(in: media))
+  }
+
+  /// VoiceOver reads the language, not the server key; the journey asserts
+  /// the same string.
+  private func activeSubtitleName(in media: PutioCastMedia) -> String {
+    guard let key = model.status?.activeSubtitleKey,
+      let subtitle = media.subtitles.first(where: { $0.key == key })
+    else { return "Off" }
+    return subtitle.language
   }
 
   static func clock(_ seconds: Double) -> String {

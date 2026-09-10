@@ -62,6 +62,15 @@ import Testing
     ]
   )
   #expect(
+    BrowserJourneyContract.castTestIdentifier
+      == "PutioUITests/ChromecastJourneyTests/testCastSettingsSessionControlsSubtitlesAndPositionSync"
+  )
+  #expect(
+    BrowserJourneyContract.castAttachmentNames == [
+      "runtime-cast-settings", "runtime-cast-error", "runtime-cast-controls",
+    ]
+  )
+  #expect(
     BrowserJourneyContract.previewsTestIdentifier
       == "PutioUITests/PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes"
   )

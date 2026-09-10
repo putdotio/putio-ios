@@ -83,9 +83,9 @@ final class ChromecastJourneyTests: XCTestCase {
     // Subtitles: MP4 casting lists put.io subtitles; English is the default.
     let subtitles = element("cast.subtitles")
     XCTAssertTrue(subtitles.waitForExistence(timeout: 5))
-    XCTAssertEqual(subtitles.value as? String, "en")
-    pick(subtitles, "Turkish · Turkish.srt", expecting: "tr")
-    pick(subtitles, "Off", expecting: "off")
+    XCTAssertEqual(subtitles.value as? String, "English")
+    pick(subtitles, "Turkish · Turkish.srt", expecting: "Turkish")
+    pick(subtitles, "Off", expecting: "Off")
 
     // Transport and the throttled position report (seeded start-from is 589).
     toggle.tap()
