@@ -366,6 +366,68 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertTrue(engine.started.isEmpty)
   }
 
+  func testPauseDuringConversionPollKeepsThePause() async {
+    let gate = AsyncGate()
+    resolutions[9] = [.conversionRequired]
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in try Task.checkCancellation() }, availableStorage: { 1_000_000_000 },
+      resolve: { fileID, _ in
+        if var queued = self.resolutions[fileID.rawValue], !queued.isEmpty {
+          let next = queued.removeFirst()
+          self.resolutions[fileID.rawValue] = queued
+          return next
+        }
+        return .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in },
+      conversionStatus: { _ in
+        await gate.wait()
+        return .converting(progress: 0.4)
+      },
+      reportPosition: { _, _ in })
+    queue.enqueue(fileID: PutioFileID(rawValue: 9), parentID: .root, name: "i", kind: .video)
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 9))?.stage, .converting(progress: 0))
+    queue.pause(fileID: PutioFileID(rawValue: 9))
+    await gate.open()
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 9))?.stage, .paused(progress: 0))
+    queue.enqueue(fileID: PutioFileID(rawValue: 10), parentID: .root, name: "j", kind: .audio)
+    queue.enqueue(fileID: PutioFileID(rawValue: 11), parentID: .root, name: "k", kind: .audio)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [10, 11], "the paused item held no slot")
+  }
+
+  func testLateFailureDoesNotOverwriteAPause() async {
+    let gate = AsyncGate()
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in
+        await gate.wait()
+        throw PutioRuntimeError.transient
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in })
+    queue.enqueue(fileID: PutioFileID(rawValue: 12), parentID: .root, name: "l", kind: .video)
+    await settle()
+    queue.pause(fileID: PutioFileID(rawValue: 12))
+    await gate.open()
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 12))?.stage, .paused(progress: 0))
+  }
+
+  func testStoreIsScopedPerAccount() {
+    let a = PutioOfflineStore(accountID: 1).directory
+    let b = PutioOfflineStore(accountID: 2).directory
+    XCTAssertNotEqual(a, b)
+    XCTAssertTrue(a.path.hasSuffix("OfflineDownloads/account-1"))
+    XCTAssertTrue(PutioOfflineQueue.fits(estimatedBytes: 100, freeBytes: 300 * 1024 * 1024))
+    XCTAssertFalse(PutioOfflineQueue.fits(estimatedBytes: 100, freeBytes: 150 * 1024 * 1024))
+  }
+
   func testEngineFailureRefillsTheSlot() async {
     let queue = makeQueue()
     queue.setConcurrencyLimit(1)

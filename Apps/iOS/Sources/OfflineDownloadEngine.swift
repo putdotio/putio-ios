@@ -149,6 +149,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
         if existing.taskIdentifier < downloadTask.taskIdentifier {
           existing.cancel()
           tasks[fileID] = downloadTask
+          observeProgress(of: downloadTask, fileID: fileID)
         } else {
           downloadTask.cancel()
         }

@@ -283,7 +283,8 @@ private struct MainTabView: View {
         resolve: { fileID in try await runtime.resolveFileDownloadSource(fileID: fileID) }
       ))
     _offlineQueue = State(
-      initialValue: PutioOfflineQueueFactory.make(runtime: runtime, scenario: scenario))
+      initialValue: PutioOfflineQueueFactory.make(
+        runtime: runtime, accountID: account.id, scenario: scenario))
   }
 
   private enum SelectedTab: Hashable { case files, downloads, history, account, search }
@@ -1099,7 +1100,9 @@ struct PutioOfflineTrackPickerRequest: Identifiable {
 
 enum PutioOfflineQueueFactory {
   @MainActor
-  static func make(runtime: PutioRuntime, scenario: HarnessScenario) -> PutioOfflineQueue {
+  static func make(runtime: PutioRuntime, accountID: Int, scenario: HarnessScenario)
+    -> PutioOfflineQueue
+  {
     #if DEBUG
       let harness = scenario == .filesBrowser
     #else
@@ -1110,7 +1113,8 @@ enum PutioOfflineQueueFactory {
       store: PutioOfflineStore(
         directory: harness
           ? FileManager.default.temporaryDirectory.appending(path: "harness-offline")
-          : nil),
+          : nil,
+        accountID: accountID),
       engine: engine,
       conversionPollInterval: harness ? .milliseconds(1_200) : .seconds(3),
       notifyCompletion: { item in

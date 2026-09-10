@@ -324,7 +324,7 @@ struct PutioOfflineTrackPickerView: View {
 
   private var estimate: Int64 { inventory.estimatedBytes(selecting: selected) }
   private var overBudget: Bool {
-    estimate > PutioOfflineQueue.maximumSelectedBytes || estimate > availableBytes
+    !PutioOfflineQueue.fits(estimatedBytes: estimate, freeBytes: availableBytes)
   }
 
   var body: some View {

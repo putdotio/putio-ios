@@ -146,11 +146,19 @@ struct PutioOfflineStore: Sendable {
 
   let directory: URL
 
-  init(directory: URL? = nil) {
-    self.directory =
-      directory
-      ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-      .appending(path: "OfflineDownloads", directoryHint: .isDirectory)
+  /// Each account keeps its own queue so a later sign-in never sees, plays,
+  /// or deletes another account's downloads.
+  init(directory: URL? = nil, accountID: Int? = nil) {
+    if let directory {
+      self.directory = directory
+    } else {
+      var base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        .appending(path: "OfflineDownloads", directoryHint: .isDirectory)
+      if let accountID {
+        base = base.appending(path: "account-\(accountID)", directoryHint: .isDirectory)
+      }
+      self.directory = base
+    }
   }
 
   private var fileURL: URL { directory.appending(path: "queue.json") }
@@ -566,9 +574,7 @@ final class PutioOfflineQueue {
       }
       let free = availableStorage()
       availableBytes = free
-      guard free > Self.minimumFreeBytes, current.estimatedBytes <= free,
-        current.estimatedBytes <= Self.maximumSelectedBytes
-      else {
+      guard Self.fits(estimatedBytes: current.estimatedBytes, freeBytes: free) else {
         fail(fileID, .storage)
         return
       }
@@ -612,7 +618,13 @@ final class PutioOfflineQueue {
     return false
   }
 
+  /// Free space the device must keep after a download; the picker and the
+  /// start gate apply the same headroom.
   static let minimumFreeBytes: Int64 = 200 * 1024 * 1024
+
+  static func fits(estimatedBytes: Int64, freeBytes: Int64) -> Bool {
+    estimatedBytes <= maximumSelectedBytes && estimatedBytes + minimumFreeBytes <= freeBytes
+  }
 
   /// Conversion and download are distinct stages under one queue identity.
   private func convert(fileID: PutioFileID) async throws -> PutioPlaybackResolution {
@@ -620,7 +632,10 @@ final class PutioOfflineQueue {
     try await startConversion(fileID)
     while true {
       try Task.checkCancellation()
-      switch try await conversionStatus(fileID) {
+      let status = try await conversionStatus(fileID)
+      // The await may have let pause run; a paused row is never overwritten.
+      try Task.checkCancellation()
+      switch status {
       case .queued:
         update(fileID) { $0.stage = .converting(progress: 0) }
       case .converting(let progress):
@@ -707,8 +722,13 @@ final class PutioOfflineQueue {
     recomputeStorage()
   }
 
+  /// A failure that lands after the user paused keeps the pause; the retry
+  /// path re-queues from there.
   private func fail(_ fileID: PutioFileID, _ failure: PutioOfflineFailure) {
-    update(fileID) { $0.stage = .failed(failure) }
+    update(fileID) {
+      if case .paused = $0.stage { return }
+      $0.stage = .failed(failure)
+    }
   }
 
   private func update(
