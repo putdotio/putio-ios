@@ -128,9 +128,11 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
       request.activeTrackIDs = [NSNumber(value: index + 1)]
     }
     try await perform(client.loadMedia(with: request.build()))
-    // Status updates carry this file only once the receiver accepted it.
+    // Status updates carry this file only once the receiver accepted it; the
+    // status that arrived during the request is replayed so controls enable.
     loadedFileID = media.id
     loadedSubtitles = subtitles
+    publishStatus(client.mediaStatus)
   }
 
   func play() async throws {
