@@ -44,6 +44,20 @@ private func brandFontInfoPlist(for platform: String) -> Plist.Value {
   .array(brandFontNames(for: platform).map(Plist.Value.string))
 }
 
+// Google Cast discovers receivers over Bonjour; the receiver-specific service
+// name lets iOS 14+ local-network permission scope discovery to one app ID.
+// `CC1AD845` is Google's public Default Media Receiver, so the checked-in
+// default stays open-source-safe; beta and release builds override it.
+private let castBonjourServices: Plist.Value = [
+  "_googlecast._tcp",
+  "_$(PUTIO_CHROMECAST_RECEIVER_APP_ID)._googlecast._tcp",
+]
+private let castLocalNetworkUsageDescription: Plist.Value =
+  "put.io uses the local network to find Chromecast devices on your Wi-Fi."
+private let castBuildSettings: SettingsDictionary = [
+  "PUTIO_CHROMECAST_RECEIVER_APP_ID": "CC1AD845"
+]
+
 let project = Project(
   name: "Putio",
   organizationName: "put.io",
@@ -62,6 +76,9 @@ let project = Project(
         "UIAppFonts": brandFontInfoPlist(for: "ios"),
         "UIBackgroundModes": ["audio"],
         "LSApplicationQueriesSchemes": ["vlc-x-callback"],
+        "NSBonjourServices": castBonjourServices,
+        "NSLocalNetworkUsageDescription": castLocalNetworkUsageDescription,
+        "PUTIO_CHROMECAST_RECEIVER_APP_ID": "$(PUTIO_CHROMECAST_RECEIVER_APP_ID)",
         "CFBundleURLTypes": [
           [
             "CFBundleURLName": "putio", "CFBundleURLSchemes": ["putio"],
@@ -98,8 +115,10 @@ let project = Project(
       ],
       dependencies: [
         .package(product: "PutioCore"),
+        .external(name: "GoogleCast"),
         .target(name: "PutioWatch"),
-      ]
+      ],
+      settings: .settings(base: castBuildSettings)
     ),
     // The nightly flavor: same iOS sources, its own bundle ID so it installs
     // beside the dev and production apps, and the starfield icon that only
@@ -115,6 +134,9 @@ let project = Project(
         "UIAppFonts": brandFontInfoPlist(for: "ios"),
         "UIBackgroundModes": ["audio"],
         "LSApplicationQueriesSchemes": ["vlc-x-callback"],
+        "NSBonjourServices": castBonjourServices,
+        "NSLocalNetworkUsageDescription": castLocalNetworkUsageDescription,
+        "PUTIO_CHROMECAST_RECEIVER_APP_ID": "$(PUTIO_CHROMECAST_RECEIVER_APP_ID)",
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
       ]),
@@ -125,11 +147,13 @@ let project = Project(
       ),
       buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
       dependencies: [
-        .package(product: "PutioCore")
+        .package(product: "PutioCore"),
+        .external(name: "GoogleCast"),
       ],
-      settings: .settings(base: [
-        "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon"
-      ])
+      settings: .settings(
+        base: castBuildSettings.merging(["ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon"]) {
+          $1
+        })
     ),
     .target(
       name: "PutioWatch",

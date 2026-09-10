@@ -4,5 +4,7 @@ import PackageDescription
 
 let package = Package(
   name: "PutioDependencies",
-  dependencies: []
+  dependencies: [
+    .package(path: "../Packages/GoogleCastSDK")
+  ]
 )

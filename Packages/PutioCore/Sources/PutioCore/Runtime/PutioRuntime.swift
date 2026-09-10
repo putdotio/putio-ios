@@ -459,6 +459,90 @@ public final class PutioRuntime {
     try await reportPlaybackPosition(fileID: fileID, seconds: seconds)
   }
 
+  /// Reads the account's Chromecast playback type. Unknown or missing server
+  /// values decode as HLS in the SDK.
+  public func castPlaybackType() async throws -> PutioCastPlaybackType {
+    let config = try await performAuthenticatedOperation { try await sdk.getConfig() }
+    return PutioCastPlaybackType(config.chromecastPlaybackType)
+  }
+
+  public func setCastPlaybackType(_ playbackType: PutioCastPlaybackType) async throws {
+    let response = try await performAuthenticatedOperation(commits: true) {
+      try await sdk.setChromecastPlaybackType(playbackType.sdkValue)
+    }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+  }
+
+  /// Resolves a video into what a Cast receiver plays. HLS uses the tokened
+  /// playlist with server-muxed subtitles; MP4 uses the converted file when
+  /// available (or the original when it needs no conversion) and lists the
+  /// file's subtitles as WebVTT tracks. Files that still need conversion for
+  /// MP4 playback resolve as `conversionRequired`.
+  public func resolveCastMedia(fileID: PutioFileID, playbackType: PutioCastPlaybackType)
+    async throws -> PutioCastResolution
+  {
+    guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
+    let (file, token) = try await performAuthenticatedOperation {
+      (
+        try await sdk.getFile(
+          fileID: fileID.rawValue,
+          query: PutioFileDetailsQuery(
+            mp4Size: false, startFrom: true, streamURL: false, mp4StreamURL: false)),
+        sdk.config.token
+      )
+    }
+    guard file.id == fileID.rawValue, file.type == .video else {
+      throw PutioRuntimeError.invalidResponse
+    }
+    let artworkURL = URL(string: file.screenshot).flatMap { $0.scheme == "https" ? $0 : nil }
+    let duration = file.metaData?.duration ?? 0
+    switch playbackType {
+    case .hls:
+      guard !file.needConvert || file.hasMp4 else { return .conversionRequired }
+      return .ready(
+        PutioCastMedia(
+          id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
+          playbackType: .hls, url: file.getHlsStreamURL(token: token), artworkURL: artworkURL,
+          durationSeconds: duration, startFromSeconds: file.startFrom, subtitles: [],
+          defaultSubtitleKey: nil))
+    case .mp4:
+      let url: URL
+      if file.hasMp4 {
+        url = file.getMp4DownloadURL(token: token)
+      } else if !file.needConvert {
+        url = file.getDownloadURL(token: token)
+      } else {
+        return .conversionRequired
+      }
+      let response = try await performAuthenticatedOperation {
+        try await sdk.getSubtitles(fileID: fileID.rawValue)
+      }
+      var keys = Set<String>()
+      let subtitles = response.subtitles.compactMap { subtitle -> PutioCastSubtitle? in
+        guard !subtitle.key.isEmpty, keys.insert(subtitle.key).inserted,
+          var components = URLComponents(string: subtitle.url), components.scheme == "https"
+        else { return nil }
+        components.queryItems =
+          (components.queryItems ?? []) + [
+            URLQueryItem(name: "format", value: "webvtt")
+          ]
+        guard let url = components.url else { return nil }
+        return PutioCastSubtitle(
+          key: subtitle.key, language: subtitle.language, languageCode: subtitle.languageCode,
+          name: subtitle.name, url: url)
+      }
+      let defaultKey = response.defaultKey.flatMap { key in
+        subtitles.contains { $0.key == key } ? key : nil
+      }
+      return .ready(
+        PutioCastMedia(
+          id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
+          playbackType: .mp4, url: url, artworkURL: artworkURL, durationSeconds: duration,
+          startFromSeconds: file.startFrom, subtitles: subtitles,
+          defaultSubtitleKey: defaultKey ?? subtitles.first?.key))
+    }
+  }
+
   public func startVideoConversion(fileID: PutioFileID) async throws {
     _ = try await performAuthenticatedOperation {
       try await sdk.startMp4Conversion(fileID: fileID.rawValue)
@@ -621,5 +705,21 @@ public final class PutioRuntime {
       return isCancellation(sdkError.underlyingError)
     }
     return false
+  }
+}
+
+extension PutioCastPlaybackType {
+  init(_ value: PutioChromecastPlaybackType) {
+    switch value {
+    case .hls: self = .hls
+    case .mp4: self = .mp4
+    }
+  }
+
+  var sdkValue: PutioChromecastPlaybackType {
+    switch self {
+    case .hls: .hls
+    case .mp4: .mp4
+    }
   }
 }

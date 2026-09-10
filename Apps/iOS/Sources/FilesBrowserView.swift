@@ -122,6 +122,8 @@ struct FilesBrowserView: View {
   private let onFileSelected: PutioFileSelection
   private let onExternalPlayback: PutioFileSelection?
   private let onDownload: PutioFileSelection?
+  private let onCast: PutioFileSelection?
+  private let castButton: AnyView?
   private let onRootLoaded: PutioRootLoaded
   private let onReturnToRoot: @MainActor @Sendable () -> Void
   private let refreshRequests: PutioFolderRefreshRequests
@@ -139,11 +141,15 @@ struct FilesBrowserView: View {
     onFileSelected: @escaping PutioFileSelection,
     onExternalPlayback: PutioFileSelection? = nil,
     onDownload: PutioFileSelection? = nil,
+    onCast: PutioFileSelection? = nil,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
-    navigationRequest: PutioFilesNavigationRequest? = nil
+    navigationRequest: PutioFilesNavigationRequest? = nil,
+    @ViewBuilder castButton: () -> some View = { EmptyView() }
   ) {
+    self.onCast = onCast
+    self.castButton = AnyView(castButton())
     load = { folderID in
       try await runtime.listFiles(parentID: folderID)
     }
@@ -170,11 +176,14 @@ struct FilesBrowserView: View {
     onFileSelected: @escaping PutioFileSelection,
     onExternalPlayback: PutioFileSelection? = nil,
     onDownload: PutioFileSelection? = nil,
+    onCast: PutioFileSelection? = nil,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
     navigationRequest: PutioFilesNavigationRequest? = nil
   ) {
+    self.onCast = onCast
+    self.castButton = nil
     self.load = load
     self.accountID = nil
     self.continueLoad = continueLoad
@@ -201,7 +210,9 @@ struct FilesBrowserView: View {
         refreshRequests: refreshRequests,
         onFileSelected: onFileSelected,
         onExternalPlayback: onExternalPlayback,
-        onDownload: onDownload
+        onDownload: onDownload,
+        onCast: onCast,
+        castButton: castButton
       )
       .navigationDestination(for: PutioFolderRoute.self) { route in
         PutioFolderScreen(
@@ -213,7 +224,9 @@ struct FilesBrowserView: View {
           refreshRequests: refreshRequests,
           onFileSelected: onFileSelected,
           onExternalPlayback: onExternalPlayback,
-          onDownload: onDownload
+          onDownload: onDownload,
+          onCast: onCast,
+          castButton: castButton
         )
       }
     }
@@ -279,6 +292,8 @@ struct PutioFolderScreen: View {
   private let onFileSelected: PutioFileSelection
   private let onExternalPlayback: PutioFileSelection?
   private let onDownload: PutioFileSelection?
+  private let onCast: PutioFileSelection?
+  private let castButton: AnyView?
   private let refreshRequests: PutioFolderRefreshRequests
 
   init(
@@ -294,8 +309,12 @@ struct PutioFolderScreen: View {
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
     onFileSelected: @escaping PutioFileSelection,
     onExternalPlayback: PutioFileSelection? = nil,
-    onDownload: PutioFileSelection? = nil
+    onDownload: PutioFileSelection? = nil,
+    onCast: PutioFileSelection? = nil,
+    castButton: AnyView? = nil
   ) {
+    self.onCast = onCast
+    self.castButton = castButton
     self.route = route
     _model = State(
       initialValue: PutioFolderModel(
@@ -391,9 +410,12 @@ struct PutioFolderScreen: View {
           .accessibilityIdentifier("files.selection.menu")
         }
       } else if model.supportsActions {
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
+          if let castButton { castButton }
           browseMenu
         }
+      } else if let castButton {
+        ToolbarItem(placement: .primaryAction) { castButton }
       }
     }
     .modifier(PutioSelectionTabBarVisibility(isEditing: isEditing))
@@ -691,8 +713,18 @@ struct PutioFolderScreen: View {
     if let route = PutioBrowserItemPresentation(item: item).fileRoute,
       (onDownload != nil && route.supportsOfflineDownload)
         || (onExternalPlayback != nil && route.supportsExternalPlayback)
+        || (onCast != nil && route.supportsCasting)
     {
       Section {
+        if let onCast, route.supportsCasting {
+          Button {
+            onCast(route)
+          } label: {
+            Label("Cast", systemImage: "tv")
+          }
+          .disabled(fileActionPending)
+          .accessibilityIdentifier("files.cast.\(item.id.rawValue)")
+        }
         if let onDownload, route.supportsOfflineDownload {
           Button {
             onDownload(route)

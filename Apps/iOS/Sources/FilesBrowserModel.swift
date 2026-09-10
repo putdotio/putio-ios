@@ -260,6 +260,11 @@ struct PutioFileRoute: Identifiable, Hashable, Sendable {
     isPlayable
   }
 
+  /// Receivers play video only; audio stays on the phone.
+  var supportsCasting: Bool {
+    item.kind == .video
+  }
+
   /// Media the offline queue can store: the same set the players handle.
   var supportsOfflineDownload: Bool {
     isPlayable
