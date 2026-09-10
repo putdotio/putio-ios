@@ -262,6 +262,8 @@ private struct MainTabView: View {
         opener: PutioExternalPlaybackOpener.make(scenario: scenario),
         resolve: { fileID in try await runtime.resolveFileDownloadSource(fileID: fileID) }
       ))
+    _offlineQueue = State(
+      initialValue: PutioOfflineQueueFactory.make(runtime: runtime, scenario: scenario))
   }
 
   private enum SelectedTab: Hashable { case files, transfers, history, account, search }
@@ -281,6 +283,10 @@ private struct MainTabView: View {
   @State private var presentedPreviewRoute: PutioPreviewRoute?
   @State private var presentedUnsupportedRoute: PutioUnsupportedFileRoute?
   @State private var externalPlayback: PutioExternalPlaybackModel
+  @State private var offlineQueue: PutioOfflineQueue
+  @State private var trackPicker: PutioOfflineTrackPickerRequest?
+  @State private var offlineFailure: PutioOfflineFailure?
+  @Environment(\.scenePhase) private var scenePhase
 
   var body: some View {
     TabView(selection: $selectedTab) {
@@ -291,6 +297,7 @@ private struct MainTabView: View {
           accountID: account.id,
           onFileSelected: { route in selectFile(route) },
           onExternalPlayback: { route in Task { await externalPlayback.open(route) } },
+          onDownload: { route in Task { await requestDownload(route) } },
           refreshRequests: folderRefreshRequests,
           navigationRequest: filesNavigation
         )
@@ -303,17 +310,11 @@ private struct MainTabView: View {
       }
       Tab(value: SelectedTab.transfers) {
         NavigationStack {
-          PutioEmptyStateView(
-            icon: .arrowCircleDown,
-            title: "No transfers",
-            message: "Transfers you start appear here."
-          )
-          .navigationTitle("Transfers")
-          .putioContentBackground()
+          PutioOfflineDownloadsView(queue: offlineQueue) { item in openOffline(item) }
         }
       } label: {
         Label {
-          Text("Transfers")
+          Text("Downloads")
         } icon: {
           Image(putioIcon: .arrowCircleDown)
         }
@@ -369,6 +370,8 @@ private struct MainTabView: View {
         PutioVideoPlaybackView(
           route: route,
           onDismiss: dismissPresentedVideo,
+          preferredAudioLanguages: offlineQueue.item(for: route.id)?.isPlayable == true
+            ? PutioOfflineQueueFactory.preferredLanguages(scenario: scenario) : [],
           remembersPlaybackPosition: account.rememberVideoTime,
           suggestsNextVideo: account.suggestNextVideo,
           autoplayNextVideo: account.suggestNextVideo,
@@ -377,7 +380,11 @@ private struct MainTabView: View {
           nextVideoAutoplayDelay: .seconds(5),
           positionPipeline: playbackPositionPipeline,
           reportPosition: { fileID, seconds in
-            try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: seconds)
+            if offlineQueue.item(for: fileID)?.isPlayable == true {
+              await offlineQueue.recordPosition(fileID: fileID, seconds: seconds)
+            } else {
+              try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: seconds)
+            }
             #if DEBUG
               if scenario == .filesBrowser {
                 harnessReportedPosition = (fileID, seconds)
@@ -432,9 +439,16 @@ private struct MainTabView: View {
         showsHarnessReadiness: scenario == .filesBrowser,
         positionPipeline: playbackPositionPipeline,
         reportPosition: { fileID, seconds in
-          try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
+          if offlineQueue.item(for: fileID)?.isPlayable == true {
+            await offlineQueue.recordPosition(fileID: fileID, seconds: seconds)
+          } else {
+            try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
+          }
         },
-        resolve: { fileID in try await resolveAudioSource(fileID: fileID) },
+        resolve: { fileID in
+          if let local = offlineQueue.localSource(for: fileID) { return local }
+          return try await resolveAudioSource(fileID: fileID)
+        },
         loadNext: { fileID in try await runtime.findNextAudio(after: fileID) }
       )
     }
@@ -449,6 +463,37 @@ private struct MainTabView: View {
     .sheet(item: $presentedUnsupportedRoute) { route in
       PutioUnsupportedFileView(route: route, onDismiss: { presentedUnsupportedRoute = nil })
         .preferredColorScheme(.dark)
+    }
+    .sheet(item: $trackPicker) { request in
+      PutioOfflineTrackPickerView(
+        name: request.route.item.name, inventory: request.inventory,
+        availableBytes: offlineQueue.availableBytes,
+        preferredLanguages: PutioOfflineQueueFactory.preferredLanguages(scenario: scenario),
+        onConfirm: { languages in
+          trackPicker = nil
+          enqueueDownload(request.route, audioLanguages: languages)
+        },
+        onCancel: { trackPicker = nil }
+      )
+      .preferredColorScheme(.dark)
+    }
+    .alert(
+      "Could not start download",
+      isPresented: Binding(get: { offlineFailure != nil }, set: { if !$0 { offlineFailure = nil } })
+    ) {
+      Button("OK", role: .cancel) { offlineFailure = nil }
+    } message: {
+      Text(offlineFailure?.message ?? "")
+    }
+    .onChange(of: scenePhase) { _, phase in
+      guard phase == .active else { return }
+      Task { await offlineQueue.syncPendingPositions() }
+    }
+    .task {
+      // A cold launch is already active, so the scene-phase change never
+      // fires; sync once here as well.
+      await offlineQueue.restore()
+      await offlineQueue.syncPendingPositions()
     }
     .alert(
       externalPlaybackAlertTitle,
@@ -549,6 +594,47 @@ private struct MainTabView: View {
       presentedPreviewRoute = previewRoute
     case .unsupported(let unsupportedRoute):
       presentedUnsupportedRoute = unsupportedRoute
+    }
+  }
+
+  /// Multi-audio videos go through the picker; everything else queues directly.
+  private func requestDownload(_ route: PutioFileRoute) async {
+    let kind: PutioOfflineItem.Kind = route.item.kind == .audio ? .audio : .video
+    do {
+      if let inventory = try await offlineQueue.inventory(fileID: route.id, kind: kind),
+        inventory.audioOptions.count > 1
+      {
+        trackPicker = PutioOfflineTrackPickerRequest(route: route, inventory: inventory)
+        return
+      }
+    } catch {
+      offlineFailure =
+        PutioOfflineFailure.resolving(error)
+        ?? PutioOfflineFailure(
+          kind: .resolution, message: "The file could not be inspected. Try again.")
+      return
+    }
+    enqueueDownload(route, audioLanguages: [])
+  }
+
+  private func enqueueDownload(_ route: PutioFileRoute, audioLanguages: [String]) {
+    offlineQueue.enqueue(
+      fileID: route.id, parentID: route.item.parentID, name: route.item.name,
+      kind: route.item.kind == .audio ? .audio : .video, audioLanguages: audioLanguages)
+    selectedTab = .transfers
+    Task { await PutioOfflineNotifications.requestPermissionIfNeeded() }
+  }
+
+  private func openOffline(_ item: PutioOfflineItem) {
+    guard let source = offlineQueue.localSource(for: item.id) else { return }
+    switch item.kind {
+    case .video:
+      presentVideo(
+        PutioVideoRoute(
+          id: item.id, parentID: item.parentID, title: item.name,
+          initialResolution: .ready(source)))
+    case .audio:
+      presentedAudioRoute = PutioAudioRoute(id: item.id, parentID: item.parentID, title: item.name)
     }
   }
 
@@ -969,6 +1055,84 @@ private struct SignedOutProofView: View {
         .putioFont(PutioTheme.Typography.numeric)
         .foregroundStyle(PutioTheme.Colors.textSecondary)
     }
+  }
+}
+
+struct PutioOfflineTrackPickerRequest: Identifiable {
+  let route: PutioFileRoute
+  let inventory: PutioOfflineInventory
+
+  var id: PutioFileID { route.id }
+}
+
+enum PutioOfflineQueueFactory {
+  @MainActor
+  static func make(runtime: PutioRuntime, scenario: HarnessScenario) -> PutioOfflineQueue {
+    #if DEBUG
+      let harness = scenario == .filesBrowser
+    #else
+      let harness = false
+    #endif
+    let engine: any PutioOfflineDownloadEngine = PutioSystemOfflineDownloadEngine()
+    return PutioOfflineQueue(
+      store: PutioOfflineStore(
+        directory: harness
+          ? FileManager.default.temporaryDirectory.appending(path: "harness-offline")
+          : nil),
+      engine: engine,
+      conversionPollInterval: harness ? .milliseconds(1_200) : .seconds(3),
+      resolve: { fileID, kind in
+        switch kind {
+        case .audio:
+          let source = try await runtime.resolveAudioPlaybackSource(fileID: fileID)
+          return .ready(PutioOfflineQueueFactory.swap(source, scenario: scenario, kind: kind))
+        case .video:
+          let resolution = try await runtime.resolveVideoPlaybackSource(fileID: fileID)
+          guard case .ready(let source) = resolution else { return resolution }
+          return .ready(PutioOfflineQueueFactory.swap(source, scenario: scenario, kind: kind))
+        }
+      },
+      startConversion: { fileID in try await runtime.startVideoConversion(fileID: fileID) },
+      conversionStatus: { fileID in try await runtime.videoConversionStatus(fileID: fileID) },
+      reportPosition: { fileID, seconds in
+        try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
+      }
+    )
+  }
+
+  /// The seeded scenario pins preferred languages so the journey is
+  /// independent of the simulator's locale.
+  static func preferredLanguages(scenario: HarnessScenario) -> [String] {
+    #if DEBUG
+      let arguments = ProcessInfo.processInfo.arguments
+      if scenario == .filesBrowser,
+        let index = arguments.firstIndex(of: "--putio-harness-preferred-languages"),
+        arguments.indices.contains(index + 1)
+      {
+        return arguments[index + 1].split(separator: ",").map(String.init)
+      }
+    #endif
+    return Locale.preferredLanguages
+  }
+
+  /// The seeded scenario downloads local fixtures instead of api.put.io streams.
+  static func swap(
+    _ source: PutioPlaybackSource, scenario: HarnessScenario, kind: PutioOfflineItem.Kind
+  )
+    -> PutioPlaybackSource
+  {
+    #if DEBUG
+      guard scenario == .filesBrowser,
+        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
+        let baseURL = URL(string: baseURLString), baseURL.scheme == "http",
+        baseURL.host == "127.0.0.1"
+      else { return source }
+      let path = kind == .audio ? "runtime-proof-audio.m4a" : "multi-audio/runtime-proof-multi.m3u8"
+      return PutioPlaybackSource(
+        url: baseURL.appending(path: path), startFromSeconds: source.startFromSeconds)
+    #else
+      return source
+    #endif
   }
 }
 

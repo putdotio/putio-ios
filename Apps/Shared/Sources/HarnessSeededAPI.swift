@@ -196,6 +196,11 @@ import Foundation
     nonisolated(unsafe) private static var deepLinkLookupFailed = false
     /// The previews journey opens the image once against a failing lookup so
     /// the error state and retry are exercised before the fixture renders.
+    /// `--putio-harness-offline-positions-fail` makes every start-from set
+    /// return 503 so the downloads journey proves local recording and sync.
+    private static var offlinePositionsFail: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-offline-positions-fail")
+    }
     nonisolated(unsafe) private static var previewImageFailuresRemaining =
       ProcessInfo.processInfo.arguments.contains("--putio-harness-previews") ? 1 : 0
     nonisolated(unsafe) private static var searchRetryFailed = false
@@ -868,6 +873,12 @@ import Foundation
         return setPlaybackPosition(request: request, fileID: audioSuccessorFileID)
       case "POST /v2/files/411/start-from/set":
         return setPlaybackPosition(request: request, fileID: 411)
+      case "POST /v2/files/412/start-from/set" where offlinePositionsFail:
+        return (
+          503,
+          fixtureError(
+            statusCode: 503, type: "HARNESS_OFFLINE_POSITION", message: "Position sync is offline")
+        )
       case "POST /v2/files/412/start-from/set":
         return setPlaybackPosition(request: request, fileID: 412)
       case "POST /v2/files/414/start-from/set":

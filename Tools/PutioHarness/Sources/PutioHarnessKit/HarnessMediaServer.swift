@@ -165,8 +165,13 @@ final class HarnessMediaServer: @unchecked Sendable {
     case "/runtime-proof-document.pdf":
       resource = ("runtime-proof-document.pdf", "application/pdf")
     default:
-      send(status: "404 Not Found", headers: [:], body: Data(), over: connection)
-      return
+      // The multi-audio HLS asset is a directory of playlists and segments
+      // that reference each other by relative name.
+      guard let multi = Self.multiAudioResource(path: path) else {
+        send(status: "404 Not Found", headers: [:], body: Data(), over: connection)
+        return
+      }
+      resource = multi
     }
 
     let fileURL = mediaDirectory.appending(path: resource.name)
@@ -187,6 +192,19 @@ final class HarnessMediaServer: @unchecked Sendable {
       declaredLength: response.body.count,
       over: connection
     )
+  }
+
+  /// `/multi-audio/<name>` where name is a playlist or segment of the fixture.
+  static func multiAudioResource(path: String) -> (name: String, contentType: String)? {
+    let prefix = "/multi-audio/"
+    guard path.hasPrefix(prefix) else { return nil }
+    let name = String(path.dropFirst(prefix.count))
+    guard !name.isEmpty, !name.contains("/"), !name.contains(".."),
+      name.hasPrefix("multi-") || name == "runtime-proof-multi.m3u8"
+    else { return nil }
+    if name.hasSuffix(".m3u8") { return ("multi-audio/\(name)", "application/vnd.apple.mpegurl") }
+    if name.hasSuffix(".ts") { return ("multi-audio/\(name)", "video/mp2t") }
+    return nil
   }
 
   private func byteRangeResponse(

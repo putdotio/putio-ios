@@ -104,6 +104,22 @@ private final class StopCounter: @unchecked Sendable {
       (response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type") == contentType)
   }
 
+  try FileManager.default.createDirectory(
+    at: directory.appending(path: "multi-audio"), withIntermediateDirectories: true)
+  let master = Data("#EXTM3U\nmulti-video.m3u8\n".utf8)
+  try master.write(to: directory.appending(path: "multi-audio/runtime-proof-multi.m3u8"))
+  let (masterData, masterResponse) = try await URLSession.shared.data(
+    from: baseURL.appending(path: "multi-audio/runtime-proof-multi.m3u8"))
+  #expect(masterData == master)
+  #expect(
+    (masterResponse as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Type")
+      == "application/vnd.apple.mpegurl")
+  #expect(HarnessMediaServer.multiAudioResource(path: "/multi-audio/../queue.json") == nil)
+  #expect(HarnessMediaServer.multiAudioResource(path: "/multi-audio/other.ts") == nil)
+  #expect(
+    HarnessMediaServer.multiAudioResource(path: "/multi-audio/multi-English-000.ts")?.contentType
+      == "video/mp2t")
+
   let (_, missingResponse) = try await URLSession.shared.data(
     from: baseURL.appending(path: "../not-allowlisted")
   )

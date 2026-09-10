@@ -711,6 +711,10 @@ public struct SimulatorHarness {
           mediaDirectory.appending(path: "runtime-proof-document.pdf"),
           context: "runtime-proof document fixture"
         )
+        try requireNonemptyFile(
+          mediaDirectory.appending(path: "multi-audio/runtime-proof-multi.m3u8"),
+          context: "runtime-proof multi-audio playlist"
+        )
         let mediaServer = try HarnessMediaServer(mediaDirectory: mediaDirectory)
         defer { mediaServer.stop() }
         try SimulatorLifecycle.shared.register {
@@ -737,6 +741,17 @@ public struct SimulatorHarness {
           artifactDirectory: platformDirectory,
           defaultExecutionTimeAllowance: 120,
           maximumExecutionTimeAllowance: 120
+        )
+        let downloadScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.downloadsTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".downloads.xcresult"),
+          attachmentNames: BrowserJourneyContract.downloadsAttachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 180,
+          maximumExecutionTimeAllowance: 180
         )
         let previewScreenshots = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.previewsTestIdentifier,
@@ -871,6 +886,7 @@ public struct SimulatorHarness {
           + sortedRootScreenshots + searchScreenshots + historyScreenshots
           + filePreferencesScreenshots + playbackPreferencesScreenshots + deepLinkScreenshots
           + accountRatingScreenshots + audioScreenshots + previewScreenshots
+          + downloadScreenshots
         for screenshot in preflightScreenshots {
           _ = try requireMeaningfulScreenshot(screenshot, context: "journey preflight attachment")
         }
@@ -883,6 +899,7 @@ public struct SimulatorHarness {
           ".history.xcresult", ".deep-links.xcresult",
           ".file-preferences.xcresult", ".playback-preferences.xcresult",
           ".account-rating.xcresult", ".audio.xcresult", ".previews.xcresult",
+          ".downloads.xcresult",
         ] {
           try? fileManager.removeItem(at: platformDirectory.appending(path: bundle))
         }

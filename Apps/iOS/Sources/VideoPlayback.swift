@@ -466,6 +466,7 @@ struct PutioVideoPlaybackView: View {
   @State private var nextVideoTransitionTask: Task<Void, Never>?
   private let fileID: PutioFileID
   private let onDismiss: @MainActor @Sendable () -> Void
+  private let preferredAudioLanguages: [String]
   private let remembersPlaybackPosition: Bool
   private let reportsPlayerFailures: Bool
   private let showsHarnessReadiness: Bool
@@ -476,6 +477,7 @@ struct PutioVideoPlaybackView: View {
   init(
     route: PutioVideoRoute,
     onDismiss: @escaping @MainActor @Sendable () -> Void,
+    preferredAudioLanguages: [String] = [],
     remembersPlaybackPosition: Bool = true,
     suggestsNextVideo: Bool = true,
     autoplayNextVideo: Bool = false,
@@ -493,6 +495,7 @@ struct PutioVideoPlaybackView: View {
   ) {
     self.fileID = route.id
     self.onDismiss = onDismiss
+    self.preferredAudioLanguages = preferredAudioLanguages
     self.remembersPlaybackPosition = remembersPlaybackPosition
     self.reportsPlayerFailures = reportsPlayerFailures
     self.showsHarnessReadiness = showsHarnessReadiness
@@ -667,6 +670,7 @@ struct PutioVideoPlaybackView: View {
       PutioSystemVideoPlayer(
         fileID: fileID,
         source: source,
+        preferredAudioLanguages: preferredAudioLanguages,
         remembersPlaybackPosition: remembersPlaybackPosition,
         positionPipeline: positionPipeline,
         reportPosition: reportPosition,
@@ -778,6 +782,7 @@ private struct PutioNextVideoSurface: ViewModifier {
 private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
   let fileID: PutioFileID
   let source: PutioPlaybackSource
+  let preferredAudioLanguages: [String]
   let remembersPlaybackPosition: Bool
   let positionPipeline: PutioPlaybackPositionPipeline
   let reportPosition: PutioPlaybackPositionReport
@@ -800,6 +805,7 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
     if context.coordinator.start(
       fileID: fileID,
       source: source,
+      preferredAudioLanguages: preferredAudioLanguages,
       remembersPlaybackPosition: remembersPlaybackPosition,
       reportPosition: { try await reportPosition($0, $1) },
       in: controller,
@@ -1044,6 +1050,7 @@ final class PutioSystemVideoPlayerCoordinator {
   func start(
     fileID: PutioFileID = .root,
     source: PutioPlaybackSource,
+    preferredAudioLanguages: [String] = [],
     remembersPlaybackPosition: Bool = true,
     reportPosition: @escaping PutioPlaybackPositionReport = { _, _ in },
     in controller: AVPlayerViewController,
@@ -1074,6 +1081,9 @@ final class PutioSystemVideoPlayerCoordinator {
       Task { @MainActor [weak self] in
         switch status {
         case .readyToPlay:
+          if !preferredAudioLanguages.isEmpty {
+            await Self.selectAudio(preferring: preferredAudioLanguages, in: item)
+          }
           self?.reportReady(generation: playbackGeneration)
         case .failed:
           self?.reportFailure(generation: playbackGeneration)
@@ -1216,6 +1226,19 @@ final class PutioSystemVideoPlayerCoordinator {
     guard generation == playbackGeneration, !failureReported else { return }
     failureReported = true
     onFailure?()
+  }
+
+  /// Offline assets keep every downloaded language; the player picks the
+  /// first preferred one present, else leaves the asset's default.
+  nonisolated static func selectAudio(preferring languages: [String], in item: AVPlayerItem) async {
+    guard let group = try? await item.asset.loadMediaSelectionGroup(for: .audible) else { return }
+    let stored = group.options.map(PutioOfflineQueue.track)
+    guard let choice = PutioOfflineLanguage.preferred(from: stored, preferredLanguages: languages),
+      let option = group.options.first(where: {
+        PutioOfflineQueue.track($0).languageCode == choice.languageCode
+      })
+    else { return }
+    item.select(option, in: group)
   }
 
   private func reportReady(generation playbackGeneration: UInt64) {
