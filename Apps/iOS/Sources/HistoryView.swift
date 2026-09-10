@@ -13,7 +13,6 @@ struct HistoryView: View {
   @State private var model: PutioHistoryModel
   @State private var path: [PutioFolderRoute] = []
   @State private var clearConfirmationPresented = false
-  @State private var unsupportedFilePresented = false
 
   init(
     runtime: PutioRuntime,
@@ -51,11 +50,6 @@ struct HistoryView: View {
         } message: {
           Text("Every event will be removed from your history. Your files will stay in place.")
         }
-        .alert("Cannot open this file", isPresented: $unsupportedFilePresented) {
-          Button("OK", role: .cancel) {}
-        } message: {
-          Text("This file type cannot be opened yet.")
-        }
         .navigationDestination(for: PutioFolderRoute.self) { route in
           PutioFolderScreen(
             route: route,
@@ -82,10 +76,8 @@ struct HistoryView: View {
           let presentation = PutioBrowserItemPresentation(item: file)
           if let folder = presentation.folderRoute {
             path.append(folder)
-          } else if let route = presentation.fileRoute, route.isPlayable {
+          } else if let route = presentation.fileRoute {
             onFileSelected(route)
-          } else {
-            unsupportedFilePresented = true
           }
         }
     }

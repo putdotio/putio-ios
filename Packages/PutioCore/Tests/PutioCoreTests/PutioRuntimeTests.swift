@@ -1756,6 +1756,43 @@ final class PutioRuntimeTests: XCTestCase {
     }
   }
 
+  func testFileDownloadSourceCarriesTheTokenedURLAndRedactsIt() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"file":{"id":440,"parent_id":7,"name":"Poster.png","file_type":"IMAGE","size":10,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}}"#,
+      for: "GET /v2/files/440")
+
+    let source = try await runtime.resolveFileDownloadSource(fileID: PutioFileID(rawValue: 440))
+
+    XCTAssertEqual(source.id, PutioFileID(rawValue: 440))
+    XCTAssertEqual(source.kind, .image)
+    XCTAssertEqual(source.name, "Poster.png")
+    XCTAssertEqual(source.url.path, "/v2/files/440/download")
+    XCTAssertEqual(source.url.query?.contains("oauth_token=stored-token"), true)
+    XCTAssertFalse(String(describing: source).contains("stored-token"))
+    XCTAssertFalse(String(reflecting: source).contains("stored-token"))
+  }
+
+  func testFileDownloadSourceRejectsFoldersAndMismatchedIDs() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"file":{"id":441,"parent_id":0,"name":"Folder","file_type":"FOLDER","size":0,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}}"#,
+      for: "GET /v2/files/441")
+    RuntimeMockURLProtocol.setFixture(
+      #"{"file":{"id":9,"parent_id":0,"name":"Other.png","file_type":"IMAGE","size":1,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}}"#,
+      for: "GET /v2/files/442")
+
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.resolveFileDownloadSource(fileID: PutioFileID(rawValue: 441))
+    }
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.resolveFileDownloadSource(fileID: PutioFileID(rawValue: 442))
+    }
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.resolveFileDownloadSource(fileID: .root)
+    }
+  }
+
   func testNextAudioUsesTheAudioFileTypeAndMapsTheSuccessor() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     RuntimeMockURLProtocol.setFixture(

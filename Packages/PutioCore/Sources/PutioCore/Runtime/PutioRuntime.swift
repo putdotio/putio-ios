@@ -431,6 +431,22 @@ public final class PutioRuntime {
     )
   }
 
+  /// Resolves the tokened download URL for previews and external players.
+  /// Folders have no download representation and resolve as invalid.
+  public func resolveFileDownloadSource(fileID: PutioFileID) async throws
+    -> PutioFileDownloadSource
+  {
+    guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
+    let (file, token) = try await performAuthenticatedOperation {
+      (try await sdk.getFile(fileID: fileID.rawValue), sdk.config.token)
+    }
+    guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
+    let item = snapshot(file)
+    guard item.kind != .folder else { throw PutioRuntimeError.invalidResponse }
+    return PutioFileDownloadSource(
+      id: item.id, kind: item.kind, name: item.name, url: file.getDownloadURL(token: token))
+  }
+
   /// Saves the resume position for any media file; put.io keeps one
   /// `start_from` per file regardless of type.
   public func reportPlaybackPosition(fileID: PutioFileID, seconds: Int) async throws {

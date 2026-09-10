@@ -245,6 +245,25 @@ private struct MainTabView: View {
   let scenario: HarnessScenario
   let autoSignOutAfterSeconds: TimeInterval?
 
+  init(
+    runtime: PutioRuntime,
+    account: PutioAccountSnapshot,
+    deepLinks: PutioDeepLinkModel,
+    scenario: HarnessScenario,
+    autoSignOutAfterSeconds: TimeInterval?
+  ) {
+    self.runtime = runtime
+    self.account = account
+    self.deepLinks = deepLinks
+    self.scenario = scenario
+    self.autoSignOutAfterSeconds = autoSignOutAfterSeconds
+    _externalPlayback = State(
+      initialValue: PutioExternalPlaybackModel(
+        opener: PutioExternalPlaybackOpener.make(scenario: scenario),
+        resolve: { fileID in try await runtime.resolveFileDownloadSource(fileID: fileID) }
+      ))
+  }
+
   private enum SelectedTab: Hashable { case files, transfers, history, account, search }
   @State private var selectedTab: SelectedTab = .files
   @State private var filesNavigation: PutioFilesNavigationRequest?
@@ -259,6 +278,9 @@ private struct MainTabView: View {
   @State private var historyRevision: UInt64 = 0
   @State private var presentedVideoRoute: PutioVideoRoute?
   @State private var presentedAudioRoute: PutioAudioRoute?
+  @State private var presentedPreviewRoute: PutioPreviewRoute?
+  @State private var presentedUnsupportedRoute: PutioUnsupportedFileRoute?
+  @State private var externalPlayback: PutioExternalPlaybackModel
 
   var body: some View {
     TabView(selection: $selectedTab) {
@@ -268,6 +290,7 @@ private struct MainTabView: View {
           trashEnabled: account.trashEnabled,
           accountID: account.id,
           onFileSelected: { route in selectFile(route) },
+          onExternalPlayback: { route in Task { await externalPlayback.open(route) } },
           refreshRequests: folderRefreshRequests,
           navigationRequest: filesNavigation
         )
@@ -415,6 +438,40 @@ private struct MainTabView: View {
         loadNext: { fileID in try await runtime.findNextAudio(after: fileID) }
       )
     }
+    .sheet(item: $presentedPreviewRoute) { route in
+      PutioPreviewView(
+        route: route,
+        download: { fileID in try await downloadPreview(fileID: fileID) },
+        onDismiss: { presentedPreviewRoute = nil }
+      )
+      .preferredColorScheme(.dark)
+    }
+    .sheet(item: $presentedUnsupportedRoute) { route in
+      PutioUnsupportedFileView(route: route, onDismiss: { presentedUnsupportedRoute = nil })
+        .preferredColorScheme(.dark)
+    }
+    .alert(
+      externalPlaybackAlertTitle,
+      isPresented: Binding(
+        get: { externalPlayback.presentsOutcome },
+        set: { if !$0 { externalPlayback.dismiss() } }
+      )
+    ) {
+      switch externalPlayback.outcome {
+      case .notInstalled:
+        Button("Get VLC") { Task { await externalPlayback.openAppStore() } }
+        Button("Cancel", role: .cancel) { externalPlayback.dismiss() }
+      case .failed(let failure):
+        if failure.canRetry {
+          Button("Try again") { Task { await externalPlayback.retry() } }
+        }
+        Button("OK", role: .cancel) { externalPlayback.dismiss() }
+      case .opened, nil:
+        Button("OK", role: .cancel) { externalPlayback.dismiss() }
+      }
+    } message: {
+      Text(externalPlaybackAlertMessage)
+    }
     .overlay(alignment: .topLeading) {
       if scenario == .filesBrowser, let selectedFileRoute {
         HarnessFileSelectionProbe(route: selectedFileRoute)
@@ -433,6 +490,7 @@ private struct MainTabView: View {
                 seconds: harnessReportedPosition.seconds
               )
             }
+            HarnessExternalPlaybackProbe(requestCount: externalPlayback.openedRequestCount)
           }
         }
       #endif
@@ -441,11 +499,14 @@ private struct MainTabView: View {
       guard let destination else { return }
       deepLinks.consumeDestination()
       dismissPresentedVideo()
+      presentedAudioRoute = nil
+      presentedPreviewRoute = nil
+      presentedUnsupportedRoute = nil
       switch destination {
-      case .files(let path, let video):
+      case .files(let path, let file):
         filesNavigation = PutioFilesNavigationRequest(path: path)
         selectedTab = .files
-        if let video { selectFile(video) }
+        if let file { selectFile(file) }
       case .history:
         historyRevision &+= 1
         selectedTab = .history
@@ -479,11 +540,69 @@ private struct MainTabView: View {
 
   private func selectFile(_ route: PutioFileRoute) {
     selectedFileRoute = route
-    if let videoRoute = route.videoPlaybackRoute {
+    switch route.openAction {
+    case .video(let videoRoute):
       presentVideo(videoRoute)
-    } else if let audioRoute = route.audioPlaybackRoute {
+    case .audio(let audioRoute):
       presentedAudioRoute = audioRoute
+    case .preview(let previewRoute):
+      presentedPreviewRoute = previewRoute
+    case .unsupported(let unsupportedRoute):
+      presentedUnsupportedRoute = unsupportedRoute
     }
+  }
+
+  private var externalPlaybackAlertTitle: String {
+    switch externalPlayback.outcome {
+    case .notInstalled: "VLC is not installed"
+    case .failed(let failure): failure.title
+    case .opened, nil: ""
+    }
+  }
+
+  private var externalPlaybackAlertMessage: String {
+    switch externalPlayback.outcome {
+    case .notInstalled:
+      "Install VLC for iOS from the App Store to stream this file there."
+    case .failed(let failure): failure.message
+    case .opened, nil: ""
+    }
+  }
+
+  /// Previews download the whole file; the tokened URL never leaves this call.
+  /// A rejected token on the raw GET is re-checked through the runtime, which
+  /// signs the account out when the session really expired.
+  private func downloadPreview(fileID: PutioFileID) async throws -> Data {
+    let source = try await runtime.resolveFileDownloadSource(fileID: fileID)
+    let url = try harnessPreviewURL(for: source) ?? source.url
+    do {
+      return try await PutioPreviewDownloader.download(url)
+    } catch PutioRuntimeError.sessionExpired {
+      _ = try await runtime.getFile(fileID: fileID)
+      throw PutioRuntimeError.transient
+    }
+  }
+
+  /// The seeded scenario serves local fixtures instead of api.put.io downloads.
+  private func harnessPreviewURL(for source: PutioFileDownloadSource) throws -> URL? {
+    #if DEBUG
+      guard scenario == .filesBrowser else { return nil }
+      guard
+        let baseURLString = ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"],
+        let baseURL = URL(string: baseURLString),
+        baseURL.scheme == "http",
+        baseURL.host == "127.0.0.1"
+      else {
+        throw HarnessPlaybackFixtureError.missingResource
+      }
+      switch source.kind {
+      case .image: return baseURL.appending(path: "runtime-proof-image.png")
+      case .pdf: return baseURL.appending(path: "runtime-proof-document.pdf")
+      default: return nil
+      }
+    #else
+      return nil
+    #endif
   }
 
   private func presentVideo(_ route: PutioVideoRoute) {
@@ -647,6 +766,21 @@ private struct HarnessFileSelectionProbe: View {
 }
 
 #if DEBUG
+  /// Re-renders on every handed-off URL so the recorded summary stays current.
+  private struct HarnessExternalPlaybackProbe: View {
+    let requestCount: Int
+
+    var body: some View {
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("External playback requests")
+        .accessibilityValue(HarnessExternalURLOpener.summary())
+        .accessibilityIdentifier("vlc.requests")
+        .allowsHitTesting(false)
+    }
+  }
+
   private struct HarnessPresentedVideoProbe: View {
     let route: PutioVideoRoute
 
@@ -838,7 +972,56 @@ private struct SignedOutProofView: View {
   }
 }
 
+enum PutioExternalPlaybackOpener {
+  static func make(scenario: HarnessScenario) -> PutioExternalURLOpening {
+    #if DEBUG
+      if scenario == .filesBrowser {
+        return HarnessExternalURLOpener(
+          vlcInstalled: ProcessInfo.processInfo.arguments.contains(
+            "--putio-harness-vlc-installed"))
+      }
+    #endif
+    return PutioSystemURLOpener()
+  }
+}
+
 #if DEBUG
+  /// Records handoff requests for the journey instead of leaving the app. The
+  /// tokened stream URL is reduced to its scheme, host, and path before it is
+  /// exposed.
+  final class HarnessExternalURLOpener: PutioExternalURLOpening, @unchecked Sendable {
+    let vlcInstalled: Bool
+    private static var requests: [String] = []
+    private static let lock = NSLock()
+
+    init(vlcInstalled: Bool) {
+      self.vlcInstalled = vlcInstalled
+    }
+
+    static func summary() -> String {
+      lock.withLock { "\(requests.count)|\(requests.last ?? "")" }
+    }
+
+    @MainActor func canOpen(_ url: URL) -> Bool {
+      url.scheme == PutioVLCHandoff.scheme ? vlcInstalled : true
+    }
+
+    @MainActor func open(_ url: URL) async -> Bool {
+      let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+      var summary = "\(url.scheme ?? "")://\(components?.host ?? "")\(components?.path ?? "")"
+      if let target = components?.queryItems?.first(where: { $0.name == "url" })?.value,
+        let targetURL = URL(string: target)
+      {
+        summary += "?url=\(targetURL.scheme ?? "")://\(targetURL.host ?? "")\(targetURL.path)"
+      }
+      if let success = components?.queryItems?.first(where: { $0.name == "x-success" })?.value {
+        summary += "&x-success=\(success)"
+      }
+      Self.lock.withLock { Self.requests.append(summary) }
+      return true
+    }
+  }
+
   private struct HarnessRatingLinkCapture: ViewModifier {
     let enabled: Bool
     @State private var openedURLs: [URL] = []

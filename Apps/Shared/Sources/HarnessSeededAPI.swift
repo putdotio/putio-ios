@@ -194,6 +194,10 @@ import Foundation
     nonisolated(unsafe) private static var historyDeletedIDs: Set<Int> = []
     nonisolated(unsafe) private static var historyCleared = false
     nonisolated(unsafe) private static var deepLinkLookupFailed = false
+    /// The previews journey opens the image once against a failing lookup so
+    /// the error state and retry are exercised before the fixture renders.
+    nonisolated(unsafe) private static var previewImageFailuresRemaining =
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-previews") ? 1 : 0
     nonisolated(unsafe) private static var searchRetryFailed = false
     nonisolated(unsafe) private static var emptySearchLoads = 0
     nonisolated(unsafe) private static var searchContinuationFailed = false
@@ -261,6 +265,8 @@ import Foundation
       historyDeletedIDs = []
       historyCleared = false
       deepLinkLookupFailed = false
+      previewImageFailuresRemaining =
+        ProcessInfo.processInfo.arguments.contains("--putio-harness-previews") ? 1 : 0
       searchRetryFailed = false
       emptySearchLoads = 0
       searchContinuationFailed = false
@@ -408,7 +414,10 @@ import Foundation
       }
       if before == nil {
         historyRootLoads += 1
-        if historyRootLoads == 2 { return historyFailure("refresh") }
+        // The refresh failure belongs to the History journey; previews only
+        // need a loaded list to open the image event from.
+        let previews = ProcessInfo.processInfo.arguments.contains("--putio-harness-previews")
+        if historyRootLoads == 2, !previews { return historyFailure("refresh") }
       } else {
         guard before == "807" else {
           return (
@@ -430,7 +439,7 @@ import Foundation
         return
           "{\"id\":\(id),\"user_id\":1,\"type\":\(jsonString(type)),\"created_at\":\(jsonString(formatter.string(from: date)))\(fields.isEmpty ? "" : "," + fields)}"
       }
-      let rows: [(Int, String)]
+      var rows: [(Int, String)]
       if before == nil {
         rows = [
           (
@@ -455,6 +464,16 @@ import Foundation
           ),
           (807, event(807, "future_event")),
         ]
+        if ProcessInfo.processInfo.arguments.contains("--putio-harness-previews") {
+          rows.insert(
+            (
+              811,
+              event(
+                811, "upload",
+                fields:
+                  #""file_name":"Harness Poster.png","file_size":1856,"file_id":\#(imageFileID)"#)
+            ), at: 0)
+        }
       } else {
         rows = [
           (
@@ -554,6 +573,17 @@ import Foundation
               message: "The first search fails for retry proof")
           )
         }
+      }
+      if query == "poster" {
+        return (
+          200,
+          """
+          {"total":2,"files":[
+            \(previewObject(id: imageFileID, name: "Harness Poster.png", type: "IMAGE", size: 1856)),
+            \(previewObject(id: archiveFileID, name: "Harness Bundle.zip", type: "ARCHIVE", size: 4096))
+          ]}
+          """
+        )
       }
       guard query == "harness" || query == "retry" else {
         return (200, #"{"total":0,"files":[]}"#)
@@ -802,6 +832,25 @@ import Foundation
         )
       case "GET /v2/files/414/next-file":
         return (200, #"{"next_file":null}"#)
+      case "GET /v2/files/\(imageFileID)":
+        fileActionsLock.lock()
+        let failImage = previewImageFailuresRemaining > 0
+        if failImage { previewImageFailuresRemaining -= 1 }
+        fileActionsLock.unlock()
+        if failImage {
+          return (
+            503,
+            fixtureError(statusCode: 503, type: "HARNESS_PREVIEW_RETRY", message: "Retry preview")
+          )
+        }
+        return (
+          200, previewFile(id: imageFileID, name: "Harness Poster.png", type: "IMAGE", size: 1856)
+        )
+      case "GET /v2/files/\(archiveFileID)":
+        return (
+          200,
+          previewFile(id: archiveFileID, name: "Harness Bundle.zip", type: "ARCHIVE", size: 4096)
+        )
       case "GET /v2/files/\(audioTrackFileID)":
         return (200, audioFile(id: audioTrackFileID, name: "Harness Track.m4a"))
       case "GET /v2/files/\(audioSuccessorFileID)":
@@ -837,8 +886,28 @@ import Foundation
 
     static let rootContinuationCursor = "files-root-page-2"
     static let rootContinuationFileID = 422
+    static let imageFileID = 406
+    static let archiveFileID = 407
     static let audioTrackFileID = 408
     static let audioSuccessorFileID = 409
+
+    private static func previewObject(id: Int, name: String, type: String, size: Int) -> String {
+      """
+      {
+        "id": \(id),
+        "name": \(jsonString(name)),
+        "file_type": \(jsonString(type)),
+        "parent_id": 0,
+        "size": \(size),
+        "created_at": "2026-08-28T10:00:00Z",
+        "updated_at": "2026-08-29T10:00:00Z"
+      }
+      """
+    }
+
+    private static func previewFile(id: Int, name: String, type: String, size: Int) -> String {
+      #"{"status":"OK","file":"# + previewObject(id: id, name: name, type: type, size: size) + "}"
+    }
 
     private static func audioObject(id: Int, name: String) -> String {
       """
@@ -1501,6 +1570,8 @@ import Foundation
             "start_from": \(playbackPosition(fileID: 412))
           }
           """,
+          previewObject(id: imageFileID, name: "Harness Poster.png", type: "IMAGE", size: 1856),
+          previewObject(id: archiveFileID, name: "Harness Bundle.zip", type: "ARCHIVE", size: 4096),
           audioObject(id: audioTrackFileID, name: "Harness Track.m4a"),
           audioObject(id: audioSuccessorFileID, name: "Harness Track 2.m4a"),
           """
@@ -1535,7 +1606,7 @@ import Foundation
           "files": [
             \(rows.joined(separator: ",\n"))
           ],
-          "total": \(6 + mutableFolders.count - (folderDeleted ? 1 : 0))
+          "total": \(8 + mutableFolders.count - (folderDeleted ? 1 : 0))
         }
         """
     }

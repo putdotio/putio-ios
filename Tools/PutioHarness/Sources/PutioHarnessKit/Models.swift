@@ -291,8 +291,12 @@ public struct ProofManifest: Codable, Equatable, Sendable {
 enum BrowserJourneyContract {
   static let testIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
-  static let unsupportedFileTestIdentifier =
-    "PutioUITests/FilesBrowserJourneyTests/testUnsupportedFileIsNotActionable"
+  static let previewsTestIdentifier =
+    "PutioUITests/PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes"
+  static let previewsAttachmentNames = [
+    "runtime-preview-image", "runtime-preview-document", "runtime-preview-error",
+    "runtime-preview-unsupported", "runtime-vlc-missing",
+  ]
   static let resumePersistenceTestIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen"
   static let fileActionsTestIdentifier =

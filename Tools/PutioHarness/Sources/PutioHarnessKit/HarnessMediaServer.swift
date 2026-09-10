@@ -160,6 +160,10 @@ final class HarnessMediaServer: @unchecked Sendable {
       resource = ("runtime-proof-000.ts", "video/mp2t")
     case "/runtime-proof-audio.m4a":
       resource = ("runtime-proof-audio.m4a", "audio/mp4")
+    case "/runtime-proof-image.png":
+      resource = ("runtime-proof-image.png", "image/png")
+    case "/runtime-proof-document.pdf":
+      resource = ("runtime-proof-document.pdf", "application/pdf")
     default:
       send(status: "404 Not Found", headers: [:], body: Data(), over: connection)
       return

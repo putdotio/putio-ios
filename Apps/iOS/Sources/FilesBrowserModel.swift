@@ -230,10 +230,60 @@ struct PutioFileRoute: Identifiable, Hashable, Sendable {
     return PutioAudioRoute(id: item.id, parentID: item.parentID, title: item.name)
   }
 
+  var previewRoute: PutioPreviewRoute? {
+    switch item.kind {
+    case .image:
+      PutioPreviewRoute(id: item.id, parentID: item.parentID, title: item.name, kind: .image)
+    case .pdf:
+      PutioPreviewRoute(id: item.id, parentID: item.parentID, title: item.name, kind: .pdf)
+    case .folder, .video, .audio, .other:
+      nil
+    }
+  }
+
+  /// The typed routing table: every non-folder item resolves to exactly one
+  /// action, so a tap never lands on a dead row.
+  var openAction: PutioFileOpenAction {
+    if let videoPlaybackRoute { return .video(videoPlaybackRoute) }
+    if let audioPlaybackRoute { return .audio(audioPlaybackRoute) }
+    if let previewRoute { return .preview(previewRoute) }
+    return .unsupported(PutioUnsupportedFileRoute(item: item))
+  }
+
   /// A route that opens a player of any kind.
   var isPlayable: Bool {
     videoPlaybackRoute != nil || audioPlaybackRoute != nil
   }
+
+  /// Media the VLC handoff can stream; previews and unknown types stay in-app.
+  var supportsExternalPlayback: Bool {
+    isPlayable
+  }
+}
+
+enum PutioFileOpenAction: Equatable, Sendable {
+  case video(PutioVideoRoute)
+  case audio(PutioAudioRoute)
+  case preview(PutioPreviewRoute)
+  case unsupported(PutioUnsupportedFileRoute)
+}
+
+struct PutioPreviewRoute: Identifiable, Equatable, Sendable {
+  enum Kind: Equatable, Sendable {
+    case image
+    case pdf
+  }
+
+  let id: PutioFileID
+  let parentID: PutioFileID
+  let title: String
+  let kind: Kind
+}
+
+struct PutioUnsupportedFileRoute: Identifiable, Equatable, Sendable {
+  let item: PutioFileItem
+
+  var id: PutioFileID { item.id }
 }
 
 struct PutioAudioRoute: Identifiable, Equatable, Sendable {
@@ -242,7 +292,7 @@ struct PutioAudioRoute: Identifiable, Equatable, Sendable {
   let title: String
 }
 
-struct PutioVideoRoute: Identifiable, Sendable {
+struct PutioVideoRoute: Identifiable, Equatable, Sendable {
   let id: PutioFileID
   let parentID: PutioFileID
   let title: String

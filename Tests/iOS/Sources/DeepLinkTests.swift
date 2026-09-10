@@ -60,7 +60,7 @@ final class DeepLinkTests: XCTestCase {
     model.updateSession(.signedIn(account()))
     await model.resolve(historyEnabled: true, file: load)
     XCTAssertEqual(calls, 1)
-    XCTAssertEqual(model.destination, .files([folder(10)], video: nil))
+    XCTAssertEqual(model.destination, .files([folder(10)], file: nil))
     XCTAssertNil(model.pending)
     model.consumeDestination()
     await model.resolve(historyEnabled: true, file: load)
@@ -70,7 +70,7 @@ final class DeepLinkTests: XCTestCase {
   func testWarmRootAndStaticRoutesDoNotFetchFileMetadata() async throws {
     let model = signedInModel()
     for (path, destination) in [
-      ("/files/0", PutioDeepLinkDestination.files([], video: nil)),
+      ("/files/0", PutioDeepLinkDestination.files([], file: nil)),
       ("/history", .history), ("/account", .account),
     ] {
       model.receive(try url(path))
@@ -94,7 +94,7 @@ final class DeepLinkTests: XCTestCase {
       }
     }
     XCTAssertEqual(
-      model.destination, .files([folder(10), folder(20)], video: PutioFileRoute(item: video)))
+      model.destination, .files([folder(10), folder(20)], file: PutioFileRoute(item: video)))
   }
 
   func testDeepFolderPathPreservesEveryAncestor() async throws {
@@ -107,11 +107,11 @@ final class DeepLinkTests: XCTestCase {
         id: id.rawValue, parentID: id.rawValue - 1, kind: .folder)
     }
     XCTAssertEqual(requestedIDs, Array((1...100).reversed()))
-    XCTAssertEqual(model.destination, .files((1...100).map(folder), video: nil))
+    XCTAssertEqual(model.destination, .files((1...100).map(folder), file: nil))
     XCTAssertNil(model.failure)
   }
 
-  func testMissingFileRetryAndUnsupportedTypesRemainRecoverable() async throws {
+  func testMissingFileRetryAndNonMediaFilesRouteToTheirScreens() async throws {
     let model = signedInModel()
     model.receive(try url("/files/10"))
     await model.resolve(historyEnabled: true) { _ in throw PutioRuntimeError.notFound }
@@ -119,11 +119,20 @@ final class DeepLinkTests: XCTestCase {
     model.retry()
     await model.resolve(historyEnabled: true) { _ in BrowserTestFixtures.item(id: 10, kind: .folder)
     }
-    XCTAssertEqual(model.destination, .files([folder(10)], video: nil))
+    XCTAssertEqual(model.destination, .files([folder(10)], file: nil))
+    model.consumeDestination()
     model.receive(try url("/files/20"))
-    await model.resolve(historyEnabled: true) { _ in BrowserTestFixtures.item(id: 20, kind: .pdf) }
-    XCTAssertEqual(model.failure, .unsupportedFile)
-    XCTAssertFalse(try XCTUnwrap(model.failure).canRetry)
+    let document = BrowserTestFixtures.item(id: 20, parentID: 10, kind: .pdf)
+    await model.resolve(historyEnabled: true) { id in
+      id.rawValue == 20 ? document : BrowserTestFixtures.item(id: 10, kind: .folder)
+    }
+    XCTAssertEqual(model.destination, .files([folder(10)], file: PutioFileRoute(item: document)))
+    model.consumeDestination()
+    model.receive(try url("/files/21"))
+    let archive = BrowserTestFixtures.item(id: 21, kind: .other("ARCHIVE"))
+    await model.resolve(historyEnabled: true) { _ in archive }
+    XCTAssertEqual(model.destination, .files([], file: PutioFileRoute(item: archive)))
+    XCTAssertEqual(PutioFileRoute(item: archive).openAction, .unsupported(.init(item: archive)))
     model.cancel()
     XCTAssertFalse(model.presentsStatus)
   }

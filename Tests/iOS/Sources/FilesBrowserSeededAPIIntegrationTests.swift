@@ -111,6 +111,8 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
       root.items.map(\.id),
       [
         folderID, PutioFileID(rawValue: 412),
+        PutioFileID(rawValue: HarnessSeededAPI.imageFileID),
+        PutioFileID(rawValue: HarnessSeededAPI.archiveFileID),
         PutioFileID(rawValue: HarnessSeededAPI.audioTrackFileID),
         PutioFileID(rawValue: HarnessSeededAPI.audioSuccessorFileID),
         PutioFileID(rawValue: 413),

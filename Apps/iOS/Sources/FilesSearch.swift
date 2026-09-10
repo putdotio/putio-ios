@@ -242,15 +242,13 @@ struct FilesSearchView: View {
     Group {
       if let route = presentation.folderRoute {
         NavigationLink(value: route) { PutioFileRow(presentation.row) }
-      } else if let route = presentation.fileRoute, route.isPlayable {
+      } else if let route = presentation.fileRoute {
         Button {
           onFileSelected(route)
         } label: {
           PutioFileRow(presentation.row)
         }
         .buttonStyle(.plain)
-      } else {
-        PutioFileRow(presentation.row)
       }
     }
     .accessibilityIdentifier("files.search-item.\(presentation.id.rawValue)")
