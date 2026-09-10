@@ -486,7 +486,7 @@ final class PutioCastModel {
     // A cast that starts while this stop is in flight supersedes it inside
     // the controller, so the stop cannot idle the newer media.
     Task { @MainActor [weak self] in
-      guard let self, request + 1 == generation else { return }
+      guard let self, request &+ 1 == generation else { return }
       try? await controller.stop()
     }
   }
