@@ -111,27 +111,43 @@ final class DeepLinkTests: XCTestCase {
     XCTAssertNil(model.failure)
   }
 
-  func testCancelledResolutionAdvancesTheRequestSoTheOwningTaskRefires() async throws {
+  func testModelOwnedResolutionSurvivesTheCallersCancellation() async throws {
     let model = signedInModel()
     model.receive(try url("/files/10"))
-    let before = model.request
     let started = expectation(description: "resolve started")
-    let task = Task { @MainActor in
-      await model.resolve(historyEnabled: true) { _ in
+    let release = expectation(description: "release")
+    let caller = Task { @MainActor in
+      model.startResolving(historyEnabled: true) { _ in
         started.fulfill()
-        try await Task.sleep(for: .seconds(10))
+        await self.fulfillment(of: [release], timeout: 5)
         return BrowserTestFixtures.item(id: 10, kind: .folder)
       }
     }
     await fulfillment(of: [started], timeout: 2)
-    task.cancel()
-    await task.value
-    XCTAssertNotNil(model.pending, "a cancelled run keeps the link pending")
-    XCTAssertNotEqual(model.request, before, "the request must change so .task(id:) refires")
-    XCTAssertFalse(model.isLoading)
-    await model.resolve(historyEnabled: true) { _ in BrowserTestFixtures.item(id: 10, kind: .folder)
-    }
+    caller.cancel()
+    await caller.value
+    release.fulfill()
+    let resolved = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in model.destination != nil }, object: nil)
+    await fulfillment(of: [resolved], timeout: 2)
     XCTAssertEqual(model.destination, .files([folder(10)], file: nil))
+  }
+
+  func testCancelStopsAnOwnedResolution() async throws {
+    let model = signedInModel()
+    model.receive(try url("/files/10"))
+    let started = expectation(description: "resolve started")
+    model.startResolving(historyEnabled: true) { _ in
+      started.fulfill()
+      try await Task.sleep(for: .seconds(10))
+      return BrowserTestFixtures.item(id: 10, kind: .folder)
+    }
+    await fulfillment(of: [started], timeout: 2)
+    model.cancel()
+    XCTAssertNil(model.pending)
+    XCTAssertFalse(model.presentsStatus)
+    try await Task.sleep(for: .milliseconds(100))
+    XCTAssertNil(model.destination)
   }
 
   func testMissingFileRetryAndNonMediaFilesRouteToTheirScreens() async throws {

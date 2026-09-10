@@ -256,7 +256,14 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let readTracks: PutioOfflineTrackReader
   @ObservationIgnored private let isPlayable: PutioOfflinePlayabilityCheck
   @ObservationIgnored private let notifyCompletion: @MainActor (PutioOfflineItem) -> Void
-  @ObservationIgnored private var workers: [PutioFileID: Task<Void, Never>] = [:]
+  /// A worker is identified by its token so a cancelled worker's cleanup
+  /// never clears a successor that pause-then-resume already started.
+  private struct Worker {
+    let token: UUID
+    let task: Task<Void, Never>
+  }
+
+  @ObservationIgnored private var workers: [PutioFileID: Worker] = [:]
   /// File ids whose engine task is suspended and can be resumed in place.
   @ObservationIgnored private var suspended: Set<PutioFileID> = []
   /// Suspended tasks the user asked to resume while every slot was busy.
@@ -477,11 +484,11 @@ final class PutioOfflineQueue {
       suspended.insert(fileID)
       items[index].stage = .paused(progress: progress)
     case .queued:
-      workers[fileID]?.cancel()
+      workers[fileID]?.task.cancel()
       workers[fileID] = nil
       items[index].stage = .paused(progress: 0)
     case .converting(let progress):
-      workers[fileID]?.cancel()
+      workers[fileID]?.task.cancel()
       workers[fileID] = nil
       items[index].stage = .paused(progress: progress)
     default:
@@ -527,7 +534,7 @@ final class PutioOfflineQueue {
   func remove(fileIDs: [PutioFileID]) {
     for fileID in fileIDs {
       completionEpoch[fileID, default: 0] &+= 1
-      workers[fileID]?.cancel()
+      workers[fileID]?.task.cancel()
       workers[fileID] = nil
       suspended.remove(fileID)
       resumeWhenFree.removeAll { $0 == fileID }
@@ -626,11 +633,14 @@ final class PutioOfflineQueue {
     }
     for item in items where slots > 0 && item.stage == .queued && workers[item.id] == nil {
       slots -= 1
-      workers[item.id] = Task { @MainActor [weak self] in
+      let token = UUID()
+      let task = Task { @MainActor [weak self] in
         await self?.process(fileID: item.id)
-        self?.workers[item.id] = nil
-        self?.schedule()
+        guard let self, workers[item.id]?.token == token else { return }
+        workers[item.id] = nil
+        schedule()
       }
+      workers[item.id] = Worker(token: token, task: task)
     }
   }
 
@@ -683,7 +693,8 @@ final class PutioOfflineQueue {
         return
       }
     } catch is CancellationError {
-      engine.cancel(fileID: fileID)
+      // Cancellation before the engine started leaves nothing to cancel; a
+      // successor worker may already own a task for this id.
       return
     } catch PutioOfflineEngineError.missingLanguages {
       fail(
@@ -908,9 +919,9 @@ final class PutioOfflineQueue {
   nonisolated static func packageIsComplete(at url: URL, fileManager: FileManager = .default)
     -> Bool
   {
-    guard let enumerator = fileManager.enumerator(at: url, includingPropertiesForKeys: nil) else {
-      return true
-    }
+    guard fileManager.fileExists(atPath: url.path),
+      let enumerator = fileManager.enumerator(at: url, includingPropertiesForKeys: nil)
+    else { return false }
     var playlists: [URL] = []
     for case let file as URL in enumerator where file.pathExtension == "m3u8" {
       playlists.append(file)
@@ -919,13 +930,30 @@ final class PutioOfflineQueue {
       guard let text = try? String(contentsOf: playlist, encoding: .utf8) else { return false }
       for line in text.split(separator: "\n") {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, !trimmed.hasPrefix("#"), !trimmed.contains("://") else { continue }
-        let segment = playlist.deletingLastPathComponent().appending(path: trimmed)
-        let size = (try? segment.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-        guard size > 0 else { return false }
+        guard !trimmed.isEmpty else { continue }
+        for reference in Self.playlistReferences(in: trimmed) where !reference.contains("://") {
+          let target = playlist.deletingLastPathComponent().appending(path: reference)
+          let size = (try? target.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+          guard size > 0 else { return false }
+        }
       }
     }
     return true
+  }
+
+  /// A plain line is a segment or variant URI; a tag line may carry one in
+  /// `URI="…"` (media renditions, maps, keys). Both must exist on disk.
+  nonisolated static func playlistReferences(in line: String) -> [String] {
+    guard line.hasPrefix("#") else { return [line] }
+    var references: [String] = []
+    var remainder = Substring(line)
+    while let range = remainder.range(of: "URI=\"") {
+      let start = range.upperBound
+      guard let end = remainder[start...].firstIndex(of: "\"") else { break }
+      references.append(String(remainder[start..<end]))
+      remainder = remainder[end...]
+    }
+    return references
   }
 
   nonisolated static func storedTracks(at url: URL) async

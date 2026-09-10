@@ -112,7 +112,7 @@ private struct SessionRootView: View {
     }
     .task(id: deepLinks.request) {
       guard case .signedIn(let account) = runtime.session.state else { return }
-      await deepLinks.resolve(historyEnabled: account.historyEnabled) {
+      deepLinks.startResolving(historyEnabled: account.historyEnabled) {
         try await runtime.getFile(fileID: $0)
       }
     }

@@ -76,6 +76,10 @@ final class PutioDeepLinkModel {
   private(set) var failure: PutioDeepLinkFailure?
   private(set) var isLoading = false
   private var boundAccountID: Int?
+  /// Resolution runs in a task the model owns. SwiftUI recreates the view's
+  /// `.task` on identity churn during a cold launch, which would cancel a
+  /// structured child mid-request; an owned task only stops on `cancel()`.
+  private var resolution: Task<Void, Never>?
 
   struct Request: Equatable {
     let revision: UInt64
@@ -133,16 +137,7 @@ final class PutioDeepLinkModel {
       destination = resolved
       self.pending = nil
     } catch {
-      if Task.isCancelled || error is CancellationError {
-        // SwiftUI restarts the owning task on view identity changes, which
-        // cancels this run without changing the request. The link is still
-        // pending, so a new revision makes the task fire again.
-        if request == self.request, self.pending != nil {
-          isLoading = false
-          revision &+= 1
-        }
-        return
-      }
+      if Task.isCancelled || error is CancellationError { return }
       guard request == self.request else { return }
       if let failure = error as? PutioDeepLinkFailure {
         self.failure = failure
@@ -165,7 +160,23 @@ final class PutioDeepLinkModel {
 
   func consumeDestination() { destination = nil }
 
+  /// Starts resolution for the current request unless one is already
+  /// running for it. Safe to call again from a recreated view task.
+  func startResolving(
+    historyEnabled: Bool,
+    file: @escaping @MainActor @Sendable (PutioFileID) async throws -> PutioFileItem
+  ) {
+    guard pending != nil, pending != .unavailable, accountID != nil, !isLoading, failure == nil
+    else { return }
+    resolution?.cancel()
+    resolution = Task { @MainActor [weak self] in
+      await self?.resolve(historyEnabled: historyEnabled, file: file)
+    }
+  }
+
   func cancel() {
+    resolution?.cancel()
+    resolution = nil
     revision &+= 1
     pending = nil
     destination = nil

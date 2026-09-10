@@ -1266,8 +1266,8 @@ final class PutioSystemVideoPlayerCoordinator {
       guard let group = try? await item.asset.loadMediaSelectionGroup(for: .audible) else {
         return
       }
-      let option = item.currentMediaSelection.selectedMediaOption(in: group)
-      onAudioSelected(option.map(PutioOfflineQueue.track)?.languageCode ?? "")
+      guard let option = item.currentMediaSelection.selectedMediaOption(in: group) else { return }
+      onAudioSelected(PutioOfflineQueue.track(option).languageCode)
     }
   }
 

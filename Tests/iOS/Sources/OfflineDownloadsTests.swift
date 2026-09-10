@@ -753,6 +753,58 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertTrue(PutioOfflineQueue.packageIsComplete(at: package))
     try Data().write(to: package.appending(path: "seg-1.ts"))
     XCTAssertFalse(PutioOfflineQueue.packageIsComplete(at: package))
+    XCTAssertFalse(
+      PutioOfflineQueue.packageIsComplete(at: directory.appending(path: "missing.movpkg")))
+  }
+
+  func testHLSMasterPlaylistRenditionURIsMustExist() throws {
+    let package = directory.appending(path: "multi.movpkg")
+    try FileManager.default.createDirectory(at: package, withIntermediateDirectories: true)
+    try Data(
+      """
+      #EXTM3U
+      #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",NAME="Turkish",URI="tur.m3u8"
+      #EXT-X-STREAM-INF:BANDWIDTH=1,AUDIO="a"
+      video.m3u8
+      """.utf8
+    ).write(to: package.appending(path: "master.m3u8"))
+    try Data("#EXTM3U\n#EXTINF:1,\nv.ts\n".utf8).write(to: package.appending(path: "video.m3u8"))
+    try Data(count: 4).write(to: package.appending(path: "v.ts"))
+    XCTAssertFalse(PutioOfflineQueue.packageIsComplete(at: package), "tur.m3u8 is missing")
+    try Data("#EXTM3U\n#EXTINF:1,\nt.ts\n".utf8).write(to: package.appending(path: "tur.m3u8"))
+    try Data(count: 4).write(to: package.appending(path: "t.ts"))
+    XCTAssertTrue(PutioOfflineQueue.packageIsComplete(at: package))
+    XCTAssertEqual(
+      PutioOfflineQueue.playlistReferences(in: #"#EXT-X-KEY:METHOD=AES-128,URI="k.key",IV=1"#),
+      ["k.key"])
+    XCTAssertEqual(PutioOfflineQueue.playlistReferences(in: "#EXTINF:10,"), [])
+  }
+
+  func testPauseThenResumeWhileTheOldWorkerUnwindsRunsOneWorker() async {
+    let gate = AsyncGate()
+    var resolves = 0
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in
+        resolves += 1
+        await gate.wait()
+        try Task.checkCancellation()
+        return .ready(
+          PutioPlaybackSource(url: URL(string: "https://media.test/x")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in })
+    queue.enqueue(fileID: PutioFileID(rawValue: 80), parentID: .root, name: "w", kind: .video)
+    await settle()
+    queue.pause(fileID: PutioFileID(rawValue: 80))
+    queue.resume(fileID: PutioFileID(rawValue: 80))
+    await settle()
+    await gate.open()
+    await settle()
+    XCTAssertEqual(resolves, 2, "the cancelled worker resolved once, the successor once")
+    XCTAssertEqual(engine.started.count, 1, "only the successor started a download")
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 80))?.stage, .downloading(progress: 0))
   }
 
   func testUnreservedBytesSubtractInFlightEstimates() async {
