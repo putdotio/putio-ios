@@ -5,7 +5,8 @@ import XCTest
 
 @MainActor
 final class ExternalPlaybackTests: XCTestCase {
-  private final class Opener: PutioExternalURLOpening, @unchecked Sendable {
+  @MainActor
+  private final class Opener: PutioExternalURLOpening {
     var installed = true
     var accepts = true
     var opened: [URL] = []
