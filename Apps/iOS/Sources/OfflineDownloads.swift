@@ -254,6 +254,7 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let availableStorage: @MainActor () -> Int64
   @ObservationIgnored private let fileManager: FileManager
   @ObservationIgnored private let readTracks: PutioOfflineTrackReader
+  @ObservationIgnored private let isPlayable: PutioOfflinePlayabilityCheck
   @ObservationIgnored private let notifyCompletion: @MainActor (PutioOfflineItem) -> Void
   @ObservationIgnored private var workers: [PutioFileID: Task<Void, Never>] = [:]
   /// File ids whose engine task is suspended and can be resumed in place.
@@ -281,6 +282,9 @@ final class PutioOfflineQueue {
       await PutioOfflineQueue.storedTracks(at: $0)
     },
     notifyCompletion: @escaping @MainActor (PutioOfflineItem) -> Void = { _ in },
+    isPlayable: @escaping PutioOfflinePlayabilityCheck = {
+      await PutioOfflineQueue.assetIsPlayable(at: $0)
+    },
     resolve: @escaping PutioOfflineResolve,
     startConversion: @escaping PutioOfflineConversionStart,
     conversionStatus: @escaping PutioOfflineConversionStatus,
@@ -294,6 +298,7 @@ final class PutioOfflineQueue {
     self.fileManager = fileManager
     self.readTracks = readTracks
     self.notifyCompletion = notifyCompletion
+    self.isPlayable = isPlayable
     self.resolve = resolve
     self.startConversion = startConversion
     self.conversionStatus = conversionStatus
@@ -334,12 +339,12 @@ final class PutioOfflineQueue {
       case .downloading(let progress) where !alive.contains(items[index].id):
         // A package that finished while the app was gone is on disk with its
         // path recorded; finish it instead of pausing a download that is over.
-        // Progress persists in 5% steps, so a package can be whole while the
-        // document says 0.95; a readable asset on disk is the real signal.
-        if let localPath = items[index].localPath,
-          Self.directorySize(Self.localURL(for: localPath), fileManager: fileManager) > 0
-        {
-          finishRestored(fileID: items[index].id, localPath: localPath)
+        // Progress persists in 5% steps, so a whole package can read 0.95
+        // while a 40% crash also left bytes on disk. Only a package the
+        // player can open counts as finished; the rest pause for resume.
+        if let localPath = items[index].localPath {
+          items[index].stage = .paused(progress: progress)
+          finishRestoredIfPlayable(fileID: items[index].id, localPath: localPath)
         } else {
           items[index].stage = .paused(progress: progress)
         }
@@ -356,8 +361,15 @@ final class PutioOfflineQueue {
     schedule()
   }
 
-  private func finishRestored(fileID: PutioFileID, localPath: String) {
-    complete(fileID: fileID, localPath: localPath)
+  private func finishRestoredIfPlayable(fileID: PutioFileID, localPath: String) {
+    let url = Self.localURL(for: localPath)
+    let isPlayable = isPlayable
+    Task { @MainActor [weak self] in
+      guard await isPlayable(url), let self,
+        case .paused = self.item(for: fileID)?.stage
+      else { return }
+      complete(fileID: fileID, localPath: localPath)
+    }
   }
 
   /// One completion per item: engine success and restore both land here.
@@ -628,7 +640,14 @@ final class PutioOfflineQueue {
       }
       let free = availableStorage()
       availableBytes = free
-      guard Self.fits(estimatedBytes: current.estimatedBytes, freeBytes: free) else {
+      // Other active downloads have not written their bytes yet; their
+      // estimates come off the free space before this one is admitted.
+      let reserved =
+        items
+        .filter { $0.id != fileID && $0.isActive }
+        .map { max(0, $0.estimatedBytes - $0.storedBytes) }
+        .reduce(0, +)
+      guard Self.fits(estimatedBytes: current.estimatedBytes, freeBytes: free - reserved) else {
         fail(fileID, .storage)
         return
       }
@@ -717,6 +736,14 @@ final class PutioOfflineQueue {
   /// not leave a downloading row with no task behind it.
   private func engineCancelled(_ fileID: PutioFileID) {
     suspended.remove(fileID)
+    // A waiter whose task is gone can no longer resume in place; it goes
+    // back through the queue like any other paused item.
+    if resumeWhenFree.contains(fileID) {
+      resumeWhenFree.removeAll { $0 == fileID }
+      update(fileID) { $0.stage = .queued }
+      schedule()
+      return
+    }
     guard let index = items.firstIndex(where: { $0.id == fileID }),
       case .downloading(let progress) = items[index].stage, workers[fileID] == nil
     else { return }
@@ -821,7 +848,7 @@ final class PutioOfflineQueue {
       : URL(fileURLWithPath: NSHomeDirectory()).appending(path: relativePath)
   }
 
-  static func directorySize(_ url: URL, fileManager: FileManager) -> Int64 {
+  nonisolated static func directorySize(_ url: URL, fileManager: FileManager) -> Int64 {
     guard
       let enumerator = fileManager.enumerator(
         at: url, includingPropertiesForKeys: [.fileSizeKey, .totalFileAllocatedSizeKey])
@@ -834,6 +861,16 @@ final class PutioOfflineQueue {
       total += Int64(values?.totalFileAllocatedSize ?? values?.fileSize ?? 0)
     }
     return total
+  }
+
+  /// A package is finished when AVFoundation reports it playable with a
+  /// finite duration; a partial download fails one of those.
+  nonisolated static func assetIsPlayable(at url: URL) async -> Bool {
+    let asset = AVURLAsset(url: url)
+    guard let (playable, duration) = try? await asset.load(.isPlayable, .duration) else {
+      return false
+    }
+    return playable && duration.isNumeric && duration.seconds > 0
   }
 
   nonisolated static func storedTracks(at url: URL) async
@@ -870,11 +907,19 @@ enum PutioOfflineLanguage {
   static func preferred(
     from stored: [PutioOfflineTrack], preferredLanguages: [String] = Locale.preferredLanguages
   ) -> PutioOfflineTrack? {
+    match(from: stored, preferredLanguages: preferredLanguages) ?? stored.first
+  }
+
+  /// The first preferred language present, or nil when none is: playback
+  /// uses nil to keep the asset's own default.
+  static func match(from stored: [PutioOfflineTrack], preferredLanguages: [String])
+    -> PutioOfflineTrack?
+  {
     for language in preferredLanguages {
-      let base = Locale(identifier: language).language.languageCode?.identifier ?? language
+      let base = normalize(language)
       if let match = stored.first(where: { matches($0.languageCode, base) }) { return match }
     }
-    return stored.first
+    return nil
   }
 
   static func matches(_ code: String, _ base: String) -> Bool {
@@ -886,5 +931,6 @@ enum PutioOfflineLanguage {
   }
 }
 
+typealias PutioOfflinePlayabilityCheck = @Sendable (URL) async -> Bool
 typealias PutioOfflineTrackReader =
   @Sendable (URL) async -> (audio: [PutioOfflineTrack], subtitles: [PutioOfflineTrack])

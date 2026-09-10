@@ -133,9 +133,17 @@ final class PutioDeepLinkModel {
       destination = resolved
       self.pending = nil
     } catch {
-      guard request == self.request, !Task.isCancelled, !(error is CancellationError) else {
+      if Task.isCancelled || error is CancellationError {
+        // SwiftUI restarts the owning task on view identity changes, which
+        // cancels this run without changing the request. The link is still
+        // pending, so a new revision makes the task fire again.
+        if request == self.request, self.pending != nil {
+          isLoading = false
+          revision &+= 1
+        }
         return
       }
+      guard request == self.request else { return }
       if let failure = error as? PutioDeepLinkFailure {
         self.failure = failure
       } else {

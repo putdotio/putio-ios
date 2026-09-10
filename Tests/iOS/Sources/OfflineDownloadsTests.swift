@@ -134,6 +134,10 @@ final class OfflineDownloadsTests: XCTestCase {
       readTracks: { _ in
         ([PutioOfflineTrack(languageCode: "en", displayName: "English")], [])
       },
+      isPlayable: { url in
+        !url.lastPathComponent.hasPrefix("partial")
+          && PutioOfflineQueue.directorySize(url, fileManager: .default) > 0
+      },
       resolve: { fileID, _ in
         if var queued = self.resolutions[fileID.rawValue], !queued.isEmpty {
           let next = queued.removeFirst()
@@ -464,6 +468,7 @@ final class OfflineDownloadsTests: XCTestCase {
       availableStorage: { 1_000_000_000 },
       readTracks: { _ in ([], []) },
       notifyCompletion: { notified.append($0.id.rawValue) },
+      isPlayable: { _ in true },
       resolve: { fileID, _ in
         .ready(
           PutioPlaybackSource(
@@ -561,7 +566,7 @@ final class OfflineDownloadsTests: XCTestCase {
     let queue = PutioOfflineQueue(
       store: store, engine: engine, conversionPollInterval: .zero, sleep: { _ in },
       availableStorage: { 1_000_000_000 }, readTracks: { _ in ([], []) },
-      notifyCompletion: { _ in notified += 1 },
+      notifyCompletion: { _ in notified += 1 }, isPlayable: { _ in true },
       resolve: { _, _ in
         .ready(PutioPlaybackSource(url: URL(string: "https://media.test/x")!, startFromSeconds: 0))
       },
@@ -571,6 +576,68 @@ final class OfflineDownloadsTests: XCTestCase {
     await settle()
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 40))?.stage, .completed)
     XCTAssertEqual(notified, 1)
+  }
+
+  func testRestoreLeavesAnUnplayablePartialPackagePaused() async throws {
+    let store = PutioOfflineStore(directory: directory)
+    let location = directory.appending(path: "partial.movpkg")
+    try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+    try Data(count: 512).write(to: location.appending(path: "seg.bin"))
+    store.save(
+      items: [
+        PutioOfflineItem(
+          id: PutioFileID(rawValue: 50), parentID: .root, name: "q", kind: .video, createdAt: .now,
+          stage: .downloading(progress: 0.4), localPath: location.path, storedBytes: 0,
+          selectedAudioLanguages: [], storedAudioTracks: [], storedSubtitleTracks: [],
+          resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: 0)
+      ], concurrencyLimit: 2)
+    let queue = makeQueue()
+    await queue.restore()
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 50))?.stage, .paused(progress: 0.4))
+    XCTAssertNil(queue.localSource(for: PutioFileID(rawValue: 50)))
+  }
+
+  func testSystemCancelOfASlotWaiterReQueuesIt() async {
+    let queue = makeQueue()
+    queue.setConcurrencyLimit(1)
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    await settle()
+    engine.onProgress?(PutioFileID(rawValue: 1), 0.5)
+    queue.pause(fileID: PutioFileID(rawValue: 1))
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    await settle()
+    queue.resume(fileID: PutioFileID(rawValue: 1))
+    XCTAssertTrue(queue.isWaitingForSlot(PutioFileID(rawValue: 1)))
+    engine.onCancelled?(PutioFileID(rawValue: 1))
+    XCTAssertFalse(queue.isWaitingForSlot(PutioFileID(rawValue: 1)))
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .queued)
+    engine.finish(PutioFileID(rawValue: 2), at: directory)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1, 2, 1])
+  }
+
+  func testStartGateReservesOtherInFlightEstimates() async {
+    let queue = makeQueue(availableBytes: 1_000_000_000)
+    queue.enqueue(
+      fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video,
+      estimatedBytes: 500_000_000)
+    queue.enqueue(
+      fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video,
+      estimatedBytes: 500_000_000)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1])
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 2))?.stage, .failed(.storage))
+  }
+
+  func testPlaybackMatchKeepsTheAssetDefaultWhenNothingMatches() {
+    let stored = [
+      PutioOfflineTrack(languageCode: "en", displayName: "English"),
+      PutioOfflineTrack(languageCode: "tr", displayName: "Turkish"),
+    ]
+    XCTAssertEqual(
+      PutioOfflineLanguage.match(from: stored, preferredLanguages: ["tr-TR"])?.languageCode, "tr")
+    XCTAssertNil(PutioOfflineLanguage.match(from: stored, preferredLanguages: ["de-DE"]))
   }
 
   func testTaskDescriptionsCarryTheAccount() {

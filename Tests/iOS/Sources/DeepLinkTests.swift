@@ -111,6 +111,29 @@ final class DeepLinkTests: XCTestCase {
     XCTAssertNil(model.failure)
   }
 
+  func testCancelledResolutionAdvancesTheRequestSoTheOwningTaskRefires() async throws {
+    let model = signedInModel()
+    model.receive(try url("/files/10"))
+    let before = model.request
+    let started = expectation(description: "resolve started")
+    let task = Task { @MainActor in
+      await model.resolve(historyEnabled: true) { _ in
+        started.fulfill()
+        try await Task.sleep(for: .seconds(10))
+        return BrowserTestFixtures.item(id: 10, kind: .folder)
+      }
+    }
+    await fulfillment(of: [started], timeout: 2)
+    task.cancel()
+    await task.value
+    XCTAssertNotNil(model.pending, "a cancelled run keeps the link pending")
+    XCTAssertNotEqual(model.request, before, "the request must change so .task(id:) refires")
+    XCTAssertFalse(model.isLoading)
+    await model.resolve(historyEnabled: true) { _ in BrowserTestFixtures.item(id: 10, kind: .folder)
+    }
+    XCTAssertEqual(model.destination, .files([folder(10)], file: nil))
+  }
+
   func testMissingFileRetryAndNonMediaFilesRouteToTheirScreens() async throws {
     let model = signedInModel()
     model.receive(try url("/files/10"))

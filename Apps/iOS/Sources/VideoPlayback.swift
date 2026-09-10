@@ -1229,11 +1229,11 @@ final class PutioSystemVideoPlayerCoordinator {
   }
 
   /// Offline assets keep every downloaded language; the player picks the
-  /// first preferred one present, else leaves the asset's default.
+  /// first preferred one present and otherwise leaves the asset's default.
   static func selectAudio(preferring languages: [String], in item: AVPlayerItem) async {
     guard let group = try? await item.asset.loadMediaSelectionGroup(for: .audible) else { return }
     let stored = group.options.map(PutioOfflineQueue.track)
-    guard let choice = PutioOfflineLanguage.preferred(from: stored, preferredLanguages: languages),
+    guard let choice = PutioOfflineLanguage.match(from: stored, preferredLanguages: languages),
       let option = group.options.first(where: {
         PutioOfflineQueue.track($0).languageCode == choice.languageCode
       })
