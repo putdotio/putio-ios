@@ -22,22 +22,22 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     "\(accountID):\(fileID.rawValue)"
   }
 
-  /// Accepts both the account-qualified form and the bare file id written by
-  /// builds before accounts were encoded, which map to this account only if
-  /// no qualified task claims the id.
-  static func parse(_ description: String?) -> (accountID: Int?, fileID: PutioFileID)? {
+  /// Only the account-qualified form is owned. A bare file id has no owner
+  /// and is never adopted: the queue that wrote it can no longer be told
+  /// apart from another account's.
+  static func parse(_ description: String?) -> (accountID: Int, fileID: PutioFileID)? {
     guard let description else { return nil }
     let parts = description.split(separator: ":", maxSplits: 1)
-    if parts.count == 2, let account = Int(parts[0]), let file = Int(parts[1]) {
-      return (account, PutioFileID(rawValue: file))
+    guard parts.count == 2, let account = Int(parts[0]), let file = Int(parts[1]) else {
+      return nil
     }
-    if parts.count == 1, let file = Int(parts[0]) { return (nil, PutioFileID(rawValue: file)) }
-    return nil
+    return (account, PutioFileID(rawValue: file))
   }
 
   private func owns(_ task: URLSessionTask) -> PutioFileID? {
-    guard let parsed = Self.parse(task.taskDescription) else { return nil }
-    guard parsed.accountID == nil || parsed.accountID == accountID else { return nil }
+    guard let parsed = Self.parse(task.taskDescription), parsed.accountID == accountID else {
+      return nil
+    }
     return parsed.fileID
   }
 
@@ -111,7 +111,12 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     }
     let asset = AVURLAsset(url: url)
     let configuration = AVAssetDownloadConfiguration(asset: asset, title: title)
-    if !audioLanguages.isEmpty, let group = try await asset.loadMediaSelectionGroup(for: .audible) {
+    if !audioLanguages.isEmpty {
+      // A selection the asset cannot honour must fail rather than store a
+      // default-only package the queue believes is multi-language.
+      guard let group = try await asset.loadMediaSelectionGroup(for: .audible) else {
+        throw PutioOfflineEngineError.missingLanguages
+      }
       let selections: [AVMediaSelection] = audioLanguages.compactMap { language in
         guard
           let option = group.options.first(where: {

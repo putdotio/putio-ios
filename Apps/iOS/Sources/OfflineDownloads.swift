@@ -260,6 +260,9 @@ final class PutioOfflineQueue {
   @ObservationIgnored private var suspended: Set<PutioFileID> = []
   /// Suspended tasks the user asked to resume while every slot was busy.
   private var resumeWhenFree: [PutioFileID] = []
+  /// Items whose package is being read for completion; a second completion
+  /// signal for the same item (replay plus restore) is ignored.
+  @ObservationIgnored private var completing: Set<PutioFileID> = []
 
   func isWaitingForSlot(_ fileID: PutioFileID) -> Bool {
     resumeWhenFree.contains(fileID)
@@ -354,11 +357,22 @@ final class PutioOfflineQueue {
   }
 
   private func finishRestored(fileID: PutioFileID, localPath: String) {
+    complete(fileID: fileID, localPath: localPath)
+  }
+
+  /// One completion per item: engine success and restore both land here.
+  private func complete(fileID: PutioFileID, localPath: String) {
+    guard !completing.contains(fileID) else { return }
+    completing.insert(fileID)
     let url = Self.localURL(for: localPath)
     let readTracks = readTracks
     Task { @MainActor [weak self] in
       let tracks = await readTracks(url)
       guard let self else { return }
+      completing.remove(fileID)
+      guard let index = items.firstIndex(where: { $0.id == fileID }),
+        items[index].stage != .completed
+      else { return }
       update(fileID) {
         $0.stage = .completed
         $0.storedBytes = Self.directorySize(url, fileManager: fileManager)
@@ -393,14 +407,18 @@ final class PutioOfflineQueue {
   }
 
   /// After conversion the asset is inspectable; the queue keeps every
-  /// language available so the stored asset is complete.
-  private func selectAllLanguagesIfUnset(fileID: PutioFileID, url: URL) async {
+  /// language available so the stored asset is complete, and re-estimates
+  /// the size so the storage gate sees the real total. An inventory failure
+  /// is a real failure, not a silent default-only download.
+  private func selectAllLanguagesIfUnset(fileID: PutioFileID, url: URL) async throws {
     guard let item = item(for: fileID), item.selectedAudioLanguages.isEmpty,
       item.kind == .video, item.awaitsLanguageSelection
     else { return }
-    guard let inventory = try? await engine.inventory(url: url) else { return }
+    let inventory = try await engine.inventory(url: url)
+    let languages = inventory.audioOptions.map(\.languageCode)
     update(fileID) {
-      $0.selectedAudioLanguages = inventory.audioOptions.map(\.languageCode)
+      $0.selectedAudioLanguages = languages
+      $0.estimatedBytes = inventory.estimatedBytes(selecting: languages)
       $0.awaitsLanguageSelection = false
     }
   }
@@ -597,7 +615,7 @@ final class PutioOfflineQueue {
       if case .conversionRequired = resolution {
         resolution = try await convert(fileID: fileID)
         if case .ready(let converted) = resolution {
-          await selectAllLanguagesIfUnset(fileID: fileID, url: converted.url)
+          try await selectAllLanguagesIfUnset(fileID: fileID, url: converted.url)
         }
       }
       // Every await above may have let pause or remove run; nothing below
@@ -737,21 +755,7 @@ final class PutioOfflineQueue {
     case .downloading, .paused: break
     default: return
     }
-    let url = Self.localURL(for: localPath)
-    let readTracks = readTracks
-    Task { @MainActor [weak self] in
-      let tracks = await readTracks(url)
-      guard let self else { return }
-      update(fileID) {
-        $0.stage = .completed
-        $0.storedBytes = Self.directorySize(url, fileManager: fileManager)
-        $0.storedAudioTracks = tracks.audio
-        $0.storedSubtitleTracks = tracks.subtitles
-      }
-      recomputeStorage()
-      if let completed = self.item(for: fileID) { notifyCompletion(completed) }
-      schedule()
-    }
+    complete(fileID: fileID, localPath: localPath)
   }
 
   /// Partial packages from failed or abandoned downloads are removed so they
