@@ -689,11 +689,11 @@ struct PutioFolderScreen: View {
   @ViewBuilder
   private func actionButtons(for item: PutioFileItem) -> some View {
     if let route = PutioBrowserItemPresentation(item: item).fileRoute,
-      route.supportsOfflineDownload,
-      onDownload != nil || (onExternalPlayback != nil && route.supportsExternalPlayback)
+      (onDownload != nil && route.supportsOfflineDownload)
+        || (onExternalPlayback != nil && route.supportsExternalPlayback)
     {
       Section {
-        if let onDownload {
+        if let onDownload, route.supportsOfflineDownload {
           Button {
             onDownload(route)
           } label: {

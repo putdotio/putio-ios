@@ -619,13 +619,18 @@ final class OfflineDownloadsTests: XCTestCase {
 
   func testStartGateReservesOtherInFlightEstimates() async {
     let queue = makeQueue(availableBytes: 1_000_000_000)
+    queue.setConcurrencyLimit(1)
     queue.enqueue(
       fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video,
       estimatedBytes: 500_000_000)
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1])
     queue.enqueue(
       fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video,
       estimatedBytes: 500_000_000)
+    queue.setConcurrencyLimit(2)
     await settle()
+    // Item 1's unwritten estimate is reserved, so item 2 no longer fits.
     XCTAssertEqual(engine.started.map(\.0.rawValue), [1])
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 2))?.stage, .failed(.storage))
   }
@@ -638,6 +643,85 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(
       PutioOfflineLanguage.match(from: stored, preferredLanguages: ["tr-TR"])?.languageCode, "tr")
     XCTAssertNil(PutioOfflineLanguage.match(from: stored, preferredLanguages: ["de-DE"]))
+  }
+
+  func testRestoreFinishesAPlayablePackageLeftPausedByAPreviousLaunch() async throws {
+    let store = PutioOfflineStore(directory: directory)
+    let location = directory.appending(path: "done2.movpkg")
+    try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+    try Data(count: 256).write(to: location.appending(path: "seg.bin"))
+    store.save(
+      items: [
+        PutioOfflineItem(
+          id: PutioFileID(rawValue: 60), parentID: .root, name: "r", kind: .video, createdAt: .now,
+          stage: .paused(progress: 0.95), localPath: location.path, storedBytes: 0,
+          selectedAudioLanguages: [], storedAudioTracks: [], storedSubtitleTracks: [],
+          resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: 0)
+      ], concurrencyLimit: 2)
+    let queue = makeQueue()
+    await queue.restore()
+    await settle()
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 60))?.stage, .completed)
+    XCTAssertTrue(engine.started.isEmpty)
+  }
+
+  func testResumeDuringCompletionReadWinsOverTheStalePackage() async throws {
+    let gate = AsyncGate()
+    let location = directory.appending(path: "race.movpkg")
+    try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+    try Data(count: 64).write(to: location.appending(path: "seg.bin"))
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      readTracks: { _ in
+        await gate.wait()
+        return ([], [])
+      },
+      isPlayable: { _ in true },
+      resolve: { _, _ in
+        .ready(PutioPlaybackSource(url: URL(string: "https://media.test/x")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in })
+    queue.enqueue(fileID: PutioFileID(rawValue: 61), parentID: .root, name: "s", kind: .video)
+    await settle()
+    engine.onProgress?(PutioFileID(rawValue: 61), 0.9)
+    queue.pause(fileID: PutioFileID(rawValue: 61))
+    engine.onLocation?(PutioFileID(rawValue: 61), location)
+    engine.onFinished?(PutioFileID(rawValue: 61), nil)
+    // The completion read is parked; the user resumes meanwhile.
+    queue.resume(fileID: PutioFileID(rawValue: 61))
+    await settle()
+    await gate.open()
+    await settle()
+    XCTAssertNotEqual(queue.item(for: PutioFileID(rawValue: 61))?.stage, .completed)
+  }
+
+  func testStartGateReservesResolvingWorkersToo() async {
+    let gate = AsyncGate()
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { fileID, _ in
+        if fileID.rawValue == 1 { await gate.wait() }
+        return .ready(
+          PutioPlaybackSource(
+            url: URL(string: "https://media.test/\(fileID.rawValue)")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in })
+    queue.enqueue(
+      fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video,
+      estimatedBytes: 600_000_000)
+    queue.enqueue(
+      fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video,
+      estimatedBytes: 600_000_000)
+    await settle()
+    // Item 2 resolved while item 1 was still resolving; item 1's estimate is reserved.
+    XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 2))?.stage, .failed(.storage))
+    await gate.open()
+    await settle()
+    XCTAssertEqual(engine.started.map(\.0.rawValue), [1])
   }
 
   func testTaskDescriptionsCarryTheAccount() {

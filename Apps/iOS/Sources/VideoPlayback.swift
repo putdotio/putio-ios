@@ -461,6 +461,7 @@ struct PutioVideoPlaybackView: View {
   @State private var retrySequence: UInt64 = 0
   @State private var playerIsReady = false
   @State private var observedPlaybackPosition: Int?
+  @State private var selectedAudioLanguage: String?
   @State private var playbackReachedEnd = false
   @State private var conversionHistory: [String] = []
   @State private var nextVideoTransitionTask: Task<Void, Never>?
@@ -581,6 +582,15 @@ struct PutioVideoPlaybackView: View {
               .accessibilityIdentifier("video.ready")
               .allowsHitTesting(false)
           }
+          if let selectedAudioLanguage {
+            Color.clear
+              .frame(width: 1, height: 1)
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel("Selected audio language")
+              .accessibilityValue(selectedAudioLanguage)
+              .accessibilityIdentifier("video.audio-language")
+              .allowsHitTesting(false)
+          }
           if let observedPlaybackPosition {
             Color.clear
               .frame(width: 1, height: 1)
@@ -676,6 +686,7 @@ struct PutioVideoPlaybackView: View {
         reportPosition: reportPosition,
         onReady: { playerIsReady = true },
         observesPlaybackState: showsHarnessReadiness,
+        onAudioSelected: { selectedAudioLanguage = $0 },
         onPositionChanged: { observedPlaybackPosition = $0 },
         onPlaybackEnded: {
           playbackReachedEnd = true
@@ -788,6 +799,7 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
   let reportPosition: PutioPlaybackPositionReport
   let onReady: @MainActor @Sendable () -> Void
   let observesPlaybackState: Bool
+  let onAudioSelected: @MainActor @Sendable (String) -> Void
   let onPositionChanged: @MainActor @Sendable (Int) -> Void
   let onPlaybackEnded: @MainActor @Sendable () -> Void
   let onPlaybackRestarted: @MainActor @Sendable () -> Void
@@ -811,6 +823,7 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
       in: controller,
       onReady: onReady,
       observesPlaybackState: observesPlaybackState,
+      onAudioSelected: { code in onAudioSelected(code) },
       onPositionChanged: { position in onPositionChanged(position) },
       onPlaybackEnded: { onPlaybackEnded() },
       onPlaybackRestarted: { onPlaybackRestarted() },
@@ -992,6 +1005,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private var timeJumpedObservation: NSObjectProtocol?
   private var driver: (any PutioVideoPlayerDriving)?
   private var onReady: (@MainActor () -> Void)?
+  private var onAudioSelected: (@MainActor @Sendable (String) -> Void)?
   private var onPositionChanged: (@MainActor @Sendable (Int) -> Void)?
   private var onPlaybackEnded: (@MainActor @Sendable () -> Void)?
   private var onPlaybackRestarted: (@MainActor @Sendable () -> Void)?
@@ -1056,6 +1070,7 @@ final class PutioSystemVideoPlayerCoordinator {
     in controller: AVPlayerViewController,
     onReady: @escaping @MainActor () -> Void = {},
     observesPlaybackState: Bool = false,
+    onAudioSelected: @escaping @MainActor @Sendable (String) -> Void = { _ in },
     onPositionChanged: @escaping @MainActor @Sendable (Int) -> Void = { _ in },
     onPlaybackEnded: @escaping @MainActor @Sendable () -> Void = {},
     onPlaybackRestarted: @escaping @MainActor @Sendable () -> Void = {},
@@ -1071,6 +1086,7 @@ final class PutioSystemVideoPlayerCoordinator {
     self.remembersPlaybackPosition = remembersPlaybackPosition
     self.reportPosition = reportPosition
     self.onReady = onReady
+    self.onAudioSelected = observesPlaybackState ? onAudioSelected : nil
     self.onPositionChanged = observesPlaybackState ? onPositionChanged : nil
     self.onPlaybackEnded = onPlaybackEnded
     self.onPlaybackRestarted = onPlaybackRestarted
@@ -1084,6 +1100,7 @@ final class PutioSystemVideoPlayerCoordinator {
           if !preferredAudioLanguages.isEmpty {
             await Self.selectAudio(preferring: preferredAudioLanguages, in: item)
           }
+          self?.reportAudioSelection(for: item, generation: playbackGeneration)
           self?.reportReady(generation: playbackGeneration)
         case .failed:
           self?.reportFailure(generation: playbackGeneration)
@@ -1239,6 +1256,19 @@ final class PutioSystemVideoPlayerCoordinator {
       })
     else { return }
     item.select(option, in: group)
+  }
+
+  /// Publishes the audible option in effect so the journey can assert the
+  /// preferred-language pick without reaching into AVFoundation.
+  private func reportAudioSelection(for item: AVPlayerItem, generation playbackGeneration: UInt64) {
+    guard generation == playbackGeneration, let onAudioSelected else { return }
+    Task { @MainActor in
+      guard let group = try? await item.asset.loadMediaSelectionGroup(for: .audible) else {
+        return
+      }
+      let option = item.currentMediaSelection.selectedMediaOption(in: group)
+      onAudioSelected(option.map(PutioOfflineQueue.track)?.languageCode ?? "")
+    }
   }
 
   private func reportReady(generation playbackGeneration: UInt64) {

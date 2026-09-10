@@ -264,6 +264,9 @@ final class PutioOfflineQueue {
   /// Items whose package is being read for completion; a second completion
   /// signal for the same item (replay plus restore) is ignored.
   @ObservationIgnored private var completing: Set<PutioFileID> = []
+  /// Bumped by resume, retry, and remove so a completion read that started
+  /// before the user acted cannot commit a stale package.
+  @ObservationIgnored private var completionEpoch: [PutioFileID: UInt64] = [:]
 
   func isWaitingForSlot(_ fileID: PutioFileID) -> Bool {
     resumeWhenFree.contains(fileID)
@@ -337,16 +340,18 @@ final class PutioOfflineQueue {
     for index in items.indices {
       switch items[index].stage {
       case .downloading(let progress) where !alive.contains(items[index].id):
-        // A package that finished while the app was gone is on disk with its
-        // path recorded; finish it instead of pausing a download that is over.
         // Progress persists in 5% steps, so a whole package can read 0.95
-        // while a 40% crash also left bytes on disk. Only a package the
-        // player can open counts as finished; the rest pause for resume.
+        // while a 40% crash also left bytes on disk. The row pauses first;
+        // only a package the player can open then counts as finished.
+        items[index].stage = .paused(progress: progress)
         if let localPath = items[index].localPath {
-          items[index].stage = .paused(progress: progress)
           finishRestoredIfPlayable(fileID: items[index].id, localPath: localPath)
-        } else {
-          items[index].stage = .paused(progress: progress)
+        }
+      case .paused where !alive.contains(items[index].id):
+        // A previous launch may have died between pausing and the probe;
+        // a playable package still on disk finishes now.
+        if let localPath = items[index].localPath {
+          finishRestoredIfPlayable(fileID: items[index].id, localPath: localPath)
         }
       case .paused where alive.contains(items[index].id):
         // The system kept the task; it resumes in place instead of restarting.
@@ -376,15 +381,23 @@ final class PutioOfflineQueue {
   private func complete(fileID: PutioFileID, localPath: String) {
     guard !completing.contains(fileID) else { return }
     completing.insert(fileID)
+    let epoch = completionEpoch[fileID, default: 0]
     let url = Self.localURL(for: localPath)
     let readTracks = readTracks
     Task { @MainActor [weak self] in
       let tracks = await readTracks(url)
       guard let self else { return }
       completing.remove(fileID)
-      guard let index = items.firstIndex(where: { $0.id == fileID }),
-        items[index].stage != .completed
+      // Resume, retry, or remove may have run during the read; only a row
+      // that is still finishing this package commits.
+      guard completionEpoch[fileID, default: 0] == epoch,
+        let index = items.firstIndex(where: { $0.id == fileID }),
+        items[index].localPath == localPath, workers[fileID] == nil
       else { return }
+      switch items[index].stage {
+      case .downloading, .paused: break
+      default: return
+      }
       update(fileID) {
         $0.stage = .completed
         $0.storedBytes = Self.directorySize(url, fileManager: fileManager)
@@ -483,6 +496,7 @@ final class PutioOfflineQueue {
   func resume(fileID: PutioFileID) {
     guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
     guard case .paused(let progress) = items[index].stage else { return }
+    completionEpoch[fileID, default: 0] &+= 1
     if suspended.contains(fileID) {
       guard inFlightCount < concurrencyLimit else {
         // Every slot is busy; the item keeps its progress and resumes in
@@ -504,6 +518,7 @@ final class PutioOfflineQueue {
   func retry(fileID: PutioFileID) {
     guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
     guard case .failed(let failure) = items[index].stage, failure.canRetry else { return }
+    completionEpoch[fileID, default: 0] &+= 1
     items[index].stage = .queued
     persist()
     schedule()
@@ -511,6 +526,7 @@ final class PutioOfflineQueue {
 
   func remove(fileIDs: [PutioFileID]) {
     for fileID in fileIDs {
+      completionEpoch[fileID, default: 0] &+= 1
       workers[fileID]?.cancel()
       workers[fileID] = nil
       suspended.remove(fileID)
@@ -644,7 +660,7 @@ final class PutioOfflineQueue {
       // estimates come off the free space before this one is admitted.
       let reserved =
         items
-        .filter { $0.id != fileID && $0.isActive }
+        .filter { $0.id != fileID && ($0.isActive || workers[$0.id] != nil) }
         .map { max(0, $0.estimatedBytes - $0.storedBytes) }
         .reduce(0, +)
       guard Self.fits(estimatedBytes: current.estimatedBytes, freeBytes: free - reserved) else {
