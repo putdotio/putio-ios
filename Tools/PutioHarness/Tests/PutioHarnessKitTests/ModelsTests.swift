@@ -53,6 +53,15 @@ import Testing
       == "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
   )
   #expect(
+    BrowserJourneyContract.downloadsTestIdentifier
+      == "PutioUITests/DownloadsJourneyTests/testMultiAudioDownloadOfflinePlaybackAndPositionSync"
+  )
+  #expect(
+    BrowserJourneyContract.downloadsAttachmentNames == [
+      "runtime-downloads-picker", "runtime-downloads-queue", "runtime-downloads-detail",
+    ]
+  )
+  #expect(
     BrowserJourneyContract.previewsTestIdentifier
       == "PutioUITests/PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes"
   )

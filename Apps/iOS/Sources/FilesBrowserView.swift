@@ -121,6 +121,7 @@ struct FilesBrowserView: View {
   private let trashEnabled: Bool
   private let onFileSelected: PutioFileSelection
   private let onExternalPlayback: PutioFileSelection?
+  private let onDownload: PutioFileSelection?
   private let onRootLoaded: PutioRootLoaded
   private let onReturnToRoot: @MainActor @Sendable () -> Void
   private let refreshRequests: PutioFolderRefreshRequests
@@ -137,6 +138,7 @@ struct FilesBrowserView: View {
     accountID: Int,
     onFileSelected: @escaping PutioFileSelection,
     onExternalPlayback: PutioFileSelection? = nil,
+    onDownload: PutioFileSelection? = nil,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
@@ -153,6 +155,7 @@ struct FilesBrowserView: View {
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
     self.onExternalPlayback = onExternalPlayback
+    self.onDownload = onDownload
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
     self.refreshRequests = refreshRequests
@@ -166,6 +169,7 @@ struct FilesBrowserView: View {
     trashEnabled: Bool = true,
     onFileSelected: @escaping PutioFileSelection,
     onExternalPlayback: PutioFileSelection? = nil,
+    onDownload: PutioFileSelection? = nil,
     onRootLoaded: @escaping PutioRootLoaded = {},
     onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
@@ -178,6 +182,7 @@ struct FilesBrowserView: View {
     self.trashEnabled = trashEnabled
     self.onFileSelected = onFileSelected
     self.onExternalPlayback = onExternalPlayback
+    self.onDownload = onDownload
     self.onRootLoaded = onRootLoaded
     self.onReturnToRoot = onReturnToRoot
     self.refreshRequests = refreshRequests
@@ -195,7 +200,8 @@ struct FilesBrowserView: View {
         onLoaded: onRootLoaded,
         refreshRequests: refreshRequests,
         onFileSelected: onFileSelected,
-        onExternalPlayback: onExternalPlayback
+        onExternalPlayback: onExternalPlayback,
+        onDownload: onDownload
       )
       .navigationDestination(for: PutioFolderRoute.self) { route in
         PutioFolderScreen(
@@ -206,7 +212,8 @@ struct FilesBrowserView: View {
           trashEnabled: trashEnabled,
           refreshRequests: refreshRequests,
           onFileSelected: onFileSelected,
-          onExternalPlayback: onExternalPlayback
+          onExternalPlayback: onExternalPlayback,
+          onDownload: onDownload
         )
       }
     }
@@ -271,6 +278,7 @@ struct PutioFolderScreen: View {
   private let onLoaded: @MainActor @Sendable () -> Void
   private let onFileSelected: PutioFileSelection
   private let onExternalPlayback: PutioFileSelection?
+  private let onDownload: PutioFileSelection?
   private let refreshRequests: PutioFolderRefreshRequests
 
   init(
@@ -285,7 +293,8 @@ struct PutioFolderScreen: View {
     onLoaded: @escaping @MainActor @Sendable () -> Void = {},
     refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
     onFileSelected: @escaping PutioFileSelection,
-    onExternalPlayback: PutioFileSelection? = nil
+    onExternalPlayback: PutioFileSelection? = nil,
+    onDownload: PutioFileSelection? = nil
   ) {
     self.route = route
     _model = State(
@@ -308,6 +317,7 @@ struct PutioFolderScreen: View {
     self.refreshRequests = refreshRequests
     self.onFileSelected = onFileSelected
     self.onExternalPlayback = onExternalPlayback
+    self.onDownload = onDownload
   }
 
   private var folderTitle: String {
@@ -679,16 +689,28 @@ struct PutioFolderScreen: View {
   @ViewBuilder
   private func actionButtons(for item: PutioFileItem) -> some View {
     if let route = PutioBrowserItemPresentation(item: item).fileRoute,
-      route.supportsExternalPlayback, let onExternalPlayback
+      (onDownload != nil && route.supportsOfflineDownload)
+        || (onExternalPlayback != nil && route.supportsExternalPlayback)
     {
       Section {
-        Button {
-          onExternalPlayback(route)
-        } label: {
-          Label("Open in VLC", systemImage: "play.rectangle")
+        if let onDownload, route.supportsOfflineDownload {
+          Button {
+            onDownload(route)
+          } label: {
+            Label("Download", systemImage: "arrow.down.circle")
+          }
+          .disabled(fileActionPending)
+          .accessibilityIdentifier("files.download.\(item.id.rawValue)")
         }
-        .disabled(fileActionPending)
-        .accessibilityIdentifier("files.open-in-vlc.\(item.id.rawValue)")
+        if let onExternalPlayback, route.supportsExternalPlayback {
+          Button {
+            onExternalPlayback(route)
+          } label: {
+            Label("Open in VLC", systemImage: "play.rectangle")
+          }
+          .disabled(fileActionPending)
+          .accessibilityIdentifier("files.open-in-vlc.\(item.id.rawValue)")
+        }
       }
     }
     if model.supportsActions {
