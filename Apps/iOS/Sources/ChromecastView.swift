@@ -243,7 +243,8 @@ struct PutioCastControlsView: View {
   }
 
   private func scrubber(for media: PutioCastMedia) -> some View {
-    let duration = max(model.status?.durationSeconds ?? media.durationSeconds, 1)
+    let reported = model.status?.durationSeconds ?? 0
+    let duration = max(reported > 0 ? reported : media.durationSeconds, 1)
     let position = scrubPosition ?? min(model.status?.positionSeconds ?? 0, duration)
     return VStack(spacing: PutioTheme.Spacing.space1) {
       Slider(

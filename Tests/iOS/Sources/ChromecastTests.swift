@@ -275,7 +275,7 @@ final class ChromecastTests: XCTestCase {
     XCTAssertEqual(model.activity, .idle)
     XCTAssertFalse(model.presentsControls)
     XCTAssertFalse(model.hasSession)
-    XCTAssertFalse(model.showsCastButton == false)
+    XCTAssertTrue(model.showsCastButton)
     controller.connect(.unavailable)
     XCTAssertFalse(model.showsCastButton)
     model.cast(route)
@@ -352,7 +352,7 @@ final class ChromecastTests: XCTestCase {
     await settle()
     XCTAssertNil(model.media)
     XCTAssertFalse(model.presentsControls)
-    XCTAssertEqual(box.reports.map(\.1), [], "idle carries no trusted position")
+    XCTAssertEqual(box.reports.map(\.1), [700], "the last playing position is flushed, not idle's")
     XCTAssertTrue(model.isConnected)
   }
 

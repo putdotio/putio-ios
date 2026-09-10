@@ -498,6 +498,9 @@ public final class PutioRuntime {
     let duration = file.metaData?.duration ?? 0
     switch playbackType {
     case .hls:
+      // Same gate as the local player: put.io serves HLS for any file that
+      // needs no conversion or already has its MP4, so the receiver keeps
+      // the muxed-subtitle playlist after the gate instead of the MP4.
       guard !file.needConvert || file.hasMp4 else { return .conversionRequired }
       return .ready(
         PutioCastMedia(

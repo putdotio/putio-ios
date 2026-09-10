@@ -1351,7 +1351,7 @@ enum PutioCastControllerFactory {
     let controller: any PutioCastControlling
     #if DEBUG
       let harness = scenario == .filesBrowser
-      if harness {
+      if !usesGoogleCast(scenario: scenario) {
         controller = PutioHarnessCastController(
           failLoadsBeforeSuccess: ProcessInfo.processInfo.arguments.contains(
             "--putio-harness-cast-load-fails-once") ? 1 : 0)

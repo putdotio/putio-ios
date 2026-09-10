@@ -513,14 +513,17 @@ final class PutioCastModel {
       return
     }
     if case .failed = activity { activity = .idle }
-    self.status = status
     if status.playerState == .idle {
+      // Flush against the last playing/paused status; idle carries no
+      // trusted position.
       flushPositionReport()
       stopReporting()
       self.status = nil
       self.media = nil
       presentsControls = false
+      return
     }
+    self.status = status
   }
 
   // MARK: Position reports

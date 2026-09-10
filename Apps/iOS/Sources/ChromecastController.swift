@@ -245,11 +245,12 @@ extension PutioGoogleCastController: GCKSessionManagerListener {
   ) {
     MainActor.assumeIsolated {
       loadedFileID = nil
-      for (id, continuation) in pendingRequests {
-        pendingRequests[id] = nil
+      let abandoned = pendingRequests.values
+      pendingRequests.removeAll()
+      pendingRequestObjects.removeAll()
+      for continuation in abandoned {
         continuation.resume(throwing: PutioCastControllerError(failure: .receiver))
       }
-      pendingRequestObjects.removeAll()
       castStateChanged()
     }
   }
