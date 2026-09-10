@@ -1,4 +1,5 @@
 import ImageIO
+import Observation
 import PDFKit
 import PutioCore
 import SwiftUI
