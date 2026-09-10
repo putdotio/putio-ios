@@ -1261,11 +1261,14 @@ final class PutioSystemVideoPlayerCoordinator {
   /// Publishes the audible option in effect so the journey can assert the
   /// preferred-language pick without reaching into AVFoundation.
   private func reportAudioSelection(for item: AVPlayerItem, generation playbackGeneration: UInt64) {
-    guard generation == playbackGeneration, let onAudioSelected else { return }
-    Task { @MainActor in
+    guard generation == playbackGeneration, onAudioSelected != nil else { return }
+    Task { @MainActor [weak self] in
       guard let group = try? await item.asset.loadMediaSelectionGroup(for: .audible) else {
         return
       }
+      // A newer playback may have started during the load; its language is
+      // reported by its own call.
+      guard let self, generation == playbackGeneration, let onAudioSelected else { return }
       guard let option = item.currentMediaSelection.selectedMediaOption(in: group) else { return }
       onAudioSelected(PutioOfflineQueue.track(option).languageCode)
     }

@@ -974,6 +974,41 @@ final class OfflineDownloadsTests: XCTestCase {
       "/tmp/elsewhere/Movie.movpkg")
   }
 
+  func testSyncRequestedMidSyncRunsASecondPass() async {
+    let gate = AsyncGate()
+    var attempts = 0
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in
+        .ready(PutioPlaybackSource(url: URL(string: "https://media.test/x")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in
+        attempts += 1
+        if attempts <= 2 { throw PutioRuntimeError.transient }
+        if attempts == 3 { await gate.wait() }
+      })
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    await settle()
+    engine.finish(PutioFileID(rawValue: 1), at: directory)
+    engine.finish(PutioFileID(rawValue: 2), at: directory)
+    await settle()
+    await queue.recordPosition(fileID: PutioFileID(rawValue: 1), seconds: 5)
+    await queue.recordPosition(fileID: PutioFileID(rawValue: 2), seconds: 9)
+    XCTAssertEqual(queue.pendingPositionCount, 2)
+    // The first pass parks on item 1; a second sync request lands meanwhile.
+    let sync1 = Task { await queue.syncPendingPositions() }
+    await settle()
+    let sync2 = Task { await queue.syncPendingPositions() }
+    await settle()
+    await gate.open()
+    await sync1.value
+    await sync2.value
+    XCTAssertEqual(queue.pendingPositionCount, 0)
+  }
+
   func testInventoryEstimateAndBudget() {
     let inventory = PutioOfflineInventory(
       videoBytes: 1_000,

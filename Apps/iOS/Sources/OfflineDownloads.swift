@@ -583,10 +583,12 @@ final class PutioOfflineQueue {
 
   var pendingPositionCount: Int { items.filter { $0.pendingPositionSeconds != nil }.count }
 
+  /// A sync requested while one is running waits for it and then runs
+  /// another pass, so a position recorded mid-sync is never skipped.
   func syncPendingPositions() async {
     if let syncTask {
       await syncTask.value
-      return
+      guard pendingPositionCount > 0 else { return }
     }
     let task = Task { @MainActor [weak self] in
       guard let self else { return }
