@@ -120,6 +120,9 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
       metadata.addImage(GCKImage(url: artworkURL, width: 640, height: 360))
     }
     builder.metadata = metadata
+    // Status updates are attributed to this file only while the receiver
+    // still reports our tag; another sender's media publishes as nil.
+    builder.customData = [Self.fileIDKey: media.id.rawValue]
     builder.mediaTracks = subtitles.enumerated().compactMap { index, subtitle in
       GCKMediaTrack(
         identifier: index + 1, contentIdentifier: subtitle.url.absoluteString,
@@ -243,8 +246,13 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     onConnectionChanged?(next)
   }
 
+  private static let fileIDKey = "putio_file_id"
+
   private func publishStatus(_ mediaStatus: GCKMediaStatus?) {
-    guard let mediaStatus, let fileID = loadedFileID else {
+    guard let mediaStatus, let fileID = loadedFileID,
+      let tag = mediaStatus.mediaInformation?.customData as? [String: Any],
+      tag[Self.fileIDKey] as? Int == fileID.rawValue
+    else {
       onMediaStatusChanged?(nil)
       return
     }

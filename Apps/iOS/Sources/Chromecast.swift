@@ -159,7 +159,7 @@ final class PutioCastModel {
   @ObservationIgnored private let controller: PutioCastControlling
   @ObservationIgnored private let resolve: PutioCastResolve
   @ObservationIgnored private let loadPlaybackType: PutioCastPlaybackTypeLoad
-  @ObservationIgnored private let savePlaybackType: PutioCastPlaybackTypeSave
+  @ObservationIgnored private let persistPlaybackType: PutioCastPlaybackTypeSave
   @ObservationIgnored private let startConversion: PutioVideoConversionStart
   @ObservationIgnored private let loadConversionStatus: PutioVideoConversionStatusLoad
   @ObservationIgnored private let reportPosition: PutioPlaybackPositionReport
@@ -188,7 +188,7 @@ final class PutioCastModel {
     self.conversionPollInterval = conversionPollInterval
     self.resolve = resolve
     self.loadPlaybackType = loadPlaybackType
-    self.savePlaybackType = savePlaybackType
+    self.persistPlaybackType = savePlaybackType
     self.startConversion = startConversion
     self.loadConversionStatus = loadConversionStatus
     self.reportPosition = reportPosition
@@ -400,7 +400,7 @@ final class PutioCastModel {
     playbackTypeFailure = nil
     defer { isSavingPlaybackType = false }
     do {
-      try await savePlaybackType(newValue)
+      try await persistPlaybackType(newValue)
       playbackType = newValue
     } catch {
       guard !(error is CancellationError) else { return }
