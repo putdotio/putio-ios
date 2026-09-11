@@ -8,6 +8,15 @@ struct PutioApp: App {
   @UIApplicationDelegateAdaptor(PutioAppDelegate.self) private var appDelegate
   private let scenario = HarnessScenario.parse(arguments: ProcessInfo.processInfo.arguments)
 
+  init() {
+    // The Cast context is process-global and set once; the seeded scenario
+    // drives a stub receiver instead and never touches the SDK.
+    if PutioCastControllerFactory.usesGoogleCast(scenario: scenario) {
+      PutioGoogleCastController.configureSharedContext(
+        receiverAppID: PutioCastReceiver.appID())
+    }
+  }
+
   var body: some Scene {
     WindowGroup {
       Group {
@@ -285,6 +294,8 @@ private struct MainTabView: View {
     _offlineQueue = State(
       initialValue: PutioOfflineQueueFactory.make(
         runtime: runtime, accountID: account.id, scenario: scenario))
+    _cast = State(
+      initialValue: PutioCastControllerFactory.makeModel(runtime: runtime, scenario: scenario))
   }
 
   private enum SelectedTab: Hashable { case files, downloads, history, account, search }
@@ -305,6 +316,7 @@ private struct MainTabView: View {
   @State private var presentedUnsupportedRoute: PutioUnsupportedFileRoute?
   @State private var externalPlayback: PutioExternalPlaybackModel
   @State private var offlineQueue: PutioOfflineQueue
+  @State private var cast: PutioCastModel
   @State private var trackPicker: PutioOfflineTrackPickerRequest?
   @State private var offlineFailure: PutioOfflineFailure?
   @Environment(\.scenePhase) private var scenePhase
@@ -312,16 +324,7 @@ private struct MainTabView: View {
   var body: some View {
     TabView(selection: $selectedTab) {
       Tab(value: SelectedTab.files) {
-        FilesBrowserView(
-          runtime: runtime,
-          trashEnabled: account.trashEnabled,
-          accountID: account.id,
-          onFileSelected: { route in selectFile(route) },
-          onExternalPlayback: { route in Task { await externalPlayback.open(route) } },
-          onDownload: { route in Task { await requestDownload(route) } },
-          refreshRequests: folderRefreshRequests,
-          navigationRequest: filesNavigation
-        )
+        filesBrowser
       } label: {
         Label {
           Text("Files")
@@ -363,7 +366,8 @@ private struct MainTabView: View {
             runtime: runtime,
             account: account,
             refreshRequests: folderRefreshRequests,
-            trashReconciliation: trashReconciliation
+            trashReconciliation: trashReconciliation,
+            cast: cast
           )
         }
         .id(accountNavigationRevision)
@@ -385,64 +389,11 @@ private struct MainTabView: View {
     }
     // Shrink-on-scroll is opt-in on iOS 26 and part of the ios-e10 treatment.
     .tabBarMinimizeBehavior(.onScrollDown)
+    .modifier(PutioCastPresentation(model: cast))
     .accessibilityHidden(selectedVideoRoute != nil)
     .overlay {
       PutioSelectedVideoCover(route: $selectedVideoRoute) { route in
-        PutioVideoPlaybackView(
-          route: route,
-          onDismiss: dismissPresentedVideo,
-          preferredAudioLanguages: offlineQueue.item(for: route.id)?.isPlayable == true
-            ? PutioOfflineQueueFactory.preferredLanguages(scenario: scenario) : [],
-          remembersPlaybackPosition: account.rememberVideoTime,
-          suggestsNextVideo: account.suggestNextVideo,
-          autoplayNextVideo: account.suggestNextVideo,
-          showsHarnessReadiness: scenario == .filesBrowser,
-          conversionPollInterval: scenario == .filesBrowser ? .milliseconds(1_200) : .seconds(3),
-          nextVideoAutoplayDelay: .seconds(5),
-          positionPipeline: playbackPositionPipeline,
-          reportPosition: { fileID, seconds in
-            if offlineQueue.item(for: fileID)?.isPlayable == true {
-              await offlineQueue.recordPosition(fileID: fileID, seconds: seconds)
-            } else {
-              try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: seconds)
-            }
-            #if DEBUG
-              if scenario == .filesBrowser {
-                harnessReportedPosition = (fileID, seconds)
-              }
-            #endif
-          },
-          startConversion: { fileID in
-            try await runtime.startVideoConversion(fileID: fileID)
-          },
-          loadConversionStatus: { fileID in
-            try await runtime.videoConversionStatus(fileID: fileID)
-          },
-          loadNextVideo: { fileID in
-            try await prepareNextVideo(
-              after: fileID,
-              findNext: { try await runtime.findNextVideo(after: $0) },
-              waitForPendingReports: {
-                await playbackPositionPipeline.waitForPendingReports(fileID: $0)
-              },
-              resolve: { try await resolvePlaybackSource(fileID: $0) }
-            )
-          },
-          onPlayNext: { nextVideo in
-            let completedRoute = selectedVideoRoute
-            let nextRoute = PutioVideoRoute(nextVideo: nextVideo)
-            selectedVideoRoute = nextRoute
-            presentedVideoRoute = nextRoute
-            // The completed video's folder shows its watched state; the
-            // successor's folder is refreshed when that player is dismissed.
-            if let completedRoute, completedRoute.parentID != nextRoute.parentID {
-              refreshFolderAfterPlayback(completedRoute)
-            }
-          },
-          resolve: { fileID in
-            try await resolvePlaybackSource(fileID: fileID)
-          }
-        )
+        videoPlayer(for: route)
       }
     }
     .sheet(item: $presentedAudioRoute) { route in
@@ -547,20 +498,7 @@ private struct MainTabView: View {
     }
     .overlay(alignment: .topTrailing) {
       #if DEBUG
-        if scenario == .filesBrowser {
-          ZStack {
-            if let presentedVideoRoute {
-              HarnessPresentedVideoProbe(route: presentedVideoRoute)
-            }
-            if let harnessReportedPosition {
-              HarnessPlaybackPositionProbe(
-                fileID: harnessReportedPosition.fileID,
-                seconds: harnessReportedPosition.seconds
-              )
-            }
-            HarnessExternalPlaybackProbe(requestCount: externalPlayback.openedRequestCount)
-          }
-        }
+        if scenario == .filesBrowser { harnessProbes }
       #endif
     }
     .onChange(of: deepLinks.destination, initial: true) { _, destination in
@@ -610,7 +548,11 @@ private struct MainTabView: View {
     selectedFileRoute = route
     switch route.openAction {
     case .video(let videoRoute):
-      presentVideo(videoRoute)
+      if cast.isConnected, offlineQueue.item(for: route.id)?.isPlayable != true {
+        cast.cast(videoRoute)
+      } else {
+        presentVideo(videoRoute)
+      }
     case .audio(let audioRoute):
       presentedAudioRoute = audioRoute
     case .preview(let previewRoute):
@@ -736,6 +678,128 @@ private struct MainTabView: View {
   private func presentVideo(_ route: PutioVideoRoute) {
     selectedVideoRoute = route
     presentedVideoRoute = route
+  }
+
+  private var filesBrowser: some View {
+    FilesBrowserView(
+      runtime: runtime,
+      trashEnabled: account.trashEnabled,
+      accountID: account.id,
+      onFileSelected: { route in selectFile(route) },
+      onExternalPlayback: { route in Task { await externalPlayback.open(route) } },
+      onDownload: { route in Task { await requestDownload(route) } },
+      onCast: castAction,
+      refreshRequests: folderRefreshRequests,
+      navigationRequest: filesNavigation,
+      castButton: { AnyView(PutioCastButton(model: cast)) }
+    )
+  }
+
+  private func videoPlayer(for route: PutioVideoRoute) -> some View {
+    PutioVideoPlaybackView(
+      route: route,
+      onDismiss: dismissPresentedVideo,
+      preferredAudioLanguages: offlineQueue.item(for: route.id)?.isPlayable == true
+        ? PutioOfflineQueueFactory.preferredLanguages(scenario: scenario) : [],
+      remembersPlaybackPosition: account.rememberVideoTime,
+      suggestsNextVideo: account.suggestNextVideo,
+      autoplayNextVideo: account.suggestNextVideo,
+      showsHarnessReadiness: scenario == .filesBrowser,
+      conversionPollInterval: scenario == .filesBrowser ? .milliseconds(1_200) : .seconds(3),
+      nextVideoAutoplayDelay: .seconds(5),
+      positionPipeline: playbackPositionPipeline,
+      reportPosition: { fileID, seconds in
+        if offlineQueue.item(for: fileID)?.isPlayable == true {
+          await offlineQueue.recordPosition(fileID: fileID, seconds: seconds)
+        } else {
+          try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: seconds)
+        }
+        #if DEBUG
+          if scenario == .filesBrowser {
+            harnessReportedPosition = (fileID, seconds)
+          }
+        #endif
+      },
+      startConversion: { fileID in
+        try await runtime.startVideoConversion(fileID: fileID)
+      },
+      loadConversionStatus: { fileID in
+        try await runtime.videoConversionStatus(fileID: fileID)
+      },
+      loadNextVideo: { fileID in
+        try await prepareNextVideo(
+          after: fileID,
+          findNext: { try await runtime.findNextVideo(after: $0) },
+          waitForPendingReports: {
+            await playbackPositionPipeline.waitForPendingReports(fileID: $0)
+          },
+          resolve: { try await resolvePlaybackSource(fileID: $0) }
+        )
+      },
+      onPlayNext: { nextVideo in
+        let completedRoute = selectedVideoRoute
+        let nextRoute = PutioVideoRoute(nextVideo: nextVideo)
+        selectedVideoRoute = nextRoute
+        presentedVideoRoute = nextRoute
+        // The completed video's folder shows its watched state; the
+        // successor's folder is refreshed when that player is dismissed.
+        if let completedRoute, completedRoute.parentID != nextRoute.parentID {
+          refreshFolderAfterPlayback(completedRoute)
+        }
+      },
+      castButton: playerCastButton,
+      onCast: playerCastAction(for: route),
+      resolve: { fileID in
+        try await resolvePlaybackSource(fileID: fileID)
+      }
+    )
+  }
+
+  #if DEBUG
+    private var harnessProbes: some View {
+      ZStack {
+        if let presentedVideoRoute {
+          HarnessPresentedVideoProbe(route: presentedVideoRoute)
+        }
+        if let harnessReportedPosition {
+          HarnessPlaybackPositionProbe(
+            fileID: harnessReportedPosition.fileID,
+            seconds: harnessReportedPosition.seconds
+          )
+        }
+        HarnessExternalPlaybackProbe(requestCount: externalPlayback.openedRequestCount)
+        if let reported = cast.reportedPosition {
+          HarnessCastPositionProbe(fileID: reported.fileID, seconds: reported.seconds)
+        }
+      }
+    }
+  #endif
+
+  private var playerCastButton: AnyView? {
+    guard cast.showsCastButton else { return nil }
+    return AnyView(PutioCastButton(model: cast))
+  }
+
+  /// Hands the video to the receiver; the local player's teardown flushes
+  /// its final position first.
+  private func playerCastAction(for route: PutioVideoRoute) -> (@MainActor @Sendable () -> Void)? {
+    guard cast.isConnected else { return nil }
+    return {
+      dismissPresentedVideo()
+      cast.cast(route)
+    }
+  }
+
+  private var castAction: PutioFileSelection? {
+    guard cast.isConnected else { return nil }
+    return { route in castFile(route) }
+  }
+
+  /// Explicit "Cast" from a row: never falls back to the local player.
+  private func castFile(_ route: PutioFileRoute) {
+    guard let videoRoute = route.videoPlaybackRoute else { return }
+    selectedFileRoute = route
+    cast.cast(videoRoute)
   }
 
   private func dismissPresentedVideo() {
@@ -944,6 +1008,7 @@ private struct AccountView: View {
   let account: PutioAccountSnapshot
   let refreshRequests: PutioFolderRefreshRequests
   let trashReconciliation: PutioTrashReconciliation
+  let cast: PutioCastModel
   @State private var isRefreshingStorage = false
 
   var body: some View {
@@ -966,6 +1031,10 @@ private struct AccountView: View {
             PlaybackPreferencesView(runtime: runtime)
           }
           .accessibilityIdentifier("account.playback-preferences")
+          NavigationLink("Chromecast") {
+            PutioCastPreferencesView(model: cast)
+          }
+          .accessibilityIdentifier("account.chromecast")
         }
         Section("Storage") {
           LabeledContent("Used", value: byteText(account.storage.usedBytes))
@@ -1267,3 +1336,107 @@ enum PutioExternalPlaybackOpener {
     }
   }
 #endif
+
+enum PutioCastControllerFactory {
+  static func usesGoogleCast(scenario: HarnessScenario) -> Bool {
+    #if DEBUG
+      scenario != .filesBrowser && scenario != .gallery && scenario != .exercised
+    #else
+      true
+    #endif
+  }
+
+  @MainActor
+  static func makeModel(runtime: PutioRuntime, scenario: HarnessScenario) -> PutioCastModel {
+    let controller: any PutioCastControlling
+    #if DEBUG
+      let harness = scenario == .filesBrowser
+      if !usesGoogleCast(scenario: scenario) {
+        controller = PutioHarnessCastController(
+          failLoadsBeforeSuccess: ProcessInfo.processInfo.arguments.contains(
+            "--putio-harness-cast-load-fails-once") ? 1 : 0,
+          hasReceiver: harness)
+      } else {
+        controller = PutioGoogleCastController()
+      }
+    #else
+      let harness = false
+      controller = PutioGoogleCastController()
+    #endif
+    return PutioCastModel(
+      controller: controller,
+      positionReportInterval: harness ? .seconds(3) : .seconds(15),
+      conversionPollInterval: harness ? .milliseconds(1_200) : .seconds(3),
+      resolve: { fileID, playbackType in
+        try await runtime.resolveCastMedia(fileID: fileID, playbackType: playbackType)
+      },
+      loadPlaybackType: { try await runtime.castPlaybackType() },
+      savePlaybackType: { try await runtime.setCastPlaybackType($0) },
+      startConversion: { try await runtime.startVideoConversion(fileID: $0) },
+      loadConversionStatus: { try await runtime.videoConversionStatus(fileID: $0) },
+      reportPosition: { fileID, seconds in
+        try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: seconds)
+      }
+    )
+  }
+}
+
+/// The Cast surfaces that ride on the tab shell: the bar above the tab bar,
+/// the expanded controls sheet, and the harness stub picker.
+struct PutioCastPresentation: ViewModifier {
+  let model: PutioCastModel
+
+  func body(content: Content) -> some View {
+    content
+      .modifier(PutioCastBarAccessory(model: model))
+      .sheet(
+        isPresented: Binding(
+          get: { model.presentsControls }, set: { if !$0 { model.hideControls() } })
+      ) {
+        PutioCastControlsView(model: model)
+          .preferredColorScheme(.dark)
+      }
+      .modifier(PutioHarnessCastPresentation(model: model))
+  }
+}
+
+/// Presents the harness stub picker; a no-op outside the seeded scenario.
+struct PutioHarnessCastPresentation: ViewModifier {
+  let model: PutioCastModel
+
+  func body(content: Content) -> some View {
+    #if DEBUG
+      if let controller = model.harnessController {
+        content.sheet(
+          isPresented: Binding(
+            get: { controller.presentsPicker }, set: { if !$0 { controller.dismissPicker() } })
+        ) {
+          PutioHarnessCastPicker(controller: controller)
+            .preferredColorScheme(.dark)
+        }
+      } else {
+        content
+      }
+    #else
+      content
+    #endif
+  }
+}
+
+/// The accessory slot reserves its height whenever it is installed, so the
+/// bar is installed only while a receiver has something of ours.
+private struct PutioCastBarAccessory: ViewModifier {
+  let model: PutioCastModel
+
+  func body(content: Content) -> some View {
+    if #available(iOS 26.1, *) {
+      content.tabViewBottomAccessory(isEnabled: model.hasSession) {
+        PutioCastBar(model: model)
+      }
+    } else if model.hasSession {
+      content.tabViewBottomAccessory { PutioCastBar(model: model) }
+    } else {
+      content
+    }
+  }
+}

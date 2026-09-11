@@ -50,6 +50,12 @@ import Foundation
       var dontAutoSelectSubtitles = false
     }
 
+    /// Chromecast config is process-scoped: the seeded journey never relaunches
+    /// across a save, and the first save fails once for retry proof.
+    private static let castLock = NSLock()
+    nonisolated(unsafe) private static var castPlaybackType = "hls"
+    nonisolated(unsafe) private static var castSaveFailed = false
+
     private static let preferencesKey = "putio.harness.file-preferences.server"
     private static var usesFilePreferences: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-file-preferences")
@@ -705,6 +711,44 @@ import Foundation
           }
           return (200, accountInfoLocked)
         }
+      case "GET /v2/config":
+        return castLock.withLock {
+          (200, #"{"config":{"chromecast_playback_type":"\#(castPlaybackType)"}}"#)
+        }
+      case "PUT /v2/config/chromecast_playback_type":
+        return castLock.withLock {
+          guard let value = requestPayload(request)?["value"] as? String,
+            ["hls", "mp4"].contains(value)
+          else {
+            return (
+              400,
+              fixtureError(
+                statusCode: 400, type: "HARNESS_INVALID_PLAYBACK_TYPE",
+                message: "value must be hls or mp4")
+            )
+          }
+          if !castSaveFailed {
+            castSaveFailed = true
+            return (
+              503,
+              fixtureError(
+                statusCode: 503, type: "HARNESS_CAST_SAVE_RETRY",
+                message: "Retry saving the playback type")
+            )
+          }
+          castPlaybackType = value
+          return (200, #"{"status":"OK"}"#)
+        }
+      case "GET /v2/files/412/subtitles":
+        return (
+          200,
+          """
+          {"default":"en","subtitles":[
+            {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/en"},
+            {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/tr"}
+          ]}
+          """
+        )
       case "GET /v2/tunnel/routes":
         return fileActionsLock.withLock {
           if !preferencesRoutesFailed {
@@ -1713,7 +1757,8 @@ import Foundation
             "created_at": "2026-09-01T12:00:00",
             "updated_at": "2026-09-01T12:00:00",
             "need_convert": \(needsConversion),
-            "start_from": \(startFrom)
+            "start_from": \(startFrom),
+            "video_metadata": {"duration": 5400, "codec": "h264", "width": 1920, "height": 1080}
           }
         }
         """

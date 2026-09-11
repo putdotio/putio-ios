@@ -474,6 +474,8 @@ struct PutioVideoPlaybackView: View {
   private let positionPipeline: PutioPlaybackPositionPipeline
   private let reportPosition: PutioPlaybackPositionReport
   private let onPlayNext: @MainActor @Sendable (PutioPlayableNextVideo) -> Void
+  private let castButton: AnyView?
+  private let onCast: (@MainActor @Sendable () -> Void)?
 
   init(
     route: PutioVideoRoute,
@@ -492,8 +494,12 @@ struct PutioVideoPlaybackView: View {
     loadConversionStatus: @escaping PutioVideoConversionStatusLoad,
     loadNextVideo: @escaping PutioNextVideoLoad,
     onPlayNext: @escaping @MainActor @Sendable (PutioPlayableNextVideo) -> Void,
+    castButton: AnyView? = nil,
+    onCast: (@MainActor @Sendable () -> Void)? = nil,
     resolve: @escaping PutioPlaybackResolve
   ) {
+    self.castButton = castButton
+    self.onCast = onCast
     self.fileID = route.id
     self.onDismiss = onDismiss
     self.preferredAudioLanguages = preferredAudioLanguages
@@ -531,11 +537,24 @@ struct PutioVideoPlaybackView: View {
   var body: some View {
     ZStack(alignment: .topTrailing) {
       content
-      PutioButton("Done", tier: .primary, presentation: .floating) {
-        onDismiss()
+      HStack(spacing: PutioTheme.Spacing.space2) {
+        if let castButton {
+          castButton
+            .padding(PutioTheme.Spacing.space2)
+            .background(.black.opacity(0.55), in: Circle())
+        }
+        if let onCast {
+          PutioButton("Cast", tier: .secondary, presentation: .floating) {
+            onCast()
+          }
+          .accessibilityIdentifier("video.cast")
+        }
+        PutioButton("Done", tier: .primary, presentation: .floating) {
+          onDismiss()
+        }
+        .accessibilityIdentifier("video.done")
       }
       .padding(PutioTheme.Spacing.space4)
-      .accessibilityIdentifier("video.done")
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Color.black)

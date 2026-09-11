@@ -296,6 +296,11 @@ enum BrowserJourneyContract {
   static let downloadsAttachmentNames = [
     "runtime-downloads-picker", "runtime-downloads-queue", "runtime-downloads-detail",
   ]
+  static let castTestIdentifier =
+    "PutioUITests/ChromecastJourneyTests/testCastSettingsSessionControlsSubtitlesAndPositionSync"
+  static let castAttachmentNames = [
+    "runtime-cast-settings", "runtime-cast-error", "runtime-cast-controls",
+  ]
   static let previewsTestIdentifier =
     "PutioUITests/PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes"
   static let previewsAttachmentNames = [

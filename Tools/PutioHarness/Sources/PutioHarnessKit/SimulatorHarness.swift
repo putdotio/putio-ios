@@ -753,6 +753,17 @@ public struct SimulatorHarness {
           defaultExecutionTimeAllowance: 180,
           maximumExecutionTimeAllowance: 180
         )
+        let castScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.castTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".cast.xcresult"),
+          attachmentNames: BrowserJourneyContract.castAttachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 180,
+          maximumExecutionTimeAllowance: 180
+        )
         let previewScreenshots = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.previewsTestIdentifier,
           platform: platform,
@@ -886,7 +897,7 @@ public struct SimulatorHarness {
           + sortedRootScreenshots + searchScreenshots + historyScreenshots
           + filePreferencesScreenshots + playbackPreferencesScreenshots + deepLinkScreenshots
           + accountRatingScreenshots + audioScreenshots + previewScreenshots
-          + downloadScreenshots
+          + downloadScreenshots + castScreenshots
         for screenshot in preflightScreenshots {
           _ = try requireMeaningfulScreenshot(screenshot, context: "journey preflight attachment")
         }
@@ -899,7 +910,7 @@ public struct SimulatorHarness {
           ".history.xcresult", ".deep-links.xcresult",
           ".file-preferences.xcresult", ".playback-preferences.xcresult",
           ".account-rating.xcresult", ".audio.xcresult", ".previews.xcresult",
-          ".downloads.xcresult",
+          ".downloads.xcresult", ".cast.xcresult",
         ] {
           try? fileManager.removeItem(at: platformDirectory.appending(path: bundle))
         }

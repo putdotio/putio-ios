@@ -407,3 +407,104 @@ public struct PutioPlaybackRoute: Equatable, Sendable, Identifiable {
     self.description = description
   }
 }
+
+/// The put.io `chromecast_playback_type` account config. HLS streams the
+/// original file with server-muxed subtitles; MP4 casts the converted file
+/// and attaches subtitles as side-loaded WebVTT tracks.
+public enum PutioCastPlaybackType: String, CaseIterable, Hashable, Sendable {
+  case hls
+  case mp4
+}
+
+/// One subtitle the receiver can toggle. `url` is a bearer credential and is
+/// redacted from every textual rendering.
+public struct PutioCastSubtitle: Equatable, Sendable, CustomStringConvertible,
+  CustomDebugStringConvertible, CustomReflectable
+{
+  public let key: String
+  public let language: String
+  public let languageCode: String
+  public let name: String
+  public let url: URL
+
+  public init(key: String, language: String, languageCode: String, name: String, url: URL) {
+    self.key = key
+    self.language = language
+    self.languageCode = languageCode
+    self.name = name
+    self.url = url
+  }
+
+  public var description: String {
+    "PutioCastSubtitle(key: \(key), languageCode: \(languageCode), url: <redacted>)"
+  }
+
+  public var debugDescription: String { description }
+
+  public var customMirror: Mirror {
+    Mirror(
+      self,
+      children: [
+        "key": key, "language": language, "languageCode": languageCode, "name": name,
+        "url": "<redacted>",
+      ],
+      displayStyle: .struct)
+  }
+}
+
+/// Everything a receiver needs to play one video. The stream URL is tokened
+/// and redacted from every textual rendering. `subtitles` is empty for HLS,
+/// where the server muxes them into the stream.
+public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
+  CustomDebugStringConvertible, CustomReflectable
+{
+  public let id: PutioFileID
+  public let parentID: PutioFileID
+  public let title: String
+  public let playbackType: PutioCastPlaybackType
+  public let url: URL
+  public let artworkURL: URL?
+  public let durationSeconds: Double
+  public let startFromSeconds: Int
+  public let subtitles: [PutioCastSubtitle]
+  public let defaultSubtitleKey: String?
+
+  public init(
+    id: PutioFileID, parentID: PutioFileID, title: String, playbackType: PutioCastPlaybackType,
+    url: URL, artworkURL: URL?, durationSeconds: Double, startFromSeconds: Int,
+    subtitles: [PutioCastSubtitle], defaultSubtitleKey: String?
+  ) {
+    self.id = id
+    self.parentID = parentID
+    self.title = title
+    self.playbackType = playbackType
+    self.url = url
+    self.artworkURL = artworkURL
+    self.durationSeconds = durationSeconds
+    self.startFromSeconds = startFromSeconds
+    self.subtitles = subtitles
+    self.defaultSubtitleKey = defaultSubtitleKey
+  }
+
+  public var description: String {
+    "PutioCastMedia(id: \(id.rawValue), playbackType: \(playbackType), url: <redacted>)"
+  }
+
+  public var debugDescription: String { description }
+
+  public var customMirror: Mirror {
+    Mirror(
+      self,
+      children: [
+        "id": id, "parentID": parentID, "title": title, "playbackType": playbackType,
+        "url": "<redacted>", "durationSeconds": durationSeconds,
+        "startFromSeconds": startFromSeconds, "subtitles": subtitles,
+      ],
+      displayStyle: .struct)
+  }
+}
+
+public enum PutioCastResolution: Equatable, Sendable {
+  case ready(PutioCastMedia)
+  case conversionRequired
+}
