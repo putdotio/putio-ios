@@ -90,11 +90,31 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertFalse(model.canSubmit, "Enable was offered again for an account with 2FA already on")
     await model.submit()
     XCTAssertEqual(submits, 1, "a second submit reached the server")
+    model.finish()
+    XCTAssertEqual(model.step, .code, "finish skipped the codes without an explicit exit")
     await model.retryRecoveryCodes()
     XCTAssertEqual(
       model.step, .recoveryCodes([PutioTwoFactorRecoveryCode(code: "b-2", isUsed: true)]))
     XCTAssertNil(model.recoveryCodesFailure)
     XCTAssertEqual(loads, 2)
+  }
+
+  func testLeavingWithoutRecoveryCodesIsExplicitAndOnlyAfterEnrollment() async {
+    let model = PutioTwoFactorChangeModel(
+      enabling: true,
+      actions: PutioAccountSecurityActions(
+        generateSecret: { "S" },
+        setTwoFactor: { _, _ in .init(accountRefreshed: false) },
+        recoveryCodes: { throw PutioRuntimeError.transient }))
+    await model.loadSecret()
+    model.continueToCode()
+    model.finishWithoutRecoveryCodes()
+    XCTAssertEqual(model.step, .code, "left before the enrollment committed")
+    model.code = "1"
+    await model.submit()
+    XCTAssertNotNil(model.recoveryCodesFailure)
+    model.finishWithoutRecoveryCodes()
+    XCTAssertEqual(model.step, .finished(accountRefreshed: false))
   }
 
   func testEnrollmentFinishCarriesAFailedAccountReload() async {

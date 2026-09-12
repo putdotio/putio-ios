@@ -169,7 +169,13 @@ private struct TwoFactorChangeSheet: View {
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-          if !showsRecoveryCodes {
+          if model.recoveryCodesFailure != nil {
+            // Enrollment already committed; this is a deliberate exit, not a
+            // cancellation, and the codes stay reachable from Security.
+            Button("Close") { model.finishWithoutRecoveryCodes() }
+              .disabled(model.isLoadingRecoveryCodes)
+              .accessibilityIdentifier("security.two-factor-close")
+          } else if !showsRecoveryCodes {
             Button("Cancel") { dismiss() }
               .disabled(model.isSubmitting || model.isLoadingRecoveryCodes)
               .accessibilityIdentifier("security.two-factor-cancel")
@@ -182,6 +188,7 @@ private struct TwoFactorChangeSheet: View {
     // The codes are shown once; leaving is only through the acknowledgement.
     .interactiveDismissDisabled(
       model.isSubmitting || model.isLoadingRecoveryCodes || showsRecoveryCodes
+        || model.recoveryCodesFailure != nil
     )
     .task { await model.loadSecret() }
     .onChange(of: model.step) { _, step in
@@ -209,7 +216,10 @@ private struct TwoFactorChangeSheet: View {
           .accessibilityIdentifier("security.two-factor-failure")
       }
       if let failure = model.recoveryCodesFailure {
-        Text(failure).foregroundStyle(PutioTheme.Colors.textSecondary)
+        Text(
+          "Two-factor authentication is on. \(failure) They also stay available under Security."
+        )
+        .foregroundStyle(PutioTheme.Colors.textSecondary)
         Button("Load recovery codes") { Task { await model.retryRecoveryCodes() } }
           .disabled(model.isLoadingRecoveryCodes)
           .accessibilityIdentifier("security.two-factor-retry-codes")
