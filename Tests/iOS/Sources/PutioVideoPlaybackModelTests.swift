@@ -135,6 +135,30 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     XCTAssertTrue(resolver.requestedIDs.isEmpty)
   }
 
+  func testSuccessorRouteFromALocalSourceStartsAtItsSavedPositionWithoutResolving() async {
+    let local = PutioPlaybackSource(
+      url: URL(fileURLWithPath: "/offline/episode-2.mp4"), startFromSeconds: 12)
+    let route = PutioVideoRoute(
+      nextVideo: PutioPlayableNextVideo(
+        video: PutioNextVideo(
+          id: PutioFileID(rawValue: 412), parentID: PutioFileID(rawValue: 410),
+          name: "Episode 2.mp4"),
+        initialResolution: .ready(local)))
+    let resolver = PlaybackResolverStub([])
+    let model = PutioVideoPlaybackModel(
+      fileID: route.id,
+      initialResolution: route.initialResolution,
+      resolve: { try await resolver.resolve($0) }
+    )
+
+    await model.loadIfNeeded()
+
+    XCTAssertEqual(route.id, PutioFileID(rawValue: 412))
+    XCTAssertEqual(route.parentID, PutioFileID(rawValue: 410))
+    XCTAssertEqual(model.state, .ready(local))
+    XCTAssertTrue(resolver.requestedIDs.isEmpty)
+  }
+
   func testPreparedConversionResolutionIsConsumedBeforeFinalResolution() async {
     let source = playbackSource()
     let resolver = PlaybackResolverStub([.success(.ready(source))])

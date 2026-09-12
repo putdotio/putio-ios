@@ -7,6 +7,7 @@ typealias PutioNextVideoLoad =
   @MainActor @Sendable (PutioFileID) async throws -> PutioPlayableNextVideo?
 typealias PutioNextVideoSleep =
   @MainActor @Sendable (Duration) async throws -> Void
+typealias PutioNextVideoAutoplayPolicy = @MainActor @Sendable () -> Bool
 
 struct PutioPlayableNextVideo: Equatable, Sendable {
   let video: PutioNextVideo
@@ -31,7 +32,9 @@ final class PutioNextVideoModel {
   private(set) var state: PutioNextVideoState = .idle
 
   @ObservationIgnored private let suggestionsEnabled: Bool
-  @ObservationIgnored private let autoplayEnabled: Bool
+  /// Read when the suggestion appears, so the config document that owns
+  /// `autoplay_next_video` can finish loading after the player opens.
+  @ObservationIgnored private let autoplayEnabled: PutioNextVideoAutoplayPolicy
   @ObservationIgnored private let autoplayDelay: Duration
   @ObservationIgnored private let waitForReset: PutioNextVideoResetWait
   @ObservationIgnored private let loadNext: PutioNextVideoLoad
@@ -40,7 +43,7 @@ final class PutioNextVideoModel {
 
   init(
     suggestionsEnabled: Bool = true,
-    autoplayEnabled: Bool,
+    autoplayEnabled: @escaping PutioNextVideoAutoplayPolicy,
     autoplayDelay: Duration = PutioNextVideoModel.defaultAutoplayDelay,
     waitForReset: @escaping PutioNextVideoResetWait,
     loadNext: @escaping PutioNextVideoLoad,
@@ -52,6 +55,24 @@ final class PutioNextVideoModel {
     self.waitForReset = waitForReset
     self.loadNext = loadNext
     self.sleep = sleep
+  }
+
+  convenience init(
+    suggestionsEnabled: Bool = true,
+    autoplayEnabled: Bool,
+    autoplayDelay: Duration = PutioNextVideoModel.defaultAutoplayDelay,
+    waitForReset: @escaping PutioNextVideoResetWait,
+    loadNext: @escaping PutioNextVideoLoad,
+    sleep: @escaping PutioNextVideoSleep = { try await Task.sleep(for: $0) }
+  ) {
+    self.init(
+      suggestionsEnabled: suggestionsEnabled,
+      autoplayEnabled: { autoplayEnabled },
+      autoplayDelay: autoplayDelay,
+      waitForReset: waitForReset,
+      loadNext: loadNext,
+      sleep: sleep
+    )
   }
 
   func playbackEnded(completedFileID: PutioFileID) async {
@@ -76,7 +97,7 @@ final class PutioNextVideoModel {
       }
 
       state = .available(nextVideo)
-      guard autoplayEnabled else { return }
+      guard autoplayEnabled() else { return }
 
       do {
         try await sleep(autoplayDelay)
@@ -125,6 +146,18 @@ final class PutioNextVideoModel {
   private static func bounded(delay: Duration) -> Duration {
     min(max(delay, .zero), maximumAutoplayDelay)
   }
+}
+
+/// A downloaded successor plays from its local file, so it keeps working
+/// offline and its locally recorded position wins over the server's.
+@MainActor
+func resolveSuccessorSource(
+  fileID: PutioFileID,
+  localSource: @MainActor (PutioFileID) -> PutioPlaybackSource?,
+  resolve: PutioPlaybackResolve
+) async throws -> PutioPlaybackResolution {
+  if let local = localSource(fileID) { return .ready(local) }
+  return try await resolve(fileID)
 }
 
 @MainActor
