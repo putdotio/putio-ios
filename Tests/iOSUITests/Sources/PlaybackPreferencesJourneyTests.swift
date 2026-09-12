@@ -110,6 +110,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertEqual(playNext.label, "Play next, Root Movie 2.mkv")
     XCTAssertEqual(cancelNext.label, "Cancel playing Root Movie 2.mkv")
     let presentedRoute = app.descendants(matching: .any)["video.presented-route"]
+    XCTAssertTrue(presentedRoute.waitForExistence(timeout: 5))
     let successorRoute = NSPredicate(format: "value == %@", "id=414")
     XCTAssertEqual(
       XCTWaiter.wait(
