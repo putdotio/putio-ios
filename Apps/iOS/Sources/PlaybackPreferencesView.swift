@@ -4,14 +4,16 @@ import SwiftUI
 @MainActor
 struct PlaybackPreferencesView: View {
   let runtime: PutioRuntime
+  let appConfig: PutioAppConfigModel
   @State private var model: PutioAccountPreferencesModel
   @State private var routes: [PutioPlaybackRoute]?
   @State private var routeFailure: String?
   @State private var isLoadingRoutes = false
   @State private var routeGeneration = 0
 
-  init(runtime: PutioRuntime) {
+  init(runtime: PutioRuntime, appConfig: PutioAppConfigModel) {
     self.runtime = runtime
+    self.appConfig = appConfig
     _model = State(initialValue: PutioAccountPreferencesModel(actions: .init(runtime: runtime)))
   }
 
@@ -87,8 +89,32 @@ struct PlaybackPreferencesView: View {
         }
         .disabled(!model.canSave)
         .listRowBackground(PutioTheme.Colors.surface)
+        Section {
+          if appConfig.config != nil {
+            Toggle("Autoplay next video", isOn: autoplayNextVideo)
+              .disabled(!appConfig.canSave)
+              .accessibilityIdentifier("playback-settings.autoplay")
+          } else if appConfig.isLoading {
+            ProgressView("Loading playback settings")
+          }
+          if let failure = appConfig.failure {
+            Text(failure).foregroundStyle(PutioTheme.Colors.textSecondary)
+            Button("Try again") { Task { await appConfig.retry() } }
+              .disabled(appConfig.isBusy)
+              .accessibilityIdentifier("playback-settings.retry-autoplay")
+          }
+        } header: {
+          Text("Next video")
+        } footer: {
+          Text(
+            account.suggestNextVideo
+              ? "The next video is suggested when one ends. With autoplay on, it starts after a short countdown."
+              : "Next video suggestions are turned off in your put.io account settings."
+          )
+        }
+        .listRowBackground(PutioTheme.Colors.surface)
       }
-      if model.isSaving {
+      if model.isSaving || appConfig.isSaving {
         ProgressView("Saving settings")
           .listRowBackground(PutioTheme.Colors.surface)
       }
@@ -97,6 +123,13 @@ struct PlaybackPreferencesView: View {
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
     .task { if routes == nil { await loadRoutes() } }
+    .task { await appConfig.loadIfNeeded() }
+  }
+
+  private var autoplayNextVideo: Binding<Bool> {
+    Binding(
+      get: { appConfig.autoplayNextVideo },
+      set: { enabled in Task { await appConfig.setAutoplayNextVideo(enabled) } })
   }
 
   private var routeSelection: Binding<String> {

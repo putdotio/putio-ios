@@ -296,6 +296,7 @@ private struct MainTabView: View {
         runtime: runtime, accountID: account.id, scenario: scenario))
     _cast = State(
       initialValue: PutioCastControllerFactory.makeModel(runtime: runtime, scenario: scenario))
+    _appConfig = State(initialValue: PutioAppConfigModel(actions: .init(runtime: runtime)))
   }
 
   private enum SelectedTab: Hashable { case files, downloads, history, account, search }
@@ -317,6 +318,7 @@ private struct MainTabView: View {
   @State private var externalPlayback: PutioExternalPlaybackModel
   @State private var offlineQueue: PutioOfflineQueue
   @State private var cast: PutioCastModel
+  @State private var appConfig: PutioAppConfigModel
   @State private var trackPicker: PutioOfflineTrackPickerRequest?
   @State private var offlineFailure: PutioOfflineFailure?
   @Environment(\.scenePhase) private var scenePhase
@@ -368,6 +370,7 @@ private struct MainTabView: View {
             refreshRequests: folderRefreshRequests,
             trashReconciliation: trashReconciliation,
             cast: cast,
+            appConfig: appConfig,
             onDataCleared: { categories, committed in
               if !categories.isDisjoint(with: [.files, .trash]) {
                 folderRefreshRequests.requestAllLoadedFolders()
@@ -403,6 +406,7 @@ private struct MainTabView: View {
     }
     // Shrink-on-scroll is opt-in on iOS 26 and part of the ios-e10 treatment.
     .tabBarMinimizeBehavior(.onScrollDown)
+    .task { await appConfig.loadIfNeeded() }
     .modifier(PutioCastPresentation(model: cast))
     .accessibilityHidden(selectedVideoRoute != nil)
     .overlay {
@@ -692,6 +696,9 @@ private struct MainTabView: View {
   private func presentVideo(_ route: PutioVideoRoute) {
     selectedVideoRoute = route
     presentedVideoRoute = route
+    // The autoplay decision reads the document at playback end; a load that
+    // failed at sign-in gets another chance before this video finishes.
+    Task { await appConfig.loadIfNeeded() }
   }
 
   private var filesBrowser: some View {
@@ -717,7 +724,7 @@ private struct MainTabView: View {
         ? PutioOfflineQueueFactory.preferredLanguages(scenario: scenario) : [],
       remembersPlaybackPosition: account.rememberVideoTime,
       suggestsNextVideo: account.suggestNextVideo,
-      autoplayNextVideo: account.suggestNextVideo,
+      autoplayNextVideo: { appConfig.autoplayNextVideo },
       showsHarnessReadiness: scenario == .filesBrowser,
       conversionPollInterval: scenario == .filesBrowser ? .milliseconds(1_200) : .seconds(3),
       nextVideoAutoplayDelay: .seconds(5),
@@ -747,7 +754,13 @@ private struct MainTabView: View {
           waitForPendingReports: {
             await playbackPositionPipeline.waitForPendingReports(fileID: $0)
           },
-          resolve: { try await resolvePlaybackSource(fileID: $0) }
+          resolve: { fileID in
+            try await resolveSuccessorSource(
+              fileID: fileID,
+              localSource: { offlineQueue.localSource(for: $0) },
+              resolve: { try await resolvePlaybackSource(fileID: $0) }
+            )
+          }
         )
       },
       onPlayNext: { nextVideo in
@@ -1023,6 +1036,7 @@ private struct AccountView: View {
   let refreshRequests: PutioFolderRefreshRequests
   let trashReconciliation: PutioTrashReconciliation
   let cast: PutioCastModel
+  let appConfig: PutioAppConfigModel
   let onDataCleared: @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
   let onAccountDestroyed: @MainActor () -> Void
   @State private var isRefreshingStorage = false
@@ -1044,7 +1058,7 @@ private struct AccountView: View {
           }
           .accessibilityIdentifier("account.file-preferences")
           NavigationLink("Playback Preferences") {
-            PlaybackPreferencesView(runtime: runtime)
+            PlaybackPreferencesView(runtime: runtime, appConfig: appConfig)
           }
           .accessibilityIdentifier("account.playback-preferences")
           NavigationLink("Chromecast") {
