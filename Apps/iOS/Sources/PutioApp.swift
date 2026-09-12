@@ -1289,7 +1289,11 @@ enum PutioOfflineQueueFactory {
         try await runtime.deleteFile(fileID: fileID)
       },
       trashSetting: {
-        guard case .signedIn(let current) = runtime.session.state,
+        // The cached snapshot can lag a change made on another client, so
+        // the server is asked first; an unanswered refresh leaves the
+        // setting unknown and the runtime's own refusal applies.
+        guard await runtime.refreshAccountPreferences(),
+          case .signedIn(let current) = runtime.session.state,
           !runtime.session.isAccountPreferencesStale,
           !runtime.session.isUpdatingAccountPreferences
         else { return nil }

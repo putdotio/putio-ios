@@ -310,8 +310,9 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let conversionStatus: PutioOfflineConversionStatus
   @ObservationIgnored private let reportPosition: PutioOfflinePositionReport
   @ObservationIgnored private let deleteOriginal: PutioOfflineOriginalDelete
-  /// The account's authoritative Trash setting, or nil while it is unknown.
-  @ObservationIgnored private let trashSetting: @MainActor () -> Bool?
+  /// The account's Trash setting as the server has it now, or nil while it
+  /// cannot be established; read once per request pass.
+  @ObservationIgnored private let trashSetting: @MainActor () async -> Bool?
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
   @ObservationIgnored private let availableStorage: @MainActor () -> Int64
@@ -370,7 +371,7 @@ final class PutioOfflineQueue {
     conversionStatus: @escaping PutioOfflineConversionStatus,
     reportPosition: @escaping PutioOfflinePositionReport,
     deleteOriginal: @escaping PutioOfflineOriginalDelete,
-    trashSetting: @escaping @MainActor () -> Bool? = { nil }
+    trashSetting: @escaping @MainActor () async -> Bool? = { nil }
   ) {
     self.store = store
     self.engine = engine
@@ -657,8 +658,10 @@ final class PutioOfflineQueue {
     registerPendingOriginals(targets)
     let generation = originalsGeneration
     var outcome = PutioOfflineOriginalOutcome()
+    let current = await trashSetting()
+    guard generation == originalsGeneration else { return outcome }
     for target in targets {
-      if let current = trashSetting(), current != target.movesToTrash {
+      if let current, current != target.movesToTrash {
         // Confirmed as one outcome; the account would now do the other.
         outcome.failures.append(.init(target: target, reason: .trashSettingChanged))
       } else {

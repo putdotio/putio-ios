@@ -115,6 +115,7 @@ final class OfflineDownloadsTests: XCTestCase {
   private var originalDeleteGate: AsyncGate?
   private var originalsDeleted: [[Int]] = []
   private var currentTrashSetting: Bool?
+  private var trashSettingReads = 0
 
   override func setUp() async throws {
     directory = FileManager.default.temporaryDirectory.appending(
@@ -132,6 +133,7 @@ final class OfflineDownloadsTests: XCTestCase {
     originalDeleteGate = nil
     originalsDeleted = []
     currentTrashSetting = nil
+    trashSettingReads = 0
   }
 
   override func tearDown() async throws {
@@ -222,7 +224,10 @@ final class OfflineDownloadsTests: XCTestCase {
           throw error
         }
       },
-      trashSetting: { self.currentTrashSetting }
+      trashSetting: {
+        self.trashSettingReads += 1
+        return self.currentTrashSetting
+      }
     )
   }
 
@@ -1356,6 +1361,7 @@ final class OfflineDownloadsTests: XCTestCase {
     await settle()
     _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 2)], movesToTrash: true)
     XCTAssertEqual(originalDeletes, [1, 2])
+    XCTAssertEqual(trashSettingReads, 3, "the server is asked once per pass, not per original")
   }
 
   func testConcurrentOriginalRequestsMergeTheirFailures() async {
