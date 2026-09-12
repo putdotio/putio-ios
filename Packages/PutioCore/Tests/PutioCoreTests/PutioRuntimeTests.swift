@@ -2466,6 +2466,15 @@ final class PutioRuntimeTests: XCTestCase {
       #"{"recovery_codes":{"created_at":"","codes":[]}}"#,
       for: "POST /v2/two_factor/recovery_codes/refresh")
     await assertRuntimeError(.invalidResponse) { _ = try await runtime.regenerateRecoveryCodes() }
+    for payload in [
+      #"[{"code":"dup","used_at":null},{"code":"dup","used_at":null}]"#,
+      #"[{"code":"ok","used_at":null},{"code":"  ","used_at":null}]"#,
+    ] {
+      RuntimeMockURLProtocol.setFixture(
+        #"{"recovery_codes":{"created_at":"","codes":\#(payload)}}"#,
+        for: "GET /v2/two_factor/recovery_codes")
+      await assertRuntimeError(.invalidResponse) { _ = try await runtime.recoveryCodes() }
+    }
   }
 
   func testLostTwoFactorResponseReconcilesAgainstTheAccountBeforeFailing() async throws {

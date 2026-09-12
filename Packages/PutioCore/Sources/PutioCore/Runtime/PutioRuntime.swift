@@ -925,10 +925,18 @@ extension PutioRuntime {
   private static func recoveryCodes(_ codes: PutioTwoFactorRecoveryCodes) throws
     -> [PutioTwoFactorRecoveryCode]
   {
-    guard !codes.codes.isEmpty else { throw PutioRuntimeError.invalidResponse }
-    return codes.codes.map {
-      PutioTwoFactorRecoveryCode(code: $0.code, isUsed: !($0.usedAt ?? "").isEmpty)
+    // A blank or repeated code would be shown as a backup that cannot
+    // recover the account.
+    var seen = Set<String>()
+    let mapped = try codes.codes.map { code in
+      let value = code.code.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !value.isEmpty, seen.insert(value).inserted else {
+        throw PutioRuntimeError.invalidResponse
+      }
+      return PutioTwoFactorRecoveryCode(code: value, isUsed: !(code.usedAt ?? "").isEmpty)
     }
+    guard !mapped.isEmpty else { throw PutioRuntimeError.invalidResponse }
+    return mapped
   }
 
   // put.io reports a wrong or expired code with these types across the 2FA
