@@ -2234,6 +2234,26 @@ final class PutioRuntimeTests: XCTestCase {
     RuntimeMockURLProtocol.setFixture(#"{"config":{}}"#, for: "GET /v2/config")
     let fallback = try await runtime.castPlaybackType()
     XCTAssertEqual(fallback, .hls)
+    RuntimeMockURLProtocol.setFixture(
+      #"{"config":{"chromecast_playback_type":"bogus","autoplay_next_video":"yes","web_only":1}}"#,
+      for: "GET /v2/config")
+    let lenient = try await runtime.appConfig()
+    XCTAssertEqual(lenient, PutioAppConfig(chromecastPlaybackType: .hls, autoplayNextVideo: false))
+    RuntimeMockURLProtocol.setFixture(
+      #"{"config":{"chromecast_playback_type":"mp4","autoplay_next_video":true}}"#,
+      for: "GET /v2/config")
+    let full = try await runtime.appConfig()
+    XCTAssertEqual(full, PutioAppConfig(chromecastPlaybackType: .mp4, autoplayNextVideo: true))
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"OK"}"#, for: "PUT /v2/config/autoplay_next_video")
+    try await runtime.setAutoplayNextVideo(true)
+    let autoplay = try XCTUnwrap(
+      RuntimeMockURLProtocol.capturedRequests().last {
+        $0.url?.path == "/v2/config/autoplay_next_video"
+      })
+    XCTAssertEqual(
+      String(data: try XCTUnwrap(requestBodyData(for: autoplay)), encoding: .utf8),
+      #"{"value":true}"#)
 
     let route = "PUT /v2/config/chromecast_playback_type"
     RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: route)

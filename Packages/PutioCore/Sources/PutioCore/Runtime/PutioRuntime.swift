@@ -459,16 +459,28 @@ public final class PutioRuntime {
     try await reportPlaybackPosition(fileID: fileID, seconds: seconds)
   }
 
-  /// Reads the account's Chromecast playback type. Unknown or missing server
-  /// values decode as HLS in the SDK.
+  /// The app's config document; unknown or missing values are its defaults.
+  public func appConfig() async throws -> PutioAppConfig {
+    try await performAuthenticatedOperation { try await sdk.getConfig(as: PutioAppConfig.self) }
+  }
+
   public func castPlaybackType() async throws -> PutioCastPlaybackType {
-    let config = try await performAuthenticatedOperation { try await sdk.getConfig() }
-    return PutioCastPlaybackType(config.chromecastPlaybackType)
+    try await appConfig().chromecastPlaybackType
   }
 
   public func setCastPlaybackType(_ playbackType: PutioCastPlaybackType) async throws {
+    try await setAppConfigValue(.chromecastPlaybackType, playbackType.rawValue)
+  }
+
+  public func setAutoplayNextVideo(_ enabled: Bool) async throws {
+    try await setAppConfigValue(.autoplayNextVideo, enabled)
+  }
+
+  private func setAppConfigValue<Value: Encodable & Sendable>(
+    _ key: PutioAppConfigKey, _ value: Value
+  ) async throws {
     let response = try await performAuthenticatedOperation(commits: true) {
-      try await sdk.setChromecastPlaybackType(playbackType.sdkValue)
+      try await sdk.setConfigValue(key: key.rawValue, value)
     }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
   }
@@ -715,22 +727,6 @@ public final class PutioRuntime {
       return isCancellation(sdkError.underlyingError)
     }
     return false
-  }
-}
-
-extension PutioCastPlaybackType {
-  init(_ value: PutioChromecastPlaybackType) {
-    switch value {
-    case .hls: self = .hls
-    case .mp4: self = .mp4
-    }
-  }
-
-  var sdkValue: PutioChromecastPlaybackType {
-    switch self {
-    case .hls: .hls
-    case .mp4: .mp4
-    }
   }
 }
 
