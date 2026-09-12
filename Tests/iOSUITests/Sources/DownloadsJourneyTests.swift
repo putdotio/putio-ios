@@ -98,17 +98,18 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntil(timeout: 5) { self.app.buttons["downloads.remove-selected"].isEnabled })
     XCTAssertEqual(item.value as? String, "Selected")
     app.buttons["downloads.remove-selected"].tap()
-    let sheet = app.sheets["Remove “Root Movie.mkv”?"]
-    XCTAssertTrue(sheet.waitForExistence(timeout: 5))
+    let removeLocal = app.buttons["downloads.remove-local"].firstMatch
+    XCTAssertTrue(removeLocal.waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Remove “Root Movie.mkv”?"].exists, "the title names the file")
     XCTAssertTrue(
-      sheet.staticTexts.element(
+      app.staticTexts.element(
         matching: NSPredicate(format: "label CONTAINS %@", "every device signed in to your account")
       ).exists, "the confirmation does not explain that other devices are affected")
-    let removeLocal = sheet.buttons["Remove download"]
-    let removeOriginal = sheet.buttons["Remove download and move original to Trash"]
-    XCTAssertTrue(removeLocal.exists)
+    let removeOriginal = app.buttons["downloads.remove-original"].firstMatch
     XCTAssertTrue(removeOriginal.exists)
-    XCTAssertTrue(sheet.buttons["Cancel"].exists)
+    XCTAssertEqual(removeLocal.label, "Remove download")
+    XCTAssertEqual(removeOriginal.label, "Remove download and move original to Trash")
+    XCTAssertTrue(app.buttons["Cancel"].firstMatch.exists)
     screenshot("runtime-downloads-remove")
 
     // The seeded first delete fails: the local copy is gone, the failure is
