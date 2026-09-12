@@ -31,7 +31,7 @@ final class TVSessionRenderingTests: XCTestCase {
   func testAccountMatchesBaseline() throws {
     _ = try assertRenderingSnapshot(
       name: "tv-account",
-      view: TVAccountScreen(account: Self.account) {},
+      view: TVAccountScreen(account: Self.account, locale: Locale(identifier: "en_US")) {},
       size: viewport
     )
   }

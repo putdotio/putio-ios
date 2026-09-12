@@ -162,7 +162,7 @@ struct TVSignInScreen: View {
           .putioFont(PutioTheme.TV.Typography.caption)
           .foregroundStyle(PutioTheme.Colors.destructive)
           .accessibilityIdentifier("auth.code-expired")
-        PutioButton("Get new code", icon: .arrowCounterClockwise, tier: .primary) {
+        PutioButton("Get new code", tier: .primary) {
           requestCode()
         }
         .accessibilityIdentifier("auth.new-code")
@@ -174,7 +174,7 @@ struct TVSignInScreen: View {
           .foregroundStyle(PutioTheme.Colors.destructive)
           .multilineTextAlignment(.center)
           .accessibilityIdentifier("auth.failure")
-        PutioButton("Try again", icon: .arrowCounterClockwise, tier: .primary) {
+        PutioButton("Try again", tier: .primary) {
           canRetryRestore ? retryRestore() : requestCode()
         }
         .accessibilityIdentifier("auth.retry")
@@ -249,6 +249,7 @@ private struct TVSignedInShell: View {
 
 struct TVAccountScreen: View {
   let account: PutioAccountSnapshot
+  var locale: Locale = .current
   let signOut: () async -> Void
 
   @State private var confirmsSignOut = false
@@ -280,7 +281,6 @@ struct TVAccountScreen: View {
         .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
         .accessibilityIdentifier("account.storage")
       }
-      Spacer(minLength: 0)
       PutioButton("Sign out", tier: .secondary) {
         confirmsSignOut = true
       }
@@ -288,6 +288,7 @@ struct TVAccountScreen: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .tvOverscanPadding()
+    .background(PutioTheme.Colors.background.ignoresSafeArea())
     .confirmationDialog(
       "Sign out of put.io?", isPresented: $confirmsSignOut, titleVisibility: .visible
     ) {
@@ -302,6 +303,6 @@ struct TVAccountScreen: View {
   }
 
   private func byteText(_ bytes: Int64) -> String {
-    bytes.formatted(.byteCount(style: .file))
+    bytes.formatted(.byteCount(style: .file).locale(locale))
   }
 }
