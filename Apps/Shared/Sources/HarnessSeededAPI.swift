@@ -323,6 +323,7 @@ import Foundation
     /// The seeded root video's original: its first delete fails so the
     /// downloads journey proves the remote failure report and retry.
     nonisolated(unsafe) private static var offlineOriginalDeleteFailed = false
+    nonisolated(unsafe) private static var offlineOriginalTrashed = false
     nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
     nonisolated(unsafe) private static var trashDeleteFailureDelivered = false
     nonisolated(unsafe) private static var trashListRequests = 0
@@ -392,6 +393,7 @@ import Foundation
       renameAttempts = 0
       bulkDeleteFailureDelivered = false
       offlineOriginalDeleteFailed = false
+      offlineOriginalTrashed = false
       ambiguousMoveFailureDelivered = false
       trashDeleteFailureDelivered = false
       trashListRequests = 0
@@ -1399,9 +1401,10 @@ import Foundation
       fileActionsLock.lock()
       if fileID == 412 {
         defer { fileActionsLock.unlock() }
-        // 412 is a static seeded file; like 410, the accepted delete answers
-        // OK without rewriting the fixed listings.
-        if offlineOriginalDeleteFailed { return (200, #"{"status":"OK"}"#) }
+        if offlineOriginalDeleteFailed {
+          offlineOriginalTrashed = true
+          return (200, #"{"status":"OK"}"#)
+        }
         offlineOriginalDeleteFailed = true
         return (
           503,
@@ -1790,6 +1793,7 @@ import Foundation
       let parentSort = inheritsDefault ? "null" : jsonString(sortBy)
       let folderName = harnessFolderName
       let folderDeleted = harnessFolderDeleted
+      let rootVideoTrashed = offlineOriginalTrashed
       fileActionsLock.unlock()
       let mutableFolderRows = mutableFolders.map { id, folder in
         folderObject(id: id, name: folder.name, parentID: folder.parentID)
@@ -1836,6 +1840,9 @@ import Foundation
           """,
         ] + mutableFolderRows
       if folderDeleted { rows.removeFirst() }
+      // The accepted retry moved the root video to Trash; the root listing
+      // reflects it so the Files tab proves the reconciliation.
+      if rootVideoTrashed { rows.removeAll { $0.contains(#""id": 412,"#) } }
       // Only the two name orders are modelled; the journey proves the
       // round trip, not the server's comparator.
       if sortBy == "NAME_DESC" { rows.reverse() }

@@ -334,9 +334,10 @@ private struct MainTabView: View {
       }
       Tab(value: SelectedTab.downloads) {
         NavigationStack {
-          PutioOfflineDownloadsView(queue: offlineQueue, trashEnabled: account.trashEnabled) {
-            item in openOffline(item)
-          }
+          PutioOfflineDownloadsView(
+            queue: offlineQueue, trashEnabled: account.trashEnabled,
+            onOpen: { item in openOffline(item) },
+            onOriginalsDeleted: { _ in folderRefreshRequests.requestAllLoadedFolders() })
         }
       } label: {
         Label {

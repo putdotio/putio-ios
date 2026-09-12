@@ -576,6 +576,9 @@ final class PutioOfflineQueue {
       do {
         try await deleteOriginal(target.id)
         outcome.deleted.append(target)
+      } catch PutioRuntimeError.notFound {
+        // Already gone, possibly from a delete whose response was lost.
+        outcome.deleted.append(target)
       } catch {
         outcome.failures.append(.init(target: target, reason: .init(error)))
       }

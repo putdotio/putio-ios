@@ -8,6 +8,8 @@ struct PutioOfflineDownloadsView: View {
   let queue: PutioOfflineQueue
   let trashEnabled: Bool
   let onOpen: @MainActor (PutioOfflineItem) -> Void
+  /// Originals put.io confirmed gone, so loaded file lists can reconcile.
+  let onOriginalsDeleted: @MainActor ([PutioFileID]) -> Void
 
   @State private var isEditing = false
   @State private var selectedIDs: Set<PutioFileID> = []
@@ -50,7 +52,7 @@ struct PutioOfflineDownloadsView: View {
         finishSelection()
         // Unstructured on purpose: the request outlives this screen, and the
         // queue keeps the outcome until the user dismisses it.
-        Task { _ = await queue.removeDeletingOriginals(fileIDs: targets.map(\.id)) }
+        Task { deliver(await queue.removeDeletingOriginals(fileIDs: targets.map(\.id))) }
       }
       .accessibilityIdentifier("downloads.remove-original")
       Button("Cancel", role: .cancel) {}
@@ -63,13 +65,10 @@ struct PutioOfflineDownloadsView: View {
         get: { queue.originalFailure != nil }, set: { if !$0 { queue.dismissOriginalFailure() } }),
       presenting: queue.originalFailure
     ) { outcome in
-      let retryable = outcome.retryableTargets
-      if !retryable.isEmpty {
-        Button("Try again") {
-          Task { _ = await queue.deleteOriginals(retryable) }
-        }
-        .accessibilityIdentifier("downloads.remove-original-retry")
+      Button("Try again") {
+        Task { deliver(await queue.deleteOriginals(outcome.failedTargets)) }
       }
+      .accessibilityIdentifier("downloads.remove-original-retry")
       Button("OK", role: .cancel) {}
     } message: { outcome in
       Text(copy.failureMessage(outcome: outcome))
@@ -83,6 +82,11 @@ struct PutioOfflineDownloadsView: View {
       queue.refreshStorage()
     }
     .accessibilityIdentifier("downloads.screen")
+  }
+
+  private func deliver(_ outcome: PutioOfflineOriginalOutcome) {
+    guard !outcome.deleted.isEmpty else { return }
+    onOriginalsDeleted(outcome.deleted.map(\.id))
   }
 
   private func finishSelection() {

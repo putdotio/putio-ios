@@ -1025,17 +1025,15 @@ final class OfflineDownloadsTests: XCTestCase {
 
     let outcome = await queue.removeDeletingOriginals(fileIDs: (1...3).map(PutioFileID.init))
     XCTAssertTrue(queue.items.isEmpty, "a remote failure must not resurrect the local copy")
-    XCTAssertEqual(outcome.deleted.map(\.id.rawValue), [1])
+    XCTAssertEqual(
+      outcome.deleted.map(\.id.rawValue), [1, 3], "an already-missing original is not a failure")
     XCTAssertEqual(
       outcome.failures,
-      [
-        .init(target: .init(id: PutioFileID(rawValue: 2), name: "n2"), reason: .transient),
-        .init(target: .init(id: PutioFileID(rawValue: 3), name: "n3"), reason: .missing),
-      ])
-    XCTAssertEqual(
-      outcome.retryableTargets.map(\.id.rawValue), [2], "a missing original has no retry")
+      [.init(target: .init(id: PutioFileID(rawValue: 2), name: "n2"), reason: .transient)])
+    XCTAssertEqual(outcome.failedTargets.map(\.id.rawValue), [2])
+    XCTAssertEqual(queue.originalFailure, outcome, "the failure outlives the screen that asked")
 
-    let retried = await queue.deleteOriginals(outcome.retryableTargets)
+    let retried = await queue.deleteOriginals(outcome.failedTargets)
     XCTAssertEqual(retried.deleted.map(\.id.rawValue), [2])
     XCTAssertTrue(retried.failures.isEmpty)
     XCTAssertEqual(originalDeletes, [1, 2, 3, 2])
@@ -1046,11 +1044,8 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(PutioOfflineOriginalFailure.Reason(PutioRuntimeError.transient), .transient)
     XCTAssertEqual(PutioOfflineOriginalFailure.Reason(PutioRuntimeError.sessionExpired), .transient)
     XCTAssertEqual(PutioOfflineOriginalFailure.Reason(PutioRuntimeError.rateLimited), .rateLimited)
-    XCTAssertEqual(PutioOfflineOriginalFailure.Reason(PutioRuntimeError.notFound), .missing)
     XCTAssertEqual(PutioOfflineOriginalFailure.Reason(PutioRuntimeError.invalidResponse), .unknown)
     XCTAssertEqual(PutioOfflineOriginalFailure.Reason(URLError(.timedOut)), .unknown)
-    XCTAssertFalse(PutioOfflineOriginalFailure.Reason.missing.canRetry)
-    XCTAssertTrue(PutioOfflineOriginalFailure.Reason.unknown.canRetry)
   }
 
   func testRemovalCopyNamesTheFileAndFollowsTheTrashSetting() {
@@ -1097,13 +1092,13 @@ final class OfflineDownloadsTests: XCTestCase {
     let mixed = PutioOfflineOriginalOutcome(
       deleted: [.init(id: PutioFileID(rawValue: 0), name: "ok")],
       failures: [
-        .init(target: .init(id: PutioFileID(rawValue: 1), name: "a"), reason: .missing),
-        .init(target: .init(id: PutioFileID(rawValue: 2), name: "b"), reason: .missing),
+        .init(target: .init(id: PutioFileID(rawValue: 1), name: "a"), reason: .rateLimited),
+        .init(target: .init(id: PutioFileID(rawValue: 2), name: "b"), reason: .transient),
       ])
     XCTAssertEqual(trash.failureTitle(outcome: mixed), "Could not move originals to Trash")
     XCTAssertEqual(
       trash.failureMessage(outcome: mixed),
-      "“a”, “b” were removed from this device, but the originals are still on put.io. put.io no longer has those files."
+      "“a”, “b” were removed from this device, but the originals are still on put.io. Check your connection and try again."
     )
     XCTAssertFalse(
       trash.failureMessage(outcome: mixed).contains("ok"), "successes are not failures")
