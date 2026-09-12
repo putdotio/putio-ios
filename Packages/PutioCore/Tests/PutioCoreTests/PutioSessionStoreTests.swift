@@ -5,13 +5,28 @@ import XCTest
 
 final class SessionMockURLProtocol: URLProtocol {
   nonisolated(unsafe) static var fixtures: [String: (Int, String)] = [:]
+  /// Ordered responses consumed one per request before `fixtures` applies.
+  nonisolated(unsafe) static var sequences: [String: [(Int, String)]] = [:]
   nonisolated(unsafe) static var networkFailureRoutes: Set<String> = []
+  /// Routes whose response is delivered only after the given delay.
+  nonisolated(unsafe) static var delays: [String: TimeInterval] = [:]
   nonisolated(unsafe) static var requests: [URLRequest] = []
+  private static let lock = NSLock()
 
   static func reset() {
-    fixtures = [:]
-    networkFailureRoutes = []
-    requests = []
+    lock.withLock {
+      fixtures = [:]
+      sequences = [:]
+      networkFailureRoutes = []
+      delays = [:]
+      requests = []
+    }
+  }
+
+  static func requestCount(route: String) -> Int {
+    lock.withLock {
+      requests.filter { "\($0.httpMethod ?? "GET") \($0.url?.path ?? "")" == route }.count
+    }
   }
 
   override class func canInit(with request: URLRequest) -> Bool {
@@ -23,19 +38,38 @@ final class SessionMockURLProtocol: URLProtocol {
   }
 
   override func startLoading() {
-    Self.requests.append(request)
     guard let url = request.url else {
       client?.urlProtocol(self, didFailWithError: URLError(.badURL))
       return
     }
     let routeKey = "\(request.httpMethod ?? "GET") \(url.path)"
-    if Self.networkFailureRoutes.contains(routeKey) {
+    let delay = Self.lock.withLock { Self.delays[routeKey] ?? 0 }
+    if delay > 0 {
+      Self.lock.withLock { Self.delays[routeKey] = nil }
+      DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [self] in
+        startLoading()
+      }
+      return
+    }
+    let (statusCode, body, fails) = Self.lock.withLock {
+      Self.requests.append(request)
+      if Self.networkFailureRoutes.contains(routeKey) {
+        return (0, "", true)
+      }
+      if var queued = Self.sequences[routeKey], !queued.isEmpty {
+        let next = queued.removeFirst()
+        Self.sequences[routeKey] = queued
+        return (next.0, next.1, false)
+      }
+      let fallback =
+        Self.fixtures[routeKey]
+        ?? (404, #"{"status":"ERROR","status_code":404,"error_type":"FIXTURE_NOT_FOUND"}"#)
+      return (fallback.0, fallback.1, false)
+    }
+    if fails {
       client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
       return
     }
-    let (statusCode, body) =
-      Self.fixtures[routeKey]
-      ?? (404, #"{"status":"ERROR","status_code":404,"error_type":"FIXTURE_NOT_FOUND"}"#)
     let response = HTTPURLResponse(
       url: url,
       statusCode: statusCode,
@@ -485,6 +519,167 @@ final class PutioSessionStoreTests: XCTestCase {
     await store.completeSignIn(callbackURL: callback)
 
     XCTAssertEqual(store.state, .signedOut(nil))
+  }
+
+  // MARK: - Device code
+
+  private static let pendingCode = #"{"oauth_token": null}"#
+  private static let expiredCode =
+    #"{"status":"ERROR","status_code":404,"error_type":"code_not_found"}"#
+  private static let approvedCode = #"{"oauth_token": "device-token"}"#
+
+  private func stubDeviceCodeIssue(_ codes: [String]) {
+    SessionMockURLProtocol.sequences["GET /v2/oauth2/oob/code"] = codes.map {
+      (200, #"{"code": "\#($0)", "qr_code_url": null}"#)
+    }
+  }
+
+  private func waitUntil(
+    _ condition: @escaping @MainActor () -> Bool, timeout: TimeInterval = 5
+  ) async -> Bool {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+      if condition() { return true }
+      try? await Task.sleep(for: .milliseconds(20))
+    }
+    return condition()
+  }
+
+  func testDeviceCodeSignInShowsTheCodeThenSignsInAfterApproval() async throws {
+    stubSignedInRoutes()
+    stubDeviceCodeIssue(["ABCD1"])
+    SessionMockURLProtocol.sequences["GET /v2/oauth2/oob/code/ABCD1"] = [
+      (200, Self.pendingCode), (200, Self.approvedCode),
+    ]
+    let (store, tokenStore) = makeStore(token: nil)
+    let signIn = Task { await store.signInWithDeviceCode() }
+    let reached1 = await waitUntil { store.deviceCodeSignIn == .awaitingApproval(code: "ABCD1") }
+    XCTAssertTrue(reached1)
+    XCTAssertEqual(store.state, .authenticating)
+    await signIn.value
+    guard case .signedIn(let account) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertEqual(account.username, "moviebuff")
+    XCTAssertNil(store.deviceCodeSignIn)
+    XCTAssertEqual(try tokenStore.read(), "device-token")
+    XCTAssertEqual(SessionMockURLProtocol.requestCount(route: "GET /v2/oauth2/oob/code/ABCD1"), 2)
+    let accountRequest = try XCTUnwrap(
+      SessionMockURLProtocol.requests.last { $0.url?.path == "/v2/account/info" })
+    XCTAssertEqual(accountRequest.value(forHTTPHeaderField: "Authorization"), "token device-token")
+  }
+
+  func testExpiredDeviceCodeStaysAuthenticatingUntilANewCodeIsRequested() async throws {
+    stubSignedInRoutes()
+    stubDeviceCodeIssue(["OLD01", "NEW02"])
+    SessionMockURLProtocol.sequences["GET /v2/oauth2/oob/code/OLD01"] = [
+      (200, Self.pendingCode), (404, Self.expiredCode),
+    ]
+    SessionMockURLProtocol.sequences["GET /v2/oauth2/oob/code/NEW02"] = [
+      (200, Self.pendingCode), (200, Self.approvedCode),
+    ]
+    let (store, _) = makeStore(token: nil)
+    await store.signInWithDeviceCode()
+    XCTAssertEqual(store.state, .authenticating)
+    XCTAssertEqual(store.deviceCodeSignIn, .expired(code: "OLD01"))
+    XCTAssertThrowsError(try store.beginSignIn())
+
+    let renewal = Task { await store.signInWithDeviceCode() }
+    let reached2 = await waitUntil { store.deviceCodeSignIn == .awaitingApproval(code: "NEW02") }
+    XCTAssertTrue(reached2)
+    await renewal.value
+    guard case .signedIn = store.state else {
+      return XCTFail("expected signedIn after the renewed code, got \(store.state)")
+    }
+    XCTAssertEqual(SessionMockURLProtocol.requestCount(route: "GET /v2/oauth2/oob/code"), 2)
+    XCTAssertEqual(SessionMockURLProtocol.requestCount(route: "GET /v2/oauth2/oob/code/OLD01"), 2)
+  }
+
+  func testCancellingDeviceCodeSignInStopsPollingAndReturnsSignedOut() async throws {
+    stubDeviceCodeIssue(["WAIT1"])
+    SessionMockURLProtocol.fixtures["GET /v2/oauth2/oob/code/WAIT1"] = (200, Self.pendingCode)
+    let (store, tokenStore) = makeStore(token: nil)
+    let signIn = Task { await store.signInWithDeviceCode() }
+    let reached3 = await waitUntil { store.deviceCodeSignIn == .awaitingApproval(code: "WAIT1") }
+    XCTAssertTrue(reached3)
+    let reached4 = await waitUntil {
+      SessionMockURLProtocol.requestCount(route: "GET /v2/oauth2/oob/code/WAIT1") >= 1
+    }
+    XCTAssertTrue(reached4)
+    store.cancelSignIn()
+    XCTAssertEqual(store.state, .signedOut(nil))
+    XCTAssertNil(store.deviceCodeSignIn)
+    await signIn.value
+    XCTAssertEqual(store.state, .signedOut(nil))
+    let pollsAtCancel = SessionMockURLProtocol.requestCount(route: "GET /v2/oauth2/oob/code/WAIT1")
+    try await Task.sleep(for: .milliseconds(1500))
+    XCTAssertEqual(
+      SessionMockURLProtocol.requestCount(route: "GET /v2/oauth2/oob/code/WAIT1"), pollsAtCancel,
+      "polling must stop with the cancelled sign-in")
+    XCTAssertNil(try tokenStore.read())
+  }
+
+  func testLateApprovalAfterCancellationDoesNotSignIn() async throws {
+    stubSignedInRoutes()
+    stubDeviceCodeIssue(["LATE1"])
+    SessionMockURLProtocol.delays["GET /v2/oauth2/oob/code"] = 0.5
+    SessionMockURLProtocol.fixtures["GET /v2/oauth2/oob/code/LATE1"] = (200, Self.approvedCode)
+    let (store, tokenStore) = makeStore(token: nil)
+    let signIn = Task { await store.signInWithDeviceCode() }
+    let reached5 = await waitUntil { store.deviceCodeSignIn == .fetchingCode }
+    XCTAssertTrue(reached5)
+    store.cancelSignIn()
+    await signIn.value
+    XCTAssertEqual(store.state, .signedOut(nil))
+    XCTAssertNil(try tokenStore.read())
+  }
+
+  func testDeviceCodeFetchFailureLandsSignedOutWithAMessage() async {
+    SessionMockURLProtocol.networkFailureRoutes = ["GET /v2/oauth2/oob/code"]
+    let (store, _) = makeStore(token: nil)
+    await store.signInWithDeviceCode()
+    XCTAssertEqual(
+      store.state,
+      .signedOut(
+        .authenticationFailed("put.io is unreachable. Check your connection and try again.")))
+    XCTAssertNil(store.deviceCodeSignIn)
+  }
+
+  func testDeviceCodePollFailureLandsSignedOutWithAMessage() async {
+    stubDeviceCodeIssue(["FAIL1"])
+    SessionMockURLProtocol.fixtures["GET /v2/oauth2/oob/code/FAIL1"] =
+      (500, #"{"status":"ERROR","status_code":500,"error_type":"SERVER"}"#)
+    let (store, _) = makeStore(token: nil)
+    await store.signInWithDeviceCode()
+    XCTAssertEqual(
+      store.state,
+      .signedOut(.authenticationFailed("put.io could not complete the request. Try again.")))
+    XCTAssertNil(store.deviceCodeSignIn)
+  }
+
+  func testDeviceCodeSignInIsIgnoredWhileSignedIn() async {
+    stubSignedInRoutes()
+    let (store, _) = makeStore(token: "stored-token")
+    await store.restore()
+    await store.signInWithDeviceCode()
+    guard case .signedIn = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertEqual(SessionMockURLProtocol.requestCount(route: "GET /v2/oauth2/oob/code"), 0)
+  }
+
+  func testSignOutAfterDeviceCodeSignInReturnsToSignedOutAndClearsTheToken() async throws {
+    stubSignedInRoutes()
+    stubDeviceCodeIssue(["DONE1"])
+    SessionMockURLProtocol.fixtures["GET /v2/oauth2/oob/code/DONE1"] = (200, Self.approvedCode)
+    let (store, tokenStore) = makeStore(token: nil)
+    await store.signInWithDeviceCode()
+    guard case .signedIn = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    await store.signOut()
+    XCTAssertEqual(store.state, .signedOut(.userSignedOut))
+    XCTAssertNil(try tokenStore.read())
   }
 
   private func oauthState(from url: URL) -> String? {

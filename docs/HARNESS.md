@@ -25,6 +25,7 @@ mise run harness -- exercise --platform tvos
 mise run harness -- screenshot --platform ios
 mise run harness -- screenshot --platform ios --scenario gallery
 mise run harness -- journey --platform ios --scenario files-browser
+mise run harness -- journey --platform tvos --scenario device-sign-in
 mise run harness -- record --platform watchos --record-seconds 5
 mise run harness -- test --platform tvos
 mise run harness -- proof --platform all
@@ -59,11 +60,23 @@ The recorded `1/1` XCUITest signs in through the real session transition using a
 
 HTTP API responses and OAuth input are deterministic fixtures. The session store, SDK conversion and playback-source resolution, app UI, AVFoundation readiness, navigation, and sign-out are real. AVFoundation uses the harness-owned loopback transport for built HLS files, not the fixture `URLSession`.
 
-`test --platform <ios|tvos>` runs snapshot suites on an ephemeral simulator via `xcodebuild test`. iOS runs the unhosted `PutioSnapshotTests` component gallery and the app-hosted `PutioFeatureTests`; tvOS runs `PutioTVSnapshotTests`. Baselines are committed under `Tests/ComponentSnapshots/__Snapshots__/<platform>/`; comparison tolerates small antialiasing drift between Simulator runtimes. Liquid Glass cannot be rasterized off-screen, so the suite renders glass surfaces with their bordered/material fallbacks (`PUTIO_SNAPSHOT_RASTER`); review the real glass appearance through the gallery captures. After an intentional visual change run `test --platform <platform> --snapshots record`, which records the baselines and re-asserts against what it wrote, then review and commit the image diff. `mise run verify` runs both platforms' suites.
+`journey --platform tvos --scenario device-sign-in` proves the tvOS shell without network. The seeded API issues a first code that expires after one pending poll and a second that is approved after one; later codes stay pending. The recorded `1/1` XCUITest drives the Siri Remote through the code screen, the expired state and "Get new code", approval into the Account tab, a relaunch that restores the keychain session without showing a code, a Menu-dismissed sign-out confirmation, and the confirmed sign-out back to a fresh code. The session store, SDK device-code polling, keychain, and app UI are real; only HTTP responses are fixtures. It writes:
+
+```text
+build/proof/<run-id>/tvos/
+├── runtime-tv-sign-in-code.png
+├── runtime-tv-sign-in-expired.png
+├── runtime-tv-account.png
+└── manifest.json
+```
+
+`test --platform <ios|tvos>` runs snapshot suites on an ephemeral simulator via `xcodebuild test`. iOS runs the unhosted `PutioSnapshotTests` component gallery and the app-hosted `PutioFeatureTests`; tvOS runs `PutioTVSnapshotTests` and the app-hosted `PutioTVFeatureTests`, which asserts the sign-in code, expired, and Account screens at 1920×1080. Baselines are committed under `Tests/ComponentSnapshots/__Snapshots__/<platform>/`; comparison tolerates small antialiasing drift between Simulator runtimes. Liquid Glass cannot be rasterized off-screen, so the suite renders glass surfaces with their bordered/material fallbacks (`PUTIO_SNAPSHOT_RASTER`); review the real glass appearance through the gallery captures. After an intentional visual change run `test --platform <platform> --snapshots record`, which records the baselines and re-asserts against what it wrote, then review and commit the image diff. `mise run verify` runs both platforms' suites.
 
 All simulator commands are headless. The harness never opens Simulator.app. `boot`, `launch`, `exercise`, and capture runs create uniquely named devices and pair watchOS with an ephemeral iPhone companion. `launch`, `exercise`, and capture wait for a rendered app frame. Every created device is shut down, deleted, and verified absent on success or failure. `build` does not create devices.
 
 `boot --run-id <id>` names its device `putio-harness-<platform>-<id>-<8-character nonce>`, so two runs never share a name even with the same ID. Cleanup is registered before creation and targets the exact device the run created; the name is used only if a signal lands before `simctl create` returns, and that lookup is retried for about two seconds because CoreSimulatorService can finish a create whose client was already killed. The interruption check locates the owned device by that `putio-harness-ios-<id>-` prefix and preserves preexisting devices and devices created by other processes.
+
+The tvOS `signed-out` launch is the production path: the shell requests an activation code from put.io with the open-source client, so `launch`, `exercise`, and `proof --platform tvos` reach the network while iOS and watchOS stay offline. The device-sign-in journey is the deterministic tvOS lane.
 
 `exercise` launches the selected app, relaunches it with the explicit exercised scenario, requires the fixed semantic marker in its Simulator data container, and confirms the final visible state transition while the process remains alive. The iOS exercised state uses an accessibility Dynamic Type size so proof also covers adaptive typography and content-coupled metrics. The launch scenario is shared by iOS, watchOS, and tvOS so automation never encounters custom-URL confirmation UI.
 

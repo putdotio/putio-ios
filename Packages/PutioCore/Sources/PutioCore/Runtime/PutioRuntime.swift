@@ -12,7 +12,8 @@ public final class PutioRuntime {
     clientName: String,
     callbackScheme: String = "putio",
     tokenStore: PutioTokenStore = PutioKeychainTokenStore(),
-    urlSession: URLSession = .shared
+    urlSession: URLSession = .shared,
+    deviceCodePollInterval: Duration = .seconds(3)
   ) {
     let sdk = PutioSDK(
       config: PutioSDKConfig(clientID: clientID, clientName: clientName),
@@ -22,7 +23,8 @@ public final class PutioRuntime {
     self.session = PutioSessionStore(
       sdk: sdk,
       tokenStore: tokenStore,
-      callbackScheme: callbackScheme
+      callbackScheme: callbackScheme,
+      deviceCodePollInterval: deviceCodePollInterval
     )
   }
 

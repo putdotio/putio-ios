@@ -45,7 +45,8 @@ public enum HarnessPlatform: String, CaseIterable, Codable, Sendable {
         runtimePlatform: "tvOS",
         deviceFamily: "Apple TV",
         snapshotSuites: [
-          SnapshotSuite(scheme: "PutioTV", target: "PutioTVSnapshotTests")
+          SnapshotSuite(scheme: "PutioTV", target: "PutioTVSnapshotTests"),
+          SnapshotSuite(scheme: "PutioTVFeatureTests", target: "PutioTVFeatureTests"),
         ]
       )
     }
@@ -126,10 +127,19 @@ public enum CaptureScenario: String, CaseIterable, Equatable, Sendable {
 
 public enum JourneyScenario: String, CaseIterable, Equatable, Sendable {
   case filesBrowser = "files-browser"
+  case deviceSignIn = "device-sign-in"
 
   var fixtureSet: String {
     switch self {
     case .filesBrowser: "seeded-runtime-loop-v5"
+    case .deviceSignIn: "seeded-device-sign-in-v1"
+    }
+  }
+
+  public var platform: HarnessPlatform {
+    switch self {
+    case .filesBrowser: .ios
+    case .deviceSignIn: .tvos
     }
   }
 }
@@ -286,6 +296,14 @@ public struct ProofManifest: Codable, Equatable, Sendable {
     self.fixtureSet = fixtureSet
     self.artifacts = artifacts
   }
+}
+
+enum DeviceSignInJourneyContract {
+  static let testIdentifier =
+    "PutioTVUITests/DeviceSignInJourneyTests/testCodeExpiryApprovalRelaunchAndSignOut"
+  static let attachmentNames = [
+    "runtime-tv-sign-in-code", "runtime-tv-sign-in-expired", "runtime-tv-account",
+  ]
 }
 
 enum BrowserJourneyContract {
