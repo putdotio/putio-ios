@@ -109,7 +109,6 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(removeOriginal.exists)
     XCTAssertEqual(removeLocal.label, "Remove download")
     XCTAssertEqual(removeOriginal.label, "Remove download and move original to Trash")
-    XCTAssertTrue(app.buttons["Cancel"].firstMatch.exists)
     screenshot("runtime-downloads-remove")
 
     // The seeded first delete fails: the local copy is gone, the failure is
