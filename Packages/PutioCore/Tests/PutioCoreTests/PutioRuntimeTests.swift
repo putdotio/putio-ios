@@ -2539,6 +2539,22 @@ final class PutioRuntimeTests: XCTestCase {
     await assertRuntimeError(.authenticationRequired) { _ = try await runtime.listAuthorizedApps() }
   }
 
+  func testLostDestroyResponseEndsTheSessionOnlyWhenTheCredentialIsDead() async throws {
+    let (runtime, tokenStore) = await makeSignedInRuntime()
+    let destroy = "POST /v2/account/destroy"
+    RuntimeMockURLProtocol.setFixture(#"{"status":"ERROR"}"#, statusCode: 503, for: destroy)
+    await assertRuntimeError(.transient) { try await runtime.destroyAccount(password: "pw") }
+    guard case .signedIn = runtime.session.state else {
+      return XCTFail("a live credential ended the session")
+    }
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR","error_type":"invalid_grant"}"#, statusCode: 401,
+      for: "GET /v2/account/info")
+    try await runtime.destroyAccount(password: "pw")
+    XCTAssertEqual(runtime.session.state, .signedOut(.userSignedOut))
+    XCTAssertNil(try tokenStore.read())
+  }
+
   private func assertSecurityError(
     _ expected: PutioAccountSecurityError, file: StaticString = #filePath, line: UInt = #line,
     operation: () async throws -> Void

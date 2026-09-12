@@ -495,7 +495,7 @@ struct ClearDataView: View {
 
   init(
     actions: PutioAccountSecurityActions,
-    onCleared: @escaping @MainActor (Set<PutioAccountDataCategory>) -> Void
+    onCleared: @escaping @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
   ) {
     _model = State(initialValue: PutioClearDataModel(actions: actions, onCleared: onCleared))
   }

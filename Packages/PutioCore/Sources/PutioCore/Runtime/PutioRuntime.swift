@@ -884,15 +884,43 @@ extension PutioRuntime {
     guard !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
       throw PutioAccountSecurityError.invalidPassword
     }
-    let response = try await performAuthenticatedOperation(commits: true) {
-      do {
-        return try await sdk.destroyAccount(currentPassword: password)
-      } catch let error as PutioSDKError where error.apiErrorType == "INVALID_CURRENT_PASSWORD" {
-        throw PutioAccountSecurityError.invalidPassword
+    let generation = session.authenticationGeneration
+    let response: PutioOKResponse
+    do {
+      response = try await performAuthenticatedOperation(commits: true) {
+        do {
+          return try await sdk.destroyAccount(currentPassword: password)
+        } catch let error as PutioSDKError
+          where error.apiErrorType == "INVALID_CURRENT_PASSWORD"
+        {
+          throw PutioAccountSecurityError.invalidPassword
+        }
       }
+    } catch let error as PutioAccountSecurityError {
+      throw error
+    } catch {
+      // A lost response may follow a committed destroy. A dead credential is
+      // the only proof; anything else keeps the session for a retry.
+      guard generation == session.authenticationGeneration, case .signedIn = session.state else {
+        throw error
+      }
+      if await Self.credentialIsDead(sdk) {
+        session.endDestroyedSession()
+        return
+      }
+      throw error
     }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
     session.endDestroyedSession()
+  }
+
+  private static func credentialIsDead(_ sdk: PutioSDK) async -> Bool {
+    do {
+      _ = try await sdk.getAccountInfo()
+      return false
+    } catch {
+      return (error as? PutioSDKError)?.isAuthenticationFailure == true
+    }
   }
 
   private static func recoveryCodes(_ codes: PutioTwoFactorRecoveryCodes) throws

@@ -368,11 +368,15 @@ private struct MainTabView: View {
             refreshRequests: folderRefreshRequests,
             trashReconciliation: trashReconciliation,
             cast: cast,
-            onDataCleared: { categories in
+            onDataCleared: { categories, committed in
               if !categories.isDisjoint(with: [.files, .trash]) {
                 folderRefreshRequests.requestAllLoadedFolders()
               }
               if categories.contains(.history) { historyRevision &+= 1 }
+              // Downloaded copies of cleared files would only play as orphans.
+              if committed, categories.contains(.files) {
+                offlineQueue.remove(fileIDs: offlineQueue.items.map(\.id))
+              }
             },
             onAccountDestroyed: {
               // Local media belongs to an account that can never sign in again.
@@ -1019,7 +1023,7 @@ private struct AccountView: View {
   let refreshRequests: PutioFolderRefreshRequests
   let trashReconciliation: PutioTrashReconciliation
   let cast: PutioCastModel
-  let onDataCleared: @MainActor (Set<PutioAccountDataCategory>) -> Void
+  let onDataCleared: @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
   let onAccountDestroyed: @MainActor () -> Void
   @State private var isRefreshingStorage = false
 

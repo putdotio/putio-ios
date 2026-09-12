@@ -138,7 +138,8 @@ final class PutioTwoFactorChangeModel {
   }
 
   var canSubmit: Bool {
-    !isSubmitting && !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    !isSubmitting && !isLoadingRecoveryCodes && recoveryCodesFailure == nil
+      && !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
 
   func loadSecret() async {
@@ -196,12 +197,14 @@ final class PutioTwoFactorChangeModel {
     step = .finished(accountRefreshed: true)
   }
 
+  // The previous failure stays visible until this attempt settles, so the
+  // sheet never re-offers Enable for an account that already has 2FA on.
   private func loadRecoveryCodes(accountRefreshed: Bool) async {
     isLoadingRecoveryCodes = true
-    recoveryCodesFailure = nil
     defer { isLoadingRecoveryCodes = false }
     do {
       step = .recoveryCodes(try await actions.recoveryCodes())
+      recoveryCodesFailure = nil
     } catch is CancellationError {
       // Two-factor is on either way; only a live session may skip the codes.
       recoveryCodesFailure = "Your recovery codes could not be loaded. Try again."
@@ -242,7 +245,10 @@ final class PutioRecoveryCodesModel {
       codes = loaded
     } catch {
       guard generation == self.generation, !Task.isCancelled else { return }
-      failure = PutioAccountSecurityPresentation.message(for: error)
+      failure =
+        error is CancellationError
+        ? "Your recovery codes could not be loaded. Try again."
+        : PutioAccountSecurityPresentation.message(for: error)
     }
   }
 
@@ -266,7 +272,14 @@ final class PutioRecoveryCodesModel {
         codes = regenerated
       } catch {
         guard generation == self.generation else { return }
-        guard let message = PutioAccountSecurityPresentation.message(for: error) else { return }
+        let message: String
+        if error is CancellationError {
+          message = "Regenerating could not be completed. Try again."
+        } else if let presented = PutioAccountSecurityPresentation.message(for: error) {
+          message = presented
+        } else {
+          return
+        }
         // The server may have rotated the codes before the response was lost.
         // The reloaded list is the truth: a changed list means the rotation
         // committed, so no retry may rotate it again.
@@ -426,12 +439,14 @@ final class PutioClearDataModel {
   @ObservationIgnored private let actions: PutioAccountSecurityActions
   /// Tells the shell which categories may be gone so mounted Files and
   /// History screens reload instead of showing deleted rows. Runs after every
-  /// attempt, since a lost response can follow a committed clear.
-  @ObservationIgnored private let onCleared: @MainActor (Set<PutioAccountDataCategory>) -> Void
+  /// attempt, since a lost response can follow a committed clear; only a
+  /// confirmed clear may discard local copies.
+  @ObservationIgnored private let onCleared:
+    @MainActor (_ categories: Set<PutioAccountDataCategory>, _ committed: Bool) -> Void
 
   init(
     actions: PutioAccountSecurityActions,
-    onCleared: @escaping @MainActor (Set<PutioAccountDataCategory>) -> Void = { _ in }
+    onCleared: @escaping @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void = { _, _ in }
   ) {
     self.actions = actions
     self.onCleared = onCleared
@@ -448,15 +463,17 @@ final class PutioClearDataModel {
     let selection = selection
     let task = Task { @MainActor in
       defer { isClearing = false }
+      var committed = false
       do {
         let refreshed = try await actions.clearData(selection)
+        committed = true
         didClear = true
         self.selection = []
         refreshWarning = refreshed ? nil : PutioAccountSecurityPresentation.refreshWarning
       } catch {
         failure = PutioAccountSecurityPresentation.message(for: error)
       }
-      onCleared(selection)
+      onCleared(selection, committed)
     }
     await task.value
   }

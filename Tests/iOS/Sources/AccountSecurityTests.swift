@@ -67,10 +67,15 @@ final class AccountSecurityTests: XCTestCase {
 
   func testEnabledWithFailedRecoveryCodesOffersAnotherLoad() async {
     var loads = 0
+    var submits = 0
     let model = PutioTwoFactorChangeModel(
       enabling: true,
       actions: PutioAccountSecurityActions(
         generateSecret: { "S" },
+        setTwoFactor: { _, _ in
+          submits += 1
+          return .init(accountRefreshed: true)
+        },
         recoveryCodes: {
           loads += 1
           if loads == 1 { throw PutioRuntimeError.transient }
@@ -82,9 +87,13 @@ final class AccountSecurityTests: XCTestCase {
     await model.submit()
     XCTAssertEqual(model.step, .code)
     XCTAssertNotNil(model.recoveryCodesFailure)
+    XCTAssertFalse(model.canSubmit, "Enable was offered again for an account with 2FA already on")
+    await model.submit()
+    XCTAssertEqual(submits, 1, "a second submit reached the server")
     await model.retryRecoveryCodes()
     XCTAssertEqual(
       model.step, .recoveryCodes([PutioTwoFactorRecoveryCode(code: "b-2", isUsed: true)]))
+    XCTAssertNil(model.recoveryCodesFailure)
     XCTAssertEqual(loads, 2)
   }
 
@@ -115,6 +124,22 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertEqual(model.codes?.map(\.code), ["z-9"])
     XCTAssertNil(model.failure)
     XCTAssertFalse(model.canRetryRegenerate)
+  }
+
+  func testCancelledRegenerationStillReconcilesTheCodes() async {
+    var loads = 0
+    let model = PutioRecoveryCodesModel(
+      actions: PutioAccountSecurityActions(
+        recoveryCodes: {
+          loads += 1
+          return [PutioTwoFactorRecoveryCode(code: "same", isUsed: false)]
+        },
+        regenerateRecoveryCodes: { throw CancellationError() }))
+    await model.load()
+    await model.regenerate()
+    XCTAssertEqual(loads, 2, "a cancelled regeneration skipped the reconcile")
+    XCTAssertNotNil(model.failure)
+    XCTAssertTrue(model.canRetryRegenerate)
   }
 
   func testLostRegenerationThatCommittedShowsTheNewCodesWithoutRetry() async {
@@ -281,7 +306,7 @@ final class AccountSecurityTests: XCTestCase {
           refreshes += 1
           return refreshes == 2
         }),
-      onCleared: { notified.append($0) })
+      onCleared: { categories, committed in notified.append(committed ? categories : []) })
     await model.clear()
     XCTAssertTrue(cleared.isEmpty)
     model.selection = [.history, .trash]
@@ -303,8 +328,8 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertNil(model.refreshWarning)
     XCTAssertEqual(cleared, [[.history, .trash], [.history, .trash], [.files]])
     XCTAssertEqual(
-      notified, [[.history, .trash], [.history, .trash], [.files]],
-      "the shell must reconcile after every attempt, since a lost response may have committed")
+      notified, [[], [.history, .trash], []],
+      "the shell must reconcile after every attempt and purge only after a confirmed clear")
   }
 
   func testDestroyAccountRejectionKeepsTheScreenAndNeverRetainsThePassword() async {
