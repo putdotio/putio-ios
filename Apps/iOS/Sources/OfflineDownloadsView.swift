@@ -65,15 +65,18 @@ struct PutioOfflineDownloadsView: View {
     }
     .alert(
       copy.failureTitle(outcome: queue.originalFailure ?? PutioOfflineOriginalOutcome()),
-      isPresented: Binding(
-        get: { queue.originalFailure != nil }, set: { if !$0 { queue.dismissOriginalFailure() } }),
+      // Each action clears the report itself: OK gives the originals up,
+      // Try again keeps them owed. The binding setter stays inert so the
+      // order SwiftUI fires it in cannot turn a retry into a give-up.
+      isPresented: Binding(get: { queue.originalFailure != nil }, set: { _ in }),
       presenting: queue.originalFailure
-    ) { outcome in
+    ) { _ in
       Button("Try again") {
-        Task { deliver(await queue.deleteOriginals(outcome.failedTargets)) }
+        let targets = queue.takeFailedOriginalsForRetry()
+        Task { deliver(await queue.deleteOriginals(targets)) }
       }
       .accessibilityIdentifier("downloads.remove-original-retry")
-      Button("OK", role: .cancel) {}
+      Button("OK", role: .cancel) { queue.dismissOriginalFailure() }
     } message: { outcome in
       Text(copy.failureMessage(outcome: outcome))
     }

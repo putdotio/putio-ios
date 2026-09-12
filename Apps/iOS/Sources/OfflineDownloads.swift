@@ -625,6 +625,9 @@ final class PutioOfflineQueue {
     let targets = items.filter { fileIDs.contains($0.id) }.map {
       PutioOfflineRemovalTarget(id: $0.id, name: $0.name)
     }
+    // Owed before the local rows go, so the document never records the
+    // removal without the debt.
+    registerPendingOriginals(targets)
     remove(fileIDs: fileIDs)
     return await deleteOriginals(targets)
   }
@@ -636,8 +639,7 @@ final class PutioOfflineQueue {
   func deleteOriginals(_ targets: [PutioOfflineRemovalTarget]) async
     -> PutioOfflineOriginalOutcome
   {
-    pendingOriginals.append(contentsOf: targets.filter { !pendingOriginals.contains($0) })
-    persist()
+    registerPendingOriginals(targets)
     var outcome = PutioOfflineOriginalOutcome()
     for target in targets {
       do {
@@ -661,6 +663,20 @@ final class PutioOfflineQueue {
     merged.failures.append(contentsOf: outcome.failures)
     originalFailure = merged.failures.isEmpty ? nil : merged
     return outcome
+  }
+
+  private func registerPendingOriginals(_ targets: [PutioOfflineRemovalTarget]) {
+    let owed = targets.filter { !pendingOriginals.contains($0) }
+    guard !owed.isEmpty else { return }
+    pendingOriginals.append(contentsOf: owed)
+    persist()
+  }
+
+  /// Clears the report for a retry; its originals stay pending so a kill
+  /// before the answer still retries on the next launch.
+  func takeFailedOriginalsForRetry() -> [PutioOfflineRemovalTarget] {
+    defer { originalFailure = nil }
+    return originalFailure?.failedTargets ?? []
   }
 
   /// Acknowledging the report gives up on those originals; they are not

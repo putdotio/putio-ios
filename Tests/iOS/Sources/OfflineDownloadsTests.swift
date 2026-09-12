@@ -1210,6 +1210,25 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertTrue(makeQueue().pendingOriginals.isEmpty)
   }
 
+  func testTakingTheFailureForRetryKeepsTheOriginalsPending() async {
+    originalDeleteErrors = [1: [.transient, .transient]]
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .audio)
+    await settle()
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)])
+
+    let targets = queue.takeFailedOriginalsForRetry()
+    XCTAssertEqual(targets.map(\.id.rawValue), [1])
+    XCTAssertNil(queue.originalFailure, "the report closes for the retry")
+    XCTAssertEqual(queue.pendingOriginals, targets)
+    XCTAssertEqual(makeQueue().pendingOriginals, targets, "still owed if the app dies here")
+    XCTAssertTrue(queue.takeFailedOriginalsForRetry().isEmpty)
+
+    _ = await queue.deleteOriginals(targets)
+    XCTAssertEqual(originalDeletes, [1, 1])
+    XCTAssertEqual(queue.originalFailure?.failedTargets, targets)
+  }
+
   func testConcurrentOriginalRequestsMergeTheirFailures() async {
     originalDeleteErrors = [1: [.transient], 2: [.rateLimited]]
     let queue = makeQueue()
