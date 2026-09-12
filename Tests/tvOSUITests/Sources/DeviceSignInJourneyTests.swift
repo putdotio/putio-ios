@@ -12,9 +12,9 @@ final class DeviceSignInJourneyTests: XCTestCase {
 
     let code = app.descendants(matching: .any)["auth.device-code"]
     XCTAssertTrue(waitForValue(code, "TVXP1", timeout: 15))
-    XCTAssertTrue(app.staticTexts["put.io/link"].exists)
-    XCTAssertTrue(app.descendants(matching: .any)["auth.awaiting-approval"].exists)
     attach("runtime-tv-sign-in-code")
+    XCTAssertTrue(app.staticTexts["put.io/link"].exists)
+    XCTAssertTrue(app.staticTexts["auth.awaiting-approval"].exists)
 
     let expired = app.descendants(matching: .any)["auth.code-expired"]
     XCTAssertTrue(expired.waitForExistence(timeout: 10))

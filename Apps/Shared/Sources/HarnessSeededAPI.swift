@@ -341,8 +341,9 @@ import Foundation
     private let deliveryGate = HarnessResponseDeliveryGate()
 
     static let token = "putio-harness-session-token"
-    // Device-code sign-in: the first code expires after one pending poll,
-    // the second is approved after one pending poll, later codes stay pending.
+    // Device-code sign-in: the first code stays pending for three polls and
+    // then expires, the second is approved after one pending poll, and later
+    // codes stay pending. The margin lets the UI test observe each state.
     static let expiringDeviceCode = "TVXP1"
     static let approvedDeviceCode = "TVOK2"
     private static let deviceCodeLock = NSLock()
@@ -466,7 +467,7 @@ import Foundation
         let polls = (deviceCodePolls[code] ?? 0) + 1
         deviceCodePolls[code] = polls
         switch code {
-        case expiringDeviceCode where polls > 1:
+        case expiringDeviceCode where polls > 3:
           return (
             404,
             fixtureError(

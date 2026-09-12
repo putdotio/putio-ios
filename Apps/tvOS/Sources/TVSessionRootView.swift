@@ -193,9 +193,8 @@ private struct TVSignInStatus: View {
       Text(text)
         .putioFont(PutioTheme.TV.Typography.caption)
         .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+        .accessibilityIdentifier(identifier)
     }
-    .accessibilityElement(children: .combine)
-    .accessibilityIdentifier(identifier)
   }
 }
 

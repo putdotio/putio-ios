@@ -60,7 +60,7 @@ The recorded `1/1` XCUITest signs in through the real session transition using a
 
 HTTP API responses and OAuth input are deterministic fixtures. The session store, SDK conversion and playback-source resolution, app UI, AVFoundation readiness, navigation, and sign-out are real. AVFoundation uses the harness-owned loopback transport for built HLS files, not the fixture `URLSession`.
 
-`journey --platform tvos --scenario device-sign-in` proves the tvOS shell without network. The seeded API issues a first code that expires after one pending poll and a second that is approved after one; later codes stay pending. The recorded `1/1` XCUITest drives the Siri Remote through the code screen, the expired state and "Get new code", approval into the Account tab, a relaunch that restores the keychain session without showing a code, a Menu-dismissed sign-out confirmation, and the confirmed sign-out back to a fresh code. The session store, SDK device-code polling, keychain, and app UI are real; only HTTP responses are fixtures. It writes:
+`journey --platform tvos --scenario device-sign-in` proves the tvOS shell without network. The seeded API issues a first code that stays pending for three polls and then expires, a second that is approved after one pending poll, and later codes that stay pending. The recorded `1/1` XCUITest drives the Siri Remote through the code screen, the expired state and "Get new code", approval into the Account tab, a relaunch that restores the keychain session without showing a code, a Menu-dismissed sign-out confirmation, and the confirmed sign-out back to a fresh code. The session store, SDK device-code polling, keychain, and app UI are real; only HTTP responses are fixtures. It writes:
 
 ```text
 build/proof/<run-id>/tvos/
