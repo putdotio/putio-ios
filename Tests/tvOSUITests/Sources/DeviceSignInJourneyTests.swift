@@ -55,7 +55,8 @@ final class DeviceSignInJourneyTests: XCTestCase {
     XCTAssertTrue(focus(signOut))
     XCUIRemote.shared.press(.select)
     XCTAssertTrue(confirm.waitForExistence(timeout: 5))
-    XCTAssertTrue(focus(confirm))
+    // The dialog opens on Cancel; the destructive action sits to its right.
+    XCTAssertTrue(focus(confirm, directions: [.right, .left, .right]))
     XCUIRemote.shared.press(.select)
 
     XCTAssertTrue(waitForValue(code, "TVWT3", timeout: 15))
@@ -64,8 +65,10 @@ final class DeviceSignInJourneyTests: XCTestCase {
 
   /// Moves focus onto `element` with the remote, bounded so a screen that
   /// never offers it still fails instead of looping.
-  private func focus(_ element: XCUIElement) -> Bool {
-    let directions: [XCUIRemote.Button] = [.down, .down, .up, .down, .down, .down]
+  private func focus(
+    _ element: XCUIElement,
+    directions: [XCUIRemote.Button] = [.down, .down, .up, .down, .down, .down]
+  ) -> Bool {
     for direction in directions {
       if waitUntil(timeout: 1, { element.hasFocus }) { return true }
       XCUIRemote.shared.press(direction)
