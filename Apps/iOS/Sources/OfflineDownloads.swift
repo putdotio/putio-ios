@@ -310,6 +310,8 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let conversionStatus: PutioOfflineConversionStatus
   @ObservationIgnored private let reportPosition: PutioOfflinePositionReport
   @ObservationIgnored private let deleteOriginal: PutioOfflineOriginalDelete
+  /// The account's authoritative Trash setting, or nil while it is unknown.
+  @ObservationIgnored private let trashSetting: @MainActor () -> Bool?
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
   @ObservationIgnored private let availableStorage: @MainActor () -> Int64
@@ -367,7 +369,8 @@ final class PutioOfflineQueue {
     startConversion: @escaping PutioOfflineConversionStart,
     conversionStatus: @escaping PutioOfflineConversionStatus,
     reportPosition: @escaping PutioOfflinePositionReport,
-    deleteOriginal: @escaping PutioOfflineOriginalDelete
+    deleteOriginal: @escaping PutioOfflineOriginalDelete,
+    trashSetting: @escaping @MainActor () -> Bool? = { nil }
   ) {
     self.store = store
     self.engine = engine
@@ -384,6 +387,7 @@ final class PutioOfflineQueue {
     self.conversionStatus = conversionStatus
     self.reportPosition = reportPosition
     self.deleteOriginal = deleteOriginal
+    self.trashSetting = trashSetting
     let loaded = store.load()
     items = loaded.items
     concurrencyLimit = loaded.concurrencyLimit
@@ -632,9 +636,11 @@ final class PutioOfflineQueue {
   /// Removes the local copies first, then asks put.io for each original one
   /// at a time. The local outcome never waits on or depends on the remote
   /// result, so a remote failure leaves the device state exactly as reported.
-  func removeDeletingOriginals(fileIDs: [PutioFileID]) async -> PutioOfflineOriginalOutcome {
+  func removeDeletingOriginals(fileIDs: [PutioFileID], movesToTrash: Bool) async
+    -> PutioOfflineOriginalOutcome
+  {
     let targets = items.filter { fileIDs.contains($0.id) }.map {
-      PutioOfflineRemovalTarget(id: $0.id, name: $0.name)
+      PutioOfflineRemovalTarget(id: $0.id, name: $0.name, movesToTrash: movesToTrash)
     }
     // Owed before the local rows go, so the document never records the
     // removal without the debt.
@@ -655,14 +661,19 @@ final class PutioOfflineQueue {
     let generation = originalsGeneration
     var outcome = PutioOfflineOriginalOutcome()
     for target in targets {
-      do {
-        try await deleteOriginal(target.id)
-        outcome.deleted.append(target)
-      } catch PutioRuntimeError.notFound {
-        // Already gone, possibly from a delete whose response was lost.
-        outcome.deleted.append(target)
-      } catch {
-        outcome.failures.append(.init(target: target, reason: .init(error)))
+      if let current = trashSetting(), current != target.movesToTrash {
+        // Confirmed as one outcome; the account would now do the other.
+        outcome.failures.append(.init(target: target, reason: .trashSettingChanged))
+      } else {
+        do {
+          try await deleteOriginal(target.id)
+          outcome.deleted.append(target)
+        } catch PutioRuntimeError.notFound {
+          // Already gone, possibly from a delete whose response was lost.
+          outcome.deleted.append(target)
+        } catch {
+          outcome.failures.append(.init(target: target, reason: .init(error)))
+        }
       }
       guard generation == originalsGeneration else { return outcome }
       if outcome.failures.last?.target != target {
@@ -687,11 +698,19 @@ final class PutioOfflineQueue {
     persist()
   }
 
-  /// Clears the report for a retry; its originals stay pending so a kill
-  /// before the answer still retries on the next launch.
+  /// Clears the report for a retry; the retryable originals stay pending so a
+  /// kill before the answer still retries on the next launch. Ones no retry
+  /// can resolve are given up here.
   func takeFailedOriginalsForRetry() -> [PutioOfflineRemovalTarget] {
-    defer { originalFailure = nil }
-    return originalFailure?.failedTargets ?? []
+    guard let report = originalFailure else { return [] }
+    originalFailure = nil
+    let retryable = report.retryableTargets
+    let abandoned = Set(report.failedTargets.map(\.id)).subtracting(retryable.map(\.id))
+    if !abandoned.isEmpty {
+      pendingOriginals.removeAll { abandoned.contains($0.id) }
+      persist()
+    }
+    return retryable
   }
 
   /// Acknowledging the report gives up on those originals; they are not

@@ -53,7 +53,10 @@ struct PutioOfflineDownloadsView: View {
         finishSelection()
         // Unstructured on purpose: the request outlives this screen, and the
         // queue keeps the outcome until the user dismisses it.
-        Task { _ = await queue.removeDeletingOriginals(fileIDs: targets.map(\.id)) }
+        Task {
+          _ = await queue.removeDeletingOriginals(
+            fileIDs: targets.map(\.id), movesToTrash: trashEnabled)
+        }
       }
       .disabled(!canDeleteOriginals)
       .accessibilityIdentifier("downloads.remove-original")
@@ -68,12 +71,14 @@ struct PutioOfflineDownloadsView: View {
       // order SwiftUI fires it in cannot turn a retry into a give-up.
       isPresented: Binding(get: { queue.originalFailure != nil }, set: { _ in }),
       presenting: queue.originalFailure
-    ) { _ in
-      Button("Try again") {
-        let targets = queue.takeFailedOriginalsForRetry()
-        Task { _ = await queue.deleteOriginals(targets) }
+    ) { outcome in
+      if !outcome.retryableTargets.isEmpty {
+        Button("Try again") {
+          let targets = queue.takeFailedOriginalsForRetry()
+          Task { _ = await queue.deleteOriginals(targets) }
+        }
+        .accessibilityIdentifier("downloads.remove-original-retry")
       }
-      .accessibilityIdentifier("downloads.remove-original-retry")
       Button("OK", role: .cancel) { queue.dismissOriginalFailure() }
     } message: { outcome in
       Text(copy.failureMessage(outcome: outcome))
@@ -152,7 +157,9 @@ struct PutioOfflineDownloadsView: View {
     .accessibilityIdentifier("downloads.item.\(item.id.rawValue)")
     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
       Button(role: .destructive) {
-        pendingRemoval = [PutioOfflineRemovalTarget(id: item.id, name: item.name)]
+        pendingRemoval = [
+          PutioOfflineRemovalTarget(id: item.id, name: item.name, movesToTrash: trashEnabled)
+        ]
       } label: {
         Label("Remove", systemImage: "trash")
       }
@@ -208,7 +215,9 @@ struct PutioOfflineDownloadsView: View {
       .accessibilityIdentifier("downloads.details.\(item.id.rawValue)")
     case .failed:
       Button(role: .destructive) {
-        pendingRemoval = [PutioOfflineRemovalTarget(id: item.id, name: item.name)]
+        pendingRemoval = [
+          PutioOfflineRemovalTarget(id: item.id, name: item.name, movesToTrash: trashEnabled)
+        ]
       } label: {
         Label("Remove", systemImage: "trash")
       }
@@ -230,7 +239,7 @@ struct PutioOfflineDownloadsView: View {
         ToolbarItem(placement: .topBarLeading) {
           Button("Remove \(selectedIDs.count)", role: .destructive) {
             pendingRemoval = queue.items.filter { selectedIDs.contains($0.id) }.map {
-              PutioOfflineRemovalTarget(id: $0.id, name: $0.name)
+              PutioOfflineRemovalTarget(id: $0.id, name: $0.name, movesToTrash: trashEnabled)
             }
           }
           .disabled(selectedIDs.isEmpty)

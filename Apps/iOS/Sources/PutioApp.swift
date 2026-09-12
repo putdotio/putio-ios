@@ -1284,6 +1284,13 @@ enum PutioOfflineQueueFactory {
         guard case .signedIn(let current) = runtime.session.state, current.id == accountID
         else { throw PutioRuntimeError.transient }
         try await runtime.deleteFile(fileID: fileID)
+      },
+      trashSetting: {
+        guard case .signedIn(let current) = runtime.session.state,
+          !runtime.session.isAccountPreferencesStale,
+          !runtime.session.isUpdatingAccountPreferences
+        else { return nil }
+        return current.trashEnabled
       }
     )
   }

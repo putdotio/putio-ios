@@ -4,20 +4,27 @@ import PutioCore
 // MARK: - Outcome
 
 /// A download the user asked to remove, kept by name because the queue row is
-/// gone by the time a remote failure is reported.
+/// gone by the time a remote failure is reported. `movesToTrash` is what the
+/// confirmation promised; the request is refused if the account's Trash
+/// setting would now do the other thing.
 struct PutioOfflineRemovalTarget: Identifiable, Equatable, Codable, Sendable {
   let id: PutioFileID
   let name: String
+  let movesToTrash: Bool
 }
 
 /// Why put.io refused to take the original. A missing original is not a
 /// failure: the requested end state already holds, so the queue counts it as
-/// deleted. Every reason listed here is offered a retry.
+/// deleted. Server-side reasons are offered a retry; a changed Trash setting
+/// is not, since only a new confirmation could authorize the other outcome.
 struct PutioOfflineOriginalFailure: Equatable, Sendable {
   enum Reason: Equatable, Sendable {
     case transient
     case rateLimited
     case unknown
+    case trashSettingChanged
+
+    var canRetry: Bool { self != .trashSettingChanged }
 
     init(_ error: Error) {
       switch error as? PutioRuntimeError {
@@ -39,6 +46,9 @@ struct PutioOfflineOriginalOutcome: Equatable, Sendable {
   var failures: [PutioOfflineOriginalFailure] = []
 
   var failedTargets: [PutioOfflineRemovalTarget] { failures.map(\.target) }
+  var retryableTargets: [PutioOfflineRemovalTarget] {
+    failures.filter(\.reason.canRetry).map(\.target)
+  }
 }
 
 // MARK: - Copy
@@ -108,7 +118,10 @@ struct PutioOfflineRemovalCopy: Equatable {
       : "\(names) were removed from this device, but the originals are still on put.io."
     let reasons = Set(failures.map(\.reason))
     let cause: String
-    if reasons.contains(.transient) {
+    if reasons == [.trashSettingChanged] {
+      cause =
+        "Your Trash setting changed after you confirmed, so nothing was sent to put.io. Remove the original from Files if you still want to."
+    } else if reasons.contains(.transient) {
       cause = "Check your connection and try again."
     } else if reasons.contains(.rateLimited) {
       cause = "put.io is receiving too many requests. Try again shortly."

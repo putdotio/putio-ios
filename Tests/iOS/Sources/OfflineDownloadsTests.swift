@@ -114,6 +114,7 @@ final class OfflineDownloadsTests: XCTestCase {
   /// Holds every original delete until opened.
   private var originalDeleteGate: AsyncGate?
   private var originalsDeleted: [[Int]] = []
+  private var currentTrashSetting: Bool?
 
   override func setUp() async throws {
     directory = FileManager.default.temporaryDirectory.appending(
@@ -130,6 +131,7 @@ final class OfflineDownloadsTests: XCTestCase {
     onOriginalDelete = nil
     originalDeleteGate = nil
     originalsDeleted = []
+    currentTrashSetting = nil
   }
 
   override func tearDown() async throws {
@@ -219,7 +221,8 @@ final class OfflineDownloadsTests: XCTestCase {
           self.originalDeleteErrors[fileID.rawValue]?.removeFirst()
           throw error
         }
-      }
+      },
+      trashSetting: { self.currentTrashSetting }
     )
   }
 
@@ -1136,9 +1139,10 @@ final class OfflineDownloadsTests: XCTestCase {
         FileManager.default.fileExists(atPath: PutioOfflineQueue.localURL(for: path).path))
     }
 
-    let outcome = await queue.removeDeletingOriginals(fileIDs: [
-      PutioFileID(rawValue: 1), PutioFileID(rawValue: 2),
-    ])
+    let outcome = await queue.removeDeletingOriginals(
+      fileIDs: [
+        PutioFileID(rawValue: 1), PutioFileID(rawValue: 2),
+      ], movesToTrash: true)
     XCTAssertTrue(queue.items.isEmpty)
     XCTAssertEqual(queue.storedBytes, 0)
     XCTAssertFalse(
@@ -1168,13 +1172,18 @@ final class OfflineDownloadsTests: XCTestCase {
     }
     await settle()
 
-    let outcome = await queue.removeDeletingOriginals(fileIDs: (1...3).map(PutioFileID.init))
+    let outcome = await queue.removeDeletingOriginals(
+      fileIDs: (1...3).map(PutioFileID.init), movesToTrash: true)
     XCTAssertTrue(queue.items.isEmpty, "a remote failure must not resurrect the local copy")
     XCTAssertEqual(
       outcome.deleted.map(\.id.rawValue), [1, 3], "an already-missing original is not a failure")
     XCTAssertEqual(
       outcome.failures,
-      [.init(target: .init(id: PutioFileID(rawValue: 2), name: "n2"), reason: .transient)])
+      [
+        .init(
+          target: .init(id: PutioFileID(rawValue: 2), name: "n2", movesToTrash: true),
+          reason: .transient)
+      ])
     XCTAssertEqual(outcome.failedTargets.map(\.id.rawValue), [2])
     XCTAssertEqual(
       queue.originalFailure?.failures, outcome.failures,
@@ -1192,7 +1201,7 @@ final class OfflineDownloadsTests: XCTestCase {
     let queue = makeQueue()
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .audio)
     await settle()
-    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)])
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)], movesToTrash: true)
     XCTAssertEqual(queue.pendingOriginals.map(\.id.rawValue), [1])
 
     // The app dies before the user sees the report; the next launch owes it.
@@ -1213,7 +1222,8 @@ final class OfflineDownloadsTests: XCTestCase {
     let confirmed = makeQueue()
     confirmed.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .audio)
     await settle()
-    _ = await confirmed.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 2)])
+    _ = await confirmed.removeDeletingOriginals(
+      fileIDs: [PutioFileID(rawValue: 2)], movesToTrash: true)
     XCTAssertTrue(confirmed.pendingOriginals.isEmpty)
     XCTAssertTrue(makeQueue().pendingOriginals.isEmpty)
     XCTAssertEqual(originalsDeleted, [[2]])
@@ -1228,7 +1238,9 @@ final class OfflineDownloadsTests: XCTestCase {
     let loaded = store.load()
     store.save(
       items: loaded.items, concurrencyLimit: loaded.concurrencyLimit,
-      pendingOriginals: [PutioOfflineRemovalTarget(id: PutioFileID(rawValue: 1), name: "a")])
+      pendingOriginals: [
+        PutioOfflineRemovalTarget(id: PutioFileID(rawValue: 1), name: "a", movesToTrash: true)
+      ])
 
     let relaunched = makeQueue()
     XCTAssertEqual(relaunched.items.count, 1)
@@ -1244,7 +1256,7 @@ final class OfflineDownloadsTests: XCTestCase {
     let queue = makeQueue()
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .audio)
     await settle()
-    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)])
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)], movesToTrash: true)
     XCTAssertTrue(originalsDeleted.isEmpty)
 
     let relaunched = makeQueue()
@@ -1263,12 +1275,14 @@ final class OfflineDownloadsTests: XCTestCase {
         fileID: PutioFileID(rawValue: id), parentID: .root, name: "n\(id)", kind: .audio)
     }
     await settle()
-    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)])
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)], movesToTrash: true)
     XCTAssertNotNil(queue.originalFailure)
 
     let gate = AsyncGate()
     originalDeleteGate = gate
-    let inFlight = Task { await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 2)]) }
+    let inFlight = Task {
+      await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 2)], movesToTrash: true)
+    }
     await settle()
     XCTAssertEqual(queue.pendingOriginals.map(\.id.rawValue), [1, 2])
 
@@ -1293,7 +1307,7 @@ final class OfflineDownloadsTests: XCTestCase {
     let queue = makeQueue()
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .audio)
     await settle()
-    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)])
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)], movesToTrash: true)
 
     let targets = queue.takeFailedOriginalsForRetry()
     XCTAssertEqual(targets.map(\.id.rawValue), [1])
@@ -1307,6 +1321,36 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.originalFailure?.failedTargets, targets)
   }
 
+  func testAChangedTrashSettingRefusesTheRetryInsteadOfDeletingPermanently() async {
+    originalDeleteErrors = [1: [.transient]]
+    currentTrashSetting = true
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .audio)
+    await settle()
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)], movesToTrash: true)
+    XCTAssertEqual(originalDeletes, [1])
+
+    // Trash is switched off, on this device or another, before the retry.
+    currentTrashSetting = false
+    let outcome = await queue.deleteOriginals(queue.takeFailedOriginalsForRetry())
+    XCTAssertEqual(originalDeletes, [1], "nothing is sent under the other outcome")
+    XCTAssertEqual(outcome.failures.map(\.reason), [.trashSettingChanged])
+    XCTAssertTrue(queue.originalFailure?.retryableTargets.isEmpty ?? false)
+    XCTAssertEqual(queue.pendingOriginals.map(\.id.rawValue), [1])
+
+    // Nothing left to retry, so taking the report gives the original up.
+    XCTAssertTrue(queue.takeFailedOriginalsForRetry().isEmpty)
+    XCTAssertTrue(queue.pendingOriginals.isEmpty)
+    XCTAssertTrue(makeQueue().pendingOriginals.isEmpty)
+
+    // An unknown setting leaves the decision to the runtime.
+    currentTrashSetting = nil
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .audio)
+    await settle()
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 2)], movesToTrash: true)
+    XCTAssertEqual(originalDeletes, [1, 2])
+  }
+
   func testConcurrentOriginalRequestsMergeTheirFailures() async {
     originalDeleteErrors = [1: [.transient], 2: [.rateLimited]]
     let queue = makeQueue()
@@ -1315,15 +1359,15 @@ final class OfflineDownloadsTests: XCTestCase {
         fileID: PutioFileID(rawValue: id), parentID: .root, name: "n\(id)", kind: .audio)
     }
     await settle()
-    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)])
-    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 2)])
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)], movesToTrash: true)
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 2)], movesToTrash: true)
     XCTAssertEqual(queue.originalFailure?.failedTargets.map(\.id.rawValue), [1, 2])
     // A later clean request keeps the earlier failures.
-    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 3)])
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 3)], movesToTrash: true)
     XCTAssertEqual(queue.originalFailure?.failedTargets.map(\.id.rawValue), [1, 2])
     // A retry resolves only the originals it confirmed.
     _ = await queue.deleteOriginals([
-      PutioOfflineRemovalTarget(id: PutioFileID(rawValue: 2), name: "n2")
+      PutioOfflineRemovalTarget(id: PutioFileID(rawValue: 2), name: "n2", movesToTrash: true)
     ])
     XCTAssertEqual(queue.originalFailure?.failedTargets.map(\.id.rawValue), [1])
     XCTAssertEqual(queue.pendingOriginals.map(\.id.rawValue), [1])
@@ -1371,18 +1415,36 @@ final class OfflineDownloadsTests: XCTestCase {
     let permanent = PutioOfflineRemovalCopy(trashEnabled: false)
     let one = PutioOfflineOriginalOutcome(
       deleted: [],
-      failures: [.init(target: .init(id: PutioFileID(rawValue: 1), name: "a"), reason: .transient)])
+      failures: [
+        .init(
+          target: .init(id: PutioFileID(rawValue: 1), name: "a", movesToTrash: true),
+          reason: .transient)
+      ])
     XCTAssertEqual(trash.failureTitle(outcome: one), "Could not move original to Trash")
     XCTAssertEqual(permanent.failureTitle(outcome: one), "Could not delete original")
     XCTAssertEqual(
       trash.failureMessage(outcome: one),
       "“a” was removed from this device, but the original is still on put.io. Check your connection and try again."
     )
+    let drifted = PutioOfflineOriginalOutcome(failures: [
+      .init(
+        target: .init(id: PutioFileID(rawValue: 1), name: "a", movesToTrash: true),
+        reason: .trashSettingChanged)
+    ])
+    XCTAssertTrue(drifted.retryableTargets.isEmpty)
+    XCTAssertEqual(
+      permanent.failureMessage(outcome: drifted),
+      "“a” was removed from this device, but the original is still on put.io. Your Trash setting changed after you confirmed, so nothing was sent to put.io. Remove the original from Files if you still want to."
+    )
     let mixed = PutioOfflineOriginalOutcome(
-      deleted: [.init(id: PutioFileID(rawValue: 0), name: "ok")],
+      deleted: [.init(id: PutioFileID(rawValue: 0), name: "ok", movesToTrash: true)],
       failures: [
-        .init(target: .init(id: PutioFileID(rawValue: 1), name: "a"), reason: .rateLimited),
-        .init(target: .init(id: PutioFileID(rawValue: 2), name: "b"), reason: .transient),
+        .init(
+          target: .init(id: PutioFileID(rawValue: 1), name: "a", movesToTrash: true),
+          reason: .rateLimited),
+        .init(
+          target: .init(id: PutioFileID(rawValue: 2), name: "b", movesToTrash: true),
+          reason: .transient),
       ])
     XCTAssertEqual(trash.failureTitle(outcome: mixed), "Could not move originals to Trash")
     XCTAssertEqual(
@@ -1394,13 +1456,19 @@ final class OfflineDownloadsTests: XCTestCase {
     let limited = PutioOfflineOriginalOutcome(
       deleted: [],
       failures: [
-        .init(target: .init(id: PutioFileID(rawValue: 1), name: "a"), reason: .rateLimited)
+        .init(
+          target: .init(id: PutioFileID(rawValue: 1), name: "a", movesToTrash: true),
+          reason: .rateLimited)
       ]
     )
     XCTAssertTrue(trash.failureMessage(outcome: limited).contains("too many requests"))
     let unknown = PutioOfflineOriginalOutcome(
       deleted: [],
-      failures: [.init(target: .init(id: PutioFileID(rawValue: 1), name: "a"), reason: .unknown)])
+      failures: [
+        .init(
+          target: .init(id: PutioFileID(rawValue: 1), name: "a", movesToTrash: true),
+          reason: .unknown)
+      ])
     XCTAssertTrue(
       trash.failureMessage(outcome: unknown).hasSuffix("Something went wrong. Try again."))
   }
