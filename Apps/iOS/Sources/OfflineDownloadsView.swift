@@ -12,8 +12,6 @@ struct PutioOfflineDownloadsView: View {
   @State private var isEditing = false
   @State private var selectedIDs: Set<PutioFileID> = []
   @State private var pendingRemoval: [PutioOfflineRemovalTarget]?
-  @State private var originalFailure: PutioOfflineOriginalOutcome?
-  @State private var originalTask: Task<Void, Never>?
   @State private var detailItem: PutioOfflineItem?
 
   private var copy: PutioOfflineRemovalCopy { PutioOfflineRemovalCopy(trashEnabled: trashEnabled) }
@@ -50,9 +48,9 @@ struct PutioOfflineDownloadsView: View {
       .accessibilityIdentifier("downloads.remove-local")
       Button(copy.remoteActionTitle(count: targets.count), role: .destructive) {
         finishSelection()
-        originalTask = Task {
-          report(await queue.removeDeletingOriginals(fileIDs: targets.map(\.id)))
-        }
+        // Unstructured on purpose: the request outlives this screen, and the
+        // queue keeps the outcome until the user dismisses it.
+        Task { _ = await queue.removeDeletingOriginals(fileIDs: targets.map(\.id)) }
       }
       .accessibilityIdentifier("downloads.remove-original")
       Button("Cancel", role: .cancel) {}
@@ -60,15 +58,15 @@ struct PutioOfflineDownloadsView: View {
       Text(copy.message(count: targets.count))
     }
     .alert(
-      copy.failureTitle(outcome: originalFailure ?? PutioOfflineOriginalOutcome()),
+      copy.failureTitle(outcome: queue.originalFailure ?? PutioOfflineOriginalOutcome()),
       isPresented: Binding(
-        get: { originalFailure != nil }, set: { if !$0 { originalFailure = nil } }),
-      presenting: originalFailure
+        get: { queue.originalFailure != nil }, set: { if !$0 { queue.dismissOriginalFailure() } }),
+      presenting: queue.originalFailure
     ) { outcome in
       let retryable = outcome.retryableTargets
       if !retryable.isEmpty {
         Button("Try again") {
-          originalTask = Task { report(await queue.deleteOriginals(retryable)) }
+          Task { _ = await queue.deleteOriginals(retryable) }
         }
         .accessibilityIdentifier("downloads.remove-original-retry")
       }
@@ -84,20 +82,12 @@ struct PutioOfflineDownloadsView: View {
       await queue.restore()
       queue.refreshStorage()
     }
-    .onDisappear { originalTask?.cancel() }
     .accessibilityIdentifier("downloads.screen")
   }
 
   private func finishSelection() {
     selectedIDs = []
     isEditing = false
-  }
-
-  /// A remote failure is surfaced only after the local removal already
-  /// happened, so the report never claims more than put.io confirmed.
-  private func report(_ outcome: PutioOfflineOriginalOutcome) {
-    guard !Task.isCancelled, !outcome.failures.isEmpty else { return }
-    originalFailure = outcome
   }
 
   private var list: some View {

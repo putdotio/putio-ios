@@ -1399,6 +1399,8 @@ import Foundation
       fileActionsLock.lock()
       if fileID == 412 {
         defer { fileActionsLock.unlock() }
+        // 412 is a static seeded file; like 410, the accepted delete answers
+        // OK without rewriting the fixed listings.
         if offlineOriginalDeleteFailed { return (200, #"{"status":"OK"}"#) }
         offlineOriginalDeleteFailed = true
         return (

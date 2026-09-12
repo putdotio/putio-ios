@@ -243,6 +243,9 @@ final class PutioOfflineQueue {
   private(set) var concurrencyLimit: Int
   private(set) var storedBytes: Int64 = 0
   private(set) var availableBytes: Int64 = 0
+  /// The latest remote outcome with failures, kept on the queue so it
+  /// survives the Downloads screen leaving and coming back.
+  private(set) var originalFailure: PutioOfflineOriginalOutcome?
 
   @ObservationIgnored private let store: PutioOfflineStore
   @ObservationIgnored private let engine: any PutioOfflineDownloadEngine
@@ -563,7 +566,8 @@ final class PutioOfflineQueue {
   }
 
   /// Asks put.io for originals whose local copies are already gone; also the
-  /// retry path after a partial failure.
+  /// retry path after a partial failure. Failures replace `originalFailure`;
+  /// a clean pass clears it.
   func deleteOriginals(_ targets: [PutioOfflineRemovalTarget]) async
     -> PutioOfflineOriginalOutcome
   {
@@ -576,7 +580,12 @@ final class PutioOfflineQueue {
         outcome.failures.append(.init(target: target, reason: .init(error)))
       }
     }
+    originalFailure = outcome.failures.isEmpty ? nil : outcome
     return outcome
+  }
+
+  func dismissOriginalFailure() {
+    originalFailure = nil
   }
 
   /// Ends every download and deletes the account's whole offline directory,

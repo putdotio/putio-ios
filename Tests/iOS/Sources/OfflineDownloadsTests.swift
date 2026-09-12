@@ -110,6 +110,7 @@ final class OfflineDownloadsTests: XCTestCase {
   private var originalDeletes: [Int] = []
   /// Errors to throw per file id, consumed in order; an empty list succeeds.
   private var originalDeleteErrors: [Int: [PutioRuntimeError]] = [:]
+  private var onOriginalDelete: ((PutioFileID) -> Void)?
 
   override func setUp() async throws {
     directory = FileManager.default.temporaryDirectory.appending(
@@ -123,6 +124,7 @@ final class OfflineDownloadsTests: XCTestCase {
     conversionStarts = 0
     originalDeletes = []
     originalDeleteErrors = [:]
+    onOriginalDelete = nil
   }
 
   override func tearDown() async throws {
@@ -162,6 +164,7 @@ final class OfflineDownloadsTests: XCTestCase {
         self.reports.append((fileID.rawValue, seconds))
       },
       deleteOriginal: { fileID in
+        self.onOriginalDelete?(fileID)
         self.originalDeletes.append(fileID.rawValue)
         if let error = self.originalDeleteErrors[fileID.rawValue]?.first {
           self.originalDeleteErrors[fileID.rawValue]?.removeFirst()
@@ -982,6 +985,11 @@ final class OfflineDownloadsTests: XCTestCase {
     engine.finish(PutioFileID(rawValue: 1), at: directory)
     await settle()
     let path = try! XCTUnwrap(queue.item(for: PutioFileID(rawValue: 1))?.localPath)
+    onOriginalDelete = { id in
+      XCTAssertNil(queue.item(for: id), "the server is asked only after the local copy is gone")
+      XCTAssertFalse(
+        FileManager.default.fileExists(atPath: PutioOfflineQueue.localURL(for: path).path))
+    }
 
     let outcome = await queue.removeDeletingOriginals(fileIDs: [
       PutioFileID(rawValue: 1), PutioFileID(rawValue: 2),
@@ -993,6 +1001,7 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(originalDeletes, [1, 2])
     XCTAssertEqual(outcome.deleted.map(\.name), ["a", "b"])
     XCTAssertTrue(outcome.failures.isEmpty)
+    XCTAssertNil(queue.originalFailure)
     XCTAssertTrue(engine.cancelled.contains(PutioFileID(rawValue: 2)))
   }
 
