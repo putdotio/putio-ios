@@ -111,6 +111,9 @@ final class OfflineDownloadsTests: XCTestCase {
   /// Errors to throw per file id, consumed in order; an empty list succeeds.
   private var originalDeleteErrors: [Int: [PutioRuntimeError]] = [:]
   private var onOriginalDelete: ((PutioFileID) -> Void)?
+  /// Holds every original delete until opened.
+  private var originalDeleteGate: AsyncGate?
+  private var originalsDeleted: [[Int]] = []
 
   override func setUp() async throws {
     directory = FileManager.default.temporaryDirectory.appending(
@@ -125,6 +128,8 @@ final class OfflineDownloadsTests: XCTestCase {
     originalDeletes = []
     originalDeleteErrors = [:]
     onOriginalDelete = nil
+    originalDeleteGate = nil
+    originalsDeleted = []
   }
 
   override func tearDown() async throws {
@@ -183,6 +188,7 @@ final class OfflineDownloadsTests: XCTestCase {
       readTracks: { _ in
         ([PutioOfflineTrack(languageCode: "en", displayName: "English")], [])
       },
+      notifyOriginalsDeleted: { self.originalsDeleted.append($0.map(\.rawValue)) },
       isPlayable: { url in
         !url.lastPathComponent.hasPrefix("partial")
           && PutioOfflineQueue.directorySize(url, fileManager: .default) > 0
@@ -207,6 +213,7 @@ final class OfflineDownloadsTests: XCTestCase {
       },
       deleteOriginal: { fileID in
         self.onOriginalDelete?(fileID)
+        if let gate = self.originalDeleteGate { await gate.wait() }
         self.originalDeletes.append(fileID.rawValue)
         if let error = self.originalDeleteErrors[fileID.rawValue]?.first {
           self.originalDeleteErrors[fileID.rawValue]?.removeFirst()
@@ -1195,6 +1202,7 @@ final class OfflineDownloadsTests: XCTestCase {
     await settle()
     XCTAssertEqual(originalDeletes, [1, 1])
     XCTAssertEqual(relaunched.originalFailure?.failedTargets.map(\.id.rawValue), [1])
+    XCTAssertTrue(originalsDeleted.isEmpty, "nothing confirmed yet")
 
     relaunched.dismissOriginalFailure()
     XCTAssertNil(relaunched.originalFailure)
@@ -1208,6 +1216,56 @@ final class OfflineDownloadsTests: XCTestCase {
     _ = await confirmed.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 2)])
     XCTAssertTrue(confirmed.pendingOriginals.isEmpty)
     XCTAssertTrue(makeQueue().pendingOriginals.isEmpty)
+    XCTAssertEqual(originalsDeleted, [[2]])
+  }
+
+  func testARestoredOriginalDeletionReportsForListReconciliation() async {
+    originalDeleteErrors = [1: [.transient]]
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .audio)
+    await settle()
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)])
+    XCTAssertTrue(originalsDeleted.isEmpty)
+
+    let relaunched = makeQueue()
+    await relaunched.restore()
+    await settle()
+    XCTAssertEqual(originalsDeleted, [[1]], "the cold-launch retry reconciles like any other")
+    XCTAssertNil(relaunched.originalFailure)
+    XCTAssertTrue(relaunched.pendingOriginals.isEmpty)
+  }
+
+  func testAnAccountPurgeDropsOriginalStateAndEndsRequestsInFlight() async throws {
+    originalDeleteErrors = [1: [.transient]]
+    let queue = makeQueue()
+    for id in 1...2 {
+      queue.enqueue(
+        fileID: PutioFileID(rawValue: id), parentID: .root, name: "n\(id)", kind: .audio)
+    }
+    await settle()
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)])
+    XCTAssertNotNil(queue.originalFailure)
+
+    let gate = AsyncGate()
+    originalDeleteGate = gate
+    let inFlight = Task { await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 2)]) }
+    await settle()
+    XCTAssertEqual(queue.pendingOriginals.map(\.id.rawValue), [1, 2])
+
+    queue.purgeAccountStorage()
+    XCTAssertNil(queue.originalFailure)
+    XCTAssertTrue(queue.pendingOriginals.isEmpty)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
+
+    await gate.open()
+    let outcome = await inFlight.value
+    XCTAssertEqual(outcome.deleted.map(\.id.rawValue), [2], "the answer itself is kept")
+    XCTAssertTrue(queue.pendingOriginals.isEmpty)
+    XCTAssertNil(queue.originalFailure)
+    XCTAssertTrue(originalsDeleted.isEmpty, "the purge already covered the originals")
+    XCTAssertFalse(
+      FileManager.default.fileExists(atPath: directory.path),
+      "a late answer does not recreate the purged queue")
   }
 
   func testTakingTheFailureForRetryKeepsTheOriginalsPending() async {

@@ -317,6 +317,12 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let readTracks: PutioOfflineTrackReader
   @ObservationIgnored private let isPlayable: PutioOfflinePlayabilityCheck
   @ObservationIgnored private let notifyCompletion: @MainActor (PutioOfflineItem) -> Void
+  /// Originals put.io confirmed gone, from any path including a restored
+  /// retry, so loaded file lists can reconcile.
+  @ObservationIgnored private let notifyOriginalsDeleted: @MainActor ([PutioFileID]) -> Void
+  /// Bumped by an account purge so original requests already in flight stop
+  /// writing to a queue that no longer exists.
+  @ObservationIgnored private var originalsGeneration = 0
   /// A worker is identified by its token so a cancelled worker's cleanup
   /// never clears a successor that pause-then-resume already started.
   private struct Worker {
@@ -353,6 +359,7 @@ final class PutioOfflineQueue {
       await PutioOfflineQueue.storedTracks(at: $0)
     },
     notifyCompletion: @escaping @MainActor (PutioOfflineItem) -> Void = { _ in },
+    notifyOriginalsDeleted: @escaping @MainActor ([PutioFileID]) -> Void = { _ in },
     isPlayable: @escaping PutioOfflinePlayabilityCheck = {
       await PutioOfflineQueue.assetIsPlayable(at: $0)
     },
@@ -370,6 +377,7 @@ final class PutioOfflineQueue {
     self.fileManager = fileManager
     self.readTracks = readTracks
     self.notifyCompletion = notifyCompletion
+    self.notifyOriginalsDeleted = notifyOriginalsDeleted
     self.isPlayable = isPlayable
     self.resolve = resolve
     self.startConversion = startConversion
@@ -635,11 +643,13 @@ final class PutioOfflineQueue {
   /// Asks put.io for originals whose local copies are already gone; also the
   /// retry path after a partial failure. Failures merge into
   /// `originalFailure` by file so concurrent requests never erase each
-  /// other's retry targets; a confirmed original drops out of it.
+  /// other's retry targets; a confirmed original drops out of it. A purge
+  /// during the request ends it with whatever was answered so far.
   func deleteOriginals(_ targets: [PutioOfflineRemovalTarget]) async
     -> PutioOfflineOriginalOutcome
   {
     registerPendingOriginals(targets)
+    let generation = originalsGeneration
     var outcome = PutioOfflineOriginalOutcome()
     for target in targets {
       do {
@@ -651,11 +661,13 @@ final class PutioOfflineQueue {
       } catch {
         outcome.failures.append(.init(target: target, reason: .init(error)))
       }
+      guard generation == originalsGeneration else { return outcome }
       if outcome.failures.last?.target != target {
         pendingOriginals.removeAll { $0.id == target.id }
         persist()
       }
     }
+    if !outcome.deleted.isEmpty { notifyOriginalsDeleted(outcome.deleted.map(\.id)) }
     var merged = originalFailure ?? PutioOfflineOriginalOutcome()
     merged.deleted = []
     let touched = Set(targets.map(\.id))
@@ -702,6 +714,10 @@ final class PutioOfflineQueue {
     suspended.removeAll()
     resumeWhenFree.removeAll()
     items.removeAll()
+    // The account-wide operation already covered the originals.
+    originalsGeneration &+= 1
+    pendingOriginals.removeAll()
+    originalFailure = nil
     let survivors = store.loadPackages().filter { relativePath in
       let url = Self.localURL(for: relativePath)
       try? fileManager.removeItem(at: url)

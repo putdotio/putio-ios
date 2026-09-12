@@ -11,8 +11,6 @@ struct PutioOfflineDownloadsView: View {
   /// refuse the delete, so the choice waits for authoritative settings.
   let canDeleteOriginals: Bool
   let onOpen: @MainActor (PutioOfflineItem) -> Void
-  /// Originals put.io confirmed gone, so loaded file lists can reconcile.
-  let onOriginalsDeleted: @MainActor ([PutioFileID]) -> Void
 
   @State private var isEditing = false
   @State private var selectedIDs: Set<PutioFileID> = []
@@ -55,7 +53,7 @@ struct PutioOfflineDownloadsView: View {
         finishSelection()
         // Unstructured on purpose: the request outlives this screen, and the
         // queue keeps the outcome until the user dismisses it.
-        Task { deliver(await queue.removeDeletingOriginals(fileIDs: targets.map(\.id))) }
+        Task { _ = await queue.removeDeletingOriginals(fileIDs: targets.map(\.id)) }
       }
       .disabled(!canDeleteOriginals)
       .accessibilityIdentifier("downloads.remove-original")
@@ -73,7 +71,7 @@ struct PutioOfflineDownloadsView: View {
     ) { _ in
       Button("Try again") {
         let targets = queue.takeFailedOriginalsForRetry()
-        Task { deliver(await queue.deleteOriginals(targets)) }
+        Task { _ = await queue.deleteOriginals(targets) }
       }
       .accessibilityIdentifier("downloads.remove-original-retry")
       Button("OK", role: .cancel) { queue.dismissOriginalFailure() }
@@ -89,11 +87,6 @@ struct PutioOfflineDownloadsView: View {
       queue.refreshStorage()
     }
     .accessibilityIdentifier("downloads.screen")
-  }
-
-  private func deliver(_ outcome: PutioOfflineOriginalOutcome) {
-    guard !outcome.deleted.isEmpty else { return }
-    onOriginalsDeleted(outcome.deleted.map(\.id))
   }
 
   private func finishSelection() {
