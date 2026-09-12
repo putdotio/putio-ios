@@ -7,6 +7,9 @@ import UserNotifications
 struct PutioOfflineDownloadsView: View {
   let queue: PutioOfflineQueue
   let trashEnabled: Bool
+  /// False while account preferences are stale or saving: the runtime would
+  /// refuse the delete, so the choice waits for authoritative settings.
+  let canDeleteOriginals: Bool
   let onOpen: @MainActor (PutioOfflineItem) -> Void
   /// Originals put.io confirmed gone, so loaded file lists can reconcile.
   let onOriginalsDeleted: @MainActor ([PutioFileID]) -> Void
@@ -54,6 +57,7 @@ struct PutioOfflineDownloadsView: View {
         // queue keeps the outcome until the user dismisses it.
         Task { deliver(await queue.removeDeletingOriginals(fileIDs: targets.map(\.id))) }
       }
+      .disabled(!canDeleteOriginals)
       .accessibilityIdentifier("downloads.remove-original")
       Button("Cancel", role: .cancel) {}
     } message: { targets in

@@ -335,12 +335,7 @@ private struct MainTabView: View {
         }
       }
       Tab(value: SelectedTab.downloads) {
-        NavigationStack {
-          PutioOfflineDownloadsView(
-            queue: offlineQueue, trashEnabled: account.trashEnabled,
-            onOpen: { item in openOffline(item) },
-            onOriginalsDeleted: { _ in folderRefreshRequests.requestAllLoadedFolders() })
-        }
+        downloads
       } label: {
         Label {
           Text("Downloads")
@@ -702,6 +697,17 @@ private struct MainTabView: View {
     // The autoplay decision reads the document at playback end; a load that
     // failed at sign-in gets another chance before this video finishes.
     Task { await appConfig.loadIfNeeded() }
+  }
+
+  private var downloads: some View {
+    NavigationStack {
+      PutioOfflineDownloadsView(
+        queue: offlineQueue, trashEnabled: account.trashEnabled,
+        canDeleteOriginals: !runtime.session.isAccountPreferencesStale
+          && !runtime.session.isUpdatingAccountPreferences,
+        onOpen: { item in openOffline(item) },
+        onOriginalsDeleted: { _ in folderRefreshRequests.requestAllLoadedFolders() })
+    }
   }
 
   private var filesBrowser: some View {

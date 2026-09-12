@@ -261,7 +261,8 @@ final class OfflineDownloadsTests: XCTestCase {
 
     // A task the system kept alive stays downloading and finishes in place.
     let survivorStore = PutioOfflineStore(directory: directory)
-    var (items, limit) = survivorStore.load()
+    let survivorLoaded = survivorStore.load()
+    var (items, limit) = (survivorLoaded.items, survivorLoaded.concurrencyLimit)
     items[0].stage = .downloading(progress: 0.4)
     survivorStore.save(items: items, concurrencyLimit: limit)
     let survivor = FakeEngine()
@@ -1031,7 +1032,8 @@ final class OfflineDownloadsTests: XCTestCase {
       resolve: { _, _ in
         .ready(PutioPlaybackSource(url: URL(string: "https://m/1")!, startFromSeconds: 0))
       },
-      startConversion: { _ in }, conversionStatus: { _ in .completed }, reportPosition: { _, _ in })
+      startConversion: { _ in }, conversionStatus: { _ in .completed }, reportPosition: { _, _ in },
+      deleteOriginal: { _ in })
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
     await settle()
     // Outside the store directory, where AVFoundation keeps real packages.
@@ -1167,13 +1169,67 @@ final class OfflineDownloadsTests: XCTestCase {
       outcome.failures,
       [.init(target: .init(id: PutioFileID(rawValue: 2), name: "n2"), reason: .transient)])
     XCTAssertEqual(outcome.failedTargets.map(\.id.rawValue), [2])
-    XCTAssertEqual(queue.originalFailure, outcome, "the failure outlives the screen that asked")
+    XCTAssertEqual(
+      queue.originalFailure?.failures, outcome.failures,
+      "the failure outlives the screen that asked")
 
     let retried = await queue.deleteOriginals(outcome.failedTargets)
     XCTAssertEqual(retried.deleted.map(\.id.rawValue), [2])
     XCTAssertTrue(retried.failures.isEmpty)
     XCTAssertEqual(originalDeletes, [1, 2, 3, 2])
     XCTAssertTrue(queue.items.isEmpty)
+  }
+
+  func testPendingOriginalsSurviveARelaunchAndDismissalGivesThemUp() async {
+    originalDeleteErrors = [1: [.transient, .transient]]
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .audio)
+    await settle()
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)])
+    XCTAssertEqual(queue.pendingOriginals.map(\.id.rawValue), [1])
+
+    // The app dies before the user sees the report; the next launch owes it.
+    let relaunched = makeQueue()
+    XCTAssertEqual(relaunched.pendingOriginals.map(\.name), ["a"])
+    await relaunched.restore()
+    await settle()
+    XCTAssertEqual(originalDeletes, [1, 1])
+    XCTAssertEqual(relaunched.originalFailure?.failedTargets.map(\.id.rawValue), [1])
+
+    relaunched.dismissOriginalFailure()
+    XCTAssertNil(relaunched.originalFailure)
+    XCTAssertTrue(relaunched.pendingOriginals.isEmpty)
+    XCTAssertTrue(makeQueue().pendingOriginals.isEmpty, "an acknowledged failure is not retried")
+
+    // A confirmed original clears its pending entry before the pass ends.
+    let confirmed = makeQueue()
+    confirmed.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .audio)
+    await settle()
+    _ = await confirmed.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 2)])
+    XCTAssertTrue(confirmed.pendingOriginals.isEmpty)
+    XCTAssertTrue(makeQueue().pendingOriginals.isEmpty)
+  }
+
+  func testConcurrentOriginalRequestsMergeTheirFailures() async {
+    originalDeleteErrors = [1: [.transient], 2: [.rateLimited]]
+    let queue = makeQueue()
+    for id in 1...3 {
+      queue.enqueue(
+        fileID: PutioFileID(rawValue: id), parentID: .root, name: "n\(id)", kind: .audio)
+    }
+    await settle()
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)])
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 2)])
+    XCTAssertEqual(queue.originalFailure?.failedTargets.map(\.id.rawValue), [1, 2])
+    // A later clean request keeps the earlier failures.
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 3)])
+    XCTAssertEqual(queue.originalFailure?.failedTargets.map(\.id.rawValue), [1, 2])
+    // A retry resolves only the originals it confirmed.
+    _ = await queue.deleteOriginals([
+      PutioOfflineRemovalTarget(id: PutioFileID(rawValue: 2), name: "n2")
+    ])
+    XCTAssertEqual(queue.originalFailure?.failedTargets.map(\.id.rawValue), [1])
+    XCTAssertEqual(queue.pendingOriginals.map(\.id.rawValue), [1])
   }
 
   func testOriginalFailureReasonsMapFromRuntimeErrors() {
