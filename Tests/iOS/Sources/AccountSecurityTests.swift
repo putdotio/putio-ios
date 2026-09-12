@@ -97,6 +97,22 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertEqual(loads, 2)
   }
 
+  func testEnrollmentFinishCarriesAFailedAccountReload() async {
+    let model = PutioTwoFactorChangeModel(
+      enabling: true,
+      actions: PutioAccountSecurityActions(
+        generateSecret: { "S" },
+        setTwoFactor: { _, _ in .init(accountRefreshed: false) },
+        recoveryCodes: { [PutioTwoFactorRecoveryCode(code: "a-1", isUsed: false)] }))
+    await model.loadSecret()
+    model.continueToCode()
+    model.code = "1"
+    await model.submit()
+    model.finish()
+    XCTAssertEqual(
+      model.step, .finished(accountRefreshed: false), "a stale account was reported as refreshed")
+  }
+
   func testRecoveryCodesRegenerateFailureKeepsCurrentCodesAndCopiesUnusedOnly() async {
     var regenerations = 0
     var loads = 0

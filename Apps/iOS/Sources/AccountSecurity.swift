@@ -125,6 +125,9 @@ final class PutioTwoFactorChangeModel {
   private(set) var recoveryCodesFailure: String?
   @ObservationIgnored private let actions: PutioAccountSecurityActions
   @ObservationIgnored private var secretGeneration = 0
+  // Whether the account reload after the save succeeded; the codes step
+  // must carry it through to the finish so a stale warning is not dropped.
+  @ObservationIgnored private var accountRefreshed = true
 
   init(enabling: Bool, actions: PutioAccountSecurityActions) {
     self.enabling = enabling
@@ -173,10 +176,11 @@ final class PutioTwoFactorChangeModel {
       defer { isSubmitting = false }
       do {
         let result = try await actions.setTwoFactor(enabling, code)
+        accountRefreshed = result.accountRefreshed
         if enabling {
-          await loadRecoveryCodes(accountRefreshed: result.accountRefreshed)
+          await loadRecoveryCodes()
         } else {
-          step = .finished(accountRefreshed: result.accountRefreshed)
+          step = .finished(accountRefreshed: accountRefreshed)
         }
       } catch is CancellationError {
         // The save may have committed; the runtime reconciles on the retry.
@@ -192,17 +196,17 @@ final class PutioTwoFactorChangeModel {
 
   func retryRecoveryCodes() async {
     guard case .code = step, !isSubmitting, recoveryCodesFailure != nil else { return }
-    await loadRecoveryCodes(accountRefreshed: true)
+    await loadRecoveryCodes()
   }
 
   func finish() {
     guard case .recoveryCodes = step else { return }
-    step = .finished(accountRefreshed: true)
+    step = .finished(accountRefreshed: accountRefreshed)
   }
 
   // The previous failure stays visible until this attempt settles, so the
   // sheet never re-offers Enable for an account that already has 2FA on.
-  private func loadRecoveryCodes(accountRefreshed: Bool) async {
+  private func loadRecoveryCodes() async {
     isLoadingRecoveryCodes = true
     defer { isLoadingRecoveryCodes = false }
     do {

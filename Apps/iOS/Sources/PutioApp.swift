@@ -377,8 +377,10 @@ private struct MainTabView: View {
               if committed, categories.contains(.files) { offlineQueue.purgeAccountStorage() }
             },
             onAccountDestroyed: {
-              // Local media belongs to an account that can never sign in again.
+              // Nothing account-scoped may outlive an account that can never
+              // sign in again: local media and the saved Files location.
               offlineQueue.purgeAccountStorage()
+              PutioFilesNavigationRestoration().clear(accountID: account.id)
             }
           )
         }
