@@ -142,6 +142,34 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertTrue(model.canRetryRegenerate)
   }
 
+  func testUnknownReloadOutcomeKeepsTheCodesAndOffersRetry() async {
+    var loads = 0
+    let model = PutioRecoveryCodesModel(
+      actions: PutioAccountSecurityActions(
+        recoveryCodes: {
+          loads += 1
+          if loads == 2 { throw CancellationError() }
+          return [PutioTwoFactorRecoveryCode(code: "kept", isUsed: false)]
+        },
+        regenerateRecoveryCodes: { throw PutioRuntimeError.transient }))
+    await model.load()
+    await model.regenerate()
+    XCTAssertEqual(model.codes?.map(\.code), ["kept"], "the shown codes were dropped")
+    XCTAssertNotNil(model.failure, "an unknown outcome left an endless spinner")
+    XCTAssertTrue(model.canRetryRegenerate)
+  }
+
+  func testCancelledTwoFactorSaveReportsARetryableFailureAndKeepsTheCode() async {
+    let model = PutioTwoFactorChangeModel(
+      enabling: false,
+      actions: PutioAccountSecurityActions(setTwoFactor: { _, _ in throw CancellationError() }))
+    model.code = "246810"
+    await model.submit()
+    XCTAssertEqual(model.step, .code)
+    XCTAssertEqual(model.code, "246810")
+    XCTAssertNotNil(model.codeFailure, "a cancelled save re-armed submit silently")
+  }
+
   func testLostRegenerationThatCommittedShowsTheNewCodesWithoutRetry() async {
     var loads = 0
     let model = PutioRecoveryCodesModel(

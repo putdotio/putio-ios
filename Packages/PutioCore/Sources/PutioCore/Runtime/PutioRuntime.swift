@@ -811,13 +811,12 @@ extension PutioRuntime {
         }
       }
       guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
-    } catch let error as PutioAccountSecurityError {
-      throw error
     } catch {
       guard generation == session.authenticationGeneration, case .signedIn = session.state else {
         throw error
       }
-      // A lost response does not establish whether the write committed; the
+      // A lost response does not establish whether the write committed, and
+      // a retry of a committed write can only fail as a stale code; the
       // account is the only truth before the user is asked for another code.
       let refreshed = await session.refreshAccountAfterPreferencesMutation(storageChanged: false)
       if refreshed, case .signedIn(let account) = session.state,

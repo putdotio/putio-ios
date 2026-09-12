@@ -178,6 +178,9 @@ final class PutioTwoFactorChangeModel {
         } else {
           step = .finished(accountRefreshed: result.accountRefreshed)
         }
+      } catch is CancellationError {
+        // The save may have committed; the runtime reconciles on the retry.
+        codeFailure = "The change could not be confirmed. Try again."
       } catch {
         guard let message = PutioAccountSecurityPresentation.message(for: error) else { return }
         codeFailure = message
@@ -294,8 +297,16 @@ final class PutioRecoveryCodesModel {
           }
         } catch {
           guard generation == self.generation else { return }
-          codes = nil
-          failure = PutioAccountSecurityPresentation.message(for: error)
+          if let reloadMessage = PutioAccountSecurityPresentation.message(for: error) {
+            codes = nil
+            failure = reloadMessage
+          } else {
+            // Nothing is known either way; keep what was shown and let the
+            // user try again rather than leaving an endless spinner.
+            codes = previous
+            failure = message
+            canRetryRegenerate = true
+          }
         }
       }
     }

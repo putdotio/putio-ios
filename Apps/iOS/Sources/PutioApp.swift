@@ -374,9 +374,7 @@ private struct MainTabView: View {
               }
               if categories.contains(.history) { historyRevision &+= 1 }
               // Downloaded copies of cleared files would only play as orphans.
-              if committed, categories.contains(.files) {
-                offlineQueue.remove(fileIDs: offlineQueue.items.map(\.id))
-              }
+              if committed, categories.contains(.files) { offlineQueue.purgeAccountStorage() }
             },
             onAccountDestroyed: {
               // Local media belongs to an account that can never sign in again.
