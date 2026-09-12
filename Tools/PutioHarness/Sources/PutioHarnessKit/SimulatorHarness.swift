@@ -641,7 +641,7 @@ public struct SimulatorHarness {
           session: session,
           artifactURLs: artifactURLs,
           directory: platformDirectory,
-          fixtureSet: fixtureSet(command: command, scenario: scenario)
+          fixtureSet: fixtureSet(command: command, scenario: scenario, platform: platform)
         )
         return SurfaceRun(
           platform: platform,
@@ -2003,12 +2003,20 @@ public struct SimulatorHarness {
     }.joined(separator: "\n")
   }
 
-  private func fixtureSet(command: SurfaceCommand, scenario: CaptureScenario) -> String {
-    if command == .proof { return "signed-out-to-exercised-placeholder-v1" }
+  // The tvOS signed-out launch is the production device-code flow against
+  // put.io, not a placeholder; its provenance must say so.
+  private func fixtureSet(
+    command: SurfaceCommand, scenario: CaptureScenario, platform: HarnessPlatform
+  ) -> String {
+    let live = platform == .tvos
+    if command == .proof {
+      return live
+        ? "live-device-code-to-exercised-v1" : "signed-out-to-exercised-placeholder-v1"
+    }
     switch scenario {
     case .gallery: return "component-gallery-v1"
     case .signedIn: return "seeded-session-v1"
-    case .signedOut: return "signed-out-placeholder-v1"
+    case .signedOut: return live ? "live-device-code-v1" : "signed-out-placeholder-v1"
     }
   }
 
