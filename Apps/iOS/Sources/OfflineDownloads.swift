@@ -196,6 +196,37 @@ struct PutioOfflineStore: Sendable {
     try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     try? data.write(to: fileURL, options: .atomic)
   }
+
+  /// Packages live where AVFoundation put them, outside `directory`, so a
+  /// quarantined queue would orphan them. Every location the engine reports
+  /// is also kept in `packages.json`, written independently of the queue, so
+  /// a purge can still find media the queue no longer lists.
+  private var packagesURL: URL { directory.appending(path: "packages.json") }
+
+  func loadPackages() -> Set<String> {
+    guard let data = try? Data(contentsOf: packagesURL),
+      let paths = try? JSONDecoder().decode([String].self, from: data)
+    else { return [] }
+    return Set(paths)
+  }
+
+  func recordPackage(at relativePath: String) {
+    var packages = loadPackages()
+    guard packages.insert(relativePath).inserted else { return }
+    savePackages(packages)
+  }
+
+  func forgetPackage(at relativePath: String) {
+    var packages = loadPackages()
+    guard packages.remove(relativePath) != nil else { return }
+    savePackages(packages)
+  }
+
+  private func savePackages(_ packages: Set<String>) {
+    guard let data = try? JSONEncoder().encode(packages.sorted()) else { return }
+    try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try? data.write(to: packagesURL, options: .atomic)
+  }
 }
 
 // MARK: - Engine
@@ -547,8 +578,9 @@ final class PutioOfflineQueue {
     schedule()
   }
 
-  /// Ends every download and deletes the account's whole offline directory,
-  /// including media a quarantined queue file no longer references.
+  /// Ends every download and deletes the account's whole offline directory
+  /// plus every tracked package, including media a quarantined queue file no
+  /// longer references.
   func purgeAccountStorage() {
     for fileID in items.map(\.id) {
       completionEpoch[fileID, default: 0] &+= 1
@@ -560,6 +592,9 @@ final class PutioOfflineQueue {
     suspended.removeAll()
     resumeWhenFree.removeAll()
     items.removeAll()
+    for relativePath in store.loadPackages() {
+      try? fileManager.removeItem(at: Self.localURL(for: relativePath))
+    }
     // No queue file is written first: the directory goes as a whole.
     try? fileManager.removeItem(at: store.directory)
     recomputeStorage()
@@ -799,8 +834,13 @@ final class PutioOfflineQueue {
     schedule()
   }
 
+  /// The package is tracked before the item is, and even when the queue no
+  /// longer knows the item: a system task restored after a quarantined queue
+  /// still lands its package somewhere a purge must find.
   private func engineLocated(_ fileID: PutioFileID, _ url: URL) {
-    update(fileID) { $0.localPath = Self.relativePath(for: url) }
+    let relativePath = Self.relativePath(for: url)
+    store.recordPackage(at: relativePath)
+    update(fileID) { $0.localPath = relativePath }
   }
 
   /// `suspend()` on an AVAssetDownloadTask does not stop a transfer that is
@@ -839,6 +879,7 @@ final class PutioOfflineQueue {
       let localPath = items[index].localPath
     else { return }
     try? fileManager.removeItem(at: Self.localURL(for: localPath))
+    store.forgetPackage(at: localPath)
     items[index].localPath = nil
     items[index].storedBytes = 0
   }

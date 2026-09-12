@@ -902,6 +902,41 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertTrue(store.load().items.isEmpty)
   }
 
+  /// Packages live outside the store directory, so a quarantined queue must
+  /// not be the only record of them.
+  func testPurgeDeletesPackagesAQuarantinedQueueNoLongerLists() async throws {
+    let packages = FileManager.default.temporaryDirectory.appending(
+      path: "offline-packages-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: packages, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: packages) }
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    await settle()
+    engine.finish(PutioFileID(rawValue: 1), at: packages)
+    engine.finish(PutioFileID(rawValue: 2), at: packages)
+    await settle()
+    let kept = packages.appending(path: "1.movpkg")
+    let removed = packages.appending(path: "2.movpkg")
+    queue.remove(fileIDs: [PutioFileID(rawValue: 2)])
+    XCTAssertEqual(
+      PutioOfflineStore(directory: directory).loadPackages(),
+      [PutioOfflineQueue.relativePath(for: kept)])
+
+    try Data("not json".utf8).write(to: directory.appending(path: "queue.json"))
+    engine = FakeEngine()
+    let relaunched = makeQueue()
+    XCTAssertTrue(relaunched.items.isEmpty)
+    XCTAssertTrue(
+      FileManager.default.fileExists(atPath: directory.appending(path: "queue.corrupt.json").path))
+    XCTAssertTrue(FileManager.default.fileExists(atPath: kept.path))
+
+    relaunched.purgeAccountStorage()
+    XCTAssertFalse(FileManager.default.fileExists(atPath: kept.path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: removed.path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
+  }
+
   func testConversionHandoffKeepsOneIdentityAndSelectedTracks() async {
     resolutions[5] = [.conversionRequired]
     conversionStatuses = [.queued, .converting(progress: 0.5), .completed]
