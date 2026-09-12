@@ -267,17 +267,21 @@ final class PutioRecoveryCodesModel {
       } catch {
         guard generation == self.generation else { return }
         guard let message = PutioAccountSecurityPresentation.message(for: error) else { return }
-        // The server may have rotated the codes before the response was lost;
-        // whatever was on screen is only shown again once it is confirmed.
-        codes = nil
+        // The server may have rotated the codes before the response was lost.
+        // The reloaded list is the truth: a changed list means the rotation
+        // committed, so no retry may rotate it again.
+        let previous = codes
         do {
           let current = try await actions.recoveryCodes()
           guard generation == self.generation else { return }
           codes = current
-          failure = message
-          canRetryRegenerate = true
+          if current == previous {
+            failure = message
+            canRetryRegenerate = true
+          }
         } catch {
           guard generation == self.generation else { return }
+          codes = nil
           failure = PutioAccountSecurityPresentation.message(for: error)
         }
       }
@@ -434,6 +438,8 @@ final class PutioClearDataModel {
     guard canClear else { return }
     isClearing = true
     failure = nil
+    didClear = false
+    refreshWarning = nil
     let selection = selection
     let task = Task { @MainActor in
       defer { isClearing = false }

@@ -117,6 +117,22 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertFalse(model.canRetryRegenerate)
   }
 
+  func testLostRegenerationThatCommittedShowsTheNewCodesWithoutRetry() async {
+    var loads = 0
+    let model = PutioRecoveryCodesModel(
+      actions: PutioAccountSecurityActions(
+        recoveryCodes: {
+          loads += 1
+          return [PutioTwoFactorRecoveryCode(code: loads == 1 ? "old-1" : "new-1", isUsed: false)]
+        },
+        regenerateRecoveryCodes: { throw PutioRuntimeError.transient }))
+    await model.load()
+    await model.regenerate()
+    XCTAssertEqual(model.codes?.map(\.code), ["new-1"])
+    XCTAssertNil(model.failure, "a committed rotation was reported as a failure")
+    XCTAssertFalse(model.canRetryRegenerate, "a retry could rotate codes the user just saw")
+  }
+
   func testRevokeFailureKeepsTheAppAndTheCurrentClientIsNeverRevoked() async {
     var revoked: [Int] = []
     let apps = [
@@ -252,7 +268,7 @@ final class AccountSecurityTests: XCTestCase {
       actions: PutioAccountSecurityActions(
         clearData: { selection in
           cleared.append(selection)
-          if cleared.count == 1 { throw PutioRuntimeError.transient }
+          if cleared.count == 1 || cleared.count == 3 { throw PutioRuntimeError.transient }
           return false
         },
         refreshAccount: {
@@ -275,7 +291,11 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertNotNil(model.refreshWarning)
     await model.refreshAccount()
     XCTAssertNil(model.refreshWarning)
-    XCTAssertEqual(cleared, [[.history, .trash], [.history, .trash]])
+    model.selection = [.files]
+    await model.clear()
+    XCTAssertFalse(model.didClear, "an earlier success survived a failed attempt")
+    XCTAssertNil(model.refreshWarning)
+    XCTAssertEqual(cleared, [[.history, .trash], [.history, .trash], [.files]])
     XCTAssertEqual(notified, [[.history, .trash]], "the shell was not told what was cleared")
   }
 

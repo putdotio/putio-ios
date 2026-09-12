@@ -369,7 +369,9 @@ private struct MainTabView: View {
             trashReconciliation: trashReconciliation,
             cast: cast,
             onDataCleared: { categories in
-              if categories.contains(.files) { folderRefreshRequests.requestAllLoadedFolders() }
+              if !categories.isDisjoint(with: [.files, .trash]) {
+                folderRefreshRequests.requestAllLoadedFolders()
+              }
               if categories.contains(.history) { historyRevision &+= 1 }
             },
             onAccountDestroyed: {
