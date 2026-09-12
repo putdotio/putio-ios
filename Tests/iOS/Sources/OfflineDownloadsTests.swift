@@ -977,8 +977,11 @@ final class OfflineDownloadsTests: XCTestCase {
       startConversion: { _ in }, conversionStatus: { _ in .completed }, reportPosition: { _, _ in })
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
     await settle()
-    let location = directory.appending(path: "sticky.movpkg")
+    // Outside the store directory, where AVFoundation keeps real packages.
+    let location = FileManager.default.temporaryDirectory.appending(
+      path: "offline-sticky-\(UUID().uuidString).movpkg")
     try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: location) }
     engine.onLocation?(PutioFileID(rawValue: 1), location)
     queue.remove(fileIDs: [PutioFileID(rawValue: 1)])
     let tracked: Set<String> = [PutioOfflineQueue.relativePath(for: location)]
