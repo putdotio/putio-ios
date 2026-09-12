@@ -254,6 +254,104 @@ final class PutioNextVideoModelTests: XCTestCase {
     XCTAssertEqual(model.state, .playing(playableNextVideo))
   }
 
+  func testAutoplayPolicyIsReadWhenTheSuggestionAppears() async {
+    // The config document that owns autoplay can finish loading while the
+    // successor lookup is in flight; the decision uses the loaded value.
+    let load = SuspendedNextVideoLoad()
+    let recorder = NextVideoRecorder()
+    var autoplayEnabled = false
+    let model = PutioNextVideoModel(
+      autoplayEnabled: { autoplayEnabled },
+      autoplayDelay: .seconds(5),
+      waitForReset: { _ in },
+      loadNext: { await load.load($0) },
+      sleep: { duration in recorder.durations.append(duration) }
+    )
+
+    let ended = Task { await model.playbackEnded(completedFileID: completedFileID) }
+    await Task.yield()
+    autoplayEnabled = true
+    load.resume(returning: playableNextVideo)
+    await ended.value
+
+    XCTAssertEqual(recorder.durations, [.seconds(5)])
+    XCTAssertEqual(model.state, .playing(playableNextVideo))
+  }
+
+  func testDisabledAutoplayPolicyNeverSleepsAndKeepsTheSuggestion() async {
+    let recorder = NextVideoRecorder()
+    let model = PutioNextVideoModel(
+      autoplayEnabled: { false },
+      waitForReset: { _ in },
+      loadNext: { _ in self.playableNextVideo },
+      sleep: { duration in recorder.durations.append(duration) }
+    )
+
+    await model.playbackEnded(completedFileID: completedFileID)
+
+    XCTAssertEqual(recorder.durations, [])
+    XCTAssertEqual(model.state, .available(playableNextVideo))
+  }
+
+  func testDownloadedSuccessorPlaysFromItsLocalSourceWithoutResolving() async throws {
+    let local = PutioPlaybackSource(
+      url: URL(fileURLWithPath: "/offline/episode-2.mp4"), startFromSeconds: 12)
+    var resolvedIDs: [PutioFileID] = []
+
+    let resolution = try await resolveSuccessorSource(
+      fileID: nextVideo.id,
+      localSource: { fileID in fileID == self.nextVideo.id ? local : nil },
+      resolve: { fileID in
+        resolvedIDs.append(fileID)
+        return self.playableNextVideo.initialResolution
+      }
+    )
+
+    XCTAssertEqual(resolution, .ready(local))
+    XCTAssertEqual(resolvedIDs, [])
+  }
+
+  func testSuccessorWithoutADownloadResolvesOnline() async throws {
+    var resolvedIDs: [PutioFileID] = []
+
+    let resolution = try await resolveSuccessorSource(
+      fileID: nextVideo.id,
+      localSource: { _ in nil },
+      resolve: { fileID in
+        resolvedIDs.append(fileID)
+        return self.playableNextVideo.initialResolution
+      }
+    )
+
+    XCTAssertEqual(resolution, playableNextVideo.initialResolution)
+    XCTAssertEqual(resolvedIDs, [nextVideo.id])
+  }
+
+  func testPreparedOfflineSuccessorKeepsItsLocalStartPositionAfterReportsDrain() async throws {
+    let recorder = NextVideoRecorder()
+    let local = PutioPlaybackSource(
+      url: URL(fileURLWithPath: "/offline/episode-2.mp4"), startFromSeconds: 12)
+
+    let prepared = try await prepareNextVideo(
+      after: completedFileID,
+      findNext: { _ in self.nextVideo },
+      waitForPendingReports: { fileID in recorder.operations.append("drain:\(fileID.rawValue)") },
+      resolve: { fileID in
+        recorder.operations.append("resolve:\(fileID.rawValue)")
+        return try await resolveSuccessorSource(
+          fileID: fileID, localSource: { _ in local },
+          resolve: { _ in
+            XCTFail("a downloaded successor must not resolve online")
+            throw PutioRuntimeError.unknown
+          })
+      }
+    )
+
+    XCTAssertEqual(recorder.operations, ["drain:412", "resolve:412"])
+    XCTAssertEqual(
+      prepared, PutioPlayableNextVideo(video: nextVideo, initialResolution: .ready(local)))
+  }
+
   func testDisabledAutoplayKeepsManualPlayNextAvailable() async {
     let model = makeModel(autoplayEnabled: false)
 

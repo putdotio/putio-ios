@@ -346,7 +346,7 @@ enum BrowserJourneyContract {
     "PutioUITests/AudioJourneyTests/testAudioPlaysPausesChangesSpeedAndAdvancesToTheNextTrack"
   static let audioAttachmentName = "runtime-audio-player"
   static let playbackPreferencesTestIdentifier =
-    "PutioUITests/PlaybackPreferencesJourneyTests/testProxyAndSubtitlesRetryAndPersistAcrossRelaunch"
+    "PutioUITests/PlaybackPreferencesJourneyTests/testProxySubtitlesAndAutoplayRetryAndPersistAcrossRelaunch"
   static let playbackPreferencesAttachmentName = "runtime-playback-preferences"
   static let accountSecurityTestIdentifier =
     "PutioUITests/AccountSecurityJourneyTests/testTwoFactorAppsLinkingClearDataAndDestroy"
