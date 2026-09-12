@@ -935,6 +935,52 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertFalse(FileManager.default.fileExists(atPath: kept.path))
     XCTAssertFalse(FileManager.default.fileExists(atPath: removed.path))
     XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
+
+    // A location the system delivers after the purge is garbage: the task
+    // ends, the package goes, and the account directory stays gone.
+    engine.finish(PutioFileID(rawValue: 3), at: packages)
+    XCTAssertEqual(engine.cancelled, [PutioFileID(rawValue: 3)])
+    XCTAssertFalse(
+      FileManager.default.fileExists(atPath: packages.appending(path: "3.movpkg").path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
+  }
+
+  func testQueuesWrittenBeforeTheSidecarBackfillIt() async throws {
+    let store = PutioOfflineStore(directory: directory)
+    let item = PutioOfflineItem(
+      id: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video, createdAt: .now,
+      stage: .completed, localPath: "Library/Packages/1.movpkg", storedBytes: 512,
+      selectedAudioLanguages: [], storedAudioTracks: [], storedSubtitleTracks: [],
+      resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: 0)
+    store.save(items: [item], concurrencyLimit: 2)
+    XCTAssertTrue(store.loadPackages().isEmpty)
+    _ = makeQueue()
+    XCTAssertEqual(store.loadPackages(), ["Library/Packages/1.movpkg"])
+  }
+
+  private final class StickyFileManager: FileManager {
+    override func removeItem(at url: URL) throws {
+      throw CocoaError(.fileWriteNoPermission)
+    }
+  }
+
+  func testAPackageThatFailsToDeleteStaysTrackedForThePurge() async throws {
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 10_000_000_000 }, fileManager: StickyFileManager(),
+      resolve: { _, _ in
+        .ready(PutioPlaybackSource(url: URL(string: "https://m/1")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed }, reportPosition: { _, _ in })
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    await settle()
+    let location = directory.appending(path: "sticky.movpkg")
+    try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+    engine.onLocation?(PutioFileID(rawValue: 1), location)
+    queue.remove(fileIDs: [PutioFileID(rawValue: 1)])
+    XCTAssertEqual(
+      PutioOfflineStore(directory: directory).loadPackages(),
+      [PutioOfflineQueue.relativePath(for: location)])
   }
 
   func testConversionHandoffKeepsOneIdentityAndSelectedTracks() async {
