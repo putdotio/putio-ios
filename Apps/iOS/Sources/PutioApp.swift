@@ -367,7 +367,15 @@ private struct MainTabView: View {
             account: account,
             refreshRequests: folderRefreshRequests,
             trashReconciliation: trashReconciliation,
-            cast: cast
+            cast: cast,
+            onDataCleared: { categories in
+              if categories.contains(.files) { folderRefreshRequests.requestAllLoadedFolders() }
+              if categories.contains(.history) { historyRevision &+= 1 }
+            },
+            onAccountDestroyed: {
+              // Local media belongs to an account that can never sign in again.
+              offlineQueue.remove(fileIDs: offlineQueue.items.map(\.id))
+            }
           )
         }
         .id(accountNavigationRevision)
@@ -1009,6 +1017,8 @@ private struct AccountView: View {
   let refreshRequests: PutioFolderRefreshRequests
   let trashReconciliation: PutioTrashReconciliation
   let cast: PutioCastModel
+  let onDataCleared: @MainActor (Set<PutioAccountDataCategory>) -> Void
+  let onAccountDestroyed: @MainActor () -> Void
   @State private var isRefreshingStorage = false
 
   var body: some View {
@@ -1087,11 +1097,11 @@ private struct AccountView: View {
         }
         Section("Danger Zone") {
           NavigationLink("Clear Data") {
-            ClearDataView(actions: .init(runtime: runtime))
+            ClearDataView(actions: .init(runtime: runtime), onCleared: onDataCleared)
           }
           .accessibilityIdentifier("account.clear-data")
           NavigationLink("Destroy Account") {
-            DestroyAccountView(actions: .init(runtime: runtime))
+            DestroyAccountView(actions: .init(runtime: runtime), onDestroyed: onAccountDestroyed)
           }
           .accessibilityIdentifier("account.destroy-account")
         }

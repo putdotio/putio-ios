@@ -801,15 +801,32 @@ extension PutioRuntime {
     let generation = session.authenticationGeneration
     session.beginAccountPreferencesUpdate()
     defer { session.endAccountPreferencesUpdate(generation: generation) }
-    let response = try await performAuthenticatedOperation(commits: true) {
-      do {
-        return try await sdk.saveAccountSettings(
-          .twoFactor(PutioTwoFactorSettings(code: trimmed, enable: enabled)))
-      } catch let error as PutioSDKError where Self.isCodeRejection(error) {
-        throw PutioAccountSecurityError.invalidTwoFactorCode
+    do {
+      let response = try await performAuthenticatedOperation(commits: true) {
+        do {
+          return try await sdk.saveAccountSettings(
+            .twoFactor(PutioTwoFactorSettings(code: trimmed, enable: enabled)))
+        } catch let error as PutioSDKError where Self.isCodeRejection(error) {
+          throw PutioAccountSecurityError.invalidTwoFactorCode
+        }
       }
+      guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+    } catch let error as PutioAccountSecurityError {
+      throw error
+    } catch {
+      guard generation == session.authenticationGeneration, case .signedIn = session.state else {
+        throw error
+      }
+      // A lost response does not establish whether the write committed; the
+      // account is the only truth before the user is asked for another code.
+      let refreshed = await session.refreshAccountAfterPreferencesMutation(storageChanged: false)
+      if refreshed, case .signedIn(let account) = session.state,
+        generation == session.authenticationGeneration, account.twoFactorEnabled == enabled
+      {
+        return PutioAccountPreferencesMutationResult(accountRefreshed: true)
+      }
+      throw error
     }
-    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
     session.applyAcknowledgedPreferences(twoFactorEnabled: enabled)
     return PutioAccountPreferencesMutationResult(
       accountRefreshed: await session.refreshAccountAfterPreferencesMutation(
@@ -851,10 +868,11 @@ extension PutioRuntime {
   /// Destroys the account after password confirmation and ends the local
   /// session without a revocation call, since the token dies with the account.
   public func destroyAccount(password: String) async throws {
-    guard !password.isEmpty else { throw PutioAccountSecurityError.invalidPassword }
+    let trimmed = password.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { throw PutioAccountSecurityError.invalidPassword }
     let response = try await performAuthenticatedOperation(commits: true) {
       do {
-        return try await sdk.destroyAccount(currentPassword: password)
+        return try await sdk.destroyAccount(currentPassword: trimmed)
       } catch let error as PutioSDKError where error.apiErrorType == "INVALID_CURRENT_PASSWORD" {
         throw PutioAccountSecurityError.invalidPassword
       }

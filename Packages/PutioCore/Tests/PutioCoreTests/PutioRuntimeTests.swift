@@ -2468,6 +2468,26 @@ final class PutioRuntimeTests: XCTestCase {
     await assertRuntimeError(.invalidResponse) { _ = try await runtime.regenerateRecoveryCodes() }
   }
 
+  func testLostTwoFactorResponseReconcilesAgainstTheAccountBeforeFailing() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let settings = "POST /v2/account/settings"
+    RuntimeMockURLProtocol.setFixture(#"{"status":"ERROR"}"#, statusCode: 503, for: settings)
+    await assertRuntimeError(.transient) {
+      _ = try await runtime.setTwoFactorEnabled(true, code: "123456")
+    }
+    XCTAssertFalse(runtime.session.isUpdatingAccountPreferences)
+    RuntimeMockURLProtocol.setFixture(
+      Self.accountInfo.replacingOccurrences(
+        of: "\"two_factor_enabled\": false", with: "\"two_factor_enabled\": true"),
+      for: "GET /v2/account/info")
+    let result = try await runtime.setTwoFactorEnabled(true, code: "123456")
+    XCTAssertTrue(
+      result.accountRefreshed, "a committed write with a lost response was not reconciled")
+    guard case .signedIn(let account) = runtime.session.state else { return XCTFail("signed out") }
+    XCTAssertTrue(account.twoFactorEnabled)
+    XCTAssertFalse(runtime.session.isAccountPreferencesStale)
+  }
+
   func testClearDataSendsEveryFlagAndDestroyEndsTheSessionWithoutRevocation() async throws {
     let (runtime, tokenStore) = await makeSignedInRuntime()
     RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/clear")
@@ -2491,7 +2511,9 @@ final class PutioRuntimeTests: XCTestCase {
       #"{"status":"ERROR","error_type":"INVALID_CURRENT_PASSWORD","message":"no"}"#,
       statusCode: 400, for: destroy)
     await assertSecurityError(.invalidPassword) { try await runtime.destroyAccount(password: "x") }
-    await assertSecurityError(.invalidPassword) { try await runtime.destroyAccount(password: "") }
+    await assertSecurityError(.invalidPassword) {
+      try await runtime.destroyAccount(password: " \n")
+    }
     guard case .signedIn = runtime.session.state else { return XCTFail("rejection ended session") }
     RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: destroy)
     try await runtime.destroyAccount(password: "correct")

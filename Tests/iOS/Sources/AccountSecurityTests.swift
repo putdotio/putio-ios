@@ -90,10 +90,12 @@ final class AccountSecurityTests: XCTestCase {
 
   func testRecoveryCodesRegenerateFailureKeepsCurrentCodesAndCopiesUnusedOnly() async {
     var regenerations = 0
+    var loads = 0
     let model = PutioRecoveryCodesModel(
       actions: PutioAccountSecurityActions(
         recoveryCodes: {
-          [
+          loads += 1
+          return [
             PutioTwoFactorRecoveryCode(code: "a-1", isUsed: false),
             PutioTwoFactorRecoveryCode(code: "a-2", isUsed: true),
           ]
@@ -106,7 +108,8 @@ final class AccountSecurityTests: XCTestCase {
     await model.load()
     XCTAssertEqual(model.copyableText, "a-1")
     await model.regenerate()
-    XCTAssertEqual(model.codes?.map(\.code), ["a-1", "a-2"])
+    XCTAssertEqual(model.codes?.map(\.code), ["a-1", "a-2"], "codes were not reconfirmed")
+    XCTAssertEqual(loads, 2, "a failed regeneration did not reload the authoritative codes")
     XCTAssertTrue(model.canRetryRegenerate)
     await model.regenerate()
     XCTAssertEqual(model.codes?.map(\.code), ["z-9"])
@@ -139,6 +142,69 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertEqual(revoked, [42, 42])
     XCTAssertEqual(model.apps.map(\.id), [3001])
     XCTAssertNil(model.revokeFailure)
+  }
+
+  func testReloadDropsARevokeFailureWhoseGrantIsGone() async {
+    var apps = [PutioAuthorizedApp(id: 42, name: "TV", description: "", isCurrentClient: false)]
+    let model = PutioAuthorizedAppsModel(
+      actions: PutioAccountSecurityActions(
+        listApps: { apps },
+        revokeApp: { _ in
+          apps = []
+          throw PutioRuntimeError.transient
+        }))
+    await model.load()
+    await model.revoke(id: 42)
+    XCTAssertEqual(model.failedRevokeID, 42)
+    await model.load()
+    XCTAssertTrue(model.apps.isEmpty)
+    XCTAssertNil(model.failedRevokeID)
+    XCTAssertNil(model.revokeFailure)
+  }
+
+  func testRevokeOutlivesAListRequestThatStartedBeforeIt() async {
+    let gate = RequestGate()
+    var loads = 0
+    let apps = [
+      PutioAuthorizedApp(id: 42, name: "TV", description: "", isCurrentClient: false)
+    ]
+    let model = PutioAuthorizedAppsModel(
+      actions: PutioAccountSecurityActions(
+        listApps: {
+          loads += 1
+          if loads == 2 { await gate.wait() }
+          return apps
+        }))
+    await model.load()
+    let stale = Task { await model.load() }
+    await gate.waitForRequest()
+    await model.revoke(id: 42)
+    XCTAssertTrue(model.apps.isEmpty)
+    gate.finish()
+    await stale.value
+    XCTAssertTrue(model.apps.isEmpty, "a stale list restored the revoked app")
+  }
+
+  func testCancelledRecoveryCodeLoadKeepsEnrollmentRetryable() async {
+    var loads = 0
+    let model = PutioTwoFactorChangeModel(
+      enabling: true,
+      actions: PutioAccountSecurityActions(
+        generateSecret: { "S" },
+        recoveryCodes: {
+          loads += 1
+          if loads == 1 { throw CancellationError() }
+          return [PutioTwoFactorRecoveryCode(code: "c-3", isUsed: false)]
+        }))
+    await model.loadSecret()
+    model.continueToCode()
+    model.code = "1"
+    await model.submit()
+    XCTAssertEqual(model.step, .code, "a cancelled code load finished enrollment")
+    XCTAssertNotNil(model.recoveryCodesFailure)
+    await model.retryRecoveryCodes()
+    XCTAssertEqual(
+      model.step, .recoveryCodes([PutioTwoFactorRecoveryCode(code: "c-3", isUsed: false)]))
   }
 
   func testAppsLoadFailureIsRetryableAndSessionEndingsStaySilent() async {
@@ -180,6 +246,7 @@ final class AccountSecurityTests: XCTestCase {
 
   func testClearDataNeedsASelectionAndReportsAFailedRefresh() async {
     var cleared: [Set<PutioAccountDataCategory>] = []
+    var notified: [Set<PutioAccountDataCategory>] = []
     var refreshes = 0
     let model = PutioClearDataModel(
       actions: PutioAccountSecurityActions(
@@ -191,7 +258,8 @@ final class AccountSecurityTests: XCTestCase {
         refreshAccount: {
           refreshes += 1
           return refreshes == 2
-        }))
+        }),
+      onCleared: { notified.append($0) })
     await model.clear()
     XCTAssertTrue(cleared.isEmpty)
     model.selection = [.history, .trash]
@@ -208,24 +276,35 @@ final class AccountSecurityTests: XCTestCase {
     await model.refreshAccount()
     XCTAssertNil(model.refreshWarning)
     XCTAssertEqual(cleared, [[.history, .trash], [.history, .trash]])
+    XCTAssertEqual(notified, [[.history, .trash]], "the shell was not told what was cleared")
   }
 
   func testDestroyAccountRejectionKeepsTheScreenAndNeverRetainsThePassword() async {
     var passwords: [String] = []
+    var destroyed = 0
     let model = PutioDestroyAccountModel(
       actions: PutioAccountSecurityActions(destroyAccount: { password in
         passwords.append(password)
         if password == "wrong" { throw PutioAccountSecurityError.invalidPassword }
-      }))
+      }),
+      onDestroyed: { destroyed += 1 })
     XCTAssertFalse(model.canDestroy)
+    model.password = "  "
+    XCTAssertFalse(model.canDestroy)
+    await model.destroy()
+    XCTAssertEqual(model.failure, "Enter your password to confirm.")
+    XCTAssertEqual(model.password, "")
+    XCTAssertTrue(passwords.isEmpty)
     model.password = "wrong"
     await model.destroy()
     XCTAssertEqual(model.password, "")
     XCTAssertNotNil(model.failure)
+    XCTAssertEqual(destroyed, 0)
     model.password = "right"
     await model.destroy()
     XCTAssertNil(model.failure)
     XCTAssertEqual(passwords, ["wrong", "right"])
+    XCTAssertEqual(destroyed, 1)
   }
 
   func testPresentationMapsRejectionsAndHidesSessionEndings() {
@@ -237,5 +316,23 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertEqual(
       PutioAccountSecurityPresentation.message(for: PutioRuntimeError.transient),
       "Check your connection and try again.")
+  }
+}
+
+@MainActor
+private final class RequestGate {
+  private var continuation: CheckedContinuation<Void, Never>?
+
+  func wait() async {
+    await withCheckedContinuation { continuation = $0 }
+  }
+
+  func waitForRequest() async {
+    while continuation == nil { await Task.yield() }
+  }
+
+  func finish() {
+    continuation?.resume()
+    continuation = nil
   }
 }

@@ -247,13 +247,14 @@ public final class PutioSessionStore {
   /// The account no longer exists, so there is no token left to revoke; only
   /// the local credential and state are cleared.
   func endDestroyedSession() {
+    pendingSignOutToken = nil
     endSession(reason: .userSignedOut)
   }
 
+  // Expiry keeps any token queued for a deliberate revocation retry.
   private func endSession(reason: PutioSignedOutReason) {
     pendingOAuthState = nil
     pendingOAuthGeneration = nil
-    pendingSignOutToken = nil
     _ = advanceAuthenticationGeneration()
     sdk.clearToken()
     try? tokenStore.clear()

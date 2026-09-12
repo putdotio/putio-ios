@@ -179,7 +179,10 @@ private struct TwoFactorChangeSheet: View {
       .putioFont(PutioTheme.Typography.body)
       .putioContentBackground()
     }
-    .interactiveDismissDisabled(model.isSubmitting || model.isLoadingRecoveryCodes)
+    // The codes are shown once; leaving is only through the acknowledgement.
+    .interactiveDismissDisabled(
+      model.isSubmitting || model.isLoadingRecoveryCodes || showsRecoveryCodes
+    )
     .task { await model.loadSecret() }
     .onChange(of: model.step) { _, step in
       if case .finished(let accountRefreshed) = step { onFinish(accountRefreshed) }
@@ -460,7 +463,10 @@ struct LinkDeviceView: View {
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
     .alert(
-      "Connected", isPresented: Binding(get: { model.linkedApp != nil }, set: { _ in }),
+      "Connected",
+      isPresented: Binding(
+        get: { model.linkedApp != nil },
+        set: { presented in if !presented { model.acknowledgeLink() } }),
       presenting: model.linkedApp
     ) { _ in
       Button("OK") {
@@ -478,8 +484,11 @@ struct ClearDataView: View {
   @State private var model: PutioClearDataModel
   @State private var confirms = false
 
-  init(actions: PutioAccountSecurityActions) {
-    _model = State(initialValue: PutioClearDataModel(actions: actions))
+  init(
+    actions: PutioAccountSecurityActions,
+    onCleared: @escaping @MainActor (Set<PutioAccountDataCategory>) -> Void
+  ) {
+    _model = State(initialValue: PutioClearDataModel(actions: actions, onCleared: onCleared))
   }
 
   var body: some View {
@@ -552,8 +561,9 @@ struct DestroyAccountView: View {
   @State private var model: PutioDestroyAccountModel
   @State private var asksPassword = false
 
-  init(actions: PutioAccountSecurityActions) {
-    _model = State(initialValue: PutioDestroyAccountModel(actions: actions))
+  init(actions: PutioAccountSecurityActions, onDestroyed: @escaping @MainActor () -> Void) {
+    _model = State(
+      initialValue: PutioDestroyAccountModel(actions: actions, onDestroyed: onDestroyed))
   }
 
   var body: some View {
@@ -585,6 +595,7 @@ struct DestroyAccountView: View {
       SecureField("Password", text: Bindable(model).password)
         .accessibilityIdentifier("danger.destroy-password")
       Button("Destroy Account", role: .destructive) { Task { await model.destroy() } }
+        .disabled(!model.canDestroy)
         .accessibilityIdentifier("danger.destroy-confirm")
       Button("Cancel", role: .cancel) { model.password = "" }
     } message: {
@@ -597,7 +608,12 @@ struct AboutView: View {
   private static let version: String = {
     let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
     let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-    return [short, build].compactMap { $0 }.joined(separator: " (") + (build == nil ? "" : ")")
+    switch (short, build) {
+    case (let short?, let build?): return "\(short) (\(build))"
+    case (let short?, nil): return short
+    case (nil, let build?): return build
+    case (nil, nil): return "Unknown"
+    }
   }()
 
   var body: some View {

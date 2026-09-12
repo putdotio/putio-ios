@@ -97,7 +97,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(retryFolder.waitForNonExistence(timeout: 5))
 
     app.buttons["Account"].tap()
-    let signOut = element(identifier: "auth.sign-out")
+    let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
@@ -205,7 +205,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let account = app.buttons["Account"]
     XCTAssertTrue(account.isHittable, "Account tab is not tappable")
     account.tap()
-    let signOut = element(identifier: "auth.sign-out")
+    let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     if !signOut.isHittable { app.swipeUp() }
     XCTAssertTrue(
@@ -224,7 +224,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let account = app.buttons["Account"]
     XCTAssertTrue(account.waitForExistence(timeout: 10), "seeded session did not restore")
     account.tap()
-    let signOut = element(identifier: "auth.sign-out")
+    let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
     let retry = element(identifier: "auth.retry-sign-out")
@@ -275,7 +275,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(folder.waitForNonExistence(timeout: 5))
 
     app.buttons["Account"].tap()
-    let signOut = element(identifier: "auth.sign-out")
+    let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
@@ -395,7 +395,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     wait(for: [storageChanged], timeout: 5)
     XCTAssertNotEqual(
       usedStorage.label, usedBeforeDeletions, "emptying Trash did not change account storage")
-    let signOut = element(identifier: "auth.sign-out")
+    let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
@@ -436,7 +436,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     addScreenshot(named: "runtime-sorted-root")
 
     app.buttons["Account"].tap()
-    let signOut = element(identifier: "auth.sign-out")
+    let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
@@ -527,7 +527,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     folder.tap()
     XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 5))
     app.buttons["Account"].tap()
-    let signOut = element(identifier: "auth.sign-out")
+    let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
@@ -614,7 +614,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.buttons["Files"].tap()
     XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
     app.buttons["Account"].tap()
-    let signOut = element(identifier: "auth.sign-out")
+    let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
@@ -748,7 +748,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
 
     app.buttons["Account"].tap()
-    let signOut = element(identifier: "auth.sign-out")
+    let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
@@ -1127,7 +1127,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     assertMovePickerCreationAndSorting(for: appliedMoveAtRoot)
 
     app.buttons["Account"].tap()
-    let signOut = element(identifier: "auth.sign-out")
+    let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")

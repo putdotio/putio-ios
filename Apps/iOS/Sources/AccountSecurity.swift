@@ -202,8 +202,10 @@ final class PutioTwoFactorChangeModel {
     defer { isLoadingRecoveryCodes = false }
     do {
       step = .recoveryCodes(try await actions.recoveryCodes())
+    } catch is CancellationError {
+      // Two-factor is on either way; only a live session may skip the codes.
+      recoveryCodesFailure = "Your recovery codes could not be loaded. Try again."
     } catch {
-      // Two-factor is on either way; the codes screen owns another attempt.
       recoveryCodesFailure = PutioAccountSecurityPresentation.message(for: error)
       if recoveryCodesFailure == nil { step = .finished(accountRefreshed: accountRefreshed) }
     }
@@ -264,8 +266,20 @@ final class PutioRecoveryCodesModel {
         codes = regenerated
       } catch {
         guard generation == self.generation else { return }
-        failure = PutioAccountSecurityPresentation.message(for: error)
-        canRetryRegenerate = failure != nil
+        guard let message = PutioAccountSecurityPresentation.message(for: error) else { return }
+        // The server may have rotated the codes before the response was lost;
+        // whatever was on screen is only shown again once it is confirmed.
+        codes = nil
+        do {
+          let current = try await actions.recoveryCodes()
+          guard generation == self.generation else { return }
+          codes = current
+          failure = message
+          canRetryRegenerate = true
+        } catch {
+          guard generation == self.generation else { return }
+          failure = PutioAccountSecurityPresentation.message(for: error)
+        }
       }
     }
     await task.value
@@ -310,6 +324,11 @@ final class PutioAuthorizedAppsModel {
       let loaded = try await actions.listApps()
       guard generation == self.generation else { return }
       state = .loaded(loaded)
+      // A grant that is gone from the authoritative list has nothing to retry.
+      if let failedRevokeID, !loaded.contains(where: { $0.id == failedRevokeID }) {
+        self.failedRevokeID = nil
+        revokeFailure = nil
+      }
     } catch {
       guard generation == self.generation, !Task.isCancelled,
         let message = PutioAccountSecurityPresentation.message(for: error)
@@ -328,6 +347,9 @@ final class PutioAuthorizedAppsModel {
       defer { revokingID = nil }
       do {
         try await actions.revokeApp(id)
+        // A list request that started before the revoke must not bring the
+        // grant back when it lands.
+        generation += 1
         state = .loaded(apps.filter { $0.id != id })
       } catch {
         guard let message = PutioAccountSecurityPresentation.message(for: error) else { return }
@@ -394,9 +416,16 @@ final class PutioClearDataModel {
   private(set) var didClear = false
   private(set) var refreshWarning: String?
   @ObservationIgnored private let actions: PutioAccountSecurityActions
+  /// Tells the shell which categories are gone so mounted Files and History
+  /// screens reload instead of showing deleted rows.
+  @ObservationIgnored private let onCleared: @MainActor (Set<PutioAccountDataCategory>) -> Void
 
-  init(actions: PutioAccountSecurityActions) {
+  init(
+    actions: PutioAccountSecurityActions,
+    onCleared: @escaping @MainActor (Set<PutioAccountDataCategory>) -> Void = { _ in }
+  ) {
     self.actions = actions
+    self.onCleared = onCleared
   }
 
   var canClear: Bool { !isClearing && !selection.isEmpty }
@@ -413,6 +442,7 @@ final class PutioClearDataModel {
         didClear = true
         self.selection = []
         refreshWarning = refreshed ? nil : PutioAccountSecurityPresentation.refreshWarning
+        onCleared(selection)
       } catch {
         failure = PutioAccountSecurityPresentation.message(for: error)
       }
@@ -435,15 +465,29 @@ final class PutioDestroyAccountModel {
   private(set) var isDestroying = false
   private(set) var failure: String?
   @ObservationIgnored private let actions: PutioAccountSecurityActions
+  /// Runs once the account is gone, before the signed-in shell unmounts, so
+  /// the shell can purge account-scoped local state such as offline media.
+  @ObservationIgnored private let onDestroyed: @MainActor () -> Void
 
-  init(actions: PutioAccountSecurityActions) {
+  init(actions: PutioAccountSecurityActions, onDestroyed: @escaping @MainActor () -> Void = {}) {
     self.actions = actions
+    self.onDestroyed = onDestroyed
   }
 
-  var canDestroy: Bool { !isDestroying && !password.isEmpty }
+  var canDestroy: Bool {
+    !isDestroying && !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  }
 
+  /// A blank password is reported rather than ignored, since the alert has
+  /// already closed by the time this runs. The password never outlives its
+  /// one request.
   func destroy() async {
-    guard canDestroy else { return }
+    guard !isDestroying else { return }
+    guard canDestroy else {
+      password = ""
+      failure = "Enter your password to confirm."
+      return
+    }
     isDestroying = true
     failure = nil
     let password = password
@@ -452,6 +496,7 @@ final class PutioDestroyAccountModel {
       defer { isDestroying = false }
       do {
         try await actions.destroyAccount(password)
+        onDestroyed()
       } catch {
         failure = PutioAccountSecurityPresentation.message(for: error)
       }

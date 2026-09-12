@@ -17,7 +17,7 @@ final class AccountJourneyTests: XCTestCase {
     let requests = app.descendants(matching: .any)["account.rating-link-requests"]
     XCTAssertTrue(requests.waitForExistence(timeout: 5))
     XCTAssertEqual(requests.value as? String, "0|")
-    let rating = app.descendants(matching: .any)["account.rate-app"]
+    let rating = app.revealed("account.rate-app")
     XCTAssertTrue(rating.waitForExistence(timeout: 5))
     if !rating.isHittable { app.swipeUp() }
     XCTAssertTrue(rating.isHittable)
@@ -30,12 +30,16 @@ final class AccountJourneyTests: XCTestCase {
     let opened = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value == %@", expected), object: requests)
     XCTAssertEqual(XCTWaiter.wait(for: [opened], timeout: 5), .completed)
-    app.buttons["Files"].tap()
+    // Scrolling minimizes the tab bar; scroll back so the tabs are buttons again.
+    let files = app.buttons["Files"]
+    if !files.exists { app.swipeDown() }
+    XCTAssertTrue(files.waitForExistence(timeout: 5))
+    files.tap()
     account.tap()
     XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 5))
-    XCTAssertTrue(rating.waitForExistence(timeout: 5))
+    XCTAssertTrue(app.revealed("account.rate-app").waitForExistence(timeout: 5))
     XCTAssertEqual(requests.value as? String, expected)
-    let signOut = app.descendants(matching: .any)["auth.sign-out"]
+    let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     if !signOut.isHittable { app.swipeUp() }
     let signOutHittable = XCTNSPredicateExpectation(
