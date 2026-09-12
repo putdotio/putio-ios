@@ -414,9 +414,46 @@ public struct PutioPlaybackRoute: Equatable, Sendable, Identifiable {
 /// The put.io `chromecast_playback_type` account config. HLS streams the
 /// original file with server-muxed subtitles; MP4 casts the converted file
 /// and attaches subtitles as side-loaded WebVTT tracks.
-public enum PutioCastPlaybackType: String, CaseIterable, Hashable, Sendable {
+public enum PutioCastPlaybackType: String, CaseIterable, Hashable, Codable, Sendable {
   case hls
   case mp4
+}
+
+/// The keys this app stores in the account's `/config` document. put.io keeps
+/// whatever a client writes, so the shape is the app's to declare; the web app
+/// keeps its own keys, and the Chromecast key below is the one iOS has always
+/// written.
+public enum PutioAppConfigKey: String, CaseIterable, Sendable {
+  case chromecastPlaybackType = "chromecast_playback_type"
+  case autoplayNextVideo = "autoplay_next_video"
+}
+
+/// This app's view of the config document. Missing or unknown values decode
+/// to the defaults below instead of failing, because another client may never
+/// have written them.
+public struct PutioAppConfig: Codable, Equatable, Sendable {
+  public var chromecastPlaybackType: PutioCastPlaybackType
+  public var autoplayNextVideo: Bool
+
+  public init(chromecastPlaybackType: PutioCastPlaybackType = .hls, autoplayNextVideo: Bool = false)
+  {
+    self.chromecastPlaybackType = chromecastPlaybackType
+    self.autoplayNextVideo = autoplayNextVideo
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case chromecastPlaybackType = "chromecast_playback_type"
+    case autoplayNextVideo = "autoplay_next_video"
+  }
+
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    let rawPlaybackType = try? container.decodeIfPresent(
+      String.self, forKey: .chromecastPlaybackType)
+    chromecastPlaybackType = rawPlaybackType.flatMap(PutioCastPlaybackType.init(rawValue:)) ?? .hls
+    autoplayNextVideo =
+      (try? container.decodeIfPresent(Bool.self, forKey: .autoplayNextVideo)) ?? false
+  }
 }
 
 /// One subtitle the receiver can toggle. `url` is a bearer credential and is
