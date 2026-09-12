@@ -2486,6 +2486,16 @@ final class PutioRuntimeTests: XCTestCase {
     guard case .signedIn(let account) = runtime.session.state else { return XCTFail("signed out") }
     XCTAssertTrue(account.twoFactorEnabled)
     XCTAssertFalse(runtime.session.isAccountPreferencesStale)
+    // A retry of a committed write can only fail as a stale code.
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR","error_type":"invalid_code","message":"stale"}"#, statusCode: 400,
+      for: settings)
+    let retried = try await runtime.setTwoFactorEnabled(true, code: "654321")
+    XCTAssertTrue(
+      retried.accountRefreshed, "a stale code after a committed write was not reconciled")
+    await assertSecurityError(.invalidTwoFactorCode) {
+      _ = try await runtime.setTwoFactorEnabled(false, code: "000000")
+    }
   }
 
   func testClearDataSendsEveryFlagAndDestroyEndsTheSessionWithoutRevocation() async throws {
