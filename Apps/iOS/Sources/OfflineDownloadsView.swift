@@ -6,12 +6,15 @@ import UserNotifications
 /// progress and controls, multi-select delete, and the concurrency limit.
 struct PutioOfflineDownloadsView: View {
   let queue: PutioOfflineQueue
+  let trashEnabled: Bool
   let onOpen: @MainActor (PutioOfflineItem) -> Void
 
   @State private var isEditing = false
   @State private var selectedIDs: Set<PutioFileID> = []
-  @State private var pendingRemoval: [PutioFileID]?
+  @State private var pendingRemoval: [PutioOfflineRemovalTarget]?
   @State private var detailItem: PutioOfflineItem?
+
+  private var copy: PutioOfflineRemovalCopy { PutioOfflineRemovalCopy(trashEnabled: trashEnabled) }
 
   var body: some View {
     Group {
@@ -29,22 +32,47 @@ struct PutioOfflineDownloadsView: View {
     .navigationTitle("Downloads")
     .toolbar { toolbar }
     .environment(\.editMode, .constant(isEditing ? .active : .inactive))
-    .alert(
-      "Remove \(pendingRemoval?.count ?? 0) download\(pendingRemoval?.count == 1 ? "" : "s")?",
+    .confirmationDialog(
+      copy.title(names: pendingRemoval?.map(\.name) ?? []),
       isPresented: Binding(
         get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }),
+      titleVisibility: .visible,
       presenting: pendingRemoval
-    ) { fileIDs in
-      // The ids ride along with the presentation; the binding clears before
-      // the action runs, so reading `pendingRemoval` here would see nil.
-      Button("Remove", role: .destructive) {
-        queue.remove(fileIDs: fileIDs)
-        selectedIDs = []
-        isEditing = false
+    ) { targets in
+      // The targets ride along with the presentation; the binding clears
+      // before the action runs, so reading `pendingRemoval` here would see nil.
+      Button(copy.localActionTitle(count: targets.count)) {
+        queue.remove(fileIDs: targets.map(\.id))
+        finishSelection()
       }
+      .accessibilityIdentifier("downloads.remove-local")
+      Button(copy.remoteActionTitle(count: targets.count), role: .destructive) {
+        finishSelection()
+        // Unstructured on purpose: the request outlives this screen, and the
+        // queue keeps the outcome until the user dismisses it.
+        Task { _ = await queue.removeDeletingOriginals(fileIDs: targets.map(\.id)) }
+      }
+      .accessibilityIdentifier("downloads.remove-original")
       Button("Cancel", role: .cancel) {}
-    } message: { _ in
-      Text("Removed downloads free up space on this device. Your files stay on put.io.")
+    } message: { targets in
+      Text(copy.message(count: targets.count))
+    }
+    .alert(
+      copy.failureTitle(outcome: queue.originalFailure ?? PutioOfflineOriginalOutcome()),
+      isPresented: Binding(
+        get: { queue.originalFailure != nil }, set: { if !$0 { queue.dismissOriginalFailure() } }),
+      presenting: queue.originalFailure
+    ) { outcome in
+      let retryable = outcome.retryableTargets
+      if !retryable.isEmpty {
+        Button("Try again") {
+          Task { _ = await queue.deleteOriginals(retryable) }
+        }
+        .accessibilityIdentifier("downloads.remove-original-retry")
+      }
+      Button("OK", role: .cancel) {}
+    } message: { outcome in
+      Text(copy.failureMessage(outcome: outcome))
     }
     .sheet(item: $detailItem) { item in
       PutioOfflineDetailView(item: queue.item(for: item.id) ?? item)
@@ -55,6 +83,11 @@ struct PutioOfflineDownloadsView: View {
       queue.refreshStorage()
     }
     .accessibilityIdentifier("downloads.screen")
+  }
+
+  private func finishSelection() {
+    selectedIDs = []
+    isEditing = false
   }
 
   private var list: some View {
@@ -115,7 +148,7 @@ struct PutioOfflineDownloadsView: View {
     .accessibilityIdentifier("downloads.item.\(item.id.rawValue)")
     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
       Button(role: .destructive) {
-        pendingRemoval = [item.id]
+        pendingRemoval = [PutioOfflineRemovalTarget(id: item.id, name: item.name)]
       } label: {
         Label("Remove", systemImage: "trash")
       }
@@ -171,7 +204,7 @@ struct PutioOfflineDownloadsView: View {
       .accessibilityIdentifier("downloads.details.\(item.id.rawValue)")
     case .failed:
       Button(role: .destructive) {
-        pendingRemoval = [item.id]
+        pendingRemoval = [PutioOfflineRemovalTarget(id: item.id, name: item.name)]
       } label: {
         Label("Remove", systemImage: "trash")
       }
@@ -192,7 +225,9 @@ struct PutioOfflineDownloadsView: View {
       if isEditing {
         ToolbarItem(placement: .topBarLeading) {
           Button("Remove \(selectedIDs.count)", role: .destructive) {
-            pendingRemoval = Array(selectedIDs)
+            pendingRemoval = queue.items.filter { selectedIDs.contains($0.id) }.map {
+              PutioOfflineRemovalTarget(id: $0.id, name: $0.name)
+            }
           }
           .disabled(selectedIDs.isEmpty)
           .accessibilityIdentifier("downloads.remove-selected")
