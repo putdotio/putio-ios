@@ -70,6 +70,22 @@ private final class SuspendedNextVideoPreflightWait {
 }
 
 @MainActor
+private final class SuspendedAutoplayPolicy {
+  private(set) var requests = 0
+  private var continuation: CheckedContinuation<Bool, Never>?
+
+  func read() async -> Bool {
+    requests += 1
+    return await withCheckedContinuation { continuation = $0 }
+  }
+
+  func resume(returning enabled: Bool) {
+    continuation?.resume(returning: enabled)
+    continuation = nil
+  }
+}
+
+@MainActor
 private final class NextVideoRecorder {
   var operations: [String] = []
   var durations: [Duration] = []
@@ -156,6 +172,84 @@ final class PutioNextVideoModelTests: XCTestCase {
     }
 
     XCTAssertEqual(recorder.operations, ["find:411", "resolve:412"])
+  }
+
+  func testOfflineSuccessorComesFromTheQueueWhenTheServerLookupFails() async throws {
+    let recorder = NextVideoRecorder()
+    let local = PutioPlaybackSource(
+      url: URL(fileURLWithPath: "/offline/episode-2.mp4"), startFromSeconds: 12)
+
+    let prepared = try await prepareNextVideo(
+      after: completedFileID,
+      findNext: { fileID in
+        recorder.operations.append("find:\(fileID.rawValue)")
+        throw PutioRuntimeError.transient
+      },
+      findOfflineNext: { fileID in
+        recorder.operations.append("queue:\(fileID.rawValue)")
+        return self.nextVideo
+      },
+      waitForPendingReports: { fileID in recorder.operations.append("drain:\(fileID.rawValue)") },
+      resolve: { fileID in
+        recorder.operations.append("resolve:\(fileID.rawValue)")
+        return .ready(local)
+      }
+    )
+
+    XCTAssertEqual(recorder.operations, ["find:411", "queue:411", "drain:412", "resolve:412"])
+    XCTAssertEqual(
+      prepared, PutioPlayableNextVideo(video: nextVideo, initialResolution: .ready(local)))
+  }
+
+  func testServerLookupFailureWithoutAQueuedSuccessorStillFails() async {
+    do {
+      _ = try await prepareNextVideo(
+        after: completedFileID,
+        findNext: { _ in throw PutioRuntimeError.transient },
+        findOfflineNext: { _ in nil },
+        waitForPendingReports: { _ in },
+        resolve: { _ in
+          XCTFail("nothing to resolve without a successor")
+          throw PutioRuntimeError.unknown
+        }
+      )
+      XCTFail("preparation without any successor unexpectedly succeeded")
+    } catch {
+      XCTAssertEqual(error as? PutioRuntimeError, .transient)
+    }
+  }
+
+  func testServerAnswerOfNoSuccessorNeverConsultsTheQueue() async throws {
+    let prepared = try await prepareNextVideo(
+      after: completedFileID,
+      findNext: { _ in nil },
+      findOfflineNext: { _ in
+        XCTFail("a definitive server answer must not fall back to the queue")
+        return self.nextVideo
+      },
+      waitForPendingReports: { _ in },
+      resolve: { _ in self.playableNextVideo.initialResolution }
+    )
+
+    XCTAssertNil(prepared)
+  }
+
+  func testCancelledServerLookupIsNotReplacedByAQueuedSuccessor() async {
+    do {
+      _ = try await prepareNextVideo(
+        after: completedFileID,
+        findNext: { _ in throw CancellationError() },
+        findOfflineNext: { _ in
+          XCTFail("a cancelled lookup must not fall back to the queue")
+          return self.nextVideo
+        },
+        waitForPendingReports: { _ in },
+        resolve: { _ in self.playableNextVideo.initialResolution }
+      )
+      XCTFail("cancelled preparation unexpectedly succeeded")
+    } catch {
+      XCTAssertTrue(error is CancellationError)
+    }
   }
 
   func testPreparationWaitsForSuccessorReportsBeforeResolving() async throws {
@@ -276,6 +370,90 @@ final class PutioNextVideoModelTests: XCTestCase {
 
     XCTAssertEqual(recorder.durations, [.seconds(5)])
     XCTAssertEqual(model.state, .playing(playableNextVideo))
+  }
+
+  func testSuggestionWaitsForALateConfigLoadThatEnablesAutoplay() async {
+    // Playback can end while the config load is in flight; the suggestion
+    // shows immediately and the decision follows the loaded value.
+    let policy = SuspendedAutoplayPolicy()
+    let recorder = NextVideoRecorder()
+    let model = PutioNextVideoModel(
+      autoplayEnabled: { await policy.read() },
+      autoplayDelay: .seconds(5),
+      waitForReset: { _ in },
+      loadNext: { _ in self.playableNextVideo },
+      sleep: { duration in recorder.durations.append(duration) }
+    )
+
+    let ended = Task { await model.playbackEnded(completedFileID: completedFileID) }
+    while policy.requests == 0 { await Task.yield() }
+    XCTAssertEqual(model.state, .available(playableNextVideo))
+    XCTAssertEqual(recorder.durations, [])
+
+    policy.resume(returning: true)
+    await ended.value
+
+    XCTAssertEqual(recorder.durations, [.seconds(5)])
+    XCTAssertEqual(model.state, .playing(playableNextVideo))
+  }
+
+  func testSuggestionStaysManualWhenALateConfigLoadDisablesAutoplay() async {
+    let policy = SuspendedAutoplayPolicy()
+    let recorder = NextVideoRecorder()
+    let model = PutioNextVideoModel(
+      autoplayEnabled: { await policy.read() },
+      waitForReset: { _ in },
+      loadNext: { _ in self.playableNextVideo },
+      sleep: { duration in recorder.durations.append(duration) }
+    )
+
+    let ended = Task { await model.playbackEnded(completedFileID: completedFileID) }
+    while policy.requests == 0 { await Task.yield() }
+    policy.resume(returning: false)
+    await ended.value
+
+    XCTAssertEqual(recorder.durations, [])
+    XCTAssertEqual(model.state, .available(playableNextVideo))
+  }
+
+  func testManualPlayWhileThePolicySettlesWinsOverALateAutoplay() async {
+    let policy = SuspendedAutoplayPolicy()
+    let recorder = NextVideoRecorder()
+    let model = PutioNextVideoModel(
+      autoplayEnabled: { await policy.read() },
+      waitForReset: { _ in },
+      loadNext: { _ in self.playableNextVideo },
+      sleep: { duration in recorder.durations.append(duration) }
+    )
+
+    let ended = Task { await model.playbackEnded(completedFileID: completedFileID) }
+    while policy.requests == 0 { await Task.yield() }
+    model.playNext()
+    policy.resume(returning: true)
+    await ended.value
+
+    XCTAssertEqual(recorder.durations, [])
+    XCTAssertEqual(model.state, .playing(playableNextVideo))
+  }
+
+  func testCancelWhileThePolicySettlesRejectsALateAutoplay() async {
+    let policy = SuspendedAutoplayPolicy()
+    let recorder = NextVideoRecorder()
+    let model = PutioNextVideoModel(
+      autoplayEnabled: { await policy.read() },
+      waitForReset: { _ in },
+      loadNext: { _ in self.playableNextVideo },
+      sleep: { duration in recorder.durations.append(duration) }
+    )
+
+    let ended = Task { await model.playbackEnded(completedFileID: completedFileID) }
+    while policy.requests == 0 { await Task.yield() }
+    model.cancel()
+    policy.resume(returning: true)
+    await ended.value
+
+    XCTAssertEqual(recorder.durations, [])
+    XCTAssertEqual(model.state, .cancelled)
   }
 
   func testDisabledAutoplayPolicyNeverSleepsAndKeepsTheSuggestion() async {

@@ -85,6 +85,56 @@ final class AppConfigModelTests: XCTestCase {
     XCTAssertFalse(model.autoplayNextVideo)
   }
 
+  func testAutoplayDecisionAwaitsTheLoadInFlight() async {
+    var loads = 0
+    var release: CheckedContinuation<PutioAppConfig, Never>?
+    let model = model(load: {
+      loads += 1
+      return await withCheckedContinuation { release = $0 }
+    })
+
+    let load = Task { await model.loadIfNeeded() }
+    while release == nil { await Task.yield() }
+    XCTAssertTrue(model.isLoading)
+    XCTAssertFalse(model.autoplayNextVideo, "an unloaded document reads as off")
+
+    let decision = Task { await model.resolveAutoplayNextVideo() }
+    await Task.yield()
+    release?.resume(returning: PutioAppConfig(autoplayNextVideo: true))
+
+    let autoplay = await decision.value
+    await load.value
+    XCTAssertTrue(autoplay)
+    XCTAssertEqual(loads, 1, "the decision joins the load in flight instead of starting another")
+    XCTAssertFalse(model.isLoading)
+  }
+
+  func testAutoplayDecisionLoadsAnUnloadedDocumentAndReadsItsValue() async {
+    var loads = 0
+    let model = model(load: {
+      loads += 1
+      return PutioAppConfig(autoplayNextVideo: false)
+    })
+
+    let autoplay = await model.resolveAutoplayNextVideo()
+
+    XCTAssertFalse(autoplay)
+    XCTAssertEqual(loads, 1)
+    XCTAssertTrue(model.canSave)
+
+    _ = await model.resolveAutoplayNextVideo()
+    XCTAssertEqual(loads, 1, "a loaded document is read, not reloaded")
+  }
+
+  func testAutoplayDecisionIsOffWhenTheDocumentCannotLoad() async {
+    let model = model(load: { throw PutioRuntimeError.transient })
+
+    let autoplay = await model.resolveAutoplayNextVideo()
+
+    XCTAssertFalse(autoplay)
+    XCTAssertEqual(model.failure, "Check your connection and try again.")
+  }
+
   private func model(
     load: @escaping @MainActor @Sendable () async throws -> PutioAppConfig,
     save: @escaping @MainActor @Sendable (Bool) async throws -> Void = { _ in }

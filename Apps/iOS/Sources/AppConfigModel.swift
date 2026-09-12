@@ -35,6 +35,7 @@ final class PutioAppConfigModel {
   private(set) var failedAutoplayNextVideo: Bool?
   @ObservationIgnored private let actions: PutioAppConfigActions
   @ObservationIgnored private var loadGeneration: UInt64 = 0
+  @ObservationIgnored private var activeLoad: Task<Void, Never>?
 
   init(actions: PutioAppConfigActions) {
     self.actions = actions
@@ -45,23 +46,46 @@ final class PutioAppConfigModel {
   var isBusy: Bool { isLoading || isSaving }
   var canSave: Bool { config != nil && !isBusy }
 
+  /// A load already in flight is awaited rather than duplicated, so every
+  /// caller observes the same settled document.
   func loadIfNeeded(force: Bool = false) async {
+    if let activeLoad {
+      await activeLoad.value
+      return
+    }
     guard force || config == nil, !isBusy else { return }
     loadGeneration &+= 1
     let generation = loadGeneration
     isLoading = true
     failure = nil
     failedAutoplayNextVideo = nil
-    defer { if generation == loadGeneration { isLoading = false } }
-    do {
-      let loaded = try await actions.load()
-      guard generation == loadGeneration else { return }
-      config = loaded
-    } catch {
-      guard generation == loadGeneration, let message = Self.message(for: error, verb: "load")
-      else { return }
-      failure = message
+    let load = Task { @MainActor in
+      defer {
+        if generation == loadGeneration {
+          isLoading = false
+          activeLoad = nil
+        }
+      }
+      do {
+        let loaded = try await actions.load()
+        guard generation == loadGeneration else { return }
+        config = loaded
+      } catch {
+        guard generation == loadGeneration, let message = Self.message(for: error, verb: "load")
+        else { return }
+        failure = message
+      }
     }
+    activeLoad = load
+    await load.value
+  }
+
+  /// The autoplay decision at end of video. A document still loading, or one
+  /// whose load failed earlier, is awaited or retried first so a value that
+  /// arrives late still counts; only an unreachable document reads as off.
+  func resolveAutoplayNextVideo() async -> Bool {
+    if config == nil { await loadIfNeeded() }
+    return autoplayNextVideo
   }
 
   func setAutoplayNextVideo(_ enabled: Bool) async {

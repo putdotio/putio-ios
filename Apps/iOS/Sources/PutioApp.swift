@@ -724,7 +724,7 @@ private struct MainTabView: View {
         ? PutioOfflineQueueFactory.preferredLanguages(scenario: scenario) : [],
       remembersPlaybackPosition: account.rememberVideoTime,
       suggestsNextVideo: account.suggestNextVideo,
-      autoplayNextVideo: { appConfig.autoplayNextVideo },
+      autoplayNextVideo: { await appConfig.resolveAutoplayNextVideo() },
       showsHarnessReadiness: scenario == .filesBrowser,
       conversionPollInterval: scenario == .filesBrowser ? .milliseconds(1_200) : .seconds(3),
       nextVideoAutoplayDelay: .seconds(5),
@@ -751,6 +751,7 @@ private struct MainTabView: View {
         try await prepareNextVideo(
           after: fileID,
           findNext: { try await runtime.findNextVideo(after: $0) },
+          findOfflineNext: { offlineQueue.nextVideo(after: $0) },
           waitForPendingReports: {
             await playbackPositionPipeline.waitForPendingReports(fileID: $0)
           },
