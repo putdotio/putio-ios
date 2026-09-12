@@ -241,12 +241,23 @@ public final class PutioSessionStore {
   }
 
   func expireSession() {
+    endSession(reason: .sessionExpired)
+  }
+
+  /// The account no longer exists, so there is no token left to revoke; only
+  /// the local credential and state are cleared.
+  func endDestroyedSession() {
+    endSession(reason: .userSignedOut)
+  }
+
+  private func endSession(reason: PutioSignedOutReason) {
     pendingOAuthState = nil
     pendingOAuthGeneration = nil
+    pendingSignOutToken = nil
     _ = advanceAuthenticationGeneration()
     sdk.clearToken()
     try? tokenStore.clear()
-    state = .signedOut(.sessionExpired)
+    state = .signedOut(reason)
   }
 
   // MARK: - Account bootstrap
@@ -279,7 +290,8 @@ public final class PutioSessionStore {
 
   func applyAcknowledgedPreferences(
     defaultSort: PutioFolderSort? = nil, trashEnabled: Bool? = nil, historyEnabled: Bool? = nil,
-    routeName: String? = nil, hideSubtitles: Bool? = nil, dontAutoSelectSubtitles: Bool? = nil
+    routeName: String? = nil, hideSubtitles: Bool? = nil, dontAutoSelectSubtitles: Bool? = nil,
+    twoFactorEnabled: Bool? = nil
   ) {
     guard case .signedIn(let account) = state else { return }
     state = .signedIn(
@@ -291,7 +303,8 @@ public final class PutioSessionStore {
         trashEnabled: trashEnabled ?? account.trashEnabled, storage: account.storage,
         routeName: routeName ?? account.routeName,
         hideSubtitles: hideSubtitles ?? account.hideSubtitles,
-        dontAutoSelectSubtitles: dontAutoSelectSubtitles ?? account.dontAutoSelectSubtitles))
+        dontAutoSelectSubtitles: dontAutoSelectSubtitles ?? account.dontAutoSelectSubtitles,
+        twoFactorEnabled: twoFactorEnabled ?? account.twoFactorEnabled))
   }
 
   @discardableResult
@@ -398,7 +411,8 @@ public final class PutioSessionStore {
       ),
       routeName: account.settings.routeName,
       hideSubtitles: account.settings.hideSubtitles,
-      dontAutoSelectSubtitles: account.settings.dontAutoSelectSubtitles
+      dontAutoSelectSubtitles: account.settings.dontAutoSelectSubtitles,
+      twoFactorEnabled: account.settings.twoFactorEnabled
     )
   }
 

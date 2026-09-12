@@ -25,6 +25,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
   public let routeName: String
   public let hideSubtitles: Bool
   public let dontAutoSelectSubtitles: Bool
+  public let twoFactorEnabled: Bool
 
   public init(
     id: Int,
@@ -38,7 +39,8 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     storage: Storage,
     routeName: String = "default",
     hideSubtitles: Bool = false,
-    dontAutoSelectSubtitles: Bool = false
+    dontAutoSelectSubtitles: Bool = false,
+    twoFactorEnabled: Bool = false
   ) {
     self.id = id
     self.username = username
@@ -52,6 +54,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     self.routeName = routeName
     self.hideSubtitles = hideSubtitles
     self.dontAutoSelectSubtitles = dontAutoSelectSubtitles
+    self.twoFactorEnabled = twoFactorEnabled
   }
 }
 
@@ -507,4 +510,64 @@ public struct PutioCastMedia: Equatable, Sendable, CustomStringConvertible,
 public enum PutioCastResolution: Equatable, Sendable {
   case ready(PutioCastMedia)
   case conversionRequired
+}
+
+/// An input put.io rejected outright. Unlike `PutioRuntimeError`, these keep
+/// the user on the form with what they typed.
+public enum PutioAccountSecurityError: Error, Equatable, Sendable {
+  case invalidTwoFactorCode
+  case invalidDeviceCode
+  case invalidPassword
+}
+
+/// An OAuth grant the account has issued: another app, a TV, or this app.
+public struct PutioAuthorizedApp: Equatable, Hashable, Identifiable, Sendable {
+  public let id: Int
+  public let name: String
+  public let description: String
+  /// Revoking the grant this app signed in with would end the session, so
+  /// the shell lists it without a revoke action.
+  public let isCurrentClient: Bool
+
+  public init(id: Int, name: String, description: String, isCurrentClient: Bool) {
+    self.id = id
+    self.name = name
+    self.description = description
+    self.isCurrentClient = isCurrentClient
+  }
+}
+
+public struct PutioTwoFactorRecoveryCode: Equatable, Hashable, Sendable {
+  public let code: String
+  public let isUsed: Bool
+
+  public init(code: String, isUsed: Bool) {
+    self.code = code
+    self.isUsed = isUsed
+  }
+}
+
+/// The account data categories put.io can clear in one request.
+public enum PutioAccountDataCategory: String, CaseIterable, Sendable {
+  case files
+  case finishedTransfers
+  case activeTransfers
+  case rssFeeds
+  case rssLogs
+  case history
+  case trash
+  case friends
+
+  public var title: String {
+    switch self {
+    case .files: "Files"
+    case .finishedTransfers: "Finished transfers"
+    case .activeTransfers: "Active transfers"
+    case .rssFeeds: "RSS feeds"
+    case .rssLogs: "RSS logs"
+    case .history: "History"
+    case .trash: "Trash"
+    case .friends: "Friends"
+    }
+  }
 }

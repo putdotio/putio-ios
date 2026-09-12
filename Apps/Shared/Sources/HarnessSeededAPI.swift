@@ -56,6 +56,27 @@ import Foundation
     nonisolated(unsafe) private static var castPlaybackType = "hls"
     nonisolated(unsafe) private static var castSaveFailed = false
 
+    /// Account security fixtures are process-scoped like Chromecast config:
+    /// one launch enrolls, revokes, links, clears, and destroys, with one
+    /// transient failure on each mutating endpoint for retry proof.
+    private static var usesAccountSecurity: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-account-security")
+    }
+    private static let securityLock = NSLock()
+    nonisolated(unsafe) private static var securityTwoFactorEnabled = false
+    nonisolated(unsafe) private static var securityRecoveryGeneration = 0
+    nonisolated(unsafe) private static var securityRecoveryRefreshFailed = false
+    nonisolated(unsafe) private static var securityRevokeFailed = false
+    nonisolated(unsafe) private static var securityClearFailed = false
+    nonisolated(unsafe) private static var securityGrants:
+      [(id: Int, name: String, description: String)] = [
+        (3001, "put.io for iOS", "iPhone, signed in just now"),
+        (42, "Living Room TV", "Apple TV, signed in 3 days ago"),
+      ]
+    static let securityTwoFactorCode = "246810"
+    static let securityDeviceCode = "HARN"
+    static let securityPassword = "harness-pass"
+
     private static let preferencesKey = "putio.harness.file-preferences.server"
     private static var usesFilePreferences: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-file-preferences")
@@ -162,6 +183,89 @@ import Foundation
       persistFilePreferencesLocked()
       return (200, #"{"status":"OK"}"#)
     }
+
+    private static func securityFixture(_ body: () -> (Int, String)) -> (Int, String) {
+      guard usesAccountSecurity else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400, type: "HARNESS_SECURITY_MODE",
+            message: "Account security fixture is required")
+        )
+      }
+      return securityLock.withLock(body)
+    }
+
+    // Caller holds securityLock.
+    private static func recoveryCodesObjectLocked() -> String {
+      let generation = securityRecoveryGeneration
+      let codes = (0..<4).map { index in
+        let used = generation == 0 && index == 3 ? #""2026-09-01T10:00:00""# : "null"
+        return #"{"code":"code\#(generation)-\#(index)","used_at":\#(used)}"#
+      }
+      return
+        #"{"created_at":"2026-09-0\#(generation + 1)T10:00:00","codes":[\#(codes.joined(separator: ","))]}"#
+    }
+
+    private static func setTwoFactor(request: URLRequest) -> (Int, String) {
+      securityFixture {
+        guard let settings = requestPayload(request)?["two_factor_enabled"] as? [String: Any],
+          let enable = settings["enable"] as? Bool
+        else {
+          return (
+            400,
+            fixtureError(
+              statusCode: 400, type: "HARNESS_TWO_FACTOR_INPUT",
+              message: "Expected {code, enable}")
+          )
+        }
+        guard settings["code"] as? String == securityTwoFactorCode else {
+          return (
+            400, fixtureError(statusCode: 400, type: "invalid_code", message: "Invalid code")
+          )
+        }
+        securityTwoFactorEnabled = enable
+        return (200, #"{"status":"OK"}"#)
+      }
+    }
+
+    // Account info reads security state under fileActionsLock, so this never
+    // touches file state while holding securityLock.
+    private static func clearAccountData(request: URLRequest) -> (Int, String) {
+      guard let payload = requestPayload(request) as? [String: Bool],
+        Set(payload.keys) == clearKeys
+      else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400, type: "HARNESS_CLEAR_INPUT", message: "Expected every clear flag")
+        )
+      }
+      let outcome = securityFixture {
+        if !securityClearFailed {
+          securityClearFailed = true
+          return (
+            503,
+            fixtureError(statusCode: 503, type: "HARNESS_CLEAR_RETRY", message: "Retry clearing")
+          )
+        }
+        return (200, #"{"status":"OK"}"#)
+      }
+      guard outcome.0 == 200 else { return outcome }
+      fileActionsLock.withLock {
+        if payload["history"] == true { historyCleared = true }
+        if payload["trash"] == true {
+          trashFreedBytes += Int64(trashFolders.count) * trashFolderBytes
+          trashFolders = [:]
+        }
+      }
+      return outcome
+    }
+
+    private static let clearKeys: Set<String> = [
+      "files", "finished_transfers", "active_transfers", "rss_feeds", "rss_logs", "history",
+      "trash", "friends",
+    ]
 
     private static func resetFileSorts() -> (Int, String) {
       fileActionsLock.lock()
@@ -764,8 +868,78 @@ import Foundation
             #"{"routes":[{"name":"default","description":"Default proxy"},{"name":"edge","description":"Alternate proxy"}]}"#
           )
         }
+      case "POST /v2/account/settings" where requestPayload(request)?["two_factor_enabled"] != nil:
+        return setTwoFactor(request: request)
       case "POST /v2/account/settings":
         return updateFilePreferences(request: request)
+      case "POST /v2/two_factor/generate/totp":
+        return securityFixture {
+          (
+            200,
+            #"{"secret":"HARNESSSECRETJBSWY3DP","uri":"otpauth://totp/put.io:moviebuff?secret=HARNESSSECRETJBSWY3DP&issuer=put.io","recovery_codes":\#(recoveryCodesObjectLocked())}"#
+          )
+        }
+      case "GET /v2/two_factor/recovery_codes":
+        return securityFixture { (200, #"{"recovery_codes":\#(recoveryCodesObjectLocked())}"#) }
+      case "POST /v2/two_factor/recovery_codes/refresh":
+        return securityFixture {
+          if !securityRecoveryRefreshFailed {
+            securityRecoveryRefreshFailed = true
+            return (
+              503,
+              fixtureError(
+                statusCode: 503, type: "HARNESS_RECOVERY_REFRESH", message: "Retry regenerating")
+            )
+          }
+          securityRecoveryGeneration += 1
+          return (200, #"{"recovery_codes":\#(recoveryCodesObjectLocked())}"#)
+        }
+      case "GET /v2/oauth/grants":
+        return securityFixture {
+          let apps = securityGrants.map {
+            #"{"id":\#($0.id),"name":\#(jsonString($0.name)),"description":\#(jsonString($0.description))}"#
+          }
+          return (200, #"{"apps":[\#(apps.joined(separator: ","))]}"#)
+        }
+      case "POST /v2/oauth/grants/42/delete":
+        return securityFixture {
+          if !securityRevokeFailed {
+            securityRevokeFailed = true
+            return (
+              503,
+              fixtureError(statusCode: 503, type: "HARNESS_REVOKE_RETRY", message: "Retry revoking")
+            )
+          }
+          securityGrants.removeAll { $0.id == 42 }
+          return (200, #"{"status":"OK"}"#)
+        }
+      case "POST /v2/oauth2/oob/code":
+        return securityFixture {
+          guard requestPayload(request)?["code"] as? String == securityDeviceCode else {
+            return (
+              400,
+              fixtureError(
+                statusCode: 400, type: "code_not_found", message: "Unknown device code")
+            )
+          }
+          securityGrants.append((77, "Bedroom TV", "Apple TV, linked just now"))
+          return (
+            200, #"{"app":{"id":77,"name":"Bedroom TV","description":"Apple TV, linked just now"}}"#
+          )
+        }
+      case "POST /v2/account/clear":
+        return clearAccountData(request: request)
+      case "POST /v2/account/destroy":
+        return securityFixture {
+          guard requestPayload(request)?["current_password"] as? String == securityPassword else {
+            return (
+              400,
+              fixtureError(
+                statusCode: 400, type: "INVALID_CURRENT_PASSWORD", message: "Wrong password")
+            )
+          }
+          return (200, #"{"status":"OK"}"#)
+        }
       case "POST /v2/files/remove-sort-by-settings":
         return resetFileSorts()
       case "POST /v2/oauth/grants/logout":
@@ -1572,7 +1746,7 @@ import Foundation
               "trash_enabled": \(trashEnabled),
               "sort_by": \(jsonString(defaultSort)),
               "show_optimistic_usage": false,
-              "two_factor_enabled": false,
+              "two_factor_enabled": \(securityLock.withLock { securityTwoFactorEnabled }),
               "hide_subtitles": \(filePreferences?.hideSubtitles ?? false),
               "dont_autoselect_subtitles": \(filePreferences?.dontAutoSelectSubtitles ?? false)
             }

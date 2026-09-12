@@ -1035,6 +1035,10 @@ private struct AccountView: View {
             PutioCastPreferencesView(model: cast)
           }
           .accessibilityIdentifier("account.chromecast")
+          NavigationLink("Security") {
+            AccountSecurityView(runtime: runtime)
+          }
+          .accessibilityIdentifier("account.security")
         }
         Section("Storage") {
           LabeledContent("Used", value: byteText(account.storage.usedBytes))
@@ -1072,10 +1076,24 @@ private struct AccountView: View {
         if let reviewURL = URL(
           string: "https://apps.apple.com/app/id1260479699?action=write-review")
         {
-          Section {
+          Section("Support") {
+            NavigationLink("About") {
+              AboutView()
+            }
+            .accessibilityIdentifier("account.about")
             Link("Rate put.io on App Store", destination: reviewURL)
               .accessibilityIdentifier("account.rate-app")
           }
+        }
+        Section("Danger Zone") {
+          NavigationLink("Clear Data") {
+            ClearDataView(actions: .init(runtime: runtime))
+          }
+          .accessibilityIdentifier("account.clear-data")
+          NavigationLink("Destroy Account") {
+            DestroyAccountView(actions: .init(runtime: runtime))
+          }
+          .accessibilityIdentifier("account.destroy-account")
         }
         Section {
           Button("Sign out", role: .destructive) {

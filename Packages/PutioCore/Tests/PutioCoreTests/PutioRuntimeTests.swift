@@ -2367,6 +2367,157 @@ final class PutioRuntimeTests: XCTestCase {
     return (runtime, tokenStore)
   }
 
+  func testAuthorizedAppsFlagTheCurrentClientAndRejectDuplicates() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      """
+      {"apps":[{"id":3001,"name":"put.io iOS","description":"This app"},
+               {"id":42,"name":"Living Room TV","description":"Apple TV","website":"https://put.io"}]}
+      """, for: "GET /v2/oauth/grants")
+    let apps = try await runtime.listAuthorizedApps()
+    XCTAssertEqual(
+      apps,
+      [
+        PutioAuthorizedApp(
+          id: 3001, name: "put.io iOS", description: "This app", isCurrentClient: true),
+        PutioAuthorizedApp(
+          id: 42, name: "Living Room TV", description: "Apple TV", isCurrentClient: false),
+      ])
+    RuntimeMockURLProtocol.setFixture(
+      #"{"apps":[{"id":42,"name":"A","description":""},{"id":42,"name":"B","description":""}]}"#,
+      for: "GET /v2/oauth/grants")
+    await assertRuntimeError(.invalidResponse) { _ = try await runtime.listAuthorizedApps() }
+
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/oauth/grants/42/delete")
+    try await runtime.revokeAuthorizedApp(id: 42)
+    XCTAssertEqual(
+      RuntimeMockURLProtocol.capturedRequests().last?.url?.path, "/v2/oauth/grants/42/delete")
+    await assertRuntimeError(.invalidResponse) { try await runtime.revokeAuthorizedApp(id: 0) }
+  }
+
+  func testLinkDeviceMapsCodeRejectionsAndKeepsSession() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let route = "POST /v2/oauth2/oob/code"
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR","error_type":"code_not_found","message":"no"}"#, statusCode: 400,
+      for: route)
+    await assertSecurityError(.invalidDeviceCode) { _ = try await runtime.linkDevice(code: "ABCD") }
+    await assertSecurityError(.invalidDeviceCode) { _ = try await runtime.linkDevice(code: "  ") }
+    guard case .signedIn = runtime.session.state else { return XCTFail("rejection ended session") }
+    RuntimeMockURLProtocol.setFixture(
+      #"{"app":{"id":77,"name":"Apple TV","description":"Living room"}}"#, for: route)
+    let app = try await runtime.linkDevice(code: " ABCD ")
+    XCTAssertEqual(
+      app,
+      PutioAuthorizedApp(
+        id: 77, name: "Apple TV", description: "Living room", isCurrentClient: false))
+    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let body = try JSONSerialization.jsonObject(with: try XCTUnwrap(requestBodyData(for: request)))
+    XCTAssertEqual(body as? [String: String], ["code": "ABCD"])
+  }
+
+  func testTwoFactorEnrollmentAcknowledgesTheFlagAndMapsInvalidCodes() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"secret":" JBSWY3DP ","uri":"otpauth://x","recovery_codes":{"created_at":"","codes":[]}}"#,
+      for: "POST /v2/two_factor/generate/totp")
+    let secret = try await runtime.generateTwoFactorSecret()
+    XCTAssertEqual(secret, "JBSWY3DP")
+
+    let settings = "POST /v2/account/settings"
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR","error_type":"invalid_code","message":"bad"}"#, statusCode: 400,
+      for: settings)
+    await assertSecurityError(.invalidTwoFactorCode) {
+      _ = try await runtime.setTwoFactorEnabled(true, code: "000000")
+    }
+    guard case .signedIn(let before) = runtime.session.state else { return XCTFail("signed out") }
+    XCTAssertFalse(before.twoFactorEnabled)
+    XCTAssertFalse(runtime.session.isUpdatingAccountPreferences)
+
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: settings)
+    RuntimeMockURLProtocol.setFixture(
+      Self.accountInfo.replacingOccurrences(
+        of: "\"two_factor_enabled\": false", with: "\"two_factor_enabled\": true"),
+      for: "GET /v2/account/info")
+    let result = try await runtime.setTwoFactorEnabled(true, code: "123456")
+    XCTAssertTrue(result.accountRefreshed)
+    guard case .signedIn(let after) = runtime.session.state else { return XCTFail("signed out") }
+    XCTAssertTrue(after.twoFactorEnabled)
+    let request = try XCTUnwrap(
+      RuntimeMockURLProtocol.capturedRequests().last { $0.url?.path == "/v2/account/settings" })
+    let body = try XCTUnwrap(
+      JSONSerialization.jsonObject(with: try XCTUnwrap(requestBodyData(for: request)))
+        as? [String: [String: Any]])
+    XCTAssertEqual(body["two_factor_enabled"]?["code"] as? String, "123456")
+    XCTAssertEqual(body["two_factor_enabled"]?["enable"] as? Bool, true)
+
+    RuntimeMockURLProtocol.setFixture(
+      #"{"recovery_codes":{"created_at":"2026-09-01","codes":[{"code":"aaaa-1111","used_at":null},{"code":"bbbb-2222","used_at":"2026-09-02"}]}}"#,
+      for: "GET /v2/two_factor/recovery_codes")
+    let codes = try await runtime.recoveryCodes()
+    XCTAssertEqual(
+      codes,
+      [
+        PutioTwoFactorRecoveryCode(code: "aaaa-1111", isUsed: false),
+        PutioTwoFactorRecoveryCode(code: "bbbb-2222", isUsed: true),
+      ])
+    RuntimeMockURLProtocol.setFixture(
+      #"{"recovery_codes":{"created_at":"","codes":[]}}"#,
+      for: "POST /v2/two_factor/recovery_codes/refresh")
+    await assertRuntimeError(.invalidResponse) { _ = try await runtime.regenerateRecoveryCodes() }
+  }
+
+  func testClearDataSendsEveryFlagAndDestroyEndsTheSessionWithoutRevocation() async throws {
+    let (runtime, tokenStore) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/clear")
+    await assertRuntimeError(.invalidResponse) { _ = try await runtime.clearAccountData([]) }
+    let refreshed = try await runtime.clearAccountData([.history, .trash])
+    XCTAssertTrue(refreshed)
+    let clear = try XCTUnwrap(
+      RuntimeMockURLProtocol.capturedRequests().last { $0.url?.path == "/v2/account/clear" })
+    let body = try XCTUnwrap(
+      JSONSerialization.jsonObject(with: try XCTUnwrap(requestBodyData(for: clear)))
+        as? [String: Bool])
+    XCTAssertEqual(
+      body,
+      [
+        "files": false, "finished_transfers": false, "active_transfers": false, "rss_feeds": false,
+        "rss_logs": false, "history": true, "trash": true, "friends": false,
+      ])
+
+    let destroy = "POST /v2/account/destroy"
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR","error_type":"INVALID_CURRENT_PASSWORD","message":"no"}"#,
+      statusCode: 400, for: destroy)
+    await assertSecurityError(.invalidPassword) { try await runtime.destroyAccount(password: "x") }
+    await assertSecurityError(.invalidPassword) { try await runtime.destroyAccount(password: "") }
+    guard case .signedIn = runtime.session.state else { return XCTFail("rejection ended session") }
+    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: destroy)
+    try await runtime.destroyAccount(password: "correct")
+    XCTAssertEqual(runtime.session.state, .signedOut(.userSignedOut))
+    XCTAssertNil(try tokenStore.read())
+    XCTAssertFalse(
+      RuntimeMockURLProtocol.capturedRequests().contains {
+        $0.url?.path == "/v2/oauth/grants/logout"
+      })
+    await assertRuntimeError(.authenticationRequired) { _ = try await runtime.listAuthorizedApps() }
+  }
+
+  private func assertSecurityError(
+    _ expected: PutioAccountSecurityError, file: StaticString = #filePath, line: UInt = #line,
+    operation: () async throws -> Void
+  ) async {
+    do {
+      try await operation()
+      XCTFail("expected \(expected)", file: file, line: line)
+    } catch let error as PutioAccountSecurityError {
+      XCTAssertEqual(error, expected, file: file, line: line)
+    } catch {
+      XCTFail("expected \(expected), got \(error)", file: file, line: line)
+    }
+  }
+
   private func makeSignedInRuntime() async -> (PutioRuntime, PutioInMemoryTokenStore) {
     stubSignedInRoutes()
     let (runtime, tokenStore) = makeRuntime(token: "stored-token")
