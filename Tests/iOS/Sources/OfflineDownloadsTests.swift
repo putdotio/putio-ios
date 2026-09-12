@@ -902,6 +902,100 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertTrue(store.load().items.isEmpty)
   }
 
+  /// Packages live outside the store directory, so a quarantined queue must
+  /// not be the only record of them.
+  func testPurgeDeletesPackagesAQuarantinedQueueNoLongerLists() async throws {
+    let packages = FileManager.default.temporaryDirectory.appending(
+      path: "offline-packages-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: packages, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: packages) }
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
+    await settle()
+    engine.finish(PutioFileID(rawValue: 1), at: packages)
+    engine.finish(PutioFileID(rawValue: 2), at: packages)
+    await settle()
+    let kept = packages.appending(path: "1.movpkg")
+    let removed = packages.appending(path: "2.movpkg")
+    queue.remove(fileIDs: [PutioFileID(rawValue: 2)])
+    XCTAssertEqual(
+      PutioOfflineStore(directory: directory).loadPackages(),
+      [PutioOfflineQueue.relativePath(for: kept)])
+
+    try Data("not json".utf8).write(to: directory.appending(path: "queue.json"))
+    engine = FakeEngine()
+    let relaunched = makeQueue()
+    XCTAssertTrue(relaunched.items.isEmpty)
+    XCTAssertTrue(
+      FileManager.default.fileExists(atPath: directory.appending(path: "queue.corrupt.json").path))
+    XCTAssertTrue(FileManager.default.fileExists(atPath: kept.path))
+
+    relaunched.purgeAccountStorage()
+    XCTAssertFalse(FileManager.default.fileExists(atPath: kept.path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: removed.path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
+
+    // A location the system delivers after the purge is garbage: the task
+    // ends, the package goes, and the account directory stays gone.
+    engine.finish(PutioFileID(rawValue: 3), at: packages)
+    XCTAssertEqual(engine.cancelled, [PutioFileID(rawValue: 3)])
+    XCTAssertFalse(
+      FileManager.default.fileExists(atPath: packages.appending(path: "3.movpkg").path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
+  }
+
+  func testQueuesWrittenBeforeTheSidecarBackfillIt() async throws {
+    let store = PutioOfflineStore(directory: directory)
+    let item = PutioOfflineItem(
+      id: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video, createdAt: .now,
+      stage: .completed, localPath: "Library/Packages/1.movpkg", storedBytes: 512,
+      selectedAudioLanguages: [], storedAudioTracks: [], storedSubtitleTracks: [],
+      resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: 0)
+    store.save(items: [item], concurrencyLimit: 2)
+    XCTAssertTrue(store.loadPackages().isEmpty)
+    _ = makeQueue()
+    XCTAssertEqual(store.loadPackages(), ["Library/Packages/1.movpkg"])
+  }
+
+  /// Packages refuse to delete, as when a task still holds the directory;
+  /// everything else, including the store directory, deletes normally.
+  private final class StickyFileManager: FileManager {
+    override func removeItem(at url: URL) throws {
+      if url.pathExtension == "movpkg" { throw CocoaError(.fileWriteNoPermission) }
+      try super.removeItem(at: url)
+    }
+  }
+
+  func testAPackageThatFailsToDeleteStaysTrackedForThePurge() async throws {
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 10_000_000_000 }, fileManager: StickyFileManager(),
+      resolve: { _, _ in
+        .ready(PutioPlaybackSource(url: URL(string: "https://m/1")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed }, reportPosition: { _, _ in })
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    await settle()
+    // Outside the store directory, where AVFoundation keeps real packages.
+    let location = FileManager.default.temporaryDirectory.appending(
+      path: "offline-sticky-\(UUID().uuidString).movpkg")
+    try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: location) }
+    engine.onLocation?(PutioFileID(rawValue: 1), location)
+    queue.remove(fileIDs: [PutioFileID(rawValue: 1)])
+    let tracked: Set<String> = [PutioOfflineQueue.relativePath(for: location)]
+    XCTAssertEqual(PutioOfflineStore(directory: directory).loadPackages(), tracked)
+
+    // The purge wipes the store directory but brings the sidecar back for
+    // the package that would not delete, so the next purge retries it.
+    queue.purgeAccountStorage()
+    XCTAssertTrue(FileManager.default.fileExists(atPath: location.path))
+    XCTAssertFalse(
+      FileManager.default.fileExists(atPath: directory.appending(path: "queue.json").path))
+    XCTAssertEqual(PutioOfflineStore(directory: directory).loadPackages(), tracked)
+  }
+
   func testConversionHandoffKeepsOneIdentityAndSelectedTracks() async {
     resolutions[5] = [.conversionRequired]
     conversionStatuses = [.queued, .converting(progress: 0.5), .completed]
