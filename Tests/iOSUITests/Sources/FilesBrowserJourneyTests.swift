@@ -535,7 +535,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
     XCTAssertFalse(element(identifier: "files.screen.410").exists)
     app.buttons["Account"].tap()
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    XCTAssertTrue(app.revealed("auth.sign-out").waitForExistence(timeout: 5))
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
   }
