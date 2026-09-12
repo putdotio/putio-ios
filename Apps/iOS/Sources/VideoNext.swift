@@ -7,6 +7,7 @@ typealias PutioNextVideoLoad =
   @MainActor @Sendable (PutioFileID) async throws -> PutioPlayableNextVideo?
 typealias PutioNextVideoSleep =
   @MainActor @Sendable (Duration) async throws -> Void
+typealias PutioNextVideoAutoplayPolicy = @MainActor @Sendable () async -> Bool
 
 struct PutioPlayableNextVideo: Equatable, Sendable {
   let video: PutioNextVideo
@@ -31,7 +32,10 @@ final class PutioNextVideoModel {
   private(set) var state: PutioNextVideoState = .idle
 
   @ObservationIgnored private let suggestionsEnabled: Bool
-  @ObservationIgnored private let autoplayEnabled: Bool
+  /// Awaited when the suggestion appears, so the config document that owns
+  /// `autoplay_next_video` can finish loading after the player opens; the
+  /// suggestion stays actionable while the policy settles.
+  @ObservationIgnored private let autoplayEnabled: PutioNextVideoAutoplayPolicy
   @ObservationIgnored private let autoplayDelay: Duration
   @ObservationIgnored private let waitForReset: PutioNextVideoResetWait
   @ObservationIgnored private let loadNext: PutioNextVideoLoad
@@ -40,7 +44,7 @@ final class PutioNextVideoModel {
 
   init(
     suggestionsEnabled: Bool = true,
-    autoplayEnabled: Bool,
+    autoplayEnabled: @escaping PutioNextVideoAutoplayPolicy,
     autoplayDelay: Duration = PutioNextVideoModel.defaultAutoplayDelay,
     waitForReset: @escaping PutioNextVideoResetWait,
     loadNext: @escaping PutioNextVideoLoad,
@@ -52,6 +56,24 @@ final class PutioNextVideoModel {
     self.waitForReset = waitForReset
     self.loadNext = loadNext
     self.sleep = sleep
+  }
+
+  convenience init(
+    suggestionsEnabled: Bool = true,
+    autoplayEnabled: Bool,
+    autoplayDelay: Duration = PutioNextVideoModel.defaultAutoplayDelay,
+    waitForReset: @escaping PutioNextVideoResetWait,
+    loadNext: @escaping PutioNextVideoLoad,
+    sleep: @escaping PutioNextVideoSleep = { try await Task.sleep(for: $0) }
+  ) {
+    self.init(
+      suggestionsEnabled: suggestionsEnabled,
+      autoplayEnabled: { autoplayEnabled },
+      autoplayDelay: autoplayDelay,
+      waitForReset: waitForReset,
+      loadNext: loadNext,
+      sleep: sleep
+    )
   }
 
   func playbackEnded(completedFileID: PutioFileID) async {
@@ -76,7 +98,9 @@ final class PutioNextVideoModel {
       }
 
       state = .available(nextVideo)
-      guard autoplayEnabled else { return }
+      let autoplay = await autoplayEnabled()
+      try Task.checkCancellation()
+      guard isCurrent(requestGeneration), autoplay else { return }
 
       do {
         try await sleep(autoplayDelay)
@@ -127,14 +151,37 @@ final class PutioNextVideoModel {
   }
 }
 
+/// A downloaded successor plays from its local file, so it keeps working
+/// offline and its locally recorded position wins over the server's.
+@MainActor
+func resolveSuccessorSource(
+  fileID: PutioFileID,
+  localSource: @MainActor (PutioFileID) -> PutioPlaybackSource?,
+  resolve: PutioPlaybackResolve
+) async throws -> PutioPlaybackResolution {
+  if let local = localSource(fileID) { return .ready(local) }
+  return try await resolve(fileID)
+}
+
+/// The server owns the successor order. When it cannot answer, a downloaded
+/// successor from the offline queue keeps a finished download advancing
+/// offline; a server answer of "none" is final and never consults the queue.
 @MainActor
 func prepareNextVideo(
   after fileID: PutioFileID,
   findNext: @MainActor @Sendable (PutioFileID) async throws -> PutioNextVideo?,
+  findOfflineNext: @MainActor (PutioFileID) -> PutioNextVideo? = { _ in nil },
   waitForPendingReports: PutioNextVideoResetWait,
   resolve: PutioPlaybackResolve
 ) async throws -> PutioPlayableNextVideo? {
-  guard let video = try await findNext(fileID) else { return nil }
+  let found: PutioNextVideo?
+  do {
+    found = try await findNext(fileID)
+  } catch {
+    guard !(error is CancellationError), let offline = findOfflineNext(fileID) else { throw error }
+    found = offline
+  }
+  guard let video = found else { return nil }
   await waitForPendingReports(video.id)
   try Task.checkCancellation()
   let resolution = try await resolve(video.id)

@@ -124,6 +124,48 @@ final class OfflineDownloadsTests: XCTestCase {
     try? FileManager.default.removeItem(at: directory)
   }
 
+  func testNextVideoFollowsTheFolderNameOrderAmongDownloadedVideosOnly() async throws {
+    let store = PutioOfflineStore(directory: directory)
+    let parent = PutioFileID(rawValue: 900)
+    func item(
+      _ id: Int, _ name: String, parent: PutioFileID = parent, kind: PutioOfflineItem.Kind = .video,
+      completed: Bool = true
+    ) throws -> PutioOfflineItem {
+      let location = directory.appending(path: "\(id).movpkg")
+      try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+      try Data(count: 64).write(to: location.appending(path: "seg.bin"))
+      return PutioOfflineItem(
+        id: PutioFileID(rawValue: id), parentID: parent, name: name, kind: kind, createdAt: .now,
+        stage: completed ? .completed : .downloading(progress: 0.5),
+        localPath: completed ? location.path : nil, storedBytes: 64, selectedAudioLanguages: [],
+        storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
+        pendingPositionSeconds: nil, estimatedBytes: 64)
+    }
+    store.save(
+      items: [
+        try item(1, "Episode 1.mp4"),
+        try item(10, "Episode 10.mp4"),
+        try item(2, "Episode 2.mp4", completed: false),
+        try item(3, "Episode 3.mp4"),
+        try item(4, "Episode 2.5.mp4", parent: .root),
+        try item(5, "Episode 2.mp3", kind: .audio),
+      ], concurrencyLimit: 2)
+    let queue = makeQueue()
+    await queue.restore()
+    await settle()
+
+    XCTAssertEqual(
+      queue.nextVideo(after: PutioFileID(rawValue: 1)),
+      PutioNextVideo(id: PutioFileID(rawValue: 3), parentID: parent, name: "Episode 3.mp4"),
+      "skips the unfinished episode 2 and orders 3 before 10")
+    XCTAssertEqual(
+      queue.nextVideo(after: PutioFileID(rawValue: 3))?.id, PutioFileID(rawValue: 10))
+    XCTAssertNil(
+      queue.nextVideo(after: PutioFileID(rawValue: 10)), "the last episode has no successor")
+    XCTAssertNil(
+      queue.nextVideo(after: PutioFileID(rawValue: 999)), "an unknown file has no folder")
+  }
+
   private func makeQueue(availableBytes: Int64 = 10_000_000_000) -> PutioOfflineQueue {
     PutioOfflineQueue(
       store: PutioOfflineStore(directory: directory),

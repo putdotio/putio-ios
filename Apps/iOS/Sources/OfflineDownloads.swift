@@ -623,6 +623,21 @@ final class PutioOfflineQueue {
 
   // MARK: Playback
 
+  /// The next downloaded video in the finished item's folder, in the name
+  /// order the server also uses for successors. Only the queue is consulted,
+  /// so the answer stands without network.
+  func nextVideo(after fileID: PutioFileID) -> PutioNextVideo? {
+    guard let completed = item(for: fileID) else { return nil }
+    return
+      items
+      .filter {
+        $0.kind == .video && $0.parentID == completed.parentID && $0.id != completed.id
+          && $0.isPlayable && $0.name.localizedStandardCompare(completed.name) == .orderedDescending
+      }
+      .min { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+      .map { PutioNextVideo(id: $0.id, parentID: $0.parentID, name: $0.name) }
+  }
+
   func localSource(for fileID: PutioFileID) -> PutioPlaybackSource? {
     guard let item = item(for: fileID), item.isPlayable, let localPath = item.localPath else {
       return nil

@@ -893,8 +893,8 @@ public struct SimulatorHarness {
           resultBundle: platformDirectory.appending(path: ".playback-preferences.xcresult"),
           attachmentNames: [BrowserJourneyContract.playbackPreferencesAttachmentName],
           artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 120,
-          maximumExecutionTimeAllowance: 120
+          defaultExecutionTimeAllowance: 180,
+          maximumExecutionTimeAllowance: 180
         )
         let accountSecurityScreenshots = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.accountSecurityTestIdentifier,

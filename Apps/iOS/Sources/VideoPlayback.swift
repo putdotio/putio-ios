@@ -483,7 +483,7 @@ struct PutioVideoPlaybackView: View {
     preferredAudioLanguages: [String] = [],
     remembersPlaybackPosition: Bool = true,
     suggestsNextVideo: Bool = true,
-    autoplayNextVideo: Bool = false,
+    autoplayNextVideo: @escaping PutioNextVideoAutoplayPolicy = { false },
     reportsPlayerFailures: Bool = true,
     showsHarnessReadiness: Bool = false,
     conversionPollInterval: Duration = .seconds(3),

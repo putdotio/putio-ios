@@ -48,6 +48,7 @@ import Foundation
       var routeName = "default"
       var hideSubtitles = false
       var dontAutoSelectSubtitles = false
+      var autoplayNextVideo = false
     }
 
     /// Chromecast config is process-scoped: the seeded journey never relaunches
@@ -55,6 +56,11 @@ import Foundation
     private static let castLock = NSLock()
     nonisolated(unsafe) private static var castPlaybackType = "hls"
     nonisolated(unsafe) private static var castSaveFailed = false
+    /// The recorded journey proves autoplay, so the default config document
+    /// enables it. The playback-preferences fixture persists the production
+    /// default (off) and fails the first save once for retry proof.
+    nonisolated(unsafe) private static var autoplayNextVideo = true
+    nonisolated(unsafe) private static var autoplaySaveFailed = false
 
     /// Account security fixtures are process-scoped like Chromecast config:
     /// one launch enrolls, revokes, links, clears, and destroys, with one
@@ -109,6 +115,43 @@ import Foundation
         return
       }
       UserDefaults.standard.set(data, forKey: preferencesKey)
+    }
+
+    private static var autoplayConfigValue: Bool {
+      fileActionsLock.lock()
+      defer { fileActionsLock.unlock() }
+      prepareFilePreferencesLocked()
+      return usesFilePreferences ? filePreferences?.autoplayNextVideo ?? false : autoplayNextVideo
+    }
+
+    private static func updateAutoplayConfig(request: URLRequest) -> (Int, String) {
+      guard let value = requestPayload(request)?["value"] as? Bool else {
+        return (
+          400,
+          fixtureError(
+            statusCode: 400, type: "HARNESS_INVALID_AUTOPLAY",
+            message: "value must be a boolean")
+        )
+      }
+      fileActionsLock.lock()
+      defer { fileActionsLock.unlock() }
+      prepareFilePreferencesLocked()
+      guard usesFilePreferences else {
+        autoplayNextVideo = value
+        return (200, #"{"status":"OK"}"#)
+      }
+      if !autoplaySaveFailed {
+        autoplaySaveFailed = true
+        return (
+          503,
+          fixtureError(
+            statusCode: 503, type: "HARNESS_AUTOPLAY_SAVE_RETRY",
+            message: "Retry saving autoplay")
+        )
+      }
+      filePreferences?.autoplayNextVideo = value
+      persistFilePreferencesLocked()
+      return (200, #"{"status":"OK"}"#)
     }
 
     private static func updateFilePreferences(request: URLRequest) -> (Int, String) {
@@ -857,9 +900,13 @@ import Foundation
           return (200, accountInfoLocked)
         }
       case "GET /v2/config":
-        return castLock.withLock {
-          (200, #"{"config":{"chromecast_playback_type":"\#(castPlaybackType)"}}"#)
-        }
+        let playbackType = castLock.withLock { castPlaybackType }
+        return (
+          200,
+          #"{"config":{"chromecast_playback_type":"\#(playbackType)","autoplay_next_video":\#(autoplayConfigValue)}}"#
+        )
+      case "PUT /v2/config/autoplay_next_video":
+        return updateAutoplayConfig(request: request)
       case "PUT /v2/config/chromecast_playback_type":
         return castLock.withLock {
           guard let value = requestPayload(request)?["value"] as? String,
