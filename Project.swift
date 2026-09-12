@@ -58,6 +58,15 @@ private let castBuildSettings: SettingsDictionary = [
   "PUTIO_CHROMECAST_RECEIVER_APP_ID": "CC1AD845"
 ]
 
+// The put.io OAuth client is supplied per build through this setting and
+// read from Info.plist by `PutioRuntimeFactory`; the checked-in value is
+// empty so the runtime falls back to the public open-source client. App
+// identity work overrides it in signed builds without touching source.
+private let oauthBuildSettings: SettingsDictionary = [
+  "PUTIO_OAUTH_CLIENT_ID": ""
+]
+private let oauthInfoPlist: Plist.Value = "$(PUTIO_OAUTH_CLIENT_ID)"
+
 let project = Project(
   name: "Putio",
   organizationName: "put.io",
@@ -79,6 +88,7 @@ let project = Project(
         "NSBonjourServices": castBonjourServices,
         "NSLocalNetworkUsageDescription": castLocalNetworkUsageDescription,
         "PUTIO_CHROMECAST_RECEIVER_APP_ID": "$(PUTIO_CHROMECAST_RECEIVER_APP_ID)",
+        "PUTIO_OAUTH_CLIENT_ID": oauthInfoPlist,
         "CFBundleURLTypes": [
           [
             "CFBundleURLName": "putio", "CFBundleURLSchemes": ["putio"],
@@ -118,7 +128,7 @@ let project = Project(
         .external(name: "GoogleCast"),
         .target(name: "PutioWatch"),
       ],
-      settings: .settings(base: castBuildSettings)
+      settings: .settings(base: castBuildSettings.merging(oauthBuildSettings) { $1 })
     ),
     // The nightly flavor: same iOS sources, its own bundle ID so it installs
     // beside the dev and production apps, and the starfield icon that only
@@ -137,6 +147,7 @@ let project = Project(
         "NSBonjourServices": castBonjourServices,
         "NSLocalNetworkUsageDescription": castLocalNetworkUsageDescription,
         "PUTIO_CHROMECAST_RECEIVER_APP_ID": "$(PUTIO_CHROMECAST_RECEIVER_APP_ID)",
+        "PUTIO_OAUTH_CLIENT_ID": oauthInfoPlist,
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
       ]),
@@ -151,9 +162,8 @@ let project = Project(
         .external(name: "GoogleCast"),
       ],
       settings: .settings(
-        base: castBuildSettings.merging(["ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon"]) {
-          $1
-        })
+        base: castBuildSettings.merging(oauthBuildSettings) { $1 }
+          .merging(["ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon"]) { $1 })
     ),
     .target(
       name: "PutioWatch",
@@ -242,6 +252,7 @@ let project = Project(
       infoPlist: .extendingDefault(with: [
         "CFBundleDisplayName": "put.io",
         "UIAppFonts": brandFontInfoPlist(for: "tvos"),
+        "PUTIO_OAUTH_CLIENT_ID": oauthInfoPlist,
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
       ]),
@@ -249,6 +260,35 @@ let project = Project(
       buildableFolders: ["Apps/tvOS/Sources", "Apps/Shared/Sources"],
       dependencies: [
         .package(product: "PutioCore")
+      ],
+      settings: .settings(base: oauthBuildSettings)
+    ),
+    .target(
+      name: "PutioTVFeatureTests",
+      destinations: .tvOS,
+      product: .unitTests,
+      bundleId: "io.put.dev.tvos.featuretests",
+      deploymentTargets: .tvOS("26.0"),
+      infoPlist: .default,
+      buildableFolders: [
+        "Tests/tvOS/Sources",
+        "Tests/Shared/SnapshotSupport",
+      ],
+      dependencies: [
+        .target(name: "PutioTV"),
+        .package(product: "PutioCore"),
+      ]
+    ),
+    .target(
+      name: "PutioTVUITests",
+      destinations: .tvOS,
+      product: .uiTests,
+      bundleId: "io.put.dev.tvos.uitests",
+      deploymentTargets: .tvOS("26.0"),
+      infoPlist: .default,
+      buildableFolders: ["Tests/tvOSUITests/Sources"],
+      dependencies: [
+        .target(name: "PutioTV")
       ]
     ),
   ]

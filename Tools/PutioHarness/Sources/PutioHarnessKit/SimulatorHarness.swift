@@ -641,7 +641,7 @@ public struct SimulatorHarness {
           session: session,
           artifactURLs: artifactURLs,
           directory: platformDirectory,
-          fixtureSet: fixtureSet(command: command, scenario: scenario)
+          fixtureSet: fixtureSet(command: command, scenario: scenario, platform: platform)
         )
         return SurfaceRun(
           platform: platform,
@@ -664,8 +664,12 @@ public struct SimulatorHarness {
     runID: String,
     sourceRevision: String
   ) throws -> SurfaceRun {
-    guard platform == .ios, scenario == .filesBrowser else {
-      throw HarnessFailure("journey supports only ios files-browser")
+    guard scenario.platform == platform else {
+      throw HarnessFailure(
+        "journey \(scenario.rawValue) supports only \(scenario.platform.rawValue)")
+    }
+    if scenario == .deviceSignIn {
+      return try deviceSignInJourney(runID: runID, sourceRevision: sourceRevision)
     }
     try requireCleanSource()
     try requireRevision(sourceRevision)
@@ -1043,6 +1047,75 @@ public struct SimulatorHarness {
     }
   }
 
+  /// Drives the tvOS device-code sign-in against the seeded API: code display,
+  /// expiry recovery, approval, relaunch persistence, and sign-out. Screenshots
+  /// come from the recorded XCUITest attachments.
+  private func deviceSignInJourney(runID: String, sourceRevision: String) throws -> SurfaceRun {
+    let platform = HarnessPlatform.tvos
+    try requireCleanSource()
+    try requireRevision(sourceRevision)
+    try regenerateWorkspace()
+    try requireCleanSource()
+    try requireRevision(sourceRevision)
+    try requireGeneratedWorkspace()
+    try fileManager.createDirectory(at: context.derivedData, withIntermediateDirectories: true)
+
+    let platformDirectory = context.proofRoot.appending(path: runID).appending(
+      path: platform.rawValue)
+    guard !fileManager.fileExists(atPath: platformDirectory.path) else {
+      throw HarnessFailure(
+        "proof path already exists: \(platformDirectory.path); choose a new --run-id")
+    }
+    try fileManager.createDirectory(at: platformDirectory, withIntermediateDirectories: true)
+
+    do {
+      return try withSession(platform: platform, runID: runID) { session in
+        try buildJourneyTests(platform: platform, session: session)
+        let resultBundle = platformDirectory.appending(path: ".device-sign-in.xcresult")
+        let screenshots = try runJourneyPreflightTest(
+          identifier: DeviceSignInJourneyContract.testIdentifier,
+          platform: platform,
+          session: session,
+          resultBundle: resultBundle,
+          attachmentNames: DeviceSignInJourneyContract.attachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 120,
+          maximumExecutionTimeAllowance: 180
+        )
+        let pixels = try zip(DeviceSignInJourneyContract.attachmentNames, screenshots).map {
+          try requireMeaningfulScreenshot($1, context: "\($0) attachment")
+        }
+        guard pixels[0].differsMeaningfully(from: pixels[1]),
+          pixels[0].differsMeaningfully(from: pixels[2])
+        else {
+          throw HarnessFailure("device sign-in screenshots do not differ meaningfully")
+        }
+        try requireCleanSource()
+        try requireRevision(sourceRevision)
+        try fileManager.removeItem(at: resultBundle)
+        let manifest = try writeManifest(
+          platform: platform,
+          command: "journey",
+          runID: runID,
+          commit: sourceRevision,
+          session: session,
+          artifactURLs: screenshots,
+          directory: platformDirectory,
+          fixtureSet: JourneyScenario.deviceSignIn.fixtureSet
+        )
+        return SurfaceRun(
+          platform: platform,
+          artifacts: screenshots + [manifest],
+          message:
+            "device sign-in journey passed 1/1 tests in \(context.relativePath(for: platformDirectory))"
+        )
+      }
+    } catch {
+      try? fileManager.removeItem(at: platformDirectory.appending(path: "manifest.json"))
+      throw error
+    }
+  }
+
   public func test(_ platform: HarnessPlatform, recordSnapshots: Bool) throws -> SurfaceRun {
     let suites = platform.configuration.snapshotSuites
     guard !suites.isEmpty else {
@@ -1100,7 +1173,7 @@ public struct SimulatorHarness {
         "-parallel-testing-enabled", "NO",
       ],
       currentDirectory: context.root,
-      context: "build ios files-browser journey tests"
+      context: "build \(platform.rawValue) journey tests"
     )
   }
 
@@ -1161,7 +1234,7 @@ public struct SimulatorHarness {
     identifier: String,
     platform: HarnessPlatform,
     session: SimulatorSession,
-    mediaBaseURL: URL,
+    mediaBaseURL: URL? = nil,
     resultBundle: URL,
     attachmentNames: [String] = [],
     artifactDirectory: URL? = nil,
@@ -1185,14 +1258,14 @@ public struct SimulatorHarness {
         "-maximum-test-execution-time-allowance", String(maximumExecutionTimeAllowance),
         "-only-testing:\(identifier)",
       ],
-      environment: [
-        "TEST_RUNNER_PUTIO_HARNESS_MEDIA_BASE_URL": mediaBaseURL.absoluteString
-      ],
+      environment: mediaBaseURL.map {
+        ["TEST_RUNNER_PUTIO_HARNESS_MEDIA_BASE_URL": $0.absoluteString]
+      } ?? [:],
       currentDirectory: context.root
     )
     guard testOutput.status == 0 else {
       throw HarnessFailure(
-        "run ios journey preflight failed\n\(testOutput.combinedOutput)\n"
+        "run \(platform.rawValue) journey test failed\n\(testOutput.combinedOutput)\n"
           + journeyFailureDetails(resultBundle: resultBundle)
       )
     }
@@ -1930,12 +2003,20 @@ public struct SimulatorHarness {
     }.joined(separator: "\n")
   }
 
-  private func fixtureSet(command: SurfaceCommand, scenario: CaptureScenario) -> String {
-    if command == .proof { return "signed-out-to-exercised-placeholder-v1" }
+  // The tvOS signed-out launch is the production device-code flow against
+  // put.io, not a placeholder; its provenance must say so.
+  private func fixtureSet(
+    command: SurfaceCommand, scenario: CaptureScenario, platform: HarnessPlatform
+  ) -> String {
+    let live = platform == .tvos
+    if command == .proof {
+      return live
+        ? "live-device-code-to-exercised-v1" : "signed-out-to-exercised-placeholder-v1"
+    }
     switch scenario {
     case .gallery: return "component-gallery-v1"
     case .signedIn: return "seeded-session-v1"
-    case .signedOut: return "signed-out-placeholder-v1"
+    case .signedOut: return live ? "live-device-code-v1" : "signed-out-placeholder-v1"
     }
   }
 

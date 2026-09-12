@@ -36,10 +36,22 @@ public struct PutioSignInRequest: Sendable {
   public let callbackScheme: String
 }
 
+/// Progress of a device-code sign-in while the session is `.authenticating`.
+/// The SDK owns polling; the store only records which phase the TV shows.
+public enum PutioDeviceCodeSignInState: Equatable, Sendable {
+  case fetchingCode
+  case awaitingApproval(code: String)
+  /// The code is no longer valid; the TV keeps showing it dimmed until
+  /// `signInWithDeviceCode()` requests another.
+  case expired(code: String)
+}
+
 @MainActor
 @Observable
 public final class PutioSessionStore {
   public private(set) var state: PutioSessionState = .unknown
+  /// Non-nil only while a device-code sign-in owns the `.authenticating` state.
+  public private(set) var deviceCodeSignIn: PutioDeviceCodeSignInState?
   /// True while a committed storage mutation has not been reflected in the
   /// signed-in snapshot. Owned here so it survives leaving the screen that
   /// caused it; any later successful refresh clears it.
@@ -62,8 +74,10 @@ public final class PutioSessionStore {
   private let tokenStore: PutioTokenStore
   private let callbackScheme: String
   private let callbackHost = "auth"
+  private let deviceCodePollInterval: Duration
   private var pendingOAuthState: String?
   private var pendingOAuthGeneration: UInt64?
+  private var deviceCodeTask: Task<Void, Never>?
   // Kept only for a deliberate revocation retry; failed sign-out never leaves
   // this credential active on the shared SDK.
   private var pendingSignOutToken: String?
@@ -71,11 +85,13 @@ public final class PutioSessionStore {
   init(
     sdk: PutioSDK,
     tokenStore: PutioTokenStore,
-    callbackScheme: String = "putio"
+    callbackScheme: String = "putio",
+    deviceCodePollInterval: Duration = .seconds(3)
   ) {
     self.sdk = sdk
     self.tokenStore = tokenStore
     self.callbackScheme = callbackScheme
+    self.deviceCodePollInterval = deviceCodePollInterval
   }
 
   // MARK: - Launch restore
@@ -87,8 +103,7 @@ public final class PutioSessionStore {
     case .authenticating, .signedIn, .signingOut, .signOutFailed:
       return
     }
-    pendingOAuthState = nil
-    pendingOAuthGeneration = nil
+    abandonPendingSignIn()
     let generation = advanceAuthenticationGeneration()
     guard let token = try? tokenStore.read(), !token.isEmpty else {
       sdk.clearToken()
@@ -147,9 +162,8 @@ public final class PutioSessionStore {
       // A callback without a live transaction may only fail an active
       // sign-in; outside `.authenticating` it must not disturb a signed-in
       // session or a sign-out that still owns credential cleanup.
-      guard case .authenticating = state else { return }
-      pendingOAuthState = nil
-      pendingOAuthGeneration = nil
+      guard case .authenticating = state, deviceCodeSignIn == nil else { return }
+      abandonPendingSignIn()
       _ = advanceAuthenticationGeneration()
       state = .signedOut(.authenticationFailed("No sign-in is in progress."))
       return
@@ -179,10 +193,69 @@ public final class PutioSessionStore {
     case .signingOut, .signOutFailed: return
     default: break
     }
-    pendingOAuthState = nil
-    pendingOAuthGeneration = nil
+    abandonPendingSignIn()
     _ = advanceAuthenticationGeneration()
     state = .signedOut(nil)
+  }
+
+  // MARK: - Device-code sign in
+
+  /// Fetches an activation code and waits for approval through the SDK's
+  /// device-code flow. Returns once the flow reaches a terminal state: signed
+  /// in, expired (`deviceCodeSignIn == .expired`, restart with another call),
+  /// failed (`.signedOut(.authenticationFailed)`), or cancelled.
+  public func signInWithDeviceCode() async {
+    switch state {
+    case .unknown, .signedOut:
+      break
+    case .authenticating:
+      guard case .expired = deviceCodeSignIn else { return }
+    case .signedIn, .signingOut, .signOutFailed:
+      return
+    }
+    abandonPendingSignIn()
+    let generation = advanceAuthenticationGeneration()
+    state = .authenticating
+    deviceCodeSignIn = .fetchingCode
+    let task = Task { await runDeviceCodeSignIn(generation: generation) }
+    deviceCodeTask = task
+    await task.value
+    if deviceCodeTask == task { deviceCodeTask = nil }
+  }
+
+  private func runDeviceCodeSignIn(generation: UInt64) async {
+    do {
+      let code = try await sdk.getAuthCode().code
+      guard generation == authenticationGeneration else { return }
+      guard !code.isEmpty else { throw PutioDeviceCodeError.emptyCode }
+      deviceCodeSignIn = .awaitingApproval(code: code)
+      let authorization = try await sdk.awaitDeviceCodeAuthorization(
+        code: code, pollInterval: deviceCodePollInterval)
+      guard generation == authenticationGeneration else { return }
+      switch authorization {
+      case .expired:
+        deviceCodeSignIn = .expired(code: code)
+      case .authorized(let token):
+        deviceCodeSignIn = nil
+        sdk.setToken(token: token)
+        try tokenStore.write(token)
+        await bootstrap(failure: PutioSignedOutReason.authenticationFailed, generation: generation)
+      }
+    } catch {
+      // Cancellation already moved the state on and advanced the generation.
+      guard generation == authenticationGeneration else { return }
+      deviceCodeSignIn = nil
+      sdk.clearToken()
+      state = .signedOut(.authenticationFailed(message(for: error)))
+    }
+  }
+
+  private func abandonPendingSignIn() {
+    pendingOAuthState = nil
+    pendingOAuthGeneration = nil
+    deviceCodeTask?.cancel()
+    deviceCodeTask = nil
+    deviceCodeSignIn = nil
   }
 
   public func failSignIn(_ error: Error) {
@@ -193,8 +266,7 @@ public final class PutioSessionStore {
     case .signingOut, .signOutFailed: return
     default: break
     }
-    pendingOAuthState = nil
-    pendingOAuthGeneration = nil
+    abandonPendingSignIn()
     _ = advanceAuthenticationGeneration()
     sdk.clearToken()
     state = .signedOut(.authenticationFailed(message(for: error)))
@@ -209,8 +281,7 @@ public final class PutioSessionStore {
     default:
       pendingSignOutToken = sdk.config.token.isEmpty ? nil : sdk.config.token
     }
-    pendingOAuthState = nil
-    pendingOAuthGeneration = nil
+    abandonPendingSignIn()
     let generation = advanceAuthenticationGeneration()
     state = .signingOut
     var credentialRemovalFailed = false
@@ -253,8 +324,7 @@ public final class PutioSessionStore {
 
   // Expiry keeps any token queued for a deliberate revocation retry.
   private func endSession(reason: PutioSignedOutReason) {
-    pendingOAuthState = nil
-    pendingOAuthGeneration = nil
+    abandonPendingSignIn()
     _ = advanceAuthenticationGeneration()
     sdk.clearToken()
     try? tokenStore.clear()
@@ -418,6 +488,9 @@ public final class PutioSessionStore {
   }
 
   private func message(for error: Error) -> String {
+    if error is PutioDeviceCodeError {
+      return "put.io did not return an activation code. Try again."
+    }
     if let sdkError = error as? PutioSDKError {
       switch sdkError.type {
       case .networkError:
@@ -429,4 +502,8 @@ public final class PutioSessionStore {
     return (error as? LocalizedError)?.errorDescription
       ?? "Sign-in did not complete. Try again."
   }
+}
+
+private enum PutioDeviceCodeError: Error {
+  case emptyCode
 }

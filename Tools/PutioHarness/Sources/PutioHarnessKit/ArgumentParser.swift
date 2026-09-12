@@ -7,6 +7,7 @@ public enum HarnessArgumentParser {
       putio-harness <build|boot|launch|exercise|screenshot|record|proof> --platform <ios|watchos|tvos|all> [--run-id ID] [--record-seconds N] [--scenario signed-out|gallery|signed-in] [--output text|json]
       putio-harness test --platform <ios|tvos> [--snapshots assert|record] [--output text|json]
       putio-harness journey --platform ios --scenario files-browser [--run-id ID] [--output text|json]
+      putio-harness journey --platform tvos --scenario device-sign-in [--run-id ID] [--output text|json]
       putio-harness auth-status [--output text|json]
       putio-harness live-fixture [--output text|json]
       putio-harness publish --artifact PATH --repo OWNER/REPO --pr NUMBER [--output text|json]
@@ -66,14 +67,17 @@ public enum HarnessArgumentParser {
       return .test(platform: platform, recordSnapshots: snapshotsValue == "record", output: output)
     case "journey":
       try options.rejectUnknown(allowing: ["platform", "scenario", "run-id", "output"])
-      guard
-        let platform = HarnessPlatform(rawValue: try options.required("platform")),
-        platform == .ios
+      guard let platform = HarnessPlatform(rawValue: try options.required("platform")),
+        platform == .ios || platform == .tvos
       else {
-        throw HarnessFailure("journey: --platform must be ios")
+        throw HarnessFailure("journey: --platform must be ios or tvos")
       }
       guard let scenario = JourneyScenario(rawValue: try options.required("scenario")) else {
-        throw HarnessFailure("journey: --scenario must be files-browser")
+        throw HarnessFailure("journey: --scenario must be files-browser or device-sign-in")
+      }
+      guard scenario.platform == platform else {
+        throw HarnessFailure(
+          "journey: --scenario \(scenario.rawValue) runs only on \(scenario.platform.rawValue)")
       }
       let runID = options.value("run-id")
       if let runID { try validateIdentifier(runID, label: "run id") }

@@ -18,7 +18,10 @@ import Testing
   #expect(HarnessPlatform.tvos.configuration.productDirectory == "Debug-appletvsimulator")
   #expect(
     HarnessPlatform.tvos.configuration.snapshotSuites
-      == [SnapshotSuite(scheme: "PutioTV", target: "PutioTVSnapshotTests")]
+      == [
+        SnapshotSuite(scheme: "PutioTV", target: "PutioTVSnapshotTests"),
+        SnapshotSuite(scheme: "PutioTVFeatureTests", target: "PutioTVFeatureTests"),
+      ]
   )
   #expect(HarnessPlatform.tvos.configuration.extraBuildSchemes.isEmpty)
 }

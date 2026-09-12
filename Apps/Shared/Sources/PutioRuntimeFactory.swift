@@ -12,7 +12,7 @@ enum PutioRuntimeFactory {
   @MainActor
   static func make(scenario: HarnessScenario) -> PutioRuntime {
     #if DEBUG
-      if scenario == .signedIn || scenario == .filesBrowser {
+      if scenario == .signedIn || scenario == .filesBrowser || scenario == .deviceSignIn {
         HarnessSeededAPI.trashEnabled = !ProcessInfo.processInfo.arguments.contains(
           "--putio-harness-trash-disabled"
         )
@@ -28,7 +28,7 @@ enum PutioRuntimeFactory {
         let tokenStore: PutioTokenStore
         if failSignOut {
           tokenStore = HarnessFailOnceTokenStore()
-        } else if scenario == .filesBrowser {
+        } else if scenario == .filesBrowser || scenario == .deviceSignIn {
           tokenStore = PutioKeychainTokenStore()
         } else {
           tokenStore = PutioInMemoryTokenStore(token: HarnessSeededAPI.token)
@@ -37,7 +37,10 @@ enum PutioRuntimeFactory {
           clientID: clientID,
           clientName: clientName,
           tokenStore: tokenStore,
-          urlSession: URLSession(configuration: configuration)
+          urlSession: URLSession(configuration: configuration),
+          // The SDK clamps polling to one second; the seeded flow answers
+          // pending, expired, and approved in consecutive polls.
+          deviceCodePollInterval: .seconds(1)
         )
       }
     #endif

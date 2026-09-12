@@ -56,6 +56,7 @@
   committed snapshot gallery; after an intentional visual change re-record with
   `--snapshots record` and commit the image diff
 - iOS file-browser change: `mise run harness -- journey --platform ios --scenario files-browser`
+- tvOS shell or sign-in change: `mise run harness -- journey --platform tvos --scenario device-sign-in`
 - Agent runtime proof: `mise run harness -- proof --platform <ios|watchos|tvos|all>`
 
 ## Harness

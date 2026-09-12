@@ -341,6 +341,14 @@ import Foundation
     private let deliveryGate = HarnessResponseDeliveryGate()
 
     static let token = "putio-harness-session-token"
+    // Device-code sign-in: the first code stays pending for three polls and
+    // then expires, the second is approved after one pending poll, and later
+    // codes stay pending. The margin lets the UI test observe each state.
+    static let expiringDeviceCode = "TVXP1"
+    static let approvedDeviceCode = "TVOK2"
+    private static let deviceCodeLock = NSLock()
+    nonisolated(unsafe) private static var deviceCodesIssued = 0
+    nonisolated(unsafe) private static var deviceCodePolls: [String: Int] = [:]
     static let bulkDeleteFailureFolderID = 416
     static let ambiguousMoveFailureFolderID = 418
     static let trashRestoreFolderID = 419
@@ -452,6 +460,25 @@ import Foundation
 
     override func stopLoading() {
       deliveryGate.cancel()
+    }
+
+    private static func pollDeviceCode(_ code: String) -> (Int, String) {
+      deviceCodeLock.withLock {
+        let polls = (deviceCodePolls[code] ?? 0) + 1
+        deviceCodePolls[code] = polls
+        switch code {
+        case expiringDeviceCode where polls > 3:
+          return (
+            404,
+            fixtureError(
+              statusCode: 404, type: "code_not_found", message: "The activation code expired")
+          )
+        case approvedDeviceCode where polls > 1:
+          return (200, #"{"oauth_token":"\#(token)"}"#)
+        default:
+          return (200, #"{"oauth_token":null}"#)
+        }
+      }
     }
 
     private static func deepLinkRestorationDelay(_ url: URL) -> TimeInterval {
@@ -784,7 +811,21 @@ import Foundation
       {
         return response
       }
+      if request.httpMethod == "GET", url.path.hasPrefix("/v2/oauth2/oob/code/") {
+        return pollDeviceCode(String(url.path.dropFirst("/v2/oauth2/oob/code/".count)))
+      }
       switch routeKey {
+      case "GET /v2/oauth2/oob/code":
+        return deviceCodeLock.withLock {
+          deviceCodesIssued += 1
+          let code =
+            switch deviceCodesIssued {
+            case 1: expiringDeviceCode
+            case 2: approvedDeviceCode
+            default: "TVWT\(deviceCodesIssued)"
+            }
+          return (200, #"{"code":"\#(code)","qr_code_url":null}"#)
+        }
       case "GET /v2/oauth2/validate":
         return (
           200,

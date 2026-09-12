@@ -63,7 +63,11 @@ conventions; web TV uses the web binding at a 10-foot scale.
 Native tvOS focus belongs to `UIFocusSystem`: use stock control styles for lift,
 shadow, and parallax. Do not replace focus with a custom fill-only button style.
 Non-control TV surfaces retain solid token backgrounds and the `tv` type,
-spacing, radius, and overscan roles. TV numerics use GT America tabular figures;
+spacing, radius, and overscan roles. The tvOS shell is a stock `TabView`;
+the device sign-in screen shows the activation code on a solid surface at
+the TV heading size with tabular figures, and sign-out confirms through the
+stock centered dialog. `tvOverscanPadding` tops the system safe area up to
+the token overscan ratios instead of stacking on it. TV numerics use GT America tabular figures;
 there is no mono face. The shared row retains a tvOS folder indicator until the
 native browser in #141 owns that presentation, and a row used as a control takes
 the stock `.card` style so focus lifts it rather than filling behind its fixed
@@ -77,7 +81,6 @@ by this adoption. These contracts remain gates on their owning rollout issues:
 
 | Contract | Owning issue and verdict |
 | --- | --- |
-| tvOS TabView and device sign-in | #140; deferred until the tvOS shell/auth slice |
 | tvOS system search and suggestions | #141; deferred to the native browser/search slice |
 | tvOS account values, boolean cycling, full-screen choosers | #143; preserve that issue's deliberate exclusion of playback-type settings despite the older preview card |
 | tvOS custom pre-play resume overlay and native focus | #142; deferred to playback |

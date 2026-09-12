@@ -14,6 +14,7 @@ public enum HarnessScenario: String, CaseIterable, Sendable {
   case filesBrowser = "files-browser"
   case gallery
   case signedIn = "signed-in"
+  case deviceSignIn = "device-sign-in"
 
   public static let launchArgument = "--putio-harness-scenario"
 

@@ -88,10 +88,24 @@ import Testing
   }
 }
 
+@Test func parsesDeviceSignInJourney() throws {
+  let invocation = try HarnessArgumentParser.parse([
+    "journey", "--platform", "tvos", "--scenario", "device-sign-in",
+  ])
+  #expect(
+    invocation
+      == .journey(platform: .tvos, scenario: .deviceSignIn, runID: nil, output: .text))
+}
+
 @Test func rejectsUnsupportedFilesBrowserJourneyShapes() {
   #expect(throws: HarnessFailure.self) {
     try HarnessArgumentParser.parse([
       "journey", "--platform", "tvos", "--scenario", "files-browser",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--scenario", "device-sign-in",
     ])
   }
   #expect(throws: HarnessFailure.self) {

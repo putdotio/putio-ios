@@ -25,7 +25,7 @@ struct PutioApp: App {
           PutioComponentGallery(autoAdvanceEvery: 3)
         case .exercised:
           HarnessExerciseView()
-        case .signedOut, .signedIn, .filesBrowser:
+        case .signedOut, .signedIn, .filesBrowser, .deviceSignIn:
           SessionRootView(scenario: scenario)
         }
       }
