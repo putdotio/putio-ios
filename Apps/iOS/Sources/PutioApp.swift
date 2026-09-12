@@ -488,6 +488,9 @@ private struct MainTabView: View {
       await offlineQueue.restore()
       await offlineQueue.syncPendingPositions()
     }
+    // Sign-out or account destruction replaces this shell; the next one owns
+    // the account's queue document.
+    .onDisappear { offlineQueue.retire() }
     .alert(
       externalPlaybackAlertTitle,
       isPresented: Binding(

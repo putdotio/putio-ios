@@ -322,8 +322,8 @@ final class PutioOfflineQueue {
   /// Originals put.io confirmed gone, from any path including a restored
   /// retry, so loaded file lists can reconcile.
   @ObservationIgnored private let notifyOriginalsDeleted: @MainActor ([PutioFileID]) -> Void
-  /// Bumped by an account purge so original requests already in flight stop
-  /// writing to a queue that no longer exists.
+  /// Bumped by an account purge or by retirement so original requests
+  /// already in flight stop writing to a queue that is no longer live.
   @ObservationIgnored private var originalsGeneration = 0
   /// A worker is identified by its token so a cancelled worker's cleanup
   /// never clears a successor that pause-then-resume already started.
@@ -423,10 +423,7 @@ final class PutioOfflineQueue {
     restored = true
     if !pendingOriginals.isEmpty {
       // Owed answers from a previous launch; failures surface in the report.
-      // A row the kill left behind goes first, as the user asked.
       let owed = pendingOriginals
-      let rows = items.map(\.id).filter { id in owed.contains { $0.id == id } }
-      if !rows.isEmpty { remove(fileIDs: rows) }
       Task { _ = await deleteOriginals(owed) }
     }
     let alive = Set(await engine.restoreTasks())
@@ -642,9 +639,9 @@ final class PutioOfflineQueue {
     let targets = items.filter { fileIDs.contains($0.id) }.map {
       PutioOfflineRemovalTarget(id: $0.id, name: $0.name, movesToTrash: movesToTrash)
     }
-    // Owed before the local rows go, so the document never records the
-    // removal without the debt.
-    registerPendingOriginals(targets)
+    // The debt and the removal land in the same document write, so no
+    // kill can record one without the other.
+    pendingOriginals.append(contentsOf: targets.filter { !pendingOriginals.contains($0) })
     remove(fileIDs: fileIDs)
     return await deleteOriginals(targets)
   }
@@ -689,6 +686,13 @@ final class PutioOfflineQueue {
     merged.failures.append(contentsOf: outcome.failures)
     originalFailure = merged.failures.isEmpty ? nil : merged
     return outcome
+  }
+
+  /// The shell that owned this queue is gone. Requests still in flight keep
+  /// their answers but write nothing, so a queue the next shell creates for
+  /// the same account never has its document overwritten.
+  func retire() {
+    originalsGeneration &+= 1
   }
 
   private func registerPendingOriginals(_ targets: [PutioOfflineRemovalTarget]) {

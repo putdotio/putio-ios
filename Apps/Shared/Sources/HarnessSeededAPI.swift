@@ -1950,7 +1950,7 @@ import Foundation
           "files": [
             \(rows.joined(separator: ",\n"))
           ],
-          "total": \(8 + mutableFolders.count - (folderDeleted ? 1 : 0))
+          "total": \(8 + mutableFolders.count - (folderDeleted ? 1 : 0) - (rootVideoTrashed ? 1 : 0))
         }
         """
     }
