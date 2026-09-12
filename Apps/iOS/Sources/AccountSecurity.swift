@@ -305,6 +305,9 @@ final class PutioAuthorizedAppsModel {
   }
 
   private(set) var state: State = .loading
+  /// A failed reload while rows are shown; the rows stay, but they are no
+  /// longer known to be current.
+  private(set) var refreshFailure: String?
   private(set) var revokingID: Int?
   private(set) var failedRevokeID: Int?
   private(set) var revokeFailure: String?
@@ -324,6 +327,7 @@ final class PutioAuthorizedAppsModel {
     generation += 1
     let generation = generation
     if apps.isEmpty { state = .loading }
+    refreshFailure = nil
     do {
       let loaded = try await actions.listApps()
       guard generation == self.generation else { return }
@@ -337,7 +341,7 @@ final class PutioAuthorizedAppsModel {
       guard generation == self.generation, !Task.isCancelled,
         let message = PutioAccountSecurityPresentation.message(for: error)
       else { return }
-      if apps.isEmpty { state = .failed(message) }
+      if apps.isEmpty { state = .failed(message) } else { refreshFailure = message }
     }
   }
 
@@ -420,8 +424,9 @@ final class PutioClearDataModel {
   private(set) var didClear = false
   private(set) var refreshWarning: String?
   @ObservationIgnored private let actions: PutioAccountSecurityActions
-  /// Tells the shell which categories are gone so mounted Files and History
-  /// screens reload instead of showing deleted rows.
+  /// Tells the shell which categories may be gone so mounted Files and
+  /// History screens reload instead of showing deleted rows. Runs after every
+  /// attempt, since a lost response can follow a committed clear.
   @ObservationIgnored private let onCleared: @MainActor (Set<PutioAccountDataCategory>) -> Void
 
   init(
@@ -448,10 +453,10 @@ final class PutioClearDataModel {
         didClear = true
         self.selection = []
         refreshWarning = refreshed ? nil : PutioAccountSecurityPresentation.refreshWarning
-        onCleared(selection)
       } catch {
         failure = PutioAccountSecurityPresentation.message(for: error)
       }
+      onCleared(selection)
     }
     await task.value
   }
@@ -485,8 +490,8 @@ final class PutioDestroyAccountModel {
   }
 
   /// A blank password is reported rather than ignored, since the alert has
-  /// already closed by the time this runs. The password never outlives its
-  /// one request.
+  /// already closed by the time this runs. The password is sent as typed and
+  /// never outlives its one request.
   func destroy() async {
     guard !isDestroying else { return }
     guard canDestroy else {

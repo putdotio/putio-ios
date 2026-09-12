@@ -361,6 +361,15 @@ struct AuthorizedAppsView: View {
         }
       case .loaded(let apps):
         List {
+          if let failure = model.refreshFailure {
+            Section {
+              Text(failure).foregroundStyle(PutioTheme.Colors.textSecondary)
+              Button("Try again") { Task { await model.load() } }
+                .disabled(model.revokingID != nil)
+                .accessibilityIdentifier("security.apps.retry-load")
+            }
+            .listRowBackground(PutioTheme.Colors.surface)
+          }
           if let failure = model.revokeFailure {
             Section {
               Text(failure).foregroundStyle(PutioTheme.Colors.textSecondary)

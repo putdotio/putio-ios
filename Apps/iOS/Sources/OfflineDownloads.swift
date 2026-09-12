@@ -547,6 +547,14 @@ final class PutioOfflineQueue {
     schedule()
   }
 
+  /// Ends every download and deletes the account's whole offline directory,
+  /// including media a quarantined queue file no longer references.
+  func purgeAccountStorage() {
+    remove(fileIDs: items.map(\.id))
+    try? fileManager.removeItem(at: store.directory)
+    recomputeStorage()
+  }
+
   func setConcurrencyLimit(_ limit: Int) {
     guard Self.concurrencyLimits.contains(limit) else { return }
     concurrencyLimit = limit

@@ -849,17 +849,28 @@ extension PutioRuntime {
   /// storage reflects the change. Returns whether that reload succeeded.
   public func clearAccountData(_ categories: Set<PutioAccountDataCategory>) async throws -> Bool {
     guard !categories.isEmpty else { throw PutioRuntimeError.invalidResponse }
-    let response = try await performAuthenticatedOperation(commits: true) {
-      try await sdk.clearAccountData(
-        options: PutioAccountClearOptions(
-          files: categories.contains(.files),
-          finishedTransfers: categories.contains(.finishedTransfers),
-          activeTransfers: categories.contains(.activeTransfers),
-          rssFeeds: categories.contains(.rssFeeds),
-          rssLogs: categories.contains(.rssLogs),
-          history: categories.contains(.history),
-          trash: categories.contains(.trash),
-          friends: categories.contains(.friends)))
+    let generation = session.authenticationGeneration
+    let response: PutioOKResponse
+    do {
+      response = try await performAuthenticatedOperation(commits: true) {
+        try await sdk.clearAccountData(
+          options: PutioAccountClearOptions(
+            files: categories.contains(.files),
+            finishedTransfers: categories.contains(.finishedTransfers),
+            activeTransfers: categories.contains(.activeTransfers),
+            rssFeeds: categories.contains(.rssFeeds),
+            rssLogs: categories.contains(.rssLogs),
+            history: categories.contains(.history),
+            trash: categories.contains(.trash),
+            friends: categories.contains(.friends)))
+      }
+    } catch {
+      // A lost response may follow a committed clear; the snapshot is stale
+      // either way until it reloads.
+      if generation == session.authenticationGeneration, case .signedIn = session.state {
+        await session.refreshAccountAfterStorageMutation()
+      }
+      throw error
     }
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
     return await session.refreshAccountAfterStorageMutation()
@@ -867,12 +878,15 @@ extension PutioRuntime {
 
   /// Destroys the account after password confirmation and ends the local
   /// session without a revocation call, since the token dies with the account.
+  /// Trimming only detects a blank field; the password itself is sent as
+  /// typed, since put.io may accept surrounding whitespace as part of it.
   public func destroyAccount(password: String) async throws {
-    let trimmed = password.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !trimmed.isEmpty else { throw PutioAccountSecurityError.invalidPassword }
+    guard !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      throw PutioAccountSecurityError.invalidPassword
+    }
     let response = try await performAuthenticatedOperation(commits: true) {
       do {
-        return try await sdk.destroyAccount(currentPassword: trimmed)
+        return try await sdk.destroyAccount(currentPassword: password)
       } catch let error as PutioSDKError where error.apiErrorType == "INVALID_CURRENT_PASSWORD" {
         throw PutioAccountSecurityError.invalidPassword
       }

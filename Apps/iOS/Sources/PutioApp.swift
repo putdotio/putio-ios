@@ -376,7 +376,7 @@ private struct MainTabView: View {
             },
             onAccountDestroyed: {
               // Local media belongs to an account that can never sign in again.
-              offlineQueue.remove(fileIDs: offlineQueue.items.map(\.id))
+              offlineQueue.purgeAccountStorage()
             }
           )
         }

@@ -225,19 +225,25 @@ final class AccountSecurityTests: XCTestCase {
 
   func testAppsLoadFailureIsRetryableAndSessionEndingsStaySilent() async {
     var loads = 0
+    let apps = [PutioAuthorizedApp(id: 42, name: "TV", description: "", isCurrentClient: false)]
     let model = PutioAuthorizedAppsModel(
       actions: PutioAccountSecurityActions(listApps: {
         loads += 1
-        if loads == 1 { throw PutioRuntimeError.transient }
+        if loads == 1 || loads == 4 { throw PutioRuntimeError.transient }
         if loads == 2 { throw PutioRuntimeError.sessionExpired }
-        return []
+        return apps
       }))
     await model.load()
     guard case .failed = model.state else { return XCTFail("load failure was not shown") }
     await model.load()
     XCTAssertEqual(model.state, .loading, "a session ending produced an error state")
     await model.load()
-    XCTAssertEqual(model.state, .loaded([]))
+    XCTAssertEqual(model.state, .loaded(apps))
+    await model.load()
+    XCTAssertEqual(model.state, .loaded(apps), "a failed refresh dropped the rows")
+    XCTAssertNotNil(model.refreshFailure, "a failed refresh went unreported")
+    await model.load()
+    XCTAssertNil(model.refreshFailure)
   }
 
   func testLinkDeviceRejectionClearsTheCodeAndSuccessIsAcknowledged() async {
@@ -296,7 +302,9 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertFalse(model.didClear, "an earlier success survived a failed attempt")
     XCTAssertNil(model.refreshWarning)
     XCTAssertEqual(cleared, [[.history, .trash], [.history, .trash], [.files]])
-    XCTAssertEqual(notified, [[.history, .trash]], "the shell was not told what was cleared")
+    XCTAssertEqual(
+      notified, [[.history, .trash], [.history, .trash], [.files]],
+      "the shell must reconcile after every attempt, since a lost response may have committed")
   }
 
   func testDestroyAccountRejectionKeepsTheScreenAndNeverRetainsThePassword() async {

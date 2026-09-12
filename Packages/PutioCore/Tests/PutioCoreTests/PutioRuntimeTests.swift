@@ -2490,6 +2490,13 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testClearDataSendsEveryFlagAndDestroyEndsTheSessionWithoutRevocation() async throws {
     let (runtime, tokenStore) = await makeSignedInRuntime()
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/clear")
+    await assertRuntimeError(.transient) { _ = try await runtime.clearAccountData([.files]) }
+    XCTAssertTrue(
+      RuntimeMockURLProtocol.capturedRequests().suffix(1).allSatisfy {
+        $0.url?.path == "/v2/account/info"
+      }, "a lost clear response did not reload the account")
     RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/clear")
     await assertRuntimeError(.invalidResponse) { _ = try await runtime.clearAccountData([]) }
     let refreshed = try await runtime.clearAccountData([.history, .trash])
@@ -2516,7 +2523,13 @@ final class PutioRuntimeTests: XCTestCase {
     }
     guard case .signedIn = runtime.session.state else { return XCTFail("rejection ended session") }
     RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: destroy)
-    try await runtime.destroyAccount(password: "correct")
+    try await runtime.destroyAccount(password: " correct ")
+    let sent = try XCTUnwrap(
+      RuntimeMockURLProtocol.capturedRequests().last { $0.url?.path == "/v2/account/destroy" })
+    XCTAssertEqual(
+      try JSONSerialization.jsonObject(with: try XCTUnwrap(requestBodyData(for: sent)))
+        as? [String: String], ["current_password": " correct "],
+      "the password was not sent as typed")
     XCTAssertEqual(runtime.session.state, .signedOut(.userSignedOut))
     XCTAssertNil(try tokenStore.read())
     XCTAssertFalse(
