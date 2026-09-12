@@ -71,6 +71,15 @@ import Testing
     ]
   )
   #expect(
+    BrowserJourneyContract.accountSecurityTestIdentifier
+      == "PutioUITests/AccountSecurityJourneyTests/testTwoFactorAppsLinkingClearDataAndDestroy"
+  )
+  #expect(
+    BrowserJourneyContract.accountSecurityAttachmentNames == [
+      "runtime-security-recovery-codes", "runtime-security-apps", "runtime-danger-clear-data",
+    ]
+  )
+  #expect(
     BrowserJourneyContract.previewsTestIdentifier
       == "PutioUITests/PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes"
   )

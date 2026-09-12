@@ -99,7 +99,7 @@ final class DeepLinkJourneyTests: XCTestCase {
   }
 
   private func signOut() {
-    let button = element("auth.sign-out")
+    let button = app.revealed("auth.sign-out")
     XCTAssertTrue(button.waitForExistence(timeout: 5))
     button.tap()
     XCTAssertTrue(element("auth.sign-in").waitForExistence(timeout: 10))

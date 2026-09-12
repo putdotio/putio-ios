@@ -118,7 +118,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     assertToggle(trash, enabled: false)
     assertToggle(history, enabled: true)
     app.navigationBars.buttons["BackButton"].tap()
-    let signOut = element("auth.sign-out")
+    let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     if !signOut.isHittable { app.swipeUp() }
     XCTAssertTrue(waitUntilHittable(signOut))

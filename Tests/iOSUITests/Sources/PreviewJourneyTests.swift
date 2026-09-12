@@ -118,7 +118,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(element("files.screen.0").exists)
 
     app.buttons["Account"].tap()
-    let signOut = element("auth.sign-out")
+    let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     if !signOut.isHittable { app.swipeUp() }
     signOut.tap()

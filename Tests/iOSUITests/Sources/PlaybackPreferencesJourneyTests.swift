@@ -67,7 +67,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     assertToggle(subtitles, value: "1")
     assertToggle(autoSelection, value: "1")
     app.navigationBars.buttons["BackButton"].tap()
-    let signOut = app.descendants(matching: .any)["auth.sign-out"]
+    let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))

@@ -547,6 +547,24 @@ final class PutioOfflineQueue {
     schedule()
   }
 
+  /// Ends every download and deletes the account's whole offline directory,
+  /// including media a quarantined queue file no longer references.
+  func purgeAccountStorage() {
+    for fileID in items.map(\.id) {
+      completionEpoch[fileID, default: 0] &+= 1
+      workers[fileID]?.task.cancel()
+      workers[fileID] = nil
+      engine.cancel(fileID: fileID)
+      deleteLocalAsset(for: fileID)
+    }
+    suspended.removeAll()
+    resumeWhenFree.removeAll()
+    items.removeAll()
+    // No queue file is written first: the directory goes as a whole.
+    try? fileManager.removeItem(at: store.directory)
+    recomputeStorage()
+  }
+
   func setConcurrencyLimit(_ limit: Int) {
     guard Self.concurrencyLimits.contains(limit) else { return }
     concurrencyLimit = limit
