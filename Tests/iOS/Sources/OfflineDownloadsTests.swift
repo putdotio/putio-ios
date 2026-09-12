@@ -1219,6 +1219,26 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(originalsDeleted, [[2]])
   }
 
+  func testRestoreRemovesARowAKillLeftBehindForAnOwedOriginal() async {
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .audio)
+    await settle()
+    // The document recorded the debt but died before the local removal.
+    let store = PutioOfflineStore(directory: directory)
+    let loaded = store.load()
+    store.save(
+      items: loaded.items, concurrencyLimit: loaded.concurrencyLimit,
+      pendingOriginals: [PutioOfflineRemovalTarget(id: PutioFileID(rawValue: 1), name: "a")])
+
+    let relaunched = makeQueue()
+    XCTAssertEqual(relaunched.items.count, 1)
+    await relaunched.restore()
+    await settle()
+    XCTAssertTrue(relaunched.items.isEmpty)
+    XCTAssertEqual(originalDeletes, [1])
+    XCTAssertTrue(relaunched.pendingOriginals.isEmpty)
+  }
+
   func testARestoredOriginalDeletionReportsForListReconciliation() async {
     originalDeleteErrors = [1: [.transient]]
     let queue = makeQueue()

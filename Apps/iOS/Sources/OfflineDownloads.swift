@@ -419,7 +419,10 @@ final class PutioOfflineQueue {
     restored = true
     if !pendingOriginals.isEmpty {
       // Owed answers from a previous launch; failures surface in the report.
+      // A row the kill left behind goes first, as the user asked.
       let owed = pendingOriginals
+      let rows = items.map(\.id).filter { id in owed.contains { $0.id == id } }
+      if !rows.isEmpty { remove(fileIDs: rows) }
       Task { _ = await deleteOriginals(owed) }
     }
     let alive = Set(await engine.restoreTasks())
