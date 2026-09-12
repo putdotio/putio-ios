@@ -108,7 +108,7 @@ struct PlaybackPreferencesView: View {
         } footer: {
           Text(
             account.suggestNextVideo
-              ? "The next video is suggested when one ends. Autoplay starts it after a short countdown."
+              ? "The next video is suggested when one ends. With autoplay on, it starts after a short countdown."
               : "Next video suggestions are turned off in your put.io account settings."
           )
         }
