@@ -958,9 +958,12 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(store.loadPackages(), ["Library/Packages/1.movpkg"])
   }
 
+  /// Packages refuse to delete, as when a task still holds the directory;
+  /// everything else, including the store directory, deletes normally.
   private final class StickyFileManager: FileManager {
     override func removeItem(at url: URL) throws {
-      throw CocoaError(.fileWriteNoPermission)
+      if url.pathExtension == "movpkg" { throw CocoaError(.fileWriteNoPermission) }
+      try super.removeItem(at: url)
     }
   }
 
@@ -978,9 +981,16 @@ final class OfflineDownloadsTests: XCTestCase {
     try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
     engine.onLocation?(PutioFileID(rawValue: 1), location)
     queue.remove(fileIDs: [PutioFileID(rawValue: 1)])
-    XCTAssertEqual(
-      PutioOfflineStore(directory: directory).loadPackages(),
-      [PutioOfflineQueue.relativePath(for: location)])
+    let tracked: Set<String> = [PutioOfflineQueue.relativePath(for: location)]
+    XCTAssertEqual(PutioOfflineStore(directory: directory).loadPackages(), tracked)
+
+    // The purge wipes the store directory but brings the sidecar back for
+    // the package that would not delete, so the next purge retries it.
+    queue.purgeAccountStorage()
+    XCTAssertTrue(FileManager.default.fileExists(atPath: location.path))
+    XCTAssertFalse(
+      FileManager.default.fileExists(atPath: directory.appending(path: "queue.json").path))
+    XCTAssertEqual(PutioOfflineStore(directory: directory).loadPackages(), tracked)
   }
 
   func testConversionHandoffKeepsOneIdentityAndSelectedTracks() async {

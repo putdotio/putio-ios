@@ -602,11 +602,15 @@ final class PutioOfflineQueue {
     suspended.removeAll()
     resumeWhenFree.removeAll()
     items.removeAll()
-    for relativePath in store.loadPackages() {
-      try? fileManager.removeItem(at: Self.localURL(for: relativePath))
+    let survivors = store.loadPackages().filter { relativePath in
+      let url = Self.localURL(for: relativePath)
+      try? fileManager.removeItem(at: url)
+      return fileManager.fileExists(atPath: url.path)
     }
-    // No queue file is written first: the directory goes as a whole.
+    // No queue file is written first: the directory goes as a whole. Only a
+    // package that would not delete brings the sidecar back, for a retry.
     try? fileManager.removeItem(at: store.directory)
+    store.recordPackages(at: survivors)
     recomputeStorage()
   }
 
