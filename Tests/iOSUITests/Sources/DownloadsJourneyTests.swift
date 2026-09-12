@@ -88,7 +88,8 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertEqual(item.value as? String, "completed")
     XCTAssertTrue(pending.waitForNonExistence(timeout: 15), "pending position did not sync")
 
-    // Multi-select removal reclaims storage.
+    // Multi-select removal: local removal is the default, the original is a
+    // separately worded destructive choice, and both are named for VoiceOver.
     app.buttons["downloads.select"].tap()
     XCTAssertTrue(app.buttons["downloads.remove-selected"].waitForExistence(timeout: 5))
     XCTAssertFalse(app.buttons["downloads.remove-selected"].isEnabled)
@@ -97,11 +98,34 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntil(timeout: 5) { self.app.buttons["downloads.remove-selected"].isEnabled })
     XCTAssertEqual(item.value as? String, "Selected")
     app.buttons["downloads.remove-selected"].tap()
-    let alert = app.alerts["Remove 1 download?"]
-    XCTAssertTrue(alert.waitForExistence(timeout: 5))
-    alert.buttons["Remove"].tap()
+    let sheet = app.sheets["Remove “Root Movie.mkv”?"]
+    XCTAssertTrue(sheet.waitForExistence(timeout: 5))
+    XCTAssertTrue(
+      sheet.staticTexts.element(
+        matching: NSPredicate(format: "label CONTAINS %@", "every device signed in to your account")
+      ).exists, "the confirmation does not explain that other devices are affected")
+    let removeLocal = sheet.buttons["Remove download"]
+    let removeOriginal = sheet.buttons["Remove download and move original to Trash"]
+    XCTAssertTrue(removeLocal.exists)
+    XCTAssertTrue(removeOriginal.exists)
+    XCTAssertTrue(sheet.buttons["Cancel"].exists)
+    screenshot("runtime-downloads-remove")
+
+    // The seeded first delete fails: the local copy is gone, the failure is
+    // reported without claiming success, and retry moves the original.
+    removeOriginal.tap()
     XCTAssertTrue(item.waitForNonExistence(timeout: 10))
+    let failure = app.alerts["Could not move original to Trash"]
+    XCTAssertTrue(failure.waitForExistence(timeout: 10))
+    XCTAssertTrue(
+      failure.staticTexts.element(
+        matching: NSPredicate(
+          format: "label CONTAINS %@", "was removed from this device, but the original is still")
+      ).exists, "the failure report does not keep the local outcome honest")
+    failure.buttons["Try again"].tap()
+    XCTAssertTrue(failure.waitForNonExistence(timeout: 10))
     XCTAssertTrue(app.staticTexts["No downloads"].waitForExistence(timeout: 5))
+    XCTAssertFalse(app.alerts.firstMatch.exists, "retry must not report a second failure")
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")

@@ -320,6 +320,9 @@ import Foundation
     nonisolated(unsafe) private static var renameAttempts = 0
     nonisolated(unsafe) private static var logoutFailuresRemaining = 0
     nonisolated(unsafe) private static var bulkDeleteFailureDelivered = false
+    /// The seeded root video's original: its first delete fails so the
+    /// downloads journey proves the remote failure report and retry.
+    nonisolated(unsafe) private static var offlineOriginalDeleteFailed = false
     nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
     nonisolated(unsafe) private static var trashDeleteFailureDelivered = false
     nonisolated(unsafe) private static var trashListRequests = 0
@@ -388,6 +391,7 @@ import Foundation
       searchContinuationFailed = false
       renameAttempts = 0
       bulkDeleteFailureDelivered = false
+      offlineOriginalDeleteFailed = false
       ambiguousMoveFailureDelivered = false
       trashDeleteFailureDelivered = false
       trashListRequests = 0
@@ -1393,6 +1397,19 @@ import Foundation
       }
 
       fileActionsLock.lock()
+      if fileID == 412 {
+        defer { fileActionsLock.unlock() }
+        if offlineOriginalDeleteFailed { return (200, #"{"status":"OK"}"#) }
+        offlineOriginalDeleteFailed = true
+        return (
+          503,
+          fixtureError(
+            statusCode: 503,
+            type: "HARNESS_TRANSIENT_ORIGINAL_DELETE_FAILURE",
+            message: "The first delete of the seeded root video fails for retry proof"
+          )
+        )
+      }
       if fileID == 410 {
         harnessFolderDeleted = true
         if trashEnabled { trashFolders[410] = ActionFolder(name: harnessFolderName, parentID: 0) }

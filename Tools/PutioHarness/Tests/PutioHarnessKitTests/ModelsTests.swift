@@ -59,6 +59,7 @@ import Testing
   #expect(
     BrowserJourneyContract.downloadsAttachmentNames == [
       "runtime-downloads-picker", "runtime-downloads-queue", "runtime-downloads-detail",
+      "runtime-downloads-remove",
     ]
   )
   #expect(

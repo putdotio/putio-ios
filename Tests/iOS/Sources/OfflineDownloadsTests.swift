@@ -107,6 +107,9 @@ final class OfflineDownloadsTests: XCTestCase {
   private var resolutions: [Int: [PutioPlaybackResolution]] = [:]
   private var conversionStatuses: [PutioVideoConversionStatus] = []
   private var conversionStarts = 0
+  private var originalDeletes: [Int] = []
+  /// Errors to throw per file id, consumed in order; an empty list succeeds.
+  private var originalDeleteErrors: [Int: [PutioRuntimeError]] = [:]
 
   override func setUp() async throws {
     directory = FileManager.default.temporaryDirectory.appending(
@@ -118,6 +121,8 @@ final class OfflineDownloadsTests: XCTestCase {
     resolutions = [:]
     conversionStatuses = []
     conversionStarts = 0
+    originalDeletes = []
+    originalDeleteErrors = [:]
   }
 
   override func tearDown() async throws {
@@ -155,6 +160,13 @@ final class OfflineDownloadsTests: XCTestCase {
       reportPosition: { fileID, seconds in
         if self.reportShouldFail { throw PutioRuntimeError.transient }
         self.reports.append((fileID.rawValue, seconds))
+      },
+      deleteOriginal: { fileID in
+        self.originalDeletes.append(fileID.rawValue)
+        if let error = self.originalDeleteErrors[fileID.rawValue]?.first {
+          self.originalDeleteErrors[fileID.rawValue]?.removeFirst()
+          throw error
+        }
       }
     )
   }
@@ -244,7 +256,7 @@ final class OfflineDownloadsTests: XCTestCase {
         throw PutioRuntimeError.sessionExpired
       },
       startConversion: { _ in }, conversionStatus: { _ in .completed },
-      reportPosition: { _, _ in })
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
     queue.enqueue(fileID: PutioFileID(rawValue: 3), parentID: .root, name: "c", kind: .video)
     await settle()
     XCTAssertEqual(attempts, 1)
@@ -263,7 +275,7 @@ final class OfflineDownloadsTests: XCTestCase {
           PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
       },
       startConversion: { _ in }, conversionStatus: { _ in .completed },
-      reportPosition: { _, _ in })
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
     queue.enqueue(fileID: PutioFileID(rawValue: 4), parentID: .root, name: "d", kind: .video)
     await settle()
     queue.pause(fileID: PutioFileID(rawValue: 4))
@@ -330,7 +342,7 @@ final class OfflineDownloadsTests: XCTestCase {
           PutioPlaybackSource(url: URL(string: "https://media.test/x.m3u8")!, startFromSeconds: 0))
       },
       startConversion: { _ in }, conversionStatus: { _ in .completed },
-      reportPosition: { _, _ in })
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
     queue.enqueue(fileID: PutioFileID(rawValue: 7), parentID: .root, name: "g", kind: .video)
     await settle()
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 7))?.stage, .downloading(progress: 0))
@@ -398,7 +410,7 @@ final class OfflineDownloadsTests: XCTestCase {
         await gate.wait()
         return .converting(progress: 0.4)
       },
-      reportPosition: { _, _ in })
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
     queue.enqueue(fileID: PutioFileID(rawValue: 9), parentID: .root, name: "i", kind: .video)
     await settle()
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 9))?.stage, .converting(progress: 0))
@@ -422,7 +434,7 @@ final class OfflineDownloadsTests: XCTestCase {
         throw PutioRuntimeError.transient
       },
       startConversion: { _ in }, conversionStatus: { _ in .completed },
-      reportPosition: { _, _ in })
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
     queue.enqueue(fileID: PutioFileID(rawValue: 12), parentID: .root, name: "l", kind: .video)
     await settle()
     queue.pause(fileID: PutioFileID(rawValue: 12))
@@ -475,7 +487,7 @@ final class OfflineDownloadsTests: XCTestCase {
             url: URL(string: "https://media.test/\(fileID.rawValue)")!, startFromSeconds: 0))
       },
       startConversion: { _ in }, conversionStatus: { _ in .completed },
-      reportPosition: { _, _ in })
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
     await queue.restore()
     await settle()
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 20))?.stage, .completed)
@@ -571,7 +583,7 @@ final class OfflineDownloadsTests: XCTestCase {
         .ready(PutioPlaybackSource(url: URL(string: "https://media.test/x")!, startFromSeconds: 0))
       },
       startConversion: { _ in }, conversionStatus: { _ in .completed },
-      reportPosition: { _, _ in })
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
     await queue.restore()
     await settle()
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 40))?.stage, .completed)
@@ -682,7 +694,7 @@ final class OfflineDownloadsTests: XCTestCase {
         .ready(PutioPlaybackSource(url: URL(string: "https://media.test/x")!, startFromSeconds: 0))
       },
       startConversion: { _ in }, conversionStatus: { _ in .completed },
-      reportPosition: { _, _ in })
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
     queue.enqueue(fileID: PutioFileID(rawValue: 61), parentID: .root, name: "s", kind: .video)
     await settle()
     engine.onProgress?(PutioFileID(rawValue: 61), 0.9)
@@ -709,7 +721,7 @@ final class OfflineDownloadsTests: XCTestCase {
             url: URL(string: "https://media.test/\(fileID.rawValue)")!, startFromSeconds: 0))
       },
       startConversion: { _ in }, conversionStatus: { _ in .completed },
-      reportPosition: { _, _ in })
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
     queue.enqueue(
       fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video,
       estimatedBytes: 600_000_000)
@@ -794,7 +806,7 @@ final class OfflineDownloadsTests: XCTestCase {
           PutioPlaybackSource(url: URL(string: "https://media.test/x")!, startFromSeconds: 0))
       },
       startConversion: { _ in }, conversionStatus: { _ in .completed },
-      reportPosition: { _, _ in })
+      reportPosition: { _, _ in }, deleteOriginal: { _ in })
     queue.enqueue(fileID: PutioFileID(rawValue: 80), parentID: .root, name: "w", kind: .video)
     await settle()
     queue.pause(fileID: PutioFileID(rawValue: 80))
@@ -846,7 +858,7 @@ final class OfflineDownloadsTests: XCTestCase {
         attempts += 1
         if attempts == 1 { throw PutioRuntimeError.transient }
         if attempts == 2 { await gate.wait() }
-      })
+      }, deleteOriginal: { _ in })
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
     await settle()
     engine.finish(PutioFileID(rawValue: 1), at: directory)
@@ -962,6 +974,144 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(full.item(for: PutioFileID(rawValue: 9))?.stage, .failed(.storage))
   }
 
+  func testRemoveDeletingOriginalsRemovesLocallyBeforeAskingTheServer() async {
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .audio)
+    await settle()
+    engine.finish(PutioFileID(rawValue: 1), at: directory)
+    await settle()
+    let path = try! XCTUnwrap(queue.item(for: PutioFileID(rawValue: 1))?.localPath)
+
+    let outcome = await queue.removeDeletingOriginals(fileIDs: [
+      PutioFileID(rawValue: 1), PutioFileID(rawValue: 2),
+    ])
+    XCTAssertTrue(queue.items.isEmpty)
+    XCTAssertEqual(queue.storedBytes, 0)
+    XCTAssertFalse(
+      FileManager.default.fileExists(atPath: PutioOfflineQueue.localURL(for: path).path))
+    XCTAssertEqual(originalDeletes, [1, 2])
+    XCTAssertEqual(outcome.deleted.map(\.name), ["a", "b"])
+    XCTAssertTrue(outcome.failures.isEmpty)
+    XCTAssertTrue(engine.cancelled.contains(PutioFileID(rawValue: 2)))
+  }
+
+  func testPlainRemoveNeverTouchesTheOriginal() async {
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    await settle()
+    queue.remove(fileIDs: [PutioFileID(rawValue: 1)])
+    await settle()
+    XCTAssertTrue(originalDeletes.isEmpty)
+  }
+
+  func testRemoteFailureKeepsTheLocalRemovalAndReportsRetryableTargets() async {
+    originalDeleteErrors = [2: [.transient], 3: [.notFound]]
+    let queue = makeQueue()
+    for id in 1...3 {
+      queue.enqueue(
+        fileID: PutioFileID(rawValue: id), parentID: .root, name: "n\(id)", kind: .audio)
+    }
+    await settle()
+
+    let outcome = await queue.removeDeletingOriginals(fileIDs: (1...3).map(PutioFileID.init))
+    XCTAssertTrue(queue.items.isEmpty, "a remote failure must not resurrect the local copy")
+    XCTAssertEqual(outcome.deleted.map(\.id.rawValue), [1])
+    XCTAssertEqual(
+      outcome.failures,
+      [
+        .init(target: .init(id: PutioFileID(rawValue: 2), name: "n2"), reason: .transient),
+        .init(target: .init(id: PutioFileID(rawValue: 3), name: "n3"), reason: .missing),
+      ])
+    XCTAssertEqual(
+      outcome.retryableTargets.map(\.id.rawValue), [2], "a missing original has no retry")
+
+    let retried = await queue.deleteOriginals(outcome.retryableTargets)
+    XCTAssertEqual(retried.deleted.map(\.id.rawValue), [2])
+    XCTAssertTrue(retried.failures.isEmpty)
+    XCTAssertEqual(originalDeletes, [1, 2, 3, 2])
+    XCTAssertTrue(queue.items.isEmpty)
+  }
+
+  func testOriginalFailureReasonsMapFromRuntimeErrors() {
+    XCTAssertEqual(PutioOfflineOriginalFailure.Reason(PutioRuntimeError.transient), .transient)
+    XCTAssertEqual(PutioOfflineOriginalFailure.Reason(PutioRuntimeError.sessionExpired), .transient)
+    XCTAssertEqual(PutioOfflineOriginalFailure.Reason(PutioRuntimeError.rateLimited), .rateLimited)
+    XCTAssertEqual(PutioOfflineOriginalFailure.Reason(PutioRuntimeError.notFound), .missing)
+    XCTAssertEqual(PutioOfflineOriginalFailure.Reason(PutioRuntimeError.invalidResponse), .unknown)
+    XCTAssertEqual(PutioOfflineOriginalFailure.Reason(URLError(.timedOut)), .unknown)
+    XCTAssertFalse(PutioOfflineOriginalFailure.Reason.missing.canRetry)
+    XCTAssertTrue(PutioOfflineOriginalFailure.Reason.unknown.canRetry)
+  }
+
+  func testRemovalCopyNamesTheFileAndFollowsTheTrashSetting() {
+    let trash = PutioOfflineRemovalCopy(trashEnabled: true)
+    let permanent = PutioOfflineRemovalCopy(trashEnabled: false)
+    XCTAssertEqual(trash.title(names: ["Root Movie.mkv"]), "Remove “Root Movie.mkv”?")
+    XCTAssertEqual(trash.title(names: ["a", "b"]), "Remove 2 downloads?")
+    XCTAssertEqual(trash.localActionTitle(count: 1), "Remove download")
+    XCTAssertEqual(trash.localActionTitle(count: 2), "Remove downloads")
+    XCTAssertEqual(trash.remoteActionTitle(count: 1), "Remove download and move original to Trash")
+    XCTAssertEqual(
+      trash.remoteActionTitle(count: 2), "Remove downloads and move originals to Trash")
+    XCTAssertEqual(permanent.remoteActionTitle(count: 1), "Remove download and delete original")
+    XCTAssertNotEqual(
+      trash.localActionTitle(count: 1), trash.remoteActionTitle(count: 1),
+      "VoiceOver must hear two different actions")
+    for copy in [trash, permanent] {
+      for count in [1, 2] {
+        XCTAssertTrue(
+          copy.message(count: count).contains("stays on put.io")
+            || copy.message(count: count).contains("stay on put.io"))
+        XCTAssertTrue(copy.message(count: count).contains("every device signed in to your account"))
+      }
+    }
+    XCTAssertTrue(trash.message(count: 1).contains("until you restore it"))
+    XCTAssertFalse(trash.message(count: 1).contains("cannot be undone"))
+    XCTAssertTrue(permanent.message(count: 1).contains("cannot be undone"))
+    XCTAssertFalse(permanent.message(count: 1).lowercased().contains("trash"))
+    XCTAssertFalse(permanent.message(count: 1).contains("restore"))
+  }
+
+  func testFailureCopyKeepsTheLocalOutcomeHonest() {
+    let trash = PutioOfflineRemovalCopy(trashEnabled: true)
+    let permanent = PutioOfflineRemovalCopy(trashEnabled: false)
+    let one = PutioOfflineOriginalOutcome(
+      deleted: [],
+      failures: [.init(target: .init(id: PutioFileID(rawValue: 1), name: "a"), reason: .transient)])
+    XCTAssertEqual(trash.failureTitle(outcome: one), "Could not move original to Trash")
+    XCTAssertEqual(permanent.failureTitle(outcome: one), "Could not delete original")
+    XCTAssertEqual(
+      trash.failureMessage(outcome: one),
+      "“a” was removed from this device, but the original is still on put.io. Check your connection and try again."
+    )
+    let mixed = PutioOfflineOriginalOutcome(
+      deleted: [.init(id: PutioFileID(rawValue: 0), name: "ok")],
+      failures: [
+        .init(target: .init(id: PutioFileID(rawValue: 1), name: "a"), reason: .missing),
+        .init(target: .init(id: PutioFileID(rawValue: 2), name: "b"), reason: .missing),
+      ])
+    XCTAssertEqual(trash.failureTitle(outcome: mixed), "Could not move originals to Trash")
+    XCTAssertEqual(
+      trash.failureMessage(outcome: mixed),
+      "“a”, “b” were removed from this device, but the originals are still on put.io. put.io no longer has those files."
+    )
+    XCTAssertFalse(
+      trash.failureMessage(outcome: mixed).contains("ok"), "successes are not failures")
+    let limited = PutioOfflineOriginalOutcome(
+      deleted: [],
+      failures: [
+        .init(target: .init(id: PutioFileID(rawValue: 1), name: "a"), reason: .rateLimited)
+      ]
+    )
+    XCTAssertTrue(trash.failureMessage(outcome: limited).contains("too many requests"))
+    let unknown = PutioOfflineOriginalOutcome(
+      deleted: [],
+      failures: [.init(target: .init(id: PutioFileID(rawValue: 1), name: "a"), reason: .unknown)])
+    XCTAssertTrue(
+      trash.failureMessage(outcome: unknown).hasSuffix("Something went wrong. Try again."))
+  }
+
   func testDownloadErrorsMapToRetryableFailures() async {
     let queue = makeQueue()
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
@@ -1040,7 +1190,7 @@ final class OfflineDownloadsTests: XCTestCase {
         attempts += 1
         if attempts <= 2 { throw PutioRuntimeError.transient }
         if attempts == 3 { await gate.wait() }
-      })
+      }, deleteOriginal: { _ in })
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
     queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
     await settle()

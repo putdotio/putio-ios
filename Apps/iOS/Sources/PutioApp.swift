@@ -334,7 +334,9 @@ private struct MainTabView: View {
       }
       Tab(value: SelectedTab.downloads) {
         NavigationStack {
-          PutioOfflineDownloadsView(queue: offlineQueue) { item in openOffline(item) }
+          PutioOfflineDownloadsView(queue: offlineQueue, trashEnabled: account.trashEnabled) {
+            item in openOffline(item)
+          }
         }
       } label: {
         Label {
@@ -1249,7 +1251,8 @@ enum PutioOfflineQueueFactory {
       conversionStatus: { fileID in try await runtime.videoConversionStatus(fileID: fileID) },
       reportPosition: { fileID, seconds in
         try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
-      }
+      },
+      deleteOriginal: { fileID in try await runtime.deleteFile(fileID: fileID) }
     )
   }
 
