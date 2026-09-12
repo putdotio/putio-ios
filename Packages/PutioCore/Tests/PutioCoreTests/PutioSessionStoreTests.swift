@@ -37,51 +37,56 @@ final class SessionMockURLProtocol: URLProtocol {
     request
   }
 
+  private var cancelled = false
+
   override func startLoading() {
     guard let url = request.url else {
       client?.urlProtocol(self, didFailWithError: URLError(.badURL))
       return
     }
     let routeKey = "\(request.httpMethod ?? "GET") \(url.path)"
-    let delay = Self.lock.withLock { Self.delays[routeKey] ?? 0 }
-    if delay > 0 {
-      Self.lock.withLock { Self.delays[routeKey] = nil }
-      DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [self] in
-        startLoading()
-      }
-      return
-    }
-    let (statusCode, body, fails) = Self.lock.withLock {
+    let (statusCode, body, fails, delay) = Self.lock.withLock {
       Self.requests.append(request)
+      let delay = Self.delays.removeValue(forKey: routeKey) ?? 0
       if Self.networkFailureRoutes.contains(routeKey) {
-        return (0, "", true)
+        return (0, "", true, delay)
       }
       if var queued = Self.sequences[routeKey], !queued.isEmpty {
         let next = queued.removeFirst()
         Self.sequences[routeKey] = queued
-        return (next.0, next.1, false)
+        return (next.0, next.1, false, delay)
       }
       let fallback =
         Self.fixtures[routeKey]
         ?? (404, #"{"status":"ERROR","status_code":404,"error_type":"FIXTURE_NOT_FOUND"}"#)
-      return (fallback.0, fallback.1, false)
+      return (fallback.0, fallback.1, false, delay)
     }
-    if fails {
-      client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
-      return
+    let deliver = { [self] in
+      guard !Self.lock.withLock({ cancelled }) else { return }
+      if fails {
+        client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+        return
+      }
+      let response = HTTPURLResponse(
+        url: url,
+        statusCode: statusCode,
+        httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"]
+      )!
+      client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+      client?.urlProtocol(self, didLoad: Data(body.utf8))
+      client?.urlProtocolDidFinishLoading(self)
     }
-    let response = HTTPURLResponse(
-      url: url,
-      statusCode: statusCode,
-      httpVersion: nil,
-      headerFields: ["Content-Type": "application/json"]
-    )!
-    client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-    client?.urlProtocol(self, didLoad: Data(body.utf8))
-    client?.urlProtocolDidFinishLoading(self)
+    if delay > 0 {
+      DispatchQueue.global().asyncAfter(deadline: .now() + delay, execute: deliver)
+    } else {
+      deliver()
+    }
   }
 
-  override func stopLoading() {}
+  override func stopLoading() {
+    Self.lock.withLock { cancelled = true }
+  }
 }
 
 private final class FailingClearTokenStore: PutioTokenStore, @unchecked Sendable {

@@ -220,6 +220,7 @@ public final class PutioSessionStore {
     let task = Task { await runDeviceCodeSignIn(generation: generation) }
     deviceCodeTask = task
     await task.value
+    if deviceCodeTask == task { deviceCodeTask = nil }
   }
 
   private func runDeviceCodeSignIn(generation: UInt64) async {
