@@ -61,7 +61,8 @@ final class DeviceSignInJourneyTests: XCTestCase {
     XCUIRemote.shared.press(.right)
     XCUIRemote.shared.press(.select)
 
-    XCTAssertTrue(waitForValue(code, "TVWT3", timeout: 15))
+    // The relaunched process issues codes from the start of the seeded sequence.
+    XCTAssertTrue(waitForValue(code, "TVXP1", timeout: 15))
     XCTAssertFalse(username.exists)
   }
 
