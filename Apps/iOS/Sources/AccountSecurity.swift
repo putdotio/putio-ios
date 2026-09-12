@@ -204,6 +204,13 @@ final class PutioTwoFactorChangeModel {
     step = .finished(accountRefreshed: accountRefreshed)
   }
 
+  /// Two-factor is already on but the codes never loaded; the Security screen
+  /// keeps offering them, so leaving here is explicit rather than blocked.
+  func finishWithoutRecoveryCodes() {
+    guard case .code = step, recoveryCodesFailure != nil, !isLoadingRecoveryCodes else { return }
+    step = .finished(accountRefreshed: accountRefreshed)
+  }
+
   // The previous failure stays visible until this attempt settles, so the
   // sheet never re-offers Enable for an account that already has 2FA on.
   private func loadRecoveryCodes() async {
