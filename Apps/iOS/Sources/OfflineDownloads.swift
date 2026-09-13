@@ -311,7 +311,8 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let reportPosition: PutioOfflinePositionReport
   @ObservationIgnored private let deleteOriginal: PutioOfflineOriginalDelete
   /// The account's Trash setting as the server has it now, or nil while it
-  /// cannot be established; read once per request pass.
+  /// cannot be established. Read once per request pass; an unknown setting
+  /// sends nothing and reports every original as retryable.
   @ObservationIgnored private let trashSetting: @MainActor () async -> Bool?
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
@@ -669,7 +670,10 @@ final class PutioOfflineQueue {
     let current = await trashSetting()
     guard isCurrent(generation) else { return outcome }
     for target in targets {
-      if let current, current != target.movesToTrash {
+      if current == nil {
+        // Nothing destructive goes out under a setting we could not confirm.
+        outcome.failures.append(.init(target: target, reason: .transient))
+      } else if let current, current != target.movesToTrash {
         // Confirmed as one outcome; the account would now do the other.
         outcome.failures.append(.init(target: target, reason: .trashSettingChanged))
       } else {

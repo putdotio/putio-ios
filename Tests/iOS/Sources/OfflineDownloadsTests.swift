@@ -132,7 +132,7 @@ final class OfflineDownloadsTests: XCTestCase {
     onOriginalDelete = nil
     originalDeleteGate = nil
     originalsDeleted = []
-    currentTrashSetting = nil
+    currentTrashSetting = true
     trashSettingReads = 0
   }
 
@@ -1369,13 +1369,20 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertTrue(queue.pendingOriginals.isEmpty)
     XCTAssertTrue(makeQueue().pendingOriginals.isEmpty)
 
-    // An unknown setting leaves the decision to the runtime.
+    // An unknown setting sends nothing; the report offers a retry.
     currentTrashSetting = nil
     queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .audio)
     await settle()
-    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 2)], movesToTrash: true)
-    XCTAssertEqual(originalDeletes, [1, 2])
+    let unknown = await queue.removeDeletingOriginals(
+      fileIDs: [PutioFileID(rawValue: 2)], movesToTrash: true)
+    XCTAssertEqual(originalDeletes, [1], "no request goes out under an unconfirmed setting")
+    XCTAssertEqual(unknown.failures.map(\.reason), [.transient])
+    XCTAssertEqual(queue.originalFailure?.retryableTargets.map(\.id.rawValue), [2])
     XCTAssertEqual(trashSettingReads, 3, "the server is asked once per pass, not per original")
+
+    currentTrashSetting = true
+    _ = await queue.deleteOriginals(queue.takeFailedOriginalsForRetry())
+    XCTAssertEqual(originalDeletes, [1, 2])
   }
 
   func testConcurrentOriginalRequestsMergeTheirFailures() async {
