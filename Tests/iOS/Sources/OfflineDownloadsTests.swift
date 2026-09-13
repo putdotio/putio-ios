@@ -1556,7 +1556,7 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(trash.failureTitle(outcome: permanentOne), "Could not delete original")
     XCTAssertEqual(
       trash.failureMessage(outcome: one),
-      "“a” was removed from this device, but the original is still on put.io. Check your connection and try again."
+      "“a” was removed from this device, but put.io did not confirm the original was removed. Check your connection and try again."
     )
     let drifted = PutioOfflineOriginalOutcome(failures: [
       .init(
@@ -1566,7 +1566,7 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertTrue(drifted.retryableTargets.isEmpty)
     XCTAssertEqual(
       permanent.failureMessage(outcome: drifted),
-      "“a” was removed from this device, but the original is still on put.io. The original was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to."
+      "“a” was removed from this device, but put.io did not confirm the original was removed. The original was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to."
     )
     let partlyDrifted = PutioOfflineOriginalOutcome(failures: [
       .init(
@@ -1580,7 +1580,7 @@ final class OfflineDownloadsTests: XCTestCase {
       trash.failureTitle(outcome: partlyDrifted), "Could not remove originals from put.io")
     XCTAssertEqual(
       trash.failureMessage(outcome: partlyDrifted),
-      "“a”, “b” were removed from this device, but the originals are still on put.io. “a” was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to. Check your connection and try again."
+      "“a”, “b” were removed from this device, but put.io did not confirm the originals were removed. “a” was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to. Check your connection and try again."
     )
     let mixed = PutioOfflineOriginalOutcome(
       deleted: [.init(id: PutioFileID(rawValue: 0), name: "ok", movesToTrash: true)],
@@ -1595,7 +1595,7 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(trash.failureTitle(outcome: mixed), "Could not move originals to Trash")
     XCTAssertEqual(
       trash.failureMessage(outcome: mixed),
-      "“a”, “b” were removed from this device, but the originals are still on put.io. Check your connection and try again."
+      "“a”, “b” were removed from this device, but put.io did not confirm the originals were removed. Check your connection and try again."
     )
     XCTAssertFalse(
       trash.failureMessage(outcome: mixed).contains("ok"), "successes are not failures")

@@ -120,7 +120,7 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(
       failure.staticTexts.element(
         matching: NSPredicate(
-          format: "label CONTAINS %@", "was removed from this device, but the original is still")
+          format: "label CONTAINS %@", "was removed from this device, but put.io did not confirm")
       ).exists, "the failure report does not keep the local outcome honest")
     app.buttons["downloads.remove-original-retry"].firstMatch.tap()
     XCTAssertTrue(failure.waitForNonExistence(timeout: 10))

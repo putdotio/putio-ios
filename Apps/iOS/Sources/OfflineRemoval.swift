@@ -115,8 +115,8 @@ struct PutioOfflineRemovalCopy: Equatable {
     let names = failures.map { "“\($0.target.name)”" }.joined(separator: ", ")
     let removed =
       failures.count == 1
-      ? "\(names) was removed from this device, but the original is still on put.io."
-      : "\(names) were removed from this device, but the originals are still on put.io."
+      ? "\(names) was removed from this device, but put.io did not confirm the original was removed."
+      : "\(names) were removed from this device, but put.io did not confirm the originals were removed."
     let drifted = failures.filter { $0.reason == .trashSettingChanged }
     let retryable = Set(failures.filter(\.reason.canRetry).map(\.reason))
     var sentences = [removed]
