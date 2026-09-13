@@ -20,6 +20,8 @@ struct PutioOfflineOriginalFailure: Equatable, Sendable {
     case transient
     case rateLimited
     case unknown
+    /// The account's Trash setting could not be confirmed, so nothing was sent.
+    case settingUnconfirmed
     case trashSettingChanged
 
     var canRetry: Bool { self != .trashSettingChanged }
@@ -133,6 +135,8 @@ struct PutioOfflineRemovalCopy: Equatable {
     }
     if retryable.contains(.transient) {
       sentences.append("Check your connection and try again.")
+    } else if retryable.contains(.settingUnconfirmed) {
+      sentences.append("Your account settings could not be confirmed. Try again.")
     } else if retryable.contains(.rateLimited) {
       sentences.append("put.io is receiving too many requests. Try again shortly.")
     } else if !retryable.isEmpty {

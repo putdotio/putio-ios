@@ -666,11 +666,13 @@ final class PutioOfflineQueue {
     guard isCurrent(generation) else { return outcome }
     // A retry never overrides a newer confirmation for the same file.
     if adoptPendingOriginals(targets, replacing: false) { persist() }
-    let trashMode = await trashSetting()
-    guard isCurrent(generation) else { return outcome }
     for target in targets {
+      // Confirmed right before each request: the setting can change on
+      // another client while an earlier delete in this pass is in flight.
+      let trashMode = await trashSetting()
+      guard isCurrent(generation) else { return outcome }
       if trashMode == nil {
-        outcome.failures.append(.init(target: target, reason: .transient))
+        outcome.failures.append(.init(target: target, reason: .settingUnconfirmed))
       } else if let trashMode, trashMode != target.movesToTrash {
         outcome.failures.append(.init(target: target, reason: .trashSettingChanged))
       } else {

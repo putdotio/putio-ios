@@ -1417,13 +1417,30 @@ final class OfflineDownloadsTests: XCTestCase {
     let unknown = await queue.removeDeletingOriginals(
       fileIDs: [PutioFileID(rawValue: 2)], movesToTrash: true)
     XCTAssertEqual(originalDeletes, [1], "no request goes out under an unconfirmed setting")
-    XCTAssertEqual(unknown.failures.map(\.reason), [.transient])
+    XCTAssertEqual(unknown.failures.map(\.reason), [.settingUnconfirmed])
     XCTAssertEqual(queue.originalFailure?.retryableTargets.map(\.id.rawValue), [2])
-    XCTAssertEqual(trashSettingReads, 3, "the server is asked once per pass, not per original")
+    XCTAssertEqual(trashSettingReads, 3, "the server is asked before every request")
 
     currentTrashSetting = true
     _ = await queue.deleteOriginals(queue.takeFailedOriginalsForRetry())
     XCTAssertEqual(originalDeletes, [1, 2])
+  }
+
+  func testTheTrashSettingIsConfirmedBeforeEachRequestOfAPass() async {
+    let queue = makeQueue()
+    for id in 1...2 {
+      queue.enqueue(
+        fileID: PutioFileID(rawValue: id), parentID: .root, name: "n\(id)", kind: .audio)
+    }
+    await settle()
+    // Trash goes off on another client while the first delete is in flight.
+    onOriginalDelete = { _ in self.currentTrashSetting = false }
+    let outcome = await queue.removeDeletingOriginals(
+      fileIDs: [PutioFileID(rawValue: 1), PutioFileID(rawValue: 2)], movesToTrash: true)
+    XCTAssertEqual(originalDeletes, [1], "the second original is not sent under the other outcome")
+    XCTAssertEqual(outcome.deleted.map(\.id.rawValue), [1])
+    XCTAssertEqual(outcome.failures.map(\.reason), [.trashSettingChanged])
+    XCTAssertEqual(trashSettingReads, 2)
   }
 
   func testAcknowledgingAReportLeavesFailuresItNeverShowed() async {
@@ -1619,6 +1636,15 @@ final class OfflineDownloadsTests: XCTestCase {
       ])
     XCTAssertTrue(
       trash.failureMessage(outcome: unknown).hasSuffix("Something went wrong. Try again."))
+    let unconfirmed = PutioOfflineOriginalOutcome(failures: [
+      .init(
+        target: .init(id: PutioFileID(rawValue: 1), name: "a", movesToTrash: true),
+        reason: .settingUnconfirmed)
+    ])
+    XCTAssertFalse(unconfirmed.retryableTargets.isEmpty)
+    XCTAssertTrue(
+      trash.failureMessage(outcome: unconfirmed).hasSuffix(
+        "Your account settings could not be confirmed. Try again."))
   }
 
   func testDownloadErrorsMapToRetryableFailures() async {
