@@ -335,9 +335,7 @@ private struct MainTabView: View {
         }
       }
       Tab(value: SelectedTab.downloads) {
-        NavigationStack {
-          PutioOfflineDownloadsView(queue: offlineQueue) { item in openOffline(item) }
-        }
+        downloads
       } label: {
         Label {
           Text("Downloads")
@@ -699,6 +697,16 @@ private struct MainTabView: View {
     // The autoplay decision reads the document at playback end; a load that
     // failed at sign-in gets another chance before this video finishes.
     Task { await appConfig.loadIfNeeded() }
+  }
+
+  private var downloads: some View {
+    NavigationStack {
+      PutioOfflineDownloadsView(
+        queue: offlineQueue, trashEnabled: account.trashEnabled,
+        canDeleteOriginals: !runtime.session.isAccountPreferencesStale
+          && !runtime.session.isUpdatingAccountPreferences,
+        onOpen: { item in openOffline(item) })
+    }
   }
 
   private var filesBrowser: some View {
@@ -1264,6 +1272,12 @@ enum PutioOfflineQueueFactory {
       conversionStatus: { fileID in try await runtime.videoConversionStatus(fileID: fileID) },
       reportPosition: { fileID, seconds in
         try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
+      },
+      deleteOriginal: { fileID in
+        // Never run under another account after a sign-out.
+        guard case .signedIn(let current) = runtime.session.state, current.id == accountID
+        else { throw PutioRuntimeError.transient }
+        try await runtime.deleteFile(fileID: fileID)
       }
     )
   }
