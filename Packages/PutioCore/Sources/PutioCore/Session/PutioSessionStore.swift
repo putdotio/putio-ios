@@ -61,7 +61,9 @@ public final class PutioSessionStore {
   public private(set) var isUpdatingAccountPreferences = false
   public private(set) var folderSortsRevision: UInt64 = 0
   private var lastPreferencesMutationSequence: UInt64 = 0
-  private(set) var authenticationGeneration: UInt64 = 0
+  /// Advances at every session boundary (restore, sign-in, sign-out,
+  /// expiry), so work bound to one signed-in shell can tell it has ended.
+  public private(set) var authenticationGeneration: UInt64 = 0
   // Orders overlapping account refreshes inside one session so a slow older
   // response cannot overwrite a newer snapshot.
   private var accountRefreshSequence: UInt64 = 0
