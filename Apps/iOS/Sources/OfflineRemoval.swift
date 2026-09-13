@@ -12,13 +12,17 @@ struct PutioOfflineRemovalTarget: Identifiable, Equatable, Codable, Sendable {
   let movesToTrash: Bool
 }
 
-/// Why put.io did not take the original. A missing original is not a
-/// failure: the requested end state already holds.
+/// Why the original was not taken. Server-side reasons are offered a retry;
+/// a changed Trash setting is not, since only a new confirmation could
+/// authorize the other outcome.
 struct PutioOfflineOriginalFailure: Equatable, Sendable {
   enum Reason: Equatable, Sendable {
     case transient
     case rateLimited
     case unknown
+    case trashSettingChanged
+
+    var canRetry: Bool { self != .trashSettingChanged }
 
     init(_ error: Error) {
       switch error as? PutioRuntimeError {
@@ -40,6 +44,9 @@ struct PutioOfflineOriginalOutcome: Equatable, Sendable {
   var failures: [PutioOfflineOriginalFailure] = []
 
   var failedTargets: [PutioOfflineRemovalTarget] { failures.map(\.target) }
+  var retryableTargets: [PutioOfflineRemovalTarget] {
+    failures.filter(\.reason.canRetry).map(\.target)
+  }
 }
 
 // MARK: - Copy
@@ -110,13 +117,27 @@ struct PutioOfflineRemovalCopy: Equatable {
       failures.count == 1
       ? "\(names) was removed from this device, but the original is still on put.io."
       : "\(names) were removed from this device, but the originals are still on put.io."
-    let reasons = Set(failures.map(\.reason))
-    let advice =
-      reasons.contains(.transient)
-      ? "Check your connection and try again."
-      : reasons.contains(.rateLimited)
-        ? "put.io is receiving too many requests. Try again shortly."
-        : "Something went wrong. Try again."
-    return "\(removed) \(advice)"
+    let drifted = failures.filter { $0.reason == .trashSettingChanged }
+    let retryable = Set(failures.filter(\.reason.canRetry).map(\.reason))
+    var sentences = [removed]
+    if !drifted.isEmpty {
+      let those =
+        drifted.count == failures.count
+        ? (drifted.count == 1 ? "The original" : "The originals")
+        : drifted.map { "“\($0.target.name)”" }.joined(separator: ", ")
+      let verb = drifted.count == 1 ? "was" : "were"
+      let them = drifted.count == 1 ? "it" : "them"
+      sentences.append(
+        "\(those) \(verb) not sent to put.io because your Trash setting changed after you confirmed; remove \(them) from Files if you still want to."
+      )
+    }
+    if retryable.contains(.transient) {
+      sentences.append("Check your connection and try again.")
+    } else if retryable.contains(.rateLimited) {
+      sentences.append("put.io is receiving too many requests. Try again shortly.")
+    } else if !retryable.isEmpty {
+      sentences.append("Something went wrong. Try again.")
+    }
+    return sentences.joined(separator: " ")
   }
 }

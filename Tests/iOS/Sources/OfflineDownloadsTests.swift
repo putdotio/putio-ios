@@ -113,6 +113,9 @@ final class OfflineDownloadsTests: XCTestCase {
   private var onOriginalDelete: ((PutioFileID) -> Void)?
   /// Holds every original delete until opened.
   private var originalDeleteGate: AsyncGate?
+  private var originalsDeleted: [[Int]] = []
+  private var currentTrashSetting: Bool?
+  private var trashSettingReads = 0
 
   override func setUp() async throws {
     directory = FileManager.default.temporaryDirectory.appending(
@@ -128,6 +131,9 @@ final class OfflineDownloadsTests: XCTestCase {
     originalDeleteErrors = [:]
     onOriginalDelete = nil
     originalDeleteGate = nil
+    originalsDeleted = []
+    currentTrashSetting = true
+    trashSettingReads = 0
   }
 
   override func tearDown() async throws {
@@ -188,6 +194,7 @@ final class OfflineDownloadsTests: XCTestCase {
       readTracks: { _ in
         ([PutioOfflineTrack(languageCode: "en", displayName: "English")], [])
       },
+      notifyOriginalsDeleted: { self.originalsDeleted.append($0.map(\.rawValue)) },
       isPlayable: { url in
         !url.lastPathComponent.hasPrefix("partial")
           && PutioOfflineQueue.directorySize(url, fileManager: .default) > 0
@@ -218,6 +225,10 @@ final class OfflineDownloadsTests: XCTestCase {
           self.originalDeleteErrors[fileID.rawValue]?.removeFirst()
           throw error
         }
+      },
+      trashSetting: {
+        self.trashSettingReads += 1
+        return self.currentTrashSetting
       },
       isLive: isLive
     )
@@ -1208,6 +1219,7 @@ final class OfflineDownloadsTests: XCTestCase {
     await settle()
     XCTAssertEqual(originalDeletes, [1, 1])
     XCTAssertEqual(relaunched.originalFailure?.failedTargets.map(\.id.rawValue), [1])
+    XCTAssertTrue(originalsDeleted.isEmpty, "nothing confirmed yet")
 
     relaunched.dismissOriginalFailure()
     XCTAssertNil(relaunched.originalFailure)
@@ -1222,6 +1234,23 @@ final class OfflineDownloadsTests: XCTestCase {
       fileIDs: [PutioFileID(rawValue: 2)], movesToTrash: true)
     XCTAssertTrue(confirmed.pendingOriginals.isEmpty)
     XCTAssertTrue(makeQueue().pendingOriginals.isEmpty)
+    XCTAssertEqual(originalsDeleted, [[2]])
+  }
+
+  func testARestoredOriginalDeletionReportsForListReconciliation() async {
+    originalDeleteErrors = [1: [.transient]]
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .audio)
+    await settle()
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)], movesToTrash: true)
+    XCTAssertTrue(originalsDeleted.isEmpty)
+
+    let relaunched = makeQueue()
+    await relaunched.restore()
+    await settle()
+    XCTAssertEqual(originalsDeleted, [[1]], "the cold-launch retry reconciles like any other")
+    XCTAssertNil(relaunched.originalFailure)
+    XCTAssertTrue(relaunched.pendingOriginals.isEmpty)
   }
 
   func testAQueueWhoseSessionEndedKeepsItsAnswerButWritesNothing() async {
@@ -1246,6 +1275,7 @@ final class OfflineDownloadsTests: XCTestCase {
     await gate.open()
     let outcome = await inFlight.value
     XCTAssertEqual(outcome.deleted.map(\.id.rawValue), [1])
+    XCTAssertTrue(originalsDeleted.isEmpty)
     let document = makeQueue()
     XCTAssertEqual(document.items.map(\.id.rawValue), [2], "the successor's row survives")
     XCTAssertEqual(
@@ -1333,6 +1363,7 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(outcome.deleted.map(\.id.rawValue), [2], "the answer itself is kept")
     XCTAssertTrue(queue.pendingOriginals.isEmpty)
     XCTAssertNil(queue.originalFailure)
+    XCTAssertTrue(originalsDeleted.isEmpty, "the purge already covered the originals")
     XCTAssertFalse(
       FileManager.default.fileExists(atPath: directory.path),
       "a late answer does not recreate the purged queue")
@@ -1355,6 +1386,44 @@ final class OfflineDownloadsTests: XCTestCase {
     _ = await queue.deleteOriginals(targets)
     XCTAssertEqual(originalDeletes, [1, 1])
     XCTAssertEqual(queue.originalFailure?.failedTargets, targets)
+  }
+
+  func testAChangedTrashSettingRefusesTheRetryInsteadOfDeletingPermanently() async {
+    originalDeleteErrors = [1: [.transient]]
+    currentTrashSetting = true
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .audio)
+    await settle()
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)], movesToTrash: true)
+    XCTAssertEqual(originalDeletes, [1])
+
+    // Trash is switched off, on this device or another, before the retry.
+    currentTrashSetting = false
+    let outcome = await queue.deleteOriginals(queue.takeFailedOriginalsForRetry())
+    XCTAssertEqual(originalDeletes, [1], "nothing is sent under the other outcome")
+    XCTAssertEqual(outcome.failures.map(\.reason), [.trashSettingChanged])
+    XCTAssertTrue(queue.originalFailure?.retryableTargets.isEmpty ?? false)
+    XCTAssertEqual(queue.pendingOriginals.map(\.id.rawValue), [1])
+
+    // Nothing left to retry, so taking the report gives the original up.
+    XCTAssertTrue(queue.takeFailedOriginalsForRetry().isEmpty)
+    XCTAssertTrue(queue.pendingOriginals.isEmpty)
+    XCTAssertTrue(makeQueue().pendingOriginals.isEmpty)
+
+    // An unknown setting sends nothing; the report offers a retry.
+    currentTrashSetting = nil
+    queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .audio)
+    await settle()
+    let unknown = await queue.removeDeletingOriginals(
+      fileIDs: [PutioFileID(rawValue: 2)], movesToTrash: true)
+    XCTAssertEqual(originalDeletes, [1], "no request goes out under an unconfirmed setting")
+    XCTAssertEqual(unknown.failures.map(\.reason), [.transient])
+    XCTAssertEqual(queue.originalFailure?.retryableTargets.map(\.id.rawValue), [2])
+    XCTAssertEqual(trashSettingReads, 3, "the server is asked once per pass, not per original")
+
+    currentTrashSetting = true
+    _ = await queue.deleteOriginals(queue.takeFailedOriginalsForRetry())
+    XCTAssertEqual(originalDeletes, [1, 2])
   }
 
   func testAcknowledgingAReportLeavesFailuresItNeverShowed() async {
@@ -1390,6 +1459,7 @@ final class OfflineDownloadsTests: XCTestCase {
     _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)], movesToTrash: true)
 
     // Downloaded again under a new name, then removed with Trash off.
+    currentTrashSetting = false
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "new", kind: .audio)
     await settle()
     _ = await queue.removeDeletingOriginals(
@@ -1488,16 +1558,30 @@ final class OfflineDownloadsTests: XCTestCase {
       trash.failureMessage(outcome: one),
       "“a” was removed from this device, but the original is still on put.io. Check your connection and try again."
     )
-    let mixedModes = PutioOfflineOriginalOutcome(failures: [
+    let drifted = PutioOfflineOriginalOutcome(failures: [
       .init(
         target: .init(id: PutioFileID(rawValue: 1), name: "a", movesToTrash: true),
-        reason: .transient),
+        reason: .trashSettingChanged)
+    ])
+    XCTAssertTrue(drifted.retryableTargets.isEmpty)
+    XCTAssertEqual(
+      permanent.failureMessage(outcome: drifted),
+      "“a” was removed from this device, but the original is still on put.io. The original was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to."
+    )
+    let partlyDrifted = PutioOfflineOriginalOutcome(failures: [
+      .init(
+        target: .init(id: PutioFileID(rawValue: 1), name: "a", movesToTrash: true),
+        reason: .trashSettingChanged),
       .init(
         target: .init(id: PutioFileID(rawValue: 2), name: "b", movesToTrash: false),
         reason: .transient),
     ])
     XCTAssertEqual(
-      trash.failureTitle(outcome: mixedModes), "Could not remove originals from put.io")
+      trash.failureTitle(outcome: partlyDrifted), "Could not remove originals from put.io")
+    XCTAssertEqual(
+      trash.failureMessage(outcome: partlyDrifted),
+      "“a”, “b” were removed from this device, but the originals are still on put.io. “a” was not sent to put.io because your Trash setting changed after you confirmed; remove it from Files if you still want to. Check your connection and try again."
+    )
     let mixed = PutioOfflineOriginalOutcome(
       deleted: [.init(id: PutioFileID(rawValue: 0), name: "ok", movesToTrash: true)],
       failures: [

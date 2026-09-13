@@ -127,6 +127,13 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["No downloads"].waitForExistence(timeout: 5))
     XCTAssertFalse(app.alerts.firstMatch.exists, "retry must not report a second failure")
 
+    // The loaded root reconciles with the moved original.
+    app.buttons["Files"].tap()
+    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(
+      element("files.item.412").waitForNonExistence(timeout: 10),
+      "the root still lists the original after put.io moved it to Trash")
+
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
