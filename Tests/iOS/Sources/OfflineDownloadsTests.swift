@@ -182,7 +182,9 @@ final class OfflineDownloadsTests: XCTestCase {
       queue.nextVideo(after: PutioFileID(rawValue: 999)), "an unknown file has no folder")
   }
 
-  private func makeQueue(availableBytes: Int64 = 10_000_000_000) -> PutioOfflineQueue {
+  private func makeQueue(
+    availableBytes: Int64 = 10_000_000_000, isLive: @escaping @MainActor () -> Bool = { true }
+  ) -> PutioOfflineQueue {
     PutioOfflineQueue(
       store: PutioOfflineStore(directory: directory),
       engine: engine,
@@ -227,7 +229,8 @@ final class OfflineDownloadsTests: XCTestCase {
       trashSetting: {
         self.trashSettingReads += 1
         return self.currentTrashSetting
-      }
+      },
+      isLive: isLive
     )
   }
 
@@ -1250,8 +1253,9 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertTrue(relaunched.pendingOriginals.isEmpty)
   }
 
-  func testARetiredQueueKeepsItsAnswerButWritesNothing() async {
-    let queue = makeQueue()
+  func testAQueueWhoseSessionEndedKeepsItsAnswerButWritesNothing() async {
+    var live = true
+    let queue = makeQueue(isLive: { live })
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .audio)
     await settle()
     let gate = AsyncGate()
@@ -1263,7 +1267,7 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(makeQueue().pendingOriginals.map(\.id.rawValue), [1])
 
     // The shell signed out; a new one owns the document and adds a row.
-    queue.retire()
+    live = false
     let successor = makeQueue()
     successor.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .audio)
     await settle()
@@ -1277,6 +1281,16 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(
       document.pendingOriginals.map(\.id.rawValue), [1],
       "the debt stays for the successor to settle")
+
+    // Work that starts after the session ended does nothing at all.
+    let late = await queue.removeDeletingOriginals(
+      fileIDs: [PutioFileID(rawValue: 1)], movesToTrash: true)
+    XCTAssertEqual(late, PutioOfflineOriginalOutcome())
+    _ = await queue.deleteOriginals([
+      PutioOfflineRemovalTarget(id: PutioFileID(rawValue: 3), name: "c", movesToTrash: true)
+    ])
+    XCTAssertEqual(originalDeletes, [1], "no request leaves a queue whose session ended")
+    XCTAssertEqual(makeQueue().pendingOriginals.map(\.id.rawValue), [1])
   }
 
   func testAnAccountPurgeDropsOriginalStateAndEndsRequestsInFlight() async throws {

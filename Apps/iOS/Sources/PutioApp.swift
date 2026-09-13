@@ -488,9 +488,6 @@ private struct MainTabView: View {
       await offlineQueue.restore()
       await offlineQueue.syncPendingPositions()
     }
-    // Sign-out or account destruction replaces this shell; the next one owns
-    // the account's queue document.
-    .onDisappear { offlineQueue.retire() }
     .alert(
       externalPlaybackAlertTitle,
       isPresented: Binding(
@@ -1252,6 +1249,9 @@ enum PutioOfflineQueueFactory {
     #endif
     let engine: any PutioOfflineDownloadEngine = PutioSystemOfflineDownloadEngine(
       accountID: accountID)
+    // Every session boundary advances the generation; a queue outlived by
+    // its shell must not write to a document the next shell owns.
+    let sessionGeneration = runtime.session.authenticationGeneration
     return PutioOfflineQueue(
       store: PutioOfflineStore(
         directory: harness
@@ -1298,7 +1298,8 @@ enum PutioOfflineQueueFactory {
           !runtime.session.isUpdatingAccountPreferences
         else { return nil }
         return current.trashEnabled
-      }
+      },
+      isLive: { runtime.session.authenticationGeneration == sessionGeneration }
     )
   }
 

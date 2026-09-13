@@ -323,9 +323,12 @@ final class PutioOfflineQueue {
   /// Originals put.io confirmed gone, from any path including a restored
   /// retry, so loaded file lists can reconcile.
   @ObservationIgnored private let notifyOriginalsDeleted: @MainActor ([PutioFileID]) -> Void
-  /// Bumped by an account purge or by retirement so original requests
-  /// already in flight stop writing to a queue that is no longer live.
+  /// Bumped by an account purge so original requests already in flight stop
+  /// writing to a queue whose storage is gone.
   @ObservationIgnored private var originalsGeneration = 0
+  /// False once the shell that owns this queue has ended its session; from
+  /// then on the originals paths neither start work nor write.
+  @ObservationIgnored private let isLive: @MainActor () -> Bool
   /// A worker is identified by its token so a cancelled worker's cleanup
   /// never clears a successor that pause-then-resume already started.
   private struct Worker {
@@ -371,7 +374,8 @@ final class PutioOfflineQueue {
     conversionStatus: @escaping PutioOfflineConversionStatus,
     reportPosition: @escaping PutioOfflinePositionReport,
     deleteOriginal: @escaping PutioOfflineOriginalDelete,
-    trashSetting: @escaping @MainActor () async -> Bool? = { nil }
+    trashSetting: @escaping @MainActor () async -> Bool? = { nil },
+    isLive: @escaping @MainActor () -> Bool = { true }
   ) {
     self.store = store
     self.engine = engine
@@ -389,6 +393,7 @@ final class PutioOfflineQueue {
     self.reportPosition = reportPosition
     self.deleteOriginal = deleteOriginal
     self.trashSetting = trashSetting
+    self.isLive = isLive
     let loaded = store.load()
     items = loaded.items
     concurrencyLimit = loaded.concurrencyLimit
@@ -637,6 +642,7 @@ final class PutioOfflineQueue {
   func removeDeletingOriginals(fileIDs: [PutioFileID], movesToTrash: Bool) async
     -> PutioOfflineOriginalOutcome
   {
+    guard isLive() else { return PutioOfflineOriginalOutcome() }
     let targets = items.filter { fileIDs.contains($0.id) }.map {
       PutioOfflineRemovalTarget(id: $0.id, name: $0.name, movesToTrash: movesToTrash)
     }
@@ -650,16 +656,18 @@ final class PutioOfflineQueue {
   /// Asks put.io for originals whose local copies are already gone; also the
   /// retry path after a partial failure. Failures merge into
   /// `originalFailure` by file so concurrent requests never erase each
-  /// other's retry targets; a confirmed original drops out of it. A purge
-  /// during the request ends it with whatever was answered so far.
+  /// other's retry targets; a confirmed original drops out of it. A purge or
+  /// the end of the session during the request ends it with whatever was
+  /// answered so far, written nowhere.
   func deleteOriginals(_ targets: [PutioOfflineRemovalTarget]) async
     -> PutioOfflineOriginalOutcome
   {
-    registerPendingOriginals(targets)
-    let generation = originalsGeneration
     var outcome = PutioOfflineOriginalOutcome()
+    let generation = originalsGeneration
+    guard isCurrent(generation) else { return outcome }
+    registerPendingOriginals(targets)
     let current = await trashSetting()
-    guard generation == originalsGeneration else { return outcome }
+    guard isCurrent(generation) else { return outcome }
     for target in targets {
       if let current, current != target.movesToTrash {
         // Confirmed as one outcome; the account would now do the other.
@@ -675,7 +683,7 @@ final class PutioOfflineQueue {
           outcome.failures.append(.init(target: target, reason: .init(error)))
         }
       }
-      guard generation == originalsGeneration else { return outcome }
+      guard isCurrent(generation) else { return outcome }
       if outcome.failures.last?.target != target {
         pendingOriginals.removeAll { $0.id == target.id }
         persist()
@@ -691,11 +699,8 @@ final class PutioOfflineQueue {
     return outcome
   }
 
-  /// The shell that owned this queue is gone. Requests still in flight keep
-  /// their answers but write nothing, so a queue the next shell creates for
-  /// the same account never has its document overwritten.
-  func retire() {
-    originalsGeneration &+= 1
+  private func isCurrent(_ generation: Int) -> Bool {
+    generation == originalsGeneration && isLive()
   }
 
   private func registerPendingOriginals(_ targets: [PutioOfflineRemovalTarget]) {
