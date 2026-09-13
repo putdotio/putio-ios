@@ -649,7 +649,7 @@ final class PutioOfflineQueue {
     }
     // The debt and the removal land in the same document write, so no
     // kill can record one without the other.
-    pendingOriginals.append(contentsOf: targets.filter { !pendingOriginals.contains($0) })
+    adoptPendingOriginals(targets)
     remove(fileIDs: fileIDs)
     return await deleteOriginals(targets)
   }
@@ -707,34 +707,54 @@ final class PutioOfflineQueue {
     generation == originalsGeneration && isLive()
   }
 
-  private func registerPendingOriginals(_ targets: [PutioOfflineRemovalTarget]) {
-    let owed = targets.filter { !pendingOriginals.contains($0) }
-    guard !owed.isEmpty else { return }
-    pendingOriginals.append(contentsOf: owed)
-    persist()
+  /// One debt per file: a newer confirmation for the same original replaces
+  /// the older name and promised mode.
+  @discardableResult
+  private func adoptPendingOriginals(_ targets: [PutioOfflineRemovalTarget]) -> Bool {
+    var changed = false
+    for target in targets where !pendingOriginals.contains(target) {
+      pendingOriginals.removeAll { $0.id == target.id }
+      pendingOriginals.append(target)
+      changed = true
+    }
+    return changed
   }
 
-  /// Clears the report for a retry; the retryable originals stay pending so a
-  /// kill before the answer still retries on the next launch. Ones no retry
-  /// can resolve are given up here.
-  func takeFailedOriginalsForRetry() -> [PutioOfflineRemovalTarget] {
+  private func registerPendingOriginals(_ targets: [PutioOfflineRemovalTarget]) {
+    if adoptPendingOriginals(targets) { persist() }
+  }
+
+  /// Clears the shown failures for a retry; the retryable originals stay
+  /// pending so a kill before the answer still retries on the next launch.
+  /// Ones no retry can resolve are given up here. Failures that merged in
+  /// after the report was shown stay for the next one.
+  func takeFailedOriginalsForRetry(shown: PutioOfflineOriginalOutcome? = nil)
+    -> [PutioOfflineRemovalTarget]
+  {
     guard let report = originalFailure else { return [] }
-    originalFailure = nil
-    let retryable = report.retryableTargets
-    let abandoned = Set(report.failedTargets.map(\.id)).subtracting(retryable.map(\.id))
-    if !abandoned.isEmpty {
-      pendingOriginals.removeAll { abandoned.contains($0.id) }
-      persist()
-    }
+    let handled = shown ?? report
+    let retryable = handled.retryableTargets
+    let abandoned = Set(handled.failedTargets.map(\.id)).subtracting(retryable.map(\.id))
+    settleOriginalFailures(handled.failedTargets.map(\.id), givingUp: abandoned)
     return retryable
   }
 
-  /// Acknowledging the report gives up on those originals; they are not
-  /// retried on a later launch.
-  func dismissOriginalFailure() {
-    let acknowledged = Set(originalFailure?.failures.map(\.target.id) ?? [])
-    originalFailure = nil
-    pendingOriginals.removeAll { acknowledged.contains($0.id) }
+  /// Acknowledging the shown failures gives up on those originals; they are
+  /// not retried on a later launch. Failures that merged in after the report
+  /// was shown stay for the next one.
+  func dismissOriginalFailure(shown: PutioOfflineOriginalOutcome? = nil) {
+    guard let report = originalFailure else { return }
+    let acknowledged = (shown ?? report).failedTargets.map(\.id)
+    settleOriginalFailures(acknowledged, givingUp: Set(acknowledged))
+  }
+
+  private func settleOriginalFailures(_ handled: [PutioFileID], givingUp: Set<PutioFileID>) {
+    let handled = Set(handled)
+    var remaining = originalFailure ?? PutioOfflineOriginalOutcome()
+    remaining.failures.removeAll { handled.contains($0.target.id) }
+    originalFailure = remaining.failures.isEmpty ? nil : remaining
+    guard !givingUp.isEmpty else { return }
+    pendingOriginals.removeAll { givingUp.contains($0.id) }
     persist()
   }
 

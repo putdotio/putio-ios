@@ -1385,6 +1385,50 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(originalDeletes, [1, 2])
   }
 
+  func testAcknowledgingAReportLeavesFailuresItNeverShowed() async {
+    originalDeleteErrors = [1: [.transient], 2: [.rateLimited]]
+    let queue = makeQueue()
+    for id in 1...2 {
+      queue.enqueue(
+        fileID: PutioFileID(rawValue: id), parentID: .root, name: "n\(id)", kind: .audio)
+    }
+    await settle()
+    let shown = await queue.removeDeletingOriginals(
+      fileIDs: [PutioFileID(rawValue: 1)], movesToTrash: true)
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 2)], movesToTrash: true)
+    XCTAssertEqual(queue.originalFailure?.failedTargets.map(\.id.rawValue), [1, 2])
+
+    // The alert was presented with only the first failure.
+    queue.dismissOriginalFailure(shown: shown)
+    XCTAssertEqual(queue.originalFailure?.failedTargets.map(\.id.rawValue), [2])
+    XCTAssertEqual(queue.pendingOriginals.map(\.id.rawValue), [2])
+    XCTAssertEqual(makeQueue().pendingOriginals.map(\.id.rawValue), [2])
+
+    let retried = queue.takeFailedOriginalsForRetry(shown: queue.originalFailure)
+    XCTAssertEqual(retried.map(\.id.rawValue), [2])
+    XCTAssertNil(queue.originalFailure)
+    XCTAssertEqual(queue.pendingOriginals.map(\.id.rawValue), [2])
+  }
+
+  func testANewerConfirmationReplacesTheDebtForTheSameFile() async {
+    originalDeleteErrors = [1: [.transient, .transient]]
+    let queue = makeQueue()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "old", kind: .audio)
+    await settle()
+    _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)], movesToTrash: true)
+
+    // Downloaded again under a new name, then removed with Trash off.
+    currentTrashSetting = false
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "new", kind: .audio)
+    await settle()
+    _ = await queue.removeDeletingOriginals(
+      fileIDs: [PutioFileID(rawValue: 1)], movesToTrash: false)
+    XCTAssertEqual(
+      queue.pendingOriginals,
+      [PutioOfflineRemovalTarget(id: PutioFileID(rawValue: 1), name: "new", movesToTrash: false)])
+    XCTAssertEqual(makeQueue().pendingOriginals.count, 1)
+  }
+
   func testConcurrentOriginalRequestsMergeTheirFailures() async {
     originalDeleteErrors = [1: [.transient], 2: [.rateLimited]]
     let queue = makeQueue()

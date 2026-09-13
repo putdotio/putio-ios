@@ -53,9 +53,11 @@ struct PutioOfflineDownloadsView: View {
         finishSelection()
         // Unstructured on purpose: the request outlives this screen, and the
         // queue keeps the outcome until the user dismisses it.
+        // The mode the dialog promised, not the setting as rendered now.
+        let movesToTrash = targets.first?.movesToTrash ?? trashEnabled
         Task {
           _ = await queue.removeDeletingOriginals(
-            fileIDs: targets.map(\.id), movesToTrash: trashEnabled)
+            fileIDs: targets.map(\.id), movesToTrash: movesToTrash)
         }
       }
       .disabled(!canDeleteOriginals)
@@ -74,12 +76,12 @@ struct PutioOfflineDownloadsView: View {
     ) { outcome in
       if !outcome.retryableTargets.isEmpty {
         Button("Try again") {
-          let targets = queue.takeFailedOriginalsForRetry()
+          let targets = queue.takeFailedOriginalsForRetry(shown: outcome)
           Task { _ = await queue.deleteOriginals(targets) }
         }
         .accessibilityIdentifier("downloads.remove-original-retry")
       }
-      Button("OK", role: .cancel) { queue.dismissOriginalFailure() }
+      Button("OK", role: .cancel) { queue.dismissOriginalFailure(shown: outcome) }
     } message: { outcome in
       Text(copy.failureMessage(outcome: outcome))
     }
