@@ -268,6 +268,7 @@ typealias PutioOfflineConversionStart = @MainActor @Sendable (PutioFileID) async
 typealias PutioOfflineConversionStatus =
   @MainActor @Sendable (PutioFileID) async throws -> PutioVideoConversionStatus
 typealias PutioOfflinePositionReport = @MainActor @Sendable (PutioFileID, Int) async throws -> Void
+typealias PutioOfflineOriginalDelete = @MainActor @Sendable (PutioFileID) async throws -> Void
 
 @MainActor
 @Observable
@@ -281,6 +282,8 @@ final class PutioOfflineQueue {
   private(set) var concurrencyLimit: Int
   private(set) var storedBytes: Int64 = 0
   private(set) var availableBytes: Int64 = 0
+  /// Unresolved remote failures, merged across requests; outlives the screen.
+  private(set) var originalFailure: PutioOfflineOriginalOutcome?
 
   @ObservationIgnored private let store: PutioOfflineStore
   @ObservationIgnored private let engine: any PutioOfflineDownloadEngine
@@ -288,6 +291,7 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let startConversion: PutioOfflineConversionStart
   @ObservationIgnored private let conversionStatus: PutioOfflineConversionStatus
   @ObservationIgnored private let reportPosition: PutioOfflinePositionReport
+  @ObservationIgnored private let deleteOriginal: PutioOfflineOriginalDelete
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
   @ObservationIgnored private let availableStorage: @MainActor () -> Int64
@@ -337,7 +341,8 @@ final class PutioOfflineQueue {
     resolve: @escaping PutioOfflineResolve,
     startConversion: @escaping PutioOfflineConversionStart,
     conversionStatus: @escaping PutioOfflineConversionStatus,
-    reportPosition: @escaping PutioOfflinePositionReport
+    reportPosition: @escaping PutioOfflinePositionReport,
+    deleteOriginal: @escaping PutioOfflineOriginalDelete
   ) {
     self.store = store
     self.engine = engine
@@ -352,6 +357,7 @@ final class PutioOfflineQueue {
     self.startConversion = startConversion
     self.conversionStatus = conversionStatus
     self.reportPosition = reportPosition
+    self.deleteOriginal = deleteOriginal
     let loaded = store.load()
     items = loaded.items
     concurrencyLimit = loaded.concurrencyLimit
@@ -588,6 +594,68 @@ final class PutioOfflineQueue {
     schedule()
   }
 
+  /// Removes the local copies, then asks put.io for each original in turn.
+  /// The local removal never depends on the remote result.
+  func removeDeletingOriginals(fileIDs: [PutioFileID], movesToTrash: Bool) async
+    -> PutioOfflineOriginalOutcome
+  {
+    let targets = items.filter { fileIDs.contains($0.id) }.map {
+      PutioOfflineRemovalTarget(id: $0.id, name: $0.name, movesToTrash: movesToTrash)
+    }
+    remove(fileIDs: fileIDs)
+    return await deleteOriginals(targets)
+  }
+
+  /// Asks put.io for originals whose local copies are already gone; also the
+  /// retry path. Failures merge into `originalFailure` per file so concurrent
+  /// requests keep each other's retry targets.
+  func deleteOriginals(_ targets: [PutioOfflineRemovalTarget]) async
+    -> PutioOfflineOriginalOutcome
+  {
+    var outcome = PutioOfflineOriginalOutcome()
+    for target in targets {
+      do {
+        try await deleteOriginal(target.id)
+        outcome.deleted.append(target)
+      } catch PutioRuntimeError.notFound {
+        // Already gone, possibly from a delete whose response was lost.
+        outcome.deleted.append(target)
+      } catch {
+        outcome.failures.append(.init(target: target, reason: .init(error)))
+      }
+    }
+    var merged = originalFailure ?? PutioOfflineOriginalOutcome()
+    let touched = Set(targets.map(\.id))
+    merged.failures.removeAll { touched.contains($0.target.id) }
+    merged.failures.append(contentsOf: outcome.failures)
+    originalFailure = merged.failures.isEmpty ? nil : merged
+    return outcome
+  }
+
+  /// Clears the shown failures for a retry and returns their targets. Failures
+  /// that merged in after the report was shown stay for the next one.
+  func takeFailedOriginalsForRetry(shown: PutioOfflineOriginalOutcome? = nil)
+    -> [PutioOfflineRemovalTarget]
+  {
+    guard let report = originalFailure else { return [] }
+    let targets = (shown ?? report).failedTargets
+    settleOriginalFailures(targets.map(\.id))
+    return targets
+  }
+
+  /// Acknowledges the shown failures; ones that merged in after stay.
+  func dismissOriginalFailure(shown: PutioOfflineOriginalOutcome? = nil) {
+    guard let report = originalFailure else { return }
+    settleOriginalFailures((shown ?? report).failedTargets.map(\.id))
+  }
+
+  private func settleOriginalFailures(_ handled: [PutioFileID]) {
+    let handled = Set(handled)
+    var remaining = originalFailure ?? PutioOfflineOriginalOutcome()
+    remaining.failures.removeAll { handled.contains($0.target.id) }
+    originalFailure = remaining.failures.isEmpty ? nil : remaining
+  }
+
   /// Ends every download and deletes the account's whole offline directory
   /// plus every tracked package, including media a quarantined queue file no
   /// longer references.
@@ -602,6 +670,7 @@ final class PutioOfflineQueue {
     suspended.removeAll()
     resumeWhenFree.removeAll()
     items.removeAll()
+    originalFailure = nil
     let survivors = store.loadPackages().filter { relativePath in
       let url = Self.localURL(for: relativePath)
       try? fileManager.removeItem(at: url)
