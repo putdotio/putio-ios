@@ -1470,7 +1470,9 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.originalFailure?.failedTargets, [newer])
     XCTAssertEqual(makeQueue().pendingOriginals.count, 1)
 
-    // A retry of the stale report finishes; the newer debt and its failure stay.
+    // Trash is back on, so a retry of the stale report is sent and finishes;
+    // the newer debt and its failure stay.
+    currentTrashSetting = true
     let stale = PutioOfflineRemovalTarget(
       id: PutioFileID(rawValue: 1), name: "old", movesToTrash: true)
     let outcome = await queue.deleteOriginals([stale])
