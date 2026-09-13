@@ -416,6 +416,9 @@ final class PutioOfflineQueue {
     restored = true
     if !pendingOriginals.isEmpty {
       let owed = pendingOriginals
+      // A kill between the debt and the removal leaves the row; finish that first.
+      let leftover = owed.map(\.id).filter { item(for: $0) != nil }
+      if !leftover.isEmpty { remove(fileIDs: leftover) }
       Task { _ = await deleteOriginals(owed) }
     }
     let alive = Set(await engine.restoreTasks())
@@ -537,6 +540,12 @@ final class PutioOfflineQueue {
     awaitsLanguageSelection: Bool = false
   ) -> PutioOfflineItem {
     if let existing = item(for: fileID) { return existing }
+    // Downloading the file again supersedes any debt to remove its original.
+    if pendingOriginals.contains(where: { $0.id == fileID })
+      || originalFailure?.failedTargets.contains(where: { $0.id == fileID }) == true
+    {
+      settleOriginalFailures([fileID], givingUp: [fileID])
+    }
     var item = PutioOfflineItem(
       id: fileID, parentID: parentID, name: name, kind: kind, createdAt: .now, stage: .queued,
       localPath: nil, storedBytes: 0, selectedAudioLanguages: audioLanguages,
@@ -631,8 +640,9 @@ final class PutioOfflineQueue {
     let targets = items.filter { fileIDs.contains($0.id) }.map {
       PutioOfflineRemovalTarget(id: $0.id, name: $0.name, movesToTrash: movesToTrash)
     }
-    // Debt and removal land in one document write; a kill records both or neither.
-    adoptPendingOriginals(targets)
+    // The debt is written before the package goes; a kill in between retries
+    // and finishes the removal on the next launch.
+    if adoptPendingOriginals(targets, replacing: true) { persist() }
     remove(fileIDs: fileIDs)
     return await deleteOriginals(targets)
   }
@@ -647,7 +657,8 @@ final class PutioOfflineQueue {
     var outcome = PutioOfflineOriginalOutcome()
     let generation = originalsGeneration
     guard isCurrent(generation) else { return outcome }
-    if adoptPendingOriginals(targets) { persist() }
+    // A retry never overrides a newer confirmation for the same file.
+    if adoptPendingOriginals(targets, replacing: false) { persist() }
     for target in targets {
       do {
         try await deleteOriginal(target.id)
@@ -659,15 +670,22 @@ final class PutioOfflineQueue {
         outcome.failures.append(.init(target: target, reason: .init(error)))
       }
       guard isCurrent(generation) else { return outcome }
-      if outcome.failures.last?.target != target {
-        pendingOriginals.removeAll { $0.id == target.id }
+      if outcome.failures.last?.target != target, pendingOriginals.contains(target) {
+        // Equality, not id: a newer confirmation for the same file stays owed.
+        pendingOriginals.removeAll { $0 == target }
         persist()
       }
     }
+    // A failure only speaks for the debt as it stands now; one whose target
+    // has since been replaced is dropped, and the newer request reports itself.
+    let current = outcome.failures.filter { pendingOriginals.contains($0.target) }
+    let confirmed = outcome.deleted.map(\.id).filter { id in
+      !pendingOriginals.contains { $0.id == id }
+    }
+    let settled = Set(confirmed + current.map(\.target.id))
     var merged = originalFailure ?? PutioOfflineOriginalOutcome()
-    let touched = Set(targets.map(\.id))
-    merged.failures.removeAll { touched.contains($0.target.id) }
-    merged.failures.append(contentsOf: outcome.failures)
+    merged.failures.removeAll { settled.contains($0.target.id) }
+    merged.failures.append(contentsOf: current)
     originalFailure = merged.failures.isEmpty ? nil : merged
     return outcome
   }
@@ -676,12 +694,16 @@ final class PutioOfflineQueue {
     generation == originalsGeneration && isLive()
   }
 
-  /// One debt per file: a newer confirmation for the same original replaces
-  /// the older name and promised mode. Returns whether anything changed.
-  @discardableResult
-  private func adoptPendingOriginals(_ targets: [PutioOfflineRemovalTarget]) -> Bool {
+  /// One debt per file. A new confirmation replaces the older name and
+  /// promised mode; a retry leaves an existing debt for the file alone.
+  /// Returns whether anything changed.
+  private func adoptPendingOriginals(_ targets: [PutioOfflineRemovalTarget], replacing: Bool)
+    -> Bool
+  {
     var changed = false
     for target in targets where !pendingOriginals.contains(target) {
+      let owed = pendingOriginals.contains { $0.id == target.id }
+      guard replacing || !owed else { continue }
       pendingOriginals.removeAll { $0.id == target.id }
       pendingOriginals.append(target)
       changed = true
@@ -1099,6 +1121,8 @@ final class PutioOfflineQueue {
   }
 
   private func persist() {
+    // A queue outlived by its session never writes; the next shell owns the document.
+    guard isLive() else { return }
     store.save(
       items: items, concurrencyLimit: concurrencyLimit, pendingOriginals: pendingOriginals)
   }
