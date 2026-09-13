@@ -6,7 +6,7 @@ import PutioCore
 /// A download the user asked to remove, kept by name because the queue row is
 /// gone by the time a remote failure is reported. `movesToTrash` is what the
 /// confirmation promised.
-struct PutioOfflineRemovalTarget: Identifiable, Equatable, Sendable {
+struct PutioOfflineRemovalTarget: Identifiable, Equatable, Codable, Sendable {
   let id: PutioFileID
   let name: String
   let movesToTrash: Bool

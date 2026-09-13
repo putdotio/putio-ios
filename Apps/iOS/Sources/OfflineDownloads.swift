@@ -145,6 +145,14 @@ struct PutioOfflineStore: Sendable {
     let version: Int
     var items: [PutioOfflineItem]
     var concurrencyLimit: Int
+    /// Originals the user asked put.io to take whose answer is still owed.
+    var pendingOriginals: [PutioOfflineRemovalTarget]?
+  }
+
+  struct Loaded {
+    var items: [PutioOfflineItem]
+    var concurrencyLimit: Int
+    var pendingOriginals: [PutioOfflineRemovalTarget]
   }
 
   let directory: URL
@@ -170,28 +178,34 @@ struct PutioOfflineStore: Sendable {
 
   /// A document that fails to decode is set aside as `queue.corrupt.json`
   /// rather than silently replaced, so stored assets can still be recovered.
-  func load() -> (items: [PutioOfflineItem], concurrencyLimit: Int) {
-    guard let data = try? Data(contentsOf: fileURL) else {
-      return ([], PutioOfflineQueue.defaultConcurrencyLimit)
-    }
+  func load() -> Loaded {
+    let empty = Loaded(
+      items: [], concurrencyLimit: PutioOfflineQueue.defaultConcurrencyLimit, pendingOriginals: [])
+    guard let data = try? Data(contentsOf: fileURL) else { return empty }
     guard let document = try? JSONDecoder().decode(Document.self, from: data),
       document.version == Self.version
     else {
       try? FileManager.default.removeItem(at: corruptURL)
       try? FileManager.default.moveItem(at: fileURL, to: corruptURL)
-      return ([], PutioOfflineQueue.defaultConcurrencyLimit)
+      return empty
     }
     let limit =
       PutioOfflineQueue.concurrencyLimits.contains(document.concurrencyLimit)
       ? document.concurrencyLimit : PutioOfflineQueue.defaultConcurrencyLimit
-    return (document.items, limit)
+    return Loaded(
+      items: document.items, concurrencyLimit: limit,
+      pendingOriginals: document.pendingOriginals ?? [])
   }
 
   private var corruptURL: URL { directory.appending(path: "queue.corrupt.json") }
 
-  func save(items: [PutioOfflineItem], concurrencyLimit: Int) {
+  func save(
+    items: [PutioOfflineItem], concurrencyLimit: Int,
+    pendingOriginals: [PutioOfflineRemovalTarget] = []
+  ) {
     let document = Document(
-      version: Self.version, items: items, concurrencyLimit: concurrencyLimit)
+      version: Self.version, items: items, concurrencyLimit: concurrencyLimit,
+      pendingOriginals: pendingOriginals.isEmpty ? nil : pendingOriginals)
     guard let data = try? JSONEncoder().encode(document) else { return }
     try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     try? data.write(to: fileURL, options: .atomic)
@@ -284,6 +298,8 @@ final class PutioOfflineQueue {
   private(set) var availableBytes: Int64 = 0
   /// Unresolved remote failures, merged across requests; outlives the screen.
   private(set) var originalFailure: PutioOfflineOriginalOutcome?
+  /// Originals put.io has not confirmed yet; persisted so a kill still retries.
+  private(set) var pendingOriginals: [PutioOfflineRemovalTarget] = []
 
   @ObservationIgnored private let store: PutioOfflineStore
   @ObservationIgnored private let engine: any PutioOfflineDownloadEngine
@@ -299,6 +315,11 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let readTracks: PutioOfflineTrackReader
   @ObservationIgnored private let isPlayable: PutioOfflinePlayabilityCheck
   @ObservationIgnored private let notifyCompletion: @MainActor (PutioOfflineItem) -> Void
+  /// Bumped by a purge so in-flight original requests stop writing.
+  @ObservationIgnored private var originalsGeneration = 0
+  /// False once the owning shell's session ended; originals paths then neither
+  /// start work nor write.
+  @ObservationIgnored private let isLive: @MainActor () -> Bool
   /// A worker is identified by its token so a cancelled worker's cleanup
   /// never clears a successor that pause-then-resume already started.
   private struct Worker {
@@ -342,7 +363,8 @@ final class PutioOfflineQueue {
     startConversion: @escaping PutioOfflineConversionStart,
     conversionStatus: @escaping PutioOfflineConversionStatus,
     reportPosition: @escaping PutioOfflinePositionReport,
-    deleteOriginal: @escaping PutioOfflineOriginalDelete
+    deleteOriginal: @escaping PutioOfflineOriginalDelete,
+    isLive: @escaping @MainActor () -> Bool = { true }
   ) {
     self.store = store
     self.engine = engine
@@ -358,9 +380,11 @@ final class PutioOfflineQueue {
     self.conversionStatus = conversionStatus
     self.reportPosition = reportPosition
     self.deleteOriginal = deleteOriginal
+    self.isLive = isLive
     let loaded = store.load()
     items = loaded.items
     concurrencyLimit = loaded.concurrencyLimit
+    pendingOriginals = loaded.pendingOriginals
     // Queues written before the sidecar existed are its only record.
     store.recordPackages(at: items.compactMap(\.localPath))
     engine.onProgress = { [weak self] id, progress in self?.engineProgressed(id, progress) }
@@ -390,6 +414,10 @@ final class PutioOfflineQueue {
   func restore() async {
     guard !restored else { return }
     restored = true
+    if !pendingOriginals.isEmpty {
+      let owed = pendingOriginals
+      Task { _ = await deleteOriginals(owed) }
+    }
     let alive = Set(await engine.restoreTasks())
     for index in items.indices {
       switch items[index].stage {
@@ -599,20 +627,27 @@ final class PutioOfflineQueue {
   func removeDeletingOriginals(fileIDs: [PutioFileID], movesToTrash: Bool) async
     -> PutioOfflineOriginalOutcome
   {
+    guard isLive() else { return PutioOfflineOriginalOutcome() }
     let targets = items.filter { fileIDs.contains($0.id) }.map {
       PutioOfflineRemovalTarget(id: $0.id, name: $0.name, movesToTrash: movesToTrash)
     }
+    // Debt and removal land in one document write; a kill records both or neither.
+    adoptPendingOriginals(targets)
     remove(fileIDs: fileIDs)
     return await deleteOriginals(targets)
   }
 
   /// Asks put.io for originals whose local copies are already gone; also the
   /// retry path. Failures merge into `originalFailure` per file so concurrent
-  /// requests keep each other's retry targets.
+  /// requests keep each other's retry targets. A purge or session end during
+  /// the request returns what was answered so far and writes nothing.
   func deleteOriginals(_ targets: [PutioOfflineRemovalTarget]) async
     -> PutioOfflineOriginalOutcome
   {
     var outcome = PutioOfflineOriginalOutcome()
+    let generation = originalsGeneration
+    guard isCurrent(generation) else { return outcome }
+    if adoptPendingOriginals(targets) { persist() }
     for target in targets {
       do {
         try await deleteOriginal(target.id)
@@ -623,6 +658,11 @@ final class PutioOfflineQueue {
       } catch {
         outcome.failures.append(.init(target: target, reason: .init(error)))
       }
+      guard isCurrent(generation) else { return outcome }
+      if outcome.failures.last?.target != target {
+        pendingOriginals.removeAll { $0.id == target.id }
+        persist()
+      }
     }
     var merged = originalFailure ?? PutioOfflineOriginalOutcome()
     let touched = Set(targets.map(\.id))
@@ -632,28 +672,51 @@ final class PutioOfflineQueue {
     return outcome
   }
 
-  /// Clears the shown failures for a retry and returns their targets. Failures
-  /// that merged in after the report was shown stay for the next one.
+  private func isCurrent(_ generation: Int) -> Bool {
+    generation == originalsGeneration && isLive()
+  }
+
+  /// One debt per file: a newer confirmation for the same original replaces
+  /// the older name and promised mode. Returns whether anything changed.
+  @discardableResult
+  private func adoptPendingOriginals(_ targets: [PutioOfflineRemovalTarget]) -> Bool {
+    var changed = false
+    for target in targets where !pendingOriginals.contains(target) {
+      pendingOriginals.removeAll { $0.id == target.id }
+      pendingOriginals.append(target)
+      changed = true
+    }
+    return changed
+  }
+
+  /// Clears the shown failures for a retry; the originals stay pending so a
+  /// kill before the answer still retries on the next launch. Failures that
+  /// merged in after the report was shown stay for the next one.
   func takeFailedOriginalsForRetry(shown: PutioOfflineOriginalOutcome? = nil)
     -> [PutioOfflineRemovalTarget]
   {
     guard let report = originalFailure else { return [] }
     let targets = (shown ?? report).failedTargets
-    settleOriginalFailures(targets.map(\.id))
+    settleOriginalFailures(targets.map(\.id), givingUp: [])
     return targets
   }
 
-  /// Acknowledges the shown failures; ones that merged in after stay.
+  /// Acknowledging the shown failures gives those originals up; failures that
+  /// merged in after the report was shown stay for the next one.
   func dismissOriginalFailure(shown: PutioOfflineOriginalOutcome? = nil) {
     guard let report = originalFailure else { return }
-    settleOriginalFailures((shown ?? report).failedTargets.map(\.id))
+    let acknowledged = (shown ?? report).failedTargets.map(\.id)
+    settleOriginalFailures(acknowledged, givingUp: Set(acknowledged))
   }
 
-  private func settleOriginalFailures(_ handled: [PutioFileID]) {
+  private func settleOriginalFailures(_ handled: [PutioFileID], givingUp: Set<PutioFileID>) {
     let handled = Set(handled)
     var remaining = originalFailure ?? PutioOfflineOriginalOutcome()
     remaining.failures.removeAll { handled.contains($0.target.id) }
     originalFailure = remaining.failures.isEmpty ? nil : remaining
+    guard !givingUp.isEmpty else { return }
+    pendingOriginals.removeAll { givingUp.contains($0.id) }
+    persist()
   }
 
   /// Ends every download and deletes the account's whole offline directory
@@ -670,6 +733,9 @@ final class PutioOfflineQueue {
     suspended.removeAll()
     resumeWhenFree.removeAll()
     items.removeAll()
+    // The account-wide operation already covered the originals.
+    originalsGeneration &+= 1
+    pendingOriginals.removeAll()
     originalFailure = nil
     let survivors = store.loadPackages().filter { relativePath in
       let url = Self.localURL(for: relativePath)
@@ -1033,7 +1099,8 @@ final class PutioOfflineQueue {
   }
 
   private func persist() {
-    store.save(items: items, concurrencyLimit: concurrencyLimit)
+    store.save(
+      items: items, concurrencyLimit: concurrencyLimit, pendingOriginals: pendingOriginals)
   }
 
   private func recomputeStorage() {

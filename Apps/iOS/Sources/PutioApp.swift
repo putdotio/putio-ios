@@ -1245,6 +1245,8 @@ enum PutioOfflineQueueFactory {
     #endif
     let engine: any PutioOfflineDownloadEngine = PutioSystemOfflineDownloadEngine(
       accountID: accountID)
+    // A queue outlived by its shell must not write to the next shell's document.
+    let sessionGeneration = runtime.session.authenticationGeneration
     return PutioOfflineQueue(
       store: PutioOfflineStore(
         directory: harness
@@ -1274,11 +1276,12 @@ enum PutioOfflineQueueFactory {
         try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
       },
       deleteOriginal: { fileID in
-        // Never run under another account after a sign-out.
+        // Never run under another account; the original stays owed to this one.
         guard case .signedIn(let current) = runtime.session.state, current.id == accountID
         else { throw PutioRuntimeError.transient }
         try await runtime.deleteFile(fileID: fileID)
-      }
+      },
+      isLive: { runtime.session.authenticationGeneration == sessionGeneration }
     )
   }
 
