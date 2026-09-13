@@ -76,11 +76,13 @@ struct PutioOfflineDownloadsView: View {
       isPresented: Binding(get: { queue.originalFailure != nil }, set: { _ in }),
       presenting: queue.originalFailure
     ) { outcome in
-      Button("Try again") {
-        let targets = queue.takeFailedOriginalsForRetry(shown: outcome)
-        Task { _ = await queue.deleteOriginals(targets) }
+      if !outcome.retryableTargets.isEmpty {
+        Button("Try again") {
+          let targets = queue.takeFailedOriginalsForRetry(shown: outcome)
+          Task { _ = await queue.deleteOriginals(targets) }
+        }
+        .accessibilityIdentifier("downloads.remove-original-retry")
       }
-      .accessibilityIdentifier("downloads.remove-original-retry")
       Button("OK", role: .cancel) { queue.dismissOriginalFailure(shown: outcome) }
     } message: { outcome in
       Text(copy.failureMessage(outcome: outcome))

@@ -308,6 +308,8 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let conversionStatus: PutioOfflineConversionStatus
   @ObservationIgnored private let reportPosition: PutioOfflinePositionReport
   @ObservationIgnored private let deleteOriginal: PutioOfflineOriginalDelete
+  /// The account's Trash setting as the server has it now, nil when unknown.
+  @ObservationIgnored private let trashSetting: @MainActor () async -> Bool?
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
   @ObservationIgnored private let availableStorage: @MainActor () -> Int64
@@ -315,6 +317,7 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let readTracks: PutioOfflineTrackReader
   @ObservationIgnored private let isPlayable: PutioOfflinePlayabilityCheck
   @ObservationIgnored private let notifyCompletion: @MainActor (PutioOfflineItem) -> Void
+  @ObservationIgnored private let notifyOriginalsDeleted: @MainActor ([PutioFileID]) -> Void
   /// Bumped by a purge so in-flight original requests stop writing.
   @ObservationIgnored private var originalsGeneration = 0
   /// False once the owning shell's session ended; originals paths then neither
@@ -356,6 +359,7 @@ final class PutioOfflineQueue {
       await PutioOfflineQueue.storedTracks(at: $0)
     },
     notifyCompletion: @escaping @MainActor (PutioOfflineItem) -> Void = { _ in },
+    notifyOriginalsDeleted: @escaping @MainActor ([PutioFileID]) -> Void = { _ in },
     isPlayable: @escaping PutioOfflinePlayabilityCheck = {
       await PutioOfflineQueue.assetIsPlayable(at: $0)
     },
@@ -364,6 +368,7 @@ final class PutioOfflineQueue {
     conversionStatus: @escaping PutioOfflineConversionStatus,
     reportPosition: @escaping PutioOfflinePositionReport,
     deleteOriginal: @escaping PutioOfflineOriginalDelete,
+    trashSetting: @escaping @MainActor () async -> Bool? = { nil },
     isLive: @escaping @MainActor () -> Bool = { true }
   ) {
     self.store = store
@@ -374,12 +379,14 @@ final class PutioOfflineQueue {
     self.fileManager = fileManager
     self.readTracks = readTracks
     self.notifyCompletion = notifyCompletion
+    self.notifyOriginalsDeleted = notifyOriginalsDeleted
     self.isPlayable = isPlayable
     self.resolve = resolve
     self.startConversion = startConversion
     self.conversionStatus = conversionStatus
     self.reportPosition = reportPosition
     self.deleteOriginal = deleteOriginal
+    self.trashSetting = trashSetting
     self.isLive = isLive
     let loaded = store.load()
     items = loaded.items
@@ -660,14 +667,24 @@ final class PutioOfflineQueue {
     // A retry never overrides a newer confirmation for the same file.
     if adoptPendingOriginals(targets, replacing: false) { persist() }
     for target in targets {
-      do {
-        try await deleteOriginal(target.id)
-        outcome.deleted.append(target)
-      } catch PutioRuntimeError.notFound {
-        // Already gone, possibly from a delete whose response was lost.
-        outcome.deleted.append(target)
-      } catch {
-        outcome.failures.append(.init(target: target, reason: .init(error)))
+      // Confirmed right before each request: the setting can change on
+      // another client while an earlier delete in this pass is in flight.
+      let trashMode = await trashSetting()
+      guard isCurrent(generation) else { return outcome }
+      if trashMode == nil {
+        outcome.failures.append(.init(target: target, reason: .settingUnconfirmed))
+      } else if let trashMode, trashMode != target.movesToTrash {
+        outcome.failures.append(.init(target: target, reason: .trashSettingChanged))
+      } else {
+        do {
+          try await deleteOriginal(target.id)
+          outcome.deleted.append(target)
+        } catch PutioRuntimeError.notFound {
+          // Already gone, possibly from a delete whose response was lost.
+          outcome.deleted.append(target)
+        } catch {
+          outcome.failures.append(.init(target: target, reason: .init(error)))
+        }
       }
       guard isCurrent(generation) else { return outcome }
       if outcome.failures.last?.target != target, pendingOriginals.contains(target) {
@@ -676,6 +693,7 @@ final class PutioOfflineQueue {
         persist()
       }
     }
+    if !outcome.deleted.isEmpty { notifyOriginalsDeleted(outcome.deleted.map(\.id)) }
     // A failure only speaks for the debt as it stands now; one whose target
     // has since been replaced is dropped, and the newer request reports itself.
     let current = outcome.failures.filter { pendingOriginals.contains($0.target) }
@@ -711,16 +729,18 @@ final class PutioOfflineQueue {
     return changed
   }
 
-  /// Clears the shown failures for a retry; the originals stay pending so a
-  /// kill before the answer still retries on the next launch. Failures that
-  /// merged in after the report was shown stay for the next one.
+  /// Clears the shown failures for a retry. Retryable originals stay pending;
+  /// ones no retry can resolve are given up. Failures that merged in after
+  /// the report was shown stay for the next one.
   func takeFailedOriginalsForRetry(shown: PutioOfflineOriginalOutcome? = nil)
     -> [PutioOfflineRemovalTarget]
   {
     guard let report = originalFailure else { return [] }
-    let targets = (shown ?? report).failedTargets
-    settleOriginalFailures(targets.map(\.id), givingUp: [])
-    return targets
+    let handled = shown ?? report
+    let retryable = handled.retryableTargets
+    let abandoned = Set(handled.failedTargets.map(\.id)).subtracting(retryable.map(\.id))
+    settleOriginalFailures(handled.failedTargets.map(\.id), givingUp: abandoned)
+    return retryable
   }
 
   /// Acknowledging the shown failures gives those originals up; failures that

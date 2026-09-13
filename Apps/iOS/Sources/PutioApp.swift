@@ -291,9 +291,12 @@ private struct MainTabView: View {
         opener: PutioExternalPlaybackOpener.make(scenario: scenario),
         resolve: { fileID in try await runtime.resolveFileDownloadSource(fileID: fileID) }
       ))
+    let folderRefreshRequests = PutioFolderRefreshRequests()
+    _folderRefreshRequests = State(initialValue: folderRefreshRequests)
     _offlineQueue = State(
       initialValue: PutioOfflineQueueFactory.make(
-        runtime: runtime, accountID: account.id, scenario: scenario))
+        runtime: runtime, accountID: account.id, scenario: scenario,
+        onOriginalsDeleted: { folderRefreshRequests.requestAllLoadedFolders() }))
     _cast = State(
       initialValue: PutioCastControllerFactory.makeModel(runtime: runtime, scenario: scenario))
     _appConfig = State(initialValue: PutioAppConfigModel(actions: .init(runtime: runtime)))
@@ -308,7 +311,7 @@ private struct MainTabView: View {
   @State private var harnessPlaybackAttempt = 0
   @State private var harnessReportedPosition: (fileID: PutioFileID, seconds: Int)?
   @State private var playbackPositionPipeline = PutioPlaybackPositionPipeline()
-  @State private var folderRefreshRequests = PutioFolderRefreshRequests()
+  @State private var folderRefreshRequests: PutioFolderRefreshRequests
   @State private var trashReconciliation = PutioTrashReconciliation()
   @State private var historyRevision: UInt64 = 0
   @State private var presentedVideoRoute: PutioVideoRoute?
@@ -1235,9 +1238,10 @@ struct PutioOfflineTrackPickerRequest: Identifiable {
 
 enum PutioOfflineQueueFactory {
   @MainActor
-  static func make(runtime: PutioRuntime, accountID: Int, scenario: HarnessScenario)
-    -> PutioOfflineQueue
-  {
+  static func make(
+    runtime: PutioRuntime, accountID: Int, scenario: HarnessScenario,
+    onOriginalsDeleted: @escaping @MainActor () -> Void
+  ) -> PutioOfflineQueue {
     #if DEBUG
       let harness = scenario == .filesBrowser
     #else
@@ -1259,6 +1263,7 @@ enum PutioOfflineQueueFactory {
         guard !harness else { return }
         PutioOfflineNotifications.notifyCompletion(item)
       },
+      notifyOriginalsDeleted: { _ in onOriginalsDeleted() },
       resolve: { fileID, kind in
         switch kind {
         case .audio:
@@ -1280,6 +1285,15 @@ enum PutioOfflineQueueFactory {
         guard case .signedIn(let current) = runtime.session.state, current.id == accountID
         else { throw PutioRuntimeError.transient }
         try await runtime.deleteFile(fileID: fileID)
+      },
+      trashSetting: {
+        // The cached snapshot can lag another client; ask the server first.
+        guard await runtime.refreshAccountPreferences(),
+          case .signedIn(let current) = runtime.session.state,
+          !runtime.session.isAccountPreferencesStale,
+          !runtime.session.isUpdatingAccountPreferences
+        else { return nil }
+        return current.trashEnabled
       },
       isLive: { runtime.session.authenticationGeneration == sessionGeneration }
     )
