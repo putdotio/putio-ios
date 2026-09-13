@@ -5,18 +5,16 @@ import PutioCore
 
 /// A download the user asked to remove, kept by name because the queue row is
 /// gone by the time a remote failure is reported. `movesToTrash` is what the
-/// confirmation promised; the request is refused if the account's Trash
-/// setting would now do the other thing.
+/// confirmation promised.
 struct PutioOfflineRemovalTarget: Identifiable, Equatable, Codable, Sendable {
   let id: PutioFileID
   let name: String
   let movesToTrash: Bool
 }
 
-/// Why put.io refused to take the original. A missing original is not a
-/// failure: the requested end state already holds, so the queue counts it as
-/// deleted. Server-side reasons are offered a retry; a changed Trash setting
-/// is not, since only a new confirmation could authorize the other outcome.
+/// Why the original was not taken. Server-side reasons are offered a retry;
+/// a changed Trash setting is not, since only a new confirmation could
+/// authorize the other outcome.
 struct PutioOfflineOriginalFailure: Equatable, Sendable {
   enum Reason: Equatable, Sendable {
     case transient
@@ -54,9 +52,8 @@ struct PutioOfflineOriginalOutcome: Equatable, Sendable {
 // MARK: - Copy
 
 /// Wording for the remove confirmation and the remote-failure report. The
-/// local action is always the default; touching the original is worded as a
-/// separate destructive choice that follows the account's Trash setting so a
-/// permanent delete never claims recovery.
+/// remote action follows the Trash setting so a permanent delete never
+/// claims recovery.
 struct PutioOfflineRemovalCopy: Equatable {
   let trashEnabled: Bool
 
@@ -102,8 +99,7 @@ struct PutioOfflineRemovalCopy: Equatable {
     return "\(local) \(remote)"
   }
 
-  /// Named after what the confirmation authorized, not the account's setting
-  /// now, which may have changed since.
+  /// Named after what the confirmation authorized, not the setting now.
   func failureTitle(outcome: PutioOfflineOriginalOutcome) -> String {
     let originals = outcome.failures.count == 1 ? "original" : "originals"
     let modes = Set(outcome.failures.map(\.target.movesToTrash))

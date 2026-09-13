@@ -296,11 +296,9 @@ final class PutioOfflineQueue {
   private(set) var concurrencyLimit: Int
   private(set) var storedBytes: Int64 = 0
   private(set) var availableBytes: Int64 = 0
-  /// Unresolved remote failures, merged across requests and kept on the
-  /// queue so they survive the Downloads screen leaving and coming back.
+  /// Unresolved remote failures, merged across requests; outlives the screen.
   private(set) var originalFailure: PutioOfflineOriginalOutcome?
-  /// Originals put.io has not confirmed yet. Persisted so a kill between the
-  /// local removal and the answer still leads to a retry on the next launch.
+  /// Originals put.io has not confirmed yet; persisted so a kill still retries.
   private(set) var pendingOriginals: [PutioOfflineRemovalTarget] = []
 
   @ObservationIgnored private let store: PutioOfflineStore
@@ -310,9 +308,7 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let conversionStatus: PutioOfflineConversionStatus
   @ObservationIgnored private let reportPosition: PutioOfflinePositionReport
   @ObservationIgnored private let deleteOriginal: PutioOfflineOriginalDelete
-  /// The account's Trash setting as the server has it now, or nil while it
-  /// cannot be established. Read once per request pass; an unknown setting
-  /// sends nothing and reports every original as retryable.
+  /// The account's Trash setting as the server has it now, nil when unknown.
   @ObservationIgnored private let trashSetting: @MainActor () async -> Bool?
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
@@ -321,14 +317,11 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let readTracks: PutioOfflineTrackReader
   @ObservationIgnored private let isPlayable: PutioOfflinePlayabilityCheck
   @ObservationIgnored private let notifyCompletion: @MainActor (PutioOfflineItem) -> Void
-  /// Originals put.io confirmed gone, from any path including a restored
-  /// retry, so loaded file lists can reconcile.
   @ObservationIgnored private let notifyOriginalsDeleted: @MainActor ([PutioFileID]) -> Void
-  /// Bumped by an account purge so original requests already in flight stop
-  /// writing to a queue whose storage is gone.
+  /// Bumped by a purge so in-flight original requests stop writing.
   @ObservationIgnored private var originalsGeneration = 0
-  /// False once the shell that owns this queue has ended its session; from
-  /// then on the originals paths neither start work nor write.
+  /// False once the owning shell's session ended; originals paths then neither
+  /// start work nor write.
   @ObservationIgnored private let isLive: @MainActor () -> Bool
   /// A worker is identified by its token so a cancelled worker's cleanup
   /// never clears a successor that pause-then-resume already started.
@@ -429,7 +422,6 @@ final class PutioOfflineQueue {
     guard !restored else { return }
     restored = true
     if !pendingOriginals.isEmpty {
-      // Owed answers from a previous launch; failures surface in the report.
       let owed = pendingOriginals
       Task { _ = await deleteOriginals(owed) }
     }
@@ -637,9 +629,8 @@ final class PutioOfflineQueue {
     schedule()
   }
 
-  /// Removes the local copies first, then asks put.io for each original one
-  /// at a time. The local outcome never waits on or depends on the remote
-  /// result, so a remote failure leaves the device state exactly as reported.
+  /// Removes the local copies, then asks put.io for each original in turn.
+  /// The local removal never depends on the remote result.
   func removeDeletingOriginals(fileIDs: [PutioFileID], movesToTrash: Bool) async
     -> PutioOfflineOriginalOutcome
   {
@@ -647,34 +638,29 @@ final class PutioOfflineQueue {
     let targets = items.filter { fileIDs.contains($0.id) }.map {
       PutioOfflineRemovalTarget(id: $0.id, name: $0.name, movesToTrash: movesToTrash)
     }
-    // The debt and the removal land in the same document write, so no
-    // kill can record one without the other.
+    // Debt and removal land in one document write; a kill records both or neither.
     adoptPendingOriginals(targets)
     remove(fileIDs: fileIDs)
     return await deleteOriginals(targets)
   }
 
   /// Asks put.io for originals whose local copies are already gone; also the
-  /// retry path after a partial failure. Failures merge into
-  /// `originalFailure` by file so concurrent requests never erase each
-  /// other's retry targets; a confirmed original drops out of it. A purge or
-  /// the end of the session during the request ends it with whatever was
-  /// answered so far, written nowhere.
+  /// retry path. Failures merge into `originalFailure` per file so concurrent
+  /// requests keep each other's retry targets. A purge or session end during
+  /// the request returns what was answered so far and writes nothing.
   func deleteOriginals(_ targets: [PutioOfflineRemovalTarget]) async
     -> PutioOfflineOriginalOutcome
   {
     var outcome = PutioOfflineOriginalOutcome()
     let generation = originalsGeneration
     guard isCurrent(generation) else { return outcome }
-    registerPendingOriginals(targets)
+    if adoptPendingOriginals(targets) { persist() }
     let current = await trashSetting()
     guard isCurrent(generation) else { return outcome }
     for target in targets {
       if current == nil {
-        // Nothing destructive goes out under a setting we could not confirm.
         outcome.failures.append(.init(target: target, reason: .transient))
       } else if let current, current != target.movesToTrash {
-        // Confirmed as one outcome; the account would now do the other.
         outcome.failures.append(.init(target: target, reason: .trashSettingChanged))
       } else {
         do {
@@ -708,7 +694,7 @@ final class PutioOfflineQueue {
   }
 
   /// One debt per file: a newer confirmation for the same original replaces
-  /// the older name and promised mode.
+  /// the older name and promised mode. Returns whether anything changed.
   @discardableResult
   private func adoptPendingOriginals(_ targets: [PutioOfflineRemovalTarget]) -> Bool {
     var changed = false
@@ -720,14 +706,9 @@ final class PutioOfflineQueue {
     return changed
   }
 
-  private func registerPendingOriginals(_ targets: [PutioOfflineRemovalTarget]) {
-    if adoptPendingOriginals(targets) { persist() }
-  }
-
-  /// Clears the shown failures for a retry; the retryable originals stay
-  /// pending so a kill before the answer still retries on the next launch.
-  /// Ones no retry can resolve are given up here. Failures that merged in
-  /// after the report was shown stay for the next one.
+  /// Clears the shown failures for a retry. Retryable originals stay pending;
+  /// ones no retry can resolve are given up. Failures that merged in after
+  /// the report was shown stay for the next one.
   func takeFailedOriginalsForRetry(shown: PutioOfflineOriginalOutcome? = nil)
     -> [PutioOfflineRemovalTarget]
   {
@@ -739,9 +720,8 @@ final class PutioOfflineQueue {
     return retryable
   }
 
-  /// Acknowledging the shown failures gives up on those originals; they are
-  /// not retried on a later launch. Failures that merged in after the report
-  /// was shown stay for the next one.
+  /// Acknowledging the shown failures gives those originals up; failures that
+  /// merged in after the report was shown stay for the next one.
   func dismissOriginalFailure(shown: PutioOfflineOriginalOutcome? = nil) {
     guard let report = originalFailure else { return }
     let acknowledged = (shown ?? report).failedTargets.map(\.id)

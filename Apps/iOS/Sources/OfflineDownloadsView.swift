@@ -7,8 +7,8 @@ import UserNotifications
 struct PutioOfflineDownloadsView: View {
   let queue: PutioOfflineQueue
   let trashEnabled: Bool
-  /// False while account preferences are stale or saving: the runtime would
-  /// refuse the delete, so the choice waits for authoritative settings.
+  /// False while account preferences are stale or saving; the runtime would
+  /// refuse the delete.
   let canDeleteOriginals: Bool
   let onOpen: @MainActor (PutioOfflineItem) -> Void
 
@@ -51,9 +51,8 @@ struct PutioOfflineDownloadsView: View {
       .accessibilityIdentifier("downloads.remove-local")
       Button(copy.remoteActionTitle(count: targets.count), role: .destructive) {
         finishSelection()
-        // Unstructured on purpose: the request outlives this screen, and the
-        // queue keeps the outcome until the user dismisses it.
-        // The mode the dialog promised, not the setting as rendered now.
+        // The request outlives this screen; the queue keeps the outcome.
+        // The mode is the one the dialog promised, not the setting now.
         let movesToTrash = targets.first?.movesToTrash ?? trashEnabled
         Task {
           _ = await queue.removeDeletingOriginals(
@@ -68,9 +67,8 @@ struct PutioOfflineDownloadsView: View {
     }
     .alert(
       copy.failureTitle(outcome: queue.originalFailure ?? PutioOfflineOriginalOutcome()),
-      // Each action clears the report itself: OK gives the originals up,
-      // Try again keeps them owed. The binding setter stays inert so the
-      // order SwiftUI fires it in cannot turn a retry into a give-up.
+      // Each action clears the report itself; an inert setter keeps SwiftUI's
+      // dismissal order from turning a retry into a give-up.
       isPresented: Binding(get: { queue.originalFailure != nil }, set: { _ in }),
       presenting: queue.originalFailure
     ) { outcome in
@@ -99,6 +97,10 @@ struct PutioOfflineDownloadsView: View {
   private func finishSelection() {
     selectedIDs = []
     isEditing = false
+  }
+
+  private func removalTarget(_ item: PutioOfflineItem) -> PutioOfflineRemovalTarget {
+    PutioOfflineRemovalTarget(id: item.id, name: item.name, movesToTrash: trashEnabled)
   }
 
   private var list: some View {
@@ -159,9 +161,7 @@ struct PutioOfflineDownloadsView: View {
     .accessibilityIdentifier("downloads.item.\(item.id.rawValue)")
     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
       Button(role: .destructive) {
-        pendingRemoval = [
-          PutioOfflineRemovalTarget(id: item.id, name: item.name, movesToTrash: trashEnabled)
-        ]
+        pendingRemoval = [removalTarget(item)]
       } label: {
         Label("Remove", systemImage: "trash")
       }
@@ -217,9 +217,7 @@ struct PutioOfflineDownloadsView: View {
       .accessibilityIdentifier("downloads.details.\(item.id.rawValue)")
     case .failed:
       Button(role: .destructive) {
-        pendingRemoval = [
-          PutioOfflineRemovalTarget(id: item.id, name: item.name, movesToTrash: trashEnabled)
-        ]
+        pendingRemoval = [removalTarget(item)]
       } label: {
         Label("Remove", systemImage: "trash")
       }
@@ -240,9 +238,7 @@ struct PutioOfflineDownloadsView: View {
       if isEditing {
         ToolbarItem(placement: .topBarLeading) {
           Button("Remove \(selectedIDs.count)", role: .destructive) {
-            pendingRemoval = queue.items.filter { selectedIDs.contains($0.id) }.map {
-              PutioOfflineRemovalTarget(id: $0.id, name: $0.name, movesToTrash: trashEnabled)
-            }
+            pendingRemoval = queue.items.filter { selectedIDs.contains($0.id) }.map(removalTarget)
           }
           .disabled(selectedIDs.isEmpty)
           .accessibilityIdentifier("downloads.remove-selected")

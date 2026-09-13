@@ -1928,8 +1928,6 @@ import Foundation
           """,
         ] + mutableFolderRows
       if folderDeleted { rows.removeFirst() }
-      // The accepted retry moved the root video to Trash; the root listing
-      // reflects it so the Files tab proves the reconciliation.
       if rootVideoTrashed { rows.removeAll { $0.contains(#""id": 412,"#) } }
       // Only the two name orders are modelled; the journey proves the
       // round trip, not the server's comparator.

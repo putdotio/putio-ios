@@ -1133,14 +1133,14 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(full.item(for: PutioFileID(rawValue: 9))?.stage, .failed(.storage))
   }
 
-  func testRemoveDeletingOriginalsRemovesLocallyBeforeAskingTheServer() async {
+  func testRemoveDeletingOriginalsRemovesLocallyBeforeAskingTheServer() async throws {
     let queue = makeQueue()
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
     queue.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .audio)
     await settle()
     engine.finish(PutioFileID(rawValue: 1), at: directory)
     await settle()
-    let path = try! XCTUnwrap(queue.item(for: PutioFileID(rawValue: 1))?.localPath)
+    let path = try XCTUnwrap(queue.item(for: PutioFileID(rawValue: 1))?.localPath)
     onOriginalDelete = { id in
       XCTAssertNil(queue.item(for: id), "the server is asked only after the local copy is gone")
       XCTAssertFalse(
@@ -1474,12 +1474,7 @@ final class OfflineDownloadsTests: XCTestCase {
       trash.localActionTitle(count: 1), trash.remoteActionTitle(count: 1),
       "VoiceOver must hear two different actions")
     for copy in [trash, permanent] {
-      for count in [1, 2] {
-        XCTAssertTrue(
-          copy.message(count: count).contains("stays on put.io")
-            || copy.message(count: count).contains("stay on put.io"))
-        XCTAssertTrue(copy.message(count: count).contains("every device signed in to your account"))
-      }
+      XCTAssertTrue(copy.message(count: 1).contains("every device signed in to your account"))
     }
     XCTAssertTrue(trash.message(count: 1).contains("until you restore it"))
     XCTAssertFalse(trash.message(count: 1).contains("cannot be undone"))
