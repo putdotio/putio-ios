@@ -2594,6 +2594,44 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertNil(try tokenStore.read())
   }
 
+  func testLostDestroyResponseCannotEndANewerSession() async throws {
+    let (runtime, tokenStore) = await makeSignedInRuntime()
+    let accountRoute = "GET /v2/account/info"
+    RuntimeMockURLProtocol.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/destroy")
+    RuntimeMockURLProtocol.gateFixture(
+      #"{"status":"ERROR","error_type":"invalid_grant"}"#, statusCode: 401,
+      for: accountRoute)
+    let destruction = Task { try await runtime.destroyAccount(password: "pw") }
+    defer {
+      RuntimeMockURLProtocol.releaseFixture(for: accountRoute)
+      destruction.cancel()
+    }
+    guard await waitForRequest(accountRoute, count: 2) else {
+      return XCTFail("credential validation did not start")
+    }
+
+    await runtime.session.signOut()
+    RuntimeMockURLProtocol.setFixture(Self.accountInfo, for: accountRoute)
+    let request = try runtime.session.beginSignIn()
+    let state = try XCTUnwrap(oauthState(from: request.url))
+    let callback = try XCTUnwrap(
+      URL(string: "putio://auth#access_token=fresh-token&state=\(state)"))
+    await runtime.session.completeSignIn(callbackURL: callback)
+    guard case .signedIn = runtime.session.state else {
+      return XCTFail("fresh session did not sign in")
+    }
+    let generation = runtime.session.authenticationGeneration
+
+    RuntimeMockURLProtocol.releaseFixture(for: accountRoute)
+    await assertRuntimeError(.transient) { try await destruction.value }
+    guard case .signedIn = runtime.session.state else {
+      return XCTFail("old credential validation ended the fresh session")
+    }
+    XCTAssertEqual(runtime.session.authenticationGeneration, generation)
+    XCTAssertEqual(try tokenStore.read(), "fresh-token")
+  }
+
   private func assertSecurityError(
     _ expected: PutioAccountSecurityError, file: StaticString = #filePath, line: UInt = #line,
     operation: () async throws -> Void

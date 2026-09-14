@@ -419,7 +419,7 @@ final class PutioOfflineQueue {
   /// Reconnects tasks the system kept alive and re-queues everything else
   /// that was mid-flight when the app died.
   func restore() async {
-    guard !restored else { return }
+    guard isLive(), !restored else { return }
     restored = true
     if !pendingOriginals.isEmpty {
       let owed = pendingOriginals
@@ -429,6 +429,7 @@ final class PutioOfflineQueue {
       Task { _ = await deleteOriginals(owed) }
     }
     let alive = Set(await engine.restoreTasks())
+    guard isLive() else { return }
     for index in items.indices {
       switch items[index].stage {
       case .downloading(let progress) where !alive.contains(items[index].id):
@@ -462,7 +463,7 @@ final class PutioOfflineQueue {
     let url = Self.localURL(for: localPath)
     let isPlayable = isPlayable
     Task { @MainActor [weak self] in
-      guard await isPlayable(url), let self,
+      guard await isPlayable(url), let self, self.isLive(),
         case .paused = self.item(for: fileID)?.stage
       else { return }
       complete(fileID: fileID, localPath: localPath)
@@ -471,7 +472,7 @@ final class PutioOfflineQueue {
 
   /// One completion per item: engine success and restore both land here.
   private func complete(fileID: PutioFileID, localPath: String) {
-    guard !completing.contains(fileID) else { return }
+    guard isLive(), !completing.contains(fileID) else { return }
     completing.insert(fileID)
     let epoch = completionEpoch[fileID, default: 0]
     let url = Self.localURL(for: localPath)
@@ -482,7 +483,7 @@ final class PutioOfflineQueue {
       completing.remove(fileID)
       // Resume, retry, or remove may have run during the read; only a row
       // that is still finishing this package commits.
-      guard completionEpoch[fileID, default: 0] == epoch,
+      guard isLive(), completionEpoch[fileID, default: 0] == epoch,
         let index = items.firstIndex(where: { $0.id == fileID }),
         items[index].localPath == localPath, workers[fileID] == nil
       else { return }
@@ -518,9 +519,14 @@ final class PutioOfflineQueue {
   }
 
   func inventory(fileID: PutioFileID, kind: PutioOfflineItem.Kind) async throws -> InventoryResult {
+    try checkActiveWork()
     guard kind == .video else { return .notApplicable }
-    guard case .ready(let source) = try await resolve(fileID, kind) else { return .needsConversion }
-    return .ready(try await engine.inventory(url: source.url))
+    let resolution = try await resolve(fileID, kind)
+    try checkActiveWork()
+    guard case .ready(let source) = resolution else { return .needsConversion }
+    let inventory = try await engine.inventory(url: source.url)
+    try checkActiveWork()
+    return .ready(inventory)
   }
 
   /// After conversion the asset is inspectable; the queue keeps every
@@ -528,10 +534,12 @@ final class PutioOfflineQueue {
   /// the size so the storage gate sees the real total. An inventory failure
   /// is a real failure, not a silent default-only download.
   private func selectAllLanguagesIfUnset(fileID: PutioFileID, url: URL) async throws {
+    try checkActiveWork()
     guard let item = item(for: fileID), item.selectedAudioLanguages.isEmpty,
       item.kind == .video, item.awaitsLanguageSelection
     else { return }
     let inventory = try await engine.inventory(url: url)
+    try checkActiveWork()
     let languages = inventory.audioOptions.map(\.languageCode)
     update(fileID) {
       $0.selectedAudioLanguages = languages
@@ -826,13 +834,13 @@ final class PutioOfflineQueue {
   /// Records a position locally first, then forwards it. A failed forward
   /// stays pending until `syncPendingPositions` succeeds.
   func recordPosition(fileID: PutioFileID, seconds: Int) async {
-    guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
+    guard isLive(), let index = items.firstIndex(where: { $0.id == fileID }) else { return }
     items[index].resumePositionSeconds = seconds
     items[index].pendingPositionSeconds = seconds
     persist()
     do {
       try await reportPosition(fileID, seconds)
-      guard let index = items.firstIndex(where: { $0.id == fileID }),
+      guard isLive(), let index = items.firstIndex(where: { $0.id == fileID }),
         items[index].pendingPositionSeconds == seconds
       else { return }
       items[index].pendingPositionSeconds = nil
@@ -845,16 +853,19 @@ final class PutioOfflineQueue {
   /// A sync requested while one is running waits for it and then runs
   /// another pass, so a position recorded mid-sync is never skipped.
   func syncPendingPositions() async {
+    guard isLive() else { return }
     if let syncTask {
       await syncTask.value
-      guard pendingPositionCount > 0 else { return }
+      guard isLive(), pendingPositionCount > 0 else { return }
     }
     let task = Task { @MainActor [weak self] in
-      guard let self else { return }
+      guard let self, isLive() else { return }
       for item in items where item.pendingPositionSeconds != nil {
+        guard isLive() else { return }
         guard let seconds = item.pendingPositionSeconds else { continue }
         do {
           try await reportPosition(item.id, seconds)
+          guard isLive() else { return }
           guard let index = items.firstIndex(where: { $0.id == item.id }),
             items[index].pendingPositionSeconds == seconds
           else { continue }
@@ -880,6 +891,7 @@ final class PutioOfflineQueue {
   }
 
   private func schedule() {
+    guard isLive() else { return }
     var slots = max(0, concurrencyLimit - inFlightCount)
     // Suspended tasks waiting for a slot resume in place before new work starts.
     while slots > 0, let fileID = resumeWhenFree.first {
@@ -910,8 +922,9 @@ final class PutioOfflineQueue {
     guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
     let item = items[index]
     do {
+      try checkActiveWork()
       var resolution = try await resolve(fileID, item.kind)
-      try Task.checkCancellation()
+      try checkActiveWork()
       if case .conversionRequired = resolution {
         resolution = try await convert(fileID: fileID)
         if case .ready(let converted) = resolution {
@@ -920,7 +933,7 @@ final class PutioOfflineQueue {
       }
       // Every await above may have let pause or remove run; nothing below
       // touches the engine unless this worker still owns a live item.
-      try Task.checkCancellation()
+      try checkActiveWork()
       guard let current = self.item(for: fileID), !isPaused(current.stage) else { return }
       guard case .ready(let source) = resolution else {
         fail(fileID, .conversion)
@@ -945,6 +958,7 @@ final class PutioOfflineQueue {
       try await engine.start(
         fileID: fileID, url: source.url, title: item.name,
         audioLanguages: current.selectedAudioLanguages)
+      guard isLive() else { return }
       // The engine's own awaits may have let pause or remove run; the queue
       // is the owner, so a task it no longer wants is cancelled here.
       if Task.isCancelled || self.item(for: fileID).map({ isPaused($0.stage) }) != false {
@@ -959,19 +973,27 @@ final class PutioOfflineQueue {
       // successor worker may already own a task for this id.
       return
     } catch PutioOfflineEngineError.missingLanguages {
+      guard isLive(), !Task.isCancelled else { return }
       fail(
         fileID,
         PutioOfflineFailure(
           kind: .resolution, message: "A selected audio language is no longer available."))
     } catch is PutioOfflineConversionError {
+      guard isLive(), !Task.isCancelled else { return }
       fail(fileID, .conversion)
     } catch {
+      guard isLive(), !Task.isCancelled else { return }
       fail(
         fileID,
         PutioOfflineFailure.resolving(error)
           ?? PutioOfflineFailure(
             kind: .resolution, message: "put.io could not prepare this file. Try again."))
     }
+  }
+
+  private func checkActiveWork() throws {
+    try Task.checkCancellation()
+    guard isLive() else { throw CancellationError() }
   }
 
   private func isPaused(_ stage: PutioOfflineItem.Stage) -> Bool {
@@ -989,13 +1011,14 @@ final class PutioOfflineQueue {
 
   /// Conversion and download are distinct stages under one queue identity.
   private func convert(fileID: PutioFileID) async throws -> PutioPlaybackResolution {
+    try checkActiveWork()
     update(fileID) { $0.stage = .converting(progress: 0) }
     try await startConversion(fileID)
     while true {
-      try Task.checkCancellation()
+      try checkActiveWork()
       let status = try await conversionStatus(fileID)
       // The await may have let pause run; a paused row is never overwritten.
-      try Task.checkCancellation()
+      try checkActiveWork()
       switch status {
       case .queued:
         update(fileID) { $0.stage = .converting(progress: 0) }

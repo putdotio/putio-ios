@@ -341,14 +341,15 @@ final class PutioAudioPlayerModel {
     await positionPipeline.waitForPendingReports(fileID: completed.id)
     guard requestGeneration == generation, !Task.isCancelled else { return }
     do {
-      guard let next = try await loadNext(completed.id) else {
+      let next = try await loadNext(completed.id)
+      guard requestGeneration == generation, !Task.isCancelled else { return }
+      guard let next else {
         isTransitioning = false
         elapsedSeconds = 0
         state = .ended(completed)
         publishNowPlaying()
         return
       }
-      guard requestGeneration == generation, !Task.isCancelled else { return }
       advancingTo = next
       await load(track: PutioAudioTrack(id: next.id, parentID: next.parentID, title: next.name))
     } catch {
@@ -565,18 +566,26 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
     endObserver = NotificationCenter.default.addObserver(
       forName: AVPlayerItem.didPlayToEndTimeNotification, object: item, queue: .main
     ) { [weak self] _ in
-      Task { @MainActor [weak self] in self?.onEnded?() }
+      Task { @MainActor [weak self] in
+        guard let self, self.player.currentItem === item else { return }
+        self.onEnded?()
+      }
     }
     failObserver = NotificationCenter.default.addObserver(
       forName: AVPlayerItem.failedToPlayToEndTimeNotification, object: item, queue: .main
     ) { [weak self] _ in
-      Task { @MainActor [weak self] in self?.onFailed?() }
+      Task { @MainActor [weak self] in
+        guard let self, self.player.currentItem === item else { return }
+        self.onFailed?()
+      }
     }
     timeObserver = player.addPeriodicTimeObserver(
       forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main
     ) { [weak self] time in
       Task { @MainActor [weak self] in
-        guard let self, let seconds = Self.seconds(time) else { return }
+        guard let self, self.player.currentItem === item, let seconds = Self.seconds(time) else {
+          return
+        }
         self.onPositionChanged?(seconds)
       }
     }

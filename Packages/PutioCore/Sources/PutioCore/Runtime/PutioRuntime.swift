@@ -901,7 +901,11 @@ extension PutioRuntime {
       guard generation == session.authenticationGeneration, case .signedIn = session.state else {
         throw error
       }
-      if await Self.credentialIsDead(sdk) {
+      let credentialIsDead = await Self.credentialIsDead(sdk)
+      guard generation == session.authenticationGeneration, case .signedIn = session.state else {
+        throw error
+      }
+      if credentialIsDead {
         session.endDestroyedSession()
         return
       }

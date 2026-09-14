@@ -892,6 +892,103 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.unreservedBytes, 700_000_000)
   }
 
+  func testCancelledWorkerFailureDoesNotFailItsReplacement() async {
+    let failures: [Error] = [
+      URLError(.cancelled), PutioRuntimeError.transient,
+      PutioOfflineEngineError.missingLanguages, PutioOfflineConversionError(),
+    ]
+    for failure in failures {
+      let gate = AsyncGate()
+      let engine = FakeEngine()
+      let store = PutioOfflineStore(directory: directory.appending(path: UUID().uuidString))
+      var resolves = 0
+      let queue = PutioOfflineQueue(
+        store: store, engine: engine, availableStorage: { 1_000_000_000 },
+        resolve: { _, _ in
+          resolves += 1
+          if resolves == 1 {
+            await gate.wait()
+            throw failure
+          }
+          return .ready(
+            PutioPlaybackSource(url: URL(string: "https://media.test/x")!, startFromSeconds: 0))
+        },
+        startConversion: { _ in }, conversionStatus: { _ in .completed },
+        reportPosition: { _, _ in }, deleteOriginal: { _ in })
+      let fileID = PutioFileID(rawValue: 80)
+      queue.enqueue(fileID: fileID, parentID: .root, name: "w", kind: .video)
+      await settle()
+      queue.pause(fileID: fileID)
+      queue.resume(fileID: fileID)
+      await settle()
+      XCTAssertEqual(engine.started.count, 1)
+      await gate.open()
+      await settle()
+      XCTAssertEqual(queue.item(for: fileID)?.stage, .downloading(progress: 0), "\(failure)")
+      XCTAssertTrue(engine.cancelled.isEmpty)
+    }
+  }
+
+  func testConversionPollingStopsWhenItsSessionEnds() async {
+    let gate = AsyncGate()
+    var live = true
+    var polls = 0
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine,
+      sleep: { _ in await gate.wait() }, availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in .conversionRequired }, startConversion: { _ in },
+      conversionStatus: { _ in
+        polls += 1
+        return polls == 1 ? .queued : .failed
+      },
+      reportPosition: { _, _ in }, deleteOriginal: { _ in }, isLive: { live })
+    let fileID = PutioFileID(rawValue: 81)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "w", kind: .video)
+    await settle()
+    XCTAssertEqual(polls, 1)
+    live = false
+    await gate.open()
+    await settle()
+    XCTAssertEqual(polls, 1, "the retired queue must not poll with the next session")
+    XCTAssertTrue(engine.started.isEmpty)
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .converting(progress: 0))
+  }
+
+  func testPositionSyncStopsWhenItsSessionEnds() async {
+    let gate = AsyncGate()
+    var live = true
+    var syncing = false
+    var synced: [PutioFileID] = []
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine,
+      availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in
+        .ready(PutioPlaybackSource(url: URL(string: "https://media.test/x")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { id, _ in
+        guard syncing else { throw PutioRuntimeError.transient }
+        synced.append(id)
+        await gate.wait()
+      }, deleteOriginal: { _ in }, isLive: { live })
+    for rawID in 1...2 {
+      let id = PutioFileID(rawValue: rawID)
+      queue.enqueue(fileID: id, parentID: .root, name: "w", kind: .video)
+      await queue.recordPosition(fileID: id, seconds: 10)
+    }
+    await settle()
+    syncing = true
+    let task = Task { await queue.syncPendingPositions() }
+    await settle()
+    XCTAssertEqual(synced, [PutioFileID(rawValue: 1)])
+    live = false
+    await gate.open()
+    await task.value
+    XCTAssertEqual(synced, [PutioFileID(rawValue: 1)])
+    XCTAssertEqual(
+      queue.pendingPositionCount, 2, "the retired queue leaves reconciliation to its successor")
+  }
+
   func testEventJournalRoundTripsPerAccount() throws {
     let dir = FileManager.default.temporaryDirectory.appending(path: "journal-\(UUID())")
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

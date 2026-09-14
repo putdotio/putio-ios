@@ -94,6 +94,7 @@ final class ChromecastTests: XCTestCase {
       },
       loadPlaybackType: {
         box.playbackTypeLoads += 1
+        if let load = box.loadPlaybackType { return try await load() }
         return try playbackType.get()
       },
       savePlaybackType: { type in
@@ -118,6 +119,7 @@ final class ChromecastTests: XCTestCase {
     var conversionStatuses: [PutioVideoConversionStatus]
     var resolveRequests: [(PutioFileID, PutioCastPlaybackType)] = []
     var playbackTypeLoads = 0
+    var loadPlaybackType: PutioCastPlaybackTypeLoad?
     var savedTypes: [PutioCastPlaybackType] = []
     var saveFailure: PutioRuntimeError?
     var conversionStarts = 0
@@ -387,6 +389,30 @@ final class ChromecastTests: XCTestCase {
       model.playbackTypeFailure, "put.io is receiving too many requests. Try again shortly.")
     await model.loadPlaybackTypeIfNeeded(force: true)
     XCTAssertEqual(box.playbackTypeLoads, 2)
+  }
+
+  func testPlaybackTypeRefreshCannotOverwriteAcknowledgedSave() async {
+    let (model, box) = makeModel(controller: CastControllerStub(), resolutions: [])
+    await model.loadPlaybackTypeIfNeeded()
+    var pending: CheckedContinuation<PutioCastPlaybackType, Never>?
+    box.loadPlaybackType = {
+      await withCheckedContinuation { pending = $0 }
+    }
+    let refresh = Task { await model.loadPlaybackTypeIfNeeded(force: true) }
+    _ = await waitUntil { pending != nil }
+    guard let pending else {
+      refresh.cancel()
+      return XCTFail("preference refresh did not start")
+    }
+
+    await model.savePlaybackType(.hls)
+    XCTAssertEqual(model.playbackType, .hls)
+    pending.resume(returning: .mp4)
+    await refresh.value
+
+    XCTAssertEqual(model.playbackType, .hls)
+    XCTAssertNil(model.playbackTypeFailure)
+    XCTAssertEqual(box.savedTypes, [.hls])
   }
 
   func testReceiverIDComesFromTheBundleWithAPublicFallback() {

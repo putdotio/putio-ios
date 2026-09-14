@@ -291,6 +291,61 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.session.events.filter { $0 == "activate" }.count, 3)
   }
 
+  func testStoppedPlayerDoesNotRepublishAfterPendingSuccessorReturnsNone() async {
+    var pending: CheckedContinuation<PutioNextAudio?, Never>?
+    weak var retiringModel: PutioAudioPlayerModel?
+    let nowPlaying: NowPlayingSpy
+    let publicationCount: Int
+    do {
+      let h = makeHarness(loadNext: { _ in
+        await withCheckedContinuation { pending = $0 }
+      })
+      retiringModel = h.model
+      nowPlaying = h.nowPlaying
+      await h.model.start()
+      h.model.skipToNext()
+      await waitUntil { pending != nil }
+      h.model.stop()
+      publicationCount = nowPlaying.published.count
+    }
+    guard let pending else { return XCTFail("successor lookup did not start") }
+    pending.resume(returning: nil)
+    // The transition retains its model until advance finishes, including any
+    // state publication after the suspended lookup returns.
+    await waitUntil { retiringModel == nil }
+    XCTAssertEqual(nowPlaying.published.count, publicationCount)
+    XCTAssertEqual(nowPlaying.clearCount, 1)
+  }
+
+  func testSystemEngineIgnoresQueuedEndFromReplacedItem() async throws {
+    let engine = PutioSystemAudioEngine()
+    defer { engine.stop() }
+    let ended = expectation(description: "retired item must not end its replacement")
+    ended.isInverted = true
+    engine.onEnded = { ended.fulfill() }
+    let url = FileManager.default.temporaryDirectory.appending(path: "putio-retired-audio.m4a")
+    engine.load(url: url, startFromSeconds: 0)
+    let retiredItem = try XCTUnwrap(engine.player.currentItem)
+    NotificationCenter.default.post(
+      name: AVPlayerItem.didPlayToEndTimeNotification, object: retiredItem)
+    engine.load(url: url, startFromSeconds: 0)
+    await fulfillment(of: [ended], timeout: 0.2)
+  }
+
+  func testSystemEngineIgnoresQueuedFailureAfterStop() async throws {
+    let engine = PutioSystemAudioEngine()
+    let failed = expectation(description: "stopped item must not report failure")
+    failed.isInverted = true
+    engine.onFailed = { failed.fulfill() }
+    let url = FileManager.default.temporaryDirectory.appending(path: "putio-stopped-audio.m4a")
+    engine.load(url: url, startFromSeconds: 0)
+    let retiredItem = try XCTUnwrap(engine.player.currentItem)
+    NotificationCenter.default.post(
+      name: AVPlayerItem.failedToPlayToEndTimeNotification, object: retiredItem)
+    engine.stop()
+    await fulfillment(of: [failed], timeout: 0.2)
+  }
+
   func testSkipReportsTheAbandonedPositionBeforeAdvancing() async {
     let h = makeHarness()
     await h.model.start()

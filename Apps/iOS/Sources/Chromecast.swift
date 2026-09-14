@@ -166,6 +166,7 @@ final class PutioCastModel {
   @ObservationIgnored private let positionReportInterval: Duration
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private var generation: UInt64 = 0
+  @ObservationIgnored private var playbackTypeGeneration: UInt64 = 0
   @ObservationIgnored private var castTask: Task<Void, Never>?
   @ObservationIgnored private var reportTask: Task<Void, Never>?
   @ObservationIgnored private var lastReportedSeconds: Int?
@@ -341,8 +342,11 @@ final class PutioCastModel {
 
   private func currentPlaybackType() async throws -> PutioCastPlaybackType {
     if let playbackType { return playbackType }
+    let request = playbackTypeGeneration
     let loaded = try await loadPlaybackType()
-    if playbackType == nil { playbackType = loaded }
+    if playbackType == nil, request == playbackTypeGeneration, !isSavingPlaybackType {
+      playbackType = loaded
+    }
     return playbackType ?? loaded
   }
 
@@ -381,13 +385,17 @@ final class PutioCastModel {
   // MARK: Playback type
 
   func loadPlaybackTypeIfNeeded(force: Bool = false) async {
-    guard force || playbackType == nil else { return }
+    guard !isSavingPlaybackType, force || playbackType == nil else { return }
+    playbackTypeGeneration &+= 1
+    let request = playbackTypeGeneration
     playbackTypeFailure = nil
     do {
       let loaded = try await loadPlaybackType()
+      guard request == playbackTypeGeneration, !Task.isCancelled else { return }
       playbackType = loaded
     } catch {
-      guard !(error is CancellationError) else { return }
+      guard request == playbackTypeGeneration, !Task.isCancelled, !(error is CancellationError)
+      else { return }
       playbackTypeFailure = Self.preferenceMessage(for: error)
     }
   }
@@ -396,6 +404,7 @@ final class PutioCastModel {
   /// so a failed save shows the authoritative type with a retryable message.
   func savePlaybackType(_ newValue: PutioCastPlaybackType) async {
     guard !isSavingPlaybackType, newValue != playbackType else { return }
+    playbackTypeGeneration &+= 1
     isSavingPlaybackType = true
     playbackTypeFailure = nil
     defer { isSavingPlaybackType = false }
