@@ -41,7 +41,7 @@ See [mise.toml](mise.toml) for the task definitions and
 
 ### Design tokens
 
-Follow [Design Principles](design.md) when changing UI. Token values belong in
+Follow [Design Principles](DESIGN.md) when changing UI. Token values belong in
 [putio-design](https://github.com/putdotio/putio-design); this repository consumes
 the version pinned in [package.json](package.json) and [pnpm-lock.yaml](pnpm-lock.yaml).
 

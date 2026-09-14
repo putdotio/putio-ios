@@ -6,8 +6,9 @@ in `Apps`; shared models, session, API, and feature logic belong in
 
 ## Work in this repository
 
-Use lowercase kebab-case for ordinary documentation. Preserve conventional root
-filenames: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and `LICENSE`.
+Use lowercase kebab-case under `docs/` and for supporting documentation. Preserve
+uppercase root guides: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `DESIGN.md`,
+and `LICENSE`.
 Keep tool-defined agent entrypoints (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`) and
 upstream skill files intact.
 
@@ -17,7 +18,7 @@ upstream skill files intact.
   `Tuist/Package.swift`. Generated Xcode projects and workspaces are never committed.
 - Use Swift Package Manager for dependencies. Tuist is local project generation
   tooling; hosted cache, analytics, previews, and account-backed features are out of scope.
-- Follow [Design Principles](design.md) for UI. Change tokens through
+- Follow [Design Principles](DESIGN.md) for UI. Change tokens through
   [the contributor workflow](CONTRIBUTING.md#design-tokens), then regenerate;
   never hand-edit generated Swift or asset catalogs.
 - For authentication changes, preserve [session recovery](docs/session.md).
