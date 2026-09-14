@@ -6,8 +6,9 @@ in `Apps`; shared models, session, API, and feature logic belong in
 
 ## Work in this repository
 
-Use lowercase kebab-case for authored documentation. Keep tool-defined agent
-entrypoints (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`) and upstream skill files intact.
+Use lowercase kebab-case for authored documentation, except the root `README.md`.
+Keep tool-defined agent entrypoints (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`) and
+upstream skill files intact.
 
 - Follow [Contributing](contributing.md) for setup. Run `mise run bootstrap` in a
   fresh checkout or worktree; [mise.toml](mise.toml) owns the task commands.
