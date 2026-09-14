@@ -30,12 +30,17 @@ private final class NowPlayingSpy: PutioNowPlayingSurface {
   private(set) var published: [PutioNowPlayingInfo] = []
   private(set) var clearCount = 0
   private(set) var detachCount = 0
+  private(set) var attachmentCount = 0
   private var handler: (@MainActor (PutioRemoteAudioCommand) -> Void)?
 
   func publish(_ info: PutioNowPlayingInfo) { published.append(info) }
   func clear() { clearCount += 1 }
-  func detachCommands() { detachCount += 1 }
+  func detachCommands() {
+    detachCount += 1
+    handler = nil
+  }
   func setCommandHandler(_ handler: @escaping @MainActor (PutioRemoteAudioCommand) -> Void) {
+    attachmentCount += 1
     self.handler = handler
   }
   func send(_ command: PutioRemoteAudioCommand) { handler?(command) }
@@ -141,6 +146,52 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     h.engine.onPositionChanged?(12)
     h.engine.onPositionChanged?(13)
     XCTAssertEqual(h.model.elapsedSeconds, 13)
+  }
+
+  func testUnstartedViewModelDoesNotRegisterOrClearRemotePlayback() {
+    let h = makeHarness()
+
+    XCTAssertEqual(h.nowPlaying.attachmentCount, 0)
+    h.model.stop()
+
+    XCTAssertEqual(h.nowPlaying.clearCount, 0)
+    XCTAssertEqual(h.nowPlaying.detachCount, 0)
+    XCTAssertTrue(h.engine.events.isEmpty)
+  }
+
+  func testRepeatedStartPreservesPausedPlaybackWithoutRegisteringAgain() async {
+    let h = makeHarness()
+    defer { h.model.stop() }
+    await h.model.start()
+    h.nowPlaying.send(.pause)
+
+    await h.model.start()
+
+    XCTAssertEqual(h.model.state, .paused(track))
+    XCTAssertEqual(h.nowPlaying.attachmentCount, 1)
+    XCTAssertEqual(h.engine.events.filter { $0.hasPrefix("load:") }.count, 1)
+  }
+
+  func testRestartRestoresRemoteCommandsAndHeadphoneRemovalObserver() async {
+    let h = makeHarness()
+    defer { h.model.stop() }
+    await h.model.start()
+    h.model.stop()
+
+    await h.model.start()
+    h.nowPlaying.send(.pause)
+    XCTAssertEqual(h.model.state, .paused(track))
+    h.nowPlaying.send(.play)
+    XCTAssertEqual(h.model.state, .playing(track))
+    XCTAssertEqual(h.nowPlaying.attachmentCount, 2)
+
+    h.center.post(
+      name: AVAudioSession.routeChangeNotification, object: nil,
+      userInfo: [
+        AVAudioSessionRouteChangeReasonKey:
+          AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue
+      ])
+    await waitUntil { h.model.state == .paused(track) }
   }
 
   func testResolutionFailureIsTypedAndRetryRecovers() async {

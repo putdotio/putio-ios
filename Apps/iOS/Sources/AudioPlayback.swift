@@ -152,6 +152,7 @@ final class PutioAudioPlayerModel {
   @ObservationIgnored private var lastReportedSeconds: Int?
   @ObservationIgnored private var resumesAfterInterruption = false
   @ObservationIgnored private var sessionIsActive = false
+  @ObservationIgnored private var isStarted = false
   @ObservationIgnored private var transitionTask: Task<Void, Never>?
   /// Observer ticks are ignored until the engine confirms this position, so a
   /// stale sample cannot undo a seek, a start position, or the end-of-track reset.
@@ -184,10 +185,6 @@ final class PutioAudioPlayerModel {
     self.resolve = resolve
     self.loadNext = loadNext
     bindEngine()
-    observeSession()
-    nowPlaying.setCommandHandler { [weak self] command in
-      self?.handle(command)
-    }
   }
 
   var track: PutioAudioTrack { state.track }
@@ -198,6 +195,12 @@ final class PutioAudioPlayerModel {
   }
 
   func start() async {
+    guard !isStarted, !Task.isCancelled else { return }
+    isStarted = true
+    observeSession()
+    nowPlaying.setCommandHandler { [weak self] command in
+      self?.handle(command)
+    }
     await load(track: track)
   }
 
@@ -284,6 +287,8 @@ final class PutioAudioPlayerModel {
   }
 
   func stop() {
+    guard isStarted else { return }
+    isStarted = false
     generation &+= 1
     transitionTask?.cancel()
     transitionTask = nil
