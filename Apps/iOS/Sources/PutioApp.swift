@@ -488,28 +488,7 @@ private struct MainTabView: View {
       await offlineQueue.restore()
       await offlineQueue.syncPendingPositions()
     }
-    .alert(
-      externalPlaybackAlertTitle,
-      isPresented: Binding(
-        get: { externalPlayback.presentsOutcome },
-        set: { if !$0 { externalPlayback.dismiss() } }
-      )
-    ) {
-      switch externalPlayback.outcome {
-      case .notInstalled:
-        Button("Get VLC") { Task { await externalPlayback.openAppStore() } }
-        Button("Cancel", role: .cancel) { externalPlayback.dismiss() }
-      case .failed(let failure):
-        if failure.canRetry {
-          Button("Try again") { Task { await externalPlayback.retry() } }
-        }
-        Button("OK", role: .cancel) { externalPlayback.dismiss() }
-      case .opened, nil:
-        Button("OK", role: .cancel) { externalPlayback.dismiss() }
-      }
-    } message: {
-      Text(externalPlaybackAlertMessage)
-    }
+    .modifier(PutioExternalPlaybackPresentation(model: externalPlayback))
     .overlay(alignment: .topLeading) {
       if scenario == .filesBrowser, let selectedFileRoute {
         HarnessFileSelectionProbe(route: selectedFileRoute)
@@ -638,23 +617,6 @@ private struct MainTabView: View {
           initialResolution: .ready(source)))
     case .audio:
       presentedAudioRoute = PutioAudioRoute(id: item.id, parentID: item.parentID, title: item.name)
-    }
-  }
-
-  private var externalPlaybackAlertTitle: String {
-    switch externalPlayback.outcome {
-    case .notInstalled: "VLC is not installed"
-    case .failed(let failure): failure.title
-    case .opened, nil: ""
-    }
-  }
-
-  private var externalPlaybackAlertMessage: String {
-    switch externalPlayback.outcome {
-    case .notInstalled:
-      "Install VLC for iOS from the App Store to stream this file there."
-    case .failed(let failure): failure.message
-    case .opened, nil: ""
     }
   }
 

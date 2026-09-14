@@ -7,6 +7,29 @@ import XCTest
 
 final class FilesBrowserRenderingTests: XCTestCase {
   @MainActor
+  func testLargeFolderInitialRenderingPerformance() {
+    let contents = BrowserTestFixtures.contents(
+      items: (1...2_000).map { BrowserTestFixtures.item(id: $0) })
+    let options = XCTMeasureOptions()
+    options.iterationCount = 3
+    measure(metrics: [XCTClockMetric()], options: options) {
+      let controller = UIHostingController(
+        rootView: NavigationStack {
+          PutioFolderScreen(
+            route: .root, load: { _ in contents }, initialContents: contents,
+            relativeTo: BrowserTestFixtures.referenceDate,
+            locale: Locale(identifier: "en_US"), onFileSelected: { _ in })
+        })
+      let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+      window.rootViewController = controller
+      window.isHidden = false
+      controller.view.frame = window.bounds
+      window.layoutIfNeeded()
+      window.isHidden = true
+    }
+  }
+
+  @MainActor
   func testNextVideoOverlayMatchesBaseline() throws {
     let overlay = PutioNextVideoOverlay(
       nextVideo: PutioNextVideo(

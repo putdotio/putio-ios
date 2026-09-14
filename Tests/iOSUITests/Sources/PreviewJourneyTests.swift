@@ -14,6 +14,32 @@ final class PreviewJourneyTests: XCTestCase {
       ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"])
   }
 
+  func testVLCHandoffRetriesAfterResolutionFailure() {
+    app.launchArguments += [
+      "--putio-harness-vlc-installed", "--putio-harness-vlc-resolution-fails-once",
+    ]
+    app.launch()
+    signIn()
+
+    assertVLCRetry()
+  }
+
+  private func assertVLCRetry() {
+    openInVLC(fileID: 412)
+    let failure = app.alerts["Could not open in VLC"]
+    XCTAssertTrue(failure.waitForExistence(timeout: 10))
+    let requests = element("vlc.requests")
+    XCTAssertEqual(requests.value as? String, "0|")
+    failure.buttons["Try again"].tap()
+    XCTAssertTrue(
+      waitForValue(
+        requests,
+        "1|vlc-x-callback://x-callback-url/stream?url=https://api.put.io/v2/files/412/download"
+          + "&x-success=putio:///files/0"),
+      "retry did not hand the file to VLC: \(requests.value ?? "")")
+    XCTAssertFalse(failure.exists)
+  }
+
   func testImagePDFUnsupportedAndVLCHandoffOutcomes() {
     app.launch()
     signIn()
@@ -116,6 +142,12 @@ final class PreviewJourneyTests: XCTestCase {
       "handoff was not requested: \(requests.value ?? "")")
     XCTAssertFalse(app.staticTexts["VLC is not installed"].exists)
     XCTAssertTrue(element("files.screen.0").exists)
+
+    app.terminate()
+    app.launchArguments.append("--putio-harness-vlc-resolution-fails-once")
+    app.launch()
+    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 10))
+    assertVLCRetry()
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")

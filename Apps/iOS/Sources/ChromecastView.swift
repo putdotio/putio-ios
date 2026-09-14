@@ -97,6 +97,7 @@ struct PutioCastBar: View {
 /// Expanded controls: artwork, scrubber, transport, subtitles, stop, and
 /// disconnect. Conversion and failure states mirror the local player's copy.
 struct PutioCastControlsView: View {
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   let model: PutioCastModel
   @State private var scrubPosition: Double?
 
@@ -167,62 +168,77 @@ struct PutioCastControlsView: View {
   }
 
   private func controls(for media: PutioCastMedia) -> some View {
-    VStack(spacing: PutioTheme.Spacing.space4) {
-      AsyncImage(url: media.artworkURL) { phase in
-        if let image = phase.image {
-          image.resizable().aspectRatio(16 / 9, contentMode: .fit)
-        } else {
-          ZStack {
-            PutioTheme.Colors.surface
-            Image(putioIcon: .fileVideo)
-              .foregroundStyle(PutioTheme.Colors.textSecondary)
+    GeometryReader { geometry in
+      ScrollView {
+        VStack(spacing: PutioTheme.Spacing.space4) {
+          AsyncImage(url: media.artworkURL) { phase in
+            if let image = phase.image {
+              image.resizable().aspectRatio(16 / 9, contentMode: .fit)
+            } else {
+              ZStack {
+                PutioTheme.Colors.surface
+                Image(putioIcon: .fileVideo)
+                  .foregroundStyle(PutioTheme.Colors.textSecondary)
+              }
+              .aspectRatio(16 / 9, contentMode: .fit)
+            }
           }
-          .aspectRatio(16 / 9, contentMode: .fit)
+          .clipShape(RoundedRectangle(cornerRadius: PutioTheme.Radius.medium))
+          .frame(maxWidth: 480)
+          .accessibilityHidden(true)
+          Text(media.title)
+            .putioFont(PutioTheme.Typography.heading)
+            .foregroundStyle(PutioTheme.Colors.textPrimary)
+            .lineLimit(2)
+            .accessibilityIdentifier("cast.title")
+          scrubber(for: media)
+          HStack(spacing: dynamicTypeSize.isAccessibilitySize ? 0 : PutioTheme.Spacing.space6) {
+            transportButton("gobackward.30", label: "Back 30 seconds", identifier: "cast.rewind") {
+              model.seek(toSeconds: (model.status?.positionSeconds ?? 0) - 30)
+            }
+            Button {
+              model.togglePlayback()
+            } label: {
+              Image(systemName: model.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                .font(.system(size: 56))
+            }
+            .disabled(model.status == nil)
+            .accessibilityLabel(model.isPlaying ? "Pause" : "Play")
+            .accessibilityIdentifier("cast.toggle")
+            transportButton("goforward.30", label: "Forward 30 seconds", identifier: "cast.forward")
+            {
+              model.seek(toSeconds: (model.status?.positionSeconds ?? 0) + 30)
+            }
+          }
+          if !media.subtitles.isEmpty {
+            subtitlePicker(for: media)
+          } else if media.playbackType == .hls {
+            Text("Subtitles are handled by the receiver for HLS streams.")
+              .putioFont(PutioTheme.Typography.caption)
+              .foregroundStyle(PutioTheme.Colors.textSecondary)
+              .multilineTextAlignment(.center)
+          }
+          Spacer(minLength: 0)
+          sessionActions
         }
+        .padding(PutioTheme.Spacing.space4)
+        .frame(width: geometry.size.width)
+        .frame(minHeight: geometry.size.height)
       }
-      .clipShape(RoundedRectangle(cornerRadius: PutioTheme.Radius.medium))
-      .accessibilityHidden(true)
-      Text(media.title)
-        .putioFont(PutioTheme.Typography.heading)
-        .foregroundStyle(PutioTheme.Colors.textPrimary)
-        .lineLimit(2)
-        .accessibilityIdentifier("cast.title")
-      scrubber(for: media)
-      HStack(spacing: PutioTheme.Spacing.space6) {
-        transportButton("gobackward.30", label: "Back 30 seconds", identifier: "cast.rewind") {
-          model.seek(toSeconds: (model.status?.positionSeconds ?? 0) - 30)
-        }
-        Button {
-          model.togglePlayback()
-        } label: {
-          Image(systemName: model.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-            .font(.system(size: 56))
-        }
-        .disabled(model.status == nil)
-        .accessibilityLabel(model.isPlaying ? "Pause" : "Play")
-        .accessibilityIdentifier("cast.toggle")
-        transportButton("goforward.30", label: "Forward 30 seconds", identifier: "cast.forward") {
-          model.seek(toSeconds: (model.status?.positionSeconds ?? 0) + 30)
-        }
-      }
-      if !media.subtitles.isEmpty {
-        subtitlePicker(for: media)
-      } else if media.playbackType == .hls {
-        Text("Subtitles are handled by the receiver for HLS streams.")
-          .putioFont(PutioTheme.Typography.caption)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
-          .multilineTextAlignment(.center)
-      }
-      Spacer(minLength: 0)
-      sessionActions
     }
-    .padding(PutioTheme.Spacing.space4)
   }
 
   /// Stop keeps the device; Disconnect ends the session. Plain buttons, not
   /// a menu: they are the two things a person reaches for on this screen.
   private var sessionActions: some View {
-    HStack(spacing: PutioTheme.Spacing.space3) {
+    ViewThatFits(in: .horizontal) {
+      HStack(spacing: PutioTheme.Spacing.space3) { sessionButtons }
+      VStack(spacing: PutioTheme.Spacing.space3) { sessionButtons }
+    }
+  }
+
+  private var sessionButtons: some View {
+    Group {
       PutioButton("Stop casting", tier: .secondary) { model.stopCasting() }
         .disabled(model.media == nil)
         .accessibilityIdentifier("cast.stop")

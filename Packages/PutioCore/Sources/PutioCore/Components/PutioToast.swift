@@ -94,13 +94,14 @@ extension View {
 
 private struct PutioToastPresenter: ViewModifier {
   @Binding var toast: PutioToast?
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   func body(content: Content) -> some View {
     content.overlay(alignment: .bottom) {
       if let toast {
         PutioToastView(toast)
           .padding(PutioToastLayout.presentationPadding)
-          .transition(.move(edge: .bottom).combined(with: .opacity))
+          .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
           .zIndex(PutioToastLayout.zIndex)
       }
     }

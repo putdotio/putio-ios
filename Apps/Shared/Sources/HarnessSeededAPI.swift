@@ -357,6 +357,8 @@ import Foundation
     }
     nonisolated(unsafe) private static var previewImageFailuresRemaining =
       ProcessInfo.processInfo.arguments.contains("--putio-harness-previews") ? 1 : 0
+    nonisolated(unsafe) private static var externalPlaybackFailurePending =
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-vlc-resolution-fails-once")
     nonisolated(unsafe) private static var searchRetryFailed = false
     nonisolated(unsafe) private static var emptySearchLoads = 0
     nonisolated(unsafe) private static var searchContinuationFailed = false
@@ -438,6 +440,8 @@ import Foundation
       deepLinkLookupFailed = false
       previewImageFailuresRemaining =
         ProcessInfo.processInfo.arguments.contains("--putio-harness-previews") ? 1 : 0
+      externalPlaybackFailurePending =
+        ProcessInfo.processInfo.arguments.contains("--putio-harness-vlc-resolution-fails-once")
       searchRetryFailed = false
       emptySearchLoads = 0
       searchContinuationFailed = false
@@ -1126,6 +1130,16 @@ import Foundation
       case "GET /v2/files/411/mp4":
         return videoConversionStatus()
       case "GET /v2/files/412":
+        fileActionsLock.lock()
+        let failExternalPlayback = externalPlaybackFailurePending
+        externalPlaybackFailurePending = false
+        fileActionsLock.unlock()
+        if failExternalPlayback {
+          return (
+            503,
+            fixtureError(statusCode: 503, type: "HARNESS_VLC_RETRY", message: "Retry playback")
+          )
+        }
         return (
           200,
           playbackFile(

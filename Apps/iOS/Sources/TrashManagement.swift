@@ -329,6 +329,11 @@ final class PutioTrashModel {
     activeMutation == nil && !isRefreshing && !isLoadingMore && !isRefreshingStorage
   }
 
+  var hasContents: Bool {
+    guard let page else { return false }
+    return !page.items.isEmpty || page.nextCursor != nil
+  }
+
   /// Changes whenever another Trash screen commits a mutation.
   var reconciliationVersion: UInt64 { reconciliation.version }
 
@@ -518,6 +523,7 @@ final class PutioTrashModel {
   }
 
   func empty() async {
+    guard hasContents else { return }
     await mutate(.empty) {
       let result = try await actions.empty()
       // Everything is gone, including rows never loaded; a lagging listing
@@ -738,7 +744,7 @@ struct TrashManagementView: View {
     .navigationTitle("Trash")
     .putioContentBackground()
     .toolbar {
-      if let page = model.page, !page.items.isEmpty || page.nextCursor != nil {
+      if model.hasContents {
         ToolbarItem(placement: .primaryAction) {
           Button("Empty Trash", role: .destructive) {
             emptyConfirmationPresented = true
@@ -771,8 +777,6 @@ struct TrashManagementView: View {
       titleVisibility: .visible
     ) {
       Button("Empty Trash", role: .destructive) {
-        // Another screen may have emptied Trash while the dialog was up.
-        guard model.page?.items.isEmpty == false else { return }
         Task { await model.empty() }
       }
       .accessibilityIdentifier("trash.empty-confirm")
@@ -801,7 +805,7 @@ struct TrashManagementView: View {
         if let pending = pendingDeletion, model.page?.items.contains(pending) != true {
           pendingDeletion = nil
         }
-        if model.page?.items.isEmpty == true { emptyConfirmationPresented = false }
+        if !model.hasContents { emptyConfirmationPresented = false }
       }
     }
     .onChange(of: model.mutationOutcome) { _, outcome in

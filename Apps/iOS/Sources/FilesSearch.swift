@@ -247,6 +247,7 @@ struct FilesSearchView: View {
           onFileSelected(route)
         } label: {
           PutioFileRow(presentation.row)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
       }

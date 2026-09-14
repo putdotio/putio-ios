@@ -184,3 +184,52 @@ final class PutioExternalPlaybackModel {
     isResolving = false
   }
 }
+
+struct PutioExternalPlaybackPresentation: ViewModifier {
+  let model: PutioExternalPlaybackModel
+
+  func body(content: Content) -> some View {
+    content.alert(
+      title,
+      isPresented: Binding(
+        get: { model.presentsOutcome },
+        set: { if !$0 { model.dismiss() } }
+      ),
+      presenting: model.pendingRoute
+    ) { route in
+      switch model.outcome {
+      case .notInstalled:
+        Button("Get VLC") { Task { await model.openAppStore() } }
+        Button("Cancel", role: .cancel) { model.dismiss() }
+      case .failed(let failure):
+        if failure.canRetry {
+          // Alert dismissal clears the pending route before this task runs.
+          Button("Try again") { Task { await model.open(route) } }
+        }
+        Button("OK", role: .cancel) { model.dismiss() }
+      case .opened, nil:
+        Button("OK", role: .cancel) { model.dismiss() }
+      }
+    } message: { _ in
+      Text(message)
+    }
+  }
+
+  private var title: String {
+    switch model.outcome {
+    case .notInstalled: "VLC is not installed"
+    case .failed(let failure): failure.title
+    case .opened, nil: ""
+    }
+  }
+
+  private var message: String {
+    switch model.outcome {
+    case .notInstalled:
+      "Install VLC for iOS from the App Store to stream this file there."
+    case .failed(let failure): failure.message
+    case .opened, nil: ""
+    }
+  }
+
+}

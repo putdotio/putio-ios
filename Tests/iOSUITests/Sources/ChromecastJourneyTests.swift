@@ -101,8 +101,13 @@ final class ChromecastJourneyTests: XCTestCase {
     app.buttons["Files"].tap()
     bar.tap()
     XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+    XCUIDevice.shared.orientation = .landscapeLeft
+    defer { XCUIDevice.shared.orientation = .portrait }
+    XCTAssertTrue(waitUntil(timeout: 5) { self.app.frame.width > self.app.frame.height })
     tapAction("cast.stop")
     XCTAssertTrue(bar.waitForNonExistence(timeout: 5), "stopping did not clear the bar")
+    XCUIDevice.shared.orientation = .portrait
+    XCTAssertTrue(waitUntil(timeout: 5) { self.app.frame.height > self.app.frame.width })
 
     // Explicit row action while connected, then disconnect drops everything.
     row.press(forDuration: 1)
@@ -149,6 +154,10 @@ final class ChromecastJourneyTests: XCTestCase {
 
   private func tapAction(_ identifier: String) {
     let item = app.buttons[identifier]
+    for _ in 0..<4 {
+      if item.isHittable { break }
+      app.scrollViews.firstMatch.swipeUp()
+    }
     XCTAssertTrue(waitUntilHittable(item, timeout: 5), "\(identifier) never became hittable")
     item.tap()
   }

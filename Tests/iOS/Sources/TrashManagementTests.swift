@@ -350,6 +350,24 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(model.mutationOutcome, .emptied())
   }
 
+  func testEmptyTrashIncludesItemsBeyondAnEmptyVisiblePage() async {
+    let stub = TrashActionsStub(
+      pages: [.success(page(items: [], cursor: "next", totalCount: 1))],
+      emptyResults: [.success(.refreshed)]
+    )
+    let model = model(stub)
+    await model.loadIfNeeded()
+
+    XCTAssertTrue(model.hasContents)
+    await model.empty()
+
+    XCTAssertEqual(stub.emptyRequests, 1)
+    XCTAssertNil(model.page?.nextCursor)
+    XCTAssertFalse(model.hasContents)
+    await model.empty()
+    XCTAssertEqual(stub.emptyRequests, 1, "an already emptied Trash needs no second request")
+  }
+
   func testEmptyTrashRequiresSuccessfulMutationBeforeClearingItems() async {
     let item = trashItem(id: 91, name: "Last.mkv")
     let stub = TrashActionsStub(

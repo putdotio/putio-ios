@@ -186,6 +186,7 @@ struct HistoryView: View {
           Task { await model.openFile(event: event) }
         } label: {
           PutioHistoryRow(event: event, isOpening: model.openingEventID == event.id)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
       } else {

@@ -619,18 +619,18 @@ struct PutioFolderScreen: View {
       .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
     } else {
       List(selection: isEditing && !fileActionPending ? $selectedIDs : nil) {
-        ForEach(
-          contents.items.map {
-            PutioBrowserItemPresentation(
-              item: $0,
-              relativeTo: relativeDateReference ?? .now,
-              locale: locale
+        ForEach(contents.items) { item in
+          VStack(spacing: 0) {
+            row(
+              PutioBrowserItemPresentation(
+                item: item,
+                relativeTo: relativeDateReference ?? .now,
+                locale: locale
+              )
             )
           }
-        ) { item in
-          row(item)
-            .tag(item.id)
-            .listRowBackground(PutioTheme.Colors.background)
+          .tag(item.id)
+          .listRowBackground(PutioTheme.Colors.background)
         }
 
         if contents.hasMore {
@@ -669,13 +669,15 @@ struct PutioFolderScreen: View {
         .disabled(fileActionPending)
         .accessibilityIdentifier("files.item.\(presentation.id.rawValue)")
       )
-    } else if let fileRoute = presentation.fileRoute {
+    } else {
+      let fileRoute = PutioFileRoute(item: presentation.item)
       fileActions(
         for: presentation.item,
         content: Button {
           onFileSelected(fileRoute)
         } label: {
           PutioFileRow(presentation.row)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(fileActionPending)
