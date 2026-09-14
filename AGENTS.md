@@ -6,18 +6,19 @@ in `Apps`; shared models, session, API, and feature logic belong in
 
 ## Work in this repository
 
-Use lowercase kebab-case for authored documentation, except the root `README.md`.
+Use lowercase kebab-case for ordinary documentation. Preserve conventional root
+filenames: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, and `LICENSE`.
 Keep tool-defined agent entrypoints (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`) and
 upstream skill files intact.
 
-- Follow [Contributing](contributing.md) for setup. Run `mise run bootstrap` in a
+- Follow [Contributing](CONTRIBUTING.md) for setup. Run `mise run bootstrap` in a
   fresh checkout or worktree; [mise.toml](mise.toml) owns the task commands.
 - Edit targets and settings in `Project.swift`, `Tuist.swift`, and
   `Tuist/Package.swift`. Generated Xcode projects and workspaces are never committed.
 - Use Swift Package Manager for dependencies. Tuist is local project generation
   tooling; hosted cache, analytics, previews, and account-backed features are out of scope.
 - Follow [Design Principles](design.md) for UI. Change tokens through
-  [the contributor workflow](contributing.md#design-tokens), then regenerate;
+  [the contributor workflow](CONTRIBUTING.md#design-tokens), then regenerate;
   never hand-edit generated Swift or asset catalogs.
 - For authentication changes, preserve [session recovery](docs/session.md).
   For routing changes, check [deep-link behavior](docs/deep-links.md).
@@ -51,7 +52,7 @@ manifests live under ignored `build/proof/`.
 Finish authorized edits, checks, and fixes without pausing. Ask before publishing,
 TestFlight or store actions, signing changes, or work outside the task. Follow
 [Distribution](docs/distribution.md) for release ownership and
-[Security](security.md) for private reports.
+[Security](SECURITY.md) for private reports.
 
 ## Skills
 

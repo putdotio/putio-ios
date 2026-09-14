@@ -6,7 +6,7 @@ control geometry, navigation, focus, and presentation.
 
 [package.json](package.json) pins the design package. The adopted
 [Apple contract](https://github.com/putdotio/putio-design/blob/v3.3.0/platforms/apple/DESIGN.md)
-sets the platform rules. Follow [Contributing](contributing.md#design-tokens)
+sets the platform rules. Follow [Contributing](CONTRIBUTING.md#design-tokens)
 when updating the package or its generated adapter.
 
 ## Controls and content

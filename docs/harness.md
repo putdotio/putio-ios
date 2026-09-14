@@ -2,7 +2,7 @@
 
 The [Swift harness](../Tools/PutioHarness/Sources/PutioHarnessKit/HarnessService.swift)
 builds and exercises the app shells through Xcode and headless simulators.
-Start with the [contributor setup](../contributing.md), then check the host:
+Start with the [contributor setup](../CONTRIBUTING.md), then check the host:
 
 ```bash
 mise run doctor -- --output json

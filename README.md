@@ -13,11 +13,11 @@ for the shipping app and release workflow.
 
 ## Development
 
-Start with [Contributing](contributing.md) for setup, running the apps, and tests.
+Start with [Contributing](CONTRIBUTING.md) for setup, running the apps, and tests.
 
 ## Security
 
-Report vulnerabilities through the [private reporting process](security.md).
+Report vulnerabilities through the [private reporting process](SECURITY.md).
 
 ## License
 
