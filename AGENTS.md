@@ -1,67 +1,66 @@
 # Agent Guide
 
-- Native SwiftUI apps for iOS, paired watchOS, and tvOS
-- Tuist manifests are the canonical Xcode workspace definition
-- App composition roots live under `Apps`; shared logic lives in `Packages/PutioCore`
-- Generated `.xcodeproj` and `.xcworkspace` files are never committed
+Native SwiftUI apps for iOS, watchOS, and tvOS. Platform UI and lifecycle belong
+in `Apps`; shared models, session, API, and feature logic belong in
+`Packages/PutioCore`.
 
-## Start Here
+## Work in this repository
 
-- [Overview](./README.md)
-- [Contributing](./CONTRIBUTING.md)
-- [Security](./SECURITY.md)
+Use lowercase kebab-case for authored documentation. Keep tool-defined agent
+entrypoints (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`) and upstream skill files intact.
 
-## Core Commands
+- Follow [Contributing](contributing.md) for setup. Run `mise run bootstrap` in a
+  fresh checkout or worktree; [mise.toml](mise.toml) owns the task commands.
+- Edit targets and settings in `Project.swift`, `Tuist.swift`, and
+  `Tuist/Package.swift`. Generated Xcode projects and workspaces are never committed.
+- Use Swift Package Manager for dependencies. Tuist is local project generation
+  tooling; hosted cache, analytics, previews, and account-backed features are out of scope.
+- Follow [Design Principles](design.md) for UI. Change tokens through
+  [the contributor workflow](contributing.md#design-tokens), then regenerate;
+  never hand-edit generated Swift or asset catalogs.
+- For authentication changes, preserve [session recovery](docs/session.md).
+  For routing changes, check [deep-link behavior](docs/deep-links.md).
+- Keep checked-in defaults, generation, and verification usable without accounts,
+  tokens, secrets, or downloaded brand fonts.
 
-- `mise run doctor`
-- `mise run bootstrap`
-- `mise run generate`
-- `mise run tokens`
-- `mise run test`
-- `mise run build`
-- `mise run verify`
-- `mise run harness -- help`
-- `mise run open`
+## Verification and completion
 
-## Workflow
+Run `mise run verify` before handoff and fix change-caused failures. Completion
+requires that gate plus the affected shell running in its simulator or passing
+harness proof. Report skipped or unavailable checks explicitly.
 
-- Run `mise run bootstrap` in a fresh checkout or worktree
-- Run `mise run verify` before handoff
-- Change targets and settings in `Project.swift`, never in generated Xcode files
-- Follow [Design Principles](./DESIGN.md): native platform elements with put.io theming; never port web component recipes
-- Change design tokens in `putio-design`, then bump the locked package, audit token coverage, and regenerate; never edit generated Swift or asset catalogs
-- Use Swift Package Manager for dependencies
-- Keep platform-specific UI, lifecycle, focus, playback, and download behavior in the matching app shell
-- Put only genuinely cross-platform models, session, API, and feature logic in `PutioCore`
-- Keep checked-in defaults open-source-safe and require no account, token, or secret for generation and verification
-- Use the typed harness for runtime proof; do not open Simulator.app from automation
-- Keep capture local by default and invoke the separate `publish` command only after reviewing the artifact
-- Finish in-scope edits, `mise run verify`, and fixes without pausing; ask before `publish`, TestFlight or store actions, signing changes, and anything outside the task
-- Done means `mise run verify` passed, the affected shell ran in its simulator or the harness proof passed, and change-caused failures were fixed
+Use the [typed headless harness](docs/harness.md); never open Simulator.app from
+automation. Its devices are ephemeral and deleted after each command. Keep
+capture local; publish only after reviewing the artifact and receiving authorization.
 
-## Tuist
+| Change | Required focused proof |
+| --- | --- |
+| Shared logic | `swift test --package-path Packages/PutioCore` |
+| Manifest or dependency graph | Regenerate and build every app scheme |
+| Runtime behavior | Launch or exercise the affected shell in addition to verification |
+| Components or theming | `mise run harness -- test --platform <ios\|tvos>`; intentional visual changes require inspected, re-recorded baselines |
+| iOS Files browser | `mise run harness -- journey --platform ios --scenario files-browser` |
+| tvOS shell or sign-in | `mise run harness -- journey --platform tvos --scenario device-sign-in` |
+| Recorded platform proof | `mise run harness -- proof --platform <ios\|watchos\|tvos\|all>` |
 
-- Tuist is pinned in `mise.toml`
-- `Tuist.swift`, `Project.swift`, and `Tuist/Package.swift` define the generated workspace
-- Tuist is used locally for project generation only; hosted cache, analytics, previews, and account-backed features are out of scope
-- Follow the project-local skill under `.agents/skills` when working with generated projects
+Deterministic checks are secret-free. Live smoke uses only the `devs-auto`
+put.io CLI profile described in the harness contract. Proof artifacts and
+manifests live under ignored `build/proof/`.
 
-## Verification Matrix
+Finish authorized edits, checks, and fixes without pausing. Ask before publishing,
+TestFlight or store actions, signing changes, or work outside the task. Follow
+[Distribution](docs/distribution.md) for release ownership and
+[Security](security.md) for private reports.
 
-- Shared logic: `swift test --package-path Packages/PutioCore`
-- Full repository: `mise run verify`
-- Manifest change: regenerate, then build every app scheme
-- Runtime-sensitive change: launch the affected shell in its simulator in addition to `mise run verify`
-- Component or theming change: `mise run harness -- test --platform <ios|tvos>` asserts the
-  committed snapshot gallery; after an intentional visual change re-record with
-  `--snapshots record` and commit the image diff
-- iOS file-browser change: `mise run harness -- journey --platform ios --scenario files-browser`
-- tvOS shell or sign-in change: `mise run harness -- journey --platform tvos --scenario device-sign-in`
-- Agent runtime proof: `mise run harness -- proof --platform <ios|watchos|tvos|all>`
+## Skills
 
-## Harness
+Codex reads `.agents/skills`; Claude Code reads installer-managed links under
+`.claude/skills`. `CLAUDE.md` links to this guide. When installing or restoring
+skills with the skills CLI, select both `--agent codex claude-code`.
 
-- [Harness contract](./docs/HARNESS.md)
-- Simulator devices are ephemeral, uniquely named, headless, and deleted after every command
-- Deterministic proof is secret-free; live smoke uses only the `devs-auto` put.io CLI profile
-- Proof artifacts and provenance manifests live under ignored `build/proof/`
+- SwiftUI state, composition, navigation, and accessibility: [SwiftUI](.agents/skills/swiftui-expert-skill/SKILL.md)
+- Tasks, cancellation, actors, and Sendable: [Swift Concurrency](.agents/skills/swift-concurrency/SKILL.md)
+- Test design, async tests, and migration: [Swift Testing](.agents/skills/swift-testing-expert/SKILL.md)
+- Build timing and optimization: [Xcode Build Orchestrator](.agents/skills/xcode-build-orchestrator/SKILL.md), which routes to the installed benchmark, compiler, project, package, and fixer skills
+- Workspace generation and target changes: [Tuist](.agents/skills/using-tuist-generated-projects/SKILL.md)
+- Refreshing the skill's API reference: [SwiftUI API Updater](.agents/skills/update-swiftui-apis/SKILL.md)

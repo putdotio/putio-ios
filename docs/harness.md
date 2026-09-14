@@ -1,0 +1,153 @@
+# Apple platform harness
+
+The [Swift harness](../Tools/PutioHarness/Sources/PutioHarnessKit/HarnessService.swift)
+builds and exercises the app shells through Xcode and headless simulators.
+Start with the [contributor setup](../contributing.md), then check the host:
+
+```bash
+mise run doctor -- --output json
+mise run harness -- help
+```
+
+[Doctor](../Tools/PutioHarness/Sources/PutioHarnessKit/Doctor.swift) checks the
+selected Xcode, pinned Tuist version, matching simulator runtimes, and generated
+workspace. Its required failures exit nonzero; optional live and publishing tools
+produce warnings. The [doctor wrapper](../scripts/doctor.sh) reports toolchain
+failures even when Swift cannot compile the harness.
+
+## Choose the proof
+
+Use a journey for an interactive flow:
+
+```bash
+mise run harness -- journey --platform ios --scenario files-browser
+mise run harness -- journey --platform tvos --scenario device-sign-in
+```
+
+The iOS journey runs feature preflights and records the sign-in, browse, playback,
+and sign-out loop. [BrowserJourneyContract](../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift)
+owns the selected tests and required screenshots; the
+[UI tests](../Tests/iOSUITests/Sources) contain their assertions. HTTP responses
+and OAuth input come from [fixtures](../Apps/Shared/Sources/HarnessSeededAPI.swift).
+Session transitions, navigation, and AVFoundation playback are real; media is
+served by the harness's [loopback server](../Tools/PutioHarness/Sources/PutioHarnessKit/HarnessMediaServer.swift).
+Cast uses a [stub receiver](../Apps/iOS/Sources/ChromecastHarness.swift), so this
+journey cannot establish compatibility with a physical Chromecast.
+
+The [tvOS journey](../Tests/tvOSUITests/Sources/DeviceSignInJourneyTests.swift)
+drives code expiry, approval, restored sign-in, and sign-out using simulated
+Siri Remote input. HTTP responses are fixtures; device-code polling, keychain,
+and UI run in the app.
+
+For launch and rendering evidence, use:
+
+```bash
+mise run harness -- proof --platform ios
+mise run harness -- screenshot --platform ios --scenario gallery
+```
+
+`proof` checks a rendered launch, an exercised state transition, the app's
+semantic exercise signal, and process liveness. It records the transition and
+captures the exercised screen. **The default tvOS launch reaches put.io to request
+an activation code**, including through `proof --platform all`; use the tvOS
+journey for deterministic, offline sign-in coverage.
+
+The [argument parser](../Tools/PutioHarness/Sources/PutioHarnessKit/ArgumentParser.swift)
+owns command options and supported platform/scenario combinations. `help` prints
+its usage. Simulator evidence does not establish physical-device behavior,
+production signing, background execution, or hardware remote/Watch behavior.
+
+## Snapshot comparison
+
+```bash
+mise run harness -- test --platform ios
+mise run harness -- test --platform tvos
+```
+
+These commands run the platform's `snapshotSuites` from
+[HarnessPlatform.configuration](../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift).
+Both run in [repository verification](../scripts/verify.sh).
+
+[SnapshotRendering.swift](../Tests/Shared/SnapshotSupport/SnapshotRendering.swift)
+owns baseline paths, comparison tolerance, and failure images. Missing brand
+fonts allow rendering with system fallbacks, then skip brand-baseline comparison.
+Recording requires `mise run fonts-setup`. After an intentional visual change:
+
+```bash
+mise run harness -- test --platform ios --snapshots record
+```
+
+Recording also compares against the newly written images. Review and commit the
+image diff. Off-screen snapshots use bordered/material fallbacks for Liquid
+Glass; review glass itself with a gallery capture.
+
+## Source and artifact ownership
+
+`screenshot`, `record`, `proof`, and `journey` require a clean Git worktree,
+including untracked files. They pin `HEAD`, regenerate the workspace, and check
+the revision again before writing a success manifest. Commit the candidate
+before capturing proof; ordinary builds and snapshot tests can run while editing.
+
+Artifacts stay under ignored `build/proof/<run-id>/<platform>/`. The manifest
+records source and simulator provenance plus artifact sizes and SHA-256 digests.
+[SimulatorHarness](../Tools/PutioHarness/Sources/PutioHarnessKit/SimulatorHarness.swift)
+owns capture validation and artifact emission. Journeys validate the selected
+test results and required screenshots before emitting a success manifest. The
+iOS walk is trimmed around screenshot-matched sign-in, playback, and sign-out
+landmarks, excluding setup and teardown.
+
+Failed journeys retain local diagnostics, including `.xcresult` bundles, and
+remove the success manifest. Inspect that run directory and use a new `--run-id`
+for a retry. [harness-ci.sh](../scripts/harness-ci.sh) assigns a unique CI or local
+run identity; set `PUTIO_HARNESS_RUN_ID` only when the caller needs to supply one.
+
+## Simulator cleanup
+
+The harness never opens Simulator.app. Each simulator command creates uniquely
+named devices; watchOS also gets an ephemeral paired iPhone. Devices are shut
+down, deleted, and checked for absence when the command finishes or fails.
+`build` creates no devices, and `boot` cleans up before returning.
+
+Cleanup is registered before creation and uses the exact owned device ID. If
+interrupted before `simctl create` returns, it retries lookup by the unique name
+to catch a device whose creation finishes after the client exits. The
+[interruption check](../scripts/test-harness-interruption.sh) checks cleanup while
+preserving preexisting devices. If cleanup fails, inspect the reported IDs and
+remove only the run's devices with `xcrun simctl delete <udid>` before retrying.
+
+## Live profile and publishing
+
+Deterministic journeys need no account or secret. Live checks use the global
+put.io CLI:
+
+```bash
+mise run harness -- auth-status --output json
+mise run harness -- live-fixture --output json
+```
+
+[LiveAdapters](../Tools/PutioHarness/Sources/PutioHarnessKit/LiveAdapters.swift)
+requires the `devs-auto` profile, removes ambient `PUTIO_CLI_TOKEN` from its
+put.io child processes, and verifies profile authentication before writes.
+`live-fixture` reuses the `putio-ios-harness` root folder or validates the create
+request with `--dry-run` before writing. Authenticate with
+`putio auth login --profile devs-auto` if the profile check fails.
+
+Capture never uploads implicitly. Review the artifact and obtain publishing
+authorization before using `attach` through the harness:
+
+```bash
+mise run harness -- publish \
+  --artifact build/proof/<run-id>/ios/exercised.png \
+  --repo putdotio/putio-ios \
+  --pr <number>
+```
+
+Structured failures pass through [HarnessOutput.redact](../Tools/PutioHarness/Sources/PutioHarnessKit/HarnessService.swift).
+Inspect retained diagnostics locally before sharing them.
+
+## CI coverage
+
+[Next CI](../.github/workflows/ci-next.yml) owns branch triggers, toolchain
+selection, font provisioning, and checks. It runs `mise run verify` and the iOS
+launch-proof subset in `mise run harness-ci`. Feature journeys are separate;
+run the affected journey for local interactive evidence.
