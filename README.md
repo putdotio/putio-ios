@@ -30,7 +30,7 @@ mise install
 mise run bootstrap
 ```
 
-No Tuist account, application secret, or signing material is required. Bootstrap also downloads the licensed GT America and Berkeley Mono fonts into the ignored `Resources/BrandFonts` directory; see [Contributing](./CONTRIBUTING.md#setup) for the manifest and repair commands.
+No Tuist account, application secret, or signing material is required. The apps use system fonts when the optional licensed GT America and Berkeley Mono files are absent. Run `mise run fonts-setup` and regenerate to bundle them from the ignored `Resources/BrandFonts` directory; see [Contributing](./CONTRIBUTING.md#setup) for the manifest and repair commands.
 
 ## Commands
 

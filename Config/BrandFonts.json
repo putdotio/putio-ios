@@ -1,5 +1,5 @@
 {
-  "$description": "Licensed brand fonts downloaded from static.put.io. The files are required for generation, verification, and runtime proof but must never be committed.",
+  "$description": "Licensed brand fonts downloaded from static.put.io. The files are optional for local development and must never be committed. Brand-font snapshot comparisons require them.",
   "baseUrl": "https://static.put.io",
   "directory": "Resources/BrandFonts",
   "files": {

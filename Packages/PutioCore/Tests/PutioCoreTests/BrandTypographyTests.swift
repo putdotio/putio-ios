@@ -46,9 +46,10 @@
         (fontName: mobileMonoFontName, size: PutioTheme.Typography.sizeSm),
         (fontName: tvFilenameFontName, size: tvFilenameFontSize),
       ]
+      let descriptors = try fontDescriptors()
       for role in roles {
         let primary = try XCTUnwrap(
-          fontDescriptors().first { descriptor in
+          descriptors.first { descriptor in
             (CTFontDescriptorCopyAttribute(descriptor, kCTFontNameAttribute) as? String)
               == role.fontName
           }
@@ -78,11 +79,15 @@
     }
 
     private func fontDescriptors() throws -> [CTFontDescriptor] {
+      try XCTSkipUnless(
+        FileManager.default.fileExists(atPath: fontDirectory.path),
+        "optional brand fonts are absent; run mise run fonts-setup to test native faces"
+      )
       let urls = try FileManager.default.contentsOfDirectory(
         at: fontDirectory,
         includingPropertiesForKeys: nil
       ).filter { $0.pathExtension == "otf" }
-      XCTAssertEqual(urls.count, 5, "run mise run fonts-setup")
+      try XCTSkipUnless(urls.count == 5, "complete brand font set required for native-face tests")
       return urls.flatMap { url in
         CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor] ?? []
       }

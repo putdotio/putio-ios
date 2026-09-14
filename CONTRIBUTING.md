@@ -13,13 +13,16 @@ mise install
 mise run bootstrap
 ```
 
-`mise install` provides the pinned Tuist, Node.js, and pnpm releases. Bootstrap installs the locked Node dependencies, provisions the brand fonts, generates `Putio.xcworkspace`, and runs the harness doctor. It requires no Tuist login or private configuration.
+`mise install` provides the pinned Tuist, Node.js, and pnpm releases. Bootstrap installs the locked Node dependencies, generates `Putio.xcworkspace`, and runs the harness doctor. It requires no Tuist login or private configuration.
 
 `Config/BrandFonts.json` pins the URL, checksum, and destination platforms of every licensed font
 downloaded from `static.put.io` into the ignored `Resources/BrandFonts` directory. Font binaries are
-never committed. `mise run verify-fonts` fails when fonts are absent, partial, changed, or unlisted;
-`mise run fonts-setup` repairs all four states and removes unlisted OTF or TTF files from that
-directory before restoring the manifest set.
+never committed. Missing fonts use system fallbacks and do not block bootstrap, generation, or verification.
+`mise run verify-fonts` checks the checksums of installed manifest fonts.
+`mise run fonts-setup` optionally downloads or repairs the pinned set; regenerate afterward
+to bundle it. Native-face tests and brand snapshot comparisons skip when their fonts are
+unavailable; snapshots still render with system fonts. Recording brand baselines requires
+the fonts. CI provisions them to retain full typography and visual coverage.
 
 For a machine-readable environment report:
 
@@ -35,6 +38,10 @@ Edit `Project.swift` when changing the Xcode graph. Generated Xcode projects and
 mise run generate
 mise run open
 ```
+
+`mise run generate` uses standard SwiftPM for dependency installation because Tuist 4.203.4's
+`swifterpm` resolver fails to load the local GoogleCastSDK manifest. For a standalone install,
+use `TUIST_USE_SWIFTERPM=0 tuist install`.
 
 Source changes inside existing `buildableFolders` appear without regenerating. Regenerate after manifest or dependency-graph changes.
 

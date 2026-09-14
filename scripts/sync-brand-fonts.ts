@@ -60,17 +60,19 @@ const download = async (url: URL, redirectsRemaining = 3): Promise<Uint8Array> =
 
 const verify = async (): Promise<void> => {
   const problems: string[] = [];
+  let present = 0;
   for (const [name, entry] of Object.entries(manifest.files)) {
     const actual = await localDigest(join(directory, name));
-    if (!actual) problems.push(`missing: ${name}`);
-    else if (actual !== entry.sha256) problems.push(`checksum mismatch: ${name}`);
+    if (actual === undefined) continue;
+    present += 1;
+    if (actual !== entry.sha256) problems.push(`checksum mismatch: ${name}`);
   }
   if (problems.length > 0) {
     throw new Error(
       `brand fonts do not match Config/BrandFonts.json\n${problems.join("\n")}\nrun mise run fonts-setup`,
     );
   }
-  console.log(`${Object.keys(manifest.files).length} brand fonts match Config/BrandFonts.json`);
+  console.log(`${present}/${Object.keys(manifest.files).length} brand fonts installed and verified; missing faces use system fonts`);
 };
 
 const sync = async (): Promise<void> => {

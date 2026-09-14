@@ -36,6 +36,21 @@ enum SnapshotEnvironment {
     repositoryRoot.appending(path: "build/snapshot-failures").appending(path: platform)
   }
 
+  @MainActor
+  static func requireBrandFontsForBaseline() throws {
+    let names =
+      ["GTAmerica-Rg", "GTAmerica-Md", "GTAmerica-Bd", "GTAmerica-Bl"]
+      + (platform == "ios" ? ["BerkeleyMonoVariable-Regular"] : [])
+    let available = names.allSatisfy { UIFont(name: $0, size: 16) != nil }
+    if isRecording && !available {
+      throw SnapshotFailure("recording brand baselines requires mise run fonts-setup")
+    }
+    try XCTSkipUnless(
+      available,
+      "rendered with system fonts; brand baseline comparison requires mise run fonts-setup"
+    )
+  }
+
   // The test runner is not an app, so the brand faces bundled by the app
   // targets are registered from the checksummed local font directory instead.
   static let registersBrandFonts: Void = {
@@ -43,8 +58,9 @@ enum SnapshotEnvironment {
     let urls =
       (try? FileManager.default.contentsOfDirectory(
         at: directory, includingPropertiesForKeys: nil))?.filter { $0.pathExtension == "otf" } ?? []
-    precondition(!urls.isEmpty, "brand fonts are missing; run mise run fonts-setup")
-    CTFontManagerRegisterFontURLs(urls as CFArray, .process, true, nil)
+    if !urls.isEmpty {
+      CTFontManagerRegisterFontURLs(urls as CFArray, .process, true, nil)
+    }
   }()
 }
 
@@ -216,6 +232,8 @@ extension XCTestCase {
       dynamicTypeSize: dynamicTypeSize
     )
     let renderedData = try XCTUnwrap(rendered.pngData(), "could not encode rendered snapshot")
+
+    try SnapshotEnvironment.requireBrandFontsForBaseline()
 
     if SnapshotEnvironment.isRecording {
       try fileManager.createDirectory(

@@ -39,6 +39,8 @@ final class ComponentGallerySnapshotTests: XCTestCase {
     let rendered = try SnapshotRenderer.render(page: page)
     let renderedData = try XCTUnwrap(rendered.pngData(), "could not encode rendered snapshot")
 
+    try SnapshotEnvironment.requireBrandFontsForBaseline()
+
     if SnapshotEnvironment.isRecording {
       try fileManager.createDirectory(
         at: SnapshotEnvironment.baselineDirectory, withIntermediateDirectories: true)

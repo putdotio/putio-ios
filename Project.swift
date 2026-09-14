@@ -25,7 +25,13 @@ private let brandFontManifest = loadBrandFontManifest()
 
 private func brandFontNames(for platform: String) -> [String] {
   brandFontManifest.files
-    .filter { $0.value.platforms.contains(platform) }
+    .filter {
+      $0.value.platforms.contains(platform)
+        && FileManager.default.fileExists(
+          atPath: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appending(path: "\(brandFontManifest.directory)/\($0.key)").path
+        )
+    }
     .map(\.key)
     .sorted()
 }

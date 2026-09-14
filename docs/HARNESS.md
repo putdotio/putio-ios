@@ -12,7 +12,7 @@ mise run bootstrap
 mise run doctor -- --output json
 ```
 
-Doctor exits nonzero for missing build prerequisites and returns stable JSON with `--output json`. A shell preflight preserves actionable text or JSON failures when the selected Swift/Xcode toolchain cannot compile the harness. Optional live-lane tools produce warnings without blocking deterministic builds. Brand fonts are provisioned from the checksummed `Config/BrandFonts.json` manifest by `mise run fonts-setup` (bootstrap and CI run it) and verified inside `mise run verify`; doctor does not inspect them.
+Doctor exits nonzero for missing build prerequisites and returns stable JSON with `--output json`. A shell preflight preserves actionable text or JSON failures when the selected Swift/Xcode toolchain cannot compile the harness. Optional live-lane tools produce warnings without blocking deterministic builds. Brand fonts are provisioned from the checksummed `Config/BrandFonts.json` manifest by `mise run fonts-setup` (CI runs it) and installed files are verified inside `mise run verify`; doctor does not inspect them. Missing fonts use system fallbacks. Snapshot tests still render, then skip brand-baseline comparisons when fonts are unavailable; recording requires the brand fonts.
 
 ## Commands
 
