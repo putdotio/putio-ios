@@ -66,7 +66,9 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(ready.waitForExistence(timeout: 20))
     let language = element("video.audio-language")
     XCTAssertTrue(language.waitForExistence(timeout: 10))
-    XCTAssertEqual(language.value as? String, "tr", "offline playback did not pick Turkish")
+    XCTAssertTrue(
+      waitForValue(language, "tr", timeout: 10),
+      "offline playback did not pick Turkish: \(language.value ?? "")")
     let position = element("video.current-position")
     XCTAssertTrue(position.waitForExistence(timeout: 10))
     let advanced = XCTNSPredicateExpectation(

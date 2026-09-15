@@ -103,7 +103,9 @@ landmarks, excluding setup and teardown.
 
 Failed journeys retain local diagnostics, including `.xcresult` bundles, and
 remove the success manifest. Inspect that run directory and use a new `--run-id`
-for a retry. [harness-ci.sh](../scripts/harness-ci.sh) assigns a unique CI or local
+for a retry. Failed preflights also attempt to save audio error domains and codes
+beside their result bundle before simulator cleanup; media URLs are excluded.
+[harness-ci.sh](../scripts/harness-ci.sh) assigns a unique CI or local
 run identity; set `PUTIO_HARNESS_RUN_ID` only when the caller needs to supply one.
 
 ## Simulator cleanup

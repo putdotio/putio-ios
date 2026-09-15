@@ -1,6 +1,7 @@
 import AVFoundation
 import AVKit
 import MediaPlayer
+import OSLog
 import Observation
 import PutioCore
 import SwiftUI
@@ -524,6 +525,7 @@ final class PutioAudioPlayerModel {
 
 @MainActor
 final class PutioSystemAudioEngine: PutioAudioEngine {
+  private static let logger = Logger(subsystem: "io.put", category: "AudioPlayback")
   var onReady: (@MainActor () -> Void)?
   var onEnded: (@MainActor () -> Void)?
   var onFailed: (@MainActor () -> Void)?
@@ -563,7 +565,8 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
         guard let self, self.player.currentItem === item else { return }
         switch item.status {
         case .readyToPlay: self.handleReady()
-        case .failed: self.onFailed?()
+        case .failed:
+          self.reportFailure(item.error)
         default: break
         }
       }
@@ -578,10 +581,11 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
     }
     failObserver = NotificationCenter.default.addObserver(
       forName: AVPlayerItem.failedToPlayToEndTimeNotification, object: item, queue: .main
-    ) { [weak self] _ in
+    ) { [weak self] notification in
+      let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error
       Task { @MainActor [weak self] in
         guard let self, self.player.currentItem === item else { return }
-        self.onFailed?()
+        self.reportFailure(error ?? item.error)
       }
     }
     timeObserver = player.addPeriodicTimeObserver(
@@ -672,6 +676,22 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
     }
     endObserver = nil
     failObserver = nil
+  }
+
+  private func reportFailure(_ error: Error?) {
+    var cause = error.map { $0 as NSError }
+    if cause == nil {
+      Self.logger.error("Audio playback failed without an underlying error")
+    }
+    // Error descriptions and userInfo can contain signed media URLs.
+    for depth in 0..<4 {
+      guard let current = cause else { break }
+      Self.logger.error(
+        "Audio playback failed: depth=\(depth) domain=\(current.domain, privacy: .public) code=\(current.code)"
+      )
+      cause = current.userInfo[NSUnderlyingErrorKey] as? NSError
+    }
+    onFailed?()
   }
 
   private static func seconds(_ time: CMTime) -> Int? {

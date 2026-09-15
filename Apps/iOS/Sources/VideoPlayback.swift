@@ -1012,6 +1012,7 @@ final class PutioSystemVideoPlayerCoordinator {
 
   private let makeDriver: DriverFactory
   private let observeItemStatus: StatusObserverFactory
+  private let selectedAudioLanguage: @MainActor (AVPlayerItem) async -> String?
   private let audioSession: any PutioPlaybackAudioSessioning
   private let notificationCenter: NotificationCenter
   private let positionPipeline: PutioPlaybackPositionPipeline
@@ -1022,6 +1023,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private var failedToEndObservation: NSObjectProtocol?
   private var playedToEndObservation: NSObjectProtocol?
   private var timeJumpedObservation: NSObjectProtocol?
+  private var mediaSelectionObservation: NSObjectProtocol?
   private var driver: (any PutioVideoPlayerDriving)?
   private var onReady: (@MainActor () -> Void)?
   private var onAudioSelected: (@MainActor @Sendable (String) -> Void)?
@@ -1067,12 +1069,16 @@ final class PutioSystemVideoPlayerCoordinator {
     audioSession: any PutioPlaybackAudioSessioning,
     notificationCenter: NotificationCenter,
     positionPipeline: PutioPlaybackPositionPipeline,
+    selectedAudioLanguage: @escaping @MainActor (AVPlayerItem) async -> String? = {
+      await PutioSystemVideoPlayerCoordinator.selectedAudioLanguage(in: $0)
+    },
     schedulePositionReports: @escaping PositionReportScheduler = { interval, callback in
       PutioMonotonicPositionReportSchedule(interval: interval, callback: callback)
     }
   ) {
     self.makeDriver = makeDriver
     self.observeItemStatus = observeItemStatus
+    self.selectedAudioLanguage = selectedAudioLanguage
     self.audioSession = audioSession
     self.notificationCenter = notificationCenter
     self.positionPipeline = positionPipeline
@@ -1127,6 +1133,15 @@ final class PutioSystemVideoPlayerCoordinator {
           break
         @unknown default:
           break
+        }
+      }
+    }
+    if observesPlaybackState {
+      mediaSelectionObservation = notificationCenter.addObserver(
+        forName: AVPlayerItem.mediaSelectionDidChangeNotification, object: item, queue: .main
+      ) { [weak self] _ in
+        MainActor.assumeIsolated {
+          self?.reportAudioSelection(for: item, generation: playbackGeneration)
         }
       }
     }
@@ -1239,6 +1254,10 @@ final class PutioSystemVideoPlayerCoordinator {
       notificationCenter.removeObserver(timeJumpedObservation)
       self.timeJumpedObservation = nil
     }
+    if let mediaSelectionObservation {
+      notificationCenter.removeObserver(mediaSelectionObservation)
+      self.mediaSelectionObservation = nil
+    }
     onReady = nil
     onPositionChanged = nil
     onPlaybackEnded = nil
@@ -1281,16 +1300,21 @@ final class PutioSystemVideoPlayerCoordinator {
   /// preferred-language pick without reaching into AVFoundation.
   private func reportAudioSelection(for item: AVPlayerItem, generation playbackGeneration: UInt64) {
     guard generation == playbackGeneration, onAudioSelected != nil else { return }
+    let selectedAudioLanguage = selectedAudioLanguage
     Task { @MainActor [weak self] in
-      guard let group = try? await item.asset.loadMediaSelectionGroup(for: .audible) else {
-        return
-      }
+      guard let language = await selectedAudioLanguage(item) else { return }
       // A newer playback may have started during the load; its language is
       // reported by its own call.
       guard let self, generation == playbackGeneration, let onAudioSelected else { return }
-      guard let option = item.currentMediaSelection.selectedMediaOption(in: group) else { return }
-      onAudioSelected(PutioOfflineQueue.track(option).languageCode)
+      onAudioSelected(language)
     }
+  }
+
+  static func selectedAudioLanguage(in item: AVPlayerItem) async -> String? {
+    guard let group = try? await item.asset.loadMediaSelectionGroup(for: .audible),
+      let option = item.currentMediaSelection.selectedMediaOption(in: group)
+    else { return nil }
+    return PutioOfflineQueue.track(option).languageCode
   }
 
   private func reportReady(generation playbackGeneration: UInt64) {

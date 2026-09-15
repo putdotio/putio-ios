@@ -204,6 +204,36 @@ private final class PlayerItemStatusObservationSpy: PutioPlayerItemStatusObserva
 
 @MainActor
 final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
+  func testAudioLanguageFollowsSelectionChangesAfterReadiness() async throws {
+    let notifications = NotificationCenter()
+    let status = PlayerItemStatusObservationSpy()
+    var language = "en"
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: PlaybackAudioSessionSpy(), statusObservation: status,
+      notificationCenter: notifications, selectedAudioLanguage: { _ in language })
+    let controller = AVPlayerViewController()
+    defer { coordinator.stop(controller: controller) }
+    let initial = expectation(description: "initial language")
+    let changed = expectation(description: "changed language")
+    var selections: [String] = []
+    coordinator.start(
+      source: source(startFromSeconds: 0), in: controller,
+      observesPlaybackState: true,
+      onAudioSelected: { value in
+        selections.append(value)
+        if value == "en" { initial.fulfill() }
+        if value == "tr" { changed.fulfill() }
+      }, onFailure: {})
+    status.emit(.readyToPlay)
+    await fulfillment(of: [initial], timeout: 2)
+    language = "tr"
+    notifications.post(
+      name: AVPlayerItem.mediaSelectionDidChangeNotification,
+      object: try XCTUnwrap(capture.item))
+    await fulfillment(of: [changed], timeout: 2)
+    XCTAssertEqual(selections, ["en", "tr"])
+  }
+
   private func waitUntil(
     _ condition: @MainActor () -> Bool, file: StaticString = #filePath, line: UInt = #line
   ) async {
@@ -1096,7 +1126,10 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     audioSession: PlaybackAudioSessionSpy,
     statusObservation: PlayerItemStatusObservationSpy? = nil,
     notificationCenter: NotificationCenter = NotificationCenter(),
-    positionPipeline: PutioPlaybackPositionPipeline? = nil
+    positionPipeline: PutioPlaybackPositionPipeline? = nil,
+    selectedAudioLanguage: @escaping @MainActor (AVPlayerItem) async -> String? = {
+      await PutioSystemVideoPlayerCoordinator.selectedAudioLanguage(in: $0)
+    }
   ) -> (PutioSystemVideoPlayerCoordinator, VideoPlayerDriverCapture) {
     let capture = VideoPlayerDriverCapture()
     let coordinator = PutioSystemVideoPlayerCoordinator(
@@ -1118,6 +1151,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       audioSession: audioSession,
       notificationCenter: notificationCenter,
       positionPipeline: positionPipeline ?? PutioPlaybackPositionPipeline(),
+      selectedAudioLanguage: selectedAudioLanguage,
       schedulePositionReports: { interval, callback in
         let schedule = PositionReportScheduleSpy(interval: interval, callback: callback)
         capture.positionReportSchedule = schedule

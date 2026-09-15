@@ -1271,6 +1271,17 @@ public struct SimulatorHarness {
       currentDirectory: context.root
     )
     guard testOutput.status == 0 else {
+      if let audioLog = try? runner.run(
+        "xcrun",
+        [
+          "simctl", "spawn", session.deviceIdentifier, "log", "show", "--last", "5m",
+          "--style", "compact", "--predicate",
+          "subsystem == 'io.put' AND category == 'AudioPlayback'",
+        ]
+      ), audioLog.status == 0 {
+        try? Data(audioLog.stdout.utf8).write(
+          to: resultBundle.deletingPathExtension().appendingPathExtension("audio.log"))
+      }
       throw HarnessFailure(
         "run \(platform.rawValue) journey test failed\n\(testOutput.combinedOutput)\n"
           + journeyFailureDetails(resultBundle: resultBundle)
