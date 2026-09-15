@@ -441,15 +441,18 @@ public struct SimulatorHarness {
   private let context: RepositoryContext
   private let runner: ProcessRunner
   private let fileManager: FileManager
+  private let environment: [String: String]
 
   public init(
     context: RepositoryContext,
     runner: ProcessRunner = ProcessRunner(),
-    fileManager: FileManager = .default
+    fileManager: FileManager = .default,
+    environment: [String: String] = ProcessInfo.processInfo.environment
   ) {
     self.context = context
     self.runner = runner
     self.fileManager = fileManager
+    self.environment = environment
   }
 
   public func build(_ platform: HarnessPlatform, iosCompanionAvailable: Bool = false) throws
@@ -480,6 +483,9 @@ public struct SimulatorHarness {
 
   private func buildProduct(_ platform: HarnessPlatform) throws {
     let config = platform.configuration
+    let architectureArguments =
+      environment["CI"] == nil && environment["GITHUB_ACTIONS"] == nil
+      ? ["ARCHS=$(NATIVE_ARCH_ACTUAL)"] : []
     for scheme in [config.scheme] + config.extraBuildSchemes {
       _ = try runner.checked(
         "xcodebuild",
@@ -487,9 +493,10 @@ public struct SimulatorHarness {
           "build",
           "-workspace", "Putio.xcworkspace",
           "-scheme", scheme,
+          "-configuration", "Debug",
           "-destination", config.destination,
           "-derivedDataPath", context.derivedData.path,
-        ],
+        ] + architectureArguments,
         currentDirectory: context.root,
         context: "build \(platform.rawValue) scheme \(scheme)"
       )

@@ -15,6 +15,11 @@ workspace. Its required failures exit nonzero; optional live and publishing tool
 produce warnings. The [doctor wrapper](../scripts/doctor.sh) reports toolchain
 failures even when Swift cannot compile the harness.
 
+Local app builds use Debug and compile only the host's simulator architecture.
+When `CI` or `GITHUB_ACTIONS` is present, builds retain the project's architecture
+defaults. Run `CI=1 mise run build` locally to build both simulator architectures;
+switching modes can trigger recompilation. Device and Release builds are unchanged.
+
 ## Choose the proof
 
 Use a journey for an interactive flow:
