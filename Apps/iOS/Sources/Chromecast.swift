@@ -245,6 +245,8 @@ final class PutioCastModel {
 
   func disconnect() {
     flushPositionReport()
+    clearSession()
+    if connection != .unavailable { connection = .disconnected }
     controller.endSession()
   }
 
@@ -521,11 +523,7 @@ final class PutioCastModel {
       // The receiver moved on (another sender, or playback ended).
       if self.status != nil, status == nil || status?.playerState == .idle {
         flushPositionReport()
-        stopReporting()
-        self.status = nil
-        self.media = nil
-        activity = .idle
-        presentsControls = false
+        clearSession()
       }
       return
     }
@@ -534,10 +532,7 @@ final class PutioCastModel {
       // Flush against the last playing/paused status; idle carries no
       // trusted position.
       flushPositionReport()
-      stopReporting()
-      self.status = nil
-      self.media = nil
-      presentsControls = false
+      clearSession()
       return
     }
     self.status = status

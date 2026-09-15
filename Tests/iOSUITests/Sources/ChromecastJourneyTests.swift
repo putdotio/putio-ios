@@ -128,12 +128,26 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertTrue(element("video.ready").waitForExistence(timeout: 20))
     element("video.done").tap()
 
+    // Sign-out must stop the receiver, not just remove its controls with the shell.
+    castButton.tap()
+    XCTAssertTrue(device.waitForExistence(timeout: 5))
+    device.tap()
+    XCTAssertTrue(waitUntil(timeout: 5) { castButton.label == "Cast, connected" })
+    row.tap()
+    XCTAssertTrue(toggle.waitForExistence(timeout: 15))
+    XCTAssertEqual(toggle.label, "Pause")
+    app.buttons["cast.controls.done"].tap()
+    let receiverState = element("cast.receiver-state")
+    XCTAssertTrue(waitForValue(receiverState, "connected=true;loaded=true", timeout: 5))
+
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     if !signOut.isHittable { app.swipeUp() }
     signOut.tap()
     XCTAssertTrue(element("auth.sign-in").waitForExistence(timeout: 10))
+    XCTAssertTrue(waitForValue(receiverState, "connected=false;loaded=false", timeout: 5))
+    screenshot("runtime-cast-signed-out")
   }
 
   /// Menu pickers occasionally swallow the first item tap while their

@@ -1,5 +1,6 @@
 import Foundation
 import PutioCore
+import Testing
 import XCTest
 
 @testable import Putio
@@ -17,6 +18,7 @@ private final class CastControllerStub: PutioCastControlling {
   var holdsLoad = false
   private(set) var completedLoads = 0
   var commandFailure: PutioCastControllerError?
+  var reportsSessionEnd = true
 
   func presentDevicePicker() { commands.append("picker") }
 
@@ -48,6 +50,7 @@ private final class CastControllerStub: PutioCastControlling {
 
   func endSession() {
     commands.append("end")
+    guard reportsSessionEnd else { return }
     connection = .disconnected
     onConnectionChanged?(.disconnected)
   }
@@ -59,6 +62,75 @@ private final class CastControllerStub: PutioCastControlling {
 
   func report(_ status: PutioCastMediaStatus?) {
     onMediaStatusChanged?(status)
+  }
+}
+
+@MainActor
+struct CastLifecycleTests {
+  enum Ending: CaseIterable {
+    case idle, missing, otherIdle, disconnect
+  }
+
+  @Test(arguments: Ending.allCases, [false, true])
+  fileprivate func endingDiscardsQueuedControls(ending: Ending, loading: Bool) async throws {
+    let controller = CastControllerStub()
+    controller.holdsLoad = loading
+    controller.reportsSessionEnd = false
+    let fileID = PutioFileID(rawValue: 412)
+    let media = PutioCastMedia(
+      id: fileID, parentID: .root, title: "Movie", playbackType: .mp4,
+      url: try #require(URL(string: "https://example.com/movie.mp4")), artworkURL: nil,
+      durationSeconds: 900, startFromSeconds: 0, subtitles: [], defaultSubtitleKey: nil)
+    let model = PutioCastModel(
+      controller: controller, positionReportInterval: .seconds(60),
+      resolve: { _, _ in .ready(media) }, loadPlaybackType: { .mp4 },
+      savePlaybackType: { _ in }, startConversion: { _ in },
+      loadConversionStatus: { _ in .completed }, reportPosition: { _, _ in })
+    defer {
+      controller.connect(.disconnected)
+      controller.releaseLoad()
+    }
+    model.cast(PutioVideoRoute(id: fileID, parentID: .root, title: "Movie"))
+    let deadline = ContinuousClock.now + .seconds(2)
+    while controller.loads.isEmpty, ContinuousClock.now < deadline {
+      try await Task.sleep(for: .milliseconds(5))
+    }
+    try #require(controller.loads.count == 1)
+    controller.report(
+      PutioCastMediaStatus(
+        fileID: fileID, playerState: .playing, positionSeconds: 30,
+        durationSeconds: 900, activeSubtitleKey: nil))
+    let pause = try #require(model.togglePlayback())
+    let seek = try #require(model.seek(toSeconds: 45))
+    let subtitles = try #require(model.selectSubtitle(key: nil))
+    switch ending {
+    case .idle, .otherIdle:
+      controller.report(
+        PutioCastMediaStatus(
+          fileID: ending == .idle ? fileID : PutioFileID(rawValue: 414),
+          playerState: .idle, positionSeconds: 0, durationSeconds: 900,
+          activeSubtitleKey: nil))
+    case .missing:
+      controller.report(nil)
+    case .disconnect:
+      model.disconnect()
+    }
+    #expect(model.media == nil)
+    #expect(model.status == nil)
+    #expect(model.activity == .idle)
+    #expect(!model.presentsControls)
+    if ending == .disconnect {
+      #expect(!model.isConnected)
+    } else {
+      #expect(model.isConnected)
+    }
+    controller.releaseLoad()
+    await pause.value
+    await seek.value
+    await subtitles.value
+    #expect(controller.commands == (ending == .disconnect ? ["end"] : []))
+    #expect(model.media == nil)
+    #expect(model.activity == .idle)
   }
 }
 

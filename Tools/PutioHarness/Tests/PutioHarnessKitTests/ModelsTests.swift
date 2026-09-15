@@ -72,6 +72,7 @@ import Testing
   #expect(
     BrowserJourneyContract.castAttachmentNames == [
       "runtime-cast-settings", "runtime-cast-error", "runtime-cast-controls",
+      "runtime-cast-signed-out",
     ]
   )
   #expect(

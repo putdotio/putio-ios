@@ -319,6 +319,7 @@ enum BrowserJourneyContract {
     "PutioUITests/ChromecastJourneyTests/testCastSettingsSessionControlsSubtitlesAndPositionSync"
   static let castAttachmentNames = [
     "runtime-cast-settings", "runtime-cast-error", "runtime-cast-controls",
+    "runtime-cast-signed-out",
   ]
   static let previewsTestIdentifier =
     "PutioUITests/PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes"

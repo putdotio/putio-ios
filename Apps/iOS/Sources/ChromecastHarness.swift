@@ -18,7 +18,7 @@
     @ObservationIgnored let providesSystemCastButton = false
     /// The app observes this to present the stub picker.
     var presentsPicker = false
-    @ObservationIgnored private(set) var loaded: PutioCastMedia?
+    private(set) var loaded: PutioCastMedia?
     @ObservationIgnored private var state: PutioCastPlayerState = .idle
     @ObservationIgnored private var position: Double = 0
     @ObservationIgnored private var activeSubtitleKey: String?

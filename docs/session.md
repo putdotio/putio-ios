@@ -7,6 +7,11 @@ checks the session generation around authenticated operations so a late response
 cannot change a newer session. Keep that check after every suspension before
 applying a session-sensitive result.
 
+On iOS, leaving the signed-in session stops Chromecast playback and disconnects
+the receiver. This includes sign-out attempts that fail, session expiry, and
+account destruction. The session root owns this cleanup so it still runs when
+the signed-in shell disappears. A new sign-in gets fresh Cast preferences.
+
 ## Sign-out recovery
 
 Sign-out removes the saved credential and revokes the server session. If either

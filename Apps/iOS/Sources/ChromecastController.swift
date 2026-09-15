@@ -176,6 +176,7 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
   }
 
   func endSession() {
+    abandonPendingRequests()
     loadedFileID = nil
     loadedSubtitles = []
     _ = GCKCastContext.sharedInstance().sessionManager.endSessionAndStopCasting(true)

@@ -79,11 +79,15 @@ private struct HarnessExerciseView: View {
 private struct SessionRootView: View {
   private let scenario: HarnessScenario
   @State private var runtime: PutioRuntime
+  @State private var cast: PutioCastModel
   @State private var deepLinks = PutioDeepLinkModel()
 
   init(scenario: HarnessScenario) {
     self.scenario = scenario
-    _runtime = State(initialValue: PutioRuntimeFactory.make(scenario: scenario))
+    let runtime = PutioRuntimeFactory.make(scenario: scenario)
+    _runtime = State(initialValue: runtime)
+    _cast = State(
+      initialValue: PutioCastControllerFactory.makeModel(runtime: runtime, scenario: scenario))
   }
 
   var body: some View {
@@ -102,6 +106,7 @@ private struct SessionRootView: View {
       case .signedIn(let account):
         MainTabView(
           runtime: runtime,
+          cast: cast,
           account: account,
           deepLinks: deepLinks,
           scenario: scenario,
@@ -116,8 +121,33 @@ private struct SessionRootView: View {
     .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
       if let url = activity.webpageURL { deepLinks.receive(url) }
     }
-    .onChange(of: runtime.session.state, initial: true) { _, state in
+    .onChange(of: runtime.session.state, initial: true) { previous, state in
       deepLinks.updateSession(state)
+      if case .signedIn(let previousAccount) = previous {
+        if case .signedIn(let currentAccount) = state, previousAccount.id == currentAccount.id {
+          return
+        }
+        // The root survives shell removal, including failed sign-out and expiry.
+        cast.disconnect()
+      }
+      if case .signedIn = state {
+        cast = PutioCastControllerFactory.makeModel(runtime: runtime, scenario: scenario)
+      }
+    }
+    .overlay {
+      #if DEBUG
+        if scenario == .filesBrowser, let controller = cast.harnessController {
+          Color.clear
+            .frame(width: 1, height: 1)
+            .accessibilityElement()
+            .accessibilityLabel("Cast receiver")
+            .accessibilityValue(
+              "connected=\(controller.connection.isConnected);loaded=\(controller.loaded != nil)"
+            )
+            .accessibilityIdentifier("cast.receiver-state")
+            .allowsHitTesting(false)
+        }
+      #endif
     }
     .task(id: deepLinks.request) {
       guard case .signedIn(let account) = runtime.session.state else { return }
@@ -269,6 +299,7 @@ private struct SignInView: View {
 // OS. put.io supplies the tint on the selected tab and the Phosphor glyphs.
 private struct MainTabView: View {
   let runtime: PutioRuntime
+  let cast: PutioCastModel
   let account: PutioAccountSnapshot
   let deepLinks: PutioDeepLinkModel
   let scenario: HarnessScenario
@@ -276,12 +307,14 @@ private struct MainTabView: View {
 
   init(
     runtime: PutioRuntime,
+    cast: PutioCastModel,
     account: PutioAccountSnapshot,
     deepLinks: PutioDeepLinkModel,
     scenario: HarnessScenario,
     autoSignOutAfterSeconds: TimeInterval?
   ) {
     self.runtime = runtime
+    self.cast = cast
     self.account = account
     self.deepLinks = deepLinks
     self.scenario = scenario
@@ -297,8 +330,6 @@ private struct MainTabView: View {
       initialValue: PutioOfflineQueueFactory.make(
         runtime: runtime, accountID: account.id, scenario: scenario,
         onOriginalsDeleted: { folderRefreshRequests.requestAllLoadedFolders() }))
-    _cast = State(
-      initialValue: PutioCastControllerFactory.makeModel(runtime: runtime, scenario: scenario))
     _appConfig = State(initialValue: PutioAppConfigModel(actions: .init(runtime: runtime)))
   }
 
@@ -320,7 +351,6 @@ private struct MainTabView: View {
   @State private var presentedUnsupportedRoute: PutioUnsupportedFileRoute?
   @State private var externalPlayback: PutioExternalPlaybackModel
   @State private var offlineQueue: PutioOfflineQueue
-  @State private var cast: PutioCastModel
   @State private var appConfig: PutioAppConfigModel
   @State private var trackPicker: PutioOfflineTrackPickerRequest?
   @State private var offlineFailure: PutioOfflineFailure?
