@@ -162,17 +162,17 @@ final class PreviewJourneyTests: XCTestCase {
     let row = element("files.item.\(fileID)")
     XCTAssertTrue(row.waitForExistence(timeout: 5))
     row.press(forDuration: 1)
-    XCTAssertTrue(app.buttons["files.rename.\(fileID)"].waitForExistence(timeout: 5))
-    XCTAssertFalse(app.buttons["files.open-in-vlc.\(fileID)"].exists)
+    XCTAssertTrue(app.buttons["Rename"].waitForExistence(timeout: 5))
+    XCTAssertFalse(app.buttons["Open in VLC"].exists)
     app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.25)).tap()
-    XCTAssertTrue(app.buttons["files.rename.\(fileID)"].waitForNonExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Rename"].waitForNonExistence(timeout: 5))
   }
 
   private func openInVLC(fileID: Int) {
     let row = element("files.item.\(fileID)")
     XCTAssertTrue(row.waitForExistence(timeout: 5))
     row.press(forDuration: 1)
-    let action = app.buttons["files.open-in-vlc.\(fileID)"]
+    let action = app.buttons["Open in VLC"]
     XCTAssertTrue(action.waitForExistence(timeout: 5), "Open in VLC never appeared")
     action.tap()
   }

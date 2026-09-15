@@ -133,11 +133,9 @@ private final class StopCounter: @unchecked Sendable {
   let started = Date()
   let server = try HarnessMediaServer(
     mediaDirectory: directory,
-    startListener: { listener, queue in
-      // Cancelling before start reports `.cancelled` without ever passing
-      // through `.ready`.
-      listener.cancel()
-      listener.start(queue: queue)
+    startListener: { listener, _ in
+      // A real listener cancelled before start does not reliably deliver a state update.
+      listener.stateUpdateHandler?(.cancelled)
     }
   )
 

@@ -81,7 +81,7 @@ final class AccessibilityJourneyTests: XCTestCase {
     screenshot("runtime-accessibility-downloads")
     selectTab("Files")
     reachable(element("files.item.412")).press(forDuration: 1)
-    let download = app.buttons["files.download.412"]
+    let download = app.buttons["Download"]
     XCTAssertTrue(download.waitForExistence(timeout: 5))
     download.tap()
     let track = element("downloads.track.en")

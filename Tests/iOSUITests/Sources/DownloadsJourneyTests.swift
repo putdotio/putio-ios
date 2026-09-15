@@ -24,7 +24,7 @@ final class DownloadsJourneyTests: XCTestCase {
     let row = element("files.item.412")
     XCTAssertTrue(row.waitForExistence(timeout: 10))
     row.press(forDuration: 1)
-    let download = app.buttons["files.download.412"]
+    let download = app.buttons["Download"]
     XCTAssertTrue(download.waitForExistence(timeout: 5))
     download.tap()
     let turkish = element("downloads.track.tr")
