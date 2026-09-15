@@ -779,39 +779,11 @@ final class PutioSystemAudioSession: PutioAudioSessioning {
 
 struct PutioAudioPlayerView: View {
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-  @State private var model: PutioAudioPlayerModel
+  let model: PutioAudioPlayerModel
   @State private var scrubbing = false
   @State private var scrubSeconds: Double = 0
-  private let onDismiss: @MainActor () -> Void
-  private let onClose: @MainActor (PutioAudioTrack) -> Void
-  private let showsHarnessReadiness: Bool
-
-  init(
-    route: PutioAudioRoute,
-    onDismiss: @escaping @MainActor () -> Void,
-    onClose: @escaping @MainActor (PutioAudioTrack) -> Void,
-    showsHarnessReadiness: Bool = false,
-    positionPipeline: PutioPlaybackPositionPipeline,
-    reportPosition: @escaping PutioPlaybackPositionReport,
-    resolve: @escaping PutioAudioResolve,
-    loadNext: @escaping PutioNextAudioLoad
-  ) {
-    self.onDismiss = onDismiss
-    self.onClose = onClose
-    self.showsHarnessReadiness = showsHarnessReadiness
-    _model = State(
-      initialValue: PutioAudioPlayerModel(
-        track: PutioAudioTrack(id: route.id, parentID: route.parentID, title: route.title),
-        engine: PutioSystemAudioEngine(),
-        nowPlaying: PutioSystemNowPlayingSurface(),
-        audioSession: PutioSystemAudioSession(),
-        speedStore: PutioAudioSpeedStore(),
-        positionPipeline: positionPipeline,
-        reportPosition: reportPosition,
-        resolve: resolve,
-        loadNext: loadNext
-      ))
-  }
+  let onDismiss: @MainActor () -> Void
+  var showsHarnessReadiness = false
 
   var body: some View {
     NavigationStack {
@@ -852,12 +824,7 @@ struct PutioAudioPlayerView: View {
         }
       }
     }
-    .task { await model.start() }
-    .onDisappear {
-      let track = model.track
-      model.stop()
-      onClose(track)
-    }
+    .presentationDragIndicator(.visible)
     .overlay { harnessProbes }
   }
 
