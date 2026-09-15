@@ -24,6 +24,7 @@ private final class PlaybackResolverStub {
 
 @MainActor
 private final class CancellationPlaybackResolver {
+  let started = XCTestExpectation(description: "CancellationPlaybackResolver suspended")
   private(set) var attempts = 0
   let source: PutioPlaybackSource
 
@@ -34,6 +35,7 @@ private final class CancellationPlaybackResolver {
   func resolve(_: PutioFileID) async throws -> PutioPlaybackResolution {
     attempts += 1
     if attempts == 1 {
+      started.fulfill()
       try await Task.sleep(for: .seconds(60))
     }
     return .ready(source)
@@ -76,6 +78,7 @@ private final class VideoConversionStub {
 
 @MainActor
 private final class SuspendedConversionStatus {
+  let started = XCTestExpectation(description: "SuspendedConversionStatus suspended")
   private(set) var startRequests: [PutioFileID] = []
   private(set) var requests = 0
 
@@ -86,6 +89,7 @@ private final class SuspendedConversionStatus {
   func load(_: PutioFileID) async throws -> PutioVideoConversionStatus {
     requests += 1
     if requests == 1 {
+      started.fulfill()
       try await Task.sleep(for: .seconds(60))
     }
     return .completed
@@ -94,10 +98,12 @@ private final class SuspendedConversionStatus {
 
 @MainActor
 private final class SuspendedConversionStart {
+  let started = XCTestExpectation(description: "SuspendedConversionStart suspended")
   private(set) var requests = 0
 
   func start(_: PutioFileID) async throws {
     requests += 1
+    started.fulfill()
     try await Task.sleep(for: .seconds(60))
   }
 }
@@ -243,9 +249,9 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     )
 
     let loadTask = Task { await model.loadIfNeeded() }
-    while suspendedStart.requests == 0 {
-      await Task.yield()
-    }
+    defer { loadTask.cancel() }
+    await fulfillment(of: [suspendedStart.started], timeout: 2)
+    guard suspendedStart.requests > 0 else { return }
 
     XCTAssertEqual(model.state, .conversionRequired)
     loadTask.cancel()
@@ -313,9 +319,9 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     // Cancel while the first status poll is suspended: the start already
     // committed, so the retry must not POST a second conversion.
     let loadTask = Task { await model.loadIfNeeded() }
-    while suspendedStatus.requests == 0 {
-      await Task.yield()
-    }
+    defer { loadTask.cancel() }
+    await fulfillment(of: [suspendedStatus.started], timeout: 2)
+    guard suspendedStatus.requests > 0 else { return }
     loadTask.cancel()
     await loadTask.value
 
@@ -394,9 +400,9 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     )
 
     let loadTask = Task { await model.loadIfNeeded() }
-    while suspendedStatus.requests == 0 {
-      await Task.yield()
-    }
+    defer { loadTask.cancel() }
+    await fulfillment(of: [suspendedStatus.started], timeout: 2)
+    guard suspendedStatus.requests > 0 else { return }
     loadTask.cancel()
     await loadTask.value
 
@@ -498,9 +504,9 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
     }
 
     let loadTask = Task { await model.loadIfNeeded() }
-    while resolver.attempts == 0 {
-      await Task.yield()
-    }
+    defer { loadTask.cancel() }
+    await fulfillment(of: [resolver.started], timeout: 2)
+    guard resolver.attempts > 0 else { return }
     loadTask.cancel()
     await loadTask.value
 

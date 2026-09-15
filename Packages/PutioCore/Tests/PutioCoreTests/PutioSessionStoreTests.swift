@@ -1,92 +1,118 @@
 import PutioSDK
+import Synchronization
 import XCTest
 
 @testable import PutioCore
 
-final class SessionMockURLProtocol: URLProtocol {
-  nonisolated(unsafe) static var fixtures: [String: (Int, String)] = [:]
-  /// Ordered responses consumed one per request before `fixtures` applies.
-  nonisolated(unsafe) static var sequences: [String: [(Int, String)]] = [:]
-  nonisolated(unsafe) static var networkFailureRoutes: Set<String> = []
-  /// Routes whose response is delivered only after the given delay.
-  nonisolated(unsafe) static var delays: [String: TimeInterval] = [:]
-  nonisolated(unsafe) static var requests: [URLRequest] = []
-  private static let lock = NSLock()
+private final class SessionMockURLProtocol: URLProtocol, @unchecked Sendable {
+  static let registry = TestURLProtocolRegistry<Fixtures>()
 
-  static func reset() {
-    lock.withLock {
-      fixtures = [:]
-      sequences = [:]
-      networkFailureRoutes = []
-      delays = [:]
-      requests = []
+  final class Fixtures: @unchecked Sendable {
+    fileprivate let lock = NSLock()
+    private var storedFixtures: [String: (Int, String)] = [:]
+    private var storedSequences: [String: [(Int, String)]] = [:]
+    private var storedNetworkFailureRoutes: Set<String> = []
+    private var storedRequests: [URLRequest] = []
+    fileprivate var gatedRoutes: Set<String> = []
+    fileprivate var responses: [String: @Sendable () -> Void] = [:]
+
+    var fixtures: [String: (Int, String)] {
+      get { lock.withLock { storedFixtures } }
+      _modify {
+        lock.lock()
+        defer { lock.unlock() }
+        yield &storedFixtures
+      }
     }
-  }
+    var sequences: [String: [(Int, String)]] {
+      get { lock.withLock { storedSequences } }
+      _modify {
+        lock.lock()
+        defer { lock.unlock() }
+        yield &storedSequences
+      }
+    }
+    var networkFailureRoutes: Set<String> {
+      get { lock.withLock { storedNetworkFailureRoutes } }
+      _modify {
+        lock.lock()
+        defer { lock.unlock() }
+        yield &storedNetworkFailureRoutes
+      }
+    }
+    var requests: [URLRequest] { lock.withLock { storedRequests } }
 
-  static func requestCount(route: String) -> Int {
-    lock.withLock {
+    func requestCount(route: String) -> Int {
       requests.filter { "\($0.httpMethod ?? "GET") \($0.url?.path ?? "")" == route }.count
     }
+
+    func gate(_ route: String) { lock.withLock { _ = gatedRoutes.insert(route) } }
+
+    func release(_ route: String) {
+      let deliver = lock.withLock {
+        gatedRoutes.remove(route)
+        return responses.removeValue(forKey: route)
+      }
+      deliver?()
+    }
+
+    fileprivate func response(for request: URLRequest) -> (Int, String, Bool) {
+      lock.withLock {
+        storedRequests.append(request)
+        let route = "\(request.httpMethod ?? "GET") \(request.url?.path ?? "")"
+        if storedNetworkFailureRoutes.contains(route) { return (0, "", true) }
+        if var queued = storedSequences[route], !queued.isEmpty {
+          let next = queued.removeFirst()
+          storedSequences[route] = queued
+          return (next.0, next.1, false)
+        }
+        let fixture =
+          storedFixtures[route]
+          ?? (404, #"{"status":"ERROR","status_code":404,"error_type":"FIXTURE_NOT_FOUND"}"#)
+        return (fixture.0, fixture.1, false)
+      }
+    }
   }
 
-  override class func canInit(with request: URLRequest) -> Bool {
-    true
-  }
-
-  override class func canonicalRequest(for request: URLRequest) -> URLRequest {
-    request
-  }
-
-  private var cancelled = false
+  override class func canInit(with request: URLRequest) -> Bool { true }
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+  private let cancelled = Mutex(false)
 
   override func startLoading() {
-    guard let url = request.url else {
-      client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+    guard let url = request.url, let fixtures = Self.registry.fixture(for: request) else {
+      client?.urlProtocol(self, didFailWithError: URLError(.resourceUnavailable))
       return
     }
-    let routeKey = "\(request.httpMethod ?? "GET") \(url.path)"
-    let (statusCode, body, fails, delay) = Self.lock.withLock {
-      Self.requests.append(request)
-      let delay = Self.delays.removeValue(forKey: routeKey) ?? 0
-      if Self.networkFailureRoutes.contains(routeKey) {
-        return (0, "", true, delay)
-      }
-      if var queued = Self.sequences[routeKey], !queued.isEmpty {
-        let next = queued.removeFirst()
-        Self.sequences[routeKey] = queued
-        return (next.0, next.1, false, delay)
-      }
-      let fallback =
-        Self.fixtures[routeKey]
-        ?? (404, #"{"status":"ERROR","status_code":404,"error_type":"FIXTURE_NOT_FOUND"}"#)
-      return (fallback.0, fallback.1, false, delay)
-    }
-    let deliver = { [self] in
-      guard !Self.lock.withLock({ cancelled }) else { return }
+    let route = "\(request.httpMethod ?? "GET") \(url.path)"
+    let (statusCode, body, fails) = fixtures.response(for: request)
+    let deliver: @Sendable () -> Void = { [self] in
+      guard !cancelled.withLock({ $0 }) else { return }
       if fails {
         client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
         return
       }
-      let response = HTTPURLResponse(
-        url: url,
-        statusCode: statusCode,
-        httpVersion: nil,
-        headerFields: ["Content-Type": "application/json"]
-      )!
+      guard
+        let response = HTTPURLResponse(
+          url: url, statusCode: statusCode, httpVersion: nil,
+          headerFields: ["Content-Type": "application/json"]
+        )
+      else {
+        client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+        return
+      }
       client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
       client?.urlProtocol(self, didLoad: Data(body.utf8))
       client?.urlProtocolDidFinishLoading(self)
     }
-    if delay > 0 {
-      DispatchQueue.global().asyncAfter(deadline: .now() + delay, execute: deliver)
-    } else {
-      deliver()
+    let gated = fixtures.lock.withLock {
+      guard fixtures.gatedRoutes.contains(route) else { return false }
+      fixtures.responses[route] = deliver
+      return true
     }
+    if !gated { deliver() }
   }
 
-  override func stopLoading() {
-    Self.lock.withLock { cancelled = true }
-  }
+  override func stopLoading() { cancelled.withLock { $0 = true } }
 }
 
 private final class FailingClearTokenStore: PutioTokenStore, @unchecked Sendable {
@@ -151,19 +177,19 @@ final class PutioSessionStoreTests: XCTestCase {
     """
   }
 
-  override func setUp() {
-    super.setUp()
-    SessionMockURLProtocol.reset()
-  }
+  private let fixtures = SessionMockURLProtocol.Fixtures()
 
   private func makeStore(token: String?) -> (PutioSessionStore, PutioInMemoryTokenStore) {
     let tokenStore = PutioInMemoryTokenStore(token: token)
     return (makeStore(tokenStore: tokenStore).0, tokenStore)
   }
 
-  private func makeStore(tokenStore: PutioTokenStore) -> (PutioSessionStore, PutioSDK) {
+  private func makeStore(
+    tokenStore: PutioTokenStore, fixtures: SessionMockURLProtocol.Fixtures? = nil
+  ) -> (PutioSessionStore, PutioSDK) {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [SessionMockURLProtocol.self]
+    SessionMockURLProtocol.registry.configure(configuration, fixture: fixtures ?? self.fixtures)
     let sdk = PutioSDK(
       config: PutioSDKConfig(clientID: "3001", clientName: "tests"),
       urlSession: URLSession(configuration: configuration)
@@ -172,17 +198,49 @@ final class PutioSessionStoreTests: XCTestCase {
   }
 
   private func stubSignedInRoutes() {
-    SessionMockURLProtocol.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
-    SessionMockURLProtocol.fixtures["GET /v2/account/info"] = (
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    fixtures.fixtures["GET /v2/account/info"] = (
       200,
       Self.accountInfo(rememberVideoTime: true)
     )
-    SessionMockURLProtocol.fixtures["POST /v2/oauth/grants/logout"] = (200, #"{"status":"OK"}"#)
+    fixtures.fixtures["POST /v2/oauth/grants/logout"] = (200, #"{"status":"OK"}"#)
+  }
+
+  func testConcurrentSessionsKeepResponsesAndCapturedRequestsIsolated() async throws {
+    stubSignedInRoutes()
+    let otherFixtures = SessionMockURLProtocol.Fixtures()
+    otherFixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    otherFixtures.fixtures["GET /v2/account/info"] = (
+      200, Self.accountInfo(rememberVideoTime: false, historyEnabled: false)
+    )
+    let (first, _) = makeStore(token: "first-token")
+    let (second, _) = makeStore(
+      tokenStore: PutioInMemoryTokenStore(token: "second-token"), fixtures: otherFixtures)
+
+    async let firstRestore: Void = first.restore()
+    async let secondRestore: Void = second.restore()
+    _ = await (firstRestore, secondRestore)
+
+    guard case .signedIn(let firstAccount) = first.state,
+      case .signedIn(let secondAccount) = second.state
+    else { return XCTFail("both independent sessions must restore") }
+    XCTAssertTrue(firstAccount.historyEnabled)
+    XCTAssertFalse(secondAccount.historyEnabled)
+    XCTAssertEqual(fixtures.requests.count, 2)
+    XCTAssertEqual(otherFixtures.requests.count, 2)
+    XCTAssertTrue(
+      fixtures.requests.allSatisfy {
+        $0.value(forHTTPHeaderField: "Authorization")?.lowercased() == "token first-token"
+      })
+    XCTAssertTrue(
+      otherFixtures.requests.allSatisfy {
+        $0.value(forHTTPHeaderField: "Authorization")?.lowercased() == "token second-token"
+      })
   }
 
   func testDisabledHistoryIsPreservedInAccountSnapshot() async {
-    SessionMockURLProtocol.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
-    SessionMockURLProtocol.fixtures["GET /v2/account/info"] = (
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    fixtures.fixtures["GET /v2/account/info"] = (
       200, Self.accountInfo(rememberVideoTime: true, historyEnabled: false)
     )
     let (store, _) = makeStore(token: "stored-token")
@@ -228,8 +286,8 @@ final class PutioSessionStoreTests: XCTestCase {
   }
 
   func testRestoreMapsDisabledRememberVideoTimeSetting() async {
-    SessionMockURLProtocol.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
-    SessionMockURLProtocol.fixtures["GET /v2/account/info"] = (
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    fixtures.fixtures["GET /v2/account/info"] = (
       200,
       Self.accountInfo(rememberVideoTime: false)
     )
@@ -244,8 +302,8 @@ final class PutioSessionStoreTests: XCTestCase {
   }
 
   func testRestoreMapsDisabledTrashSetting() async {
-    SessionMockURLProtocol.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
-    SessionMockURLProtocol.fixtures["GET /v2/account/info"] = (
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    fixtures.fixtures["GET /v2/account/info"] = (
       200,
       Self.accountInfo(rememberVideoTime: true, trashEnabled: false)
     )
@@ -260,8 +318,8 @@ final class PutioSessionStoreTests: XCTestCase {
   }
 
   func testRestoreMapsDisabledNextVideoSetting() async {
-    SessionMockURLProtocol.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
-    SessionMockURLProtocol.fixtures["GET /v2/account/info"] = (
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    fixtures.fixtures["GET /v2/account/info"] = (
       200,
       Self.accountInfo(rememberVideoTime: true, suggestNextVideo: false)
     )
@@ -276,7 +334,7 @@ final class PutioSessionStoreTests: XCTestCase {
   }
 
   func testRestoreWithRejectedTokenClearsAndExpires() async {
-    SessionMockURLProtocol.fixtures["GET /v2/oauth2/validate"] = (200, Self.rejectedValidation)
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.rejectedValidation)
     let (store, tokenStore) = makeStore(token: "revoked-token")
     await store.restore()
     XCTAssertEqual(store.state, .signedOut(.sessionExpired))
@@ -284,7 +342,7 @@ final class PutioSessionStoreTests: XCTestCase {
   }
 
   func testRestoreWithUnauthorizedResponseClearsAndExpires() async {
-    SessionMockURLProtocol.fixtures["GET /v2/oauth2/validate"] = (
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (
       401, #"{"status":"ERROR","status_code":401,"error_type":"invalid_grant"}"#
     )
     let (store, tokenStore) = makeStore(token: "revoked-token")
@@ -294,7 +352,7 @@ final class PutioSessionStoreTests: XCTestCase {
   }
 
   func testRestoreNetworkFailureKeepsTokenForRetry() async {
-    SessionMockURLProtocol.networkFailureRoutes.insert("GET /v2/oauth2/validate")
+    fixtures.networkFailureRoutes.insert("GET /v2/oauth2/validate")
     let (store, tokenStore) = makeStore(token: "stored-token")
     await store.restore()
     guard case .signedOut(.restoreFailed) = store.state else {
@@ -420,7 +478,7 @@ final class PutioSessionStoreTests: XCTestCase {
     XCTAssertEqual(store.state, .signedOut(.userSignedOut))
     XCTAssertNil(try tokenStore.read())
     XCTAssertEqual(
-      SessionMockURLProtocol.requests.filter {
+      fixtures.requests.filter {
         $0.url?.path == "/v2/oauth/grants/logout"
       }.count, 1, "successful revocation must not be repeated for a local cleanup retry")
   }
@@ -430,17 +488,17 @@ final class PutioSessionStoreTests: XCTestCase {
     let tokenStore = PutioInMemoryTokenStore(token: "stored-token")
     let (store, sdk) = makeStore(tokenStore: tokenStore)
     await store.restore()
-    SessionMockURLProtocol.networkFailureRoutes = ["POST /v2/oauth/grants/logout"]
+    fixtures.networkFailureRoutes = ["POST /v2/oauth/grants/logout"]
     await store.signOut()
 
     XCTAssertEqual(store.state, .signOutFailed(.revocation))
     XCTAssertNil(try tokenStore.read())
     XCTAssertTrue(sdk.config.token.isEmpty)
-    SessionMockURLProtocol.networkFailureRoutes = []
+    fixtures.networkFailureRoutes = []
     await store.signOut()
     XCTAssertEqual(store.state, .signedOut(.userSignedOut))
     XCTAssertEqual(
-      SessionMockURLProtocol.requests.last?.value(forHTTPHeaderField: "Authorization"),
+      fixtures.requests.last?.value(forHTTPHeaderField: "Authorization"),
       "token stored-token")
     XCTAssertTrue(sdk.config.token.isEmpty)
   }
@@ -452,7 +510,7 @@ final class PutioSessionStoreTests: XCTestCase {
     let tokenStore = FailingClearTokenStore()
     let (store, sdk) = makeStore(tokenStore: tokenStore)
     await store.restore()
-    SessionMockURLProtocol.networkFailureRoutes = ["POST /v2/oauth/grants/logout"]
+    fixtures.networkFailureRoutes = ["POST /v2/oauth/grants/logout"]
     await store.signOut()
 
     XCTAssertEqual(store.state, .signOutFailed(.credentialRemovalAndRevocation))
@@ -466,7 +524,7 @@ final class PutioSessionStoreTests: XCTestCase {
       return XCTFail("without durable sign-out intent, a still-valid persisted token can restore")
     }
     tokenStore.allowClear()
-    SessionMockURLProtocol.networkFailureRoutes = []
+    fixtures.networkFailureRoutes = []
     await store.signOut()
     XCTAssertEqual(store.state, .signedOut(.userSignedOut))
     let (afterCleanup, _) = makeStore(tokenStore: tokenStore)
@@ -478,10 +536,10 @@ final class PutioSessionStoreTests: XCTestCase {
     stubSignedInRoutes()
     let (store, _) = makeStore(token: "stored-token")
     await store.restore()
-    SessionMockURLProtocol.networkFailureRoutes = ["POST /v2/oauth/grants/logout"]
+    fixtures.networkFailureRoutes = ["POST /v2/oauth/grants/logout"]
     await store.signOut()
-    SessionMockURLProtocol.networkFailureRoutes = []
-    SessionMockURLProtocol.fixtures["POST /v2/oauth/grants/logout"] =
+    fixtures.networkFailureRoutes = []
+    fixtures.fixtures["POST /v2/oauth/grants/logout"] =
       (401, #"{"status":"ERROR","error_type":"invalid_grant"}"#)
     await store.signOut()
     XCTAssertEqual(store.state, .signedOut(.userSignedOut))
@@ -534,16 +592,16 @@ final class PutioSessionStoreTests: XCTestCase {
   private static let approvedCode = #"{"oauth_token": "device-token"}"#
 
   private func stubDeviceCodeIssue(_ codes: [String]) {
-    SessionMockURLProtocol.sequences["GET /v2/oauth2/oob/code"] = codes.map {
+    fixtures.sequences["GET /v2/oauth2/oob/code"] = codes.map {
       (200, #"{"code": "\#($0)", "qr_code_url": null}"#)
     }
   }
 
   private func waitUntil(
-    _ condition: @escaping @MainActor () -> Bool, timeout: TimeInterval = 5
+    _ condition: @MainActor () -> Bool, timeout: TimeInterval = 5
   ) async -> Bool {
-    let deadline = Date().addingTimeInterval(timeout)
-    while Date() < deadline {
+    let deadline = ContinuousClock.now + .seconds(timeout)
+    while ContinuousClock.now < deadline {
       if condition() { return true }
       try? await Task.sleep(for: .milliseconds(20))
     }
@@ -553,7 +611,7 @@ final class PutioSessionStoreTests: XCTestCase {
   func testDeviceCodeSignInShowsTheCodeThenSignsInAfterApproval() async throws {
     stubSignedInRoutes()
     stubDeviceCodeIssue(["ABCD1"])
-    SessionMockURLProtocol.sequences["GET /v2/oauth2/oob/code/ABCD1"] = [
+    fixtures.sequences["GET /v2/oauth2/oob/code/ABCD1"] = [
       (200, Self.pendingCode), (200, Self.approvedCode),
     ]
     let (store, tokenStore) = makeStore(token: nil)
@@ -568,19 +626,19 @@ final class PutioSessionStoreTests: XCTestCase {
     XCTAssertEqual(account.username, "moviebuff")
     XCTAssertNil(store.deviceCodeSignIn)
     XCTAssertEqual(try tokenStore.read(), "device-token")
-    XCTAssertEqual(SessionMockURLProtocol.requestCount(route: "GET /v2/oauth2/oob/code/ABCD1"), 2)
+    XCTAssertEqual(fixtures.requestCount(route: "GET /v2/oauth2/oob/code/ABCD1"), 2)
     let accountRequest = try XCTUnwrap(
-      SessionMockURLProtocol.requests.last { $0.url?.path == "/v2/account/info" })
+      fixtures.requests.last { $0.url?.path == "/v2/account/info" })
     XCTAssertEqual(accountRequest.value(forHTTPHeaderField: "Authorization"), "token device-token")
   }
 
   func testExpiredDeviceCodeStaysAuthenticatingUntilANewCodeIsRequested() async throws {
     stubSignedInRoutes()
     stubDeviceCodeIssue(["OLD01", "NEW02"])
-    SessionMockURLProtocol.sequences["GET /v2/oauth2/oob/code/OLD01"] = [
+    fixtures.sequences["GET /v2/oauth2/oob/code/OLD01"] = [
       (200, Self.pendingCode), (404, Self.expiredCode),
     ]
-    SessionMockURLProtocol.sequences["GET /v2/oauth2/oob/code/NEW02"] = [
+    fixtures.sequences["GET /v2/oauth2/oob/code/NEW02"] = [
       (200, Self.pendingCode), (200, Self.approvedCode),
     ]
     let (store, _) = makeStore(token: nil)
@@ -596,30 +654,29 @@ final class PutioSessionStoreTests: XCTestCase {
     guard case .signedIn = store.state else {
       return XCTFail("expected signedIn after the renewed code, got \(store.state)")
     }
-    XCTAssertEqual(SessionMockURLProtocol.requestCount(route: "GET /v2/oauth2/oob/code"), 2)
-    XCTAssertEqual(SessionMockURLProtocol.requestCount(route: "GET /v2/oauth2/oob/code/OLD01"), 2)
+    XCTAssertEqual(fixtures.requestCount(route: "GET /v2/oauth2/oob/code"), 2)
+    XCTAssertEqual(fixtures.requestCount(route: "GET /v2/oauth2/oob/code/OLD01"), 2)
   }
 
   func testCancellingDeviceCodeSignInStopsPollingAndReturnsSignedOut() async throws {
     stubDeviceCodeIssue(["WAIT1"])
-    SessionMockURLProtocol.fixtures["GET /v2/oauth2/oob/code/WAIT1"] = (200, Self.pendingCode)
+    fixtures.fixtures["GET /v2/oauth2/oob/code/WAIT1"] = (200, Self.pendingCode)
     let (store, tokenStore) = makeStore(token: nil)
     let signIn = Task { await store.signInWithDeviceCode() }
     let reached3 = await waitUntil { store.deviceCodeSignIn == .awaitingApproval(code: "WAIT1") }
     XCTAssertTrue(reached3)
     let reached4 = await waitUntil {
-      SessionMockURLProtocol.requestCount(route: "GET /v2/oauth2/oob/code/WAIT1") >= 1
+      fixtures.requestCount(route: "GET /v2/oauth2/oob/code/WAIT1") >= 1
     }
     XCTAssertTrue(reached4)
+    let pollsAtCancel = fixtures.requestCount(route: "GET /v2/oauth2/oob/code/WAIT1")
     store.cancelSignIn()
     XCTAssertEqual(store.state, .signedOut(nil))
     XCTAssertNil(store.deviceCodeSignIn)
     await signIn.value
     XCTAssertEqual(store.state, .signedOut(nil))
-    let pollsAtCancel = SessionMockURLProtocol.requestCount(route: "GET /v2/oauth2/oob/code/WAIT1")
-    try await Task.sleep(for: .milliseconds(1500))
     XCTAssertEqual(
-      SessionMockURLProtocol.requestCount(route: "GET /v2/oauth2/oob/code/WAIT1"), pollsAtCancel,
+      fixtures.requestCount(route: "GET /v2/oauth2/oob/code/WAIT1"), pollsAtCancel,
       "polling must stop with the cancelled sign-in")
     XCTAssertNil(try tokenStore.read())
   }
@@ -627,20 +684,26 @@ final class PutioSessionStoreTests: XCTestCase {
   func testLateApprovalAfterCancellationDoesNotSignIn() async throws {
     stubSignedInRoutes()
     stubDeviceCodeIssue(["LATE1"])
-    SessionMockURLProtocol.delays["GET /v2/oauth2/oob/code"] = 0.5
-    SessionMockURLProtocol.fixtures["GET /v2/oauth2/oob/code/LATE1"] = (200, Self.approvedCode)
+    let route = "GET /v2/oauth2/oob/code/LATE1"
+    fixtures.gate(route)
+    defer { fixtures.release(route) }
+    fixtures.fixtures["GET /v2/oauth2/oob/code/LATE1"] = (200, Self.approvedCode)
     let (store, tokenStore) = makeStore(token: nil)
     let signIn = Task { await store.signInWithDeviceCode() }
-    let reached5 = await waitUntil { store.deviceCodeSignIn == .fetchingCode }
-    XCTAssertTrue(reached5)
+    let reached5 = await waitUntil { fixtures.requestCount(route: route) == 1 }
+    guard reached5 else {
+      signIn.cancel()
+      return XCTFail("approval request did not reach the response gate")
+    }
     store.cancelSignIn()
+    fixtures.release(route)
     await signIn.value
     XCTAssertEqual(store.state, .signedOut(nil))
     XCTAssertNil(try tokenStore.read())
   }
 
   func testDeviceCodeFetchFailureLandsSignedOutWithAMessage() async {
-    SessionMockURLProtocol.networkFailureRoutes = ["GET /v2/oauth2/oob/code"]
+    fixtures.networkFailureRoutes = ["GET /v2/oauth2/oob/code"]
     let (store, _) = makeStore(token: nil)
     await store.signInWithDeviceCode()
     XCTAssertEqual(
@@ -652,7 +715,7 @@ final class PutioSessionStoreTests: XCTestCase {
 
   func testDeviceCodePollFailureLandsSignedOutWithAMessage() async {
     stubDeviceCodeIssue(["FAIL1"])
-    SessionMockURLProtocol.fixtures["GET /v2/oauth2/oob/code/FAIL1"] =
+    fixtures.fixtures["GET /v2/oauth2/oob/code/FAIL1"] =
       (500, #"{"status":"ERROR","status_code":500,"error_type":"SERVER"}"#)
     let (store, _) = makeStore(token: nil)
     await store.signInWithDeviceCode()
@@ -670,13 +733,13 @@ final class PutioSessionStoreTests: XCTestCase {
     guard case .signedIn = store.state else {
       return XCTFail("expected signedIn, got \(store.state)")
     }
-    XCTAssertEqual(SessionMockURLProtocol.requestCount(route: "GET /v2/oauth2/oob/code"), 0)
+    XCTAssertEqual(fixtures.requestCount(route: "GET /v2/oauth2/oob/code"), 0)
   }
 
   func testSignOutAfterDeviceCodeSignInReturnsToSignedOutAndClearsTheToken() async throws {
     stubSignedInRoutes()
     stubDeviceCodeIssue(["DONE1"])
-    SessionMockURLProtocol.fixtures["GET /v2/oauth2/oob/code/DONE1"] = (200, Self.approvedCode)
+    fixtures.fixtures["GET /v2/oauth2/oob/code/DONE1"] = (200, Self.approvedCode)
     let (store, tokenStore) = makeStore(token: nil)
     await store.signInWithDeviceCode()
     guard case .signedIn = store.state else {

@@ -122,6 +122,16 @@ final class DeepLinkTests: XCTestCase {
         await self.fulfillment(of: [release], timeout: 5)
         return BrowserTestFixtures.item(id: 10, kind: .folder)
       }
+      do {
+        try await Task.sleep(for: .seconds(10))
+        XCTFail("caller was not cancelled while resolution was pending")
+      } catch {
+        XCTAssertTrue(error is CancellationError)
+      }
+    }
+    defer {
+      caller.cancel()
+      model.cancel()
     }
     await fulfillment(of: [started], timeout: 2)
     caller.cancel()
@@ -137,16 +147,24 @@ final class DeepLinkTests: XCTestCase {
     let model = signedInModel()
     model.receive(try url("/files/10"))
     let started = expectation(description: "resolve started")
+    let cancelled = expectation(description: "metadata request observed cancellation")
+    defer { model.cancel() }
     model.startResolving(historyEnabled: true) { _ in
       started.fulfill()
-      try await Task.sleep(for: .seconds(10))
+      do {
+        try await Task.sleep(for: .seconds(10))
+        XCTFail("metadata request was not cancelled")
+      } catch is CancellationError {
+        cancelled.fulfill()
+        throw CancellationError()
+      }
       return BrowserTestFixtures.item(id: 10, kind: .folder)
     }
     await fulfillment(of: [started], timeout: 2)
     model.cancel()
     XCTAssertNil(model.pending)
     XCTAssertFalse(model.presentsStatus)
-    try await Task.sleep(for: .milliseconds(100))
+    await fulfillment(of: [cancelled], timeout: 2)
     XCTAssertNil(model.destination)
   }
 
@@ -255,10 +273,12 @@ final class DeepLinkTests: XCTestCase {
 
 @MainActor
 private final class PendingDeepLinkFile {
+  private var isClosed = false
   private var continuation: CheckedContinuation<PutioFileItem, any Error>?
 
   func load() async throws -> PutioFileItem {
-    try await withCheckedThrowingContinuation { continuation = $0 }
+    guard !isClosed else { throw CancellationError() }
+    return try await withCheckedThrowingContinuation { continuation = $0 }
   }
 
   func waitForRequest() async throws {
@@ -272,6 +292,7 @@ private final class PendingDeepLinkFile {
   }
 
   func finish() {
+    isClosed = true
     continuation?.resume(returning: BrowserTestFixtures.item(id: 10, kind: .folder))
     continuation = nil
   }

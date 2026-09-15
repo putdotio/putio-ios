@@ -267,8 +267,9 @@ final class AccountSecurityTests: XCTestCase {
     XCTAssertNil(model.revokeFailure)
   }
 
-  func testRevokeOutlivesAListRequestThatStartedBeforeIt() async {
+  func testRevokeOutlivesAListRequestThatStartedBeforeIt() async throws {
     let gate = RequestGate()
+    defer { gate.finish() }
     var loads = 0
     let apps = [
       PutioAuthorizedApp(id: 42, name: "TV", description: "", isCurrentClient: false)
@@ -282,7 +283,7 @@ final class AccountSecurityTests: XCTestCase {
         }))
     await model.load()
     let stale = Task { await model.load() }
-    await gate.waitForRequest()
+    try await gate.waitForRequest()
     await model.revoke(id: 42)
     XCTAssertTrue(model.apps.isEmpty)
     gate.finish()
@@ -438,17 +439,28 @@ final class AccountSecurityTests: XCTestCase {
 
 @MainActor
 private final class RequestGate {
+  private var isClosed = false
   private var continuation: CheckedContinuation<Void, Never>?
 
   func wait() async {
+    guard !isClosed else { return }
     await withCheckedContinuation { continuation = $0 }
   }
 
-  func waitForRequest() async {
-    while continuation == nil { await Task.yield() }
+  func waitForRequest() async throws {
+    let deadline = ContinuousClock.now + .seconds(5)
+    while continuation == nil {
+      guard ContinuousClock.now < deadline else {
+        throw NSError(
+          domain: "AccountSecurityTests", code: 1,
+          userInfo: [NSLocalizedDescriptionKey: "List request did not start"])
+      }
+      try await Task.sleep(for: .milliseconds(1))
+    }
   }
 
   func finish() {
+    isClosed = true
     continuation?.resume()
     continuation = nil
   }

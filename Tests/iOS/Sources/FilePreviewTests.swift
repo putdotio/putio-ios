@@ -102,18 +102,28 @@ final class FilePreviewTests: XCTestCase {
   func testReloadCancelsTheInFlightDownload() async {
     let route = PutioPreviewRoute(
       id: PutioFileID(rawValue: 9), parentID: .root, title: "Slow.png", kind: .image)
+    let started = expectation(description: "first download started")
+    let cancelled = expectation(description: "first download observed cancellation")
     var attempts = 0
     let model = PutioPreviewModel(route: route) { _ in
       attempts += 1
       if attempts == 1 {
-        try await Task.sleep(for: .seconds(10))
-        XCTFail("the first download was not cancelled")
+        started.fulfill()
+        do {
+          try await Task.sleep(for: .seconds(10))
+          XCTFail("the first download was not cancelled")
+        } catch is CancellationError {
+          cancelled.fulfill()
+          throw CancellationError()
+        }
       }
       return Self.pngData()
     }
     let first = Task { await model.load() }
-    await Task.yield()
+    defer { first.cancel() }
+    await fulfillment(of: [started], timeout: 2)
     await model.retry()
+    await fulfillment(of: [cancelled], timeout: 2)
     await first.value
     guard case .image = model.state else { return XCTFail("\(model.state)") }
     XCTAssertEqual(attempts, 2)
@@ -144,31 +154,29 @@ final class FilePreviewTests: XCTestCase {
   func testDownloaderEnforcesTheByteCapAndMapsStatuses() async throws {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [PreviewStubURLProtocol.self]
-    let url = URL(string: "https://preview.test/file")!
-
-    PreviewStubURLProtocol.response = (200, ["Content-Length": "32"], Data(count: 32))
+    var url = PreviewStubURLProtocol.url(status: 200, byteCount: 32, declaredLength: 32)
     do {
       _ = try await PutioPreviewDownloader.download(url, limit: 16, configuration: configuration)
       XCTFail("declared oversize body was accepted")
     } catch is PutioPreviewTooLargeError {}
 
-    PreviewStubURLProtocol.response = (200, [:], Data(count: 40))
+    url = PreviewStubURLProtocol.url(status: 200, byteCount: 40)
     do {
       _ = try await PutioPreviewDownloader.download(url, limit: 16, configuration: configuration)
       XCTFail("streamed oversize body was accepted")
     } catch is PutioPreviewTooLargeError {}
 
-    PreviewStubURLProtocol.response = (200, [:], Data(count: 12))
+    url = PreviewStubURLProtocol.url(status: 200, byteCount: 12)
     let data = try await PutioPreviewDownloader.download(
       url, limit: 16, configuration: configuration)
     XCTAssertEqual(data.count, 12)
 
     // Exactly at the cap is allowed; one byte over is rejected.
-    PreviewStubURLProtocol.response = (200, [:], Data(count: 16))
+    url = PreviewStubURLProtocol.url(status: 200, byteCount: 16)
     let full = try await PutioPreviewDownloader.download(
       url, limit: 16, configuration: configuration)
     XCTAssertEqual(full.count, 16)
-    PreviewStubURLProtocol.response = (200, [:], Data(count: 17))
+    url = PreviewStubURLProtocol.url(status: 200, byteCount: 17)
     do {
       _ = try await PutioPreviewDownloader.download(url, limit: 16, configuration: configuration)
       XCTFail("body one byte over the cap was accepted")
@@ -178,7 +186,7 @@ final class FilePreviewTests: XCTestCase {
       (401, PutioRuntimeError.sessionExpired), (403, .sessionExpired), (404, .notFound),
       (429, .rateLimited), (503, .transient), (418, .unknown),
     ] {
-      PreviewStubURLProtocol.response = (status, [:], Data())
+      url = PreviewStubURLProtocol.url(status: status, byteCount: 0)
       do {
         _ = try await PutioPreviewDownloader.download(
           url, limit: 16, configuration: configuration)
@@ -201,14 +209,42 @@ final class FilePreviewTests: XCTestCase {
 }
 
 private final class PreviewStubURLProtocol: URLProtocol, @unchecked Sendable {
-  nonisolated(unsafe) static var response: (Int, [String: String], Data) = (200, [:], Data())
+  static func url(status: Int, byteCount: Int, declaredLength: Int? = nil) -> URL {
+    var components = URLComponents()
+    components.scheme = "https"
+    components.host = "preview.test"
+    components.path = "/file"
+    components.queryItems = [
+      URLQueryItem(name: "status", value: String(status)),
+      URLQueryItem(name: "bytes", value: String(byteCount)),
+    ]
+    if let declaredLength {
+      components.queryItems?.append(URLQueryItem(name: "length", value: String(declaredLength)))
+    }
+    return components.url!
+  }
 
-  override class func canInit(with request: URLRequest) -> Bool { true }
+  override class func canInit(with request: URLRequest) -> Bool {
+    request.url?.host == "preview.test"
+  }
   override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
   override func startLoading() {
-    let (status, headers, body) = Self.response
     guard let url = request.url,
+      let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+      let status = components.queryItems?.first(where: { $0.name == "status" })?.value.flatMap(
+        Int.init),
+      let count = components.queryItems?.first(where: { $0.name == "bytes" })?.value.flatMap(
+        Int.init),
+      count >= 0
+    else {
+      client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+      return
+    }
+    let body = Data(count: count)
+    let length = components.queryItems?.first(where: { $0.name == "length" })?.value
+    let headers = length.map { ["Content-Length": $0] } ?? [:]
+    guard
       let response = HTTPURLResponse(
         url: url, statusCode: status, httpVersion: nil, headerFields: headers)
     else {

@@ -6,12 +6,17 @@ import XCTest
 
 @MainActor
 private final class SuspendedNextVideoLoad {
+  let started = XCTestExpectation(description: "SuspendedNextVideoLoad suspended")
   private(set) var requestedIDs: [PutioFileID] = []
   private var continuation: CheckedContinuation<PutioPlayableNextVideo?, Never>?
 
   func load(_ fileID: PutioFileID) async -> PutioPlayableNextVideo? {
+    guard !Task.isCancelled else { return nil }
     requestedIDs.append(fileID)
-    return await withCheckedContinuation { continuation = $0 }
+    return await withCheckedContinuation {
+      continuation = $0
+      started.fulfill()
+    }
   }
 
   func resume(returning video: PutioPlayableNextVideo?) {
@@ -22,12 +27,17 @@ private final class SuspendedNextVideoLoad {
 
 @MainActor
 private final class SuspendedNextVideoSleep {
+  let started = XCTestExpectation(description: "SuspendedNextVideoSleep suspended")
   private(set) var durations: [Duration] = []
   private var continuation: CheckedContinuation<Void, Never>?
 
   func sleep(for duration: Duration) async {
+    guard !Task.isCancelled else { return }
     durations.append(duration)
-    await withCheckedContinuation { continuation = $0 }
+    await withCheckedContinuation {
+      continuation = $0
+      started.fulfill()
+    }
   }
 
   func resume() {
@@ -38,13 +48,18 @@ private final class SuspendedNextVideoSleep {
 
 @MainActor
 private final class SuspendedFirstResetWait {
+  let started = XCTestExpectation(description: "SuspendedFirstResetWait suspended")
   private(set) var requests = 0
   private var continuation: CheckedContinuation<Void, Never>?
 
   func wait() async {
+    guard !Task.isCancelled else { return }
     requests += 1
     guard requests == 1 else { return }
-    await withCheckedContinuation { continuation = $0 }
+    await withCheckedContinuation {
+      continuation = $0
+      started.fulfill()
+    }
   }
 
   func resume() {
@@ -55,12 +70,17 @@ private final class SuspendedFirstResetWait {
 
 @MainActor
 private final class SuspendedNextVideoPreflightWait {
+  let started = XCTestExpectation(description: "SuspendedNextVideoPreflightWait suspended")
   private(set) var requestedIDs: [PutioFileID] = []
   private var continuation: CheckedContinuation<Void, Never>?
 
   func wait(for fileID: PutioFileID) async {
+    guard !Task.isCancelled else { return }
     requestedIDs.append(fileID)
-    await withCheckedContinuation { continuation = $0 }
+    await withCheckedContinuation {
+      continuation = $0
+      started.fulfill()
+    }
   }
 
   func resume() {
@@ -71,12 +91,17 @@ private final class SuspendedNextVideoPreflightWait {
 
 @MainActor
 private final class SuspendedAutoplayPolicy {
+  let started = XCTestExpectation(description: "SuspendedAutoplayPolicy suspended")
   private(set) var requests = 0
   private var continuation: CheckedContinuation<Bool, Never>?
 
   func read() async -> Bool {
+    guard !Task.isCancelled else { return false }
     requests += 1
-    return await withCheckedContinuation { continuation = $0 }
+    return await withCheckedContinuation {
+      continuation = $0
+      started.fulfill()
+    }
   }
 
   func resume(returning enabled: Bool) {
@@ -269,9 +294,12 @@ final class PutioNextVideoModelTests: XCTestCase {
         }
       )
     }
-    while preflightWait.requestedIDs.isEmpty {
-      await Task.yield()
+    defer {
+      preparation.cancel()
+      preflightWait.resume()
     }
+    await fulfillment(of: [preflightWait.started], timeout: 2)
+    guard !preflightWait.requestedIDs.isEmpty else { return }
 
     XCTAssertEqual(preflightWait.requestedIDs, [nextVideo.id])
     XCTAssertEqual(recorder.operations, ["find:411"])
@@ -300,9 +328,12 @@ final class PutioNextVideoModelTests: XCTestCase {
         }
       )
     }
-    while preflightWait.requestedIDs.isEmpty {
-      await Task.yield()
+    defer {
+      preparation.cancel()
+      preflightWait.resume()
     }
+    await fulfillment(of: [preflightWait.started], timeout: 2)
+    guard !preflightWait.requestedIDs.isEmpty else { return }
 
     preparation.cancel()
     preflightWait.resume()
@@ -363,7 +394,12 @@ final class PutioNextVideoModelTests: XCTestCase {
     )
 
     let ended = Task { await model.playbackEnded(completedFileID: completedFileID) }
-    await Task.yield()
+    defer {
+      ended.cancel()
+      load.resume(returning: nil)
+    }
+    await fulfillment(of: [load.started], timeout: 2)
+    guard !load.requestedIDs.isEmpty else { return }
     autoplayEnabled = true
     load.resume(returning: playableNextVideo)
     await ended.value
@@ -386,7 +422,12 @@ final class PutioNextVideoModelTests: XCTestCase {
     )
 
     let ended = Task { await model.playbackEnded(completedFileID: completedFileID) }
-    while policy.requests == 0 { await Task.yield() }
+    defer {
+      ended.cancel()
+      policy.resume(returning: false)
+    }
+    await fulfillment(of: [policy.started], timeout: 2)
+    guard policy.requests > 0 else { return }
     XCTAssertEqual(model.state, .available(playableNextVideo))
     XCTAssertEqual(recorder.durations, [])
 
@@ -408,7 +449,12 @@ final class PutioNextVideoModelTests: XCTestCase {
     )
 
     let ended = Task { await model.playbackEnded(completedFileID: completedFileID) }
-    while policy.requests == 0 { await Task.yield() }
+    defer {
+      ended.cancel()
+      policy.resume(returning: false)
+    }
+    await fulfillment(of: [policy.started], timeout: 2)
+    guard policy.requests > 0 else { return }
     policy.resume(returning: false)
     await ended.value
 
@@ -427,7 +473,12 @@ final class PutioNextVideoModelTests: XCTestCase {
     )
 
     let ended = Task { await model.playbackEnded(completedFileID: completedFileID) }
-    while policy.requests == 0 { await Task.yield() }
+    defer {
+      ended.cancel()
+      policy.resume(returning: false)
+    }
+    await fulfillment(of: [policy.started], timeout: 2)
+    guard policy.requests > 0 else { return }
     model.playNext()
     policy.resume(returning: true)
     await ended.value
@@ -447,7 +498,12 @@ final class PutioNextVideoModelTests: XCTestCase {
     )
 
     let ended = Task { await model.playbackEnded(completedFileID: completedFileID) }
-    while policy.requests == 0 { await Task.yield() }
+    defer {
+      ended.cancel()
+      policy.resume(returning: false)
+    }
+    await fulfillment(of: [policy.started], timeout: 2)
+    guard policy.requests > 0 else { return }
     model.cancel()
     policy.resume(returning: true)
     await ended.value
@@ -585,9 +641,12 @@ final class PutioNextVideoModelTests: XCTestCase {
       loadNext: { await load.load($0) }
     )
     let transition = Task { await model.playbackEnded(completedFileID: completedFileID) }
-    while load.requestedIDs.isEmpty {
-      await Task.yield()
+    defer {
+      transition.cancel()
+      load.resume(returning: nil)
     }
+    await fulfillment(of: [load.started], timeout: 2)
+    guard !load.requestedIDs.isEmpty else { return }
 
     model.cancel()
     load.resume(returning: playableNextVideo)
@@ -605,9 +664,12 @@ final class PutioNextVideoModelTests: XCTestCase {
       sleep: { await sleep.sleep(for: $0) }
     )
     let transition = Task { await model.playbackEnded(completedFileID: completedFileID) }
-    while sleep.durations.isEmpty {
-      await Task.yield()
+    defer {
+      transition.cancel()
+      sleep.resume()
     }
+    await fulfillment(of: [sleep.started], timeout: 2)
+    guard !sleep.durations.isEmpty else { return }
 
     XCTAssertEqual(model.state, .available(playableNextVideo))
     model.cancel()
@@ -626,9 +688,12 @@ final class PutioNextVideoModelTests: XCTestCase {
       sleep: { await sleep.sleep(for: $0) }
     )
     let transition = Task { await model.playbackEnded(completedFileID: completedFileID) }
-    while sleep.durations.isEmpty {
-      await Task.yield()
+    defer {
+      transition.cancel()
+      sleep.resume()
     }
+    await fulfillment(of: [sleep.started], timeout: 2)
+    guard !sleep.durations.isEmpty else { return }
 
     model.playNext()
     sleep.resume()
@@ -645,9 +710,12 @@ final class PutioNextVideoModelTests: XCTestCase {
       loadNext: { await load.load($0) }
     )
     let transition = Task { await model.playbackEnded(completedFileID: completedFileID) }
-    while load.requestedIDs.isEmpty {
-      await Task.yield()
+    defer {
+      transition.cancel()
+      load.resume(returning: nil)
     }
+    await fulfillment(of: [load.started], timeout: 2)
+    guard !load.requestedIDs.isEmpty else { return }
 
     transition.cancel()
     load.resume(returning: nil)
@@ -676,9 +744,12 @@ final class PutioNextVideoModelTests: XCTestCase {
     let firstTransition = Task {
       await model.playbackEnded(completedFileID: completedFileID)
     }
-    while resetWait.requests == 0 {
-      await Task.yield()
+    defer {
+      firstTransition.cancel()
+      resetWait.resume()
     }
+    await fulfillment(of: [resetWait.started], timeout: 2)
+    guard resetWait.requests > 0 else { return }
 
     await model.playbackEnded(completedFileID: PutioFileID(rawValue: 499))
     XCTAssertEqual(model.state, .available(playableNextVideo))

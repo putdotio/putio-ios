@@ -87,20 +87,41 @@ final class AppConfigModelTests: XCTestCase {
 
   func testAutoplayDecisionAwaitsTheLoadInFlight() async {
     var loads = 0
+    let started = expectation(description: "config load started")
+    let decisionStarted = expectation(description: "autoplay decision started")
     var release: CheckedContinuation<PutioAppConfig, Never>?
+    var isClosed = false
+    defer {
+      isClosed = true
+      release?.resume(returning: PutioAppConfig(autoplayNextVideo: false))
+    }
     let model = model(load: {
+      guard !isClosed else { throw CancellationError() }
       loads += 1
-      return await withCheckedContinuation { release = $0 }
+      return await withCheckedContinuation {
+        release = $0
+        started.fulfill()
+      }
     })
 
     let load = Task { await model.loadIfNeeded() }
-    while release == nil { await Task.yield() }
+    defer { load.cancel() }
+    await fulfillment(of: [started], timeout: 2)
+    guard release != nil else { return }
     XCTAssertTrue(model.isLoading)
     XCTAssertFalse(model.autoplayNextVideo, "an unloaded document reads as off")
 
-    let decision = Task { await model.resolveAutoplayNextVideo() }
-    await Task.yield()
+    var decisionCompleted = false
+    let decision = Task {
+      decisionStarted.fulfill()
+      let value = await model.resolveAutoplayNextVideo()
+      decisionCompleted = true
+      return value
+    }
+    await fulfillment(of: [decisionStarted], timeout: 2)
+    XCTAssertFalse(decisionCompleted, "the decision must wait for the loaded preference")
     release?.resume(returning: PutioAppConfig(autoplayNextVideo: true))
+    release = nil
 
     let autoplay = await decision.value
     await load.value

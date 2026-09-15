@@ -311,7 +311,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     h.center.post(
       name: AVAudioSession.interruptionNotification, object: nil,
       userInfo: [AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.began.rawValue])
-    await Task.yield()
+    await waitUntil { h.model.state == .interrupted(track) }
     XCTAssertEqual(h.model.state, .interrupted(track))
     XCTAssertEqual(h.engine.events.last, "pause")
 
@@ -321,14 +321,14 @@ final class PutioAudioPlayerModelTests: XCTestCase {
         AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.ended.rawValue,
         AVAudioSessionInterruptionOptionKey: UInt(0),
       ])
-    await Task.yield()
+    await waitUntil { h.model.state == .paused(track) }
     XCTAssertEqual(h.model.state, .paused(track))
 
     h.model.resume()
     h.center.post(
       name: AVAudioSession.interruptionNotification, object: nil,
       userInfo: [AVAudioSessionInterruptionTypeKey: AVAudioSession.InterruptionType.began.rawValue])
-    await Task.yield()
+    await waitUntil { h.model.state == .interrupted(track) }
     h.center.post(
       name: AVAudioSession.interruptionNotification, object: nil,
       userInfo: [
@@ -336,7 +336,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
         AVAudioSessionInterruptionOptionKey:
           AVAudioSession.InterruptionOptions.shouldResume.rawValue,
       ])
-    await Task.yield()
+    await waitUntil { h.model.state == .playing(track) }
     XCTAssertEqual(h.model.state, .playing(track))
     // Each interruption releases the session; every resume activates again.
     XCTAssertEqual(h.session.events.filter { $0 == "activate" }.count, 3)
@@ -437,7 +437,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
         AVAudioSessionRouteChangeReasonKey:
           AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue
       ])
-    await Task.yield()
+    await waitUntil { h.model.state == .paused(track) }
 
     XCTAssertEqual(h.model.state, .paused(track))
   }
@@ -486,14 +486,23 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     await h.pipeline.waitForPendingReports(fileID: track.id)
     XCTAssertTrue(h.reports.reports.isEmpty)
 
+    let resolving = expectation(description: "audio source resolution started")
     let stalled = makeHarness(resolve: { _ in
+      resolving.fulfill()
       try await Task.sleep(for: .seconds(60))
       throw PutioRuntimeError.transient
     })
     let start = Task { await stalled.model.start() }
-    await Task.yield()
+    defer {
+      start.cancel()
+      stalled.model.stop()
+    }
+    await fulfillment(of: [resolving], timeout: 2)
+    XCTAssertEqual(stalled.nowPlaying.attachmentCount, 1)
+    XCTAssertEqual(stalled.model.state, .loading(track))
     stalled.nowPlaying.send(.seek(seconds: 30))
     start.cancel()
+    await start.value
     XCTAssertTrue(stalled.engine.events.isEmpty)
   }
 

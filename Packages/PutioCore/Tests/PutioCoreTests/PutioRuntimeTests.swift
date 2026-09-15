@@ -7,12 +7,12 @@ import XCTest
 // URLProtocol supports asynchronous client callbacks. Gated tests retain each
 // loader behind a Mutex and release it exactly once.
 private final class RuntimeMockURLProtocol: URLProtocol, @unchecked Sendable {
-  private struct Fixture: Sendable {
+  fileprivate struct Fixture: Sendable {
     let statusCode: Int
     let body: String
   }
 
-  private final class GatedResponse: Sendable {
+  fileprivate final class GatedResponse: Sendable {
     private let fixture: Fixture
     private let loader: RuntimeMockURLProtocol
     private let released = Mutex(false)
@@ -41,7 +41,7 @@ private final class RuntimeMockURLProtocol: URLProtocol, @unchecked Sendable {
     case suspend
   }
 
-  private struct State {
+  fileprivate struct State {
     var fixtures: [String: Fixture] = [:]
     var networkFailureRoutes: Set<String> = []
     var nonHTTPRoutes: Set<String> = []
@@ -51,57 +51,62 @@ private final class RuntimeMockURLProtocol: URLProtocol, @unchecked Sendable {
     var requests: [URLRequest] = []
   }
 
-  private static let state = Mutex(State())
+  static let registry = TestURLProtocolRegistry<Fixtures>()
 
-  static func reset() {
-    state.withLock { $0 = State() }
-  }
+  final class Fixtures: Sendable {
+    fileprivate let state = Mutex(State())
 
-  static func setFixture(_ body: String, statusCode: Int = 200, for route: String) {
-    state.withLock { $0.fixtures[route] = Fixture(statusCode: statusCode, body: body) }
-  }
+    func reset() {
+      state.withLock { $0 = State() }
+    }
 
-  static func setNetworkFailure(_ enabled: Bool, for route: String) {
-    state.withLock {
-      if enabled {
-        $0.networkFailureRoutes.insert(route)
-      } else {
-        $0.networkFailureRoutes.remove(route)
+    func setFixture(_ body: String, statusCode: Int = 200, for route: String) {
+      state.withLock { $0.fixtures[route] = Fixture(statusCode: statusCode, body: body) }
+    }
+
+    func setNetworkFailure(_ enabled: Bool, for route: String) {
+      state.withLock {
+        if enabled {
+          $0.networkFailureRoutes.insert(route)
+        } else {
+          $0.networkFailureRoutes.remove(route)
+        }
       }
     }
-  }
 
-  static func setNonHTTPResponse(_ enabled: Bool, for route: String) {
-    state.withLock {
-      if enabled {
-        $0.nonHTTPRoutes.insert(route)
-      } else {
-        $0.nonHTTPRoutes.remove(route)
+    func setNonHTTPResponse(_ enabled: Bool, for route: String) {
+      state.withLock {
+        if enabled {
+          $0.nonHTTPRoutes.insert(route)
+        } else {
+          $0.nonHTTPRoutes.remove(route)
+        }
       }
     }
-  }
 
-  static func suspend(_ route: String) {
-    state.withLock { _ = $0.suspendedRoutes.insert(route) }
-  }
-
-  static func gateFixture(_ body: String, statusCode: Int = 200, for route: String) {
-    state.withLock {
-      $0.fixtures[route] = Fixture(statusCode: statusCode, body: body)
-      $0.gatedRoutes.insert(route)
+    func suspend(_ route: String) {
+      state.withLock { _ = $0.suspendedRoutes.insert(route) }
     }
-  }
 
-  static func releaseFixture(for route: String) {
-    let response = state.withLock { state in
-      state.gatedRoutes.remove(route)
-      return state.gatedResponses.removeValue(forKey: route)
+    func gateFixture(_ body: String, statusCode: Int = 200, for route: String) {
+      state.withLock {
+        $0.fixtures[route] = Fixture(statusCode: statusCode, body: body)
+        $0.gatedRoutes.insert(route)
+      }
     }
-    response?.release()
-  }
 
-  static func capturedRequests() -> [URLRequest] {
-    state.withLock { $0.requests }
+    func releaseFixture(for route: String) {
+      let response = state.withLock { state in
+        state.gatedRoutes.remove(route)
+        return state.gatedResponses.removeValue(forKey: route)
+      }
+      response?.release()
+    }
+
+    func capturedRequests() -> [URLRequest] {
+      state.withLock { $0.requests }
+    }
+
   }
 
   override class func canInit(with request: URLRequest) -> Bool {
@@ -118,9 +123,13 @@ private final class RuntimeMockURLProtocol: URLProtocol, @unchecked Sendable {
       return
     }
 
+    guard let fixtures = Self.registry.fixture(for: request) else {
+      client?.urlProtocol(self, didFailWithError: URLError(.resourceUnavailable))
+      return
+    }
     let route = "\(request.httpMethod ?? "GET") \(url.path)"
     let capturedRequest = request
-    let action = Self.state.withLock { state -> Action in
+    let action = fixtures.state.withLock { state -> Action in
       if state.suspendedRoutes.contains(route) {
         state.requests.append(capturedRequest)
         return .suspend
@@ -151,7 +160,7 @@ private final class RuntimeMockURLProtocol: URLProtocol, @unchecked Sendable {
       respond(with: fixture)
     case .gatedFixture(let fixture):
       let response = GatedResponse(loader: self, fixture: fixture)
-      Self.state.withLock { state in
+      fixtures.state.withLock { state in
         state.gatedResponses[route] = response
         state.requests.append(capturedRequest)
       }
@@ -252,9 +261,37 @@ final class PutioRuntimeTests: XCTestCase {
     }
     """
 
-  override func setUp() {
-    super.setUp()
-    RuntimeMockURLProtocol.reset()
+  private let fixtures = RuntimeMockURLProtocol.Fixtures()
+
+  func testConcurrentRuntimesKeepResponsesAndCapturedRequestsIsolated() async throws {
+    stubSignedInRoutes()
+    let otherFixtures = RuntimeMockURLProtocol.Fixtures()
+    otherFixtures.setFixture(Self.validValidation, for: "GET /v2/oauth2/validate")
+    otherFixtures.setFixture(
+      Self.accountInfo.replacingOccurrences(of: "moviebuff", with: "another-user"),
+      for: "GET /v2/account/info")
+    let (first, _) = makeRuntime(token: "first-token")
+    let (second, _) = makeRuntime(token: "second-token", fixtures: otherFixtures)
+
+    async let firstRestore: Void = first.session.restore()
+    async let secondRestore: Void = second.session.restore()
+    _ = await (firstRestore, secondRestore)
+
+    guard case .signedIn(let firstAccount) = first.session.state,
+      case .signedIn(let secondAccount) = second.session.state
+    else { return XCTFail("both independent runtimes must restore") }
+    XCTAssertEqual(firstAccount.username, "moviebuff")
+    XCTAssertEqual(secondAccount.username, "another-user")
+    XCTAssertEqual(fixtures.capturedRequests().count, 2)
+    XCTAssertEqual(otherFixtures.capturedRequests().count, 2)
+    XCTAssertTrue(
+      fixtures.capturedRequests().allSatisfy {
+        $0.value(forHTTPHeaderField: "Authorization")?.lowercased() == "token first-token"
+      })
+    XCTAssertTrue(
+      otherFixtures.capturedRequests().allSatisfy {
+        $0.value(forHTTPHeaderField: "Authorization")?.lowercased() == "token second-token"
+      })
   }
 
   func testUnauthenticatedRuntimeRejectsListingWithoutARequest() async {
@@ -268,18 +305,18 @@ final class PutioRuntimeTests: XCTestCase {
       _ = try await runtime.listFiles()
     }
 
-    XCTAssertTrue(RuntimeMockURLProtocol.capturedRequests().isEmpty)
+    XCTAssertTrue(fixtures.capturedRequests().isEmpty)
   }
 
   func testRestoredTokenIsSharedByValidationAccountAndFilesRequests() async throws {
     stubSignedInRoutes()
-    RuntimeMockURLProtocol.setFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
+    fixtures.setFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
     let (runtime, _) = makeRuntime(token: "stored-token")
 
     await runtime.session.restore()
     _ = try await runtime.listFiles()
 
-    let requests = RuntimeMockURLProtocol.capturedRequests()
+    let requests = fixtures.capturedRequests()
     XCTAssertEqual(
       requests.compactMap { $0.url?.path },
       ["/v2/oauth2/validate", "/v2/account/info", "/v2/files/list"]
@@ -299,7 +336,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testListMapsAppOwnedValuesAndKeepsCursorAndSort() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.filesList(cursor: "next-page", sortBy: "DATE_DESC"), for: Self.filesRoute)
 
     let contents = try await runtime.listFiles(parentID: .root)
@@ -339,12 +376,12 @@ final class PutioRuntimeTests: XCTestCase {
   func testNilAndEmptyCursorsDoNotClaimContinuation() async throws {
     let (runtime, _) = await makeSignedInRuntime()
 
-    RuntimeMockURLProtocol.setFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
+    fixtures.setFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
     let nilCursorContents = try await runtime.listFiles()
     XCTAssertNil(nilCursorContents.nextCursor)
     XCTAssertFalse(nilCursorContents.hasMore)
 
-    RuntimeMockURLProtocol.setFixture(Self.filesList(cursor: ""), for: Self.filesRoute)
+    fixtures.setFixture(Self.filesList(cursor: ""), for: Self.filesRoute)
     let emptyCursorContents = try await runtime.listFiles()
     XCTAssertNil(emptyCursorContents.nextCursor)
     XCTAssertFalse(emptyCursorContents.hasMore)
@@ -353,19 +390,19 @@ final class PutioRuntimeTests: XCTestCase {
   func testUnknownAndMissingSortKeysMapToNil() async throws {
     let (runtime, _) = await makeSignedInRuntime()
 
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.filesList(cursor: nil, sortBy: "FUTURE_KEY"), for: Self.filesRoute)
     let unknownSort = try await runtime.listFiles().sort
     XCTAssertNil(unknownSort)
 
-    RuntimeMockURLProtocol.setFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
+    fixtures.setFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
     let missingSort = try await runtime.listFiles().sort
     XCTAssertNil(missingSort)
   }
 
   func testContinueFilesPostsTheCursorAndAppendsNothingItself() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"cursor":"","files":[{"id":31,"name":"Page 2.mkv","file_type":"VIDEO","parent_id":0,"size":1,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}]}"#,
       for: Self.filesContinueRoute
     )
@@ -375,7 +412,7 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertNil(page.folder)
     XCTAssertNil(page.nextCursor)
     XCTAssertEqual(page.items.map(\.id), [PutioFileID(rawValue: 31)])
-    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
     XCTAssertEqual(request.httpMethod, "POST")
     XCTAssertEqual(request.url?.path, "/v2/files/list/continue")
     let body = try XCTUnwrap(requestBodyData(for: request))
@@ -385,7 +422,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testSearchEncodesQueryAndMapsAppOwnedResults() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"total":2,"cursor":"search-page-2","files":[{"id":31,"name":"Summer & snow.mkv","file_type":"VIDEO","parent_id":42,"size":1024,"start_from":12,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z","stream_url":"https://example.com/stream-secret"}]}"#,
       for: Self.searchRoute
     )
@@ -403,7 +440,7 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(item.sizeBytes, 1024)
     XCTAssertEqual(item.resumePositionSeconds, 12)
     XCTAssertFalse(String(reflecting: page).contains("stream-secret"))
-    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
     XCTAssertEqual(request.httpMethod, "GET")
     XCTAssertEqual(request.url?.path, "/v2/files/search")
     let components = try XCTUnwrap(
@@ -417,7 +454,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testSearchContinuationPostsOpaqueCursorAndMapsFinalPage() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"total":2,"cursor":"","files":[{"id":32,"name":"Page 2.mkv","file_type":"VIDEO","parent_id":42,"size":1,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}]}"#,
       for: Self.searchContinueRoute
     )
@@ -428,7 +465,7 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(page.totalCount, 2)
     XCTAssertNil(page.nextCursor)
     XCTAssertEqual(page.items.map(\.id), [PutioFileID(rawValue: 32)])
-    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
     XCTAssertEqual(request.httpMethod, "POST")
     XCTAssertEqual(request.url?.path, "/v2/files/search/continue")
     let body = try XCTUnwrap(requestBodyData(for: request))
@@ -440,16 +477,16 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testSearchRejectsNegativeTotalsAndNonadvancingContinuation() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(#"{"total":-1,"files":[]}"#, for: Self.searchRoute)
+    fixtures.setFixture(#"{"total":-1,"files":[]}"#, for: Self.searchRoute)
     await assertRuntimeError(.invalidResponse) {
       _ = try await runtime.searchFiles(query: "video")
     }
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"total":3,"cursor":"same-page","files":[]}"#, for: Self.searchContinueRoute)
     await assertRuntimeError(.invalidResponse) {
       _ = try await runtime.continueFileSearch(cursor: "same-page")
     }
-    RuntimeMockURLProtocol.setFixture(#"{"total":0,"files":[]}"#, for: Self.searchRoute)
+    fixtures.setFixture(#"{"total":0,"files":[]}"#, for: Self.searchRoute)
     let emptyPage = try await runtime.searchFiles(query: "missing")
     XCTAssertEqual(emptyPage, PutioFileSearchPage(items: [], nextCursor: nil, totalCount: 0))
   }
@@ -462,14 +499,14 @@ final class PutioRuntimeTests: XCTestCase {
     await assertRuntimeError(.authenticationRequired) {
       _ = try await runtime.continueFileSearch(cursor: "next-page")
     }
-    XCTAssertTrue(RuntimeMockURLProtocol.capturedRequests().isEmpty)
+    XCTAssertTrue(fixtures.capturedRequests().isEmpty)
   }
 
   func testSearchAuthenticationFailuresExpireSessionAndBlockFurtherRequests() async {
     for route in [Self.searchRoute, Self.searchContinueRoute] {
-      RuntimeMockURLProtocol.reset()
+      fixtures.reset()
       let (runtime, tokenStore) = await makeSignedInRuntime()
-      RuntimeMockURLProtocol.setFixture(
+      fixtures.setFixture(
         #"{"status":"ERROR","error_type":"invalid_grant"}"#, statusCode: 401, for: route)
       await assertRuntimeError(.sessionExpired) {
         if route == Self.searchRoute {
@@ -480,18 +517,18 @@ final class PutioRuntimeTests: XCTestCase {
       }
       XCTAssertEqual(runtime.session.state, .signedOut(.sessionExpired))
       XCTAssertNil(try? tokenStore.read())
-      let requestCount = RuntimeMockURLProtocol.capturedRequests().count
+      let requestCount = fixtures.capturedRequests().count
       await assertRuntimeError(.sessionExpired) {
         _ = try await runtime.searchFiles(query: "video")
       }
-      XCTAssertEqual(RuntimeMockURLProtocol.capturedRequests().count, requestCount)
+      XCTAssertEqual(fixtures.capturedRequests().count, requestCount)
     }
   }
 
   func testPlaybackRoutesRejectAmbiguousIdentityAndPreserveDescriptions() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let route = "GET /v2/tunnel/routes"
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"routes":[{"name":"default","description":"Default proxy"},{"name":"edge","description":"Nearby proxy"}]}"#,
       for: route)
     let routes = try await runtime.listPlaybackRoutes()
@@ -502,17 +539,17 @@ final class PutioRuntimeTests: XCTestCase {
         PutioPlaybackRoute(name: "edge", description: "Nearby proxy"),
       ])
     for body in [#"{"routes":[{"name":""}]}"#, #"{"routes":[{"name":"same"},{"name":"same"}]}"#] {
-      RuntimeMockURLProtocol.setFixture(body, for: route)
+      fixtures.setFixture(body, for: route)
       await assertRuntimeError(.invalidResponse) { _ = try await runtime.listPlaybackRoutes() }
     }
-    let before = RuntimeMockURLProtocol.capturedRequests().count
+    let before = fixtures.capturedRequests().count
     await assertRuntimeError(.invalidResponse) { _ = try await runtime.setPlaybackRoute(name: " ") }
-    XCTAssertEqual(RuntimeMockURLProtocol.capturedRequests().count, before)
+    XCTAssertEqual(fixtures.capturedRequests().count, before)
   }
 
   func testRejectedPlaybackPreferencesRemainFailuresWhenAccountValuesAreUnchanged() async {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/settings")
     await assertRuntimeError(.transient) { _ = try await runtime.setPlaybackRoute(name: "edge") }
     await assertRuntimeError(.transient) { _ = try await runtime.setSubtitlesVisible(false) }
@@ -530,9 +567,9 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testLostPlaybackPreferenceResponsesAcceptAuthoritativelyAppliedValues() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/settings")
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.accountInfo
         .replacingOccurrences(
           of: #""tunnel_route_name": "default""#, with: #""tunnel_route_name": "edge""#
@@ -549,14 +586,14 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertTrue(selection.accountRefreshed)
     XCTAssertFalse(runtime.session.isAccountPreferencesStale)
     XCTAssertEqual(
-      RuntimeMockURLProtocol.capturedRequests().filter { $0.url?.path == "/v2/account/settings" }
+      fixtures.capturedRequests().filter { $0.url?.path == "/v2/account/settings" }
         .count, 3)
   }
 
   func testPlaybackPreferencesUseSingleFieldPatchesAndKeepAcknowledgedValues() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/settings")
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/settings")
+    fixtures.setFixture(
       #"{"status":"ERROR"}"#, statusCode: 503, for: "GET /v2/account/info")
     _ = try await runtime.setPlaybackRoute(name: "edge")
     _ = try await runtime.setSubtitlesVisible(false)
@@ -570,7 +607,7 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertTrue(account.dontAutoSelectSubtitles)
     XCTAssertFalse(account.trashEnabled)
     XCTAssertTrue(runtime.session.isAccountPreferencesStale)
-    let writes = RuntimeMockURLProtocol.capturedRequests().filter {
+    let writes = fixtures.capturedRequests().filter {
       $0.url?.path == "/v2/account/settings"
     }
     let bodies = try writes.map { request in
@@ -583,7 +620,7 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(bodies[1]["hide_subtitles"] as? Bool, true)
     XCTAssertEqual(bodies[2]["dont_autoselect_subtitles"] as? Bool, true)
     XCTAssertTrue(bodies.allSatisfy { $0.count == 1 })
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.accountInfo
         .replacingOccurrences(
           of: #""tunnel_route_name": "default""#, with: #""tunnel_route_name": "edge""#
@@ -603,8 +640,8 @@ final class PutioRuntimeTests: XCTestCase {
   func testPreferenceWritesUseTypedSDKPatchesAndRefreshAuthoritativeSnapshot() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let settingsRoute = "POST /v2/account/settings"
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: settingsRoute)
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(#"{"status":"OK"}"#, for: settingsRoute)
+    fixtures.setFixture(
       Self.accountInfo.replacingOccurrences(of: "NAME_ASC", with: "SIZE_DESC"),
       for: "GET /v2/account/info")
     let sorted = try await runtime.setDefaultFolderSort(.sizeDescending)
@@ -615,7 +652,7 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(account.defaultSort, .sizeDescending)
     _ = try await runtime.setTrashEnabled(true)
     _ = try await runtime.setHistoryEnabled(false)
-    let writes = RuntimeMockURLProtocol.capturedRequests().filter {
+    let writes = fixtures.capturedRequests().filter {
       $0.url?.path == "/v2/account/settings"
     }
     let bodies = try writes.map { request in
@@ -628,7 +665,7 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(bodies[1]["trash_enabled"] as? Bool, true)
     XCTAssertEqual(bodies[2]["history_enabled"] as? Bool, false)
     XCTAssertTrue(bodies.allSatisfy { $0.count == 1 })
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"OK"}"#, for: "POST /v2/files/remove-sort-by-settings")
     let reset = try await runtime.resetFolderSorts()
     XCTAssertTrue(reset.accountRefreshed)
@@ -637,8 +674,8 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testCommittedTrashDisableHasRefreshOnlyRecoveryAndKeepsAcknowledgedSetting() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/settings")
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/settings")
+    fixtures.setFixture(
       #"{"status":"ERROR"}"#, statusCode: 503, for: "GET /v2/account/info")
     let result = try await runtime.setTrashEnabled(false)
     XCTAssertFalse(result.accountRefreshed)
@@ -648,7 +685,7 @@ final class PutioRuntimeTests: XCTestCase {
       return XCTFail("missing account")
     }
     XCTAssertFalse(stale.trashEnabled, "committed disable must not offer recoverable Trash")
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.accountInfo.replacingOccurrences(
         of: "\"trash_enabled\": true", with: "\"trash_enabled\": false"),
       for: "GET /v2/account/info")
@@ -661,18 +698,18 @@ final class PutioRuntimeTests: XCTestCase {
     }
     XCTAssertFalse(current.trashEnabled)
     XCTAssertEqual(
-      RuntimeMockURLProtocol.capturedRequests().filter { $0.url?.path == "/v2/account/settings" }
+      fixtures.capturedRequests().filter { $0.url?.path == "/v2/account/settings" }
         .count, 1)
   }
 
   func testPendingTrashDisableBlocksDeletionEvenAfterUnrelatedAccountRefresh() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let route = "POST /v2/account/settings"
-    RuntimeMockURLProtocol.gateFixture(#"{"status":"OK"}"#, for: route)
+    fixtures.gateFixture(#"{"status":"OK"}"#, for: route)
     let saving = Task { try await runtime.setTrashEnabled(false) }
     defer {
       saving.cancel()
-      RuntimeMockURLProtocol.releaseFixture(for: route)
+      fixtures.releaseFixture(for: route)
     }
     guard await waitForRequest(route, count: 1) else {
       return XCTFail("preference write never started")
@@ -680,18 +717,18 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertTrue(runtime.session.isUpdatingAccountPreferences)
     _ = await runtime.refreshAccountPreferences()
     XCTAssertTrue(runtime.session.isUpdatingAccountPreferences)
-    let requests = RuntimeMockURLProtocol.capturedRequests().count
+    let requests = fixtures.capturedRequests().count
     await assertRuntimeError(.transient) {
       try await runtime.deleteFile(fileID: PutioFileID(rawValue: 411))
     }
     await assertRuntimeError(.transient) { _ = try await runtime.resetFolderSorts() }
     XCTAssertEqual(runtime.session.folderSortsRevision, 0)
-    XCTAssertEqual(RuntimeMockURLProtocol.capturedRequests().count, requests)
-    RuntimeMockURLProtocol.setFixture(
+    XCTAssertEqual(fixtures.capturedRequests().count, requests)
+    fixtures.setFixture(
       Self.accountInfo.replacingOccurrences(
         of: "\"trash_enabled\": true", with: "\"trash_enabled\": false"),
       for: "GET /v2/account/info")
-    RuntimeMockURLProtocol.releaseFixture(for: route)
+    fixtures.releaseFixture(for: route)
     let result = try await saving.value
     XCTAssertTrue(result.accountRefreshed)
     XCTAssertFalse(runtime.session.isUpdatingAccountPreferences)
@@ -704,20 +741,20 @@ final class PutioRuntimeTests: XCTestCase {
   func testPendingFolderSortResetSerializesSettingsWritesAndOtherResets() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let route = "POST /v2/files/remove-sort-by-settings"
-    RuntimeMockURLProtocol.gateFixture(#"{"status":"OK"}"#, for: route)
+    fixtures.gateFixture(#"{"status":"OK"}"#, for: route)
     let resetting = Task { try await runtime.resetFolderSorts() }
     defer {
       resetting.cancel()
-      RuntimeMockURLProtocol.releaseFixture(for: route)
+      fixtures.releaseFixture(for: route)
     }
     guard await waitForRequest(route) else { return XCTFail("reset never started") }
     XCTAssertTrue(runtime.session.isUpdatingAccountPreferences)
-    let requests = RuntimeMockURLProtocol.capturedRequests().count
+    let requests = fixtures.capturedRequests().count
     await assertRuntimeError(.transient) { _ = try await runtime.setTrashEnabled(false) }
     await assertRuntimeError(.transient) { _ = try await runtime.resetFolderSorts() }
-    XCTAssertEqual(RuntimeMockURLProtocol.capturedRequests().count, requests)
+    XCTAssertEqual(fixtures.capturedRequests().count, requests)
     XCTAssertEqual(runtime.session.folderSortsRevision, 0)
-    RuntimeMockURLProtocol.releaseFixture(for: route)
+    fixtures.releaseFixture(for: route)
     _ = try await resetting.value
     XCTAssertFalse(runtime.session.isUpdatingAccountPreferences)
     XCTAssertEqual(runtime.session.folderSortsRevision, 1)
@@ -726,15 +763,15 @@ final class PutioRuntimeTests: XCTestCase {
   func testFolderSortResetCompletionAfterSignOutDoesNotInvalidateAnotherSession() async {
     let (runtime, _) = await makeSignedInRuntime()
     let route = "POST /v2/files/remove-sort-by-settings"
-    RuntimeMockURLProtocol.gateFixture(#"{"status":"OK"}"#, for: route)
+    fixtures.gateFixture(#"{"status":"OK"}"#, for: route)
     let resetting = Task { try await runtime.resetFolderSorts() }
     defer {
       resetting.cancel()
-      RuntimeMockURLProtocol.releaseFixture(for: route)
+      fixtures.releaseFixture(for: route)
     }
     guard await waitForRequest(route) else { return XCTFail("reset never started") }
     await runtime.session.signOut()
-    RuntimeMockURLProtocol.releaseFixture(for: route)
+    fixtures.releaseFixture(for: route)
     await assertRuntimeError(.authenticationRequired) { _ = try await resetting.value }
     XCTAssertFalse(runtime.session.isUpdatingAccountPreferences)
     XCTAssertEqual(runtime.session.folderSortsRevision, 0)
@@ -742,7 +779,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testRejectedFolderSortResetDoesNotReportSuccessFromUnchangedAccountSettings() async {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/files/remove-sort-by-settings")
     await assertRuntimeError(.transient) { _ = try await runtime.resetFolderSorts() }
     XCTAssertFalse(runtime.session.isAccountPreferencesStale)
@@ -752,19 +789,19 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testAmbiguousTrashDisableBlocksDeletionUntilAccountCanBeReconciled() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/settings")
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR"}"#, statusCode: 503, for: "GET /v2/account/info")
     await assertRuntimeError(.transient) { _ = try await runtime.setTrashEnabled(false) }
     XCTAssertTrue(runtime.session.isAccountPreferencesStale)
     XCTAssertTrue(runtime.session.isAccountStorageStale)
-    let requests = RuntimeMockURLProtocol.capturedRequests().count
+    let requests = fixtures.capturedRequests().count
     await assertRuntimeError(.transient) {
       try await runtime.deleteFile(fileID: PutioFileID(rawValue: 411))
     }
-    XCTAssertEqual(RuntimeMockURLProtocol.capturedRequests().count, requests)
-    RuntimeMockURLProtocol.setFixture(
+    XCTAssertEqual(fixtures.capturedRequests().count, requests)
+    fixtures.setFixture(
       Self.accountInfo.replacingOccurrences(
         of: "\"trash_enabled\": true", with: "\"trash_enabled\": false"),
       for: "GET /v2/account/info")
@@ -774,18 +811,18 @@ final class PutioRuntimeTests: XCTestCase {
       return XCTFail("missing account")
     }
     XCTAssertFalse(account.trashEnabled)
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/files/delete")
+    fixtures.setFixture(#"{"status":"OK"}"#, for: "POST /v2/files/delete")
     try await runtime.deleteFile(fileID: PutioFileID(rawValue: 411))
     XCTAssertEqual(
-      RuntimeMockURLProtocol.capturedRequests().filter { $0.url?.path == "/v2/account/settings" }
+      fixtures.capturedRequests().filter { $0.url?.path == "/v2/account/settings" }
         .count, 1)
   }
 
   func testLostWriteResponseAcceptsAuthoritativelyAppliedPreference() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/settings")
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.accountInfo.replacingOccurrences(
         of: "\"trash_enabled\": true", with: "\"trash_enabled\": false"),
       for: "GET /v2/account/info")
@@ -793,26 +830,26 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertTrue(result.accountRefreshed)
     XCTAssertFalse(runtime.session.isAccountPreferencesStale)
     XCTAssertEqual(
-      RuntimeMockURLProtocol.capturedRequests().filter { $0.url?.path == "/v2/account/settings" }
+      fixtures.capturedRequests().filter { $0.url?.path == "/v2/account/settings" }
         .count, 1)
   }
 
   func testOldAccountResponseCannotOverwritePreferencesAfterCommittedMutation() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let route = "GET /v2/account/info"
-    RuntimeMockURLProtocol.gateFixture(
+    fixtures.gateFixture(
       Self.accountInfo.replacingOccurrences(of: "NAME_ASC", with: "DATE_DESC"), for: route)
     let older = Task { await runtime.refreshAccountPreferences() }
     guard await waitForRequest(route, count: 2) else {
       older.cancel()
-      RuntimeMockURLProtocol.releaseFixture(for: route)
+      fixtures.releaseFixture(for: route)
       return XCTFail("old refresh never started")
     }
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/settings")
-    RuntimeMockURLProtocol.setFixture(#"{"status":"ERROR"}"#, statusCode: 503, for: route)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/settings")
+    fixtures.setFixture(#"{"status":"ERROR"}"#, statusCode: 503, for: route)
     let saved = try await runtime.setHistoryEnabled(false)
     XCTAssertFalse(saved.accountRefreshed)
-    RuntimeMockURLProtocol.releaseFixture(for: route)
+    fixtures.releaseFixture(for: route)
     let oldResult = await older.value
     XCTAssertFalse(oldResult)
     XCTAssertTrue(runtime.session.isAccountPreferencesStale)
@@ -827,11 +864,11 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testRejectedPreferenceIsReconciledAndUnknownSortStaysNil() async {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/settings")
     await assertRuntimeError(.transient) { _ = try await runtime.setHistoryEnabled(false) }
     XCTAssertFalse(runtime.session.isAccountPreferencesStale)
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.accountInfo.replacingOccurrences(of: "NAME_ASC", with: "FUTURE_SORT"),
       for: "GET /v2/account/info")
     let refreshed = await runtime.refreshAccountPreferences()
@@ -844,7 +881,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testHistoryMapsSupportedEventsAndUsesRawPageBoundary() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.historyFixture(
         [
           Self.historyEvent(
@@ -884,7 +921,7 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(page.items.first?.fileID, PutioFileID(rawValue: 411))
     XCTAssertNil(page.items[2].fileID)
     XCTAssertFalse(String(reflecting: page).contains("private-"))
-    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
     let components = try XCTUnwrap(
       request.url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) })
     XCTAssertEqual(components.queryItems?.first { $0.name == "before" }?.value, "100")
@@ -893,14 +930,14 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testHistoryFilteredPageRetainsContinuationAndFinalPageEndsIt() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.historyFixture(
         [
           Self.historyEvent(90, type: "voucher"), Self.historyEvent(89, type: "zip_created"),
         ], hasMore: true), for: "GET /v2/events/list")
     let filtered = try await runtime.listHistory()
     XCTAssertEqual(filtered, PutioHistoryPage(items: [], nextBefore: 89))
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.historyFixture([], hasMore: false), for: "GET /v2/events/list")
     let final = try await runtime.listHistory(before: 89)
     XCTAssertEqual(final, PutioHistoryPage(items: [], nextBefore: nil))
@@ -911,26 +948,26 @@ final class PutioRuntimeTests: XCTestCase {
     for events in [
       [], [Self.historyEvent(0, type: "upload")], [Self.historyEvent(100, type: "upload")],
     ] {
-      RuntimeMockURLProtocol.setFixture(
+      fixtures.setFixture(
         Self.historyFixture(events, hasMore: true), for: "GET /v2/events/list")
       await assertRuntimeError(.invalidResponse) { _ = try await runtime.listHistory(before: 100) }
     }
-    let count = RuntimeMockURLProtocol.capturedRequests().count
+    let count = fixtures.capturedRequests().count
     await assertRuntimeError(.invalidResponse) { _ = try await runtime.listHistory(before: 0) }
     await assertRuntimeError(.invalidResponse) { try await runtime.deleteHistoryEvent(id: -1) }
-    XCTAssertEqual(RuntimeMockURLProtocol.capturedRequests().count, count)
+    XCTAssertEqual(fixtures.capturedRequests().count, count)
   }
 
   func testHistoryMutationsUseSDKRoutesAndPreserveSessionOnFailure() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/events/delete/99")
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/events/delete")
+    fixtures.setFixture(#"{"status":"OK"}"#, for: "POST /v2/events/delete/99")
+    fixtures.setFixture(#"{"status":"OK"}"#, for: "POST /v2/events/delete")
     try await runtime.deleteHistoryEvent(id: 99)
     try await runtime.clearHistory()
     XCTAssertEqual(
-      RuntimeMockURLProtocol.capturedRequests().suffix(2).compactMap { $0.url?.path },
+      fixtures.capturedRequests().suffix(2).compactMap { $0.url?.path },
       ["/v2/events/delete/99", "/v2/events/delete"])
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/events/delete")
     await assertRuntimeError(.transient) { try await runtime.clearHistory() }
     guard case .signedIn = runtime.session.state else {
@@ -945,9 +982,9 @@ final class PutioRuntimeTests: XCTestCase {
       try await signedOut.deleteHistoryEvent(id: 1)
     }
     await assertRuntimeError(.authenticationRequired) { try await signedOut.clearHistory() }
-    XCTAssertTrue(RuntimeMockURLProtocol.capturedRequests().isEmpty)
+    XCTAssertTrue(fixtures.capturedRequests().isEmpty)
     let (runtime, store) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR"}"#, statusCode: 401, for: "GET /v2/events/list")
     await assertRuntimeError(.sessionExpired) { _ = try await runtime.listHistory() }
     XCTAssertEqual(runtime.session.state, .signedOut(.sessionExpired))
@@ -959,16 +996,16 @@ final class PutioRuntimeTests: XCTestCase {
     let route = "GET /v2/files/410"
     let fixture =
       #"{"file":{"id":410,"name":"Folder","file_type":"FOLDER","parent_id":42,"size":0,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}}"#
-    RuntimeMockURLProtocol.setFixture(fixture, for: route)
+    fixtures.setFixture(fixture, for: route)
     let file = try await runtime.getFile(fileID: PutioFileID(rawValue: 410))
     XCTAssertEqual(file.kind, .folder)
     XCTAssertEqual(file.parentID, PutioFileID(rawValue: 42))
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       fixture.replacingOccurrences(of: "410", with: "411"), for: route)
     await assertRuntimeError(.invalidResponse) {
       _ = try await runtime.getFile(fileID: PutioFileID(rawValue: 410))
     }
-    RuntimeMockURLProtocol.setFixture(#"{"status":"ERROR"}"#, statusCode: 404, for: route)
+    fixtures.setFixture(#"{"status":"ERROR"}"#, statusCode: 404, for: route)
     await assertRuntimeError(.notFound) {
       _ = try await runtime.getFile(fileID: PutioFileID(rawValue: 410))
     }
@@ -989,11 +1026,11 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testSetFolderSortPostsTheServerKey() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.setSortRoute)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.setSortRoute)
 
     try await runtime.setFolderSort(folderID: PutioFileID(rawValue: 42), sort: .sizeDescending)
 
-    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
     XCTAssertEqual(request.url?.path, "/v2/files/set-sort-by")
     let body = try XCTUnwrap(requestBodyData(for: request))
     let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
@@ -1003,11 +1040,11 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testListSendsTheRequestedParentID() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
+    fixtures.setFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
 
     _ = try await runtime.listFiles(parentID: PutioFileID(rawValue: 42))
 
-    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
     let components = try XCTUnwrap(
       request.url.flatMap {
         URLComponents(url: $0, resolvingAgainstBaseURL: false)
@@ -1021,7 +1058,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testFileActionsUseSDKOwnedRoutesAndMapCreatedFolder() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       """
       {
         "file": {
@@ -1037,8 +1074,8 @@ final class PutioRuntimeTests: XCTestCase {
       """,
       for: Self.createFolderRoute
     )
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.renameFileRoute)
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.deleteFilesRoute)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.renameFileRoute)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.deleteFilesRoute)
 
     let folder = try await runtime.createFolder(
       name: "Season 2",
@@ -1052,7 +1089,7 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(folder.name, "Season 2")
     XCTAssertEqual(folder.kind, .folder)
 
-    let actionRequests = RuntimeMockURLProtocol.capturedRequests().suffix(3)
+    let actionRequests = fixtures.capturedRequests().suffix(3)
     XCTAssertEqual(
       actionRequests.compactMap { $0.url?.path },
       ["/v2/files/create-folder", "/v2/files/rename", "/v2/files/delete"]
@@ -1070,7 +1107,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testMoveFileUsesSingleItemSDKRequestAndAcceptsAnEmptyErrorList() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"OK","errors":[]}"#,
       for: Self.moveFilesRoute
     )
@@ -1080,7 +1117,7 @@ final class PutioRuntimeTests: XCTestCase {
       to: PutioFileID(rawValue: 7)
     )
 
-    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
     XCTAssertEqual(request.httpMethod, "POST")
     XCTAssertEqual(request.url?.path, "/v2/files/move")
     let body = try XCTUnwrap(requestBodyData(for: request))
@@ -1099,9 +1136,9 @@ final class PutioRuntimeTests: XCTestCase {
     ]
 
     for (statusCode, expected) in cases {
-      RuntimeMockURLProtocol.reset()
+      fixtures.reset()
       let (runtime, tokenStore) = await makeSignedInRuntime()
-      RuntimeMockURLProtocol.setFixture(
+      fixtures.setFixture(
         """
         {
           "status": "OK",
@@ -1151,7 +1188,7 @@ final class PutioRuntimeTests: XCTestCase {
     ]
 
     for response in responses {
-      RuntimeMockURLProtocol.setFixture(response, for: Self.moveFilesRoute)
+      fixtures.setFixture(response, for: Self.moveFilesRoute)
       await assertRuntimeError(.invalidResponse) {
         try await runtime.moveFile(
           fileID: PutioFileID(rawValue: 91),
@@ -1163,7 +1200,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testMoveFileAuthenticationFailureUsesTheSharedSessionBoundary() async {
     let (runtime, tokenStore) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR","error_type":"invalid_grant"}"#,
       statusCode: 401,
       for: Self.moveFilesRoute
@@ -1182,7 +1219,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testListTrashMapsAppOwnedPageAndItemValues() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       """
       {
         "cursor": "trash-page-2",
@@ -1228,7 +1265,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testListTrashContinuationUsesCursorRequestAndDropsEmptyNextCursor() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"cursor":"","trash_size":0,"files":[]}"#,
       for: Self.trashContinueRoute
     )
@@ -1236,7 +1273,7 @@ final class PutioRuntimeTests: XCTestCase {
     let page = try await runtime.listTrash(cursor: "trash-page-2")
 
     XCTAssertNil(page.nextCursor)
-    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
     XCTAssertEqual(request.httpMethod, "POST")
     XCTAssertEqual(request.url?.path, "/v2/trash/list/continue")
     let body = try XCTUnwrap(requestBodyData(for: request))
@@ -1246,8 +1283,8 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testTrashMutationsUseSingleItemSDKRequests() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
+    fixtures.setFixture(
       """
       {
         "file": {
@@ -1263,12 +1300,12 @@ final class PutioRuntimeTests: XCTestCase {
       """,
       for: Self.restoredTrashFileRoute
     )
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashDeleteRoute)
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashDeleteRoute)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
     let fileID = PutioFileID(rawValue: 91)
 
     let restoredItem = try await runtime.restoreTrashItem(fileID: fileID)
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.accountInfo.replacingOccurrences(of: "\"used\": 20", with: "\"used\": 10"),
       for: "GET /v2/account/info"
     )
@@ -1278,7 +1315,7 @@ final class PutioRuntimeTests: XCTestCase {
       return XCTFail("expected account after deletion")
     }
     XCTAssertEqual(afterDelete.storage.usedBytes, 10)
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.accountInfo.replacingOccurrences(of: "\"used\": 20", with: "\"used\": 0"),
       for: "GET /v2/account/info"
     )
@@ -1290,7 +1327,7 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(afterEmpty.storage.usedBytes, 0)
 
     XCTAssertEqual(restoredItem, .restored(destinationID: PutioFileID(rawValue: 7)))
-    let requests = RuntimeMockURLProtocol.capturedRequests().suffix(6)
+    let requests = fixtures.capturedRequests().suffix(6)
     XCTAssertEqual(
       requests.compactMap { $0.url?.path },
       [
@@ -1311,17 +1348,17 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testRestoreSurfacesCancellationDuringDestinationLookup() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
-    RuntimeMockURLProtocol.gateFixture(#"{"status":"OK"}"#, for: Self.restoredTrashFileRoute)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
+    fixtures.gateFixture(#"{"status":"OK"}"#, for: Self.restoredTrashFileRoute)
 
     let restore = Task { try await runtime.restoreTrashItem(fileID: PutioFileID(rawValue: 91)) }
     guard await waitForRequest(Self.restoredTrashFileRoute) else {
       restore.cancel()
-      RuntimeMockURLProtocol.releaseFixture(for: Self.restoredTrashFileRoute)
+      fixtures.releaseFixture(for: Self.restoredTrashFileRoute)
       return XCTFail("the destination lookup did not start")
     }
     restore.cancel()
-    RuntimeMockURLProtocol.releaseFixture(for: Self.restoredTrashFileRoute)
+    fixtures.releaseFixture(for: Self.restoredTrashFileRoute)
 
     let result = try await restore.value
     XCTAssertEqual(result, .restoredLookupCancelled, "the restore itself is committed")
@@ -1329,16 +1366,16 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testRestoreCancelledBeforeCommitThrows() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.gateFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
+    fixtures.gateFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
 
     let restore = Task { try await runtime.restoreTrashItem(fileID: PutioFileID(rawValue: 91)) }
     guard await waitForRequest(Self.trashRestoreRoute) else {
       restore.cancel()
-      RuntimeMockURLProtocol.releaseFixture(for: Self.trashRestoreRoute)
+      fixtures.releaseFixture(for: Self.trashRestoreRoute)
       return XCTFail("the restore request did not start")
     }
     restore.cancel()
-    RuntimeMockURLProtocol.releaseFixture(for: Self.trashRestoreRoute)
+    fixtures.releaseFixture(for: Self.trashRestoreRoute)
 
     do {
       let result = try await restore.value
@@ -1353,8 +1390,8 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testRestorePreservesCommittedMutationWhenDestinationLookupFails() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
+    fixtures.setFixture(
       #"{"error_type":"service_unavailable"}"#,
       statusCode: 503,
       for: Self.restoredTrashFileRoute
@@ -1364,7 +1401,7 @@ final class PutioRuntimeTests: XCTestCase {
 
     XCTAssertEqual(result, .restoredDestinationUnknown)
     XCTAssertEqual(
-      RuntimeMockURLProtocol.capturedRequests().suffix(2).compactMap { $0.url?.path },
+      fixtures.capturedRequests().suffix(2).compactMap { $0.url?.path },
       ["/v2/trash/restore", "/v2/files/91"]
     )
   }
@@ -1372,9 +1409,9 @@ final class PutioRuntimeTests: XCTestCase {
   func testTrashMutationSuccessSurvivesAccountRefreshFailure() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let originalState = runtime.session.state
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashDeleteRoute)
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashDeleteRoute)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
+    fixtures.setFixture(
       #"{"status":"ERROR","error_type":"TEMPORARY_ERROR"}"#,
       statusCode: 503,
       for: "GET /v2/account/info"
@@ -1390,7 +1427,7 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(runtime.session.state, originalState)
     XCTAssertFalse(emptyResult.storageRefreshed)
 
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.accountInfo.replacingOccurrences(of: "\"used\": 20", with: "\"used\": 5"),
       for: "GET /v2/account/info"
     )
@@ -1405,8 +1442,8 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testStaleStorageDoesNotOutliveTheSession() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
+    fixtures.setFixture(
       #"{"status":"ERROR","error_type":"TEMPORARY_ERROR"}"#,
       statusCode: 503,
       for: "GET /v2/account/info"
@@ -1421,27 +1458,27 @@ final class PutioRuntimeTests: XCTestCase {
   func testRefreshStartedBeforeAMutationCannotClearStaleStorage() async throws {
     let route = "GET /v2/account/info"
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.gateFixture(Self.accountInfo, for: route)
+    fixtures.gateFixture(Self.accountInfo, for: route)
     let preMutation = Task { await runtime.refreshAccountStorage() }
     guard await waitForRequest(route, count: 2) else {
       preMutation.cancel()
-      RuntimeMockURLProtocol.releaseFixture(for: route)
+      fixtures.releaseFixture(for: route)
       return XCTFail("the gated account refresh did not start")
     }
 
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
+    fixtures.setFixture(
       #"{"status":"ERROR","error_type":"TEMPORARY_ERROR"}"#, statusCode: 503, for: route)
     let emptied = try await runtime.emptyTrash()
     XCTAssertFalse(emptied.storageRefreshed)
     XCTAssertTrue(runtime.session.isAccountStorageStale)
 
-    RuntimeMockURLProtocol.releaseFixture(for: route)
+    fixtures.releaseFixture(for: route)
     let preMutationResult = await preMutation.value
     XCTAssertFalse(preMutationResult, "a pre-mutation snapshot does not satisfy the retry")
     XCTAssertTrue(runtime.session.isAccountStorageStale, "stale storage stays visible")
 
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.accountInfo.replacingOccurrences(of: "\"used\": 20", with: "\"used\": 0"), for: route)
     let retried = await runtime.refreshAccountStorage()
     XCTAssertTrue(retried)
@@ -1451,23 +1488,23 @@ final class PutioRuntimeTests: XCTestCase {
   func testOlderSuccessfulRefreshAppliesWhenTheNewerRefreshFailed() async throws {
     let route = "GET /v2/account/info"
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.gateFixture(
+    fixtures.gateFixture(
       Self.accountInfo.replacingOccurrences(of: "\"used\": 20", with: "\"used\": 99"),
       for: route
     )
     let older = Task { await runtime.refreshAccountStorage() }
     guard await waitForRequest(route, count: 2) else {
       older.cancel()
-      RuntimeMockURLProtocol.releaseFixture(for: route)
+      fixtures.releaseFixture(for: route)
       return XCTFail("the gated account refresh did not start")
     }
 
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR","error_type":"TEMPORARY_ERROR"}"#, statusCode: 503, for: route)
     let newer = await runtime.refreshAccountStorage()
     XCTAssertFalse(newer)
 
-    RuntimeMockURLProtocol.releaseFixture(for: route)
+    fixtures.releaseFixture(for: route)
     let olderResult = await older.value
     XCTAssertTrue(olderResult)
     guard case .signedIn(let account) = runtime.session.state else {
@@ -1479,25 +1516,25 @@ final class PutioRuntimeTests: XCTestCase {
   func testOlderAccountRefreshCannotOverwriteANewerSnapshotInTheSameSession() async throws {
     let route = "GET /v2/account/info"
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.gateFixture(
+    fixtures.gateFixture(
       Self.accountInfo.replacingOccurrences(of: "\"used\": 20", with: "\"used\": 99"),
       for: route
     )
     let older = Task { await runtime.refreshAccountStorage() }
     guard await waitForRequest(route, count: 2) else {
       older.cancel()
-      RuntimeMockURLProtocol.releaseFixture(for: route)
+      fixtures.releaseFixture(for: route)
       return XCTFail("the gated account refresh did not start")
     }
 
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.accountInfo.replacingOccurrences(of: "\"used\": 20", with: "\"used\": 5"),
       for: route
     )
     let newer = await runtime.refreshAccountStorage()
     XCTAssertTrue(newer)
 
-    RuntimeMockURLProtocol.releaseFixture(for: route)
+    fixtures.releaseFixture(for: route)
     let olderResult = await older.value
     XCTAssertTrue(olderResult, "the older refresh still succeeded for its caller")
 
@@ -1509,8 +1546,8 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testTrashAccountRefreshAuthFailureExpiresSessionWithoutFailingMutation() async throws {
     let (runtime, tokenStore) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
+    fixtures.setFixture(
       #"{"status":"ERROR","error_type":"invalid_grant"}"#,
       statusCode: 401,
       for: "GET /v2/account/info"
@@ -1528,26 +1565,26 @@ final class PutioRuntimeTests: XCTestCase {
       (200, Self.accountInfo),
       (401, #"{"status":"ERROR","error_type":"invalid_grant"}"#),
     ] {
-      RuntimeMockURLProtocol.reset()
+      fixtures.reset()
       let (runtime, tokenStore) = await makeSignedInRuntime()
-      RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
-      RuntimeMockURLProtocol.gateFixture(body, statusCode: statusCode, for: route)
+      fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashEmptyRoute)
+      fixtures.gateFixture(body, statusCode: statusCode, for: route)
       let mutation = Task { try await runtime.emptyTrash() }
       guard await waitForRequest(route, count: 2) else {
         mutation.cancel()
-        RuntimeMockURLProtocol.releaseFixture(for: route)
+        fixtures.releaseFixture(for: route)
         return XCTFail("post-mutation account refresh did not start")
       }
 
       await runtime.session.signOut()
-      RuntimeMockURLProtocol.setFixture(
+      fixtures.setFixture(
         Self.accountInfo.replacingOccurrences(of: "moviebuff", with: "fresh-user"), for: route)
       let request = try runtime.session.beginSignIn()
       let oauthState = try XCTUnwrap(oauthState(from: request.url))
       let callback = try XCTUnwrap(
         URL(string: "putio://auth#access_token=fresh-token&state=\(oauthState)"))
       await runtime.session.completeSignIn(callbackURL: callback)
-      RuntimeMockURLProtocol.releaseFixture(for: route)
+      fixtures.releaseFixture(for: route)
       _ = try await mutation.value
 
       guard case .signedIn(let account) = runtime.session.state else {
@@ -1560,9 +1597,9 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testTrashMutationsRejectNonOKStatuses() async {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(#"{"status":"ERROR"}"#, for: Self.trashRestoreRoute)
-    RuntimeMockURLProtocol.setFixture(#"{"status":"ERROR"}"#, for: Self.trashDeleteRoute)
-    RuntimeMockURLProtocol.setFixture(#"{"status":"ERROR"}"#, for: Self.trashEmptyRoute)
+    fixtures.setFixture(#"{"status":"ERROR"}"#, for: Self.trashRestoreRoute)
+    fixtures.setFixture(#"{"status":"ERROR"}"#, for: Self.trashDeleteRoute)
+    fixtures.setFixture(#"{"status":"ERROR"}"#, for: Self.trashEmptyRoute)
 
     await assertRuntimeError(.invalidResponse) {
       _ = try await runtime.restoreTrashItem(fileID: PutioFileID(rawValue: 91))
@@ -1577,7 +1614,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testFindNextVideoMapsAppOwnedSuccessorAndVideoQuery() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       """
       {
         "next_file": {
@@ -1603,7 +1640,7 @@ final class PutioRuntimeTests: XCTestCase {
         name: "Episode 2.mkv"
       )
     )
-    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
     XCTAssertEqual(request.url?.path, "/v2/files/411/next-file")
     let components = try XCTUnwrap(
       request.url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }
@@ -1616,7 +1653,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testFindNextVideoMapsNullSuccessorToNil() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"next_file":null}"#,
       for: Self.nextVideoRoute
     )
@@ -1630,7 +1667,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testFindNextVideoRejectsMissingSuccessorField() async {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture("{}", for: Self.nextVideoRoute)
+    fixtures.setFixture("{}", for: Self.nextVideoRoute)
 
     await assertRuntimeError(.invalidResponse) {
       _ = try await runtime.findNextVideo(after: PutioFileID(rawValue: 411))
@@ -1644,12 +1681,12 @@ final class PutioRuntimeTests: XCTestCase {
       _ = try await runtime.findNextVideo(after: PutioFileID(rawValue: 411))
     }
 
-    XCTAssertTrue(RuntimeMockURLProtocol.capturedRequests().isEmpty)
+    XCTAssertTrue(fixtures.capturedRequests().isEmpty)
   }
 
   func testFindNextVideoCancellationPreservesSignedInSessionAndToken() async {
     let (runtime, tokenStore) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.suspend(Self.nextVideoRoute)
+    fixtures.suspend(Self.nextVideoRoute)
 
     let task = Task {
       try await runtime.findNextVideo(after: PutioFileID(rawValue: 411))
@@ -1681,12 +1718,12 @@ final class PutioRuntimeTests: XCTestCase {
       _ = try await runtime.resolveVideoPlaybackSource(fileID: PutioFileID(rawValue: 411))
     }
 
-    XCTAssertTrue(RuntimeMockURLProtocol.capturedRequests().isEmpty)
+    XCTAssertTrue(fixtures.capturedRequests().isEmpty)
   }
 
   func testPlaybackResolutionMapsReadySourceWithoutReflectingItsToken() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.playbackFile(needConvert: false, startFrom: 90),
       for: Self.playbackRoute
     )
@@ -1711,7 +1748,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testPlaybackResolutionPreservesConversionRequired() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.playbackFile(needConvert: true, startFrom: 0),
       for: Self.playbackRoute
     )
@@ -1725,18 +1762,18 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testVideoConversionStartSendsTheSDKOwnedRequest() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.conversionStartRoute)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.conversionStartRoute)
 
     try await runtime.startVideoConversion(fileID: PutioFileID(rawValue: 411))
 
-    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
     XCTAssertEqual(request.httpMethod, "POST")
     XCTAssertEqual(request.url?.path, "/v2/files/411/mp4")
   }
 
   func testAudioPlaybackSourceMapsStreamURLAndPositionThroughTheSDK() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"file":{"id":430,"file_type":"AUDIO","start_from":45}}"#, for: "GET /v2/files/430")
 
     let source = try await runtime.resolveAudioPlaybackSource(fileID: PutioFileID(rawValue: 430))
@@ -1748,7 +1785,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testAudioPlaybackSourceRejectsNonAudioAsUnknown() async {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.playbackFile(needConvert: false, startFrom: 0), for: Self.playbackRoute)
 
     await assertRuntimeError(.unknown) {
@@ -1758,7 +1795,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testFileDownloadSourceCarriesTheTokenedURLAndRedactsIt() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"file":{"id":440,"parent_id":7,"name":"Poster.png","file_type":"IMAGE","size":10,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}}"#,
       for: "GET /v2/files/440")
 
@@ -1775,10 +1812,10 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testFileDownloadSourceRejectsFoldersAndMismatchedIDs() async {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"file":{"id":441,"parent_id":0,"name":"Folder","file_type":"FOLDER","size":0,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}}"#,
       for: "GET /v2/files/441")
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"file":{"id":9,"parent_id":0,"name":"Other.png","file_type":"IMAGE","size":1,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z"}}"#,
       for: "GET /v2/files/442")
 
@@ -1795,7 +1832,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testNextAudioUsesTheAudioFileTypeAndMapsTheSuccessor() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"next_file":{"id":431,"name":"Track 2.m4a","parent_id":7}}"#,
       for: "GET /v2/files/430/next-file")
 
@@ -1805,7 +1842,7 @@ final class PutioRuntimeTests: XCTestCase {
       next,
       PutioNextAudio(
         id: PutioFileID(rawValue: 431), parentID: PutioFileID(rawValue: 7), name: "Track 2.m4a"))
-    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
     XCTAssertEqual(request.url?.query?.contains("file_type=AUDIO"), true)
   }
 
@@ -1820,7 +1857,7 @@ final class PutioRuntimeTests: XCTestCase {
     ]
 
     for (status, percentDone, expected) in cases {
-      RuntimeMockURLProtocol.setFixture(
+      fixtures.setFixture(
         #"{"mp4":{"percent_done":\#(percentDone),"status":"\#(status)"}}"#,
         for: Self.conversionStatusRoute
       )
@@ -1840,7 +1877,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testVideoConversionTreatsUnknownStatusAsStillConverting() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"mp4":{"percent_done":35,"status":"PAUSED"}}"#, for: Self.conversionStatusRoute)
 
     let conversion = try await runtime.videoConversionStatus(fileID: PutioFileID(rawValue: 411))
@@ -1857,7 +1894,7 @@ final class PutioRuntimeTests: XCTestCase {
       ("ERROR", PutioVideoConversionStatus.failed), ("NOT_AVAILABLE", .failed),
       ("COMPLETED", .completed), ("IN_QUEUE", .queued),
     ] {
-      RuntimeMockURLProtocol.setFixture(
+      fixtures.setFixture(
         #"{"mp4":{"percent_done":-1,"status":"\#(status)"}}"#, for: Self.conversionStatusRoute)
       let conversion = try await runtime.videoConversionStatus(
         fileID: PutioFileID(rawValue: 411))
@@ -1871,7 +1908,7 @@ final class PutioRuntimeTests: XCTestCase {
       #"{"mp4":{"percent_done":101,"status":"CONVERTING"}}"#,
       #"{"mp4":{"percent_done":-1,"status":"CONVERTING"}}"#,
     ] {
-      RuntimeMockURLProtocol.setFixture(body, for: Self.conversionStatusRoute)
+      fixtures.setFixture(body, for: Self.conversionStatusRoute)
       await assertRuntimeError(.invalidResponse) {
         _ = try await runtime.videoConversionStatus(fileID: PutioFileID(rawValue: 411))
       }
@@ -1888,29 +1925,29 @@ final class PutioRuntimeTests: XCTestCase {
       _ = try await runtime.videoConversionStatus(fileID: PutioFileID(rawValue: 411))
     }
 
-    XCTAssertTrue(RuntimeMockURLProtocol.capturedRequests().isEmpty)
+    XCTAssertTrue(fixtures.capturedRequests().isEmpty)
   }
 
   func testMediaAgnosticPlaybackPositionReportSharesTheStartFromRoute() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.playbackPositionRoute)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.playbackPositionRoute)
 
     try await runtime.reportPlaybackPosition(fileID: PutioFileID(rawValue: 411), seconds: 42)
 
-    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
     XCTAssertEqual(request.url?.path, "/v2/files/411/start-from/set")
   }
 
   func testPlaybackPositionReportSendsExactPathAndBody() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: Self.playbackPositionRoute)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.playbackPositionRoute)
 
     try await runtime.reportVideoPlaybackPosition(
       fileID: PutioFileID(rawValue: 411),
       seconds: 91
     )
 
-    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
     XCTAssertEqual(request.httpMethod, "POST")
     XCTAssertEqual(request.url?.path, "/v2/files/411/start-from/set")
     let body = try XCTUnwrap(requestBodyData(for: request))
@@ -1928,12 +1965,12 @@ final class PutioRuntimeTests: XCTestCase {
       )
     }
 
-    XCTAssertTrue(RuntimeMockURLProtocol.capturedRequests().isEmpty)
+    XCTAssertTrue(fixtures.capturedRequests().isEmpty)
   }
 
   func testPlaybackPositionAuthenticationFailureExpiresSessionAndClearsToken() async {
     let (runtime, tokenStore) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR","error_type":"invalid_grant"}"#,
       statusCode: 401,
       for: Self.playbackPositionRoute
@@ -1952,7 +1989,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testPlaybackPositionCancellationPreservesSignedInSessionAndToken() async {
     let (runtime, tokenStore) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.suspend(Self.playbackPositionRoute)
+    fixtures.suspend(Self.playbackPositionRoute)
 
     let task = Task {
       try await runtime.reportVideoPlaybackPosition(
@@ -1982,7 +2019,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testPlaybackAuthenticationFailureExpiresSessionAndClearsToken() async {
     let (runtime, tokenStore) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR","error_type":"invalid_grant"}"#,
       statusCode: 401,
       for: Self.playbackRoute
@@ -1998,9 +2035,9 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testUnauthorizedAndForbiddenResponsesExpireTheSharedSession() async {
     for statusCode in [401, 403] {
-      RuntimeMockURLProtocol.reset()
+      fixtures.reset()
       let (runtime, tokenStore) = await makeSignedInRuntime()
-      RuntimeMockURLProtocol.setFixture(
+      fixtures.setFixture(
         #"{"status":"ERROR","error_type":"invalid_grant"}"#,
         statusCode: statusCode,
         for: Self.filesRoute
@@ -2017,12 +2054,12 @@ final class PutioRuntimeTests: XCTestCase {
       )
       XCTAssertNil(try? tokenStore.read(), "HTTP \(statusCode) must clear persisted auth")
 
-      let requestCount = RuntimeMockURLProtocol.capturedRequests().count
+      let requestCount = fixtures.capturedRequests().count
       await assertRuntimeError(.sessionExpired) {
         _ = try await runtime.listFiles()
       }
       XCTAssertEqual(
-        RuntimeMockURLProtocol.capturedRequests().count,
+        fixtures.capturedRequests().count,
         requestCount,
         "an expired session must reject follow-up work without another request"
       )
@@ -2037,7 +2074,7 @@ final class PutioRuntimeTests: XCTestCase {
       (429, PutioRuntimeError.rateLimited),
       (500, PutioRuntimeError.transient),
     ] {
-      RuntimeMockURLProtocol.setFixture(
+      fixtures.setFixture(
         #"{"status":"ERROR"}"#,
         statusCode: statusCode,
         for: Self.filesRoute
@@ -2047,18 +2084,18 @@ final class PutioRuntimeTests: XCTestCase {
       }
     }
 
-    RuntimeMockURLProtocol.setNetworkFailure(true, for: Self.filesRoute)
+    fixtures.setNetworkFailure(true, for: Self.filesRoute)
     await assertRuntimeError(.transient) {
       _ = try await runtime.listFiles()
     }
-    RuntimeMockURLProtocol.setNetworkFailure(false, for: Self.filesRoute)
+    fixtures.setNetworkFailure(false, for: Self.filesRoute)
 
-    RuntimeMockURLProtocol.setFixture("{", for: Self.filesRoute)
+    fixtures.setFixture("{", for: Self.filesRoute)
     await assertRuntimeError(.invalidResponse) {
       _ = try await runtime.listFiles()
     }
 
-    RuntimeMockURLProtocol.setNonHTTPResponse(true, for: Self.filesRoute)
+    fixtures.setNonHTTPResponse(true, for: Self.filesRoute)
     await assertRuntimeError(.unknown) {
       _ = try await runtime.listFiles()
     }
@@ -2066,7 +2103,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testCancellationPreservesTheSignedInSessionAndToken() async {
     let (runtime, tokenStore) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.suspend(Self.filesRoute)
+    fixtures.suspend(Self.filesRoute)
 
     let task = Task { try await runtime.listFiles() }
     guard await waitForRequest(Self.filesRoute) else {
@@ -2091,7 +2128,12 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testResponseCompletingDuringSignOutIsDiscarded() async {
     let (runtime, tokenStore) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.gateFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
+    fixtures.gateFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
+    fixtures.gateFixture(#"{"status":"OK"}"#, for: Self.logoutRoute)
+    defer {
+      fixtures.releaseFixture(for: Self.filesRoute)
+      fixtures.releaseFixture(for: Self.logoutRoute)
+    }
 
     let listTask = Task { try await runtime.listFiles() }
     guard await waitForRequest(Self.filesRoute) else {
@@ -2100,32 +2142,32 @@ final class PutioRuntimeTests: XCTestCase {
     }
 
     let signOutTask = Task { await runtime.session.signOut() }
-    let localSessionInvalidated = await waitForSessionState(
-      runtime,
-      expected: .signingOut
-    )
+    guard await waitForRequest(Self.logoutRoute) else {
+      listTask.cancel()
+      signOutTask.cancel()
+      return XCTFail("logout request did not start")
+    }
+    XCTAssertEqual(runtime.session.state, .signingOut)
     XCTAssertNil(try? tokenStore.read())
-    RuntimeMockURLProtocol.releaseFixture(for: Self.filesRoute)
-    await signOutTask.value
-
-    XCTAssertTrue(
-      localSessionInvalidated,
-      "sign-out must invalidate local work before its remote request completes"
-    )
+    fixtures.releaseFixture(for: Self.filesRoute)
     await assertRuntimeError(.authenticationRequired) {
       _ = try await listTask.value
     }
+    XCTAssertEqual(runtime.session.state, .signingOut)
+
+    fixtures.releaseFixture(for: Self.logoutRoute)
+    await signOutTask.value
     XCTAssertEqual(runtime.session.state, .signedOut(.userSignedOut))
     XCTAssertNil(try? tokenStore.read())
   }
 
   func testSignInIsUnavailableUntilRemoteLogoutFinishes() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.gateFixture(#"{"status":"OK"}"#, for: Self.logoutRoute)
+    fixtures.gateFixture(#"{"status":"OK"}"#, for: Self.logoutRoute)
 
     let signOutTask = Task { await runtime.session.signOut() }
     guard await waitForRequest(Self.logoutRoute) else {
-      RuntimeMockURLProtocol.releaseFixture(for: Self.logoutRoute)
+      fixtures.releaseFixture(for: Self.logoutRoute)
       await signOutTask.value
       return XCTFail("logout request did not start")
     }
@@ -2135,7 +2177,7 @@ final class PutioRuntimeTests: XCTestCase {
       XCTAssertEqual(error as? PutioSessionOperationError, .signInUnavailable)
     }
 
-    RuntimeMockURLProtocol.releaseFixture(for: Self.logoutRoute)
+    fixtures.releaseFixture(for: Self.logoutRoute)
     await signOutTask.value
     XCTAssertEqual(runtime.session.state, .signedOut(.userSignedOut))
 
@@ -2145,11 +2187,11 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testStrayCallbackDuringSignOutDoesNotBlockCredentialCleanup() async throws {
     let (runtime, tokenStore) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.gateFixture(#"{"status":"OK"}"#, for: Self.logoutRoute)
+    fixtures.gateFixture(#"{"status":"OK"}"#, for: Self.logoutRoute)
 
     let signOutTask = Task { await runtime.session.signOut() }
     guard await waitForRequest(Self.logoutRoute) else {
-      RuntimeMockURLProtocol.releaseFixture(for: Self.logoutRoute)
+      fixtures.releaseFixture(for: Self.logoutRoute)
       await signOutTask.value
       return XCTFail("logout request did not start")
     }
@@ -2160,7 +2202,7 @@ final class PutioRuntimeTests: XCTestCase {
     await runtime.session.completeSignIn(callbackURL: callback)
     XCTAssertEqual(runtime.session.state, .signingOut)
 
-    RuntimeMockURLProtocol.releaseFixture(for: Self.logoutRoute)
+    fixtures.releaseFixture(for: Self.logoutRoute)
     await signOutTask.value
     XCTAssertEqual(runtime.session.state, .signedOut(.userSignedOut))
     XCTAssertNil(try? tokenStore.read())
@@ -2171,9 +2213,9 @@ final class PutioRuntimeTests: XCTestCase {
       (200, Self.filesList(cursor: nil)),
       (401, #"{"status":"ERROR","error_type":"invalid_grant"}"#),
     ] {
-      RuntimeMockURLProtocol.reset()
+      fixtures.reset()
       let (runtime, tokenStore) = await makeSignedInRuntime()
-      RuntimeMockURLProtocol.gateFixture(
+      fixtures.gateFixture(
         body,
         statusCode: statusCode,
         for: Self.filesRoute
@@ -2193,11 +2235,11 @@ final class PutioRuntimeTests: XCTestCase {
       )
       await runtime.session.completeSignIn(callbackURL: callback)
       guard case .signedIn = runtime.session.state else {
-        RuntimeMockURLProtocol.releaseFixture(for: Self.filesRoute)
+        fixtures.releaseFixture(for: Self.filesRoute)
         return XCTFail("fresh session did not sign in")
       }
 
-      RuntimeMockURLProtocol.releaseFixture(for: Self.filesRoute)
+      fixtures.releaseFixture(for: Self.filesRoute)
       await assertRuntimeError(.authenticationRequired) {
         _ = try await oldListTask.value
       }
@@ -2227,28 +2269,28 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testCastPlaybackTypeRoundTripsThroughTheConfigEndpoints() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"config":{"chromecast_playback_type":"mp4"}}"#, for: "GET /v2/config")
     let type = try await runtime.castPlaybackType()
     XCTAssertEqual(type, .mp4)
-    RuntimeMockURLProtocol.setFixture(#"{"config":{}}"#, for: "GET /v2/config")
+    fixtures.setFixture(#"{"config":{}}"#, for: "GET /v2/config")
     let fallback = try await runtime.castPlaybackType()
     XCTAssertEqual(fallback, .hls)
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"config":{"chromecast_playback_type":"bogus","autoplay_next_video":"yes","web_only":1}}"#,
       for: "GET /v2/config")
     let lenient = try await runtime.appConfig()
     XCTAssertEqual(lenient, PutioAppConfig(chromecastPlaybackType: .hls, autoplayNextVideo: false))
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"config":{"chromecast_playback_type":"mp4","autoplay_next_video":true}}"#,
       for: "GET /v2/config")
     let full = try await runtime.appConfig()
     XCTAssertEqual(full, PutioAppConfig(chromecastPlaybackType: .mp4, autoplayNextVideo: true))
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"OK"}"#, for: "PUT /v2/config/autoplay_next_video")
     try await runtime.setAutoplayNextVideo(true)
     let autoplay = try XCTUnwrap(
-      RuntimeMockURLProtocol.capturedRequests().last {
+      fixtures.capturedRequests().last {
         $0.url?.path == "/v2/config/autoplay_next_video"
       })
     XCTAssertEqual(
@@ -2256,22 +2298,22 @@ final class PutioRuntimeTests: XCTestCase {
       #"{"value":true}"#)
 
     let route = "PUT /v2/config/chromecast_playback_type"
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: route)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: route)
     try await runtime.setCastPlaybackType(.mp4)
     let request = try XCTUnwrap(
-      RuntimeMockURLProtocol.capturedRequests().last {
+      fixtures.capturedRequests().last {
         $0.url?.path == "/v2/config/chromecast_playback_type"
       })
     let body = try XCTUnwrap(requestBodyData(for: request))
     XCTAssertEqual(
       try JSONSerialization.jsonObject(with: body) as? [String: String], ["value": "mp4"])
-    RuntimeMockURLProtocol.setFixture(#"{"status":"ERROR"}"#, for: route)
+    fixtures.setFixture(#"{"status":"ERROR"}"#, for: route)
     await assertRuntimeError(.invalidResponse) { try await runtime.setCastPlaybackType(.hls) }
   }
 
   func testCastMediaUsesHLSWithMuxedSubtitlesAndRedactsTheToken() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       """
       {"file":{"id":412,"name":"Movie.mkv","file_type":"VIDEO","parent_id":0,
        "created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00",
@@ -2295,7 +2337,7 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertFalse(String(reflecting: media).contains("stored-token"))
     XCTAssertFalse(String(describing: media).contains("stored-token"))
     XCTAssertFalse(
-      RuntimeMockURLProtocol.capturedRequests().contains {
+      fixtures.capturedRequests().contains {
         $0.url?.path.hasSuffix("/subtitles") == true
       })
   }
@@ -2310,7 +2352,7 @@ final class PutioRuntimeTests: XCTestCase {
        "screenshot":"http://insecure.example/412.jpg"}}
       """
     }
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       """
       {"default":"tr","subtitles":[
         {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/en?oauth_token=stored-token"},
@@ -2322,7 +2364,7 @@ final class PutioRuntimeTests: XCTestCase {
       ]}
       """, for: "GET /v2/files/412/subtitles")
 
-    RuntimeMockURLProtocol.setFixture(file(true, true), for: "GET /v2/files/412")
+    fixtures.setFixture(file(true, true), for: "GET /v2/files/412")
     guard
       case .ready(let converted) = try await runtime.resolveCastMedia(
         fileID: PutioFileID(rawValue: 412), playbackType: .mp4)
@@ -2346,14 +2388,14 @@ final class PutioRuntimeTests: XCTestCase {
       "the receiver fetches tracks without the app's header")
     XCTAssertFalse(String(reflecting: converted).contains("stored-token"))
 
-    RuntimeMockURLProtocol.setFixture(file(false, false), for: "GET /v2/files/412")
+    fixtures.setFixture(file(false, false), for: "GET /v2/files/412")
     guard
       case .ready(let original) = try await runtime.resolveCastMedia(
         fileID: PutioFileID(rawValue: 412), playbackType: .mp4)
     else { return XCTFail("expected ready media") }
     XCTAssertEqual(original.url.path, "/v2/files/412/download")
 
-    RuntimeMockURLProtocol.setFixture(file(true, false), for: "GET /v2/files/412")
+    fixtures.setFixture(file(true, false), for: "GET /v2/files/412")
     let gated = try await runtime.resolveCastMedia(
       fileID: PutioFileID(rawValue: 412), playbackType: .mp4)
     XCTAssertEqual(gated, .conversionRequired)
@@ -2361,7 +2403,7 @@ final class PutioRuntimeTests: XCTestCase {
       fileID: PutioFileID(rawValue: 412), playbackType: .hls)
     XCTAssertEqual(hlsGated, .conversionRequired)
 
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"file":{"id":413,"name":"Other","file_type":"VIDEO","parent_id":0,"created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00"}}"#,
       for: "GET /v2/files/412")
     await assertRuntimeError(.invalidResponse) {
@@ -2373,10 +2415,11 @@ final class PutioRuntimeTests: XCTestCase {
   }
 
   private func makeRuntime(
-    token: String?
+    token: String?, fixtures: RuntimeMockURLProtocol.Fixtures? = nil
   ) -> (PutioRuntime, PutioInMemoryTokenStore) {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [RuntimeMockURLProtocol.self]
+    RuntimeMockURLProtocol.registry.configure(configuration, fixture: fixtures ?? self.fixtures)
     let tokenStore = PutioInMemoryTokenStore(token: token)
     let runtime = PutioRuntime(
       clientID: "3001",
@@ -2389,7 +2432,7 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testAuthorizedAppsFlagTheCurrentClientAndRejectDuplicates() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       """
       {"apps":[{"id":3001,"name":"put.io iOS","description":"This app"},
                {"id":42,"name":"Living Room TV","description":"Apple TV","website":"https://put.io"}]}
@@ -2403,49 +2446,49 @@ final class PutioRuntimeTests: XCTestCase {
         PutioAuthorizedApp(
           id: 42, name: "Living Room TV", description: "Apple TV", isCurrentClient: false),
       ])
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"apps":[{"id":42,"name":"A","description":""},{"id":42,"name":"B","description":""}]}"#,
       for: "GET /v2/oauth/grants")
     await assertRuntimeError(.invalidResponse) { _ = try await runtime.listAuthorizedApps() }
 
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/oauth/grants/42/delete")
+    fixtures.setFixture(#"{"status":"OK"}"#, for: "POST /v2/oauth/grants/42/delete")
     try await runtime.revokeAuthorizedApp(id: 42)
     XCTAssertEqual(
-      RuntimeMockURLProtocol.capturedRequests().last?.url?.path, "/v2/oauth/grants/42/delete")
+      fixtures.capturedRequests().last?.url?.path, "/v2/oauth/grants/42/delete")
     await assertRuntimeError(.invalidResponse) { try await runtime.revokeAuthorizedApp(id: 0) }
   }
 
   func testLinkDeviceMapsCodeRejectionsAndKeepsSession() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let route = "POST /v2/oauth2/oob/code"
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR","error_type":"code_not_found","message":"no"}"#, statusCode: 400,
       for: route)
     await assertSecurityError(.invalidDeviceCode) { _ = try await runtime.linkDevice(code: "ABCD") }
     await assertSecurityError(.invalidDeviceCode) { _ = try await runtime.linkDevice(code: "  ") }
     guard case .signedIn = runtime.session.state else { return XCTFail("rejection ended session") }
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"app":{"id":77,"name":"Apple TV","description":"Living room"}}"#, for: route)
     let app = try await runtime.linkDevice(code: " ABCD ")
     XCTAssertEqual(
       app,
       PutioAuthorizedApp(
         id: 77, name: "Apple TV", description: "Living room", isCurrentClient: false))
-    let request = try XCTUnwrap(RuntimeMockURLProtocol.capturedRequests().last)
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
     let body = try JSONSerialization.jsonObject(with: try XCTUnwrap(requestBodyData(for: request)))
     XCTAssertEqual(body as? [String: String], ["code": "ABCD"])
   }
 
   func testTwoFactorEnrollmentAcknowledgesTheFlagAndMapsInvalidCodes() async throws {
     let (runtime, _) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"secret":" JBSWY3DP ","uri":"otpauth://x","recovery_codes":{"created_at":"","codes":[]}}"#,
       for: "POST /v2/two_factor/generate/totp")
     let secret = try await runtime.generateTwoFactorSecret()
     XCTAssertEqual(secret, "JBSWY3DP")
 
     let settings = "POST /v2/account/settings"
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR","error_type":"invalid_code","message":"bad"}"#, statusCode: 400,
       for: settings)
     await assertSecurityError(.invalidTwoFactorCode) {
@@ -2455,8 +2498,8 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertFalse(before.twoFactorEnabled)
     XCTAssertFalse(runtime.session.isUpdatingAccountPreferences)
 
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: settings)
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(#"{"status":"OK"}"#, for: settings)
+    fixtures.setFixture(
       Self.accountInfo.replacingOccurrences(
         of: "\"two_factor_enabled\": false", with: "\"two_factor_enabled\": true"),
       for: "GET /v2/account/info")
@@ -2465,14 +2508,14 @@ final class PutioRuntimeTests: XCTestCase {
     guard case .signedIn(let after) = runtime.session.state else { return XCTFail("signed out") }
     XCTAssertTrue(after.twoFactorEnabled)
     let request = try XCTUnwrap(
-      RuntimeMockURLProtocol.capturedRequests().last { $0.url?.path == "/v2/account/settings" })
+      fixtures.capturedRequests().last { $0.url?.path == "/v2/account/settings" })
     let body = try XCTUnwrap(
       JSONSerialization.jsonObject(with: try XCTUnwrap(requestBodyData(for: request)))
         as? [String: [String: Any]])
     XCTAssertEqual(body["two_factor_enabled"]?["code"] as? String, "123456")
     XCTAssertEqual(body["two_factor_enabled"]?["enable"] as? Bool, true)
 
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"recovery_codes":{"created_at":"2026-09-01","codes":[{"code":"aaaa-1111","used_at":null},{"code":"bbbb-2222","used_at":"2026-09-02"}]}}"#,
       for: "GET /v2/two_factor/recovery_codes")
     let codes = try await runtime.recoveryCodes()
@@ -2482,7 +2525,7 @@ final class PutioRuntimeTests: XCTestCase {
         PutioTwoFactorRecoveryCode(code: "aaaa-1111", isUsed: false),
         PutioTwoFactorRecoveryCode(code: "bbbb-2222", isUsed: true),
       ])
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"recovery_codes":{"created_at":"","codes":[]}}"#,
       for: "POST /v2/two_factor/recovery_codes/refresh")
     await assertRuntimeError(.invalidResponse) { _ = try await runtime.regenerateRecoveryCodes() }
@@ -2490,7 +2533,7 @@ final class PutioRuntimeTests: XCTestCase {
       #"[{"code":"dup","used_at":null},{"code":"dup","used_at":null}]"#,
       #"[{"code":"ok","used_at":null},{"code":"  ","used_at":null}]"#,
     ] {
-      RuntimeMockURLProtocol.setFixture(
+      fixtures.setFixture(
         #"{"recovery_codes":{"created_at":"","codes":\#(payload)}}"#,
         for: "GET /v2/two_factor/recovery_codes")
       await assertRuntimeError(.invalidResponse) { _ = try await runtime.recoveryCodes() }
@@ -2500,12 +2543,12 @@ final class PutioRuntimeTests: XCTestCase {
   func testLostTwoFactorResponseReconcilesAgainstTheAccountBeforeFailing() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let settings = "POST /v2/account/settings"
-    RuntimeMockURLProtocol.setFixture(#"{"status":"ERROR"}"#, statusCode: 503, for: settings)
+    fixtures.setFixture(#"{"status":"ERROR"}"#, statusCode: 503, for: settings)
     await assertRuntimeError(.transient) {
       _ = try await runtime.setTwoFactorEnabled(true, code: "123456")
     }
     XCTAssertFalse(runtime.session.isUpdatingAccountPreferences)
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.accountInfo.replacingOccurrences(
         of: "\"two_factor_enabled\": false", with: "\"two_factor_enabled\": true"),
       for: "GET /v2/account/info")
@@ -2516,7 +2559,7 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertTrue(account.twoFactorEnabled)
     XCTAssertFalse(runtime.session.isAccountPreferencesStale)
     // A retry of a committed write can only fail as a stale code.
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR","error_type":"invalid_code","message":"stale"}"#, statusCode: 400,
       for: settings)
     let retried = try await runtime.setTwoFactorEnabled(true, code: "654321")
@@ -2529,19 +2572,19 @@ final class PutioRuntimeTests: XCTestCase {
 
   func testClearDataSendsEveryFlagAndDestroyEndsTheSessionWithoutRevocation() async throws {
     let (runtime, tokenStore) = await makeSignedInRuntime()
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/clear")
     await assertRuntimeError(.transient) { _ = try await runtime.clearAccountData([.files]) }
     XCTAssertTrue(
-      RuntimeMockURLProtocol.capturedRequests().suffix(1).allSatisfy {
+      fixtures.capturedRequests().suffix(1).allSatisfy {
         $0.url?.path == "/v2/account/info"
       }, "a lost clear response did not reload the account")
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/clear")
+    fixtures.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/clear")
     await assertRuntimeError(.invalidResponse) { _ = try await runtime.clearAccountData([]) }
     let refreshed = try await runtime.clearAccountData([.history, .trash])
     XCTAssertTrue(refreshed)
     let clear = try XCTUnwrap(
-      RuntimeMockURLProtocol.capturedRequests().last { $0.url?.path == "/v2/account/clear" })
+      fixtures.capturedRequests().last { $0.url?.path == "/v2/account/clear" })
     let body = try XCTUnwrap(
       JSONSerialization.jsonObject(with: try XCTUnwrap(requestBodyData(for: clear)))
         as? [String: Bool])
@@ -2553,7 +2596,7 @@ final class PutioRuntimeTests: XCTestCase {
       ])
 
     let destroy = "POST /v2/account/destroy"
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR","error_type":"INVALID_CURRENT_PASSWORD","message":"no"}"#,
       statusCode: 400, for: destroy)
     await assertSecurityError(.invalidPassword) { try await runtime.destroyAccount(password: "x") }
@@ -2561,10 +2604,10 @@ final class PutioRuntimeTests: XCTestCase {
       try await runtime.destroyAccount(password: " \n")
     }
     guard case .signedIn = runtime.session.state else { return XCTFail("rejection ended session") }
-    RuntimeMockURLProtocol.setFixture(#"{"status":"OK"}"#, for: destroy)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: destroy)
     try await runtime.destroyAccount(password: " correct ")
     let sent = try XCTUnwrap(
-      RuntimeMockURLProtocol.capturedRequests().last { $0.url?.path == "/v2/account/destroy" })
+      fixtures.capturedRequests().last { $0.url?.path == "/v2/account/destroy" })
     XCTAssertEqual(
       try JSONSerialization.jsonObject(with: try XCTUnwrap(requestBodyData(for: sent)))
         as? [String: String], ["current_password": " correct "],
@@ -2572,7 +2615,7 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(runtime.session.state, .signedOut(.userSignedOut))
     XCTAssertNil(try tokenStore.read())
     XCTAssertFalse(
-      RuntimeMockURLProtocol.capturedRequests().contains {
+      fixtures.capturedRequests().contains {
         $0.url?.path == "/v2/oauth/grants/logout"
       })
     await assertRuntimeError(.authenticationRequired) { _ = try await runtime.listAuthorizedApps() }
@@ -2581,12 +2624,12 @@ final class PutioRuntimeTests: XCTestCase {
   func testLostDestroyResponseEndsTheSessionOnlyWhenTheCredentialIsDead() async throws {
     let (runtime, tokenStore) = await makeSignedInRuntime()
     let destroy = "POST /v2/account/destroy"
-    RuntimeMockURLProtocol.setFixture(#"{"status":"ERROR"}"#, statusCode: 503, for: destroy)
+    fixtures.setFixture(#"{"status":"ERROR"}"#, statusCode: 503, for: destroy)
     await assertRuntimeError(.transient) { try await runtime.destroyAccount(password: "pw") }
     guard case .signedIn = runtime.session.state else {
       return XCTFail("a live credential ended the session")
     }
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR","error_type":"invalid_grant"}"#, statusCode: 401,
       for: "GET /v2/account/info")
     try await runtime.destroyAccount(password: "pw")
@@ -2597,14 +2640,14 @@ final class PutioRuntimeTests: XCTestCase {
   func testLostDestroyResponseCannotEndANewerSession() async throws {
     let (runtime, tokenStore) = await makeSignedInRuntime()
     let accountRoute = "GET /v2/account/info"
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/destroy")
-    RuntimeMockURLProtocol.gateFixture(
+    fixtures.gateFixture(
       #"{"status":"ERROR","error_type":"invalid_grant"}"#, statusCode: 401,
       for: accountRoute)
     let destruction = Task { try await runtime.destroyAccount(password: "pw") }
     defer {
-      RuntimeMockURLProtocol.releaseFixture(for: accountRoute)
+      fixtures.releaseFixture(for: accountRoute)
       destruction.cancel()
     }
     guard await waitForRequest(accountRoute, count: 2) else {
@@ -2612,7 +2655,7 @@ final class PutioRuntimeTests: XCTestCase {
     }
 
     await runtime.session.signOut()
-    RuntimeMockURLProtocol.setFixture(Self.accountInfo, for: accountRoute)
+    fixtures.setFixture(Self.accountInfo, for: accountRoute)
     let request = try runtime.session.beginSignIn()
     let state = try XCTUnwrap(oauthState(from: request.url))
     let callback = try XCTUnwrap(
@@ -2623,7 +2666,7 @@ final class PutioRuntimeTests: XCTestCase {
     }
     let generation = runtime.session.authenticationGeneration
 
-    RuntimeMockURLProtocol.releaseFixture(for: accountRoute)
+    fixtures.releaseFixture(for: accountRoute)
     await assertRuntimeError(.transient) { try await destruction.value }
     guard case .signedIn = runtime.session.state else {
       return XCTFail("old credential validation ended the fresh session")
@@ -2658,15 +2701,15 @@ final class PutioRuntimeTests: XCTestCase {
   }
 
   private func stubSignedInRoutes() {
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.validValidation,
       for: "GET /v2/oauth2/validate"
     )
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       Self.accountInfo,
       for: "GET /v2/account/info"
     )
-    RuntimeMockURLProtocol.setFixture(
+    fixtures.setFixture(
       #"{"status":"OK"}"#,
       for: Self.logoutRoute
     )
@@ -2717,27 +2760,15 @@ final class PutioRuntimeTests: XCTestCase {
   }
 
   private func waitForRequest(_ route: String, count: Int = 1) async -> Bool {
-    for _ in 0..<1_000 {
-      if RuntimeMockURLProtocol.capturedRequests().filter({ request in
+    let deadline = ContinuousClock.now + .seconds(5)
+    while ContinuousClock.now < deadline {
+      if fixtures.capturedRequests().filter({ request in
         guard let url = request.url else { return false }
         return "\(request.httpMethod ?? "GET") \(url.path)" == route
       }).count >= count {
         return true
       }
-      await Task.yield()
-    }
-    return false
-  }
-
-  private func waitForSessionState(
-    _ runtime: PutioRuntime,
-    expected: PutioSessionState
-  ) async -> Bool {
-    for _ in 0..<1_000 {
-      if runtime.session.state == expected {
-        return true
-      }
-      await Task.yield()
+      try? await Task.sleep(for: .milliseconds(10))
     }
     return false
   }

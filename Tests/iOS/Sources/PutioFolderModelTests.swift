@@ -9,10 +9,12 @@ private actor ControlledFolderLoader {
     let continuation: CheckedContinuation<PutioFolderContents, any Error>
   }
 
+  private var isClosed = false
   private var nextRequest = 0
   private var pending: [Int: PendingRequest] = [:]
 
   func load(folderID: PutioFileID) async throws -> PutioFolderContents {
+    guard !isClosed else { throw CancellationError() }
     let request = nextRequest
     nextRequest += 1
     return try await withCheckedThrowingContinuation { continuation in
@@ -20,10 +22,22 @@ private actor ControlledFolderLoader {
     }
   }
 
-  func waitForRequestCount(_ expected: Int) async {
+  func waitForRequestCount(_ expected: Int) async throws {
+    let deadline = ContinuousClock.now + .seconds(5)
     while nextRequest < expected {
-      await Task.yield()
+      guard ContinuousClock.now < deadline else {
+        throw FolderTestTimeout(
+          description: "Expected \(expected) requests, received \(nextRequest)")
+      }
+      try await Task.sleep(for: .milliseconds(1))
     }
+  }
+
+  func cancelPending() {
+    isClosed = true
+    let requests = Array(pending.values)
+    pending.removeAll()
+    for request in requests { request.continuation.resume(throwing: CancellationError()) }
   }
 
   func requestCount() -> Int {
@@ -59,26 +73,41 @@ private actor LoadStartProbe {
     started = true
   }
 
-  func waitUntilStarted() async {
+  func waitUntilStarted() async throws {
+    let deadline = ContinuousClock.now + .seconds(5)
     while !started {
-      await Task.yield()
+      guard ContinuousClock.now < deadline else {
+        throw FolderTestTimeout(description: "Operation did not start")
+      }
+      try await Task.sleep(for: .milliseconds(1))
     }
   }
 }
 
 private actor SuspendedFileMutation {
+  private var isClosed = false
   private var started = false
   private var continuation: CheckedContinuation<Void, any Error>?
 
   func run() async throws {
+    guard !isClosed else { throw CancellationError() }
     started = true
     try await withCheckedThrowingContinuation { continuation = $0 }
   }
 
-  func waitUntilStarted() async {
+  func waitUntilStarted() async throws {
+    let deadline = ContinuousClock.now + .seconds(5)
     while !started {
-      await Task.yield()
+      guard ContinuousClock.now < deadline else {
+        throw FolderTestTimeout(description: "Operation did not start")
+      }
+      try await Task.sleep(for: .milliseconds(1))
     }
+  }
+
+  func cancelPending() {
+    isClosed = true
+    fail(with: CancellationError())
   }
 
   func succeed() {
@@ -99,10 +128,12 @@ private actor ControlledBulkMutation {
     let continuation: CheckedContinuation<Void, any Error>
   }
 
+  private var isClosed = false
   private var nextRequest = 0
   private var pending: [Int: PendingRequest] = [:]
 
   func run(fileID: PutioFileID, destinationID: PutioFileID? = nil) async throws {
+    guard !isClosed else { throw CancellationError() }
     let request = nextRequest
     nextRequest += 1
     try await withCheckedThrowingContinuation { continuation in
@@ -114,10 +145,22 @@ private actor ControlledBulkMutation {
     }
   }
 
-  func waitForRequestCount(_ expected: Int) async {
+  func waitForRequestCount(_ expected: Int) async throws {
+    let deadline = ContinuousClock.now + .seconds(5)
     while nextRequest < expected {
-      await Task.yield()
+      guard ContinuousClock.now < deadline else {
+        throw FolderTestTimeout(
+          description: "Expected \(expected) requests, received \(nextRequest)")
+      }
+      try await Task.sleep(for: .milliseconds(1))
     }
+  }
+
+  func cancelPending() {
+    isClosed = true
+    let requests = Array(pending.values)
+    pending.removeAll()
+    for request in requests { request.continuation.resume(throwing: CancellationError()) }
   }
 
   func requestCount() -> Int {
@@ -153,12 +196,21 @@ private actor ControlledBulkMutation {
   }
 }
 
+private struct FolderTestTimeout: Error, CustomStringConvertible {
+  let description: String
+}
+
 @MainActor
 final class PutioFolderModelTests: XCTestCase {
-  private func waitForState(_ model: PutioFolderModel, _ expected: PutioFolderLoadState) async {
+  private func waitForState(_ model: PutioFolderModel, _ expected: PutioFolderLoadState)
+    async throws
+  {
     let deadline = ContinuousClock.now + .seconds(5)
-    while model.state != expected, ContinuousClock.now < deadline {
-      await Task.yield()
+    while model.state != expected {
+      guard ContinuousClock.now < deadline else {
+        throw FolderTestTimeout(description: "Expected \(expected), received \(model.state)")
+      }
+      try await Task.sleep(for: .milliseconds(1))
     }
   }
 
@@ -193,8 +245,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(outcome.retryableItems(in: [refreshed]), [refreshed])
   }
 
-  func testBulkRetryPreparationRestoresOutcomeWhenReconciliationFails() async {
+  func testBulkRetryPreparationRestoresOutcomeWhenReconciliationFails() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let item = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Retry.mkv")
     let original = BrowserTestFixtures.contents(folderID: 42, items: [item])
     let outcome = PutioBulkFileOutcome(
@@ -211,7 +264,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let preparation = Task { await model.prepareBulkRetry(outcome) }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     await loader.fail(request: 0, with: PutioRuntimeError.transient)
 
     let result = await preparation.value
@@ -220,8 +273,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(original))
   }
 
-  func testBulkRetryJoinsCompletionRefreshInsteadOfDiscardingItsResult() async {
+  func testBulkRetryJoinsCompletionRefreshInsteadOfDiscardingItsResult() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let item = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Moved.mkv")
     let original = BrowserTestFixtures.contents(folderID: 42, items: [item])
     let reconciled = BrowserTestFixtures.contents(folderID: 42, items: [])
@@ -242,7 +296,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     await model.delete([item])
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     guard let outcome = model.bulkOutcome else {
       return XCTFail("expected an aggregate bulk outcome")
     }
@@ -283,8 +337,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertFalse(PutioMovePickerPolicy(items: []).canMove(to: .root))
   }
 
-  func testInitialLoadRunsOnceAndUsesStableFolderID() async {
+  func testInitialLoadRunsOnceAndUsesStableFolderID() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let loaded = BrowserTestFixtures.contents(
       folderID: 42,
       items: [BrowserTestFixtures.item(id: 7, parentID: 42)]
@@ -294,7 +349,7 @@ final class PutioFolderModelTests: XCTestCase {
     }
 
     let loadTask = Task { await model.loadIfNeeded() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     let requestedFolderID = await loader.folderID(for: 0)
     XCTAssertEqual(requestedFolderID, PutioFileID(rawValue: 42))
     await loader.succeed(request: 0, with: loaded)
@@ -315,8 +370,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(empty))
   }
 
-  func testFailureThenRetryReturnsToLoadingAndSucceeds() async {
+  func testFailureThenRetryReturnsToLoadingAndSucceeds() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let recovered = BrowserTestFixtures.contents(
       items: [BrowserTestFixtures.item(id: 9)]
     )
@@ -325,7 +381,7 @@ final class PutioFolderModelTests: XCTestCase {
     }
 
     let initialTask = Task { await model.loadIfNeeded() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     await loader.fail(request: 0, with: PutioRuntimeError.transient)
     await initialTask.value
 
@@ -335,7 +391,7 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(failure.kind, .transient)
 
     let retryTask = Task { await model.retry() }
-    await loader.waitForRequestCount(2)
+    try await loader.waitForRequestCount(2)
     XCTAssertEqual(model.state, .loading)
     await loader.succeed(request: 1, with: recovered)
     await retryTask.value
@@ -371,7 +427,7 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(failure.kind, .unknown)
   }
 
-  func testLifecycleCancellationAllowsInitialLoadToRunAgain() async {
+  func testLifecycleCancellationAllowsInitialLoadToRunAgain() async throws {
     let probe = LoadStartProbe()
     let loaded = BrowserTestFixtures.contents(
       items: [BrowserTestFixtures.item(id: 1)]
@@ -387,7 +443,7 @@ final class PutioFolderModelTests: XCTestCase {
     }
 
     let initialTask = Task { await model.loadIfNeeded() }
-    await probe.waitUntilStarted()
+    try await probe.waitUntilStarted()
     initialTask.cancel()
     await initialTask.value
     await model.loadIfNeeded()
@@ -396,8 +452,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(loaded))
   }
 
-  func testReentryDuringCancelledInitialLoadUnwindRestartsTheLoad() async {
+  func testReentryDuringCancelledInitialLoadUnwindRestartsTheLoad() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let loaded = BrowserTestFixtures.contents(
       items: [BrowserTestFixtures.item(id: 3)]
     )
@@ -406,12 +463,12 @@ final class PutioFolderModelTests: XCTestCase {
     }
 
     let firstVisit = Task { await model.loadIfNeeded() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     firstVisit.cancel()
 
     // The next visit starts before the cancelled attempt finishes unwinding.
     let secondVisit = Task { await model.loadIfNeeded() }
-    await loader.waitForRequestCount(2)
+    try await loader.waitForRequestCount(2)
     await loader.succeed(request: 1, with: loaded)
     await secondVisit.value
     XCTAssertEqual(model.state, .loaded(loaded))
@@ -422,8 +479,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(loaded))
   }
 
-  func testRefreshPreservesRowsAndSurfacesRecoverableFailure() async {
+  func testRefreshPreservesRowsAndSurfacesRecoverableFailure() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let original = BrowserTestFixtures.contents(
       items: [BrowserTestFixtures.item(id: 1)]
     )
@@ -437,7 +495,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let failedRefresh = Task { await model.refresh() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     XCTAssertEqual(model.state, .loaded(original))
     await loader.fail(request: 0, with: PutioRuntimeError.rateLimited)
     let failedRefreshSucceeded = await failedRefresh.value
@@ -447,7 +505,7 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.refreshFailure?.kind, .rateLimited)
 
     let successfulRefresh = Task { await model.refresh() }
-    await loader.waitForRequestCount(2)
+    try await loader.waitForRequestCount(2)
     XCTAssertEqual(model.state, .loaded(original))
     XCTAssertNil(model.refreshFailure)
     await loader.succeed(request: 1, with: refreshed)
@@ -750,7 +808,10 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNotNil(requests.sequence(for: folder, owner: owner))
 
     token = nil
-    for _ in 0..<50 where requests.sequence(for: folder, owner: owner) != nil { await Task.yield() }
+    let released = XCTNSPredicateExpectation(
+      predicate: NSPredicate { _, _ in requests.sequence(for: folder, owner: owner) == nil },
+      object: nil)
+    await fulfillment(of: [released], timeout: 5)
     XCTAssertNil(
       requests.sequence(for: folder, owner: owner), "releasing the token unregisters the folder")
   }
@@ -810,7 +871,7 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.refreshFailure?.kind, .transient)
   }
 
-  func testRefreshCancellationRestoresPriorContent() async {
+  func testRefreshCancellationRestoresPriorContent() async throws {
     let probe = LoadStartProbe()
     let original = BrowserTestFixtures.contents(
       items: [BrowserTestFixtures.item(id: 1)]
@@ -826,7 +887,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let refreshTask = Task { await model.refresh() }
-    await probe.waitUntilStarted()
+    try await probe.waitUntilStarted()
     refreshTask.cancel()
     let refreshSucceeded = await refreshTask.value
     XCTAssertFalse(refreshSucceeded)
@@ -835,8 +896,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNil(model.refreshFailure)
   }
 
-  func testLaterGenerationDropsStaleSuccessAndError() async {
+  func testLaterGenerationDropsStaleSuccessAndError() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let original = BrowserTestFixtures.contents(
       items: [BrowserTestFixtures.item(id: 1)]
     )
@@ -856,9 +918,9 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let first = Task { await model.refresh() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     let second = Task { await model.refresh() }
-    await loader.waitForRequestCount(2)
+    try await loader.waitForRequestCount(2)
     await loader.succeed(request: 1, with: newest)
     _ = await second.value
     await loader.succeed(request: 0, with: stale)
@@ -866,9 +928,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(newest))
 
     let third = Task { await model.refresh() }
-    await loader.waitForRequestCount(3)
+    try await loader.waitForRequestCount(3)
     let fourth = Task { await model.refresh() }
-    await loader.waitForRequestCount(4)
+    try await loader.waitForRequestCount(4)
     await loader.succeed(request: 3, with: newestAgain)
     _ = await fourth.value
     await loader.fail(request: 2, with: PutioRuntimeError.transient)
@@ -878,8 +940,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNil(model.refreshFailure)
   }
 
-  func testLaterGenerationDropsStaleCancellation() async {
+  func testLaterGenerationDropsStaleCancellation() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let original = BrowserTestFixtures.contents(
       items: [BrowserTestFixtures.item(id: 1)]
     )
@@ -893,9 +956,9 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let stale = Task { await model.refresh() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     let current = Task { await model.refresh() }
-    await loader.waitForRequestCount(2)
+    try await loader.waitForRequestCount(2)
     await loader.succeed(request: 1, with: newest)
     _ = await current.value
     await loader.fail(request: 0, with: CancellationError())
@@ -905,7 +968,7 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNil(model.refreshFailure)
   }
 
-  func testCreateFolderAppendsTheServerOwnedIdentity() async {
+  func testCreateFolderAppendsTheServerOwnedIdentity() async throws {
     let original = BrowserTestFixtures.contents(items: [])
     let created = BrowserTestFixtures.item(
       id: 91,
@@ -915,6 +978,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
     let reconciled = BrowserTestFixtures.contents(folderID: 42, items: [created])
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let model = PutioFolderModel(
       folderID: PutioFileID(rawValue: 42),
       load: { folderID in try await loader.load(folderID: folderID) },
@@ -938,9 +1002,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(contents.items, [created])
     XCTAssertEqual(model.actionOutcome, .succeeded(.createFolder(name: "Season 2")))
     // The server owns ordering, so the folder reloads behind the optimistic row.
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     await loader.succeed(request: 0, with: reconciled)
-    await waitForState(model, .loaded(reconciled))
+    try await waitForState(model, .loaded(reconciled))
   }
 
   func testFileActionsBecomeAvailableOnlyAfterTheFolderLoads() async {
@@ -969,8 +1033,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertFalse(failedModel.canStartAction)
   }
 
-  func testRenameIsOptimisticAndRollsBackWithRecoverableFailure() async {
+  func testRenameIsOptimisticAndRollsBackWithRecoverableFailure() async throws {
     let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
     let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
     let original = BrowserTestFixtures.contents(items: [item])
     let model = PutioFolderModel(
@@ -985,7 +1050,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let task = Task { await model.rename(item, to: "Renamed.mkv") }
-    await mutation.waitUntilStarted()
+    try await mutation.waitUntilStarted()
     XCTAssertFalse(model.canStartAction)
     guard case .loaded(let optimistic) = model.state else {
       return XCTFail("expected loaded, got \(model.state)")
@@ -1007,9 +1072,11 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(model.canStartAction)
   }
 
-  func testMutationSupersedesAnInFlightRefresh() async {
+  func testMutationSupersedesAnInFlightRefresh() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
     let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
     let original = BrowserTestFixtures.contents(items: [item])
     let stale = BrowserTestFixtures.contents(
@@ -1027,9 +1094,9 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let refresh = Task { await model.refresh() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     let rename = Task { await model.rename(item, to: "Renamed.mkv") }
-    await mutation.waitUntilStarted()
+    try await mutation.waitUntilStarted()
 
     await loader.succeed(request: 0, with: stale)
     _ = await refresh.value
@@ -1099,9 +1166,11 @@ final class PutioFolderModelTests: XCTestCase {
     )
   }
 
-  func testRefreshRequestedDuringMutationRunsAfterItSettles() async {
+  func testRefreshRequestedDuringMutationRunsAfterItSettles() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
     let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
     let original = BrowserTestFixtures.contents(items: [item])
     let refreshed = BrowserTestFixtures.contents(
@@ -1119,18 +1188,18 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let rename = Task { await model.rename(item, to: "Renamed.mkv") }
-    await mutation.waitUntilStarted()
+    try await mutation.waitUntilStarted()
     await model.refresh()
     let queuedRequestCount = await loader.requestCount()
     XCTAssertEqual(queuedRequestCount, 0)
 
     await mutation.succeed()
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     let refreshedFolderID = await loader.folderID(for: 0)
     XCTAssertEqual(refreshedFolderID, .root)
     await loader.succeed(request: 0, with: refreshed)
     await rename.value
-    await waitForState(model, .loaded(refreshed))
+    try await waitForState(model, .loaded(refreshed))
 
     XCTAssertEqual(model.state, .loaded(refreshed))
     XCTAssertEqual(
@@ -1139,9 +1208,11 @@ final class PutioFolderModelTests: XCTestCase {
     )
   }
 
-  func testRefreshWhenIdleReportsTheRefreshQueuedBehindAMutation() async {
+  func testRefreshWhenIdleReportsTheRefreshQueuedBehindAMutation() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
     let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
     let original = BrowserTestFixtures.contents(items: [item])
     let refreshed = BrowserTestFixtures.contents(
@@ -1159,12 +1230,12 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let rename = Task { await model.rename(item, to: "Renamed.mkv") }
-    await mutation.waitUntilStarted()
+    try await mutation.waitUntilStarted()
     // A pending folder request lands mid-mutation and waits for the refresh
     // that the settling mutation queues, instead of reporting false.
     let pending = Task { await model.refreshWhenIdle() }
     await mutation.succeed()
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     await loader.succeed(request: 0, with: refreshed)
     await rename.value
 
@@ -1175,9 +1246,11 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(requests, 1, "no second refresh for the same request")
   }
 
-  func testQueuedRefreshRunsAfterCallerCancellation() async {
+  func testQueuedRefreshRunsAfterCallerCancellation() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
     let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
     let original = BrowserTestFixtures.contents(items: [item])
     let refreshed = BrowserTestFixtures.contents(
@@ -1195,14 +1268,14 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let rename = Task { await model.rename(item, to: "Renamed.mkv") }
-    await mutation.waitUntilStarted()
+    try await mutation.waitUntilStarted()
     await model.refresh()
     rename.cancel()
     await mutation.succeed()
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     await loader.succeed(request: 0, with: refreshed)
     await rename.value
-    await waitForState(model, .loaded(refreshed))
+    try await waitForState(model, .loaded(refreshed))
 
     XCTAssertEqual(model.state, .loaded(refreshed))
     XCTAssertNil(model.activeAction)
@@ -1212,9 +1285,11 @@ final class PutioFolderModelTests: XCTestCase {
     )
   }
 
-  func testQueuedRefreshesCoalesceAfterMutationFailure() async {
+  func testQueuedRefreshesCoalesceAfterMutationFailure() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
     let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
     let original = BrowserTestFixtures.contents(items: [item])
     let refreshed = BrowserTestFixtures.contents(
@@ -1232,17 +1307,17 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let rename = Task { await model.rename(item, to: "Renamed.mkv") }
-    await mutation.waitUntilStarted()
+    try await mutation.waitUntilStarted()
     await model.refresh()
     await model.refresh()
     let queuedRequestCount = await loader.requestCount()
     XCTAssertEqual(queuedRequestCount, 0)
 
     await mutation.fail(with: PutioRuntimeError.transient)
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     await loader.succeed(request: 0, with: refreshed)
     await rename.value
-    await waitForState(model, .loaded(refreshed))
+    try await waitForState(model, .loaded(refreshed))
 
     let finalRequestCount = await loader.requestCount()
     XCTAssertEqual(finalRequestCount, 1)
@@ -1305,8 +1380,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(original))
   }
 
-  func testDeleteIsOptimisticAndSettlesAfterServerSuccess() async {
+  func testDeleteIsOptimisticAndSettlesAfterServerSuccess() async throws {
     let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
     let item = BrowserTestFixtures.item(id: 7, name: "Episode.mkv")
     let survivor = BrowserTestFixtures.item(id: 8)
     let original = BrowserTestFixtures.contents(items: [item, survivor])
@@ -1323,7 +1399,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let task = Task { await model.delete(item) }
-    await mutation.waitUntilStarted()
+    try await mutation.waitUntilStarted()
     guard case .loaded(let optimistic) = model.state else {
       return XCTFail("expected loaded, got \(model.state)")
     }
@@ -1333,15 +1409,16 @@ final class PutioFolderModelTests: XCTestCase {
     await task.value
 
     XCTAssertEqual(model.state, .loaded(optimistic))
-    await waitForState(model, .loaded(reconciled))
+    try await waitForState(model, .loaded(reconciled))
     XCTAssertEqual(
       model.actionOutcome,
       .succeeded(.delete(fileID: item.id, name: "Episode.mkv"))
     )
   }
 
-  func testMoveUsesTheLatestItemAndOptimisticallyRemovesIt() async {
+  func testMoveUsesTheLatestItemAndOptimisticallyRemovesIt() async throws {
     let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
     let staleItem = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Old Name.mkv")
     let currentItem = BrowserTestFixtures.item(
       id: 7,
@@ -1382,7 +1459,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let task = Task { await model.move(staleItem, to: destination) }
-    await mutation.waitUntilStarted()
+    try await mutation.waitUntilStarted()
 
     XCTAssertEqual(model.state, .loaded(optimistic))
     XCTAssertEqual(model.activeAction, expectedAction)
@@ -1392,7 +1469,7 @@ final class PutioFolderModelTests: XCTestCase {
 
     XCTAssertEqual(model.state, .loaded(optimistic))
     XCTAssertEqual(model.actionOutcome, .succeeded(expectedAction))
-    await waitForState(model, .loaded(optimistic))
+    try await waitForState(model, .loaded(optimistic))
   }
 
   func testMoveFailureRestoresTheExactPriorContents() async {
@@ -1455,8 +1532,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNil(model.actionOutcome)
   }
 
-  func testBulkDeleteReportsProgressAndRestoresOnlyTheFailedLatestSnapshot() async {
+  func testBulkDeleteReportsProgressAndRestoresOnlyTheFailedLatestSnapshot() async throws {
     let mutations = ControlledBulkMutation()
+    addTeardownBlock { await mutations.cancelPending() }
     let leading = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Leading.mkv")
     let failed = BrowserTestFixtures.item(
       id: 8,
@@ -1492,7 +1570,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let task = Task { await model.delete([staleFailed, staleSucceeded]) }
-    await mutations.waitForRequestCount(1)
+    try await mutations.waitForRequestCount(1)
 
     let firstRequestedID = await mutations.fileID(for: 0)
     XCTAssertEqual(firstRequestedID, failed.id)
@@ -1518,7 +1596,7 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertFalse(model.canStartAction)
 
     await mutations.fail(request: 0, with: PutioRuntimeError.transient)
-    await mutations.waitForRequestCount(2)
+    try await mutations.waitForRequestCount(2)
 
     let secondRequestedID = await mutations.fileID(for: 1)
     XCTAssertEqual(secondRequestedID, succeeded.id)
@@ -1535,7 +1613,7 @@ final class PutioFolderModelTests: XCTestCase {
 
     await mutations.succeed(request: 1)
     await task.value
-    await waitForState(model, .loaded(reconciled))
+    try await waitForState(model, .loaded(reconciled))
 
     guard let outcome = model.bulkOutcome else {
       return XCTFail("expected an aggregate bulk outcome")
@@ -1553,8 +1631,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(model.canStartAction)
   }
 
-  func testBulkDeleteStopsAfterRateLimitAndDefersRemainingItemsForRetry() async {
+  func testBulkDeleteStopsAfterRateLimitAndDefersRemainingItemsForRetry() async throws {
     let mutations = ControlledBulkMutation()
+    addTeardownBlock { await mutations.cancelPending() }
     let first = BrowserTestFixtures.item(id: 7, parentID: 42, name: "First.mkv")
     let second = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Second.mkv")
     let third = BrowserTestFixtures.item(id: 9, parentID: 42, name: "Third.mkv")
@@ -1571,7 +1650,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let task = Task { await model.delete([first, second, third]) }
-    await mutations.waitForRequestCount(1)
+    try await mutations.waitForRequestCount(1)
     await mutations.fail(request: 0, with: PutioRuntimeError.rateLimited)
     await task.value
 
@@ -1587,8 +1666,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(model.canStartAction)
   }
 
-  func testBulkMoveUsesEveryPerItemBoundaryAndSurvivesCallerCancellation() async {
+  func testBulkMoveUsesEveryPerItemBoundaryAndSurvivesCallerCancellation() async throws {
     let mutations = ControlledBulkMutation()
+    addTeardownBlock { await mutations.cancelPending() }
     let first = BrowserTestFixtures.item(id: 7, parentID: 42, name: "First.mkv")
     let second = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Second.mkv")
     let survivor = BrowserTestFixtures.item(id: 9, parentID: 42, name: "Survivor.mkv")
@@ -1610,10 +1690,14 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let caller = Task { await model.move([first, second], to: destination) }
-    await mutations.waitForRequestCount(1)
+    try await mutations.waitForRequestCount(1)
     caller.cancel()
-    let rejoin = Task { await model.waitForActiveAction() }
-    await Task.yield()
+    let rejoined = expectation(description: "replacement caller joined the bulk operation")
+    let rejoin = Task {
+      rejoined.fulfill()
+      await model.waitForActiveAction()
+    }
+    await fulfillment(of: [rejoined], timeout: 2)
 
     XCTAssertEqual(
       model.state,
@@ -1622,7 +1706,7 @@ final class PutioFolderModelTests: XCTestCase {
     let firstDestinationID = await mutations.destinationID(for: 0)
     XCTAssertEqual(firstDestinationID, destination.id)
     await mutations.succeed(request: 0)
-    await mutations.waitForRequestCount(2)
+    try await mutations.waitForRequestCount(2)
     let secondRequestedID = await mutations.fileID(for: 1)
     let secondDestinationID = await mutations.destinationID(for: 1)
     XCTAssertEqual(secondRequestedID, second.id)
@@ -1630,7 +1714,7 @@ final class PutioFolderModelTests: XCTestCase {
     await mutations.fail(request: 1, with: PutioRuntimeError.notFound)
     await rejoin.value
     await caller.value
-    await waitForState(model, .loaded(reconciled))
+    try await waitForState(model, .loaded(reconciled))
 
     XCTAssertEqual(model.state, .loaded(reconciled))
     XCTAssertEqual(model.bulkOutcome?.succeeded, [first])
@@ -1638,9 +1722,11 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.bulkOutcome?.failures.map(\.error), [.notFound])
   }
 
-  func testBulkMoveReconcilesAnAppliedMutationReportedAsFailure() async {
+  func testBulkMoveReconcilesAnAppliedMutationReportedAsFailure() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let mutations = ControlledBulkMutation()
+    addTeardownBlock { await mutations.cancelPending() }
     let moved = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Moved.mkv")
     let survivor = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Survivor.mkv")
     let original = BrowserTestFixtures.contents(folderID: 42, items: [moved, survivor])
@@ -1661,18 +1747,18 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let bulk = Task { await model.move([moved], to: destination) }
-    await mutations.waitForRequestCount(1)
+    try await mutations.waitForRequestCount(1)
     let requestedDestinationID = await mutations.destinationID(for: 0)
     XCTAssertEqual(requestedDestinationID, destination.id)
     await mutations.fail(request: 0, with: PutioRuntimeError.transient)
     await bulk.value
 
     XCTAssertEqual(model.state, .loaded(original))
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     let refreshedFolderID = await loader.folderID(for: 0)
     XCTAssertEqual(refreshedFolderID, PutioFileID(rawValue: 42))
     await loader.succeed(request: 0, with: reconciled)
-    await waitForState(model, .loaded(reconciled))
+    try await waitForState(model, .loaded(reconciled))
 
     guard let outcome = model.bulkOutcome else {
       return XCTFail("expected an aggregate bulk outcome")
@@ -1715,8 +1801,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNil(model.bulkOutcome)
   }
 
-  func testBulkMutationKeepsAllMutationsExclusive() async {
+  func testBulkMutationKeepsAllMutationsExclusive() async throws {
     let mutations = ControlledBulkMutation()
+    addTeardownBlock { await mutations.cancelPending() }
     let first = BrowserTestFixtures.item(id: 7, parentID: 42, name: "First.mkv")
     let second = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Second.mkv")
     let original = BrowserTestFixtures.contents(folderID: 42, items: [first, second])
@@ -1733,7 +1820,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let bulk = Task { await model.delete([first, second]) }
-    await mutations.waitForRequestCount(1)
+    try await mutations.waitForRequestCount(1)
     await model.rename(second, to: "Renamed.mkv")
     await model.delete(second)
     await model.delete([second])
@@ -1742,14 +1829,16 @@ final class PutioFolderModelTests: XCTestCase {
     let blockedRequestCount = await mutations.requestCount()
     XCTAssertEqual(blockedRequestCount, 1)
     await mutations.succeed(request: 0)
-    await mutations.waitForRequestCount(2)
+    try await mutations.waitForRequestCount(2)
     await mutations.succeed(request: 1)
     await bulk.value
   }
 
-  func testBulkRefreshRequestsCoalesceAfterTheEntireOperation() async {
+  func testBulkRefreshRequestsCoalesceAfterTheEntireOperation() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let mutations = ControlledBulkMutation()
+    addTeardownBlock { await mutations.cancelPending() }
     let first = BrowserTestFixtures.item(id: 7, parentID: 42, name: "First.mkv")
     let second = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Second.mkv")
     let original = BrowserTestFixtures.contents(folderID: 42, items: [first, second])
@@ -1770,9 +1859,9 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let staleRefresh = Task { await model.refresh() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     let bulk = Task { await model.delete([first, second]) }
-    await mutations.waitForRequestCount(1)
+    try await mutations.waitForRequestCount(1)
     await loader.succeed(request: 0, with: stale)
     _ = await staleRefresh.value
     await model.refresh()
@@ -1781,23 +1870,25 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(queuedRequestCount, 1)
 
     await mutations.succeed(request: 0)
-    await mutations.waitForRequestCount(2)
+    try await mutations.waitForRequestCount(2)
     let midOperationRequestCount = await loader.requestCount()
     XCTAssertEqual(midOperationRequestCount, 1)
     await mutations.succeed(request: 1)
     await bulk.value
-    await loader.waitForRequestCount(2)
+    try await loader.waitForRequestCount(2)
     await loader.succeed(request: 1, with: refreshed)
-    await waitForState(model, .loaded(refreshed))
+    try await waitForState(model, .loaded(refreshed))
 
     XCTAssertEqual(model.state, .loaded(refreshed))
     let finalRequestCount = await loader.requestCount()
     XCTAssertEqual(finalRequestCount, 2)
   }
 
-  func testBulkCompletionRefreshesTheSourceFolder() async {
+  func testBulkCompletionRefreshesTheSourceFolder() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let mutations = ControlledBulkMutation()
+    addTeardownBlock { await mutations.cancelPending() }
     let first = BrowserTestFixtures.item(id: 7, parentID: 42, name: "First.mkv")
     let second = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Second.mkv")
     let original = BrowserTestFixtures.contents(folderID: 42, items: [first, second])
@@ -1817,17 +1908,17 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let bulk = Task { await model.delete([first, second]) }
-    await mutations.waitForRequestCount(1)
+    try await mutations.waitForRequestCount(1)
     await mutations.succeed(request: 0)
-    await mutations.waitForRequestCount(2)
+    try await mutations.waitForRequestCount(2)
     await mutations.succeed(request: 1)
     await bulk.value
 
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     let refreshedFolderID = await loader.folderID(for: 0)
     XCTAssertEqual(refreshedFolderID, PutioFileID(rawValue: 42))
     await loader.succeed(request: 0, with: reconciled)
-    await waitForState(model, .loaded(reconciled))
+    try await waitForState(model, .loaded(reconciled))
 
     XCTAssertEqual(model.state, .loaded(reconciled))
     XCTAssertEqual(model.bulkOutcome?.succeeded, [first, second])
@@ -1835,8 +1926,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(requestCount, 1)
   }
 
-  func testMutationOutlivesACancelledCallerAndSettlesTheServerOutcome() async {
+  func testMutationOutlivesACancelledCallerAndSettlesTheServerOutcome() async throws {
     let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
     let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
     let original = BrowserTestFixtures.contents(items: [item])
     let renamed = BrowserTestFixtures.contents(items: [item.renamed(to: "Renamed.mkv")])
@@ -1852,9 +1944,8 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let caller = Task { await model.rename(item, to: "Renamed.mkv") }
-    await mutation.waitUntilStarted()
+    try await mutation.waitUntilStarted()
     caller.cancel()
-    await Task.yield()
     XCTAssertEqual(
       model.activeAction,
       .rename(fileID: item.id, oldName: "Original.mkv", newName: "Renamed.mkv")
@@ -1875,9 +1966,11 @@ final class PutioFolderModelTests: XCTestCase {
     )
   }
 
-  func testMutationRefetchesARefreshItSuperseded() async {
+  func testMutationRefetchesARefreshItSuperseded() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
     let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
     let original = BrowserTestFixtures.contents(items: [item])
     let stale = BrowserTestFixtures.contents(
@@ -1898,25 +1991,27 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let refresh = Task { await model.refresh() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     let rename = Task { await model.rename(item, to: "Renamed.mkv") }
-    await mutation.waitUntilStarted()
+    try await mutation.waitUntilStarted()
     await loader.succeed(request: 0, with: stale)
     _ = await refresh.value
 
     await mutation.succeed()
     await rename.value
-    await loader.waitForRequestCount(2)
+    try await loader.waitForRequestCount(2)
     await loader.succeed(request: 1, with: refreshed)
-    await waitForState(model, .loaded(refreshed))
+    try await waitForState(model, .loaded(refreshed))
 
     XCTAssertEqual(model.state, .loaded(refreshed))
     XCTAssertNil(model.activeAction)
   }
 
-  func testQueuedRefreshDoesNotExtendTheMutationCall() async {
+  func testQueuedRefreshDoesNotExtendTheMutationCall() async throws {
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
     let item = BrowserTestFixtures.item(id: 7, name: "Original.mkv")
     let original = BrowserTestFixtures.contents(items: [item])
     let model = PutioFolderModel(
@@ -1931,13 +2026,13 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let rename = Task { await model.rename(item, to: "Renamed.mkv") }
-    await mutation.waitUntilStarted()
+    try await mutation.waitUntilStarted()
     await model.refresh()
     await mutation.succeed()
 
     // The mutation call returns while the queued refresh is still pending.
     await rename.value
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     XCTAssertNil(model.activeAction)
     XCTAssertEqual(
       model.actionOutcome,
@@ -1946,8 +2041,9 @@ final class PutioFolderModelTests: XCTestCase {
     await loader.succeed(request: 0, with: original)
   }
 
-  func testTransportCancellationRestoresTheExactPriorContents() async {
+  func testTransportCancellationRestoresTheExactPriorContents() async throws {
     let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
     let item = BrowserTestFixtures.item(id: 7, name: "Episode.mkv")
     let original = BrowserTestFixtures.contents(items: [item])
     let model = PutioFolderModel(
@@ -1962,7 +2058,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let task = Task { await model.delete(item) }
-    await mutation.waitUntilStarted()
+    try await mutation.waitUntilStarted()
     await mutation.fail(with: CancellationError())
     await task.value
 
@@ -1973,12 +2069,13 @@ final class PutioFolderModelTests: XCTestCase {
 
   // MARK: Continuation
 
-  func testLoadMoreAppendsThePageAndAdoptsItsCursor() async {
+  func testLoadMoreAppendsThePageAndAdoptsItsCursor() async throws {
     let first = BrowserTestFixtures.item(id: 1)
     let second = BrowserTestFixtures.item(id: 2)
     let initial = BrowserTestFixtures.contents(items: [first], hasMore: true)
     let page = PutioFolderContents(folder: nil, items: [second, first], nextCursor: nil)
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let model = PutioFolderModel(
       folderID: .root,
       load: { _ in initial },
@@ -1991,7 +2088,7 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(model.canLoadMore)
 
     let task = Task { await model.loadMore() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     XCTAssertTrue(model.isLoadingMore)
     XCTAssertFalse(model.canLoadMore)
     await loader.succeed(request: 0, with: page)
@@ -2017,10 +2114,11 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(initial))
   }
 
-  func testLoadMoreFailureKeepsRowsAndSurfacesARetryableError() async {
+  func testLoadMoreFailureKeepsRowsAndSurfacesARetryableError() async throws {
     let initial = BrowserTestFixtures.contents(
       items: [BrowserTestFixtures.item(id: 1)], hasMore: true)
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let model = PutioFolderModel(
       folderID: .root,
       load: { _ in initial },
@@ -2029,7 +2127,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let task = Task { await model.loadMore() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     await loader.fail(request: 0, with: PutioRuntimeError.transient)
     let appended = await task.value
 
@@ -2039,10 +2137,11 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(model.canLoadMore)
   }
 
-  func testContinuationCannotStartWhileARefreshIsInFlight() async {
+  func testContinuationCannotStartWhileARefreshIsInFlight() async throws {
     let first = BrowserTestFixtures.item(id: 1)
     let initial = BrowserTestFixtures.contents(items: [first], hasMore: true)
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let model = PutioFolderModel(
       folderID: .root,
       load: { folderID in try await loader.load(folderID: folderID) },
@@ -2054,7 +2153,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let refresh = Task { await model.refresh() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     XCTAssertFalse(model.canLoadMore)
     let appended = await model.loadMore()
     XCTAssertFalse(appended)
@@ -2064,11 +2163,12 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(model.canLoadMore)
   }
 
-  func testRefreshSupersedesAnInFlightContinuation() async {
+  func testRefreshSupersedesAnInFlightContinuation() async throws {
     let first = BrowserTestFixtures.item(id: 1)
     let initial = BrowserTestFixtures.contents(items: [first], hasMore: true)
     let refreshed = BrowserTestFixtures.contents(items: [first], hasMore: false)
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let model = PutioFolderModel(
       folderID: .root,
       load: { _ in refreshed },
@@ -2077,7 +2177,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let loadMore = Task { await model.loadMore() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     let refreshedOK = await model.refresh()
     XCTAssertTrue(refreshedOK)
     XCTAssertFalse(model.isLoadingMore)
@@ -2091,12 +2191,13 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(refreshed))
   }
 
-  func testCommittedMutationDropsTheCursorAndReloadsTheFolder() async {
+  func testCommittedMutationDropsTheCursorAndReloadsTheFolder() async throws {
     let item = BrowserTestFixtures.item(id: 1)
     let survivor = BrowserTestFixtures.item(id: 2)
     let initial = BrowserTestFixtures.contents(items: [item, survivor], hasMore: true)
     let reloaded = BrowserTestFixtures.contents(items: [survivor], hasMore: true)
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let model = PutioFolderModel(
       folderID: .root,
       load: { folderID in try await loader.load(folderID: folderID) },
@@ -2116,16 +2217,17 @@ final class PutioFolderModelTests: XCTestCase {
 
     XCTAssertEqual(model.state, .loaded(BrowserTestFixtures.contents(items: [survivor])))
     XCTAssertFalse(model.canLoadMore)
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     await loader.succeed(request: 0, with: reloaded)
-    await waitForState(model, .loaded(reloaded))
+    try await waitForState(model, .loaded(reloaded))
     XCTAssertTrue(model.canLoadMore)
   }
 
-  func testSupersededContinuationRestartsThroughANewKey() async {
+  func testSupersededContinuationRestartsThroughANewKey() async throws {
     let first = BrowserTestFixtures.item(id: 1)
     let initial = BrowserTestFixtures.contents(items: [first], hasMore: true)
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let model = PutioFolderModel(
       folderID: .root,
       load: { _ in initial },
@@ -2135,7 +2237,7 @@ final class PutioFolderModelTests: XCTestCase {
     let keyBefore = model.continuationKey
 
     let loadMore = Task { await model.loadMore() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     _ = await model.refresh()
     await loader.succeed(request: 0, with: PutioFolderContents(folder: nil, items: []))
     _ = await loadMore.value
@@ -2145,10 +2247,11 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(model.canLoadMore)
   }
 
-  func testAStaleRefreshSettlingLateDoesNotRekeyTheContinuation() async {
+  func testAStaleRefreshSettlingLateDoesNotRekeyTheContinuation() async throws {
     let first = BrowserTestFixtures.item(id: 1)
     let initial = BrowserTestFixtures.contents(items: [first], hasMore: true)
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let model = PutioFolderModel(
       folderID: .root,
       load: { folderID in try await loader.load(folderID: folderID) },
@@ -2157,15 +2260,15 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let staleRefresh = Task { await model.refresh() }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     let currentRefresh = Task { await model.refresh() }
-    await loader.waitForRequestCount(2)
+    try await loader.waitForRequestCount(2)
     await loader.succeed(request: 1, with: initial)
     _ = await currentRefresh.value
     let keyAfterCurrent = model.continuationKey
 
     let loadMore = Task { await model.loadMore() }
-    await loader.waitForRequestCount(3)
+    try await loader.waitForRequestCount(3)
     XCTAssertTrue(model.isLoadingMore)
     await loader.succeed(request: 0, with: initial)
     _ = await staleRefresh.value
@@ -2180,12 +2283,14 @@ final class PutioFolderModelTests: XCTestCase {
 
   // MARK: Sort
 
-  func testSetSortPersistsThenReloadsAndReportsTheAction() async {
+  func testSetSortPersistsThenReloadsAndReportsTheAction() async throws {
     let item = BrowserTestFixtures.item(id: 1)
     let original = BrowserTestFixtures.contents(items: [item], sort: .nameAscending)
     let sorted = BrowserTestFixtures.contents(items: [item], sort: .sizeDescending)
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let sortRequests = ControlledBulkMutation()
+    addTeardownBlock { await sortRequests.cancelPending() }
     let model = PutioFolderModel(
       folderID: .root,
       load: { folderID in try await loader.load(folderID: folderID) },
@@ -2203,11 +2308,11 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.sort, .nameAscending)
 
     let task = Task { await model.setSort(.sizeDescending) }
-    await sortRequests.waitForRequestCount(1)
+    try await sortRequests.waitForRequestCount(1)
     XCTAssertEqual(model.activeAction, .sort(folderID: .root, sort: .sizeDescending))
     XCTAssertFalse(model.canStartAction)
     await sortRequests.succeed(request: 0)
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     XCTAssertNil(model.activeAction)
     XCTAssertEqual(model.sort, .sizeDescending)
     await loader.succeed(request: 0, with: sorted)
@@ -2219,10 +2324,11 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertNil(model.refreshFailure)
   }
 
-  func testCommittedSortSurvivesAFailedReloadAsARefreshFailure() async {
+  func testCommittedSortSurvivesAFailedReloadAsARefreshFailure() async throws {
     let item = BrowserTestFixtures.item(id: 1)
     let original = BrowserTestFixtures.contents(items: [item], sort: .nameAscending)
     let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
     let model = PutioFolderModel(
       folderID: .root,
       load: { folderID in try await loader.load(folderID: folderID) },
@@ -2236,7 +2342,7 @@ final class PutioFolderModelTests: XCTestCase {
     )
 
     let task = Task { await model.setSort(.sizeDescending) }
-    await loader.waitForRequestCount(1)
+    try await loader.waitForRequestCount(1)
     await loader.fail(request: 0, with: PutioRuntimeError.transient)
     await task.value
 

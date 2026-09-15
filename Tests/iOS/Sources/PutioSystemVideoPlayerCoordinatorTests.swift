@@ -86,9 +86,12 @@ private final class PositionReportScheduleSpy: PutioPositionReportSchedule {
 private final class ControlledScheduleSleep {
   private struct Request {
     let duration: Duration
-    let continuation: CheckedContinuation<Void, any Error>
+    var continuation: CheckedContinuation<Void, any Error>?
   }
 
+  let firstSleep = XCTestExpectation(description: "first interval suspended")
+  let secondSleep = XCTestExpectation(description: "second interval suspended")
+  let unexpectedSleep = XCTestExpectation(description: "no interval after invalidation")
   private var requests: [Request] = []
 
   var durations: [Duration] {
@@ -96,13 +99,27 @@ private final class ControlledScheduleSleep {
   }
 
   func callAsFunction(_ duration: Duration) async throws {
+    try Task.checkCancellation()
     try await withCheckedThrowingContinuation { continuation in
       requests.append(Request(duration: duration, continuation: continuation))
+      switch requests.count {
+      case 1: firstSleep.fulfill()
+      case 2: secondSleep.fulfill()
+      default: unexpectedSleep.fulfill()
+      }
+    }
+  }
+
+  func cancelPendingRequests() {
+    for index in requests.indices {
+      requests[index].continuation?.resume(throwing: CancellationError())
+      requests[index].continuation = nil
     }
   }
 
   func resumeRequest(at index: Int) {
-    requests[index].continuation.resume()
+    requests[index].continuation?.resume()
+    requests[index].continuation = nil
   }
 }
 
@@ -112,18 +129,21 @@ private final class PlaybackPositionReportSpy {
     case rejected
   }
 
+  let firstReportStarted = XCTestExpectation(description: "first position report suspended")
   private(set) var started: [(PutioFileID, Int)] = []
   private(set) var completed: [(PutioFileID, Int)] = []
   var blocksFirstReport = false
   var failsFirstReport = false
   var firstReportError: Error?
   private var firstReportContinuation: CheckedContinuation<Void, Never>?
+  private var firstReportReleased = false
 
   func report(fileID: PutioFileID, position: Int) async throws {
     started.append((fileID, position))
-    if blocksFirstReport, started.count == 1 {
+    if blocksFirstReport, started.count == 1, !firstReportReleased {
       await withCheckedContinuation { continuation in
         firstReportContinuation = continuation
+        firstReportStarted.fulfill()
       }
     }
     if failsFirstReport, started.count == 1 {
@@ -136,6 +156,7 @@ private final class PlaybackPositionReportSpy {
   }
 
   func releaseFirstReport() {
+    firstReportReleased = true
     firstReportContinuation?.resume()
     firstReportContinuation = nil
   }
@@ -183,35 +204,55 @@ private final class PlayerItemStatusObservationSpy: PutioPlayerItemStatusObserva
 
 @MainActor
 final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
+  private func waitUntil(
+    _ condition: @MainActor () -> Bool, file: StaticString = #filePath, line: UInt = #line
+  ) async {
+    let deadline = ContinuousClock.now + .seconds(2)
+    while !condition() {
+      if ContinuousClock.now > deadline {
+        return XCTFail("condition not met before the deadline", file: file, line: line)
+      }
+      await Task.yield()
+    }
+  }
+
   private let fileID = PutioFileID(rawValue: 411)
 
   func testProductionPositionScheduleRepeatsOnTheMonotonicIntervalAndInvalidates() async {
     let sleep = ControlledScheduleSleep()
     var callbackCount = 0
+    let unexpectedCallback = expectation(description: "no callback after invalidation")
+    unexpectedCallback.isInverted = true
+    sleep.unexpectedSleep.isInverted = true
+    var invalidated = false
     let schedule = PutioMonotonicPositionReportSchedule(
       interval: .seconds(15),
       sleep: { try await sleep($0) },
-      callback: { callbackCount += 1 }
+      callback: {
+        callbackCount += 1
+        if invalidated { unexpectedCallback.fulfill() }
+      }
     )
 
-    while sleep.durations.count < 1 {
-      await Task.yield()
+    defer {
+      schedule.invalidate()
+      sleep.cancelPendingRequests()
     }
+    await fulfillment(of: [sleep.firstSleep], timeout: 2)
+    guard sleep.durations.count == 1 else { return }
     XCTAssertEqual(sleep.durations, [.seconds(15)])
     XCTAssertEqual(callbackCount, 0)
 
     sleep.resumeRequest(at: 0)
-    while callbackCount < 1 || sleep.durations.count < 2 {
-      await Task.yield()
-    }
+    await fulfillment(of: [sleep.secondSleep], timeout: 2)
+    guard sleep.durations.count == 2 else { return }
     XCTAssertEqual(sleep.durations, [.seconds(15), .seconds(15)])
     XCTAssertEqual(callbackCount, 1)
 
+    invalidated = true
     schedule.invalidate()
     sleep.resumeRequest(at: 1)
-    for _ in 0..<10 {
-      await Task.yield()
-    }
+    await fulfillment(of: [unexpectedCallback, sleep.unexpectedSleep], timeout: 0.2)
     XCTAssertEqual(sleep.durations, [.seconds(15), .seconds(15)])
     XCTAssertEqual(callbackCount, 1)
   }
@@ -265,7 +306,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     ] {
       harnessDriver.emitPosition(time)
     }
-    await Task.yield()
+    await waitUntil { positions == [91] }
     XCTAssertEqual(positions, [91])
 
     harnessCoordinator.stop(controller: harnessController)
@@ -289,7 +330,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     XCTAssertTrue(controller.player === driver.player)
 
     driver.completeSeek(true)
-    await Task.yield()
+    await waitUntil { driver.events == ["seek", "play"] }
 
     XCTAssertEqual(driver.events, ["seek", "play"])
     XCTAssertEqual(capture.positionReportSchedule?.interval, .seconds(15))
@@ -308,7 +349,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let driver = try XCTUnwrap(capture.driver)
 
     driver.completeSeek(false)
-    await Task.yield()
+    await waitUntil { failures == 1 }
 
     XCTAssertEqual(driver.events, ["seek"])
     XCTAssertEqual(failures, 1)
@@ -355,7 +396,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let driver = try XCTUnwrap(capture.driver)
 
     statusObservation.emit(.failed)
-    await Task.yield()
+    await waitUntil { failures == 1 }
     driver.completeSeek(true)
     await Task.yield()
 
@@ -390,7 +431,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
 
     notificationCenter.post(name: AVPlayerItem.failedToPlayToEndTimeNotification, object: item)
     notificationCenter.post(name: AVPlayerItem.failedToPlayToEndTimeNotification, object: item)
-    await Task.yield()
+    await waitUntil { failures == 1 }
     XCTAssertEqual(failures, 1)
 
     coordinator.stop(controller: controller)
@@ -421,7 +462,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
 
     statusObservation.emit(.failed)
     statusObservation.emit(.failed)
-    await Task.yield()
+    await waitUntil { failures == 1 }
     XCTAssertEqual(failures, 1)
 
     coordinator.stop(controller: controller)
@@ -491,7 +532,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let driver = try XCTUnwrap(capture.driver)
 
     XCTAssertEqual(failures, 0)
-    await Task.yield()
+    await waitUntil { failures == 1 }
     XCTAssertEqual(failures, 1)
     XCTAssertTrue(driver.events.isEmpty)
     coordinator.stop(controller: controller)
@@ -603,7 +644,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     XCTAssertNil(capture.positionReportSchedule)
 
     statusObservation.emit(.readyToPlay)
-    await Task.yield()
+    await waitUntil { capture.positionReportSchedule != nil }
     let schedule = try XCTUnwrap(capture.positionReportSchedule)
     XCTAssertEqual(schedule.interval, .seconds(15))
 
@@ -641,7 +682,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     )
     let driver = try XCTUnwrap(capture.driver)
     statusObservation.emit(.readyToPlay)
-    await Task.yield()
+    await waitUntil { capture.positionReportSchedule != nil }
     let schedule = try XCTUnwrap(capture.positionReportSchedule)
 
     driver.currentTime = CMTime(seconds: 7.5, preferredTimescale: 600)
@@ -743,7 +784,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     )
     let driver = try XCTUnwrap(capture.driver)
     statusObservation.emit(.readyToPlay)
-    await Task.yield()
+    await waitUntil { capture.positionReportSchedule != nil }
     let schedule = try XCTUnwrap(capture.positionReportSchedule)
     driver.currentTime = CMTime(seconds: 44.8, preferredTimescale: 600)
 
@@ -813,15 +854,15 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let driver = try XCTUnwrap(capture.driver)
     let item = try XCTUnwrap(capture.item)
     statusObservation.emit(.readyToPlay)
-    await Task.yield()
+    await waitUntil { capture.positionReportSchedule != nil }
     let schedule = try XCTUnwrap(capture.positionReportSchedule)
     driver.currentTime = CMTime(seconds: 15, preferredTimescale: 600)
     schedule.tick()
     notificationCenter.post(name: AVPlayerItem.timeJumpedNotification, object: item)
     XCTAssertEqual(restartCount, 0)
-    while reports.started.isEmpty {
-      await Task.yield()
-    }
+    defer { reports.releaseFirstReport() }
+    await fulfillment(of: [reports.firstReportStarted], timeout: 2)
+    guard !reports.started.isEmpty else { return }
     driver.currentTime = CMTime(seconds: 120, preferredTimescale: 600)
 
     notificationCenter.post(name: AVPlayerItem.didPlayToEndTimeNotification, object: item)
@@ -900,9 +941,9 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     driver.currentTime = CMTime(seconds: 120, preferredTimescale: 600)
 
     notificationCenter.post(name: AVPlayerItem.didPlayToEndTimeNotification, object: item)
-    while reports.started.isEmpty {
-      await Task.yield()
-    }
+    defer { reports.releaseFirstReport() }
+    await fulfillment(of: [reports.firstReportStarted], timeout: 2)
+    guard !reports.started.isEmpty else { return }
     driver.currentTime = CMTime(seconds: 8, preferredTimescale: 600)
     notificationCenter.post(name: AVPlayerItem.timeJumpedNotification, object: item)
     coordinator.stop(controller: controller)
@@ -936,7 +977,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     )
     let driver = try XCTUnwrap(capture.driver)
     statusObservation.emit(.readyToPlay)
-    await Task.yield()
+    await waitUntil { capture.positionReportSchedule != nil }
     let schedule = try XCTUnwrap(capture.positionReportSchedule)
     driver.currentTime = CMTime(seconds: 15, preferredTimescale: 600)
     schedule.tick()
@@ -945,9 +986,9 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     driver.currentTime = CMTime(seconds: 37, preferredTimescale: 600)
     coordinator.stop(controller: controller)
 
-    while reports.started.isEmpty {
-      await Task.yield()
-    }
+    defer { reports.releaseFirstReport() }
+    await fulfillment(of: [reports.firstReportStarted], timeout: 2)
+    guard !reports.started.isEmpty else { return }
     XCTAssertEqual(reports.started.map(\.1), [15])
     reports.releaseFirstReport()
     await coordinator.waitForPendingPositionReports()
@@ -1010,9 +1051,9 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     firstCapture.driver?.currentTime = CMTime(seconds: 30, preferredTimescale: 600)
     firstCoordinator.stop(controller: firstController)
 
-    while reports.started.isEmpty {
-      await Task.yield()
-    }
+    defer { reports.releaseFirstReport() }
+    await fulfillment(of: [reports.firstReportStarted], timeout: 2)
+    guard !reports.started.isEmpty else { return }
     var reopenedResolutionStarted = false
     let resolutionBarrier = Task { @MainActor in
       await pipeline.waitForPendingReports(fileID: fileID)
