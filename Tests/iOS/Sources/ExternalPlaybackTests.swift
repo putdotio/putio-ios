@@ -104,6 +104,54 @@ final class ExternalPlaybackTests: XCTestCase {
     XCTAssertEqual(attempts, 3)
   }
 
+  /// iOS 27 closes the alert after "Try again" has already started the
+  /// retry; that closing must not invalidate the request in flight.
+  func testAlertClosingAfterRetryStartsKeepsTheRetryAlive() async {
+    let opener = Opener()
+    let gate = Gate()
+    var attempts = 0
+    let model = PutioExternalPlaybackModel(opener: opener, returnsToFolder: false) { _ in
+      attempts += 1
+      if attempts == 1 { throw PutioRuntimeError.transient }
+      if attempts == 2 { await gate.wait() }
+      return self.source
+    }
+    await model.open(route())
+    XCTAssertTrue(model.presentsOutcome)
+
+    let retry = Task { await model.open(self.route()) }
+    while !model.isResolving { await Task.yield() }
+    model.dismissAlert()
+    XCTAssertTrue(model.isResolving)
+    gate.open()
+    await retry.value
+    XCTAssertEqual(model.outcome, .opened)
+    XCTAssertEqual(opener.opened.count, 1)
+    XCTAssertEqual(attempts, 2)
+
+    // Closing an idle alert still clears the presentation.
+    opener.accepts = false
+    await model.open(route())
+    XCTAssertEqual(model.outcome, .failed(.launch))
+    model.dismissAlert()
+    XCTAssertNil(model.outcome)
+    XCTAssertNil(model.pendingRoute)
+  }
+
+  @MainActor
+  private final class Gate {
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func wait() async {
+      await withCheckedContinuation { continuation = $0 }
+    }
+
+    func open() {
+      continuation?.resume()
+      continuation = nil
+    }
+  }
+
   func testNotFoundIsTerminalAndSessionLossDismissesQuietly() async {
     let opener = Opener()
     let missing = PutioExternalPlaybackModel(opener: opener, returnsToFolder: false) { _ in

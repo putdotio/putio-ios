@@ -416,17 +416,17 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertFalse(element(identifier: "files.more.0").exists, "load-more footer lingered")
 
     openBrowseMenu()
-    let nameSort = app.buttons["files.sort.name"]
+    let nameSort = sortRow("Name")
     XCTAssertTrue(waitUntilHittable(nameSort, timeout: 5), "name sort is unavailable")
-    XCTAssertTrue(nameSort.isSelected)
+    assertSortRowSelected(nameSort, label: "Name, Ascending")
     addScreenshot(named: "runtime-browse-menu-ascending")
     nameSort.tap()
     XCTAssertTrue(app.staticTexts["Sorting changed"].waitForExistence(timeout: 10))
     openBrowseMenu()
-    XCTAssertTrue(nameSort.isSelected)
+    assertSortRowSelected(nameSort, label: "Name, Descending")
     addScreenshot(named: "runtime-browse-menu-descending")
     dismissMenu()
-    XCTAssertEqual(app.buttons["files.menu"].value as? String, "Name, descending")
+    assertSortValue("Name, descending", on: app.buttons["files.menu"])
     let firstRow = app.cells.firstMatch
     XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
     XCTAssertTrue(
@@ -1143,7 +1143,26 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.7)).tap()
   }
 
+  /// iOS 27 drops the sort rows' custom identifiers; the selected row's label
+  /// carries its direction subtitle there.
+  private func sortRow(_ title: String) -> XCUIElement {
+    app.buttons.matching(
+      NSPredicate(format: "label == %@ OR label BEGINSWITH %@", title, title + ",")
+    ).firstMatch
+  }
+
+  private func assertSortRowSelected(_ row: XCUIElement, label: String) {
+    if #available(iOS 27.0, *) {
+      XCTAssertEqual(row.label, label)
+    } else {
+      XCTAssertTrue(row.isSelected, "\(label) row is not selected")
+    }
+  }
+
+  /// iOS 26 mirrors the sort in the menu's accessibility value; iOS 27 drops
+  /// that value, so the selected row's label is the proof there.
   private func assertSortValue(_ value: String, on menu: XCUIElement) {
+    if #available(iOS 27.0, *) { return }
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value == %@", value),
       object: menu
@@ -1160,21 +1179,21 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let menu = app.buttons["files.move-menu"]
     XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
     menu.tap()
-    let sizeSort = app.buttons["files.sort.size"]
+    let sizeSort = sortRow("Size")
     XCTAssertTrue(waitUntilHittable(sizeSort, timeout: 5))
     sizeSort.tap()
     XCTAssertTrue(sizeSort.waitForNonExistence(timeout: 5), "sort selection did not dismiss menu")
     XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
     assertSortValue("Size, ascending", on: menu)
     menu.tap()
-    XCTAssertTrue(sizeSort.isSelected)
+    assertSortRowSelected(sizeSort, label: "Size, Ascending")
     addScreenshot(named: "runtime-move-menu-ascending")
     sizeSort.tap()
     XCTAssertTrue(sizeSort.waitForNonExistence(timeout: 5), "sort selection did not dismiss menu")
     XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
     assertSortValue("Size, descending", on: menu)
     menu.tap()
-    XCTAssertTrue(sizeSort.isSelected)
+    assertSortRowSelected(sizeSort, label: "Size, Descending")
     addScreenshot(named: "runtime-move-menu-descending")
 
     let newFolder = app.buttons["files.move-new-folder"]

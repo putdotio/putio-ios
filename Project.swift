@@ -245,8 +245,10 @@ let project = Project(
         "Tests/ComponentSnapshots/Sources",
         "Tests/Shared/SnapshotSupport",
       ],
+      // Hosted: tvOS snapshots capture through the app's render server.
       dependencies: [
-        .package(product: "PutioCore")
+        .target(name: "PutioTV"),
+        .package(product: "PutioCore"),
       ]
     ),
     .target(

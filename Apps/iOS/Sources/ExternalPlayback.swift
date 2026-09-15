@@ -177,6 +177,13 @@ final class PutioExternalPlaybackModel {
     openedRequestCount += 1
   }
 
+  /// The alert's own closing. iOS 27 closes it after "Try again" has
+  /// already started the retry, so a request in flight survives.
+  func dismissAlert() {
+    guard !isResolving else { return }
+    dismiss()
+  }
+
   func dismiss() {
     generation &+= 1
     pendingRoute = nil
@@ -193,7 +200,7 @@ struct PutioExternalPlaybackPresentation: ViewModifier {
       title,
       isPresented: Binding(
         get: { model.presentsOutcome },
-        set: { if !$0 { model.dismiss() } }
+        set: { if !$0 { model.dismissAlert() } }
       ),
       presenting: model.pendingRoute
     ) { route in
@@ -203,7 +210,6 @@ struct PutioExternalPlaybackPresentation: ViewModifier {
         Button("Cancel", role: .cancel) { model.dismiss() }
       case .failed(let failure):
         if failure.canRetry {
-          // Alert dismissal clears the pending route before this task runs.
           Button("Try again") { Task { await model.open(route) } }
         }
         Button("OK", role: .cancel) { model.dismiss() }
