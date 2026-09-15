@@ -21,6 +21,27 @@ final class AudioJourneyTests: XCTestCase {
     assertPlaybackAdvances(in: app)
     XCTAssertEqual(app.descendants(matching: .any)["audio.title"].label, "Harness Track.m4a")
 
+    // Dragging down dismisses presentation, not the playback session.
+    let navigationBar = app.navigationBars["Now Playing"]
+    navigationBar.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+      .press(
+        forDuration: 0.1,
+        thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
+    let miniPlayer = app.buttons["audio.mini.open"]
+    XCTAssertTrue(miniPlayer.waitForExistence(timeout: 5))
+    let miniToggle = app.buttons["audio.mini.toggle"]
+    XCTAssertEqual(miniToggle.label, "Pause")
+    miniToggle.tap()
+    XCTAssertEqual(miniToggle.label, "Play")
+    app.buttons["Account"].tap()
+    XCTAssertTrue(miniPlayer.exists)
+    app.buttons["Files"].tap()
+    miniPlayer.tap()
+    XCTAssertTrue(waitForValue(state, "id=408;state=paused"))
+    app.buttons["audio.play-pause"].tap()
+    XCTAssertTrue(waitForValue(state, "id=408;state=playing"))
+    assertPlaybackAdvances(in: app)
+
     let playPause = app.buttons["audio.play-pause"]
     XCTAssertTrue(playPause.waitForExistence(timeout: 5))
     playPause.tap()
@@ -77,6 +98,7 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed)
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertFalse(miniPlayer.exists)
   }
 
   private func waitForValue(_ element: XCUIElement, _ value: String, timeout: TimeInterval = 10)

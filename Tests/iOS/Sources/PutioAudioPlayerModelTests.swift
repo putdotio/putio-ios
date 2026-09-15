@@ -129,6 +129,47 @@ final class PutioAudioPlayerModelTests: XCTestCase {
       reports: reports, center: center, pipeline: pipeline)
   }
 
+  func testMinimizingAndReopeningKeepsTheSamePlaybackAndRemoteCommands() async {
+    let h = makeHarness()
+    let playback = PutioAudioPlaybackSession()
+    defer { playback.stop() }
+    playback.present(h.model)
+    await waitUntil { h.model.isPlaying }
+    let events = h.engine.events
+    playback.isPresented = false
+    h.engine.onPositionChanged?(12)
+    h.engine.onPositionChanged?(24)
+    XCTAssertTrue(h.model.isPlaying)
+    XCTAssertEqual(h.model.elapsedSeconds, 24)
+    XCTAssertTrue(playback.model === h.model)
+    XCTAssertEqual(h.engine.events, events)
+    h.model.togglePlayPause()
+    XCTAssertFalse(h.model.isPlaying)
+    playback.isPresented = true
+    XCTAssertEqual(h.model.elapsedSeconds, 24)
+    XCTAssertFalse(h.model.isPlaying)
+    XCTAssertFalse(h.engine.events.contains("stop"))
+    playback.stop()
+    XCTAssertNil(playback.model)
+    XCTAssertFalse(playback.isPresented)
+    XCTAssertEqual(h.engine.events.last, "stop")
+  }
+
+  func testReplacingMiniPlayerStopsPreviousTrack() async {
+    let first = makeHarness()
+    let second = makeHarness()
+    let playback = PutioAudioPlaybackSession()
+    defer { playback.stop() }
+    playback.present(first.model)
+    await waitUntil { first.model.isPlaying }
+    playback.isPresented = false
+    playback.present(second.model)
+    await waitUntil { second.model.isPlaying }
+    XCTAssertEqual(first.engine.events.last, "stop")
+    XCTAssertTrue(playback.model === second.model)
+    XCTAssertTrue(playback.isPresented)
+  }
+
   func testStartResolvesActivatesSessionAndPlaysFromSavedPosition() async {
     let h = makeHarness()
 

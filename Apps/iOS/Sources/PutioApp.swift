@@ -395,7 +395,7 @@ private struct MainTabView: View {
   @State private var trashReconciliation = PutioTrashReconciliation()
   @State private var historyRevision: UInt64 = 0
   @State private var presentedVideoRoute: PutioVideoRoute?
-  @State private var presentedAudioRoute: PutioAudioRoute?
+  @State private var audioPlayback = PutioAudioPlaybackSession()
   @State private var presentedPreviewRoute: PutioPreviewRoute?
   @State private var presentedUnsupportedRoute: PutioUnsupportedFileRoute?
   @State private var externalPlayback: PutioExternalPlaybackModel
@@ -487,40 +487,24 @@ private struct MainTabView: View {
     // Shrink-on-scroll is opt-in on iOS 26 and part of the ios-e10 treatment.
     .tabBarMinimizeBehavior(.onScrollDown)
     .task { await appConfig.loadIfNeeded() }
-    .modifier(PutioCastPresentation(model: cast))
+    .modifier(PutioCastPresentation(model: cast, audioPlayback: audioPlayback))
     .accessibilityHidden(selectedVideoRoute != nil)
     .overlay {
       PutioSelectedVideoCover(route: $selectedVideoRoute) { route in
         videoPlayer(for: route)
       }
     }
-    .sheet(item: $presentedAudioRoute) { route in
-      PutioAudioPlayerView(
-        route: route,
-        onDismiss: { presentedAudioRoute = nil },
-        onClose: { track in
-          // The last track may differ from the tapped one after queue advance.
-          Task { @MainActor in
-            await Task.yield()
-            await playbackPositionPipeline.waitForPendingReports(fileID: track.id)
-            folderRefreshRequests.request(folderID: track.parentID)
-          }
-        },
-        showsHarnessReadiness: scenario == .filesBrowser,
-        positionPipeline: playbackPositionPipeline,
-        reportPosition: { fileID, seconds in
-          if offlineQueue.item(for: fileID)?.isPlayable == true {
-            await offlineQueue.recordPosition(fileID: fileID, seconds: seconds)
-          } else {
-            try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
-          }
-        },
-        resolve: { fileID in
-          if let local = offlineQueue.localSource(for: fileID) { return local }
-          return try await resolveAudioSource(fileID: fileID)
-        },
-        loadNext: { fileID in try await runtime.findNextAudio(after: fileID) }
-      )
+    .sheet(isPresented: $audioPlayback.isPresented) {
+      if let model = audioPlayback.model {
+        PutioAudioPlayerView(
+          model: model,
+          onDismiss: { audioPlayback.isPresented = false },
+          showsHarnessReadiness: scenario == .filesBrowser)
+      }
+    }
+    .onDisappear { stopAudio() }
+    .onChange(of: cast.hasSession) { _, hasSession in
+      if hasSession { stopAudio() }
     }
     .sheet(item: $presentedPreviewRoute) { route in
       PutioPreviewView(
@@ -582,7 +566,7 @@ private struct MainTabView: View {
       guard let destination else { return }
       deepLinks.consumeDestination()
       dismissPresentedVideo()
-      presentedAudioRoute = nil
+      audioPlayback.isPresented = false
       presentedPreviewRoute = nil
       presentedUnsupportedRoute = nil
       switch destination {
@@ -625,13 +609,14 @@ private struct MainTabView: View {
     selectedFileRoute = route
     switch route.openAction {
     case .video(let videoRoute):
+      stopAudio()
       if cast.isConnected, offlineQueue.item(for: route.id)?.isPlayable != true {
         cast.cast(videoRoute)
       } else {
         presentVideo(videoRoute)
       }
     case .audio(let audioRoute):
-      presentedAudioRoute = audioRoute
+      presentAudio(audioRoute)
     case .preview(let previewRoute):
       presentedPreviewRoute = previewRoute
     case .unsupported(let unsupportedRoute):
@@ -695,7 +680,7 @@ private struct MainTabView: View {
           id: item.id, parentID: item.parentID, title: item.name,
           initialResolution: .ready(source)))
     case .audio:
-      presentedAudioRoute = PutioAudioRoute(id: item.id, parentID: item.parentID, title: item.name)
+      presentAudio(PutioAudioRoute(id: item.id, parentID: item.parentID, title: item.name))
     }
   }
 
@@ -735,7 +720,48 @@ private struct MainTabView: View {
     #endif
   }
 
+  private func presentAudio(_ route: PutioAudioRoute) {
+    if cast.hasSession { cast.stopCasting() }
+    if audioPlayback.model?.track.id == route.id {
+      audioPlayback.isPresented = true
+      return
+    }
+    stopAudio()
+    audioPlayback.present(
+      PutioAudioPlayerModel(
+        track: PutioAudioTrack(id: route.id, parentID: route.parentID, title: route.title),
+        engine: PutioSystemAudioEngine(),
+        nowPlaying: PutioSystemNowPlayingSurface(),
+        audioSession: PutioSystemAudioSession(),
+        speedStore: PutioAudioSpeedStore(),
+        positionPipeline: playbackPositionPipeline,
+        reportPosition: { fileID, seconds in
+          if offlineQueue.item(for: fileID)?.isPlayable == true {
+            await offlineQueue.recordPosition(fileID: fileID, seconds: seconds)
+          } else {
+            try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
+          }
+        },
+        resolve: { fileID in
+          if let local = offlineQueue.localSource(for: fileID) { return local }
+          return try await resolveAudioSource(fileID: fileID)
+        },
+        loadNext: { fileID in try await runtime.findNextAudio(after: fileID) }
+      ))
+  }
+
+  private func stopAudio() {
+    guard let track = audioPlayback.model?.track else { return }
+    audioPlayback.stop()
+    Task { @MainActor in
+      await Task.yield()
+      await playbackPositionPipeline.waitForPendingReports(fileID: track.id)
+      folderRefreshRequests.request(folderID: track.parentID)
+    }
+  }
+
   private func presentVideo(_ route: PutioVideoRoute) {
+    stopAudio()
     selectedVideoRoute = route
     presentedVideoRoute = route
     // The autoplay decision reads the document at playback end; a load that
@@ -1506,10 +1532,11 @@ enum PutioCastControllerFactory {
 /// the expanded controls sheet, and the harness stub picker.
 struct PutioCastPresentation: ViewModifier {
   let model: PutioCastModel
+  var audioPlayback: PutioAudioPlaybackSession? = nil
 
   func body(content: Content) -> some View {
     content
-      .modifier(PutioCastBarAccessory(model: model))
+      .modifier(PutioCastBarAccessory(model: model, audioPlayback: audioPlayback))
       .sheet(
         isPresented: Binding(
           get: { model.presentsControls }, set: { if !$0 { model.hideControls() } })
@@ -1548,14 +1575,24 @@ struct PutioHarnessCastPresentation: ViewModifier {
 /// bar is installed only while a receiver has something of ours.
 private struct PutioCastBarAccessory: ViewModifier {
   let model: PutioCastModel
+  let audioPlayback: PutioAudioPlaybackSession?
+
+  private var hasAccessory: Bool { model.hasSession || audioPlayback?.model != nil }
+
+  @ViewBuilder
+  private var accessory: some View {
+    if let audioPlayback, let audio = audioPlayback.model {
+      PutioAudioMiniPlayer(model: audio) { audioPlayback.isPresented = true }
+    } else if model.hasSession {
+      PutioCastBar(model: model)
+    }
+  }
 
   func body(content: Content) -> some View {
     if #available(iOS 26.1, *) {
-      content.tabViewBottomAccessory(isEnabled: model.hasSession) {
-        PutioCastBar(model: model)
-      }
-    } else if model.hasSession {
-      content.tabViewBottomAccessory { PutioCastBar(model: model) }
+      content.tabViewBottomAccessory(isEnabled: hasAccessory) { accessory }
+    } else if hasAccessory {
+      content.tabViewBottomAccessory { accessory }
     } else {
       content
     }
