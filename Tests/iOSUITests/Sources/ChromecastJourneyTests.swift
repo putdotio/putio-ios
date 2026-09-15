@@ -111,7 +111,7 @@ final class ChromecastJourneyTests: XCTestCase {
 
     // Explicit row action while connected, then disconnect drops everything.
     row.press(forDuration: 1)
-    let castAction = app.buttons["files.cast.412"]
+    let castAction = app.buttons["Cast"]
     XCTAssertTrue(castAction.waitForExistence(timeout: 5))
     castAction.tap()
     XCTAssertTrue(toggle.waitForExistence(timeout: 15))

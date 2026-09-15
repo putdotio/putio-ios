@@ -912,7 +912,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(movedFolder.label, "Weekend")
 
     movedFolder.swipeRight()
-    let swipeMove = app.buttons["files.move.415"]
+    let swipeMove = app.buttons["Move"]
     XCTAssertTrue(waitUntilHittable(swipeMove, timeout: 5), "leading swipe did not offer Move")
     swipeMove.tap()
     XCTAssertTrue(
@@ -942,7 +942,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(movedFolderAtRoot.label, "Weekend")
 
     movedFolderAtRoot.swipeLeft()
-    let swipeTrash = app.buttons["files.delete.415"]
+    let swipeTrash = app.buttons["Trash"]
     XCTAssertTrue(waitUntilHittable(swipeTrash, timeout: 5), "trailing swipe did not offer Trash")
     swipeTrash.tap()
     let confirmDelete = app.buttons["files.delete-confirm"].firstMatch
