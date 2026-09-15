@@ -833,7 +833,7 @@ struct PutioAudioPlayerView: View {
             content
           }
           .padding(PutioTheme.Spacing.space5)
-          .frame(maxWidth: .infinity)
+          .frame(width: geometry.size.width)
           .frame(minHeight: geometry.size.height)
         }
       }

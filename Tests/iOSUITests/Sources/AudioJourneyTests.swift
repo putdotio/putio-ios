@@ -25,6 +25,12 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertTrue(playPause.waitForExistence(timeout: 5))
     playPause.tap()
     XCTAssertTrue(waitForValue(state, "id=408;state=paused"))
+    for identifier in ["audio.scrubber", "audio.speed", "audio.play-pause", "audio.next"] {
+      let control = app.descendants(matching: .any)[identifier]
+      XCTAssertTrue(control.isHittable)
+      XCTAssertGreaterThanOrEqual(control.frame.minX, 0, identifier)
+      XCTAssertLessThanOrEqual(control.frame.maxX, app.frame.width, identifier)
+    }
     let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
     attachment.name = "runtime-audio-player"
     attachment.lifetime = .keepAlways
