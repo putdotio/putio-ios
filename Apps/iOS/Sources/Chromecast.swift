@@ -429,11 +429,12 @@ final class PutioCastModel {
 
   // MARK: Controls
 
-  func togglePlayback() {
-    guard let status else { return }
+  @discardableResult
+  func togglePlayback() -> Task<Void, Never>? {
+    guard let status else { return nil }
     let request = generation
-    Task { @MainActor [weak self] in
-      guard let self else { return }
+    return Task { @MainActor [weak self] in
+      guard let self, request == generation else { return }
       do {
         if status.playerState == .playing || status.playerState == .buffering {
           try await controller.pause()
@@ -447,11 +448,12 @@ final class PutioCastModel {
     }
   }
 
-  func seek(toSeconds seconds: Double) {
-    guard media != nil else { return }
+  @discardableResult
+  func seek(toSeconds seconds: Double) -> Task<Void, Never>? {
+    guard media != nil else { return nil }
     let request = generation
-    Task { @MainActor [weak self] in
-      guard let self else { return }
+    return Task { @MainActor [weak self] in
+      guard let self, request == generation else { return }
       do {
         try await controller.seek(toSeconds: max(0, seconds))
       } catch {
@@ -461,13 +463,14 @@ final class PutioCastModel {
     }
   }
 
-  func selectSubtitle(key: String?) {
+  @discardableResult
+  func selectSubtitle(key: String?) -> Task<Void, Never>? {
     guard let media, key == nil || media.subtitles.contains(where: { $0.key == key }) else {
-      return
+      return nil
     }
     let request = generation
-    Task { @MainActor [weak self] in
-      guard let self else { return }
+    return Task { @MainActor [weak self] in
+      guard let self, request == generation else { return }
       do {
         try await controller.setSubtitle(key: key)
       } catch {

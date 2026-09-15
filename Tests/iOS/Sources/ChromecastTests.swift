@@ -341,6 +341,64 @@ final class ChromecastTests: XCTestCase {
     XCTAssertNil(model.status)
   }
 
+  func testQueuedControlsAreDiscardedWhenAnotherCastStarts() async throws {
+    let controller = CastControllerStub()
+    let first = media(subtitles: [subtitle("en")])
+    let second = media(id: 414, subtitles: [subtitle("tr")])
+    let (model, _) = makeModel(
+      controller: controller, resolutions: [.success(.ready(first)), .success(.ready(second))])
+    model.cast(route)
+    try await expect({ model.media == first && model.activity == .idle })
+
+    controller.report(status(.playing))
+    let pause = try XCTUnwrap(model.togglePlayback())
+    controller.report(status(.paused))
+    let play = try XCTUnwrap(model.togglePlayback())
+    let seek = try XCTUnwrap(model.seek(toSeconds: 30))
+    let subtitles = try XCTUnwrap(model.selectSubtitle(key: "en"))
+    let subtitlesOff = try XCTUnwrap(model.selectSubtitle(key: nil))
+    // No suspension before replacement: every control still belongs to the old cast.
+    model.cast(PutioVideoRoute(id: second.id, parentID: .root, title: "Next"))
+
+    await pause.value
+    await play.value
+    await seek.value
+    await subtitles.value
+    await subtitlesOff.value
+    XCTAssertTrue(controller.commands.isEmpty, "queued controls must not reach the next cast")
+
+    try await expect({ model.media == second && model.activity == .idle })
+    controller.report(status(id: 414, .playing))
+    await model.togglePlayback()?.value
+    controller.report(status(id: 414, .paused))
+    await model.togglePlayback()?.value
+    await model.seek(toSeconds: 45)?.value
+    await model.selectSubtitle(key: "tr")?.value
+    await model.selectSubtitle(key: nil)?.value
+    XCTAssertEqual(
+      controller.commands, ["pause", "play", "seek:45", "subtitle:tr", "subtitle:off"])
+  }
+
+  func testQueuedControlsAreDiscardedWhenTheReceiverDisconnects() async throws {
+    let controller = CastControllerStub()
+    let expected = media(subtitles: [subtitle("en")])
+    let (model, _) = makeModel(controller: controller, resolutions: [.success(.ready(expected))])
+    model.cast(route)
+    try await expect({ model.media == expected && model.activity == .idle })
+
+    controller.report(status(.playing))
+    let pause = try XCTUnwrap(model.togglePlayback())
+    let seek = try XCTUnwrap(model.seek(toSeconds: 30))
+    let subtitles = try XCTUnwrap(model.selectSubtitle(key: "en"))
+    controller.connect(.disconnected)
+
+    await pause.value
+    await seek.value
+    await subtitles.value
+    XCTAssertTrue(controller.commands.isEmpty, "queued controls must not reach an ended session")
+    XCTAssertFalse(model.hasSession)
+  }
+
   func testControlFailurePreservesMediaAndReceiverStatusRecoversTheControls() async throws {
     let controller = CastControllerStub()
     let expected = media(subtitles: [subtitle("en")])

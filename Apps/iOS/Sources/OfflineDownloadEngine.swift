@@ -13,8 +13,23 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   /// an engine only ever maps its own account's tasks.
   let accountID: Int
 
-  init(accountID: Int) {
+  private let prepareConfiguration:
+    @MainActor (URL, String, [String]) async throws -> AVAssetDownloadConfiguration
+  private let makeTask: @MainActor (AVAssetDownloadConfiguration) -> URLSessionTask
+
+  init(
+    accountID: Int,
+    prepareConfiguration:
+      @escaping @MainActor (URL, String, [String]) async throws -> AVAssetDownloadConfiguration =
+      PutioSystemOfflineDownloadEngine.prepareConfiguration,
+    makeTask: @escaping @MainActor (AVAssetDownloadConfiguration) -> URLSessionTask = {
+      PutioSystemOfflineDownloadEngine.sharedSession.makeAssetDownloadTask(
+        downloadConfiguration: $0)
+    }
+  ) {
     self.accountID = accountID
+    self.prepareConfiguration = prepareConfiguration
+    self.makeTask = makeTask
     super.init()
   }
 
@@ -59,7 +74,8 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   }()
   private static let relay = PutioOfflineDownloadRelay()
   private var session: AVAssetDownloadURLSession { Self.sharedSession }
-  private var tasks: [PutioFileID: AVAssetDownloadTask] = [:]
+  private var tasks: [PutioFileID: URLSessionTask] = [:]
+  private var pendingStarts: [PutioFileID: UUID] = [:]
   /// Set by the app delegate when iOS relaunches us for session events.
   static var backgroundCompletion: (() -> Void)?
 
@@ -105,10 +121,30 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   /// primary content configuration, so the stored asset keeps all of them.
   /// An empty selection keeps the asset default.
   func start(fileID: PutioFileID, url: URL, title: String, audioLanguages: [String]) async throws {
+    try Task.checkCancellation()
+    let request = UUID()
+    pendingStarts[fileID] = request
+    defer {
+      if pendingStarts[fileID] == request { pendingStarts[fileID] = nil }
+    }
     if let previous = tasks[fileID] {
       previous.cancel()
       tasks[fileID] = nil
     }
+    let configuration = try await prepareConfiguration(url, title, audioLanguages)
+    try Task.checkCancellation()
+    guard pendingStarts[fileID] == request else { throw CancellationError() }
+    claimRelay()
+    let task = makeTask(configuration)
+    task.taskDescription = description(for: fileID)
+    tasks[fileID] = task
+    observeProgress(of: task, fileID: fileID)
+    task.resume()
+  }
+
+  private static func prepareConfiguration(
+    url: URL, title: String, audioLanguages: [String]
+  ) async throws -> AVAssetDownloadConfiguration {
     let asset = AVURLAsset(url: url)
     let configuration = AVAssetDownloadConfiguration(asset: asset, title: title)
     if !audioLanguages.isEmpty {
@@ -134,19 +170,14 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
       }
       configuration.primaryContentConfiguration.mediaSelections = selections
     }
-    claimRelay()
-    let task = session.makeAssetDownloadTask(downloadConfiguration: configuration)
-    task.taskDescription = description(for: fileID)
-    tasks[fileID] = task
-    observeProgress(of: task, fileID: fileID)
-    task.resume()
+    return configuration
   }
 
   private var progressObservations: [PutioFileID: NSKeyValueObservation] = [:]
 
   /// Configuration-based tasks report through `Progress`; the time-range
   /// delegate stays as a fallback for older task shapes.
-  private func observeProgress(of task: AVAssetDownloadTask, fileID: PutioFileID) {
+  private func observeProgress(of task: URLSessionTask, fileID: PutioFileID) {
     progressObservations[fileID] = task.progress.observe(\.fractionCompleted, options: [.new]) {
       [weak self] progress, _ in
       let fraction = progress.fractionCompleted
@@ -165,6 +196,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   }
 
   func cancel(fileID: PutioFileID) {
+    pendingStarts[fileID] = nil
     tasks[fileID]?.cancel()
     tasks[fileID] = nil
     progressObservations[fileID] = nil
@@ -198,9 +230,10 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     return ids
   }
 
-  /// The shared session is never invalidated; the engine only forgets its
-  /// task map so a successor engine can reclaim tasks through restore.
+  /// Abandon pending starts and forget tasks without invalidating the shared
+  /// session, so a successor engine can reclaim transfers through restore.
   func stop() {
+    pendingStarts.removeAll()
     tasks = [:]
     progressObservations = [:]
     if Self.relay.engine === self { Self.relay.engine = nil }
