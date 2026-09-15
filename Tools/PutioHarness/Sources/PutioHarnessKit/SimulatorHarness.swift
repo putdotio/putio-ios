@@ -1452,7 +1452,6 @@ public struct SimulatorHarness {
 
   private func createSession(platform: HarnessPlatform, runID: String) throws -> SimulatorSession {
     let runtimes = try availableRuntimes()
-    let deviceTypes = try availableDeviceTypes()
     let config = platform.configuration
     let sdkVersion = try runner.checked(
       "xcodebuild",
@@ -1469,10 +1468,7 @@ public struct SimulatorHarness {
         "\(config.runtimePlatform) \(sdkVersion) Simulator runtime is missing; run xcodebuild -downloadPlatform \(config.runtimePlatform)"
       )
     }
-    guard let deviceType = deviceTypes.first(where: { $0.productFamily == config.deviceFamily })
-    else {
-      throw HarnessFailure("no \(config.deviceFamily) Simulator device type is installed")
-    }
+    let deviceType = try runtime.deviceType(for: config.deviceFamily)
 
     // The nonce keeps concurrent runs with the same run ID apart; the
     // ownership check below makes the pre-claim name fallback safe.
@@ -1494,13 +1490,13 @@ public struct SimulatorHarness {
           let phoneRuntime = runtimes.first(where: {
             $0.isAvailable && $0.platform == "iOS"
               && runtimeMatchesSDK($0.version, runtime.version)
-          }),
-          let phoneType = deviceTypes.first(where: { $0.productFamily == "iPhone" })
+          })
         else {
           throw HarnessFailure(
             "watchOS \(runtime.version) requires a matching iOS Simulator runtime and iPhone device type"
           )
         }
+        let phoneType = try phoneRuntime.deviceType(for: "iPhone")
         let phoneName = "putio-harness-watch-companion-\(suffix)"
         try requireNoSimulator(named: phoneName)
         let ownedPhone = OwnedSimulator(name: phoneName)
@@ -1564,15 +1560,6 @@ public struct SimulatorHarness {
       context: "list Simulator runtimes"
     )
     return try JSONDecoder().decode(RuntimeList.self, from: Data(output.stdout.utf8)).runtimes
-  }
-
-  private func availableDeviceTypes() throws -> [DeviceTypeRecord] {
-    let output = try runner.checked(
-      "xcrun",
-      ["simctl", "list", "-j", "devicetypes"],
-      context: "list Simulator device types"
-    )
-    return try JSONDecoder().decode(DeviceTypeList.self, from: Data(output.stdout.utf8)).devicetypes
   }
 
   private func requireNoSimulator(named name: String) throws {

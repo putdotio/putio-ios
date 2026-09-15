@@ -243,6 +243,39 @@ import Testing
   #expect(!runtimeMatchesSDK("26.4.1", "26.5"))
 }
 
+@Test func simulatorDeviceSelectionUsesTheRuntimesSupportedCatalog() throws {
+  let catalog = #"""
+    {"runtimes": [
+      {"name":"iOS 26.5","identifier":"ios-26-5","version":"26.5",
+       "platform":"iOS","isAvailable":true,"supportedDeviceTypes":[
+         {"name":"iPad","identifier":"ipad","productFamily":"iPad"},
+         {"name":"iPhone 17 Pro","identifier":"iphone-17","productFamily":"iPhone"}]},
+      {"name":"iOS 27.0","identifier":"ios-27-0","version":"27.0",
+       "platform":"iOS","isAvailable":true,"supportedDeviceTypes":[
+         {"name":"iPhone 18 Pro","identifier":"iphone-18","productFamily":"iPhone"},
+         {"name":"iPhone 17 Pro","identifier":"iphone-17","productFamily":"iPhone"}]}
+    ]}
+    """#
+  let runtimes = try JSONDecoder().decode(RuntimeList.self, from: Data(catalog.utf8)).runtimes
+  let oldRuntime = try #require(runtimes.first(where: { $0.version == "26.5" }))
+  let newRuntime = try #require(runtimes.first(where: { $0.version == "27.0" }))
+
+  #expect(try oldRuntime.deviceType(for: "iPhone").identifier == "iphone-17")
+  #expect(try newRuntime.deviceType(for: "iPhone").identifier == "iphone-18")
+  #expect(throws: HarnessFailure.self) {
+    try oldRuntime.deviceType(for: "Apple Watch")
+  }
+}
+
+@Test func simulatorDeviceSelectionRejectsAnEmptySupportedCatalog() {
+  let runtime = RuntimeRecord(
+    name: "iOS 27.0", identifier: "ios-27-0", version: "27.0", platform: "iOS",
+    isAvailable: true, supportedDeviceTypes: [])
+  #expect(throws: HarnessFailure.self) {
+    try runtime.deviceType(for: "iPhone")
+  }
+}
+
 @Test func watchBuildPlanReusesOnlyAnAvailableIOSCompanion() {
   #expect(shouldBuildIOSCompanion(for: .watchos, iosCompanionAvailable: false))
   #expect(!shouldBuildIOSCompanion(for: .watchos, iosCompanionAvailable: true))

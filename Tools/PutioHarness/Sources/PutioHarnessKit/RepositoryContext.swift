@@ -43,6 +43,14 @@ struct RuntimeRecord: Decodable, Sendable {
   let version: String
   let platform: String
   let isAvailable: Bool
+  let supportedDeviceTypes: [DeviceTypeRecord]
+
+  func deviceType(for family: String) throws -> DeviceTypeRecord {
+    guard let device = supportedDeviceTypes.first(where: { $0.productFamily == family }) else {
+      throw HarnessFailure("\(name) has no compatible \(family) Simulator device type")
+    }
+    return device
+  }
 }
 
 struct RuntimeList: Decodable, Sendable {
@@ -53,10 +61,6 @@ struct DeviceTypeRecord: Decodable, Sendable {
   let name: String
   let identifier: String
   let productFamily: String
-}
-
-struct DeviceTypeList: Decodable, Sendable {
-  let devicetypes: [DeviceTypeRecord]
 }
 
 struct WorkspaceList: Decodable, Sendable {

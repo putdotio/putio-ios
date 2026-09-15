@@ -10,8 +10,9 @@ mise run harness -- help
 ```
 
 [Doctor](../Tools/PutioHarness/Sources/PutioHarnessKit/Doctor.swift) checks the
-selected Xcode, pinned Tuist version, matching simulator runtimes, and generated
-workspace. Its required failures exit nonzero; optional live and publishing tools
+selected Xcode, pinned Tuist version, matching simulator runtimes and device types,
+and the generated workspace. Its required failures exit nonzero; optional live and
+publishing tools
 produce warnings. The [doctor wrapper](../scripts/doctor.sh) reports toolchain
 failures even when Swift cannot compile the harness.
 
@@ -115,9 +116,10 @@ run identity; set `PUTIO_HARNESS_RUN_ID` only when the caller needs to supply on
 
 ## Simulator cleanup
 
-The harness never opens Simulator.app. Each simulator command creates uniquely
-named devices; watchOS also gets an ephemeral paired iPhone. Devices are shut
-down, deleted, and checked for absence when the command finishes or fails.
+The harness never opens Simulator.app. Each simulator command selects a device
+from its runtime’s supported device types and creates uniquely named devices.
+watchOS also gets an ephemeral paired iPhone. Devices are shut down, deleted,
+and checked for absence when the command finishes or fails.
 `build` creates no devices, and `boot` cleans up before returning.
 
 Cleanup is registered before creation and uses the exact owned device ID. If

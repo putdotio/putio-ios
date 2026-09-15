@@ -15,9 +15,9 @@ public struct HarnessDoctor: Sendable {
     checks.append(
       toolCheck(
         "xcodebuild", required: true,
-        recovery: "install Xcode 26.x and select it with DEVELOPER_DIR"))
+        recovery: "install Xcode 26.x or 27.x and select it with DEVELOPER_DIR"))
     checks.append(toolCheck("xcrun", required: true, recovery: "install Xcode command-line tools"))
-    checks.append(toolCheck("swift", required: true, recovery: "install Xcode 26.x"))
+    checks.append(toolCheck("swift", required: true, recovery: "install Xcode 26.x or 27.x"))
     checks.append(toolCheck("tuist", required: true, recovery: "run mise install"))
     checks.append(toolCheck("git", required: true, recovery: "install Xcode command-line tools"))
     checks.append(
@@ -65,12 +65,12 @@ public struct HarnessDoctor: Sendable {
     do {
       let output = try runner.checked("xcodebuild", ["-version"], context: "read Xcode version")
       let firstLine = output.stdout.split(separator: "\n").first.map(String.init) ?? "unknown"
-      guard firstLine.hasPrefix("Xcode 26.") else {
+      guard firstLine.hasPrefix("Xcode 26.") || firstLine.hasPrefix("Xcode 27.") else {
         return DoctorCheck(
           name: "xcode-version",
           status: .failed,
           required: true,
-          detail: "expected Xcode 26.x, found \(firstLine); select Xcode 26 with DEVELOPER_DIR"
+          detail: "expected Xcode 26.x or 27.x, found \(firstLine); select Xcode with DEVELOPER_DIR"
         )
       }
       return DoctorCheck(name: "xcode-version", status: .ok, required: true, detail: firstLine)
@@ -137,11 +137,12 @@ public struct HarnessDoctor: Sendable {
             $0.isAvailable && $0.platform == config.runtimePlatform
               && runtimeMatchesSDK($0.version, sdkVersion)
           }) {
+            let device = try runtime.deviceType(for: config.deviceFamily)
             return DoctorCheck(
               name: "\(platform.rawValue)-runtime",
               status: .ok,
               required: true,
-              detail: runtime.name
+              detail: "\(runtime.name) — \(device.name)"
             )
           }
           return DoctorCheck(
