@@ -346,6 +346,7 @@ struct PutioOfflineDetailView: View {
 /// The pre-download sheet: language inventory, bounded multi-select, and the
 /// storage estimate. Audio files and single-track videos skip it.
 struct PutioOfflineTrackPickerView: View {
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   let name: String
   let inventory: PutioOfflineInventory
   let availableBytes: Int64
@@ -383,9 +384,18 @@ struct PutioOfflineTrackPickerView: View {
         Section {
           ForEach(inventory.audioOptions) { option in
             Toggle(isOn: binding(option.languageCode)) {
-              LabeledContent(
-                option.displayName,
-                value: option.estimatedBytes.formatted(ByteCountFormatStyle(style: .file)))
+              if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading) {
+                  Text(option.displayName)
+                  Text(option.estimatedBytes.formatted(ByteCountFormatStyle(style: .file)))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+              } else {
+                LabeledContent(
+                  option.displayName,
+                  value: option.estimatedBytes.formatted(ByteCountFormatStyle(style: .file)))
+              }
             }
             .accessibilityIdentifier("downloads.track.\(option.languageCode)")
           }

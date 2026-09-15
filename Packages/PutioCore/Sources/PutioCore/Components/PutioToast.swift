@@ -37,20 +37,24 @@ public struct PutioToastView: View {
         .scaledToFit()
         .frame(width: iconSize, height: iconSize)
         .foregroundStyle(toast.variant.iconColor)
+        .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: PutioTheme.Spacing.space1) {
         Text(toast.title)
           .putioFont(PutioToastLayout.titleFont)
           .foregroundStyle(PutioToastLayout.titleColor)
+          .lineLimit(2)
         if let message = toast.message {
           Text(message)
             .putioFont(PutioToastLayout.messageFont)
             .foregroundStyle(PutioToastLayout.messageColor)
+            .lineLimit(2)
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .padding(PutioToastLayout.contentPadding)
     .modifier(PutioToastSurface())
+    .accessibilityElement(children: .combine)
   }
 }
 
@@ -100,6 +104,7 @@ private struct PutioToastPresenter: ViewModifier {
     content.overlay(alignment: .bottom) {
       if let toast {
         PutioToastView(toast)
+          .allowsHitTesting(false)
           .padding(PutioToastLayout.presentationPadding)
           .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
           .zIndex(PutioToastLayout.zIndex)

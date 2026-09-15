@@ -43,6 +43,7 @@ public struct PutioFileRowModel: Equatable, Sendable {
 // owns disclosure; tvOS keeps its folder indicator pending the native browser.
 public struct PutioFileRow: View {
   private let model: PutioFileRowModel
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
   @PutioScaledMetric private var iconSize: CGFloat
   @PutioScaledMetric private var indicatorSize: CGFloat
@@ -86,16 +87,22 @@ public struct PutioFileRow: View {
         Text(model.name)
           .putioFont(PutioFileRowLayout.nameFont)
           .foregroundStyle(PutioTheme.Colors.textPrimary)
-          .lineLimit(1)
+          .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
           .truncationMode(.middle)
+          .fixedSize(horizontal: false, vertical: true)
         if let sizeText = model.sizeText {
           Text(sizeText)
             .putioFont(PutioFileRowLayout.detailFont)
             .foregroundStyle(PutioTheme.Colors.textSecondary)
-            .lineLimit(1)
+            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+            .fixedSize(horizontal: false, vertical: true)
         }
       }
-      Spacer(minLength: contentGap)
+      .frame(
+        maxWidth: dynamicTypeSize.isAccessibilitySize ? .infinity : nil, alignment: .leading)
+      if !dynamicTypeSize.isAccessibilitySize {
+        Spacer(minLength: contentGap)
+      }
       if model.isWatched {
         Image(putioIcon: .eye)
           .resizable()

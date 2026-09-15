@@ -31,6 +31,11 @@ struct PutioApp: App {
       }
       #if DEBUG
         .modifier(
+          HarnessAccessibilityConfiguration(
+            enabled: scenario == .filesBrowser
+              && ProcessInfo.processInfo.arguments.contains("--putio-harness-accessibility"))
+        )
+        .modifier(
           HarnessRatingLinkCapture(
             enabled: scenario == .filesBrowser
               && ProcessInfo.processInfo.arguments.contains("--putio-harness-rating-link")))
@@ -40,6 +45,50 @@ struct PutioApp: App {
     }
   }
 }
+
+#if DEBUG
+  private struct HarnessAccessibilityConfiguration: ViewModifier {
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+      if enabled {
+        content
+          .overlay { HarnessAccessibilityProbe() }
+          .background { HarnessAccessibilityTraits().frame(width: 0, height: 0) }
+      } else {
+        content
+      }
+    }
+  }
+
+  private struct HarnessAccessibilityTraits: UIViewRepresentable {
+    func makeUIView(context: Context) -> TraitView { TraitView() }
+    func updateUIView(_ view: TraitView, context: Context) {}
+
+    final class TraitView: UIView {
+      override func didMoveToWindow() {
+        super.didMoveToWindow()
+        window?.windowScene?.traitOverrides.preferredContentSizeCategory =
+          .accessibilityExtraExtraExtraLarge
+      }
+    }
+  }
+
+  private struct HarnessAccessibilityProbe: View {
+    @Environment(\.dynamicTypeSize) private var textSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement()
+        .accessibilityLabel("Accessibility settings")
+        .accessibilityValue("text=\(textSize);reduce-motion=\(reduceMotion)")
+        .accessibilityIdentifier("harness.accessibility")
+        .allowsHitTesting(false)
+    }
+  }
+#endif
 
 /// iOS relaunches the app for background download events and expects the
 /// completion handler back once the session has delivered them.

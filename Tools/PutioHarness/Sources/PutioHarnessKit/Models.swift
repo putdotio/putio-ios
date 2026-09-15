@@ -307,6 +307,19 @@ enum DeviceSignInJourneyContract {
 }
 
 enum BrowserJourneyContract {
+  static let accessibilityFilesTestIdentifier =
+    "PutioUITests/AccessibilityJourneyTests/testLongNamesSelectionAndDownloadPickerAtLargestTextSize"
+  static let accessibilityAudioTestIdentifier =
+    "PutioUITests/AccessibilityJourneyTests/testAudioSliderAndControlsAtLargestTextSizeInBothOrientations"
+  static let accessibilityFilesAttachmentNames = [
+    "runtime-accessibility-files", "runtime-accessibility-selection",
+    "runtime-accessibility-downloads", "runtime-accessibility-download-picker",
+  ]
+  static let accessibilityAudioAttachmentNames = [
+    "runtime-accessibility-audio-portrait", "runtime-accessibility-audio-landscape",
+    "runtime-accessibility-audio-portrait-controls",
+    "runtime-accessibility-audio-landscape-controls",
+  ]
   static let testIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
   static let downloadsTestIdentifier =

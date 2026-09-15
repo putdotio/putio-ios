@@ -778,6 +778,7 @@ final class PutioSystemAudioSession: PutioAudioSessioning {
 // MARK: - View
 
 struct PutioAudioPlayerView: View {
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @State private var model: PutioAudioPlayerModel
   @State private var scrubbing = false
   @State private var scrubSeconds: Double = 0
@@ -814,24 +815,28 @@ struct PutioAudioPlayerView: View {
 
   var body: some View {
     NavigationStack {
-      VStack(spacing: PutioTheme.Spacing.space6) {
-        Spacer(minLength: 0)
-        Image(putioIcon: .fileAudio)
-          .resizable()
-          .scaledToFit()
-          .frame(width: 96, height: 96)
-          .accessibilityHidden(true)
-        Text(model.track.title)
-          .putioFont(PutioTheme.Typography.heading)
-          .foregroundStyle(PutioTheme.Colors.textPrimary)
-          .multilineTextAlignment(.center)
-          .lineLimit(2)
-          .accessibilityIdentifier("audio.title")
-        content
-        Spacer(minLength: 0)
+      GeometryReader { geometry in
+        ScrollView {
+          VStack(spacing: PutioTheme.Spacing.space6) {
+            Image(putioIcon: .fileAudio)
+              .resizable()
+              .scaledToFit()
+              .frame(width: 96, height: 96)
+              .accessibilityHidden(true)
+            Text(model.track.title)
+              .putioFont(PutioTheme.Typography.heading)
+              .foregroundStyle(PutioTheme.Colors.textPrimary)
+              .multilineTextAlignment(.center)
+              .lineLimit(2)
+              .fixedSize(horizontal: false, vertical: true)
+              .accessibilityIdentifier("audio.title")
+            content
+          }
+          .padding(PutioTheme.Spacing.space5)
+          .frame(maxWidth: .infinity)
+          .frame(minHeight: geometry.size.height)
+        }
       }
-      .padding(PutioTheme.Spacing.space5)
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
       .putioContentBackground()
       .navigationTitle("Now Playing")
       .navigationBarTitleDisplayMode(.inline)
@@ -903,7 +908,7 @@ struct PutioAudioPlayerView: View {
       .putioFont(PutioTheme.Typography.caption)
       .foregroundStyle(PutioTheme.Colors.textSecondary)
       .monospacedDigit()
-      HStack(spacing: PutioTheme.Spacing.space5) {
+      transportLayout {
         Menu {
           ForEach(PutioAudioSpeed.allCases, id: \.self) { speed in
             Button {
@@ -964,6 +969,12 @@ struct PutioAudioPlayerView: View {
       }
     }
     .frame(maxWidth: 480)
+  }
+
+  private var transportLayout: AnyLayout {
+    dynamicTypeSize.isAccessibilitySize
+      ? AnyLayout(VStackLayout(spacing: PutioTheme.Spacing.space4))
+      : AnyLayout(HStackLayout(spacing: PutioTheme.Spacing.space5))
   }
 
   private var isTransportDisabled: Bool {

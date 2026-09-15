@@ -733,6 +733,21 @@ public struct SimulatorHarness {
         }
         let mediaBaseURL = try mediaServer.start()
 
+        let accessibilityFilesScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.accessibilityFilesTestIdentifier,
+          platform: platform, session: session, mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".accessibility-files.xcresult"),
+          attachmentNames: BrowserJourneyContract.accessibilityFilesAttachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 180, maximumExecutionTimeAllowance: 180)
+        let accessibilityAudioScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.accessibilityAudioTestIdentifier,
+          platform: platform, session: session, mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".accessibility-audio.xcresult"),
+          attachmentNames: BrowserJourneyContract.accessibilityAudioAttachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 180, maximumExecutionTimeAllowance: 180)
+
         let accountRatingScreenshots = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.accountRatingTestIdentifier,
           platform: platform,
@@ -920,6 +935,7 @@ public struct SimulatorHarness {
           + filePreferencesScreenshots + playbackPreferencesScreenshots + deepLinkScreenshots
           + accountRatingScreenshots + audioScreenshots + previewScreenshots
           + downloadScreenshots + castScreenshots + accountSecurityScreenshots
+          + accessibilityFilesScreenshots + accessibilityAudioScreenshots
         for screenshot in preflightScreenshots {
           _ = try requireMeaningfulScreenshot(screenshot, context: "journey preflight attachment")
         }

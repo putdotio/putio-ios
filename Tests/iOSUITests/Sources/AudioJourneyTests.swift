@@ -18,6 +18,7 @@ final class AudioJourneyTests: XCTestCase {
     let state = app.descendants(matching: .any)["audio.state"]
     XCTAssertTrue(state.waitForExistence(timeout: 10))
     XCTAssertTrue(waitForValue(state, "id=408;state=playing"))
+    assertPlaybackAdvances(in: app)
     XCTAssertEqual(app.descendants(matching: .any)["audio.title"].label, "Harness Track.m4a")
 
     let playPause = app.buttons["audio.play-pause"]
@@ -51,10 +52,13 @@ final class AudioJourneyTests: XCTestCase {
 
     app.buttons["audio.done"].tap()
     XCTAssertTrue(track.waitForExistence(timeout: 5))
-    track.tap()
-    XCTAssertTrue(waitForValue(state, "id=408;state=playing", timeout: 10))
-    XCTAssertEqual(speed.value as? String, "1.5×")
-    app.buttons["audio.done"].tap()
+    for _ in 0..<3 {
+      track.tap()
+      XCTAssertTrue(waitForValue(state, "id=408;state=playing", timeout: 10))
+      assertPlaybackAdvances(in: app)
+      XCTAssertEqual(speed.value as? String, "1.5×")
+      app.buttons["audio.done"].tap()
+    }
 
     let account = app.buttons["Account"]
     XCTAssertTrue(account.waitForExistence(timeout: 5))
@@ -75,5 +79,15 @@ final class AudioJourneyTests: XCTestCase {
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value == %@", value), object: element)
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+  }
+
+  private func assertPlaybackAdvances(in app: XCUIApplication) {
+    let elapsed = app.staticTexts["audio.elapsed"]
+    XCTAssertTrue(elapsed.waitForExistence(timeout: 10))
+    let initial = elapsed.label
+    let advances = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label != %@", initial), object: elapsed)
+    XCTAssertEqual(XCTWaiter.wait(for: [advances], timeout: 10), .completed)
+    XCTAssertFalse(app.descendants(matching: .any)["audio.error"].exists)
   }
 }
