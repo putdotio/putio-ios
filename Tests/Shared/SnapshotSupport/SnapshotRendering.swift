@@ -84,21 +84,7 @@ enum SnapshotRenderer {
         in: CGSize(width: width, height: .greatestFiniteMagnitude))
       height = max(target.height, 1).rounded(.up)
     }
-    let size = CGSize(width: width, height: height)
-    let window = UIWindow(frame: CGRect(origin: .zero, size: size))
-    window.rootViewController = controller
-    window.isHidden = false
-    view.frame = window.bounds
-    window.layoutIfNeeded()
-
-    let format = UIGraphicsImageRendererFormat()
-    format.scale = SnapshotEnvironment.scale
-    format.opaque = false
-    let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
-      view.layer.render(in: context.cgContext)
-    }
-    window.isHidden = true
-    return image
+    return try capture(controller, size: CGSize(width: width, height: height))
   }
 
   static func render<Content: View>(
@@ -114,22 +100,52 @@ enum SnapshotRenderer {
         .dynamicTypeSize(dynamicTypeSize)
     )
     controller.overrideUserInterfaceStyle = .dark
+    return try capture(controller, size: size)
+  }
+
+  private static func capture(_ controller: UIViewController, size: CGSize) throws -> UIImage {
     let view = try XCTUnwrap(controller.view)
     view.backgroundColor = .clear
-    let window = UIWindow(frame: CGRect(origin: .zero, size: size))
+    let window = try makeWindow(size: size)
     window.rootViewController = controller
     window.isHidden = false
     view.frame = window.bounds
     window.layoutIfNeeded()
+    defer { window.isHidden = true }
 
     let format = UIGraphicsImageRendererFormat()
     format.scale = SnapshotEnvironment.scale
     format.opaque = false
-    let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
-      view.layer.render(in: context.cgContext)
-    }
-    window.isHidden = true
-    return image
+    let renderer = UIGraphicsImageRenderer(size: size, format: format)
+    #if os(tvOS)
+      // tvOS 27 builds bordered controls from Liquid Glass (SDF and backdrop
+      // layers) that `CALayer.render(in:)` leaves as undefined solid fills;
+      // only the render server rasterizes them, through the host scene.
+      var drawn = false
+      let image = renderer.image { _ in
+        drawn = view.drawHierarchy(in: CGRect(origin: .zero, size: size), afterScreenUpdates: true)
+      }
+      guard drawn else { throw SnapshotFailure("the render server did not draw the snapshot") }
+      return image
+    #else
+      return renderer.image { context in view.layer.render(in: context.cgContext) }
+    #endif
+  }
+
+  private static func makeWindow(size: CGSize) throws -> UIWindow {
+    #if os(tvOS)
+      guard
+        let scene = UIApplication.shared.connectedScenes
+          .compactMap({ $0 as? UIWindowScene }).first
+      else {
+        throw SnapshotFailure("tvOS snapshots need an app-hosted test bundle with a window scene")
+      }
+      let window = UIWindow(windowScene: scene)
+      window.frame = CGRect(origin: .zero, size: size)
+      return window
+    #else
+      return UIWindow(frame: CGRect(origin: .zero, size: size))
+    #endif
   }
 }
 

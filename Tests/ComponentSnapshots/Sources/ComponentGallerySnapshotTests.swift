@@ -40,6 +40,12 @@ final class ComponentGallerySnapshotTests: XCTestCase {
       if #available(iOS 27.0, *), page == .states {
         baselineName += "-ios27"
       }
+    #elseif os(tvOS)
+      // tvOS 27 changed native control heights and the tinted row fill;
+      // only the Transfers page renders the same on both runtimes.
+      if #available(tvOS 27.0, *), page != .transfers {
+        baselineName += "-tvos27"
+      }
     #endif
     let baselineURL = SnapshotEnvironment.baselineDirectory
       .appending(path: "\(baselineName).png")

@@ -80,10 +80,15 @@ These commands run the platform's `snapshotSuites` from
 Both run in [repository verification](../scripts/verify.sh).
 
 [SnapshotRendering.swift](../Tests/Shared/SnapshotSupport/SnapshotRendering.swift)
-owns baseline paths, comparison tolerance, and failure images. Missing brand
+owns baseline paths, comparison tolerance, and failure images. iOS rasterizes
+the hosted view's layer off-screen. tvOS 27 draws bordered controls as Liquid
+Glass, which off-screen layer rendering leaves as undefined solid fills, so both
+tvOS suites are app-hosted and capture through the render server. Missing brand
 fonts allow rendering with system fallbacks, then skip brand-baseline comparison.
 The states gallery has a separate iOS 27 baseline for the native
-`ContentUnavailableView` layout; other pages share their existing baselines.
+`ContentUnavailableView` layout, and every tvOS gallery page but Transfers has
+a tvOS 27 baseline for its native control metrics; other pages share their
+existing baselines.
 Recording requires `mise run fonts-setup`. After an intentional visual change:
 
 ```bash
