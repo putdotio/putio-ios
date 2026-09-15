@@ -34,8 +34,15 @@ final class ComponentGallerySnapshotTests: XCTestCase {
     line: UInt = #line
   ) throws {
     let fileManager = FileManager.default
+    var baselineName = "gallery-\(page.rawValue)"
+    #if os(iOS)
+      // iOS 27 changed ContentUnavailableView's native layout.
+      if #available(iOS 27.0, *), page == .states {
+        baselineName += "-ios27"
+      }
+    #endif
     let baselineURL = SnapshotEnvironment.baselineDirectory
-      .appending(path: "gallery-\(page.rawValue).png")
+      .appending(path: "\(baselineName).png")
     let rendered = try SnapshotRenderer.render(page: page)
     let renderedData = try XCTUnwrap(rendered.pngData(), "could not encode rendered snapshot")
 

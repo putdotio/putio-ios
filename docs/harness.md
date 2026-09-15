@@ -82,6 +82,8 @@ Both run in [repository verification](../scripts/verify.sh).
 [SnapshotRendering.swift](../Tests/Shared/SnapshotSupport/SnapshotRendering.swift)
 owns baseline paths, comparison tolerance, and failure images. Missing brand
 fonts allow rendering with system fallbacks, then skip brand-baseline comparison.
+The states gallery has a separate iOS 27 baseline for the native
+`ContentUnavailableView` layout; other pages share their existing baselines.
 Recording requires `mise run fonts-setup`. After an intentional visual change:
 
 ```bash
