@@ -34,7 +34,8 @@ harness proof. Report skipped or unavailable checks explicitly.
 
 Use the [typed headless harness](docs/harness.md); never open Simulator.app from
 automation. Its devices are ephemeral and deleted after each command. Keep
-capture local; publish only after reviewing the artifact and receiving authorization.
+capture local; publish only after reviewing the artifact and receiving authorization,
+with `gh pr comment <n> --attach ./file.png` rather than a commit.
 
 | Change | Required focused proof |
 | --- | --- |
