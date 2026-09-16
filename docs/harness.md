@@ -57,13 +57,13 @@ mise run harness -- screenshot --platform ios --scenario gallery
 ```
 
 `proof` checks a rendered launch, an exercised state transition, the app's
-semantic exercise signal, and process liveness. It records the transition and
+semantic exercise signal, and process liveness, then records the transition and
 captures the exercised screen. **The default tvOS launch reaches put.io to request
 an activation code**, including through `proof --platform all`; use the tvOS
 journey for deterministic, offline sign-in coverage.
 
 The [argument parser](../Tools/PutioHarness/Sources/PutioHarnessKit/ArgumentParser.swift)
-owns command options and supported platform/scenario combinations. `help` prints
+owns command options and supported platform/scenario combinations; `help` prints
 its usage. Simulator evidence does not establish physical-device behavior,
 production signing, background execution, or hardware remote/Watch behavior.
 
@@ -75,8 +75,8 @@ mise run harness -- test --platform tvos
 ```
 
 These commands run the platform's `snapshotSuites` from
-[HarnessPlatform.configuration](../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift).
-Both run in [repository verification](../scripts/verify.sh).
+[HarnessPlatform.configuration](../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift)
+and are part of [repository verification](../scripts/verify.sh).
 
 [SnapshotRendering.swift](../Tests/Shared/SnapshotSupport/SnapshotRendering.swift)
 owns baseline paths, comparison tolerance, and failure images. iOS rasterizes
@@ -101,9 +101,9 @@ Glass; review glass itself with a gallery capture.
 ## Source and artifact ownership
 
 `screenshot`, `record`, `proof`, and `journey` require a clean Git worktree,
-including untracked files. They pin `HEAD`, regenerate the workspace, and check
+including untracked files: they pin `HEAD`, regenerate the workspace, and check
 the revision again before writing a success manifest. Commit the candidate
-before capturing proof; ordinary builds and snapshot tests can run while editing.
+before capturing proof; `build` and `test` can run while editing.
 
 Artifacts stay under ignored `build/proof/<run-id>/<platform>/`. The manifest
 records source and simulator provenance plus artifact sizes and SHA-256 digests.
@@ -131,7 +131,7 @@ and checked for absence when the command finishes or fails.
 Cleanup is registered before creation and uses the exact owned device ID. If
 interrupted before `simctl create` returns, it retries lookup by the unique name
 to catch a device whose creation finishes after the client exits. The
-[interruption check](../scripts/test-harness-interruption.sh) checks cleanup while
+[interruption check](../scripts/test-harness-interruption.sh) covers this while
 preserving preexisting devices. If cleanup fails, inspect the reported IDs and
 remove only the run's devices with `xcrun simctl delete <udid>` before retrying.
 

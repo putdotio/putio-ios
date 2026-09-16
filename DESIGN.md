@@ -76,8 +76,9 @@ post-v1 scope when reconciling older design cards.
 
 ## Verification
 
-Run `mise run verify`. Intentional component changes require inspected,
-re-recorded iOS/tvOS baselines through the [harness](docs/harness.md).
+Component and theming changes follow the
+[proof table](AGENTS.md#verification-and-completion): intentional visual changes
+need inspected, re-recorded baselines through the [harness](docs/harness.md#snapshot-comparison).
 Inspect native materials, focus, and Dynamic Type in the affected simulator;
 off-screen snapshots cannot prove Liquid Glass. Use the Files journey when
 changing disclosure, Trash, or playback interactions.

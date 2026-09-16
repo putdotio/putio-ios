@@ -6,18 +6,17 @@ in `Apps`; shared models, session, API, and feature logic belong in
 
 ## Work in this repository
 
-Use lowercase kebab-case under `docs/` and for supporting documentation. Preserve
-uppercase root guides: `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `DESIGN.md`,
-and `LICENSE`.
-Keep tool-defined agent entrypoints (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`) and
-upstream skill files intact.
+Supporting docs use lowercase kebab-case under `docs/`; the uppercase root guides,
+`LICENSE`, tool-defined agent entrypoints (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`),
+and upstream skill files keep their names and content.
 
-- Follow [Contributing](CONTRIBUTING.md) for setup. Run `mise run bootstrap` in a
-  fresh checkout or worktree; [mise.toml](mise.toml) owns the task commands.
+- Run `mise run bootstrap` in a fresh checkout or worktree; [mise.toml](mise.toml)
+  owns the task commands and [Contributing](CONTRIBUTING.md#development) the
+  generation workflow.
 - Edit targets and settings in `Project.swift`, `Tuist.swift`, and
-  `Tuist/Package.swift`. Generated Xcode projects and workspaces are never committed.
-- Use Swift Package Manager for dependencies. Tuist is local project generation
-  tooling; hosted cache, analytics, previews, and account-backed features are out of scope.
+  `Tuist/Package.swift`; generated Xcode projects and workspaces are never
+  committed. Tuist is local generation only; hosted cache, analytics, previews,
+  and account-backed features are out of scope.
 - Follow [Design Principles](DESIGN.md) for UI. Change tokens through
   [the contributor workflow](CONTRIBUTING.md#design-tokens), then regenerate;
   never hand-edit generated Swift or asset catalogs.
@@ -33,9 +32,9 @@ requires that gate plus the affected shell running in its simulator or passing
 harness proof. Report skipped or unavailable checks explicitly.
 
 Use the [typed headless harness](docs/harness.md); never open Simulator.app from
-automation. Its devices are ephemeral and deleted after each command. Keep
-capture local; publish only after reviewing the artifact and receiving authorization,
-with `gh pr comment <n> --attach ./file.png` rather than a commit.
+automation. Keep capture local; publish only after reviewing the artifact and
+receiving authorization, with `gh pr comment <n> --attach ./file.png` rather
+than a commit.
 
 | Change | Required focused proof |
 | --- | --- |
@@ -48,8 +47,8 @@ with `gh pr comment <n> --attach ./file.png` rather than a commit.
 | Recorded platform proof | `mise run harness -- proof --platform <ios\|watchos\|tvos\|all>` |
 
 Deterministic checks are secret-free. Live smoke uses only the `devs-auto`
-put.io CLI profile described in the harness contract. Proof artifacts and
-manifests live under ignored `build/proof/`.
+put.io CLI profile from the [live-profile contract](docs/harness.md#live-profile-and-publishing).
+Proof artifacts and manifests live under ignored `build/proof/`.
 
 Finish authorized edits, checks, and fixes without pausing. Ask before publishing,
 TestFlight or store actions, signing changes, or work outside the task. Follow
@@ -59,8 +58,8 @@ TestFlight or store actions, signing changes, or work outside the task. Follow
 ## Skills
 
 Codex reads `.agents/skills`; Claude Code reads installer-managed links under
-`.claude/skills`. `CLAUDE.md` links to this guide. When installing or restoring
-skills with the skills CLI, select both `--agent codex claude-code`.
+`.claude/skills`. When installing or restoring skills with the skills CLI, select
+both `--agent codex claude-code`.
 
 - SwiftUI state, composition, navigation, and accessibility: [SwiftUI](.agents/skills/swiftui-expert-skill/SKILL.md)
 - Tasks, cancellation, actors, and Sendable: [Swift Concurrency](.agents/skills/swift-concurrency/SKILL.md)

@@ -8,12 +8,12 @@ Account. Non-folder files use the [normal file dispatcher](../Apps/iOS/Sources/P
 
 ## URL delivery
 
-Custom-scheme URLs retain the legacy path convention: `putio:///files/410`
-and `putio://put.io/files/410` use `/files/410` as the path.
+Custom-scheme URLs keep the legacy path convention: `putio:///files/410`
+and `putio://put.io/files/410` both route through `/files/410`, while
 `putio://files/410` is ignored because its host is not a route. The parser also
 accepts HTTPS URLs on `put.io` and its subdomains when delivered to the app;
 this does not register universal-link delivery. Only Putio registers the
-canonical scheme in [Project.swift](../Project.swift), so Nightly does not
+`putio` scheme in [Project.swift](../Project.swift), so Nightly does not
 compete for it when both flavors are installed.
 
 Foreign schemes and hosts are ignored. Credentials, explicit ports, query

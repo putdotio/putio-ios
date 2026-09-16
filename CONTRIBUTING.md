@@ -13,9 +13,9 @@ mise run bootstrap
 mise run open
 ```
 
-[mise.toml](mise.toml) pins the tooling. Bootstrap installs dependencies,
-generates the workspace, and checks the host. It needs no Tuist account,
-application secret, or signing material.
+[mise.toml](mise.toml) pins the tooling and defines the tasks. Bootstrap installs
+dependencies, generates the workspace, and checks the host. It needs no Tuist
+account, application secret, or signing material.
 
 For a machine-readable prerequisite report:
 
@@ -37,8 +37,8 @@ for Tuist's local GoogleCastSDK resolution failure. Use that command for normal
 development; a standalone dependency install needs
 `TUIST_USE_SWIFTERPM=0 tuist install`.
 
-See [mise.toml](mise.toml) for the task definitions and
-[AGENTS.md](AGENTS.md#skills) for repository-local Codex and Claude Code skills.
+[AGENTS.md](AGENTS.md#skills) lists the repository-local Codex and Claude Code
+skills.
 
 ### Design tokens
 
@@ -85,11 +85,11 @@ The [verification script](scripts/verify.sh) owns the full gate, including
 suites. Keep generation and verification secret-free.
 
 For runtime changes, exercise the affected shell through the
-[headless harness](docs/harness.md). Use the Files journey for iOS browser
-changes and the device-sign-in journey for tvOS authentication. Proof and journey
-commands require a clean committed worktree; commit locally before capture.
-Publishing artifacts is a separate action; the pull request template names the
-upload route, and media never goes in the branch.
+[headless harness](docs/harness.md); the
+[proof table](AGENTS.md#verification-and-completion) maps change types to the
+required journey or snapshot command. Proof and journey commands require a clean
+committed worktree. Publishing artifacts is a separate action; the pull request
+template names the upload route, and media never goes in the branch.
 
 For specific changes, consult [session recovery](docs/session.md),
 [deep-link behavior](docs/deep-links.md), or [distribution](docs/distribution.md).
