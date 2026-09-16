@@ -88,7 +88,8 @@ For runtime changes, exercise the affected shell through the
 [headless harness](docs/harness.md). Use the Files journey for iOS browser
 changes and the device-sign-in journey for tvOS authentication. Proof and journey
 commands require a clean committed worktree; commit locally before capture.
-Publishing artifacts is a separate action.
+Publishing artifacts is a separate action; the pull request template names the
+upload route, and media never goes in the branch.
 
 For specific changes, consult [session recovery](docs/session.md),
 [deep-link behavior](docs/deep-links.md), or [distribution](docs/distribution.md).
