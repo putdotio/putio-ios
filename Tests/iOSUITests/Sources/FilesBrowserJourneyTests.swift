@@ -1159,12 +1159,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     }
   }
 
-  /// iOS 26 mirrors the sort in the menu's accessibility value; iOS 27 drops
-  /// that value, so the selected row's label is the proof there.
+  /// The menu announces the sort in its label on every runtime.
   private func assertSortValue(_ value: String, on menu: XCUIElement) {
-    if #available(iOS 27.0, *) { return }
     let expectation = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "value == %@", value),
+      predicate: NSPredicate(format: "label == %@", "More, sorted by " + value),
       object: menu
     )
     XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 5), .completed)

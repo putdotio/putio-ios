@@ -853,7 +853,7 @@ struct PutioFolderScreen: View {
       Label("More", systemImage: "ellipsis.circle")
     }
     .accessibilityIdentifier("files.menu")
-    .accessibilityValue(sortAccessibilityValue)
+    .accessibilityLabel(PutioFolderSortRows.menuLabel(for: model.sort))
   }
 
   private var sortSection: some View {
@@ -863,10 +863,6 @@ struct PutioFolderScreen: View {
     ) { sort in
       actionRequest = .sort(sort)
     }
-  }
-
-  private var sortAccessibilityValue: String {
-    model.sort?.title ?? "Account default"
   }
 
   @ViewBuilder
@@ -1425,7 +1421,7 @@ private struct PutioMoveDestinationScreen: View {
             Label("More", systemImage: "ellipsis.circle")
           }
           .accessibilityIdentifier("files.move-menu")
-          .accessibilityValue(model.sort?.title ?? "Account default")
+          .accessibilityLabel(PutioFolderSortRows.menuLabel(for: model.sort))
         }
       }
       ToolbarItem(placement: .confirmationAction) {
@@ -1576,6 +1572,13 @@ struct PutioFolderSortRows: View {
   let current: PutioFolderSort?
   let isDisabled: Bool
   let onSelect: @MainActor (PutioFolderSort) -> Void
+
+  /// VoiceOver label for the menu holding these rows. The sort rides in the
+  /// label because iOS 27 drops a `Menu`'s accessibility value.
+  static func menuLabel(for current: PutioFolderSort?) -> String {
+    guard let current else { return "More, using the account default sort" }
+    return "More, sorted by \(current.title)"
+  }
 
   var body: some View {
     if current == nil {
