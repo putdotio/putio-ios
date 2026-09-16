@@ -172,14 +172,6 @@ import Testing
   }
 }
 
-@Test func publishRequiresPositivePullRequest() {
-  #expect(throws: HarnessFailure.self) {
-    try HarnessArgumentParser.parse([
-      "publish", "--artifact", "proof.png", "--repo", "putdotio/putio-ios", "--pr", "0",
-    ])
-  }
-}
-
 @Test func errorFormatUsesOnlyOutputOptionValue() {
   #expect(
     HarnessOutput.requestedErrorFormat(arguments: [
@@ -188,7 +180,7 @@ import Testing
   )
   #expect(
     HarnessOutput.requestedErrorFormat(arguments: [
-      "publish", "--artifact", "json", "--repo", "putdotio/putio-ios", "--pr", "156",
+      "live-fixture", "--name", "json",
     ]) == .text
   )
   #expect(

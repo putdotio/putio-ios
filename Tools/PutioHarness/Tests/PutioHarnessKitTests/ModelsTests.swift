@@ -229,7 +229,7 @@ import Testing
 
 @Test func doctorFailsOnlyForRequiredFailures() {
   let warningOnly = DoctorReport(checks: [
-    DoctorCheck(name: "attach", status: .warning, required: false, detail: "missing")
+    DoctorCheck(name: "putio", status: .warning, required: false, detail: "missing")
   ])
   let requiredFailure = DoctorReport(checks: [
     DoctorCheck(name: "xcode", status: .failed, required: true, detail: "missing")

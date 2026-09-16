@@ -11,9 +11,8 @@ mise run harness -- help
 
 [Doctor](../Tools/PutioHarness/Sources/PutioHarnessKit/Doctor.swift) checks the
 selected Xcode, pinned Tuist version, matching simulator runtimes and device types,
-and the generated workspace. Its required failures exit nonzero; optional live and
-publishing tools
-produce warnings. The [doctor wrapper](../scripts/doctor.sh) reports toolchain
+and the generated workspace. Its required failures exit nonzero; the optional live
+putio CLI produces a warning. The [doctor wrapper](../scripts/doctor.sh) reports toolchain
 failures even when Swift cannot compile the harness.
 
 Local app builds use Debug and compile only the host's simulator architecture.
@@ -154,13 +153,10 @@ request with `--dry-run` before writing. Authenticate with
 `putio auth login --profile devs-auto` if the profile check fails.
 
 Capture never uploads implicitly. Review the artifact and obtain publishing
-authorization before using `attach` through the harness:
+authorization, then upload it to the pull request:
 
 ```bash
-mise run harness -- publish \
-  --artifact build/proof/<run-id>/ios/exercised.png \
-  --repo putdotio/putio-ios \
-  --pr <number>
+gh pr comment <number> --attach build/proof/<run-id>/ios/exercised.png
 ```
 
 Structured failures pass through [HarnessOutput.redact](../Tools/PutioHarness/Sources/PutioHarnessKit/HarnessService.swift).

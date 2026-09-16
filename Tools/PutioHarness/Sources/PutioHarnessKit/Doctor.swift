@@ -39,8 +39,6 @@ public struct HarnessDoctor: Sendable {
     checks.append(
       toolCheck(
         "putio", required: false, recovery: "install the global putio CLI for live-profile checks"))
-    checks.append(
-      toolCheck("attach", required: false, recovery: "install attach for proof publishing"))
     return DoctorReport(checks: checks)
   }
 

@@ -10,7 +10,6 @@ public enum HarnessArgumentParser {
       putio-harness journey --platform tvos --scenario device-sign-in [--run-id ID] [--output text|json]
       putio-harness auth-status [--output text|json]
       putio-harness live-fixture [--output text|json]
-      putio-harness publish --artifact PATH --repo OWNER/REPO --pr NUMBER [--output text|json]
 
     Simulator commands are headless. They never open Simulator.app.
     """
@@ -34,25 +33,6 @@ public enum HarnessArgumentParser {
     case "live-fixture":
       try options.rejectUnknown(allowing: ["output"])
       return .liveFixture(output: output)
-    case "publish":
-      try options.rejectUnknown(allowing: ["artifact", "repo", "pr", "output"])
-      let artifact = try options.required("artifact")
-      let repository = try options.required("repo")
-      guard
-        repository.range(of: #"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"#, options: .regularExpression)
-          != nil
-      else {
-        throw HarnessFailure("publish: --repo must be OWNER/REPO")
-      }
-      guard let pullRequest = Int(try options.required("pr")), pullRequest > 0 else {
-        throw HarnessFailure("publish: --pr must be a positive integer")
-      }
-      return .publish(
-        artifact: artifact,
-        repository: repository,
-        pullRequest: pullRequest,
-        output: output
-      )
     case "test":
       try options.rejectUnknown(allowing: ["platform", "snapshots", "output"])
       guard let platform = HarnessPlatform(rawValue: try options.required("platform")),

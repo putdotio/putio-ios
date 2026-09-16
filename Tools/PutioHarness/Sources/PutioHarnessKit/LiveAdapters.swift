@@ -35,14 +35,6 @@ private struct PutioCreatedFile: Decodable {
   let name: String?
 }
 
-private struct AttachResponse: Decodable {
-  let previewURL: String
-
-  enum CodingKeys: String, CodingKey {
-    case previewURL = "preview_url"
-  }
-}
-
 public struct LiveAdapters: Sendable {
   private let context: RepositoryContext
   private let runner: ProcessRunner
@@ -136,34 +128,6 @@ public struct LiveAdapters: Sendable {
       command: "live-fixture",
       message:
         "created root fixture folder \(created.file?.name ?? created.name ?? name) (id \(id)) with profile \(profile)"
-    )
-  }
-
-  public func publish(artifact: String, repository: String, pullRequest: Int) throws
-    -> HarnessResult
-  {
-    let artifactURL = URL(fileURLWithPath: artifact, relativeTo: context.root).standardizedFileURL
-    var isDirectory: ObjCBool = false
-    guard FileManager.default.fileExists(atPath: artifactURL.path, isDirectory: &isDirectory),
-      !isDirectory.boolValue
-    else {
-      throw HarnessFailure("publish artifact is missing or not a file: \(artifactURL.path)")
-    }
-    let output = try runner.checked(
-      "attach",
-      [
-        "put", artifactURL.path,
-        "--repo", repository,
-        "--pr", String(pullRequest),
-        "--json",
-      ],
-      context: "publish proof with attach"
-    )
-    let response = try JSONDecoder().decode(AttachResponse.self, from: Data(output.stdout.utf8))
-    return HarnessResult(
-      command: "publish",
-      artifacts: [response.previewURL],
-      message: "published \(artifactURL.lastPathComponent) to \(response.previewURL)"
     )
   }
 

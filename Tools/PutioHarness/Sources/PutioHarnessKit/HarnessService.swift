@@ -27,10 +27,6 @@ public struct HarnessService {
       return .result(try live.authStatus())
     case .liveFixture:
       return .result(try live.provisionFixture())
-    case .publish(let artifact, let repository, let pullRequest, _):
-      return .result(
-        try live.publish(artifact: artifact, repository: repository, pullRequest: pullRequest)
-      )
     case .surface(
       let command, let selection, let requestedRunID, let recordSeconds, let scenario, _):
       return .result(
@@ -146,7 +142,6 @@ public enum HarnessOutput {
     case .journey(_, _, _, let output): output
     case .authStatus(let output): output
     case .liveFixture(let output): output
-    case .publish(_, _, _, let output): output
     }
   }
 

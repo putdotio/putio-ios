@@ -178,7 +178,6 @@ public enum HarnessInvocation: Equatable, Sendable {
   )
   case authStatus(output: OutputFormat)
   case liveFixture(output: OutputFormat)
-  case publish(artifact: String, repository: String, pullRequest: Int, output: OutputFormat)
 }
 
 enum LiveFixtureContract {
