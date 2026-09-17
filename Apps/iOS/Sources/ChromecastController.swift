@@ -25,6 +25,7 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     guard !GCKCastContext.isSharedInstanceInitialized() else { return }
     let criteria = GCKDiscoveryCriteria(applicationID: receiverAppID)
     let options = GCKCastOptions(discoveryCriteria: criteria)
+    options.disableAnalyticsLogging = true
     options.startDiscoveryAfterFirstTapOnCastButton = true
     options.suspendSessionsWhenBackgrounded = false
     options.physicalVolumeButtonsWillControlDeviceVolume = true
