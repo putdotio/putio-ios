@@ -31,6 +31,7 @@ class ChromecastManager: NSObject {
     func setup() {
         let discoveryCriteria = GCKDiscoveryCriteria(applicationID: CHROMECAST_RECEIVER_APP_ID)
         let options = GCKCastOptions(discoveryCriteria: discoveryCriteria)
+        options.disableAnalyticsLogging = true
 
         GCKCastContext.setSharedInstanceWith(options)
         GCKCastContext.sharedInstance().useDefaultExpandedMediaControls = true
