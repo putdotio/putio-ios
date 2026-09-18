@@ -2,14 +2,14 @@
 
 // Visual reference gallery driver.
 //
-// build and validate use @putdotio/vref's library API; serve goes through its
-// CLI, since it is not exported. Both need vref 1.1.1 or newer — the 1.1.0 bin
-// exited 0 having done nothing under pnpm's symlinked layout (putdotio/vref#21).
+// build, validate and the webp encode use @putdotio/vref's library API; serve
+// goes through its CLI, since it is not exported. Needs vref 2.0.0 or newer for
+// encodeWebp.
 //
-// Copying baselines and refreshing the manifest is this driver's job either way.
+// Encoding baselines and refreshing the manifest is this driver's job either way.
 //
 // Commands:
-//   sync      copy committed baselines into .vref/screenshots/ and refresh the
+//   sync      encode committed baselines into .vref/screenshots/ and refresh the
 //             manifest's mechanical fields, preserving curated text
 //   build     sync, then write .vref/index.html
 //   validate  check the manifest and that every referenced asset exists
@@ -18,10 +18,10 @@
 // Run directly: Node strips the types, there is no build step.
 
 import { execFileSync } from "node:child_process";
-import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, sep } from "node:path";
 import process from "node:process";
-import { buildGallery, validateGallery } from "@putdotio/vref";
+import { buildGallery, encodeWebp, validateGallery } from "@putdotio/vref";
 
 import { resolveCapturedAt } from "./vref-manifest.ts";
 
@@ -149,10 +149,12 @@ async function readManifest(): Promise<Manifest> {
 }
 
 /**
- * Copy the committed baselines into `.vref/screenshots/` and refresh the
- * manifest's mechanical fields against them.
+ * Encode the committed baselines into `.vref/screenshots/` as webp and refresh
+ * the manifest's mechanical fields against them.
  *
- * The copies are gitignored and regenerated every run, so they cannot drift.
+ * Lossless, so the gallery shows the same pixels CI compares, at roughly a
+ * third of the bytes. The copies are gitignored and regenerated every run, so
+ * they cannot drift.
  * Everything derivable from a baseline is rewritten — file, group, platform,
  * device, viewport, sizeBytes — while curated text is preserved. A baseline with
  * no manifest entry is reported rather than added with a placeholder title.
@@ -174,11 +176,8 @@ async function sync(): Promise<void> {
     for (const name of names) {
       const id = `${source.subdir}-${name.slice(source.prefix.length, -".png".length)}`;
       const sourcePath = join(source.dir, name);
-      const relative = join("screenshots", source.subdir, `${id}.png`);
+      const relative = join("screenshots", source.subdir, `${id}.webp`);
       const destination = join(VREF_DIR, relative);
-
-      await mkdir(dirname(destination), { recursive: true });
-      await copyFile(sourcePath, destination);
 
       const entry = byId.get(id);
       if (!entry) {
@@ -188,8 +187,12 @@ async function sync(): Promise<void> {
         );
       }
 
-      const { size } = await stat(destination);
-      const { width, height } = pixelSize(destination);
+      // Encoding reports the dimensions, so the gallery no longer shells out to
+      // sips to read them back.
+      const { data, width, height } = await encodeWebp({ sourcePath });
+
+      await mkdir(dirname(destination), { recursive: true });
+      await writeFile(destination, data);
 
       // Manifest paths are POSIX by contract and join() uses the platform
       // separator, so this converts rather than assumes.
@@ -198,7 +201,7 @@ async function sync(): Promise<void> {
       entry.platform = "iOS";
       entry.device = source.device;
       entry.viewport = { width, height };
-      entry.sizeBytes = size;
+      entry.sizeBytes = data.length;
 
       // Validated rather than trusted: preserving a value means preserving a
       // bad one, and updatedAt is the newest capturedAt, so a single bad entry
@@ -226,7 +229,7 @@ async function sync(): Promise<void> {
 
   manifest.updatedAt = newestCaptureDate(manifest.screenshots);
   await writeFile(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`);
-  console.log(`synced ${seen.size} baselines into ${VREF_DIR}/screenshots/`);
+  console.log(`encoded ${seen.size} baselines into ${VREF_DIR}/screenshots/`);
 }
 
 function listBaselines(dir: string): string[] {
@@ -235,22 +238,6 @@ function listBaselines(dir: string): string[] {
     .filter((line) => line.endsWith(".png"))
     .map((line) => line.slice(dir.length + 1))
     .sort();
-}
-
-function pixelSize(path: string): { width: number; height: number } {
-  // sips ships with macOS and this script is macOS-only, so reading two
-  // integers needs no image dependency.
-  const output = execFileSync("sips", ["-g", "pixelWidth", "-g", "pixelHeight", path], {
-    encoding: "utf8",
-  });
-  const width = Number(/pixelWidth:\s*(\d+)/u.exec(output)?.[1]);
-  const height = Number(/pixelHeight:\s*(\d+)/u.exec(output)?.[1]);
-
-  if (!Number.isInteger(width) || !Number.isInteger(height)) {
-    throw new Error(`could not read pixel dimensions from ${path}`);
-  }
-
-  return { width, height };
 }
 
 /**

@@ -14,9 +14,9 @@
         "width": 1320,
         "height": 2868
       },
-      "file": "screenshots/screens/screens-files.png",
+      "file": "screenshots/screens/screens-files.webp",
       "capturedAt": "2026-07-29T09:29:31.000Z",
-      "sizeBytes": 257220,
+      "sizeBytes": 57186,
       "tags": [
         "files",
         "list"
@@ -35,9 +35,9 @@
         "width": 1320,
         "height": 2868
       },
-      "file": "screenshots/screens/screens-history.png",
+      "file": "screenshots/screens/screens-history.webp",
       "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 147975,
+      "sizeBytes": 35882,
       "tags": [
         "history",
         "list"
@@ -56,9 +56,9 @@
         "width": 1320,
         "height": 2868
       },
-      "file": "screenshots/screens/screens-history-error.png",
+      "file": "screenshots/screens/screens-history-error.webp",
       "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 119051,
+      "sizeBytes": 26872,
       "tags": [
         "history",
         "error"
@@ -77,9 +77,9 @@
         "width": 1320,
         "height": 2868
       },
-      "file": "screenshots/screens/screens-downloads.png",
+      "file": "screenshots/screens/screens-downloads.webp",
       "capturedAt": "2026-07-29T06:45:16.000Z",
-      "sizeBytes": 230717,
+      "sizeBytes": 50934,
       "tags": [
         "downloads"
       ],
@@ -98,9 +98,9 @@
         "width": 1320,
         "height": 2868
       },
-      "file": "screenshots/screens/screens-downloads-tutorial.png",
+      "file": "screenshots/screens/screens-downloads-tutorial.webp",
       "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 471313,
+      "sizeBytes": 180964,
       "tags": [
         "downloads",
         "onboarding"
@@ -119,9 +119,9 @@
         "width": 1320,
         "height": 2868
       },
-      "file": "screenshots/screens/screens-account.png",
+      "file": "screenshots/screens/screens-account.webp",
       "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 271621,
+      "sizeBytes": 103810,
       "tags": [
         "account",
         "settings"
@@ -140,9 +140,9 @@
         "width": 1320,
         "height": 2868
       },
-      "file": "screenshots/screens/screens-trash.png",
+      "file": "screenshots/screens/screens-trash.webp",
       "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 125757,
+      "sizeBytes": 31894,
       "tags": [
         "trash",
         "list"
@@ -161,9 +161,9 @@
         "width": 1320,
         "height": 2868
       },
-      "file": "screenshots/screens/screens-video-player.png",
+      "file": "screenshots/screens/screens-video-player.webp",
       "capturedAt": "2026-07-29T06:45:16.000Z",
-      "sizeBytes": 1712033,
+      "sizeBytes": 693044,
       "tags": [
         "player",
         "video"
@@ -183,9 +183,9 @@
         "width": 1320,
         "height": 2868
       },
-      "file": "screenshots/screens/screens-audio-player.png",
+      "file": "screenshots/screens/screens-audio-player.webp",
       "capturedAt": "2026-07-29T09:29:31.000Z",
-      "sizeBytes": 1191399,
+      "sizeBytes": 372148,
       "tags": [
         "player",
         "audio"
@@ -204,9 +204,9 @@
         "width": 1320,
         "height": 2868
       },
-      "file": "screenshots/screens/screens-move-files.png",
+      "file": "screenshots/screens/screens-move-files.webp",
       "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 188701,
+      "sizeBytes": 45344,
       "tags": [
         "files",
         "sheet"
@@ -225,9 +225,9 @@
         "width": 1320,
         "height": 2868
       },
-      "file": "screenshots/screens/screens-routes.png",
+      "file": "screenshots/screens/screens-routes.webp",
       "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 118913,
+      "sizeBytes": 27802,
       "tags": [
         "settings",
         "routes"
@@ -246,9 +246,9 @@
         "width": 1320,
         "height": 2868
       },
-      "file": "screenshots/screens/screens-sessions.png",
+      "file": "screenshots/screens/screens-sessions.webp",
       "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 119473,
+      "sizeBytes": 27642,
       "tags": [
         "settings",
         "sessions"
@@ -267,9 +267,9 @@
         "width": 1320,
         "height": 2868
       },
-      "file": "screenshots/screens/screens-login.png",
+      "file": "screenshots/screens/screens-login.webp",
       "capturedAt": "2026-07-29T09:29:31.000Z",
-      "sizeBytes": 80433,
+      "sizeBytes": 9268,
       "tags": [
         "auth"
       ],
@@ -287,9 +287,9 @@
         "width": 720,
         "height": 132
       },
-      "file": "screenshots/components/components-button-primary.png",
+      "file": "screenshots/components/components-button-primary.webp",
       "capturedAt": "2026-07-29T09:29:31.000Z",
-      "sizeBytes": 6486,
+      "sizeBytes": 1412,
       "tags": [
         "button"
       ],
@@ -307,9 +307,9 @@
         "width": 720,
         "height": 132
       },
-      "file": "screenshots/components/components-button-secondary.png",
+      "file": "screenshots/components/components-button-secondary.webp",
       "capturedAt": "2026-07-29T09:29:31.000Z",
-      "sizeBytes": 6309,
+      "sizeBytes": 1142,
       "tags": [
         "button"
       ],
@@ -327,9 +327,9 @@
         "width": 720,
         "height": 132
       },
-      "file": "screenshots/components/components-button-danger.png",
+      "file": "screenshots/components/components-button-danger.webp",
       "capturedAt": "2026-07-29T09:29:31.000Z",
-      "sizeBytes": 6434,
+      "sizeBytes": 1328,
       "tags": [
         "button"
       ],
@@ -347,8 +347,8 @@
         "width": 1125,
         "height": 720
       },
-      "file": "screenshots/components/components-download-cell-states.png",
-      "sizeBytes": 78399,
+      "file": "screenshots/components/components-download-cell-states.webp",
+      "sizeBytes": 18194,
       "tags": [
         "downloads",
         "states",
@@ -369,8 +369,8 @@
         "width": 1125,
         "height": 264
       },
-      "file": "screenshots/components/components-download-cell-active-accessibility-large.png",
-      "sizeBytes": 34559,
+      "file": "screenshots/components/components-download-cell-active-accessibility-large.webp",
+      "sizeBytes": 11524,
       "tags": [
         "downloads",
         "dynamic-type",
@@ -391,9 +391,9 @@
         "width": 132,
         "height": 132
       },
-      "file": "screenshots/components/components-download-state-idle.png",
+      "file": "screenshots/components/components-download-state-idle.webp",
       "capturedAt": "2026-07-22T09:29:06.000Z",
-      "sizeBytes": 1418,
+      "sizeBytes": 228,
       "tags": [
         "downloads",
         "control"
@@ -412,9 +412,9 @@
         "width": 132,
         "height": 132
       },
-      "file": "screenshots/components/components-download-state-progress.png",
+      "file": "screenshots/components/components-download-state-progress.webp",
       "capturedAt": "2026-07-22T09:29:06.000Z",
-      "sizeBytes": 3388,
+      "sizeBytes": 1066,
       "tags": [
         "downloads",
         "control"
@@ -433,9 +433,9 @@
         "width": 132,
         "height": 132
       },
-      "file": "screenshots/components/components-download-state-completed.png",
+      "file": "screenshots/components/components-download-state-completed.webp",
       "capturedAt": "2026-07-22T09:29:06.000Z",
-      "sizeBytes": 2110,
+      "sizeBytes": 514,
       "tags": [
         "downloads",
         "control"
@@ -454,9 +454,9 @@
         "width": 1125,
         "height": 960
       },
-      "file": "screenshots/components/components-empty-state.png",
+      "file": "screenshots/components/components-empty-state.webp",
       "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 54550,
+      "sizeBytes": 9570,
       "tags": [
         "empty-state"
       ],
@@ -474,9 +474,9 @@
         "width": 1125,
         "height": 960
       },
-      "file": "screenshots/components/components-downloads-empty-state.png",
+      "file": "screenshots/components/components-downloads-empty-state.webp",
       "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 45225,
+      "sizeBytes": 9172,
       "tags": [
         "empty-state",
         "downloads"
@@ -495,9 +495,9 @@
         "width": 1125,
         "height": 960
       },
-      "file": "screenshots/components/components-offline-status.png",
+      "file": "screenshots/components/components-offline-status.webp",
       "capturedAt": "2026-07-28T15:25:09.000Z",
-      "sizeBytes": 72816,
+      "sizeBytes": 14984,
       "tags": [
         "status"
       ],
@@ -515,9 +515,9 @@
         "width": 1125,
         "height": 192
       },
-      "file": "screenshots/components/components-history-cell-upload.png",
+      "file": "screenshots/components/components-history-cell-upload.webp",
       "capturedAt": "2026-07-29T09:29:31.000Z",
-      "sizeBytes": 18725,
+      "sizeBytes": 5290,
       "tags": [
         "history",
         "cell"
@@ -536,9 +536,9 @@
         "width": 1125,
         "height": 192
       },
-      "file": "screenshots/components/components-trash-cell.png",
+      "file": "screenshots/components/components-trash-cell.webp",
       "capturedAt": "2026-07-29T09:29:31.000Z",
-      "sizeBytes": 20420,
+      "sizeBytes": 5972,
       "tags": [
         "trash",
         "cell"
