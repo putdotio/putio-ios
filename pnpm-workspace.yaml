@@ -4,8 +4,9 @@ packages:
 # fine on the JS fallback, so skip the native compile.
 allowBuilds:
   msgpackr-extract: false
-# @putdotio/vref 1.2.0 is ours and was published the same day this landed, so it
-# trips the minimum-release-age gate. Drop this entry once the version has aged
-# past the threshold; it is a timing carve-out, not a standing exception.
+# First-party packages are trusted (we publish them), so exempt the whole scope
+# from the minimum-release-age policy that guards third-party publishes. A
+# version-pinned entry does not work: lockfile verification ignores it and fails
+# the install anyway, which is why this is scoped rather than enumerated.
 minimumReleaseAgeExclude:
-  - '@putdotio/vref@1.2.0'
+  - '@putdotio/*'
