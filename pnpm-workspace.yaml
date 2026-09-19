@@ -7,7 +7,7 @@ allowBuilds:
 # First-party packages are trusted (we publish them), so exempt the whole scope
 # from the minimum-release-age policy that guards third-party publishes. Scoped
 # rather than enumerated because every @putdotio release would otherwise need an
-# entry on the day it lands. Third-party packages stay enumerated by exact
-# version, which is the point of the policy.
+# entry on the day it lands. Nothing third-party is exempt here; if one ever
+# needs to be, it goes in by exact version rather than by scope.
 minimumReleaseAgeExclude:
   - '@putdotio/*'
