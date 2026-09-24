@@ -1398,14 +1398,14 @@ public struct SimulatorHarness {
     return try result.get()
   }
 
-  private func requireGeneratedWorkspace() throws {
+  func requireGeneratedWorkspace() throws {
     let workspace = context.root.appending(path: "Putio.xcworkspace")
     guard fileManager.fileExists(atPath: workspace.path) else {
       throw HarnessFailure("Putio.xcworkspace is missing; run mise run generate")
     }
   }
 
-  private func requireCleanSource() throws {
+  func requireCleanSource() throws {
     let output = try runner.checked(
       "git",
       ["status", "--porcelain=v1", "--untracked-files=all"],
@@ -1429,12 +1429,12 @@ public struct SimulatorHarness {
     ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
-  private func requireRevision(_ expected: String) throws {
+  func requireRevision(_ expected: String) throws {
     let actual = try currentRevision()
     try requireMatchingProofRevision(expected: expected, actual: actual)
   }
 
-  private func regenerateWorkspace() throws {
+  func regenerateWorkspace() throws {
     _ = try runner.checked(
       "./scripts/generate.sh",
       currentDirectory: context.root,
@@ -2066,6 +2066,10 @@ public struct SimulatorHarness {
       fixtureSet: fixtureSet,
       artifacts: artifacts
     )
+    return try writeManifest(manifest, directory: directory)
+  }
+
+  func writeManifest(_ manifest: ProofManifest, directory: URL) throws -> URL {
     let manifestURL = directory.appending(path: "manifest.json")
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -2073,7 +2077,7 @@ public struct SimulatorHarness {
     return manifestURL
   }
 
-  private func artifact(for url: URL) throws -> ProofArtifact {
+  func artifact(for url: URL) throws -> ProofArtifact {
     let attributes = try fileManager.attributesOfItem(atPath: url.path)
     let bytes = (attributes[.size] as? NSNumber)?.intValue ?? 0
     let digest =
@@ -2093,14 +2097,14 @@ public struct SimulatorHarness {
     return ProofArtifact(kind: kind, path: relative, bytes: bytes, sha256: digest)
   }
 
-  private func requireNonemptyFile(_ url: URL, context: String) throws {
+  func requireNonemptyFile(_ url: URL, context: String) throws {
     let attributes = try fileManager.attributesOfItem(atPath: url.path)
     guard let size = (attributes[.size] as? NSNumber)?.intValue, size > 0 else {
       throw HarnessFailure("\(context) is empty at \(url.path)")
     }
   }
 
-  private func requireNonemptyDirectory(_ url: URL, context: String) throws {
+  func requireNonemptyDirectory(_ url: URL, context: String) throws {
     var isDirectory: ObjCBool = false
     guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue
     else {
@@ -2108,7 +2112,7 @@ public struct SimulatorHarness {
     }
   }
 
-  private func decodedPixels(at url: URL) throws -> DecodedPixels {
+  func decodedPixels(at url: URL) throws -> DecodedPixels {
     let encoded = try Data(contentsOf: url)
     guard
       let source = CGImageSourceCreateWithData(encoded as CFData, nil),
@@ -2161,7 +2165,7 @@ public struct SimulatorHarness {
     )
   }
 
-  private func requireMeaningfulScreenshot(_ url: URL, context: String) throws -> DecodedPixels {
+  func requireMeaningfulScreenshot(_ url: URL, context: String) throws -> DecodedPixels {
     try requireNonemptyFile(url, context: context)
     let pixels = try decodedPixels(at: url)
     guard pixels.visibleContentPixelCount >= pixels.minimumContentPixelCount else {
@@ -2171,7 +2175,7 @@ public struct SimulatorHarness {
   }
 }
 
-private struct DecodedPixels {
+struct DecodedPixels {
   let width: Int
   let height: Int
   let data: Data

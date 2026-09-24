@@ -65,7 +65,53 @@ journey for deterministic, offline sign-in coverage.
 The [argument parser](../Tools/PutioHarness/Sources/PutioHarnessKit/ArgumentParser.swift)
 owns command options and supported platform/scenario combinations; `help` prints
 its usage. Simulator evidence does not establish physical-device behavior,
-production signing, background execution, or hardware remote/Watch behavior.
+production signing, background execution, or hardware remote/Watch behavior;
+use a [physical Apple TV](#physical-apple-tv) for tvOS device evidence.
+
+## Physical Apple TV
+
+Device-only tvOS behavior, such as hardware decoding, watchdog terminations,
+and Siri Remote input, needs a paired Apple TV. Pairing is manual and happens
+once per Mac:
+
+1. Put the Mac and the Apple TV on the same local network.
+2. On the Apple TV, open Settings > Remotes and Devices > Remote App and Devices.
+3. On the Mac, open Xcode > Window > Devices and Simulators, select the Apple TV
+   under Discovered, choose Pair, and enter the code shown on the TV.
+4. Confirm the pairing and note the Apple TV's UDID:
+
+   ```bash
+   xcrun devicectl list devices
+   ```
+
+   The Apple TV must appear with its `Identifier` and state `available (paired)`.
+
+Debug device builds are signed with automatic provisioning. Export the Apple
+development team that can sign `io.put.dev.tvos`, then build, launch, or
+capture proof on the device:
+
+```bash
+export PUTIO_DEVELOPMENT_TEAM=<team-id>
+mise run harness -- build --platform tvos --device <udid>
+mise run harness -- launch --platform tvos --device <udid>
+mise run harness -- proof --platform tvos --device <udid>
+```
+
+`--device` accepts the UDID, CoreDevice identifier, or device name from
+`devicectl`; the [PhysicalDeviceHarness](../Tools/PutioHarness/Sources/PutioHarnessKit/PhysicalDeviceHarness.swift)
+refuses devices that are not paired Apple TVs and lists the ones it can use.
+The build passes `-allowProvisioningUpdates -allowProvisioningDeviceRegistration`,
+so the first run may register the Apple TV with the team.
+
+On the device, `launch` and `proof` install the Debug app, relaunch it with its
+console attached, wait up to 30 seconds for the screen to change, and require it
+to stay running for `--record-seconds`. `proof` follows the same clean-source
+rules as simulator proof and writes `launch.png`, `app.console.log`, and a
+manifest under `build/proof/<run-id>/tvos/`. The manifest's `deviceType` is the
+Apple TV model identifier and `runtime` is its tvOS version and build; it omits
+`simulatorName`. Device proof has no exercise step or recording, and the app
+stays installed afterward. The launch reaches put.io to request an activation
+code, as it does in the simulator.
 
 ## Snapshot comparison
 

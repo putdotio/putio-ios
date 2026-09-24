@@ -28,7 +28,25 @@ public struct HarnessService {
     case .liveFixture:
       return .result(try live.provisionFixture())
     case .surface(
-      let command, let selection, let requestedRunID, let recordSeconds, let scenario, _):
+      let command, let selection, let requestedRunID, let recordSeconds, let scenario, _,
+      let device?):
+      guard case .one(let platform) = selection else {
+        throw HarnessFailure("--device requires a single platform")
+      }
+      let harness = PhysicalDeviceHarness(context: context, simulator: simulator)
+      let run = try harness.execute(
+        command, platform: platform, query: device, requestedRunID: requestedRunID,
+        liveSeconds: recordSeconds)
+      return .result(
+        HarnessResult(
+          command: command.rawValue,
+          platforms: [run.platform.rawValue],
+          artifacts: run.artifacts.map(context.relativePath(for:)),
+          message: run.message
+        )
+      )
+    case .surface(
+      let command, let selection, let requestedRunID, let recordSeconds, let scenario, _, nil):
       return .result(
         try executeSurface(
           command: command,
@@ -137,7 +155,7 @@ public enum HarnessOutput {
     switch invocation {
     case .help: .text
     case .doctor(let output): output
-    case .surface(_, _, _, _, _, let output): output
+    case .surface(_, _, _, _, _, let output, _): output
     case .test(_, _, let output): output
     case .journey(_, _, _, let output): output
     case .authStatus(let output): output

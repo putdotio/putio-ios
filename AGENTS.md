@@ -45,6 +45,7 @@ than a commit.
 | iOS Files browser | `mise run harness -- journey --platform ios --scenario files-browser` |
 | tvOS shell or sign-in | `mise run harness -- journey --platform tvos --scenario device-sign-in` |
 | Recorded platform proof | `mise run harness -- proof --platform <ios\|watchos\|tvos\|all>` |
+| tvOS device-only behavior | `mise run harness -- proof --platform tvos --device <udid>` on a [paired Apple TV](docs/harness.md#physical-apple-tv) |
 
 Deterministic checks are secret-free. Live smoke uses only the `devs-auto`
 put.io CLI profile from the [live-profile contract](docs/harness.md#live-profile-and-publishing).

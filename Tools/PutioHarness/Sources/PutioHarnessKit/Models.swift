@@ -163,7 +163,8 @@ public enum HarnessInvocation: Equatable, Sendable {
     runID: String?,
     recordSeconds: Int,
     scenario: CaptureScenario,
-    output: OutputFormat
+    output: OutputFormat,
+    device: String? = nil
   )
   case test(
     platform: HarnessPlatform,
@@ -262,7 +263,8 @@ public struct ProofManifest: Codable, Equatable, Sendable {
   public let bundleIdentifier: String
   public let runtime: String
   public let deviceType: String
-  public let simulatorName: String
+  /// Absent for physical-device runs, whose hardware is `deviceType`.
+  public let simulatorName: String?
   public let fixtureSet: String
   public let artifacts: [ProofArtifact]
 
@@ -277,7 +279,7 @@ public struct ProofManifest: Codable, Equatable, Sendable {
     bundleIdentifier: String,
     runtime: String,
     deviceType: String,
-    simulatorName: String,
+    simulatorName: String?,
     fixtureSet: String,
     artifacts: [ProofArtifact]
   ) {
