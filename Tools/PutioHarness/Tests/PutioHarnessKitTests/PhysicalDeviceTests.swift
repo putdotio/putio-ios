@@ -395,6 +395,8 @@ struct PhysicalDeviceRunTests {
     let baseline = try #require(devicectl.firstIndex { $0.contains("screenshot") })
     #expect(terminate < baseline)
     #expect(devicectl[terminate].contains("42"))
+    let launch = try #require(devicectl.first { $0.contains("launch") })
+    #expect(launch.last == "io.put.dev.tvos")
     #expect(!FileManager.default.fileExists(atPath: toolchain.appRunning.path))
   }
 

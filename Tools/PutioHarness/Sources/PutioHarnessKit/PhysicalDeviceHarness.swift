@@ -369,7 +369,9 @@ struct PhysicalDeviceHarness {
   }
 
   /// Launches with the app's stdio bridged to devicectl, so the bridge process
-  /// lives exactly as long as the app and doubles as the liveness signal.
+  /// lives exactly as long as the app and doubles as the liveness signal. No
+  /// app arguments follow the bundle identifier, where devicectl could read them
+  /// as its own options; the app's default scenario is signed-out.
   @discardableResult
   private func launchAndObserve(
     _ platform: HarnessPlatform,
@@ -389,7 +391,6 @@ struct PhysicalDeviceHarness {
       [
         "devicectl", "device", "process", "launch", "--device", device.selector,
         "--terminate-existing", "--console", config.bundleIdentifier,
-        "--putio-harness-scenario", CaptureScenario.signedOut.rawValue,
       ]
     )
     let log = directory.appending(path: "app.console.log")
