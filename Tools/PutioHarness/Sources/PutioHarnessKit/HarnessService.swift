@@ -28,8 +28,7 @@ public struct HarnessService {
     case .liveFixture:
       return .result(try live.provisionFixture())
     case .surface(
-      let command, let selection, let requestedRunID, let recordSeconds, let scenario, _,
-      let device?):
+      let command, let selection, let requestedRunID, let recordSeconds, _, _, let device?):
       guard case .one(let platform) = selection else {
         throw HarnessFailure("--device requires a single platform")
       }

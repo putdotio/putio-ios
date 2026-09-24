@@ -414,7 +414,7 @@ struct PhysicalDeviceHarness {
       }
       if (try? captureScreenshot(device: device, to: screenshot, context: "poll launch")) != nil,
         let pixels = try? simulator.decodedPixels(at: screenshot),
-        pixels.data != baselinePixels.data,
+        pixels.differsMeaningfully(from: baselinePixels),
         pixels.visibleContentPixelCount >= pixels.minimumContentPixelCount
       {
         rendered = true
@@ -437,7 +437,12 @@ struct PhysicalDeviceHarness {
       Thread.sleep(forTimeInterval: 0.25)
     }
     try captureScreenshot(device: device, to: screenshot, context: "capture launched screen")
-    _ = try simulator.requireMeaningfulScreenshot(screenshot, context: "device screenshot")
+    let finalPixels = try simulator.requireMeaningfulScreenshot(
+      screenshot, context: "device screenshot")
+    guard finalPixels.differsMeaningfully(from: baselinePixels) else {
+      throw HarnessFailure(
+        "\(config.bundleIdentifier) is no longer on screen on \(device.label) at proof capture")
+    }
     guard console.isRunning else {
       throw HarnessFailure(
         "\(config.bundleIdentifier) exited on \(device.label) before proof capture completed")
