@@ -76,8 +76,10 @@ once per Mac:
 
 1. Put the Mac and the Apple TV on the same local network.
 2. On the Apple TV, open Settings > Remotes and Devices > Remote App and Devices.
-3. On the Mac, open Xcode > Window > Devices and Simulators, select the Apple TV
-   under Discovered, choose Pair, and enter the code shown on the TV.
+3. On the Mac, open Xcode's device window: Device Hub in Xcode 27 (Xcode > Open
+   Developer Tool > Device Hub, or Manage Devices in the run destination menu),
+   Window > Devices and Simulators in Xcode 26. Select the discovered Apple TV,
+   choose Pair, and enter the code shown on the TV.
 4. Confirm the pairing and note the Apple TV's UDID:
 
    ```bash
@@ -103,12 +105,13 @@ refuses devices that are not paired Apple TVs and lists the ones it can use.
 The build passes `-allowProvisioningUpdates -allowProvisioningDeviceRegistration`,
 so the first run may register the Apple TV with the team.
 
-On the device, `launch` and `proof` install the Debug app, relaunch it with its
-console attached, wait up to 30 seconds for the screen to change, and require it
+On the device, `launch` and `proof` install the Debug app, terminate any running
+instance, launch it with its console attached, wait up to 30 seconds for the screen to change, and require it
 to stay running for `--record-seconds`. `proof` follows the same clean-source
 rules as simulator proof and writes `launch.png`, `app.console.log`, and a
 manifest under `build/proof/<run-id>/tvos/`. The manifest's `deviceType` is the
-Apple TV model identifier and `runtime` is its tvOS version and build; it omits
+Apple TV model identifier and `runtime` is its tvOS version and build; proof
+fails when `devicectl` does not report them. Device manifests omit
 `simulatorName`. Device proof has no exercise step or recording, and the app
 stays installed afterward. The launch reaches put.io to request an activation
 code, as it does in the simulator.

@@ -1,4 +1,6 @@
+import CoreGraphics
 import Foundation
+import ImageIO
 import Testing
 
 @testable import PutioHarnessKit
@@ -80,8 +82,28 @@ struct PairedDeviceSelectionTests {
   @Test func decodesProvenanceFromDevicectl() throws {
     let appleTV = try #require(try fixtureDevices().first { $0.udid == pairedAppleTVUDID })
     #expect(appleTV.productType == "AppleTV14,1")
-    #expect(appleTV.runtimeDescription == "tvOS 26.1 (23J582)")
+    let provenance = try appleTV.proofProvenance()
+    #expect(provenance.model == "AppleTV14,1")
+    #expect(provenance.runtime == "tvOS 26.1 (23J582)")
     #expect(appleTV.isPaired)
+  }
+
+  @Test func refusesProofWithoutReportedOSBuild() throws {
+    let device = PairedDevice(
+      identifier: "55555555-5555-4555-8555-555555555555", udid: pairedAppleTVUDID,
+      name: "Living Room", platform: "tvOS", productType: "AppleTV14,1", osVersion: "26.1",
+      osBuild: nil, isPaired: true)
+    #expect(throws: HarnessFailure.self) { try device.proofProvenance() }
+  }
+
+  @Test func prefersTheOnlyPairedAppleTVAmongSameNamedDevices() throws {
+    let iPhone = PairedDevice(
+      identifier: "66666666-6666-4666-8666-666666666666", udid: "00008130-0000000000000002",
+      name: "Living Room", platform: "iOS", productType: "iPhone16,1", osVersion: "26.1",
+      osBuild: "23B85", isPaired: true)
+    let device = try selectPairedDevice(
+      matching: "Living Room", platform: .tvos, in: fixtureDevices() + [iPhone])
+    #expect(device.selector == pairedAppleTVUDID)
   }
 
   @Test(arguments: [
@@ -179,16 +201,39 @@ struct PhysicalDeviceArgumentTests {
   }
 }
 
+private func writePNG(to url: URL, gray: CGFloat) throws {
+  let width = 64
+  let height = 36
+  let context = try #require(
+    CGContext(
+      data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+      space: CGColorSpaceCreateDeviceRGB(),
+      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+  context.setFillColor(red: gray, green: gray, blue: gray, alpha: 1)
+  context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+  let image = try #require(context.makeImage())
+  let destination = try #require(
+    CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil))
+  CGImageDestinationAddImage(destination, image, nil)
+  try #require(CGImageDestinationFinalize(destination))
+}
+
+/// Fakes `xcodebuild`, `devicectl`, and a device whose screen shows the app
+/// only while the stubbed app process runs.
 private struct StubbedToolchain {
   let root: URL
+  let tools: URL
   let context: RepositoryContext
   let runner: ProcessRunner
   let log: URL
+  let appRunning: URL
 
   init() throws {
-    root = FileManager.default.temporaryDirectory.appending(
+    let base = FileManager.default.temporaryDirectory.appending(
       path: "putio-device-\(UUID().uuidString.lowercased())")
-    let bin = root.appending(path: "bin")
+    root = base.appending(path: "repo")
+    tools = base.appending(path: "tools")
+    let bin = tools.appending(path: "bin")
     try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
     try FileManager.default.createDirectory(
       at: root.appending(path: "Putio.xcworkspace"), withIntermediateDirectories: true)
@@ -197,17 +242,39 @@ private struct StubbedToolchain {
       path: "Build/Products/Debug-appletvos/PutioTV.app")
     try FileManager.default.createDirectory(at: product, withIntermediateDirectories: true)
     try Data("fixture".utf8).write(to: product.appending(path: "PutioTV"))
-    let fixture = root.appending(path: "devices.json")
-    try Data(deviceListFixture.utf8).write(to: fixture)
-    log = root.appending(path: "calls")
-    for (tool, body) in [
-      ("xcrun", #"[ "$1 $2" = "devicectl list" ] && cat "$PUTIO_DEVICE_FIXTURE""#),
-      ("xcodebuild", ":"),
-    ] {
+    try Data(deviceListFixture.utf8).write(to: tools.appending(path: "devices.json"))
+    try writePNG(to: tools.appending(path: "home.png"), gray: 0)
+    try writePNG(to: tools.appending(path: "app.png"), gray: 0.5)
+    log = tools.appending(path: "calls")
+    appRunning = tools.appending(path: "app-running")
+    let xcrun = #"""
+      [ "$1" = devicectl ] || exit 64
+      case "$2 $3" in
+        "list devices") cat "$STUB/devices.json" ;;
+        "device install") ;;
+        "device info")
+          if [ -f "$STUB/app-running" ]; then
+            printf '{"result":{"runningProcesses":[{"executable":"file:///private/var/containers/Bundle/Application/X/PutioTV.app/PutioTV","processIdentifier":42}]}}'
+          else
+            printf '{"result":{"runningProcesses":[]}}'
+          fi ;;
+        "device process")
+          if [ "$4" = terminate ]; then rm -f "$STUB/app-running"; exit 0; fi
+          touch "$STUB/app-running"
+          trap 'rm -f "$STUB/app-running"; exit 0' INT TERM
+          echo "app console line"
+          while :; do sleep 0.1; done ;;
+        "device capture")
+          while [ "$1" != --destination ]; do shift; done
+          if [ -f "$STUB/app-running" ]; then cp "$STUB/app.png" "$2"; else cp "$STUB/home.png" "$2"; fi ;;
+        *) exit 64 ;;
+      esac
+      """#
+    for (tool, body) in [("xcrun", xcrun), ("xcodebuild", ":")] {
       let executable = bin.appending(path: tool)
       try """
       #!/bin/sh
-      printf '%s\\n' "CALL \(tool)" "$@" >> "$PUTIO_DEVICE_CALL_LOG"
+      printf '%s\\n' "CALL \(tool)" "$@" >> "$STUB/calls"
       \(body)
       """.write(to: executable, atomically: true, encoding: .utf8)
       try FileManager.default.setAttributes(
@@ -216,12 +283,13 @@ private struct StubbedToolchain {
     let originalPath = ProcessInfo.processInfo.environment["PATH"] ?? ""
     runner = ProcessRunner(environment: [
       "PATH": "\(bin.path):\(originalPath)",
-      "PUTIO_DEVICE_CALL_LOG": log.path,
-      "PUTIO_DEVICE_FIXTURE": fixture.path,
+      "STUB": tools.path,
     ])
   }
 
-  func harness(environment: [String: String]) -> PhysicalDeviceHarness {
+  func harness(
+    environment: [String: String] = ["PUTIO_DEVELOPMENT_TEAM": "ABCDE12345"]
+  ) -> PhysicalDeviceHarness {
     PhysicalDeviceHarness(
       context: context,
       simulator: SimulatorHarness(context: context, runner: runner, environment: environment),
@@ -237,8 +305,27 @@ private struct StubbedToolchain {
       .map { $0.split(separator: "\n").map(String.init) }
   }
 
+  func commitRepository() throws {
+    let scripts = root.appending(path: "scripts")
+    try FileManager.default.createDirectory(at: scripts, withIntermediateDirectories: true)
+    let generate = scripts.appending(path: "generate.sh")
+    try "#!/bin/sh\n".write(to: generate, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: generate.path)
+    try "build/\nPutio.xcworkspace/\n".write(
+      to: root.appending(path: ".gitignore"), atomically: true, encoding: .utf8)
+    for arguments in [
+      ["init", "-q"], ["add", "-A"],
+      [
+        "-c", "user.name=harness", "-c", "user.email=harness@example.invalid", "commit", "-qm",
+        "fixture",
+      ],
+    ] {
+      _ = try runner.checked("git", arguments, currentDirectory: root, context: "git fixture")
+    }
+  }
+
   func remove() {
-    try? FileManager.default.removeItem(at: root)
+    try? FileManager.default.removeItem(at: root.deletingLastPathComponent())
   }
 }
 
@@ -246,7 +333,7 @@ struct PhysicalDeviceBuildTests {
   @Test func buildsSignedDebugAppForSelectedAppleTV() throws {
     let toolchain = try StubbedToolchain()
     defer { toolchain.remove() }
-    let run = try toolchain.harness(environment: ["PUTIO_DEVELOPMENT_TEAM": "ABCDE12345"])
+    let run = try toolchain.harness()
       .execute(.build, platform: .tvos, query: "living room", requestedRunID: nil, liveSeconds: 3)
     #expect(run.message == "built PutioTV for Living\u{00A0}Room (\(pairedAppleTVUDID))")
 
@@ -284,11 +371,55 @@ struct PhysicalDeviceBuildTests {
     let toolchain = try StubbedToolchain()
     defer { toolchain.remove() }
     #expect {
-      try toolchain.harness(environment: ["PUTIO_DEVELOPMENT_TEAM": "ABCDE12345"])
+      try toolchain.harness()
         .execute(.build, platform: .tvos, query: "Bedroom", requestedRunID: nil, liveSeconds: 3)
     } throws: { error in
       (error as? HarnessFailure)?.message.contains("is not paired") == true
     }
     #expect(try toolchain.calls().allSatisfy { $0.first != "xcodebuild" })
+  }
+}
+
+struct PhysicalDeviceRunTests {
+  @Test func relaunchesAnAppAlreadyOnScreen() throws {
+    let toolchain = try StubbedToolchain()
+    defer { toolchain.remove() }
+    try Data().write(to: toolchain.appRunning)
+    let run = try toolchain.harness()
+      .execute(
+        .launch, platform: .tvos, query: pairedAppleTVUDID, requestedRunID: nil,
+        liveSeconds: 1)
+    #expect(run.message.hasPrefix("launch confirmed io.put.dev.tvos stayed running"))
+    let devicectl = try toolchain.calls().filter { $0.first == "xcrun" }.map { $0.dropFirst() }
+    let terminate = try #require(devicectl.firstIndex { $0.contains("terminate") })
+    let baseline = try #require(devicectl.firstIndex { $0.contains("screenshot") })
+    #expect(terminate < baseline)
+    #expect(devicectl[terminate].contains("42"))
+    #expect(!FileManager.default.fileExists(atPath: toolchain.appRunning.path))
+  }
+
+  @Test func proofRecordsAppleTVProvenance() throws {
+    let toolchain = try StubbedToolchain()
+    defer { toolchain.remove() }
+    try toolchain.commitRepository()
+    let run = try toolchain.harness()
+      .execute(
+        .proof, platform: .tvos, query: "Living Room", requestedRunID: "device-proof",
+        liveSeconds: 1)
+    let directory = toolchain.context.proofRoot.appending(path: "device-proof/tvos")
+    let manifestURL = directory.appending(path: "manifest.json")
+    #expect(run.artifacts.map(\.lastPathComponent) == ["launch.png", "manifest.json"])
+    let manifest = try JSONDecoder().decode(
+      ProofManifest.self, from: Data(contentsOf: manifestURL))
+    #expect(manifest.deviceType == "AppleTV14,1")
+    #expect(manifest.runtime == "tvOS 26.1 (23J582)")
+    #expect(manifest.simulatorName == nil)
+    #expect(manifest.artifacts.map(\.kind) == ["screenshot"])
+    #expect(
+      !String(decoding: try Data(contentsOf: manifestURL), as: UTF8.self)
+        .contains("simulatorName"))
+    let console = try String(
+      contentsOf: directory.appending(path: "app.console.log"), encoding: .utf8)
+    #expect(console.contains("app console line"))
   }
 }

@@ -13,11 +13,41 @@ struct PairedDevice: Equatable, Sendable {
   var selector: String { udid ?? identifier }
   var label: String { "\(name) (\(selector))" }
 
-  var runtimeDescription: String {
-    let version = [platform, osVersion].compactMap { $0 }.joined(separator: " ")
-    guard let osBuild else { return version }
-    return "\(version) (\(osBuild))"
+  var isEligibleAppleTV: Bool { platform == "tvOS" && isPaired }
+
+  func proofProvenance() throws -> (model: String, runtime: String) {
+    guard let platform, let productType, let osVersion, let osBuild else {
+      throw HarnessFailure(
+        "devicectl did not report the model, OS version, and OS build for \(label); unlock the device and retry"
+      )
+    }
+    return (productType, "\(platform) \(osVersion) (\(osBuild))")
   }
+}
+
+private struct DeviceCtlProcessList: Decodable {
+  struct Result: Decodable {
+    let runningProcesses: [RunningProcess]
+  }
+
+  struct RunningProcess: Decodable {
+    let executable: String?
+    let processIdentifier: Int
+  }
+
+  let result: Result
+}
+
+func decodeRunningAppProcessIdentifiers(_ data: Data, appName: String) throws -> [Int] {
+  let list: DeviceCtlProcessList
+  do {
+    list = try JSONDecoder().decode(DeviceCtlProcessList.self, from: data)
+  } catch {
+    throw HarnessFailure("decode devicectl process list: \(error)")
+  }
+  return list.result.runningProcesses
+    .filter { $0.executable?.contains("/\(appName)/") == true }
+    .map(\.processIdentifier)
 }
 
 private struct DeviceCtlDeviceList: Decodable {
@@ -107,17 +137,19 @@ func selectPairedDevice(
   in devices: [PairedDevice]
 ) throws -> PairedDevice {
   let target = try PhysicalDeviceHarness.target(for: platform)
-  let pairedTargets = devices.filter { $0.platform == target.devicePlatform && $0.isPaired }
+  let pairedTargets = devices.filter(\.isEligibleAppleTV)
   let available =
     pairedTargets.isEmpty
     ? "no \(target.deviceFamily) is paired; pair one as described in docs/harness.md"
     : "paired \(target.deviceFamily) devices: "
       + pairedTargets.map(\.label).joined(separator: ", ")
-  let matches = devices.filter { device in
+  var matches = devices.filter { device in
     device.udid?.caseInsensitiveCompare(query) == .orderedSame
       || device.identifier.caseInsensitiveCompare(query) == .orderedSame
       || normalizedDeviceName(device.name) == normalizedDeviceName(query)
   }
+  let eligibleMatches = matches.filter(\.isEligibleAppleTV)
+  if matches.count > 1, eligibleMatches.count == 1 { matches = eligibleMatches }
   guard let device = matches.first else {
     throw HarnessFailure("no device matches --device \(query); \(available)")
   }
@@ -287,6 +319,7 @@ struct PhysicalDeviceHarness {
     try simulator.requireCleanSource()
     try simulator.requireRevision(sourceRevision)
     let device = try resolveDevice(query, platform: platform)
+    let provenance = try device.proofProvenance()
     try build(platform, device: device)
     let directory = context.proofRoot.appending(path: runID).appending(path: platform.rawValue)
     guard !fileManager.fileExists(atPath: directory.path) else {
@@ -309,8 +342,8 @@ struct PhysicalDeviceHarness {
           platform: platform,
           scheme: platform.configuration.scheme,
           bundleIdentifier: platform.configuration.bundleIdentifier,
-          runtime: device.runtimeDescription,
-          deviceType: device.productType ?? (try Self.target(for: platform).deviceFamily),
+          runtime: provenance.runtime,
+          deviceType: provenance.model,
           simulatorName: nil,
           fixtureSet: "live-device-code-v1",
           artifacts: [try simulator.artifact(for: screenshot)]
@@ -345,6 +378,7 @@ struct PhysicalDeviceHarness {
     liveSeconds: Int
   ) throws -> URL {
     let config = platform.configuration
+    try terminateRunningApp(platform, device: device)
     let baseline = directory.appending(path: ".baseline.png")
     try captureScreenshot(device: device, to: baseline, context: "capture pre-launch screen")
     defer { try? fileManager.removeItem(at: baseline) }
@@ -408,6 +442,44 @@ struct PhysicalDeviceHarness {
         "\(config.bundleIdentifier) exited on \(device.label) before proof capture completed")
     }
     return screenshot
+  }
+
+  /// A relaunch can redraw the screen an earlier run left behind, so the
+  /// pre-launch baseline must be captured with the app gone.
+  private func terminateRunningApp(_ platform: HarnessPlatform, device: PairedDevice) throws {
+    let appName = platform.configuration.appName
+    let identifiers = try runningAppProcessIdentifiers(appName, device: device)
+    guard !identifiers.isEmpty else { return }
+    for identifier in identifiers {
+      _ = try runner.checked(
+        "xcrun",
+        [
+          "devicectl", "device", "process", "terminate", "--device", device.selector,
+          "--pid", String(identifier),
+        ],
+        context: "terminate running \(appName) on \(device.label)"
+      )
+    }
+    let deadline = Date().addingTimeInterval(10)
+    repeat {
+      Thread.sleep(forTimeInterval: 0.5)
+      if try runningAppProcessIdentifiers(appName, device: device).isEmpty { return }
+    } while Date() < deadline
+    throw HarnessFailure("\(appName) did not terminate on \(device.label) within 10 seconds")
+  }
+
+  private func runningAppProcessIdentifiers(_ appName: String, device: PairedDevice) throws
+    -> [Int]
+  {
+    let output = try runner.checked(
+      "xcrun",
+      [
+        "devicectl", "device", "info", "processes", "--device", device.selector,
+        "--json-output", "-",
+      ],
+      context: "list processes on \(device.label)"
+    )
+    return try decodeRunningAppProcessIdentifiers(Data(output.stdout.utf8), appName: appName)
   }
 
   private func captureScreenshot(device: PairedDevice, to url: URL, context: String) throws {
