@@ -5,6 +5,7 @@ public enum HarnessArgumentParser {
     Usage:
       putio-harness doctor [--output text|json]
       putio-harness <build|boot|launch|exercise|screenshot|record|proof> --platform <ios|watchos|tvos|all> [--run-id ID] [--record-seconds N] [--scenario signed-out|gallery|signed-in] [--output text|json]
+      putio-harness <build|launch|proof> --platform tvos --device <udid|identifier|name> [--run-id ID] [--record-seconds N] [--output text|json]
       putio-harness test --platform <ios|tvos> [--snapshots assert|record] [--output text|json]
       putio-harness journey --platform ios --scenario files-browser [--run-id ID] [--output text|json]
       putio-harness journey --platform tvos --scenario device-sign-in [--run-id ID] [--output text|json]
@@ -12,6 +13,7 @@ public enum HarnessArgumentParser {
       putio-harness live-fixture [--output text|json]
 
     Simulator commands are headless. They never open Simulator.app.
+    --device targets an Apple TV already paired with Xcode; see docs/harness.md.
     """
 
   public static func parse(_ arguments: [String]) throws -> HarnessInvocation {
@@ -67,7 +69,7 @@ public enum HarnessArgumentParser {
         throw HarnessFailure("unknown command: \(commandName)\n\n\(usage)")
       }
       try options.rejectUnknown(
-        allowing: ["platform", "run-id", "record-seconds", "scenario", "output"])
+        allowing: ["platform", "run-id", "record-seconds", "scenario", "output", "device"])
       let selection = try parsePlatform(try options.required("platform"))
       if command != .build, case .all = selection, command != .proof {
         throw HarnessFailure(
@@ -94,13 +96,28 @@ public enum HarnessArgumentParser {
       if scenario == .signedIn, selection != .one(.ios) {
         throw HarnessFailure("--scenario \(scenario.rawValue) is supported only on ios")
       }
+      let device = options.value("device")
+      if let device {
+        guard selection == .one(.tvos) else {
+          throw HarnessFailure("--device is supported only with --platform tvos")
+        }
+        guard PhysicalDeviceHarness.commands.contains(command) else {
+          throw HarnessFailure("--device is supported only by build, launch, and proof")
+        }
+        guard !device.trimmingCharacters(in: .whitespaces).isEmpty, device.count <= 128,
+          !device.contains(where: \.isNewline)
+        else {
+          throw HarnessFailure("--device must be a device UDID, identifier, or name")
+        }
+      }
       return .surface(
         command: command,
         platforms: selection,
         runID: runID,
         recordSeconds: seconds,
         scenario: scenario,
-        output: output
+        output: output,
+        device: device
       )
     }
   }
