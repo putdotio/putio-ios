@@ -263,7 +263,8 @@ public struct ProofManifest: Codable, Equatable, Sendable {
   public let bundleIdentifier: String
   public let runtime: String
   public let deviceType: String
-  /// Absent for physical-device runs, whose hardware is `deviceType`.
+  /// Absent from schema 2 physical-device manifests, whose hardware is
+  /// `deviceType`; schema 1 simulator manifests always carry it.
   public let simulatorName: String?
   public let fixtureSet: String
   public let artifacts: [ProofArtifact]

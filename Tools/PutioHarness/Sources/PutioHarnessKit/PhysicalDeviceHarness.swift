@@ -335,6 +335,7 @@ struct PhysicalDeviceHarness {
       try simulator.requireRevision(sourceRevision)
       let manifest = try simulator.writeManifest(
         ProofManifest(
+          schemaVersion: 2,
           runID: runID,
           commit: sourceRevision,
           createdAt: ISO8601DateFormatter().string(from: Date()),
@@ -345,7 +346,7 @@ struct PhysicalDeviceHarness {
           runtime: provenance.runtime,
           deviceType: provenance.model,
           simulatorName: nil,
-          fixtureSet: "live-device-code-v1",
+          fixtureSet: "device-installed-state-v1",
           artifacts: [try simulator.artifact(for: screenshot)]
         ),
         directory: directory

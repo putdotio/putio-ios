@@ -274,7 +274,10 @@ private struct StubbedToolchain {
       let executable = bin.appending(path: tool)
       try """
       #!/bin/sh
-      printf '%s\\n' "CALL \(tool)" "$@" >> "$STUB/calls"
+      entry="CALL \(tool)"
+      for argument in "$@"; do entry="$entry
+      $argument"; done
+      printf '%s\\n' "$entry" >> "$STUB/calls"
       \(body)
       """.write(to: executable, atomically: true, encoding: .utf8)
       try FileManager.default.setAttributes(
@@ -415,6 +418,8 @@ struct PhysicalDeviceRunTests {
       ProofManifest.self, from: Data(contentsOf: manifestURL))
     #expect(manifest.deviceType == "AppleTV14,1")
     #expect(manifest.runtime == "tvOS 26.1 (23J582)")
+    #expect(manifest.schemaVersion == 2)
+    #expect(manifest.fixtureSet == "device-installed-state-v1")
     #expect(manifest.simulatorName == nil)
     #expect(manifest.artifacts.map(\.kind) == ["screenshot"])
     #expect(

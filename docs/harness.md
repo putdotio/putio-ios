@@ -111,10 +111,14 @@ to stay running for `--record-seconds`. `proof` follows the same clean-source
 rules as simulator proof and writes `launch.png`, `app.console.log`, and a
 manifest under `build/proof/<run-id>/tvos/`. The manifest's `deviceType` is the
 Apple TV model identifier and `runtime` is its tvOS version and build; proof
-fails when `devicectl` does not report them. Device manifests omit
-`simulatorName`. Device proof has no exercise step or recording, and the app
-stays installed afterward. The launch reaches put.io to request an activation
-code, as it does in the simulator.
+fails when `devicectl` does not report them. Device manifests use
+`schemaVersion` 2 and omit `simulatorName`.
+
+Device proof is launch and rendering evidence only: it has no exercise step or
+recording, and it drives no playback or remote input. Reinstalling keeps the
+app's keychain, so the launch shows whatever session the Apple TV already has,
+recorded as fixture set `device-installed-state-v1`; review `launch.png` for
+the state it captured. The app stays installed afterward.
 
 ## Snapshot comparison
 
