@@ -106,13 +106,11 @@ The build passes `-allowProvisioningUpdates -allowProvisioningDeviceRegistration
 so the first run may register the Apple TV with the team.
 
 On the device, `launch` and `proof` install the Debug app, terminate any running
-instance, launch it with its console attached, wait up to 30 seconds for the screen to change, and require it
-to stay running for `--record-seconds`. `proof` follows the same clean-source
-rules as simulator proof and writes `launch.png`, `app.console.log`, and a
-manifest under `build/proof/<run-id>/tvos/`. The manifest's `deviceType` is the
-Apple TV model identifier and `runtime` is its tvOS version and build; proof
-fails when `devicectl` does not report them. Device manifests use
-`schemaVersion` 2 and omit `simulatorName`.
+instance, launch it with its console attached, wait up to 30 seconds for the
+screen to change, and require it to stay running for `--record-seconds`. `proof`
+follows the same clean-source rules as simulator proof and writes `launch.png`,
+`app.console.log`, and a manifest under `build/proof/<run-id>/tvos/`; it fails
+when `devicectl` does not report the Apple TV model and tvOS version.
 
 Device proof is launch and rendering evidence only: it has no exercise step or
 recording, and it drives no playback or remote input. Reinstalling keeps the
@@ -137,11 +135,8 @@ the hosted view's layer off-screen. tvOS 27 draws bordered controls as Liquid
 Glass, which off-screen layer rendering leaves as undefined solid fills, so both
 tvOS suites are app-hosted and capture through the render server. Missing brand
 fonts allow rendering with system fallbacks, then skip brand-baseline comparison.
-The states gallery has a separate iOS 27 baseline for the native
-`ContentUnavailableView` layout, and every tvOS gallery page but Transfers has
-a tvOS 27 baseline for its native control metrics; other pages share their
-existing baselines.
-Recording requires `mise run fonts-setup`. After an intentional visual change:
+Gallery pages whose native layout changed in OS 27 keep a separate `-ios27` or
+`-tvos27` baseline beside the shared one. Recording requires `mise run fonts-setup`. After an intentional visual change:
 
 ```bash
 mise run harness -- test --platform ios --snapshots record
