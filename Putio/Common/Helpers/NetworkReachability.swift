@@ -9,6 +9,7 @@ class NetworkReachability {
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "io.put.network-reachability")
     private var isReachable = false
+    private var lastReportedReachability: Bool?
 
     func setup() {
         monitor.pathUpdateHandler = { [weak self] path in
@@ -18,6 +19,8 @@ class NetworkReachability {
             let status = path.status
             DispatchQueue.main.async {
                 self.isReachable = isReachable
+                guard self.lastReportedReachability != isReachable else { return }
+                self.lastReportedReachability = isReachable
                 log.info("Network status changed: \(status)", context: nil)
                 NotificationCenter.default.post(name: NetworkReachability.NOTIFICATION, object: nil)
             }

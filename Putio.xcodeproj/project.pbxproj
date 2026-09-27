@@ -135,6 +135,7 @@
 		ACE636D31F9A29DB00AFB921 /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE636D21F9A29DB00AFB921 /* LoginViewController.swift */; };
 		ACEB6E74231A989000611D74 /* AudioDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACEB6E73231A989000611D74 /* AudioDownloadManager.swift */; };
 		ACED3B5C1FEBC1BA0066F41A /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACED3B5B1FEBC1BA0066F41A /* Constants.swift */; };
+		A09270012C00000100C0F001 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A09270022C00000100C0F001 /* SceneDelegate.swift */; };
 		ACEF62EE1F9A26AA0026B25E /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACEF62ED1F9A26AA0026B25E /* AppDelegate.swift */; };
 		ACF43FD627A2B6AE00E523D1 /* ClearDataTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACF43FD527A2B6AE00E523D1 /* ClearDataTableViewController.swift */; };
 		ACF43FD827A2B6C300E523D1 /* ClearDataViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACF43FD727A2B6C300E523D1 /* ClearDataViewModel.swift */; };
@@ -316,6 +317,7 @@
 		ACEB6E73231A989000611D74 /* AudioDownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDownloadManager.swift; sourceTree = "<group>"; };
 		ACED3B5B1FEBC1BA0066F41A /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
 		ACEF62EA1F9A26AA0026B25E /* Putio.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Putio.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A09270022C00000100C0F001 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		ACEF62ED1F9A26AA0026B25E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		ACEF62F41F9A26AA0026B25E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		ACEF62F91F9A26AA0026B25E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -733,6 +735,7 @@
 				AC328A3721988B500056D25B /* blank.pdf */,
 				ACEF62F41F9A26AA0026B25E /* Assets.xcassets */,
 				ACEF62ED1F9A26AA0026B25E /* AppDelegate.swift */,
+				A09270022C00000100C0F001 /* SceneDelegate.swift */,
 				ACAA621D23BD02320043458C /* Common */,
 				ACAA621E23BD02620043458C /* Features */,
 			);
@@ -1272,6 +1275,7 @@
 				AC6F75A11FB33312000EF423 /* UIImage+Putio.swift in Sources */,
 				AC5B4209282CCCCD0025064D /* EnableTwoFactorSecretViewController.swift in Sources */,
 				ACEF62EE1F9A26AA0026B25E /* AppDelegate.swift in Sources */,
+				A09270012C00000100C0F001 /* SceneDelegate.swift in Sources */,
 				ACE46040230811A0003C6C0A /* VideoDownloadManager.swift in Sources */,
 				AC328A2A219873A50056D25B /* PDFViewController.swift in Sources */,
 				AC0FC8BD1FC2D18B002E775B /* String+Truncate.swift in Sources */,

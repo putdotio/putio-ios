@@ -21,8 +21,13 @@ final class ComponentSnapshotTests: XCTestCase {
         testName: String = "component",
         line: UInt = #line
     ) {
+        guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first else {
+            XCTFail("Component snapshots require the app's window scene", file: file, line: line)
+            return
+        }
         for (label, style) in [("dark", UIUserInterfaceStyle.dark)] {
-            let window = UIWindow(frame: CGRect(origin: .zero, size: size))
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(origin: .zero, size: size)
             window.overrideUserInterfaceStyle = style
             if let contentSizeCategory {
                 window.traitOverrides.preferredContentSizeCategory = contentSizeCategory
