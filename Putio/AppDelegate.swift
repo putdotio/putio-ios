@@ -25,6 +25,7 @@ enum DownloadQueueLifecyclePolicy {
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
+    private var pendingURLs: [URL] = []
     private var isRunningUnitTests: Bool {
         let environment = ProcessInfo.processInfo.environment
         return [
@@ -52,7 +53,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         configureLogger()
 
         if isRunningUnitTests {
-            prepareForUnitTests(application: application)
             return true
         }
 
@@ -62,7 +62,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             DownloadQueueController.sharedInstance.restoreBackgroundSessions()
         }
         configureUI()
-        authenticate(token: e2eAccessToken)
         return true
     }
 
@@ -98,17 +97,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         Utils.configureAVSession()
     }
 
-    func prepareForUnitTests(application: UIApplication) {
-        guard let windowScene = application.connectedScenes.compactMap({ $0 as? UIWindowScene }).first else {
-            window = nil
-            return
+    func connect(window: UIWindow) {
+        self.window = window
+        if isRunningUnitTests {
+            window.rootViewController = UIViewController()
         }
-
-        let testWindow = UIWindow(windowScene: windowScene)
-        testWindow.rootViewController = UIViewController()
-        window = testWindow
         applyWindowAppearance()
-        testWindow.makeKeyAndVisible()
+        window.makeKeyAndVisible()
+        if !isRunningUnitTests {
+            authenticate(token: e2eAccessToken)
+        }
     }
 
     func prepareForE2ETestsIfNeeded() {
@@ -150,16 +148,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         DownloadQueueController.sharedInstance.restoreBackgroundSessions()
     }
 
-    func application(_ application: UIApplication, open url: URL, sourceApplication: String?, annotation: Any) -> Bool {
-        return DeeplinkManager.sharedInstance.handleURL(url: url)
-    }
-
-    func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([any UIUserActivityRestoring]?) -> Void) -> Bool {
-        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb, let url = userActivity.webpageURL else {
-            return false
+    func openIncomingURL(_ url: URL) {
+        // A cold-launch link arrives before asynchronous account loading finishes.
+        guard window?.rootViewController is RootContainerViewController else {
+            pendingURLs.append(url)
+            return
         }
-
-        return DeeplinkManager.sharedInstance.handleURL(url: url)
+        _ = DeeplinkManager.sharedInstance.handleURL(url: url)
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
@@ -359,6 +354,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         applyWindowAppearance()
         window?.rootViewController = RootContainerViewController()
         window?.makeKeyAndVisible()
+        let urls = pendingURLs
+        pendingURLs.removeAll()
+        urls.forEach(openIncomingURL)
     }
 
 }

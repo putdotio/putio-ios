@@ -1,4 +1,5 @@
-platform :ios, '26.0'
+ios_deployment_target = '26.0'
+platform :ios, ios_deployment_target
 
 target 'Putio' do
   use_frameworks!
@@ -143,7 +144,7 @@ post_install do |installer|
     end
 
     target.build_configurations.each do |config|
-      config.build_settings.delete 'IPHONEOS_DEPLOYMENT_TARGET'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = ios_deployment_target
     end
   end
 end
