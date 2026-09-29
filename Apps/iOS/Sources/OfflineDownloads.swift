@@ -347,6 +347,7 @@ final class PutioOfflineQueue {
   }
   @ObservationIgnored private var restored = false
   @ObservationIgnored private var syncTask: Task<Void, Never>?
+  @ObservationIgnored private var syncGeneration: UInt64 = 0
 
   init(
     store: PutioOfflineStore,
@@ -860,8 +861,15 @@ final class PutioOfflineQueue {
     guard isLive() else { return }
     // Waiters on one pass wake together; the first starts the follow-up and
     // the rest join it.
-    while let running = syncTask {
+    if let running = syncTask {
+      let generation = syncGeneration
       await running.value
+      // Another waiter started our shared follow-up, which may already have
+      // finished and cleared its task by the time this caller resumes.
+      if syncGeneration != generation {
+        if let followUp = syncTask { await followUp.value }
+        return
+      }
       if syncTask == running { syncTask = nil }
       guard isLive(), pendingPositionCount > 0 else { return }
     }
@@ -883,6 +891,7 @@ final class PutioOfflineQueue {
       }
       persist()
     }
+    syncGeneration &+= 1
     syncTask = task
     await task.value
     // A waiter may already have replaced the pointer with its follow-up pass.

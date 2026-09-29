@@ -1081,6 +1081,14 @@ final class OfflineDownloadsTests: XCTestCase {
   }
 
   func testWaitersOnOnePassShareOneFollowUp() async throws {
+    try await checkWaitersShareOneFollowUp(fails: false)
+  }
+
+  func testWaitersStopAfterTheirSharedFollowUpFails() async throws {
+    try await checkWaitersShareOneFollowUp(fails: true)
+  }
+
+  private func checkWaitersShareOneFollowUp(fails: Bool) async throws {
     let firstPass = makeGate()
     let followUp = makeGate()
     var attempts = 0
@@ -1098,7 +1106,9 @@ final class OfflineDownloadsTests: XCTestCase {
         case 2:
           await firstPass.wait()
           throw PutioRuntimeError.transient
-        default: await followUp.wait()
+        default:
+          await followUp.wait()
+          if fails { throw PutioRuntimeError.transient }
         }
       }, deleteOriginal: { _ in })
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
@@ -1121,7 +1131,7 @@ final class OfflineDownloadsTests: XCTestCase {
     await sync2.value
     await sync3.value
     XCTAssertEqual(attempts, 3)
-    XCTAssertEqual(queue.pendingPositionCount, 0)
+    XCTAssertEqual(queue.pendingPositionCount, fails ? 1 : 0)
   }
 
   func testTaskDescriptionsCarryTheAccount() {
