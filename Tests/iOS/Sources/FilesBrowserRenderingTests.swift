@@ -30,6 +30,40 @@ final class FilesBrowserRenderingTests: XCTestCase {
   }
 
   @MainActor
+  func testMovePickerLoadsDestinationsPastTheFirstPage() async throws {
+    // The first page holds no folders, so only its continuation can offer one.
+    let firstPage = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 1, kind: .video)], hasMore: true)
+    let secondPage = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 2, name: "Later Folder", kind: .folder)])
+    var cursors: [String] = []
+    let picker = PutioMovePicker(
+      items: [BrowserTestFixtures.item(id: 3, parentID: 7)],
+      load: { _ in firstPage },
+      continueLoad: { cursor in
+        cursors.append(cursor)
+        return secondPage
+      },
+      actions: nil,
+      refreshRequests: PutioFolderRefreshRequests(),
+      onMove: { _ in }
+    )
+    let controller = UIHostingController(rootView: picker)
+    let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+    window.rootViewController = controller
+    window.isHidden = false
+    defer { window.isHidden = true }
+    controller.view.frame = window.bounds
+
+    let deadline = ContinuousClock.now + .seconds(5)
+    while cursors.isEmpty, ContinuousClock.now < deadline {
+      window.layoutIfNeeded()
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    XCTAssertEqual(cursors, ["next"], "the picker never requested the next page")
+  }
+
+  @MainActor
   func testNextVideoOverlayMatchesBaseline() throws {
     let overlay = PutioNextVideoOverlay(
       nextVideo: PutioNextVideo(
