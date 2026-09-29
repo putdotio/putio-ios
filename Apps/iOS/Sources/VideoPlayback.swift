@@ -1146,9 +1146,10 @@ final class PutioSystemVideoPlayerCoordinator {
           if !preferredAudioLanguages.isEmpty {
             await Self.selectAudio(preferring: preferredAudioLanguages, in: item)
           }
+          self?.reportReady(generation: playbackGeneration)
+          // Loading the subtitle group must not hold back readiness.
           await Self.selectDefaultSubtitle(in: item)
           self?.reportMediaSelection(for: item, generation: playbackGeneration)
-          self?.reportReady(generation: playbackGeneration)
         case .failed:
           self?.reportFailure(generation: playbackGeneration)
         case .unknown:

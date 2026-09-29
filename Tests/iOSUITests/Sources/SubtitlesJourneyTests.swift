@@ -30,7 +30,8 @@ final class SubtitlesJourneyTests: XCTestCase {
     let subtitle = element("video.subtitle")
     XCTAssertTrue(waitForValue(audio, "en"), "audio: \(audio.value ?? "")")
     XCTAssertTrue(
-      waitForValue(subtitle, "en"), "the default subtitle was not selected: \(subtitle.value ?? "")")
+      waitForValue(subtitle, "en"), "the default subtitle was not selected: \(subtitle.value ?? "")"
+    )
     pausePlayback()
 
     // A non-default audio pick survives every subtitle change.
