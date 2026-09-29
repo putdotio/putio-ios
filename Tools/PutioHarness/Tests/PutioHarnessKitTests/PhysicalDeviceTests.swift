@@ -221,6 +221,8 @@ private func writePNG(to url: URL, gray: CGFloat) throws {
 /// Fakes `xcodebuild`, `devicectl`, and a device whose screen shows the app
 /// only while the stubbed app process runs.
 private struct StubbedToolchain {
+  static let argumentSeparator: Character = "\u{1F}"
+
   let root: URL
   let tools: URL
   let context: RepositoryContext
@@ -270,13 +272,15 @@ private struct StubbedToolchain {
         *) exit 64 ;;
       esac
       """#
+    // One line per call: /bin/sh line-buffers stdout, so a multi-line entry
+    // becomes several appends that interleave with the capture polls racing
+    // the backgrounded launch.
     for (tool, body) in [("xcrun", xcrun), ("xcodebuild", ":")] {
       let executable = bin.appending(path: tool)
       try """
       #!/bin/sh
-      entry="CALL \(tool)"
-      for argument in "$@"; do entry="$entry
-      $argument"; done
+      entry="\(tool)"
+      for argument in "$@"; do entry="$entry\(Self.argumentSeparator)$argument"; done
       printf '%s\\n' "$entry" >> "$STUB/calls"
       \(body)
       """.write(to: executable, atomically: true, encoding: .utf8)
@@ -304,8 +308,17 @@ private struct StubbedToolchain {
   func calls() throws -> [[String]] {
     guard FileManager.default.fileExists(atPath: log.path) else { return [] }
     return try String(contentsOf: log, encoding: .utf8)
-      .components(separatedBy: "CALL ").dropFirst()
-      .map { $0.split(separator: "\n").map(String.init) }
+      .split(separator: "\n")
+      .map {
+        $0.split(separator: Self.argumentSeparator, omittingEmptySubsequences: false)
+          .map(String.init)
+      }
+  }
+
+  /// Returns a matcher for one `devicectl device` subcommand, such as
+  /// `process launch`, by its leading words rather than any argument.
+  static func devicectl(_ words: String...) -> ([String]) -> Bool {
+    { $0.starts(with: ["xcrun", "devicectl", "device"] + words) }
   }
 
   func commitRepository() throws {
@@ -393,13 +406,18 @@ struct PhysicalDeviceRunTests {
         .launch, platform: .tvos, query: pairedAppleTVUDID, requestedRunID: nil,
         liveSeconds: 1)
     #expect(run.message.hasPrefix("launch confirmed io.put.dev.tvos stayed running"))
-    let devicectl = try toolchain.calls().filter { $0.first == "xcrun" }.map { $0.dropFirst() }
-    let terminate = try #require(devicectl.firstIndex { $0.contains("terminate") })
-    let baseline = try #require(devicectl.firstIndex { $0.contains("screenshot") })
+    let calls = try toolchain.calls()
+    let terminate = try #require(
+      calls.firstIndex(where: StubbedToolchain.devicectl("process", "terminate")))
+    let baseline = try #require(
+      calls.firstIndex(where: StubbedToolchain.devicectl("capture", "screenshot")))
+    let launch = try #require(
+      calls.firstIndex(where: StubbedToolchain.devicectl("process", "launch")))
     #expect(terminate < baseline)
-    #expect(devicectl[terminate].contains("42"))
-    let launch = try #require(devicectl.first { $0.contains("launch") })
-    #expect(launch.last == "io.put.dev.tvos")
+    #expect(baseline < launch)
+    let pid = try #require(calls[terminate].firstIndex(of: "--pid"))
+    #expect(calls[terminate].dropFirst(pid + 1).first == "42")
+    #expect(calls[launch].last == "io.put.dev.tvos")
     #expect(!FileManager.default.fileExists(atPath: toolchain.appRunning.path))
   }
 
