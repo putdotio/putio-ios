@@ -2,9 +2,15 @@
 
 Use `putio:///files/410` to open an item by ID, or `putio:///files/0` for Files
 root. The [parser](../Apps/iOS/Sources/DeepLinks.swift) (`PutioDeepLink.parse`)
-also routes `/history` to History when enabled and `/account` or `/settings` to
-Account. Non-folder files use the [normal file dispatcher](../Apps/iOS/Sources/PutioApp.swift)
-(`selectFile`): video, audio, preview, or an unsupported-file explanation.
+also routes `/history` to History when enabled, `/account` or `/settings` to
+Account, and `/link` to Account's Link a device screen. Non-folder files use the
+[normal file dispatcher](../Apps/iOS/Sources/PutioApp.swift) (`selectFile`):
+video, audio, preview, or an unsupported-file explanation.
+
+`/downloads` opens the Downloads tab. `putio:///downloads/412` plays file 412
+from this account's offline queue when its download has finished, as tapping
+its row would; an unfinished or unqueued item leaves the Downloads list showing,
+matching the legacy app for ids outside its queue.
 
 ## URL delivery
 

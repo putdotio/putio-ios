@@ -26,8 +26,12 @@ final class DeepLinkJourneyTests: XCTestCase {
     XCTAssertTrue(element("files.item.411").exists)
     screenshot("runtime-deep-link-folder")
 
+    try open("putio:///link")
+    XCTAssertTrue(app.textFields["security.link-code"].waitForExistence(timeout: 10))
+    // An account link returns the stack to its root.
     try open("putio://put.io/settings")
     XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 10))
+    XCTAssertFalse(app.textFields["security.link-code"].exists)
     try open("putio:///files/411")
     XCTAssertTrue(element("video.error").waitForExistence(timeout: 10))
     app.buttons["Try again"].tap()
@@ -41,7 +45,10 @@ final class DeepLinkJourneyTests: XCTestCase {
     XCTAssertTrue(element("preview.document").waitForExistence(timeout: 10))
     app.buttons["preview.done"].tap()
     XCTAssertTrue(element("preview.screen.413").waitForNonExistence(timeout: 5))
+    // Nothing is queued, so the item link falls back to the Downloads list.
     try open("putio:///downloads/411")
+    XCTAssertTrue(element("downloads.screen").waitForExistence(timeout: 10))
+    try open("putio:///downloads/abc")
     XCTAssertTrue(
       app.staticTexts["This link cannot be opened in this app yet."].waitForExistence(timeout: 5))
     app.buttons["link.close"].tap()
@@ -80,6 +87,14 @@ final class DeepLinkJourneyTests: XCTestCase {
     signIn()
     XCTAssertTrue(element("history.item.810").waitForExistence(timeout: 10))
     try open("putio:///account")
+    signOut()
+
+    app.terminate()
+    try openCold("putio:///link")
+    signIn()
+    XCTAssertTrue(app.textFields["security.link-code"].waitForExistence(timeout: 10))
+    app.navigationBars.buttons["BackButton"].tap()
+    XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 5))
     signOut()
   }
 
