@@ -177,6 +177,70 @@ final class FilesSearchTests: XCTestCase {
     XCTAssertEqual(model.state, .loaded(Self.page([1, 2])))
   }
 
+  func testReappearanceKeepsResultsUntilTheQueryOrARefreshChanges() async {
+    var keywords: [String] = []
+    let model = PutioFileSearchModel(
+      search: { keyword in
+        keywords.append(keyword)
+        return Self.page([keywords.count])
+      },
+      continueSearch: { _ in Self.page([]) },
+      debounce: .zero
+    )
+
+    await model.apply(query: "movie", revision: 0)
+    // Tab switches and pops re-run the view task with the same request.
+    await model.apply(query: "movie", revision: 0)
+    await model.apply(query: " movie ", revision: 0)
+    XCTAssertEqual(keywords, ["movie"])
+    XCTAssertEqual(model.state, .loaded(Self.page([1])))
+
+    // A browser mutation since the last search refreshes the results.
+    await model.apply(query: "movie", revision: 1)
+    XCTAssertEqual(keywords, ["movie", "movie"])
+    await model.apply(query: "show", revision: 1)
+    await model.apply(query: "movie", revision: 1)
+    XCTAssertEqual(keywords, ["movie", "movie", "show", "movie"])
+    XCTAssertEqual(model.state, .loaded(Self.page([4])))
+  }
+
+  func testReappearanceRetriesARequestThatNeverLanded() async throws {
+    let requests = ControlledSearch()
+    defer { requests.cancelPending() }
+    let model = PutioFileSearchModel(
+      search: { try await requests.load($0) },
+      continueSearch: { _ in Self.page([]) },
+      debounce: .zero
+    )
+
+    let first = Task { await model.apply(query: "movie", revision: 0) }
+    try await requests.waitForCount(1)
+    requests.finish(0, with: .success(Self.page([1])))
+    await first.value
+
+    // Leaving the tab cancels the refresh a mutation started.
+    let refresh = Task { await model.apply(query: "movie", revision: 1) }
+    try await requests.waitForCount(2)
+    refresh.cancel()
+    requests.finish(1, with: .failure(CancellationError()))
+    await refresh.value
+
+    let returning = Task { await model.apply(query: "movie", revision: 1) }
+    try await requests.waitForCount(3)
+    requests.finish(2, with: .failure(PutioRuntimeError.transient))
+    await returning.value
+    XCTAssertEqual(model.refreshFailure?.kind, .transient)
+
+    let retry = Task { await model.apply(query: "movie", revision: 1) }
+    try await requests.waitForCount(4)
+    requests.finish(3, with: .success(Self.page([2])))
+    await retry.value
+    XCTAssertEqual(model.state, .loaded(Self.page([2])))
+    XCTAssertNil(model.refreshFailure)
+    await model.apply(query: "movie", revision: 1)
+    XCTAssertEqual(requests.keywords.count, 4)
+  }
+
   private static func page(_ ids: [Int], cursor: String? = nil) -> PutioFileSearchPage {
     PutioFileSearchPage(
       items: ids.map { BrowserTestFixtures.item(id: $0) }, nextCursor: cursor, totalCount: 10)

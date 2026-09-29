@@ -27,6 +27,13 @@ final class PutioFileSearchModel {
   @ObservationIgnored private let continueSearch: PutioFileSearch
   @ObservationIgnored private let debounce: Duration
   @ObservationIgnored private var consumedCursors: Set<String> = []
+  @ObservationIgnored private var appliedRequest: Request?
+
+  /// A query and the browser refresh revision its results reflect.
+  struct Request: Equatable {
+    let query: String
+    let revision: UInt64
+  }
 
   init(
     search: @escaping PutioFileSearch,
@@ -38,8 +45,23 @@ final class PutioFileSearchModel {
     self.debounce = debounce
   }
 
-  func update(query: String, debounced: Bool = true) async {
-    let keyword = query.trimmingCharacters(in: .whitespacesAndNewlines)
+  /// Searches for the view's current request unless the shown results
+  /// already reflect it. Reappearing after a tab switch or a pop keeps them;
+  /// a new query or a browser mutation since the last search runs again.
+  func apply(query: String, revision: UInt64) async {
+    let request = Request(query: Self.keyword(query), revision: revision)
+    if request == appliedRequest, request.query == self.query, case .loaded = state,
+      refreshFailure == nil
+    {
+      return
+    }
+    if await update(query: query) { appliedRequest = request }
+  }
+
+  /// Returns true when this call's results are the ones shown.
+  @discardableResult
+  func update(query: String, debounced: Bool = true) async -> Bool {
+    let keyword = Self.keyword(query)
     let retainedPage: PutioFileSearchPage?
     if keyword == self.query, case .loaded(let page) = state {
       retainedPage = page
@@ -57,25 +79,31 @@ final class PutioFileSearchModel {
     consumedCursors = []
     guard !self.query.isEmpty else {
       state = .idle
-      return
+      return false
     }
     if retainedPage == nil { state = .loading }
     do {
       if debounced { try await Task.sleep(for: debounce) }
       try Task.checkCancellation()
       let page = try await search(keyword)
-      guard requestGeneration == generation, !Task.isCancelled else { return }
+      guard requestGeneration == generation, !Task.isCancelled else { return false }
       state = .loaded(page)
+      return true
     } catch {
       guard requestGeneration == generation, !Task.isCancelled,
         let failure = PutioBrowserErrorPresentation(error: error)
-      else { return }
+      else { return false }
       if retainedPage != nil {
         refreshFailure = failure
       } else {
         state = .failed(failure)
       }
+      return false
     }
+  }
+
+  private static func keyword(_ query: String) -> String {
+    query.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
   func loadMore() async {
@@ -147,7 +175,7 @@ struct FilesSearchView: View {
         .putioContentBackground()
         .searchable(text: $query, prompt: "Search in Files")
         .task(id: Request(query: query, revision: refreshRequests.revision)) {
-          await model.update(query: query)
+          await model.apply(query: query, revision: refreshRequests.revision)
         }
         .navigationDestination(for: PutioFolderRoute.self) { route in
           PutioFolderScreen(
