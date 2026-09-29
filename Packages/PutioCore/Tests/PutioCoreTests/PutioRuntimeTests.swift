@@ -420,6 +420,14 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(json["cursor"] as? String, "files-page-2")
   }
 
+  func testContinueFilesRejectsANonadvancingCursor() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(#"{"cursor":"files-page-2","files":[]}"#, for: Self.filesContinueRoute)
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.continueFiles(cursor: "files-page-2")
+    }
+  }
+
   func testSearchEncodesQueryAndMapsAppOwnedResults() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
@@ -1281,6 +1289,15 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(json["cursor"] as? String, "trash-page-2")
   }
 
+  func testListTrashContinuationRejectsANonadvancingCursor() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"cursor":"trash-page-2","trash_size":0,"files":[]}"#, for: Self.trashContinueRoute)
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.listTrash(cursor: "trash-page-2")
+    }
+  }
+
   func testTrashMutationsUseSingleItemSDKRequests() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
@@ -2126,6 +2143,33 @@ final class PutioRuntimeTests: XCTestCase {
     XCTAssertEqual(try? tokenStore.read(), "stored-token")
   }
 
+  func testAuthenticationFailureSeenByACancelledTaskStillExpiresTheSession() async {
+    let (runtime, tokenStore) = await makeSignedInRuntime()
+    fixtures.gateFixture(
+      #"{"status":"ERROR","error_type":"invalid_grant"}"#, statusCode: 401, for: Self.filesRoute)
+
+    let task = Task { try await runtime.listFiles() }
+    guard await waitForRequest(Self.filesRoute) else {
+      task.cancel()
+      fixtures.releaseFixture(for: Self.filesRoute)
+      return XCTFail("files request did not start")
+    }
+    // Holding the main actor lets the 401 finish loading before the
+    // cancellation, so the runtime sees both at once.
+    fixtures.releaseFixture(for: Self.filesRoute)
+    blockCurrentThread(seconds: 0.3)
+    task.cancel()
+
+    do {
+      _ = try await task.value
+      XCTFail("expected sessionExpired")
+    } catch {
+      XCTAssertEqual(error as? PutioRuntimeError, .sessionExpired)
+    }
+    XCTAssertEqual(runtime.session.state, .signedOut(.sessionExpired))
+    XCTAssertNil(try? tokenStore.read())
+  }
+
   func testResponseCompletingDuringSignOutIsDiscarded() async {
     let (runtime, tokenStore) = await makeSignedInRuntime()
     fixtures.gateFixture(Self.filesList(cursor: nil), for: Self.filesRoute)
@@ -2757,6 +2801,10 @@ final class PutioRuntimeTests: XCTestCase {
       data.append(buffer, count: read)
     }
     return data
+  }
+
+  private nonisolated func blockCurrentThread(seconds: TimeInterval) {
+    Thread.sleep(forTimeInterval: seconds)
   }
 
   private func waitForRequest(_ route: String, count: Int = 1) async -> Bool {

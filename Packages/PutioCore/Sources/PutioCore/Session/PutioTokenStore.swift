@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import Synchronization
 
 public enum PutioTokenStoreError: Error, Equatable {
   case keychainFailure(OSStatus)
@@ -82,23 +83,22 @@ public struct PutioKeychainTokenStore: PutioTokenStore {
   }
 }
 
-public final class PutioInMemoryTokenStore: PutioTokenStore, @unchecked Sendable {
-  private let lock = NSLock()
-  private var token: String?
+public final class PutioInMemoryTokenStore: PutioTokenStore {
+  private let token: Mutex<String?>
 
   public init(token: String? = nil) {
-    self.token = token
+    self.token = Mutex(token)
   }
 
   public func read() throws -> String? {
-    lock.withLock { token }
+    token.withLock { $0 }
   }
 
   public func write(_ token: String) throws {
-    lock.withLock { self.token = token }
+    self.token.withLock { $0 = token }
   }
 
   public func clear() throws {
-    lock.withLock { token = nil }
+    token.withLock { $0 = nil }
   }
 }

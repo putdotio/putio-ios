@@ -40,6 +40,9 @@ public final class PutioRuntime {
     let result = try await performAuthenticatedOperation {
       try await sdk.continueFiles(cursor: cursor)
     }
+    if let nextCursor = result.cursor, !nextCursor.isEmpty, nextCursor == cursor {
+      throw PutioRuntimeError.invalidResponse
+    }
     return folderContents(from: result)
   }
 
@@ -327,6 +330,9 @@ public final class PutioRuntime {
         return try await sdk.continueListTrash(cursor: cursor)
       }
       return try await sdk.listTrash()
+    }
+    if let cursor, let nextCursor = result.cursor, !nextCursor.isEmpty, nextCursor == cursor {
+      throw PutioRuntimeError.invalidResponse
     }
 
     return PutioTrashPage(
@@ -621,6 +627,17 @@ public final class PutioRuntime {
       }
       return result
     } catch {
+      let sdkError = error as? PutioSDKError
+      // put.io rejected the credential even if the caller no longer wants the
+      // result; the session still has to end.
+      if sdkError?.isAuthenticationFailure == true,
+        authenticationGeneration == session.authenticationGeneration,
+        case .signedIn = session.state
+      {
+        session.expireSession()
+        throw PutioRuntimeError.sessionExpired
+      }
+
       if Task.isCancelled || isCancellation(error) {
         throw CancellationError()
       }
@@ -633,12 +650,8 @@ public final class PutioRuntime {
       }
 
       if let rejection = error as? PutioAccountSecurityError { throw rejection }
-      guard let sdkError = error as? PutioSDKError else {
+      guard let sdkError else {
         throw PutioRuntimeError.unknown
-      }
-      if sdkError.isAuthenticationFailure {
-        session.expireSession()
-        throw PutioRuntimeError.sessionExpired
       }
       if sdkError.isNotFound {
         throw PutioRuntimeError.notFound
