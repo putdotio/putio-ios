@@ -202,13 +202,13 @@ struct PutioOfflineStore: Sendable {
   func save(
     items: [PutioOfflineItem], concurrencyLimit: Int,
     pendingOriginals: [PutioOfflineRemovalTarget] = []
-  ) {
+  ) throws {
     let document = Document(
       version: Self.version, items: items, concurrencyLimit: concurrencyLimit,
       pendingOriginals: pendingOriginals.isEmpty ? nil : pendingOriginals)
-    guard let data = try? JSONEncoder().encode(document) else { return }
-    try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    try? data.write(to: fileURL, options: .atomic)
+    let data = try JSONEncoder().encode(document)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try data.write(to: fileURL, options: .atomic)
   }
 
   /// Packages live where AVFoundation put them, outside `directory`, so a
@@ -224,30 +224,30 @@ struct PutioOfflineStore: Sendable {
     return Set(paths)
   }
 
-  func recordPackages(at relativePaths: some Sequence<String>) {
+  func recordPackages(at relativePaths: some Sequence<String>) throws {
     var packages = loadPackages()
     let before = packages.count
     packages.formUnion(relativePaths)
     guard packages.count != before else { return }
-    savePackages(packages)
+    try savePackages(packages)
   }
 
-  func forgetPackage(at relativePath: String) {
+  func forgetPackage(at relativePath: String) throws {
     var packages = loadPackages()
     guard packages.remove(relativePath) != nil else { return }
-    savePackages(packages)
+    try savePackages(packages)
   }
 
   /// An empty set removes the file so a purge is not undone by a late event
   /// recreating the account directory.
-  private func savePackages(_ packages: Set<String>) {
+  private func savePackages(_ packages: Set<String>) throws {
     guard !packages.isEmpty else {
-      try? FileManager.default.removeItem(at: packagesURL)
+      do { try FileManager.default.removeItem(at: packagesURL) } catch CocoaError.fileNoSuchFile {}
       return
     }
-    guard let data = try? JSONEncoder().encode(packages.sorted()) else { return }
-    try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    try? data.write(to: packagesURL, options: .atomic)
+    let data = try JSONEncoder().encode(packages.sorted())
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try data.write(to: packagesURL, options: .atomic)
   }
 }
 
@@ -300,6 +300,8 @@ final class PutioOfflineQueue {
   private(set) var originalFailure: PutioOfflineOriginalOutcome?
   /// Originals put.io has not confirmed yet; persisted so a kill still retries.
   private(set) var pendingOriginals: [PutioOfflineRemovalTarget] = []
+  /// The first queue write that failed since the last retry or dismissal.
+  private(set) var persistenceFailure: PutioOfflinePersistenceFailure?
 
   @ObservationIgnored private let store: PutioOfflineStore
   @ObservationIgnored private let engine: any PutioOfflineDownloadEngine
@@ -394,7 +396,8 @@ final class PutioOfflineQueue {
     concurrencyLimit = loaded.concurrencyLimit
     pendingOriginals = loaded.pendingOriginals
     // Queues written before the sidecar existed are its only record.
-    store.recordPackages(at: items.compactMap(\.localPath))
+    let packages = items.compactMap(\.localPath)
+    writing { try store.recordPackages(at: packages) }
     engine.onProgress = { [weak self] id, progress in self?.engineProgressed(id, progress) }
     engine.onLocation = { [weak self] id, url in self?.engineLocated(id, url) }
     engine.onFinished = { [weak self] id, error in self?.engineFinished(id, error) }
@@ -478,8 +481,10 @@ final class PutioOfflineQueue {
     let epoch = completionEpoch[fileID, default: 0]
     let url = Self.localURL(for: localPath)
     let readTracks = readTracks
+    let fileManager = fileManager
     Task { @MainActor [weak self] in
       let tracks = await readTracks(url)
+      let storedBytes = await Self.measuredSize(url, fileManager: fileManager)
       guard let self else { return }
       completing.remove(fileID)
       // Resume, retry, or remove may have run during the read; only a row
@@ -494,7 +499,7 @@ final class PutioOfflineQueue {
       }
       update(fileID) {
         $0.stage = .completed
-        $0.storedBytes = Self.directorySize(url, fileManager: fileManager)
+        $0.storedBytes = storedBytes
         $0.storedAudioTracks = tracks.audio
         $0.storedSubtitleTracks = tracks.subtitles
       }
@@ -657,8 +662,14 @@ final class PutioOfflineQueue {
       PutioOfflineRemovalTarget(id: $0.id, name: $0.name, movesToTrash: movesToTrash)
     }
     // The debt is written before the package goes; a kill in between retries
-    // and finishes the removal on the next launch.
-    if adoptPendingOriginals(targets, replacing: true) { persist() }
+    // and finishes the removal on the next launch. A debt that is not on disk
+    // could not be retried, so nothing is removed.
+    let owed = pendingOriginals
+    if adoptPendingOriginals(targets, replacing: true), !persist() {
+      pendingOriginals = owed
+      persistenceFailure = .removalNotStarted(outOfSpace: lastWriteWasOutOfSpace)
+      return PutioOfflineOriginalOutcome()
+    }
     remove(fileIDs: fileIDs)
     return await deleteOriginals(targets)
   }
@@ -792,6 +803,7 @@ final class PutioOfflineQueue {
     originalsGeneration &+= 1
     pendingOriginals.removeAll()
     originalFailure = nil
+    persistenceFailure = nil
     let survivors = store.loadPackages().filter { relativePath in
       let url = Self.localURL(for: relativePath)
       try? fileManager.removeItem(at: url)
@@ -800,7 +812,7 @@ final class PutioOfflineQueue {
     // No queue file is written first: the directory goes as a whole. Only a
     // package that would not delete brings the sidecar back, for a retry.
     try? fileManager.removeItem(at: store.directory)
-    store.recordPackages(at: survivors)
+    writing { try store.recordPackages(at: survivors) }
     recomputeStorage()
   }
 
@@ -1089,10 +1101,12 @@ final class PutioOfflineQueue {
     guard items.contains(where: { $0.id == fileID }) else {
       engine.cancel(fileID: fileID)
       try? fileManager.removeItem(at: url)
-      if fileManager.fileExists(atPath: url.path) { store.recordPackages(at: [relativePath]) }
+      if fileManager.fileExists(atPath: url.path) {
+        writing { try store.recordPackages(at: [relativePath]) }
+      }
       return
     }
-    store.recordPackages(at: [relativePath])
+    writing { try store.recordPackages(at: [relativePath]) }
     update(fileID) { $0.localPath = relativePath }
   }
 
@@ -1141,7 +1155,9 @@ final class PutioOfflineQueue {
   private func removePackage(at relativePath: String) {
     let url = Self.localURL(for: relativePath)
     try? fileManager.removeItem(at: url)
-    if !fileManager.fileExists(atPath: url.path) { store.forgetPackage(at: relativePath) }
+    if !fileManager.fileExists(atPath: url.path) {
+      writing { try store.forgetPackage(at: relativePath) }
+    }
   }
 
   /// Storage accounting is a snapshot; the UI refreshes it on demand.
@@ -1179,11 +1195,46 @@ final class PutioOfflineQueue {
     if persisting { persist() }
   }
 
-  private func persist() {
+  /// Returns whether the document reached disk.
+  @discardableResult
+  private func persist() -> Bool {
     // A queue outlived by its session never writes; the next shell owns the document.
+    guard isLive() else { return false }
+    return writing {
+      try store.save(
+        items: items, concurrencyLimit: concurrencyLimit, pendingOriginals: pendingOriginals)
+    }
+  }
+
+  @ObservationIgnored private var lastWriteWasOutOfSpace = false
+
+  /// Store writes never throw at their call sites; a failure is kept for the
+  /// Downloads screen, which offers the retry.
+  @discardableResult
+  private func writing(_ write: () throws -> Void) -> Bool {
+    do {
+      try write()
+      return true
+    } catch {
+      lastWriteWasOutOfSpace = PutioOfflinePersistenceFailure.isOutOfSpace(error)
+      if persistenceFailure == nil {
+        persistenceFailure = .unsaved(outOfSpace: lastWriteWasOutOfSpace)
+      }
+      return false
+    }
+  }
+
+  /// Writes the package record and the queue again after a failed write.
+  func retryPersisting() {
+    persistenceFailure = nil
     guard isLive() else { return }
-    store.save(
-      items: items, concurrencyLimit: concurrencyLimit, pendingOriginals: pendingOriginals)
+    let packages = items.compactMap(\.localPath)
+    guard writing({ try store.recordPackages(at: packages) }) else { return }
+    persist()
+  }
+
+  func dismissPersistenceFailure() {
+    persistenceFailure = nil
   }
 
   private func recomputeStorage() {
@@ -1210,6 +1261,12 @@ final class PutioOfflineQueue {
     relativePath.hasPrefix("/")
       ? URL(fileURLWithPath: relativePath)
       : URL(fileURLWithPath: NSHomeDirectory()).appending(path: relativePath)
+  }
+
+  /// An HLS package holds thousands of segments; walking it stays off the main actor.
+  @concurrent
+  nonisolated static func measuredSize(_ url: URL, fileManager: FileManager) async -> Int64 {
+    directorySize(url, fileManager: fileManager)
   }
 
   nonisolated static func directorySize(_ url: URL, fileManager: FileManager) -> Int64 {
@@ -1309,6 +1366,45 @@ final class PutioOfflineQueue {
 }
 
 struct PutioOfflineConversionError: Error {}
+
+/// A queue write that did not reach disk. It stays on the Downloads screen
+/// until a retry writes everything or the user dismisses it.
+enum PutioOfflinePersistenceFailure: Equatable, Sendable {
+  /// The queue or its package record is behind on disk; writing again may fix it.
+  case unsaved(outOfSpace: Bool)
+  /// A removal that also takes originals stopped before touching anything,
+  /// because the record of owed originals could not be written.
+  case removalNotStarted(outOfSpace: Bool)
+
+  static func isOutOfSpace(_ error: Error) -> Bool {
+    (error as NSError).code == NSFileWriteOutOfSpaceError
+  }
+
+  var canRetry: Bool {
+    if case .unsaved = self { return true }
+    return false
+  }
+
+  var title: String {
+    switch self {
+    case .unsaved: "Could not save downloads"
+    case .removalNotStarted: "Could not remove downloads"
+    }
+  }
+
+  var message: String {
+    switch self {
+    case .unsaved(let outOfSpace):
+      outOfSpace
+        ? "This device is out of space, so changes to your downloads were not saved. Free up storage and try again."
+        : "Changes to your downloads could not be saved on this device. Try again."
+    case .removalNotStarted(let outOfSpace):
+      outOfSpace
+        ? "Nothing was removed because this device is out of space. Free up storage and remove the downloads again."
+        : "Nothing was removed because this device could not save the change. Remove the downloads again."
+    }
+  }
+}
 
 // MARK: - Preferred language
 

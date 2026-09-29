@@ -181,7 +181,7 @@ final class OfflineDownloadsTests: XCTestCase {
         storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
         pendingPositionSeconds: nil, estimatedBytes: 64)
     }
-    store.save(
+    try store.save(
       items: [
         try item(1, "Episode 1.mp4"),
         try item(10, "Episode 10.mp4"),
@@ -320,7 +320,7 @@ final class OfflineDownloadsTests: XCTestCase {
     let survivorLoaded = survivorStore.load()
     var (items, limit) = (survivorLoaded.items, survivorLoaded.concurrencyLimit)
     items[0].stage = .downloading(progress: 0.4)
-    survivorStore.save(items: items, concurrencyLimit: limit)
+    try survivorStore.save(items: items, concurrencyLimit: limit)
     let survivor = FakeEngine()
     survivor.alive = [PutioFileID(rawValue: 1)]
     engine = survivor
@@ -483,7 +483,7 @@ final class OfflineDownloadsTests: XCTestCase {
       stage: .downloading(progress: 1), localPath: location.path, storedBytes: 0,
       selectedAudioLanguages: [], storedAudioTracks: [], storedSubtitleTracks: [],
       resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: 0)
-    store.save(items: [item], concurrencyLimit: 2)
+    try store.save(items: [item], concurrencyLimit: 2)
     let queue = makeQueue()
     await queue.restore()
     await settle()
@@ -575,7 +575,7 @@ final class OfflineDownloadsTests: XCTestCase {
         stage: .queued, localPath: nil, storedBytes: 0, selectedAudioLanguages: [],
         storedAudioTracks: [], storedSubtitleTracks: [], resumePositionSeconds: 0,
         pendingPositionSeconds: nil, estimatedBytes: 0))
-    store.save(items: items, concurrencyLimit: 2)
+    try store.save(items: items, concurrencyLimit: 2)
     var notified: [Int] = []
     let queue = PutioOfflineQueue(
       store: store, engine: engine, conversionPollInterval: .zero, sleep: { _ in },
@@ -667,7 +667,7 @@ final class OfflineDownloadsTests: XCTestCase {
     let location = directory.appending(path: "once.movpkg")
     try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
     try Data(count: 64).write(to: location.appending(path: "seg.bin"))
-    store.save(
+    try store.save(
       items: [
         PutioOfflineItem(
           id: PutioFileID(rawValue: 40), parentID: .root, name: "o", kind: .video, createdAt: .now,
@@ -697,7 +697,7 @@ final class OfflineDownloadsTests: XCTestCase {
     let location = directory.appending(path: "partial.movpkg")
     try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
     try Data(count: 512).write(to: location.appending(path: "seg.bin"))
-    store.save(
+    try store.save(
       items: [
         PutioOfflineItem(
           id: PutioFileID(rawValue: 50), parentID: .root, name: "q", kind: .video, createdAt: .now,
@@ -764,7 +764,7 @@ final class OfflineDownloadsTests: XCTestCase {
     let location = directory.appending(path: "done2.movpkg")
     try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
     try Data(count: 256).write(to: location.appending(path: "seg.bin"))
-    store.save(
+    try store.save(
       items: [
         PutioOfflineItem(
           id: PutioFileID(rawValue: 60), parentID: .root, name: "r", kind: .video, createdAt: .now,
@@ -1038,10 +1038,50 @@ final class OfflineDownloadsTests: XCTestCase {
       PutioOfflineEventJournal.Entry(
         description: "8:413", location: nil, completed: false, failed: true),
     ]
-    PutioOfflineEventJournal.save(entries)
+    try PutioOfflineEventJournal.save(entries)
     XCTAssertEqual(PutioOfflineEventJournal.load(), entries)
-    PutioOfflineEventJournal.save([])
+    try PutioOfflineEventJournal.save([])
     XCTAssertTrue(PutioOfflineEventJournal.load().isEmpty)
+  }
+
+  func testJournalReplayIgnoresEventsFromAReplacedTask() throws {
+    try PutioOfflineEventJournal.save([])
+    defer { try? PutioOfflineEventJournal.save([]) }
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.invalidateAndCancel() }
+    func task(_ description: String) -> URLSessionTask {
+      let task = session.dataTask(with: URL(string: "https://download.test/task")!)
+      task.taskDescription = description
+      return task
+    }
+    // Identifiers grow in creation order, so each replacement is newer.
+    let replaced = task("7:5")
+    let live = task("7:5")
+    let older = task("7:6")
+    let newer = task("7:6")
+    let otherAccount = task("8:5")
+    let lost = URLError(.networkConnectionLost)
+    PutioOfflineEventJournal.append([
+      .completion(task: replaced, error: lost),
+      .location(task: live, URL(fileURLWithPath: "/tmp/live.movpkg")),
+      .completion(task: older, error: lost),
+      .location(task: newer, URL(fileURLWithPath: "/tmp/newer.movpkg")),
+      .completion(task: newer, error: nil),
+      .completion(task: otherAccount, error: nil),
+    ])
+    let engine = PutioSystemOfflineDownloadEngine(accountID: 7)
+    var located: [Int] = []
+    var finished: [(id: Int, succeeded: Bool)] = []
+    engine.onLocation = { id, _ in located.append(id.rawValue) }
+    engine.onFinished = { id, error in finished.append((id.rawValue, error == nil)) }
+
+    PutioOfflineEventJournal.replay(
+      into: engine, liveTasks: [PutioFileID(rawValue: 5): live.taskIdentifier])
+
+    XCTAssertEqual(located, [5, 6])
+    XCTAssertEqual(finished.map(\.id), [6], "the replaced task's failure never reaches file 5")
+    XCTAssertEqual(finished.map(\.succeeded), [true], "the newest task speaks for file 6")
+    XCTAssertEqual(PutioOfflineEventJournal.load().map(\.description), ["8:5"])
   }
 
   func testSyncPointerSurvivesAWaitersFollowUpPass() async throws {
@@ -1218,7 +1258,7 @@ final class OfflineDownloadsTests: XCTestCase {
       stage: .completed, localPath: "Library/Packages/1.movpkg", storedBytes: 512,
       selectedAudioLanguages: [], storedAudioTracks: [], storedSubtitleTracks: [],
       resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: 0)
-    store.save(items: [item], concurrencyLimit: 2)
+    try store.save(items: [item], concurrencyLimit: 2)
     XCTAssertTrue(store.loadPackages().isEmpty)
     _ = makeQueue()
     XCTAssertEqual(store.loadPackages(), ["Library/Packages/1.movpkg"])
@@ -1350,6 +1390,62 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertTrue(outcome.failures.isEmpty)
     XCTAssertNil(queue.originalFailure)
     XCTAssertTrue(engine.cancelled.contains(PutioFileID(rawValue: 2)))
+  }
+
+  /// A non-empty directory where the queue document goes fails every write.
+  private func blockQueueWrites() throws {
+    try? FileManager.default.removeItem(at: directory.appending(path: "queue.json"))
+    try FileManager.default.createDirectory(
+      at: directory.appending(path: "queue.json/blocked"), withIntermediateDirectories: true)
+  }
+
+  private func unblockQueueWrites() throws {
+    try FileManager.default.removeItem(at: directory.appending(path: "queue.json"))
+  }
+
+  func testADebtThatCannotBeWrittenKeepsTheLocalCopy() async throws {
+    let queue = makeQueue()
+    let fileID = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    try engine.finish(fileID, at: directory)
+    await settle()
+    let path = try XCTUnwrap(queue.item(for: fileID)?.localPath)
+    try blockQueueWrites()
+
+    let outcome = await queue.removeDeletingOriginals(fileIDs: [fileID], movesToTrash: true)
+
+    XCTAssertEqual(outcome, PutioOfflineOriginalOutcome())
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .completed)
+    XCTAssertTrue(
+      FileManager.default.fileExists(atPath: PutioOfflineQueue.localURL(for: path).path))
+    XCTAssertEqual(originalDeletes, [], "nothing is asked of put.io without a written debt")
+    XCTAssertTrue(queue.pendingOriginals.isEmpty)
+    XCTAssertEqual(queue.persistenceFailure, .removalNotStarted(outOfSpace: false))
+    XCTAssertEqual(queue.persistenceFailure?.canRetry, false)
+
+    try unblockQueueWrites()
+    queue.dismissPersistenceFailure()
+    _ = await queue.removeDeletingOriginals(fileIDs: [fileID], movesToTrash: true)
+    XCTAssertNil(queue.item(for: fileID))
+    XCTAssertEqual(originalDeletes, [1])
+    XCTAssertNil(queue.persistenceFailure)
+  }
+
+  func testAFailedQueueWriteStaysReportedUntilARetryWritesIt() async throws {
+    let queue = makeQueue()
+    try blockQueueWrites()
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .audio)
+    XCTAssertEqual(queue.persistenceFailure, .unsaved(outOfSpace: false))
+
+    queue.retryPersisting()
+    XCTAssertEqual(
+      queue.persistenceFailure, .unsaved(outOfSpace: false), "a retry that fails again reports")
+
+    try unblockQueueWrites()
+    queue.retryPersisting()
+    XCTAssertNil(queue.persistenceFailure)
+    XCTAssertEqual(PutioOfflineStore(directory: directory).load().items.map(\.id.rawValue), [1])
   }
 
   func testPlainRemoveNeverTouchesTheOriginal() async {
@@ -1497,14 +1593,14 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(untouched.pendingOriginals.map(\.id.rawValue), [1])
   }
 
-  func testARelaunchFinishesARemovalTheKillInterrupted() async {
+  func testARelaunchFinishesARemovalTheKillInterrupted() async throws {
     let queue = makeQueue()
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .audio)
     await settle()
     // The debt was written, then the app died before the row went.
     let target = PutioOfflineRemovalTarget(
       id: PutioFileID(rawValue: 1), name: "a", movesToTrash: true)
-    PutioOfflineStore(directory: directory).save(
+    try PutioOfflineStore(directory: directory).save(
       items: queue.items, concurrencyLimit: queue.concurrencyLimit, pendingOriginals: [target])
 
     let relaunched = makeQueue()

@@ -376,10 +376,12 @@ private struct MainTabView: View {
       ))
     let folderRefreshRequests = PutioFolderRefreshRequests()
     _folderRefreshRequests = State(initialValue: folderRefreshRequests)
-    _offlineQueue = State(
-      initialValue: PutioOfflineQueueFactory.make(
-        runtime: runtime, accountID: account.id, scenario: scenario,
-        onOriginalsRequested: { folderRefreshRequests.requestAllLoadedFolders() }))
+    _offlineQueueHolder = State(
+      initialValue: PutioOfflineQueueHolder {
+        PutioOfflineQueueFactory.make(
+          runtime: runtime, accountID: account.id, scenario: scenario,
+          onOriginalsRequested: { folderRefreshRequests.requestAllLoadedFolders() })
+      })
     _appConfig = State(initialValue: PutioAppConfigModel(actions: .init(runtime: runtime)))
   }
 
@@ -400,7 +402,8 @@ private struct MainTabView: View {
   @State private var presentedPreviewRoute: PutioPreviewRoute?
   @State private var presentedUnsupportedRoute: PutioUnsupportedFileRoute?
   @State private var externalPlayback: PutioExternalPlaybackModel
-  @State private var offlineQueue: PutioOfflineQueue
+  @State private var offlineQueueHolder: PutioOfflineQueueHolder
+  private var offlineQueue: PutioOfflineQueue { offlineQueueHolder.queue }
   @State private var appConfig: PutioAppConfigModel
   @State private var trackPicker: PutioOfflineTrackPickerRequest?
   @State private var offlineFailure: PutioOfflineFailure?
@@ -1302,6 +1305,24 @@ struct PutioOfflineTrackPickerRequest: Identifiable {
   let inventory: PutioOfflineInventory
 
   var id: PutioFileID { route.id }
+}
+
+/// SwiftUI runs `MainTabView.init` on every session update but keeps only the
+/// first `State`, so the queue, which reads and writes its documents, is built
+/// once on first use instead of on every init.
+@MainActor
+private final class PutioOfflineQueueHolder {
+  private let make: @MainActor () -> PutioOfflineQueue
+  private var built: PutioOfflineQueue?
+
+  init(_ make: @escaping @MainActor () -> PutioOfflineQueue) { self.make = make }
+
+  var queue: PutioOfflineQueue {
+    if let built { return built }
+    let queue = make()
+    built = queue
+    return queue
+  }
 }
 
 enum PutioOfflineQueueFactory {

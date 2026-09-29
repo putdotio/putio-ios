@@ -165,6 +165,12 @@ struct OfflineDownloadEngineTests {
     #expect(tasks.configurations.count == 1)
   }
 
+  @Test func progressReachesTheMainActorOncePerNewPercent() {
+    let gate = PutioOfflineProgressGate()
+    let ticks = [0, 0.004, 0.005, 0.015, 0.0152, 0.425, 0.4195, 0.4251, 0.435, 0.9995, 1, 1]
+    #expect(ticks.filter(gate.admits) == [0, 0.015, 0.425, 0.435, 0.9995, 1])
+  }
+
   private func expectCancellation(of task: Task<Void, Error>) async {
     do {
       try await task.value

@@ -87,6 +87,19 @@ struct PutioOfflineDownloadsView: View {
     } message: { outcome in
       Text(copy.failureMessage(outcome: outcome))
     }
+    .alert(
+      queue.persistenceFailure?.title ?? "",
+      isPresented: Binding(get: { queue.persistenceFailure != nil }, set: { _ in }),
+      presenting: queue.persistenceFailure
+    ) { failure in
+      if failure.canRetry {
+        Button("Try again") { queue.retryPersisting() }
+          .accessibilityIdentifier("downloads.save-retry")
+      }
+      Button("OK", role: .cancel) { queue.dismissPersistenceFailure() }
+    } message: { failure in
+      Text(failure.message)
+    }
     .sheet(item: $detailItem) { item in
       PutioOfflineDetailView(item: queue.item(for: item.id) ?? item)
         .preferredColorScheme(.dark)

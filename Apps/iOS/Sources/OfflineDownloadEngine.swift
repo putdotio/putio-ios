@@ -1,6 +1,8 @@
 import AVFoundation
 import Foundation
 import PutioCore
+import Synchronization
+import os
 
 /// AVAssetDownloadURLSession with a background configuration. The system owns
 /// the transfer, keeps it alive across relaunch, and reports the final
@@ -174,13 +176,18 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   }
 
   private var progressObservations: [PutioFileID: NSKeyValueObservation] = [:]
+  private var progressGates: [PutioFileID: PutioOfflineProgressGate] = [:]
 
   /// Configuration-based tasks report through `Progress`; the time-range
-  /// delegate stays as a fallback for older task shapes.
+  /// delegate stays as a fallback for older task shapes. Both pass the task's
+  /// gate, so only a new whole percent reaches the main actor.
   private func observeProgress(of task: URLSessionTask, fileID: PutioFileID) {
+    let gate = PutioOfflineProgressGate()
+    progressGates[fileID] = gate
     progressObservations[fileID] = task.progress.observe(\.fractionCompleted, options: [.new]) {
       [weak self] progress, _ in
       let fraction = progress.fractionCompleted
+      guard gate.admits(fraction) else { return }
       Task { @MainActor [weak self] in self?.handleProgress(fileID, fraction) }
     }
   }
@@ -200,13 +207,13 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     tasks[fileID]?.cancel()
     tasks[fileID] = nil
     progressObservations[fileID] = nil
+    progressGates[fileID] = nil
   }
 
   /// Duplicate tasks for one file id (a crash between start and persist)
   /// keep the newest and cancel the rest.
   func restoreTasks() async -> [PutioFileID] {
     claimRelay()
-    PutioOfflineEventJournal.replay(into: self)
     let restored = await session.allTasks
     var ids: [PutioFileID] = []
     for task in restored {
@@ -227,6 +234,9 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
       observeProgress(of: downloadTask, fileID: fileID)
       ids.append(fileID)
     }
+    // After the live tasks are known, so a journaled event from a replaced
+    // task cannot reach the item its successor now owns.
+    PutioOfflineEventJournal.replay(into: self, liveTasks: tasks.mapValues(\.taskIdentifier))
     return ids
   }
 
@@ -236,6 +246,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     pendingStarts.removeAll()
     tasks = [:]
     progressObservations = [:]
+    progressGates = [:]
     if Self.relay.engine === self { Self.relay.engine = nil }
   }
 
@@ -257,11 +268,13 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     if let error, (error as? URLError)?.code == .cancelled {
       tasks[fileID] = nil
       progressObservations[fileID] = nil
+      progressGates[fileID] = nil
       onCancelled?(fileID)
       return
     }
     tasks[fileID] = nil
     progressObservations[fileID] = nil
+    progressGates[fileID] = nil
     onFinished?(fileID, error)
   }
 
@@ -277,6 +290,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     guard let fileID = owns(event.task) else { return }
     switch event {
     case .progress(_, let progress):
+      guard progressGates[fileID]?.admits(progress) ?? true else { return }
       handleProgress(fileID, progress)
     case .location(let task, let url):
       guard tasks[fileID] == nil || tasks[fileID] === task else { return }
@@ -289,6 +303,22 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
 
 enum PutioOfflineEngineError: Error {
   case missingLanguages
+}
+
+/// Admits a task's progress only when it reaches a new, higher whole percent.
+/// KVO fires far more often than the row can show, and every admitted value
+/// costs a main-actor hop and a Downloads list update.
+final class PutioOfflineProgressGate: Sendable {
+  private let published = Mutex<Int>(-1)
+
+  func admits(_ fraction: Double) -> Bool {
+    let percent = Int((min(max(fraction, 0), 1) * 100).rounded(.down))
+    return published.withLock { last in
+      guard percent > last else { return false }
+      last = percent
+      return true
+    }
+  }
 }
 
 /// The session's delegate. It holds the current engine weakly so the session
@@ -405,14 +435,19 @@ final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
 
 /// A tiny on-disk record of location and completion events delivered while
 /// the app was not ready to handle them. Keyed by task description so the
-/// owning account's engine can claim its entries.
+/// owning account's engine can claim its entries, and by task identifier so a
+/// replaced task's events stay apart from its successor's.
 enum PutioOfflineEventJournal {
   struct Entry: Codable, Equatable {
     let description: String
+    /// Nil for entries written before the identifier was recorded.
+    var taskIdentifier: Int? = nil
     var location: String?
     var completed: Bool
     var failed: Bool
   }
+
+  private static let logger = Logger(subsystem: "io.put", category: "OfflineDownloads")
 
   static var fileURL: URL {
     FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -424,10 +459,15 @@ enum PutioOfflineEventJournal {
     var entries = load()
     for event in events {
       guard let description = event.task.taskDescription else { continue }
-      let index = entries.firstIndex { $0.description == description }
+      let taskIdentifier = event.task.taskIdentifier
+      let index = entries.firstIndex {
+        $0.description == description && $0.taskIdentifier == taskIdentifier
+      }
       var entry =
         index.map { entries[$0] }
-        ?? Entry(description: description, location: nil, completed: false, failed: false)
+        ?? Entry(
+          description: description, taskIdentifier: taskIdentifier, location: nil,
+          completed: false, failed: false)
       switch event {
       case .location(_, let url): entry.location = url.path
       case .completion(_, let error):
@@ -437,7 +477,11 @@ enum PutioOfflineEventJournal {
       }
       if let index { entries[index] = entry } else { entries.append(entry) }
     }
-    save(entries)
+    // The relay still holds the events in memory, so only a suspension
+    // before the next restore loses them.
+    do { try save(entries) } catch {
+      logger.error("Offline event journal not written: \(error.localizedDescription)")
+    }
   }
 
   static func load() -> [Entry] {
@@ -445,38 +489,56 @@ enum PutioOfflineEventJournal {
     return (try? JSONDecoder().decode([Entry].self, from: data)) ?? []
   }
 
-  static func save(_ entries: [Entry]) {
-    try? FileManager.default.createDirectory(
-      at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-    if entries.isEmpty {
-      try? FileManager.default.removeItem(at: fileURL)
+  static func save(_ entries: [Entry]) throws {
+    guard !entries.isEmpty else {
+      do { try FileManager.default.removeItem(at: fileURL) } catch CocoaError.fileNoSuchFile {}
       return
     }
-    guard let data = try? JSONEncoder().encode(entries) else { return }
-    try? data.write(to: fileURL, options: .atomic)
+    let data = try JSONEncoder().encode(entries)
+    try FileManager.default.createDirectory(
+      at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try data.write(to: fileURL, options: .atomic)
   }
 
-  /// Hands this account's entries to the engine and removes them.
-  @MainActor static func replay(into engine: PutioSystemOfflineDownloadEngine) {
-    var entries = load()
+  /// Hands this account's entries to the engine and removes them. A file
+  /// with a live task only takes that task's entry; otherwise the newest
+  /// task's entry speaks for it, as restore keeps the newest duplicate.
+  @MainActor static func replay(
+    into engine: PutioSystemOfflineDownloadEngine, liveTasks: [PutioFileID: Int]
+  ) {
     var remaining: [Entry] = []
-    for entry in entries {
+    var claimed: [PutioFileID: Entry] = [:]
+    var order: [PutioFileID] = []
+    for entry in load() {
       guard let parsed = PutioSystemOfflineDownloadEngine.parse(entry.description),
         parsed.accountID == engine.accountID
       else {
         remaining.append(entry)
         continue
       }
+      if let live = liveTasks[parsed.fileID], entry.taskIdentifier != live { continue }
+      if let existing = claimed[parsed.fileID] {
+        guard (entry.taskIdentifier ?? -1) > (existing.taskIdentifier ?? -1) else { continue }
+      } else {
+        order.append(parsed.fileID)
+      }
+      claimed[parsed.fileID] = entry
+    }
+    for fileID in order {
+      guard let entry = claimed[fileID] else { continue }
       if let location = entry.location {
-        engine.handleLocation(parsed.fileID, URL(fileURLWithPath: location))
+        engine.handleLocation(fileID, URL(fileURLWithPath: location))
       }
       if entry.completed {
-        engine.onFinished?(parsed.fileID, nil)
+        engine.onFinished?(fileID, nil)
       } else if entry.failed {
-        engine.onFinished?(parsed.fileID, URLError(.unknown))
+        engine.onFinished?(fileID, URLError(.unknown))
       }
     }
-    entries = remaining
-    save(entries)
+    // An entry left behind replays again next launch, and a stale failure
+    // would then fail a download that has since finished.
+    do { try save(remaining) } catch {
+      logger.error("Offline event journal not cleared: \(error.localizedDescription)")
+    }
   }
 }
