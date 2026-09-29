@@ -237,8 +237,13 @@ final class FilesSearchTests: XCTestCase {
     await retry.value
     XCTAssertEqual(model.state, .loaded(Self.page([2])))
     XCTAssertNil(model.refreshFailure)
-    await model.apply(query: "movie", revision: 1)
+    // Once a request lands, reappearing keeps it. A search would park in
+    // `requests`, so run it detached and release it after the check.
+    let reappearance = Task { await model.apply(query: "movie", revision: 1) }
+    try await Task.sleep(for: .milliseconds(50))
     XCTAssertEqual(requests.keywords.count, 4)
+    requests.cancelPending()
+    await reappearance.value
   }
 
   private static func page(_ ids: [Int], cursor: String? = nil) -> PutioFileSearchPage {
