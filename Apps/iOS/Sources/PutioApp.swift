@@ -379,7 +379,7 @@ private struct MainTabView: View {
     _offlineQueue = State(
       initialValue: PutioOfflineQueueFactory.make(
         runtime: runtime, accountID: account.id, scenario: scenario,
-        onOriginalsDeleted: { folderRefreshRequests.requestAllLoadedFolders() }))
+        onOriginalsRequested: { folderRefreshRequests.requestAllLoadedFolders() }))
     _appConfig = State(initialValue: PutioAppConfigModel(actions: .init(runtime: runtime)))
   }
 
@@ -1308,7 +1308,7 @@ enum PutioOfflineQueueFactory {
   @MainActor
   static func make(
     runtime: PutioRuntime, accountID: Int, scenario: HarnessScenario,
-    onOriginalsDeleted: @escaping @MainActor () -> Void
+    onOriginalsRequested: @escaping @MainActor () -> Void
   ) -> PutioOfflineQueue {
     #if DEBUG
       let harness = scenario == .filesBrowser
@@ -1331,7 +1331,7 @@ enum PutioOfflineQueueFactory {
         guard !harness else { return }
         PutioOfflineNotifications.notifyCompletion(item)
       },
-      notifyOriginalsDeleted: { _ in onOriginalsDeleted() },
+      notifyOriginalsRequested: { _ in onOriginalsRequested() },
       resolve: { fileID, kind in
         switch kind {
         case .audio:
