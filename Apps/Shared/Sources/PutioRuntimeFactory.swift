@@ -29,7 +29,7 @@ enum PutioRuntimeFactory {
         if failSignOut {
           tokenStore = HarnessFailOnceTokenStore()
         } else if scenario == .filesBrowser || scenario == .deviceSignIn {
-          tokenStore = PutioKeychainTokenStore()
+          tokenStore = PutioKeychainTokenStore(service: harnessKeychainService)
         } else {
           tokenStore = PutioInMemoryTokenStore(token: HarnessSeededAPI.token)
         }
@@ -61,6 +61,13 @@ enum PutioRuntimeFactory {
   }
 
   #if DEBUG
+    // Harness sign-in still round-trips the keychain for cold restore, but
+    // never under the real login's item, which a proof run would overwrite
+    // and a harness sign-out would delete.
+    static var harnessKeychainService: String {
+      (Bundle.main.bundleIdentifier ?? "io.put.dev") + ".harness"
+    }
+
     static func runtimeProofCallback(for request: PutioSignInRequest) throws -> URL {
       guard
         let state = URLComponents(url: request.url, resolvingAgainstBaseURL: false)?

@@ -6,7 +6,7 @@ import SwiftUI
 @main
 struct PutioApp: App {
   @UIApplicationDelegateAdaptor(PutioAppDelegate.self) private var appDelegate
-  private let scenario = HarnessScenario.parse(arguments: ProcessInfo.processInfo.arguments)
+  private let scenario = HarnessLaunch.scenario
 
   init() {
     // The Cast context is process-global and set once; the seeded scenario
@@ -554,9 +554,11 @@ private struct MainTabView: View {
     }
     .modifier(PutioExternalPlaybackPresentation(model: externalPlayback))
     .overlay(alignment: .topLeading) {
-      if scenario == .filesBrowser, let selectedFileRoute {
-        HarnessFileSelectionProbe(route: selectedFileRoute)
-      }
+      #if DEBUG
+        if scenario == .filesBrowser, let selectedFileRoute {
+          HarnessFileSelectionProbe(route: selectedFileRoute)
+        }
+      #endif
     }
     .overlay(alignment: .topTrailing) {
       #if DEBUG
@@ -1033,36 +1035,36 @@ private struct PutioSelectedVideoCover<Content: View>: View {
     case invalidResource
     case missingResource
   }
-#endif
 
-private struct HarnessFileSelectionProbe: View {
-  let route: PutioFileRoute
+  private struct HarnessFileSelectionProbe: View {
+    let route: PutioFileRoute
 
-  var body: some View {
-    Color.clear
-      .frame(width: 1, height: 1)
-      .accessibilityElement(children: .ignore)
-      .accessibilityLabel("Selected file route")
-      .accessibilityValue(selectionValue)
-      .accessibilityIdentifier("files.selection")
-      .allowsHitTesting(false)
-  }
+    var body: some View {
+      Color.clear
+        .frame(width: 1, height: 1)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Selected file route")
+        .accessibilityValue(selectionValue)
+        .accessibilityIdentifier("files.selection")
+        .allowsHitTesting(false)
+    }
 
-  private var selectionValue: String {
-    "id=\(route.id.rawValue);parent=\(route.item.parentID.rawValue);kind=\(kindName)"
-  }
+    private var selectionValue: String {
+      "id=\(route.id.rawValue);parent=\(route.item.parentID.rawValue);kind=\(kindName)"
+    }
 
-  private var kindName: String {
-    switch route.item.kind {
-    case .folder: "folder"
-    case .video: "video"
-    case .audio: "audio"
-    case .image: "image"
-    case .pdf: "pdf"
-    case .other: "other"
+    private var kindName: String {
+      switch route.item.kind {
+      case .folder: "folder"
+      case .video: "video"
+      case .audio: "audio"
+      case .image: "image"
+      case .pdf: "pdf"
+      case .other: "other"
+      }
     }
   }
-}
+#endif
 
 #if DEBUG
   /// Re-renders on every handed-off URL so the recorded summary stays current.

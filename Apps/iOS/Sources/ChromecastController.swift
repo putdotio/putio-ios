@@ -79,7 +79,11 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     castStateChanged()
   }
 
-  deinit {
+  // The Cast SDK is main-thread only, so teardown stays on the main actor.
+  isolated deinit {
+    let sessionManager = GCKCastContext.sharedInstance().sessionManager
+    sessionManager.remove(self)
+    sessionManager.currentCastSession?.remoteMediaClient?.remove(self)
     if let castStateObservation {
       NotificationCenter.default.removeObserver(castStateObservation)
     }

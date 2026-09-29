@@ -4,7 +4,7 @@ import SwiftUI
 @main
 struct PutioWatchApp: App {
   @State private var presentation = SignedOutPresentation.harnessInitialPresentation(
-    arguments: ProcessInfo.processInfo.arguments)
+    arguments: HarnessLaunch.arguments)
 
   var body: some Scene {
     WindowGroup {
@@ -12,7 +12,7 @@ struct PutioWatchApp: App {
         .preferredColorScheme(.dark)
         .tint(PutioTheme.Colors.accent)
         .onAppear {
-          if SignedOutPresentation.isHarnessExercise(arguments: ProcessInfo.processInfo.arguments) {
+          if SignedOutPresentation.isHarnessExercise(arguments: HarnessLaunch.arguments) {
             SignedOutPresentation.signalHarnessExercise()
           }
         }
