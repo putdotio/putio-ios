@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import PutioCore
+import Synchronization
 
 typealias PutioFolderLoad =
   @MainActor @Sendable (PutioFileID) async throws -> PutioFolderContents
@@ -1167,13 +1168,25 @@ struct PutioBrowserItemPresentation: Equatable, Identifiable, Sendable {
   ) -> String? {
     guard item.kind != .folder else { return nil }
     let size = PutioFileRowModel.sizeText(bytes: item.sizeBytes, locale: locale)
-    let formatter = RelativeDateTimeFormatter()
-    formatter.locale = locale
-    formatter.dateTimeStyle = .named
-    formatter.unitsStyle = .full
-    let relativeDate = formatter.localizedString(for: item.updatedAt, relativeTo: referenceDate)
+    let relativeDate = relativeDateFormatters.withLock { formatters in
+      let formatter: RelativeDateTimeFormatter
+      if let cached = formatters[locale] {
+        formatter = cached
+      } else {
+        formatter = RelativeDateTimeFormatter()
+        formatter.locale = locale
+        formatter.dateTimeStyle = .named
+        formatter.unitsStyle = .full
+        formatters[locale] = formatter
+      }
+      return formatter.localizedString(for: item.updatedAt, relativeTo: referenceDate)
+    }
     return "\(size) · \(relativeDate)"
   }
+
+  // Rows rebuild their presentation on every render, so each locale's
+  // formatter is built once and used only under the lock.
+  private static let relativeDateFormatters = Mutex<[Locale: RelativeDateTimeFormatter]>([:])
 }
 
 /// A sort key as the Files app presents it: one row per key, direction as a
