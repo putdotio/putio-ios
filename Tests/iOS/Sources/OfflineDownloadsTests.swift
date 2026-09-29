@@ -135,7 +135,7 @@ final class OfflineDownloadsTests: XCTestCase {
   private var onOriginalDelete: ((PutioFileID) -> Void)?
   /// Holds every original delete until opened.
   private var originalDeleteGate: AsyncGate?
-  private var originalsDeleted: [[Int]] = []
+  private var originalsRequested: [[Int]] = []
   private var currentTrashSetting: Bool?
   private var trashSettingReads = 0
 
@@ -153,7 +153,7 @@ final class OfflineDownloadsTests: XCTestCase {
     originalDeleteErrors = [:]
     onOriginalDelete = nil
     originalDeleteGate = nil
-    originalsDeleted = []
+    originalsRequested = []
     currentTrashSetting = true
     trashSettingReads = 0
   }
@@ -218,7 +218,7 @@ final class OfflineDownloadsTests: XCTestCase {
       readTracks: { _ in
         ([PutioOfflineTrack(languageCode: "en", displayName: "English")], [])
       },
-      notifyOriginalsDeleted: { self.originalsDeleted.append($0.map(\.rawValue)) },
+      notifyOriginalsRequested: { self.originalsRequested.append($0.map(\.rawValue)) },
       isPlayable: { url in
         !url.lastPathComponent.hasPrefix("partial")
           && PutioOfflineQueue.directorySize(url, fileManager: .default) > 0
@@ -280,6 +280,20 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .completed)
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.resumePositionSeconds, 7)
     XCTAssertGreaterThan(queue.storedBytes, 0)
+  }
+
+  func testASingleFileDownloadRecordsItsSize() async throws {
+    let queue = makeQueue()
+    let fileID = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a.m4a", kind: .audio)
+    await settle()
+    let location = directory.appending(path: "1.m4a")
+    try Data(count: 85_000).write(to: location)
+    engine.onLocation?(fileID, location)
+    engine.onFinished?(fileID, nil)
+    await settle()
+    XCTAssertEqual(queue.item(for: fileID)?.stage, .completed)
+    XCTAssertGreaterThanOrEqual(queue.item(for: fileID)?.storedBytes ?? 0, 85_000)
   }
 
   func testQueuePersistsAndRestoresPausingOrphanedDownloads() async throws {
@@ -1066,6 +1080,60 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(queue.pendingPositionCount, 0)
   }
 
+  func testWaitersOnOnePassShareOneFollowUp() async throws {
+    try await checkWaitersShareOneFollowUp(fails: false)
+  }
+
+  func testWaitersStopAfterTheirSharedFollowUpFails() async throws {
+    try await checkWaitersShareOneFollowUp(fails: true)
+  }
+
+  private func checkWaitersShareOneFollowUp(fails: Bool) async throws {
+    let firstPass = makeGate()
+    let followUp = makeGate()
+    var attempts = 0
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory), engine: engine, conversionPollInterval: .zero,
+      sleep: { _ in }, availableStorage: { 1_000_000_000 },
+      resolve: { _, _ in
+        .ready(PutioPlaybackSource(url: URL(string: "https://media.test/x")!, startFromSeconds: 0))
+      },
+      startConversion: { _ in }, conversionStatus: { _ in .completed },
+      reportPosition: { _, _ in
+        attempts += 1
+        switch attempts {
+        case 1: throw PutioRuntimeError.transient
+        case 2:
+          await firstPass.wait()
+          throw PutioRuntimeError.transient
+        default:
+          await followUp.wait()
+          if fails { throw PutioRuntimeError.transient }
+        }
+      }, deleteOriginal: { _ in })
+    queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .video)
+    await settle()
+    try engine.finish(PutioFileID(rawValue: 1), at: directory)
+    await settle()
+    await queue.recordPosition(fileID: PutioFileID(rawValue: 1), seconds: 5)
+    let sync1 = Task { await queue.syncPendingPositions() }
+    await settle()
+    // Both arrive while the first pass is parked; it then fails, so both wake
+    // with the position still pending.
+    let sync2 = Task { await queue.syncPendingPositions() }
+    let sync3 = Task { await queue.syncPendingPositions() }
+    await settle()
+    await firstPass.open()
+    await settle()
+    XCTAssertEqual(attempts, 3, "one follow-up pass, not one per waiter")
+    await followUp.open()
+    await sync1.value
+    await sync2.value
+    await sync3.value
+    XCTAssertEqual(attempts, 3)
+    XCTAssertEqual(queue.pendingPositionCount, fails ? 1 : 0)
+  }
+
   func testTaskDescriptionsCarryTheAccount() {
     XCTAssertEqual(PutioSystemOfflineDownloadEngine.parse("7:412")?.accountID, 7)
     XCTAssertEqual(PutioSystemOfflineDownloadEngine.parse("7:412")?.fileID.rawValue, 412)
@@ -1341,7 +1409,7 @@ final class OfflineDownloadsTests: XCTestCase {
     await settle()
     XCTAssertEqual(originalDeletes, [1, 1])
     XCTAssertEqual(relaunched.originalFailure?.failedTargets.map(\.id.rawValue), [1])
-    XCTAssertTrue(originalsDeleted.isEmpty, "nothing confirmed yet")
+    XCTAssertEqual(originalsRequested, [[1], [1]], "each unanswered request still reconciles")
 
     relaunched.dismissOriginalFailure()
     XCTAssertNil(relaunched.originalFailure)
@@ -1356,7 +1424,7 @@ final class OfflineDownloadsTests: XCTestCase {
       fileIDs: [PutioFileID(rawValue: 2)], movesToTrash: true)
     XCTAssertTrue(confirmed.pendingOriginals.isEmpty)
     XCTAssertTrue(makeQueue().pendingOriginals.isEmpty)
-    XCTAssertEqual(originalsDeleted, [[2]])
+    XCTAssertEqual(originalsRequested, [[1], [1], [2]])
   }
 
   func testARestoredOriginalDeletionReportsForListReconciliation() async {
@@ -1365,14 +1433,23 @@ final class OfflineDownloadsTests: XCTestCase {
     queue.enqueue(fileID: PutioFileID(rawValue: 1), parentID: .root, name: "a", kind: .audio)
     await settle()
     _ = await queue.removeDeletingOriginals(fileIDs: [PutioFileID(rawValue: 1)], movesToTrash: true)
-    XCTAssertTrue(originalsDeleted.isEmpty)
+    XCTAssertEqual(originalsRequested, [[1]], "a lost answer may still have removed the original")
 
     let relaunched = makeQueue()
     await relaunched.restore()
     await settle()
-    XCTAssertEqual(originalsDeleted, [[1]], "the cold-launch retry reconciles like any other")
+    XCTAssertEqual(
+      originalsRequested, [[1], [1]], "the cold-launch retry reconciles like any other")
     XCTAssertNil(relaunched.originalFailure)
     XCTAssertTrue(relaunched.pendingOriginals.isEmpty)
+
+    let refused = PutioOfflineRemovalTarget(
+      id: PutioFileID(rawValue: 2), name: "b", movesToTrash: true)
+    currentTrashSetting = nil
+    _ = await relaunched.deleteOriginals([refused])
+    currentTrashSetting = false
+    _ = await relaunched.deleteOriginals([refused])
+    XCTAssertEqual(originalsRequested, [[1], [1]], "a refused target sent nothing to reconcile")
   }
 
   func testAQueueWhoseSessionEndedKeepsItsAnswerButWritesNothing() async throws {
@@ -1397,7 +1474,7 @@ final class OfflineDownloadsTests: XCTestCase {
     await gate.open()
     let outcome = await inFlight.value
     XCTAssertEqual(outcome.deleted.map(\.id.rawValue), [1])
-    XCTAssertTrue(originalsDeleted.isEmpty)
+    XCTAssertTrue(originalsRequested.isEmpty)
     let document = makeQueue()
     XCTAssertEqual(document.items.map(\.id.rawValue), [2], "the successor's row survives")
     XCTAssertEqual(
@@ -1485,7 +1562,7 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(outcome.deleted.map(\.id.rawValue), [2], "the answer itself is kept")
     XCTAssertTrue(queue.pendingOriginals.isEmpty)
     XCTAssertNil(queue.originalFailure)
-    XCTAssertTrue(originalsDeleted.isEmpty, "the purge already covered the originals")
+    XCTAssertEqual(originalsRequested, [[1]], "the purge already covered the in-flight original")
     XCTAssertFalse(
       FileManager.default.fileExists(atPath: directory.path),
       "a late answer does not recreate the purged queue")
