@@ -293,6 +293,8 @@ final class PutioTrashModel {
   // Supersedes an initial load that is still unwinding after cancellation so
   // re-entering the screen cannot strand it on the loading state.
   @ObservationIgnored private var loadGeneration: UInt64 = 0
+  // Loads parked behind another load's storage retry.
+  @ObservationIgnored private var storageWaiters: [AsyncStream<Never>.Continuation] = []
   @ObservationIgnored private let reconciliation: PutioTrashReconciliation
   // Identifies the listing the current page belongs to, so its
   // continuations reconcile against the same accumulator.
@@ -541,23 +543,34 @@ final class PutioTrashModel {
   private func reloadStaleStorage() async {
     guard isStorageStale, !isRefreshingStorage else { return }
     isRefreshingStorage = true
-    defer { isRefreshingStorage = false }
+    defer {
+      isRefreshingStorage = false
+      releaseStorageWaiters()
+    }
     _ = await actions.refreshStorage()
   }
 
-  /// Runs the storage retry for a load of `generation`. A superseded load
-  /// skips the listing afterwards, but a still-current one proceeds even if
-  /// an older load holds the storage flag.
-  private func reloadStaleStorage(for generation: UInt64) async {
+  /// Runs the storage retry for the current load. A superseded load skips
+  /// the listing afterwards, but a still-current one proceeds even if an
+  /// older load holds the storage flag.
+  private func reloadStaleStorageForLoad() async {
     guard isStorageStale else { return }
     if isRefreshingStorage {
-      // Another load owns the retry; only wait if we are still current.
-      while isRefreshingStorage, generation == loadGeneration, !Task.isCancelled {
-        await Task.yield()
-      }
+      // Another load owns the retry. Wait until it settles, a newer load
+      // supersedes this one, or the caller is cancelled; cancellation ends
+      // the stream's iteration.
+      let (released, release) = AsyncStream<Never>.makeStream()
+      storageWaiters.append(release)
+      for await _ in released {}
       return
     }
     await reloadStaleStorage()
+  }
+
+  private func releaseStorageWaiters() {
+    let waiters = storageWaiters
+    storageWaiters = []
+    for waiter in waiters { waiter.finish() }
   }
 
   func clearMutationOutcome() {
@@ -581,6 +594,7 @@ final class PutioTrashModel {
     }
     loadGeneration &+= 1
     let generation = loadGeneration
+    releaseStorageWaiters()
     isRefreshing = true
     defer {
       if generation == loadGeneration { isRefreshing = false }
@@ -593,7 +607,7 @@ final class PutioTrashModel {
     paginationFailure = nil
     refreshFailure = nil
     do {
-      await reloadStaleStorage(for: generation)
+      await reloadStaleStorageForLoad()
       guard generation == loadGeneration else { return }
       let first = try await fetchFirstPage()
       guard generation == loadGeneration else { return }
