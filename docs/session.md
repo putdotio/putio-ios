@@ -12,6 +12,15 @@ the receiver. This includes sign-out attempts that fail, session expiry, and
 account destruction. The session root owns this cleanup so it still runs when
 the signed-in shell disappears. A new sign-in gets fresh Cast preferences.
 
+## Saved credential failures
+
+If the keychain cannot be read at launch, restore fails with a retry and keeps
+the saved token; it never falls through to a fresh sign-in. If a new sign-in
+cannot save its token, the store revokes the new grant on a best-effort basis
+and fails sign-in. Expiry and account destruction remove the saved token on a
+best-effort basis. A copy left behind fails validation on the next restore,
+which removes it again.
+
 ## Sign-out recovery
 
 Sign-out removes the saved credential and revokes the server session. If either

@@ -1,4 +1,5 @@
 import PutioSDK
+import Security
 import Synchronization
 import XCTest
 
@@ -115,23 +116,58 @@ private final class SessionMockURLProtocol: URLProtocol, @unchecked Sendable {
   override func stopLoading() { cancelled.withLock { $0 = true } }
 }
 
-private final class FailingClearTokenStore: PutioTokenStore, @unchecked Sendable {
-  private let lock = NSLock()
+private final class FailingClearTokenStore: PutioTokenStore {
   private let storage = PutioInMemoryTokenStore(token: "stored-token")
-  private var clearFails = true
+  private let clearFails = Mutex(true)
 
   func allowClear() {
-    lock.withLock { clearFails = false }
+    clearFails.withLock { $0 = false }
   }
 
   func read() throws -> String? { try storage.read() }
   func write(_ token: String) throws { try storage.write(token) }
   func clear() throws {
-    try lock.withLock {
+    try clearFails.withLock { clearFails in
       if clearFails { throw URLError(.cannotWriteToFile) }
       try storage.clear()
     }
   }
+}
+
+/// Fails reads or writes the way a locked or unavailable keychain does.
+private final class KeychainFailureTokenStore: PutioTokenStore {
+  private struct Failures {
+    var read = false
+    var write = false
+  }
+
+  private let storage: PutioInMemoryTokenStore
+  private let failures: Mutex<Failures>
+
+  init(token: String?, failingReads: Bool = false, failingWrites: Bool = false) {
+    storage = PutioInMemoryTokenStore(token: token)
+    failures = Mutex(Failures(read: failingReads, write: failingWrites))
+  }
+
+  func allowReads() { failures.withLock { $0.read = false } }
+
+  func storedToken() -> String? { try? storage.read() }
+
+  func read() throws -> String? {
+    if failures.withLock({ $0.read }) {
+      throw PutioTokenStoreError.keychainFailure(errSecInteractionNotAllowed)
+    }
+    return try storage.read()
+  }
+
+  func write(_ token: String) throws {
+    if failures.withLock({ $0.write }) {
+      throw PutioTokenStoreError.keychainFailure(errSecInteractionNotAllowed)
+    }
+    try storage.write(token)
+  }
+
+  func clear() throws { try storage.clear() }
 }
 
 @MainActor
@@ -359,6 +395,90 @@ final class PutioSessionStoreTests: XCTestCase {
       return XCTFail("expected restoreFailed, got \(store.state)")
     }
     XCTAssertEqual(try tokenStore.read(), "stored-token")
+  }
+
+  private static let keychainUnavailable =
+    PutioSignedOutReason.authenticationFailed("This device's keychain is unavailable. Try again.")
+
+  func testUnreadableStoredTokenFailsRestoreAndKeepsItForRetry() async {
+    stubSignedInRoutes()
+    let tokenStore = KeychainFailureTokenStore(token: "stored-token", failingReads: true)
+    let (store, sdk) = makeStore(tokenStore: tokenStore)
+
+    await store.restore()
+
+    XCTAssertEqual(
+      store.state, .signedOut(.restoreFailed("This device's keychain is unavailable. Try again.")))
+    XCTAssertEqual(tokenStore.storedToken(), "stored-token")
+    XCTAssertTrue(sdk.config.token.isEmpty)
+    XCTAssertTrue(fixtures.requests.isEmpty)
+
+    tokenStore.allowReads()
+    await store.restore()
+    guard case .signedIn = store.state else {
+      return XCTFail("a readable token must restore on retry, got \(store.state)")
+    }
+  }
+
+  func testWebSignInRevokesTheGrantWhenTheTokenCannotBeSaved() async throws {
+    stubSignedInRoutes()
+    let tokenStore = KeychainFailureTokenStore(token: nil, failingWrites: true)
+    let (store, sdk) = makeStore(tokenStore: tokenStore)
+
+    let request = try store.beginSignIn()
+    let oauthState = try XCTUnwrap(oauthState(from: request.url))
+    let callback = try XCTUnwrap(
+      URL(string: "putio://auth#access_token=fresh-token&state=\(oauthState)"))
+    await store.completeSignIn(callbackURL: callback)
+
+    XCTAssertEqual(store.state, .signedOut(Self.keychainUnavailable))
+    XCTAssertTrue(sdk.config.token.isEmpty)
+    XCTAssertNil(tokenStore.storedToken())
+    assertOnlyRevocationSent(token: "fresh-token")
+  }
+
+  func testDeviceCodeSignInRevokesTheGrantWhenTheTokenCannotBeSaved() async throws {
+    stubSignedInRoutes()
+    stubDeviceCodeIssue(["SAVE1"])
+    fixtures.fixtures["GET /v2/oauth2/oob/code/SAVE1"] = (200, Self.approvedCode)
+    let tokenStore = KeychainFailureTokenStore(token: nil, failingWrites: true)
+    let (store, sdk) = makeStore(tokenStore: tokenStore)
+
+    await store.signInWithDeviceCode()
+
+    XCTAssertEqual(store.state, .signedOut(Self.keychainUnavailable))
+    XCTAssertNil(store.deviceCodeSignIn)
+    XCTAssertTrue(sdk.config.token.isEmpty)
+    assertOnlyRevocationSent(token: "device-token")
+  }
+
+  private func assertOnlyRevocationSent(
+    token: String, file: StaticString = #filePath, line: UInt = #line
+  ) {
+    let authorized = fixtures.requests.filter {
+      $0.value(forHTTPHeaderField: "Authorization") == "token \(token)"
+    }
+    XCTAssertEqual(
+      authorized.map { "\($0.httpMethod ?? "GET") \($0.url?.path ?? "")" },
+      ["POST /v2/oauth/grants/logout"], file: file, line: line)
+  }
+
+  func testExpiredCredentialThatCouldNotBeRemovedIsRemovedByTheNextRestore() async {
+    stubSignedInRoutes()
+    let tokenStore = FailingClearTokenStore()
+    let (store, _) = makeStore(tokenStore: tokenStore)
+    await store.restore()
+
+    store.expireSession()
+    XCTAssertEqual(store.state, .signedOut(.sessionExpired))
+    XCTAssertEqual(try tokenStore.read(), "stored-token")
+
+    tokenStore.allowClear()
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.rejectedValidation)
+    let (relaunched, _) = makeStore(tokenStore: tokenStore)
+    await relaunched.restore()
+    XCTAssertEqual(relaunched.state, .signedOut(.sessionExpired))
+    XCTAssertNil(try tokenStore.read())
   }
 
   func testSignInFlowStoresTokenAndBootstrapsAccount() async throws {
