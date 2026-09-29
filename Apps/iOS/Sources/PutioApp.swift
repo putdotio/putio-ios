@@ -285,14 +285,15 @@ private struct SignInView: View {
         .putioFont(PutioTheme.Typography.body)
         .foregroundStyle(subtitleColor)
         .multilineTextAlignment(.center)
-      PutioButton("Sign in", tier: .primary) {
-        Task { await startSignIn() }
-      }
-      .accessibilityIdentifier("auth.sign-in")
       if case .restoreFailed = reason {
         PutioButton("Try again", icon: .arrowCounterClockwise, tier: .secondary) {
           Task { await session.restore() }
         }
+      } else {
+        PutioButton("Sign in", tier: .primary) {
+          Task { await startSignIn() }
+        }
+        .accessibilityIdentifier("auth.sign-in")
       }
     }
     .padding(PutioTheme.Spacing.space4)

@@ -420,6 +420,37 @@ final class PutioSessionStoreTests: XCTestCase {
     }
   }
 
+  func testRestoreFailureBlocksFreshSignInUntilRetrySucceeds() async {
+    stubSignedInRoutes()
+    let tokenStore = KeychainFailureTokenStore(token: "stored-token", failingReads: true)
+    let (store, sdk) = makeStore(tokenStore: tokenStore)
+    await store.restore()
+    let recoveryState = store.state
+
+    do {
+      _ = try store.beginSignIn()
+      XCTFail("restore recovery must block a fresh OAuth flow")
+    } catch {
+      XCTAssertEqual(error as? PutioSessionOperationError, .signInUnavailable)
+      store.failSignIn(error)
+    }
+    XCTAssertEqual(store.state, recoveryState)
+
+    await store.signInWithDeviceCode()
+    XCTAssertEqual(store.state, recoveryState)
+    XCTAssertNil(store.deviceCodeSignIn)
+    XCTAssertTrue(fixtures.requests.isEmpty)
+    XCTAssertTrue(sdk.config.token.isEmpty)
+    XCTAssertEqual(tokenStore.storedToken(), "stored-token")
+
+    tokenStore.allowReads()
+    await store.restore()
+    guard case .signedIn = store.state else {
+      return XCTFail("the retained credential must restore on retry, got \(store.state)")
+    }
+    XCTAssertEqual(sdk.config.token, "stored-token")
+  }
+
   func testWebSignInRevokesTheGrantWhenTheTokenCannotBeSaved() async throws {
     stubSignedInRoutes()
     let tokenStore = KeychainFailureTokenStore(token: nil, failingWrites: true)

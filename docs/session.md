@@ -15,8 +15,9 @@ the signed-in shell disappears. A new sign-in gets fresh Cast preferences.
 ## Saved credential failures
 
 If the keychain cannot be read at launch, restore fails with a retry and keeps
-the saved token; it never falls through to a fresh sign-in. If a new sign-in
-cannot save its token, the store revokes the new grant on a best-effort basis
+the saved token; both web and device-code sign-in are blocked until restore
+succeeds or rejects the credential. The iOS recovery screen offers only retry.
+If a new sign-in cannot save its token, the store revokes the new grant on a best-effort basis
 and fails sign-in. Expiry and account destruction remove the saved token on a
 best-effort basis. A copy left behind fails validation on the next restore,
 which removes it again.

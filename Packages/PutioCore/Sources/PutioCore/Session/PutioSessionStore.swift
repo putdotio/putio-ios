@@ -147,6 +147,9 @@ public final class PutioSessionStore {
   // MARK: - Sign in
 
   public func beginSignIn() throws -> PutioSignInRequest {
+    if case .signedOut(.restoreFailed) = state {
+      throw PutioSessionOperationError.signInUnavailable
+    }
     switch state {
     case .unknown, .signedOut:
       break
@@ -236,6 +239,7 @@ public final class PutioSessionStore {
   /// in, expired (`deviceCodeSignIn == .expired`, restart with another call),
   /// failed (`.signedOut(.authenticationFailed)`), or cancelled.
   public func signInWithDeviceCode() async {
+    if case .signedOut(.restoreFailed) = state { return }
     switch state {
     case .unknown, .signedOut:
       break
