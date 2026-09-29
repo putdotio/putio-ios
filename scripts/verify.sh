@@ -8,6 +8,7 @@ pnpm install --frozen-lockfile
 ./scripts/generate.sh
 ./scripts/doctor.sh
 ./scripts/test.sh
+./scripts/test-harness-interruption.sh
 ./scripts/build.sh
 ./scripts/harness.sh test --platform ios
 ./scripts/harness.sh test --platform tvos
