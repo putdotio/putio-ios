@@ -16,6 +16,7 @@ private final class SessionMockURLProtocol: URLProtocol, @unchecked Sendable {
     private var storedRequests: [URLRequest] = []
     fileprivate var gatedRoutes: Set<String> = []
     fileprivate var responses: [String: @Sendable () -> Void] = [:]
+    fileprivate var requestObservers: [String: @Sendable () -> Void] = [:]
 
     var fixtures: [String: (Int, String)] {
       get { lock.withLock { storedFixtures } }
@@ -48,6 +49,11 @@ private final class SessionMockURLProtocol: URLProtocol, @unchecked Sendable {
     }
 
     func gate(_ route: String) { lock.withLock { _ = gatedRoutes.insert(route) } }
+
+    /// Runs `observer` for each request on `route`, after a gated response is held.
+    func onRequest(_ route: String, _ observer: @escaping @Sendable () -> Void) {
+      lock.withLock { requestObservers[route] = observer }
+    }
 
     func release(_ route: String) {
       let deliver = lock.withLock {
@@ -105,15 +111,28 @@ private final class SessionMockURLProtocol: URLProtocol, @unchecked Sendable {
       client?.urlProtocol(self, didLoad: Data(body.utf8))
       client?.urlProtocolDidFinishLoading(self)
     }
-    let gated = fixtures.lock.withLock {
-      guard fixtures.gatedRoutes.contains(route) else { return false }
+    let (gated, observer) = fixtures.lock.withLock {
+      let observer = fixtures.requestObservers[route]
+      guard fixtures.gatedRoutes.contains(route) else { return (false, observer) }
       fixtures.responses[route] = deliver
-      return true
+      return (true, observer)
     }
+    observer?()
     if !gated { deliver() }
   }
 
   override func stopLoading() { cancelled.withLock { $0 = true } }
+}
+
+/// Signals once the SDK has produced a request failure, before the caller resumes.
+private final class SDKFailureSignal: PutioSDKDelegate, @unchecked Sendable {
+  private let failed = DispatchSemaphore(value: 0)
+
+  func onPutioSDKError(error: PutioSDKError) { failed.signal() }
+
+  func wait(seconds: TimeInterval) -> Bool {
+    failed.wait(timeout: .now() + seconds) == .success
+  }
 }
 
 private final class FailingClearTokenStore: PutioTokenStore {
@@ -698,31 +717,29 @@ final class PutioSessionStoreTests: XCTestCase {
 
   func testAccountRefreshRejectionSeenByACancelledTaskStillExpiresTheSession() async {
     stubSignedInRoutes()
-    let (store, tokenStore) = makeStore(token: "stored-token")
+    let tokenStore = PutioInMemoryTokenStore(token: "stored-token")
+    let (store, sdk) = makeStore(tokenStore: tokenStore)
     await store.restore()
     let route = "GET /v2/account/info"
     fixtures.fixtures[route] = (401, #"{"status":"ERROR","error_type":"invalid_grant"}"#)
     fixtures.gate(route)
+    let requested = expectRequest(route)
+    let rejected = SDKFailureSignal()
+    sdk.delegate = rejected
     let refresh = Task { await store.refreshAccount() }
-    guard await waitUntil({ fixtures.requestCount(route: route) == 2 }) else {
-      refresh.cancel()
-      fixtures.release(route)
-      return XCTFail("account refresh did not start")
-    }
-    // Holding the main actor lets the 401 finish loading before the
-    // cancellation, so the store sees both at once.
+    await fulfillment(of: [requested], timeout: 5)
+
+    // Holding the main actor until the SDK has the 401 makes the store
+    // resume with both the rejection and the cancellation.
     fixtures.release(route)
-    blockCurrentThread(seconds: 0.3)
+    let sawRejection = rejected.wait(seconds: 5)
     refresh.cancel()
+    XCTAssertTrue(sawRejection, "the SDK never reported the 401")
 
     let refreshed = await refresh.value
     XCTAssertFalse(refreshed)
     XCTAssertEqual(store.state, .signedOut(.sessionExpired))
     XCTAssertNil(try tokenStore.read())
-  }
-
-  private nonisolated func blockCurrentThread(seconds: TimeInterval) {
-    Thread.sleep(forTimeInterval: seconds)
   }
 
   func testCancelSignInReturnsToSignedOutWithoutError() async throws {
@@ -777,28 +794,27 @@ final class PutioSessionStoreTests: XCTestCase {
     }
   }
 
-  private func waitUntil(
-    _ condition: @MainActor () -> Bool, timeout: TimeInterval = 5
-  ) async -> Bool {
-    let deadline = ContinuousClock.now + .seconds(timeout)
-    while ContinuousClock.now < deadline {
-      if condition() { return true }
-      try? await Task.sleep(for: .milliseconds(20))
-    }
-    return condition()
+  private func expectRequest(_ route: String) -> XCTestExpectation {
+    let requested = expectation(description: "\(route) requested")
+    fixtures.onRequest(route) { requested.fulfill() }
+    return requested
   }
 
   func testDeviceCodeSignInShowsTheCodeThenSignsInAfterApproval() async throws {
     stubSignedInRoutes()
     stubDeviceCodeIssue(["ABCD1"])
-    fixtures.sequences["GET /v2/oauth2/oob/code/ABCD1"] = [
-      (200, Self.pendingCode), (200, Self.approvedCode),
-    ]
+    // The held poll stands in for pending ones; the SDK owns re-polling and its
+    // minimum one-second interval.
+    let poll = "GET /v2/oauth2/oob/code/ABCD1"
+    fixtures.fixtures[poll] = (200, Self.approvedCode)
+    fixtures.gate(poll)
+    let polled = expectRequest(poll)
     let (store, tokenStore) = makeStore(token: nil)
     let signIn = Task { await store.signInWithDeviceCode() }
-    let reached1 = await waitUntil { store.deviceCodeSignIn == .awaitingApproval(code: "ABCD1") }
-    XCTAssertTrue(reached1)
+    await fulfillment(of: [polled], timeout: 5)
+    XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(code: "ABCD1"))
     XCTAssertEqual(store.state, .authenticating)
+    fixtures.release(poll)
     await signIn.value
     guard case .signedIn(let account) = store.state else {
       return XCTFail("expected signedIn, got \(store.state)")
@@ -806,7 +822,7 @@ final class PutioSessionStoreTests: XCTestCase {
     XCTAssertEqual(account.username, "moviebuff")
     XCTAssertNil(store.deviceCodeSignIn)
     XCTAssertEqual(try tokenStore.read(), "device-token")
-    XCTAssertEqual(fixtures.requestCount(route: "GET /v2/oauth2/oob/code/ABCD1"), 2)
+    XCTAssertEqual(fixtures.requestCount(route: poll), 1)
     let accountRequest = try XCTUnwrap(
       fixtures.requests.last { $0.url?.path == "/v2/account/info" })
     XCTAssertEqual(accountRequest.value(forHTTPHeaderField: "Authorization"), "token device-token")
@@ -815,40 +831,37 @@ final class PutioSessionStoreTests: XCTestCase {
   func testExpiredDeviceCodeStaysAuthenticatingUntilANewCodeIsRequested() async throws {
     stubSignedInRoutes()
     stubDeviceCodeIssue(["OLD01", "NEW02"])
-    fixtures.sequences["GET /v2/oauth2/oob/code/OLD01"] = [
-      (200, Self.pendingCode), (404, Self.expiredCode),
-    ]
-    fixtures.sequences["GET /v2/oauth2/oob/code/NEW02"] = [
-      (200, Self.pendingCode), (200, Self.approvedCode),
-    ]
+    fixtures.fixtures["GET /v2/oauth2/oob/code/OLD01"] = (404, Self.expiredCode)
+    let renewedPoll = "GET /v2/oauth2/oob/code/NEW02"
+    fixtures.fixtures[renewedPoll] = (200, Self.approvedCode)
     let (store, _) = makeStore(token: nil)
     await store.signInWithDeviceCode()
     XCTAssertEqual(store.state, .authenticating)
     XCTAssertEqual(store.deviceCodeSignIn, .expired(code: "OLD01"))
     XCTAssertThrowsError(try store.beginSignIn())
 
+    fixtures.gate(renewedPoll)
+    let polled = expectRequest(renewedPoll)
     let renewal = Task { await store.signInWithDeviceCode() }
-    let reached2 = await waitUntil { store.deviceCodeSignIn == .awaitingApproval(code: "NEW02") }
-    XCTAssertTrue(reached2)
+    await fulfillment(of: [polled], timeout: 5)
+    XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(code: "NEW02"))
+    fixtures.release(renewedPoll)
     await renewal.value
     guard case .signedIn = store.state else {
       return XCTFail("expected signedIn after the renewed code, got \(store.state)")
     }
     XCTAssertEqual(fixtures.requestCount(route: "GET /v2/oauth2/oob/code"), 2)
-    XCTAssertEqual(fixtures.requestCount(route: "GET /v2/oauth2/oob/code/OLD01"), 2)
+    XCTAssertEqual(fixtures.requestCount(route: "GET /v2/oauth2/oob/code/OLD01"), 1)
   }
 
   func testCancellingDeviceCodeSignInStopsPollingAndReturnsSignedOut() async throws {
     stubDeviceCodeIssue(["WAIT1"])
     fixtures.fixtures["GET /v2/oauth2/oob/code/WAIT1"] = (200, Self.pendingCode)
+    let polled = expectRequest("GET /v2/oauth2/oob/code/WAIT1")
     let (store, tokenStore) = makeStore(token: nil)
     let signIn = Task { await store.signInWithDeviceCode() }
-    let reached3 = await waitUntil { store.deviceCodeSignIn == .awaitingApproval(code: "WAIT1") }
-    XCTAssertTrue(reached3)
-    let reached4 = await waitUntil {
-      fixtures.requestCount(route: "GET /v2/oauth2/oob/code/WAIT1") >= 1
-    }
-    XCTAssertTrue(reached4)
+    await fulfillment(of: [polled], timeout: 5)
+    XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(code: "WAIT1"))
     let pollsAtCancel = fixtures.requestCount(route: "GET /v2/oauth2/oob/code/WAIT1")
     store.cancelSignIn()
     XCTAssertEqual(store.state, .signedOut(nil))
@@ -868,13 +881,10 @@ final class PutioSessionStoreTests: XCTestCase {
     fixtures.gate(route)
     defer { fixtures.release(route) }
     fixtures.fixtures["GET /v2/oauth2/oob/code/LATE1"] = (200, Self.approvedCode)
+    let polled = expectRequest(route)
     let (store, tokenStore) = makeStore(token: nil)
     let signIn = Task { await store.signInWithDeviceCode() }
-    let reached5 = await waitUntil { fixtures.requestCount(route: route) == 1 }
-    guard reached5 else {
-      signIn.cancel()
-      return XCTFail("approval request did not reach the response gate")
-    }
+    await fulfillment(of: [polled], timeout: 5)
     store.cancelSignIn()
     fixtures.release(route)
     await signIn.value
