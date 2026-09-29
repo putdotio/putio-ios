@@ -665,6 +665,35 @@ final class PutioSessionStoreTests: XCTestCase {
     XCTAssertEqual(store.state, .signedOut(.userSignedOut))
   }
 
+  func testAccountRefreshRejectionSeenByACancelledTaskStillExpiresTheSession() async {
+    stubSignedInRoutes()
+    let (store, tokenStore) = makeStore(token: "stored-token")
+    await store.restore()
+    let route = "GET /v2/account/info"
+    fixtures.fixtures[route] = (401, #"{"status":"ERROR","error_type":"invalid_grant"}"#)
+    fixtures.gate(route)
+    let refresh = Task { await store.refreshAccount() }
+    guard await waitUntil({ fixtures.requestCount(route: route) == 2 }) else {
+      refresh.cancel()
+      fixtures.release(route)
+      return XCTFail("account refresh did not start")
+    }
+    // Holding the main actor lets the 401 finish loading before the
+    // cancellation, so the store sees both at once.
+    fixtures.release(route)
+    blockCurrentThread(seconds: 0.3)
+    refresh.cancel()
+
+    let refreshed = await refresh.value
+    XCTAssertFalse(refreshed)
+    XCTAssertEqual(store.state, .signedOut(.sessionExpired))
+    XCTAssertNil(try tokenStore.read())
+  }
+
+  private nonisolated func blockCurrentThread(seconds: TimeInterval) {
+    Thread.sleep(forTimeInterval: seconds)
+  }
+
   func testCancelSignInReturnsToSignedOutWithoutError() async throws {
     let (store, _) = makeStore(token: nil)
     _ = try store.beginSignIn()

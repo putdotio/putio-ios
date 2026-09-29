@@ -451,9 +451,8 @@ public final class PutioSessionStore {
       isAccountPreferencesStale = false
       return true
     } catch {
-      guard generation == authenticationGeneration, !Task.isCancelled,
-        case .signedIn = state
-      else { return false }
+      // A rejected credential ends the session even if the caller was cancelled.
+      guard generation == authenticationGeneration, case .signedIn = state else { return false }
       if isAuthRejection(error) { expireSession() }
       return false
     }
