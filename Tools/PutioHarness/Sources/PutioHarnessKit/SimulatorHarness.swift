@@ -726,6 +726,10 @@ public struct SimulatorHarness {
           mediaDirectory.appending(path: "multi-audio/runtime-proof-multi.m3u8"),
           context: "runtime-proof multi-audio playlist"
         )
+        try requireNonemptyFile(
+          mediaDirectory.appending(path: "multi-audio/multi-subtitle-English.vtt"),
+          context: "runtime-proof WebVTT subtitle"
+        )
         let mediaServer = try HarnessMediaServer(mediaDirectory: mediaDirectory)
         defer { mediaServer.stop() }
         try SimulatorLifecycle.shared.register {
@@ -918,6 +922,17 @@ public struct SimulatorHarness {
           defaultExecutionTimeAllowance: 180,
           maximumExecutionTimeAllowance: 180
         )
+        let subtitlesScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.subtitlesTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".subtitles.xcresult"),
+          attachmentNames: BrowserJourneyContract.subtitlesAttachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 180,
+          maximumExecutionTimeAllowance: 180
+        )
         let accountSecurityScreenshots = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.accountSecurityTestIdentifier,
           platform: platform,
@@ -932,7 +947,8 @@ public struct SimulatorHarness {
         let preflightScreenshots =
           signOutFailureScreenshots + fileActionsScreenshots + trashManagementScreenshots
           + sortedRootScreenshots + searchScreenshots + historyScreenshots
-          + filePreferencesScreenshots + playbackPreferencesScreenshots + deepLinkScreenshots
+          + filePreferencesScreenshots + playbackPreferencesScreenshots + subtitlesScreenshots
+          + deepLinkScreenshots
           + accountRatingScreenshots + audioScreenshots + previewScreenshots
           + downloadScreenshots + castScreenshots + accountSecurityScreenshots
           + accessibilityFilesScreenshots + accessibilityAudioScreenshots
@@ -946,7 +962,7 @@ public struct SimulatorHarness {
           ".sort-continuation.xcresult", ".search-restoration.xcresult",
           ".folder-reconciliation.xcresult",
           ".history.xcresult", ".deep-links.xcresult",
-          ".file-preferences.xcresult", ".playback-preferences.xcresult",
+          ".file-preferences.xcresult", ".playback-preferences.xcresult", ".subtitles.xcresult",
           ".account-rating.xcresult", ".audio.xcresult", ".previews.xcresult",
           ".downloads.xcresult", ".cast.xcresult", ".account-security.xcresult",
         ] {

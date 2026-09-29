@@ -462,6 +462,7 @@ struct PutioVideoPlaybackView: View {
   @State private var playerIsReady = false
   @State private var observedPlaybackPosition: Int?
   @State private var selectedAudioLanguage: String?
+  @State private var selectedSubtitle: String?
   @State private var playbackReachedEnd = false
   @State private var conversionHistory: [String] = []
   @State private var nextVideoTransitionTask: Task<Void, Never>?
@@ -610,6 +611,15 @@ struct PutioVideoPlaybackView: View {
               .accessibilityIdentifier("video.audio-language")
               .allowsHitTesting(false)
           }
+          if let selectedSubtitle {
+            Color.clear
+              .frame(width: 1, height: 1)
+              .accessibilityElement(children: .ignore)
+              .accessibilityLabel("Selected subtitle")
+              .accessibilityValue(selectedSubtitle)
+              .accessibilityIdentifier("video.subtitle")
+              .allowsHitTesting(false)
+          }
           if let observedPlaybackPosition {
             Color.clear
               .frame(width: 1, height: 1)
@@ -706,6 +716,7 @@ struct PutioVideoPlaybackView: View {
         onReady: { playerIsReady = true },
         observesPlaybackState: showsHarnessReadiness,
         onAudioSelected: { selectedAudioLanguage = $0 },
+        onSubtitleSelected: { selectedSubtitle = $0 },
         onPositionChanged: { observedPlaybackPosition = $0 },
         onPlaybackEnded: {
           playbackReachedEnd = true
@@ -819,6 +830,7 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
   let onReady: @MainActor @Sendable () -> Void
   let observesPlaybackState: Bool
   let onAudioSelected: @MainActor @Sendable (String) -> Void
+  let onSubtitleSelected: @MainActor @Sendable (String) -> Void
   let onPositionChanged: @MainActor @Sendable (Int) -> Void
   let onPlaybackEnded: @MainActor @Sendable () -> Void
   let onPlaybackRestarted: @MainActor @Sendable () -> Void
@@ -843,6 +855,7 @@ private struct PutioSystemVideoPlayer: UIViewControllerRepresentable {
       onReady: onReady,
       observesPlaybackState: observesPlaybackState,
       onAudioSelected: { code in onAudioSelected(code) },
+      onSubtitleSelected: { subtitle in onSubtitleSelected(subtitle) },
       onPositionChanged: { position in onPositionChanged(position) },
       onPlaybackEnded: { onPlaybackEnded() },
       onPlaybackRestarted: { onPlaybackRestarted() },
@@ -1013,6 +1026,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private let makeDriver: DriverFactory
   private let observeItemStatus: StatusObserverFactory
   private let selectedAudioLanguage: @MainActor (AVPlayerItem) async -> String?
+  private let selectedSubtitle: @MainActor (AVPlayerItem) async -> String
   private let audioSession: any PutioPlaybackAudioSessioning
   private let notificationCenter: NotificationCenter
   private let positionPipeline: PutioPlaybackPositionPipeline
@@ -1027,6 +1041,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private var driver: (any PutioVideoPlayerDriving)?
   private var onReady: (@MainActor () -> Void)?
   private var onAudioSelected: (@MainActor @Sendable (String) -> Void)?
+  private var onSubtitleSelected: (@MainActor @Sendable (String) -> Void)?
   private var onPositionChanged: (@MainActor @Sendable (Int) -> Void)?
   private var onPlaybackEnded: (@MainActor @Sendable () -> Void)?
   private var onPlaybackRestarted: (@MainActor @Sendable () -> Void)?
@@ -1072,6 +1087,9 @@ final class PutioSystemVideoPlayerCoordinator {
     selectedAudioLanguage: @escaping @MainActor (AVPlayerItem) async -> String? = {
       await PutioSystemVideoPlayerCoordinator.selectedAudioLanguage(in: $0)
     },
+    selectedSubtitle: @escaping @MainActor (AVPlayerItem) async -> String = {
+      await PutioSystemVideoPlayerCoordinator.selectedSubtitle(in: $0)
+    },
     schedulePositionReports: @escaping PositionReportScheduler = { interval, callback in
       PutioMonotonicPositionReportSchedule(interval: interval, callback: callback)
     }
@@ -1079,6 +1097,7 @@ final class PutioSystemVideoPlayerCoordinator {
     self.makeDriver = makeDriver
     self.observeItemStatus = observeItemStatus
     self.selectedAudioLanguage = selectedAudioLanguage
+    self.selectedSubtitle = selectedSubtitle
     self.audioSession = audioSession
     self.notificationCenter = notificationCenter
     self.positionPipeline = positionPipeline
@@ -1096,6 +1115,7 @@ final class PutioSystemVideoPlayerCoordinator {
     onReady: @escaping @MainActor () -> Void = {},
     observesPlaybackState: Bool = false,
     onAudioSelected: @escaping @MainActor @Sendable (String) -> Void = { _ in },
+    onSubtitleSelected: @escaping @MainActor @Sendable (String) -> Void = { _ in },
     onPositionChanged: @escaping @MainActor @Sendable (Int) -> Void = { _ in },
     onPlaybackEnded: @escaping @MainActor @Sendable () -> Void = {},
     onPlaybackRestarted: @escaping @MainActor @Sendable () -> Void = {},
@@ -1112,6 +1132,7 @@ final class PutioSystemVideoPlayerCoordinator {
     self.reportPosition = reportPosition
     self.onReady = onReady
     self.onAudioSelected = observesPlaybackState ? onAudioSelected : nil
+    self.onSubtitleSelected = observesPlaybackState ? onSubtitleSelected : nil
     self.onPositionChanged = observesPlaybackState ? onPositionChanged : nil
     self.onPlaybackEnded = onPlaybackEnded
     self.onPlaybackRestarted = onPlaybackRestarted
@@ -1125,7 +1146,8 @@ final class PutioSystemVideoPlayerCoordinator {
           if !preferredAudioLanguages.isEmpty {
             await Self.selectAudio(preferring: preferredAudioLanguages, in: item)
           }
-          self?.reportAudioSelection(for: item, generation: playbackGeneration)
+          await Self.selectDefaultSubtitle(in: item)
+          self?.reportMediaSelection(for: item, generation: playbackGeneration)
           self?.reportReady(generation: playbackGeneration)
         case .failed:
           self?.reportFailure(generation: playbackGeneration)
@@ -1141,7 +1163,7 @@ final class PutioSystemVideoPlayerCoordinator {
         forName: AVPlayerItem.mediaSelectionDidChangeNotification, object: item, queue: .main
       ) { [weak self] _ in
         MainActor.assumeIsolated {
-          self?.reportAudioSelection(for: item, generation: playbackGeneration)
+          self?.reportMediaSelection(for: item, generation: playbackGeneration)
         }
       }
     }
@@ -1296,17 +1318,40 @@ final class PutioSystemVideoPlayerCoordinator {
     item.select(option, in: group)
   }
 
-  /// Publishes the audible option in effect so the journey can assert the
-  /// preferred-language pick without reaching into AVFoundation.
-  private func reportAudioSelection(for item: AVPlayerItem, generation playbackGeneration: UInt64) {
-    guard generation == playbackGeneration, onAudioSelected != nil else { return }
-    let selectedAudioLanguage = selectedAudioLanguage
-    Task { @MainActor [weak self] in
-      guard let language = await selectedAudioLanguage(item) else { return }
-      // A newer playback may have started during the load; its language is
-      // reported by its own call.
-      guard let self, generation == playbackGeneration, let onAudioSelected else { return }
-      onAudioSelected(language)
+  /// put.io marks the first subtitle `DEFAULT` unless the account disables
+  /// auto-selection, and omits subtitles when they are hidden. AVPlayer's
+  /// automatic media selection leaves that default off under the system's
+  /// automatic caption setting, so the player applies it unless a subtitle is
+  /// already selected.
+  static func selectDefaultSubtitle(in item: AVPlayerItem) async {
+    guard let group = try? await item.asset.loadMediaSelectionGroup(for: .legible),
+      let option = group.defaultOption,
+      item.currentMediaSelection.selectedMediaOption(in: group) == nil
+    else { return }
+    item.select(option, in: group)
+  }
+
+  /// Publishes the audible and legible options in effect so the journey can
+  /// assert language picks without reaching into AVFoundation.
+  private func reportMediaSelection(for item: AVPlayerItem, generation playbackGeneration: UInt64) {
+    guard generation == playbackGeneration else { return }
+    if onAudioSelected != nil {
+      let selectedAudioLanguage = selectedAudioLanguage
+      Task { @MainActor [weak self] in
+        guard let language = await selectedAudioLanguage(item) else { return }
+        // A newer playback may have started during the load; its language is
+        // reported by its own call.
+        guard let self, generation == playbackGeneration, let onAudioSelected else { return }
+        onAudioSelected(language)
+      }
+    }
+    if onSubtitleSelected != nil {
+      let selectedSubtitle = selectedSubtitle
+      Task { @MainActor [weak self] in
+        let subtitle = await selectedSubtitle(item)
+        guard let self, generation == playbackGeneration, let onSubtitleSelected else { return }
+        onSubtitleSelected(subtitle)
+      }
     }
   }
 
@@ -1314,6 +1359,18 @@ final class PutioSystemVideoPlayerCoordinator {
     guard let group = try? await item.asset.loadMediaSelectionGroup(for: .audible),
       let option = item.currentMediaSelection.selectedMediaOption(in: group)
     else { return nil }
+    return PutioOfflineQueue.track(option).languageCode
+  }
+
+  /// The legible option's language, `off` when the stream offers subtitles
+  /// but none is selected, or `unavailable` when it offers none.
+  static func selectedSubtitle(in item: AVPlayerItem) async -> String {
+    guard let group = try? await item.asset.loadMediaSelectionGroup(for: .legible) else {
+      return "unavailable"
+    }
+    guard let option = item.currentMediaSelection.selectedMediaOption(in: group) else {
+      return "off"
+    }
     return PutioOfflineQueue.track(option).languageCode
   }
 

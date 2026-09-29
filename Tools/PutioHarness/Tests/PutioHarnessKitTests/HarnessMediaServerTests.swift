@@ -119,6 +119,10 @@ private final class StopCounter: @unchecked Sendable {
   #expect(
     HarnessMediaServer.multiAudioResource(path: "/multi-audio/multi-English-000.ts")?.contentType
       == "video/mp2t")
+  #expect(
+    HarnessMediaServer.multiAudioResource(path: "/multi-audio/multi-subtitle-Turkish.vtt")?
+      .contentType == "text/vtt")
+  #expect(HarnessMediaServer.multiAudioResource(path: "/multi-audio/other.vtt") == nil)
 
   let (_, missingResponse) = try await URLSession.shared.data(
     from: baseURL.appending(path: "../not-allowlisted")

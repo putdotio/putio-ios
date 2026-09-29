@@ -194,7 +194,7 @@ final class HarnessMediaServer: @unchecked Sendable {
     )
   }
 
-  /// `/multi-audio/<name>` where name is a playlist or segment of the fixture.
+  /// `/multi-audio/<name>` where name is a playlist, segment, or WebVTT file of the fixture.
   static func multiAudioResource(path: String) -> (name: String, contentType: String)? {
     let prefix = "/multi-audio/"
     guard path.hasPrefix(prefix) else { return nil }
@@ -204,6 +204,7 @@ final class HarnessMediaServer: @unchecked Sendable {
     else { return nil }
     if name.hasSuffix(".m3u8") { return ("multi-audio/\(name)", "application/vnd.apple.mpegurl") }
     if name.hasSuffix(".ts") { return ("multi-audio/\(name)", "video/mp2t") }
+    if name.hasSuffix(".vtt") { return ("multi-audio/\(name)", "text/vtt") }
     return nil
   }
 

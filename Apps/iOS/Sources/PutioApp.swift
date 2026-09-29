@@ -957,6 +957,7 @@ private struct MainTabView: View {
         return resolution
       }
       harnessPlaybackAttempt += 1
+      let subtitledPath = HarnessSubtitledStream.path(for: account)
       let fixtureURL: URL
       if fileID.rawValue != 411, harnessPlaybackAttempt == 1 {
         guard
@@ -980,7 +981,7 @@ private struct MainTabView: View {
         else {
           throw HarnessPlaybackFixtureError.missingResource
         }
-        fixtureURL = baseURL.appending(path: "runtime-proof.m3u8")
+        fixtureURL = baseURL.appending(path: subtitledPath ?? "runtime-proof.m3u8")
       }
       if fileID.rawValue != 411, harnessPlaybackAttempt == 1 {
         do {
@@ -997,7 +998,8 @@ private struct MainTabView: View {
       return .ready(
         PutioPlaybackSource(
           url: fixtureURL,
-          startFromSeconds: source.startFromSeconds
+          // Seeded positions exceed the 20-second subtitled fixture.
+          startFromSeconds: subtitledPath == nil ? source.startFromSeconds : 0
         )
       )
     #else
