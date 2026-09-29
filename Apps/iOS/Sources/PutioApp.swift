@@ -812,7 +812,7 @@ private struct MainTabView: View {
         if offlineQueue.item(for: fileID)?.isPlayable == true {
           await offlineQueue.recordPosition(fileID: fileID, seconds: seconds)
         } else {
-          try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: seconds)
+          try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
         }
         #if DEBUG
           if scenario == .filesBrowser {
@@ -1168,7 +1168,7 @@ private struct AccountView: View {
               isRefreshingStorage = true
               Task {
                 defer { isRefreshingStorage = false }
-                _ = await runtime.refreshAccountStorage()
+                _ = await runtime.refreshAccount()
               }
             }
             .disabled(isRefreshingStorage)
@@ -1356,7 +1356,7 @@ enum PutioOfflineQueueFactory {
       },
       trashSetting: {
         // The cached snapshot can lag another client; ask the server first.
-        guard await runtime.refreshAccountPreferences(),
+        guard await runtime.refreshAccount(),
           case .signedIn(let current) = runtime.session.state,
           !runtime.session.isAccountPreferencesStale,
           !runtime.session.isUpdatingAccountPreferences
@@ -1523,7 +1523,7 @@ enum PutioCastControllerFactory {
       startConversion: { try await runtime.startVideoConversion(fileID: $0) },
       loadConversionStatus: { try await runtime.videoConversionStatus(fileID: $0) },
       reportPosition: { fileID, seconds in
-        try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: seconds)
+        try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
       }
     )
   }
