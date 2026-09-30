@@ -321,7 +321,8 @@ final class TrashManagementTests: XCTestCase {
     let row = TrashManagementView.rowModel(
       for: item, relativeTo: deletedAt.addingTimeInterval(3 * 86_400), locale: locale)
 
-    XCTAssertEqual(row.sizeText, "2 KB · Deleted 3 days ago")
+    let size = PutioFileRowModel.sizeText(bytes: item.sizeBytes, locale: locale)
+    XCTAssertEqual(row.sizeText, "\(size) · Deleted 3 days ago")
     let expiry = item.expiresAt.formatted(Date.FormatStyle(locale: locale).month(.wide).day())
     XCTAssertEqual(row.secondaryText, "Expires on \(expiry)")
   }
