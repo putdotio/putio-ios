@@ -25,7 +25,7 @@ struct PutioApp: App {
           PutioComponentGallery(autoAdvanceEvery: 3)
         case .exercised:
           HarnessExerciseView()
-        case .signedOut, .signedIn, .filesBrowser, .deviceSignIn:
+        case .signedOut, .signedIn, .filesBrowser, .deviceSignIn, .live:
           SessionRootView(scenario: scenario)
         }
       }
@@ -183,6 +183,12 @@ private struct SessionRootView: View {
         cast = PutioCastControllerFactory.makeModel(runtime: runtime, scenario: scenario)
       }
     }
+    #if DEBUG
+      .modifier(
+        HarnessLiveSessionProbe(
+          session: runtime.session,
+          tokenStore: scenario == .live ? PutioRuntimeFactory.liveTokenStore : nil))
+    #endif
     .overlay {
       #if DEBUG
         if scenario == .filesBrowser, let controller = cast.harnessController {
@@ -322,6 +328,14 @@ private struct SignInView: View {
   }
 
   private func startSignIn() async {
+    #if DEBUG
+      // Live harness runs cannot drive the web login; the harness approves
+      // the device code instead.
+      if scenario == .live {
+        await session.signInWithDeviceCode()
+        return
+      }
+    #endif
     do {
       let request = try session.beginSignIn()
       #if DEBUG
