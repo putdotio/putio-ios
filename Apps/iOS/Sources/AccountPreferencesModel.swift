@@ -34,7 +34,7 @@ struct PutioAccountPreferenceActions: Sendable {
         try await runtime.setSubtitleAutoSelectionDisabled(disabled)
       }
     }
-    refresh = { await runtime.refreshAccountPreferences() }
+    refresh = { await runtime.refreshAccount() }
     account = {
       if case .signedIn(let account) = runtime.session.state { return account }
       return nil

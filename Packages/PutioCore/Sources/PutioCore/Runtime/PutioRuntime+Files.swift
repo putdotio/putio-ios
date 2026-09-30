@@ -1,0 +1,141 @@
+import Foundation
+import PutioSDK
+
+extension PutioRuntime {
+  public func listFiles(parentID: PutioFileID = .root) async throws -> PutioFolderContents {
+    let result = try await performAuthenticatedOperation {
+      try await sdk.getFiles(parentID: parentID.rawValue)
+    }
+    return folderContents(from: result)
+  }
+
+  /// Fetches the page after `cursor` for a listing started by `listFiles`.
+  public func continueFiles(cursor: String) async throws -> PutioFolderContents {
+    let result = try await performAuthenticatedOperation {
+      try await sdk.continueFiles(cursor: cursor)
+    }
+    if let nextCursor = result.cursor, !nextCursor.isEmpty, nextCursor == cursor {
+      throw PutioRuntimeError.invalidResponse
+    }
+    return folderContents(from: result)
+  }
+
+  public func searchFiles(query: String) async throws -> PutioFileSearchPage {
+    let result = try await performAuthenticatedOperation {
+      try await sdk.searchFiles(query: PutioFileSearchQuery(keyword: query))
+    }
+    return try searchPage(from: result)
+  }
+
+  public func continueFileSearch(cursor: String) async throws -> PutioFileSearchPage {
+    let result = try await performAuthenticatedOperation {
+      try await sdk.continueFileSearch(cursor: cursor)
+    }
+    if let nextCursor = result.cursor, !nextCursor.isEmpty, nextCursor == cursor {
+      throw PutioRuntimeError.invalidResponse
+    }
+    return try searchPage(from: result)
+  }
+
+  private func searchPage(from result: PutioFileSearchResponse) throws -> PutioFileSearchPage {
+    guard result.total >= 0 else { throw PutioRuntimeError.invalidResponse }
+    return PutioFileSearchPage(
+      items: result.files.map(snapshot),
+      nextCursor: result.cursor?.isEmpty == false ? result.cursor : nil,
+      totalCount: result.total
+    )
+  }
+
+  /// Persists the folder's sort on the server. Callers reload the folder to see
+  /// the new order.
+  public func setFolderSort(folderID: PutioFileID, sort: PutioFolderSort) async throws {
+    _ = try await performAuthenticatedOperation(commits: true) {
+      try await sdk.setSortBy(fileId: folderID.rawValue, sortBy: sort.rawValue)
+    }
+  }
+
+  private func folderContents(from result: PutioFilesListResult) -> PutioFolderContents {
+    PutioFolderContents(
+      folder: result.parent.map(snapshot),
+      items: result.children.map(snapshot),
+      nextCursor: result.cursor?.isEmpty == false ? result.cursor : nil,
+      sort: result.parent.flatMap { PutioFolderSort(rawValue: $0.sortBy) }
+    )
+  }
+
+  public func createFolder(name: String, parentID: PutioFileID) async throws -> PutioFileItem {
+    let folder = try await performAuthenticatedOperation {
+      try await sdk.createFolder(name: name, parentID: parentID.rawValue)
+    }
+    return snapshot(folder)
+  }
+
+  public func renameFile(fileID: PutioFileID, name: String) async throws {
+    _ = try await performAuthenticatedOperation {
+      try await sdk.renameFile(fileID: fileID.rawValue, name: name)
+    }
+  }
+
+  public func moveFile(fileID: PutioFileID, to parentID: PutioFileID) async throws {
+    let response = try await performAuthenticatedOperation {
+      try await sdk.moveFiles(fileIDs: [fileID.rawValue], parentID: parentID.rawValue)
+    }
+
+    guard response.status == "OK" else {
+      throw PutioRuntimeError.invalidResponse
+    }
+    guard !response.errors.isEmpty else { return }
+    guard response.errors.count == 1, response.errors[0].id == fileID.rawValue else {
+      throw PutioRuntimeError.invalidResponse
+    }
+
+    throw runtimeError(forStructuredStatusCode: response.errors[0].statusCode)
+  }
+
+  public func deleteFile(fileID: PutioFileID) async throws {
+    guard !session.isAccountPreferencesStale, !session.isUpdatingAccountPreferences else {
+      throw PutioRuntimeError.transient
+    }
+    _ = try await performAuthenticatedOperation {
+      try await sdk.deleteFiles(fileIDs: [fileID.rawValue])
+    }
+  }
+
+  public func getFile(fileID: PutioFileID) async throws -> PutioFileItem {
+    guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
+    let file = try await performAuthenticatedOperation {
+      try await sdk.getFile(fileID: fileID.rawValue)
+    }
+    guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
+    return snapshot(file)
+  }
+
+  /// Resolves the tokened download URL for previews and external players.
+  /// Folders have no download representation and resolve as invalid.
+  public func resolveFileDownloadSource(fileID: PutioFileID) async throws
+    -> PutioFileDownloadSource
+  {
+    guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
+    let (file, token) = try await performAuthenticatedOperation {
+      (try await sdk.getFile(fileID: fileID.rawValue), sdk.config.token)
+    }
+    guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
+    let item = snapshot(file)
+    guard item.kind != .folder else { throw PutioRuntimeError.invalidResponse }
+    return PutioFileDownloadSource(
+      id: item.id, kind: item.kind, name: item.name, url: file.getDownloadURL(token: token))
+  }
+
+  private func runtimeError(forStructuredStatusCode statusCode: Int) -> PutioRuntimeError {
+    switch statusCode {
+    case 404:
+      return .notFound
+    case 429:
+      return .rateLimited
+    case 408, 500...599:
+      return .transient
+    default:
+      return .unknown
+    }
+  }
+}
