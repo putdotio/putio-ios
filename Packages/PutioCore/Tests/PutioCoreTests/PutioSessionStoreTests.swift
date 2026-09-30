@@ -800,6 +800,47 @@ final class PutioSessionStoreTests: XCTestCase {
     return requested
   }
 
+  private func waitForDeviceCodeRequest(
+    _ requested: XCTestExpectation,
+    store: PutioSessionStore,
+    task: Task<Void, Never>,
+    route: String,
+    timeout: TimeInterval = 5
+  ) async -> XCTWaiter.Result {
+    let result = await XCTWaiter.fulfillment(of: [requested], timeout: timeout)
+    if result != .completed {
+      store.cancelSignIn()
+      task.cancel()
+      fixtures.release(route)
+      await task.value
+    }
+    return result
+  }
+
+  func testDeviceCodeRequestTimeoutCancelsSignInBeforePollingStarts() async {
+    stubDeviceCodeIssue(["STALL"])
+    let issue = "GET /v2/oauth2/oob/code"
+    fixtures.gate(issue)
+    defer { fixtures.release(issue) }
+    let issued = expectRequest(issue)
+    let poll = "GET /v2/oauth2/oob/code/STALL"
+    fixtures.gate(poll)
+    let polled = expectRequest(poll)
+    let (store, tokenStore) = makeStore(token: nil)
+    let signIn = Task { await store.signInWithDeviceCode() }
+    await fulfillment(of: [issued], timeout: 5)
+
+    let result = await waitForDeviceCodeRequest(
+      polled, store: store, task: signIn, route: poll, timeout: 0.01)
+
+    XCTAssertEqual(result, .timedOut)
+    XCTAssertTrue(signIn.isCancelled)
+    XCTAssertEqual(store.state, .signedOut(nil))
+    XCTAssertNil(store.deviceCodeSignIn)
+    XCTAssertNil(try tokenStore.read())
+    XCTAssertEqual(fixtures.requestCount(route: poll), 0)
+  }
+
   func testDeviceCodeSignInShowsTheCodeThenSignsInAfterApproval() async throws {
     stubSignedInRoutes()
     stubDeviceCodeIssue(["ABCD1"])
@@ -811,7 +852,10 @@ final class PutioSessionStoreTests: XCTestCase {
     let polled = expectRequest(poll)
     let (store, tokenStore) = makeStore(token: nil)
     let signIn = Task { await store.signInWithDeviceCode() }
-    await fulfillment(of: [polled], timeout: 5)
+    let result = await waitForDeviceCodeRequest(
+      polled, store: store, task: signIn, route: poll)
+    XCTAssertEqual(result, .completed)
+    guard result == .completed else { return }
     XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(code: "ABCD1"))
     XCTAssertEqual(store.state, .authenticating)
     fixtures.release(poll)
@@ -843,7 +887,10 @@ final class PutioSessionStoreTests: XCTestCase {
     fixtures.gate(renewedPoll)
     let polled = expectRequest(renewedPoll)
     let renewal = Task { await store.signInWithDeviceCode() }
-    await fulfillment(of: [polled], timeout: 5)
+    let result = await waitForDeviceCodeRequest(
+      polled, store: store, task: renewal, route: renewedPoll)
+    XCTAssertEqual(result, .completed)
+    guard result == .completed else { return }
     XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(code: "NEW02"))
     fixtures.release(renewedPoll)
     await renewal.value
@@ -860,7 +907,10 @@ final class PutioSessionStoreTests: XCTestCase {
     let polled = expectRequest("GET /v2/oauth2/oob/code/WAIT1")
     let (store, tokenStore) = makeStore(token: nil)
     let signIn = Task { await store.signInWithDeviceCode() }
-    await fulfillment(of: [polled], timeout: 5)
+    let result = await waitForDeviceCodeRequest(
+      polled, store: store, task: signIn, route: "GET /v2/oauth2/oob/code/WAIT1")
+    XCTAssertEqual(result, .completed)
+    guard result == .completed else { return }
     XCTAssertEqual(store.deviceCodeSignIn, .awaitingApproval(code: "WAIT1"))
     let pollsAtCancel = fixtures.requestCount(route: "GET /v2/oauth2/oob/code/WAIT1")
     store.cancelSignIn()
@@ -884,7 +934,10 @@ final class PutioSessionStoreTests: XCTestCase {
     let polled = expectRequest(route)
     let (store, tokenStore) = makeStore(token: nil)
     let signIn = Task { await store.signInWithDeviceCode() }
-    await fulfillment(of: [polled], timeout: 5)
+    let result = await waitForDeviceCodeRequest(
+      polled, store: store, task: signIn, route: route)
+    XCTAssertEqual(result, .completed)
+    guard result == .completed else { return }
     store.cancelSignIn()
     fixtures.release(route)
     await signIn.value
