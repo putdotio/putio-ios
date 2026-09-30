@@ -18,6 +18,10 @@ final class DeepLinkTests: XCTestCase {
     XCTAssertEqual(PutioDeepLink.parse(try url("/history")), .history)
     XCTAssertEqual(PutioDeepLink.parse(try url("/settings")), .account)
     XCTAssertEqual(PutioDeepLink.parse(try url("/account")), .account)
+    XCTAssertEqual(PutioDeepLink.parse(try url("/downloads")), .downloads(nil))
+    XCTAssertEqual(
+      PutioDeepLink.parse(try url("/downloads/412")), .downloads(.init(rawValue: 412)))
+    XCTAssertEqual(PutioDeepLink.parse(try url("/link")), .linkDevice)
   }
 
   func testForeignHostsAndAuthenticationCallbacksAreNotConsumed() throws {
@@ -34,7 +38,8 @@ final class DeepLinkTests: XCTestCase {
     for path in [
       "/files", "/files/-1", "/files/+1", "/files/1/extra", "/files/999999999999999999999999",
       "/files/1?oauth_token=synthetic", "/files/1#synthetic", "/files/%31", "/files//1",
-      "/downloads/1", "/link",
+      "/downloads/", "/downloads/abc", "/downloads/-1", "/downloads/1/extra",
+      "/downloads/1?code=synthetic", "/link/1", "/link?code=synthetic", "/history/1",
     ] {
       XCTAssertEqual(PutioDeepLink.parse(try url(path)), .unavailable, path)
     }
@@ -71,7 +76,8 @@ final class DeepLinkTests: XCTestCase {
     let model = signedInModel()
     for (path, destination) in [
       ("/files/0", PutioDeepLinkDestination.files([], file: nil)),
-      ("/history", .history), ("/account", .account),
+      ("/history", .history), ("/account", .account), ("/downloads", .downloads(nil)),
+      ("/downloads/412", .downloads(.init(rawValue: 412))), ("/link", .linkDevice),
     ] {
       model.receive(try url(path))
       await model.resolve(historyEnabled: true) { _ in
@@ -80,6 +86,34 @@ final class DeepLinkTests: XCTestCase {
       }
       XCTAssertEqual(model.destination, destination)
     }
+  }
+
+  func testSignedOutLinkDeviceIntentWaitsForSignIn() async throws {
+    let model = PutioDeepLinkModel()
+    model.updateSession(.signedOut(nil))
+    model.receive(try url("/link"))
+    await model.resolve(historyEnabled: true) { _ in throw PutioRuntimeError.unknown }
+    XCTAssertNil(model.destination)
+    XCTAssertEqual(model.pending, .linkDevice)
+    model.updateSession(.signedIn(account()))
+    await model.resolve(historyEnabled: true) { _ in throw PutioRuntimeError.unknown }
+    XCTAssertEqual(model.destination, .linkDevice)
+  }
+
+  func testDownloadsLinkPlaysOnlyAFinishedQueuedItem() {
+    let queue = [
+      offlineItem(1, stage: .completed, localPath: "done.movpkg"),
+      offlineItem(2, stage: .downloading(progress: 0.5), localPath: "partial.movpkg"),
+      offlineItem(3, stage: .completed, localPath: nil),
+    ]
+    let lookup: (PutioFileID) -> PutioOfflineItem? = { id in queue.first { $0.id == id } }
+    XCTAssertEqual(
+      PutioDeepLinkDestination.playableDownload(.init(rawValue: 1), in: lookup)?.id.rawValue, 1)
+    for id in [2, 3, 4] {
+      XCTAssertNil(
+        PutioDeepLinkDestination.playableDownload(.init(rawValue: id), in: lookup), "\(id)")
+    }
+    XCTAssertNil(PutioDeepLinkDestination.playableDownload(nil, in: lookup))
   }
 
   func testVideoBuildsAuthoritativeAncestorPath() async throws {
@@ -278,6 +312,16 @@ final class DeepLinkTests: XCTestCase {
 
   private func folder(_ id: Int) -> PutioFolderRoute {
     PutioFolderRoute(id: PutioFileID(rawValue: id), title: "File \(id)")
+  }
+
+  private func offlineItem(
+    _ id: Int, stage: PutioOfflineItem.Stage, localPath: String?
+  ) -> PutioOfflineItem {
+    PutioOfflineItem(
+      id: PutioFileID(rawValue: id), parentID: .root, name: "Download \(id)", kind: .video,
+      createdAt: .now, stage: stage, localPath: localPath, storedBytes: 0,
+      selectedAudioLanguages: [], storedAudioTracks: [], storedSubtitleTracks: [],
+      resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: 0)
   }
 
   private func account(id: Int = 1) -> PutioAccountSnapshot {

@@ -286,6 +286,7 @@ struct PutioFolderScreen: View {
   private let relativeDateReference: Date?
   private let locale: Locale
   private let load: PutioFolderLoad
+  private let continueLoad: PutioFolderContinue?
   private let actions: PutioFileActions?
   private let trashEnabled: Bool
   private let onLoaded: @MainActor @Sendable () -> Void
@@ -331,6 +332,7 @@ struct PutioFolderScreen: View {
     self.locale = locale
     self.actions = actions
     self.load = load
+    self.continueLoad = continueLoad
     self.trashEnabled = trashEnabled
     self.onLoaded = onLoaded
     self.refreshRequests = refreshRequests
@@ -449,6 +451,7 @@ struct PutioFolderScreen: View {
       PutioMovePicker(
         items: selection.items,
         load: load,
+        continueLoad: continueLoad,
         actions: actions,
         refreshRequests: refreshRequests,
         onMove: { destination in
@@ -1297,9 +1300,10 @@ struct PutioFolderScreen: View {
 }
 
 @MainActor
-private struct PutioMovePicker: View {
+struct PutioMovePicker: View {
   let items: [PutioFileItem]
   let load: PutioFolderLoad
+  let continueLoad: PutioFolderContinue?
   let actions: PutioFileActions?
   let refreshRequests: PutioFolderRefreshRequests
   let onMove: @MainActor (PutioFolderRoute) -> Void
@@ -1319,7 +1323,7 @@ private struct PutioMovePicker: View {
 
   private func destination(_ route: PutioFolderRoute) -> some View {
     PutioMoveDestinationScreen(
-      route: route, items: items, load: load, actions: actions,
+      route: route, items: items, load: load, continueLoad: continueLoad, actions: actions,
       refreshRequests: refreshRequests, onMove: onMove
     )
     .toolbar {
@@ -1349,6 +1353,7 @@ private struct PutioMoveDestinationScreen: View {
     route: PutioFolderRoute,
     items: [PutioFileItem],
     load: @escaping PutioFolderLoad,
+    continueLoad: PutioFolderContinue?,
     actions: PutioFileActions? = nil,
     refreshRequests: PutioFolderRefreshRequests,
     onMove: @escaping @MainActor (PutioFolderRoute) -> Void
@@ -1358,7 +1363,8 @@ private struct PutioMoveDestinationScreen: View {
     self.onMove = onMove
     self.refreshRequests = refreshRequests
     _model = State(
-      initialValue: PutioFolderModel(folderID: route.id, load: load, actions: actions))
+      initialValue: PutioFolderModel(
+        folderID: route.id, load: load, continueLoad: continueLoad, actions: actions))
   }
 
   var body: some View {
@@ -1492,24 +1498,67 @@ private struct PutioMoveDestinationScreen: View {
   @ViewBuilder
   private func destinationList(_ contents: PutioFolderContents) -> some View {
     let folders = policy.folders(in: contents)
-    if folders.isEmpty {
+    if folders.isEmpty, !contents.hasMore {
       PutioEmptyStateView(
         icon: .folderFill,
         title: "No folders here",
         message: canMoveHere ? emptyDestinationMessage : "Choose another folder."
       )
     } else {
-      List(folders) { folder in
-        NavigationLink(value: PutioFolderRoute(id: folder.id, title: folder.name)) {
-          PutioFileRow(
-            PutioBrowserItemPresentation(item: folder).row
-          )
+      List {
+        ForEach(folders) { folder in
+          NavigationLink(value: PutioFolderRoute(id: folder.id, title: folder.name)) {
+            PutioFileRow(
+              PutioBrowserItemPresentation(item: folder).row
+            )
+          }
+          .disabled(model.activeAction != nil)
+          .accessibilityIdentifier("files.move-folder.\(folder.id.rawValue)")
+          .listRowBackground(PutioTheme.Colors.background)
         }
-        .disabled(model.activeAction != nil)
-        .accessibilityIdentifier("files.move-folder.\(folder.id.rawValue)")
-        .listRowBackground(PutioTheme.Colors.background)
+        if contents.hasMore {
+          loadMoreRow
+            .listRowBackground(PutioTheme.Colors.background)
+        }
       }
       .listStyle(.plain)
+    }
+  }
+
+  // The picker hides files, so a page can add no rows; the row then stays
+  // visible and its task chains into the next page.
+  @ViewBuilder
+  private var loadMoreRow: some View {
+    if let failure = model.loadMoreFailure {
+      VStack(alignment: .leading, spacing: PutioTheme.Spacing.space2) {
+        Text("Could not load more folders")
+          .putioFont(PutioTheme.Typography.subheading)
+          .foregroundStyle(PutioTheme.Colors.textPrimary)
+        Text(failure.message)
+          .putioFont(PutioTheme.Typography.body)
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+        Button("Try again") {
+          Task { await model.loadMore() }
+        }
+        .buttonStyle(.borderless)
+      }
+      .accessibilityIdentifier("files.move-more-error.\(route.id.rawValue)")
+    } else {
+      HStack {
+        Spacer()
+        if model.isLoadingMore {
+          ProgressView()
+        } else {
+          Text("Loading more folders")
+            .putioFont(PutioTheme.Typography.caption)
+            .foregroundStyle(PutioTheme.Colors.textSecondary)
+        }
+        Spacer()
+      }
+      .accessibilityIdentifier("files.move-more.\(route.id.rawValue)")
+      .task(id: model.continuationKey) {
+        await model.loadMore()
+      }
     }
   }
 
