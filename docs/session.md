@@ -16,7 +16,14 @@ the signed-in shell disappears. A new sign-in gets fresh Cast preferences.
 
 If the keychain cannot be read at launch, restore fails with a retry and keeps
 the saved token; both web and device-code sign-in are blocked until restore
-succeeds or rejects the credential. The iOS recovery screen offers only retry.
+succeeds or rejects the credential. A network failure during restore keeps the
+token the same way. The iOS and tvOS recovery screens offer "Try again" and
+"Sign in again". Only the user can abandon the saved credential: "Sign in again"
+calls `discardUnrestoredCredential()`, which removes it from the keychain and
+returns to the normal sign-in. The abandoned grant is not revoked; it stays
+listed under "Where you are logged in" until revoked there. If removal fails,
+restore recovery stays with the removal error.
+
 If a new sign-in cannot save its token, the store revokes the new grant on a best-effort basis
 and fails sign-in. Expiry and account destruction remove the saved token on a
 best-effort basis. A copy left behind fails validation on the next restore,

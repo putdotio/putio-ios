@@ -73,6 +73,14 @@ private let oauthBuildSettings: SettingsDictionary = [
 ]
 private let oauthInfoPlist: Plist.Value = "$(PUTIO_OAUTH_CLIENT_ID)"
 
+// The App Store listing behind "Rate put.io on App Store", read by
+// `PutioAppStoreReview`. Empty falls back to the 3.x app's listing until the
+// new app has its own.
+private let appStoreBuildSettings: SettingsDictionary = [
+  "PUTIO_APP_STORE_ID": ""
+]
+private let appStoreInfoPlist: Plist.Value = "$(PUTIO_APP_STORE_ID)"
+
 let project = Project(
   name: "Putio",
   organizationName: "put.io",
@@ -95,6 +103,7 @@ let project = Project(
         "NSLocalNetworkUsageDescription": castLocalNetworkUsageDescription,
         "PUTIO_CHROMECAST_RECEIVER_APP_ID": "$(PUTIO_CHROMECAST_RECEIVER_APP_ID)",
         "PUTIO_OAUTH_CLIENT_ID": oauthInfoPlist,
+        "PUTIO_APP_STORE_ID": appStoreInfoPlist,
         "CFBundleURLTypes": [
           [
             "CFBundleURLName": "putio", "CFBundleURLSchemes": ["putio"],
@@ -134,7 +143,9 @@ let project = Project(
         .external(name: "GoogleCast"),
         .target(name: "PutioWatch"),
       ],
-      settings: .settings(base: castBuildSettings.merging(oauthBuildSettings) { $1 })
+      settings: .settings(
+        base: castBuildSettings.merging(oauthBuildSettings) { $1 }
+          .merging(appStoreBuildSettings) { $1 })
     ),
     // The nightly flavor: same iOS sources, its own bundle ID so it installs
     // beside the dev and production apps, and the starfield icon that only
@@ -154,6 +165,7 @@ let project = Project(
         "NSLocalNetworkUsageDescription": castLocalNetworkUsageDescription,
         "PUTIO_CHROMECAST_RECEIVER_APP_ID": "$(PUTIO_CHROMECAST_RECEIVER_APP_ID)",
         "PUTIO_OAUTH_CLIENT_ID": oauthInfoPlist,
+        "PUTIO_APP_STORE_ID": appStoreInfoPlist,
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
       ]),
@@ -169,6 +181,7 @@ let project = Project(
       ],
       settings: .settings(
         base: castBuildSettings.merging(oauthBuildSettings) { $1 }
+          .merging(appStoreBuildSettings) { $1 }
           .merging(["ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon"]) { $1 })
     ),
     .target(

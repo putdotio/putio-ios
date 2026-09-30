@@ -123,6 +123,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     if !signOut.isHittable { app.swipeUp() }
     XCTAssertTrue(waitUntilHittable(signOut))
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
   }
 

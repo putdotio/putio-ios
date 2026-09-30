@@ -292,9 +292,21 @@ private struct SignInView: View {
         .foregroundStyle(subtitleColor)
         .multilineTextAlignment(.center)
       if case .restoreFailed = reason {
-        PutioButton("Try again", icon: .arrowCounterClockwise, tier: .secondary) {
+        PutioButton("Try again", icon: .arrowCounterClockwise, tier: .primary) {
           Task { await session.restore() }
         }
+        .accessibilityIdentifier("auth.retry")
+        // Abandoning the saved sign-in is only ever the user's choice; a
+        // transient failure must not cost a valid session.
+        PutioButton("Sign in again", tier: .secondary) {
+          session.discardUnrestoredCredential()
+          Task { await startSignIn() }
+        }
+        .accessibilityIdentifier("auth.discard-credential")
+        Text("Signing in again removes the saved sign-in from this device.")
+          .putioFont(PutioTheme.Typography.caption)
+          .foregroundStyle(PutioTheme.Colors.textSecondary)
+          .multilineTextAlignment(.center)
       } else {
         PutioButton("Sign in", tier: .primary) {
           Task { await startSignIn() }
@@ -404,6 +416,7 @@ private struct MainTabView: View {
   @State private var filesNavigation: PutioFilesNavigationRequest?
   @State private var accountNavigationRevision: UInt64 = 0
   @State private var showsLinkDevice = false
+  @State private var linkDeviceCode: String?
   @State private var selectedFileRoute: PutioFileRoute?
   @State private var selectedVideoRoute: PutioVideoRoute?
   @State private var harnessPlaybackAttempt = 0
@@ -473,6 +486,7 @@ private struct MainTabView: View {
             cast: cast,
             appConfig: appConfig,
             showsLinkDevice: $showsLinkDevice,
+            linkDeviceCode: linkDeviceCode,
             onDataCleared: { categories, committed in
               if !categories.isDisjoint(with: [.files, .trash]) {
                 folderRefreshRequests.requestAllLoadedFolders()
@@ -608,9 +622,15 @@ private struct MainTabView: View {
       case .history:
         historyRevision &+= 1
         selectedTab = .history
-      case .account, .linkDevice:
+      case .account:
         accountNavigationRevision &+= 1
-        showsLinkDevice = destination == .linkDevice
+        showsLinkDevice = false
+        linkDeviceCode = nil
+        selectedTab = .account
+      case .linkDevice(let code):
+        accountNavigationRevision &+= 1
+        showsLinkDevice = true
+        linkDeviceCode = code
         selectedTab = .account
       }
     }
@@ -767,6 +787,7 @@ private struct MainTabView: View {
         audioSession: PutioSystemAudioSession(),
         speedStore: PutioAudioSpeedStore(),
         positionPipeline: playbackPositionPipeline,
+        remembersPlaybackPosition: { runtime.remembersPlaybackPosition },
         reportPosition: { fileID, seconds in
           if offlineQueue.item(for: fileID)?.isPlayable == true {
             await offlineQueue.recordPosition(fileID: fileID, seconds: seconds)
@@ -1149,9 +1170,11 @@ private struct AccountView: View {
   let cast: PutioCastModel
   let appConfig: PutioAppConfigModel
   @Binding var showsLinkDevice: Bool
+  let linkDeviceCode: String?
   let onDataCleared: @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
   let onAccountDestroyed: @MainActor () -> Void
   @State private var isRefreshingStorage = false
+  @State private var confirmsSignOut = false
 
   var body: some View {
     List {
@@ -1169,7 +1192,7 @@ private struct AccountView: View {
             )
           }
           .accessibilityIdentifier("account.file-preferences")
-          NavigationLink("Playback Preferences") {
+          NavigationLink("Playback preferences") {
             PlaybackPreferencesView(runtime: runtime, appConfig: appConfig)
           }
           .accessibilityIdentifier("account.playback-preferences")
@@ -1183,10 +1206,14 @@ private struct AccountView: View {
           .accessibilityIdentifier("account.security")
         }
         Section("Storage") {
-          LabeledContent("Used", value: byteText(account.storage.usedBytes))
-            .accessibilityIdentifier("account.storage-used")
-          LabeledContent("Available", value: byteText(account.storage.availableBytes))
-          LabeledContent("Total", value: byteText(account.storage.totalBytes))
+          VStack(alignment: .leading, spacing: PutioTheme.Spacing.space2) {
+            ProgressView(value: account.storage.usedFraction)
+              .tint(PutioTheme.Colors.accent)
+              .accessibilityHidden(true)
+            Text(account.storage.usageSummary())
+              .accessibilityIdentifier("account.storage-used")
+          }
+          .padding(.vertical, PutioTheme.Spacing.space1)
           if runtime.session.isAccountStorageStale {
             // Stale-storage state outlives the Trash screen that caused it.
             PutioErrorStateView(
@@ -1215,9 +1242,7 @@ private struct AccountView: View {
           }
           .accessibilityIdentifier("account.trash")
         }
-        if let reviewURL = URL(
-          string: "https://apps.apple.com/app/id1260479699?action=write-review")
-        {
+        if let reviewURL = PutioAppStoreReview.url() {
           Section("Support") {
             NavigationLink("About") {
               AboutView()
@@ -1227,22 +1252,19 @@ private struct AccountView: View {
               .accessibilityIdentifier("account.rate-app")
           }
         }
-        Section("Danger Zone") {
-          NavigationLink("Clear Data") {
+        Section("Danger zone") {
+          NavigationLink("Clear your data") {
             ClearDataView(actions: .init(runtime: runtime), onCleared: onDataCleared)
           }
           .accessibilityIdentifier("account.clear-data")
-          NavigationLink("Destroy Account") {
+          NavigationLink("Destroy your account") {
             DestroyAccountView(actions: .init(runtime: runtime), onDestroyed: onAccountDestroyed)
           }
           .accessibilityIdentifier("account.destroy-account")
         }
         Section {
-          Button("Sign out", role: .destructive) {
-            PutioFilesNavigationRestoration().clear(accountID: account.id)
-            Task { await runtime.session.signOut() }
-          }
-          .accessibilityIdentifier("auth.sign-out")
+          Button("Log out", role: .destructive) { confirmsSignOut = true }
+            .accessibilityIdentifier("auth.sign-out")
         }
       }
       .listRowBackground(PutioTheme.Colors.surface)
@@ -1250,13 +1272,17 @@ private struct AccountView: View {
     .navigationTitle("Account")
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
-    .navigationDestination(isPresented: $showsLinkDevice) {
-      LinkDeviceView(actions: .init(runtime: runtime))
+    .alert("Are you sure?", isPresented: $confirmsSignOut) {
+      Button("Cancel", role: .cancel) {}
+      Button("Log out", role: .destructive) {
+        PutioFilesNavigationRestoration().clear(accountID: account.id)
+        Task { await runtime.session.signOut() }
+      }
+      .accessibilityIdentifier("auth.sign-out-confirm")
     }
-  }
-
-  private func byteText(_ bytes: Int64) -> String {
-    PutioFileRowModel.sizeText(bytes: bytes)
+    .navigationDestination(isPresented: $showsLinkDevice) {
+      LinkDeviceView(actions: .init(runtime: runtime), code: linkDeviceCode)
+    }
   }
 
   private func reconcileRestoredFile(destinationID: PutioFileID?) {
@@ -1583,6 +1609,7 @@ enum PutioCastControllerFactory {
       savePlaybackType: { try await runtime.setCastPlaybackType($0) },
       startConversion: { try await runtime.startVideoConversion(fileID: $0) },
       loadConversionStatus: { try await runtime.videoConversionStatus(fileID: $0) },
+      remembersPlaybackPosition: { runtime.remembersPlaybackPosition },
       reportPosition: { fileID, seconds in
         try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
       }
@@ -1658,5 +1685,13 @@ private struct PutioCastBarAccessory: ViewModifier {
     } else {
       content
     }
+  }
+}
+
+extension PutioRuntime {
+  /// The signed-in account's remember-position setting as of now.
+  fileprivate var remembersPlaybackPosition: Bool {
+    guard case .signedIn(let account) = session.state else { return false }
+    return account.rememberVideoTime
   }
 }

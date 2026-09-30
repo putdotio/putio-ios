@@ -154,6 +154,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     if !signOut.isHittable { app.swipeUp() }
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(element("auth.sign-in").waitForExistence(timeout: 10))
   }
 
