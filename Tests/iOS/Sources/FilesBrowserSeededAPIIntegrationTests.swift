@@ -436,9 +436,16 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
   }
 
   func testHarnessSignInPersistsForRestoreAndSignOutClearsTheSession() async throws {
-    let tokenStore = PutioKeychainTokenStore()
+    let tokenStore = PutioKeychainTokenStore(service: PutioRuntimeFactory.harnessKeychainService)
     try tokenStore.clear()
     defer { try? tokenStore.clear() }
+    // A real login on the same install survives harness sign-in and sign-out.
+    let loginStore = PutioKeychainTokenStore()
+    let savedLogin = try loginStore.read()
+    try loginStore.write("real-login-token")
+    defer {
+      if let savedLogin { try? loginStore.write(savedLogin) } else { try? loginStore.clear() }
+    }
 
     let signingInRuntime = PutioRuntimeFactory.make(scenario: .filesBrowser)
     await signingInRuntime.session.restore()
@@ -463,5 +470,6 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
     let signedOutRuntime = PutioRuntimeFactory.make(scenario: .filesBrowser)
     await signedOutRuntime.session.restore()
     XCTAssertEqual(signedOutRuntime.session.state, .signedOut(nil))
+    XCTAssertEqual(try loginStore.read(), "real-login-token")
   }
 }
