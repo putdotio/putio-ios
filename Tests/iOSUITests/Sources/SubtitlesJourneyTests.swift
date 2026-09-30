@@ -65,6 +65,15 @@ final class SubtitlesJourneyTests: XCTestCase {
     screenshot("runtime-subtitles-selected")
     pausePlayback()
 
+    // Subtitles in a language other than the audio's leave the audio alone.
+    openPlayerMenu("Subtitles")
+    app.buttons["AVLanguagesMenu"].tap()
+    let englishSubtitle = app.buttons["English"]
+    XCTAssertTrue(englishSubtitle.waitForExistence(timeout: 5))
+    englishSubtitle.tap()
+    XCTAssertTrue(waitForValue(subtitle, "en"), "subtitle: \(subtitle.value ?? "")")
+    XCTAssertTrue(waitForValue(audio, "tr"), "English subtitles changed the audio track")
+
     openPlayerMenu("Subtitles")
     let off = app.buttons["AVSubtitlesOffAction"]
     XCTAssertTrue(off.waitForExistence(timeout: 5))

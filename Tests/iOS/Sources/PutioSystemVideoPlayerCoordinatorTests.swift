@@ -202,17 +202,119 @@ private final class PlayerItemStatusObservationSpy: PutioPlayerItemStatusObserva
   }
 }
 
+/// Stands in for a stream whose legible group has a default option. Each
+/// selection snapshot the coordinator checks reads the next recorded state,
+/// in the order the coordinator took them; the live state answers the rest.
+@MainActor
+private final class DefaultSubtitleSpy {
+  let loadStarted = XCTestExpectation(description: "default subtitle load started")
+  var blocksLoad = false
+  var subtitleIsOn = false
+  private(set) var loadCount = 0
+  private(set) var selectCount = 0
+  private var recordedStates: [Bool] = []
+  private var continuation: CheckedContinuation<Void, Never>?
+
+  init() {
+    loadStarted.assertForOverFulfill = false
+  }
+
+  func load(_ item: AVPlayerItem) async -> PutioDefaultSubtitle? {
+    loadCount += 1
+    recordedStates = [subtitleIsOn]
+    loadStarted.fulfill()
+    if blocksLoad {
+      await withCheckedContinuation { continuation = $0 }
+    }
+    return PutioDefaultSubtitle(
+      isSelected: { [unowned self] _ in
+        recordedStates.isEmpty ? subtitleIsOn : recordedStates.removeFirst()
+      },
+      select: { [unowned self] in
+        selectCount += 1
+        subtitleIsOn = true
+      }
+    )
+  }
+
+  /// A user choice from the system menu, observed through the item's
+  /// media-selection notification.
+  func userTurnsSubtitle(on: Bool, item: AVPlayerItem, notifications: NotificationCenter) {
+    subtitleIsOn = on
+    if continuation != nil { recordedStates.append(on) }
+    notifications.post(name: AVPlayerItem.mediaSelectionDidChangeNotification, object: item)
+  }
+
+  func finishLoad() {
+    continuation?.resume()
+    continuation = nil
+  }
+}
+
 @MainActor
 final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
+  func testDefaultSubtitleIsSelectedOncePerPlayback() async throws {
+    let notifications = NotificationCenter()
+    let status = PlayerItemStatusObservationSpy()
+    let subtitle = DefaultSubtitleSpy()
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: PlaybackAudioSessionSpy(), statusObservation: status,
+      notificationCenter: notifications, defaultSubtitle: subtitle)
+    let controller = AVPlayerViewController()
+    defer { coordinator.stop(controller: controller) }
+    coordinator.start(source: source(startFromSeconds: 0), in: controller, onFailure: {})
+
+    status.emit(.readyToPlay)
+    await waitUntil { subtitle.selectCount == 1 }
+    subtitle.userTurnsSubtitle(
+      on: false, item: try XCTUnwrap(capture.item), notifications: notifications)
+    status.emit(.readyToPlay)
+    for _ in 0..<20 { await Task.yield() }
+
+    XCTAssertEqual(subtitle.selectCount, 1)
+    XCTAssertFalse(subtitle.subtitleIsOn, "a repeated readiness turned the default back on")
+  }
+
+  func testSubtitleTurnedOffDuringTheDefaultLoadStaysOff() async throws {
+    let notifications = NotificationCenter()
+    let status = PlayerItemStatusObservationSpy()
+    let subtitle = DefaultSubtitleSpy()
+    subtitle.blocksLoad = true
+    let (coordinator, capture) = makeCoordinator(
+      audioSession: PlaybackAudioSessionSpy(), statusObservation: status,
+      notificationCenter: notifications, defaultSubtitle: subtitle)
+    let controller = AVPlayerViewController()
+    defer { coordinator.stop(controller: controller) }
+    coordinator.start(source: source(startFromSeconds: 0), in: controller, onFailure: {})
+
+    status.emit(.readyToPlay)
+    await fulfillment(of: [subtitle.loadStarted], timeout: 2)
+    let item = try XCTUnwrap(capture.item)
+    subtitle.userTurnsSubtitle(on: true, item: item, notifications: notifications)
+    subtitle.userTurnsSubtitle(on: false, item: item, notifications: notifications)
+    subtitle.finishLoad()
+    for _ in 0..<20 { await Task.yield() }
+
+    XCTAssertEqual(subtitle.selectCount, 0, "the default overrode the user's Off")
+    XCTAssertFalse(subtitle.subtitleIsOn)
+  }
+
   func testAudioLanguageFollowsSelectionChangesAfterReadiness() async throws {
     let notifications = NotificationCenter()
     let status = PlayerItemStatusObservationSpy()
     var language = "en"
+    // Audio reporting must not wait for the subtitle group.
+    let subtitle = DefaultSubtitleSpy()
+    subtitle.blocksLoad = true
     let (coordinator, capture) = makeCoordinator(
       audioSession: PlaybackAudioSessionSpy(), statusObservation: status,
-      notificationCenter: notifications, selectedAudioLanguage: { _ in language })
+      notificationCenter: notifications, selectedAudioLanguage: { _ in language },
+      defaultSubtitle: subtitle)
     let controller = AVPlayerViewController()
-    defer { coordinator.stop(controller: controller) }
+    defer {
+      coordinator.stop(controller: controller)
+      subtitle.finishLoad()
+    }
     let initial = expectation(description: "initial language")
     let changed = expectation(description: "changed language")
     var selections: [String] = []
@@ -1129,7 +1231,8 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     positionPipeline: PutioPlaybackPositionPipeline? = nil,
     selectedAudioLanguage: @escaping @MainActor (AVPlayerItem) async -> String? = {
       await PutioSystemVideoPlayerCoordinator.selectedAudioLanguage(in: $0)
-    }
+    },
+    defaultSubtitle: DefaultSubtitleSpy? = nil
   ) -> (PutioSystemVideoPlayerCoordinator, VideoPlayerDriverCapture) {
     let capture = VideoPlayerDriverCapture()
     let coordinator = PutioSystemVideoPlayerCoordinator(
@@ -1152,6 +1255,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       notificationCenter: notificationCenter,
       positionPipeline: positionPipeline ?? PutioPlaybackPositionPipeline(),
       selectedAudioLanguage: selectedAudioLanguage,
+      loadDefaultSubtitle: { item in await defaultSubtitle?.load(item) },
       schedulePositionReports: { interval, callback in
         let schedule = PositionReportScheduleSpy(interval: interval, callback: callback)
         capture.positionReportSchedule = schedule
