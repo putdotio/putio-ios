@@ -31,10 +31,13 @@ final class FilesBrowserRenderingTests: XCTestCase {
 
   @MainActor
   func testMovePickerLoadsDestinationsPastTheFirstPage() async throws {
-    // The first page holds no folders, so only its continuation can offer one.
+    // Neither of the first two pages holds a folder, so the row must chain
+    // through a continuation that adds no rows to reach one.
     let firstPage = BrowserTestFixtures.contents(
       items: [BrowserTestFixtures.item(id: 1, kind: .video)], hasMore: true)
-    let secondPage = BrowserTestFixtures.contents(
+    let secondPage = PutioFolderContents(
+      folder: nil, items: [BrowserTestFixtures.item(id: 4, kind: .video)], nextCursor: "third")
+    let thirdPage = BrowserTestFixtures.contents(
       items: [BrowserTestFixtures.item(id: 2, name: "Later Folder", kind: .folder)])
     var cursors: [String] = []
     let picker = PutioMovePicker(
@@ -42,7 +45,7 @@ final class FilesBrowserRenderingTests: XCTestCase {
       load: { _ in firstPage },
       continueLoad: { cursor in
         cursors.append(cursor)
-        return secondPage
+        return cursor == "next" ? secondPage : thirdPage
       },
       actions: nil,
       refreshRequests: PutioFolderRefreshRequests(),
@@ -56,11 +59,11 @@ final class FilesBrowserRenderingTests: XCTestCase {
     controller.view.frame = window.bounds
 
     let deadline = ContinuousClock.now + .seconds(5)
-    while cursors.isEmpty, ContinuousClock.now < deadline {
+    while cursors.count < 2, ContinuousClock.now < deadline {
       window.layoutIfNeeded()
       try await Task.sleep(for: .milliseconds(10))
     }
-    XCTAssertEqual(cursors, ["next"], "the picker never requested the next page")
+    XCTAssertEqual(cursors, ["next", "third"], "the picker stopped before the folder page")
   }
 
   @MainActor

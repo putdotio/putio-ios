@@ -199,9 +199,51 @@ mise run harness -- live-fixture --output json
 [LiveAdapters](../Tools/PutioHarness/Sources/PutioHarnessKit/LiveAdapters.swift)
 requires the `devs-auto` profile, removes ambient `PUTIO_CLI_TOKEN` from its
 put.io child processes, and verifies profile authentication before writes.
-`live-fixture` reuses the `putio-ios-harness` root folder or validates the create
-request with `--dry-run` before writing. Authenticate with
-`putio auth login --profile devs-auto` if the profile check fails.
+`live-fixture` reuses the `putio-ios-harness` root folder and its `live-fixture.png`
+image, uploaded from the [preview fixtures](../Tests/HarnessMedia/previews), and
+validates each missing write with `--dry-run` first. Both stay in place for later
+runs. Authenticate with `putio auth login --profile devs-auto` if the profile
+check fails.
+
+Live journeys sign the Debug app in to that account:
+
+```bash
+mise run harness -- journey --platform tvos --scenario live-device-sign-in
+mise run harness -- journey --platform ios --scenario live-files-browser
+```
+
+The app launches with the `live` scenario against put.io, keeping its token under
+the harness keychain item. On iOS, Sign in starts the device-code flow instead of
+the web login; that path is compiled out of Release. The app writes the code it
+displays to its data container, and the harness approves it with
+`putio auth approve`, which links a new grant for the app to the account. The
+token stays inside the app; the harness never sees it. The tvOS journey then
+signs out through the account screen. The iOS journey first opens the fixture
+folder and previews the image. Neither journey writes files.
+
+Signing out revokes the run's grant. Sign-out removes the saved token before it
+revokes it, so the live scenario's token store keeps a pending-revocation copy
+until put.io revokes or rejects the token. Then the app records the revocation in
+its data container. After any approval, even in a failed journey, the harness
+relaunches the app with `--putio-harness-live-sign-out`. The app restores the
+saved or pending token, signs it out, and reports the result. The harness makes
+up to three attempts while a launch fails, times out, or cannot revoke the saved
+token. A missing token is not proof: the
+journey passes only when put.io revoked or rejected the token in this launch or
+an earlier one. The journey and the interrupt handler share one guard for the
+run's grant. The approval write runs inside it, so SIGINT or SIGTERM either
+cancels an approval that has not started or revokes after it finishes. Revocation
+runs once, before simulator deletion. Interrupt cleanup waits for a simulator
+teardown the finished command has already started, and otherwise does the
+teardown itself. If an approval is interrupted before the app saves its
+token, nothing in the simulator can revoke the grant. The harness then reports
+that the grant may still be live and names the manual revocation.
+
+The CLI refuses to list authorized apps. The iOS journey captures Account >
+Security > "Where you're signed in" while signed in, but put.io lists grants per
+app, not per session, so that screen cannot show whether one run's token is gone.
+The cleanup result is the per-run evidence. That capture shows every app on the
+shared account, so review it before sharing.
 
 Capture never uploads implicitly. Review the artifact and obtain publishing
 authorization, then upload it to the pull request:

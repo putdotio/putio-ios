@@ -142,6 +142,7 @@ final class HistoryJourneyTests: XCTestCase {
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(element("auth.sign-in").waitForExistence(timeout: 10))
   }
 

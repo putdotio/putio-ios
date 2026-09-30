@@ -2,9 +2,11 @@ import PutioCore
 import SwiftUI
 
 struct TVSessionRootView: View {
+  private let scenario: HarnessScenario
   @State private var runtime: PutioRuntime
 
   init(scenario: HarnessScenario) {
+    self.scenario = scenario
     _runtime = State(initialValue: PutioRuntimeFactory.make(scenario: scenario))
   }
 
@@ -25,6 +27,12 @@ struct TVSessionRootView: View {
       }
     }
     .background(PutioTheme.Colors.background.ignoresSafeArea())
+    #if DEBUG
+      .modifier(
+        HarnessLiveSessionProbe(
+          session: runtime.session,
+          tokenStore: scenario == .live ? PutioRuntimeFactory.liveTokenStore : nil))
+    #endif
     .task {
       await runtime.session.restore()
     }
@@ -67,7 +75,8 @@ private struct TVSignInView: View {
       phase: TVSignInPhase(state: session.state, deviceCodeSignIn: session.deviceCodeSignIn),
       sessionExpired: session.state == .signedOut(.sessionExpired),
       requestCode: { Task { await session.signInWithDeviceCode() } },
-      retryRestore: { Task { await session.restore() } }
+      retryRestore: { Task { await session.restore() } },
+      discardCredential: { session.discardUnrestoredCredential() }
     )
     // A fresh signed-out screen asks for a code on its own; failures wait for
     // an explicit retry so an unreachable API cannot loop.
@@ -89,6 +98,7 @@ struct TVSignInScreen: View {
   var sessionExpired = false
   let requestCode: () -> Void
   let retryRestore: () -> Void
+  var discardCredential: () -> Void = {}
 
   var body: some View {
     VStack(spacing: PutioTheme.TV.Spacing.medium) {
@@ -178,6 +188,18 @@ struct TVSignInScreen: View {
           canRetryRestore ? retryRestore() : requestCode()
         }
         .accessibilityIdentifier("auth.retry")
+        if canRetryRestore {
+          // Abandoning the saved sign-in is only ever the user's choice; a
+          // transient failure must not cost a valid session.
+          PutioButton("Sign in again", tier: .secondary) {
+            discardCredential()
+          }
+          .accessibilityIdentifier("auth.discard-credential")
+          Text("Signing in again removes the saved sign-in from this Apple TV.")
+            .putioFont(PutioTheme.TV.Typography.caption)
+            .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+            .multilineTextAlignment(.center)
+        }
       }
     }
   }
@@ -268,19 +290,14 @@ struct TVAccountScreen: View {
         Text("Storage")
           .putioFont(PutioTheme.TV.Typography.label)
           .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
-        ProgressView(
-          value: Double(min(account.storage.usedBytes, account.storage.totalBytes)),
-          total: Double(max(account.storage.totalBytes, 1))
-        )
-        .tint(PutioTheme.Colors.accent)
-        Text(
-          "\(byteText(account.storage.usedBytes)) of \(byteText(account.storage.totalBytes)) used, \(byteText(account.storage.availableBytes)) available"
-        )
-        .putioFont(PutioTheme.TV.Typography.numeric)
-        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-        .accessibilityIdentifier("account.storage")
+        ProgressView(value: account.storage.usedFraction)
+          .tint(PutioTheme.Colors.accent)
+        Text(account.storage.usageSummary(locale: locale))
+          .putioFont(PutioTheme.TV.Typography.numeric)
+          .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+          .accessibilityIdentifier("account.storage")
       }
-      PutioButton("Sign out", tier: .secondary) {
+      PutioButton("Log out", tier: .secondary) {
         confirmsSignOut = true
       }
       .accessibilityIdentifier("auth.sign-out")
@@ -289,9 +306,9 @@ struct TVAccountScreen: View {
     .tvOverscanPadding()
     .background(PutioTheme.Colors.background.ignoresSafeArea())
     .confirmationDialog(
-      "Sign out of put.io?", isPresented: $confirmsSignOut, titleVisibility: .visible
+      "Log out of put.io?", isPresented: $confirmsSignOut, titleVisibility: .visible
     ) {
-      Button("Sign out", role: .destructive) {
+      Button("Log out", role: .destructive) {
         Task { await signOut() }
       }
       .accessibilityIdentifier("auth.sign-out-confirm")
@@ -299,9 +316,5 @@ struct TVAccountScreen: View {
     } message: {
       Text("This Apple TV will need a new activation code to sign in again.")
     }
-  }
-
-  private func byteText(_ bytes: Int64) -> String {
-    bytes.formatted(.byteCount(style: .file).locale(locale))
   }
 }

@@ -3,7 +3,9 @@
 Use `putio:///files/410` to open an item by ID, or `putio:///files/0` for Files
 root. The [parser](../Apps/iOS/Sources/DeepLinks.swift) (`PutioDeepLink.parse`)
 also routes `/history` to History when enabled, `/account` or `/settings` to
-Account, and `/link` to Account's Link a device screen. Non-folder files use the
+Account, and `/link` to Account's Link your account screen. As on put.io's web,
+`/link?code=AB12CD` prefills the activation code, trimmed and uppercased; the
+user still taps Link, which requires exactly six characters. Non-folder files use the
 [normal file dispatcher](../Apps/iOS/Sources/PutioApp.swift) (`selectFile`):
 video, audio, preview, or an unsupported-file explanation.
 
@@ -23,8 +25,9 @@ this does not register universal-link delivery. Only Putio registers the
 compete for it when both flavors are installed.
 
 Foreign schemes and hosts are ignored. Credentials, explicit ports, query
-strings, fragments, encoded path components, malformed IDs, and unsupported
-owned paths produce an unavailable-link explanation. File lookup failures offer
+strings other than a single `code` on `/link`, fragments, encoded path
+components, malformed IDs, and unsupported owned paths produce an
+unavailable-link explanation. File lookup failures offer
 retry where `PutioDeepLinkFailure.canRetry` allows it. Authentication callbacks
 remain with `ASWebAuthenticationSession`.
 

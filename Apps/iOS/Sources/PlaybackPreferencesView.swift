@@ -119,7 +119,7 @@ struct PlaybackPreferencesView: View {
           .listRowBackground(PutioTheme.Colors.surface)
       }
     }
-    .navigationTitle("Playback Preferences")
+    .navigationTitle("Playback preferences")
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
     .task { if routes == nil { await loadRoutes() } }

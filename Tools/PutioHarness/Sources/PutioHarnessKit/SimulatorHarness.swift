@@ -343,16 +343,25 @@ public final class SimulatorLifecycle: @unchecked Sendable {
   private var cleanupFailure: String?
   private var cleanupInProgress = false
   private var cleanupRequested = false
+  private var sessionTeardownInProgress = false
 
-  private init() {}
+  init() {}
 
-  func register(cleanup action: @escaping () throws -> Void) throws {
+  /// Actions run in registration order, except that `beforeSimulatorTeardown`
+  /// actions run first: they still need the simulators the others delete.
+  func register(
+    beforeSimulatorTeardown: Bool = false, cleanup action: @escaping () throws -> Void
+  ) throws {
     condition.lock()
     let runImmediately: Bool
     if cleanupRequested {
       runImmediately = true
     } else {
-      cleanupActions.append(action)
+      if beforeSimulatorTeardown {
+        cleanupActions.insert(action, at: 0)
+      } else {
+        cleanupActions.append(action)
+      }
       runImmediately = false
     }
     condition.unlock()
@@ -360,6 +369,28 @@ public final class SimulatorLifecycle: @unchecked Sendable {
       try action()
       throw HarnessFailure("harness termination requested")
     }
+  }
+
+  /// Tears down a finished session unless an interrupt's cleanup already
+  /// owns it. That cleanup revokes live grants before deleting the same
+  /// simulators, so deleting them here could race its revocation.
+  /// Interrupt cleanup waits for a teardown that already claimed the session.
+  func endSession(_ teardown: () throws -> Void) throws {
+    condition.lock()
+    guard !cleanupRequested else {
+      condition.unlock()
+      return
+    }
+    sessionTeardownInProgress = true
+    condition.unlock()
+    defer {
+      condition.lock()
+      sessionTeardownInProgress = false
+      condition.broadcast()
+      condition.unlock()
+    }
+    try teardown()
+    release()
   }
 
   func release() {
@@ -372,7 +403,7 @@ public final class SimulatorLifecycle: @unchecked Sendable {
 
   public func cleanup() throws {
     condition.lock()
-    while cleanupInProgress { condition.wait() }
+    while cleanupInProgress || sessionTeardownInProgress { condition.wait() }
     if let cleanupFailure {
       condition.unlock()
       throw HarnessFailure(cleanupFailure)
@@ -674,6 +705,9 @@ public struct SimulatorHarness {
     guard scenario.platform == platform else {
       throw HarnessFailure(
         "journey \(scenario.rawValue) supports only \(scenario.platform.rawValue)")
+    }
+    if scenario.isLive {
+      return try liveJourney(scenario, runID: runID, sourceRevision: sourceRevision)
     }
     if scenario == .deviceSignIn {
       return try deviceSignInJourney(runID: runID, sourceRevision: sourceRevision)
@@ -1139,6 +1173,231 @@ public struct SimulatorHarness {
     }
   }
 
+  /// Signs the app in to the devs-auto account: the UI test waits on the app
+  /// while the harness approves the activation code the app reports, so no
+  /// credential crosses the simulator boundary. Whenever approval was
+  /// attempted, a cleanup launch revokes any session the test left behind.
+  private func liveJourney(
+    _ scenario: JourneyScenario, runID: String, sourceRevision: String
+  ) throws -> SurfaceRun {
+    let platform = scenario.platform
+    let live = LiveAdapters(context: context, runner: runner)
+    // The account and fixtures are checked before anything is built.
+    var testEnvironment = [LiveSessionContract.testEnvironment: "1"]
+    let fixture = scenario == .liveFilesBrowser ? try live.provisionLiveFixture() : nil
+    if let fixture {
+      testEnvironment[LiveSessionContract.folderEnvironment] = String(fixture.folderID)
+      testEnvironment[LiveSessionContract.fileEnvironment] = String(fixture.fileID)
+    } else {
+      _ = try live.authStatus()
+    }
+    let (testIdentifier, attachmentNames) =
+      scenario == .liveFilesBrowser
+      ? (LiveFilesJourneyContract.testIdentifier, LiveFilesJourneyContract.attachmentNames)
+      : (
+        LiveDeviceSignInJourneyContract.testIdentifier,
+        LiveDeviceSignInJourneyContract.attachmentNames
+      )
+
+    try requireCleanSource()
+    try requireRevision(sourceRevision)
+    try regenerateWorkspace()
+    try requireCleanSource()
+    try requireRevision(sourceRevision)
+    try requireGeneratedWorkspace()
+    try fileManager.createDirectory(at: context.derivedData, withIntermediateDirectories: true)
+
+    let platformDirectory = context.proofRoot.appending(path: runID).appending(
+      path: platform.rawValue)
+    guard !fileManager.fileExists(atPath: platformDirectory.path) else {
+      throw HarnessFailure(
+        "proof path already exists: \(platformDirectory.path); choose a new --run-id")
+    }
+    try fileManager.createDirectory(at: platformDirectory, withIntermediateDirectories: true)
+
+    do {
+      return try withSession(platform: platform, runID: runID) { session in
+        try buildJourneyTests(platform: platform, session: session)
+        let resultBundle = platformDirectory.appending(path: ".\(scenario.rawValue).xcresult")
+        let grant = LiveGrant { try revokeLiveSession(platform, session) }
+        // Registered before any approval, so an interrupt from here on either
+        // cancels the approval or revokes it before the simulator, and the
+        // keychain holding the token, is deleted.
+        try SimulatorLifecycle.shared.register(beforeSimulatorTeardown: true) {
+          try grant.requireRevoked()
+        }
+        let journey = Result {
+          try runJourneyPreflightTest(
+            identifier: testIdentifier,
+            platform: platform,
+            session: session,
+            environment: testEnvironment,
+            resultBundle: resultBundle,
+            attachmentNames: attachmentNames,
+            artifactDirectory: platformDirectory,
+            defaultExecutionTimeAllowance: 300,
+            maximumExecutionTimeAllowance: 360
+          ) { process in
+            try approveDisplayedDeviceCode(
+              platform: platform, session: session, process: process, live: live, grant: grant)
+          }
+        }
+        let cleanup = Result { try grant.revoke() }
+        let cleanupSummary: String
+        switch cleanup {
+        case .success(nil):
+          cleanupSummary = "no activation code was approved"
+        case .success(let result?):
+          cleanupSummary = result.summary
+        case .failure(let error):
+          cleanupSummary = "cleanup launch failed: \(error); \(LiveCleanup.possiblyLive)"
+        }
+        let screenshots: [URL]
+        switch journey {
+        case .success(let urls): screenshots = urls
+        case .failure(let error): throw HarnessFailure("\(error)\nlive session: \(cleanupSummary)")
+        }
+        guard case .success(let result?) = cleanup, result.isRevoked else {
+          throw HarnessFailure("live session: \(cleanupSummary)")
+        }
+
+        let pixels = try zip(attachmentNames, screenshots).map {
+          try requireMeaningfulScreenshot($1, context: "\($0) attachment")
+        }
+        guard let signedIn = pixels.dropFirst().first,
+          pixels[0].differsMeaningfully(from: signedIn)
+        else {
+          throw HarnessFailure("live journey screenshots do not differ meaningfully")
+        }
+        try requireCleanSource()
+        try requireRevision(sourceRevision)
+        try fileManager.removeItem(at: resultBundle)
+        let manifest = try writeManifest(
+          platform: platform,
+          command: "journey",
+          runID: runID,
+          commit: sourceRevision,
+          session: session,
+          artifactURLs: screenshots,
+          directory: platformDirectory,
+          fixtureSet: scenario.fixtureSet
+        )
+        return SurfaceRun(
+          platform: platform,
+          artifacts: screenshots + [manifest],
+          message:
+            "\(scenario.rawValue) journey passed 1/1 tests against \(LiveFixtureContract.profile)"
+            + "\(fixture.map { " (\($0.summary))" } ?? ""); \(cleanupSummary) in "
+            + context.relativePath(for: platformDirectory)
+        )
+      }
+    } catch {
+      try? fileManager.removeItem(at: platformDirectory.appending(path: "manifest.json"))
+      throw error
+    }
+  }
+
+  /// Polls the app's data container for the activation code it displays and
+  /// approves the first one. Returns without approving if the test ends first,
+  /// so its own failure explains why no code appeared.
+  private func approveDisplayedDeviceCode(
+    platform: HarnessPlatform,
+    session: SimulatorSession,
+    process: RunningProcess,
+    live: LiveAdapters,
+    grant: LiveGrant
+  ) throws {
+    let deadline = Date().addingTimeInterval(180)
+    while process.isRunning {
+      if let data = appContainerFile(
+        LiveSessionContract.deviceCodeFile, platform: platform, session: session),
+        let code = LiveSessionContract.deviceCode(from: data)
+      {
+        try live.approveDeviceCode(code) { write in try grant.approve(write) }
+        return
+      }
+      guard Date() < deadline else {
+        throw HarnessFailure(
+          "\(platform.configuration.bundleIdentifier) did not report an activation code within 180 seconds"
+        )
+      }
+      Thread.sleep(forTimeInterval: 0.5)
+    }
+  }
+
+  /// Relaunches the app in its live sign-out mode, which restores any saved
+  /// or pending-revocation token and signs it out, then reports what it found.
+  /// Retries while the token is still saved and revocation failed.
+  private func revokeLiveSession(_ platform: HarnessPlatform, _ session: SimulatorSession) throws
+    -> LiveCleanup
+  {
+    let bundleIdentifier = platform.configuration.bundleIdentifier
+    return try retryLiveCleanup(attempts: 3, delay: 5) {
+      if let container = appDataContainer(platform: platform, session: session) {
+        try? fileManager.removeItem(
+          at: container.appending(path: LiveSessionContract.outcomeFile))
+      }
+      _ = try runner.checked(
+        "xcrun",
+        [
+          "simctl", "launch", "--terminate-running-process", session.deviceIdentifier,
+          bundleIdentifier, "--putio-harness-scenario", LiveSessionContract.scenario,
+          LiveSessionContract.signOutArgument,
+        ],
+        context: "launch \(platform.rawValue) app to revoke its live session"
+      )
+      defer {
+        _ = try? runner.run(
+          "xcrun", ["simctl", "terminate", session.deviceIdentifier, bundleIdentifier])
+      }
+      let outcome = try waitForLiveOutcome(platform: platform, session: session)
+      return LiveCleanup(
+        outcome: outcome,
+        revocationRecorded: appContainerFile(
+          LiveSessionContract.revokedFile, platform: platform, session: session) != nil)
+    }
+  }
+
+  private func waitForLiveOutcome(platform: HarnessPlatform, session: SimulatorSession) throws
+    -> LiveSessionContract.Outcome
+  {
+    let deadline = Date().addingTimeInterval(60)
+    repeat {
+      if let data = appContainerFile(
+        LiveSessionContract.outcomeFile, platform: platform, session: session),
+        let outcome = LiveSessionContract.outcome(from: data)
+      {
+        return outcome
+      }
+      Thread.sleep(forTimeInterval: 0.5)
+    } while Date() < deadline
+    throw HarnessFailure(
+      "\(platform.configuration.bundleIdentifier) did not report its live session within 60 seconds"
+    )
+  }
+
+  private func appDataContainer(platform: HarnessPlatform, session: SimulatorSession) -> URL? {
+    guard
+      let output = try? runner.run(
+        "xcrun",
+        [
+          "simctl", "get_app_container", session.deviceIdentifier,
+          platform.configuration.bundleIdentifier, "data",
+        ]),
+      output.status == 0
+    else { return nil }
+    let path = output.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    return path.isEmpty ? nil : URL(fileURLWithPath: path)
+  }
+
+  private func appContainerFile(
+    _ relativePath: String, platform: HarnessPlatform, session: SimulatorSession
+  ) -> Data? {
+    appDataContainer(platform: platform, session: session).flatMap {
+      try? Data(contentsOf: $0.appending(path: relativePath))
+    }
+  }
+
   public func test(_ platform: HarnessPlatform, recordSnapshots: Bool) throws -> SurfaceRun {
     let suites = platform.configuration.snapshotSuites
     guard !suites.isEmpty else {
@@ -1258,34 +1517,50 @@ public struct SimulatorHarness {
     platform: HarnessPlatform,
     session: SimulatorSession,
     mediaBaseURL: URL? = nil,
+    environment: [String: String] = [:],
     resultBundle: URL,
     attachmentNames: [String] = [],
     artifactDirectory: URL? = nil,
     defaultExecutionTimeAllowance: Int = 30,
-    maximumExecutionTimeAllowance: Int = 60
+    maximumExecutionTimeAllowance: Int = 60,
+    whileRunning: ((RunningProcess) throws -> Void)? = nil
   ) throws -> [URL] {
-    let testOutput = try runner.run(
-      "xcodebuild",
-      [
-        "test-without-building",
-        "-quiet",
-        "-workspace", "Putio.xcworkspace",
-        "-scheme", platform.configuration.scheme,
-        "-destination", "id=\(session.deviceIdentifier)",
-        "-derivedDataPath", context.derivedData.path,
-        "-resultBundlePath", resultBundle.path,
-        "-parallel-testing-enabled", "NO",
-        "-collect-test-diagnostics", "never",
-        "-test-timeouts-enabled", "YES",
-        "-default-test-execution-time-allowance", String(defaultExecutionTimeAllowance),
-        "-maximum-test-execution-time-allowance", String(maximumExecutionTimeAllowance),
-        "-only-testing:\(identifier)",
-      ],
-      environment: mediaBaseURL.map {
-        ["TEST_RUNNER_PUTIO_HARNESS_MEDIA_BASE_URL": $0.absoluteString]
-      } ?? [:],
-      currentDirectory: context.root
-    )
+    let testArguments = [
+      "test-without-building",
+      "-quiet",
+      "-workspace", "Putio.xcworkspace",
+      "-scheme", platform.configuration.scheme,
+      "-destination", "id=\(session.deviceIdentifier)",
+      "-derivedDataPath", context.derivedData.path,
+      "-resultBundlePath", resultBundle.path,
+      "-parallel-testing-enabled", "NO",
+      "-collect-test-diagnostics", "never",
+      "-test-timeouts-enabled", "YES",
+      "-default-test-execution-time-allowance", String(defaultExecutionTimeAllowance),
+      "-maximum-test-execution-time-allowance", String(maximumExecutionTimeAllowance),
+      "-only-testing:\(identifier)",
+    ]
+    var testEnvironment = environment
+    if let mediaBaseURL {
+      testEnvironment["TEST_RUNNER_PUTIO_HARNESS_MEDIA_BASE_URL"] = mediaBaseURL.absoluteString
+    }
+    let testOutput: ProcessOutput
+    if let whileRunning {
+      let process = try runner.start(
+        "xcodebuild", testArguments, environment: testEnvironment,
+        currentDirectory: context.root)
+      do {
+        try whileRunning(process)
+      } catch {
+        let output = process.interruptAndWait()
+        throw HarnessFailure("\(error)\n\(output.combinedOutput)")
+      }
+      testOutput = process.wait()
+    } else {
+      testOutput = try runner.run(
+        "xcodebuild", testArguments, environment: testEnvironment,
+        currentDirectory: context.root)
+    }
     guard testOutput.status == 0 else {
       if let audioLog = try? runner.run(
         "xcrun",
@@ -1385,8 +1660,7 @@ public struct SimulatorHarness {
       result = .failure(error)
     }
     do {
-      try session.cleanup()
-      SimulatorLifecycle.shared.release()
+      try SimulatorLifecycle.shared.endSession { try session.cleanup() }
     } catch {
       switch result {
       case .success:

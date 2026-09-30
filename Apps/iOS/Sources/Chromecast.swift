@@ -163,6 +163,7 @@ final class PutioCastModel {
   @ObservationIgnored private let startConversion: PutioVideoConversionStart
   @ObservationIgnored private let loadConversionStatus: PutioVideoConversionStatusLoad
   @ObservationIgnored private let reportPosition: PutioPlaybackPositionReport
+  @ObservationIgnored private let remembersPlaybackPosition: PutioPlaybackPositionSetting
   @ObservationIgnored private let positionReportInterval: Duration
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private var generation: UInt64 = 0
@@ -181,6 +182,7 @@ final class PutioCastModel {
     savePlaybackType: @escaping PutioCastPlaybackTypeSave,
     startConversion: @escaping PutioVideoConversionStart,
     loadConversionStatus: @escaping PutioVideoConversionStatusLoad,
+    remembersPlaybackPosition: @escaping PutioPlaybackPositionSetting = { true },
     reportPosition: @escaping PutioPlaybackPositionReport
   ) {
     self.controller = controller
@@ -193,6 +195,7 @@ final class PutioCastModel {
     self.startConversion = startConversion
     self.loadConversionStatus = loadConversionStatus
     self.reportPosition = reportPosition
+    self.remembersPlaybackPosition = remembersPlaybackPosition
     controller.onConnectionChanged = { [weak self] connection in
       self?.connectionChanged(connection)
     }
@@ -558,17 +561,20 @@ final class PutioCastModel {
   }
 
   private func reportPositionIfNeeded() {
-    guard let media, let status, status.playerState == .playing || status.playerState == .paused
+    guard remembersPlaybackPosition(), let media, let status,
+      status.playerState == .playing || status.playerState == .paused
     else { return }
     let seconds = Int(status.positionSeconds.rounded(.down))
     guard seconds > 0, seconds != lastReportedSeconds else { return }
     lastReportedSeconds = seconds
     reportedPosition = (media.id, seconds)
     let report = reportPosition
+    let remembersPlaybackPosition = remembersPlaybackPosition
     // Not generation-guarded on purpose: the report names its own file and
     // second, so a session end or a newer cast never makes it wrong, and the
     // final flush must outlive the session that produced it.
     Task { @MainActor in
+      guard remembersPlaybackPosition() else { return }
       try? await report(media.id, seconds)
     }
   }
