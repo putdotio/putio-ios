@@ -164,6 +164,21 @@ final class PutioFileRouteTests: XCTestCase {
     XCTAssertFalse(detail.hasSuffix(" · "))
   }
 
+  func testRowRelativeDateFollowsEachRequestedLocale() {
+    let item = BrowserTestFixtures.item(id: 14, kind: .video)
+    func relativeDate(_ identifier: String) -> String? {
+      PutioBrowserItemPresentation(
+        item: item,
+        relativeTo: BrowserTestFixtures.referenceDate,
+        locale: Locale(identifier: identifier)
+      ).row.sizeText?.components(separatedBy: " · ").last
+    }
+
+    XCTAssertEqual(relativeDate("en_US"), "yesterday")
+    XCTAssertEqual(relativeDate("de_DE"), "gestern")
+    XCTAssertEqual(relativeDate("en_US"), "yesterday")
+  }
+
   func testFolderRowOmitsFileSizeAndRelativeDate() {
     let folder = BrowserTestFixtures.item(
       id: 13,

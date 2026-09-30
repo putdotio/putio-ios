@@ -29,7 +29,7 @@ struct PutioAccountSecurityActions: Sendable {
     regenerateRecoveryCodes = { try await runtime.regenerateRecoveryCodes() }
     clearData = { try await runtime.clearAccountData($0) }
     destroyAccount = { try await runtime.destroyAccount(password: $0) }
-    refreshAccount = { await runtime.refreshAccountPreferences() }
+    refreshAccount = { await runtime.refreshAccount() }
     account = {
       if case .signedIn(let account) = runtime.session.state { return account }
       return nil

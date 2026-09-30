@@ -223,7 +223,7 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
       if rawFileID == 411 {
         try await completeSeededConversion(runtime: runtime, fileID: fileID)
       }
-      try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: 137)
+      try await runtime.reportPlaybackPosition(fileID: fileID, seconds: 137)
       let resolution = try await runtime.resolveVideoPlaybackSource(fileID: fileID)
 
       guard case .ready(let source) = resolution else {
@@ -237,7 +237,7 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
       XCTAssertEqual(refreshedFile.resumePositionSeconds, 137)
       XCTAssertTrue(refreshedFile.isWatched)
 
-      try await runtime.reportVideoPlaybackPosition(fileID: fileID, seconds: 0)
+      try await runtime.reportPlaybackPosition(fileID: fileID, seconds: 0)
       let reset = try await runtime.listFiles(parentID: parentID)
       let resetFile = try XCTUnwrap(reset.items.first { $0.id == fileID })
       XCTAssertEqual(resetFile.resumePositionSeconds, 0)
