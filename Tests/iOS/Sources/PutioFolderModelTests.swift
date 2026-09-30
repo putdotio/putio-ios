@@ -229,6 +229,26 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(policy.canMove(to: PutioFolderRoute(id: eligible.id, title: eligible.name)))
   }
 
+  func testMovePickerOffersFoldersFromLaterPages() async {
+    // The first page holds no folders, so only its continuation can offer one.
+    let video = BrowserTestFixtures.item(id: 1, kind: .video)
+    let later = BrowserTestFixtures.item(id: 2, name: "Later Folder", kind: .folder)
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in BrowserTestFixtures.contents(items: [video], hasMore: true) },
+      continueLoad: { _ in BrowserTestFixtures.contents(items: [later]) }
+    )
+    let policy = PutioMovePickerPolicy(item: BrowserTestFixtures.item(id: 3, parentID: 7))
+
+    _ = await model.loadIfNeeded()
+    let appended = await model.loadMore()
+
+    XCTAssertTrue(appended)
+    guard case .loaded(let contents) = model.state else { return XCTFail("Expected contents") }
+    XCTAssertEqual(policy.folders(in: contents), [later])
+    XCTAssertFalse(contents.hasMore)
+  }
+
   func testBulkOutcomeRetriesOnlyFailuresStillPresentInTheAuthoritativeFolder() {
     let stale = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Stale.mkv")
     let current = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Current.mkv")
@@ -2245,6 +2265,39 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(model.nextCursor, keyBefore.cursor, "the refreshed page kept the cursor")
     XCTAssertNotEqual(model.continuationKey, keyBefore, "the view task must start again")
     XCTAssertTrue(model.canLoadMore)
+  }
+
+  func testCancelledContinuationRestartsAfterAnEarlyReappearance() async throws {
+    let initial = BrowserTestFixtures.contents(
+      items: [BrowserTestFixtures.item(id: 1)], hasMore: true)
+    let loader = ControlledFolderLoader()
+    addTeardownBlock { await loader.cancelPending() }
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in initial },
+      continueLoad: { _ in try await loader.load(folderID: .root) },
+      initialContents: initial
+    )
+    let keyBefore = model.continuationKey
+
+    let cancelled = Task { await model.loadMore() }
+    try await loader.waitForRequestCount(1)
+    cancelled.cancel()
+    // The reappeared row's task runs before the cancelled request unwinds.
+    let early = await model.loadMore()
+    XCTAssertFalse(early)
+    await loader.fail(request: 0, with: CancellationError())
+    _ = await cancelled.value
+
+    XCTAssertFalse(model.isLoadingMore)
+    XCTAssertNil(model.loadMoreFailure)
+    XCTAssertNotEqual(model.continuationKey, keyBefore, "the view task must start again")
+    let restarted = Task { await model.loadMore() }
+    try await loader.waitForRequestCount(2)
+    await loader.succeed(
+      request: 1, with: PutioFolderContents(folder: nil, items: [BrowserTestFixtures.item(id: 2)]))
+    let appended = await restarted.value
+    XCTAssertTrue(appended)
   }
 
   func testAStaleRefreshSettlingLateDoesNotRekeyTheContinuation() async throws {
