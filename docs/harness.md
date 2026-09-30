@@ -199,9 +199,34 @@ mise run harness -- live-fixture --output json
 [LiveAdapters](../Tools/PutioHarness/Sources/PutioHarnessKit/LiveAdapters.swift)
 requires the `devs-auto` profile, removes ambient `PUTIO_CLI_TOKEN` from its
 put.io child processes, and verifies profile authentication before writes.
-`live-fixture` reuses the `putio-ios-harness` root folder or validates the create
-request with `--dry-run` before writing. Authenticate with
-`putio auth login --profile devs-auto` if the profile check fails.
+`live-fixture` reuses the `putio-ios-harness` root folder and its `live-fixture.png`
+image, uploaded from the [preview fixtures](../Tests/HarnessMedia/previews), and
+validates each missing write with `--dry-run` first. Both stay in place for later
+runs. Authenticate with `putio auth login --profile devs-auto` if the profile
+check fails.
+
+Live journeys sign the Debug app in to that account:
+
+```bash
+mise run harness -- journey --platform tvos --scenario live-device-sign-in
+mise run harness -- journey --platform ios --scenario live-files-browser
+```
+
+The app launches with the `live` scenario against put.io, keeping its token under
+the harness keychain item. On iOS, Sign in starts the device-code flow instead of
+the web login; that path is compiled out of Release. The app writes the code it
+displays to its data container, and the harness approves it with
+`putio auth approve`, which links a new grant for the app to the account. The
+token stays inside the app; the harness never sees it. The tvOS journey then
+signs out through the account screen. The iOS journey first opens the fixture
+folder and previews the image. Neither journey writes files.
+
+Signing out revokes the run's grant. After any approval, even a failed one, the
+harness relaunches the app with `--putio-harness-live-sign-out`: the app restores
+any saved session, signs it out, and reports the result. The journey fails
+unless that relaunch finds no session or revokes it. The CLI cannot list
+authorized apps, so check Account > Security > "Where you're signed in" in
+the app or on the web.
 
 Capture never uploads implicitly. Review the artifact and obtain publishing
 authorization, then upload it to the pull request:

@@ -2,9 +2,11 @@ import PutioCore
 import SwiftUI
 
 struct TVSessionRootView: View {
+  private let scenario: HarnessScenario
   @State private var runtime: PutioRuntime
 
   init(scenario: HarnessScenario) {
+    self.scenario = scenario
     _runtime = State(initialValue: PutioRuntimeFactory.make(scenario: scenario))
   }
 
@@ -25,6 +27,9 @@ struct TVSessionRootView: View {
       }
     }
     .background(PutioTheme.Colors.background.ignoresSafeArea())
+    #if DEBUG
+      .modifier(HarnessLiveSessionProbe(session: runtime.session, enabled: scenario == .live))
+    #endif
     .task {
       await runtime.session.restore()
     }

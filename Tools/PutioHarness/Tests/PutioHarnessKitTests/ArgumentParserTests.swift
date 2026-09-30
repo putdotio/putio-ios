@@ -97,6 +97,27 @@ import Testing
       == .journey(platform: .tvos, scenario: .deviceSignIn, runID: nil, output: .text))
 }
 
+@Test func bindsLiveJourneysToTheirPlatform() throws {
+  #expect(
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--scenario", "live-files-browser",
+    ]) == .journey(platform: .ios, scenario: .liveFilesBrowser, runID: nil, output: .text))
+  #expect(
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "tvos", "--scenario", "live-device-sign-in",
+    ]) == .journey(platform: .tvos, scenario: .liveDeviceSignIn, runID: nil, output: .text))
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "tvos", "--scenario", "live-files-browser",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--scenario", "live-device-sign-in",
+    ])
+  }
+}
+
 @Test func rejectsUnsupportedFilesBrowserJourneyShapes() {
   #expect(throws: HarnessFailure.self) {
     try HarnessArgumentParser.parse([

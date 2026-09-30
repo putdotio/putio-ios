@@ -128,19 +128,28 @@ public enum CaptureScenario: String, CaseIterable, Equatable, Sendable {
 public enum JourneyScenario: String, CaseIterable, Equatable, Sendable {
   case filesBrowser = "files-browser"
   case deviceSignIn = "device-sign-in"
+  case liveFilesBrowser = "live-files-browser"
+  case liveDeviceSignIn = "live-device-sign-in"
 
   var fixtureSet: String {
     switch self {
     case .filesBrowser: "seeded-runtime-loop-v5"
     case .deviceSignIn: "seeded-device-sign-in-v1"
+    case .liveFilesBrowser: "live-devs-auto-fixture-folder-v1"
+    case .liveDeviceSignIn: "live-devs-auto-device-code-v1"
     }
   }
 
   public var platform: HarnessPlatform {
     switch self {
-    case .filesBrowser: .ios
-    case .deviceSignIn: .tvos
+    case .filesBrowser, .liveFilesBrowser: .ios
+    case .deviceSignIn, .liveDeviceSignIn: .tvos
     }
+  }
+
+  /// Live scenarios sign in to the devs-auto account; the rest are seeded.
+  public var isLive: Bool {
+    self == .liveFilesBrowser || self == .liveDeviceSignIn
   }
 }
 
@@ -184,6 +193,73 @@ public enum HarnessInvocation: Equatable, Sendable {
 enum LiveFixtureContract {
   static let profile = "devs-auto"
   static let rootFolder = "putio-ios-harness"
+  static let previewFile = "live-fixture.png"
+  static let previewFileType = "IMAGE"
+  /// Repository path of the image uploaded as `previewFile`.
+  static let previewSource = "Tests/HarnessMedia/previews/runtime-proof-image.png"
+}
+
+/// The DEBUG-only contract between a live harness run and the app it drives,
+/// mirrored by `HarnessLiveSession` in Apps/Shared. Both files live in the
+/// app's data container `tmp` directory.
+enum LiveSessionContract {
+  static let scenario = "live"
+  static let signOutArgument = "--putio-harness-live-sign-out"
+  static let deviceCodeFile = "tmp/putio-harness-device-code"
+  static let outcomeFile = "tmp/putio-harness-live-session"
+  static let testEnvironment = "TEST_RUNNER_PUTIO_HARNESS_LIVE"
+  static let folderEnvironment = "TEST_RUNNER_PUTIO_HARNESS_LIVE_FOLDER_ID"
+  static let fileEnvironment = "TEST_RUNNER_PUTIO_HARNESS_LIVE_FILE_ID"
+
+  /// A put.io activation code as the app displays it. Anything else in the
+  /// probe file is refused before it reaches the CLI.
+  static func deviceCode(from data: Data) -> String? {
+    guard let text = String(data: data, encoding: .utf8) else { return nil }
+    let code = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard code.range(of: #"^[A-Za-z0-9]{4,16}$"#, options: .regularExpression) != nil else {
+      return nil
+    }
+    return code
+  }
+
+  enum Outcome: String, Equatable, Sendable {
+    /// The cleanup launch found no saved session: the journey signed out.
+    case noSession = "no-session"
+    /// The cleanup launch restored the run's session and revoked it.
+    case signedOut = "signed-out"
+    /// put.io had already rejected the saved token.
+    case expired
+    case restoreFailed = "restore-failed"
+    case signOutFailed = "sign-out-failed"
+
+    /// Whether the run's grant is known to be gone.
+    var isRevoked: Bool {
+      switch self {
+      case .noSession, .signedOut, .expired: true
+      case .restoreFailed, .signOutFailed: false
+      }
+    }
+  }
+
+  static func outcome(from data: Data) -> Outcome? {
+    String(data: data, encoding: .utf8).flatMap {
+      Outcome(rawValue: $0.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+  }
+}
+
+enum LiveFilesJourneyContract {
+  static let testIdentifier =
+    "PutioUITests/LiveFilesJourneyTests/testSignInOpenFixtureFolderPreviewAndSignOut"
+  static let attachmentNames = [
+    "live-signed-in", "live-fixture-folder", "live-preview", "live-signed-out",
+  ]
+}
+
+enum LiveDeviceSignInJourneyContract {
+  static let testIdentifier =
+    "PutioTVUITests/LiveDeviceSignInJourneyTests/testApprovedCodeSignsInAndSignOutRevokes"
+  static let attachmentNames = ["live-tv-sign-in-code", "live-tv-account", "live-tv-signed-out"]
 }
 
 public struct HarnessResult: Codable, Sendable {

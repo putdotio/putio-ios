@@ -9,11 +9,14 @@ public enum HarnessArgumentParser {
       putio-harness test --platform <ios|tvos> [--snapshots assert|record] [--output text|json]
       putio-harness journey --platform ios --scenario files-browser [--run-id ID] [--output text|json]
       putio-harness journey --platform tvos --scenario device-sign-in [--run-id ID] [--output text|json]
+      putio-harness journey --platform ios --scenario live-files-browser [--run-id ID] [--output text|json]
+      putio-harness journey --platform tvos --scenario live-device-sign-in [--run-id ID] [--output text|json]
       putio-harness auth-status [--output text|json]
       putio-harness live-fixture [--output text|json]
 
     Simulator commands are headless. They never open Simulator.app.
     --device targets an Apple TV already paired with Xcode; see docs/harness.md.
+    live-* journeys sign in to the devs-auto put.io account; see docs/harness.md.
     """
 
   public static func parse(_ arguments: [String]) throws -> HarnessInvocation {
@@ -55,7 +58,9 @@ public enum HarnessArgumentParser {
         throw HarnessFailure("journey: --platform must be ios or tvos")
       }
       guard let scenario = JourneyScenario(rawValue: try options.required("scenario")) else {
-        throw HarnessFailure("journey: --scenario must be files-browser or device-sign-in")
+        throw HarnessFailure(
+          "journey: --scenario must be one of: "
+            + JourneyScenario.allCases.map(\.rawValue).joined(separator: ", "))
       }
       guard scenario.platform == platform else {
         throw HarnessFailure(
