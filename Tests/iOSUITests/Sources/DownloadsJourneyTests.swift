@@ -153,6 +153,13 @@ final class DownloadsJourneyTests: XCTestCase {
     // Restore's write fails at launch and is reported over Files.
     let unsaved = app.alerts["Could not save downloads"]
     XCTAssertTrue(unsaved.waitForExistence(timeout: 10))
+
+    // Nothing else writes yet, so only the retry's own failure can bring the
+    // alert back.
+    app.buttons["downloads.save-retry"].firstMatch.tap()
+    // Past the tapped alert's dismissal, so only a new presentation counts.
+    Thread.sleep(forTimeInterval: 2)
+    XCTAssertTrue(unsaved.waitForExistence(timeout: 8), "a retry that fails again is not reported")
     app.buttons["downloads.save-dismiss"].firstMatch.tap()
     XCTAssertTrue(unsaved.waitForNonExistence(timeout: 5))
 

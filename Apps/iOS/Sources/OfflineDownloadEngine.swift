@@ -231,7 +231,11 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   /// Duplicate tasks for one file id (a crash between start and persist)
   /// keep the newest and cancel the rest.
   func restoreTasks() async -> [PutioFileID] {
+    let lifetime = self.lifetime
     let restored = await allTasks()
+    // A stop during the listing hands the relay to a successor; this restore
+    // must not take it back or consume its events.
+    guard lifetime == self.lifetime else { return [] }
     var ids: [PutioFileID] = []
     for task in restored {
       guard let fileID = owns(task) else { continue }
@@ -263,7 +267,11 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
 
   /// Abandon pending starts and forget tasks without invalidating the shared
   /// session, so a successor engine can reclaim transfers through restore.
+  /// Advanced by every stop, so work that suspended before it ends there.
+  private var lifetime: UInt64 = 0
+
   func stop() {
+    lifetime &+= 1
     pendingStarts.removeAll()
     for fileID in tasks.keys { stopProgress(fileID) }
     tasks = [:]
@@ -382,6 +390,13 @@ final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
     super.init()
   }
 
+  /// A finished task stops hopping, but hops already queued, such as its
+  /// final 1.0, still land. The engine closes the gate for a task it
+  /// cancels or replaces.
+  func release(_ task: URLSessionTask) {
+    progressGates.withLock { $0[ObjectIdentifier(task)] = nil }
+  }
+
   /// A replaced or removed gate is closed, so its queued hops are dropped.
   func track(_ task: URLSessionTask, with gate: PutioOfflineProgressGate?) {
     let previous = progressGates.withLock { gates in
@@ -497,7 +512,7 @@ final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
 
   /// A finished task is released here even when no engine is left to do it.
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-    track(task, with: nil)
+    release(task)
     dispatch { self.deliver(.completion(task: task, error: error)) }
   }
 
@@ -611,6 +626,7 @@ enum PutioOfflineEventJournal {
   ) {
     var remaining: [Entry] = []
     var claimed: [PutioFileID: Entry] = [:]
+    var legacyLocations: [PutioFileID: String] = [:]
     var order: [PutioFileID] = []
     for entry in current() {
       guard let parsed = PutioSystemOfflineDownloadEngine.parse(entry.description),
@@ -619,19 +635,30 @@ enum PutioOfflineEventJournal {
         remaining.append(entry)
         continue
       }
-      if let live = liveTasks[parsed.fileID], entry.taskIdentifier != live { continue }
+      if let live = liveTasks[parsed.fileID], entry.taskIdentifier != live {
+        // An entry without an identifier may hold the live task's only
+        // destination; its outcome cannot be attributed, so only that is kept.
+        if entry.taskIdentifier == nil, let location = entry.location {
+          if legacyLocations[parsed.fileID] == nil, claimed[parsed.fileID] == nil {
+            order.append(parsed.fileID)
+          }
+          legacyLocations[parsed.fileID] = location
+        }
+        continue
+      }
       if let existing = claimed[parsed.fileID] {
         guard (entry.taskIdentifier ?? -1) > (existing.taskIdentifier ?? -1) else { continue }
-      } else {
+      } else if legacyLocations[parsed.fileID] == nil {
         order.append(parsed.fileID)
       }
       claimed[parsed.fileID] = entry
     }
     for fileID in order {
-      guard let entry = claimed[fileID] else { continue }
-      if let location = entry.location {
+      let entry = claimed[fileID]
+      if let location = entry?.location ?? legacyLocations[fileID] {
         engine.handleLocation(fileID, URL(fileURLWithPath: location))
       }
+      guard let entry else { continue }
       if entry.completed {
         engine.onFinished?(fileID, nil)
       } else if entry.failed {

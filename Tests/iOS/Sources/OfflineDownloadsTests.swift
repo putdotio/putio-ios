@@ -1165,6 +1165,33 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(PutioOfflineEventJournal.load().map(\.description), ["8:6"])
   }
 
+  func testALegacyJournalEntryKeepsOnlyItsLocationForALiveTask() throws {
+    try PutioOfflineEventJournal.save([
+      PutioOfflineEventJournal.Entry(
+        description: "7:5", location: "/tmp/legacy.movpkg", completed: false, failed: true),
+      PutioOfflineEventJournal.Entry(
+        description: "7:6", location: "/tmp/stale.movpkg", completed: false, failed: true),
+      PutioOfflineEventJournal.Entry(
+        description: "7:6", taskIdentifier: 9, location: "/tmp/live.movpkg", completed: true,
+        failed: false),
+    ])
+    defer { resetJournal() }
+    let engine = PutioSystemOfflineDownloadEngine(accountID: 7)
+    var located: [String] = []
+    var finished: [(id: Int, succeeded: Bool)] = []
+    engine.onLocation = { id, url in located.append("\(id.rawValue):\(url.lastPathComponent)") }
+    engine.onFinished = { id, error in finished.append((id.rawValue, error == nil)) }
+
+    PutioOfflineEventJournal.replay(
+      into: engine, liveTasks: [PutioFileID(rawValue: 5): 4, PutioFileID(rawValue: 6): 9])
+
+    XCTAssertEqual(
+      located, ["5:legacy.movpkg", "6:live.movpkg"],
+      "a legacy destination is kept unless the live task's own entry has one")
+    XCTAssertEqual(finished.map(\.id), [6], "a legacy failure never reaches a live task")
+    XCTAssertEqual(finished.map(\.succeeded), [true])
+  }
+
   func testSyncPointerSurvivesAWaitersFollowUpPass() async throws {
     let gate = makeGate()
     var attempts = 0
@@ -1562,6 +1589,29 @@ final class OfflineDownloadsTests: XCTestCase {
     queue.retryPersisting()
     XCTAssertNil(queue.persistenceFailure)
     XCTAssertTrue(store.loadPackages().isEmpty, "the retry forgets the removed package")
+  }
+
+  func testAPurgeThatCannotClearTheQueueStaysReported() async throws {
+    let queue = makeQueue()
+    let fileID = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    try engine.finish(fileID, at: directory)
+    await settle()
+    // An immutable queue document keeps the directory from being removed.
+    let document = directory.appending(path: "queue.json").path
+    try FileManager.default.setAttributes([.immutable: true], ofItemAtPath: document)
+    defer { try? FileManager.default.setAttributes([.immutable: false], ofItemAtPath: document) }
+
+    queue.purgeAccountStorage()
+    XCTAssertEqual(queue.persistenceFailure, .unsaved(outOfSpace: false))
+
+    try FileManager.default.setAttributes([.immutable: false], ofItemAtPath: document)
+    queue.retryPersisting()
+    XCTAssertNil(queue.persistenceFailure)
+    let store = PutioOfflineStore(directory: directory)
+    XCTAssertTrue(store.load().items.isEmpty, "the purged row does not come back")
+    XCTAssertTrue(store.loadPackages().isEmpty)
   }
 
   func testPlainRemoveNeverTouchesTheOriginal() async {

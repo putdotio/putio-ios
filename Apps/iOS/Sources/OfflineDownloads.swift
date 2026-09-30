@@ -312,6 +312,9 @@ final class PutioOfflineQueue {
   private(set) var pendingOriginals: [PutioOfflineRemovalTarget] = []
   /// The first queue write that failed since the last retry or dismissal.
   private(set) var persistenceFailure: PutioOfflinePersistenceFailure?
+  /// Advanced by every report, including one equal to a failure a retry
+  /// just cleared, so the screen can present it again.
+  private(set) var persistenceFailureReports: UInt64 = 0
 
   @ObservationIgnored private let store: PutioOfflineStore
   @ObservationIgnored private let engine: any PutioOfflineDownloadEngine
@@ -677,8 +680,7 @@ final class PutioOfflineQueue {
     let owed = pendingOriginals
     if adoptPendingOriginals(targets, replacing: true), !persist() {
       pendingOriginals = owed
-      persistenceFailure = .removalNotStarted(
-        outOfSpace: lastWriteWasOutOfSpace, count: targets.count)
+      report(.removalNotStarted(outOfSpace: lastWriteWasOutOfSpace, count: targets.count))
       return PutioOfflineOriginalOutcome()
     }
     remove(fileIDs: fileIDs)
@@ -814,10 +816,7 @@ final class PutioOfflineQueue {
     originalsGeneration &+= 1
     pendingOriginals.removeAll()
     originalFailure = nil
-    persistenceFailure = nil
     let tracked = store.loadPackages().union(unrecordedPackages)
-    unrecordedPackages.removeAll()
-    unforgottenPackages.removeAll()
     let survivors = tracked.filter { relativePath in
       let url = Self.localURL(for: relativePath)
       try? fileManager.removeItem(at: url)
@@ -825,7 +824,19 @@ final class PutioOfflineQueue {
     }
     // No queue file is written first: the directory goes as a whole. Only a
     // package that would not delete brings the sidecar back, for a retry.
-    try? fileManager.removeItem(at: store.directory)
+    // Earlier failures are cleared only once the directory is gone; otherwise
+    // the queue and record stay on disk and a retry rewrites them.
+    persistenceFailure = nil
+    if writing({
+      do { try fileManager.removeItem(at: store.directory) } catch CocoaError.fileNoSuchFile {}
+    }) {
+      unrecordedPackages.removeAll()
+      unforgottenPackages.removeAll()
+    } else {
+      let gone = tracked.subtracting(survivors)
+      unforgottenPackages.formUnion(gone)
+      unrecordedPackages.subtract(gone)
+    }
     recordPackages(at: survivors)
     recomputeStorage()
   }
@@ -1253,10 +1264,15 @@ final class PutioOfflineQueue {
     }
   }
 
+  private func report(_ failure: PutioOfflinePersistenceFailure) {
+    persistenceFailure = failure
+    persistenceFailureReports &+= 1
+  }
+
   private func writeFailed(_ error: Error) {
     lastWriteWasOutOfSpace = PutioOfflinePersistenceFailure.isOutOfSpace(error)
     if persistenceFailure == nil {
-      persistenceFailure = .unsaved(outOfSpace: lastWriteWasOutOfSpace)
+      report(.unsaved(outOfSpace: lastWriteWasOutOfSpace))
     }
   }
 

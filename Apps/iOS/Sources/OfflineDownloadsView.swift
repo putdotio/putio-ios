@@ -293,22 +293,38 @@ struct PutioOfflineDownloadsView: View {
 /// signed-in shell presents the failure on every tab, not only in Downloads.
 struct PutioOfflinePersistenceFailureAlert: ViewModifier {
   let queue: PutioOfflineQueue
+  /// Dismissing clears this, and each report sets it again, so a retry that
+  /// fails again presents a new alert.
+  @State private var shown: PutioOfflinePersistenceFailure?
 
   func body(content: Content) -> some View {
-    content.alert(
-      queue.persistenceFailure?.title ?? "",
-      isPresented: Binding(get: { queue.persistenceFailure != nil }, set: { _ in }),
-      presenting: queue.persistenceFailure
-    ) { failure in
-      if failure.canRetry {
-        Button("Try again") { queue.retryPersisting() }
-          .accessibilityIdentifier("downloads.save-retry")
+    content
+      .onChange(of: queue.persistenceFailureReports, initial: true) {
+        shown = queue.persistenceFailure
       }
-      Button("OK", role: .cancel) { queue.dismissPersistenceFailure() }
-        .accessibilityIdentifier("downloads.save-dismiss")
-    } message: { failure in
-      Text(failure.message)
-    }
+      .alert(
+        shown?.title ?? "",
+        isPresented: Binding(
+          get: { shown != nil && queue.persistenceFailure != nil },
+          set: { if !$0 { shown = nil } }),
+        presenting: shown
+      ) { failure in
+        if failure.canRetry {
+          Button("Try again") {
+            // UIKit drops an alert presented while the tapped one is still
+            // dismissing, so a retry that fails again reports after it.
+            Task {
+              try? await Task.sleep(for: .milliseconds(500))
+              queue.retryPersisting()
+            }
+          }
+          .accessibilityIdentifier("downloads.save-retry")
+        }
+        Button("OK", role: .cancel) { queue.dismissPersistenceFailure() }
+          .accessibilityIdentifier("downloads.save-dismiss")
+      } message: { failure in
+        Text(failure.message)
+      }
   }
 }
 
