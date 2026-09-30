@@ -141,6 +141,9 @@ final class PutioGoogleCastController: NSObject, PutioCastControlling {
     request.startTime = TimeInterval(media.startFromSeconds)
     if let subtitleKey, let index = subtitles.firstIndex(where: { $0.key == subtitleKey }) {
       request.activeTrackIDs = [NSNumber(value: index + 1)]
+    } else if media.playbackType != .hls {
+      // An omitted list lets the receiver activate its own default text track.
+      request.activeTrackIDs = []
     }
     try await perform(client.loadMedia(with: request.build()))
     // Status updates carry this file only once the receiver accepted it; the

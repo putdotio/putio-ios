@@ -316,6 +316,22 @@ extension PutioRuntimeTests {
     XCTAssertEqual(json, ["time": 91])
   }
 
+  func testPlaybackPositionReportSettlesWhenTheAccountTurnedPositionsOff() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"status":"ERROR","error_type":"FEATURE_DISABLED","status_code":400}"#,
+      statusCode: 400, for: Self.playbackPositionRoute)
+
+    try await runtime.reportPlaybackPosition(fileID: PutioFileID(rawValue: 411), seconds: 42)
+
+    fixtures.setFixture(
+      #"{"status":"ERROR","error_type":"BAD_REQUEST","status_code":400}"#,
+      statusCode: 400, for: Self.playbackPositionRoute)
+    await assertRuntimeError(.unknown) {
+      try await runtime.reportPlaybackPosition(fileID: PutioFileID(rawValue: 411), seconds: 42)
+    }
+  }
+
   func testUnauthenticatedRuntimeRejectsPlaybackPositionReportWithoutARequest() async {
     let (runtime, _) = makeRuntime(token: nil)
 
@@ -538,6 +554,92 @@ extension PutioRuntimeTests {
     }
     await assertRuntimeError(.invalidResponse) {
       _ = try await runtime.resolveCastMedia(fileID: .root, playbackType: .hls)
+    }
+  }
+
+  func testCastMediaAppliesTheAccountSubtitleSettingsToMP4Tracks() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      """
+      {"file":{"id":412,"name":"Movie.mkv","file_type":"VIDEO","parent_id":7,
+       "created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00",
+       "need_convert":false,"is_mp4_available":true,"start_from":10}}
+      """, for: "GET /v2/files/412")
+    fixtures.setFixture(
+      """
+      {"default":"tr","subtitles":[
+        {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"x","url":"https://api.put.io/v2/files/412/subtitles/en"},
+        {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"x","url":"https://api.put.io/v2/files/412/subtitles/tr"}
+      ]}
+      """, for: "GET /v2/files/412/subtitles")
+    let applySettings = { (setting: String, value: Bool) in
+      let info = Self.accountInfo.replacingOccurrences(
+        of: "\"\(setting)\": \(!value)", with: "\"\(setting)\": \(value)")
+      self.fixtures.setFixture(info, for: "GET /v2/account/info")
+      let refreshed = await runtime.refreshAccount()
+      XCTAssertTrue(refreshed)
+    }
+    let resolve = { (playbackType: PutioCastPlaybackType) async throws -> PutioCastMedia in
+      guard
+        case .ready(let media) = try await runtime.resolveCastMedia(
+          fileID: PutioFileID(rawValue: 412), playbackType: playbackType)
+      else { throw PutioRuntimeError.invalidResponse }
+      return media
+    }
+
+    await applySettings("dont_autoselect_subtitles", true)
+    let unselected = try await resolve(.mp4)
+    XCTAssertEqual(unselected.subtitles.map(\.key), ["en", "tr"])
+    XCTAssertNil(unselected.defaultSubtitleKey, "tracks stay pickable but none starts on")
+
+    await applySettings("hide_subtitles", true)
+    let subtitleRequests = fixtures.capturedRequests().filter {
+      $0.url?.path == "/v2/files/412/subtitles"
+    }.count
+    let hidden = try await resolve(.mp4)
+    XCTAssertTrue(hidden.subtitles.isEmpty)
+    XCTAssertNil(hidden.defaultSubtitleKey)
+    XCTAssertEqual(
+      fixtures.capturedRequests().filter { $0.url?.path == "/v2/files/412/subtitles" }.count,
+      subtitleRequests, "hidden subtitles are never listed")
+  }
+
+  func testCastMediaAppliesSubtitleSettingsRefreshedWhileTracksLoad() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let subtitlesRoute = "GET /v2/files/412/subtitles"
+    fixtures.setFixture(
+      """
+      {"file":{"id":412,"name":"Movie.mkv","file_type":"VIDEO","parent_id":7,
+       "created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00",
+       "need_convert":false,"is_mp4_available":true,"start_from":0}}
+      """, for: "GET /v2/files/412")
+    let subtitles = """
+      {"default":"en","subtitles":[
+        {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"x","url":"https://api.put.io/v2/files/412/subtitles/en"}
+      ]}
+      """
+    for (setting, requests) in [("hide_subtitles", 1), ("dont_autoselect_subtitles", 2)] {
+      fixtures.setFixture(Self.accountInfo, for: "GET /v2/account/info")
+      let restored = await runtime.refreshAccount()
+      XCTAssertTrue(restored)
+      fixtures.gateFixture(subtitles, for: subtitlesRoute)
+      let resolution = Task {
+        try await runtime.resolveCastMedia(fileID: PutioFileID(rawValue: 412), playbackType: .mp4)
+      }
+      let started = await waitForRequest(subtitlesRoute, count: requests)
+      XCTAssertTrue(started)
+      fixtures.setFixture(
+        Self.accountInfo.replacingOccurrences(
+          of: "\"\(setting)\": false", with: "\"\(setting)\": true"),
+        for: "GET /v2/account/info")
+      let refreshed = await runtime.refreshAccount()
+      XCTAssertTrue(refreshed)
+      fixtures.releaseFixture(for: subtitlesRoute)
+      guard case .ready(let media) = try await resolution.value else {
+        return XCTFail("expected ready media")
+      }
+      XCTAssertNil(media.defaultSubtitleKey, setting)
+      XCTAssertEqual(media.subtitles.isEmpty, setting == "hide_subtitles", setting)
     }
   }
 
