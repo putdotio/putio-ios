@@ -282,6 +282,38 @@ final class FilesSearchTests: XCTestCase {
     XCTAssertNil(model.refreshFailure)
   }
 
+  func testReappearanceBeforeACancelledRetryUnwindsStillRetries() async throws {
+    let requests = ControlledSearch()
+    defer { requests.cancelPending() }
+    let model = PutioFileSearchModel(
+      search: { try await requests.load($0) },
+      continueSearch: { _ in Self.page([]) },
+      debounce: .zero
+    )
+
+    let first = Task { await model.apply(query: "movie", revision: 0) }
+    try await requests.waitForCount(1)
+    requests.finish(0, with: .success(Self.page([1])))
+    await first.value
+    let pull = Task { await model.refresh(query: "movie", revision: 0) }
+    try await requests.waitForCount(2)
+    requests.finish(1, with: .failure(PutioRuntimeError.transient))
+    await pull.value
+
+    let retry = Task { await model.apply(query: "movie", revision: 0) }
+    try await requests.waitForCount(3)
+    retry.cancel()
+    // The tab comes back before the cancelled retry unwinds.
+    let returning = Task { await model.apply(query: "movie", revision: 0) }
+    try await requests.waitForCount(4)
+    requests.finish(2, with: .failure(CancellationError()))
+    await retry.value
+    requests.finish(3, with: .success(Self.page([2])))
+    await returning.value
+    XCTAssertEqual(model.state, .loaded(Self.page([2])))
+    XCTAssertNil(model.refreshFailure)
+  }
+
   func testSuccessfulInitialRetryKeepsResultsOnReappearance() async {
     var attempts = 0
     let model = PutioFileSearchModel(
