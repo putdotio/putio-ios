@@ -108,6 +108,9 @@ final class PutioFileSearchModel {
         return false
       }
       guard let failure = PutioBrowserErrorPresentation(error: error) else { return false }
+      // The shown results stay unconfirmed until a later request lands, even
+      // if a retry is cancelled while reappearance already checked them.
+      appliedRequest = nil
       if retainedPage != nil {
         refreshFailure = failure
       } else {
