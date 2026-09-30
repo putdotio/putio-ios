@@ -10,6 +10,9 @@ typealias PutioAudioResolve =
   @MainActor @Sendable (PutioFileID) async throws -> PutioPlaybackSource
 typealias PutioNextAudioLoad =
   @MainActor @Sendable (PutioFileID) async throws -> PutioNextAudio?
+/// The account's current remember-position setting. Players outlive any one
+/// account snapshot, so they ask again at every load and report.
+typealias PutioPlaybackPositionSetting = @MainActor @Sendable () -> Bool
 
 struct PutioAudioTrack: Equatable, Sendable {
   let id: PutioFileID
@@ -144,7 +147,7 @@ final class PutioAudioPlayerModel {
   @ObservationIgnored private let audioSession: any PutioAudioSessioning
   @ObservationIgnored private let speedStore: PutioAudioSpeedStore
   @ObservationIgnored private let positionPipeline: PutioPlaybackPositionPipeline
-  @ObservationIgnored private let remembersPlaybackPosition: Bool
+  @ObservationIgnored private let remembersPlaybackPosition: PutioPlaybackPositionSetting
   @ObservationIgnored private let reportPosition: PutioPlaybackPositionReport
   @ObservationIgnored private let resolve: PutioAudioResolve
   @ObservationIgnored private let loadNext: PutioNextAudioLoad
@@ -170,7 +173,7 @@ final class PutioAudioPlayerModel {
     audioSession: any PutioAudioSessioning,
     speedStore: PutioAudioSpeedStore,
     positionPipeline: PutioPlaybackPositionPipeline,
-    remembersPlaybackPosition: Bool = true,
+    remembersPlaybackPosition: @escaping PutioPlaybackPositionSetting = { true },
     notificationCenter: NotificationCenter = .default,
     reportPosition: @escaping PutioPlaybackPositionReport,
     resolve: @escaping PutioAudioResolve,
@@ -185,7 +188,11 @@ final class PutioAudioPlayerModel {
     self.positionPipeline = positionPipeline
     self.remembersPlaybackPosition = remembersPlaybackPosition
     self.notificationCenter = notificationCenter
-    self.reportPosition = reportPosition
+    // Queued reports check the setting again when the pipeline sends them.
+    self.reportPosition = { fileID, seconds in
+      guard remembersPlaybackPosition() else { return }
+      try await reportPosition(fileID, seconds)
+    }
     self.resolve = resolve
     self.loadNext = loadNext
     bindEngine()
@@ -326,7 +333,7 @@ final class PutioAudioPlayerModel {
         publishNowPlaying()
         return
       }
-      let startFrom = override ?? (remembersPlaybackPosition ? source.startFromSeconds : 0)
+      let startFrom = override ?? (remembersPlaybackPosition() ? source.startFromSeconds : 0)
       elapsedSeconds = startFrom
       // The server already holds the start position; report only movement.
       lastReportedSeconds = startFrom
@@ -394,7 +401,7 @@ final class PutioAudioPlayerModel {
       elapsedSeconds = 0
       lastReportedSeconds = 0
       publishNowPlaying()
-      if remembersPlaybackPosition {
+      if remembersPlaybackPosition() {
         positionPipeline.enqueue(
           fileID: track.id, position: 0, preservesOrdering: true, report: reportPosition)
       }
@@ -500,7 +507,7 @@ final class PutioAudioPlayerModel {
   /// holds is never sent twice, and nothing is sent for an account that keeps
   /// no positions.
   private func reportCurrentPosition(force: Bool) {
-    guard remembersPlaybackPosition else { return }
+    guard remembersPlaybackPosition() else { return }
     let seconds = elapsedSeconds
     if let last = lastReportedSeconds {
       if seconds == last { return }

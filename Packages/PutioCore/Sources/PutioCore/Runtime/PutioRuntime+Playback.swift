@@ -113,7 +113,6 @@ extension PutioRuntime {
     guard file.id == fileID.rawValue, file.type == .video else {
       throw PutioRuntimeError.invalidResponse
     }
-    guard case .signedIn(let account) = session.state else { throw currentSessionError }
     let artworkURL = URL(string: file.screenshot).flatMap { $0.scheme == "https" ? $0 : nil }
     let duration = file.metaData?.duration ?? 0
     switch playbackType {
@@ -137,13 +136,14 @@ extension PutioRuntime {
       } else {
         return .conversionRequired
       }
-      guard !account.hideSubtitles else {
-        return .ready(
+      let media = { (subtitles: [PutioCastSubtitle], defaultKey: String?) in
+        PutioCastResolution.ready(
           PutioCastMedia(
             id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
             playbackType: .mp4, url: url, artworkURL: artworkURL, durationSeconds: duration,
-            startFromSeconds: file.startFrom, subtitles: [], defaultSubtitleKey: nil))
+            startFromSeconds: file.startFrom, subtitles: subtitles, defaultSubtitleKey: defaultKey))
       }
+      guard try !signedInAccount().hideSubtitles else { return media([], nil) }
       let response = try await performAuthenticatedOperation {
         try await sdk.getSubtitles(fileID: fileID.rawValue)
       }
@@ -167,17 +167,20 @@ extension PutioRuntime {
           key: subtitle.key, language: subtitle.language, languageCode: subtitle.languageCode,
           name: subtitle.name, url: url)
       }
+      // The account may have refreshed while the tracks loaded.
+      let account = try signedInAccount()
+      guard !account.hideSubtitles else { return media([], nil) }
       let defaultKey = response.defaultKey.flatMap { key in
         subtitles.contains { $0.key == key } ? key : nil
       }
-      return .ready(
-        PutioCastMedia(
-          id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
-          playbackType: .mp4, url: url, artworkURL: artworkURL, durationSeconds: duration,
-          startFromSeconds: file.startFrom, subtitles: subtitles,
-          defaultSubtitleKey: account.dontAutoSelectSubtitles
-            ? nil : defaultKey ?? subtitles.first?.key))
+      return media(
+        subtitles, account.dontAutoSelectSubtitles ? nil : defaultKey ?? subtitles.first?.key)
     }
+  }
+
+  private func signedInAccount() throws -> PutioAccountSnapshot {
+    guard case .signedIn(let account) = session.state else { throw currentSessionError }
+    return account
   }
 
   public func startVideoConversion(fileID: PutioFileID) async throws {

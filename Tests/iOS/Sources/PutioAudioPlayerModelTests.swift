@@ -58,6 +58,11 @@ private final class AudioSessionSpy: PutioAudioSessioning {
 }
 
 @MainActor
+private final class SettingBox {
+  var remembers = true
+}
+
+@MainActor
 private final class ReportRecorder {
   private(set) var reports: [(PutioFileID, Int)] = []
   func report(_ fileID: PutioFileID, _ seconds: Int) async throws {
@@ -104,7 +109,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
         startFromSeconds: 12)
     },
     loadNext: PutioNextAudioLoad? = nil,
-    remembersPlaybackPosition: Bool = true
+    remembersPlaybackPosition: @escaping PutioPlaybackPositionSetting = { true }
   ) -> Harness {
     let engine = AudioEngineSpy()
     let nowPlaying = NowPlayingSpy()
@@ -192,7 +197,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
   }
 
   func testAccountWithoutRememberedPositionsStartsAtZeroAndNeverReports() async {
-    let h = makeHarness(remembersPlaybackPosition: false)
+    let h = makeHarness(remembersPlaybackPosition: { false })
 
     await h.model.start()
     XCTAssertEqual(h.engine.events, ["load:430.m4a@0", "play:1.0"])
@@ -207,6 +212,28 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     await h.pipeline.waitForPendingReports(fileID: successor.id)
 
     XCTAssertTrue(h.reports.reports.isEmpty)
+  }
+
+  func testRememberPositionSettingIsReadAtEveryLoadAndReport() async {
+    let setting = SettingBox()
+    let h = makeHarness(remembersPlaybackPosition: { setting.remembers })
+
+    await h.model.start()
+    XCTAssertEqual(h.engine.events, ["load:430.m4a@12", "play:1.0"])
+    h.engine.onPositionChanged?(12)
+    h.engine.onPositionChanged?(30)
+    // Turned off after the 30 s report was queued but before it was sent.
+    setting.remembers = false
+    h.engine.onPositionChanged?(50)
+    h.model.pause()
+    h.model.resume()
+    h.engine.onEnded?()
+    let next = PutioAudioTrack(id: successor.id, parentID: .root, title: successor.name)
+    await waitUntil { h.model.state == .playing(next) }
+    await h.pipeline.waitForPendingReports(fileID: track.id)
+
+    XCTAssertTrue(h.reports.reports.isEmpty)
+    XCTAssertEqual(h.engine.events.suffix(2), ["load:431.m4a@0", "play:1.0"])
   }
 
   func testUnstartedViewModelDoesNotRegisterOrClearRemotePlayback() {

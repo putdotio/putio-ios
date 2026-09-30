@@ -163,7 +163,7 @@ final class PutioCastModel {
   @ObservationIgnored private let startConversion: PutioVideoConversionStart
   @ObservationIgnored private let loadConversionStatus: PutioVideoConversionStatusLoad
   @ObservationIgnored private let reportPosition: PutioPlaybackPositionReport
-  @ObservationIgnored private let remembersPlaybackPosition: @MainActor () -> Bool
+  @ObservationIgnored private let remembersPlaybackPosition: PutioPlaybackPositionSetting
   @ObservationIgnored private let positionReportInterval: Duration
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private var generation: UInt64 = 0
@@ -182,7 +182,7 @@ final class PutioCastModel {
     savePlaybackType: @escaping PutioCastPlaybackTypeSave,
     startConversion: @escaping PutioVideoConversionStart,
     loadConversionStatus: @escaping PutioVideoConversionStatusLoad,
-    remembersPlaybackPosition: @escaping @MainActor () -> Bool = { true },
+    remembersPlaybackPosition: @escaping PutioPlaybackPositionSetting = { true },
     reportPosition: @escaping PutioPlaybackPositionReport
   ) {
     self.controller = controller
@@ -560,8 +560,6 @@ final class PutioCastModel {
     reportTask = nil
   }
 
-  /// Reads the account setting per report: the model outlives any one account
-  /// snapshot.
   private func reportPositionIfNeeded() {
     guard remembersPlaybackPosition(), let media, let status,
       status.playerState == .playing || status.playerState == .paused
@@ -571,10 +569,12 @@ final class PutioCastModel {
     lastReportedSeconds = seconds
     reportedPosition = (media.id, seconds)
     let report = reportPosition
+    let remembersPlaybackPosition = remembersPlaybackPosition
     // Not generation-guarded on purpose: the report names its own file and
     // second, so a session end or a newer cast never makes it wrong, and the
     // final flush must outlive the session that produced it.
     Task { @MainActor in
+      guard remembersPlaybackPosition() else { return }
       try? await report(media.id, seconds)
     }
   }

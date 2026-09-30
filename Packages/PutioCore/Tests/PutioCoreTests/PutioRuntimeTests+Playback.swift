@@ -604,6 +604,45 @@ extension PutioRuntimeTests {
       subtitleRequests, "hidden subtitles are never listed")
   }
 
+  func testCastMediaAppliesSubtitleSettingsRefreshedWhileTracksLoad() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let subtitlesRoute = "GET /v2/files/412/subtitles"
+    fixtures.setFixture(
+      """
+      {"file":{"id":412,"name":"Movie.mkv","file_type":"VIDEO","parent_id":7,
+       "created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00",
+       "need_convert":false,"is_mp4_available":true,"start_from":0}}
+      """, for: "GET /v2/files/412")
+    let subtitles = """
+      {"default":"en","subtitles":[
+        {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"x","url":"https://api.put.io/v2/files/412/subtitles/en"}
+      ]}
+      """
+    for (setting, requests) in [("hide_subtitles", 1), ("dont_autoselect_subtitles", 2)] {
+      fixtures.setFixture(Self.accountInfo, for: "GET /v2/account/info")
+      let restored = await runtime.refreshAccount()
+      XCTAssertTrue(restored)
+      fixtures.gateFixture(subtitles, for: subtitlesRoute)
+      let resolution = Task {
+        try await runtime.resolveCastMedia(fileID: PutioFileID(rawValue: 412), playbackType: .mp4)
+      }
+      let started = await waitForRequest(subtitlesRoute, count: requests)
+      XCTAssertTrue(started)
+      fixtures.setFixture(
+        Self.accountInfo.replacingOccurrences(
+          of: "\"\(setting)\": false", with: "\"\(setting)\": true"),
+        for: "GET /v2/account/info")
+      let refreshed = await runtime.refreshAccount()
+      XCTAssertTrue(refreshed)
+      fixtures.releaseFixture(for: subtitlesRoute)
+      guard case .ready(let media) = try await resolution.value else {
+        return XCTFail("expected ready media")
+      }
+      XCTAssertNil(media.defaultSubtitleKey, setting)
+      XCTAssertEqual(media.subtitles.isEmpty, setting == "hide_subtitles", setting)
+    }
+  }
+
   private static func playbackFile(needConvert: Bool, startFrom: Int) -> String {
     return """
       {

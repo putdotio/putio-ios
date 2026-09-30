@@ -179,7 +179,7 @@ final class ChromecastTests: XCTestCase {
     playbackType: Result<PutioCastPlaybackType, PutioRuntimeError> = .success(.mp4),
     conversionStatuses: [PutioVideoConversionStatus] = [],
     reportInterval: Duration = .milliseconds(40),
-    remembersPlaybackPosition: Bool = true
+    remembersPlaybackPosition: @escaping PutioPlaybackPositionSetting = { true }
   ) -> (PutioCastModel, Box) {
     controllers.append(controller)
     let box = Box(resolutions: resolutions, conversionStatuses: conversionStatuses)
@@ -208,7 +208,7 @@ final class ChromecastTests: XCTestCase {
         guard !box.conversionStatuses.isEmpty else { return .completed }
         return box.conversionStatuses.removeFirst()
       },
-      remembersPlaybackPosition: { remembersPlaybackPosition },
+      remembersPlaybackPosition: remembersPlaybackPosition,
       reportPosition: { id, seconds in box.reports.append((id, seconds)) })
     return (model, box)
   }
@@ -538,7 +538,7 @@ final class ChromecastTests: XCTestCase {
     let controller = CastControllerStub()
     let (model, box) = makeModel(
       controller: controller, resolutions: [.success(.ready(media()))],
-      reportInterval: .milliseconds(10), remembersPlaybackPosition: false)
+      reportInterval: .milliseconds(10), remembersPlaybackPosition: { false })
     model.cast(route)
     try await expect({ model.media != nil })
     controller.report(status(.playing, position: 601.4))
@@ -548,6 +548,27 @@ final class ChromecastTests: XCTestCase {
     try await Task.sleep(for: .milliseconds(40))
     XCTAssertTrue(box.reports.isEmpty)
     XCTAssertNil(model.reportedPosition)
+  }
+
+  func testQueuedCastReportChecksTheSettingWhenItIsSent() async throws {
+    let controller = CastControllerStub()
+    let setting = Setting()
+    let (model, box) = makeModel(
+      controller: controller, resolutions: [.success(.ready(media()))],
+      reportInterval: .seconds(60), remembersPlaybackPosition: { setting.remembers })
+    model.cast(route)
+    try await expect({ model.media != nil })
+    controller.report(status(.paused, position: 700))
+    model.stopCasting()
+    // Turned off after the stop flush was queued but before it was sent.
+    setting.remembers = false
+    try await Task.sleep(for: .milliseconds(40))
+    XCTAssertTrue(box.reports.isEmpty)
+  }
+
+  @MainActor
+  final class Setting {
+    var remembers = true
   }
 
   func testReceiverIdleEndsTheSessionSurfaceAndAnotherSendersMediaIsIgnored() async throws {
