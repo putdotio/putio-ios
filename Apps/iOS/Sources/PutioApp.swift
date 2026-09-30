@@ -389,6 +389,7 @@ private struct MainTabView: View {
   @State private var selectedTab: SelectedTab = .files
   @State private var filesNavigation: PutioFilesNavigationRequest?
   @State private var accountNavigationRevision: UInt64 = 0
+  @State private var showsLinkDevice = false
   @State private var selectedFileRoute: PutioFileRoute?
   @State private var selectedVideoRoute: PutioVideoRoute?
   @State private var harnessPlaybackAttempt = 0
@@ -455,6 +456,7 @@ private struct MainTabView: View {
             trashReconciliation: trashReconciliation,
             cast: cast,
             appConfig: appConfig,
+            showsLinkDevice: $showsLinkDevice,
             onDataCleared: { categories, committed in
               if !categories.isDisjoint(with: [.files, .trash]) {
                 folderRefreshRequests.requestAllLoadedFolders()
@@ -575,16 +577,23 @@ private struct MainTabView: View {
       audioPlayback.isPresented = false
       presentedPreviewRoute = nil
       presentedUnsupportedRoute = nil
+      trackPicker = nil
       switch destination {
       case .files(let path, let file):
         filesNavigation = PutioFilesNavigationRequest(path: path)
         selectedTab = .files
         if let file { selectFile(file) }
+      case .downloads(let id):
+        selectedTab = .downloads
+        if let item = PutioDeepLinkDestination.playableDownload(id, in: offlineQueue.item(for:)) {
+          openOffline(item)
+        }
       case .history:
         historyRevision &+= 1
         selectedTab = .history
-      case .account:
+      case .account, .linkDevice:
         accountNavigationRevision &+= 1
+        showsLinkDevice = destination == .linkDevice
         selectedTab = .account
       }
     }
@@ -1122,6 +1131,7 @@ private struct AccountView: View {
   let trashReconciliation: PutioTrashReconciliation
   let cast: PutioCastModel
   let appConfig: PutioAppConfigModel
+  @Binding var showsLinkDevice: Bool
   let onDataCleared: @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
   let onAccountDestroyed: @MainActor () -> Void
   @State private var isRefreshingStorage = false
@@ -1223,6 +1233,9 @@ private struct AccountView: View {
     .navigationTitle("Account")
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
+    .navigationDestination(isPresented: $showsLinkDevice) {
+      LinkDeviceView(actions: .init(runtime: runtime))
+    }
   }
 
   private func byteText(_ bytes: Int64) -> String {
