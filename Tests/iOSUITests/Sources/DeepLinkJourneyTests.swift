@@ -26,17 +26,8 @@ final class DeepLinkJourneyTests: XCTestCase {
     XCTAssertTrue(element("files.item.411").exists)
     screenshot("runtime-deep-link-folder")
 
-    try open("putio:///files/0")
-    let downloadRow = element("files.item.412")
-    XCTAssertTrue(downloadRow.waitForExistence(timeout: 10))
-    downloadRow.press(forDuration: 1)
-    app.buttons["Download"].tap()
-    let trackPicker = app.buttons["downloads.picker.confirm"]
-    XCTAssertTrue(trackPicker.waitForExistence(timeout: 20))
     try open("putio:///link")
-    XCTAssertTrue(trackPicker.waitForNonExistence(timeout: 5))
     XCTAssertTrue(app.textFields["security.link-code"].waitForExistence(timeout: 10))
-    XCTAssertTrue(app.textFields["security.link-code"].isHittable)
     // An account link returns the stack to its root.
     try open("putio://put.io/settings")
     XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 10))
@@ -102,6 +93,18 @@ final class DeepLinkJourneyTests: XCTestCase {
     try openCold("putio:///link")
     signIn()
     XCTAssertTrue(app.textFields["security.link-code"].waitForExistence(timeout: 10))
+
+    try open("putio:///files/0")
+    let downloadRow = element("files.item.412")
+    XCTAssertTrue(downloadRow.waitForExistence(timeout: 10))
+    downloadRow.press(forDuration: 1)
+    app.buttons["Download"].tap()
+    let trackPicker = app.buttons["downloads.picker.confirm"]
+    XCTAssertTrue(trackPicker.waitForExistence(timeout: 20))
+    try open("putio:///link")
+    XCTAssertTrue(trackPicker.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(app.textFields["security.link-code"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.textFields["security.link-code"].isHittable)
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 5))
     signOut()
