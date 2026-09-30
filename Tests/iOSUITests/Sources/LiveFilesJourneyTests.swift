@@ -42,7 +42,22 @@ final class LiveFilesJourneyTests: XCTestCase {
     XCTAssertTrue(
       app.descendants(matching: .any)["preview.screen.\(fileID)"].waitForNonExistence(timeout: 5))
 
+    // The account's grants, read-only: this run's own grant is "This app".
     app.buttons["Account"].tap()
+    let security = app.revealed("account.security")
+    XCTAssertTrue(security.waitForExistence(timeout: 10))
+    security.tap()
+    let apps = app.revealed("security.apps")
+    XCTAssertTrue(apps.waitForExistence(timeout: 10))
+    apps.tap()
+    let thisApp = app.descendants(matching: .any).matching(
+      NSPredicate(format: "identifier BEGINSWITH 'security.app.' AND value == 'This app'")
+    ).firstMatch
+    XCTAssertTrue(thisApp.waitForExistence(timeout: 30), "this run's grant is not listed")
+    attach("live-authorized-apps")
+    app.navigationBars.buttons["BackButton"].tap()
+    app.navigationBars.buttons["BackButton"].tap()
+
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 10), "sign-out action never appeared")
     signOut.tap()

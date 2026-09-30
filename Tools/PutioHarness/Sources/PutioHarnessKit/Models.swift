@@ -252,7 +252,8 @@ enum LiveFilesJourneyContract {
   static let testIdentifier =
     "PutioUITests/LiveFilesJourneyTests/testSignInOpenFixtureFolderPreviewAndSignOut"
   static let attachmentNames = [
-    "live-signed-in", "live-fixture-folder", "live-preview", "live-signed-out",
+    "live-signed-in", "live-fixture-folder", "live-preview", "live-authorized-apps",
+    "live-signed-out",
   ]
 }
 
