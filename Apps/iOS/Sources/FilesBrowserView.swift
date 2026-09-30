@@ -461,7 +461,7 @@ struct PutioFolderScreen: View {
       PutioMovePicker(
         items: selection.items,
         load: actions?.loadFolders ?? load,
-        continueLoad: continueLoad,
+        continueLoad: actions?.continueFolders ?? continueLoad,
         actions: actions,
         refreshRequests: refreshRequests,
         onMove: { destination in

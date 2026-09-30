@@ -170,9 +170,6 @@ struct FilesSearchView: View {
   @State private var model: PutioFileSearchModel
   @State private var itemActions: PutioFileItemActionModel
   @State private var itemAction: PutioFileItemActionRequest?
-  // Results a Trash move hides in the tapping transaction, until the search
-  // reloads or the move fails.
-  @State private var trashingIDs: Set<PutioFileID> = []
 
   init(
     runtime: PutioRuntime,
@@ -190,7 +187,8 @@ struct FilesSearchView: View {
         continueSearch: { try await runtime.continueFileSearch(cursor: $0) }
       ))
     _itemActions = State(
-      initialValue: PutioFileItemActionModel(actions: PutioFileActions(runtime: runtime)))
+      initialValue: PutioFileItemActionModel(
+        actions: PutioFileActions(runtime: runtime), refreshRequests: refreshRequests))
   }
 
   var body: some View {
@@ -224,10 +222,7 @@ struct FilesSearchView: View {
             refreshRequests: refreshRequests
           )
         )
-        .onChange(of: model.state) { trashingIDs = [] }
-        .onChange(of: itemActions.outcome) { _, outcome in
-          if case .failed = outcome { trashingIDs = [] }
-        }
+        .onChange(of: model.state) { itemActions.revealHiddenItems() }
     }
   }
 
@@ -272,7 +267,7 @@ struct FilesSearchView: View {
             }
             .listRowBackground(PutioTheme.Colors.background)
           }
-          ForEach(page.items.filter { !trashingIDs.contains($0.id) }) { item in
+          ForEach(page.items.filter { !itemActions.hiddenIDs.contains($0.id) }) { item in
             resultRow(PutioBrowserItemPresentation(item: item))
               .listRowBackground(PutioTheme.Colors.background)
           }
@@ -339,7 +334,7 @@ struct FilesSearchView: View {
       isDisabled: !itemActions.canStartAction || itemAction != nil,
       canDelete: itemActions.canDelete
     ) { request in
-      if trashEnabled, case .delete(let item) = request { trashingIDs.insert(item.id) }
+      if trashEnabled, case .delete(let item) = request { itemActions.hideForTrash(item) }
       itemAction = request
     }
   }

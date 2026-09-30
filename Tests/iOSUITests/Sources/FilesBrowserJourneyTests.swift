@@ -1037,9 +1037,17 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let bulkMoveHere = app.buttons["files.move-here.410"]
     XCTAssertTrue(waitUntilHittable(bulkMoveHere, timeout: 5), "bulk Move is disabled")
     bulkMoveHere.tap()
+    // One batch; the server reports Bulk Retry failed and moves Bulk Success.
     XCTAssertTrue(
-      app.staticTexts["Moved 2 items."].waitForExistence(timeout: 10),
-      "bulk move did not settle"
+      app.staticTexts["Moved 1 item. 1 couldn’t be moved."].waitForExistence(timeout: 10),
+      "partial bulk-move failure was not surfaced"
+    )
+    let retryBulkMove = app.buttons["files.bulk.retry"].firstMatch
+    XCTAssertTrue(waitUntilHittable(retryBulkMove, timeout: 5), "bulk move retry is unavailable")
+    retryBulkMove.tap()
+    XCTAssertTrue(
+      app.staticTexts["Moved 1 item."].waitForExistence(timeout: 10),
+      "bulk move retry resent more than the failed item"
     )
 
     let harnessFolderAfterBulkMove = element(identifier: "files.item.410")

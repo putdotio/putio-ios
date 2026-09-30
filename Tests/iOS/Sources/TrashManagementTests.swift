@@ -113,6 +113,8 @@ private final class TrashActionsStub {
   private(set) var deletedBatches: [[PutioFileID]] = []
   private(set) var restoreAllRequests: [(cursor: String?, fileIDs: [PutioFileID])] = []
   var batchFailure: PutioRuntimeError?
+  /// When set, only this 1-based batch request fails with `batchFailure`.
+  var failingBatch: Int?
   private(set) var emptyRequests = 0
   private(set) var storageRefreshRequests = 0
 
@@ -150,12 +152,16 @@ private final class TrashActionsStub {
 
   func restoreItems(fileIDs: [PutioFileID]) async throws {
     restoredBatches.append(fileIDs)
-    if let batchFailure { throw batchFailure }
+    if let batchFailure, failingBatch.map({ $0 == restoredBatches.count }) ?? true {
+      throw batchFailure
+    }
   }
 
   func permanentlyDeleteItems(fileIDs: [PutioFileID]) async throws -> PutioTrashMutationResult {
     deletedBatches.append(fileIDs)
-    if let batchFailure { throw batchFailure }
+    if let batchFailure, failingBatch.map({ $0 == deletedBatches.count }) ?? true {
+      throw batchFailure
+    }
     return record(.refreshed)
   }
 
@@ -263,6 +269,31 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(stub.deletedBatches, [[first.id, second.id], [first.id, second.id]])
     XCTAssertEqual(model.page?.items, [])
     XCTAssertEqual(model.mutationOutcome, .permanentlyDeletedItems([first, second]))
+  }
+
+  func testSelectedRowsGoOutInBatchesAndOnlyUnsentRowsStayForRetry() async {
+    let items = (91...95).map { trashItem(id: $0, name: "\($0).mkv") }
+    let ids = items.map(\.id)
+    let stub = TrashActionsStub(pages: [.success(page(items: items))])
+    let model = model(stub, batchSize: 2)
+
+    await model.loadIfNeeded()
+    stub.batchFailure = .transient
+    stub.failingBatch = 2
+    await model.restore(items)
+
+    XCTAssertEqual(stub.restoredBatches, [Array(ids[0..<2]), Array(ids[2..<4])])
+    XCTAssertEqual(model.page?.items, Array(items[2...]), "only the committed batch leaves")
+    guard case .failed(.restoreItems(let failed), _) = model.mutationOutcome else {
+      return XCTFail("expected a batch restore failure")
+    }
+    XCTAssertEqual(failed, Array(items[2...]), "the retry covers only rows still in Trash")
+
+    stub.batchFailure = nil
+    await model.permanentlyDelete(failed)
+
+    XCTAssertEqual(stub.deletedBatches, [Array(ids[2..<4]), [ids[4]]])
+    XCTAssertEqual(model.page?.items, [])
   }
 
   func testRestoreAllCoversPagesNeverLoaded() async {
@@ -1956,6 +1987,7 @@ final class TrashManagementTests: XCTestCase {
 
   private func model(
     _ stub: TrashActionsStub,
+    batchSize: Int = PutioFileActions.defaultBatchSize,
     reconciliation: PutioTrashReconciliation? = nil,
     onRestored: @escaping PutioTrashDidRestore = { _ in }
   ) -> PutioTrashModel {
@@ -1967,6 +1999,7 @@ final class TrashManagementTests: XCTestCase {
         restoreItems: { try await stub.restoreItems(fileIDs: $0) },
         permanentlyDeleteItems: { try await stub.permanentlyDeleteItems(fileIDs: $0) },
         restoreAll: { try await stub.restoreAll(cursor: $0, fileIDs: $1) },
+        batchSize: batchSize,
         empty: { try await stub.empty() },
         refreshStorage: { await stub.refreshStorage() },
         isStorageStale: { stub.isStorageStale }

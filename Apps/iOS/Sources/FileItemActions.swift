@@ -3,17 +3,35 @@ import PutioCore
 import SwiftUI
 
 /// Runs single-item file actions on rows no folder model owns, such as search
-/// results. Screens showing the item refresh through folder refresh requests.
+/// results. Every settled action, failed ones included since the server may
+/// have applied them, requests a refresh of the screens that show the item;
+/// the refresh revision also re-runs the search.
 @MainActor
 @Observable
 final class PutioFileItemActionModel {
   private(set) var activeAction: PutioFileAction?
   private(set) var outcome: PutioFileActionOutcome?
+  /// Rows to leave out of the results: a Trash move hides its row as it is
+  /// tapped, and a committed delete keeps it hidden until the results reload.
+  /// A delete that did not commit shows the row again.
+  private(set) var hiddenIDs: Set<PutioFileID> = []
 
   @ObservationIgnored private let actions: PutioFileActions
+  @ObservationIgnored private let refreshRequests: PutioFolderRefreshRequests
 
-  init(actions: PutioFileActions) {
+  init(actions: PutioFileActions, refreshRequests: PutioFolderRefreshRequests) {
     self.actions = actions
+    self.refreshRequests = refreshRequests
+  }
+
+  /// Hides a row in the same transaction as the tap that moves it to Trash.
+  func hideForTrash(_ item: PutioFileItem) {
+    hiddenIDs.insert(item.id)
+  }
+
+  /// The results reloaded, so they now reflect every settled delete.
+  func revealHiddenItems() {
+    hiddenIDs = []
   }
 
   var canStartAction: Bool { activeAction == nil }
@@ -29,10 +47,15 @@ final class PutioFileItemActionModel {
   }
 
   func delete(_ item: PutioFileItem) async {
-    guard canDelete else { return }
-    await run(.delete(fileID: item.id, name: item.name)) { [actions] in
-      try await actions.deleteFile(item.id)
-    }
+    let settled: PutioFileActionOutcome? =
+      canDelete
+      ? await run(.delete(fileID: item.id, name: item.name)) { [actions] in
+        try await actions.deleteFile(item.id)
+        // Hidden before the refresh this delete requests can reload results.
+        self.hiddenIDs.insert(item.id)
+      } : nil
+    if case .succeeded = settled { return }
+    hiddenIDs.remove(item.id)
   }
 
   func move(_ item: PutioFileItem, to destination: PutioFolderRoute) async {
@@ -53,27 +76,51 @@ final class PutioFileItemActionModel {
     outcome = nil
   }
 
+  /// Returns the settled outcome, or `nil` when the action did not start or
+  /// its failure has no presentation.
+  @discardableResult
   private func run(
     _ action: PutioFileAction,
     operation: @escaping @MainActor @Sendable () async throws -> Void
-  ) async {
-    guard canStartAction else { return }
+  ) async -> PutioFileActionOutcome? {
+    guard canStartAction else { return nil }
     activeAction = action
     outcome = nil
     // A model-owned task: the server may apply the request even when the
     // caller goes away, so the outcome must still be observed.
     let task = Task { @MainActor in
+      let settled: PutioFileActionOutcome?
       do {
         try await operation()
-        outcome = .succeeded(action)
+        settled = .succeeded(action)
       } catch {
-        outcome = PutioFileActionFailure(action: action, error: error).map {
+        settled = PutioFileActionFailure(action: action, error: error).map {
           .failed(action, $0)
         }
       }
+      requestRefreshes(after: action)
+      outcome = settled
       activeAction = nil
+      return settled
     }
-    await task.value
+    return await task.value
+  }
+
+  private func requestRefreshes(after action: PutioFileAction) {
+    switch action {
+    case .delete:
+      // A deleted folder can contain any mounted folder.
+      refreshRequests.requestAllLoadedFolders()
+    case .rename(let fileID, _, _):
+      refreshRequests.requestAllLoadedFolders()
+      refreshRequests.request(folderID: fileID)
+    case .move(let fileID, _, let sourceParentID, let destinationID, _):
+      refreshRequests.request(folderID: sourceParentID)
+      refreshRequests.request(folderID: destinationID)
+      refreshRequests.request(folderID: fileID)
+    case .createFolder, .sort:
+      break
+    }
   }
 }
 
@@ -186,7 +233,7 @@ struct PutioFileItemActionsHost: ViewModifier {
         PutioMovePicker(
           items: [item],
           load: actions.loadFolders ?? load,
-          continueLoad: continueLoad,
+          continueLoad: actions.continueFolders ?? continueLoad,
           actions: actions,
           refreshRequests: refreshRequests,
           onMove: { destination in
@@ -249,25 +296,6 @@ struct PutioFileItemActionsHost: ViewModifier {
 
   private func present(_ outcome: PutioFileActionOutcome?) {
     guard let outcome else { return }
-    let action =
-      switch outcome {
-      case .succeeded(let action), .failed(let action, _): action
-      }
-    // A failed mutation may still have reached the server.
-    switch action {
-    case .delete:
-      // A deleted folder can contain any mounted folder.
-      refreshRequests.requestAllLoadedFolders()
-    case .rename(let fileID, _, _):
-      refreshRequests.requestAllLoadedFolders()
-      refreshRequests.request(folderID: fileID)
-    case .move(let fileID, _, let sourceParentID, let destinationID, _):
-      refreshRequests.request(folderID: sourceParentID)
-      refreshRequests.request(folderID: destinationID)
-      refreshRequests.request(folderID: fileID)
-    case .createFolder, .sort:
-      break
-    }
     switch outcome {
     case .succeeded(.rename(_, _, let newName)):
       toast = PutioToast(variant: .success, title: "Item renamed", message: newName)

@@ -17,7 +17,7 @@ final class FileItemActionsTests: XCTestCase {
         moveFile: { fileID, parentID in
           calls.append("move \(fileID.rawValue) \(parentID.rawValue)")
         }
-      ))
+      ), refreshRequests: PutioFolderRefreshRequests())
 
     await model.rename(item, to: "  Renamed.mkv ")
     XCTAssertEqual(
@@ -47,7 +47,7 @@ final class FileItemActionsTests: XCTestCase {
         deleteFile: { _ in XCTFail("deletion must wait for resolved preferences") },
         moveFile: { _, _ in moveCount += 1 },
         canDelete: { false }
-      ))
+      ), refreshRequests: PutioFolderRefreshRequests())
 
     await model.rename(item, to: item.name)
     XCTAssertNil(model.outcome, "an unchanged name must not send a rename")
@@ -61,5 +61,43 @@ final class FileItemActionsTests: XCTestCase {
       return XCTFail("expected a rename failure")
     }
     XCTAssertEqual(failure.title, "Could not rename item")
+  }
+  func testFailedTrashMoveShowsTheSearchRowAgain() async {
+    let item = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Episode.mkv")
+    let model = PutioFileItemActionModel(
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.transient }
+      ), refreshRequests: PutioFolderRefreshRequests())
+
+    model.hideForTrash(item)
+    XCTAssertEqual(model.hiddenIDs, [item.id], "the row leaves with the tap")
+    await model.delete(item)
+
+    XCTAssertEqual(model.hiddenIDs, [], "a move that did not commit must show the row again")
+  }
+
+  func testSettledActionsRefreshSearchAndCommittedDeletesStayHidden() async {
+    let item = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Episode.mkv")
+    let requests = PutioFolderRefreshRequests()
+    let model = PutioFileItemActionModel(
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in },
+        deleteFile: { _ in }
+      ), refreshRequests: requests)
+
+    let beforeRename = requests.revision
+    await model.rename(item, to: "Renamed.mkv")
+    XCTAssertGreaterThan(requests.revision, beforeRename, "a rename must re-run the search")
+
+    let beforeDelete = requests.revision
+    await model.delete(item)
+    XCTAssertGreaterThan(requests.revision, beforeDelete, "a delete must re-run the search")
+    XCTAssertEqual(model.hiddenIDs, [item.id], "a deleted row must not stay actionable")
+
+    model.revealHiddenItems()
+    XCTAssertEqual(model.hiddenIDs, [])
   }
 }

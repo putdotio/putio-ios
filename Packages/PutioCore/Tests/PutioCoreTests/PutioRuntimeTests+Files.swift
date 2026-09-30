@@ -457,6 +457,34 @@ extension PutioRuntimeTests {
     XCTAssertEqual(query.first(where: { $0.name == "parent_id" })?.value, "42")
   }
 
+  func testFolderContinuationStillHidesTheSharedRoot() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      """
+      {
+        "cursor": "",
+        "files": [
+          {
+            "id": 23, "name": "Shows", "file_type": "FOLDER", "parent_id": 0, "size": 0,
+            "created_at": "2026-08-01T10:00:00Z", "updated_at": "2026-08-01T10:00:00Z"
+          },
+          {
+            "id": 22, "name": "items shared with you", "file_type": "FOLDER",
+            "folder_type": "SHARED_ROOT", "parent_id": 0, "size": 0,
+            "created_at": "2026-08-01T10:00:00Z", "updated_at": "2026-08-01T10:00:00Z"
+          }
+        ]
+      }
+      """,
+      for: Self.filesContinueRoute
+    )
+
+    let page = try await runtime.continueFolders(cursor: "folders-next")
+
+    XCTAssertEqual(page.items.map(\.id), [PutioFileID(rawValue: 23)])
+    XCTAssertNil(page.nextCursor)
+  }
+
   func testMoveFilesSendsOneBatchAndMapsEachReportedFailure() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
@@ -507,6 +535,12 @@ extension PutioRuntimeTests {
     let body = try XCTUnwrap(requestBodyData(for: try XCTUnwrap(deleteRequests.first)))
     let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
     XCTAssertEqual(json["file_ids"] as? String, "91,92")
+
+    // A 2xx envelope that reports failure must not read as a deleted batch.
+    fixtures.setFixture(#"{"status":"ERROR"}"#, for: Self.deleteFilesRoute)
+    await assertRuntimeError(.invalidResponse) {
+      try await runtime.deleteFiles(fileIDs: [PutioFileID(rawValue: 91)])
+    }
   }
 
   func testMoveFileAuthenticationFailureUsesTheSharedSessionBoundary() async {

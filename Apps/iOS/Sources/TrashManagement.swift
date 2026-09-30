@@ -182,6 +182,8 @@ struct PutioTrashActions: Sendable {
   let restoreItems: PutioTrashBatchRestore
   let permanentlyDeleteItems: PutioTrashBatchMutation
   let restoreAll: PutioTrashRestoreAll
+  /// Items per selected restore or delete request, as for Files bulk actions.
+  let batchSize: Int
   let empty: PutioTrashEmpty
   let refreshStorage: PutioTrashStorageRefresh
   /// The session owns stale-storage state so it survives leaving Trash.
@@ -200,6 +202,7 @@ struct PutioTrashActions: Sendable {
     restoreAll = { cursor, fileIDs in
       try await runtime.restoreAllTrash(cursor: cursor, loadedFileIDs: fileIDs)
     }
+    batchSize = PutioFileActions.defaultBatchSize
     empty = { try await runtime.emptyTrash() }
     refreshStorage = { await runtime.refreshAccount() }
     isStorageStale = { runtime.session.isAccountStorageStale }
@@ -214,6 +217,7 @@ struct PutioTrashActions: Sendable {
       throw PutioRuntimeError.unknown
     },
     restoreAll: @escaping PutioTrashRestoreAll = { _, _ in throw PutioRuntimeError.unknown },
+    batchSize: Int = PutioFileActions.defaultBatchSize,
     empty: @escaping PutioTrashEmpty,
     refreshStorage: @escaping PutioTrashStorageRefresh = { true },
     isStorageStale: @escaping PutioTrashStorageIsStale = { false }
@@ -224,6 +228,7 @@ struct PutioTrashActions: Sendable {
     self.restoreItems = restoreItems
     self.permanentlyDeleteItems = permanentlyDeleteItems
     self.restoreAll = restoreAll
+    self.batchSize = max(1, batchSize)
     self.empty = empty
     self.refreshStorage = refreshStorage
     self.isStorageStale = isStorageStale
@@ -276,6 +281,13 @@ enum PutioTrashMutation: Equatable, Sendable {
   case permanentlyDeleteItems([PutioTrashItem])
   case restoreAll
   case empty
+}
+
+/// A batched Trash mutation that stopped partway: `mutation` names only the
+/// rows still in Trash.
+private struct PutioTrashBatchFailure: Error {
+  let mutation: PutioTrashMutation
+  let cause: Error
 }
 
 enum PutioTrashMutationOutcome: Equatable, Sendable {
@@ -555,26 +567,56 @@ final class PutioTrashModel {
     }
   }
 
-  /// Restores the selected rows in one request.
+  /// Restores the selected rows in batches. A failed batch stops the run; its
+  /// rows and those never sent stay listed, and the failure names only them.
   func restore(_ items: [PutioTrashItem]) async {
     guard !items.isEmpty else { return }
     await mutate(.restoreItems(items)) {
-      try await actions.restoreItems(items.map(\.id))
-      onRestored(nil)
-      await remove(items)
+      let sent = await sendInBatches(items) { try await actions.restoreItems($0) }
+      if !sent.committed.isEmpty {
+        onRestored(nil)
+        await remove(sent.committed)
+      }
+      if let failure = sent.failure {
+        throw PutioTrashBatchFailure(
+          mutation: .restoreItems(sent.remaining), cause: failure)
+      }
       mutationOutcome = .restoredItems(items)
     }
   }
 
-  /// Permanently deletes the selected rows in one request.
+  /// Permanently deletes the selected rows in batches, like `restore(_:)`.
   func permanentlyDelete(_ items: [PutioTrashItem]) async {
     guard !items.isEmpty else { return }
     await mutate(.permanentlyDeleteItems(items)) {
-      let result = try await actions.permanentlyDeleteItems(items.map(\.id))
-      await remove(items)
-      mutationOutcome = .permanentlyDeletedItems(
-        items, storageRefreshed: result.storageRefreshed)
+      var storageRefreshed = true
+      let sent = await sendInBatches(items) {
+        storageRefreshed = try await actions.permanentlyDeleteItems($0).storageRefreshed
+      }
+      if !sent.committed.isEmpty { await remove(sent.committed) }
+      if let failure = sent.failure {
+        throw PutioTrashBatchFailure(
+          mutation: .permanentlyDeleteItems(sent.remaining), cause: failure)
+      }
+      mutationOutcome = .permanentlyDeletedItems(items, storageRefreshed: storageRefreshed)
     }
+  }
+
+  private func sendInBatches(
+    _ items: [PutioTrashItem],
+    _ send: ([PutioFileID]) async throws -> Void
+  ) async -> (committed: [PutioTrashItem], remaining: [PutioTrashItem], failure: Error?) {
+    var committed: [PutioTrashItem] = []
+    for start in stride(from: 0, to: items.count, by: actions.batchSize) {
+      let batch = Array(items[start..<min(start + actions.batchSize, items.count)])
+      do {
+        try await send(batch.map(\.id))
+        committed += batch
+      } catch {
+        return (committed, Array(items[start...]), error)
+      }
+    }
+    return (committed, [], nil)
   }
 
   /// Restores every item in Trash, including pages never loaded.
@@ -725,11 +767,13 @@ final class PutioTrashModel {
       // Unreachable in practice: mutations run in unstructured tasks nobody
       // cancels. Kept so the state machine stays total.
     } catch {
+      let batch = error as? PutioTrashBatchFailure
+      let failedMutation = batch?.mutation ?? mutation
       if let failure = PutioTrashErrorPresentation(
-        title: failureTitle(for: mutation),
-        error: error
+        title: failureTitle(for: failedMutation),
+        error: batch?.cause ?? error
       ) {
-        mutationOutcome = .failed(mutation, failure)
+        mutationOutcome = .failed(failedMutation, failure)
       }
     }
     activeMutation = nil

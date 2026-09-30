@@ -38,6 +38,8 @@ struct PutioFileActions: Sendable {
   let batchSize: Int
   /// Folders-only listing for the move picker; `nil` reuses the screen's load.
   let loadFolders: PutioFolderLoad?
+  /// Continues a `loadFolders` listing; `nil` reuses the screen's continuation.
+  let continueFolders: PutioFolderContinue?
   let setSort: PutioFolderSortUpdate
   let canDelete: @MainActor @Sendable () -> Bool
 
@@ -71,6 +73,9 @@ struct PutioFileActions: Sendable {
     loadFolders = { parentID in
       try await runtime.listFolders(parentID: parentID)
     }
+    continueFolders = { cursor in
+      try await runtime.continueFolders(cursor: cursor)
+    }
   }
 
   /// Batch closures default to one single-item call per id, so tests that
@@ -84,6 +89,7 @@ struct PutioFileActions: Sendable {
     moveFiles: PutioFileBatchMove? = nil,
     batchSize: Int = PutioFileActions.defaultBatchSize,
     loadFolders: PutioFolderLoad? = nil,
+    continueFolders: PutioFolderContinue? = nil,
     setSort: @escaping PutioFolderSortUpdate = { _, _ in throw PutioRuntimeError.unknown },
     canDelete: @escaping @MainActor @Sendable () -> Bool = { true }
   ) {
@@ -109,6 +115,7 @@ struct PutioFileActions: Sendable {
       }
     self.batchSize = max(1, batchSize)
     self.loadFolders = loadFolders
+    self.continueFolders = continueFolders
     self.setSort = setSort
     self.canDelete = canDelete
   }

@@ -370,6 +370,7 @@ import Foundation
     nonisolated(unsafe) private static var offlineOriginalDeleteFailed = false
     nonisolated(unsafe) private static var offlineOriginalTrashed = false
     nonisolated(unsafe) private static var ambiguousMoveFailureDelivered = false
+    nonisolated(unsafe) private static var partialMoveFailureDelivered = false
     nonisolated(unsafe) private static var trashDeleteFailureDelivered = false
     nonisolated(unsafe) private static var trashListRequests = 0
     // Server-side sort per folder id; only keys the app can decode are stored.
@@ -400,6 +401,8 @@ import Foundation
     nonisolated(unsafe) private static var deviceCodePolls: [String: Int] = [:]
     static let bulkDeleteFailureFolderID = 416
     static let ambiguousMoveFailureFolderID = 418
+    /// Reported as failed in the first batched move that includes it.
+    static let partialMoveFailureFolderID = 416
     static let trashRestoreFolderID = 419
     static let trashDeleteFolderID = 420
     static let trashEmptyFolderID = 421
@@ -450,6 +453,7 @@ import Foundation
       offlineOriginalDeleteFailed = false
       offlineOriginalTrashed = false
       ambiguousMoveFailureDelivered = false
+      partialMoveFailureDelivered = false
       trashDeleteFailureDelivered = false
       trashListRequests = 0
       folderSorts = [:]
@@ -1489,6 +1493,12 @@ import Foundation
         guard actionFolders[fileID] != nil else {
           errors.append(
             #"{"error_type":"HARNESS_FILE_NOT_FOUND","id":\#(fileID),"status_code":404}"#)
+          continue
+        }
+        if fileID == partialMoveFailureFolderID, fileIDs.count > 1, !partialMoveFailureDelivered {
+          partialMoveFailureDelivered = true
+          errors.append(
+            #"{"error_type":"HARNESS_TRANSIENT_MOVE_FAILURE","id":\#(fileID),"status_code":503}"#)
           continue
         }
         actionFolders[fileID]?.parentID = parentID
