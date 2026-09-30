@@ -152,8 +152,8 @@ private struct TwoFactorChangeSheet: View {
               SensitivePasteboard.copy(PutioRecoveryCodesModel.unusedText(codes))
             }
             .accessibilityIdentifier("security.two-factor-copy-codes")
-            RecoveryCodesDownloadButton(text: PutioRecoveryCodesModel.unusedText(codes))
-              .accessibilityIdentifier("security.two-factor-download-codes")
+            RecoveryCodesDownloadButton(
+              codes: codes, identifier: "security.two-factor-download-codes")
             Button("I have saved my recovery codes") { model.finish() }
               .accessibilityIdentifier("security.two-factor-done")
           } header: {
@@ -296,48 +296,89 @@ private enum SensitivePasteboard {
 }
 
 /// Saves the unused codes as a text file wherever the user picks, as put.io's
-/// web Download does. Nothing is written until the user chooses a location.
+/// web Download does. Nothing is written until the user chooses a location,
+/// and a failed save stays on screen so it is never mistaken for a saved copy.
 private struct RecoveryCodesDownloadButton: View {
-  let text: String
-  @State private var export: (document: RecoveryCodesDocument, filename: String)?
+  let codes: [PutioTwoFactorRecoveryCode]
+  let identifier: String
+  @State private var export = PutioRecoveryCodesExport()
 
   var body: some View {
-    Button("Download") {
-      export = (
-        RecoveryCodesDocument(text: text),
-        PutioRecoveryCodesModel.exportFilename(at: .now)
-      )
-    }
-    .fileExporter(
-      isPresented: Binding(
-        get: { export != nil }, set: { presented in if !presented { export = nil } }),
-      document: export?.document,
-      contentType: .plainText,
-      defaultFilename: export?.filename
-    ) { _ in
-      export = nil
+    Button("Download") { export.begin(codes: codes) }
+      .accessibilityIdentifier(identifier)
+      .fileExporter(
+        isPresented: Binding(
+          get: { export.pending != nil }, set: { presented in if !presented { export.cancel() } }),
+        document: export.pending,
+        contentType: .plainText,
+        defaultFilename: export.filename
+      ) { result in
+        export.finish(result)
+      }
+    if let failure = export.failure {
+      Text(failure)
+        .foregroundStyle(PutioTheme.Colors.destructive)
+        .accessibilityIdentifier("\(identifier)-failure")
     }
   }
 }
 
-private struct RecoveryCodesDocument: FileDocument {
+/// One Download attempt of the recovery codes.
+@MainActor
+@Observable
+final class PutioRecoveryCodesExport {
+  static let failureMessage = "Your recovery codes were not saved. Try downloading them again."
+
+  private(set) var pending: PutioRecoveryCodesDocument?
+  private(set) var filename = ""
+  private(set) var failure: String?
+
+  func begin(codes: [PutioTwoFactorRecoveryCode], at date: Date = .now) {
+    pending = PutioRecoveryCodesDocument(codes: codes)
+    filename = PutioRecoveryCodesModel.exportFilename(at: date)
+  }
+
+  func finish(_ result: Result<URL, Error>) {
+    pending = nil
+    switch result {
+    case .success:
+      failure = nil
+    case .failure(let error):
+      // A dismissed picker saved nothing on purpose; that is not a failure.
+      if (error as? CocoaError)?.code == .userCancelled { return }
+      failure = Self.failureMessage
+    }
+  }
+
+  func cancel() {
+    pending = nil
+  }
+}
+
+struct PutioRecoveryCodesDocument: FileDocument {
   static let readableContentTypes: [UTType] = [.plainText]
 
-  let text: String
+  let contents: Data
 
-  init(text: String) {
-    self.text = text
+  init(codes: [PutioTwoFactorRecoveryCode]) {
+    contents = Data(PutioRecoveryCodesModel.unusedText(codes).utf8)
   }
 
   init(configuration: ReadConfiguration) throws {
-    guard let data = configuration.file.regularFileContents,
-      let text = String(data: data, encoding: .utf8)
-    else { throw CocoaError(.fileReadCorruptFile) }
-    self.text = text
+    guard let data = configuration.file.regularFileContents else {
+      throw CocoaError(.fileReadCorruptFile)
+    }
+    contents = data
   }
 
   func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-    FileWrapper(regularFileWithContents: Data(text.utf8))
+    fileWrapper()
+  }
+
+  /// What the exporter writes; `WriteConfiguration` has no public initializer,
+  /// so tests read the file through this.
+  func fileWrapper() -> FileWrapper {
+    FileWrapper(regularFileWithContents: contents)
   }
 }
 
@@ -365,9 +406,10 @@ struct RecoveryCodesView: View {
           Button("Copy all") { SensitivePasteboard.copy(model.copyableText) }
             .disabled(model.copyableText.isEmpty)
             .accessibilityIdentifier("security.recovery-copy")
-          RecoveryCodesDownloadButton(text: model.copyableText)
-            .disabled(model.copyableText.isEmpty)
-            .accessibilityIdentifier("security.recovery-download")
+          RecoveryCodesDownloadButton(
+            codes: model.codes ?? [], identifier: "security.recovery-download"
+          )
+          .disabled(model.copyableText.isEmpty)
           Button("Regenerate codes", role: .destructive) { confirmsRegenerate = true }
             .disabled(model.isBusy)
             .accessibilityIdentifier("security.recovery-regenerate")

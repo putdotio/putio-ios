@@ -70,6 +70,8 @@ final class AccountSecurityJourneyTests: XCTestCase {
     app.buttons["DOCPicker.actionButton"].tap()
     XCTAssertTrue(filename.waitForNonExistence(timeout: 10), "the exporter did not finish")
     XCTAssertTrue(waitUntilHittable(element("security.recovery-download")))
+    XCTAssertFalse(
+      element("security.recovery-download-failure").exists, "the saved export reported a failure")
     back()
 
     // Signed-in apps: this app has no revoke action; the TV revoke retries.
