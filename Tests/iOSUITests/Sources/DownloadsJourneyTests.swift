@@ -164,6 +164,20 @@ final class DownloadsJourneyTests: XCTestCase {
     download.tap()
     XCTAssertTrue(unsaved.waitForExistence(timeout: 10))
     XCTAssertTrue(app.buttons["downloads.save-retry"].firstMatch.exists)
+
+    // Every write keeps failing, so the alert returns; relaunch with working
+    // writes to leave the simulator signed out for the next journey test.
+    app.terminate()
+    app.launchArguments.removeAll { $0 == "--putio-harness-offline-writes-fail" }
+    app.launch()
+    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertFalse(unsaved.exists)
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    XCTAssertTrue(element("auth.sign-in").waitForExistence(timeout: 10))
   }
 
   /// Toggle rows expose the switch value as "1"/"0" on the row or its switch.
