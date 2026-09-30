@@ -47,9 +47,15 @@ public struct LiveAdapters: Sendable {
   private let environment = ["PUTIO_CLI_PROFILE": LiveFixtureContract.profile]
   private let removedEnvironment: Set<String> = ["PUTIO_CLI_TOKEN"]
 
-  public init(context: RepositoryContext, runner: ProcessRunner = ProcessRunner()) {
+  private let uploadPollInterval: TimeInterval
+
+  public init(
+    context: RepositoryContext, runner: ProcessRunner = ProcessRunner(),
+    uploadPollInterval: TimeInterval = 2
+  ) {
     self.context = context
     self.runner = runner
+    self.uploadPollInterval = uploadPollInterval
   }
 
   public func authStatus() throws -> HarnessResult {
@@ -136,8 +142,13 @@ public struct LiveAdapters: Sendable {
       _ = try putio(
         ["files", "upload", "--json", payload, "--output", "json"],
         context: "upload putio harness fixture file")
-      // The listing, not the upload response, proves the file is browsable.
-      file = try existingFile()
+      // The listing, not the upload response, proves the file is browsable;
+      // put.io lists a fresh upload a few seconds after accepting it.
+      for attempt in 0..<15 {
+        if attempt > 0 { Thread.sleep(forTimeInterval: uploadPollInterval) }
+        file = try existingFile()
+        if file != nil { break }
+      }
       fileAction = "uploaded"
     }
     guard let file else {

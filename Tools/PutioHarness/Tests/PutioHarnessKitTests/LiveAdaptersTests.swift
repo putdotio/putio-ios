@@ -9,13 +9,15 @@ private struct FakePutio {
   let root: URL
   let adapters: LiveAdapters
 
-  init(folderExists: Bool, fileExists: Bool) throws {
+  init(folderExists: Bool, fileExists: Bool, uploadListingLag: Int = 0) throws {
     root = FileManager.default.temporaryDirectory.appending(
       path: "putio-live-adapters-\(UUID().uuidString.lowercased())")
     let bin = root.appending(path: "bin")
     try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
     if folderExists { try Data().write(to: root.appending(path: "folder")) }
     if fileExists { try Data().write(to: root.appending(path: "file")) }
+    try Data(String(repeating: "x", count: uploadListingLag).utf8).write(
+      to: root.appending(path: "lag"))
     let executable = bin.appending(path: "putio")
     try #"""
     #!/bin/sh
@@ -47,6 +49,10 @@ private struct FakePutio {
           else
             echo '{"files":[{"id":5,"name":"other","file_type":"FOLDER","parent_id":0}]}'
           fi
+        elif [ "$parent" = 77 ] && [ -f "$state/file" ] && [ -s "$state/lag" ]; then
+          # put.io has accepted the upload but does not list it yet.
+          tail -c +2 "$state/lag" > "$state/lag.next" && mv "$state/lag.next" "$state/lag"
+          echo '{"files":[]}'
         elif [ "$parent" = 77 ] && [ -f "$state/file" ]; then
           echo '{"files":[{"id":87,"name":"live-fixture.png","file_type":"TEXT","parent_id":77},{"id":88,"name":"live-fixture.png","file_type":"IMAGE","parent_id":77}]}'
         else
@@ -64,7 +70,8 @@ private struct FakePutio {
       // An ambient token must never reach the CLI in place of the profile.
       "PUTIO_CLI_TOKEN": "ambient-token-value",
     ])
-    adapters = LiveAdapters(context: RepositoryContext(root: root), runner: runner)
+    adapters = LiveAdapters(
+      context: RepositoryContext(root: root), runner: runner, uploadPollInterval: 0.01)
   }
 
   /// Each call's arguments, after checking that it ran as devs-auto without
@@ -130,6 +137,16 @@ struct LiveAdaptersTests {
 
   @Test func uploadsOnlyTheMissingFileIntoAnExistingFolder() throws {
     let putio = try FakePutio(folderExists: true, fileExists: false)
+    defer { putio.remove() }
+
+    let fixture = try putio.adapters.provisionLiveFixture()
+
+    #expect(fixture.fileID == 88)
+    #expect(try putio.writes().map { $0[1] } == ["upload", "upload"])
+  }
+
+  @Test func waitsForAFreshUploadToBeListed() throws {
+    let putio = try FakePutio(folderExists: true, fileExists: false, uploadListingLag: 3)
     defer { putio.remove() }
 
     let fixture = try putio.adapters.provisionLiveFixture()
