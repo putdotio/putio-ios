@@ -67,17 +67,20 @@ final class AudioJourneyTests: XCTestCase {
 
     // Scrubbing near the end lets the track finish and the successor take over.
     // Scrubbing while paused keeps the seek on this track however slowly the
-    // host drives the UI; a playing track can finish first.
+    // host drives the UI; a playing track can finish first. The remaining 12 s
+    // (8 s at 1.5×) leave time to see this track resume before it hands over.
     let scrubber = app.sliders["audio.scrubber"]
     XCTAssertTrue(scrubber.waitForExistence(timeout: 5))
     let elapsed = app.staticTexts["audio.elapsed"]
     let pausedAt = elapsed.label
-    scrubber.adjust(toNormalizedSliderPosition: 0.95)
+    scrubber.adjust(toNormalizedSliderPosition: 0.8)
     let sought = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "label != %@", pausedAt), object: elapsed)
     XCTAssertEqual(XCTWaiter.wait(for: [sought], timeout: 5), .completed)
     XCTAssertTrue(waitForValue(state, "id=408;state=paused"))
     playPause.tap()
+    XCTAssertTrue(waitForValue(state, "id=408;state=playing", timeout: 5))
+    XCTAssertEqual(speed.value as? String, "1.5×")
     XCTAssertTrue(waitForValue(state, "id=409;state=playing", timeout: 20))
     XCTAssertEqual(speed.value as? String, "1.5×")
     scrubber.adjust(toNormalizedSliderPosition: 0.95)
