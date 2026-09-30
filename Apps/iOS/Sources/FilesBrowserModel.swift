@@ -484,8 +484,10 @@ final class PutioFolderModel {
   private(set) var refreshFailure: PutioBrowserErrorPresentation?
   private(set) var isLoadingMore = false
   private(set) var loadMoreFailure: PutioBrowserErrorPresentation?
-  // Bumped whenever a load or mutation settles, so a continuation the
-  // settling work superseded starts again even when the cursor is unchanged.
+  // Bumped whenever a load or mutation settles, or a continuation is
+  // cancelled, so a continuation the settling work superseded, or one whose
+  // row reappeared before the cancelled request unwound, starts again even
+  // when the cursor is unchanged.
   private(set) var continuationEpoch: UInt64 = 0
   private(set) var activeAction: PutioFileAction?
   private(set) var actionOutcome: PutioFileActionOutcome?
@@ -578,7 +580,12 @@ final class PutioFolderModel {
     let requestGeneration = generation
     isLoadingMore = true
     loadMoreFailure = nil
-    defer { if requestGeneration == generation { isLoadingMore = false } }
+    defer {
+      if requestGeneration == generation {
+        isLoadingMore = false
+        if Task.isCancelled { continuationEpoch &+= 1 }
+      }
+    }
 
     do {
       let page = try await continueLoad(cursor)

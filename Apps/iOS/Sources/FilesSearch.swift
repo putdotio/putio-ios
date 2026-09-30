@@ -73,6 +73,9 @@ final class PutioFileSearchModel {
     } else {
       retainedPage = nil
     }
+    // A cancelled refresh restores the failure it cleared, so reappearance
+    // still retries and the banner stays.
+    let previousRefreshFailure = retainedPage == nil ? nil : refreshFailure
     generation &+= 1
     let requestGeneration = generation
     self.query = keyword
@@ -91,13 +94,20 @@ final class PutioFileSearchModel {
       if debounced { try await Task.sleep(for: debounce) }
       try Task.checkCancellation()
       let page = try await search(keyword)
-      guard requestGeneration == generation, !Task.isCancelled else { return false }
+      guard requestGeneration == generation else { return false }
+      if Task.isCancelled {
+        refreshFailure = previousRefreshFailure
+        return false
+      }
       state = .loaded(page)
       return true
     } catch {
-      guard requestGeneration == generation, !Task.isCancelled,
-        let failure = PutioBrowserErrorPresentation(error: error)
-      else { return false }
+      guard requestGeneration == generation else { return false }
+      if Task.isCancelled {
+        refreshFailure = previousRefreshFailure
+        return false
+      }
+      guard let failure = PutioBrowserErrorPresentation(error: error) else { return false }
       if retainedPage != nil {
         refreshFailure = failure
       } else {
