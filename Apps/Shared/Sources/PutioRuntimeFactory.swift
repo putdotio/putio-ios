@@ -12,6 +12,15 @@ enum PutioRuntimeFactory {
   @MainActor
   static func make(scenario: HarnessScenario) -> PutioRuntime {
     #if DEBUG
+      if scenario == .live {
+        // Live runs sign in to the devs-auto test account against put.io,
+        // under the harness keychain item rather than the real login's.
+        return PutioRuntime(
+          clientID: clientID,
+          clientName: clientName,
+          tokenStore: liveTokenStore
+        )
+      }
       if scenario == .signedIn || scenario == .filesBrowser || scenario == .deviceSignIn {
         HarnessSeededAPI.trashEnabled = !ProcessInfo.processInfo.arguments.contains(
           "--putio-harness-trash-disabled"
@@ -67,6 +76,8 @@ enum PutioRuntimeFactory {
     static var harnessKeychainService: String {
       (Bundle.main.bundleIdentifier ?? "io.put.dev") + ".harness"
     }
+
+    static let liveTokenStore = HarnessLiveTokenStore(service: harnessKeychainService)
 
     static func runtimeProofCallback(for request: PutioSignInRequest) throws -> URL {
       guard
