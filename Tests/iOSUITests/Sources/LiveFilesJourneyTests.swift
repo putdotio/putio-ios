@@ -43,7 +43,7 @@ final class LiveFilesJourneyTests: XCTestCase {
       app.descendants(matching: .any)["preview.screen.\(fileID)"].waitForNonExistence(timeout: 5))
 
     // The account's grants, read-only: this run's own grant is "This app".
-    app.buttons["Account"].tap()
+    selectTab("Account", in: app)
     let security = app.revealed("account.security")
     XCTAssertTrue(security.waitForExistence(timeout: 10))
     security.tap()
@@ -63,6 +63,16 @@ final class LiveFilesJourneyTests: XCTestCase {
     signOut.tap()
     XCTAssertTrue(signIn.waitForExistence(timeout: 20), "sign-out did not return to sign-in")
     attach("live-signed-out")
+  }
+
+  /// Scrolling a long listing collapses the tab bar to its selected tab.
+  private func selectTab(_ name: String, in app: XCUIApplication) {
+    let tab = app.buttons[name]
+    if !tab.exists {
+      app.tabBars.buttons.matching(NSPredicate(format: "selected == true")).firstMatch.tap()
+    }
+    XCTAssertTrue(tab.waitForExistence(timeout: 5), "\(name) tab never appeared")
+    tab.tap()
   }
 
   private func attach(_ name: String) {
