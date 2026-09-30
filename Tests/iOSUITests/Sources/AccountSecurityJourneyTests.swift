@@ -58,12 +58,17 @@ final class AccountSecurityJourneyTests: XCTestCase {
     tap("security.recovery-retry")
     XCTAssertTrue(waitForValue(firstCode, "code1-0", timeout: 10))
     XCTAssertNotEqual(element("security.recovery-code.3").label, "Used recovery code")
-    // Download hands the codes to the system exporter; cancelling saves nothing.
+    // Download hands the codes to the system exporter under put.io's web name.
     tap("security.recovery-download")
-    let cancelExport = app.buttons["Cancel"].firstMatch
-    XCTAssertTrue(cancelExport.waitForExistence(timeout: 10), "the exporter never appeared")
+    let filename = app.textFields["DOCPicker.filenameTextField"]
+    XCTAssertTrue(filename.waitForExistence(timeout: 10), "the exporter never appeared")
+    let exportedName = filename.value as? String ?? ""
+    XCTAssertTrue(
+      exportedName.hasPrefix("putio-two-factor-recovery-codes_"), "exported as \(exportedName)")
+    XCTAssertFalse(exportedName.contains(".txt.txt"), "exported as \(exportedName)")
     screenshot("runtime-security-recovery-download")
-    cancelExport.tap()
+    app.buttons["DOCPicker.actionButton"].tap()
+    XCTAssertTrue(filename.waitForNonExistence(timeout: 10), "the exporter did not finish")
     XCTAssertTrue(waitUntilHittable(element("security.recovery-download")))
     back()
 
