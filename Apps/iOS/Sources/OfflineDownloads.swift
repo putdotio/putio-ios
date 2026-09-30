@@ -225,16 +225,22 @@ struct PutioOfflineStore: Sendable {
   }
 
   func recordPackages(at relativePaths: some Sequence<String>) throws {
-    var packages = loadPackages()
-    let before = packages.count
-    packages.formUnion(relativePaths)
-    guard packages.count != before else { return }
-    try savePackages(packages)
+    try updatePackages(recording: relativePaths, forgetting: [])
   }
 
   func forgetPackage(at relativePath: String) throws {
+    try updatePackages(recording: [], forgetting: [relativePath])
+  }
+
+  /// One write for both directions; an unchanged record is not rewritten.
+  func updatePackages(
+    recording: some Sequence<String>, forgetting: some Sequence<String>
+  ) throws {
     var packages = loadPackages()
-    guard packages.remove(relativePath) != nil else { return }
+    let before = packages
+    packages.formUnion(recording)
+    packages.subtract(forgetting)
+    guard packages != before else { return }
     try savePackages(packages)
   }
 
@@ -262,6 +268,8 @@ protocol PutioOfflineDownloadEngine: AnyObject {
   var onFinished: ((PutioFileID, Error?) -> Void)? { get set }
   /// The engine confirmed a cancellation the queue asked for.
   var onCancelled: ((PutioFileID) -> Void)? { get set }
+  /// A write the engine could not make; the queue reports it with its own.
+  var onPersistenceFailure: ((Error) -> Void)? { get set }
 
   /// Inspects the asset without downloading it.
   func inventory(url: URL) async throws -> PutioOfflineInventory
@@ -272,6 +280,8 @@ protocol PutioOfflineDownloadEngine: AnyObject {
   /// File ids with tasks the system kept alive across relaunch.
   func restoreTasks() async -> [PutioFileID]
   func stop()
+  /// Writes again what failed before.
+  func retryPersisting() throws
 }
 
 // MARK: - Queue
@@ -396,12 +406,12 @@ final class PutioOfflineQueue {
     concurrencyLimit = loaded.concurrencyLimit
     pendingOriginals = loaded.pendingOriginals
     // Queues written before the sidecar existed are its only record.
-    let packages = items.compactMap(\.localPath)
-    writing { try store.recordPackages(at: packages) }
+    recordPackages(at: items.compactMap(\.localPath))
     engine.onProgress = { [weak self] id, progress in self?.engineProgressed(id, progress) }
     engine.onLocation = { [weak self] id, url in self?.engineLocated(id, url) }
     engine.onFinished = { [weak self] id, error in self?.engineFinished(id, error) }
     engine.onCancelled = { [weak self] id in self?.engineCancelled(id) }
+    engine.onPersistenceFailure = { [weak self] error in self?.writeFailed(error) }
     recomputeStorage()
   }
 
@@ -804,7 +814,10 @@ final class PutioOfflineQueue {
     pendingOriginals.removeAll()
     originalFailure = nil
     persistenceFailure = nil
-    let survivors = store.loadPackages().filter { relativePath in
+    let tracked = store.loadPackages().union(unrecordedPackages)
+    unrecordedPackages.removeAll()
+    unforgottenPackages.removeAll()
+    let survivors = tracked.filter { relativePath in
       let url = Self.localURL(for: relativePath)
       try? fileManager.removeItem(at: url)
       return fileManager.fileExists(atPath: url.path)
@@ -812,7 +825,7 @@ final class PutioOfflineQueue {
     // No queue file is written first: the directory goes as a whole. Only a
     // package that would not delete brings the sidecar back, for a retry.
     try? fileManager.removeItem(at: store.directory)
-    writing { try store.recordPackages(at: survivors) }
+    recordPackages(at: survivors)
     recomputeStorage()
   }
 
@@ -1101,12 +1114,10 @@ final class PutioOfflineQueue {
     guard items.contains(where: { $0.id == fileID }) else {
       engine.cancel(fileID: fileID)
       try? fileManager.removeItem(at: url)
-      if fileManager.fileExists(atPath: url.path) {
-        writing { try store.recordPackages(at: [relativePath]) }
-      }
+      if fileManager.fileExists(atPath: url.path) { recordPackages(at: [relativePath]) }
       return
     }
-    writing { try store.recordPackages(at: [relativePath]) }
+    recordPackages(at: [relativePath])
     update(fileID) { $0.localPath = relativePath }
   }
 
@@ -1155,8 +1166,28 @@ final class PutioOfflineQueue {
   private func removePackage(at relativePath: String) {
     let url = Self.localURL(for: relativePath)
     try? fileManager.removeItem(at: url)
-    if !fileManager.fileExists(atPath: url.path) {
-      writing { try store.forgetPackage(at: relativePath) }
+    if !fileManager.fileExists(atPath: url.path) { forgetPackage(at: relativePath) }
+  }
+
+  /// Package record changes a failed write left undone, for the retry.
+  @ObservationIgnored private var unrecordedPackages: Set<String> = []
+  @ObservationIgnored private var unforgottenPackages: Set<String> = []
+
+  private func recordPackages(at relativePaths: some Collection<String>) {
+    unforgottenPackages.subtract(relativePaths)
+    if writing({ try store.recordPackages(at: relativePaths) }) {
+      unrecordedPackages.subtract(relativePaths)
+    } else {
+      unrecordedPackages.formUnion(relativePaths)
+    }
+  }
+
+  private func forgetPackage(at relativePath: String) {
+    unrecordedPackages.remove(relativePath)
+    if writing({ try store.forgetPackage(at: relativePath) }) {
+      unforgottenPackages.remove(relativePath)
+    } else {
+      unforgottenPackages.insert(relativePath)
     }
   }
 
@@ -1216,21 +1247,32 @@ final class PutioOfflineQueue {
       try write()
       return true
     } catch {
-      lastWriteWasOutOfSpace = PutioOfflinePersistenceFailure.isOutOfSpace(error)
-      if persistenceFailure == nil {
-        persistenceFailure = .unsaved(outOfSpace: lastWriteWasOutOfSpace)
-      }
+      writeFailed(error)
       return false
     }
   }
 
-  /// Writes the package record and the queue again after a failed write.
+  private func writeFailed(_ error: Error) {
+    lastWriteWasOutOfSpace = PutioOfflinePersistenceFailure.isOutOfSpace(error)
+    if persistenceFailure == nil {
+      persistenceFailure = .unsaved(outOfSpace: lastWriteWasOutOfSpace)
+    }
+  }
+
+  /// Writes the package record, the queue, and the engine's journal again
+  /// after a failed write.
   func retryPersisting() {
     persistenceFailure = nil
     guard isLive() else { return }
-    let packages = items.compactMap(\.localPath)
-    guard writing({ try store.recordPackages(at: packages) }) else { return }
-    persist()
+    let recording = unrecordedPackages.union(items.compactMap(\.localPath))
+    let forgetting = unforgottenPackages.subtracting(recording)
+    guard
+      writing({ try store.updatePackages(recording: recording, forgetting: forgetting) })
+    else { return }
+    unrecordedPackages.removeAll()
+    unforgottenPackages.removeAll()
+    guard persist() else { return }
+    writing { try engine.retryPersisting() }
   }
 
   func dismissPersistenceFailure() {

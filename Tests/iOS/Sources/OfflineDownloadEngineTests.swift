@@ -171,6 +171,35 @@ struct OfflineDownloadEngineTests {
     #expect(ticks.filter(gate.admits) == [0, 0.015, 0.425, 0.435, 0.9995, 1])
   }
 
+  private final class Hops: @unchecked Sendable {
+    var pending: [@MainActor @Sendable () -> Void] = []
+  }
+
+  @Test func delegateProgressHopsOncePerNewPercentAndNeverGoesBack() {
+    let hops = Hops()
+    let relay = PutioOfflineDownloadRelay(dispatch: { hops.pending.append($0) })
+    let engine = PutioSystemOfflineDownloadEngine(accountID: 7)
+    relay.engine = engine
+    var delivered: [Double] = []
+    engine.onProgress = { _, progress in delivered.append(progress) }
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.invalidateAndCancel() }
+    let task = session.dataTask(with: URL(string: "https://download.test/task")!)
+    task.taskDescription = "7:5"
+    relay.track(task, with: PutioOfflineProgressGate())
+
+    for tick in [0.421, 0.425, 0.429, 0.43, 0.431] { relay.progressed(task, tick) }
+    #expect(hops.pending.count == 2, "only 42% and 43% hop to the main actor")
+
+    // The later hop runs first; the earlier, lower one must not undo it.
+    for hop in hops.pending.reversed() { hop() }
+    #expect(delivered == [0.43])
+
+    relay.track(task, with: nil)
+    relay.progressed(task, 0.9)
+    #expect(hops.pending.count == 2, "an untracked task never hops")
+  }
+
   private func expectCancellation(of task: Task<Void, Error>) async {
     do {
       try await task.value

@@ -12,6 +12,7 @@ final class OfflineDownloadsTests: XCTestCase {
     var onLocation: ((PutioFileID, URL) -> Void)?
     var onFinished: ((PutioFileID, Error?) -> Void)?
     var onCancelled: ((PutioFileID) -> Void)?
+    var onPersistenceFailure: ((Error) -> Void)?
     var started: [(PutioFileID, [String])] = []
     var paused: [PutioFileID] = []
     var resumed: [PutioFileID] = []
@@ -40,6 +41,7 @@ final class OfflineDownloadsTests: XCTestCase {
       return alive
     }
     func stop() {}
+    func retryPersisting() throws {}
 
     func finish(_ id: PutioFileID, at directory: URL) throws {
       let location = directory.appending(path: "\(id.rawValue).movpkg")
@@ -89,6 +91,7 @@ final class OfflineDownloadsTests: XCTestCase {
     var onLocation: ((PutioFileID, URL) -> Void)?
     var onFinished: ((PutioFileID, Error?) -> Void)?
     var onCancelled: ((PutioFileID) -> Void)?
+    var onPersistenceFailure: ((Error) -> Void)?
     var started: [PutioFileID] = []
     var resumed: [PutioFileID] = []
     var cancelled: [PutioFileID] = []
@@ -112,6 +115,7 @@ final class OfflineDownloadsTests: XCTestCase {
     }
     func restoreTasks() async -> [PutioFileID] { [] }
     func stop() {}
+    func retryPersisting() throws {}
   }
 
   private var gates: [AsyncGate] = []
@@ -207,11 +211,12 @@ final class OfflineDownloadsTests: XCTestCase {
   }
 
   private func makeQueue(
-    availableBytes: Int64 = 10_000_000_000, isLive: @escaping @MainActor () -> Bool = { true }
+    availableBytes: Int64 = 10_000_000_000, isLive: @escaping @MainActor () -> Bool = { true },
+    engine: (any PutioOfflineDownloadEngine)? = nil
   ) -> PutioOfflineQueue {
     PutioOfflineQueue(
       store: PutioOfflineStore(directory: directory),
-      engine: engine,
+      engine: engine ?? self.engine,
       conversionPollInterval: .zero,
       sleep: { _ in },
       availableStorage: { availableBytes },
@@ -1061,7 +1066,7 @@ final class OfflineDownloadsTests: XCTestCase {
     let newer = task("7:6")
     let otherAccount = task("8:5")
     let lost = URLError(.networkConnectionLost)
-    PutioOfflineEventJournal.append([
+    try PutioOfflineEventJournal.append([
       .completion(task: replaced, error: lost),
       .location(task: live, URL(fileURLWithPath: "/tmp/live.movpkg")),
       .completion(task: older, error: lost),
@@ -1082,6 +1087,82 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertEqual(finished.map(\.id), [6], "the replaced task's failure never reaches file 5")
     XCTAssertEqual(finished.map(\.succeeded), [true], "the newest task speaks for file 6")
     XCTAssertEqual(PutioOfflineEventJournal.load().map(\.description), ["8:5"])
+  }
+
+  /// A non-empty directory where the journal goes fails every write.
+  private func blockJournalWrites() throws {
+    try PutioOfflineEventJournal.save([])
+    try FileManager.default.createDirectory(
+      at: PutioOfflineEventJournal.fileURL.appending(path: "blocked"),
+      withIntermediateDirectories: true)
+  }
+
+  private func unblockJournalWrites() throws {
+    try FileManager.default.removeItem(at: PutioOfflineEventJournal.fileURL)
+  }
+
+  /// Leaves no journal and nothing unwritten for the next test.
+  private func resetJournal() {
+    try? FileManager.default.removeItem(at: PutioOfflineEventJournal.fileURL)
+    try? PutioOfflineEventJournal.retry()
+    try? PutioOfflineEventJournal.save([])
+  }
+
+  func testAJournalWriteFailureIsReportedUntilARetryWritesIt() throws {
+    try blockJournalWrites()
+    defer { resetJournal() }
+    let system = PutioSystemOfflineDownloadEngine(accountID: 7)
+    let queue = makeQueue(engine: system)
+    let relay = PutioOfflineDownloadRelay(dispatch: { work in MainActor.assumeIsolated { work() } })
+    relay.engine = system
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.invalidateAndCancel() }
+    let otherAccount = session.dataTask(with: URL(string: "https://download.test/task")!)
+    otherAccount.taskDescription = "8:5"
+
+    relay.urlSession(session, task: otherAccount, didCompleteWithError: nil)
+    relay.urlSessionDidFinishEvents(forBackgroundURLSession: session)
+    XCTAssertEqual(queue.persistenceFailure, .unsaved(outOfSpace: false))
+
+    queue.retryPersisting()
+    XCTAssertEqual(
+      queue.persistenceFailure, .unsaved(outOfSpace: false), "a retry that fails again reports")
+
+    try unblockJournalWrites()
+    queue.retryPersisting()
+    XCTAssertNil(queue.persistenceFailure)
+    XCTAssertEqual(PutioOfflineEventJournal.load().map(\.description), ["8:5"])
+  }
+
+  func testAJournalThatCannotBeClearedReplaysEachEntryOnce() throws {
+    try blockJournalWrites()
+    defer { resetJournal() }
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.invalidateAndCancel() }
+    func task(_ description: String) -> URLSessionTask {
+      let task = session.dataTask(with: URL(string: "https://download.test/task")!)
+      task.taskDescription = description
+      return task
+    }
+    XCTAssertThrowsError(
+      try PutioOfflineEventJournal.append([
+        .completion(task: task("7:5"), error: URLError(.networkConnectionLost)),
+        .completion(task: task("8:6"), error: nil),
+      ]))
+    let engine = PutioSystemOfflineDownloadEngine(accountID: 7)
+    var failed: [Int] = []
+    var reported = 0
+    engine.onFinished = { id, error in if error != nil { failed.append(id.rawValue) } }
+    engine.onPersistenceFailure = { _ in reported += 1 }
+
+    PutioOfflineEventJournal.replay(into: engine, liveTasks: [:])
+    PutioOfflineEventJournal.replay(into: engine, liveTasks: [:])
+
+    XCTAssertEqual(failed, [5], "the unwritten entry replays once; its claim is kept in memory")
+    XCTAssertEqual(reported, 2, "each clear that does not reach disk is reported")
+    try unblockJournalWrites()
+    try PutioOfflineEventJournal.retry()
+    XCTAssertEqual(PutioOfflineEventJournal.load().map(\.description), ["8:6"])
   }
 
   func testSyncPointerSurvivesAWaitersFollowUpPass() async throws {
@@ -1446,6 +1527,32 @@ final class OfflineDownloadsTests: XCTestCase {
     queue.retryPersisting()
     XCTAssertNil(queue.persistenceFailure)
     XCTAssertEqual(PutioOfflineStore(directory: directory).load().items.map(\.id.rawValue), [1])
+  }
+
+  func testARetryForgetsAPackageWhoseRemovalWasNotRecorded() async throws {
+    let queue = makeQueue()
+    let fileID = PutioFileID(rawValue: 1)
+    queue.enqueue(fileID: fileID, parentID: .root, name: "a", kind: .video)
+    await settle()
+    try engine.finish(fileID, at: directory)
+    await settle()
+    let path = try XCTUnwrap(queue.item(for: fileID)?.localPath)
+    let store = PutioOfflineStore(directory: directory)
+    XCTAssertEqual(store.loadPackages(), [path])
+    // An immutable record reads but can be neither replaced nor removed.
+    let record = directory.appending(path: "packages.json").path
+    try FileManager.default.setAttributes([.immutable: true], ofItemAtPath: record)
+    defer { try? FileManager.default.setAttributes([.immutable: false], ofItemAtPath: record) }
+
+    queue.remove(fileIDs: [fileID])
+    XCTAssertFalse(
+      FileManager.default.fileExists(atPath: PutioOfflineQueue.localURL(for: path).path))
+    XCTAssertEqual(queue.persistenceFailure, .unsaved(outOfSpace: false))
+
+    try FileManager.default.setAttributes([.immutable: false], ofItemAtPath: record)
+    queue.retryPersisting()
+    XCTAssertNil(queue.persistenceFailure)
+    XCTAssertTrue(store.loadPackages().isEmpty, "the retry forgets the removed package")
   }
 
   func testPlainRemoveNeverTouchesTheOriginal() async {

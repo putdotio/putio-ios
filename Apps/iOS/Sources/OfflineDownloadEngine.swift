@@ -62,6 +62,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   var onLocation: ((PutioFileID, URL) -> Void)?
   var onFinished: ((PutioFileID, Error?) -> Void)?
   var onCancelled: ((PutioFileID) -> Void)?
+  var onPersistenceFailure: ((Error) -> Void)?
 
   /// One background session per process. iOS rejects a second session with
   /// the same identifier, and the tab view that owns the engine is rebuilt on
@@ -131,6 +132,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     }
     if let previous = tasks[fileID] {
       previous.cancel()
+      stopProgress(fileID)
       tasks[fileID] = nil
     }
     let configuration = try await prepareConfiguration(url, title, audioLanguages)
@@ -176,20 +178,28 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   }
 
   private var progressObservations: [PutioFileID: NSKeyValueObservation] = [:]
-  private var progressGates: [PutioFileID: PutioOfflineProgressGate] = [:]
 
   /// Configuration-based tasks report through `Progress`; the time-range
   /// delegate stays as a fallback for older task shapes. Both pass the task's
-  /// gate, so only a new whole percent reaches the main actor.
+  /// gate before and after the main-actor hop.
   private func observeProgress(of task: URLSessionTask, fileID: PutioFileID) {
     let gate = PutioOfflineProgressGate()
-    progressGates[fileID] = gate
+    Self.relay.track(task, with: gate)
     progressObservations[fileID] = task.progress.observe(\.fractionCompleted, options: [.new]) {
       [weak self] progress, _ in
       let fraction = progress.fractionCompleted
       guard gate.admits(fraction) else { return }
-      Task { @MainActor [weak self] in self?.handleProgress(fileID, fraction) }
+      Task { @MainActor [weak self] in
+        guard gate.delivers(fraction) else { return }
+        self?.handleProgress(fileID, fraction)
+      }
     }
+  }
+
+  /// Ends both progress paths for the file's current task.
+  private func stopProgress(_ fileID: PutioFileID) {
+    progressObservations[fileID] = nil
+    if let task = tasks[fileID] { Self.relay.track(task, with: nil) }
   }
 
   func pause(fileID: PutioFileID) {
@@ -205,9 +215,8 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   func cancel(fileID: PutioFileID) {
     pendingStarts[fileID] = nil
     tasks[fileID]?.cancel()
+    stopProgress(fileID)
     tasks[fileID] = nil
-    progressObservations[fileID] = nil
-    progressGates[fileID] = nil
   }
 
   /// Duplicate tasks for one file id (a crash between start and persist)
@@ -223,6 +232,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
       if let existing = tasks[fileID] {
         if existing.taskIdentifier < downloadTask.taskIdentifier {
           existing.cancel()
+          stopProgress(fileID)
           tasks[fileID] = downloadTask
           observeProgress(of: downloadTask, fileID: fileID)
         } else {
@@ -244,9 +254,8 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   /// session, so a successor engine can reclaim transfers through restore.
   func stop() {
     pendingStarts.removeAll()
+    for fileID in tasks.keys { stopProgress(fileID) }
     tasks = [:]
-    progressObservations = [:]
-    progressGates = [:]
     if Self.relay.engine === self { Self.relay.engine = nil }
   }
 
@@ -258,23 +267,27 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     onLocation?(fileID, url)
   }
 
+  func persistenceFailed(_ error: Error) {
+    onPersistenceFailure?(error)
+  }
+
+  func retryPersisting() throws {
+    try PutioOfflineEventJournal.retry()
+  }
+
   /// Completions for a task the map has already replaced are stale and must
   /// not touch the replacement's bookkeeping.
   fileprivate func handleCompletion(
     _ fileID: PutioFileID, task: URLSessionTask, _ error: Error?
   ) {
     if let current = tasks[fileID], current !== task { return }
+    stopProgress(fileID)
+    tasks[fileID] = nil
     // Cancellation by the queue is the one case it does not want reported.
     if let error, (error as? URLError)?.code == .cancelled {
-      tasks[fileID] = nil
-      progressObservations[fileID] = nil
-      progressGates[fileID] = nil
       onCancelled?(fileID)
       return
     }
-    tasks[fileID] = nil
-    progressObservations[fileID] = nil
-    progressGates[fileID] = nil
     onFinished?(fileID, error)
   }
 
@@ -290,7 +303,6 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     guard let fileID = owns(event.task) else { return }
     switch event {
     case .progress(_, let progress):
-      guard progressGates[fileID]?.admits(progress) ?? true else { return }
       handleProgress(fileID, progress)
     case .location(let task, let url):
       guard tasks[fileID] == nil || tasks[fileID] === task else { return }
@@ -305,15 +317,23 @@ enum PutioOfflineEngineError: Error {
   case missingLanguages
 }
 
-/// Admits a task's progress only when it reaches a new, higher whole percent.
+/// Passes a task's progress only when it reaches a new, higher whole percent.
 /// KVO fires far more often than the row can show, and every admitted value
 /// costs a main-actor hop and a Downloads list update.
 final class PutioOfflineProgressGate: Sendable {
-  private let published = Mutex<Int>(-1)
+  private let admitted = Mutex<Int>(-1)
+  private let delivered = Mutex<Int>(-1)
 
-  func admits(_ fraction: Double) -> Bool {
+  /// Before the hop, on whichever thread reported the progress.
+  func admits(_ fraction: Double) -> Bool { Self.advance(admitted, to: fraction) }
+
+  /// After the hop. Hops are not ordered, so a lower percent admitted first
+  /// can land after a higher one; it is dropped here.
+  func delivers(_ fraction: Double) -> Bool { Self.advance(delivered, to: fraction) }
+
+  private static func advance(_ last: borrowing Mutex<Int>, to fraction: Double) -> Bool {
     let percent = Int((min(max(fraction, 0), 1) * 100).rounded(.down))
-    return published.withLock { last in
+    return last.withLock { last in
       guard percent > last else { return false }
       last = percent
       return true
@@ -328,6 +348,38 @@ final class PutioOfflineProgressGate: Sendable {
 final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
   @unchecked Sendable
 {
+  typealias Dispatch = @Sendable (@escaping @MainActor @Sendable () -> Void) -> Void
+
+  /// Every hop to the main actor goes through here.
+  private let dispatch: Dispatch
+
+  private typealias Tracked = (task: URLSessionTask, gate: PutioOfflineProgressGate)
+
+  /// Observed tasks and their gates, readable where the delegate runs, so a
+  /// tick that is not a new percent never reaches the main actor. The task
+  /// is held so its identifier cannot be reused while the entry exists.
+  private let progressGates = Mutex<[ObjectIdentifier: Tracked]>([:])
+
+  init(dispatch: @escaping Dispatch = { work in Task { @MainActor in work() } }) {
+    self.dispatch = dispatch
+    super.init()
+  }
+
+  func track(_ task: URLSessionTask, with gate: PutioOfflineProgressGate?) {
+    progressGates.withLock { $0[ObjectIdentifier(task)] = gate.map { (task, $0) } }
+  }
+
+  /// Progress for a task nobody observes is dropped before any hop.
+  func progressed(_ task: URLSessionTask, _ fraction: Double) {
+    guard let gate = progressGates.withLock({ $0[ObjectIdentifier(task)]?.gate }),
+      gate.admits(fraction)
+    else { return }
+    dispatch {
+      guard gate.delivers(fraction) else { return }
+      self.deliver(.progress(task: task, fraction))
+    }
+  }
+
   enum Event {
     case progress(task: URLSessionTask, Double)
     case location(task: URLSessionTask, URL)
@@ -393,22 +445,21 @@ final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
   ) {
     let loaded = loadedTimeRanges.map { $0.timeRangeValue.duration.seconds }.reduce(0, +)
     let expected = timeRangeExpectedToLoad.duration.seconds
-    let progress = expected > 0 ? min(1, loaded / expected) : 0
-    Task { @MainActor in self.deliver(.progress(task: assetDownloadTask, progress)) }
+    progressed(assetDownloadTask, expected > 0 ? min(1, loaded / expected) : 0)
   }
 
   func urlSession(
     _ session: URLSession, assetDownloadTask: AVAssetDownloadTask,
     didFinishDownloadingTo location: URL
   ) {
-    Task { @MainActor in self.deliver(.location(task: assetDownloadTask, location)) }
+    dispatch { self.deliver(.location(task: assetDownloadTask, location)) }
   }
 
   /// Configuration-based tasks announce the final location up front.
   func urlSession(
     _ session: URLSession, assetDownloadTask: AVAssetDownloadTask, willDownloadTo location: URL
   ) {
-    Task { @MainActor in self.deliver(.location(task: assetDownloadTask, location)) }
+    dispatch { self.deliver(.location(task: assetDownloadTask, location)) }
   }
 
   func urlSession(
@@ -417,16 +468,19 @@ final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
   ) {}
 
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-    Task { @MainActor in self.deliver(.completion(task: task, error: error)) }
+    dispatch { self.deliver(.completion(task: task, error: error)) }
   }
 
   /// Events that arrived while no engine was listening are written to a
   /// journal before the system completion handler runs, so a suspension right
   /// after it cannot lose a finished download. The next engine to restore
-  /// replays the journal.
+  /// replays the journal. A failed write stays in memory for that replay, and
+  /// a listening engine reports it now.
   func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
-    Task { @MainActor in
-      PutioOfflineEventJournal.append(self.buffered)
+    dispatch {
+      do { try PutioOfflineEventJournal.append(self.buffered) } catch {
+        self.engine?.persistenceFailed(error)
+      }
       PutioSystemOfflineDownloadEngine.backgroundCompletion?()
       PutioSystemOfflineDownloadEngine.backgroundCompletion = nil
     }
@@ -454,9 +508,32 @@ enum PutioOfflineEventJournal {
       .appending(path: "OfflineDownloads/events.json")
   }
 
-  @MainActor static func append(_ events: [PutioOfflineDownloadRelay.Event]) {
+  /// The entries a failed write could not put on disk. They are newer than
+  /// the file, so the next append, replay, or retry starts from them.
+  @MainActor private static var unwritten: [Entry]?
+
+  @MainActor private static func current() -> [Entry] { unwritten ?? load() }
+
+  @MainActor private static func write(_ entries: [Entry]) throws {
+    do {
+      try save(entries)
+      unwritten = nil
+    } catch {
+      unwritten = entries
+      logger.error("Offline event journal not written: \(error.localizedDescription)")
+      throw error
+    }
+  }
+
+  /// Writes what a failed append or replay left in memory.
+  @MainActor static func retry() throws {
+    guard let unwritten else { return }
+    try write(unwritten)
+  }
+
+  @MainActor static func append(_ events: [PutioOfflineDownloadRelay.Event]) throws {
     guard !events.isEmpty else { return }
-    var entries = load()
+    var entries = current()
     for event in events {
       guard let description = event.task.taskDescription else { continue }
       let taskIdentifier = event.task.taskIdentifier
@@ -477,11 +554,7 @@ enum PutioOfflineEventJournal {
       }
       if let index { entries[index] = entry } else { entries.append(entry) }
     }
-    // The relay still holds the events in memory, so only a suspension
-    // before the next restore loses them.
-    do { try save(entries) } catch {
-      logger.error("Offline event journal not written: \(error.localizedDescription)")
-    }
+    try write(entries)
   }
 
   static func load() -> [Entry] {
@@ -509,7 +582,7 @@ enum PutioOfflineEventJournal {
     var remaining: [Entry] = []
     var claimed: [PutioFileID: Entry] = [:]
     var order: [PutioFileID] = []
-    for entry in load() {
+    for entry in current() {
       guard let parsed = PutioSystemOfflineDownloadEngine.parse(entry.description),
         parsed.accountID == engine.accountID
       else {
@@ -537,8 +610,6 @@ enum PutioOfflineEventJournal {
     }
     // An entry left behind replays again next launch, and a stale failure
     // would then fail a download that has since finished.
-    do { try save(remaining) } catch {
-      logger.error("Offline event journal not cleared: \(error.localizedDescription)")
-    }
+    do { try write(remaining) } catch { engine.persistenceFailed(error) }
   }
 }
