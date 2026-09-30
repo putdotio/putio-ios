@@ -1280,6 +1280,81 @@ final class TrashManagementTests: XCTestCase {
     await observer.value
   }
 
+  func testACancelledAppearanceParkedBehindTheStorageRetryReturnsBeforeItSettles() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let storage = SuspendedStorageRefresh()
+    storage.markStale()
+    let stub = TrashActionsStub(pages: [.success(page(items: [a], totalCount: 1))])
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { try await stub.load(cursor: $0) },
+        restore: { try await stub.restore(fileID: $0) },
+        permanentlyDelete: { try await stub.permanentlyDelete(fileID: $0) },
+        empty: { try await stub.empty() },
+        refreshStorage: { await storage.refresh() },
+        isStorageStale: { storage.isStale }
+      ))
+
+    let owner = Task { await model.refreshOnAppear() }
+    await waitUntil("the storage refresh to start") { storage.requestCount == 1 }
+    // A superseding appearance parks behind the owner's storage retry.
+    var settled = false
+    let waiter = Task {
+      await model.refreshOnAppear()
+      settled = true
+    }
+    for _ in 0..<20 { await Task.yield() }
+    XCTAssertFalse(settled, "the appearance waits for the storage retry")
+    waiter.cancel()
+    await waitUntil("the cancelled appearance to return before storage settles") { settled }
+    XCTAssertTrue(model.isRefreshingStorage)
+    XCTAssertEqual(storage.requestCount, 1)
+
+    storage.resume(with: true)
+    await owner.value
+    XCTAssertFalse(model.isRefreshingStorage)
+  }
+
+  func testANewerAppearanceReleasesOneParkedBehindTheStorageRetry() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let storage = SuspendedStorageRefresh()
+    storage.markStale()
+    let stub = TrashActionsStub(pages: [.success(page(items: [a], totalCount: 1))])
+    let model = PutioTrashModel(
+      actions: PutioTrashActions(
+        load: { try await stub.load(cursor: $0) },
+        restore: { try await stub.restore(fileID: $0) },
+        permanentlyDelete: { try await stub.permanentlyDelete(fileID: $0) },
+        empty: { try await stub.empty() },
+        refreshStorage: { await storage.refresh() },
+        isStorageStale: { storage.isStale }
+      ))
+
+    let owner = Task { await model.refreshOnAppear() }
+    await waitUntil("the storage refresh to start") { storage.requestCount == 1 }
+    var supersededSettled = false
+    let superseded = Task {
+      await model.refreshOnAppear()
+      supersededSettled = true
+    }
+    for _ in 0..<20 { await Task.yield() }
+    XCTAssertFalse(supersededSettled)
+    let latest = Task { await model.refreshOnAppear() }
+    await waitUntil("the superseded appearance to return before storage settles") {
+      supersededSettled
+    }
+    XCTAssertTrue(stub.loadedCursors.isEmpty, "nothing lists Trash before storage settles")
+
+    storage.resume(with: true)
+    await latest.value
+    await owner.value
+    await superseded.value
+    XCTAssertEqual(stub.loadedCursors, [nil], "only the latest appearance lists Trash")
+    XCTAssertEqual(model.page?.items, [a])
+    XCTAssertEqual(storage.requestCount, 1)
+    XCTAssertFalse(model.isRefreshing)
+  }
+
   func testARepairReloadAfterThePopDoesNotLeaveAListingOpen() async {
     let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
     let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
