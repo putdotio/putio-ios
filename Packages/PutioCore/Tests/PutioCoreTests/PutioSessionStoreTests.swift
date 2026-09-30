@@ -158,14 +158,18 @@ private final class KeychainFailureTokenStore: PutioTokenStore {
   private struct Failures {
     var read = false
     var write = false
+    var clear = false
   }
 
   private let storage: PutioInMemoryTokenStore
   private let failures: Mutex<Failures>
 
-  init(token: String?, failingReads: Bool = false, failingWrites: Bool = false) {
+  init(
+    token: String?, failingReads: Bool = false, failingWrites: Bool = false,
+    failingClears: Bool = false
+  ) {
     storage = PutioInMemoryTokenStore(token: token)
-    failures = Mutex(Failures(read: failingReads, write: failingWrites))
+    failures = Mutex(Failures(read: failingReads, write: failingWrites, clear: failingClears))
   }
 
   func allowReads() { failures.withLock { $0.read = false } }
@@ -186,7 +190,12 @@ private final class KeychainFailureTokenStore: PutioTokenStore {
     try storage.write(token)
   }
 
-  func clear() throws { try storage.clear() }
+  func clear() throws {
+    if failures.withLock({ $0.clear }) {
+      throw PutioTokenStoreError.keychainFailure(errSecInteractionNotAllowed)
+    }
+    try storage.clear()
+  }
 }
 
 @MainActor
@@ -468,6 +477,61 @@ final class PutioSessionStoreTests: XCTestCase {
       return XCTFail("the retained credential must restore on retry, got \(store.state)")
     }
     XCTAssertEqual(sdk.config.token, "stored-token")
+  }
+
+  func testChoosingToDiscardAnUnrestoredCredentialReturnsToSignIn() async throws {
+    stubSignedInRoutes()
+    let tokenStore = KeychainFailureTokenStore(token: "stored-token", failingReads: true)
+    let (store, sdk) = makeStore(tokenStore: tokenStore)
+    await store.restore()
+    guard case .signedOut(.restoreFailed) = store.state else {
+      return XCTFail("expected restoreFailed, got \(store.state)")
+    }
+
+    store.discardUnrestoredCredential()
+
+    XCTAssertEqual(store.state, .signedOut(nil))
+    XCTAssertNil(tokenStore.storedToken(), "the unreadable credential was kept")
+    XCTAssertTrue(sdk.config.token.isEmpty)
+    XCTAssertTrue(fixtures.requests.isEmpty)
+    _ = try store.beginSignIn()
+    XCTAssertEqual(store.state, .authenticating)
+  }
+
+  func testDiscardingAnUnrestoredCredentialThatCannotBeRemovedKeepsRestoreRecovery() async {
+    stubSignedInRoutes()
+    let tokenStore = KeychainFailureTokenStore(
+      token: "stored-token", failingReads: true, failingClears: true)
+    let (store, _) = makeStore(tokenStore: tokenStore)
+    await store.restore()
+
+    store.discardUnrestoredCredential()
+
+    XCTAssertEqual(
+      store.state, .signedOut(.restoreFailed("This device's keychain is unavailable. Try again.")))
+    XCTAssertEqual(tokenStore.storedToken(), "stored-token")
+    XCTAssertThrowsError(try store.beginSignIn())
+  }
+
+  func testDiscardingACredentialOutsideRestoreRecoveryDoesNothing() async {
+    stubSignedInRoutes()
+    let (store, tokenStore) = makeStore(token: "stored-token")
+    await store.restore()
+    guard case .signedIn = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+
+    store.discardUnrestoredCredential()
+
+    guard case .signedIn = store.state else {
+      return XCTFail("a signed-in session was discarded, got \(store.state)")
+    }
+    XCTAssertEqual(try tokenStore.read(), "stored-token")
+    store.expireSession()
+    try? tokenStore.write("stored-token")
+    store.discardUnrestoredCredential()
+    XCTAssertEqual(store.state, .signedOut(.sessionExpired))
+    XCTAssertEqual(try tokenStore.read(), "stored-token")
   }
 
   func testWebSignInRevokesTheGrantWhenTheTokenCannotBeSaved() async throws {

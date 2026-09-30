@@ -13,4 +13,12 @@ extension XCUIApplication {
     }
     return target
   }
+
+  /// Account's Log out asks "Are you sure?" before ending the session.
+  func confirmSignOut(file: StaticString = #filePath, line: UInt = #line) {
+    let confirm = buttons["auth.sign-out-confirm"].firstMatch
+    XCTAssertTrue(
+      confirm.waitForExistence(timeout: 5), "log out was not confirmed", file: file, line: line)
+    confirm.tap()
+  }
 }

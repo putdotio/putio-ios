@@ -107,6 +107,7 @@ final class AudioJourneyTests: XCTestCase {
       predicate: NSPredicate(format: "hittable == true"), object: signOut)
     XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed)
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
     XCTAssertFalse(miniPlayer.exists)
   }

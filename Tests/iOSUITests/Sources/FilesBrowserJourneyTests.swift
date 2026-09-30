@@ -100,6 +100,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
@@ -211,6 +212,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       waitUntilHittable(signOut, timeout: 5), "sign-out action is not tappable")
     signOut.tap()
+    app.confirmSignOut()
 
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
     addScreenshot(named: "runtime-signed-out")
@@ -227,6 +229,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
+    app.confirmSignOut()
     let retry = element(identifier: "auth.retry-sign-out")
     XCTAssertTrue(retry.waitForExistence(timeout: 15), "failed sign-out did not offer retry")
     XCTAssertTrue(app.staticTexts["Sign-out did not finish"].exists)
@@ -278,6 +281,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
@@ -398,6 +402,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
@@ -439,6 +444,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
@@ -530,6 +536,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
     signIn.tap()
     XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
@@ -537,6 +544,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.buttons["Account"].tap()
     XCTAssertTrue(app.revealed("auth.sign-out").waitForExistence(timeout: 5))
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
   }
 
@@ -617,6 +625,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
   }
 
@@ -751,6 +760,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 
@@ -1130,6 +1140,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
   }
 

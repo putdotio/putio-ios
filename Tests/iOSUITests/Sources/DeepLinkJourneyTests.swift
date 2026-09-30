@@ -26,8 +26,10 @@ final class DeepLinkJourneyTests: XCTestCase {
     XCTAssertTrue(element("files.item.411").exists)
     screenshot("runtime-deep-link-folder")
 
-    try open("putio:///link")
-    XCTAssertTrue(app.textFields["security.link-code"].waitForExistence(timeout: 10))
+    try open("putio:///link?code=ab12cd")
+    let linkCode = app.textFields["security.link-code"]
+    XCTAssertTrue(linkCode.waitForExistence(timeout: 10))
+    XCTAssertEqual(linkCode.value as? String, "AB12CD", "the link did not prefill its code")
     // An account link returns the stack to its root.
     try open("putio://put.io/settings")
     XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 10))
@@ -129,6 +131,7 @@ final class DeepLinkJourneyTests: XCTestCase {
     let button = app.revealed("auth.sign-out")
     XCTAssertTrue(button.waitForExistence(timeout: 5))
     button.tap()
+    app.confirmSignOut()
     XCTAssertTrue(element("auth.sign-in").waitForExistence(timeout: 10))
   }
 

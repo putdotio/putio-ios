@@ -157,6 +157,7 @@ final class AccessibilityJourneyTests: XCTestCase {
     XCUIDevice.shared.orientation = .portrait
     selectTab("Account")
     reachable(app.buttons["auth.sign-out"], maximumSwipes: 12).tap()
+    app.confirmSignOut()
     XCTAssertTrue(app.buttons["auth.sign-in"].waitForExistence(timeout: 10))
   }
 

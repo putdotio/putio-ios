@@ -80,7 +80,7 @@ import Foundation
         (42, "Living Room TV", "Apple TV, signed in 3 days ago"),
       ]
     static let securityTwoFactorCode = "246810"
-    static let securityDeviceCode = "HARN"
+    static let securityDeviceCode = "HARN42"
     static let securityPassword = "harness-pass"
 
     private static let preferencesKey = "putio.harness.file-preferences.server"

@@ -64,11 +64,11 @@ struct AccountSecurityView: View {
       }
       .listRowBackground(PutioTheme.Colors.surface)
       Section("Devices") {
-        NavigationLink("Where you're signed in") {
+        NavigationLink("Where you are logged in") {
           AuthorizedAppsView(actions: actions)
         }
         .accessibilityIdentifier("security.apps")
-        NavigationLink("Link a device") {
+        NavigationLink("Link your account") {
           LinkDeviceView(actions: actions)
         }
         .accessibilityIdentifier("security.link-device")
@@ -149,10 +149,11 @@ private struct TwoFactorChangeSheet: View {
                 .accessibilityIdentifier("security.recovery-code.\(index)")
             }
             Button("Copy all") {
-              SensitivePasteboard.copy(
-                codes.filter { !$0.isUsed }.map(\.code).joined(separator: "\n"))
+              SensitivePasteboard.copy(PutioRecoveryCodesModel.unusedText(codes))
             }
             .accessibilityIdentifier("security.two-factor-copy-codes")
+            RecoveryCodesDownloadButton(
+              codes: codes, identifier: "security.two-factor-download-codes")
             Button("I have saved my recovery codes") { model.finish() }
               .accessibilityIdentifier("security.two-factor-done")
           } header: {
@@ -294,6 +295,93 @@ private enum SensitivePasteboard {
   }
 }
 
+/// Saves the unused codes as a text file wherever the user picks, as put.io's
+/// web Download does. Nothing is written until the user chooses a location,
+/// and a failed save stays on screen so it is never mistaken for a saved copy.
+private struct RecoveryCodesDownloadButton: View {
+  let codes: [PutioTwoFactorRecoveryCode]
+  let identifier: String
+  @State private var export = PutioRecoveryCodesExport()
+
+  var body: some View {
+    Button("Download") { export.begin(codes: codes) }
+      .accessibilityIdentifier(identifier)
+      .fileExporter(
+        isPresented: Binding(
+          get: { export.pending != nil }, set: { presented in if !presented { export.cancel() } }),
+        document: export.pending,
+        contentType: .plainText,
+        defaultFilename: export.filename
+      ) { result in
+        export.finish(result)
+      }
+    if let failure = export.failure {
+      Text(failure)
+        .foregroundStyle(PutioTheme.Colors.destructive)
+        .accessibilityIdentifier("\(identifier)-failure")
+    }
+  }
+}
+
+/// One Download attempt of the recovery codes.
+@MainActor
+@Observable
+final class PutioRecoveryCodesExport {
+  static let failureMessage = "Your recovery codes were not saved. Try downloading them again."
+
+  private(set) var pending: PutioRecoveryCodesDocument?
+  private(set) var filename = ""
+  private(set) var failure: String?
+
+  func begin(codes: [PutioTwoFactorRecoveryCode], at date: Date = .now) {
+    pending = PutioRecoveryCodesDocument(codes: codes)
+    filename = PutioRecoveryCodesModel.exportFilename(at: date)
+  }
+
+  func finish(_ result: Result<URL, Error>) {
+    pending = nil
+    switch result {
+    case .success:
+      failure = nil
+    case .failure(let error):
+      // A dismissed picker saved nothing on purpose; that is not a failure.
+      if (error as? CocoaError)?.code == .userCancelled { return }
+      failure = Self.failureMessage
+    }
+  }
+
+  func cancel() {
+    pending = nil
+  }
+}
+
+struct PutioRecoveryCodesDocument: FileDocument {
+  static let readableContentTypes: [UTType] = [.plainText]
+
+  let contents: Data
+
+  init(codes: [PutioTwoFactorRecoveryCode]) {
+    contents = Data(PutioRecoveryCodesModel.unusedText(codes).utf8)
+  }
+
+  init(configuration: ReadConfiguration) throws {
+    guard let data = configuration.file.regularFileContents else {
+      throw CocoaError(.fileReadCorruptFile)
+    }
+    contents = data
+  }
+
+  func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+    fileWrapper()
+  }
+
+  /// What the exporter writes; `WriteConfiguration` has no public initializer,
+  /// so tests read the file through this.
+  func fileWrapper() -> FileWrapper {
+    FileWrapper(regularFileWithContents: contents)
+  }
+}
+
 struct RecoveryCodesView: View {
   @State private var model: PutioRecoveryCodesModel
   @State private var confirmsRegenerate = false
@@ -318,6 +406,10 @@ struct RecoveryCodesView: View {
           Button("Copy all") { SensitivePasteboard.copy(model.copyableText) }
             .disabled(model.copyableText.isEmpty)
             .accessibilityIdentifier("security.recovery-copy")
+          RecoveryCodesDownloadButton(
+            codes: model.codes ?? [], identifier: "security.recovery-download"
+          )
+          .disabled(model.copyableText.isEmpty)
           Button("Regenerate codes", role: .destructive) { confirmsRegenerate = true }
             .disabled(model.isBusy)
             .accessibilityIdentifier("security.recovery-regenerate")
@@ -423,7 +515,7 @@ struct AuthorizedAppsView: View {
         .refreshable { await model.load() }
       }
     }
-    .navigationTitle("Where you're signed in")
+    .navigationTitle("Where you are logged in")
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
     .task { await model.load() }
@@ -462,14 +554,14 @@ struct LinkDeviceView: View {
   @State private var model: PutioLinkDeviceModel
   @Environment(\.dismiss) private var dismiss
 
-  init(actions: PutioAccountSecurityActions) {
-    _model = State(initialValue: PutioLinkDeviceModel(actions: actions))
+  init(actions: PutioAccountSecurityActions, code: String? = nil) {
+    _model = State(initialValue: PutioLinkDeviceModel(actions: actions, code: code))
   }
 
   var body: some View {
     Form {
       Section {
-        TextField("Device code", text: Bindable(model).code)
+        TextField("Activation code", text: Bindable(model).code)
           .textInputAutocapitalization(.characters)
           .autocorrectionDisabled()
           .font(.system(.body, design: .monospaced))
@@ -483,16 +575,16 @@ struct LinkDeviceView: View {
         Button {
           Task { await model.link() }
         } label: {
-          if model.isLinking { ProgressView() } else { Text("Link device") }
+          if model.isLinking { ProgressView() } else { Text("Link") }
         }
         .disabled(!model.canLink)
         .accessibilityIdentifier("security.link-submit")
       } footer: {
-        Text("Enter the code shown on a TV or another put.io app to sign it in with your account.")
+        Text("Enter the code shown on your device to link it to your put.io account.")
       }
       .listRowBackground(PutioTheme.Colors.surface)
     }
-    .navigationTitle("Link a device")
+    .navigationTitle("Link your account")
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
     .alert(
@@ -575,7 +667,7 @@ struct ClearDataView: View {
       }
       .listRowBackground(PutioTheme.Colors.surface)
     }
-    .navigationTitle("Clear Data")
+    .navigationTitle("Clear your data")
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
     .confirmationDialog(
@@ -621,13 +713,13 @@ struct DestroyAccountView: View {
       }
       .listRowBackground(PutioTheme.Colors.surface)
     }
-    .navigationTitle("Destroy Account")
+    .navigationTitle("Destroy your account")
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
     .alert("One last step", isPresented: $asksPassword) {
       SecureField("Password", text: Bindable(model).password)
         .accessibilityIdentifier("danger.destroy-password")
-      Button("Destroy Account", role: .destructive) { Task { await model.destroy() } }
+      Button("Destroy account", role: .destructive) { Task { await model.destroy() } }
         .disabled(!model.canDestroy)
         .accessibilityIdentifier("danger.destroy-confirm")
       Button("Cancel", role: .cancel) { model.password = "" }
