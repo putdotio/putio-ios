@@ -202,6 +202,31 @@ private final class PlayerItemStatusObservationSpy: PutioPlayerItemStatusObserva
   }
 }
 
+/// AVFoundation refuses HLS over file URLs; serving the bundled master
+/// playlist through a custom scheme is enough to load its selection groups.
+private final class FixturePlaylistLoader: NSObject, AVAssetResourceLoaderDelegate, Sendable {
+  static let scheme = "putio-fixture"
+  let directory: URL
+
+  init(directory: URL) {
+    self.directory = directory
+  }
+
+  func resourceLoader(
+    _ resourceLoader: AVAssetResourceLoader,
+    shouldWaitForLoadingOfRequestedResource loadingRequest: AVAssetResourceLoadingRequest
+  ) -> Bool {
+    guard let name = loadingRequest.request.url?.lastPathComponent,
+      let data = try? Data(contentsOf: directory.appending(path: name))
+    else { return false }
+    loadingRequest.contentInformationRequest?.contentType = "public.m3u-playlist"
+    loadingRequest.contentInformationRequest?.contentLength = Int64(data.count)
+    loadingRequest.dataRequest?.respond(with: data)
+    loadingRequest.finishLoading()
+    return true
+  }
+}
+
 /// Stands in for a stream whose legible group has a default option. Each
 /// selection snapshot the coordinator checks reads the next recorded state,
 /// in the order the coordinator took them; the live state answers the rest.
@@ -279,6 +304,32 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     XCTAssertEqual(subtitle.loadCount, 1, "a repeated readiness resolved the default again")
     XCTAssertEqual(subtitle.selectCount, 1)
     XCTAssertFalse(subtitle.subtitleIsOn, "a repeated readiness turned the default back on")
+  }
+
+  func testExplicitOffOnTheFixtureCountsAsASubtitleChoice() async throws {
+    let playlist = try XCTUnwrap(
+      Bundle.main.url(
+        forResource: "multi-subtitles", withExtension: "m3u8",
+        subdirectory: "HarnessMedia/multi-audio"))
+    let loader = FixturePlaylistLoader(directory: playlist.deletingLastPathComponent())
+    let url = try XCTUnwrap(URL(string: "\(FixturePlaylistLoader.scheme):///multi-subtitles.m3u8"))
+    let asset = AVURLAsset(url: url)
+    asset.resourceLoader.setDelegate(loader, queue: DispatchQueue(label: "fixture-playlist"))
+    let item = AVPlayerItem(asset: asset)
+    let loaded = await PutioSystemVideoPlayerCoordinator.defaultSubtitle(in: item)
+    let subtitle = try XCTUnwrap(loaded, "the fixture has no default subtitle")
+    let legible = try await asset.loadMediaSelectionGroup(for: .legible)
+    let group = try XCTUnwrap(legible)
+
+    item.select(nil, in: group)
+    XCTAssertNil(item.currentMediaSelection.selectedMediaOption(in: group))
+    XCTAssertTrue(
+      subtitle.hasChoice(item.currentMediaSelection), "an explicit Off read as no choice")
+
+    item.selectMediaOptionAutomatically(in: group)
+    subtitle.select()
+    XCTAssertEqual(
+      item.currentMediaSelection.selectedMediaOption(in: group)?.extendedLanguageTag, "en")
   }
 
   func testExplicitOffDuringTheDefaultLoadStaysOff() async throws {
