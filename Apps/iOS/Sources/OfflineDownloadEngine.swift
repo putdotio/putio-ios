@@ -18,6 +18,8 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   private let prepareConfiguration:
     @MainActor (URL, String, [String]) async throws -> AVAssetDownloadConfiguration
   private let makeTask: @MainActor (AVAssetDownloadConfiguration) -> URLSessionTask
+  private let relay: PutioOfflineDownloadRelay
+  private let allTasks: @MainActor () async -> [URLSessionTask]
 
   init(
     accountID: Int,
@@ -27,11 +29,19 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     makeTask: @escaping @MainActor (AVAssetDownloadConfiguration) -> URLSessionTask = {
       PutioSystemOfflineDownloadEngine.sharedSession.makeAssetDownloadTask(
         downloadConfiguration: $0)
+    },
+    relay: PutioOfflineDownloadRelay = PutioSystemOfflineDownloadEngine.relay,
+    allTasks: @escaping @MainActor () async -> [URLSessionTask] = {
+      await PutioSystemOfflineDownloadEngine.sharedSession.allTasks.filter {
+        $0 is AVAssetDownloadTask
+      }
     }
   ) {
     self.accountID = accountID
     self.prepareConfiguration = prepareConfiguration
     self.makeTask = makeTask
+    self.relay = relay
+    self.allTasks = allTasks
     super.init()
   }
 
@@ -75,8 +85,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     return AVAssetDownloadURLSession(
       configuration: configuration, assetDownloadDelegate: relay, delegateQueue: .main)
   }()
-  private static let relay = PutioOfflineDownloadRelay()
-  private var session: AVAssetDownloadURLSession { Self.sharedSession }
+  static let relay = PutioOfflineDownloadRelay()
   private var tasks: [PutioFileID: URLSessionTask] = [:]
   private var pendingStarts: [PutioFileID: UUID] = [:]
   /// Set by the app delegate when iOS relaunches us for session events.
@@ -92,7 +101,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   /// engines are constructed more often than they are used. Only the engine
   /// that actually owns tasks claims the relay, at the moments it takes them.
   private func claimRelay() {
-    Self.relay.engine = self
+    relay.engine = self
   }
 
   /// Every property load must succeed; a failure here is a real inventory
@@ -184,7 +193,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   /// gate before and after the main-actor hop.
   private func observeProgress(of task: URLSessionTask, fileID: PutioFileID) {
     let gate = PutioOfflineProgressGate()
-    Self.relay.track(task, with: gate)
+    relay.track(task, with: gate)
     progressObservations[fileID] = task.progress.observe(\.fractionCompleted, options: [.new]) {
       [weak self] progress, _ in
       let fraction = progress.fractionCompleted
@@ -199,7 +208,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   /// Ends both progress paths for the file's current task.
   private func stopProgress(_ fileID: PutioFileID) {
     progressObservations[fileID] = nil
-    if let task = tasks[fileID] { Self.relay.track(task, with: nil) }
+    if let task = tasks[fileID] { relay.track(task, with: nil) }
   }
 
   func pause(fileID: PutioFileID) {
@@ -222,30 +231,32 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
   /// Duplicate tasks for one file id (a crash between start and persist)
   /// keep the newest and cancel the rest.
   func restoreTasks() async -> [PutioFileID] {
-    claimRelay()
-    let restored = await session.allTasks
+    let restored = await allTasks()
     var ids: [PutioFileID] = []
     for task in restored {
-      guard let downloadTask = task as? AVAssetDownloadTask, let fileID = owns(task) else {
-        continue
-      }
+      guard let fileID = owns(task) else { continue }
       if let existing = tasks[fileID] {
-        if existing.taskIdentifier < downloadTask.taskIdentifier {
+        if existing.taskIdentifier < task.taskIdentifier {
           existing.cancel()
           stopProgress(fileID)
-          tasks[fileID] = downloadTask
-          observeProgress(of: downloadTask, fileID: fileID)
+          tasks[fileID] = task
+          observeProgress(of: task, fileID: fileID)
         } else {
-          downloadTask.cancel()
+          task.cancel()
         }
         continue
       }
-      tasks[fileID] = downloadTask
-      observeProgress(of: downloadTask, fileID: fileID)
+      tasks[fileID] = task
+      observeProgress(of: task, fileID: fileID)
       ids.append(fileID)
     }
-    // After the live tasks are known, so a journaled event from a replaced
-    // task cannot reach the item its successor now owns.
+    // Only once the live tasks are known, and buffered events go through the
+    // journal's selection first, so no event from a replaced task reaches
+    // the item its successor now owns.
+    do { try PutioOfflineEventJournal.append(relay.takeBuffered()) } catch {
+      persistenceFailed(error)
+    }
+    claimRelay()
     PutioOfflineEventJournal.replay(into: self, liveTasks: tasks.mapValues(\.taskIdentifier))
     return ids
   }
@@ -256,7 +267,7 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     pendingStarts.removeAll()
     for fileID in tasks.keys { stopProgress(fileID) }
     tasks = [:]
-    if Self.relay.engine === self { Self.relay.engine = nil }
+    if relay.engine === self { relay.engine = nil }
   }
 
   fileprivate func handleProgress(_ fileID: PutioFileID, _ progress: Double) {
@@ -331,6 +342,12 @@ final class PutioOfflineProgressGate: Sendable {
   /// can land after a higher one; it is dropped here.
   func delivers(_ fraction: Double) -> Bool { Self.advance(delivered, to: fraction) }
 
+  /// Drops everything from now on, including hops already queued.
+  func close() {
+    admitted.withLock { $0 = .max }
+    delivered.withLock { $0 = .max }
+  }
+
   private static func advance(_ last: borrowing Mutex<Int>, to fraction: Double) -> Bool {
     let percent = Int((min(max(fraction, 0), 1) * 100).rounded(.down))
     return last.withLock { last in
@@ -365,8 +382,14 @@ final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
     super.init()
   }
 
+  /// A replaced or removed gate is closed, so its queued hops are dropped.
   func track(_ task: URLSessionTask, with gate: PutioOfflineProgressGate?) {
-    progressGates.withLock { $0[ObjectIdentifier(task)] = gate.map { (task, $0) } }
+    let previous = progressGates.withLock { gates in
+      let key = ObjectIdentifier(task)
+      defer { gates[key] = gate.map { (task, $0) } }
+      return gates[key]
+    }
+    if let previous, previous.gate !== gate { previous.gate.close() }
   }
 
   /// Progress for a task nobody observes is dropped before any hop.
@@ -405,6 +428,11 @@ final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
   @MainActor private(set) var buffered: [Event] = []
   @MainActor weak var engine: PutioSystemOfflineDownloadEngine? {
     didSet { drain() }
+  }
+
+  @MainActor func takeBuffered() -> [Event] {
+    defer { buffered = [] }
+    return buffered
   }
 
   @MainActor private func buffer(_ event: Event) {
@@ -467,7 +495,9 @@ final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
     didResolve resolvedMediaSelection: AVMediaSelection
   ) {}
 
+  /// A finished task is released here even when no engine is left to do it.
   func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+    track(task, with: nil)
     dispatch { self.deliver(.completion(task: task, error: error)) }
   }
 

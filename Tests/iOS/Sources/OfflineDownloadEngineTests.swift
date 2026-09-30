@@ -195,9 +195,62 @@ struct OfflineDownloadEngineTests {
     for hop in hops.pending.reversed() { hop() }
     #expect(delivered == [0.43])
 
+    relay.progressed(task, 0.5)
     relay.track(task, with: nil)
     relay.progressed(task, 0.9)
-    #expect(hops.pending.count == 2, "an untracked task never hops")
+    #expect(hops.pending.count == 3, "an untracked task never hops")
+    hops.pending.last?()
+    #expect(delivered == [0.43], "a hop queued before untracking is dropped")
+  }
+
+  @Test func aFinishedTaskIsReleasedWithoutAnEngine() {
+    let hops = Hops()
+    let relay = PutioOfflineDownloadRelay(dispatch: { hops.pending.append($0) })
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.invalidateAndCancel() }
+    let task = session.dataTask(with: URL(string: "https://download.test/task")!)
+    let gate = PutioOfflineProgressGate()
+    relay.track(task, with: gate)
+
+    relay.urlSession(session, task: task, didCompleteWithError: nil)
+
+    relay.progressed(task, 0.5)
+    #expect(hops.pending.count == 1, "only the completion hops")
+    #expect(!gate.delivers(1))
+  }
+
+  @Test func restoreDropsABufferedFailureFromAReplacedTask() async throws {
+    try PutioOfflineEventJournal.save([])
+    defer {
+      try? PutioOfflineEventJournal.retry()
+      try? PutioOfflineEventJournal.save([])
+    }
+    let relay = PutioOfflineDownloadRelay(dispatch: { work in MainActor.assumeIsolated { work() } })
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.invalidateAndCancel() }
+    func task(_ description: String) -> URLSessionTask {
+      let task = session.dataTask(with: URL(string: "https://download.test/task")!)
+      task.taskDescription = description
+      return task
+    }
+    let replaced = task("7:5")
+    let live = task("7:5")
+    let finished = task("7:6")
+    // A background relaunch: no engine listens yet, so the relay buffers.
+    let lost = URLError(.networkConnectionLost)
+    relay.urlSession(session, task: replaced, didCompleteWithError: lost)
+    relay.urlSession(session, task: finished, didCompleteWithError: nil)
+    let engine = PutioSystemOfflineDownloadEngine(
+      accountID: 7, relay: relay, allTasks: { [live] })
+    defer { engine.stop() }
+    var reported: [(id: Int, succeeded: Bool)] = []
+    engine.onFinished = { id, error in reported.append((id.rawValue, error == nil)) }
+
+    let restored = await engine.restoreTasks()
+
+    #expect(restored == [PutioFileID(rawValue: 5)])
+    #expect(reported.map(\.id) == [6], "the replaced task's failure never reaches file 5")
+    #expect(reported.map(\.succeeded) == [true])
   }
 
   private func expectCancellation(of task: Task<Void, Error>) async {
