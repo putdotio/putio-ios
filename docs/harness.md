@@ -224,9 +224,12 @@ folder and previews the image. Neither journey writes files.
 Signing out revokes the run's grant. After any approval, even a failed one, the
 harness relaunches the app with `--putio-harness-live-sign-out`: the app restores
 any saved session, signs it out, and reports the result. The journey fails
-unless that relaunch finds no session or revokes it. The CLI cannot list
-authorized apps, so check Account > Security > "Where you're signed in" in
-the app or on the web.
+unless that relaunch finds no session or revokes it. The CLI refuses to list
+authorized apps. The iOS journey captures Account > Security > "Where you're
+signed in" while signed in, but put.io lists grants per app, not per session, so
+that screen cannot show whether one run's token is gone. The cleanup result is
+the per-run evidence. That capture shows every app on the shared account, so
+review it before sharing.
 
 Capture never uploads implicitly. Review the artifact and obtain publishing
 authorization, then upload it to the pull request:
