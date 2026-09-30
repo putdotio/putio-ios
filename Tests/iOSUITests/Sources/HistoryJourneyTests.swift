@@ -23,6 +23,9 @@ final class HistoryJourneyTests: XCTestCase {
     let missingEvent = element("history.item.808")
     XCTAssertTrue(folderEvent.waitForExistence(timeout: 10))
     XCTAssertTrue(app.staticTexts["Today"].exists)
+    XCTAssertTrue(
+      app.staticTexts.matching(NSPredicate(format: "label ENDSWITH %@", " ago")).firstMatch.exists,
+      "event times must read as relative dates, not running durations")
     XCTAssertFalse(element("history.item.807").exists, "unknown event was rendered")
     let moreRetry = app.buttons["history.more-retry"]
     reveal(moreRetry)
@@ -32,7 +35,8 @@ final class HistoryJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Yesterday"].exists)
     for id in [805, 804, 803, 802, 801] {
       reveal(element("history.item.\(id)"))
-      if id == 803 { XCTAssertTrue(app.staticTexts["Earlier"].exists) }
+      if id == 803 { XCTAssertTrue(app.staticTexts["Last week"].exists) }
+      if id == 801 { XCTAssertTrue(app.staticTexts["Ancient times"].exists) }
     }
     XCTAssertFalse(moreRetry.exists)
     scrollToTop()

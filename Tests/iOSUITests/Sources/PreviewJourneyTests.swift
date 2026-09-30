@@ -76,7 +76,7 @@ final class PreviewJourneyTests: XCTestCase {
     XCTAssertEqual(archive.value as? String, "Unsupported file")
     archive.tap()
     XCTAssertTrue(element("unsupported.screen.407").waitForExistence(timeout: 5))
-    XCTAssertTrue(app.staticTexts["Cannot open this file"].exists)
+    XCTAssertTrue(app.staticTexts["Unsupported file type"].exists)
     XCTAssertFalse(app.activityIndicators.firstMatch.exists)
     screenshot("runtime-preview-unsupported")
     app.buttons["unsupported.done"].tap()

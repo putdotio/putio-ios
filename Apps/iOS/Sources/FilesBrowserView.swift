@@ -2,6 +2,12 @@ import Foundation
 import PutioCore
 import SwiftUI
 
+extension EnvironmentValues {
+  /// The account's default folder sort, which folders without their own
+  /// sort inherit.
+  @Entry var putioDefaultFolderSort: PutioFolderSort? = nil
+}
+
 typealias PutioFileSelection = @MainActor @Sendable (PutioFileRoute) -> Void
 typealias PutioRootLoaded = @MainActor @Sendable () -> Void
 
@@ -280,9 +286,13 @@ struct PutioFolderScreen: View {
   @State private var startedActionRequest: FileActionRequest?
   @State private var toast: PutioToast?
   @State private var selectedIDs: Set<PutioFileID> = []
+  // Rows a Trash move hides in the tapping transaction, so a destructive
+  // swipe closes over a removed row instead of a row that vanishes later.
+  @State private var trashingIDs: Set<PutioFileID> = []
   @State private var editMode: EditMode = .inactive
   @State private var refreshRegistration: PutioFolderRefreshRegistration
   @State private var lastKnownFolderName: String?
+  @Environment(\.putioDefaultFolderSort) private var defaultSort
   private let relativeDateReference: Date?
   private let locale: Locale
   private let load: PutioFolderLoad
@@ -450,8 +460,8 @@ struct PutioFolderScreen: View {
     .sheet(item: $pendingMove) { selection in
       PutioMovePicker(
         items: selection.items,
-        load: load,
-        continueLoad: continueLoad,
+        load: actions?.loadFolders ?? load,
+        continueLoad: actions?.continueFolders ?? continueLoad,
         actions: actions,
         refreshRequests: refreshRequests,
         onMove: { destination in
@@ -622,13 +632,14 @@ struct PutioFolderScreen: View {
       .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
     } else {
       List(selection: isEditing && !fileActionPending ? $selectedIDs : nil) {
-        ForEach(contents.items) { item in
+        ForEach(contents.items.filter { !trashingIDs.contains($0.id) }) { item in
           VStack(spacing: 0) {
             row(
               PutioBrowserItemPresentation(
                 item: item,
                 relativeTo: relativeDateReference ?? .now,
-                locale: locale
+                locale: locale,
+                sort: contents.sort ?? defaultSort
               )
             )
           }
@@ -786,7 +797,13 @@ struct PutioFolderScreen: View {
 
   private func deleteButton(for item: PutioFileItem) -> some View {
     Button(role: .destructive) {
-      pendingDeletion = item
+      // Trash is recoverable, so only a permanent deletion asks first.
+      if trashEnabled {
+        trashingIDs.insert(item.id)
+        actionRequest = .delete(item)
+      } else {
+        pendingDeletion = item
+      }
     } label: {
       Label(deleteActionTitle, systemImage: "trash")
     }
@@ -824,7 +841,13 @@ struct PutioFolderScreen: View {
 
   private var bulkDeleteButton: some View {
     Button(role: .destructive) {
-      pendingBulkDeletion = selectedItems
+      if trashEnabled {
+        let items = selectedItems
+        guard !items.isEmpty else { return }
+        actionRequest = .bulkDelete(items)
+      } else {
+        pendingBulkDeletion = selectedItems
+      }
     } label: {
       Label(deleteActionTitle, systemImage: "trash")
     }
@@ -907,12 +930,19 @@ struct PutioFolderScreen: View {
     switch route.openAction {
     case .video, .audio:
       guard route.item.isWatched else { return "Not watched" }
-      return "Watched, resume position \(route.item.resumePositionSeconds) seconds"
+      return
+        "Watched, resume at \(Self.resumePositionText(seconds: route.item.resumePositionSeconds))"
     case .preview(let preview):
       return preview.kind == .image ? "Image" : "Document"
     case .unsupported:
       return "Unsupported file"
     }
+  }
+
+  /// Spoken as a time, such as "12 minutes, 5 seconds", not raw seconds.
+  static func resumePositionText(seconds: Int) -> String {
+    Duration.seconds(seconds).formatted(
+      .units(allowed: [.hours, .minutes, .seconds], width: .wide))
   }
 
   private func selectionAccessibilityValue(for item: PutioFileItem) -> String {
@@ -1110,6 +1140,8 @@ struct PutioFolderScreen: View {
       }
     }
     guard actionRequest == request else { return }
+    // The model now holds the optimistic removal or its rollback.
+    trashingIDs = []
     actionRequest = nil
     startedActionRequest = nil
     selectedIDs.formIntersection(currentItems.map(\.id))
@@ -1605,7 +1637,7 @@ private struct PutioBulkProgressSurface: ViewModifier {
   }
 }
 
-private struct PutioSelectionTabBarVisibility: ViewModifier {
+struct PutioSelectionTabBarVisibility: ViewModifier {
   let isEditing: Bool
 
   @ViewBuilder func body(content: Content) -> some View {

@@ -520,6 +520,7 @@ private struct MainTabView: View {
         )
       }
     }
+    .environment(\.putioDefaultFolderSort, account.defaultSort)
     // Shrink-on-scroll is opt-in on iOS 26 and part of the ios-e10 treatment.
     .tabBarMinimizeBehavior(.onScrollDown)
     .task { await appConfig.loadIfNeeded() }
@@ -1184,11 +1185,10 @@ private struct AccountView: View {
           LabeledContent("Email", value: account.email)
         }
         Section {
-          NavigationLink("File Preferences") {
+          NavigationLink("File preferences") {
             FilePreferencesView(
               runtime: runtime,
-              refreshRequests: refreshRequests,
-              trashReconciliation: trashReconciliation
+              refreshRequests: refreshRequests
             )
           }
           .accessibilityIdentifier("account.file-preferences")
@@ -1233,14 +1233,16 @@ private struct AccountView: View {
             .disabled(isRefreshingStorage)
             .accessibilityIdentifier("account.storage-retry")
           }
-          NavigationLink("Trash") {
-            TrashManagementView(
-              runtime: runtime,
-              reconciliation: trashReconciliation,
-              onRestored: reconcileRestoredFile
-            )
+          if account.trashEnabled {
+            NavigationLink("Manage your trash") {
+              TrashManagementView(
+                runtime: runtime,
+                reconciliation: trashReconciliation,
+                onRestored: reconcileRestoredFile
+              )
+            }
+            .accessibilityIdentifier("account.trash")
           }
-          .accessibilityIdentifier("account.trash")
         }
         if let reviewURL = PutioAppStoreReview.url() {
           Section("Support") {

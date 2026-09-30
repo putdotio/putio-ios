@@ -13,12 +13,18 @@ public struct PutioFileRowModel: Equatable, Sendable {
   public let name: String
   public let kind: Kind
   public let sizeText: String?
+  /// An optional second detail line, such as a Trash expiry date.
+  public let secondaryText: String?
   public let isWatched: Bool
 
-  public init(name: String, kind: Kind, sizeText: String? = nil, isWatched: Bool = false) {
+  public init(
+    name: String, kind: Kind, sizeText: String? = nil, secondaryText: String? = nil,
+    isWatched: Bool = false
+  ) {
     self.name = name
     self.kind = kind
     self.sizeText = sizeText
+    self.secondaryText = secondaryText
     self.isWatched = isWatched
   }
 
@@ -76,6 +82,14 @@ public struct PutioFileRow: View {
     #endif
   }
 
+  private func detail(_ text: String) -> some View {
+    Text(text)
+      .putioFont(PutioFileRowLayout.detailFont)
+      .foregroundStyle(PutioTheme.Colors.textSecondary)
+      .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+      .fixedSize(horizontal: false, vertical: true)
+  }
+
   private var content: some View {
     HStack(spacing: contentGap) {
       Image(putioIcon: model.icon)
@@ -91,11 +105,10 @@ public struct PutioFileRow: View {
           .truncationMode(.middle)
           .fixedSize(horizontal: false, vertical: true)
         if let sizeText = model.sizeText {
-          Text(sizeText)
-            .putioFont(PutioFileRowLayout.detailFont)
-            .foregroundStyle(PutioTheme.Colors.textSecondary)
-            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
-            .fixedSize(horizontal: false, vertical: true)
+          detail(sizeText)
+        }
+        if let secondaryText = model.secondaryText {
+          detail(secondaryText)
         }
       }
       .frame(

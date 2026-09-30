@@ -164,6 +164,31 @@ final class PutioFileRouteTests: XCTestCase {
     XCTAssertFalse(detail.hasSuffix(" · "))
   }
 
+  func testRowDateShowsWhenAddedOnlyUnderDateAddedSort() {
+    // The fixture was added two days and last changed one day before now.
+    let item = BrowserTestFixtures.item(id: 15, kind: .video)
+    func relativeDate(_ sort: PutioFolderSort?) -> String? {
+      PutioBrowserItemPresentation(
+        item: item,
+        relativeTo: BrowserTestFixtures.referenceDate,
+        locale: Locale(identifier: "en_US"),
+        sort: sort
+      ).row.sizeText?.components(separatedBy: " · ").last
+    }
+
+    XCTAssertEqual(relativeDate(.dateAddedDescending), "2 days ago")
+    XCTAssertEqual(relativeDate(.dateAddedAscending), "2 days ago")
+    XCTAssertEqual(relativeDate(.dateModifiedDescending), "yesterday")
+    XCTAssertEqual(relativeDate(.nameAscending), "yesterday")
+    XCTAssertEqual(relativeDate(nil), "yesterday")
+  }
+
+  func testSortKeysUseTheSharedProductLabels() {
+    XCTAssertEqual(
+      PutioFolderSortKey.allCases.map(\.title),
+      ["Name", "Size", "Date Added", "Date Modified", "Type", "Watch Status"])
+  }
+
   func testRowRelativeDateFollowsEachRequestedLocale() {
     let item = BrowserTestFixtures.item(id: 14, kind: .video)
     func relativeDate(_ identifier: String) -> String? {

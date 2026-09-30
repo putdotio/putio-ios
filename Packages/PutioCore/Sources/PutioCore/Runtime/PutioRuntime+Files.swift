@@ -9,6 +9,41 @@ extension PutioRuntime {
     return folderContents(from: result)
   }
 
+  /// Lists only the folders under `parentID`, for picking a move destination.
+  /// Continue with `continueFolders`; the cursor keeps the folder filter. The
+  /// shared-with-you root is not a destination, so every page drops it.
+  public func listFolders(parentID: PutioFileID = .root) async throws -> PutioFolderContents {
+    let result = try await performAuthenticatedOperation {
+      try await sdk.getFiles(
+        parentID: parentID.rawValue, query: PutioFilesListQuery(fileType: .folder))
+    }
+    return destinations(from: result)
+  }
+
+  /// Fetches the page after `cursor` for a listing started by `listFolders`.
+  public func continueFolders(cursor: String) async throws -> PutioFolderContents {
+    let result = try await performAuthenticatedOperation {
+      try await sdk.continueFiles(cursor: cursor)
+    }
+    if let nextCursor = result.cursor, !nextCursor.isEmpty, nextCursor == cursor {
+      throw PutioRuntimeError.invalidResponse
+    }
+    return destinations(from: result)
+  }
+
+  private func destinations(from result: PutioFilesListResult) -> PutioFolderContents {
+    let contents = folderContents(from: result)
+    let sharedRootIDs = Set(
+      result.children.filter(\.isSharedRoot).map { PutioFileID(rawValue: $0.id) })
+    guard !sharedRootIDs.isEmpty else { return contents }
+    return PutioFolderContents(
+      folder: contents.folder,
+      items: contents.items.filter { !sharedRootIDs.contains($0.id) },
+      nextCursor: contents.nextCursor,
+      sort: contents.sort
+    )
+  }
+
   /// Fetches the page after `cursor` for a listing started by `listFiles`.
   public func continueFiles(cursor: String) async throws -> PutioFolderContents {
     let result = try await performAuthenticatedOperation {
@@ -90,6 +125,41 @@ extension PutioRuntime {
     }
 
     throw runtimeError(forStructuredStatusCode: response.errors[0].statusCode)
+  }
+
+  /// Moves every file in one request. Returns the items the server reported
+  /// as failed; a thrown error means none of them moved.
+  public func moveFiles(
+    fileIDs: [PutioFileID], to parentID: PutioFileID
+  ) async throws -> [PutioFileID: PutioRuntimeError] {
+    guard !fileIDs.isEmpty else { return [:] }
+    let response = try await performAuthenticatedOperation {
+      try await sdk.moveFiles(fileIDs: fileIDs.map(\.rawValue), parentID: parentID.rawValue)
+    }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+    let requested = Set(fileIDs)
+    var failures: [PutioFileID: PutioRuntimeError] = [:]
+    for error in response.errors {
+      let id = PutioFileID(rawValue: error.id)
+      guard requested.contains(id), failures[id] == nil else {
+        throw PutioRuntimeError.invalidResponse
+      }
+      failures[id] = runtimeError(forStructuredStatusCode: error.statusCode)
+    }
+    return failures
+  }
+
+  /// Deletes every file in one request; the server applies it to all or none.
+  public func deleteFiles(fileIDs: [PutioFileID]) async throws {
+    guard !fileIDs.isEmpty else { return }
+    guard !session.isAccountPreferencesStale, !session.isUpdatingAccountPreferences else {
+      throw PutioRuntimeError.transient
+    }
+    // The SDK throws only for HTTP errors; a 2xx body can still report failure.
+    let response = try await performAuthenticatedOperation {
+      try await sdk.deleteFiles(fileIDs: fileIDs.map(\.rawValue))
+    }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
   }
 
   public func deleteFile(fileID: PutioFileID) async throws {

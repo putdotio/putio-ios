@@ -168,6 +168,8 @@ struct FilesSearchView: View {
 
   @State private var query = ""
   @State private var model: PutioFileSearchModel
+  @State private var itemActions: PutioFileItemActionModel
+  @State private var itemAction: PutioFileItemActionRequest?
 
   init(
     runtime: PutioRuntime,
@@ -184,6 +186,9 @@ struct FilesSearchView: View {
         search: { try await runtime.searchFiles(query: $0) },
         continueSearch: { try await runtime.continueFileSearch(cursor: $0) }
       ))
+    _itemActions = State(
+      initialValue: PutioFileItemActionModel(
+        actions: PutioFileActions(runtime: runtime), refreshRequests: refreshRequests))
   }
 
   var body: some View {
@@ -206,6 +211,18 @@ struct FilesSearchView: View {
             onFileSelected: onFileSelected
           )
         }
+        .modifier(
+          PutioFileItemActionsHost(
+            request: $itemAction,
+            model: itemActions,
+            actions: PutioFileActions(runtime: runtime),
+            load: { try await runtime.listFiles(parentID: $0) },
+            continueLoad: { try await runtime.continueFiles(cursor: $0) },
+            trashEnabled: trashEnabled,
+            refreshRequests: refreshRequests
+          )
+        )
+        .onChange(of: model.state) { itemActions.revealHiddenItems() }
     }
   }
 
@@ -250,7 +267,7 @@ struct FilesSearchView: View {
             }
             .listRowBackground(PutioTheme.Colors.background)
           }
-          ForEach(page.items) { item in
+          ForEach(page.items.filter { !itemActions.hiddenIDs.contains($0.id) }) { item in
             resultRow(PutioBrowserItemPresentation(item: item))
               .listRowBackground(PutioTheme.Colors.background)
           }
@@ -299,6 +316,27 @@ struct FilesSearchView: View {
       }
     }
     .accessibilityIdentifier("files.search-item.\(presentation.id.rawValue)")
+    .contextMenu { itemActionButtons(for: presentation.item) }
+    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+      itemActionButtons(for: presentation.item).deleteButton
+        .tint(PutioTheme.Colors.destructive)
+    }
+    .swipeActions(edge: .leading, allowsFullSwipe: false) {
+      itemActionButtons(for: presentation.item).moveButton
+        .tint(PutioTheme.Colors.accent)
+    }
+  }
+
+  private func itemActionButtons(for item: PutioFileItem) -> PutioFileItemActionButtons {
+    PutioFileItemActionButtons(
+      item: item,
+      trashEnabled: trashEnabled,
+      isDisabled: !itemActions.canStartAction || itemAction != nil,
+      canDelete: itemActions.canDelete
+    ) { request in
+      if trashEnabled, case .delete(let item) = request { itemActions.hideForTrash(item) }
+      itemAction = request
+    }
   }
 
   private struct Request: Equatable {

@@ -149,6 +149,49 @@ extension PutioRuntimeTests {
     }
   }
 
+  func testBatchTrashMutationsSendEveryIDInOneRequest() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashDeleteRoute)
+    let fileIDs = [91, 92].map(PutioFileID.init(rawValue:))
+
+    try await runtime.restoreTrashItems(fileIDs: fileIDs)
+    let deleted = try await runtime.permanentlyDeleteTrashItems(fileIDs: fileIDs)
+
+    XCTAssertTrue(deleted.storageRefreshed)
+    let mutations = fixtures.capturedRequests().filter {
+      ["/v2/trash/restore", "/v2/trash/delete"].contains($0.url?.path)
+    }
+    XCTAssertEqual(
+      mutations.compactMap { $0.url?.path }, ["/v2/trash/restore", "/v2/trash/delete"])
+    for request in mutations {
+      let body = try XCTUnwrap(requestBodyData(for: request))
+      let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+      XCTAssertEqual(json["file_ids"] as? String, "91,92")
+    }
+  }
+
+  func testRestoreAllUsesTheListingCursorAndFallsBackToLoadedIDs() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
+
+    try await runtime.restoreAllTrash(
+      cursor: "trash-listing", loadedFileIDs: [PutioFileID(rawValue: 91)])
+    try await runtime.restoreAllTrash(
+      cursor: nil, loadedFileIDs: [91, 92].map(PutioFileID.init(rawValue:)))
+
+    let restores = fixtures.capturedRequests().filter { $0.url?.path == "/v2/trash/restore" }
+    XCTAssertEqual(restores.count, 2)
+    let bodies = try restores.map { request -> [String: Any] in
+      let body = try XCTUnwrap(requestBodyData(for: request))
+      return try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    }
+    XCTAssertEqual(bodies[0]["cursor"] as? String, "trash-listing")
+    XCTAssertNil(bodies[0]["file_ids"], "a cursor restore must not narrow to loaded rows")
+    XCTAssertEqual(bodies[1]["file_ids"] as? String, "91,92")
+    XCTAssertNil(bodies[1]["cursor"])
+  }
+
   func testRestoreSurfacesCancellationDuringDestinationLookup() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(#"{"status":"OK"}"#, for: Self.trashRestoreRoute)
