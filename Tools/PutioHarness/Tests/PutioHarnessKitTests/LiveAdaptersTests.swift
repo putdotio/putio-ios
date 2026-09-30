@@ -168,6 +168,19 @@ struct LiveAdaptersTests {
       ])
   }
 
+  @Test func refusedApprovalWritesNothing() throws {
+    let putio = try FakePutio(folderExists: true, fileExists: true)
+    defer { putio.remove() }
+
+    #expect(throws: HarnessFailure.self) {
+      try putio.adapters.approveDeviceCode("AB12CD") { _ in
+        throw HarnessFailure("cleanup started")
+      }
+    }
+
+    #expect(try putio.calls().map { $0.contains("--dry-run") } == [true])
+  }
+
   @Test(arguments: ["", "AB 12", "AB12;rm", "AB12\nCD", "ABC", String(repeating: "A", count: 17)])
   func refusesMalformedCodesBeforeCallingTheCLI(code: String) throws {
     let putio = try FakePutio(folderExists: true, fileExists: true)
@@ -205,22 +218,67 @@ struct LiveSessionContractTests {
     #expect(LiveSessionContract.outcome(from: Data("signed-in".utf8)) == nil)
   }
 
-  @Test func retriesRevocationUntilProvenThenReusesIt() throws {
-    var outcomes: [LiveCleanup] = [
-      LiveCleanup(outcome: .signOutFailed, revocationRecorded: false),
-      LiveCleanup(outcome: .signedOut, revocationRecorded: true),
-    ]
+}
+
+/// Events recorded from several threads, in order.
+private final class EventLog: @unchecked Sendable {
+  private let lock = NSLock()
+  private var events: [String] = []
+
+  func record(_ event: String) { lock.withLock { events.append(event) } }
+  var recorded: [String] { lock.withLock { events } }
+  var count: Int { lock.withLock { events.count } }
+}
+
+struct LiveGrantTests {
+  @Test func revokesOnceAndReusesTheResult() throws {
     var attempts = 0
-    let revocation = LiveRevocation {
+    let grant = LiveGrant {
       attempts += 1
-      return outcomes.removeFirst()
+      return LiveCleanup(outcome: .signOutFailed, revocationRecorded: false)
     }
+    try grant.approve {}
 
-    #expect(throws: HarnessFailure.self) { try revocation.requireRevoked() }
-    try revocation.requireRevoked()
-    try revocation.requireRevoked()
+    #expect(throws: HarnessFailure.self) { try grant.requireRevoked() }
+    #expect(throws: HarnessFailure.self) { try grant.requireRevoked() }
+    #expect(attempts == 1)
+  }
 
-    #expect(attempts == 2)
+  @Test func refusesApprovalOnceCleanupHasStarted() throws {
+    var wrote = false
+    let grant = LiveGrant { LiveCleanup(outcome: .signedOut, revocationRecorded: true) }
+
+    try grant.requireRevoked()
+    #expect(throws: HarnessFailure.self) { try grant.approve { wrote = true } }
+
+    #expect(!wrote)
+    #expect(try grant.revoke() == nil)
+  }
+
+  /// An interrupt that arrives while the approval write runs revokes only
+  /// after it, never alongside it.
+  @Test func revocationWaitsForAnApprovalInFlight() throws {
+    let log = EventLog()
+    let grant = LiveGrant {
+      log.record("revoke")
+      return LiveCleanup(outcome: .signedOut, revocationRecorded: true)
+    }
+    let writing = DispatchSemaphore(value: 0)
+    let revoked = DispatchSemaphore(value: 0)
+    let worker = Thread {
+      try? grant.approve {
+        writing.signal()
+        _ = revoked.wait(timeout: .now() + 1)
+        log.record("approve")
+      }
+    }
+    worker.start()
+    #expect(writing.wait(timeout: .now() + 5) == .success)
+
+    try grant.requireRevoked()
+    revoked.signal()
+
+    #expect(log.recorded == ["approve", "revoke"])
   }
 }
 
@@ -233,11 +291,12 @@ struct LiveInterruptTests {
     let lifecycle = SimulatorLifecycle()
     var events: [String] = []
     try lifecycle.register { events.append("delete simulator") }
-    let revocation = LiveRevocation {
+    let grant = LiveGrant {
       events.append("revoke")
       return revocationResult
     }
-    try lifecycle.register(beforeSimulatorTeardown: true) { try revocation.requireRevoked() }
+    try lifecycle.register(beforeSimulatorTeardown: true) { try grant.requireRevoked() }
+    try grant.approve {}
     do {
       try lifecycle.cleanup()
       return (events, nil)
@@ -302,29 +361,55 @@ struct LiveCleanupRetryTests {
 struct LiveInterruptTeardownTests {
   @Test func workerLeavesSimulatorTeardownToAnInterruptInProgress() throws {
     let lifecycle = SimulatorLifecycle()
-    let lock = NSLock()
-    var events: [String] = []
-    func record(_ event: String) { lock.withLock { events.append(event) } }
+    let log = EventLog()
     let revocationStarted = DispatchSemaphore(value: 0)
     let workerFinished = DispatchSemaphore(value: 0)
-    try lifecycle.register { record("delete simulator") }
+    try lifecycle.register { log.record("delete simulator") }
     try lifecycle.register(beforeSimulatorTeardown: true) {
       revocationStarted.signal()
       _ = workerFinished.wait(timeout: .now() + 5)
-      record("revoke")
+      log.record("revoke")
     }
     let interrupt = Thread { try? lifecycle.cleanup() }
     interrupt.start()
 
     #expect(revocationStarted.wait(timeout: .now() + 5) == .success)
-    try lifecycle.endSession { record("worker deletes simulator") }
+    try lifecycle.endSession { log.record("worker deletes simulator") }
     workerFinished.signal()
     let deadline = Date().addingTimeInterval(5)
-    while lock.withLock({ events.count < 2 }), Date() < deadline {
+    while log.count < 2, Date() < deadline {
       Thread.sleep(forTimeInterval: 0.01)
     }
 
-    #expect(lock.withLock { events } == ["revoke", "delete simulator"])
+    #expect(log.recorded == ["revoke", "delete simulator"])
+  }
+
+  /// An interrupt that arrives after the worker claimed teardown waits for it
+  /// instead of revoking against a simulator being deleted.
+  @Test func interruptWaitsForATeardownTheWorkerAlreadyClaimed() throws {
+    let lifecycle = SimulatorLifecycle()
+    let log = EventLog()
+    let interruptRan = DispatchSemaphore(value: 0)
+    try lifecycle.register { log.record("interrupt deletes simulator") }
+    try lifecycle.register(beforeSimulatorTeardown: true) {
+      log.record("interrupt revokes")
+      interruptRan.signal()
+    }
+    let interruptDone = DispatchSemaphore(value: 0)
+
+    try lifecycle.endSession {
+      log.record("worker deletes simulator")
+      Thread {
+        try? lifecycle.cleanup()
+        interruptDone.signal()
+      }.start()
+      // Long enough for an unsynchronized interrupt to run its actions here.
+      _ = interruptRan.wait(timeout: .now() + 1)
+      log.record("worker teardown done")
+    }
+    #expect(interruptDone.wait(timeout: .now() + 5) == .success)
+
+    #expect(log.recorded == ["worker deletes simulator", "worker teardown done"])
   }
 
   @Test func workerTearsDownWhenNoInterruptIsRunning() throws {

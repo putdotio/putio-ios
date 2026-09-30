@@ -166,7 +166,12 @@ public struct LiveAdapters: Sendable {
 
   /// Approves an activation code shown by a harness-launched app, linking a
   /// new grant for that app to the devs-auto account.
-  func approveDeviceCode(_ code: String) throws {
+  /// `authorizeWrite` receives the approval write and decides whether it may
+  /// run; the dry-run before it writes nothing.
+  func approveDeviceCode(
+    _ code: String,
+    authorizeWrite: (() throws -> Void) throws -> Void = { try $0() }
+  ) throws {
     guard let code = LiveSessionContract.deviceCode(from: Data(code.utf8)) else {
       throw HarnessFailure("refusing to approve a malformed activation code")
     }
@@ -174,9 +179,11 @@ public struct LiveAdapters: Sendable {
     _ = try putio(
       ["auth", "approve", "--json", payload, "--dry-run", "--output", "json"],
       context: "validate putio activation code approval")
-    _ = try putio(
-      ["auth", "approve", "--json", payload, "--output", "json"],
-      context: "approve putio activation code")
+    try authorizeWrite {
+      _ = try putio(
+        ["auth", "approve", "--json", payload, "--output", "json"],
+        context: "approve putio activation code")
+    }
   }
 
   private func listFiles(parentID: Int, fileType: String?) throws -> [PutioFileList.File] {

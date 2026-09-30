@@ -230,9 +230,12 @@ saved or pending token, signs it out, and reports the result. The harness makes
 up to three attempts while a launch fails, times out, or cannot revoke the saved
 token. A missing token is not proof: the
 journey passes only when put.io revoked or rejected the token in this launch or
-an earlier one. On SIGINT or SIGTERM after approval, this revocation runs before
-the simulator is deleted, and the interrupted command leaves simulator teardown
-to the interrupt cleanup. If an approval is interrupted before the app saves its
+an earlier one. The journey and the interrupt handler share one guard for the
+run's grant. The approval write runs inside it, so SIGINT or SIGTERM either
+cancels an approval that has not started or revokes after it finishes. Revocation
+runs once, before simulator deletion. Interrupt cleanup waits for a simulator
+teardown the finished command has already started, and otherwise does the
+teardown itself. If an approval is interrupted before the app saves its
 token, nothing in the simulator can revoke the grant. The harness then reports
 that the grant may still be live and names the manual revocation.
 

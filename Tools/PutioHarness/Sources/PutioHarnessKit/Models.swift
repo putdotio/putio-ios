@@ -300,36 +300,73 @@ func retryLiveCleanup(
     "live cleanup launch failed \(attempts) times\n" + failures.joined(separator: "\n"))
 }
 
-/// Runs the live cleanup launch at most until it proves revocation. The
-/// journey and the interrupt handler share one instance, so whichever runs
-/// second reuses a proven result or retries a failed one.
-final class LiveRevocation: @unchecked Sendable {
-  private let lock = NSLock()
-  private let attempt: () throws -> LiveCleanup
-  private var proven: LiveCleanup?
-
-  init(_ attempt: @escaping () throws -> LiveCleanup) {
-    self.attempt = attempt
+/// One live run's grant, shared by the journey and the interrupt handler.
+/// Every transition happens under one lock:
+///
+///     idle ── approve ──▶ approved ── revoke ──▶ finished
+///       └──── revoke ───▶ cancelled
+///
+/// The approval write runs inside `approve`, so revocation either waits for
+/// it or has already cancelled it; no approval can start once revocation has.
+/// Revocation runs once, with its own retries, and later callers reuse its
+/// result, so the interrupt handler never retries alongside a teardown.
+final class LiveGrant: @unchecked Sendable {
+  private enum State {
+    case idle
+    case approved
+    case cancelled
+    case finished(Result<LiveCleanup, Error>)
   }
 
-  func run() throws -> LiveCleanup {
+  private let lock = NSLock()
+  private let revokeAttempts: () throws -> LiveCleanup
+  private var state = State.idle
+
+  init(revoke: @escaping () throws -> LiveCleanup) {
+    revokeAttempts = revoke
+  }
+
+  /// Runs the approval write unless cleanup has already started. A failed
+  /// write still counts as approved: put.io may have linked the grant.
+  func approve(_ write: () throws -> Void) throws {
     try lock.withLock {
-      if let proven { return proven }
-      let cleanup = try attempt()
-      if cleanup.isRevoked { proven = cleanup }
-      return cleanup
+      guard case .idle = state else {
+        throw HarnessFailure("live approval refused: harness cleanup already started")
+      }
+      state = .approved
+      try write()
     }
   }
 
-  /// Interrupt-time cleanup: fails loudly unless revocation is proven.
+  /// The cleanup result, or nil when no approval write ever started.
+  func revoke() throws -> LiveCleanup? {
+    try lock.withLock {
+      switch state {
+      case .idle, .cancelled:
+        state = .cancelled
+        return nil
+      case .finished(let result):
+        return try result.get()
+      case .approved:
+        let result = Result { try revokeAttempts() }
+        state = .finished(result)
+        return try result.get()
+      }
+    }
+  }
+
+  /// Interrupt-time cleanup: fails loudly unless nothing was approved or
+  /// revocation is proven.
   func requireRevoked() throws {
-    let cleanup: LiveCleanup
+    let cleanup: LiveCleanup?
     do {
-      cleanup = try run()
+      cleanup = try revoke()
     } catch {
       throw HarnessFailure("live revocation failed: \(error); \(LiveCleanup.possiblyLive)")
     }
-    guard cleanup.isRevoked else { throw HarnessFailure("live session: \(cleanup.summary)") }
+    if let cleanup, !cleanup.isRevoked {
+      throw HarnessFailure("live session: \(cleanup.summary)")
+    }
   }
 }
 
