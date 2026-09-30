@@ -167,6 +167,9 @@ struct FilesSearchView: View {
   @State private var model: PutioFileSearchModel
   @State private var itemActions: PutioFileItemActionModel
   @State private var itemAction: PutioFileItemActionRequest?
+  // Results a Trash move hides in the tapping transaction, until the search
+  // reloads or the move fails.
+  @State private var trashingIDs: Set<PutioFileID> = []
 
   init(
     runtime: PutioRuntime,
@@ -216,7 +219,12 @@ struct FilesSearchView: View {
             continueLoad: { try await runtime.continueFiles(cursor: $0) },
             trashEnabled: trashEnabled,
             refreshRequests: refreshRequests
-          ))
+          )
+        )
+        .onChange(of: model.state) { trashingIDs = [] }
+        .onChange(of: itemActions.outcome) { _, outcome in
+          if case .failed = outcome { trashingIDs = [] }
+        }
     }
   }
 
@@ -261,7 +269,7 @@ struct FilesSearchView: View {
             }
             .listRowBackground(PutioTheme.Colors.background)
           }
-          ForEach(page.items) { item in
+          ForEach(page.items.filter { !trashingIDs.contains($0.id) }) { item in
             resultRow(PutioBrowserItemPresentation(item: item))
               .listRowBackground(PutioTheme.Colors.background)
           }
@@ -327,7 +335,10 @@ struct FilesSearchView: View {
       trashEnabled: trashEnabled,
       isDisabled: !itemActions.canStartAction || itemAction != nil,
       canDelete: itemActions.canDelete
-    ) { itemAction = $0 }
+    ) { request in
+      if trashEnabled, case .delete(let item) = request { trashingIDs.insert(item.id) }
+      itemAction = request
+    }
   }
 
   private struct Request: Equatable {

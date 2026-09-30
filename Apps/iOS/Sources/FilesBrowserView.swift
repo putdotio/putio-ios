@@ -286,6 +286,9 @@ struct PutioFolderScreen: View {
   @State private var startedActionRequest: FileActionRequest?
   @State private var toast: PutioToast?
   @State private var selectedIDs: Set<PutioFileID> = []
+  // Rows a Trash move hides in the tapping transaction, so a destructive
+  // swipe closes over a removed row instead of a row that vanishes later.
+  @State private var trashingIDs: Set<PutioFileID> = []
   @State private var editMode: EditMode = .inactive
   @State private var refreshRegistration: PutioFolderRefreshRegistration
   @State private var lastKnownFolderName: String?
@@ -629,7 +632,7 @@ struct PutioFolderScreen: View {
       .accessibilityIdentifier("files.screen.\(route.id.rawValue)")
     } else {
       List(selection: isEditing && !fileActionPending ? $selectedIDs : nil) {
-        ForEach(contents.items) { item in
+        ForEach(contents.items.filter { !trashingIDs.contains($0.id) }) { item in
           VStack(spacing: 0) {
             row(
               PutioBrowserItemPresentation(
@@ -796,6 +799,7 @@ struct PutioFolderScreen: View {
     Button(role: .destructive) {
       // Trash is recoverable, so only a permanent deletion asks first.
       if trashEnabled {
+        trashingIDs.insert(item.id)
         actionRequest = .delete(item)
       } else {
         pendingDeletion = item
@@ -1136,6 +1140,8 @@ struct PutioFolderScreen: View {
       }
     }
     guard actionRequest == request else { return }
+    // The model now holds the optimistic removal or its rollback.
+    trashingIDs = []
     actionRequest = nil
     startedActionRequest = nil
     selectedIDs.formIntersection(currentItems.map(\.id))
