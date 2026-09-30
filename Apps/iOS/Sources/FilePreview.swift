@@ -482,7 +482,7 @@ struct PutioUnsupportedFileView: View {
     NavigationStack {
       PutioEmptyStateView(
         icon: .file,
-        title: "Cannot open this file",
+        title: "Unsupported file type",
         message: message
       )
       .accessibilityIdentifier("unsupported.screen.\(route.id.rawValue)")

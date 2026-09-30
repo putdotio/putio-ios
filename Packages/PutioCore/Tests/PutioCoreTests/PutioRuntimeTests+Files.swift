@@ -420,6 +420,95 @@ extension PutioRuntimeTests {
     }
   }
 
+  func testListFoldersRequestsOnlyFoldersAndHidesTheSharedRoot() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      """
+      {
+        "cursor": "folders-next",
+        "parent": {
+          "id": 0, "name": "Your Files", "file_type": "FOLDER", "parent_id": 0, "size": 0,
+          "created_at": "2026-08-01T10:00:00Z", "updated_at": "2026-08-01T10:00:00Z"
+        },
+        "files": [
+          {
+            "id": 21, "name": "Movies", "file_type": "FOLDER", "parent_id": 0, "size": 0,
+            "created_at": "2026-08-01T10:00:00Z", "updated_at": "2026-08-01T10:00:00Z"
+          },
+          {
+            "id": 22, "name": "items shared with you", "file_type": "FOLDER",
+            "folder_type": "SHARED_ROOT", "parent_id": 0, "size": 0,
+            "created_at": "2026-08-01T10:00:00Z", "updated_at": "2026-08-01T10:00:00Z"
+          }
+        ]
+      }
+      """,
+      for: Self.filesRoute
+    )
+
+    let contents = try await runtime.listFolders(parentID: PutioFileID(rawValue: 42))
+
+    XCTAssertEqual(contents.items.map(\.id), [PutioFileID(rawValue: 21)])
+    XCTAssertEqual(contents.nextCursor, "folders-next")
+    let request = try XCTUnwrap(fixtures.capturedRequests().last)
+    let query = try XCTUnwrap(
+      request.url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }?.queryItems)
+    XCTAssertEqual(query.first(where: { $0.name == "file_type" })?.value, "FOLDER")
+    XCTAssertEqual(query.first(where: { $0.name == "parent_id" })?.value, "42")
+  }
+
+  func testMoveFilesSendsOneBatchAndMapsEachReportedFailure() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      """
+      {
+        "status": "OK",
+        "errors": [
+          { "error_type": "MOVE_FAILED", "id": 92, "status_code": 404 },
+          { "error_type": "MOVE_FAILED", "id": 93, "status_code": 429 }
+        ]
+      }
+      """,
+      for: Self.moveFilesRoute
+    )
+
+    let failures = try await runtime.moveFiles(
+      fileIDs: [91, 92, 93].map(PutioFileID.init(rawValue:)),
+      to: PutioFileID(rawValue: 7)
+    )
+
+    XCTAssertEqual(
+      failures,
+      [PutioFileID(rawValue: 92): .notFound, PutioFileID(rawValue: 93): .rateLimited])
+    let moveRequests = fixtures.capturedRequests().filter { $0.url?.path == "/v2/files/move" }
+    XCTAssertEqual(moveRequests.count, 1)
+    let body = try XCTUnwrap(requestBodyData(for: try XCTUnwrap(moveRequests.first)))
+    let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    XCTAssertEqual(json["file_ids"] as? String, "91,92,93")
+    XCTAssertEqual(json["parent_id"] as? Int, 7)
+
+    fixtures.setFixture(
+      #"{"status":"OK","errors":[{"error_type":"MOVE_FAILED","id":99,"status_code":404}]}"#,
+      for: Self.moveFilesRoute)
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.moveFiles(
+        fileIDs: [PutioFileID(rawValue: 91)], to: PutioFileID(rawValue: 7))
+    }
+  }
+
+  func testDeleteFilesSendsOneBatch() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.deleteFilesRoute)
+
+    try await runtime.deleteFiles(fileIDs: [91, 92].map(PutioFileID.init(rawValue:)))
+
+    let deleteRequests = fixtures.capturedRequests().filter { $0.url?.path == "/v2/files/delete" }
+    XCTAssertEqual(deleteRequests.count, 1)
+    let body = try XCTUnwrap(requestBodyData(for: try XCTUnwrap(deleteRequests.first)))
+    let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    XCTAssertEqual(json["file_ids"] as? String, "91,92")
+  }
+
   func testMoveFileAuthenticationFailureUsesTheSharedSessionBoundary() async {
     let (runtime, tokenStore) = await makeSignedInRuntime()
     fixtures.setFixture(

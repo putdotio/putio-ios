@@ -185,12 +185,14 @@ struct HistoryView: View {
         Button {
           Task { await model.openFile(event: event) }
         } label: {
-          PutioHistoryRow(event: event, isOpening: model.openingEventID == event.id)
-            .contentShape(Rectangle())
+          PutioHistoryRow(
+            event: event, now: groupingDate, isOpening: model.openingEventID == event.id
+          )
+          .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
       } else {
-        PutioHistoryRow(event: event, isOpening: false)
+        PutioHistoryRow(event: event, now: groupingDate, isOpening: false)
       }
     }
     .accessibilityIdentifier("history.item.\(event.id)")
@@ -213,6 +215,7 @@ struct HistoryView: View {
 
 private struct PutioHistoryRow: View {
   let event: PutioHistoryEventItem
+  let now: Date
   let isOpening: Bool
 
   @PutioScaledMetric(PutioTheme.ScaledMetrics.contentGap) private var contentGap
@@ -233,7 +236,7 @@ private struct PutioHistoryRow: View {
         Text(presentation.detail)
           .putioFont(PutioTheme.Typography.caption)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
-        Text(event.createdAt, style: .relative)
+        Text(PutioBrowserItemPresentation.relativeDateText(for: event.createdAt, relativeTo: now))
           .putioFont(PutioTheme.Typography.caption)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
       }

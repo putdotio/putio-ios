@@ -5,19 +5,16 @@ import SwiftUI
 struct FilePreferencesView: View {
   let runtime: PutioRuntime
   let refreshRequests: PutioFolderRefreshRequests
-  let trashReconciliation: PutioTrashReconciliation
 
   @State private var model: PutioAccountPreferencesModel
   @State private var confirmation: Confirmation?
 
   init(
     runtime: PutioRuntime,
-    refreshRequests: PutioFolderRefreshRequests,
-    trashReconciliation: PutioTrashReconciliation
+    refreshRequests: PutioFolderRefreshRequests
   ) {
     self.runtime = runtime
     self.refreshRequests = refreshRequests
-    self.trashReconciliation = trashReconciliation
     _model = State(
       initialValue: PutioAccountPreferencesModel(
         actions: PutioAccountPreferenceActions(runtime: runtime)))
@@ -76,15 +73,6 @@ struct FilePreferencesView: View {
           Section {
             Toggle("Use Trash", isOn: trashEnabled)
               .accessibilityIdentifier("settings.trash")
-            NavigationLink("Manage Trash") {
-              TrashManagementView(
-                runtime: runtime, reconciliation: trashReconciliation,
-                onRestored: { destination in
-                  PutioRestoredFileReconciliation.apply(
-                    destinationID: destination, to: refreshRequests)
-                })
-            }
-            .accessibilityIdentifier("settings.manage-trash")
           } header: {
             Text("Trash")
           } footer: {

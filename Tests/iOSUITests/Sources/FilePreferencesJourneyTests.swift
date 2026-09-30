@@ -96,12 +96,8 @@ final class FilePreferencesJourneyTests: XCTestCase {
 
     tapToggle(trash)
     assertToggle(trash, enabled: true)
-    let trashEntry = element("settings.manage-trash")
-    XCTAssertTrue(waitUntilHittable(trashEntry))
-    trashEntry.tap()
-    XCTAssertTrue(app.staticTexts["Trash is empty"].waitForExistence(timeout: 10))
-    app.navigationBars.buttons["BackButton"].tap()
-    XCTAssertTrue(waitUntilHittable(trash))
+    // Trash is managed from Account › Storage only.
+    XCTAssertFalse(element("settings.manage-trash").exists)
     tapToggle(trash)
     trashConfirm.tap()
     assertToggle(trash, enabled: false)

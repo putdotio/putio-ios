@@ -1584,7 +1584,8 @@ final class PutioFolderModelTests: XCTestCase {
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
         renameFile: { _, _ in throw PutioRuntimeError.unknown },
-        deleteFile: { fileID in try await mutations.run(fileID: fileID) }
+        deleteFile: { fileID in try await mutations.run(fileID: fileID) },
+        batchSize: 1
       ),
       initialContents: original
     )
@@ -1664,7 +1665,8 @@ final class PutioFolderModelTests: XCTestCase {
       actions: PutioFileActions(
         createFolder: { _, _ in throw PutioRuntimeError.unknown },
         renameFile: { _, _ in throw PutioRuntimeError.unknown },
-        deleteFile: { fileID in try await mutations.run(fileID: fileID) }
+        deleteFile: { fileID in try await mutations.run(fileID: fileID) },
+        batchSize: 1
       ),
       initialContents: original
     )
@@ -1788,6 +1790,99 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(outcome.failures.map(\.error), [.transient])
     XCTAssertEqual(outcome.retryableItems(in: reconciled.items), [])
     XCTAssertEqual(model.state, .loaded(reconciled))
+  }
+
+  func testBulkDeleteSendsBatchedRequestsAndFailsOnlyTheRejectedBatch() async throws {
+    let items = (7...9).map { BrowserTestFixtures.item(id: $0, parentID: 42, name: "\($0).mkv") }
+    let original = BrowserTestFixtures.contents(folderID: 42, items: items)
+    var batches: [[PutioFileID]] = []
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in XCTFail("bulk delete must not fall back to per-item requests") },
+        deleteFiles: { fileIDs in
+          batches.append(fileIDs)
+          if batches.count == 1 { throw PutioRuntimeError.transient }
+          return [:]
+        },
+        batchSize: 2
+      ),
+      initialContents: original
+    )
+
+    await model.delete(items)
+
+    XCTAssertEqual(batches, [[7, 8], [9]].map { $0.map(PutioFileID.init(rawValue:)) })
+    XCTAssertEqual(model.bulkOutcome?.succeeded, [items[2]])
+    XCTAssertEqual(model.bulkOutcome?.failures.map(\.item), [items[0], items[1]])
+    XCTAssertEqual(model.bulkOutcome?.failures.map(\.error), [.transient, .transient])
+    XCTAssertEqual(
+      model.bulkOutcome?.retryableItems(in: original.items), [items[0], items[1]],
+      "a retry must resend only the failed batch")
+  }
+
+  func testBulkMoveMapsPerItemFailuresFromOneRequest() async throws {
+    let first = BrowserTestFixtures.item(id: 7, parentID: 42, name: "First.mkv")
+    let second = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Second.mkv")
+    let original = BrowserTestFixtures.contents(folderID: 42, items: [first, second])
+    let destination = PutioFolderRoute(id: PutioFileID(rawValue: 91), title: "Season 2")
+    var requests: [([PutioFileID], PutioFileID)] = []
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        moveFile: { _, _ in XCTFail("bulk move must not fall back to per-item requests") },
+        moveFiles: { fileIDs, parentID in
+          requests.append((fileIDs, parentID))
+          return [second.id: PutioRuntimeError.notFound]
+        }
+      ),
+      initialContents: original
+    )
+
+    await model.move([first, second], to: destination)
+
+    XCTAssertEqual(requests.map(\.0), [[first.id, second.id]])
+    XCTAssertEqual(requests.map(\.1), [destination.id])
+    XCTAssertEqual(model.bulkOutcome?.succeeded, [first])
+    XCTAssertEqual(model.bulkOutcome?.failures.map(\.item), [second])
+    XCTAssertEqual(model.bulkOutcome?.failures.map(\.error), [.notFound])
+    XCTAssertEqual(model.bulkOutcome?.failures.first?.presentation?.title, "Could not move item")
+  }
+
+  func testRateLimitedBatchDefersEveryLaterBatch() async throws {
+    let items = (7...9).map { BrowserTestFixtures.item(id: $0, parentID: 42, name: "\($0).mkv") }
+    let original = BrowserTestFixtures.contents(folderID: 42, items: items)
+    var batchCount = 0
+    let model = PutioFolderModel(
+      folderID: PutioFileID(rawValue: 42),
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        deleteFiles: { _ in
+          batchCount += 1
+          throw PutioRuntimeError.rateLimited
+        },
+        batchSize: 2
+      ),
+      initialContents: original
+    )
+
+    await model.delete(items)
+
+    XCTAssertEqual(batchCount, 1)
+    XCTAssertEqual(model.bulkOutcome?.failures.map(\.item), items)
+    XCTAssertEqual(
+      model.bulkOutcome?.failures.map(\.error), [.rateLimited, .rateLimited, .rateLimited])
+    XCTAssertEqual(model.state, .loaded(original))
   }
 
   func testBulkActionsRejectEmptyStaleDuplicateAndInvalidMoveSelections() async {

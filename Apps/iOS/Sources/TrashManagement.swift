@@ -8,6 +8,12 @@ typealias PutioTrashRestore =
 typealias PutioTrashItemMutation =
   @MainActor @Sendable (PutioFileID) async throws -> PutioTrashMutationResult
 typealias PutioTrashEmpty = @MainActor @Sendable () async throws -> PutioTrashMutationResult
+typealias PutioTrashBatchRestore = @MainActor @Sendable ([PutioFileID]) async throws -> Void
+typealias PutioTrashBatchMutation =
+  @MainActor @Sendable ([PutioFileID]) async throws -> PutioTrashMutationResult
+/// Restores all of Trash: the listing cursor when one exists, else the ids.
+typealias PutioTrashRestoreAll =
+  @MainActor @Sendable (String?, [PutioFileID]) async throws -> Void
 typealias PutioTrashStorageRefresh = @MainActor @Sendable () async -> Bool
 typealias PutioTrashStorageIsStale = @MainActor @Sendable () -> Bool
 typealias PutioTrashDidRestore = @MainActor @Sendable (PutioFileID?) -> Void
@@ -173,6 +179,9 @@ struct PutioTrashActions: Sendable {
   let load: PutioTrashLoad
   let restore: PutioTrashRestore
   let permanentlyDelete: PutioTrashItemMutation
+  let restoreItems: PutioTrashBatchRestore
+  let permanentlyDeleteItems: PutioTrashBatchMutation
+  let restoreAll: PutioTrashRestoreAll
   let empty: PutioTrashEmpty
   let refreshStorage: PutioTrashStorageRefresh
   /// The session owns stale-storage state so it survives leaving Trash.
@@ -184,6 +193,13 @@ struct PutioTrashActions: Sendable {
     permanentlyDelete = { fileID in
       try await runtime.permanentlyDeleteTrashItem(fileID: fileID)
     }
+    restoreItems = { fileIDs in try await runtime.restoreTrashItems(fileIDs: fileIDs) }
+    permanentlyDeleteItems = { fileIDs in
+      try await runtime.permanentlyDeleteTrashItems(fileIDs: fileIDs)
+    }
+    restoreAll = { cursor, fileIDs in
+      try await runtime.restoreAllTrash(cursor: cursor, loadedFileIDs: fileIDs)
+    }
     empty = { try await runtime.emptyTrash() }
     refreshStorage = { await runtime.refreshAccount() }
     isStorageStale = { runtime.session.isAccountStorageStale }
@@ -193,6 +209,11 @@ struct PutioTrashActions: Sendable {
     load: @escaping PutioTrashLoad,
     restore: @escaping PutioTrashRestore,
     permanentlyDelete: @escaping PutioTrashItemMutation,
+    restoreItems: @escaping PutioTrashBatchRestore = { _ in throw PutioRuntimeError.unknown },
+    permanentlyDeleteItems: @escaping PutioTrashBatchMutation = { _ in
+      throw PutioRuntimeError.unknown
+    },
+    restoreAll: @escaping PutioTrashRestoreAll = { _, _ in throw PutioRuntimeError.unknown },
     empty: @escaping PutioTrashEmpty,
     refreshStorage: @escaping PutioTrashStorageRefresh = { true },
     isStorageStale: @escaping PutioTrashStorageIsStale = { false }
@@ -200,6 +221,9 @@ struct PutioTrashActions: Sendable {
     self.load = load
     self.restore = restore
     self.permanentlyDelete = permanentlyDelete
+    self.restoreItems = restoreItems
+    self.permanentlyDeleteItems = permanentlyDeleteItems
+    self.restoreAll = restoreAll
     self.empty = empty
     self.refreshStorage = refreshStorage
     self.isStorageStale = isStorageStale
@@ -248,6 +272,9 @@ enum PutioTrashLoadState: Equatable, Sendable {
 enum PutioTrashMutation: Equatable, Sendable {
   case restore(PutioTrashItem)
   case permanentlyDelete(PutioTrashItem)
+  case restoreItems([PutioTrashItem])
+  case permanentlyDeleteItems([PutioTrashItem])
+  case restoreAll
   case empty
 }
 
@@ -256,6 +283,10 @@ enum PutioTrashMutationOutcome: Equatable, Sendable {
   /// `storageRefreshed` is false when the deletion committed but the account
   /// storage totals could not be reloaded; the next Trash refresh retries them.
   case permanentlyDeleted(PutioTrashItem, storageRefreshed: Bool = true)
+  case restoredItems([PutioTrashItem])
+  case permanentlyDeletedItems([PutioTrashItem], storageRefreshed: Bool = true)
+  /// The server restores the whole Trash in the background.
+  case restoredAll
   case emptied(storageRefreshed: Bool = true)
   case failed(PutioTrashMutation, PutioTrashErrorPresentation)
 }
@@ -524,6 +555,51 @@ final class PutioTrashModel {
     }
   }
 
+  /// Restores the selected rows in one request.
+  func restore(_ items: [PutioTrashItem]) async {
+    guard !items.isEmpty else { return }
+    await mutate(.restoreItems(items)) {
+      try await actions.restoreItems(items.map(\.id))
+      onRestored(nil)
+      await remove(items)
+      mutationOutcome = .restoredItems(items)
+    }
+  }
+
+  /// Permanently deletes the selected rows in one request.
+  func permanentlyDelete(_ items: [PutioTrashItem]) async {
+    guard !items.isEmpty else { return }
+    await mutate(.permanentlyDeleteItems(items)) {
+      let result = try await actions.permanentlyDeleteItems(items.map(\.id))
+      await remove(items)
+      mutationOutcome = .permanentlyDeletedItems(
+        items, storageRefreshed: result.storageRefreshed)
+    }
+  }
+
+  /// Restores every item in Trash, including pages never loaded.
+  func restoreAll() async {
+    guard hasContents, let currentPage = page else { return }
+    await mutate(.restoreAll) {
+      let cursor = currentPage.nextCursor
+      try await actions.restoreAll(cursor, currentPage.items.map(\.id))
+      onRestored(nil)
+      if cursor == nil {
+        // The loaded rows were the whole Trash.
+        await remove(currentPage.items)
+      } else {
+        // Rows on pages never loaded are restored too; a lagging listing
+        // must not bring any of them back.
+        reconciliation.recordEmptied()
+        state = .loaded(
+          PutioTrashPage(items: [], nextCursor: nil, totalCount: 0, sizeBytes: 0))
+        refreshFailure = nil
+        paginationFailure = nil
+      }
+      mutationOutcome = .restoredAll
+    }
+  }
+
   func empty() async {
     guard hasContents else { return }
     await mutate(.empty) {
@@ -661,19 +737,24 @@ final class PutioTrashModel {
     await repairIfRequested()
   }
 
-  // Removes the row locally, then replaces the page when a continuation was
+  // Removes the rows locally, then replaces the page when a continuation was
   // pending: the pre-mutation cursor is opaque and may skip or resurrect rows.
   private func remove(_ item: PutioTrashItem) async {
+    await remove([item])
+  }
+
+  private func remove(_ removedItems: [PutioTrashItem]) async {
     guard let currentPage = page else { return }
-    let id = item.id
-    reconciliation.recordRemoval(of: item)
-    let removedSize = item.sizeBytes
-    let items = currentPage.items.filter { $0.id != id }
+    let ids = Set(removedItems.map(\.id))
+    for item in removedItems { reconciliation.recordRemoval(of: item) }
+    let removed = currentPage.items.filter { ids.contains($0.id) }
+    let removedSize = removed.reduce(Int64(0)) { $0 + $1.sizeBytes }
+    let items = currentPage.items.filter { !ids.contains($0.id) }
     state = .loaded(
       PutioTrashPage(
         items: items,
         nextCursor: currentPage.nextCursor,
-        totalCount: currentPage.totalCount.map { max(0, $0 - 1) },
+        totalCount: currentPage.totalCount.map { max(0, $0 - removed.count) },
         sizeBytes: max(0, currentPage.sizeBytes - removedSize)
       )
     )
@@ -685,14 +766,14 @@ final class PutioTrashModel {
       paginationFailure = nil
     } catch {
       // The mutation is committed; keep the shown page (already pruned of
-      // this row and of anything another screen removed meanwhile) and drop
+      // these rows and of anything another screen removed meanwhile) and drop
       // the stale cursor so Load More cannot replay it. Pull to refresh
       // recovers.
       let shownPage = page ?? currentPage
       state = .loaded(
         reconciliation.prune(
           PutioTrashPage(
-            items: shownPage.items.filter { $0.id != id },
+            items: shownPage.items.filter { !ids.contains($0.id) },
             nextCursor: nil,
             totalCount: shownPage.totalCount,
             sizeBytes: shownPage.sizeBytes
@@ -710,6 +791,9 @@ final class PutioTrashModel {
     switch mutation {
     case .restore: "Could not restore item"
     case .permanentlyDelete: "Could not permanently delete item"
+    case .restoreItems: "Could not restore items"
+    case .permanentlyDeleteItems: "Could not permanently delete items"
+    case .restoreAll: "Could not restore Trash"
     case .empty: "Could not empty Trash"
     }
   }
@@ -718,8 +802,11 @@ final class PutioTrashModel {
 struct TrashManagementView: View {
   @State private var model: PutioTrashModel
   @State private var pendingDeletion: PutioTrashItem?
+  @State private var pendingBulkDeletion: [PutioTrashItem] = []
   @State private var emptyConfirmationPresented = false
   @State private var toast: PutioToast?
+  @State private var selectedIDs: Set<PutioFileID> = []
+  @State private var editMode: EditMode = .inactive
 
   init(
     runtime: PutioRuntime,
@@ -757,17 +844,70 @@ struct TrashManagementView: View {
     }
     .navigationTitle("Trash")
     .putioContentBackground()
+    .navigationBarBackButtonHidden(isEditing)
     .toolbar {
-      if model.hasContents {
+      if isEditing {
+        ToolbarItem(placement: .topBarLeading) {
+          Button(allLoadedItemsAreSelected ? "Deselect All" : "Select All") {
+            selectedIDs = allLoadedItemsAreSelected ? [] : Set(loadedItems.map(\.id))
+          }
+          .disabled(loadedItems.isEmpty)
+          .accessibilityIdentifier(
+            allLoadedItemsAreSelected
+              ? "trash.selection.deselect-all" : "trash.selection.select-all")
+        }
+        ToolbarItem(placement: .principal) {
+          Text("Select Items")
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Done") { editMode = .inactive }
+            .accessibilityIdentifier("trash.selection.done")
+        }
+        ToolbarItemGroup(placement: .bottomBar) {
+          Button("Restore") {
+            let items = selectedItems
+            Task { await model.restore(items) }
+          }
+          .disabled(selectedItems.isEmpty || !model.canMutate)
+          .accessibilityIdentifier("trash.bulk.restore")
+          Spacer()
+          Button("Delete", role: .destructive) { pendingBulkDeletion = selectedItems }
+            .disabled(selectedItems.isEmpty || !model.canMutate)
+            .accessibilityIdentifier("trash.bulk.delete")
+        }
+      } else if model.hasContents {
         ToolbarItem(placement: .primaryAction) {
-          Button("Empty Trash", role: .destructive) {
-            emptyConfirmationPresented = true
+          Menu {
+            Button {
+              editMode = .active
+            } label: {
+              Label("Select", systemImage: "checkmark.circle")
+            }
+            .disabled(loadedItems.isEmpty)
+            .accessibilityIdentifier("trash.select")
+            Button {
+              Task { await model.restoreAll() }
+            } label: {
+              Label("Restore All", systemImage: "arrow.uturn.backward")
+            }
+            .accessibilityIdentifier("trash.restore-all")
+            Button(role: .destructive) {
+              emptyConfirmationPresented = true
+            } label: {
+              Label("Empty Trash", systemImage: "trash")
+            }
+            .accessibilityIdentifier("trash.empty")
+          } label: {
+            Label("Trash Actions", systemImage: "ellipsis.circle")
           }
           .disabled(!model.canMutate)
-          .accessibilityIdentifier("trash.empty")
+          .accessibilityLabel("Trash Actions")
+          .accessibilityIdentifier("trash.menu")
         }
       }
     }
+    .modifier(PutioSelectionTabBarVisibility(isEditing: isEditing))
+    .environment(\.editMode, $editMode)
     .confirmationDialog(
       deletionConfirmationTitle,
       isPresented: deletionConfirmationPresented,
@@ -784,6 +924,21 @@ struct TrashManagementView: View {
       Button("Cancel", role: .cancel) { pendingDeletion = nil }
     } message: {
       Text("This item cannot be restored.")
+    }
+    .confirmationDialog(
+      "Delete \(pendingBulkDeletion.count) \(pendingBulkDeletion.count == 1 ? "item" : "items") permanently?",
+      isPresented: bulkDeletionConfirmationPresented,
+      titleVisibility: .visible
+    ) {
+      Button("Delete Permanently", role: .destructive) {
+        let items = pendingBulkDeletion.filter { model.page?.items.contains($0) == true }
+        pendingBulkDeletion = []
+        Task { await model.permanentlyDelete(items) }
+      }
+      .accessibilityIdentifier("trash.bulk.delete-confirm")
+      Button("Cancel", role: .cancel) { pendingBulkDeletion = [] }
+    } message: {
+      Text("Are you sure to permanently delete those files?")
     }
     .confirmationDialog(
       "Empty Trash permanently?",
@@ -819,11 +974,19 @@ struct TrashManagementView: View {
         if let pending = pendingDeletion, model.page?.items.contains(pending) != true {
           pendingDeletion = nil
         }
+        pendingBulkDeletion.removeAll { model.page?.items.contains($0) != true }
         if !model.hasContents { emptyConfirmationPresented = false }
       }
     }
     .onChange(of: model.mutationOutcome) { _, outcome in
       present(outcome)
+    }
+    .onChange(of: model.page) { _, page in
+      selectedIDs.formIntersection(page?.items.map(\.id) ?? [])
+      if page?.items.isEmpty != false { editMode = .inactive }
+    }
+    .onChange(of: editMode) { _, mode in
+      if mode != .active { selectedIDs = [] }
     }
     .task(id: toast) {
       guard let presentedToast = toast else { return }
@@ -842,7 +1005,16 @@ struct TrashManagementView: View {
       }
       .refreshable { await model.refresh() }
     } else {
-      List {
+      List(selection: isEditing ? $selectedIDs : nil) {
+        if !page.items.isEmpty {
+          Section {
+            Text("Heads up: Files in trash have an expiry date of 14 days.")
+              .putioFont(PutioTheme.Typography.caption)
+              .foregroundStyle(PutioTheme.Colors.textSecondary)
+              .accessibilityIdentifier("trash.expiry-notice")
+          }
+          .listRowBackground(Color.clear)
+        }
         if let failure = model.refreshFailure {
           Section {
             PutioErrorStateView(
@@ -862,25 +1034,28 @@ struct TrashManagementView: View {
         ForEach(page.items) { item in
           HStack {
             PutioFileRow(rowModel(for: item))
-            Menu {
-              Button("Restore") {
-                Task { await model.restore(item) }
+            if !isEditing {
+              Menu {
+                Button("Restore") {
+                  Task { await model.restore(item) }
+                }
+                .accessibilityIdentifier("trash.restore.\(item.id.rawValue)")
+                Button("Delete Permanently", role: .destructive) {
+                  pendingDeletion = item
+                }
+                .accessibilityIdentifier("trash.delete.\(item.id.rawValue)")
+              } label: {
+                PutioIconView(.dotsThreeCircle, size: PutioTheme.ScaledMetrics.buttonIconSize)
+                  .foregroundStyle(PutioTheme.Colors.accent)
+                  .frame(minWidth: 44, minHeight: 44)
+                  .contentShape(Rectangle())
               }
-              .accessibilityIdentifier("trash.restore.\(item.id.rawValue)")
-              Button("Delete Permanently", role: .destructive) {
-                pendingDeletion = item
-              }
-              .accessibilityIdentifier("trash.delete.\(item.id.rawValue)")
-            } label: {
-              PutioIconView(.dotsThreeCircle, size: PutioTheme.ScaledMetrics.buttonIconSize)
-                .foregroundStyle(PutioTheme.Colors.accent)
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
+              .disabled(!model.canMutate)
+              .accessibilityLabel("More actions for \(item.name)")
+              .accessibilityIdentifier("trash.item.\(item.id.rawValue).actions")
             }
-            .disabled(!model.canMutate)
-            .accessibilityLabel("More actions for \(item.name)")
-            .accessibilityIdentifier("trash.item.\(item.id.rawValue).actions")
           }
+          .tag(item.id)
           .listRowBackground(PutioTheme.Colors.surface)
           .swipeActions(edge: .leading) {
             Button("Restore") {
@@ -894,23 +1069,32 @@ struct TrashManagementView: View {
               .disabled(!model.canMutate)
           }
         }
-        if page.nextCursor != nil {
-          Section {
-            Button(model.isLoadingMore ? "Loading…" : "Load More") {
-              Task { await model.loadMore() }
+        if let cursor = page.nextCursor {
+          if let failure = model.paginationFailure {
+            Section {
+              PutioErrorStateView(
+                title: failure.title,
+                message: failure.message,
+                retryTitle: "Try again"
+              ) {
+                Task { await model.loadMore() }
+              }
             }
-            .disabled(model.isLoadingMore || !model.canMutate)
+          } else {
+            HStack {
+              Spacer()
+              ProgressView()
+              Spacer()
+            }
+            .listRowBackground(Color.clear)
+            .accessibilityLabel("Loading more Trash items")
             .accessibilityIdentifier("trash.load-more")
-          }
-        }
-        if let failure = model.paginationFailure {
-          Section {
-            PutioErrorStateView(
-              title: failure.title,
-              message: failure.message,
-              retryTitle: "Try again"
-            ) {
-              Task { await model.loadMore() }
+            // Re-keyed when blocking work settles, so a page the model
+            // refused while busy is requested again. Its own load is not part
+            // of the key, so starting it cannot cancel it.
+            .task(id: PageRequest(cursor: cursor, isBusy: isBusyOutsidePaging)) {
+              guard !isBusyOutsidePaging else { return }
+              await model.loadMore()
             }
           }
         }
@@ -918,6 +1102,34 @@ struct TrashManagementView: View {
       .refreshable { await model.refresh() }
       .accessibilityIdentifier("trash.list")
     }
+  }
+
+  private struct PageRequest: Equatable {
+    let cursor: String
+    let isBusy: Bool
+  }
+
+  private var isBusyOutsidePaging: Bool {
+    model.activeMutation != nil || model.isRefreshing || model.isRefreshingStorage
+  }
+
+  private var isEditing: Bool { editMode == .active }
+
+  private var loadedItems: [PutioTrashItem] { model.page?.items ?? [] }
+
+  private var selectedItems: [PutioTrashItem] {
+    loadedItems.filter { selectedIDs.contains($0.id) }
+  }
+
+  private var allLoadedItemsAreSelected: Bool {
+    !loadedItems.isEmpty && selectedIDs == Set(loadedItems.map(\.id))
+  }
+
+  private var bulkDeletionConfirmationPresented: Binding<Bool> {
+    Binding(
+      get: { !pendingBulkDeletion.isEmpty },
+      set: { if !$0 { pendingBulkDeletion = [] } }
+    )
   }
 
   private var deletionConfirmationPresented: Binding<Bool> {
@@ -936,7 +1148,7 @@ struct TrashManagementView: View {
     PutioEmptyStateView(
       icon: .trash,
       title: "Trash is empty",
-      message: "Items you move to Trash appear here until they expire."
+      message: "When you send files to trash, we keep them here for 14 days."
     )
   }
 
@@ -958,14 +1170,26 @@ struct TrashManagementView: View {
   }
 
   private func rowModel(for item: PutioTrashItem) -> PutioFileRowModel {
-    PutioFileRowModel(
+    Self.rowModel(for: item)
+  }
+
+  static func rowModel(
+    for item: PutioTrashItem, relativeTo now: Date = .now, locale: Locale = .current
+  ) -> PutioFileRowModel {
+    let size = PutioFileRowModel.sizeText(bytes: item.sizeBytes, locale: locale)
+    let deleted = PutioBrowserItemPresentation.relativeDateText(
+      for: item.deletedAt, relativeTo: now, locale: locale)
+    let expires = item.expiresAt.formatted(
+      Date.FormatStyle(locale: locale).month(.wide).day())
+    return PutioFileRowModel(
       name: item.name,
       kind: rowKind(for: item.kind),
-      sizeText: PutioFileRowModel.sizeText(bytes: item.sizeBytes)
+      sizeText: "\(size) · Deleted \(deleted)",
+      secondaryText: "Expires on \(expires)"
     )
   }
 
-  private func rowKind(for kind: PutioFileKind) -> PutioFileRowModel.Kind {
+  private static func rowKind(for kind: PutioFileKind) -> PutioFileRowModel.Kind {
     switch kind {
     case .folder: .folder
     case .video: .video
@@ -989,6 +1213,22 @@ struct TrashManagementView: View {
         title: "Item deleted",
         message: storageRefreshed ? item.name : Self.staleStorageMessage
       )
+    case .restoredItems(let items):
+      toast = PutioToast(
+        variant: .success, title: "Items restored",
+        message: "Restored \(items.count) \(items.count == 1 ? "item" : "items").")
+    case .permanentlyDeletedItems(let items, let storageRefreshed):
+      toast = PutioToast(
+        variant: storageRefreshed ? .success : .info,
+        title: "Items deleted",
+        message: storageRefreshed
+          ? "Deleted \(items.count) \(items.count == 1 ? "item" : "items")."
+          : Self.staleStorageMessage
+      )
+    case .restoredAll:
+      toast = PutioToast(
+        variant: .success, title: "Restore started!",
+        message: "It may take a long time if there are too many files.")
     case .emptied(let storageRefreshed):
       toast = PutioToast(
         variant: storageRefreshed ? .success : .info,

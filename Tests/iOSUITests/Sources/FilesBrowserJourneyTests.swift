@@ -78,23 +78,22 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let bulkRemove = app.buttons["files.bulk.remove"]
     XCTAssertTrue(waitUntilHittable(bulkRemove, timeout: 5))
     XCTAssertEqual(bulkRemove.label, "Trash")
+    // Trash is recoverable, so the move starts without a confirmation.
     bulkRemove.tap()
-    XCTAssertTrue(app.staticTexts["Move 2 items to Trash?"].waitForExistence(timeout: 5))
-    XCTAssertTrue(app.staticTexts["You can restore these items from Trash."].exists)
-    let confirm = app.buttons["files.bulk.remove-confirm"].firstMatch
-    XCTAssertTrue(waitUntilHittable(confirm, timeout: 5))
-    confirm.tap()
+    XCTAssertFalse(app.buttons["files.bulk.remove-confirm"].exists)
     let progress = element(identifier: "files.bulk.progress")
     XCTAssertTrue(progress.waitForExistence(timeout: 5))
     assertCurrentBulkProgress(progress, itemNames: ["Bulk Success", "Bulk Retry"])
+    // One batched request: the server fails the whole batch or none of it.
     XCTAssertTrue(
-      app.staticTexts["Some items couldn’t be moved to Trash"].waitForExistence(timeout: 10)
+      app.staticTexts["Could not move items to Trash"].waitForExistence(timeout: 10)
     )
     let retry = app.buttons["files.bulk.retry"].firstMatch
     XCTAssertTrue(waitUntilHittable(retry, timeout: 5))
     retry.tap()
-    XCTAssertTrue(app.staticTexts["Moved 1 item to Trash."].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["Moved 2 items to Trash."].waitForExistence(timeout: 10))
     XCTAssertTrue(retryFolder.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(successFolder.waitForNonExistence(timeout: 5))
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
@@ -117,7 +116,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let rootVideo = element(identifier: "files.item.412")
     let done = element(identifier: "video.done")
-    XCTAssertEqual(rootVideo.value as? String, "Watched, resume position 589 seconds")
+    XCTAssertEqual(rootVideo.value as? String, "Watched, resume at \(resumeText(seconds: 589))")
     XCTAssertTrue(rootVideo.isHittable, "root video row is not tappable")
     let presentedRoute = element(identifier: "video.presented-route")
     rootVideo.tap()
@@ -314,13 +313,32 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(retryRefresh, timeout: 5))
     retryRefresh.tap()
     XCTAssertTrue(refreshError.waitForNonExistence(timeout: 5))
-    XCTAssertFalse(app.staticTexts["Empty Me"].exists)
-    let loadMore = app.buttons["trash.load-more"]
-    XCTAssertTrue(waitUntilHittable(loadMore, timeout: 5))
-    loadMore.tap()
+    // The second page loads on its own, as Files pages do.
     XCTAssertTrue(app.staticTexts["Empty Me"].waitForExistence(timeout: 5))
-    XCTAssertTrue(loadMore.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "trash.load-more").waitForNonExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "trash.expiry-notice").exists)
+    let restoreDetail = app.staticTexts.matching(
+      NSPredicate(format: "label BEGINSWITH %@", "Expires on ")
+    ).firstMatch
+    XCTAssertTrue(restoreDetail.exists, "Trash rows do not show their expiry date")
     addScreenshot(named: "runtime-trash-loaded")
+
+    let trashMenu = app.buttons["trash.menu"]
+    XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
+    XCTAssertEqual(trashMenu.label, "Trash Actions")
+    trashMenu.tap()
+    XCTAssertTrue(app.buttons["trash.restore-all"].waitForExistence(timeout: 5))
+    let select = app.buttons["trash.select"]
+    XCTAssertTrue(waitUntilHittable(select, timeout: 5))
+    select.tap()
+    let bulkRestore = app.buttons["trash.bulk.restore"]
+    XCTAssertTrue(bulkRestore.waitForExistence(timeout: 5))
+    XCTAssertFalse(bulkRestore.isEnabled)
+    app.staticTexts["Empty Me"].tap()
+    XCTAssertTrue(bulkRestore.isEnabled, "selecting a Trash row did not enable Restore")
+    XCTAssertTrue(app.buttons["trash.bulk.delete"].isEnabled)
+    app.buttons["trash.selection.done"].tap()
+    XCTAssertTrue(bulkRestore.waitForNonExistence(timeout: 5))
     let restoreActions = app.buttons["trash.item.419.actions"]
     XCTAssertTrue(waitUntilHittable(restoreActions, timeout: 5))
     restoreActions.tap()
@@ -353,6 +371,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Item deleted"].waitForExistence(timeout: 5))
     XCTAssertTrue(deleteRow.waitForNonExistence(timeout: 5))
 
+    XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
+    trashMenu.tap()
     let emptyTrash = app.buttons["trash.empty"]
     XCTAssertTrue(waitUntilHittable(emptyTrash, timeout: 5))
     emptyTrash.tap()
@@ -469,6 +489,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     moreRetry.tap()
     XCTAssertTrue(videoResult.waitForExistence(timeout: 10), "search continuation never appended")
     addScreenshot(named: "runtime-search-results")
+    // Search results offer the same file actions as folder rows.
+    let searchMove = openContextMenu(for: videoResult, actionLabel: "Move")
+    XCTAssertTrue(app.buttons["Rename"].exists, "search result menu lacks Rename")
+    XCTAssertTrue(app.buttons["Trash"].exists, "search result menu lacks Trash")
+    dismissMenu()
+    XCTAssertTrue(searchMove.waitForNonExistence(timeout: 5))
     videoResult.tap()
     XCTAssertTrue(element(identifier: "video.error").waitForExistence(timeout: 5))
     app.buttons["Try again"].tap()
@@ -585,9 +611,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
     let trash = openContextMenu(for: folder, actionLabel: "Trash")
     trash.tap()
-    let confirm = app.buttons["files.delete-confirm"].firstMatch
-    XCTAssertTrue(waitUntilHittable(confirm, timeout: 5))
-    confirm.tap()
     XCTAssertTrue(folder.waitForNonExistence(timeout: 10))
 
     app.buttons["Search"].tap()
@@ -714,7 +737,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "reported playback position did not advance beyond the seeded row value"
     )
     let refreshedRowValue = persistedSeconds.map {
-      "Watched, resume position \($0) seconds"
+      "Watched, resume at \(resumeText(seconds: $0))"
     }
     let rowRefresh = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value == %@", refreshedRowValue ?? ""),
@@ -945,11 +968,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let swipeTrash = app.buttons["Trash"]
     XCTAssertTrue(waitUntilHittable(swipeTrash, timeout: 5), "trailing swipe did not offer Trash")
     swipeTrash.tap()
-    let confirmDelete = app.buttons["files.delete-confirm"].firstMatch
-    XCTAssertTrue(confirmDelete.waitForExistence(timeout: 5), "Trash confirmation never appeared")
-    XCTAssertEqual(confirmDelete.label, "Trash")
-    XCTAssertTrue(app.staticTexts["You can restore this item from Trash."].exists)
-    confirmDelete.tap()
+    XCTAssertFalse(
+      app.buttons["files.delete-confirm"].exists, "a recoverable Trash move asked to confirm")
     XCTAssertTrue(
       app.staticTexts["Moved to Trash"].waitForExistence(timeout: 5),
       "Trash success was not surfaced"
@@ -1043,16 +1063,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     XCTAssertEqual(bulkRemove.label, "Trash")
     bulkRemove.tap()
-    XCTAssertTrue(app.staticTexts["Move 2 items to Trash?"].waitForExistence(timeout: 5))
-    XCTAssertTrue(app.staticTexts["You can restore these items from Trash."].exists)
-    let confirmBulkRemove = app.buttons["files.bulk.remove-confirm"].firstMatch
-    XCTAssertTrue(waitUntilHittable(confirmBulkRemove, timeout: 5))
-    confirmBulkRemove.tap()
     let bulkProgress = element(identifier: "files.bulk.progress")
     XCTAssertTrue(bulkProgress.waitForExistence(timeout: 5))
     XCTAssertFalse(app.buttons["BackButton"].isHittable, "back remained active during bulk work")
     XCTAssertFalse(app.buttons["Account"].isHittable, "tab remained active during bulk work")
-    assertBulkProgressAdvances(bulkProgress, itemNames: ["Bulk Retry", "Bulk Success"])
+    assertCurrentBulkProgress(bulkProgress, itemNames: ["Bulk Retry"])
     let survivingRow = element(identifier: "files.item.411")
     XCTAssertEqual(survivingRow.value as? String, "Not selected")
     survivingRow.tap()
@@ -1065,24 +1080,28 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
 
     XCTAssertTrue(
-      app.staticTexts["Some items couldn’t be moved to Trash"].waitForExistence(timeout: 10),
-      "partial bulk-Trash failure was not surfaced"
+      app.staticTexts["Could not move items to Trash"].waitForExistence(timeout: 10),
+      "failed bulk-Trash batch was not surfaced"
     )
     XCTAssertTrue(
-      app.staticTexts["Moved 1 item to Trash. 1 couldn’t be moved to Trash."].exists
+      app.staticTexts["Moved 0 items to Trash. 2 couldn’t be moved to Trash."].exists
     )
     addScreenshot(named: "runtime-file-actions")
     XCTAssertTrue(movedBulkRetryFolder.exists, "failed bulk item was not restored")
-    XCTAssertFalse(movedBulkSuccessFolder.exists, "successful bulk item was restored")
+    XCTAssertTrue(movedBulkSuccessFolder.exists, "failed bulk item was not restored")
     let retryBulkRemove = app.buttons["files.bulk.retry"].firstMatch
     XCTAssertTrue(waitUntilHittable(retryBulkRemove, timeout: 5), "bulk retry is unavailable")
     retryBulkRemove.tap()
     XCTAssertTrue(
-      app.staticTexts["Moved 1 item to Trash."].waitForExistence(timeout: 10),
-      "failed bulk item did not succeed on retry"
+      app.staticTexts["Moved 2 items to Trash."].waitForExistence(timeout: 10),
+      "failed bulk batch did not succeed on retry"
     )
     XCTAssertTrue(
       movedBulkRetryFolder.waitForNonExistence(timeout: 5),
+      "retried bulk item remained visible"
+    )
+    XCTAssertTrue(
+      movedBulkSuccessFolder.waitForNonExistence(timeout: 5),
       "retried bulk item remained visible"
     )
 
@@ -1256,20 +1275,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
   }
 
-  private func assertBulkProgressAdvances(_ progress: XCUIElement, itemNames: [String]) {
-    for (index, itemName) in itemNames.enumerated() {
-      let label = "Moving item \(index + 1) of \(itemNames.count) to Trash…"
-      let value = "\(itemName). \(index) of \(itemNames.count) complete."
-      let expectation = XCTNSPredicateExpectation(
-        predicate: NSPredicate(format: "label == %@ AND value == %@", label, value),
-        object: progress
-      )
-      XCTAssertEqual(
-        XCTWaiter.wait(for: [expectation], timeout: 10),
-        .completed,
-        "bulk progress did not reach \(label) for \(itemName)"
-      )
-    }
+  /// Mirrors the app's spoken resume position, such as "9 minutes, 49 seconds".
+  private func resumeText(seconds: Int) -> String {
+    Duration.seconds(seconds).formatted(
+      .units(allowed: [.hours, .minutes, .seconds], width: .wide))
   }
 
   private func openContextMenu(

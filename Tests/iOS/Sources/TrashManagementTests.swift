@@ -109,6 +109,10 @@ private final class TrashActionsStub {
   private(set) var loadedCursors: [String?] = []
   private(set) var restoredIDs: [PutioFileID] = []
   private(set) var deletedIDs: [PutioFileID] = []
+  private(set) var restoredBatches: [[PutioFileID]] = []
+  private(set) var deletedBatches: [[PutioFileID]] = []
+  private(set) var restoreAllRequests: [(cursor: String?, fileIDs: [PutioFileID])] = []
+  var batchFailure: PutioRuntimeError?
   private(set) var emptyRequests = 0
   private(set) var storageRefreshRequests = 0
 
@@ -142,6 +146,22 @@ private final class TrashActionsStub {
     deletedIDs.append(fileID)
     guard !deleteResults.isEmpty else { throw PutioRuntimeError.unknown }
     return record(try deleteResults.removeFirst().get())
+  }
+
+  func restoreItems(fileIDs: [PutioFileID]) async throws {
+    restoredBatches.append(fileIDs)
+    if let batchFailure { throw batchFailure }
+  }
+
+  func permanentlyDeleteItems(fileIDs: [PutioFileID]) async throws -> PutioTrashMutationResult {
+    deletedBatches.append(fileIDs)
+    if let batchFailure { throw batchFailure }
+    return record(.refreshed)
+  }
+
+  func restoreAll(cursor: String?, fileIDs: [PutioFileID]) async throws {
+    restoreAllRequests.append((cursor, fileIDs))
+    if let batchFailure { throw batchFailure }
   }
 
   func empty() async throws -> PutioTrashMutationResult {
@@ -202,6 +222,108 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(stub.restoredIDs, [trashedItem.id])
     XCTAssertEqual(destinations, [PutioFileID(rawValue: 7)])
     XCTAssertEqual(model.mutationOutcome, .restored(trashedItem))
+  }
+
+  func testSelectedRowsRestoreInOneRequestAndLeaveTheRest() async {
+    let first = trashItem(id: 91, name: "First.mkv")
+    let kept = trashItem(id: 92, name: "Kept.mkv")
+    let third = trashItem(id: 93, name: "Third.mkv")
+    var destinations: [PutioFileID?] = []
+    let stub = TrashActionsStub(pages: [.success(page(items: [first, kept, third]))])
+    let model = model(stub) { destinations.append($0) }
+
+    await model.loadIfNeeded()
+    await model.restore([first, third])
+
+    XCTAssertEqual(stub.restoredBatches, [[first.id, third.id]])
+    XCTAssertEqual(stub.restoredIDs, [], "a selection must not restore row by row")
+    XCTAssertEqual(model.page?.items, [kept])
+    XCTAssertEqual(destinations, [nil])
+    XCTAssertEqual(model.mutationOutcome, .restoredItems([first, third]))
+  }
+
+  func testSelectedRowsDeletePermanentlyInOneRequest() async {
+    let first = trashItem(id: 91, name: "First.mkv")
+    let second = trashItem(id: 92, name: "Second.mkv")
+    let stub = TrashActionsStub(pages: [.success(page(items: [first, second]))])
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    stub.batchFailure = .transient
+    await model.permanentlyDelete([first, second])
+
+    XCTAssertEqual(model.page?.items, [first, second], "a failed batch keeps every row")
+    guard case .failed(.permanentlyDeleteItems([first, second]), _) = model.mutationOutcome else {
+      return XCTFail("expected a batch deletion failure")
+    }
+
+    stub.batchFailure = nil
+    await model.permanentlyDelete([first, second])
+
+    XCTAssertEqual(stub.deletedBatches, [[first.id, second.id], [first.id, second.id]])
+    XCTAssertEqual(model.page?.items, [])
+    XCTAssertEqual(model.mutationOutcome, .permanentlyDeletedItems([first, second]))
+  }
+
+  func testRestoreAllCoversPagesNeverLoaded() async {
+    let loaded = trashItem(id: 91, name: "Loaded.mkv")
+    var destinations: [PutioFileID?] = []
+    let stub = TrashActionsStub(
+      pages: [.success(page(items: [loaded], cursor: "next", totalCount: 5))])
+    let model = model(stub) { destinations.append($0) }
+
+    await model.loadIfNeeded()
+    await model.restoreAll()
+
+    XCTAssertEqual(stub.restoreAllRequests.map(\.cursor), ["next"])
+    XCTAssertEqual(stub.restoredBatches, [], "restoring only the loaded rows misses later pages")
+    XCTAssertFalse(model.hasContents)
+    XCTAssertEqual(destinations, [nil])
+    XCTAssertEqual(model.mutationOutcome, .restoredAll)
+  }
+
+  func testRestoreAllOfACompleteListingSendsEveryLoadedRow() async {
+    let first = trashItem(id: 91, name: "First.mkv")
+    let second = trashItem(id: 92, name: "Second.mkv")
+    let stub = TrashActionsStub(pages: [.success(page(items: [first, second], totalCount: 2))])
+    let model = model(stub)
+
+    await model.loadIfNeeded()
+    stub.batchFailure = .rateLimited
+    await model.restoreAll()
+    XCTAssertEqual(model.page?.items, [first, second], "a failed restore keeps every row")
+    guard case .failed(.restoreAll, _) = model.mutationOutcome else {
+      return XCTFail("expected a restore-all failure")
+    }
+
+    stub.batchFailure = nil
+    await model.restoreAll()
+
+    XCTAssertEqual(stub.restoreAllRequests.last?.cursor, .some(nil))
+    XCTAssertEqual(stub.restoreAllRequests.last?.fileIDs, [first.id, second.id])
+    XCTAssertEqual(model.page?.items, [])
+    XCTAssertEqual(model.mutationOutcome, .restoredAll)
+  }
+
+  func testRowsShowWhenTheItemWasDeletedAndWhenItExpires() throws {
+    let deletedAt = Date(timeIntervalSince1970: 1_790_000_000)
+    let item = PutioTrashItem(
+      id: PutioFileID(rawValue: 91),
+      parentID: .root,
+      name: "Old.mkv",
+      kind: .video,
+      sizeBytes: 2_048,
+      deletedAt: deletedAt,
+      expiresAt: deletedAt.addingTimeInterval(14 * 86_400)
+    )
+    let locale = Locale(identifier: "en_US")
+
+    let row = TrashManagementView.rowModel(
+      for: item, relativeTo: deletedAt.addingTimeInterval(3 * 86_400), locale: locale)
+
+    XCTAssertEqual(row.sizeText, "2 KB · Deleted 3 days ago")
+    let expiry = item.expiresAt.formatted(Date.FormatStyle(locale: locale).month(.wide).day())
+    XCTAssertEqual(row.secondaryText, "Expires on \(expiry)")
   }
 
   func testRestoreWithUnknownDestinationStillRemovesItemAndRequestsGlobalRefresh() async {
@@ -1841,6 +1963,9 @@ final class TrashManagementTests: XCTestCase {
         load: { try await stub.load(cursor: $0) },
         restore: { try await stub.restore(fileID: $0) },
         permanentlyDelete: { try await stub.permanentlyDelete(fileID: $0) },
+        restoreItems: { try await stub.restoreItems(fileIDs: $0) },
+        permanentlyDeleteItems: { try await stub.permanentlyDeleteItems(fileIDs: $0) },
+        restoreAll: { try await stub.restoreAll(cursor: $0, fileIDs: $1) },
         empty: { try await stub.empty() },
         refreshStorage: { await stub.refreshStorage() },
         isStorageStale: { stub.isStorageStale }

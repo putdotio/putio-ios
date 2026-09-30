@@ -53,6 +53,42 @@ extension PutioRuntime {
       storageRefreshed: await session.refreshAccountAfterStorageMutation())
   }
 
+  /// Restores the given trashed files in one request.
+  public func restoreTrashItems(fileIDs: [PutioFileID]) async throws {
+    guard !fileIDs.isEmpty else { return }
+    let response = try await performAuthenticatedOperation(commits: true) {
+      try await sdk.restoreTrashFiles(fileIDs: fileIDs.map(\.rawValue), cursor: nil)
+    }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+  }
+
+  /// Restores everything in Trash, including pages never loaded. With a
+  /// listing cursor the server selects the whole listing; without one the
+  /// first page was the whole Trash, so its ids are the selection.
+  public func restoreAllTrash(cursor: String?, loadedFileIDs: [PutioFileID]) async throws {
+    guard let cursor, !cursor.isEmpty else {
+      try await restoreTrashItems(fileIDs: loadedFileIDs)
+      return
+    }
+    let response = try await performAuthenticatedOperation(commits: true) {
+      try await sdk.restoreTrashFiles(cursor: cursor)
+    }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+  }
+
+  /// Permanently deletes the given trashed files in one request.
+  public func permanentlyDeleteTrashItems(
+    fileIDs: [PutioFileID]
+  ) async throws -> PutioTrashMutationResult {
+    guard !fileIDs.isEmpty else { return PutioTrashMutationResult(storageRefreshed: true) }
+    let response = try await performAuthenticatedOperation(commits: true) {
+      try await sdk.deleteTrashFiles(fileIDs: fileIDs.map(\.rawValue), cursor: nil)
+    }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
+    return PutioTrashMutationResult(
+      storageRefreshed: await session.refreshAccountAfterStorageMutation())
+  }
+
   public func emptyTrash() async throws -> PutioTrashMutationResult {
     let response = try await performAuthenticatedOperation(commits: true) {
       try await sdk.emptyTrash()

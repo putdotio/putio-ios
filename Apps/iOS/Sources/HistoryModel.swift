@@ -279,22 +279,30 @@ struct PutioHistorySection: Identifiable {
   enum Day: String, CaseIterable {
     case today = "Today"
     case yesterday = "Yesterday"
-    case earlier = "Earlier"
+    case lastWeek = "Last week"
+    case ancientTimes = "Ancient times"
   }
 
   let id: Day
   let items: [PutioHistoryEventItem]
   var title: String { id.rawValue }
 
+  /// Calendar days back from `now`: today, yesterday, the rest of the last
+  /// week (under 8 days), then everything older.
   static func group(
     _ items: [PutioHistoryEventItem], now: Date = .now, calendar: Calendar = .current
   ) -> [PutioHistorySection] {
     let today = calendar.startOfDay(for: now)
-    let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
     let groups = Dictionary(grouping: items) { item -> Day in
-      if item.createdAt >= today { return .today }
-      if item.createdAt >= yesterday { return .yesterday }
-      return .earlier
+      let days =
+        calendar.dateComponents([.day], from: calendar.startOfDay(for: item.createdAt), to: today)
+        .day ?? 0
+      switch days {
+      case ...0: return .today
+      case 1: return .yesterday
+      case 2..<8: return .lastWeek
+      default: return .ancientTimes
+      }
     }
     return Day.allCases.compactMap { day in
       groups[day].map { PutioHistorySection(id: day, items: $0) }

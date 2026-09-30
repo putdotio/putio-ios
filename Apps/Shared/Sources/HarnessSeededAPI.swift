@@ -549,11 +549,22 @@ import Foundation
     private static func shouldDelayBulkDeleteResponse(_ request: URLRequest) -> Bool {
       guard
         request.url?.path == "/v2/files/delete",
-        let payload = requestPayload(request),
-        let rawFileIDs = payload["file_ids"] as? String,
-        let fileID = Int(rawFileIDs)
+        let fileIDs = requestFileIDs(request)
       else { return false }
-      return bulkDeleteProgressFolderIDs.contains(fileID)
+      return !bulkDeleteProgressFolderIDs.isDisjoint(with: fileIDs)
+    }
+
+    /// The comma-separated `file_ids` of a batched request, in order.
+    private static func requestFileIDs(_ request: URLRequest) -> [Int]? {
+      guard
+        let payload = requestPayload(request),
+        let rawFileIDs = payload["file_ids"] as? String
+      else { return nil }
+      let fileIDs = rawFileIDs.split(separator: ",").compactMap { Int($0) }
+      guard !fileIDs.isEmpty, fileIDs.count == rawFileIDs.split(separator: ",").count else {
+        return nil
+      }
+      return fileIDs
     }
 
     // The root's second page holds one archive so the browser proves cursor
@@ -704,7 +715,7 @@ import Foundation
           (
             801,
             event(
-              801, "upload", daysAgo: 3,
+              801, "upload", daysAgo: 10,
               fields: #""file_name":"Earlier Upload.txt","file_size":2048,"file_id":0"#)
           ),
         ]
@@ -1266,7 +1277,25 @@ import Foundation
       #"{"status":"OK","file":"# + audioObject(id: id, name: name) + "}"
     }
 
+    /// The move picker asks for folders only, as the server filters them.
     private static func filesListFixture(url: URL) -> (Int, String) {
+      let response = unfilteredFilesListFixture(url: url)
+      guard
+        response.0 == 200,
+        URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+          .contains(where: { $0.name == "file_type" && $0.value == "FOLDER" }) == true,
+        var listing = try? JSONSerialization.jsonObject(with: Data(response.1.utf8))
+          as? [String: Any],
+        let files = listing["files"] as? [[String: Any]]
+      else { return response }
+      listing["files"] = files.filter { $0["file_type"] as? String == "FOLDER" }
+      guard let data = try? JSONSerialization.data(withJSONObject: listing) else {
+        return response
+      }
+      return (200, String(decoding: data, as: UTF8.self))
+    }
+
+    private static func unfilteredFilesListFixture(url: URL) -> (Int, String) {
       let parentID = URLComponents(url: url, resolvingAgainstBaseURL: false)?
         .queryItems?
         .first(where: { $0.name == "parent_id" })?
@@ -1439,10 +1468,8 @@ import Foundation
 
     private static func moveFiles(request: URLRequest) -> (Int, String) {
       guard
-        let payload = requestPayload(request),
-        let rawFileIDs = payload["file_ids"] as? String,
-        let fileID = Int(rawFileIDs),
-        let parentID = payload["parent_id"] as? Int,
+        let fileIDs = requestFileIDs(request),
+        let parentID = requestPayload(request)?["parent_id"] as? Int,
         parentID == 0 || parentID == 410
       else {
         return (
@@ -1450,25 +1477,23 @@ import Foundation
           fixtureError(
             statusCode: 400,
             type: "HARNESS_MOVE_INPUT_REQUIRED",
-            message: "The move fixture requires one file id and a seeded destination"
+            message: "The move fixture requires file ids and a seeded destination"
           )
         )
       }
 
       fileActionsLock.lock()
-      guard actionFolders[fileID] != nil else {
-        fileActionsLock.unlock()
-        return (
-          404,
-          fixtureError(
-            statusCode: 404,
-            type: "HARNESS_FILE_NOT_FOUND",
-            message: "The move fixture only changes harness-created folders"
-          )
-        )
+      // Like the server, an item it cannot move is reported, not the batch.
+      var errors: [String] = []
+      for fileID in fileIDs {
+        guard actionFolders[fileID] != nil else {
+          errors.append(
+            #"{"error_type":"HARNESS_FILE_NOT_FOUND","id":\#(fileID),"status_code":404}"#)
+          continue
+        }
+        actionFolders[fileID]?.parentID = parentID
       }
-      actionFolders[fileID]?.parentID = parentID
-      if fileID == ambiguousMoveFailureFolderID, !ambiguousMoveFailureDelivered {
+      if fileIDs.contains(ambiguousMoveFailureFolderID), !ambiguousMoveFailureDelivered {
         ambiguousMoveFailureDelivered = true
         fileActionsLock.unlock()
         return (
@@ -1481,24 +1506,22 @@ import Foundation
         )
       }
       fileActionsLock.unlock()
-      return (200, #"{"status":"OK","errors":[]}"#)
+      return (200, #"{"status":"OK","errors":[\#(errors.joined(separator: ","))]}"#)
     }
 
     private static func deleteFiles(request: URLRequest) -> (Int, String) {
-      guard
-        let payload = requestPayload(request),
-        let rawFileIDs = payload["file_ids"] as? String,
-        let fileID = Int(rawFileIDs)
-      else {
+      guard let fileIDs = requestFileIDs(request) else {
         return (
           400,
           fixtureError(
             statusCode: 400,
             type: "HARNESS_DELETE_INPUT_REQUIRED",
-            message: "The delete fixture requires one file id"
+            message: "The delete fixture requires file ids"
           )
         )
       }
+      guard fileIDs.count == 1 else { return deleteActionFolders(fileIDs) }
+      let fileID = fileIDs[0]
 
       fileActionsLock.lock()
       if fileID == 412 {
@@ -1552,6 +1575,38 @@ import Foundation
         actionFolders.removeValue(forKey: fileID)
       }
       fileActionsLock.unlock()
+      return (200, #"{"status":"OK"}"#)
+    }
+
+    /// A batch applies to every item or, like the server, to none.
+    private static func deleteActionFolders(_ fileIDs: [Int]) -> (Int, String) {
+      fileActionsLock.lock()
+      defer { fileActionsLock.unlock() }
+      guard fileIDs.allSatisfy({ actionFolders[$0] != nil }) else {
+        return (
+          404,
+          fixtureError(
+            statusCode: 404,
+            type: "HARNESS_FILE_NOT_FOUND",
+            message: "The delete fixture only changes harness-created folders"
+          )
+        )
+      }
+      if fileIDs.contains(bulkDeleteFailureFolderID), !bulkDeleteFailureDelivered {
+        bulkDeleteFailureDelivered = true
+        return (
+          503,
+          fixtureError(
+            statusCode: 503,
+            type: "HARNESS_TRANSIENT_DELETE_FAILURE",
+            message: "The first delete of the second created folder fails for retry proof"
+          )
+        )
+      }
+      for fileID in fileIDs {
+        guard let folder = actionFolders.removeValue(forKey: fileID) else { continue }
+        if trashEnabled { trashFolders[fileID] = folder }
+      }
       return (200, #"{"status":"OK"}"#)
     }
 
@@ -1635,29 +1690,35 @@ import Foundation
     }
 
     private static func restoreTrash(request: URLRequest) -> (Int, String) {
-      guard let fileID = trashFileID(from: request) else {
+      fileActionsLock.lock()
+      defer { fileActionsLock.unlock() }
+      let fileIDs: [Int]
+      if let cursor = requestPayload(request)?["cursor"] as? String, !cursor.isEmpty {
+        // A listing cursor selects the whole Trash.
+        guard cursor.hasPrefix("trash-after-") else { return trashMutationInputError() }
+        fileIDs = Array(trashFolders.keys)
+      } else if let requested = requestFileIDs(request) {
+        fileIDs = requested
+      } else {
         return trashMutationInputError()
       }
-      fileActionsLock.lock()
-      guard let folder = trashFolders.removeValue(forKey: fileID) else {
-        fileActionsLock.unlock()
-        return trashNotFoundError()
+      guard fileIDs.allSatisfy({ trashFolders[$0] != nil }) else { return trashNotFoundError() }
+      for fileID in fileIDs {
+        actionFolders[fileID] = trashFolders.removeValue(forKey: fileID)
       }
-      actionFolders[fileID] = folder
-      fileActionsLock.unlock()
       return (200, #"{"status":"OK"}"#)
     }
 
     private static func permanentlyDeleteTrash(request: URLRequest) -> (Int, String) {
-      guard let fileID = trashFileID(from: request) else {
+      guard let fileIDs = requestFileIDs(request) else {
         return trashMutationInputError()
       }
       fileActionsLock.lock()
-      guard trashFolders[fileID] != nil else {
+      guard fileIDs.allSatisfy({ trashFolders[$0] != nil }) else {
         fileActionsLock.unlock()
         return trashNotFoundError()
       }
-      if fileID == trashDeleteFolderID, !trashDeleteFailureDelivered {
+      if fileIDs.contains(trashDeleteFolderID), !trashDeleteFailureDelivered {
         trashDeleteFailureDelivered = true
         fileActionsLock.unlock()
         return (
@@ -1669,8 +1730,10 @@ import Foundation
           )
         )
       }
-      trashFolders.removeValue(forKey: fileID)
-      trashFreedBytes += trashFolderBytes
+      for fileID in fileIDs {
+        trashFolders.removeValue(forKey: fileID)
+        trashFreedBytes += trashFolderBytes
+      }
       fileActionsLock.unlock()
       return (200, #"{"status":"OK"}"#)
     }
@@ -1684,22 +1747,13 @@ import Foundation
       return (200, #"{"status":"OK"}"#)
     }
 
-    private static func trashFileID(from request: URLRequest) -> Int? {
-      guard
-        let payload = requestPayload(request),
-        let rawFileIDs = payload["file_ids"] as? String,
-        !rawFileIDs.contains(",")
-      else { return nil }
-      return Int(rawFileIDs)
-    }
-
     private static func trashMutationInputError() -> (Int, String) {
       (
         400,
         fixtureError(
           statusCode: 400,
           type: "HARNESS_TRASH_INPUT_REQUIRED",
-          message: "The Trash fixture requires one file id"
+          message: "The Trash fixture requires file ids or its listing cursor"
         )
       )
     }

@@ -356,8 +356,41 @@ final class HistoryTests: XCTestCase {
       calendar.date(from: DateComponents(year: 2026, month: 3, day: 7, hour: 23)))
     let items = [Self.event(3, at: now), Self.event(2, at: yesterday), Self.event(1, at: older)]
     let sections = PutioHistorySection.group(items, now: now, calendar: calendar)
-    XCTAssertEqual(sections.map(\.id), [.today, .yesterday, .earlier])
+    XCTAssertEqual(sections.map(\.id), [.today, .yesterday, .lastWeek])
     XCTAssertEqual(sections.map { $0.items.map(\.id) }, [[3], [2], [1]])
+  }
+
+  func testOlderEventsSplitIntoLastWeekAndAncientTimes() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/Istanbul"))
+    let now = try XCTUnwrap(
+      calendar.date(from: DateComponents(year: 2026, month: 9, day: 30, hour: 9)))
+    func daysAgo(_ days: Int) throws -> Date {
+      try XCTUnwrap(calendar.date(byAdding: .day, value: -days, to: now))
+    }
+    let items = [
+      Self.event(5, at: try daysAgo(2)), Self.event(4, at: try daysAgo(7)),
+      Self.event(3, at: try daysAgo(8)), Self.event(2, at: try daysAgo(90)),
+    ]
+
+    let sections = PutioHistorySection.group(items, now: now, calendar: calendar)
+
+    XCTAssertEqual(sections.map(\.title), ["Last week", "Ancient times"])
+    XCTAssertEqual(sections.map { $0.items.map(\.id) }, [[5, 4], [3, 2]])
+  }
+
+  func testEventTimesReadAsRelativeDatesInsteadOfDurations() throws {
+    let now = Date(timeIntervalSince1970: 1_790_000_000)
+    let english = Locale(identifier: "en_US")
+
+    XCTAssertEqual(
+      PutioBrowserItemPresentation.relativeDateText(
+        for: now.addingTimeInterval(-3 * 86_400), relativeTo: now, locale: english),
+      "3 days ago")
+    XCTAssertEqual(
+      PutioBrowserItemPresentation.relativeDateText(
+        for: now.addingTimeInterval(-86_400), relativeTo: now, locale: english),
+      "yesterday")
   }
 
   private func model(

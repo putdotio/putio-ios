@@ -17,12 +17,27 @@ typealias PutioFileDelete =
   @MainActor @Sendable (PutioFileID) async throws -> Void
 typealias PutioFileMove =
   @MainActor @Sendable (PutioFileID, PutioFileID) async throws -> Void
+/// Deletes a batch in one request. A throw fails every item in the batch;
+/// returned entries fail only those items.
+typealias PutioFileBatchDelete =
+  @MainActor @Sendable ([PutioFileID]) async throws -> [PutioFileID: Error]
+/// Moves a batch into a folder in one request, with the same failure shape.
+typealias PutioFileBatchMove =
+  @MainActor @Sendable ([PutioFileID], PutioFileID) async throws -> [PutioFileID: Error]
 
 struct PutioFileActions: Sendable {
+  /// Items per bulk request, well under the server's per-request file limit.
+  static let defaultBatchSize = 100
+
   let createFolder: PutioFolderCreate
   let renameFile: PutioFileRename
   let deleteFile: PutioFileDelete
   let moveFile: PutioFileMove
+  let deleteFiles: PutioFileBatchDelete
+  let moveFiles: PutioFileBatchMove
+  let batchSize: Int
+  /// Folders-only listing for the move picker; `nil` reuses the screen's load.
+  let loadFolders: PutioFolderLoad?
   let setSort: PutioFolderSortUpdate
   let canDelete: @MainActor @Sendable () -> Bool
 
@@ -45,13 +60,30 @@ struct PutioFileActions: Sendable {
     moveFile = { fileID, parentID in
       try await runtime.moveFile(fileID: fileID, to: parentID)
     }
+    deleteFiles = { fileIDs in
+      try await runtime.deleteFiles(fileIDs: fileIDs)
+      return [:]
+    }
+    moveFiles = { fileIDs, parentID in
+      try await runtime.moveFiles(fileIDs: fileIDs, to: parentID)
+    }
+    batchSize = Self.defaultBatchSize
+    loadFolders = { parentID in
+      try await runtime.listFolders(parentID: parentID)
+    }
   }
 
+  /// Batch closures default to one single-item call per id, so tests that
+  /// only stub the single-item boundary still exercise bulk actions.
   init(
     createFolder: @escaping PutioFolderCreate,
     renameFile: @escaping PutioFileRename,
     deleteFile: @escaping PutioFileDelete,
     moveFile: @escaping PutioFileMove = { _, _ in throw PutioRuntimeError.unknown },
+    deleteFiles: PutioFileBatchDelete? = nil,
+    moveFiles: PutioFileBatchMove? = nil,
+    batchSize: Int = PutioFileActions.defaultBatchSize,
+    loadFolders: PutioFolderLoad? = nil,
     setSort: @escaping PutioFolderSortUpdate = { _, _ in throw PutioRuntimeError.unknown },
     canDelete: @escaping @MainActor @Sendable () -> Bool = { true }
   ) {
@@ -59,6 +91,24 @@ struct PutioFileActions: Sendable {
     self.renameFile = renameFile
     self.deleteFile = deleteFile
     self.moveFile = moveFile
+    self.deleteFiles =
+      deleteFiles ?? { fileIDs in
+        var failures: [PutioFileID: Error] = [:]
+        for fileID in fileIDs {
+          do { try await deleteFile(fileID) } catch { failures[fileID] = error }
+        }
+        return failures
+      }
+    self.moveFiles =
+      moveFiles ?? { fileIDs, parentID in
+        var failures: [PutioFileID: Error] = [:]
+        for fileID in fileIDs {
+          do { try await moveFile(fileID, parentID) } catch { failures[fileID] = error }
+        }
+        return failures
+      }
+    self.batchSize = max(1, batchSize)
+    self.loadFolders = loadFolders
     self.setSort = setSort
     self.canDelete = canDelete
   }
@@ -734,8 +784,10 @@ final class PutioFolderModel {
     beginBulk(action, items: items)
     state = .loaded(contents.removing(Set(items.map(\.id))))
 
-    await runBulk(action, items: items, originalContents: contents) { item in
-      try await actions.deleteFile(item.id)
+    await runBulk(
+      action, items: items, batchSize: actions.batchSize, originalContents: contents
+    ) { batch in
+      try await actions.deleteFiles(batch.map(\.id))
     }
   }
 
@@ -753,8 +805,10 @@ final class PutioFolderModel {
     beginBulk(action, items: items)
     state = .loaded(contents.removing(Set(items.map(\.id))))
 
-    await runBulk(action, items: items, originalContents: contents) { item in
-      try await actions.moveFile(item.id, destination.id)
+    await runBulk(
+      action, items: items, batchSize: actions.batchSize, originalContents: contents
+    ) { batch in
+      try await actions.moveFiles(batch.map(\.id), destination.id)
     }
   }
 
@@ -862,44 +916,63 @@ final class PutioFolderModel {
     await task.value
   }
 
+  /// Sends the items in batches. A thrown batch fails all of its items; a
+  /// rate-limited item defers every later batch for the retry.
   private func runBulk(
     _ action: PutioBulkFileAction,
     items: [PutioFileItem],
+    batchSize: Int,
     originalContents: PutioFolderContents,
-    operation: @escaping @MainActor @Sendable (PutioFileItem) async throws -> Void
+    operation:
+      @escaping @MainActor @Sendable ([PutioFileItem]) async throws -> [PutioFileID:
+      Error]
   ) async {
     let task = Task { @MainActor [weak self] in
       guard let self else { return }
       var removedIDs = Set(items.map(\.id))
       var succeeded: [PutioFileItem] = []
       var failures: [PutioBulkFileItemFailure] = []
+      let batches = stride(from: 0, to: items.count, by: batchSize).map {
+        Array(items[$0..<min($0 + batchSize, items.count)])
+      }
+      var completedCount = 0
 
-      for (index, item) in items.enumerated() {
+      for (index, batch) in batches.enumerated() {
+        let batchFailures: [PutioFileID: Error]
         do {
-          try await operation(item)
-          succeeded.append(item)
+          batchFailures = try await operation(batch)
         } catch {
+          batchFailures = Dictionary(uniqueKeysWithValues: batch.map { ($0.id, error) })
+        }
+        var rateLimited = false
+        for item in batch {
+          guard let error = batchFailures[item.id] else {
+            succeeded.append(item)
+            continue
+          }
           let failure = itemFailure(for: action, item: item, error: error)
           removedIDs.remove(item.id)
           failures.append(failure)
-          let rateLimited = failure.error == .rateLimited
-          if rateLimited {
-            for deferredItem in items.dropFirst(index + 1) {
-              removedIDs.remove(deferredItem.id)
-              failures.append(
-                itemFailure(
-                  for: action, item: deferredItem, error: PutioRuntimeError.rateLimited)
-              )
-            }
-          }
-          state = .loaded(originalContents.removing(removedIDs))
-          if rateLimited { break }
+          if failure.error == .rateLimited { rateLimited = true }
         }
+        completedCount += batch.count
+        if rateLimited {
+          for deferredItem in batches.dropFirst(index + 1).joined() {
+            removedIDs.remove(deferredItem.id)
+            failures.append(
+              itemFailure(for: action, item: deferredItem, error: PutioRuntimeError.rateLimited)
+            )
+          }
+        }
+        if !batchFailures.isEmpty || rateLimited {
+          state = .loaded(originalContents.removing(removedIDs))
+        }
+        if rateLimited { break }
 
-        if let nextItem = items.dropFirst(index + 1).first {
+        if let nextItem = batches.dropFirst(index + 1).first?.first {
           bulkProgress = PutioBulkFileProgress(
             action: action,
-            completedCount: index + 1,
+            completedCount: completedCount,
             totalCount: items.count,
             currentItem: nextItem
           )
@@ -1144,16 +1217,24 @@ struct PutioBrowserItemPresentation: Equatable, Identifiable, Sendable {
     return PutioFileRoute(item: item)
   }
 
+  /// `sort` is the folder's effective sort: rows show when an item was added
+  /// under Date Added, and when it last changed otherwise.
   init(
     item: PutioFileItem,
     relativeTo referenceDate: Date = .now,
-    locale: Locale = .current
+    locale: Locale = .current,
+    sort: PutioFolderSort? = nil
   ) {
     self.item = item
     row = PutioFileRowModel(
       name: item.name,
       kind: Self.rowKind(for: item.kind),
-      sizeText: Self.detailText(for: item, relativeTo: referenceDate, locale: locale),
+      sizeText: Self.detailText(
+        for: item,
+        date: sort?.key == .dateAdded ? item.createdAt : item.updatedAt,
+        relativeTo: referenceDate,
+        locale: locale
+      ),
       isWatched: item.isWatched
     )
   }
@@ -1170,12 +1251,21 @@ struct PutioBrowserItemPresentation: Equatable, Identifiable, Sendable {
 
   private static func detailText(
     for item: PutioFileItem,
+    date: Date,
     relativeTo referenceDate: Date,
     locale: Locale
   ) -> String? {
     guard item.kind != .folder else { return nil }
     let size = PutioFileRowModel.sizeText(bytes: item.sizeBytes, locale: locale)
-    let relativeDate = relativeDateFormatters.withLock { formatters in
+    let relativeDate = relativeDateText(for: date, relativeTo: referenceDate, locale: locale)
+    return "\(size) · \(relativeDate)"
+  }
+
+  /// A named relative date such as "yesterday" or "3 days ago".
+  static func relativeDateText(
+    for date: Date, relativeTo referenceDate: Date = .now, locale: Locale = .current
+  ) -> String {
+    relativeDateFormatters.withLock { formatters in
       let formatter: RelativeDateTimeFormatter
       if let cached = formatters[locale] {
         formatter = cached
@@ -1186,9 +1276,8 @@ struct PutioBrowserItemPresentation: Equatable, Identifiable, Sendable {
         formatter.unitsStyle = .full
         formatters[locale] = formatter
       }
-      return formatter.localizedString(for: item.updatedAt, relativeTo: referenceDate)
+      return formatter.localizedString(for: date, relativeTo: referenceDate)
     }
-    return "\(size) · \(relativeDate)"
   }
 
   // Rows rebuild their presentation on every render, so each locale's
@@ -1207,8 +1296,8 @@ enum PutioFolderSortKey: CaseIterable, Hashable {
     case .size: "Size"
     case .dateAdded: "Date Added"
     case .dateModified: "Date Modified"
-    case .type: "Kind"
-    case .watchStatus: "Watched"
+    case .type: "Type"
+    case .watchStatus: "Watch Status"
     }
   }
 
