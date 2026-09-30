@@ -61,6 +61,7 @@ final class LiveFilesJourneyTests: XCTestCase {
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 10), "sign-out action never appeared")
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 20), "sign-out did not return to sign-in")
     attach("live-signed-out")
   }
