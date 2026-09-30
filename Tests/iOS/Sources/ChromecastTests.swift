@@ -178,7 +178,8 @@ final class ChromecastTests: XCTestCase {
     resolutions: [Result<PutioCastResolution, PutioRuntimeError>],
     playbackType: Result<PutioCastPlaybackType, PutioRuntimeError> = .success(.mp4),
     conversionStatuses: [PutioVideoConversionStatus] = [],
-    reportInterval: Duration = .milliseconds(40)
+    reportInterval: Duration = .milliseconds(40),
+    remembersPlaybackPosition: Bool = true
   ) -> (PutioCastModel, Box) {
     controllers.append(controller)
     let box = Box(resolutions: resolutions, conversionStatuses: conversionStatuses)
@@ -207,6 +208,7 @@ final class ChromecastTests: XCTestCase {
         guard !box.conversionStatuses.isEmpty else { return .completed }
         return box.conversionStatuses.removeFirst()
       },
+      remembersPlaybackPosition: { remembersPlaybackPosition },
       reportPosition: { id, seconds in box.reports.append((id, seconds)) })
     return (model, box)
   }
@@ -530,6 +532,22 @@ final class ChromecastTests: XCTestCase {
     XCTAssertEqual(box.reports.map(\.1), [601, 700], "stop flushes the last paused position")
     try await Task.sleep(for: .milliseconds(80))
     XCTAssertEqual(box.reports.count, 2, "reporting stops with the session")
+  }
+
+  func testAccountWithoutRememberedPositionsNeverReportsCastPositions() async throws {
+    let controller = CastControllerStub()
+    let (model, box) = makeModel(
+      controller: controller, resolutions: [.success(.ready(media()))],
+      reportInterval: .milliseconds(10), remembersPlaybackPosition: false)
+    model.cast(route)
+    try await expect({ model.media != nil })
+    controller.report(status(.playing, position: 601.4))
+    try await Task.sleep(for: .milliseconds(80))
+    controller.report(status(.paused, position: 700))
+    model.stopCasting()
+    try await Task.sleep(for: .milliseconds(40))
+    XCTAssertTrue(box.reports.isEmpty)
+    XCTAssertNil(model.reportedPosition)
   }
 
   func testReceiverIdleEndsTheSessionSurfaceAndAnotherSendersMediaIsIgnored() async throws {

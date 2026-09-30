@@ -103,7 +103,8 @@ final class PutioAudioPlayerModelTests: XCTestCase {
         url: URL(string: "https://media.example.test/\(id.rawValue).m4a?oauth_token=secret")!,
         startFromSeconds: 12)
     },
-    loadNext: PutioNextAudioLoad? = nil
+    loadNext: PutioNextAudioLoad? = nil,
+    remembersPlaybackPosition: Bool = true
   ) -> Harness {
     let engine = AudioEngineSpy()
     let nowPlaying = NowPlayingSpy()
@@ -119,6 +120,7 @@ final class PutioAudioPlayerModelTests: XCTestCase {
       audioSession: session,
       speedStore: PutioAudioSpeedStore(defaults: defaults),
       positionPipeline: pipeline,
+      remembersPlaybackPosition: remembersPlaybackPosition,
       notificationCenter: center,
       reportPosition: { try await reports.report($0, $1) },
       resolve: resolve,
@@ -187,6 +189,24 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     h.engine.onPositionChanged?(12)
     h.engine.onPositionChanged?(13)
     XCTAssertEqual(h.model.elapsedSeconds, 13)
+  }
+
+  func testAccountWithoutRememberedPositionsStartsAtZeroAndNeverReports() async {
+    let h = makeHarness(remembersPlaybackPosition: false)
+
+    await h.model.start()
+    XCTAssertEqual(h.engine.events, ["load:430.m4a@0", "play:1.0"])
+    for second in 1...40 { h.engine.onPositionChanged?(second) }
+    h.model.pause()
+    h.model.resume()
+    h.model.seek(to: 90)
+    h.engine.onEnded?()
+    await waitUntil { h.model.track.id == successor.id && h.model.isPlaying }
+    h.model.stop()
+    await h.pipeline.waitForPendingReports(fileID: track.id)
+    await h.pipeline.waitForPendingReports(fileID: successor.id)
+
+    XCTAssertTrue(h.reports.reports.isEmpty)
   }
 
   func testUnstartedViewModelDoesNotRegisterOrClearRemotePlayback() {

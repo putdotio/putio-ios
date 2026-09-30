@@ -747,6 +747,7 @@ private struct MainTabView: View {
         audioSession: PutioSystemAudioSession(),
         speedStore: PutioAudioSpeedStore(),
         positionPipeline: playbackPositionPipeline,
+        remembersPlaybackPosition: account.rememberVideoTime,
         reportPosition: { fileID, seconds in
           if offlineQueue.item(for: fileID)?.isPlayable == true {
             await offlineQueue.recordPosition(fileID: fileID, seconds: seconds)
@@ -1537,6 +1538,10 @@ enum PutioCastControllerFactory {
       savePlaybackType: { try await runtime.setCastPlaybackType($0) },
       startConversion: { try await runtime.startVideoConversion(fileID: $0) },
       loadConversionStatus: { try await runtime.videoConversionStatus(fileID: $0) },
+      remembersPlaybackPosition: {
+        guard case .signedIn(let account) = runtime.session.state else { return false }
+        return account.rememberVideoTime
+      },
       reportPosition: { fileID, seconds in
         try await runtime.reportPlaybackPosition(fileID: fileID, seconds: seconds)
       }

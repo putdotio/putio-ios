@@ -163,6 +163,7 @@ final class PutioCastModel {
   @ObservationIgnored private let startConversion: PutioVideoConversionStart
   @ObservationIgnored private let loadConversionStatus: PutioVideoConversionStatusLoad
   @ObservationIgnored private let reportPosition: PutioPlaybackPositionReport
+  @ObservationIgnored private let remembersPlaybackPosition: @MainActor () -> Bool
   @ObservationIgnored private let positionReportInterval: Duration
   @ObservationIgnored private let conversionPollInterval: Duration
   @ObservationIgnored private var generation: UInt64 = 0
@@ -181,6 +182,7 @@ final class PutioCastModel {
     savePlaybackType: @escaping PutioCastPlaybackTypeSave,
     startConversion: @escaping PutioVideoConversionStart,
     loadConversionStatus: @escaping PutioVideoConversionStatusLoad,
+    remembersPlaybackPosition: @escaping @MainActor () -> Bool = { true },
     reportPosition: @escaping PutioPlaybackPositionReport
   ) {
     self.controller = controller
@@ -193,6 +195,7 @@ final class PutioCastModel {
     self.startConversion = startConversion
     self.loadConversionStatus = loadConversionStatus
     self.reportPosition = reportPosition
+    self.remembersPlaybackPosition = remembersPlaybackPosition
     controller.onConnectionChanged = { [weak self] connection in
       self?.connectionChanged(connection)
     }
@@ -557,8 +560,11 @@ final class PutioCastModel {
     reportTask = nil
   }
 
+  /// Reads the account setting per report: the model outlives any one account
+  /// snapshot.
   private func reportPositionIfNeeded() {
-    guard let media, let status, status.playerState == .playing || status.playerState == .paused
+    guard remembersPlaybackPosition(), let media, let status,
+      status.playerState == .playing || status.playerState == .paused
     else { return }
     let seconds = Int(status.positionSeconds.rounded(.down))
     guard seconds > 0, seconds != lastReportedSeconds else { return }

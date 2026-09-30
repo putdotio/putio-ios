@@ -52,10 +52,16 @@ extension PutioRuntime {
   }
 
   /// Saves the resume position for any media file; put.io keeps one
-  /// `start_from` per file regardless of type.
+  /// `start_from` per file regardless of type. An account that turned
+  /// positions off rejects every save as `FEATURE_DISABLED`; that position
+  /// has nowhere to go, so it counts as settled rather than as a failure.
   public func reportPlaybackPosition(fileID: PutioFileID, seconds: Int) async throws {
-    _ = try await performAuthenticatedOperation {
-      try await sdk.setStartFrom(fileID: fileID.rawValue, time: seconds)
+    try await performAuthenticatedOperation {
+      do {
+        _ = try await sdk.setStartFrom(fileID: fileID.rawValue, time: seconds)
+      } catch let error as PutioSDKError
+        where error.matches(statusCode: 400, errorType: "FEATURE_DISABLED")
+      {}
     }
   }
 
@@ -89,7 +95,8 @@ extension PutioRuntime {
   /// playlist with server-muxed subtitles; MP4 uses the converted file when
   /// available (or the original when it needs no conversion) and lists the
   /// file's subtitles as WebVTT tracks. Files that still need conversion for
-  /// MP4 playback resolve as `conversionRequired`.
+  /// MP4 playback resolve as `conversionRequired`. MP4 tracks follow the
+  /// account's subtitle settings; HLS gets them applied by the server.
   public func resolveCastMedia(fileID: PutioFileID, playbackType: PutioCastPlaybackType)
     async throws -> PutioCastResolution
   {
@@ -106,6 +113,7 @@ extension PutioRuntime {
     guard file.id == fileID.rawValue, file.type == .video else {
       throw PutioRuntimeError.invalidResponse
     }
+    guard case .signedIn(let account) = session.state else { throw currentSessionError }
     let artworkURL = URL(string: file.screenshot).flatMap { $0.scheme == "https" ? $0 : nil }
     let duration = file.metaData?.duration ?? 0
     switch playbackType {
@@ -128,6 +136,13 @@ extension PutioRuntime {
         url = file.getDownloadURL(token: token)
       } else {
         return .conversionRequired
+      }
+      guard !account.hideSubtitles else {
+        return .ready(
+          PutioCastMedia(
+            id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
+            playbackType: .mp4, url: url, artworkURL: artworkURL, durationSeconds: duration,
+            startFromSeconds: file.startFrom, subtitles: [], defaultSubtitleKey: nil))
       }
       let response = try await performAuthenticatedOperation {
         try await sdk.getSubtitles(fileID: fileID.rawValue)
@@ -160,7 +175,8 @@ extension PutioRuntime {
           id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
           playbackType: .mp4, url: url, artworkURL: artworkURL, durationSeconds: duration,
           startFromSeconds: file.startFrom, subtitles: subtitles,
-          defaultSubtitleKey: defaultKey ?? subtitles.first?.key))
+          defaultSubtitleKey: account.dontAutoSelectSubtitles
+            ? nil : defaultKey ?? subtitles.first?.key))
     }
   }
 
