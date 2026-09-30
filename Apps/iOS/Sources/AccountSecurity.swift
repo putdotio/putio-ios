@@ -326,7 +326,17 @@ final class PutioRecoveryCodesModel {
 
   /// Unused codes only; a used code has no value to the user.
   var copyableText: String {
-    (codes ?? []).filter { !$0.isUsed }.map(\.code).joined(separator: "\n")
+    Self.unusedText(codes ?? [])
+  }
+
+  nonisolated static func unusedText(_ codes: [PutioTwoFactorRecoveryCode]) -> String {
+    codes.filter { !$0.isUsed }.map(\.code).joined(separator: "\n")
+  }
+
+  /// put.io's web export name, stamped with milliseconds since 1970.
+  nonisolated static func exportFilename(at date: Date) -> String {
+    let milliseconds = Int64((date.timeIntervalSince1970 * 1000).rounded(.down))
+    return "putio-two-factor-recovery-codes_\(milliseconds).txt"
   }
 }
 
@@ -412,25 +422,38 @@ final class PutioAuthorizedAppsModel {
 @MainActor
 @Observable
 final class PutioLinkDeviceModel {
-  var code = ""
+  /// Activation codes are six characters, as put.io's web linking form requires.
+  static let codeLength = 6
+  static let codeLengthFailure = "Must be exactly 6 characters."
+
+  var code: String
   private(set) var isLinking = false
   private(set) var failure: String?
   private(set) var linkedApp: PutioAuthorizedApp?
   @ObservationIgnored private let actions: PutioAccountSecurityActions
 
-  init(actions: PutioAccountSecurityActions) {
+  init(actions: PutioAccountSecurityActions, code: String? = nil) {
     self.actions = actions
+    self.code = code.map(Self.normalized) ?? ""
+  }
+
+  nonisolated static func normalized(_ code: String) -> String {
+    code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
   }
 
   var canLink: Bool {
-    !isLinking && !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    !isLinking && !Self.normalized(code).isEmpty
   }
 
   func link() async {
     guard canLink else { return }
+    let code = Self.normalized(code)
+    guard code.count == Self.codeLength else {
+      failure = Self.codeLengthFailure
+      return
+    }
     isLinking = true
     failure = nil
-    let code = code
     let task = Task { @MainActor in
       defer { isLinking = false }
       do {

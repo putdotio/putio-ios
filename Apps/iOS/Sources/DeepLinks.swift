@@ -10,7 +10,8 @@ enum PutioDeepLink: Equatable {
   case downloads(PutioFileID?)
   case history
   case account
-  case linkDevice
+  /// put.io's web `/link?code=` form prefills the activation code; so does this.
+  case linkDevice(code: String?)
   case unavailable
 
   static func parse(_ url: URL) -> Self? {
@@ -21,14 +22,14 @@ enum PutioDeepLink: Equatable {
     guard (scheme == "putio" && host.isEmpty) || host == "put.io" || host.hasSuffix(".put.io")
     else { return nil }
     guard components.user == nil, components.password == nil, components.port == nil,
-      components.query == nil, components.fragment == nil,
-      components.percentEncodedPath == components.path
+      components.fragment == nil, components.percentEncodedPath == components.path
     else { return .unavailable }
+    if components.path == "/link" { return linkDevice(query: components.queryItems) }
+    guard components.query == nil else { return .unavailable }
     switch components.path {
     case "/downloads": return .downloads(nil)
     case "/history": return .history
     case "/account", "/settings": return .account
-    case "/link": return .linkDevice
     default:
       let parts = components.path.split(separator: "/", omittingEmptySubsequences: false)
       guard parts.count == 3, parts[0].isEmpty,
@@ -42,6 +43,17 @@ enum PutioDeepLink: Equatable {
       }
     }
   }
+
+  /// Only a single `code` item is understood; the code is prefilled, never
+  /// submitted, so linking still needs the user's tap.
+  private static func linkDevice(query: [URLQueryItem]?) -> Self {
+    guard let query else { return .linkDevice(code: nil) }
+    guard query.count == 1, let item = query.first, item.name == "code" else {
+      return .unavailable
+    }
+    let code = PutioLinkDeviceModel.normalized(item.value ?? "")
+    return .linkDevice(code: code.isEmpty ? nil : code)
+  }
 }
 
 enum PutioDeepLinkDestination: Equatable {
@@ -49,7 +61,7 @@ enum PutioDeepLinkDestination: Equatable {
   case downloads(PutioFileID?)
   case history
   case account
-  case linkDevice
+  case linkDevice(code: String?)
 
   /// A downloads link plays a finished item as its row would. An unfinished
   /// or unknown item leaves the Downloads list showing, as the legacy app did
@@ -151,7 +163,7 @@ final class PutioDeepLinkModel {
       switch pending {
       case .downloads(let id): resolved = .downloads(id)
       case .account: resolved = .account
-      case .linkDevice: resolved = .linkDevice
+      case .linkDevice(let code): resolved = .linkDevice(code: code)
       case .history:
         guard historyEnabled else { throw PutioDeepLinkFailure.historyDisabled }
         resolved = .history

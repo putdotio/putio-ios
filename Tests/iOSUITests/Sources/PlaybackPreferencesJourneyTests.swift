@@ -26,7 +26,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     let alternate = app.descendants(matching: .any)["playback-settings.route.edge"]
     XCTAssertTrue(alternate.waitForExistence(timeout: 5))
     alternate.tap()
-    if !app.navigationBars["Playback Preferences"].exists {
+    if !app.navigationBars["Playback preferences"].exists {
       app.navigationBars.buttons["BackButton"].tap()
     }
     let saveRetry = app.buttons["playback-settings.retry-save"]
@@ -84,6 +84,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
   }
 

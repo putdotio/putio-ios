@@ -337,23 +337,77 @@ final class AccountSecurityTests: XCTestCase {
   }
 
   func testLinkDeviceRejectionClearsTheCodeAndSuccessIsAcknowledged() async {
+    var submitted: [String] = []
     let model = PutioLinkDeviceModel(
       actions: PutioAccountSecurityActions(linkDevice: { code in
-        guard code == "HARN" else { throw PutioAccountSecurityError.invalidDeviceCode }
+        submitted.append(code)
+        guard code == "HARN42" else { throw PutioAccountSecurityError.invalidDeviceCode }
         return PutioAuthorizedApp(id: 77, name: "TV", description: "", isCurrentClient: false)
       }))
     XCTAssertFalse(model.canLink)
-    model.code = "ZZZZ"
+    model.code = "ZZZZZZ"
     await model.link()
     XCTAssertEqual(model.code, "")
     XCTAssertNotNil(model.failure)
-    model.code = "HARN"
+    model.code = " harn42\n"
     await model.link()
     XCTAssertEqual(model.linkedApp?.id, 77)
     XCTAssertNil(model.failure)
+    XCTAssertEqual(submitted, ["ZZZZZZ", "HARN42"])
     model.acknowledgeLink()
     XCTAssertNil(model.linkedApp)
     XCTAssertEqual(model.code, "")
+  }
+
+  func testLinkDeviceNeedsExactlySixCharactersBeforeAnyRequest() async {
+    var submitted: [String] = []
+    let model = PutioLinkDeviceModel(
+      actions: PutioAccountSecurityActions(linkDevice: { code in
+        submitted.append(code)
+        return PutioAuthorizedApp(id: 77, name: "TV", description: "", isCurrentClient: false)
+      }))
+    for code in ["HARN", " HARN4 ", "HARN421"] {
+      model.code = code
+      XCTAssertTrue(model.canLink, code)
+      await model.link()
+      XCTAssertEqual(model.failure, "Must be exactly 6 characters.", code)
+      XCTAssertEqual(model.code, code, "a malformed code was cleared instead of corrected")
+    }
+    XCTAssertEqual(submitted, [])
+    model.code = "harn42"
+    await model.link()
+    XCTAssertNil(model.failure)
+    XCTAssertEqual(submitted, ["HARN42"])
+  }
+
+  func testLinkDevicePrefillIsNormalized() {
+    let model = PutioLinkDeviceModel(actions: PutioAccountSecurityActions(), code: " ab12cd ")
+    XCTAssertEqual(model.code, "AB12CD")
+    XCTAssertEqual(PutioLinkDeviceModel(actions: PutioAccountSecurityActions()).code, "")
+  }
+
+  func testRecoveryCodeExportUsesTheWebFilenameAndOnlyUnusedCodes() {
+    XCTAssertEqual(
+      PutioRecoveryCodesModel.exportFilename(at: Date(timeIntervalSince1970: 1_700_000_000.5)),
+      "putio-two-factor-recovery-codes_1700000000500.txt")
+    XCTAssertEqual(
+      PutioRecoveryCodesModel.unusedText([
+        PutioTwoFactorRecoveryCode(code: "a-1", isUsed: false),
+        PutioTwoFactorRecoveryCode(code: "a-2", isUsed: true),
+        PutioTwoFactorRecoveryCode(code: "a-3", isUsed: false),
+      ]), "a-1\na-3")
+  }
+
+  func testRatingLinkUsesTheConfiguredAppStoreIDOrTheLegacyListing() {
+    let legacy = "https://apps.apple.com/app/id1260479699?action=write-review"
+    for unusable in [nil, "", "  ", "$(PUTIO_APP_STORE_ID)", "id123", "12a4"] {
+      XCTAssertEqual(
+        PutioAppStoreReview.url(appID: unusable)?.absoluteString, legacy,
+        String(describing: unusable))
+    }
+    XCTAssertEqual(
+      PutioAppStoreReview.url(appID: " 6450000000 ")?.absoluteString,
+      "https://apps.apple.com/app/id6450000000?action=write-review")
   }
 
   func testClearDataNeedsASelectionAndReportsAFailedRefresh() async {

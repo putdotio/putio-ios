@@ -41,6 +41,19 @@ final class ComponentKitTests: XCTestCase {
     )
   }
 
+  func testStorageUsageReadsAsUsedOfTotalWithAClampedFraction() {
+    let english = Locale(identifier: "en_US")
+    let storage = PutioAccountSnapshot.Storage(
+      availableBytes: 750_000_000_000, totalBytes: 1_000_000_000_000, usedBytes: 250_000_000_000)
+    XCTAssertEqual(storage.usageSummary(locale: english), "250 GB of 1 TB used")
+    XCTAssertEqual(storage.usedFraction, 0.25)
+    let overQuota = PutioAccountSnapshot.Storage(
+      availableBytes: 0, totalBytes: 100, usedBytes: 150)
+    XCTAssertEqual(overQuota.usedFraction, 1)
+    let noQuota = PutioAccountSnapshot.Storage(availableBytes: 0, totalBytes: 0, usedBytes: 0)
+    XCTAssertEqual(noQuota.usedFraction, 0)
+  }
+
   func testButtonTokensPreservePublishedGeometry() {
     XCTAssertEqual(PutioTheme.Components.Button.height.value, 36)
     XCTAssertEqual(PutioTheme.Components.Button.heightMedium.value, 32)

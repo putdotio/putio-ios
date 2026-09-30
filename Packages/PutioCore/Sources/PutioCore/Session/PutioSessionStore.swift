@@ -144,6 +144,23 @@ public final class PutioSessionStore {
     }
   }
 
+  /// Removes a saved credential that could not be restored so a fresh sign-in
+  /// can start. Restore never calls this: a credential is only abandoned when
+  /// the user chooses to, because the failure may be transient. If removal
+  /// fails, restore recovery stays in place with the removal error.
+  public func discardUnrestoredCredential() {
+    guard case .signedOut(.restoreFailed) = state else { return }
+    abandonPendingSignIn()
+    _ = advanceAuthenticationGeneration()
+    sdk.clearToken()
+    do {
+      try tokenStore.clear()
+      state = .signedOut(nil)
+    } catch {
+      state = .signedOut(.restoreFailed(message(for: error)))
+    }
+  }
+
   // MARK: - Sign in
 
   public func beginSignIn() throws -> PutioSignInRequest {

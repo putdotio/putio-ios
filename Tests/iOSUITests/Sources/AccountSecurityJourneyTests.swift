@@ -58,6 +58,13 @@ final class AccountSecurityJourneyTests: XCTestCase {
     tap("security.recovery-retry")
     XCTAssertTrue(waitForValue(firstCode, "code1-0", timeout: 10))
     XCTAssertNotEqual(element("security.recovery-code.3").label, "Used recovery code")
+    // Download hands the codes to the system exporter; cancelling saves nothing.
+    tap("security.recovery-download")
+    let cancelExport = app.buttons["Cancel"].firstMatch
+    XCTAssertTrue(cancelExport.waitForExistence(timeout: 10), "the exporter never appeared")
+    screenshot("runtime-security-recovery-download")
+    cancelExport.tap()
+    XCTAssertTrue(waitUntilHittable(element("security.recovery-download")))
     back()
 
     // Signed-in apps: this app has no revoke action; the TV revoke retries.
@@ -76,14 +83,21 @@ final class AccountSecurityJourneyTests: XCTestCase {
     screenshot("runtime-security-apps")
     back()
 
-    // Device linking rejects an unknown code and reports the linked app.
+    // Device linking needs six characters, rejects an unknown code, and
+    // submits the code uppercased.
     tap("security.link-device")
     let linkCode = app.textFields["security.link-code"]
     XCTAssertTrue(linkCode.waitForExistence(timeout: 5))
-    enter("ZZZZ", into: linkCode)
+    enter("ZZZ", into: linkCode)
     tap("security.link-submit")
-    XCTAssertTrue(element("security.link-failure").waitForExistence(timeout: 10))
-    enter("HARN", into: linkCode)
+    XCTAssertTrue(app.staticTexts["Must be exactly 6 characters."].waitForExistence(timeout: 5))
+    enter("ZZZ", into: linkCode)
+    tap("security.link-submit")
+    XCTAssertTrue(
+      app.staticTexts["That device code was not found. Check the code on the device and try again."]
+        .waitForExistence(timeout: 10))
+    XCTAssertEqual(linkCode.value as? String, "Activation code", "a rejected code stayed")
+    enter("harn42", into: linkCode)
     tap("security.link-submit")
     let connected = app.alerts["Connected"]
     XCTAssertTrue(connected.waitForExistence(timeout: 10))

@@ -21,7 +21,22 @@ final class DeepLinkTests: XCTestCase {
     XCTAssertEqual(PutioDeepLink.parse(try url("/downloads")), .downloads(nil))
     XCTAssertEqual(
       PutioDeepLink.parse(try url("/downloads/412")), .downloads(.init(rawValue: 412)))
-    XCTAssertEqual(PutioDeepLink.parse(try url("/link")), .linkDevice)
+    XCTAssertEqual(PutioDeepLink.parse(try url("/link")), .linkDevice(code: nil))
+  }
+
+  func testLinkPrefillsOnlyASingleNormalizedCode() throws {
+    XCTAssertEqual(
+      PutioDeepLink.parse(try url("/link?code=ab12cd")), .linkDevice(code: "AB12CD"))
+    XCTAssertEqual(
+      PutioDeepLink.parse(try XCTUnwrap(URL(string: "https://put.io/link?code=%20ab12cd%20"))),
+      .linkDevice(code: "AB12CD"))
+    XCTAssertEqual(PutioDeepLink.parse(try url("/link?code=")), .linkDevice(code: nil))
+    for path in [
+      "/link?code=AB12CD&next=/files", "/link?code=AB12CD&code=ZZZZZZ", "/link?next=/files",
+      "/link?code=AB12CD#synthetic",
+    ] {
+      XCTAssertEqual(PutioDeepLink.parse(try url(path)), .unavailable, path)
+    }
   }
 
   func testForeignHostsAndAuthenticationCallbacksAreNotConsumed() throws {
@@ -39,7 +54,7 @@ final class DeepLinkTests: XCTestCase {
       "/files", "/files/-1", "/files/+1", "/files/1/extra", "/files/999999999999999999999999",
       "/files/1?oauth_token=synthetic", "/files/1#synthetic", "/files/%31", "/files//1",
       "/downloads/", "/downloads/abc", "/downloads/-1", "/downloads/1/extra",
-      "/downloads/1?code=synthetic", "/link/1", "/link?code=synthetic", "/history/1",
+      "/downloads/1?code=synthetic", "/link/1", "/history/1?code=synthetic", "/history/1",
     ] {
       XCTAssertEqual(PutioDeepLink.parse(try url(path)), .unavailable, path)
     }
@@ -77,7 +92,8 @@ final class DeepLinkTests: XCTestCase {
     for (path, destination) in [
       ("/files/0", PutioDeepLinkDestination.files([], file: nil)),
       ("/history", .history), ("/account", .account), ("/downloads", .downloads(nil)),
-      ("/downloads/412", .downloads(.init(rawValue: 412))), ("/link", .linkDevice),
+      ("/downloads/412", .downloads(.init(rawValue: 412))), ("/link", .linkDevice(code: nil)),
+      ("/link?code=ab12cd", .linkDevice(code: "AB12CD")),
     ] {
       model.receive(try url(path))
       await model.resolve(historyEnabled: true) { _ in
@@ -94,10 +110,10 @@ final class DeepLinkTests: XCTestCase {
     model.receive(try url("/link"))
     await model.resolve(historyEnabled: true) { _ in throw PutioRuntimeError.unknown }
     XCTAssertNil(model.destination)
-    XCTAssertEqual(model.pending, .linkDevice)
+    XCTAssertEqual(model.pending, .linkDevice(code: nil))
     model.updateSession(.signedIn(account()))
     await model.resolve(historyEnabled: true) { _ in throw PutioRuntimeError.unknown }
-    XCTAssertEqual(model.destination, .linkDevice)
+    XCTAssertEqual(model.destination, .linkDevice(code: nil))
   }
 
   func testDownloadsLinkPlaysOnlyAFinishedQueuedItem() {
