@@ -813,6 +813,15 @@ public struct SimulatorHarness {
           defaultExecutionTimeAllowance: 180,
           maximumExecutionTimeAllowance: 180
         )
+        _ = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.unsavedDownloadsTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".unsaved-downloads.xcresult"),
+          defaultExecutionTimeAllowance: 90,
+          maximumExecutionTimeAllowance: 90
+        )
         let castScreenshots = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.castTestIdentifier,
           platform: platform,
