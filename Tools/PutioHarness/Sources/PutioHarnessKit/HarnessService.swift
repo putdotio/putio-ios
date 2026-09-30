@@ -174,9 +174,10 @@ public enum HarnessOutput {
           "\(check.status.rawValue): \(check.name): \(redact(check.detail))"
         }).joined(separator: "\n")
     case (.result(let result), .json):
-      try encode(result)
+      try encode(redacted(result))
     case (.result(let result), .text):
-      ([result.message] + result.artifacts.map { "artifact: \($0)" }).joined(separator: "\n")
+      ([redact(result.message)] + result.artifacts.map { "artifact: \(redact($0))" })
+        .joined(separator: "\n")
     }
   }
 
@@ -246,6 +247,16 @@ public enum HarnessOutput {
           detail: redact(check.detail)
         )
       })
+  }
+
+  private static func redacted(_ result: HarnessResult) -> HarnessResult {
+    HarnessResult(
+      status: result.status,
+      command: result.command,
+      platforms: result.platforms,
+      artifacts: result.artifacts.map { redact($0) },
+      message: redact(result.message)
+    )
   }
 
   private static func encode<T: Encodable>(_ value: T) throws -> String {

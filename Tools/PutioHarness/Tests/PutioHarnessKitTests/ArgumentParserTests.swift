@@ -270,6 +270,22 @@ import Testing
   #expect(basicAuthorization.contains("[REDACTED]"))
 }
 
+@Test func resultOutputRedactsSecrets() throws {
+  let result = HarnessResult(
+    command: "journey",
+    artifacts: [#"build/proof/token=artifact-secret.png"#],
+    message: #"live smoke failed: {"access_token":"secret with spaces"}"#
+  )
+
+  let text = try HarnessOutput.render(.result(result), format: .text)
+  let json = try HarnessOutput.render(.result(result), format: .json)
+  for output in [text, json] {
+    #expect(!output.contains("secret with spaces"))
+    #expect(!output.contains("artifact-secret"))
+    #expect(output.contains("[REDACTED]"))
+  }
+}
+
 @Test func doctorOutputRedactsCaughtFailureDetails() throws {
   let report = DoctorReport(checks: [
     DoctorCheck(
