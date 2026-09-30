@@ -226,11 +226,13 @@ revokes it, so the live scenario's token store keeps a pending-revocation copy
 until put.io revokes or rejects the token. Then the app records the revocation in
 its data container. After any approval, even in a failed journey, the harness
 relaunches the app with `--putio-harness-live-sign-out`. The app restores the
-saved or pending token, signs it out, and reports the result, and the harness
-retries a failed revocation up to three times. A missing token is not proof: the
+saved or pending token, signs it out, and reports the result. The harness makes
+up to three attempts while a launch fails, times out, or cannot revoke the saved
+token. A missing token is not proof: the
 journey passes only when put.io revoked or rejected the token in this launch or
 an earlier one. On SIGINT or SIGTERM after approval, this revocation runs before
-the simulator is deleted. If an approval is interrupted before the app saves its
+the simulator is deleted, and the interrupted command leaves simulator teardown
+to the interrupt cleanup. If an approval is interrupted before the app saves its
 token, nothing in the simulator can revoke the grant. The harness then reports
 that the grant may still be live and names the manual revocation.
 

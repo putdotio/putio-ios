@@ -370,6 +370,18 @@ public final class SimulatorLifecycle: @unchecked Sendable {
     }
   }
 
+  /// Tears down a finished session unless an interrupt's cleanup already
+  /// owns it. That cleanup revokes live grants before deleting the same
+  /// simulators, so deleting them here could race its revocation.
+  func endSession(_ teardown: () throws -> Void) throws {
+    condition.lock()
+    let terminating = cleanupRequested
+    condition.unlock()
+    guard !terminating else { return }
+    try teardown()
+    release()
+  }
+
   func release() {
     condition.lock()
     cleanupActions.removeAll()
@@ -1313,9 +1325,7 @@ public struct SimulatorHarness {
     -> LiveCleanup
   {
     let bundleIdentifier = platform.configuration.bundleIdentifier
-    var cleanup: LiveCleanup?
-    for attempt in 1...3 {
-      if attempt > 1 { Thread.sleep(forTimeInterval: 5) }
+    return try retryLiveCleanup(attempts: 3, delay: 5) {
       if let container = appDataContainer(platform: platform, session: session) {
         try? fileManager.removeItem(
           at: container.appending(path: LiveSessionContract.outcomeFile))
@@ -1334,15 +1344,11 @@ public struct SimulatorHarness {
           "xcrun", ["simctl", "terminate", session.deviceIdentifier, bundleIdentifier])
       }
       let outcome = try waitForLiveOutcome(platform: platform, session: session)
-      let result = LiveCleanup(
+      return LiveCleanup(
         outcome: outcome,
         revocationRecorded: appContainerFile(
           LiveSessionContract.revokedFile, platform: platform, session: session) != nil)
-      cleanup = result
-      if result.isRevoked || !outcome.isRetryable { break }
     }
-    guard let cleanup else { throw HarnessFailure("live cleanup launch never ran") }
-    return cleanup
   }
 
   private func waitForLiveOutcome(platform: HarnessPlatform, session: SimulatorSession) throws
@@ -1647,8 +1653,7 @@ public struct SimulatorHarness {
       result = .failure(error)
     }
     do {
-      try session.cleanup()
-      SimulatorLifecycle.shared.release()
+      try SimulatorLifecycle.shared.endSession { try session.cleanup() }
     } catch {
       switch result {
       case .success:

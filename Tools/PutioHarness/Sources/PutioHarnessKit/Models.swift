@@ -276,6 +276,30 @@ struct LiveCleanup: Equatable, Sendable {
     + "its other put.io iOS and Apple TV sessions"
 }
 
+/// Repeats a cleanup launch while the token may still be saved: after a
+/// failed launch, a timed-out report, or a failed restore or sign-out. Stops
+/// once revocation is proven or the app reports it has no token.
+func retryLiveCleanup(
+  attempts: Int, delay: TimeInterval, _ attempt: () throws -> LiveCleanup
+) throws -> LiveCleanup {
+  var failures: [String] = []
+  var last: LiveCleanup?
+  for number in 1...attempts {
+    if number > 1 { Thread.sleep(forTimeInterval: delay) }
+    do {
+      let cleanup = try attempt()
+      last = cleanup
+      if cleanup.isRevoked || !cleanup.outcome.isRetryable { return cleanup }
+      failures.append("attempt \(number): \(cleanup.outcome.rawValue)")
+    } catch {
+      failures.append("attempt \(number): \(error)")
+    }
+  }
+  if let last { return last }
+  throw HarnessFailure(
+    "live cleanup launch failed \(attempts) times\n" + failures.joined(separator: "\n"))
+}
+
 /// Runs the live cleanup launch at most until it proves revocation. The
 /// journey and the interrupt handler share one instance, so whichever runs
 /// second reuses a proven result or retries a failed one.

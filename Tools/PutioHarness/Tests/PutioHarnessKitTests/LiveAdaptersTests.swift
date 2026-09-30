@@ -260,3 +260,77 @@ struct LiveInterruptTests {
     #expect(String(describing: try #require(result.error)).contains("may still be live"))
   }
 }
+
+struct LiveCleanupRetryTests {
+  private struct LaunchFailed: Error {}
+
+  @Test func retriesAFailedLaunchUntilRevocationIsProven() throws {
+    var attempts = 0
+    let cleanup = try retryLiveCleanup(attempts: 3, delay: 0) {
+      attempts += 1
+      if attempts == 1 { throw LaunchFailed() }
+      return LiveCleanup(outcome: .signedOut, revocationRecorded: true)
+    }
+    #expect(cleanup.isRevoked)
+    #expect(attempts == 2)
+  }
+
+  @Test func reportsEveryAttemptWhenAllLaunchesFail() {
+    var attempts = 0
+    #expect {
+      _ = try retryLiveCleanup(attempts: 3, delay: 0) {
+        attempts += 1
+        throw LaunchFailed()
+      }
+    } throws: { String(describing: $0).contains("failed 3 times") }
+    #expect(attempts == 3)
+  }
+
+  @Test func stopsWhenNoTokenIsLeftToRevoke() throws {
+    var attempts = 0
+    let cleanup = try retryLiveCleanup(attempts: 3, delay: 0) {
+      attempts += 1
+      return LiveCleanup(outcome: .noSession, revocationRecorded: false)
+    }
+    #expect(!cleanup.isRevoked)
+    #expect(attempts == 1)
+  }
+}
+
+/// The interrupt handler's revocation can still be retrying while the worker
+/// unwinds out of its session; the worker must leave the simulator to it.
+struct LiveInterruptTeardownTests {
+  @Test func workerLeavesSimulatorTeardownToAnInterruptInProgress() throws {
+    let lifecycle = SimulatorLifecycle()
+    let lock = NSLock()
+    var events: [String] = []
+    func record(_ event: String) { lock.withLock { events.append(event) } }
+    let revocationStarted = DispatchSemaphore(value: 0)
+    let workerFinished = DispatchSemaphore(value: 0)
+    try lifecycle.register { record("delete simulator") }
+    try lifecycle.register(beforeSimulatorTeardown: true) {
+      revocationStarted.signal()
+      _ = workerFinished.wait(timeout: .now() + 5)
+      record("revoke")
+    }
+    let interrupt = Thread { try? lifecycle.cleanup() }
+    interrupt.start()
+
+    #expect(revocationStarted.wait(timeout: .now() + 5) == .success)
+    try lifecycle.endSession { record("worker deletes simulator") }
+    workerFinished.signal()
+    let deadline = Date().addingTimeInterval(5)
+    while lock.withLock({ events.count < 2 }), Date() < deadline {
+      Thread.sleep(forTimeInterval: 0.01)
+    }
+
+    #expect(lock.withLock { events } == ["revoke", "delete simulator"])
+  }
+
+  @Test func workerTearsDownWhenNoInterruptIsRunning() throws {
+    let lifecycle = SimulatorLifecycle()
+    var tornDown = false
+    try lifecycle.endSession { tornDown = true }
+    #expect(tornDown)
+  }
+}
