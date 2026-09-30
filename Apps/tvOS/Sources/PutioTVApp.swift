@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct PutioTVApp: App {
-  private let scenario = HarnessScenario.parse(arguments: ProcessInfo.processInfo.arguments)
+  private let scenario = HarnessLaunch.scenario
 
   var body: some Scene {
     WindowGroup {
@@ -27,7 +27,7 @@ struct PutioTVApp: App {
 // the typography proof content.
 private struct TVHarnessExerciseView: View {
   private let presentation = SignedOutPresentation.harnessInitialPresentation(
-    arguments: ProcessInfo.processInfo.arguments)
+    arguments: HarnessLaunch.arguments)
 
   var body: some View {
     VStack(spacing: PutioTheme.TV.Spacing.small) {

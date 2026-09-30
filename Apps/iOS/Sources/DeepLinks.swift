@@ -76,6 +76,7 @@ final class PutioDeepLinkModel {
   private(set) var failure: PutioDeepLinkFailure?
   private(set) var isLoading = false
   private var boundAccountID: Int?
+  private var isSigningOut = false
   /// Resolution runs in a task the model owns. SwiftUI recreates the view's
   /// `.task` on identity churn during a cold launch, which would cancel a
   /// structured child mid-request; an owned task only stops on `cancel()`.
@@ -90,7 +91,7 @@ final class PutioDeepLinkModel {
   var presentsStatus: Bool { isLoading || failure != nil }
 
   func receive(_ url: URL) {
-    guard let link = PutioDeepLink.parse(url) else { return }
+    guard !isSigningOut, let link = PutioDeepLink.parse(url) else { return }
     cancel()
     pending = link
     boundAccountID = accountID
@@ -98,6 +99,7 @@ final class PutioDeepLinkModel {
   }
 
   func updateSession(_ state: PutioSessionState) {
+    isSigningOut = false
     switch state {
     case .signedIn(let account):
       if let boundAccountID, boundAccountID != account.id { cancel() }
@@ -105,6 +107,7 @@ final class PutioDeepLinkModel {
     case .signingOut, .signOutFailed:
       cancel()
       accountID = nil
+      isSigningOut = true
     case .unknown, .authenticating, .signedOut:
       if boundAccountID != nil { cancel() }
       accountID = nil

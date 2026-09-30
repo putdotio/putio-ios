@@ -249,6 +249,23 @@ final class DeepLinkTests: XCTestCase {
     }
   }
 
+  func testLinksDuringSignOutAreIgnoredAndSignedOutLinksWaitAgain() throws {
+    for state in [PutioSessionState.signingOut, .signOutFailed(.revocation)] {
+      let model = signedInModel()
+      model.updateSession(state)
+      model.receive(try url("/files/10"))
+      XCTAssertNil(model.pending)
+      XCTAssertFalse(model.presentsStatus)
+      model.updateSession(.signedOut(.userSignedOut))
+      model.updateSession(.signedIn(account(id: 2)))
+      XCTAssertNil(model.pending, "a link from sign-out reached the next account")
+
+      model.updateSession(.signedOut(.userSignedOut))
+      model.receive(try url("/files/10"))
+      XCTAssertEqual(model.pending, .file(.init(rawValue: 10)))
+    }
+  }
+
   private func signedInModel() -> PutioDeepLinkModel {
     let model = PutioDeepLinkModel()
     model.updateSession(.signedIn(account()))

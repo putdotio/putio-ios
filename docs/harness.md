@@ -18,7 +18,10 @@ failures even when Swift cannot compile the harness.
 Local app builds use Debug and compile only the host's simulator architecture.
 When `CI` or `GITHUB_ACTIONS` is present, builds retain the project's architecture
 defaults. Run `CI=1 mise run build` locally to build both simulator architectures;
-switching modes can trigger recompilation. Device and Release builds are unchanged.
+switching modes can trigger recompilation. Device builds are unchanged.
+`mise run build` also compiles every app scheme in Release for the simulator,
+host architecture only and unsigned, so non-Debug branches keep compiling.
+Release builds ignore harness launch arguments.
 
 ## Choose the proof
 

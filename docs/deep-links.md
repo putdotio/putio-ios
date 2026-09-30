@@ -26,6 +26,7 @@ remain with `ASWebAuthenticationSession`.
 
 Links received before sign-in wait in memory. Once bound to an authenticated
 account, a link is discarded when sign-out begins or the account changes.
+Links received while sign-out runs or awaits retry are ignored.
 Only typed routes are retained, never incoming URLs. A new link or cancellation
 invalidates older lookup results.
 
