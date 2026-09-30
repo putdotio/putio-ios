@@ -246,6 +246,50 @@ final class FilesSearchTests: XCTestCase {
     await reappearance.value
   }
 
+  func testSuccessfulInitialRetryKeepsResultsOnReappearance() async {
+    var attempts = 0
+    let model = PutioFileSearchModel(
+      search: { _ in
+        attempts += 1
+        if attempts == 1 { throw PutioRuntimeError.transient }
+        return Self.page([attempts])
+      }, continueSearch: { _ in Self.page([]) }, debounce: .zero)
+
+    await model.apply(query: "movie", revision: 0)
+    guard case .failed = model.state else { return XCTFail("Expected initial failure") }
+    await model.refresh(query: " movie ", revision: 0)
+    await model.apply(query: "movie", revision: 0)
+
+    XCTAssertEqual(attempts, 2)
+    XCTAssertEqual(model.state, .loaded(Self.page([2])))
+  }
+
+  func testSuccessfulRefreshRetryRecordsTheNewRevision() async {
+    var attempts = 0
+    let model = PutioFileSearchModel(
+      search: { _ in
+        attempts += 1
+        if attempts == 2 { throw PutioRuntimeError.transient }
+        return Self.page([attempts])
+      }, continueSearch: { _ in Self.page([]) }, debounce: .zero)
+
+    await model.apply(query: "movie", revision: 0)
+    await model.apply(query: "movie", revision: 1)
+    XCTAssertEqual(model.refreshFailure?.kind, .transient)
+    await model.refresh(query: "movie", revision: 1)
+    XCTAssertNil(model.refreshFailure)
+    await model.apply(query: "movie", revision: 1)
+    XCTAssertEqual(attempts, 3)
+    XCTAssertEqual(model.state, .loaded(Self.page([3])))
+
+    // Pull-to-refresh still fetches even when the request is already applied.
+    await model.refresh(query: "movie", revision: 1)
+    await model.apply(query: "movie", revision: 1)
+    XCTAssertEqual(attempts, 4)
+    await model.apply(query: "movie", revision: 2)
+    XCTAssertEqual(attempts, 5)
+  }
+
   private static func page(_ ids: [Int], cursor: String? = nil) -> PutioFileSearchPage {
     PutioFileSearchPage(
       items: ids.map { BrowserTestFixtures.item(id: $0) }, nextCursor: cursor, totalCount: 10)

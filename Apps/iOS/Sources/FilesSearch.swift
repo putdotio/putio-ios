@@ -55,7 +55,12 @@ final class PutioFileSearchModel {
     {
       return
     }
-    if await update(query: query) { appliedRequest = request }
+    if await update(query: request.query) { appliedRequest = request }
+  }
+
+  func refresh(query: String, revision: UInt64) async {
+    let request = Request(query: Self.keyword(query), revision: revision)
+    if await update(query: request.query, debounced: false) { appliedRequest = request }
   }
 
   /// Returns true when this call's results are the ones shown.
@@ -205,7 +210,7 @@ struct FilesSearchView: View {
         retryTitle: "Try again",
         retryIdentifier: "files.search-retry"
       ) {
-        Task { await model.update(query: query, debounced: false) }
+        Task { await model.refresh(query: query, revision: refreshRequests.revision) }
       }
     case .loaded(let page):
       if page.items.isEmpty, page.nextCursor == nil, model.refreshFailure == nil {
@@ -217,7 +222,7 @@ struct FilesSearchView: View {
             .frame(minHeight: geometry.size.height)
           }
           .scrollBounceBehavior(.always)
-          .refreshable { await model.update(query: query, debounced: false) }
+          .refreshable { await model.refresh(query: query, revision: refreshRequests.revision) }
         }
       } else {
         List {
@@ -226,7 +231,7 @@ struct FilesSearchView: View {
               Text(failure.message)
                 .putioFont(PutioTheme.Typography.caption)
               Button("Try again") {
-                Task { await model.update(query: query, debounced: false) }
+                Task { await model.refresh(query: query, revision: refreshRequests.revision) }
               }
               .accessibilityIdentifier("files.search-retry")
             }
@@ -260,7 +265,7 @@ struct FilesSearchView: View {
           }
         }
         .listStyle(.plain)
-        .refreshable { await model.update(query: query, debounced: false) }
+        .refreshable { await model.refresh(query: query, revision: refreshRequests.revision) }
       }
     }
   }
