@@ -18,7 +18,7 @@ enum PutioRuntimeFactory {
         return PutioRuntime(
           clientID: clientID,
           clientName: clientName,
-          tokenStore: PutioKeychainTokenStore(service: harnessKeychainService)
+          tokenStore: liveTokenStore
         )
       }
       if scenario == .signedIn || scenario == .filesBrowser || scenario == .deviceSignIn {
@@ -76,6 +76,8 @@ enum PutioRuntimeFactory {
     static var harnessKeychainService: String {
       (Bundle.main.bundleIdentifier ?? "io.put.dev") + ".harness"
     }
+
+    static let liveTokenStore = HarnessLiveTokenStore(service: harnessKeychainService)
 
     static func runtimeProofCallback(for request: PutioSignInRequest) throws -> URL {
       guard

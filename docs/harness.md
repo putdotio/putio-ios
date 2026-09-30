@@ -221,15 +221,24 @@ token stays inside the app; the harness never sees it. The tvOS journey then
 signs out through the account screen. The iOS journey first opens the fixture
 folder and previews the image. Neither journey writes files.
 
-Signing out revokes the run's grant. After any approval, even a failed one, the
-harness relaunches the app with `--putio-harness-live-sign-out`: the app restores
-any saved session, signs it out, and reports the result. The journey fails
-unless that relaunch finds no session or revokes it. The CLI refuses to list
-authorized apps. The iOS journey captures Account > Security > "Where you're
-signed in" while signed in, but put.io lists grants per app, not per session, so
-that screen cannot show whether one run's token is gone. The cleanup result is
-the per-run evidence. That capture shows every app on the shared account, so
-review it before sharing.
+Signing out revokes the run's grant. Sign-out removes the saved token before it
+revokes it, so the live scenario's token store keeps a pending-revocation copy
+until put.io revokes or rejects the token. Then the app records the revocation in
+its data container. After any approval, even in a failed journey, the harness
+relaunches the app with `--putio-harness-live-sign-out`. The app restores the
+saved or pending token, signs it out, and reports the result, and the harness
+retries a failed revocation up to three times. A missing token is not proof: the
+journey passes only when put.io revoked or rejected the token in this launch or
+an earlier one. On SIGINT or SIGTERM after approval, this revocation runs before
+the simulator is deleted. If an approval is interrupted before the app saves its
+token, nothing in the simulator can revoke the grant. The harness then reports
+that the grant may still be live and names the manual revocation.
+
+The CLI refuses to list authorized apps. The iOS journey captures Account >
+Security > "Where you're signed in" while signed in, but put.io lists grants per
+app, not per session, so that screen cannot show whether one run's token is gone.
+The cleanup result is the per-run evidence. That capture shows every app on the
+shared account, so review it before sharing.
 
 Capture never uploads implicitly. Review the artifact and obtain publishing
 authorization, then upload it to the pull request:

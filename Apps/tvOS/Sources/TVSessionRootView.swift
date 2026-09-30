@@ -28,7 +28,10 @@ struct TVSessionRootView: View {
     }
     .background(PutioTheme.Colors.background.ignoresSafeArea())
     #if DEBUG
-      .modifier(HarnessLiveSessionProbe(session: runtime.session, enabled: scenario == .live))
+      .modifier(
+        HarnessLiveSessionProbe(
+          session: runtime.session,
+          tokenStore: scenario == .live ? PutioRuntimeFactory.liveTokenStore : nil))
     #endif
     .task {
       await runtime.session.restore()

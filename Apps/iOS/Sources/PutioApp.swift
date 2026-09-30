@@ -184,7 +184,10 @@ private struct SessionRootView: View {
       }
     }
     #if DEBUG
-      .modifier(HarnessLiveSessionProbe(session: runtime.session, enabled: scenario == .live))
+      .modifier(
+        HarnessLiveSessionProbe(
+          session: runtime.session,
+          tokenStore: scenario == .live ? PutioRuntimeFactory.liveTokenStore : nil))
     #endif
     .overlay {
       #if DEBUG

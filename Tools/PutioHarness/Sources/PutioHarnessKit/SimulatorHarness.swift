@@ -344,15 +344,23 @@ public final class SimulatorLifecycle: @unchecked Sendable {
   private var cleanupInProgress = false
   private var cleanupRequested = false
 
-  private init() {}
+  init() {}
 
-  func register(cleanup action: @escaping () throws -> Void) throws {
+  /// Actions run in registration order, except that `beforeSimulatorTeardown`
+  /// actions run first: they still need the simulators the others delete.
+  func register(
+    beforeSimulatorTeardown: Bool = false, cleanup action: @escaping () throws -> Void
+  ) throws {
     condition.lock()
     let runImmediately: Bool
     if cleanupRequested {
       runImmediately = true
     } else {
-      cleanupActions.append(action)
+      if beforeSimulatorTeardown {
+        cleanupActions.insert(action, at: 0)
+      } else {
+        cleanupActions.append(action)
+      }
       runImmediately = false
     }
     condition.unlock()
@@ -1188,6 +1196,7 @@ public struct SimulatorHarness {
       return try withSession(platform: platform, runID: runID) { session in
         try buildJourneyTests(platform: platform, session: session)
         let resultBundle = platformDirectory.appending(path: ".\(scenario.rawValue).xcresult")
+        let revocation = LiveRevocation { try revokeLiveSession(platform, session) }
         var approvalAttempted = false
         let journey = Result {
           try runJourneyPreflightTest(
@@ -1203,31 +1212,32 @@ public struct SimulatorHarness {
           ) { process in
             try approveDisplayedDeviceCode(
               platform: platform, session: session, process: process, live: live
-            ) { approvalAttempted = true }
+            ) {
+              // Registered before the approval so an interrupt from here on
+              // revokes before the simulator, and its keychain, is deleted.
+              try SimulatorLifecycle.shared.register(beforeSimulatorTeardown: true) {
+                try revocation.requireRevoked()
+              }
+              approvalAttempted = true
+            }
           }
         }
-        let cleanup = approvalAttempted ? Result { try revokeLiveSession(platform, session) } : nil
+        let cleanup = approvalAttempted ? Result { try revocation.run() } : nil
         let cleanupSummary: String
         switch cleanup {
         case nil:
           cleanupSummary = "no activation code was approved"
-        case .success(let outcome) where outcome.isRevoked:
-          cleanupSummary = "cleanup launch reported \(outcome.rawValue)"
-        case .success(let outcome):
-          cleanupSummary =
-            "cleanup launch reported \(outcome.rawValue); the run's grant may remain on the "
-            + "\(LiveFixtureContract.profile) account"
+        case .success(let result):
+          cleanupSummary = result.summary
         case .failure(let error):
-          cleanupSummary =
-            "cleanup launch failed; the run's grant may remain on the "
-            + "\(LiveFixtureContract.profile) account: \(error)"
+          cleanupSummary = "cleanup launch failed: \(error); \(LiveCleanup.possiblyLive)"
         }
         let screenshots: [URL]
         switch journey {
         case .success(let urls): screenshots = urls
         case .failure(let error): throw HarnessFailure("\(error)\nlive session: \(cleanupSummary)")
         }
-        guard case .success(let outcome) = cleanup, outcome.isRevoked else {
+        guard case .success(let result) = cleanup, result.isRevoked else {
           throw HarnessFailure("live session: \(cleanupSummary)")
         }
 
@@ -1275,7 +1285,7 @@ public struct SimulatorHarness {
     session: SimulatorSession,
     process: RunningProcess,
     live: LiveAdapters,
-    willApprove: () -> Void
+    willApprove: () throws -> Void
   ) throws {
     let deadline = Date().addingTimeInterval(180)
     while process.isRunning {
@@ -1283,7 +1293,7 @@ public struct SimulatorHarness {
         LiveSessionContract.deviceCodeFile, platform: platform, session: session),
         let code = LiveSessionContract.deviceCode(from: data)
       {
-        willApprove()
+        try willApprove()
         try live.approveDeviceCode(code)
         return
       }
@@ -1297,27 +1307,47 @@ public struct SimulatorHarness {
   }
 
   /// Relaunches the app in its live sign-out mode, which restores any saved
-  /// session and signs it out, revoking the grant, then reports what it found.
+  /// or pending-revocation token and signs it out, then reports what it found.
+  /// Retries while the token is still saved and revocation failed.
   private func revokeLiveSession(_ platform: HarnessPlatform, _ session: SimulatorSession) throws
-    -> LiveSessionContract.Outcome
+    -> LiveCleanup
   {
     let bundleIdentifier = platform.configuration.bundleIdentifier
-    if let container = appDataContainer(platform: platform, session: session) {
-      try? fileManager.removeItem(at: container.appending(path: LiveSessionContract.outcomeFile))
+    var cleanup: LiveCleanup?
+    for attempt in 1...3 {
+      if attempt > 1 { Thread.sleep(forTimeInterval: 5) }
+      if let container = appDataContainer(platform: platform, session: session) {
+        try? fileManager.removeItem(
+          at: container.appending(path: LiveSessionContract.outcomeFile))
+      }
+      _ = try runner.checked(
+        "xcrun",
+        [
+          "simctl", "launch", "--terminate-running-process", session.deviceIdentifier,
+          bundleIdentifier, "--putio-harness-scenario", LiveSessionContract.scenario,
+          LiveSessionContract.signOutArgument,
+        ],
+        context: "launch \(platform.rawValue) app to revoke its live session"
+      )
+      defer {
+        _ = try? runner.run(
+          "xcrun", ["simctl", "terminate", session.deviceIdentifier, bundleIdentifier])
+      }
+      let outcome = try waitForLiveOutcome(platform: platform, session: session)
+      let result = LiveCleanup(
+        outcome: outcome,
+        revocationRecorded: appContainerFile(
+          LiveSessionContract.revokedFile, platform: platform, session: session) != nil)
+      cleanup = result
+      if result.isRevoked || !outcome.isRetryable { break }
     }
-    _ = try runner.checked(
-      "xcrun",
-      [
-        "simctl", "launch", "--terminate-running-process", session.deviceIdentifier,
-        bundleIdentifier, "--putio-harness-scenario", LiveSessionContract.scenario,
-        LiveSessionContract.signOutArgument,
-      ],
-      context: "launch \(platform.rawValue) app to revoke its live session"
-    )
-    defer {
-      _ = try? runner.run(
-        "xcrun", ["simctl", "terminate", session.deviceIdentifier, bundleIdentifier])
-    }
+    guard let cleanup else { throw HarnessFailure("live cleanup launch never ran") }
+    return cleanup
+  }
+
+  private func waitForLiveOutcome(platform: HarnessPlatform, session: SimulatorSession) throws
+    -> LiveSessionContract.Outcome
+  {
     let deadline = Date().addingTimeInterval(60)
     repeat {
       if let data = appContainerFile(
@@ -1328,7 +1358,9 @@ public struct SimulatorHarness {
       }
       Thread.sleep(forTimeInterval: 0.5)
     } while Date() < deadline
-    throw HarnessFailure("\(bundleIdentifier) did not report its live session within 60 seconds")
+    throw HarnessFailure(
+      "\(platform.configuration.bundleIdentifier) did not report its live session within 60 seconds"
+    )
   }
 
   private func appDataContainer(platform: HarnessPlatform, session: SimulatorSession) -> URL? {

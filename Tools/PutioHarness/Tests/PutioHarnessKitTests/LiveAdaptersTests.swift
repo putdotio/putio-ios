@@ -186,17 +186,77 @@ struct LiveSessionContractTests {
     #expect(LiveSessionContract.deviceCode(from: Data([0xFF, 0xFE])) == nil)
   }
 
-  @Test func treatsOnlyKnownEndStatesAsRevoked() {
-    let revoked = ["no-session", "signed-out", "expired\n"].compactMap {
-      LiveSessionContract.outcome(from: Data($0.utf8))
+  @Test func acceptsOnlyPositiveRevocationEvidence() throws {
+    func cleanup(_ outcome: String, recorded: Bool) throws -> LiveCleanup {
+      LiveCleanup(
+        outcome: try #require(LiveSessionContract.outcome(from: Data(outcome.utf8))),
+        revocationRecorded: recorded)
     }
-    #expect(revoked.count == 3)
-    #expect(revoked.filter(\.isRevoked).count == 3)
-    let leaked = ["restore-failed", "sign-out-failed"].compactMap {
-      LiveSessionContract.outcome(from: Data($0.utf8))
-    }
-    #expect(leaked.count == 2)
-    #expect(leaked.filter(\.isRevoked).isEmpty)
+    #expect(try cleanup("signed-out", recorded: false).isRevoked)
+    #expect(try cleanup("expired\n", recorded: false).isRevoked)
+    #expect(try cleanup("no-session", recorded: true).isRevoked)
+    // A token that lived only in a killed process, or was never saved, leaves
+    // no session behind without having been revoked.
+    let unproven = try cleanup("no-session", recorded: false)
+    #expect(!unproven.isRevoked)
+    #expect(unproven.summary.contains("may still be live"))
+    #expect(try !cleanup("restore-failed", recorded: true).isRevoked)
+    #expect(try !cleanup("sign-out-failed", recorded: true).isRevoked)
     #expect(LiveSessionContract.outcome(from: Data("signed-in".utf8)) == nil)
+  }
+
+  @Test func retriesRevocationUntilProvenThenReusesIt() throws {
+    var outcomes: [LiveCleanup] = [
+      LiveCleanup(outcome: .signOutFailed, revocationRecorded: false),
+      LiveCleanup(outcome: .signedOut, revocationRecorded: true),
+    ]
+    var attempts = 0
+    let revocation = LiveRevocation {
+      attempts += 1
+      return outcomes.removeFirst()
+    }
+
+    #expect(throws: HarnessFailure.self) { try revocation.requireRevoked() }
+    try revocation.requireRevoked()
+    try revocation.requireRevoked()
+
+    #expect(attempts == 2)
+  }
+}
+
+/// An interrupt after approval runs the lifecycle cleanup the signal handler
+/// runs; revocation must precede the simulator deletion that would erase the
+/// keychain holding the token.
+struct LiveInterruptTests {
+  private func interrupt(revocationResult: LiveCleanup) throws -> (events: [String], error: Error?)
+  {
+    let lifecycle = SimulatorLifecycle()
+    var events: [String] = []
+    try lifecycle.register { events.append("delete simulator") }
+    let revocation = LiveRevocation {
+      events.append("revoke")
+      return revocationResult
+    }
+    try lifecycle.register(beforeSimulatorTeardown: true) { try revocation.requireRevoked() }
+    do {
+      try lifecycle.cleanup()
+      return (events, nil)
+    } catch {
+      return (events, error)
+    }
+  }
+
+  @Test func revokesBeforeDeletingTheSimulator() throws {
+    let result = try interrupt(
+      revocationResult: LiveCleanup(outcome: .signedOut, revocationRecorded: true))
+    #expect(result.events == ["revoke", "delete simulator"])
+    #expect(result.error == nil)
+  }
+
+  @Test func reportsAnUnprovenRevocationAndStillDeletesTheSimulator() throws {
+    let result = try interrupt(
+      revocationResult: LiveCleanup(outcome: .noSession, revocationRecorded: false))
+    #expect(result.events == ["revoke", "delete simulator"])
+    #expect(String(describing: try #require(result.error)).contains("may still be live"))
   }
 }

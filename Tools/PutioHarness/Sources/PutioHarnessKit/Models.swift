@@ -207,6 +207,7 @@ enum LiveSessionContract {
   static let signOutArgument = "--putio-harness-live-sign-out"
   static let deviceCodeFile = "tmp/putio-harness-device-code"
   static let outcomeFile = "tmp/putio-harness-live-session"
+  static let revokedFile = "tmp/putio-harness-live-revoked"
   static let testEnvironment = "TEST_RUNNER_PUTIO_HARNESS_LIVE"
   static let folderEnvironment = "TEST_RUNNER_PUTIO_HARNESS_LIVE_FOLDER_ID"
   static let fileEnvironment = "TEST_RUNNER_PUTIO_HARNESS_LIVE_FILE_ID"
@@ -223,28 +224,88 @@ enum LiveSessionContract {
   }
 
   enum Outcome: String, Equatable, Sendable {
-    /// The cleanup launch found no saved session: the journey signed out.
+    /// The cleanup launch found no saved token. On its own this proves
+    /// nothing: the token may never have been saved, or lived only in the
+    /// killed process.
     case noSession = "no-session"
-    /// The cleanup launch restored the run's session and revoked it.
+    /// The cleanup launch restored a saved token and revoked it.
     case signedOut = "signed-out"
-    /// put.io had already rejected the saved token.
+    /// put.io rejected the saved token.
     case expired
     case restoreFailed = "restore-failed"
     case signOutFailed = "sign-out-failed"
 
-    /// Whether the run's grant is known to be gone.
-    var isRevoked: Bool {
-      switch self {
-      case .noSession, .signedOut, .expired: true
-      case .restoreFailed, .signOutFailed: false
-      }
-    }
+    /// Failures that leave the token in the keychain, so another launch can retry.
+    var isRetryable: Bool { self == .restoreFailed || self == .signOutFailed }
   }
 
   static func outcome(from data: Data) -> Outcome? {
     String(data: data, encoding: .utf8).flatMap {
       Outcome(rawValue: $0.trimmingCharacters(in: .whitespacesAndNewlines))
     }
+  }
+}
+
+/// What the cleanup launch established about the run's grant.
+struct LiveCleanup: Equatable, Sendable {
+  let outcome: LiveSessionContract.Outcome
+  /// The app wrote its revocation marker, which it does only after put.io
+  /// revoked or rejected the token, in this or an earlier launch.
+  let revocationRecorded: Bool
+
+  /// Only positive evidence counts: an absent token is not a revoked one.
+  var isRevoked: Bool {
+    switch outcome {
+    case .signedOut, .expired: true
+    case .noSession: revocationRecorded
+    case .restoreFailed, .signOutFailed: false
+    }
+  }
+
+  var summary: String {
+    let detail =
+      outcome != .noSession
+      ? "" : revocationRecorded ? " after a recorded revocation" : " with no recorded revocation"
+    let base = "cleanup launch reported \(outcome.rawValue)\(detail)"
+    return isRevoked ? base : "\(base); \(Self.possiblyLive)"
+  }
+
+  static let possiblyLive =
+    "the run's grant may still be live on the \(LiveFixtureContract.profile) account. "
+    + "Revoke put.io iOS from that account's apps in put.io settings; this also signs out "
+    + "its other put.io iOS and Apple TV sessions"
+}
+
+/// Runs the live cleanup launch at most until it proves revocation. The
+/// journey and the interrupt handler share one instance, so whichever runs
+/// second reuses a proven result or retries a failed one.
+final class LiveRevocation: @unchecked Sendable {
+  private let lock = NSLock()
+  private let attempt: () throws -> LiveCleanup
+  private var proven: LiveCleanup?
+
+  init(_ attempt: @escaping () throws -> LiveCleanup) {
+    self.attempt = attempt
+  }
+
+  func run() throws -> LiveCleanup {
+    try lock.withLock {
+      if let proven { return proven }
+      let cleanup = try attempt()
+      if cleanup.isRevoked { proven = cleanup }
+      return cleanup
+    }
+  }
+
+  /// Interrupt-time cleanup: fails loudly unless revocation is proven.
+  func requireRevoked() throws {
+    let cleanup: LiveCleanup
+    do {
+      cleanup = try run()
+    } catch {
+      throw HarnessFailure("live revocation failed: \(error); \(LiveCleanup.possiblyLive)")
+    }
+    guard cleanup.isRevoked else { throw HarnessFailure("live session: \(cleanup.summary)") }
   }
 }
 
