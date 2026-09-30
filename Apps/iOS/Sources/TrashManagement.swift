@@ -185,7 +185,7 @@ struct PutioTrashActions: Sendable {
       try await runtime.permanentlyDeleteTrashItem(fileID: fileID)
     }
     empty = { try await runtime.emptyTrash() }
-    refreshStorage = { await runtime.refreshAccountStorage() }
+    refreshStorage = { await runtime.refreshAccount() }
     isStorageStale = { runtime.session.isAccountStorageStale }
   }
 
