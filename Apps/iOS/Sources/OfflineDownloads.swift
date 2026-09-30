@@ -677,7 +677,8 @@ final class PutioOfflineQueue {
     let owed = pendingOriginals
     if adoptPendingOriginals(targets, replacing: true), !persist() {
       pendingOriginals = owed
-      persistenceFailure = .removalNotStarted(outOfSpace: lastWriteWasOutOfSpace)
+      persistenceFailure = .removalNotStarted(
+        outOfSpace: lastWriteWasOutOfSpace, count: targets.count)
       return PutioOfflineOriginalOutcome()
     }
     remove(fileIDs: fileIDs)
@@ -1409,14 +1410,14 @@ final class PutioOfflineQueue {
 
 struct PutioOfflineConversionError: Error {}
 
-/// A queue write that did not reach disk. It stays on the Downloads screen
-/// until a retry writes everything or the user dismisses it.
+/// A queue write that did not reach disk. The signed-in shell shows it on
+/// every tab until a retry writes everything or the user dismisses it.
 enum PutioOfflinePersistenceFailure: Equatable, Sendable {
   /// The queue or its package record is behind on disk; writing again may fix it.
   case unsaved(outOfSpace: Bool)
   /// A removal that also takes originals stopped before touching anything,
   /// because the record of owed originals could not be written.
-  case removalNotStarted(outOfSpace: Bool)
+  case removalNotStarted(outOfSpace: Bool, count: Int)
 
   static func isOutOfSpace(_ error: Error) -> Bool {
     (error as NSError).code == NSFileWriteOutOfSpaceError
@@ -1430,6 +1431,7 @@ enum PutioOfflinePersistenceFailure: Equatable, Sendable {
   var title: String {
     switch self {
     case .unsaved: "Could not save downloads"
+    case .removalNotStarted(_, 1): "Could not remove download"
     case .removalNotStarted: "Could not remove downloads"
     }
   }
@@ -1440,10 +1442,14 @@ enum PutioOfflinePersistenceFailure: Equatable, Sendable {
       outOfSpace
         ? "This device is out of space, so changes to your downloads were not saved. Free up storage and try again."
         : "Changes to your downloads could not be saved on this device. Try again."
-    case .removalNotStarted(let outOfSpace):
-      outOfSpace
-        ? "Nothing was removed because this device is out of space. Free up storage and remove the downloads again."
-        : "Nothing was removed because this device could not save the change. Remove the downloads again."
+    case .removalNotStarted(true, 1):
+      "Nothing was removed because this device is out of space. Free up storage and remove the download again."
+    case .removalNotStarted(true, _):
+      "Nothing was removed because this device is out of space. Free up storage and remove the downloads again."
+    case .removalNotStarted(false, 1):
+      "Nothing was removed because this device could not save the change. Remove the download again."
+    case .removalNotStarted(false, _):
+      "Nothing was removed because this device could not save the change. Remove the downloads again."
     }
   }
 }

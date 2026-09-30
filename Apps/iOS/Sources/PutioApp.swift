@@ -430,6 +430,8 @@ private struct MainTabView: View {
           Image(putioIcon: .arrowCircleDown)
         }
       }
+      // Stays while a write is unsaved, in case its alert could not present.
+      .badge(offlineQueue.persistenceFailure == nil ? nil : Text("!"))
       if account.historyEnabled {
         Tab(value: SelectedTab.history) {
           HistoryView(
@@ -539,6 +541,7 @@ private struct MainTabView: View {
       )
       .preferredColorScheme(.dark)
     }
+    .modifier(PutioOfflinePersistenceFailureAlert(queue: offlineQueue))
     .alert(
       "Could not start download",
       isPresented: Binding(get: { offlineFailure != nil }, set: { if !$0 { offlineFailure = nil } })
@@ -1353,14 +1356,22 @@ enum PutioOfflineQueueFactory {
     #endif
     let engine: any PutioOfflineDownloadEngine = PutioSystemOfflineDownloadEngine(
       accountID: accountID)
+    var directory: URL?
+    if harness {
+      directory = FileManager.default.temporaryDirectory.appending(path: "harness-offline")
+      // `--putio-harness-offline-writes-fail` puts the store under a regular
+      // file, so every queue write fails and the shell reports it.
+      if ProcessInfo.processInfo.arguments.contains("--putio-harness-offline-writes-fail") {
+        let blocker = FileManager.default.temporaryDirectory.appending(
+          path: "harness-offline-blocked")
+        FileManager.default.createFile(atPath: blocker.path, contents: Data())
+        directory = blocker.appending(path: "store")
+      }
+    }
     // A queue outlived by its shell must not write to the next shell's document.
     let sessionGeneration = runtime.session.authenticationGeneration
     return PutioOfflineQueue(
-      store: PutioOfflineStore(
-        directory: harness
-          ? FileManager.default.temporaryDirectory.appending(path: "harness-offline")
-          : nil,
-        accountID: accountID),
+      store: PutioOfflineStore(directory: directory, accountID: accountID),
       engine: engine,
       conversionPollInterval: harness ? .milliseconds(1_200) : .seconds(3),
       notifyCompletion: { item in

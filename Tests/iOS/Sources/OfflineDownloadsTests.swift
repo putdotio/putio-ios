@@ -1502,7 +1502,7 @@ final class OfflineDownloadsTests: XCTestCase {
       FileManager.default.fileExists(atPath: PutioOfflineQueue.localURL(for: path).path))
     XCTAssertEqual(originalDeletes, [], "nothing is asked of put.io without a written debt")
     XCTAssertTrue(queue.pendingOriginals.isEmpty)
-    XCTAssertEqual(queue.persistenceFailure, .removalNotStarted(outOfSpace: false))
+    XCTAssertEqual(queue.persistenceFailure, .removalNotStarted(outOfSpace: false, count: 1))
     XCTAssertEqual(queue.persistenceFailure?.canRetry, false)
 
     try unblockQueueWrites()
@@ -1511,6 +1511,15 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertNil(queue.item(for: fileID))
     XCTAssertEqual(originalDeletes, [1])
     XCTAssertNil(queue.persistenceFailure)
+  }
+
+  func testARemovalThatDidNotStartNamesOneOrManyDownloads() {
+    let one = PutioOfflinePersistenceFailure.removalNotStarted(outOfSpace: false, count: 1)
+    let two = PutioOfflinePersistenceFailure.removalNotStarted(outOfSpace: true, count: 2)
+    XCTAssertEqual(one.title, "Could not remove download")
+    XCTAssertTrue(one.message.hasSuffix("Remove the download again."))
+    XCTAssertEqual(two.title, "Could not remove downloads")
+    XCTAssertTrue(two.message.hasSuffix("remove the downloads again."))
   }
 
   func testAFailedQueueWriteStaysReportedUntilARetryWritesIt() async throws {
