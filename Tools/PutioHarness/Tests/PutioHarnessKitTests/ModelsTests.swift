@@ -103,6 +103,10 @@ import Testing
       == "PutioUITests/FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash"
   )
   #expect(
+    BrowserJourneyContract.unsavedDownloadsTestIdentifier
+      == "PutioUITests/DownloadsJourneyTests/testAnUnsavedDownloadIsReportedOutsideDownloads"
+  )
+  #expect(
     BrowserJourneyContract.trashDisabledTestIdentifier
       == "PutioUITests/FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"
   )
