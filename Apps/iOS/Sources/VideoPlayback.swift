@@ -1027,18 +1027,9 @@ protocol PutioPlayerItemStatusObservation: AnyObject {
 
 extension NSKeyValueObservation: PutioPlayerItemStatusObservation {}
 
-/// The manifest's default subtitle, resolved from the item's legible group.
-@MainActor
-struct PutioDefaultSubtitle {
-  /// Whether a media-selection snapshot has a subtitle on or an explicit
-  /// choice, including Off, that suspends automatic selection.
-  let hasChoice: (AVMediaSelection) -> Bool
-  let select: () -> Void
-}
-
 @MainActor
 final class PutioSystemVideoPlayerCoordinator {
-  typealias DefaultSubtitleLoader = @MainActor (AVPlayerItem) async -> PutioDefaultSubtitle?
+  typealias DefaultSubtitleApplier = @MainActor (AVPlayerItem) async -> Void
   typealias DriverFactory = @MainActor (AVPlayerItem) -> any PutioVideoPlayerDriving
   typealias PositionReportScheduler =
     @MainActor (
@@ -1051,10 +1042,11 @@ final class PutioSystemVideoPlayerCoordinator {
       @escaping @Sendable (AVPlayerItem.Status) -> Void
     ) -> any PutioPlayerItemStatusObservation
 
+  private let makeItem: @MainActor (URL) -> AVPlayerItem
   private let makeDriver: DriverFactory
   private let observeItemStatus: StatusObserverFactory
   private let selectedAudioLanguage: @MainActor (AVPlayerItem) async -> String?
-  private let loadDefaultSubtitle: DefaultSubtitleLoader
+  private let applyDefaultSubtitle: DefaultSubtitleApplier
   private let audioSession: any PutioPlaybackAudioSessioning
   private let notificationCenter: NotificationCenter
   private let positionPipeline: PutioPlaybackPositionPipeline
@@ -1087,9 +1079,6 @@ final class PutioSystemVideoPlayerCoordinator {
   private var finalPositionEnqueued = false
   private var positionIsEstablished = false
   private var audioSessionIsActive = false
-  private var defaultSubtitleRequested = false
-  /// Selection snapshots from readiness until the default subtitle resolves.
-  private var selectionsDuringSubtitleLoad: [AVMediaSelection]?
 
   convenience init() {
     self.init(
@@ -1110,6 +1099,7 @@ final class PutioSystemVideoPlayerCoordinator {
   }
 
   init(
+    makeItem: @escaping @MainActor (URL) -> AVPlayerItem = { AVPlayerItem(url: $0) },
     makeDriver: @escaping DriverFactory,
     observeItemStatus: @escaping StatusObserverFactory = { item, statusChanged in
       item.observe(\.status, options: [.initial, .new]) { item, _ in
@@ -1122,17 +1112,18 @@ final class PutioSystemVideoPlayerCoordinator {
     selectedAudioLanguage: @escaping @MainActor (AVPlayerItem) async -> String? = {
       await PutioSystemVideoPlayerCoordinator.selectedAudioLanguage(in: $0)
     },
-    loadDefaultSubtitle: @escaping DefaultSubtitleLoader = {
-      await PutioSystemVideoPlayerCoordinator.defaultSubtitle(in: $0)
+    applyDefaultSubtitle: @escaping DefaultSubtitleApplier = {
+      await PutioSystemVideoPlayerCoordinator.selectDefaultSubtitle(in: $0)
     },
     schedulePositionReports: @escaping PositionReportScheduler = { interval, callback in
       PutioMonotonicPositionReportSchedule(interval: interval, callback: callback)
     }
   ) {
+    self.makeItem = makeItem
     self.makeDriver = makeDriver
     self.observeItemStatus = observeItemStatus
     self.selectedAudioLanguage = selectedAudioLanguage
-    self.loadDefaultSubtitle = loadDefaultSubtitle
+    self.applyDefaultSubtitle = applyDefaultSubtitle
     self.audioSession = audioSession
     self.notificationCenter = notificationCenter
     self.positionPipeline = positionPipeline
@@ -1161,8 +1152,6 @@ final class PutioSystemVideoPlayerCoordinator {
     failureReported = false
     finalPositionEnqueued = false
     positionIsEstablished = false
-    defaultSubtitleRequested = false
-    selectionsDuringSubtitleLoad = nil
     self.observesPlaybackState = observesPlaybackState
     self.fileID = fileID
     self.remembersPlaybackPosition = remembersPlaybackPosition
@@ -1174,7 +1163,7 @@ final class PutioSystemVideoPlayerCoordinator {
     self.onPlaybackRestarted = onPlaybackRestarted
     self.onFailure = onFailure
 
-    let item = AVPlayerItem(url: source.url)
+    let item = makeItem(source.url)
     statusObservation = observeItemStatus(item) { [weak self] status in
       Task { @MainActor [weak self] in
         switch status {
@@ -1184,8 +1173,6 @@ final class PutioSystemVideoPlayerCoordinator {
           }
           self?.reportMediaSelection(for: item, generation: playbackGeneration)
           self?.reportReady(generation: playbackGeneration)
-          // Loading the subtitle group must not hold back readiness.
-          await self?.selectDefaultSubtitle(in: item, generation: playbackGeneration)
         case .failed:
           self?.reportFailure(generation: playbackGeneration)
         case .unknown:
@@ -1195,11 +1182,13 @@ final class PutioSystemVideoPlayerCoordinator {
         }
       }
     }
-    mediaSelectionObservation = notificationCenter.addObserver(
-      forName: AVPlayerItem.mediaSelectionDidChangeNotification, object: item, queue: .main
-    ) { [weak self] _ in
-      MainActor.assumeIsolated {
-        self?.mediaSelectionChanged(for: item, generation: playbackGeneration)
+    if observesPlaybackState {
+      mediaSelectionObservation = notificationCenter.addObserver(
+        forName: AVPlayerItem.mediaSelectionDidChangeNotification, object: item, queue: .main
+      ) { [weak self] _ in
+        MainActor.assumeIsolated {
+          self?.reportMediaSelection(for: item, generation: playbackGeneration)
+        }
       }
     }
     failedToEndObservation = notificationCenter.addObserver(
@@ -1228,6 +1217,17 @@ final class PutioSystemVideoPlayerCoordinator {
       MainActor.assumeIsolated {
         self?.reportPlaybackRestarted(generation: playbackGeneration)
       }
+    }
+
+    // Controls stay hidden until the default subtitle is applied, so no
+    // subtitle choice can be made before it and then overridden.
+    controller.showsPlaybackControls = false
+    let applyDefaultSubtitle = applyDefaultSubtitle
+    Task { @MainActor [weak self, weak controller] in
+      await applyDefaultSubtitle(item)
+      guard let self, generation == playbackGeneration else { return }
+      controller?.showsPlaybackControls = true
+      reportMediaSelection(for: item, generation: playbackGeneration)
     }
 
     let driver = makeDriver(item)
@@ -1356,46 +1356,13 @@ final class PutioSystemVideoPlayerCoordinator {
   /// put.io marks the first subtitle `DEFAULT` unless the account disables
   /// auto-selection, and omits subtitles when they are hidden. AVPlayer's
   /// automatic media selection leaves that default off under the system's
-  /// automatic caption setting, so the player applies it once per playback,
-  /// and only if no snapshot from readiness through the group load has a
-  /// subtitle on or an explicit choice. A user, Cast, or restored Off stays off.
-  private func selectDefaultSubtitle(
-    in item: AVPlayerItem, generation playbackGeneration: UInt64
-  ) async {
-    guard generation == playbackGeneration, !defaultSubtitleRequested else { return }
-    defaultSubtitleRequested = true
-    selectionsDuringSubtitleLoad = [item.currentMediaSelection]
-    let subtitle = await loadDefaultSubtitle(item)
-    guard generation == playbackGeneration, let observed = selectionsDuringSubtitleLoad else {
-      return
-    }
-    selectionsDuringSubtitleLoad = nil
-    guard let subtitle,
-      !(observed + [item.currentMediaSelection]).contains(where: subtitle.hasChoice)
-    else { return }
-    subtitle.select()
-    reportMediaSelection(for: item, generation: playbackGeneration)
-  }
-
-  static func defaultSubtitle(in item: AVPlayerItem) async -> PutioDefaultSubtitle? {
+  /// automatic caption setting, so the player applies it before showing
+  /// controls.
+  static func selectDefaultSubtitle(in item: AVPlayerItem) async {
     guard let group = try? await item.asset.loadMediaSelectionGroup(for: .legible),
       let option = group.defaultOption
-    else { return nil }
-    return PutioDefaultSubtitle(
-      hasChoice: {
-        $0.selectedMediaOption(in: group) != nil
-          || !$0.mediaSelectionCriteriaCanBeAppliedAutomatically(to: group)
-      },
-      select: { [weak item] in item?.select(option, in: group) }
-    )
-  }
-
-  private func mediaSelectionChanged(
-    for item: AVPlayerItem, generation playbackGeneration: UInt64
-  ) {
-    guard generation == playbackGeneration else { return }
-    selectionsDuringSubtitleLoad?.append(item.currentMediaSelection)
-    reportMediaSelection(for: item, generation: playbackGeneration)
+    else { return }
+    item.select(option, in: group)
   }
 
   /// Publishes the audible and legible options in effect so the journey can
