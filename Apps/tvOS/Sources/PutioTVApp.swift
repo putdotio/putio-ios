@@ -13,7 +13,7 @@ struct PutioTVApp: App {
           PutioComponentGallery(autoAdvanceEvery: 3)
         case .exercised:
           TVHarnessExerciseView()
-        case .signedOut, .signedIn, .filesBrowser, .deviceSignIn:
+        case .signedOut, .signedIn, .filesBrowser, .deviceSignIn, .live:
           TVSessionRootView(scenario: scenario)
         }
       }
