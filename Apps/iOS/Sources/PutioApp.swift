@@ -402,10 +402,12 @@ private struct MainTabView: View {
       ))
     let folderRefreshRequests = PutioFolderRefreshRequests()
     _folderRefreshRequests = State(initialValue: folderRefreshRequests)
-    _offlineQueue = State(
-      initialValue: PutioOfflineQueueFactory.make(
-        runtime: runtime, accountID: account.id, scenario: scenario,
-        onOriginalsRequested: { folderRefreshRequests.requestAllLoadedFolders() }))
+    _offlineQueueHolder = State(
+      initialValue: PutioOfflineQueueHolder {
+        PutioOfflineQueueFactory.make(
+          runtime: runtime, accountID: account.id, scenario: scenario,
+          onOriginalsRequested: { folderRefreshRequests.requestAllLoadedFolders() })
+      })
     _appConfig = State(initialValue: PutioAppConfigModel(actions: .init(runtime: runtime)))
   }
 
@@ -428,7 +430,8 @@ private struct MainTabView: View {
   @State private var presentedPreviewRoute: PutioPreviewRoute?
   @State private var presentedUnsupportedRoute: PutioUnsupportedFileRoute?
   @State private var externalPlayback: PutioExternalPlaybackModel
-  @State private var offlineQueue: PutioOfflineQueue
+  @State private var offlineQueueHolder: PutioOfflineQueueHolder
+  private var offlineQueue: PutioOfflineQueue { offlineQueueHolder.queue }
   @State private var appConfig: PutioAppConfigModel
   @State private var trackPicker: PutioOfflineTrackPickerRequest?
   @State private var offlineFailure: PutioOfflineFailure?
@@ -454,6 +457,8 @@ private struct MainTabView: View {
           Image(putioIcon: .arrowCircleDown)
         }
       }
+      // Stays while a write is unsaved, in case its alert could not present.
+      .badge(offlineQueue.persistenceFailure == nil ? nil : Text("!"))
       if account.historyEnabled {
         Tab(value: SelectedTab.history) {
           HistoryView(
@@ -564,6 +569,7 @@ private struct MainTabView: View {
       )
       .preferredColorScheme(.dark)
     }
+    .modifier(PutioOfflinePersistenceFailureAlert(queue: offlineQueue))
     .alert(
       "Could not start download",
       isPresented: Binding(get: { offlineFailure != nil }, set: { if !$0 { offlineFailure = nil } })
@@ -1359,6 +1365,24 @@ struct PutioOfflineTrackPickerRequest: Identifiable {
   var id: PutioFileID { route.id }
 }
 
+/// SwiftUI runs `MainTabView.init` on every session update but keeps only the
+/// first `State`, so the queue, which reads and writes its documents, is built
+/// once on first use instead of on every init.
+@MainActor
+private final class PutioOfflineQueueHolder {
+  private let make: @MainActor () -> PutioOfflineQueue
+  private var built: PutioOfflineQueue?
+
+  init(_ make: @escaping @MainActor () -> PutioOfflineQueue) { self.make = make }
+
+  var queue: PutioOfflineQueue {
+    if let built { return built }
+    let queue = make()
+    built = queue
+    return queue
+  }
+}
+
 enum PutioOfflineQueueFactory {
   @MainActor
   static func make(
@@ -1372,14 +1396,22 @@ enum PutioOfflineQueueFactory {
     #endif
     let engine: any PutioOfflineDownloadEngine = PutioSystemOfflineDownloadEngine(
       accountID: accountID)
+    var directory: URL?
+    if harness {
+      directory = FileManager.default.temporaryDirectory.appending(path: "harness-offline")
+      // `--putio-harness-offline-writes-fail` puts the store under a regular
+      // file, so every queue write fails and the shell reports it.
+      if ProcessInfo.processInfo.arguments.contains("--putio-harness-offline-writes-fail") {
+        let blocker = FileManager.default.temporaryDirectory.appending(
+          path: "harness-offline-blocked")
+        FileManager.default.createFile(atPath: blocker.path, contents: Data())
+        directory = blocker.appending(path: "store")
+      }
+    }
     // A queue outlived by its shell must not write to the next shell's document.
     let sessionGeneration = runtime.session.authenticationGeneration
     return PutioOfflineQueue(
-      store: PutioOfflineStore(
-        directory: harness
-          ? FileManager.default.temporaryDirectory.appending(path: "harness-offline")
-          : nil,
-        accountID: accountID),
+      store: PutioOfflineStore(directory: directory, accountID: accountID),
       engine: engine,
       conversionPollInterval: harness ? .milliseconds(1_200) : .seconds(3),
       notifyCompletion: { item in

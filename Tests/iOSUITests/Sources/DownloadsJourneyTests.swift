@@ -145,6 +145,50 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertTrue(element("auth.sign-in").waitForExistence(timeout: 10))
   }
 
+  func testAnUnsavedDownloadIsReportedOutsideDownloads() throws {
+    app.launchArguments.append("--putio-harness-offline-writes-fail")
+    app.launch()
+    signIn()
+
+    // Restore's write fails at launch and is reported over Files.
+    let unsaved = app.alerts["Could not save downloads"]
+    XCTAssertTrue(unsaved.waitForExistence(timeout: 10))
+
+    // Nothing else writes yet, so only the retry's own failure can bring the
+    // alert back.
+    app.buttons["downloads.save-retry"].firstMatch.tap()
+    // Past the tapped alert's dismissal, so only a new presentation counts.
+    Thread.sleep(forTimeInterval: 2)
+    XCTAssertTrue(unsaved.waitForExistence(timeout: 8), "a retry that fails again is not reported")
+    app.buttons["downloads.save-dismiss"].firstMatch.tap()
+    XCTAssertTrue(unsaved.waitForNonExistence(timeout: 5))
+
+    // Queuing from Files is reported there; Downloads is never opened.
+    let track = element("files.item.408")
+    XCTAssertTrue(track.waitForExistence(timeout: 10))
+    track.press(forDuration: 1)
+    let download = app.buttons["Download"]
+    XCTAssertTrue(download.waitForExistence(timeout: 5))
+    download.tap()
+    XCTAssertTrue(unsaved.waitForExistence(timeout: 10))
+    XCTAssertTrue(app.buttons["downloads.save-retry"].firstMatch.exists)
+
+    // Every write keeps failing, so the alert returns; relaunch with working
+    // writes to leave the simulator signed out for the next journey test.
+    app.terminate()
+    app.launchArguments.removeAll { $0 == "--putio-harness-offline-writes-fail" }
+    app.launch()
+    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertFalse(unsaved.exists)
+    app.buttons["Account"].tap()
+    let signOut = app.revealed("auth.sign-out")
+    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    if !signOut.isHittable { app.swipeUp() }
+    signOut.tap()
+    app.confirmSignOut()
+    XCTAssertTrue(element("auth.sign-in").waitForExistence(timeout: 10))
+  }
+
   /// Toggle rows expose the switch value as "1"/"0" on the row or its switch.
   private func isOn(_ toggle: XCUIElement) -> Bool {
     let value = (toggle.switches.firstMatch.value ?? toggle.value) as? String

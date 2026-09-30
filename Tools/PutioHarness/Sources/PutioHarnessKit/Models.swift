@@ -525,6 +525,8 @@ enum BrowserJourneyContract {
     "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
   static let downloadsTestIdentifier =
     "PutioUITests/DownloadsJourneyTests/testMultiAudioDownloadOfflinePlaybackAndPositionSync"
+  static let unsavedDownloadsTestIdentifier =
+    "PutioUITests/DownloadsJourneyTests/testAnUnsavedDownloadIsReportedOutsideDownloads"
   static let downloadsAttachmentNames = [
     "runtime-downloads-picker", "runtime-downloads-queue", "runtime-downloads-detail",
     "runtime-downloads-remove",
