@@ -1142,7 +1142,7 @@ private struct AccountView: View {
           LabeledContent("Email", value: account.email)
         }
         Section {
-          NavigationLink("File Preferences") {
+          NavigationLink("File preferences") {
             FilePreferencesView(
               runtime: runtime,
               refreshRequests: refreshRequests

@@ -96,7 +96,7 @@ struct FilePreferencesView: View {
           .accessibilityIdentifier("settings.saving")
       }
     }
-    .navigationTitle("File Preferences")
+    .navigationTitle("File preferences")
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
     .confirmationDialog(
