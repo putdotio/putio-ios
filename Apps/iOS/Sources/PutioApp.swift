@@ -574,6 +574,7 @@ private struct MainTabView: View {
       audioPlayback.isPresented = false
       presentedPreviewRoute = nil
       presentedUnsupportedRoute = nil
+      trackPicker = nil
       switch destination {
       case .files(let path, let file):
         filesNavigation = PutioFilesNavigationRequest(path: path)
