@@ -6,8 +6,11 @@ import PutioCore
 // is never interpreted as a route, and authentication callbacks stay with ASWebAuthenticationSession.
 enum PutioDeepLink: Equatable {
   case file(PutioFileID)
+  /// The Downloads list, or one downloaded item by its put.io file id.
+  case downloads(PutioFileID?)
   case history
   case account
+  case linkDevice
   case unavailable
 
   static func parse(_ url: URL) -> Self? {
@@ -22,23 +25,41 @@ enum PutioDeepLink: Equatable {
       components.percentEncodedPath == components.path
     else { return .unavailable }
     switch components.path {
+    case "/downloads": return .downloads(nil)
     case "/history": return .history
     case "/account", "/settings": return .account
+    case "/link": return .linkDevice
     default:
       let parts = components.path.split(separator: "/", omittingEmptySubsequences: false)
-      guard parts.count == 3, parts[0].isEmpty, parts[1] == "files",
+      guard parts.count == 3, parts[0].isEmpty,
         !parts[2].isEmpty, parts[2].utf8.allSatisfy({ (48...57).contains($0) }),
         let id = Int(parts[2]), id >= 0
       else { return .unavailable }
-      return .file(PutioFileID(rawValue: id))
+      switch parts[1] {
+      case "files": return .file(PutioFileID(rawValue: id))
+      case "downloads": return .downloads(PutioFileID(rawValue: id))
+      default: return .unavailable
+      }
     }
   }
 }
 
 enum PutioDeepLinkDestination: Equatable {
   case files([PutioFolderRoute], file: PutioFileRoute?)
+  case downloads(PutioFileID?)
   case history
   case account
+  case linkDevice
+
+  /// A downloads link plays a finished item as its row would. An unfinished
+  /// or unknown item leaves the Downloads list showing, as the legacy app did
+  /// for ids outside its queue.
+  @MainActor static func playableDownload(
+    _ id: PutioFileID?, in item: (PutioFileID) -> PutioOfflineItem?
+  ) -> PutioOfflineItem? {
+    guard let id, let download = item(id), download.isPlayable else { return nil }
+    return download
+  }
 }
 
 enum PutioDeepLinkFailure: Error, Equatable {
@@ -128,7 +149,9 @@ final class PutioDeepLinkModel {
     do {
       let resolved: PutioDeepLinkDestination
       switch pending {
+      case .downloads(let id): resolved = .downloads(id)
       case .account: resolved = .account
+      case .linkDevice: resolved = .linkDevice
       case .history:
         guard historyEnabled else { throw PutioDeepLinkFailure.historyDisabled }
         resolved = .history
