@@ -317,7 +317,7 @@ final class PutioOfflineQueue {
   @ObservationIgnored private let readTracks: PutioOfflineTrackReader
   @ObservationIgnored private let isPlayable: PutioOfflinePlayabilityCheck
   @ObservationIgnored private let notifyCompletion: @MainActor (PutioOfflineItem) -> Void
-  @ObservationIgnored private let notifyOriginalsDeleted: @MainActor ([PutioFileID]) -> Void
+  @ObservationIgnored private let notifyOriginalsRequested: @MainActor ([PutioFileID]) -> Void
   /// Bumped by a purge so in-flight original requests stop writing.
   @ObservationIgnored private var originalsGeneration = 0
   /// False once the owning shell's session ended; originals paths then neither
@@ -347,6 +347,7 @@ final class PutioOfflineQueue {
   }
   @ObservationIgnored private var restored = false
   @ObservationIgnored private var syncTask: Task<Void, Never>?
+  @ObservationIgnored private var syncGeneration: UInt64 = 0
 
   init(
     store: PutioOfflineStore,
@@ -359,7 +360,7 @@ final class PutioOfflineQueue {
       await PutioOfflineQueue.storedTracks(at: $0)
     },
     notifyCompletion: @escaping @MainActor (PutioOfflineItem) -> Void = { _ in },
-    notifyOriginalsDeleted: @escaping @MainActor ([PutioFileID]) -> Void = { _ in },
+    notifyOriginalsRequested: @escaping @MainActor ([PutioFileID]) -> Void = { _ in },
     isPlayable: @escaping PutioOfflinePlayabilityCheck = {
       await PutioOfflineQueue.assetIsPlayable(at: $0)
     },
@@ -379,7 +380,7 @@ final class PutioOfflineQueue {
     self.fileManager = fileManager
     self.readTracks = readTracks
     self.notifyCompletion = notifyCompletion
-    self.notifyOriginalsDeleted = notifyOriginalsDeleted
+    self.notifyOriginalsRequested = notifyOriginalsRequested
     self.isPlayable = isPlayable
     self.resolve = resolve
     self.startConversion = startConversion
@@ -670,6 +671,7 @@ final class PutioOfflineQueue {
     -> PutioOfflineOriginalOutcome
   {
     var outcome = PutioOfflineOriginalOutcome()
+    var requested: [PutioFileID] = []
     let generation = originalsGeneration
     guard isCurrent(generation) else { return outcome }
     // A retry never overrides a newer confirmation for the same file.
@@ -684,6 +686,7 @@ final class PutioOfflineQueue {
       } else if let trashMode, trashMode != target.movesToTrash {
         outcome.failures.append(.init(target: target, reason: .trashSettingChanged))
       } else {
+        requested.append(target.id)
         do {
           try await deleteOriginal(target.id)
           outcome.deleted.append(target)
@@ -701,7 +704,9 @@ final class PutioOfflineQueue {
         persist()
       }
     }
-    if !outcome.deleted.isEmpty { notifyOriginalsDeleted(outcome.deleted.map(\.id)) }
+    // A request whose answer was lost may still have applied, so every one
+    // actually sent asks loaded folders to reconcile.
+    if !requested.isEmpty { notifyOriginalsRequested(requested) }
     // A failure only speaks for the debt as it stands now; one whose target
     // has since been replaced is dropped, and the newer request reports itself.
     let current = outcome.failures.filter { pendingOriginals.contains($0.target) }
@@ -854,8 +859,18 @@ final class PutioOfflineQueue {
   /// another pass, so a position recorded mid-sync is never skipped.
   func syncPendingPositions() async {
     guard isLive() else { return }
-    if let syncTask {
-      await syncTask.value
+    // Waiters on one pass wake together; the first starts the follow-up and
+    // the rest join it.
+    if let running = syncTask {
+      let generation = syncGeneration
+      await running.value
+      // Another waiter started our shared follow-up, which may already have
+      // finished and cleared its task by the time this caller resumes.
+      if syncGeneration != generation {
+        if let followUp = syncTask { await followUp.value }
+        return
+      }
+      if syncTask == running { syncTask = nil }
       guard isLive(), pendingPositionCount > 0 else { return }
     }
     let task = Task { @MainActor [weak self] in
@@ -876,6 +891,7 @@ final class PutioOfflineQueue {
       }
       persist()
     }
+    syncGeneration &+= 1
     syncTask = task
     await task.value
     // A waiter may already have replaced the pointer with its follow-up pass.
@@ -1197,11 +1213,14 @@ final class PutioOfflineQueue {
   }
 
   nonisolated static func directorySize(_ url: URL, fileManager: FileManager) -> Int64 {
-    guard
+    let values = try? url.resourceValues(
+      forKeys: [.isDirectoryKey, .totalFileAllocatedSizeKey, .fileSizeKey])
+    // A plain file gets an empty enumerator, not nil, so it is measured directly.
+    guard values?.isDirectory == true,
       let enumerator = fileManager.enumerator(
         at: url, includingPropertiesForKeys: [.fileSizeKey, .totalFileAllocatedSizeKey])
     else {
-      return (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init) ?? 0
+      return Int64(values?.totalFileAllocatedSize ?? values?.fileSize ?? 0)
     }
     var total: Int64 = 0
     for case let file as URL in enumerator {

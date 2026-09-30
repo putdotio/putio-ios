@@ -107,7 +107,17 @@ public final class PutioSessionStore {
     }
     abandonPendingSignIn()
     let generation = advanceAuthenticationGeneration()
-    guard let token = try? tokenStore.read(), !token.isEmpty else {
+    let storedToken: String?
+    do {
+      storedToken = try tokenStore.read()
+    } catch {
+      // An unreadable credential is not a missing one: keep it for a retry
+      // instead of offering a fresh sign-in over a possibly valid session.
+      sdk.clearToken()
+      state = .signedOut(.restoreFailed(message(for: error)))
+      return
+    }
+    guard let token = storedToken, !token.isEmpty else {
       sdk.clearToken()
       state = .signedOut(nil)
       return
@@ -137,6 +147,9 @@ public final class PutioSessionStore {
   // MARK: - Sign in
 
   public func beginSignIn() throws -> PutioSignInRequest {
+    if case .signedOut(.restoreFailed) = state {
+      throw PutioSessionOperationError.signInUnavailable
+    }
     switch state {
     case .unknown, .signedOut:
       break
@@ -172,21 +185,40 @@ public final class PutioSessionStore {
     }
     pendingOAuthState = nil
     pendingOAuthGeneration = nil
+    let token: String
     do {
-      let token = try sdk.accessToken(
+      token = try sdk.accessToken(
         fromOAuthCallback: callbackURL,
         expectedScheme: callbackScheme,
         expectedHost: callbackHost,
         expectedState: expectedState
       )
-      guard generation == authenticationGeneration else { return }
-      sdk.setToken(token: token)
-      try tokenStore.write(token)
-      await bootstrap(failure: PutioSignedOutReason.authenticationFailed, generation: generation)
     } catch {
       guard generation == authenticationGeneration else { return }
       sdk.clearToken()
       state = .signedOut(.authenticationFailed(message(for: error)))
+      return
+    }
+    guard generation == authenticationGeneration else { return }
+    guard await storeSignInToken(token, generation: generation) else { return }
+    await bootstrap(failure: PutioSignedOutReason.authenticationFailed, generation: generation)
+  }
+
+  /// Saves a freshly granted token. When it cannot be saved, the grant is
+  /// revoked on a best-effort basis so no unreachable session stays live on
+  /// the server, and sign-in fails. Returns `false` when sign-in must stop.
+  private func storeSignInToken(_ token: String, generation: UInt64) async -> Bool {
+    sdk.setToken(token: token)
+    do {
+      try tokenStore.write(token)
+      return true
+    } catch {
+      _ = try? await sdk.logout()
+      // A newer flow may have installed its own token during revocation.
+      if sdk.config.token == token { sdk.clearToken() }
+      guard generation == authenticationGeneration else { return false }
+      state = .signedOut(.authenticationFailed(message(for: error)))
+      return false
     }
   }
 
@@ -207,6 +239,7 @@ public final class PutioSessionStore {
   /// in, expired (`deviceCodeSignIn == .expired`, restart with another call),
   /// failed (`.signedOut(.authenticationFailed)`), or cancelled.
   public func signInWithDeviceCode() async {
+    if case .signedOut(.restoreFailed) = state { return }
     switch state {
     case .unknown, .signedOut:
       break
@@ -239,8 +272,7 @@ public final class PutioSessionStore {
         deviceCodeSignIn = .expired(code: code)
       case .authorized(let token):
         deviceCodeSignIn = nil
-        sdk.setToken(token: token)
-        try tokenStore.write(token)
+        guard await storeSignInToken(token, generation: generation) else { return }
         await bootstrap(failure: PutioSignedOutReason.authenticationFailed, generation: generation)
       }
     } catch {
@@ -325,6 +357,9 @@ public final class PutioSessionStore {
   }
 
   // Expiry keeps any token queued for a deliberate revocation retry.
+  // Removal is best effort: a session only ends here once put.io rejected or
+  // destroyed its credential, so a copy left behind fails validation on the
+  // next restore, which removes it again.
   private func endSession(reason: PutioSignedOutReason) {
     abandonPendingSignIn()
     _ = advanceAuthenticationGeneration()
@@ -420,9 +455,8 @@ public final class PutioSessionStore {
       isAccountPreferencesStale = false
       return true
     } catch {
-      guard generation == authenticationGeneration, !Task.isCancelled,
-        case .signedIn = state
-      else { return false }
+      // A rejected credential ends the session even if the caller was cancelled.
+      guard generation == authenticationGeneration, case .signedIn = state else { return false }
       if isAuthRejection(error) { expireSession() }
       return false
     }
@@ -492,6 +526,9 @@ public final class PutioSessionStore {
   private func message(for error: Error) -> String {
     if error is PutioDeviceCodeError {
       return "put.io did not return an activation code. Try again."
+    }
+    if error is PutioTokenStoreError {
+      return "This device's keychain is unavailable. Try again."
     }
     if let sdkError = error as? PutioSDKError {
       switch sdkError.type {

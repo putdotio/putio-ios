@@ -1,6 +1,7 @@
 import PutioCore
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 /// Two-factor, signed-in apps, and device linking. The 2FA row reads the
 /// account snapshot; flipping it opens the change sheet and the snapshot
@@ -128,7 +129,8 @@ private struct TwoFactorChangeSheet: View {
               .accessibilityLabel("Secret")
               .accessibilityValue(secret)
               .accessibilityIdentifier("security.two-factor-secret")
-            Button("Copy secret") { UIPasteboard.general.string = secret }
+              .privacySensitive()
+            Button("Copy secret") { SensitivePasteboard.copy(secret) }
               .accessibilityIdentifier("security.two-factor-copy")
             Button("Next") { model.continueToCode() }
               .accessibilityIdentifier("security.two-factor-next")
@@ -147,8 +149,8 @@ private struct TwoFactorChangeSheet: View {
                 .accessibilityIdentifier("security.recovery-code.\(index)")
             }
             Button("Copy all") {
-              UIPasteboard.general.string = codes.filter { !$0.isUsed }.map(\.code)
-                .joined(separator: "\n")
+              SensitivePasteboard.copy(
+                codes.filter { !$0.isUsed }.map(\.code).joined(separator: "\n"))
             }
             .accessibilityIdentifier("security.two-factor-copy-codes")
             Button("I have saved my recovery codes") { model.finish() }
@@ -277,6 +279,18 @@ private struct RecoveryCodeRow: View {
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(code.isUsed ? "Used recovery code" : "Recovery code")
     .accessibilityValue(code.code)
+    .privacySensitive()
+  }
+}
+
+/// Account secrets stay off Universal Clipboard and expire from the pasteboard.
+private enum SensitivePasteboard {
+  static let lifetime: TimeInterval = 120
+
+  static func copy(_ text: String) {
+    UIPasteboard.general.setItems(
+      [[UTType.utf8PlainText.identifier: text]],
+      options: [.localOnly: true, .expirationDate: Date.now.addingTimeInterval(lifetime)])
   }
 }
 
@@ -301,7 +315,7 @@ struct RecoveryCodesView: View {
         }
         .listRowBackground(PutioTheme.Colors.surface)
         Section {
-          Button("Copy all") { UIPasteboard.general.string = model.copyableText }
+          Button("Copy all") { SensitivePasteboard.copy(model.copyableText) }
             .disabled(model.copyableText.isEmpty)
             .accessibilityIdentifier("security.recovery-copy")
           Button("Regenerate codes", role: .destructive) { confirmsRegenerate = true }
