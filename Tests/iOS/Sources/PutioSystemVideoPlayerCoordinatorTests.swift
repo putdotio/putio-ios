@@ -205,11 +205,13 @@ private final class PlayerItemStatusObservationSpy: PutioPlayerItemStatusObserva
 /// Stands in for a stream whose legible group has a default option. Each
 /// selection snapshot the coordinator checks reads the next recorded state,
 /// in the order the coordinator took them; the live state answers the rest.
+/// A user choice, Off included, suspends automatic selection like AVFoundation.
 @MainActor
 private final class DefaultSubtitleSpy {
   let loadStarted = XCTestExpectation(description: "default subtitle load started")
   var blocksLoad = false
   var subtitleIsOn = false
+  private var userChose = false
   private(set) var loadCount = 0
   private(set) var selectCount = 0
   private var recordedStates: [Bool] = []
@@ -221,14 +223,14 @@ private final class DefaultSubtitleSpy {
 
   func load(_ item: AVPlayerItem) async -> PutioDefaultSubtitle? {
     loadCount += 1
-    recordedStates = [subtitleIsOn]
+    recordedStates = [hasChoice]
     loadStarted.fulfill()
     if blocksLoad {
       await withCheckedContinuation { continuation = $0 }
     }
     return PutioDefaultSubtitle(
-      isSelected: { [unowned self] _ in
-        recordedStates.isEmpty ? subtitleIsOn : recordedStates.removeFirst()
+      hasChoice: { [unowned self] _ in
+        recordedStates.isEmpty ? hasChoice : recordedStates.removeFirst()
       },
       select: { [unowned self] in
         selectCount += 1
@@ -241,9 +243,12 @@ private final class DefaultSubtitleSpy {
   /// media-selection notification.
   func userTurnsSubtitle(on: Bool, item: AVPlayerItem, notifications: NotificationCenter) {
     subtitleIsOn = on
-    if continuation != nil { recordedStates.append(on) }
+    userChose = true
+    if continuation != nil { recordedStates.append(hasChoice) }
     notifications.post(name: AVPlayerItem.mediaSelectionDidChangeNotification, object: item)
   }
+
+  private var hasChoice: Bool { subtitleIsOn || userChose }
 
   func finishLoad() {
     continuation?.resume()
@@ -271,11 +276,12 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     status.emit(.readyToPlay)
     for _ in 0..<20 { await Task.yield() }
 
+    XCTAssertEqual(subtitle.loadCount, 1, "a repeated readiness resolved the default again")
     XCTAssertEqual(subtitle.selectCount, 1)
     XCTAssertFalse(subtitle.subtitleIsOn, "a repeated readiness turned the default back on")
   }
 
-  func testSubtitleTurnedOffDuringTheDefaultLoadStaysOff() async throws {
+  func testExplicitOffDuringTheDefaultLoadStaysOff() async throws {
     let notifications = NotificationCenter()
     let status = PlayerItemStatusObservationSpy()
     let subtitle = DefaultSubtitleSpy()
@@ -289,9 +295,9 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
 
     status.emit(.readyToPlay)
     await fulfillment(of: [subtitle.loadStarted], timeout: 2)
-    let item = try XCTUnwrap(capture.item)
-    subtitle.userTurnsSubtitle(on: true, item: item, notifications: notifications)
-    subtitle.userTurnsSubtitle(on: false, item: item, notifications: notifications)
+    // Subtitles are already off; the user picks Off anyway.
+    subtitle.userTurnsSubtitle(
+      on: false, item: try XCTUnwrap(capture.item), notifications: notifications)
     subtitle.finishLoad()
     for _ in 0..<20 { await Task.yield() }
 

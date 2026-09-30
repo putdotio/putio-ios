@@ -39,7 +39,7 @@ final class SubtitlesJourneyTests: XCTestCase {
     XCTAssertTrue(app.buttons["English"].waitForExistence(timeout: 5))
     app.buttons["Turkish"].tap()
     XCTAssertTrue(waitForValue(audio, "tr"), "audio: \(audio.value ?? "")")
-    XCTAssertTrue(waitForValue(subtitle, "en"), "subtitle: \(subtitle.value ?? "")")
+    XCTAssertTrue(keepsValue(subtitle, "en"), "changing the audio changed the subtitle")
 
     openPlayerMenu("Subtitles")
     XCTAssertTrue(app.buttons["AVSubtitlesOnAction"].waitForExistence(timeout: 5))
@@ -51,7 +51,7 @@ final class SubtitlesJourneyTests: XCTestCase {
     screenshot("runtime-subtitles-menu")
     turkishSubtitle.tap()
     XCTAssertTrue(waitForValue(subtitle, "tr"), "subtitle: \(subtitle.value ?? "")")
-    XCTAssertTrue(waitForValue(audio, "tr"), "enabling subtitles changed the audio track")
+    XCTAssertTrue(keepsValue(audio, "tr"), "enabling subtitles changed the audio track")
     // Cues render during playback, not on the paused frame, and are not
     // exposed to accessibility; the screenshot records the rendered cue.
     let position = element("video.current-position")
@@ -72,14 +72,14 @@ final class SubtitlesJourneyTests: XCTestCase {
     XCTAssertTrue(englishSubtitle.waitForExistence(timeout: 5))
     englishSubtitle.tap()
     XCTAssertTrue(waitForValue(subtitle, "en"), "subtitle: \(subtitle.value ?? "")")
-    XCTAssertTrue(waitForValue(audio, "tr"), "English subtitles changed the audio track")
+    XCTAssertTrue(keepsValue(audio, "tr"), "English subtitles changed the audio track")
 
     openPlayerMenu("Subtitles")
     let off = app.buttons["AVSubtitlesOffAction"]
     XCTAssertTrue(off.waitForExistence(timeout: 5))
     off.tap()
     XCTAssertTrue(waitForValue(subtitle, "off"), "subtitle: \(subtitle.value ?? "")")
-    XCTAssertTrue(waitForValue(audio, "tr"), "turning subtitles off changed the audio track")
+    XCTAssertTrue(keepsValue(audio, "tr"), "turning subtitles off changed the audio track")
     element("video.done").tap()
 
     // "Do not select subtitles by default": the tracks stay offered, none is on.
@@ -176,6 +176,14 @@ final class SubtitlesJourneyTests: XCTestCase {
 
   private func waitForValue(_ element: XCUIElement, _ value: String) -> Bool {
     waitFor(NSPredicate(format: "value == %@", value), element, timeout: 10)
+  }
+
+  /// The probe already held `value` before the change, and audio and subtitle
+  /// reports land independently, so the value must also hold through a settle
+  /// window after the other probe moved.
+  private func keepsValue(_ element: XCUIElement, _ value: String) -> Bool {
+    guard waitForValue(element, value) else { return false }
+    return !waitFor(NSPredicate(format: "value != %@", value), element, timeout: 3)
   }
 
   private func waitFor(_ predicate: NSPredicate, _ element: XCUIElement, timeout: TimeInterval)

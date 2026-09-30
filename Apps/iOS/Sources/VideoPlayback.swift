@@ -1030,8 +1030,9 @@ extension NSKeyValueObservation: PutioPlayerItemStatusObservation {}
 /// The manifest's default subtitle, resolved from the item's legible group.
 @MainActor
 struct PutioDefaultSubtitle {
-  /// Whether a media-selection snapshot has any subtitle on.
-  let isSelected: (AVMediaSelection) -> Bool
+  /// Whether a media-selection snapshot has a subtitle on or an explicit
+  /// choice, including Off, that suspends automatic selection.
+  let hasChoice: (AVMediaSelection) -> Bool
   let select: () -> Void
 }
 
@@ -1356,8 +1357,8 @@ final class PutioSystemVideoPlayerCoordinator {
   /// auto-selection, and omits subtitles when they are hidden. AVPlayer's
   /// automatic media selection leaves that default off under the system's
   /// automatic caption setting, so the player applies it once per playback,
-  /// and only if no subtitle was on at readiness, during the group load, or
-  /// now. A subtitle turned on and back off while loading stays off.
+  /// and only if no snapshot from readiness through the group load has a
+  /// subtitle on or an explicit choice. A user, Cast, or restored Off stays off.
   private func selectDefaultSubtitle(
     in item: AVPlayerItem, generation playbackGeneration: UInt64
   ) async {
@@ -1370,7 +1371,7 @@ final class PutioSystemVideoPlayerCoordinator {
     }
     selectionsDuringSubtitleLoad = nil
     guard let subtitle,
-      !(observed + [item.currentMediaSelection]).contains(where: subtitle.isSelected)
+      !(observed + [item.currentMediaSelection]).contains(where: subtitle.hasChoice)
     else { return }
     subtitle.select()
     reportMediaSelection(for: item, generation: playbackGeneration)
@@ -1381,7 +1382,10 @@ final class PutioSystemVideoPlayerCoordinator {
       let option = group.defaultOption
     else { return nil }
     return PutioDefaultSubtitle(
-      isSelected: { $0.selectedMediaOption(in: group) != nil },
+      hasChoice: {
+        $0.selectedMediaOption(in: group) != nil
+          || !$0.mediaSelectionCriteriaCanBeAppliedAutomatically(to: group)
+      },
       select: { [weak item] in item?.select(option, in: group) }
     )
   }
