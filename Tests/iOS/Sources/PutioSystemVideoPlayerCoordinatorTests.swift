@@ -202,17 +202,101 @@ private final class PlayerItemStatusObservationSpy: PutioPlayerItemStatusObserva
   }
 }
 
+/// AVFoundation refuses HLS over file URLs; serving the bundled master
+/// playlist through a custom scheme is enough to load its selection groups.
+private final class FixturePlaylistLoader: NSObject, AVAssetResourceLoaderDelegate, Sendable {
+  static let scheme = "putio-fixture"
+  let directory: URL
+
+  init(directory: URL) {
+    self.directory = directory
+  }
+
+  func resourceLoader(
+    _ resourceLoader: AVAssetResourceLoader,
+    shouldWaitForLoadingOfRequestedResource loadingRequest: AVAssetResourceLoadingRequest
+  ) -> Bool {
+    guard let name = loadingRequest.request.url?.lastPathComponent,
+      let data = try? Data(contentsOf: directory.appending(path: name))
+    else { return false }
+    loadingRequest.contentInformationRequest?.contentType = "public.m3u-playlist"
+    loadingRequest.contentInformationRequest?.contentLength = Int64(data.count)
+    loadingRequest.dataRequest?.respond(with: data)
+    loadingRequest.finishLoading()
+    return true
+  }
+}
+
+/// Holds the default-subtitle step open until the test releases it.
+@MainActor
+private final class DefaultSubtitleGate {
+  private var continuation: CheckedContinuation<Void, Never>?
+
+  func wait() async {
+    await withCheckedContinuation { continuation = $0 }
+  }
+
+  func release() {
+    continuation?.resume()
+    continuation = nil
+  }
+}
+
 @MainActor
 final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
+  func testDefaultSubtitleIsOnBeforeControlsAppearAndAppliedOnce() async throws {
+    let playlist = try XCTUnwrap(
+      Bundle.main.url(
+        forResource: "multi-subtitles", withExtension: "m3u8",
+        subdirectory: "HarnessMedia/multi-audio"))
+    let loader = FixturePlaylistLoader(directory: playlist.deletingLastPathComponent())
+    let url = try XCTUnwrap(URL(string: "\(FixturePlaylistLoader.scheme):///multi-subtitles.m3u8"))
+    let asset = AVURLAsset(url: url)
+    asset.resourceLoader.setDelegate(loader, queue: DispatchQueue(label: "fixture-playlist"))
+    let item = AVPlayerItem(asset: asset)
+    let status = PlayerItemStatusObservationSpy()
+    let (coordinator, _) = makeCoordinator(
+      audioSession: PlaybackAudioSessionSpy(), statusObservation: status,
+      makeItem: { _ in item },
+      applyDefaultSubtitle: {
+        await PutioSystemVideoPlayerCoordinator.selectDefaultSubtitle(in: $0)
+      }
+    )
+    let controller = AVPlayerViewController()
+    defer { coordinator.stop(controller: controller) }
+    coordinator.start(source: source(startFromSeconds: 0), in: controller, onFailure: {})
+    XCTAssertFalse(controller.showsPlaybackControls, "controls appeared before the default")
+
+    await waitUntil { controller.showsPlaybackControls }
+    let legible = try await asset.loadMediaSelectionGroup(for: .legible)
+    let group = try XCTUnwrap(legible)
+    XCTAssertEqual(
+      item.currentMediaSelection.selectedMediaOption(in: group)?.extendedLanguageTag, "en",
+      "controls appeared without the default subtitle")
+
+    // The user turns subtitles off; later readiness never turns them back on.
+    item.select(nil, in: group)
+    status.emit(.readyToPlay)
+    status.emit(.readyToPlay)
+    for _ in 0..<20 { await Task.yield() }
+    XCTAssertNil(item.currentMediaSelection.selectedMediaOption(in: group))
+  }
+
   func testAudioLanguageFollowsSelectionChangesAfterReadiness() async throws {
     let notifications = NotificationCenter()
     let status = PlayerItemStatusObservationSpy()
     var language = "en"
+    // Audio reporting must not wait for the subtitle group.
+    let gate = DefaultSubtitleGate()
     let (coordinator, capture) = makeCoordinator(
       audioSession: PlaybackAudioSessionSpy(), statusObservation: status,
-      notificationCenter: notifications, selectedAudioLanguage: { _ in language })
+      notificationCenter: notifications, selectedAudioLanguage: { _ in language },
+      applyDefaultSubtitle: { _ in await gate.wait() })
     let controller = AVPlayerViewController()
-    defer { coordinator.stop(controller: controller) }
+    defer {
+      coordinator.stop(controller: controller)
+      gate.release()
+    }
     let initial = expectation(description: "initial language")
     let changed = expectation(description: "changed language")
     var selections: [String] = []
@@ -1129,10 +1213,15 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     positionPipeline: PutioPlaybackPositionPipeline? = nil,
     selectedAudioLanguage: @escaping @MainActor (AVPlayerItem) async -> String? = {
       await PutioSystemVideoPlayerCoordinator.selectedAudioLanguage(in: $0)
+    },
+    makeItem: @escaping @MainActor (URL) -> AVPlayerItem = { AVPlayerItem(url: $0) },
+    applyDefaultSubtitle: @escaping PutioSystemVideoPlayerCoordinator.DefaultSubtitleApplier = {
+      _ in
     }
   ) -> (PutioSystemVideoPlayerCoordinator, VideoPlayerDriverCapture) {
     let capture = VideoPlayerDriverCapture()
     let coordinator = PutioSystemVideoPlayerCoordinator(
+      makeItem: makeItem,
       makeDriver: { item in
         let driver = VideoPlayerDriverSpy(item: item)
         capture.driver = driver
@@ -1152,6 +1241,7 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
       notificationCenter: notificationCenter,
       positionPipeline: positionPipeline ?? PutioPlaybackPositionPipeline(),
       selectedAudioLanguage: selectedAudioLanguage,
+      applyDefaultSubtitle: applyDefaultSubtitle,
       schedulePositionReports: { interval, callback in
         let schedule = PositionReportScheduleSpy(interval: interval, callback: callback)
         capture.positionReportSchedule = schedule
