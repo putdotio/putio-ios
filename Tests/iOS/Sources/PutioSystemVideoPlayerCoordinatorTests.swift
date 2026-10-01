@@ -233,6 +233,9 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let item = AVPlayerItem(url: base.appending(path: "multi-subtitles.m3u8"))
     let controller = AVPlayerViewController()
     let defaultApplied = expectation(description: "default subtitle applied")
+    let defaultReapplied = expectation(description: "default subtitle applied again")
+    defaultReapplied.isInverted = true
+    defaultReapplied.assertForOverFulfill = false
     var defaultApplications = 0
     var statusChanged: (@Sendable (AVPlayerItem.Status) -> Void)?
     let coordinator = PutioSystemVideoPlayerCoordinator(
@@ -253,6 +256,8 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
         if defaultApplications == 1 {
           XCTAssertFalse(controller.showsPlaybackControls, "controls appeared before the default")
           defaultApplied.fulfill()
+        } else {
+          defaultReapplied.fulfill()
         }
       }
     )
@@ -281,8 +286,9 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     let changed = try XCTUnwrap(statusChanged)
     changed(.readyToPlay)
     changed(.readyToPlay)
-    // Readiness is handled in main-actor tasks; let both repeats run.
-    for _ in 0..<20 { await Task.yield() }
+    // Nothing signals that readiness was ignored, so a re-applied default gets
+    // a bounded window to land.
+    await fulfillment(of: [defaultReapplied], timeout: 1)
     XCTAssertNil(item.currentMediaSelection.selectedMediaOption(in: group))
     XCTAssertEqual(defaultApplications, 1)
   }
