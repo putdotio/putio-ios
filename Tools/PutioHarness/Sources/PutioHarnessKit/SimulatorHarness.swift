@@ -870,14 +870,32 @@ public struct SimulatorHarness {
           defaultExecutionTimeAllowance: 60,
           maximumExecutionTimeAllowance: 90
         )
-        let fileActionsScreenshots = try runJourneyPreflightTest(
+        _ = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.fileActionsTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".file-actions-single.xcresult"),
+          defaultExecutionTimeAllowance: 300,
+          maximumExecutionTimeAllowance: 300
+        )
+        let fileActionsScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.bulkFileActionsTestIdentifier,
           platform: platform,
           session: session,
           mediaBaseURL: mediaBaseURL,
           resultBundle: platformDirectory.appending(path: ".file-actions.xcresult"),
           attachmentNames: [BrowserJourneyContract.fileActionsAttachmentName],
           artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 300,
+          maximumExecutionTimeAllowance: 300
+        )
+        _ = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.movePickerTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".move-picker.xcresult"),
           defaultExecutionTimeAllowance: 300,
           maximumExecutionTimeAllowance: 300
         )

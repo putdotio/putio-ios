@@ -547,6 +547,10 @@ enum BrowserJourneyContract {
     "PutioUITests/FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen"
   static let fileActionsTestIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash"
+  static let bulkFileActionsTestIdentifier =
+    "PutioUITests/FilesBrowserJourneyTests/testBulkMoveAndTrashRetryOnlyWhatFailed"
+  static let movePickerTestIdentifier =
+    "PutioUITests/FilesBrowserJourneyTests/testAmbiguousBulkMoveRefreshesAndMovePickerCreatesFolders"
   static let trashDisabledTestIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"
   static let trashManagementTestIdentifier =

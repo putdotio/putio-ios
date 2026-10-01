@@ -788,14 +788,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
   }
 
   func testFileActionsCreateRenameRollbackRetryAndTrash() {
-    app.launch()
-
-    let signIn = element(identifier: "auth.sign-in")
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
-    signIn.tap()
-
-    let root = element(identifier: "files.screen.0")
-    XCTAssertTrue(root.waitForExistence(timeout: 10), "signed-in root browser never appeared")
+    let signIn = launchSignedIn()
     documentRowBeforeEditing()
     openBrowseMenu()
     let newFolder = app.buttons["files.new-folder"]
@@ -987,6 +980,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(
       movedFolderAtRoot.waitForNonExistence(timeout: 5), "trashed folder remained visible")
 
+    signOut(returningTo: signIn)
+  }
+
+  func testBulkMoveAndTrashRetryOnlyWhatFailed() {
+    // The seeded batch failures are keyed to folders 416 and 417.
+    app.launchArguments += ["--putio-harness-first-folder-id", "416"]
+    let signIn = launchSignedIn()
+
     let bulkRetryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
     let bulkSuccessFolder = createFolder(named: "Bulk Success", expectedID: 417)
     openBrowseMenu()
@@ -1123,6 +1124,21 @@ final class FilesBrowserJourneyTests: XCTestCase {
       "retried bulk item remained visible"
     )
 
+    signOut(returningTo: signIn)
+  }
+
+  func testAmbiguousBulkMoveRefreshesAndMovePickerCreatesFolders() {
+    // The seeded ambiguous move failure is keyed to folder 418.
+    app.launchArguments += ["--putio-harness-first-folder-id", "418"]
+    let signIn = launchSignedIn()
+    let harnessFolder = element(identifier: "files.item.410")
+    XCTAssertTrue(waitUntilHittable(harnessFolder, timeout: 5))
+    harnessFolder.tap()
+    XCTAssertTrue(
+      element(identifier: "files.screen.410").waitForExistence(timeout: 5),
+      "Harness Folder did not open"
+    )
+
     let ambiguousMoveFolder = createFolder(named: "Ambiguous Move", expectedID: 418)
     openBrowseMenu()
     let ambiguousEdit = app.buttons["files.selection.toggle"]
@@ -1163,6 +1179,24 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(appliedMoveAtRoot.label, "Ambiguous Move")
     assertMovePickerCreationAndSorting(for: appliedMoveAtRoot)
 
+    signOut(returningTo: signIn)
+  }
+
+  /// Launches, signs in, and waits for the root browser; returns the sign-in
+  /// control so the test can assert sign-out returns to it.
+  private func launchSignedIn() -> XCUIElement {
+    app.launch()
+    let signIn = element(identifier: "auth.sign-in")
+    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
+    signIn.tap()
+    XCTAssertTrue(
+      element(identifier: "files.screen.0").waitForExistence(timeout: 10),
+      "signed-in root browser never appeared"
+    )
+    return signIn
+  }
+
+  private func signOut(returningTo signIn: XCUIElement) {
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")

@@ -339,7 +339,7 @@ import Foundation
     nonisolated(unsafe) private static var harnessFolderName = "Harness Folder"
     nonisolated(unsafe) private static var actionFolders: [Int: ActionFolder] = [:]
     nonisolated(unsafe) private static var trashFolders = initialTrashFolders
-    nonisolated(unsafe) private static var nextActionFolderID = 415
+    nonisolated(unsafe) private static var nextActionFolderID = firstActionFolderID
     nonisolated(unsafe) private static var historyRootLoads = 0
     nonisolated(unsafe) private static var historyPageFailed = false
     nonisolated(unsafe) private static var historyDeleteFailed = false
@@ -399,6 +399,17 @@ import Foundation
     private static let deviceCodeLock = NSLock()
     nonisolated(unsafe) private static var deviceCodesIssued = 0
     nonisolated(unsafe) private static var deviceCodePolls: [String: Int] = [:]
+    /// Created folders take sequential ids from 415. A journey that skips
+    /// earlier creations passes `--putio-harness-first-folder-id <id>` so the
+    /// id-keyed failures below still hit the folders it creates.
+    private static var firstActionFolderID: Int {
+      let arguments = ProcessInfo.processInfo.arguments
+      guard let flag = arguments.firstIndex(of: "--putio-harness-first-folder-id"),
+        arguments.indices.contains(flag + 1),
+        let id = Int(arguments[flag + 1]), id >= 415
+      else { return 415 }
+      return id
+    }
     static let bulkDeleteFailureFolderID = 416
     static let ambiguousMoveFailureFolderID = 418
     /// Reported as failed in the first batched move that includes it.
@@ -433,7 +444,7 @@ import Foundation
       harnessFolderDeleted = false
       harnessFolderName = "Harness Folder"
       trashFolders = initialTrashFolders
-      nextActionFolderID = 415
+      nextActionFolderID = firstActionFolderID
       historyRootLoads = 0
       historyPageFailed = false
       historyDeleteFailed = false

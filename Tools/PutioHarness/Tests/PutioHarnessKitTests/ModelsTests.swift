@@ -103,6 +103,14 @@ import Testing
       == "PutioUITests/FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash"
   )
   #expect(
+    BrowserJourneyContract.bulkFileActionsTestIdentifier
+      == "PutioUITests/FilesBrowserJourneyTests/testBulkMoveAndTrashRetryOnlyWhatFailed"
+  )
+  #expect(
+    BrowserJourneyContract.movePickerTestIdentifier
+      == "PutioUITests/FilesBrowserJourneyTests/testAmbiguousBulkMoveRefreshesAndMovePickerCreatesFolders"
+  )
+  #expect(
     BrowserJourneyContract.unsavedDownloadsTestIdentifier
       == "PutioUITests/DownloadsJourneyTests/testAnUnsavedDownloadIsReportedOutsideDownloads"
   )
