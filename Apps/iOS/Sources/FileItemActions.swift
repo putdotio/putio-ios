@@ -187,6 +187,69 @@ struct PutioFileItemActionButtons: View {
   }
 }
 
+/// The New Folder and Rename sheet. The field takes focus as the sheet opens,
+/// and file names skip autocorrection.
+struct PutioFileNameEditor: View {
+  let title: String
+  let submitTitle: String
+  let isValid: (String) -> Bool
+  let onCancel: () -> Void
+  let onSubmit: (String) -> Void
+
+  @State private var name: String
+  @FocusState private var isFocused: Bool
+
+  init(
+    title: String,
+    submitTitle: String,
+    initialName: String = "",
+    isValid: @escaping (String) -> Bool,
+    onCancel: @escaping () -> Void,
+    onSubmit: @escaping (String) -> Void
+  ) {
+    self.title = title
+    self.submitTitle = submitTitle
+    self.isValid = isValid
+    self.onCancel = onCancel
+    self.onSubmit = onSubmit
+    _name = State(initialValue: initialName)
+  }
+
+  var body: some View {
+    NavigationStack {
+      Form {
+        TextField("Name", text: $name)
+          .focused($isFocused)
+          .autocorrectionDisabled()
+          .accessibilityIdentifier("files.action-name")
+      }
+      .navigationTitle(title)
+      .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+          Button("Cancel", role: .cancel, action: onCancel)
+        }
+        ToolbarItem(placement: .confirmationAction) {
+          Button(submitTitle) { onSubmit(name) }
+            .disabled(!isValid(name))
+            .accessibilityIdentifier("files.action-submit")
+        }
+      }
+    }
+    .presentationDetents([.height(220)])
+    .onAppear { isFocused = true }
+  }
+
+  static func isValidName(_ name: String) -> Bool {
+    !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  }
+
+  static func isValidRename(_ name: String, of item: PutioFileItem) -> Bool {
+    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    return !trimmed.isEmpty && trimmed != item.name
+  }
+}
+
 /// Presents the rename editor, move picker, and permanent-delete confirmation
 /// for `request`, runs the action, and reports it with a toast.
 struct PutioFileItemActionsHost: ViewModifier {
@@ -198,36 +261,22 @@ struct PutioFileItemActionsHost: ViewModifier {
   let trashEnabled: Bool
   let refreshRequests: PutioFolderRefreshRequests
 
-  @State private var editorName = ""
   @State private var toast: PutioToast?
 
   func body(content: Content) -> some View {
     content
       .sheet(item: renameBinding) { item in
-        NavigationStack {
-          Form {
-            TextField("Name", text: $editorName)
-              .accessibilityIdentifier("files.action-name")
+        PutioFileNameEditor(
+          title: "Rename Item",
+          submitTitle: "Rename",
+          initialName: item.name,
+          isValid: { PutioFileNameEditor.isValidRename($0, of: item) },
+          onCancel: { request = nil },
+          onSubmit: { name in
+            request = nil
+            perform { await model.rename(item, to: name) }
           }
-          .navigationTitle("Rename Item")
-          .navigationBarTitleDisplayMode(.inline)
-          .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-              Button("Cancel", role: .cancel) { request = nil }
-            }
-            ToolbarItem(placement: .confirmationAction) {
-              Button("Rename") {
-                let name = editorName
-                request = nil
-                perform { await model.rename(item, to: name) }
-              }
-              .disabled(!isValidName(for: item))
-              .accessibilityIdentifier("files.action-submit")
-            }
-          }
-        }
-        .presentationDetents([.height(220)])
-        .onAppear { editorName = item.name }
+        )
       }
       .sheet(item: moveBinding) { item in
         PutioMovePicker(
@@ -280,11 +329,6 @@ struct PutioFileItemActionsHost: ViewModifier {
   private var deletionTitle: String {
     guard case .delete(let item) = request else { return deletion.actionTitle }
     return deletion.confirmationTitle(itemName: item.name)
-  }
-
-  private func isValidName(for item: PutioFileItem) -> Bool {
-    let name = editorName.trimmingCharacters(in: .whitespacesAndNewlines)
-    return !name.isEmpty && name != item.name
   }
 
   private func perform(_ operation: @escaping @MainActor () async -> Void) {

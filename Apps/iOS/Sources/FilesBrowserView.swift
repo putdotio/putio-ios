@@ -278,7 +278,6 @@ struct PutioFolderScreen: View {
   @State private var retrySequence: UInt64 = 0
   @State private var reportedLoaded = false
   @State private var editor: FileEditor?
-  @State private var editorName = ""
   @State private var pendingDeletion: PutioFileItem?
   @State private var pendingBulkDeletion: [PutioFileItem] = []
   @State private var pendingMove: MoveSelection?
@@ -432,30 +431,26 @@ struct PutioFolderScreen: View {
     }
     .modifier(PutioSelectionTabBarVisibility(isEditing: isEditing))
     .environment(\.editMode, $editMode)
-    .sheet(isPresented: editorPresented) {
-      NavigationStack {
-        Form {
-          TextField("Name", text: $editorName)
-            .accessibilityIdentifier("files.action-name")
-        }
-        .navigationTitle(editorTitle)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-          ToolbarItem(placement: .cancellationAction) {
-            Button("Cancel", role: .cancel) {
-              editor = nil
-            }
-          }
-          ToolbarItem(placement: .confirmationAction) {
-            Button(editorSubmitTitle) {
-              submitEditor()
-            }
-            .disabled(!editorNameIsValid)
-            .accessibilityIdentifier("files.action-submit")
-          }
-        }
+    .sheet(item: $editor) { editor in
+      switch editor {
+      case .createFolder:
+        PutioFileNameEditor(
+          title: "New Folder",
+          submitTitle: "Create",
+          isValid: PutioFileNameEditor.isValidName,
+          onCancel: { self.editor = nil },
+          onSubmit: { submit(.createFolder($0)) }
+        )
+      case .rename(let item):
+        PutioFileNameEditor(
+          title: "Rename Item",
+          submitTitle: "Rename",
+          initialName: item.name,
+          isValid: { PutioFileNameEditor.isValidRename($0, of: item) },
+          onCancel: { self.editor = nil },
+          onSubmit: { submit(.rename(item, $0)) }
+        )
       }
-      .presentationDetents([.height(220)])
     }
     .sheet(item: $pendingMove) { selection in
       PutioMovePicker(
@@ -786,7 +781,6 @@ struct PutioFolderScreen: View {
 
   private func renameButton(for item: PutioFileItem) -> some View {
     Button {
-      editorName = item.name
       editor = .rename(item)
     } label: {
       Label("Rename", systemImage: "pencil")
@@ -865,7 +859,6 @@ struct PutioFolderScreen: View {
       .disabled(fileActionPending || currentItems.isEmpty)
       .accessibilityIdentifier("files.selection.toggle")
       Button {
-        editorName = ""
         editor = .createFolder
       } label: {
         Label("New Folder", systemImage: "folder.badge.plus")
@@ -986,15 +979,6 @@ struct PutioFolderScreen: View {
     retryRequest = nil
   }
 
-  private var editorPresented: Binding<Bool> {
-    Binding(
-      get: { editor != nil },
-      set: { isPresented in
-        if !isPresented { editor = nil }
-      }
-    )
-  }
-
   private var deleteConfirmationPresented: Binding<Bool> {
     Binding(
       get: { pendingDeletion != nil },
@@ -1002,29 +986,6 @@ struct PutioFolderScreen: View {
         if !isPresented { pendingDeletion = nil }
       }
     )
-  }
-
-  private var editorTitle: String {
-    switch editor {
-    case .createFolder: "New Folder"
-    case .rename: "Rename Item"
-    case nil: "Edit Item"
-    }
-  }
-
-  private var editorSubmitTitle: String {
-    switch editor {
-    case .createFolder: "Create"
-    case .rename: "Rename"
-    case nil: "Save"
-    }
-  }
-
-  private var editorNameIsValid: Bool {
-    let name = editorName.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !name.isEmpty else { return false }
-    guard case .rename(let item) = editor else { return true }
-    return name != item.name
   }
 
   private var deleteActionTitle: String {
@@ -1086,15 +1047,9 @@ struct PutioFolderScreen: View {
     actionRequest != nil || model.activeAction != nil || model.activeBulkAction != nil
   }
 
-  private func submitEditor() {
-    guard editorNameIsValid, let editor else { return }
-    switch editor {
-    case .createFolder:
-      actionRequest = .createFolder(editorName)
-    case .rename(let item):
-      actionRequest = .rename(item, editorName)
-    }
-    self.editor = nil
+  private func submit(_ request: FileActionRequest) {
+    actionRequest = request
+    editor = nil
   }
 
   private func runActionRequest() async {
@@ -1305,9 +1260,11 @@ struct PutioFolderScreen: View {
     let kind: RetryKind
   }
 
-  private enum FileEditor: Equatable {
+  private enum FileEditor: Hashable, Identifiable {
     case createFolder
     case rename(PutioFileItem)
+
+    var id: Self { self }
   }
 
   private enum FileActionRequest: Equatable {
