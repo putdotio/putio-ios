@@ -259,5 +259,7 @@ Inspect retained diagnostics locally before sharing them.
 
 [Next CI](../.github/workflows/ci-next.yml) owns branch triggers, toolchain
 selection, font provisioning, and checks. It runs `mise run verify` and the iOS
-launch-proof subset in `mise run harness-ci`. Feature journeys are separate;
-run the affected journey for local interactive evidence.
+launch-proof subset in `mise run harness-ci`. When a step fails, it uploads the
+`.xcresult` bundles from `build/DerivedData/Logs/Test` as a five-day artifact.
+Feature journeys are separate; run the affected journey for local interactive
+evidence.
