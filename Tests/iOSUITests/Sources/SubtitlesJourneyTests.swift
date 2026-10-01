@@ -102,6 +102,7 @@ final class SubtitlesJourneyTests: XCTestCase {
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     if !signOut.isHittable { app.swipeUp() }
     signOut.tap()
+    app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
   }
 

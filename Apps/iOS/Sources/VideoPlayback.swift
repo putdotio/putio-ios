@@ -1072,6 +1072,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private var onFailure: (@MainActor () -> Void)?
   private var generation: UInt64 = 0
   private var readyReported = false
+  private var defaultSubtitleRequested = false
   private var failureReported = false
   private var remembersPlaybackPosition = false
   private var fileID: PutioFileID?
@@ -1149,6 +1150,7 @@ final class PutioSystemVideoPlayerCoordinator {
     generation &+= 1
     let playbackGeneration = generation
     readyReported = false
+    defaultSubtitleRequested = false
     failureReported = false
     finalPositionEnqueued = false
     positionIsEstablished = false
@@ -1164,10 +1166,12 @@ final class PutioSystemVideoPlayerCoordinator {
     self.onFailure = onFailure
 
     let item = makeItem(source.url)
-    statusObservation = observeItemStatus(item) { [weak self] status in
-      Task { @MainActor [weak self] in
+    statusObservation = observeItemStatus(item) { [weak self, weak controller] status in
+      Task { @MainActor [weak self, weak controller] in
         switch status {
         case .readyToPlay:
+          self?.applyDefaultSubtitleOnce(
+            to: item, revealingControlsOf: controller, generation: playbackGeneration)
           if !preferredAudioLanguages.isEmpty {
             await Self.selectAudio(preferring: preferredAudioLanguages, in: item)
           }
@@ -1222,13 +1226,6 @@ final class PutioSystemVideoPlayerCoordinator {
     // Controls stay hidden until the default subtitle is applied, so no
     // subtitle choice can be made before it and then overridden.
     controller.showsPlaybackControls = false
-    let applyDefaultSubtitle = applyDefaultSubtitle
-    Task { @MainActor [weak self, weak controller] in
-      await applyDefaultSubtitle(item)
-      guard let self, generation == playbackGeneration else { return }
-      controller?.showsPlaybackControls = true
-      reportMediaSelection(for: item, generation: playbackGeneration)
-    }
 
     let driver = makeDriver(item)
     self.driver = driver
@@ -1351,6 +1348,26 @@ final class PutioSystemVideoPlayerCoordinator {
       })
     else { return }
     item.select(option, in: group)
+  }
+
+  /// AVPlayerViewController replaces the subtitle selection with its own
+  /// automatic choice when the item becomes ready, so the default is applied
+  /// only after readiness. Later readiness never re-applies it over the
+  /// user's choice.
+  private func applyDefaultSubtitleOnce(
+    to item: AVPlayerItem,
+    revealingControlsOf controller: AVPlayerViewController?,
+    generation playbackGeneration: UInt64
+  ) {
+    guard generation == playbackGeneration, !defaultSubtitleRequested else { return }
+    defaultSubtitleRequested = true
+    let applyDefaultSubtitle = applyDefaultSubtitle
+    Task { @MainActor [weak self, weak controller] in
+      await applyDefaultSubtitle(item)
+      guard let self, generation == playbackGeneration else { return }
+      controller?.showsPlaybackControls = true
+      reportMediaSelection(for: item, generation: playbackGeneration)
+    }
   }
 
   /// put.io marks the first subtitle `DEFAULT` unless the account disables
