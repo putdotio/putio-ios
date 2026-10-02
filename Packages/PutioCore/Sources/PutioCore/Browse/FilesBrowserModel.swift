@@ -580,6 +580,10 @@ public final class PutioFolderModel {
   public private(set) var activeBulkAction: PutioBulkFileAction?
   public private(set) var bulkProgress: PutioBulkFileProgress?
   public private(set) var bulkOutcome: PutioBulkFileOutcome?
+  /// Items the latest full load returned on the first page. A refresh after
+  /// a mutation keeps only the first page, so later-page rows vanish until
+  /// paging reaches them again.
+  public private(set) var firstPageIDs: Set<PutioFileID> = []
 
   @ObservationIgnored private let load: PutioFolderLoad
   @ObservationIgnored private let continueLoad: PutioFolderContinue?
@@ -605,6 +609,7 @@ public final class PutioFolderModel {
     self.continueLoad = continueLoad
     self.actions = actions
     state = initialContents.map { .loaded($0) } ?? .loading
+    firstPageIDs = Set(initialContents?.items.map(\.id) ?? [])
   }
 
   public var supportsActions: Bool {
@@ -1138,6 +1143,7 @@ public final class PutioFolderModel {
       try Task.checkCancellation()
       guard requestGeneration == generation else { return false }
       state = .loaded(contents)
+      firstPageIDs = Set(contents.items.map(\.id))
       refreshFailure = nil
       return true
     } catch {

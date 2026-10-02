@@ -70,7 +70,8 @@ struct TVSearchView: View {
         delete: { item in
           if case .loaded(let page) = model.state {
             let visible = page.items.filter { !itemActions.hiddenIDs.contains($0.id) }
-            focusedRow = TVFilePresentation.focusAfterRemoving(item.id, from: visible)
+            focusedRow = TVFilePresentation.focusAfterRemoving(
+              item.id, from: visible, firstPage: model.firstPageIDs)
           }
           if account.trashEnabled { itemActions.hideForTrash(item) }
           Task { await itemActions.delete(item) }
@@ -123,6 +124,7 @@ struct TVSearchView: View {
         TVFileRowButton(
           presentation: PutioBrowserItemPresentation(item: item, relativeTo: now, locale: locale),
           identifier: "search.item.\(item.id.rawValue)",
+          isMenuOpen: menuItem?.id == item.id,
           open: { open(item) },
           showMenu: { if itemActions.canStartAction { menuItem = item } }
         )

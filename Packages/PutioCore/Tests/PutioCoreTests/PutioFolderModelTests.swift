@@ -2289,6 +2289,31 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertFalse(model.canLoadMore)
   }
 
+  /// A refresh after a mutation keeps only the first page, so screens need
+  /// to know which rows survive it.
+  func testFirstPageIDsFollowFullLoadsAndIgnoreAppendedPages() async {
+    let first = BrowserTestFixtures.item(id: 1)
+    let second = BrowserTestFixtures.item(id: 2)
+    let third = BrowserTestFixtures.item(id: 3)
+    var loads = 0
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in
+        loads += 1
+        return BrowserTestFixtures.contents(
+          items: loads == 1 ? [first] : [first, third], hasMore: true)
+      },
+      continueLoad: { _ in PutioFolderContents(folder: nil, items: [second], nextCursor: nil) }
+    )
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(model.firstPageIDs, [first.id])
+    await model.loadMore()
+    XCTAssertEqual(model.firstPageIDs, [first.id], "an appended page is not the first page")
+    await model.refresh()
+    XCTAssertEqual(model.firstPageIDs, [first.id, third.id])
+  }
+
   func testLoadMoreWithoutAContinuationLoaderIsInert() async {
     let initial = BrowserTestFixtures.contents(
       items: [BrowserTestFixtures.item(id: 1)], hasMore: true)

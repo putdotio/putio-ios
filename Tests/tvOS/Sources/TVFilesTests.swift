@@ -79,14 +79,33 @@ final class TVFilesTests: XCTestCase {
 
   func testRemovingARowFocusesTheNextRowOrThePreviousAtTheEnd() {
     let items = [410, 412, 406].map { Self.video(id: $0) }
+    let all = Set(items.map(\.id))
     XCTAssertEqual(
-      TVFilePresentation.focusAfterRemoving(PutioFileID(rawValue: 412), from: items),
+      TVFilePresentation.focusAfterRemoving(
+        PutioFileID(rawValue: 412), from: items, firstPage: all),
       PutioFileID(rawValue: 406))
     XCTAssertEqual(
-      TVFilePresentation.focusAfterRemoving(PutioFileID(rawValue: 406), from: items),
+      TVFilePresentation.focusAfterRemoving(
+        PutioFileID(rawValue: 406), from: items, firstPage: all),
       PutioFileID(rawValue: 412))
     XCTAssertNil(
-      TVFilePresentation.focusAfterRemoving(PutioFileID(rawValue: 410), from: [items[0]]))
+      TVFilePresentation.focusAfterRemoving(
+        PutioFileID(rawValue: 410), from: [items[0]], firstPage: all))
+  }
+
+  /// The removal reloads only the first page; a neighbour on a later page
+  /// would vanish and send focus back to the top.
+  func testRemovingALaterPageRowFocusesARowTheReloadKeeps() {
+    let items = [424, 410, 422, 426].map { Self.video(id: $0) }
+    let firstPage: Set = [PutioFileID(rawValue: 424), PutioFileID(rawValue: 410)]
+    XCTAssertEqual(
+      TVFilePresentation.focusAfterRemoving(
+        PutioFileID(rawValue: 422), from: items, firstPage: firstPage),
+      PutioFileID(rawValue: 410))
+    XCTAssertEqual(
+      TVFilePresentation.focusAfterRemoving(
+        PutioFileID(rawValue: 424), from: items, firstPage: firstPage),
+      PutioFileID(rawValue: 410))
   }
 
   func testToastsNameTheActionAndFollowTheTrashSetting() {

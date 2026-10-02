@@ -55,10 +55,13 @@ final class FilesSearchJourneyTests: XCTestCase {
     // The fixture reverses the first page, so the last folders now lead.
     XCTAssertTrue(waitUntil(timeout: 10) { self.isAbove("files.item.424", "files.item.413") })
 
-    // Long press opens the centered menu without opening the row.
+    // Long press opens the centered menu without opening the row, however
+    // long Select is held.
     XCTAssertTrue(focus("files.item.412"))
-    longPress()
+    remote.press(.select, forDuration: 6.5)
     XCTAssertTrue(element("files.menu.unwatched").waitForExistence(timeout: 5))
+    XCTAssertFalse(
+      element("file.playback-placeholder.412").exists, "the long press opened the video")
     XCTAssertTrue(element("files.menu.delete").exists)
     attach("runtime-tv-files-menu")
     XCTAssertTrue(selectModalButton("files.menu.unwatched"))
@@ -91,6 +94,18 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(focusedRowIsOnScreen())
     attach("runtime-tv-files-trashed")
 
+    // A later-page row: the Trash move reloads only the first page, so focus
+    // goes to that page's last row instead of a neighbour the reload drops.
+    XCTAssertTrue(focus("files.item.422", moving: .down, limit: 4))
+    longPress()
+    XCTAssertTrue(selectModalButton("files.menu.delete"))
+    XCTAssertTrue(waitUntil(timeout: 10) { !self.element("files.item.422").exists })
+    XCTAssertTrue(element("files.item.426").waitForExistence(timeout: 10))
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("files.item.410") },
+      "focus stays next to the removed row, not back at the top")
+    XCTAssertTrue(focusedRowIsOnScreen())
+
     // A folder opens; returning refetches the root.
     XCTAssertTrue(focus("files.item.410"))
     remote.press(.select)
@@ -98,6 +113,9 @@ final class FilesSearchJourneyTests: XCTestCase {
     attach("runtime-tv-folder")
     remote.press(.menu)
     XCTAssertTrue(element("files.item.410").waitForExistence(timeout: 10))
+    // The fixture adds a root row while Harness Folder is open.
+    XCTAssertTrue(
+      focus("files.item.427", moving: .up, limit: 14), "returning did not refetch the root")
 
     // Apple TV plays video only.
     XCTAssertTrue(focus("files.item.407"))
@@ -172,8 +190,12 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(selectModalButton("files.menu.unwatched"))
     XCTAssertTrue(label(containing: "Marked as unwatched").waitForExistence(timeout: 10))
     // The action re-runs the search, whose rows now show the new state.
+    let result = element("search.item.411")
     XCTAssertTrue(
-      waitUntil(timeout: 10) { !self.element("search.item.411").label.contains("Watched") })
+      waitUntil(timeout: 10) {
+        result.exists && result.label.contains("Nested Movie.mkv")
+          && !result.label.contains("Watched")
+      })
 
     XCTAssertTrue(focus("search.item.410", moving: .up, limit: 6))
     remote.press(.select)
@@ -208,13 +230,18 @@ final class FilesSearchJourneyTests: XCTestCase {
     return a.exists && b.exists && a.frame.minY < b.frame.minY
   }
 
-  /// Focus sits on an element that is inside the window, never on a removed
-  /// row or off screen.
+  /// Focus sits on a file row that is fully inside the window, never on a
+  /// header button, a removed row, or a row off screen.
   private func focusedRowIsOnScreen() -> Bool {
     let focused = app.descendants(matching: .any)
-      .matching(NSPredicate(format: "hasFocus == true")).firstMatch
+      .matching(
+        NSPredicate(
+          format:
+            "hasFocus == true AND (identifier BEGINSWITH 'files.item.' OR identifier BEGINSWITH 'search.item.')"
+        )
+      ).firstMatch
     guard focused.exists, !focused.frame.isEmpty else { return false }
-    return app.windows.firstMatch.frame.intersects(focused.frame)
+    return app.windows.firstMatch.frame.contains(focused.frame)
   }
 
   /// Moves focus onto the element with the remote: down first, then up,

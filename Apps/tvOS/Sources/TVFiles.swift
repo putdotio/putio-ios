@@ -39,12 +39,15 @@ enum TVFilePresentation {
 
   /// Where focus goes when a row leaves the list: the row after it, or the
   /// one before it at the end. Left alone, tvOS jumps to the first row.
+  /// The removal reloads only the first page, so the target must be a row
+  /// in `firstPage`; on a later page that is the first page's last row.
   static func focusAfterRemoving(
-    _ id: PutioFileID, from items: [PutioFileItem]
+    _ id: PutioFileID, from items: [PutioFileItem], firstPage: Set<PutioFileID>
   ) -> PutioFileID? {
     guard let index = items.firstIndex(where: { $0.id == id }) else { return nil }
-    if index + 1 < items.count { return items[index + 1].id }
-    return index > 0 ? items[index - 1].id : nil
+    let following = items[(index + 1)...]
+    let preceding = items[..<index].reversed()
+    return (following + preceding).first { firstPage.contains($0.id) }?.id
   }
 
   static func sortButtonTitle(_ sort: PutioFolderSort) -> String {
@@ -83,20 +86,21 @@ extension TVRoute {
 struct TVFileRowButton: View {
   let presentation: PutioBrowserItemPresentation
   let identifier: String
+  /// Whether this row's menu is up.
+  let isMenuOpen: Bool
   let open: () -> Void
   let showMenu: () -> Void
 
-  @State private var longPressedAt: Date?
+  @State private var endsLongPress = false
 
   var body: some View {
     Button {
-      // tvOS still delivers the select that ends a long press; that one
-      // belongs to the menu, not to opening the row.
-      if let longPressedAt, Date.now.timeIntervalSince(longPressedAt) < 5 {
-        self.longPressedAt = nil
+      // tvOS still delivers the select that ends a long press, however long
+      // it was held; that one belongs to the menu, not to opening the row.
+      if endsLongPress || isMenuOpen {
+        endsLongPress = false
         return
       }
-      longPressedAt = nil
       open()
     } label: {
       PutioFileRow(presentation.row)
@@ -104,10 +108,15 @@ struct TVFileRowButton: View {
     // A plain long-press modifier never sees the press a tvOS button owns.
     .simultaneousGesture(
       LongPressGesture(minimumDuration: 0.5).onEnded { _ in
-        longPressedAt = .now
+        endsLongPress = true
         showMenu()
       }
     )
+    // Answering the menu takes another press, so the long one has ended by
+    // the time it closes, whether or not its select reached the row.
+    .onChange(of: isMenuOpen) { _, isOpen in
+      if !isOpen { endsLongPress = false }
+    }
     .accessibilityIdentifier(identifier)
   }
 }
@@ -290,7 +299,8 @@ struct TVFolderView: View {
       setWatched: { item, watched in Task { await model.setWatched(item, watched) } },
       delete: { item in
         if case .loaded(let contents) = model.state {
-          focusedRow = TVFilePresentation.focusAfterRemoving(item.id, from: contents.items)
+          focusedRow = TVFilePresentation.focusAfterRemoving(
+            item.id, from: contents.items, firstPage: model.firstPageIDs)
         }
         Task { await model.delete(item) }
       }
@@ -372,6 +382,7 @@ struct TVFolderView: View {
           presentation: PutioBrowserItemPresentation(
             item: item, relativeTo: now, locale: locale, sort: sort),
           identifier: "files.item.\(item.id.rawValue)",
+          isMenuOpen: menuItem?.id == item.id,
           open: { open(item) },
           showMenu: { if model.canStartAction { menuItem = item } }
         )
@@ -456,7 +467,7 @@ struct TVFileScreen: View {
         message: "Video playback on Apple TV arrives in a later build.",
         actionTitle: "Go back", action: { dismiss() }
       )
-      .accessibilityIdentifier("file.playback-placeholder")
+      .accessibilityIdentifier("file.playback-placeholder.\(item.id.rawValue)")
     case .audio, .preview, .unsupported:
       PutioEmptyStateView(
         icon: .xCircle, title: "Unsupported file type",
