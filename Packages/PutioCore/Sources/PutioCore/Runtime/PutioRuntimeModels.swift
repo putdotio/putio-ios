@@ -79,6 +79,33 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
   }
 }
 
+// The avatar URL identifies the account, so diagnostics never print it.
+extension PutioAccountSnapshot: CustomReflectable {
+  public var customMirror: Mirror {
+    Mirror(
+      self,
+      children: [
+        "id": id,
+        "username": username,
+        "email": email,
+        "suggestNextVideo": suggestNextVideo,
+        "rememberVideoTime": rememberVideoTime,
+        "defaultSort": defaultSort as Any,
+        "historyEnabled": historyEnabled,
+        "trashEnabled": trashEnabled,
+        "storage": storage,
+        "routeName": routeName,
+        "hideSubtitles": hideSubtitles,
+        "dontAutoSelectSubtitles": dontAutoSelectSubtitles,
+        "twoFactorEnabled": twoFactorEnabled,
+        "avatarURL": avatarURL == nil ? "nil" : "<redacted>",
+        "trashSizeBytes": trashSizeBytes,
+      ],
+      displayStyle: .struct
+    )
+  }
+}
+
 public struct PutioFileID: RawRepresentable, Hashable, Codable, Sendable {
   public static let root = PutioFileID(rawValue: 0)
 
