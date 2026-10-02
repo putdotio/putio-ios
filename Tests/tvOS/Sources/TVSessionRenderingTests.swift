@@ -53,8 +53,12 @@ final class TVSessionRenderingTests: XCTestCase {
   /// account offers the refresh recovery.
   @MainActor
   func testAccountWithDependentRowsHiddenAndStaleSettingsMatchesBaseline() throws {
+    // This state renders differently on the tvOS 26 and 27 runtimes; the
+    // default baseline comes from CI's tvOS 26 toolchain.
+    var name = "tv-account-stale"
+    if #available(tvOS 27.0, *) { name += "-tvos27" }
     _ = try assertRenderingSnapshot(
-      name: "tv-account-stale",
+      name: name,
       view: NavigationStack {
         TVAccountScreen(
           account: Self.account(hideSubtitles: true, trashEnabled: false),
