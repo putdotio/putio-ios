@@ -46,7 +46,10 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertTrue(playPause.waitForExistence(timeout: 5))
     playPause.tap()
     XCTAssertTrue(waitForValue(state, "id=408;state=paused"))
-    for identifier in ["audio.scrubber", "audio.speed", "audio.play-pause", "audio.next"] {
+    for identifier in [
+      "audio.scrubber", "audio.speed", "audio.skip-back", "audio.play-pause",
+      "audio.skip-forward", "audio.next",
+    ] {
       let control = app.descendants(matching: .any)[identifier]
       XCTAssertTrue(control.isHittable)
       XCTAssertGreaterThanOrEqual(control.frame.minX, 0, identifier)
@@ -56,6 +59,13 @@ final class AudioJourneyTests: XCTestCase {
     attachment.name = "runtime-audio-player"
     attachment.lifetime = .keepAlways
     add(attachment)
+
+    let elapsedBeforeSkip = app.staticTexts["audio.elapsed"]
+    let skipped = elapsedBeforeSkip.label
+    app.buttons["audio.skip-forward"].tap()
+    let skip = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label != %@", skipped), object: elapsedBeforeSkip)
+    XCTAssertEqual(XCTWaiter.wait(for: [skip], timeout: 5), .completed, "skip forward did not seek")
 
     let speed = app.buttons["audio.speed"]
     XCTAssertEqual(speed.value as? String, "1×")

@@ -103,6 +103,9 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     let nextTitle = app.descendants(matching: .any)["video.next-title"]
     XCTAssertTrue(nextTitle.waitForExistence(timeout: 15), "next-video suggestion never appeared")
     XCTAssertEqual(nextTitle.label, "Up next, Root Movie 2.mkv")
+    XCTAssertFalse(
+      app.descendants(matching: .any)["video.next-countdown"].exists,
+      "a countdown is shown without autoplay")
     XCTAssertEqual(
       app.descendants(matching: .any)["video.position-reported"].value as? String,
       "id=412;seconds=0", "the completed position reset did not drain before the suggestion")

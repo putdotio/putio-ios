@@ -263,7 +263,7 @@ struct PutioOfflineDownloadsView: View {
     case .paused(let progress):
       queue.isWaitingForSlot(item.id)
         ? "Waiting for a slot · \(percent(progress))" : "Paused · \(percent(progress))"
-    case .completed: byteText(item.storedBytes)
+    case .completed: item.storedSizeText ?? ""
     case .failed(let failure): failure.message
     }
   }
@@ -284,7 +284,7 @@ struct PutioOfflineDownloadsView: View {
   }
 
   private func byteText(_ bytes: Int64) -> String {
-    bytes.formatted(ByteCountFormatStyle(style: .file))
+    PutioFileRowModel.sizeText(bytes: bytes)
   }
 }
 
@@ -336,8 +336,9 @@ struct PutioOfflineDetailView: View {
     NavigationStack {
       List {
         Section {
-          LabeledContent(
-            "Size", value: item.storedBytes.formatted(ByteCountFormatStyle(style: .file)))
+          if let size = item.storedSizeText {
+            LabeledContent("Size", value: size)
+          }
           LabeledContent("Status", value: status)
         }
         Section("Audio") {
@@ -426,14 +427,14 @@ struct PutioOfflineTrackPickerView: View {
               if dynamicTypeSize.isAccessibilitySize {
                 VStack(alignment: .leading) {
                   Text(option.displayName)
-                  Text(option.estimatedBytes.formatted(ByteCountFormatStyle(style: .file)))
+                  Text(PutioFileRowModel.sizeText(bytes: option.estimatedBytes))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
               } else {
                 LabeledContent(
                   option.displayName,
-                  value: option.estimatedBytes.formatted(ByteCountFormatStyle(style: .file)))
+                  value: PutioFileRowModel.sizeText(bytes: option.estimatedBytes))
               }
             }
             .accessibilityIdentifier("downloads.track.\(option.languageCode)")
@@ -445,11 +446,11 @@ struct PutioOfflineTrackPickerView: View {
         }
         Section {
           LabeledContent(
-            "Estimated size", value: estimate.formatted(ByteCountFormatStyle(style: .file))
+            "Estimated size", value: PutioFileRowModel.sizeText(bytes: estimate)
           )
           .accessibilityIdentifier("downloads.estimate")
           LabeledContent(
-            "Free on device", value: availableBytes.formatted(ByteCountFormatStyle(style: .file)))
+            "Free on device", value: PutioFileRowModel.sizeText(bytes: availableBytes))
           if overBudget {
             Text("This selection does not fit. Deselect a language or free up space.")
               .foregroundStyle(PutioTheme.Colors.destructive)
@@ -500,7 +501,7 @@ enum PutioOfflineNotifications {
   ) {
     let content = UNMutableNotificationContent()
     content.title = "Download complete"
-    content.body = item.name
+    content.body = "\(item.name) is ready to play."
     let request = UNNotificationRequest(
       identifier: "offline-\(item.id.rawValue)", content: content, trigger: nil)
     center.add(request)

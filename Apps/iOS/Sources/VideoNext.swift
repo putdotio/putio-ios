@@ -30,6 +30,9 @@ final class PutioNextVideoModel {
   nonisolated static let maximumAutoplayDelay = Duration.seconds(10)
 
   private(set) var state: PutioNextVideoState = .idle
+  /// Whole seconds left before the suggestion plays itself; nil while no
+  /// autoplay countdown runs.
+  private(set) var autoplaySecondsRemaining: Int?
 
   @ObservationIgnored private let suggestionsEnabled: Bool
   /// Awaited when the suggestion appears, so the config document that owns
@@ -103,10 +106,10 @@ final class PutioNextVideoModel {
       guard isCurrent(requestGeneration), autoplay else { return }
 
       do {
-        try await sleep(autoplayDelay)
-        try Task.checkCancellation()
+        try await countDown(requestGeneration)
       } catch {
         guard isCurrent(requestGeneration) else { return }
+        autoplaySecondsRemaining = nil
         if Task.isCancelled || error is CancellationError {
           state = .cancelled
         }
@@ -114,6 +117,7 @@ final class PutioNextVideoModel {
       }
 
       guard isCurrent(requestGeneration) else { return }
+      autoplaySecondsRemaining = nil
       state = .playing(nextVideo)
     } catch {
       guard isCurrent(requestGeneration) else { return }
@@ -137,8 +141,23 @@ final class PutioNextVideoModel {
     }
   }
 
+  /// Sleeps the autoplay delay in steps of at most a second so the overlay
+  /// can show the remaining time.
+  private func countDown(_ requestGeneration: UInt64) async throws {
+    var remaining = autoplayDelay
+    while remaining > .zero {
+      autoplaySecondsRemaining = Self.wholeSeconds(remaining)
+      let step = min(remaining, .seconds(1))
+      try await sleep(step)
+      try Task.checkCancellation()
+      guard isCurrent(requestGeneration) else { return }
+      remaining -= step
+    }
+  }
+
   private func nextGeneration() -> UInt64 {
     generation &+= 1
+    autoplaySecondsRemaining = nil
     return generation
   }
 
@@ -148,6 +167,11 @@ final class PutioNextVideoModel {
 
   private static func bounded(delay: Duration) -> Duration {
     min(max(delay, .zero), maximumAutoplayDelay)
+  }
+
+  private static func wholeSeconds(_ duration: Duration) -> Int {
+    let (seconds, attoseconds) = duration.components
+    return Int(seconds) + (attoseconds > 0 ? 1 : 0)
   }
 }
 

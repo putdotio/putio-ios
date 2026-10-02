@@ -114,6 +114,8 @@ private final class SuspendedAutoplayPolicy {
 private final class NextVideoRecorder {
   var operations: [String] = []
   var durations: [Duration] = []
+  var countdowns: [Int?] = []
+  weak var model: PutioNextVideoModel?
 }
 
 @MainActor
@@ -359,7 +361,29 @@ final class PutioNextVideoModelTests: XCTestCase {
 
     await model.playbackEnded(completedFileID: completedFileID)
 
-    XCTAssertEqual(recorder.durations, [.seconds(10)])
+    XCTAssertEqual(recorder.durations, Array(repeating: .seconds(1), count: 10))
+    XCTAssertEqual(model.state, .playing(playableNextVideo))
+  }
+
+  func testAutoplayCountdownShowsTheSecondsLeftAndClearsWhenItPlays() async {
+    let recorder = NextVideoRecorder()
+    let model = PutioNextVideoModel(
+      autoplayEnabled: true,
+      autoplayDelay: .milliseconds(2_500),
+      waitForReset: { _ in },
+      loadNext: { _ in self.playableNextVideo },
+      sleep: { duration in
+        recorder.countdowns.append(recorder.model?.autoplaySecondsRemaining)
+        recorder.durations.append(duration)
+      }
+    )
+    recorder.model = model
+
+    await model.playbackEnded(completedFileID: completedFileID)
+
+    XCTAssertEqual(recorder.countdowns, [3, 2, 1])
+    XCTAssertEqual(recorder.durations, [.seconds(1), .seconds(1), .milliseconds(500)])
+    XCTAssertNil(model.autoplaySecondsRemaining)
     XCTAssertEqual(model.state, .playing(playableNextVideo))
   }
 
@@ -375,7 +399,7 @@ final class PutioNextVideoModelTests: XCTestCase {
 
     await model.playbackEnded(completedFileID: completedFileID)
 
-    XCTAssertEqual(recorder.durations, [.zero])
+    XCTAssertEqual(recorder.durations, [])
     XCTAssertEqual(model.state, .playing(playableNextVideo))
   }
 
@@ -404,7 +428,7 @@ final class PutioNextVideoModelTests: XCTestCase {
     load.resume(returning: playableNextVideo)
     await ended.value
 
-    XCTAssertEqual(recorder.durations, [.seconds(5)])
+    XCTAssertEqual(recorder.durations, Array(repeating: .seconds(1), count: 5))
     XCTAssertEqual(model.state, .playing(playableNextVideo))
   }
 
@@ -434,7 +458,7 @@ final class PutioNextVideoModelTests: XCTestCase {
     policy.resume(returning: true)
     await ended.value
 
-    XCTAssertEqual(recorder.durations, [.seconds(5)])
+    XCTAssertEqual(recorder.durations, Array(repeating: .seconds(1), count: 5))
     XCTAssertEqual(model.state, .playing(playableNextVideo))
   }
 
@@ -672,11 +696,14 @@ final class PutioNextVideoModelTests: XCTestCase {
     guard !sleep.durations.isEmpty else { return }
 
     XCTAssertEqual(model.state, .available(playableNextVideo))
+    XCTAssertEqual(model.autoplaySecondsRemaining, 5)
     model.cancel()
+    XCTAssertNil(model.autoplaySecondsRemaining)
     sleep.resume()
     await transition.value
 
     XCTAssertEqual(model.state, .cancelled)
+    XCTAssertNil(model.autoplaySecondsRemaining)
   }
 
   func testManualPlayDuringAutoplayDelayWinsOverTheScheduledTransition() async {

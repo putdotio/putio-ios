@@ -669,6 +669,7 @@ struct PutioVideoPlaybackView: View {
     case .available(let nextVideo):
       PutioNextVideoOverlay(
         nextVideo: nextVideo.video,
+        autoplaySecondsRemaining: nextVideoModel.autoplaySecondsRemaining,
         onPlay: { nextVideoModel.playNext() },
         onCancel: { nextVideoModel.cancel() }
       )
@@ -745,27 +746,33 @@ struct PutioVideoPlaybackView: View {
       #endif
       .ignoresSafeArea()
     case .conversionRequired:
-      PutioLoadingStateView(title: "Starting conversion")
-        .accessibilityIdentifier("video.conversion-required")
-    case .conversionQueued:
-      PutioLoadingStateView(title: "Waiting to convert")
-        .accessibilityIdentifier("video.conversion-queued")
-    case .converting(let progress):
-      VStack(spacing: PutioTheme.Spacing.space3) {
-        ProgressView(value: progress)
-          .tint(PutioTheme.Colors.accent)
-          .accessibilityLabel("Video conversion progress")
-          .accessibilityValue(progress.formatted(.percent.precision(.fractionLength(0))))
-          .accessibilityIdentifier("video.conversion-progress")
-        Text("Converting video")
-          .putioFont(PutioTheme.Typography.body)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
+      PutioConversionStatusView {
+        PutioLoadingStateView(title: "Starting conversion")
+          .accessibilityIdentifier("video.conversion-required")
       }
-      .padding(PutioTheme.Spacing.space4)
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
+    case .conversionQueued:
+      PutioConversionStatusView {
+        PutioLoadingStateView(title: "Waiting to convert")
+          .accessibilityIdentifier("video.conversion-queued")
+      }
+    case .converting(let progress):
+      PutioConversionStatusView {
+        VStack(spacing: PutioTheme.Spacing.space3) {
+          ProgressView(value: progress)
+            .tint(PutioTheme.Colors.accent)
+            .accessibilityLabel("Video conversion progress")
+            .accessibilityValue(progress.formatted(.percent.precision(.fractionLength(0))))
+            .accessibilityIdentifier("video.conversion-progress")
+          Text("Converting video")
+            .putioFont(PutioTheme.Typography.body)
+            .foregroundStyle(PutioTheme.Colors.textSecondary)
+        }
+      }
     case .conversionCompleted:
-      PutioLoadingStateView(title: "Finishing conversion")
-        .accessibilityIdentifier("video.conversion-completed")
+      PutioConversionStatusView {
+        PutioLoadingStateView(title: "Finishing conversion")
+          .accessibilityIdentifier("video.conversion-completed")
+      }
     case .failed(let failure):
       PutioErrorStateView(
         title: failure.title,
@@ -779,8 +786,32 @@ struct PutioVideoPlaybackView: View {
   }
 }
 
+/// A conversion state under app.put.io's explanation of why the video waits.
+struct PutioConversionStatusView<Status: View>: View {
+  @ViewBuilder let status: Status
+
+  var body: some View {
+    VStack(spacing: PutioTheme.Spacing.space5) {
+      Text(
+        "This video is not in a format that can be played in this app yet. But since you're here, we'll start transcoding."
+      )
+      .putioFont(PutioTheme.Typography.body)
+      .foregroundStyle(PutioTheme.Colors.textPrimary)
+      .multilineTextAlignment(.center)
+      .fixedSize(horizontal: false, vertical: true)
+      .accessibilityIdentifier("conversion.explanation")
+      status
+        .fixedSize(horizontal: false, vertical: true)
+    }
+    .padding(PutioTheme.Spacing.space4)
+    .frame(maxWidth: 480)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+}
+
 struct PutioNextVideoOverlay: View {
   let nextVideo: PutioNextVideo
+  var autoplaySecondsRemaining: Int?
   let onPlay: () -> Void
   let onCancel: () -> Void
 
@@ -795,6 +826,15 @@ struct PutioNextVideoOverlay: View {
         .foregroundStyle(.white.opacity(0.78))
         .accessibilityLabel("Up next, \(nextVideo.name)")
         .accessibilityIdentifier("video.next-title")
+      if let autoplaySecondsRemaining {
+        Text(
+          "Playing in \(Duration.seconds(autoplaySecondsRemaining).formatted(.units(allowed: [.seconds], width: .wide)))"
+        )
+        .putioFont(PutioTheme.Typography.caption)
+        .foregroundStyle(.white.opacity(0.78))
+        .monospacedDigit()
+        .accessibilityIdentifier("video.next-countdown")
+      }
       HStack(spacing: PutioTheme.Spacing.space2) {
         PutioButton("Play Next", tier: .primary, action: onPlay)
           .accessibilityLabel("Play next, \(nextVideo.name)")

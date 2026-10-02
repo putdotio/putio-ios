@@ -109,24 +109,28 @@ struct PutioCastControlsView: View {
           PutioLoadingStateView(title: "Preparing video")
             .accessibilityIdentifier("cast.preparing")
         case .conversionRequired:
-          PutioLoadingStateView(title: "Starting conversion")
-            .accessibilityIdentifier("cast.conversion-required")
-        case .conversionQueued:
-          PutioLoadingStateView(title: "Waiting to convert")
-            .accessibilityIdentifier("cast.conversion-queued")
-        case .converting(_, let progress):
-          VStack(spacing: PutioTheme.Spacing.space3) {
-            ProgressView(value: progress)
-              .tint(PutioTheme.Colors.accent)
-              .accessibilityLabel("Video conversion progress")
-              .accessibilityValue(progress.formatted(.percent.precision(.fractionLength(0))))
-              .accessibilityIdentifier("cast.conversion-progress")
-            Text("Converting video")
-              .putioFont(PutioTheme.Typography.body)
-              .foregroundStyle(PutioTheme.Colors.textSecondary)
+          PutioConversionStatusView {
+            PutioLoadingStateView(title: "Starting conversion")
+              .accessibilityIdentifier("cast.conversion-required")
           }
-          .padding(PutioTheme.Spacing.space4)
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .conversionQueued:
+          PutioConversionStatusView {
+            PutioLoadingStateView(title: "Waiting to convert")
+              .accessibilityIdentifier("cast.conversion-queued")
+          }
+        case .converting(_, let progress):
+          PutioConversionStatusView {
+            VStack(spacing: PutioTheme.Spacing.space3) {
+              ProgressView(value: progress)
+                .tint(PutioTheme.Colors.accent)
+                .accessibilityLabel("Video conversion progress")
+                .accessibilityValue(progress.formatted(.percent.precision(.fractionLength(0))))
+                .accessibilityIdentifier("cast.conversion-progress")
+              Text("Converting video")
+                .putioFont(PutioTheme.Typography.body)
+                .foregroundStyle(PutioTheme.Colors.textSecondary)
+            }
+          }
         case .loading:
           PutioLoadingStateView(title: "Loading on \(model.connection.deviceName ?? "Chromecast")")
             .accessibilityIdentifier("cast.loading")
@@ -325,11 +329,10 @@ struct PutioCastControlsView: View {
   }
 }
 
-/// The feature-owned Chromecast settings: the server-side playback type and
-/// the receiver this build discovers. Account settings link here.
+/// The feature-owned Chromecast settings: the server-side playback type.
+/// Account settings link here.
 struct PutioCastPreferencesView: View {
   let model: PutioCastModel
-  private let receiverAppID = PutioCastReceiver.appID()
 
   var body: some View {
     Form {
@@ -365,16 +368,6 @@ struct PutioCastPreferencesView: View {
         Text(
           "HLS streams the original file with put.io subtitles. MP4 casts the converted file and lets you switch subtitles on the receiver."
         )
-      }
-      .listRowBackground(PutioTheme.Colors.surface)
-      Section {
-        LabeledContent("Receiver app ID", value: receiverAppID)
-          .accessibilityElement(children: .ignore)
-          .accessibilityLabel("Receiver app ID")
-          .accessibilityValue(receiverAppID)
-          .accessibilityIdentifier("cast-settings.receiver")
-      } footer: {
-        Text("Discovery is limited to this receiver; it is fixed per build.")
       }
       .listRowBackground(PutioTheme.Colors.surface)
     }

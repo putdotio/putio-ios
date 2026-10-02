@@ -287,6 +287,24 @@ final class OfflineDownloadsTests: XCTestCase {
     XCTAssertGreaterThan(queue.storedBytes, 0)
   }
 
+  func testSizeIsShownOnlyOnceTheDownloadCompletes() {
+    var item = PutioOfflineItem(
+      id: PutioFileID(rawValue: 8), parentID: .root, name: "h", kind: .video, createdAt: .now,
+      stage: .queued, localPath: nil, storedBytes: 0,
+      selectedAudioLanguages: [], storedAudioTracks: [], storedSubtitleTracks: [],
+      resumePositionSeconds: 0, pendingPositionSeconds: nil, estimatedBytes: 4_000)
+    let unfinished: [PutioOfflineItem.Stage] = [
+      .queued, .converting(progress: 0.2), .downloading(progress: 0.4), .paused(progress: 0.4),
+      .failed(.download),
+    ]
+    for stage in unfinished {
+      item.stage = stage
+      XCTAssertNil(item.storedSizeText, "\(stage) shows a size")
+    }
+    item.stage = .completed
+    XCTAssertEqual(item.storedSizeText, "0 B")
+  }
+
   func testASingleFileDownloadRecordsItsSize() async throws {
     let queue = makeQueue()
     let fileID = PutioFileID(rawValue: 1)

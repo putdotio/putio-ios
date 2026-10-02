@@ -40,6 +40,8 @@ enum PutioAudioPlayerState: Equatable {
 /// Speeds the current app exposes. The chosen rate persists across launches
 /// and applies to every track without asking again.
 enum PutioAudioSpeed: Float, CaseIterable, Sendable {
+  case quarter = 0.25
+  case half = 0.5
   case slower = 0.75
   case normal = 1
   case faster = 1.25
@@ -49,6 +51,8 @@ enum PutioAudioSpeed: Float, CaseIterable, Sendable {
   /// Locale-independent so the label, identifier, and persisted value agree.
   var title: String {
     switch self {
+    case .quarter: "0.25×"
+    case .half: "0.5×"
     case .slower: "0.75×"
     case .normal: "1×"
     case .faster: "1.25×"
@@ -94,6 +98,7 @@ enum PutioRemoteAudioCommand: Equatable, Sendable {
   case toggle
   case next
   case seek(seconds: Int)
+  case skip(seconds: Int)
 }
 
 /// The platform surface that shows what is playing and relays lock-screen
@@ -134,6 +139,8 @@ protocol PutioAudioSessioning: AnyObject {
 @MainActor
 @Observable
 final class PutioAudioPlayerModel {
+  static let skipInterval = 15
+
   private(set) var state: PutioAudioPlayerState
   private(set) var speed: PutioAudioSpeed
   private(set) var elapsedSeconds = 0
@@ -269,6 +276,11 @@ final class PutioAudioPlayerModel {
     elapsedSeconds = bounded
     reportCurrentPosition(force: true)
     publishNowPlaying()
+  }
+
+  /// Moves by `seconds` from the current position, within the track.
+  func skip(by seconds: Int) {
+    seek(to: elapsedSeconds + seconds)
   }
 
   func setSpeed(_ speed: PutioAudioSpeed) {
@@ -478,6 +490,7 @@ final class PutioAudioPlayerModel {
     case .toggle: togglePlayPause()
     case .next: skipToNext()
     case .seek(let seconds): seek(to: seconds)
+    case .skip(let seconds): skip(by: seconds)
     }
   }
 
@@ -753,6 +766,11 @@ final class PutioSystemNowPlayingSurface: PutioNowPlayingSurface {
     register(center.pauseCommand) { _ in .pause }
     register(center.togglePlayPauseCommand) { _ in .toggle }
     register(center.nextTrackCommand) { _ in .next }
+    let interval = PutioAudioPlayerModel.skipInterval
+    center.skipBackwardCommand.preferredIntervals = [NSNumber(value: interval)]
+    center.skipForwardCommand.preferredIntervals = [NSNumber(value: interval)]
+    register(center.skipBackwardCommand) { _ in .skip(seconds: -interval) }
+    register(center.skipForwardCommand) { _ in .skip(seconds: interval) }
     register(center.changePlaybackPositionCommand) { event in
       guard let event = event as? MPChangePlaybackPositionCommandEvent else { return nil }
       return .seek(seconds: Int(event.positionTime.rounded(.down)))
@@ -890,6 +908,22 @@ struct PutioAudioPlayerView: View {
       .foregroundStyle(PutioTheme.Colors.textSecondary)
       .monospacedDigit()
       transportLayout {
+        skipButton(by: -PutioAudioPlayerModel.skipInterval)
+        Button {
+          model.togglePlayPause()
+        } label: {
+          Image(systemName: playPauseSymbol)
+            .font(.system(size: 36))
+            .frame(width: 64, height: 64)
+        }
+        .buttonStyle(.borderedProminent)
+        .clipShape(Circle())
+        .disabled(isTransportDisabled)
+        .accessibilityLabel(playPauseLabel)
+        .accessibilityIdentifier("audio.play-pause")
+        skipButton(by: PutioAudioPlayerModel.skipInterval)
+      }
+      transportLayout {
         Menu {
           ForEach(PutioAudioSpeed.allCases, id: \.self) { speed in
             Button {
@@ -912,18 +946,6 @@ struct PutioAudioPlayerView: View {
         .accessibilityLabel("Playback speed")
         .accessibilityValue(model.speed.title)
         .accessibilityIdentifier("audio.speed")
-        Button {
-          model.togglePlayPause()
-        } label: {
-          Image(systemName: playPauseSymbol)
-            .font(.system(size: 36))
-            .frame(width: 64, height: 64)
-        }
-        .buttonStyle(.borderedProminent)
-        .clipShape(Circle())
-        .disabled(isTransportDisabled)
-        .accessibilityLabel(playPauseLabel)
-        .accessibilityIdentifier("audio.play-pause")
         Button {
           model.skipToNext()
         } label: {
@@ -950,6 +972,21 @@ struct PutioAudioPlayerView: View {
       }
     }
     .frame(maxWidth: 480)
+  }
+
+  private func skipButton(by seconds: Int) -> some View {
+    let forward = seconds > 0
+    return Button {
+      model.skip(by: seconds)
+    } label: {
+      Image(systemName: forward ? "goforward.\(seconds)" : "gobackward.\(-seconds)")
+        .font(.system(size: 22))
+        .frame(width: 44, height: 44)
+    }
+    .buttonStyle(.bordered)
+    .disabled(isTransportDisabled || model.durationSeconds == nil)
+    .accessibilityLabel(forward ? "Forward \(seconds) seconds" : "Rewind \(-seconds) seconds")
+    .accessibilityIdentifier(forward ? "audio.skip-forward" : "audio.skip-back")
   }
 
   private var transportLayout: AnyLayout {

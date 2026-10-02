@@ -28,8 +28,11 @@ public struct PutioFileRowModel: Equatable, Sendable {
     self.isWatched = isWatched
   }
 
+  /// Empty reads "0 B", as on app.put.io, rather than the spelled-out
+  /// "Zero kB" Foundation produces.
   public static func sizeText(bytes: Int64, locale: Locale = .current) -> String {
-    bytes.formatted(ByteCountFormatStyle(style: .file, locale: locale))
+    guard bytes > 0 else { return "0 B" }
+    return bytes.formatted(ByteCountFormatStyle(style: .file, locale: locale))
   }
 
   var icon: PutioIcon {

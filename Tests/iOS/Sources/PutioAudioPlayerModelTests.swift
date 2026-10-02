@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import MediaPlayer
 import PutioCore
 import XCTest
 
@@ -339,6 +340,50 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     await second.model.start()
     second.engine.onPositionChanged?(12)
     XCTAssertEqual(second.engine.events.last, "play:2.0")
+  }
+
+  func testSpeedsSpanAQuarterToDoubleAndTheSlowestPersists() async {
+    XCTAssertEqual(PutioAudioSpeed.allCases.map(\.rawValue), [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2])
+    let defaults = UserDefaults(suiteName: UUID().uuidString)!
+    let first = makeHarness(defaults: defaults)
+    await first.model.start()
+    first.model.setSpeed(.quarter)
+    XCTAssertEqual(first.engine.events.last, "rate:0.25")
+
+    let second = makeHarness(defaults: defaults)
+    XCTAssertEqual(second.model.speed, .quarter)
+    XCTAssertEqual(second.model.speed.title, "0.25×")
+  }
+
+  func testSkipMovesFifteenSecondsWithinTheTrackFromTheTransportAndRemote() async {
+    let h = makeHarness()
+    await h.model.start()
+
+    h.model.skip(by: PutioAudioPlayerModel.skipInterval)
+    XCTAssertEqual(h.engine.events.last, "seek:27")
+    XCTAssertEqual(h.model.elapsedSeconds, 27)
+    h.nowPlaying.send(.skip(seconds: -15))
+    XCTAssertEqual(h.engine.events.last, "seek:12")
+    h.nowPlaying.send(.skip(seconds: -15))
+    XCTAssertEqual(h.engine.events.last, "seek:0")
+    h.model.seek(to: 230)
+    h.nowPlaying.send(.skip(seconds: 15))
+    XCTAssertEqual(h.engine.events.last, "seek:240")
+  }
+
+  func testSystemSurfaceOffersFifteenSecondSkipCommandsUntilDetached() {
+    let surface = PutioSystemNowPlayingSurface()
+    let center = MPRemoteCommandCenter.shared()
+    surface.setCommandHandler { _ in }
+    defer { surface.detachCommands() }
+
+    for command in [center.skipBackwardCommand, center.skipForwardCommand] {
+      XCTAssertTrue(command.isEnabled)
+      XCTAssertEqual(command.preferredIntervals, [15])
+    }
+    surface.detachCommands()
+    XCTAssertFalse(center.skipBackwardCommand.isEnabled)
+    XCTAssertFalse(center.skipForwardCommand.isEnabled)
   }
 
   func testPositionReportsFollowTheCadenceWhilePlaying() async {

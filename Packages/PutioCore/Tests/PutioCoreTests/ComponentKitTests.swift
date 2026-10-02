@@ -39,6 +39,10 @@ final class ComponentKitTests: XCTestCase {
       PutioFileRowModel.sizeText(bytes: 1024, locale: Locale(identifier: "en_US")),
       "1 kB"
     )
+    for locale in ["en_US", "fr_FR"] {
+      XCTAssertEqual(
+        PutioFileRowModel.sizeText(bytes: 0, locale: Locale(identifier: locale)), "0 B")
+    }
   }
 
   func testStorageUsageReadsAsUsedOfTotalWithAClampedFraction() {
