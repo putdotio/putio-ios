@@ -110,7 +110,9 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(element("trash.item-delete").waitForExistence(timeout: 5))
     attach("runtime-tv-trash-modal")
     XCTAssertTrue(selectModalButton("trash.item-delete"))
-    pause(1)
+    XCTAssertTrue(
+      label(containing: "Could not permanently delete item").waitForExistence(timeout: 5),
+      "a failed delete must say so")
     XCTAssertTrue(waitUntil(timeout: 10) { !self.element("trash.progress").exists })
     XCTAssertTrue(element("trash.item.420").exists, "a failed delete keeps the row")
     XCTAssertTrue(element("trash.item.419").exists, "the modal deleted, not restored")
@@ -191,12 +193,32 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     remote.press(.select)
     XCTAssertTrue(waitUntil(timeout: 10) { trash.value as? String == "On" })
     XCTAssertTrue(element("account.manage-trash").waitForExistence(timeout: 5))
+
+    // App, device, and OS rows sit below the last setting; the remote must
+    // bring them on screen.
+    XCTAssertTrue(focus("account.manage-trash"))
+    let system = element("account.system")
+    for _ in 0..<6 where !isOnScreen(system) {
+      remote.press(.down)
+      pause(0.5)
+    }
+    XCTAssertTrue(isOnScreen(system), "the operating system row never scrolled into view")
   }
 
   // MARK: - Remote helpers
 
   private func element(_ identifier: String) -> XCUIElement {
     app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+  }
+
+  private func label(containing text: String) -> XCUIElement {
+    app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", text))
+      .firstMatch
+  }
+
+  private func isOnScreen(_ element: XCUIElement) -> Bool {
+    guard element.exists, !element.frame.isEmpty else { return false }
+    return app.windows.firstMatch.frame.contains(element.frame)
   }
 
   private func hasFocus(_ identifier: String) -> Bool {
