@@ -99,4 +99,36 @@ final class FileItemActionsTests: XCTestCase {
     model.revealHiddenItems()
     XCTAssertEqual(model.hiddenIDs, [])
   }
+
+  func testSearchResultWatchStatusRefreshesItsFolderAndSkipsNoOps() async {
+    let item = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Episode.mkv")
+    let audio = BrowserTestFixtures.item(id: 8, parentID: 42, kind: .audio)
+    let requests = PutioFolderRefreshRequests()
+    let folder = PutioFolderRefreshRegistration(
+      folderID: PutioFileID(rawValue: 42), requests: requests)
+    folder.activate()
+    var calls: [String] = []
+    let model = PutioFileItemActionModel(
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in },
+        deleteFile: { _ in },
+        setWatched: { fileID, watched in calls.append("\(fileID.rawValue) \(watched)") }
+      ), refreshRequests: requests)
+
+    await model.setWatched(item, false)
+    await model.setWatched(audio, true)
+    XCTAssertEqual(calls, [])
+    XCTAssertNil(model.outcome)
+
+    await model.setWatched(item, true)
+    XCTAssertEqual(calls, ["7 true"])
+    XCTAssertEqual(
+      model.outcome,
+      .succeeded(
+        .setWatched(fileID: item.id, parentID: item.parentID, name: item.name, watched: true)))
+    XCTAssertNotNil(
+      requests.sequence(for: item.parentID, owner: folder.owner),
+      "the folder showing the video must refresh, which also re-runs the search")
+  }
 }

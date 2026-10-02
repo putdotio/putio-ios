@@ -1139,6 +1139,10 @@ struct PutioFolderScreen: View {
         title: "Item moved",
         message: "\(name) to \(destinationName)"
       )
+    case .setWatched(_, _, let name, let watched):
+      PutioToast(
+        variant: .success, title: watched ? "Marked as watched" : "Marked as unwatched",
+        message: name)
     }
   }
 

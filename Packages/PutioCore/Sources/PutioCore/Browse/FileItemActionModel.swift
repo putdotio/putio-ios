@@ -71,6 +71,15 @@ public final class PutioFileItemActionModel {
     }
   }
 
+  public func setWatched(_ item: PutioFileItem, _ watched: Bool) async {
+    guard item.kind == .video, item.isWatched != watched else { return }
+    let action = PutioFileAction.setWatched(
+      fileID: item.id, parentID: item.parentID, name: item.name, watched: watched)
+    await run(action) { [actions] in
+      try await actions.setWatched(item.id, watched)
+    }
+  }
+
   public func clearOutcome() {
     outcome = nil
   }
@@ -117,6 +126,8 @@ public final class PutioFileItemActionModel {
       refreshRequests.request(folderID: sourceParentID)
       refreshRequests.request(folderID: destinationID)
       refreshRequests.request(folderID: fileID)
+    case .setWatched(_, let parentID, _, _):
+      refreshRequests.request(folderID: parentID)
     case .createFolder, .sort:
       break
     }

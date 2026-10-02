@@ -1091,6 +1091,77 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(model.canStartAction)
   }
 
+  func testMarkWatchedIsOptimisticAndRollsBackWithRecoverableFailure() async throws {
+    let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
+    let item = BrowserTestFixtures.item(id: 7, name: "Episode.mkv")
+    let original = BrowserTestFixtures.contents(items: [item])
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        setWatched: { _, _ in try await mutation.run() }
+      ),
+      initialContents: original
+    )
+
+    let task = Task { await model.setWatched(item, true) }
+    try await mutation.waitUntilStarted()
+    XCTAssertFalse(model.canStartAction)
+    guard case .loaded(let optimistic) = model.state else {
+      return XCTFail("expected loaded, got \(model.state)")
+    }
+    XCTAssertEqual(optimistic.items.first?.isWatched, true, "the eye must follow at once")
+
+    await mutation.fail(with: PutioRuntimeError.transient)
+    await task.value
+
+    XCTAssertEqual(model.state, .loaded(original))
+    guard case .failed(let action, let failure) = model.actionOutcome else {
+      return XCTFail("expected failed action, got \(String(describing: model.actionOutcome))")
+    }
+    XCTAssertEqual(
+      action, .setWatched(fileID: item.id, parentID: .root, name: "Episode.mkv", watched: true))
+    XCTAssertEqual(failure.title, "Could not update watch status")
+    XCTAssertTrue(model.canStartAction)
+  }
+
+  func testWatchStatusChangesOnlyVideosWhoseStateDiffers() async {
+    let watched = BrowserTestFixtures.item(id: 7, resumePositionSeconds: 90)
+    let unwatched = BrowserTestFixtures.item(id: 8)
+    let audio = BrowserTestFixtures.item(id: 9, kind: .audio)
+    let folder = BrowserTestFixtures.item(id: 10, kind: .folder)
+    let original = BrowserTestFixtures.contents(items: [watched, unwatched, audio, folder])
+    var calls: [String] = []
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        setWatched: { fileID, isWatched in calls.append("\(fileID.rawValue) \(isWatched)") }
+      ),
+      initialContents: original
+    )
+
+    await model.setWatched(watched, true)
+    await model.setWatched(unwatched, false)
+    await model.setWatched(audio, true)
+    await model.setWatched(folder, true)
+    XCTAssertEqual(calls, [], "no request when the state already matches or is not a video")
+    XCTAssertNil(model.actionOutcome)
+
+    await model.setWatched(watched, false)
+    XCTAssertEqual(calls, ["7 false"])
+    XCTAssertEqual(
+      model.actionOutcome,
+      .succeeded(.setWatched(fileID: watched.id, parentID: .root, name: watched.name, watched: false)))
+  }
+
   func testMutationSupersedesAnInFlightRefresh() async throws {
     let loader = ControlledFolderLoader()
     addTeardownBlock { await loader.cancelPending() }

@@ -89,6 +89,19 @@ extension PutioRuntime {
     }
   }
 
+  /// Marks a video watched or unwatched as put.io's watch-status action does:
+  /// watched stores a one-second resume position, unwatched deletes it. Only
+  /// unwatched videos are offered "watched", so no real position is lost.
+  public func setFileWatched(fileID: PutioFileID, watched: Bool) async throws {
+    _ = try await performAuthenticatedOperation(commits: true) {
+      if watched {
+        try await sdk.setStartFrom(fileID: fileID.rawValue, time: 1)
+      } else {
+        try await sdk.resetStartFrom(fileID: fileID.rawValue)
+      }
+    }
+  }
+
   private func folderContents(from result: PutioFilesListResult) -> PutioFolderContents {
     PutioFolderContents(
       folder: result.parent.map(snapshot),
