@@ -76,12 +76,28 @@ struct TVFileRowButton: View {
   let open: () -> Void
   let showMenu: () -> Void
 
+  @State private var longPressedAt: Date?
+
   var body: some View {
-    Button(action: open) {
+    Button {
+      // tvOS still delivers the select that ends a long press; that one
+      // belongs to the menu, not to opening the row.
+      if let longPressedAt, Date.now.timeIntervalSince(longPressedAt) < 5 {
+        self.longPressedAt = nil
+        return
+      }
+      longPressedAt = nil
+      open()
+    } label: {
       PutioFileRow(presentation.row)
     }
-    // A recognized long press cancels the select, so the row does not open.
-    .onLongPressGesture(minimumDuration: 0.5, perform: showMenu)
+    // A plain long-press modifier never sees the press a tvOS button owns.
+    .simultaneousGesture(
+      LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+        longPressedAt = .now
+        showMenu()
+      }
+    )
     .accessibilityIdentifier(identifier)
   }
 }
