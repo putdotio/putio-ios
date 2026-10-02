@@ -18,8 +18,8 @@ final class ChromecastJourneyTests: XCTestCase {
     app.launch()
     signIn()
 
-    // Settings: the first save fails and is retried; the receiver override
-    // validates and round-trips through the footer copy.
+    // Settings: the first save fails and is retried. The receiver app ID is
+    // build configuration, not a user setting, so it is not shown.
     app.buttons["Account"].tap()
     let entry = element("account.chromecast")
     XCTAssertTrue(entry.waitForExistence(timeout: 5))
@@ -32,9 +32,8 @@ final class ChromecastJourneyTests: XCTestCase {
     XCTAssertEqual(playbackType.value as? String, "HLS", "a failed save flipped the local value")
     pick(playbackType, "MP4", expecting: "MP4")
     XCTAssertTrue(element("cast-settings.save-failure").waitForNonExistence(timeout: 5))
-    let receiver = element("cast-settings.receiver")
-    XCTAssertTrue(receiver.waitForExistence(timeout: 5))
-    XCTAssertEqual(receiver.value as? String, "CC1AD845")
+    XCTAssertFalse(element("cast-settings.receiver").exists)
+    XCTAssertFalse(app.staticTexts["Receiver app ID"].exists)
     screenshot("runtime-cast-settings")
     app.navigationBars.buttons["BackButton"].tap()
 

@@ -89,30 +89,8 @@ struct PlaybackPreferencesView: View {
         }
         .disabled(!model.canSave)
         .listRowBackground(PutioTheme.Colors.surface)
-        Section {
-          if appConfig.config != nil {
-            Toggle("Autoplay next video", isOn: autoplayNextVideo)
-              .disabled(!appConfig.canSave)
-              .accessibilityIdentifier("playback-settings.autoplay")
-          } else if appConfig.isLoading {
-            ProgressView("Loading playback settings")
-          }
-          if let failure = appConfig.failure {
-            Text(failure).foregroundStyle(PutioTheme.Colors.textSecondary)
-            Button("Try again") { Task { await appConfig.retry() } }
-              .disabled(appConfig.isBusy)
-              .accessibilityIdentifier("playback-settings.retry-autoplay")
-          }
-        } header: {
-          Text("Next video")
-        } footer: {
-          Text(
-            account.suggestNextVideo
-              ? "The next video is suggested when one ends. With autoplay on, it starts after a short countdown."
-              : "Next video suggestions are turned off in your put.io account settings."
-          )
-        }
-        .listRowBackground(PutioTheme.Colors.surface)
+        PutioNextVideoPreferencesSection(
+          suggestsNextVideo: account.suggestNextVideo, appConfig: appConfig)
       }
       if model.isSaving || appConfig.isSaving {
         ProgressView("Saving settings")
@@ -124,12 +102,6 @@ struct PlaybackPreferencesView: View {
     .putioContentBackground()
     .task { if routes == nil { await loadRoutes() } }
     .task { await appConfig.loadIfNeeded() }
-  }
-
-  private var autoplayNextVideo: Binding<Bool> {
-    Binding(
-      get: { appConfig.autoplayNextVideo },
-      set: { enabled in Task { await appConfig.setAutoplayNextVideo(enabled) } })
   }
 
   private var routeSelection: Binding<String> {
@@ -170,5 +142,47 @@ struct PlaybackPreferencesView: View {
       else { return }
       routeFailure = failure.message
     }
+  }
+}
+
+/// Autoplay only applies to a suggestion, so the switch is hidden while the
+/// account turns suggestions off, as on app.put.io.
+struct PutioNextVideoPreferencesSection: View {
+  let suggestsNextVideo: Bool
+  let appConfig: PutioAppConfigModel
+
+  var body: some View {
+    Section {
+      if suggestsNextVideo {
+        if appConfig.config != nil {
+          Toggle("Autoplay next video", isOn: autoplayNextVideo)
+            .disabled(!appConfig.canSave)
+            .accessibilityIdentifier("playback-settings.autoplay")
+        } else if appConfig.isLoading {
+          ProgressView("Loading playback settings")
+        }
+        if let failure = appConfig.failure {
+          Text(failure).foregroundStyle(PutioTheme.Colors.textSecondary)
+          Button("Try again") { Task { await appConfig.retry() } }
+            .disabled(appConfig.isBusy)
+            .accessibilityIdentifier("playback-settings.retry-autoplay")
+        }
+      }
+    } header: {
+      Text("Next video")
+    } footer: {
+      Text(
+        suggestsNextVideo
+          ? "The next video is suggested when one ends. With autoplay on, it starts after a short countdown."
+          : "Next video suggestions are turned off in your put.io account settings."
+      )
+    }
+    .listRowBackground(PutioTheme.Colors.surface)
+  }
+
+  private var autoplayNextVideo: Binding<Bool> {
+    Binding(
+      get: { appConfig.autoplayNextVideo },
+      set: { enabled in Task { await appConfig.setAutoplayNextVideo(enabled) } })
   }
 }

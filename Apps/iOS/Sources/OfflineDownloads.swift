@@ -60,6 +60,13 @@ struct PutioOfflineItem: Identifiable, Codable, Equatable, Sendable {
     stage == .completed && localPath != nil
   }
 
+  /// The stored size, shown only once the download completes; a partial
+  /// package's byte count is not a size the user can act on.
+  var storedSizeText: String? {
+    guard stage == .completed else { return nil }
+    return PutioFileRowModel.sizeText(bytes: storedBytes)
+  }
+
   /// The picker's estimate at enqueue time, enforced again before start.
   var estimatedBytes: Int64
   /// Set when the item was queued before its asset could be inspected; the

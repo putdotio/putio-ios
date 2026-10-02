@@ -128,7 +128,10 @@ final class AccessibilityJourneyTests: XCTestCase {
       XCTAssertEqual(XCTWaiter.wait(for: [seek], timeout: 5), .completed)
       XCTAssertTrue(waitForValue(state, "id=408;state=paused"))
       screenshot(name)
-      for identifier in ["audio.speed", "audio.play-pause", "audio.next", "audio.done"] {
+      for identifier in [
+        "audio.speed", "audio.skip-back", "audio.play-pause", "audio.skip-forward", "audio.next",
+        "audio.done",
+      ] {
         let control = reachable(app.buttons[identifier])
         XCTAssertTrue(control.isEnabled, "Disabled audio control: \(identifier)")
         XCTAssertFalse(control.label.isEmpty)
