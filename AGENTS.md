@@ -54,7 +54,7 @@ Proof artifacts and manifests live under ignored `build/proof/`.
 Finish authorized edits, checks, and fixes without pausing. Ask before publishing,
 TestFlight or store actions, signing changes, or work outside the task. Follow
 [Distribution](docs/distribution.md) for release ownership and
-[Security](SECURITY.md) for private reports.
+[Security](https://github.com/putdotio/.github/blob/main/SECURITY.md) for private reports.
 
 ## Skills
 
