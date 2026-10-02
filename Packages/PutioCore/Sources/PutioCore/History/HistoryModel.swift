@@ -189,6 +189,9 @@ public final class PutioHistoryModel {
     mutation = operation
     mutationFailure = nil
     failedMutation = nil
+    // A lookup resolving mid-clear would open a file from the list being
+    // cleared.
+    if operation == .clear { cancelOpen() }
     let task = Task { @MainActor in
       do {
         switch operation {

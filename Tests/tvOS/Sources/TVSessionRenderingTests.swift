@@ -119,6 +119,41 @@ final class TVSessionRenderingTests: XCTestCase {
     )
   }
 
+  /// Restores never refresh storage on their own, and one can commit after
+  /// Trash is gone; the account's trash size must still follow it.
+  @MainActor
+  func testRestoreRefreshesTheAccountTrashSize() async throws {
+    let runtime = try await Self.seededRuntime()
+    XCTAssertEqual(Self.trashSize(runtime), 3 * 1_073_741_824)
+    let model = TVTrashView.model(runtime: runtime, reconciliation: PutioTrashReconciliation())
+    await model.refresh()
+    let item = try XCTUnwrap(model.page?.items.first)
+    await model.restore(item)
+    let deadline = Date().addingTimeInterval(10)
+    while Self.trashSize(runtime) != 2 * 1_073_741_824, Date() < deadline {
+      try await Task.sleep(for: .milliseconds(100))
+    }
+    XCTAssertEqual(Self.trashSize(runtime), 2 * 1_073_741_824)
+  }
+
+  /// A failed refresh on returning to Account must say so and offer the
+  /// retry, rather than keep showing the old trash size silently.
+  @MainActor
+  func testAFailedRefreshOnReturningToAccountOffersRecovery() async throws {
+    let runtime = try await Self.seededRuntime()
+    let model = PutioAccountPreferencesModel(actions: .init(runtime: runtime))
+    HarnessSeededAPI.failNextAccountRefresh()
+    await TVAccountView.refreshAfterReturning(model: model)
+    XCTAssertEqual(model.failure, "Could not refresh account settings. Try again.")
+    XCTAssertEqual(TVAccountStatus(model: model).failure, model.failure)
+  }
+
+  @MainActor
+  private static func trashSize(_ runtime: PutioRuntime) -> Int64? {
+    guard case .signedIn(let account) = runtime.session.state else { return nil }
+    return account.trashSizeBytes
+  }
+
   func testSignInPhaseFollowsTheSessionStore() {
     XCTAssertEqual(
       TVSignInPhase(state: .signedOut(nil), deviceCodeSignIn: nil), .fetchingCode)

@@ -37,7 +37,14 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     attach("runtime-tv-history-recovery")
     XCTAssertTrue(focus("history.more-retry"))
     remote.press(.select)
-    XCTAssertTrue(waitUntil(timeout: 10) { !moreRetry.exists })
+    // The retried page holds only events TV hides, so the end of the list
+    // shows as neither a retry nor a loading row, and the first page stays.
+    let loadMore = element("history.load-more")
+    XCTAssertTrue(waitUntil(timeout: 10) { !moreRetry.exists && !loadMore.exists })
+    pause(1)
+    XCTAssertFalse(moreRetry.exists, "the retried page failed again")
+    XCTAssertFalse(loadMore.exists, "the list never reached its end")
+    XCTAssertTrue(element("history.item.809").exists)
 
     // A shared file that no longer exists offers a retry and a dismissal.
     XCTAssertTrue(focus("history.item.808"))

@@ -60,7 +60,17 @@ struct TVTrashView: View {
   private let loadsOnAppear: Bool
 
   init(runtime: PutioRuntime, reconciliation: PutioTrashReconciliation) {
-    self.init(model: PutioTrashModel(runtime: runtime, reconciliation: reconciliation))
+    self.init(model: Self.model(runtime: runtime, reconciliation: reconciliation))
+  }
+
+  static func model(
+    runtime: PutioRuntime, reconciliation: PutioTrashReconciliation
+  ) -> PutioTrashModel {
+    // Restores never reload account storage, and one can commit after Trash
+    // is gone; Account's trash size must still follow it.
+    PutioTrashModel(runtime: runtime, reconciliation: reconciliation) { _ in
+      Task { await runtime.refreshAccount() }
+    }
   }
 
   /// `loadsOnAppear: false` keeps an already loaded model as it is, for

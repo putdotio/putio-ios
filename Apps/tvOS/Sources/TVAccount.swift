@@ -192,10 +192,17 @@ struct TVAccountView: View {
       }
     }
     .onAppear {
-      // Back from Trash: restores and deletions change the trash size.
-      if hasAppeared, !model.isBusy { Task { await runtime.refreshAccount() } }
+      if hasAppeared, !model.isBusy {
+        Task { await Self.refreshAfterReturning(model: model) }
+      }
       hasAppeared = true
     }
+  }
+
+  /// Back from Trash: restores and deletions change the trash size. The
+  /// model's refresh reports a failure with its retry.
+  static func refreshAfterReturning(model: PutioAccountPreferencesModel) async {
+    await model.retryRefresh()
   }
 }
 

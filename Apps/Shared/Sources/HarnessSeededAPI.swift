@@ -414,6 +414,11 @@ import Foundation
     static let trashEmptyFolderID = 421
     private static let bulkDeleteProgressFolderIDs: Set<Int> = [416, 417]
 
+    /// Fails the next account load once, for recovery tests.
+    static func failNextAccountRefresh() {
+      fileActionsLock.withLock { accountRefreshFailuresRemaining = 1 }
+    }
+
     static func configureSignOutFailure(_ enabled: Bool) {
       logoutLock.withLock { logoutFailuresRemaining = enabled ? 1 : 0 }
     }
