@@ -597,7 +597,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     openContextMenu(for: folder, actionLabel: "Rename").tap()
     let name = element(identifier: "files.action-name")
     XCTAssertTrue(name.waitForExistence(timeout: 5))
-    replaceText(in: name, currentValue: "Harness Folder", with: "Renamed Harness")
+    typeName("Renamed Harness", into: name, replacing: "Harness Folder")
     app.buttons["Rename"].tap()
     let renamed = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "label == %@ AND enabled == true", "Renamed Harness"),
@@ -811,8 +811,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
       createNameField.waitForExistence(timeout: 5),
       "new-folder name field never appeared"
     )
-    createNameField.tap()
-    createNameField.typeText("Watch Later")
+    typeName("Watch Later", into: createNameField)
     XCTAssertEqual(createNameField.value as? String, "Watch Later")
     let create = app.buttons["Create"]
     XCTAssertTrue(
@@ -829,7 +828,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Rename Item"].waitForExistence(timeout: 5))
     let firstRenameField = element(identifier: "files.action-name")
     XCTAssertTrue(firstRenameField.waitForExistence(timeout: 5), "rename name field never appeared")
-    replaceText(in: firstRenameField, currentValue: "Watch Later", with: "Weekend")
+    typeName("Weekend", into: firstRenameField, replacing: "Watch Later")
     XCTAssertEqual(firstRenameField.value as? String, "Weekend")
     let firstRename = app.buttons["Rename"]
     XCTAssertTrue(
@@ -874,7 +873,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let retryRenameField = element(identifier: "files.action-name")
     XCTAssertTrue(
       retryRenameField.waitForExistence(timeout: 5), "retry rename field never appeared")
-    replaceText(in: retryRenameField, currentValue: "Watch Later", with: "Weekend")
+    typeName("Weekend", into: retryRenameField, replacing: "Watch Later")
     XCTAssertEqual(retryRenameField.value as? String, "Weekend")
     let retryRename = app.buttons["Rename"]
     XCTAssertTrue(
@@ -1327,8 +1326,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     newFolder.tap()
     let field = element(identifier: "files.action-name")
     XCTAssertTrue(field.waitForExistence(timeout: 5), "new-folder field did not appear")
-    field.tap()
-    field.typeText(name)
+    typeName(name, into: field)
     let create = app.buttons["Create"]
     XCTAssertTrue(waitUntilHittable(create, timeout: 5), "create-folder action is unavailable")
     create.tap()
@@ -1339,14 +1337,21 @@ final class FilesBrowserJourneyTests: XCTestCase {
     return folder
   }
 
-  private func replaceText(
-    in field: XCUIElement,
-    currentValue: String,
-    with replacement: String
+  /// The name sheet focuses its field with the cursor after any current name,
+  /// so typing needs no tap.
+  private func typeName(
+    _ name: String,
+    into field: XCUIElement,
+    replacing currentName: String = ""
   ) {
-    field.tap()
-    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentValue.count))
-    field.typeText(replacement)
+    let focused = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "hasKeyboardFocus == true"),
+      object: field
+    )
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [focused], timeout: 5), .completed, "name field did not take focus")
+    field.typeText(
+      String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentName.count) + name)
   }
 
   private func addScreenshot(named name: String) {

@@ -56,7 +56,9 @@ final class AccessibilityJourneyTests: XCTestCase {
     app.buttons["files.new-folder"].tap()
     let field = element("files.action-name")
     XCTAssertTrue(field.waitForExistence(timeout: 5))
-    field.tap()
+    let focused = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: field)
+    XCTAssertEqual(XCTWaiter.wait(for: [focused], timeout: 5), .completed)
     field.typeText(name)
     app.buttons["files.action-submit"].tap()
     let folder = reachable(element("files.item.415"))
