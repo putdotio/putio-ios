@@ -125,6 +125,8 @@ struct TVSignedInShell: View {
 struct TVHomeScreen: View {
   let entries: [TVHomeEntry]
 
+  @Namespace private var focusScope
+  @Environment(\.resetFocus) private var resetFocus
   @FocusState private var focusedEntry: TVHomeEntry?
   @State private var lastFocusedEntry: TVHomeEntry?
 
@@ -145,18 +147,25 @@ struct TVHomeScreen: View {
             .tvRowPadding()
           }
           .focused($focusedEntry, equals: entry)
+          .prefersDefaultFocus(entry == entries.first, in: focusScope)
           .accessibilityIdentifier("home.\(entry.route.identifier)")
         }
       }
-      .defaultFocus($focusedEntry, entries.first)
+      // A new column per entry set, so a removed row cannot keep the focus.
+      .id(entries)
     }
+    .focusScope(focusScope)
     .onChange(of: focusedEntry) { _, entry in
       if let entry { lastFocusedEntry = entry }
     }
     // Hiding History while its row has focus would strand the remote.
     .onChange(of: entries) { _, entries in
       guard let lastFocusedEntry, !entries.contains(lastFocusedEntry) else { return }
-      focusedEntry = entries.first
+      Task { @MainActor in
+        await Task.yield()
+        resetFocus(in: focusScope)
+        focusedEntry = entries.first
+      }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .tvOverscanPadding()
