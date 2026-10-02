@@ -214,36 +214,31 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     return waitUntil(timeout: 1.5) { self.hasFocus(identifier) }
   }
 
-  /// System alert buttons do not report focus. Focus opens on the first
-  /// button in reading order, so the target is that many presses away along
-  /// the alert's axis.
+  /// Steers the remote to an alert button and selects it. Each alert button
+  /// appears twice in the tree, with only the outer copy reporting focus, so
+  /// the focused copy is matched to the target by frame.
   private func selectModalButton(_ identifier: String) -> Bool {
     let target = app.buttons[identifier]
     guard target.waitForExistence(timeout: 5) else { return false }
-    let container = [app.alerts.firstMatch, app.sheets.firstMatch].first { $0.exists }
-    let buttons =
-      container.map { container in
-        (0..<container.buttons.count).map { container.buttons.element(boundBy: $0) }
-      } ?? [target]
-    let ordered = buttons.sorted { lhs, rhs in
-      if abs(lhs.frame.midY - rhs.frame.midY) > 4 { return lhs.frame.midY < rhs.frame.midY }
-      return lhs.frame.midX < rhs.frame.midX
-    }
-    let layout = ordered.map { "\($0.identifier)|\($0.label)|\($0.frame)|focus=\($0.hasFocus)" }
-    print("modal buttons for \(identifier): \(layout)")
-    guard let index = ordered.firstIndex(where: { $0.identifier == identifier }) else {
-      return false
-    }
-    let horizontal =
-      ordered.count > 1 && abs(ordered[0].frame.midY - ordered[1].frame.midY) <= 4
     // Presses during the presentation animation are dropped.
     pause(1)
-    for _ in 0..<index {
-      remote.press(horizontal ? .right : .down)
+    let goal = target.frame
+    for _ in 0..<8 {
+      let focused = app.buttons.matching(NSPredicate(format: "hasFocus == true")).firstMatch
+      guard focused.exists else { return false }
+      let current = focused.frame
+      if abs(current.midX - goal.midX) < 4, abs(current.midY - goal.midY) < 4 {
+        remote.press(.select)
+        return waitUntil(timeout: 5) { !target.exists }
+      }
+      if abs(current.midY - goal.midY) >= 4 {
+        remote.press(goal.midY > current.midY ? .down : .up)
+      } else {
+        remote.press(goal.midX > current.midX ? .right : .left)
+      }
       pause(0.5)
     }
-    remote.press(.select)
-    return waitUntil(timeout: 5) { !target.exists }
+    return false
   }
 
   private func pause(_ seconds: TimeInterval) {
