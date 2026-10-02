@@ -1294,38 +1294,6 @@ private struct AccountView: View {
   }
 }
 
-/// Account changes can arrive after the settings screen has been dismissed,
-/// including through a storage refresh following an uncertain settings write.
-enum PutioAccountPreferencesReconciliation {
-  @MainActor
-  static func apply(
-    previous: PutioAccountSnapshot, current: PutioAccountSnapshot,
-    folders: PutioFolderRefreshRequests, trash: PutioTrashReconciliation
-  ) {
-    guard previous.id == current.id else { return }
-    if previous.defaultSort != current.defaultSort || previous.trashEnabled != current.trashEnabled
-    {
-      folders.requestAllLoadedFolders()
-    }
-    if previous.trashEnabled && !current.trashEnabled {
-      trash.recordEmptied()
-    }
-  }
-}
-
-/// Maps a Trash restore back onto the Files browser: a known destination
-/// refreshes that folder; an unknown one refreshes every loaded folder.
-enum PutioRestoredFileReconciliation {
-  @MainActor
-  static func apply(destinationID: PutioFileID?, to requests: PutioFolderRefreshRequests) {
-    if let destinationID {
-      requests.request(folderID: destinationID)
-    } else {
-      requests.requestAllLoadedFolders()
-    }
-  }
-}
-
 private struct SignedOutProofView: View {
   @PutioScaledMetric(PutioTheme.ScaledMetrics.contentGap) private var contentGap
 

@@ -1,8 +1,7 @@
 import Foundation
-import PutioCore
 import XCTest
 
-@testable import Putio
+@testable import PutioCore
 
 @MainActor
 private final class PlaybackResolverStub {
