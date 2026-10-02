@@ -14,6 +14,7 @@ struct TVSearchView: View {
   @State private var itemActions: PutioFileItemActionModel
   @State private var menuItem: PutioFileItem?
   @FocusState private var focusedRow: PutioFileID?
+  @State private var removal: TVPendingRemoval?
   @State private var toast: PutioToast?
   @State private var now: Date
   private let locale: Locale
@@ -68,11 +69,16 @@ struct TVSearchView: View {
         item: $menuItem, account: account, canDelete: itemActions.canDelete,
         setWatched: { item, watched in Task { await itemActions.setWatched(item, watched) } },
         delete: { item in
-          if case .loaded(let page) = model.state {
-            let visible = page.items.filter { !itemActions.hiddenIDs.contains($0.id) }
-            focusedRow = TVFilePresentation.focusAfterRemoving(
-              item.id, from: visible, firstPage: model.firstPageIDs)
-          }
+          guard case .loaded(let page) = model.state else { return }
+          let visible = page.items.filter { !itemActions.hiddenIDs.contains($0.id) }
+          removal = TVPendingRemoval(
+            item: item,
+            focus: TVFilePresentation.focusAfterRemoving(
+              item.id, from: visible, firstPage: model.firstPageIDs))
+        }
+      )
+      .modifier(
+        TVFocusedRemoval(pending: $removal, focusedRow: $focusedRow) { item in
           if account.trashEnabled { itemActions.hideForTrash(item) }
           Task { await itemActions.delete(item) }
         }

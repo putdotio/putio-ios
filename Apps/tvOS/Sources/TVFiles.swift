@@ -121,6 +121,43 @@ struct TVFileRowButton: View {
   }
 }
 
+/// A row the menu asked to remove, and where focus goes before it leaves.
+struct TVPendingRemoval: Equatable {
+  let item: PutioFileItem
+  let focus: PutioFileID?
+}
+
+/// Removes a row only once focus has left it. The menu's alert holds focus
+/// when the removal is chosen, so a focus change made then is dropped; tvOS
+/// hands focus back to the row as the alert closes, and removing a focused
+/// row sends focus to the top of the list.
+struct TVFocusedRemoval: ViewModifier {
+  @Binding var pending: TVPendingRemoval?
+  var focusedRow: FocusState<PutioFileID?>.Binding
+  let remove: (PutioFileItem) -> Void
+
+  func body(content: Content) -> some View {
+    content
+      .onChange(of: focusedRow.wrappedValue) { _, row in
+        if let pending, row == pending.item.id { commit() }
+      }
+      // Commits anyway if focus never comes back to the row.
+      .task(id: pending) {
+        guard pending != nil else { return }
+        try? await Task.sleep(for: .seconds(1))
+        guard !Task.isCancelled else { return }
+        commit()
+      }
+  }
+
+  private func commit() {
+    guard let removal = pending else { return }
+    pending = nil
+    if let focus = removal.focus { focusedRow.wrappedValue = focus }
+    remove(removal.item)
+  }
+}
+
 /// The long-press menu and the permanent-delete confirmation, both centered
 /// alerts. Trash moves are recoverable and run without a confirmation.
 struct TVFileMenuModifier: ViewModifier {
@@ -209,6 +246,7 @@ struct TVFolderView: View {
   @State private var refreshRegistration: PutioFolderRefreshRegistration
   @State private var menuItem: PutioFileItem?
   @FocusState private var focusedRow: PutioFileID?
+  @State private var removal: TVPendingRemoval?
   @State private var choosesSort = false
   @State private var toast: PutioToast?
   @State private var hasAppeared = false
@@ -298,10 +336,15 @@ struct TVFolderView: View {
       item: $menuItem, account: account, canDelete: model.canDelete,
       setWatched: { item, watched in Task { await model.setWatched(item, watched) } },
       delete: { item in
-        if case .loaded(let contents) = model.state {
-          focusedRow = TVFilePresentation.focusAfterRemoving(
-            item.id, from: contents.items, firstPage: model.firstPageIDs)
-        }
+        guard case .loaded(let contents) = model.state else { return }
+        removal = TVPendingRemoval(
+          item: item,
+          focus: TVFilePresentation.focusAfterRemoving(
+            item.id, from: contents.items, firstPage: model.firstPageIDs))
+      }
+    )
+    .modifier(
+      TVFocusedRemoval(pending: $removal, focusedRow: $focusedRow) { item in
         Task { await model.delete(item) }
       }
     )
