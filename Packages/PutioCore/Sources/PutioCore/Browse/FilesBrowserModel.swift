@@ -1264,7 +1264,7 @@ public struct PutioBrowserItemPresentation: Equatable, Identifiable, Sendable {
     )
   }
 
-  private static func rowKind(for kind: PutioFileKind) -> PutioFileRowModel.Kind {
+  public static func rowKind(for kind: PutioFileKind) -> PutioFileRowModel.Kind {
     switch kind {
     case .folder: .folder
     case .video: .video

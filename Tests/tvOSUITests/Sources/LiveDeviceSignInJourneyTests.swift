@@ -1,7 +1,7 @@
 import XCTest
 
-/// Signs in to the devs-auto put.io account with a real activation code and
-/// signs out again. Only `journey --scenario live-device-sign-in` runs it: the
+/// Signs in to the devs-auto put.io account with a real activation code,
+/// opens Account from Home, and signs out again. Only `journey --scenario live-device-sign-in` runs it: the
 /// harness approves the code the app reports while this test waits.
 final class LiveDeviceSignInJourneyTests: XCTestCase {
   func testApprovedCodeSignsInAndSignOutRevokes() throws {
@@ -20,12 +20,16 @@ final class LiveDeviceSignInJourneyTests: XCTestCase {
     XCTAssertFalse(issuedCode.isEmpty)
     attach("live-tv-sign-in-code")
 
+    let homeAccount = app.buttons["home.account"]
+    XCTAssertTrue(homeAccount.waitForExistence(timeout: 180), "the approved code never signed in")
+    XCTAssertTrue(focus(homeAccount, moving: .down))
+    XCUIRemote.shared.press(.select)
     let username = app.descendants(matching: .any)["account.username"]
-    XCTAssertTrue(username.waitForExistence(timeout: 180), "the approved code never signed in")
+    XCTAssertTrue(username.waitForExistence(timeout: 30))
     XCTAssertFalse(username.label.isEmpty)
     let signOut = app.buttons["auth.sign-out"]
     XCTAssertTrue(signOut.waitForExistence(timeout: 10))
-    XCTAssertTrue(focus(signOut))
+    XCTAssertTrue(focus(signOut, moving: .up))
     attach("live-tv-account")
 
     XCUIRemote.shared.press(.select)
@@ -44,9 +48,8 @@ final class LiveDeviceSignInJourneyTests: XCTestCase {
 
   /// Moves focus onto `element` with the remote, bounded so a screen that
   /// never offers it still fails instead of looping.
-  private func focus(_ element: XCUIElement) -> Bool {
-    let directions: [XCUIRemote.Button] = [.down, .down, .up, .down, .down, .down]
-    for direction in directions {
+  private func focus(_ element: XCUIElement, moving direction: XCUIRemote.Button) -> Bool {
+    for _ in 0..<8 {
       if waitUntil(timeout: 1, { element.hasFocus }) { return true }
       XCUIRemote.shared.press(direction)
     }

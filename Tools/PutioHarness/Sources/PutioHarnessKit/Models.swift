@@ -134,7 +134,7 @@ public enum JourneyScenario: String, CaseIterable, Equatable, Sendable {
   var fixtureSet: String {
     switch self {
     case .filesBrowser: "seeded-runtime-loop-v5"
-    case .deviceSignIn: "seeded-device-sign-in-v1"
+    case .deviceSignIn: "seeded-device-sign-in-v2"
     case .liveFilesBrowser: "live-devs-auto-fixture-folder-v1"
     case .liveDeviceSignIn: "live-devs-auto-device-code-v1"
     }
@@ -504,6 +504,25 @@ enum DeviceSignInJourneyContract {
     "PutioTVUITests/DeviceSignInJourneyTests/testCodeExpiryApprovalRelaunchAndSignOut"
   static let attachmentNames = [
     "runtime-tv-sign-in-code", "runtime-tv-sign-in-expired", "runtime-tv-account",
+  ]
+}
+
+/// The signed-in TV surfaces: Home, History, Account, and Trash, each with
+/// its modal, empty, and recovery states.
+enum TVAccountJourneyContract {
+  static let historyTrashTestIdentifier =
+    "PutioTVUITests/AccountHistoryTrashJourneyTests/testHistoryAndTrashModalsEmptyStatesAndRecovery"
+  static let historyTrashAttachmentNames = [
+    "runtime-tv-home", "runtime-tv-history-recovery", "runtime-tv-history-open-failure",
+    "runtime-tv-history-clear-modal", "runtime-tv-history-empty", "runtime-tv-home-history-off",
+    "runtime-tv-account-settings", "runtime-tv-trash", "runtime-tv-trash-recovery",
+    "runtime-tv-trash-modal", "runtime-tv-trash-empty",
+  ]
+  static let settingsTestIdentifier =
+    "PutioTVUITests/AccountHistoryTrashJourneyTests/testSettingsCycleProxyChooserAndTrashToggle"
+  static let settingsAttachmentNames = [
+    "runtime-tv-proxy-failure", "runtime-tv-proxy-chooser", "runtime-tv-account-subtitles-off",
+    "runtime-tv-trash-off-modal",
   ]
 }
 

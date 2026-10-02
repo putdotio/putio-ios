@@ -1172,24 +1172,56 @@ public struct SimulatorHarness {
         else {
           throw HarnessFailure("device sign-in screenshots do not differ meaningfully")
         }
+        let historyTrashBundle = platformDirectory.appending(path: ".tv-history-trash.xcresult")
+        let historyTrashScreenshots = try runJourneyPreflightTest(
+          identifier: TVAccountJourneyContract.historyTrashTestIdentifier,
+          platform: platform,
+          session: session,
+          resultBundle: historyTrashBundle,
+          attachmentNames: TVAccountJourneyContract.historyTrashAttachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 300,
+          maximumExecutionTimeAllowance: 420
+        )
+        let settingsBundle = platformDirectory.appending(path: ".tv-settings.xcresult")
+        let settingsScreenshots = try runJourneyPreflightTest(
+          identifier: TVAccountJourneyContract.settingsTestIdentifier,
+          platform: platform,
+          session: session,
+          resultBundle: settingsBundle,
+          attachmentNames: TVAccountJourneyContract.settingsAttachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 180,
+          maximumExecutionTimeAllowance: 300
+        )
+        let accountScreenshots = historyTrashScreenshots + settingsScreenshots
+        let accountNames =
+          TVAccountJourneyContract.historyTrashAttachmentNames
+          + TVAccountJourneyContract.settingsAttachmentNames
+        for (name, screenshot) in zip(accountNames, accountScreenshots) {
+          _ = try requireMeaningfulScreenshot(screenshot, context: "\(name) attachment")
+        }
         try requireCleanSource()
         try requireRevision(sourceRevision)
-        try fileManager.removeItem(at: resultBundle)
+        for bundle in [resultBundle, historyTrashBundle, settingsBundle] {
+          try fileManager.removeItem(at: bundle)
+        }
+        let artifacts = screenshots + accountScreenshots
         let manifest = try writeManifest(
           platform: platform,
           command: "journey",
           runID: runID,
           commit: sourceRevision,
           session: session,
-          artifactURLs: screenshots,
+          artifactURLs: artifacts,
           directory: platformDirectory,
           fixtureSet: JourneyScenario.deviceSignIn.fixtureSet
         )
         return SurfaceRun(
           platform: platform,
-          artifacts: screenshots + [manifest],
+          artifacts: artifacts + [manifest],
           message:
-            "device sign-in journey passed 1/1 tests in \(context.relativePath(for: platformDirectory))"
+            "device sign-in journey passed 3/3 tests in \(context.relativePath(for: platformDirectory))"
         )
       }
     } catch {

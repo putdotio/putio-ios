@@ -39,6 +39,10 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
   public let hideSubtitles: Bool
   public let dontAutoSelectSubtitles: Bool
   public let twoFactorEnabled: Bool
+  public let avatarURL: URL?
+  /// Bytes in Trash as the account reports them; the Trash listing owns the
+  /// live total while it is open.
+  public let trashSizeBytes: Int64
 
   public init(
     id: Int,
@@ -53,7 +57,9 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     routeName: String = "default",
     hideSubtitles: Bool = false,
     dontAutoSelectSubtitles: Bool = false,
-    twoFactorEnabled: Bool = false
+    twoFactorEnabled: Bool = false,
+    avatarURL: URL? = nil,
+    trashSizeBytes: Int64 = 0
   ) {
     self.id = id
     self.username = username
@@ -68,6 +74,8 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     self.hideSubtitles = hideSubtitles
     self.dontAutoSelectSubtitles = dontAutoSelectSubtitles
     self.twoFactorEnabled = twoFactorEnabled
+    self.avatarURL = avatarURL
+    self.trashSizeBytes = trashSizeBytes
   }
 }
 

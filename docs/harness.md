@@ -50,7 +50,11 @@ Slider dragging does not prove VoiceOver gestures, spoken output, or focus order
 The [tvOS journey](../Tests/tvOSUITests/Sources/DeviceSignInJourneyTests.swift)
 drives code expiry, approval, restored sign-in, and sign-out using simulated
 Siri Remote input. HTTP responses are fixtures; device-code polling, keychain,
-and UI run in the app.
+and UI run in the app. Its [signed-in tests](../Tests/tvOSUITests/Sources/AccountHistoryTrashJourneyTests.swift)
+record Home, History, Account, the proxy chooser, and Trash, with their
+centered modals, empty states, and recovery from the fixtures' one-time
+failures. Clearing History turns it off on the fixture account, so the Home
+capture after it shows the gate following an account change.
 
 For launch and rendering evidence, use:
 

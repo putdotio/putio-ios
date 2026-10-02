@@ -83,6 +83,12 @@ import Foundation
     static let securityDeviceCode = "HARN42"
     static let securityPassword = "harness-pass"
 
+    /// The tvOS journey proves History gating follows an account change made
+    /// elsewhere: once History is cleared, account loads report it off.
+    private static var historyDisablesAfterClear: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-history-disabled-after-clear")
+    }
+
     private static let preferencesKey = "putio.harness.file-preferences.server"
     private static var usesFilePreferences: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-file-preferences")
@@ -1904,6 +1910,7 @@ import Foundation
         usesFilePreferences
         ? filePreferences?.historyEnabled ?? true
         : !ProcessInfo.processInfo.arguments.contains("--putio-harness-history-disabled")
+          && !(historyDisablesAfterClear && historyCleared)
       let defaultSort = usesFilePreferences ? filePreferences?.sortBy ?? "NAME_ASC" : "NAME_ASC"
       let usedBytes = diskUsedBytes - trashFreedBytes
       let trashSizeBytes = Int64(trashFolders.count) * trashFolderBytes

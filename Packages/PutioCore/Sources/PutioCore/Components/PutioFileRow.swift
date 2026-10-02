@@ -16,16 +16,20 @@ public struct PutioFileRowModel: Equatable, Sendable {
   /// An optional second detail line, such as a Trash expiry date.
   public let secondaryText: String?
   public let isWatched: Bool
+  /// tvOS draws a folder indicator; rows that do not open, such as Trash,
+  /// turn it off.
+  public let showsDisclosure: Bool
 
   public init(
     name: String, kind: Kind, sizeText: String? = nil, secondaryText: String? = nil,
-    isWatched: Bool = false
+    isWatched: Bool = false, showsDisclosure: Bool = true
   ) {
     self.name = name
     self.kind = kind
     self.sizeText = sizeText
     self.secondaryText = secondaryText
     self.isWatched = isWatched
+    self.showsDisclosure = showsDisclosure
   }
 
   /// Empty reads "0 B", as on app.put.io, rather than the spelled-out
@@ -128,7 +132,7 @@ public struct PutioFileRow: View {
           .accessibilityLabel(Text("Watched"))
       }
       #if os(tvOS)
-        if model.kind == .folder {
+        if model.kind == .folder, model.showsDisclosure {
           Image(putioIcon: .caretRight)
             .resizable()
             .scaledToFit()

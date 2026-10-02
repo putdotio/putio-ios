@@ -1,8 +1,9 @@
 import XCTest
 
 /// Drives the seeded device-code flow with the Siri Remote: the first code
-/// expires after one poll, "Get new code" issues one that is approved, the
-/// session survives a relaunch, and sign-out returns to a fresh code.
+/// expires after one poll, "Get new code" issues one that is approved and
+/// lands on Home, the session survives a relaunch, and signing out from
+/// Account returns to a fresh code.
 final class DeviceSignInJourneyTests: XCTestCase {
   func testCodeExpiryApprovalRelaunchAndSignOut() {
     continueAfterFailure = false
@@ -27,22 +28,30 @@ final class DeviceSignInJourneyTests: XCTestCase {
 
     XCTAssertTrue(waitForValue(code, "TVOK2", timeout: 10))
     XCTAssertFalse(expired.exists)
+    // Signing in lands on Home; Account is one of its rows.
+    let homeAccount = app.buttons["home.account"]
+    XCTAssertTrue(homeAccount.waitForExistence(timeout: 15))
+    XCTAssertTrue(focus(homeAccount))
+    XCUIRemote.shared.press(.select)
     let username = app.descendants(matching: .any)["account.username"]
     XCTAssertTrue(username.waitForExistence(timeout: 15))
     XCTAssertEqual(username.label, "moviebuff")
     XCTAssertTrue(app.descendants(matching: .any)["account.storage"].exists)
     let signOut = app.buttons["auth.sign-out"]
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
-    XCTAssertTrue(focus(signOut))
+    XCTAssertTrue(focus(signOut, moving: .up))
     attach("runtime-tv-account")
 
-    // The keychain session restores without showing a code.
+    // The keychain session restores to Home without showing a code.
     app.terminate()
     app.launch()
-    XCTAssertTrue(username.waitForExistence(timeout: 15))
+    XCTAssertTrue(homeAccount.waitForExistence(timeout: 15))
     XCTAssertFalse(code.exists)
+    XCTAssertTrue(focus(homeAccount))
+    XCUIRemote.shared.press(.select)
+    XCTAssertTrue(username.waitForExistence(timeout: 15))
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
-    XCTAssertTrue(focus(signOut))
+    XCTAssertTrue(focus(signOut, moving: .up))
 
     // Menu dismisses the confirmation without signing out.
     XCUIRemote.shared.press(.select)
@@ -52,7 +61,7 @@ final class DeviceSignInJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntil(timeout: 5) { !confirm.exists })
     XCTAssertTrue(username.exists)
 
-    XCTAssertTrue(focus(signOut))
+    XCTAssertTrue(focus(signOut, moving: .up))
     XCUIRemote.shared.press(.select)
     XCTAssertTrue(confirm.waitForExistence(timeout: 5))
     // The dialog opens on Cancel with the destructive action to its right.
@@ -71,6 +80,15 @@ final class DeviceSignInJourneyTests: XCTestCase {
   private func focus(_ element: XCUIElement) -> Bool {
     let directions: [XCUIRemote.Button] = [.down, .down, .up, .down, .down, .down]
     for direction in directions {
+      if waitUntil(timeout: 1, { element.hasFocus }) { return true }
+      XCUIRemote.shared.press(direction)
+    }
+    return waitUntil(timeout: 2) { element.hasFocus }
+  }
+
+  /// Account's sign-out sits in the header above the settings list.
+  private func focus(_ element: XCUIElement, moving direction: XCUIRemote.Button) -> Bool {
+    for _ in 0..<8 {
       if waitUntil(timeout: 1, { element.hasFocus }) { return true }
       XCUIRemote.shared.press(direction)
     }
