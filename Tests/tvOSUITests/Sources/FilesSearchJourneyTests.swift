@@ -43,7 +43,9 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(focus("files.item.422", moving: .down, limit: 3), "the second page loaded")
 
     // Sorting persists on the server and the list reloads in its order.
-    XCTAssertTrue(focus("files.sort", moving: .up, limit: 20))
+    // Up from the list lands on Refresh; Sort sits to its right.
+    XCTAssertTrue(focus("files.refresh", moving: .up, limit: 20))
+    XCTAssertTrue(focus("files.sort", moving: .right, limit: 2))
     remote.press(.select)
     XCTAssertTrue(element("files.sort.NAME_DESC").waitForExistence(timeout: 5))
     attach("runtime-tv-files-sort")
