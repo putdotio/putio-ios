@@ -4,17 +4,20 @@ import SwiftUI
 /// A destination pushed from Home. Some exist only while an account setting
 /// allows them.
 enum TVRoute: Hashable {
+  case files
+  case search
   case history
   case account
   case proxy
   case trash
+  case folder(PutioFolderRoute)
   case file(PutioFileItem)
 
   func isAvailable(for account: PutioAccountSnapshot) -> Bool {
     switch self {
     case .history: account.historyEnabled
     case .trash: account.trashEnabled
-    case .account, .proxy, .file: true
+    case .files, .search, .account, .proxy, .folder, .file: true
     }
   }
 
@@ -29,8 +32,10 @@ enum TVRoute: Hashable {
   }
 }
 
-/// The shipped Home list. Your Files and Search arrive with the browser.
+/// The shipped Home list.
 enum TVHomeEntry: CaseIterable, Identifiable {
+  case files
+  case search
   case history
   case account
 
@@ -42,6 +47,8 @@ enum TVHomeEntry: CaseIterable, Identifiable {
 
   var route: TVRoute {
     switch self {
+    case .files: .files
+    case .search: .search
     case .history: .history
     case .account: .account
     }
@@ -49,15 +56,20 @@ enum TVHomeEntry: CaseIterable, Identifiable {
 
   var title: String {
     switch self {
+    case .files: "Your Files"
+    case .search: "Search"
     case .history: "History"
     case .account: "Account"
     }
   }
 
-  var icon: PutioIcon {
+  /// Search keeps the system glyph; the other rows use Phosphor icons.
+  var icon: Image {
     switch self {
-    case .history: .clockCounterClockwise
-    case .account: .userCircle
+    case .files: Image(putioIcon: .folderFill)
+    case .search: Image(systemName: "magnifyingglass")
+    case .history: Image(putioIcon: .clockCounterClockwise)
+    case .account: Image(putioIcon: .userCircle)
     }
   }
 }
@@ -105,6 +117,10 @@ struct TVSignedInShell: View {
     }
   }
 
+  private func open(_ item: PutioFileItem) {
+    path.append(.opening(item))
+  }
+
   @ViewBuilder
   private func destination(for route: TVRoute) -> some View {
     switch route {
@@ -112,12 +128,23 @@ struct TVSignedInShell: View {
       TVAccountView(runtime: runtime)
     case .proxy:
       TVProxyChooserView(runtime: runtime)
+    case .files:
+      TVFolderView(
+        route: .root, runtime: runtime, account: account,
+        refreshRequests: folderRefreshRequests, open: open)
+    case .search:
+      TVSearchView(
+        runtime: runtime, account: account, refreshRequests: folderRefreshRequests, open: open)
     case .history:
-      TVHistoryView(runtime: runtime) { path.append(.file($0)) }
+      TVHistoryView(runtime: runtime, open: open)
     case .trash:
       TVTrashView(runtime: runtime, reconciliation: trashReconciliation)
+    case .folder(let folder):
+      TVFolderView(
+        route: folder, runtime: runtime, account: account,
+        refreshRequests: folderRefreshRequests, open: open)
     case .file(let item):
-      TVFileSummaryScreen(item: item)
+      TVFileScreen(item: item)
     }
   }
 }
@@ -140,7 +167,7 @@ struct TVHomeScreen: View {
         ForEach(entries) { entry in
           NavigationLink(value: entry.route) {
             HStack(spacing: PutioTheme.TV.Spacing.small) {
-              TVIconLabel(title: entry.title, icon: entry.icon)
+              TVIconLabel(title: entry.title, image: entry.icon)
               Spacer(minLength: PutioTheme.TV.Spacing.small)
               TVDisclosure()
             }
@@ -176,11 +203,20 @@ struct TVHomeScreen: View {
 /// A row label: a yellow Phosphor icon and the title, as the shipped lists.
 struct TVIconLabel: View {
   let title: String
-  let icon: PutioIcon
+  let image: Image
+
+  init(title: String, icon: PutioIcon) {
+    self.init(title: title, image: Image(putioIcon: icon))
+  }
+
+  init(title: String, image: Image) {
+    self.title = title
+    self.image = image
+  }
 
   var body: some View {
     HStack(spacing: PutioTheme.TV.Spacing.small) {
-      Image(putioIcon: icon)
+      image
         .resizable()
         .scaledToFit()
         .frame(width: TVRowLayout.iconSize, height: TVRowLayout.iconSize)
@@ -269,33 +305,16 @@ enum TVRowLayout {
   static let disclosureSize = PutioTheme.TV.Typography.caption.size
 }
 
-/// Where a History event leads until the file browser lands: the resolved
-/// file, so the lookup and its failures are real.
-struct TVFileSummaryScreen: View {
-  let item: PutioFileItem
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.medium) {
-      PutioFileRow(PutioBrowserItemPresentation(item: item).row)
-        .accessibilityIdentifier("file-summary.\(item.id.rawValue)")
-      Text("Browsing and playback on Apple TV arrive with Your Files.")
-        .putioFont(PutioTheme.TV.Typography.body)
-        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-      Spacer(minLength: 0)
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .tvOverscanPadding()
-    .background(PutioTheme.Colors.background.ignoresSafeArea())
-  }
-}
-
 extension TVRoute {
   var identifier: String {
     switch self {
+    case .files: "files"
+    case .search: "search"
     case .history: "history"
     case .account: "account"
     case .proxy: "proxy"
     case .trash: "trash"
+    case .folder(let folder): "folder.\(folder.id.rawValue)"
     case .file(let item): "file.\(item.id.rawValue)"
     }
   }

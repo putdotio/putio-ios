@@ -366,6 +366,16 @@ import Foundation
     nonisolated(unsafe) private static var externalPlaybackFailurePending =
       ProcessInfo.processInfo.arguments.contains("--putio-harness-vlc-resolution-fails-once")
     nonisolated(unsafe) private static var searchRetryFailed = false
+    /// `--putio-harness-tv-browse` adds an empty folder and one whose first
+    /// listing fails to the root, and fails the root's first continuation, so
+    /// the tvOS browser journey records empty, error, and recovery states.
+    private static var usesTVBrowse: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-tv-browse")
+    }
+    static let tvEmptyFolderID = 423
+    static let tvFlakyFolderID = 424
+    nonisolated(unsafe) private static var tvRootContinuationFailed = false
+    nonisolated(unsafe) private static var tvFlakyFolderFailed = false
     nonisolated(unsafe) private static var emptySearchLoads = 0
     nonisolated(unsafe) private static var searchContinuationFailed = false
     nonisolated(unsafe) private static var renameAttempts = 0
@@ -457,6 +467,8 @@ import Foundation
       externalPlaybackFailurePending =
         ProcessInfo.processInfo.arguments.contains("--putio-harness-vlc-resolution-fails-once")
       searchRetryFailed = false
+      tvRootContinuationFailed = false
+      tvFlakyFolderFailed = false
       emptySearchLoads = 0
       searchContinuationFailed = false
       renameAttempts = 0
@@ -596,6 +608,15 @@ import Foundation
             type: "HARNESS_FILES_CURSOR_INVALID",
             message: "The files fixture requires the root continuation cursor"
           )
+        )
+      }
+      if usesTVBrowse, fileActionsLock.withLock({ !tvRootContinuationFailed }) {
+        fileActionsLock.withLock { tvRootContinuationFailed = true }
+        return (
+          503,
+          fixtureError(
+            statusCode: 503, type: "HARNESS_FILES_CONTINUATION_RETRY",
+            message: "The first root continuation fails for retry proof")
         )
       }
       return (
@@ -1236,6 +1257,10 @@ import Foundation
         return setPlaybackPosition(request: request, fileID: 412)
       case "POST /v2/files/414/start-from/set":
         return setPlaybackPosition(request: request, fileID: 414)
+      case "GET /v2/files/411/start-from/delete":
+        return clearPlaybackPosition(fileID: 411)
+      case "GET /v2/files/412/start-from/delete":
+        return clearPlaybackPosition(fileID: 412)
       default:
         return (
           404,
@@ -1341,6 +1366,33 @@ import Foundation
         return (200, rootFiles)
       case 410:
         return (200, nestedFiles)
+      case tvEmptyFolderID where usesTVBrowse:
+        return (
+          200,
+          "{\"parent\":\(folderObject(id: tvEmptyFolderID, name: "Empty Folder", parentID: 0)),\"files\":[],\"total\":0}"
+        )
+      case tvFlakyFolderID where usesTVBrowse:
+        let fail = fileActionsLock.withLock {
+          defer { tvFlakyFolderFailed = true }
+          return !tvFlakyFolderFailed
+        }
+        if fail {
+          return (
+            503,
+            fixtureError(
+              statusCode: 503, type: "HARNESS_FOLDER_RETRY",
+              message: "The first listing of the flaky folder fails for retry proof")
+          )
+        }
+        return (
+          200,
+          """
+          {"parent":\(folderObject(id: tvFlakyFolderID, name: "Flaky Folder", parentID: 0)),
+          "files":[{"id":425,"name":"Flaky Episode.mkv","file_type":"VIDEO",
+          "parent_id":\(tvFlakyFolderID),"size":524288000,"created_at":"2026-08-28T10:00:00Z",
+          "updated_at":"2026-08-29T10:00:00Z","start_from":0}],"total":1}
+          """
+        )
       case .none:
         return (
           400,
@@ -1377,6 +1429,11 @@ import Foundation
       playbackPositionLock.lock()
       defer { playbackPositionLock.unlock() }
       return playbackPositions[fileID] ?? 0
+    }
+
+    private static func clearPlaybackPosition(fileID: Int) -> (Int, String) {
+      playbackPositionLock.withLock { playbackPositions[fileID] = 0 }
+      return (200, #"{"status":"OK"}"#)
     }
 
     private static func setPlaybackPosition(request: URLRequest, fileID: Int) -> (Int, String) {
@@ -2017,6 +2074,11 @@ import Foundation
           }
           """,
         ] + mutableFolderRows
+        + (usesTVBrowse
+          ? [
+            folderObject(id: tvEmptyFolderID, name: "Empty Folder", parentID: 0),
+            folderObject(id: tvFlakyFolderID, name: "Flaky Folder", parentID: 0),
+          ] : [])
       if folderDeleted { rows.removeFirst() }
       if rootVideoTrashed { rows.removeAll { $0.contains(#""id": 412,"#) } }
       // Only the two name orders are modelled; the journey proves the
@@ -2038,7 +2100,7 @@ import Foundation
           "files": [
             \(rows.joined(separator: ",\n"))
           ],
-          "total": \(8 + mutableFolders.count - (folderDeleted ? 1 : 0) - (rootVideoTrashed ? 1 : 0))
+          "total": \(8 + mutableFolders.count + (usesTVBrowse ? 2 : 0) - (folderDeleted ? 1 : 0) - (rootVideoTrashed ? 1 : 0))
         }
         """
     }

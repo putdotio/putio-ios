@@ -61,7 +61,10 @@ token overscan ratios; adding both in full would double the margin. Device-code
 sign-in uses tabular figures and a solid surface; sign-out uses the native dialog.
 Settings rows put the label left and the value right: two-state values cycle on
 select, larger choices open a full-screen chooser, and there are no toggles.
-Destructive actions confirm in a centered alert.
+Destructive actions confirm in a centered alert. File rows open on select and
+offer their actions on a long press, in a centered alert; Trash moves are
+recoverable and skip the confirmation. Search uses the system keyboard from
+`.searchable`, and its results reuse the browser's rows.
 
 Watch interactions are counts, states, and remote control, with one action per
 screen. File browsing and text entry belong on the phone.

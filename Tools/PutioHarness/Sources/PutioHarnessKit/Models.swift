@@ -134,7 +134,7 @@ public enum JourneyScenario: String, CaseIterable, Equatable, Sendable {
   var fixtureSet: String {
     switch self {
     case .filesBrowser: "seeded-runtime-loop-v5"
-    case .deviceSignIn: "seeded-device-sign-in-v2"
+    case .deviceSignIn: "seeded-device-sign-in-v3"
     case .liveFilesBrowser: "live-devs-auto-fixture-folder-v1"
     case .liveDeviceSignIn: "live-devs-auto-device-code-v1"
     }
@@ -523,6 +523,25 @@ enum TVAccountJourneyContract {
   static let settingsAttachmentNames = [
     "runtime-tv-proxy-failure", "runtime-tv-proxy-chooser", "runtime-tv-account-subtitles-off",
     "runtime-tv-trash-off-modal", "runtime-tv-account-about",
+  ]
+}
+
+/// Your Files and Search on TV: browse, sort, paging, the long-press menu,
+/// system search, and their empty, error, and recovery states.
+enum TVBrowseJourneyContract {
+  static let browseTestIdentifier =
+    "PutioTVUITests/FilesSearchJourneyTests/testBrowseSortMenuAndRecovery"
+  static let browseAttachmentNames = [
+    "runtime-tv-home-files", "runtime-tv-files", "runtime-tv-files-more-recovery",
+    "runtime-tv-files-sort", "runtime-tv-files-menu", "runtime-tv-files-action-failure",
+    "runtime-tv-files-trashed", "runtime-tv-folder", "runtime-tv-file-unsupported",
+    "runtime-tv-files-empty", "runtime-tv-files-error", "runtime-tv-files-recovered",
+  ]
+  static let searchTestIdentifier =
+    "PutioTVUITests/FilesSearchJourneyTests/testSystemSearchEmptyErrorResultsAndMenu"
+  static let searchAttachmentNames = [
+    "runtime-tv-search-keyboard", "runtime-tv-search-empty", "runtime-tv-search-error",
+    "runtime-tv-search-results", "runtime-tv-search-menu",
   ]
 }
 

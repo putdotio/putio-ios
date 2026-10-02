@@ -1159,7 +1159,8 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(calls, ["7 false"])
     XCTAssertEqual(
       model.actionOutcome,
-      .succeeded(.setWatched(fileID: watched.id, parentID: .root, name: watched.name, watched: false)))
+      .succeeded(
+        .setWatched(fileID: watched.id, parentID: .root, name: watched.name, watched: false)))
   }
 
   func testMutationSupersedesAnInFlightRefresh() async throws {

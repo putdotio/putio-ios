@@ -20,8 +20,10 @@ final class TVAccountHistoryTrashTests: XCTestCase {
   }
 
   func testHomeListsHistoryOnlyWhileTheAccountKeepsIt() {
-    XCTAssertEqual(TVHomeEntry.entries(for: Self.account()), [.history, .account])
-    XCTAssertEqual(TVHomeEntry.entries(for: Self.account(historyEnabled: false)), [.account])
+    XCTAssertEqual(
+      TVHomeEntry.entries(for: Self.account()), [.files, .search, .history, .account])
+    XCTAssertEqual(
+      TVHomeEntry.entries(for: Self.account(historyEnabled: false)), [.files, .search, .account])
   }
 
   func testAccountRowsFollowTheSettingsTheyDependOn() {
