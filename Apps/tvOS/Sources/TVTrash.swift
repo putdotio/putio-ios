@@ -104,7 +104,13 @@ struct TVTrashView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .tvOverscanPadding()
     .background(PutioTheme.Colors.background.ignoresSafeArea())
-    .alert(selectedItem?.name ?? "", item: $selectedItem) { item in
+    // The item-bound alert overload needs the Xcode 27 SDK; CI builds with 26.
+    .alert(
+      selectedItem?.name ?? "",
+      isPresented: Binding(
+        get: { selectedItem != nil }, set: { if !$0 { selectedItem = nil } }),
+      presenting: selectedItem
+    ) { item in
       Button("Restore") { mutate(item) { await model.restore(item) } }
         .accessibilityIdentifier("trash.item-restore")
       Button("Delete permanently", role: .destructive) {
