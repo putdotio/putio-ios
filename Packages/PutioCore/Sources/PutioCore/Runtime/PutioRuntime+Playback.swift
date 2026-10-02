@@ -18,25 +18,29 @@ extension PutioRuntime {
   public func resolveVideoPlaybackSource(fileID: PutioFileID) async throws
     -> PutioPlaybackResolution
   {
-    let resolution = try await performAuthenticatedOperation {
-      try await sdk.resolveVideoPlaybackSource(fileID: fileID.rawValue)
+    let (resolution, downloadToken) = try await performAuthenticatedOperation {
+      (
+        try await sdk.resolveVideoPlaybackSource(fileID: fileID.rawValue),
+        session.downloadToken
+      )
     }
 
     switch resolution {
     case .ready(let source):
-      return .ready(
-        PutioPlaybackSource(url: source.url, startFromSeconds: source.startFrom)
-      )
+      let url = try replacingMediaToken(
+        in: source.url, with: requireDownloadToken(downloadToken))
+      return .ready(PutioPlaybackSource(url: url, startFromSeconds: source.startFrom))
     case .conversionRequired:
       return .conversionRequired
     }
   }
 
   public func resolveAudioPlaybackSource(fileID: PutioFileID) async throws -> PutioPlaybackSource {
-    let source = try await performAuthenticatedOperation {
-      try await sdk.resolveAudioPlaybackSource(fileID: fileID.rawValue)
+    let (source, downloadToken) = try await performAuthenticatedOperation {
+      (try await sdk.resolveAudioPlaybackSource(fileID: fileID.rawValue), session.downloadToken)
     }
-    return PutioPlaybackSource(url: source.url, startFromSeconds: source.startFrom)
+    let url = try replacingMediaToken(in: source.url, with: requireDownloadToken(downloadToken))
+    return PutioPlaybackSource(url: url, startFromSeconds: source.startFrom)
   }
 
   public func findNextAudio(after fileID: PutioFileID) async throws -> PutioNextAudio? {
@@ -91,8 +95,9 @@ extension PutioRuntime {
     guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
   }
 
-  /// Resolves a video into what a Cast receiver plays. HLS uses the tokened
-  /// playlist with server-muxed subtitles; MP4 uses the converted file when
+  /// Resolves a video into what a Cast receiver plays. Every URL carries the
+  /// download token, never the session token. HLS uses the tokened playlist
+  /// with server-muxed subtitles; MP4 uses the converted file when
   /// available (or the original when it needs no conversion) and lists the
   /// file's subtitles as WebVTT tracks. Files that still need conversion for
   /// MP4 playback resolve as `conversionRequired`. MP4 tracks follow the
@@ -101,18 +106,19 @@ extension PutioRuntime {
     async throws -> PutioCastResolution
   {
     guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
-    let (file, token) = try await performAuthenticatedOperation {
+    let (file, downloadToken) = try await performAuthenticatedOperation {
       (
         try await sdk.getFile(
           fileID: fileID.rawValue,
           query: PutioFileDetailsQuery(
             mp4Size: false, startFrom: true, streamURL: false, mp4StreamURL: false)),
-        sdk.config.token
+        session.downloadToken
       )
     }
     guard file.id == fileID.rawValue, file.type == .video else {
       throw PutioRuntimeError.invalidResponse
     }
+    let token = try requireDownloadToken(downloadToken)
     let artworkURL = URL(string: file.screenshot).flatMap { $0.scheme == "https" ? $0 : nil }
     let duration = file.metaData?.duration ?? 0
     switch playbackType {
@@ -148,7 +154,7 @@ extension PutioRuntime {
         try await sdk.getSubtitles(fileID: fileID.rawValue)
       }
       // The receiver fetches tracks itself, without the app's header, so the
-      // token rides on the URL; only the API host may receive it.
+      // download token rides on the URL; only the API host may receive it.
       let apiHost = URL(string: sdk.config.baseURL)?.host
       var keys = Set<String>()
       let subtitles = response.subtitles.compactMap { subtitle -> PutioCastSubtitle? in

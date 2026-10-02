@@ -103,6 +103,29 @@ public final class PutioRuntime {
     }
   }
 
+  /// Media URLs reach AVFoundation, AirPlay, Cast receivers, and other apps,
+  /// so they carry the account's download token, which put.io accepts only
+  /// for media and downloads, never the session token. A signed-in account
+  /// without one is an invalid response, not a reason to fall back.
+  func requireDownloadToken(_ token: String?) throws -> String {
+    guard let token, !token.isEmpty, token != sdk.config.token else {
+      throw PutioRuntimeError.invalidResponse
+    }
+    return token
+  }
+
+  /// Swaps the session token the SDK puts on playback URLs for the download token.
+  func replacingMediaToken(in url: URL, with token: String) throws -> URL {
+    guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+      throw PutioRuntimeError.invalidResponse
+    }
+    var items = (components.queryItems ?? []).filter { $0.name != "oauth_token" }
+    items.append(URLQueryItem(name: "oauth_token", value: token))
+    components.queryItems = items
+    guard let replaced = components.url else { throw PutioRuntimeError.invalidResponse }
+    return replaced
+  }
+
   var currentSessionError: PutioRuntimeError {
     if case .signedOut(let reason) = session.state, reason == .sessionExpired {
       return .sessionExpired

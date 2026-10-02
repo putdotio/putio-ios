@@ -60,6 +60,10 @@ public final class PutioSessionStore {
   public private(set) var isAccountPreferencesStale = false
   public private(set) var isUpdatingAccountPreferences = false
   public private(set) var folderSortsRevision: UInt64 = 0
+  /// The account's download token, which put.io accepts only for media and
+  /// download URLs. Anything that leaves the app carries this instead of the
+  /// session token. Nil until the signed-in account loads.
+  @ObservationIgnored private(set) var downloadToken: String?
   private var lastPreferencesMutationSequence: UInt64 = 0
   /// Advances at every session boundary (restore, sign-in, sign-out,
   /// expiry), so work bound to one signed-in shell can tell it has ended.
@@ -453,7 +457,7 @@ public final class PutioSessionStore {
     accountRefreshSequence &+= 1
     let sequence = accountRefreshSequence
     do {
-      let account = try await sdk.getAccountInfo()
+      let account = try await sdk.getAccountInfo(query: Self.accountQuery)
       guard generation == authenticationGeneration, !Task.isCancelled,
         case .signedIn = state
       else { return false }
@@ -467,7 +471,7 @@ public final class PutioSessionStore {
         sequence > lastPreferencesMutationSequence
       else { return false }
       lastAppliedAccountRefresh = sequence
-      state = .signedIn(snapshot(account))
+      apply(account)
       isAccountStorageStale = false
       isAccountPreferencesStale = false
       return true
@@ -484,9 +488,9 @@ public final class PutioSessionStore {
     generation: UInt64
   ) async {
     do {
-      let account = try await sdk.getAccountInfo()
+      let account = try await sdk.getAccountInfo(query: Self.accountQuery)
       guard generation == authenticationGeneration else { return }
-      state = .signedIn(snapshot(account))
+      apply(account)
     } catch {
       guard generation == authenticationGeneration else { return }
       if isAuthRejection(error) {
@@ -498,11 +502,19 @@ public final class PutioSessionStore {
     }
   }
 
+  private static let accountQuery = PutioAccountInfoQuery(downloadToken: true)
+
+  private func apply(_ account: PutioAccount) {
+    downloadToken = account.downloadToken.isEmpty ? nil : account.downloadToken
+    state = .signedIn(snapshot(account))
+  }
+
   // MARK: - Failure classification
 
   @discardableResult
   private func advanceAuthenticationGeneration() -> UInt64 {
     authenticationGeneration += 1
+    downloadToken = nil
     // A new session boundary starts from a fresh bootstrap snapshot.
     isAccountStorageStale = false
     isAccountPreferencesStale = false
