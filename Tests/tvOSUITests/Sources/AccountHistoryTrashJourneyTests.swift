@@ -103,8 +103,10 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(element("trash.item-delete").waitForExistence(timeout: 5))
     attach("runtime-tv-trash-modal")
     XCTAssertTrue(selectModalButton("trash.item-delete"))
+    pause(1)
     XCTAssertTrue(waitUntil(timeout: 10) { !self.element("trash.progress").exists })
     XCTAssertTrue(element("trash.item.420").exists, "a failed delete keeps the row")
+    XCTAssertTrue(element("trash.item.419").exists, "the modal deleted, not restored")
     XCTAssertTrue(focus("trash.item.420"))
     remote.press(.select)
     XCTAssertTrue(element("trash.item-delete").waitForExistence(timeout: 5))
@@ -234,9 +236,18 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     }
     let horizontal =
       ordered.count > 1 && abs(ordered[0].frame.midY - ordered[1].frame.midY) <= 4
-    for _ in 0..<index { remote.press(horizontal ? .right : .down) }
+    // Presses during the presentation animation are dropped.
+    pause(1)
+    for _ in 0..<index {
+      remote.press(horizontal ? .right : .down)
+      pause(0.5)
+    }
     remote.press(.select)
     return waitUntil(timeout: 5) { !target.exists }
+  }
+
+  private func pause(_ seconds: TimeInterval) {
+    RunLoop.current.run(until: Date().addingTimeInterval(seconds))
   }
 
   private func waitUntil(timeout: TimeInterval, _ condition: () -> Bool) -> Bool {
