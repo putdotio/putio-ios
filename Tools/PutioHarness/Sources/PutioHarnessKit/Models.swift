@@ -522,7 +522,7 @@ enum TVAccountJourneyContract {
     "PutioTVUITests/AccountHistoryTrashJourneyTests/testSettingsCycleProxyChooserAndTrashToggle"
   static let settingsAttachmentNames = [
     "runtime-tv-proxy-failure", "runtime-tv-proxy-chooser", "runtime-tv-account-subtitles-off",
-    "runtime-tv-trash-off-modal",
+    "runtime-tv-trash-off-modal", "runtime-tv-account-about",
   ]
 }
 

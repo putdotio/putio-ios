@@ -189,20 +189,21 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(selectModalButton("account.trash-disable-confirm"))
     XCTAssertTrue(waitUntil(timeout: 10) { trash.value as? String == "Off" })
     XCTAssertFalse(element("account.manage-trash").exists)
-    XCTAssertTrue(focus("account.trash"))
-    remote.press(.select)
-    XCTAssertTrue(waitUntil(timeout: 10) { trash.value as? String == "On" })
-    XCTAssertTrue(element("account.manage-trash").waitForExistence(timeout: 5))
 
-    // App, device, and OS rows sit below the last setting; the remote must
-    // bring them on screen.
-    XCTAssertTrue(focus("account.manage-trash"))
+    // With Trash off its row is the last setting; the app, device, and OS
+    // rows below it must still come on screen with the remote.
     let system = element("account.system")
+    XCTAssertTrue(focus("account.trash"))
     for _ in 0..<6 where !isOnScreen(system) {
       remote.press(.down)
       pause(0.5)
     }
     XCTAssertTrue(isOnScreen(system), "the operating system row never scrolled into view")
+    attach("runtime-tv-account-about")
+    XCTAssertTrue(focus("account.trash"))
+    remote.press(.select)
+    XCTAssertTrue(waitUntil(timeout: 10) { trash.value as? String == "On" })
+    XCTAssertTrue(element("account.manage-trash").waitForExistence(timeout: 5))
   }
 
   // MARK: - Remote helpers
