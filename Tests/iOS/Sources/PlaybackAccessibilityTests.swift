@@ -41,6 +41,37 @@ final class PlaybackAccessibilityTests: XCTestCase {
     }
   }
 
+  func testConversionStatusScrollsOnlyWhenItOverflows() async throws {
+    let status = PutioConversionStatusView {
+      PutioLoadingStateView(title: "Waiting to convert")
+    }
+    let fitting = host(status.dynamicTypeSize(.large), size: CGSize(width: 390, height: 844))
+    defer { fitting.isHidden = true }
+    try await settle(fitting)
+    XCTAssertNil(findScrollView(in: fitting), "Fitting conversion copy should stay centered")
+
+    let overflowing = host(
+      status.dynamicTypeSize(.accessibility5), size: CGSize(width: 844, height: 390))
+    defer { overflowing.isHidden = true }
+    try await settle(overflowing)
+    attach(overflowing, name: "conversion-landscape-accessibility5")
+    let scrollView = try XCTUnwrap(
+      findScrollView(in: overflowing), "Overflowing conversion copy needs a scrollable surface")
+    XCTAssertGreaterThan(scrollView.contentSize.height, scrollView.bounds.height)
+  }
+
+  private func settle(_ window: UIWindow) async throws {
+    for _ in 0..<20 {
+      try await Task.sleep(for: .milliseconds(10))
+      window.layoutIfNeeded()
+    }
+  }
+
+  private func findScrollView(in view: UIView) -> UIScrollView? {
+    if let scrollView = view as? UIScrollView { return scrollView }
+    return view.subviews.lazy.compactMap { self.findScrollView(in: $0) }.first
+  }
+
   private func host<Content: View>(_ content: Content, size: CGSize) -> UIWindow {
     let controller = UIHostingController(rootView: content.preferredColorScheme(.dark))
     let window = UIWindow(frame: CGRect(origin: .zero, size: size))

@@ -787,10 +787,22 @@ struct PutioVideoPlaybackView: View {
 }
 
 /// A conversion state under app.put.io's explanation of why the video waits.
+/// Centered when it fits; large text in landscape scrolls instead of clipping.
 struct PutioConversionStatusView<Status: View>: View {
   @ViewBuilder let status: Status
 
   var body: some View {
+    ViewThatFits(in: .vertical) {
+      content
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+      ScrollView {
+        content
+          .frame(maxWidth: .infinity)
+      }
+    }
+  }
+
+  private var content: some View {
     VStack(spacing: PutioTheme.Spacing.space5) {
       Text(
         "This video is not in a format that can be played in this app yet. But since you're here, we'll start transcoding."
@@ -805,7 +817,6 @@ struct PutioConversionStatusView<Status: View>: View {
     }
     .padding(PutioTheme.Spacing.space4)
     .frame(maxWidth: 480)
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 }
 
