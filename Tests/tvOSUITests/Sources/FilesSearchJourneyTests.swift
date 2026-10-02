@@ -150,9 +150,12 @@ final class FilesSearchJourneyTests: XCTestCase {
 
   /// Search types on the system keyboard. An empty result uses the system
   /// empty state; a failed search and a failed second page each retry; the
-  /// results take the browser's long-press menu.
+  /// results take the browser's long-press menu. Trash is off, so Delete
+  /// asks first: Cancel keeps the file and confirming deletes it once.
   func testSystemSearchEmptyErrorResultsAndMenu() {
-    app.launchArguments = ["--putio-harness-scenario", "signed-in"]
+    app.launchArguments = [
+      "--putio-harness-scenario", "signed-in", "--putio-harness-trash-disabled",
+    ]
     app.launch()
 
     XCTAssertTrue(element("home.search").waitForExistence(timeout: 15))
@@ -200,6 +203,32 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(focus("search.item.410", moving: .up, limit: 6))
     remote.press(.select)
     XCTAssertTrue(element("files.item.411").waitForExistence(timeout: 10))
+    remote.press(.menu)
+
+    // A permanent delete asks first; Cancel keeps the folder.
+    let folder = element("search.item.410")
+    XCTAssertTrue(focus("search.item.410", moving: .up, limit: 6))
+    longPress()
+    XCTAssertTrue(element("files.menu.delete").waitForExistence(timeout: 5))
+    XCTAssertEqual(element("files.menu.delete").label, "Delete")
+    XCTAssertTrue(selectModalButton("files.menu.delete"))
+    XCTAssertTrue(element("files.delete-confirm").waitForExistence(timeout: 5))
+    attach("runtime-tv-search-delete-confirm")
+    XCTAssertTrue(selectModalButton("files.delete-cancel"))
+    pause(2)
+    XCTAssertTrue(folder.exists, "Cancel deleted the folder")
+    XCTAssertFalse(label(containing: "Item deleted").exists)
+
+    // Confirming deletes it once: the fixture fails a repeated delete.
+    XCTAssertTrue(focus("search.item.410", moving: .up, limit: 6))
+    longPress()
+    XCTAssertTrue(selectModalButton("files.menu.delete"))
+    XCTAssertTrue(selectModalButton("files.delete-confirm"))
+    XCTAssertTrue(label(containing: "Item deleted").waitForExistence(timeout: 10))
+    XCTAssertTrue(waitUntil(timeout: 10) { !folder.exists })
+    pause(3)
+    XCTAssertFalse(
+      label(containing: "Could not delete item").exists, "the delete was sent more than once")
   }
 
   // MARK: - Remote helpers

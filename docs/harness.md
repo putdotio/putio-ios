@@ -60,7 +60,8 @@ record Your Files with its sort and long-press menus, paging, empty, error, and
 recovery states, the unsupported-type screen, and Search on the system keyboard.
 `--putio-harness-tv-browse` adds the empty and failing folders, a second root
 page that fails once and holds two files, and a root row that appears while
-Harness Folder is open, for the refetch on return.
+Harness Folder is open, for the refetch on return. The Search test runs with
+`--putio-harness-trash-disabled`, so its menu offers a confirmed permanent delete.
 
 For launch and rendering evidence, use:
 

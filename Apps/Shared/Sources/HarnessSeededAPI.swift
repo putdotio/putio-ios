@@ -335,7 +335,13 @@ import Foundation
     }
 
     nonisolated(unsafe) static var isEnabled = false
-    nonisolated(unsafe) static var trashEnabled = true
+    /// `--putio-harness-trash-disabled` starts the account with Trash off,
+    /// so file menus offer a confirmed permanent delete. A repeated delete
+    /// of Harness Folder then fails, so a duplicate request shows.
+    private static var trashDisabledAtLaunch: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-disabled")
+    }
+    nonisolated(unsafe) static var trashEnabled = !trashDisabledAtLaunch
     nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 589, 414: 37]
     nonisolated(unsafe) private static var conversionStarted = false
     nonisolated(unsafe) private static var conversionCompleted = false
@@ -1642,6 +1648,14 @@ import Foundation
         )
       }
       if fileID == 410 {
+        if trashDisabledAtLaunch, harnessFolderDeleted {
+          fileActionsLock.unlock()
+          return (
+            404,
+            fixtureError(
+              statusCode: 404, type: "FILE_NOT_FOUND", message: "Harness Folder is already deleted")
+          )
+        }
         harnessFolderDeleted = true
         if trashEnabled { trashFolders[410] = ActionFolder(name: harnessFolderName, parentID: 0) }
         fileActionsLock.unlock()
@@ -2053,6 +2067,7 @@ import Foundation
       let folderDeleted = harnessFolderDeleted
       let rootVideoTrashed = offlineOriginalTrashed
       let arrived = usesTVBrowse && tvHarnessFolderOpened
+      let rootContinuationCount = (tvSeasonPackTrashed ? 0 : 1) + (usesTVBrowse ? 1 : 0)
       fileActionsLock.unlock()
       let mutableFolderRows = mutableFolders.map { id, folder in
         folderObject(id: id, name: folder.name, parentID: folder.parentID)
@@ -2125,7 +2140,7 @@ import Foundation
           "files": [
             \(rows.joined(separator: ",\n"))
           ],
-          "total": \(8 + mutableFolders.count + (usesTVBrowse ? 2 : 0) + (arrived ? 1 : 0) - (folderDeleted ? 1 : 0) - (rootVideoTrashed ? 1 : 0))
+          "total": \(rows.count + rootContinuationCount)
         }
         """
     }

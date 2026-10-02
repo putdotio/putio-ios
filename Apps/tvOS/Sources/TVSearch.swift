@@ -14,7 +14,7 @@ struct TVSearchView: View {
   @State private var itemActions: PutioFileItemActionModel
   @State private var menuItem: PutioFileItem?
   @FocusState private var focusedRow: PutioFileID?
-  @State private var removal: TVPendingRemoval?
+  @State private var removal: TVRowRemoval
   @State private var toast: PutioToast?
   @State private var now: Date
   private let locale: Locale
@@ -49,6 +49,7 @@ struct TVSearchView: View {
     _model = State(initialValue: model)
     _itemActions = State(
       initialValue: PutioFileItemActionModel(actions: actions, refreshRequests: refreshRequests))
+    _removal = State(initialValue: TVRowRemoval(trashEnabled: account.trashEnabled))
     _now = State(initialValue: now)
   }
 
@@ -71,18 +72,29 @@ struct TVSearchView: View {
         delete: { item in
           guard case .loaded(let page) = model.state else { return }
           let visible = page.items.filter { !itemActions.hiddenIDs.contains($0.id) }
-          removal = TVPendingRemoval(
-            item: item,
-            focus: TVFilePresentation.focusAfterRemoving(
-              item.id, from: visible, firstPage: model.firstPageIDs))
+          let trashEnabled = account.trashEnabled
+          removal.start(
+            TVRowRemoval.Request(
+              item: item,
+              focus: TVFilePresentation.focusAfterRemoving(
+                item.id, from: visible, firstPage: model.firstPageIDs),
+              trashEnabled: trashEnabled),
+            moveFocus: { focusedRow = $0 },
+            remove: { [itemActions] item in
+              if trashEnabled { itemActions.hideForTrash(item) }
+              await itemActions.delete(item)
+            })
         }
       )
-      .modifier(
-        TVFocusedRemoval(pending: $removal, focusedRow: $focusedRow) { item in
-          if account.trashEnabled { itemActions.hideForTrash(item) }
-          Task { await itemActions.delete(item) }
-        }
-      )
+      .onChange(of: focusedRow) { _, row in removal.focusChanged(to: row) }
+      .onChange(of: account.trashEnabled, initial: true) { _, enabled in
+        removal.trashEnabled = enabled
+      }
+      .onChange(of: removal.dropped) { _, item in
+        guard item != nil else { return }
+        toast = TVRowRemoval.droppedToast
+        removal.clearDropped()
+      }
       .onChange(of: itemActions.outcome) { _, outcome in
         guard let outcome else { return }
         toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)

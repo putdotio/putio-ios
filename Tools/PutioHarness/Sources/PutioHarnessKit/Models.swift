@@ -541,7 +541,7 @@ enum TVBrowseJourneyContract {
     "PutioTVUITests/FilesSearchJourneyTests/testSystemSearchEmptyErrorResultsAndMenu"
   static let searchAttachmentNames = [
     "runtime-tv-search-keyboard", "runtime-tv-search-empty", "runtime-tv-search-error",
-    "runtime-tv-search-results", "runtime-tv-search-menu",
+    "runtime-tv-search-results", "runtime-tv-search-menu", "runtime-tv-search-delete-confirm",
   ]
 }
 

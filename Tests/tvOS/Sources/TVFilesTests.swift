@@ -108,6 +108,53 @@ final class TVFilesTests: XCTestCase {
       PutioFileID(rawValue: 410))
   }
 
+  @MainActor
+  func testAcceptedRemovalWaitsForFocusThenMovesItBeforeRemoving() async {
+    let removal = TVRowRemoval(trashEnabled: true, fallback: .seconds(30))
+    var events: [String] = []
+    let removed = expectation(description: "removed")
+    removal.start(
+      Self.request(trashEnabled: true),
+      moveFocus: { events.append("focus \($0.rawValue)") },
+      remove: { item in
+        events.append("remove \(item.id.rawValue)")
+        removed.fulfill()
+      })
+    try? await Task.sleep(for: .milliseconds(100))
+    XCTAssertEqual(events, [], "the row stays while the menu's alert holds focus")
+
+    removal.focusChanged(to: PutioFileID(rawValue: 412))
+    await fulfillment(of: [removed], timeout: 2)
+    XCTAssertEqual(events, ["focus 410", "remove 412"])
+  }
+
+  /// Leaving the screen before focus comes back must not lose the delete
+  /// the menu accepted.
+  @MainActor
+  func testAcceptedRemovalRunsAfterTheScreenLetsGo() async {
+    var removal: TVRowRemoval? = TVRowRemoval(trashEnabled: true, fallback: .milliseconds(50))
+    let removed = expectation(description: "removed")
+    removal?.start(
+      Self.request(trashEnabled: true), moveFocus: { _ in }, remove: { _ in removed.fulfill() })
+    removal = nil
+    await fulfillment(of: [removed], timeout: 2)
+  }
+
+  /// Trash skips the confirmation; if the setting turns off before the
+  /// removal starts, the same request would delete permanently.
+  @MainActor
+  func testRemovalIsDroppedWhenTheTrashSettingChanges() async {
+    let removal = TVRowRemoval(trashEnabled: true, fallback: .seconds(30))
+    let removed = expectation(description: "removed")
+    removed.isInverted = true
+    removal.start(
+      Self.request(trashEnabled: true), moveFocus: { _ in }, remove: { _ in removed.fulfill() })
+    removal.trashEnabled = false
+    removal.focusChanged(to: PutioFileID(rawValue: 412))
+    await fulfillment(of: [removed], timeout: 0.5)
+    XCTAssertEqual(removal.dropped?.id, PutioFileID(rawValue: 412))
+  }
+
   func testToastsNameTheActionAndFollowTheTrashSetting() {
     let video = Self.video()
     let delete = PutioFileAction.delete(fileID: video.id, name: video.name)
@@ -127,6 +174,11 @@ final class TVFilesTests: XCTestCase {
       TVFilePresentation.toast(
         for: .succeeded(.sort(folderID: .root, sort: .nameDescending)), trashEnabled: true),
       "the header already shows the new sort")
+  }
+
+  private static func request(trashEnabled: Bool) -> TVRowRemoval.Request {
+    TVRowRemoval.Request(
+      item: video(), focus: PutioFileID(rawValue: 410), trashEnabled: trashEnabled)
   }
 
   private static func video(

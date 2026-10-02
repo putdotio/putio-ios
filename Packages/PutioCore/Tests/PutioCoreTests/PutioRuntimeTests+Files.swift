@@ -111,6 +111,18 @@ extension PutioRuntimeTests {
     XCTAssertEqual(unwatched.url?.path, "/v2/files/411/start-from/delete")
   }
 
+  func testWatchStatusRejectsASuccessfulResponseThatIsNotOK() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(#"{"status":"ERROR"}"#, for: "GET /v2/files/411/start-from/delete")
+
+    do {
+      try await runtime.setFileWatched(fileID: PutioFileID(rawValue: 411), watched: false)
+      XCTFail("a status other than OK must not count as marked")
+    } catch {
+      XCTAssertEqual(error as? PutioRuntimeError, .invalidResponse)
+    }
+  }
+
   func testContinueFilesPostsTheCursorAndAppendsNothingItself() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
