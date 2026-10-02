@@ -17,7 +17,9 @@ Start with [Contributing](CONTRIBUTING.md) for setup, running the apps, and test
 
 ## Security
 
-Report vulnerabilities through the [private reporting process](SECURITY.md).
+Report vulnerabilities through the [put.io security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md).
+Shipping-app reports belong to the [legacy line](docs/distribution.md); rewrite
+reports belong to `next`.
 
 ## License
 
