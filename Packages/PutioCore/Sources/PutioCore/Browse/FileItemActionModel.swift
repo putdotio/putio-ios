@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 /// Runs single-item file actions on rows no folder model owns, such as search
