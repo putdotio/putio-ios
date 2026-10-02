@@ -139,7 +139,7 @@ struct TVHistoryView: View {
   }
 
   private func list(_ page: PutioHistoryPage) -> some View {
-    List {
+    TVRowList {
       if let failure = model.refreshFailure {
         TVRetrySection(message: failure.message, identifier: "history.refresh-retry") {
           await model.refresh()
@@ -163,14 +163,9 @@ struct TVHistoryView: View {
           .accessibilityIdentifier("history.progress")
       }
       ForEach(TVHistoryPresentation.sections(page, now: groupingDate)) { section in
-        Section {
-          ForEach(section.items) { event in
-            eventRow(event)
-          }
-        } header: {
-          Text(section.title)
-            .putioFont(PutioTheme.TV.Typography.caption)
-            .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+        TVSectionHeader(title: section.title)
+        ForEach(section.items) { event in
+          eventRow(event)
         }
       }
       if let before = page.nextBefore, model.refreshFailure == nil {
@@ -180,6 +175,7 @@ struct TVHistoryView: View {
           }
         } else {
           ProgressView("Loading more history")
+            .frame(maxWidth: .infinity)
             .accessibilityIdentifier("history.load-more")
             .task(
               id: PageRequest(
@@ -236,6 +232,7 @@ struct TVHistoryEventRow: View {
       VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
         Text(TVHistoryPresentation.title(event))
           .putioFont(PutioTheme.TV.Typography.body)
+          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
           .lineLimit(1)
           .truncationMode(.middle)
         Text(TVHistoryPresentation.detail(event, now: now, locale: locale))
@@ -245,11 +242,12 @@ struct TVHistoryEventRow: View {
       Spacer(minLength: PutioTheme.TV.Spacing.small)
       if isOpening { ProgressView().accessibilityLabel("Opening file") }
     }
+    .tvRowPadding()
     .accessibilityElement(children: .combine)
   }
 }
 
-/// A failure row with its retry, and optionally a way to set it aside.
+/// A failure message with its retry, and optionally a way to set it aside.
 struct TVRetrySection: View {
   let message: String
   let identifier: String
@@ -258,17 +256,21 @@ struct TVRetrySection: View {
   let retry: @MainActor () async -> Void
 
   var body: some View {
-    Section {
+    VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
       Text(message)
         .putioFont(PutioTheme.TV.Typography.body)
         .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
         .accessibilityIdentifier("\(identifier).message")
-      Button(retryTitle) { Task { await retry() } }
-        .accessibilityIdentifier(identifier)
-      if let dismiss {
-        Button("Dismiss", action: dismiss)
-          .accessibilityIdentifier("\(identifier).dismiss")
+      HStack(spacing: PutioTheme.TV.Spacing.small) {
+        PutioButton(retryTitle, tier: .secondary) { Task { await retry() } }
+          .accessibilityIdentifier(identifier)
+        if let dismiss {
+          PutioButton("Dismiss", tier: .secondary, action: dismiss)
+            .accessibilityIdentifier("\(identifier).dismiss")
+        }
       }
     }
+    .padding(.horizontal, PutioTheme.TV.Spacing.medium)
+    .focusSection()
   }
 }

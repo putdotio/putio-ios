@@ -215,18 +215,13 @@ struct TVAccountScreen: View {
   var body: some View {
     VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.medium) {
       header
-      List {
+      TVRowList {
         statusSection
         ForEach(TVAccountSection.allCases) { section in
-          Section {
-            ForEach(section.rows(for: account)) { row in
-              rowView(row)
-                .focused($focusedRow, equals: row)
-            }
-          } header: {
-            Text(section.title)
-              .putioFont(PutioTheme.TV.Typography.caption)
-              .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+          TVSectionHeader(title: section.title)
+          ForEach(section.rows(for: account)) { row in
+            rowView(row)
+              .focused($focusedRow, equals: row)
           }
         }
       }
@@ -284,7 +279,7 @@ struct TVAccountScreen: View {
   @ViewBuilder
   private var statusSection: some View {
     if status.isStale || status.failure != nil || status.isSaving {
-      Section {
+      VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
         if let message = statusMessage {
           Text(message)
             .putioFont(PutioTheme.TV.Typography.body)
@@ -292,7 +287,7 @@ struct TVAccountScreen: View {
             .accessibilityIdentifier("account.settings-failure")
         }
         if status.isStale || status.failure != nil {
-          Button(retryTitle, action: retry)
+          PutioButton(retryTitle, tier: .secondary, action: retry)
             .disabled(status.isSaving || status.isRefreshing)
             .accessibilityIdentifier("account.settings-retry")
         }
@@ -301,6 +296,7 @@ struct TVAccountScreen: View {
             .accessibilityIdentifier("account.saving")
         }
       }
+      .padding(.horizontal, PutioTheme.TV.Spacing.medium)
     }
   }
 
@@ -321,7 +317,7 @@ struct TVAccountScreen: View {
     switch row {
     case .proxy:
       NavigationLink(value: TVRoute.proxy) {
-        TVValueRow(title: row.title, value: account.routeName)
+        TVValueRow(title: row.title, value: account.routeName, opens: true)
       }
       .disabled(!status.canSave)
       .accessibilityIdentifier(row.identifier)
@@ -329,9 +325,25 @@ struct TVAccountScreen: View {
       NavigationLink(value: TVRoute.trash) {
         TVValueRow(
           title: row.title,
-          value: PutioFileRowModel.sizeText(bytes: account.trashSizeBytes, locale: locale))
+          value: PutioFileRowModel.sizeText(bytes: account.trashSizeBytes, locale: locale),
+          opens: true)
       }
       .accessibilityIdentifier(row.identifier)
+    case .showSubtitles, .subtitleSelection, .trash:
+      let isOn = row.isOn(in: account) ?? false
+      // Selecting the row cycles its value; there is no toggle on tvOS.
+      Button {
+        switch row.change(to: !isOn) {
+        case .save(let mutation): save(mutation)
+        case .confirmDisablingTrash: confirmsDisablingTrash = true
+        case nil: break
+        }
+      } label: {
+        TVValueRow(title: row.title, value: Self.onOff(isOn))
+      }
+      .disabled(!status.canSave)
+      .accessibilityIdentifier(row.identifier)
+      .accessibilityValue(Self.onOff(isOn))
     case .rememberPosition:
       TVValueRow(
         title: row.title, value: Self.onOff(account.rememberVideoTime),
@@ -339,24 +351,6 @@ struct TVAccountScreen: View {
       )
       .accessibilityElement(children: .combine)
       .accessibilityIdentifier(row.identifier)
-    case .showSubtitles, .subtitleSelection, .trash:
-      PutioPickerRow(
-        title: row.title,
-        selection: Binding(
-          get: { row.isOn(in: account) ?? false },
-          set: { isOn in
-            switch row.change(to: isOn) {
-            case .save(let mutation): save(mutation)
-            case .confirmDisablingTrash: confirmsDisablingTrash = true
-            case nil: break
-            }
-          }),
-        options: [true, false],
-        optionLabel: Self.onOff
-      )
-      .disabled(!status.canSave)
-      .accessibilityIdentifier(row.identifier)
-      .accessibilityValue(Self.onOff(row.isOn(in: account) ?? false))
     case .app:
       TVValueRow(title: row.title, value: appInfo.app)
         .accessibilityElement(children: .combine)
@@ -385,6 +379,7 @@ struct TVValueRow: View {
   let title: String
   let value: String
   var caption: String?
+  var opens = false
 
   var body: some View {
     HStack(spacing: PutioTheme.TV.Spacing.small) {
@@ -404,10 +399,12 @@ struct TVValueRow: View {
         .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
         .lineLimit(1)
         .truncationMode(.middle)
+      if opens { TVDisclosure() }
     }
+    .tvRowPadding()
   }
 
-  // Matches the kit's picker rows so every settings title reads alike.
+  // The kit's form-row title face, so every settings title reads alike.
   static let titleFont = PutioFontRole(
     fontName: PutioTheme.Components.Button.label.fontName,
     size: PutioTheme.TV.Typography.body.size,
@@ -537,7 +534,7 @@ struct TVProxyChooserScreen: View {
         if isLoading { ProgressView() }
       }
       if let routes {
-        List {
+        TVRowList {
           if let failure { failureSection(failure) }
           ForEach(options(routes)) { route in
             Button {
@@ -546,7 +543,9 @@ struct TVProxyChooserScreen: View {
             } label: {
               TVChoiceLabel(
                 title: route.description.isEmpty ? route.name : route.description,
-                isSelected: route.name == currentRoute)
+                isSelected: route.name == currentRoute
+              )
+              .tvRowPadding()
             }
             .disabled(!canSelect)
             .focused($focusedRoute, equals: route.name)
@@ -577,15 +576,16 @@ struct TVProxyChooserScreen: View {
   }
 
   private func failureSection(_ failure: String) -> some View {
-    Section {
+    VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
       Text(failure)
         .putioFont(PutioTheme.TV.Typography.body)
         .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
         .accessibilityIdentifier("proxy.failure")
-      Button("Try again", action: retry)
+      PutioButton("Try again", tier: .secondary, action: retry)
         .disabled(isLoading)
         .accessibilityIdentifier("proxy.retry")
     }
+    .padding(.horizontal, PutioTheme.TV.Spacing.medium)
   }
 }
 
@@ -600,10 +600,12 @@ struct TVChoiceLabel: View {
         .resizable()
         .scaledToFit()
         .frame(width: TVRowLayout.iconSize, height: TVRowLayout.iconSize)
+        .foregroundStyle(PutioTheme.Colors.accent)
         .opacity(isSelected ? 1 : 0)
         .accessibilityHidden(true)
       Text(title)
         .putioFont(PutioTheme.TV.Typography.body)
+        .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
     }
   }
 }

@@ -188,7 +188,7 @@ struct TVTrashView: View {
   }
 
   private func list(_ page: PutioTrashPage, isEmpty: Bool) -> some View {
-    List {
+    TVRowList {
       if let failure = model.refreshFailure {
         TVRetrySection(
           message: "\(failure.title). \(failure.message)", identifier: "trash.refresh-retry"
@@ -205,23 +205,20 @@ struct TVTrashView: View {
         }
       }
       if isEmpty {
-        Section { emptyState }
+        emptyState
       } else if !page.items.isEmpty {
-        Section {
-          ForEach(page.items) { item in
-            Button {
-              selectedItem = item
-            } label: {
-              PutioFileRow(TVTrashPresentation.row(item, now: now, locale: locale))
-            }
-            .disabled(!model.canMutate)
-            .accessibilityIdentifier("trash.item.\(item.id.rawValue)")
+        Text("Heads up: Files in trash have an expiry date of 14 days.")
+          .putioFont(PutioTheme.TV.Typography.caption)
+          .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+          .accessibilityIdentifier("trash.expiry-notice")
+        ForEach(page.items) { item in
+          Button {
+            selectedItem = item
+          } label: {
+            PutioFileRow(TVTrashPresentation.row(item, now: now, locale: locale))
           }
-        } header: {
-          Text("Heads up: Files in trash have an expiry date of 14 days.")
-            .putioFont(PutioTheme.TV.Typography.caption)
-            .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-            .accessibilityIdentifier("trash.expiry-notice")
+          .disabled(!model.canMutate)
+          .accessibilityIdentifier("trash.item.\(item.id.rawValue)")
         }
       }
       if let cursor = page.nextCursor {
@@ -233,6 +230,7 @@ struct TVTrashView: View {
           }
         } else {
           ProgressView("Loading more")
+            .frame(maxWidth: .infinity)
             .accessibilityIdentifier("trash.load-more")
             // Re-keyed when blocking work settles, so a page the model
             // refused while busy is requested again.

@@ -125,13 +125,21 @@ struct TVHomeScreen: View {
         .putioFont(PutioTheme.TV.Typography.heading)
         .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
         .accessibilityAddTraits(.isHeader)
-      List(entries) { entry in
-        NavigationLink(value: entry.route) {
-          TVIconLabel(title: entry.title, icon: entry.icon)
+      TVRowList {
+        ForEach(entries) { entry in
+          NavigationLink(value: entry.route) {
+            HStack(spacing: PutioTheme.TV.Spacing.small) {
+              TVIconLabel(title: entry.title, icon: entry.icon)
+              Spacer(minLength: PutioTheme.TV.Spacing.small)
+              TVDisclosure()
+            }
+            .tvRowPadding()
+          }
+          .accessibilityIdentifier("home.\(entry.route.identifier)")
         }
-        .accessibilityIdentifier("home.\(entry.route.identifier)")
       }
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .tvOverscanPadding()
     .background(PutioTheme.Colors.background.ignoresSafeArea())
   }
@@ -152,7 +160,59 @@ struct TVIconLabel: View {
         .accessibilityHidden(true)
       Text(title)
         .putioFont(PutioTheme.TV.Typography.body)
+        .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
     }
+  }
+}
+
+/// A scrolling column of rows. Rows that act as controls use the stock card
+/// style, which owns the focus lift; the shipped app's lists are this shape.
+struct TVRowList<Content: View>: View {
+  @ViewBuilder let content: Content
+
+  var body: some View {
+    ScrollView {
+      LazyVStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
+        content
+      }
+      .padding(.vertical, PutioTheme.TV.Spacing.small)
+    }
+    // The card lift grows past the column; clipping would cut it off.
+    .scrollClipDisabled()
+    .buttonStyle(.card)
+  }
+}
+
+struct TVSectionHeader: View {
+  let title: String
+
+  var body: some View {
+    Text(title)
+      .putioFont(PutioTheme.TV.Typography.caption)
+      .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+      .padding(.top, PutioTheme.TV.Spacing.small)
+      .accessibilityAddTraits(.isHeader)
+  }
+}
+
+/// The chevron on a row that opens another screen.
+struct TVDisclosure: View {
+  var body: some View {
+    Image(putioIcon: .caretRight)
+      .resizable()
+      .scaledToFit()
+      .frame(width: TVRowLayout.disclosureSize, height: TVRowLayout.disclosureSize)
+      .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
+      .accessibilityHidden(true)
+  }
+}
+
+extension View {
+  /// The inset a row's content keeps from its card edges.
+  func tvRowPadding() -> some View {
+    padding(.horizontal, PutioTheme.TV.Spacing.medium)
+      .padding(.vertical, PutioTheme.TV.Spacing.small)
+      .frame(maxWidth: .infinity, alignment: .leading)
   }
 }
 
@@ -178,6 +238,7 @@ struct TVScreenHeader<Actions: View>: View {
 
 enum TVRowLayout {
   static let iconSize = PutioTheme.TV.Typography.label.size
+  static let disclosureSize = PutioTheme.TV.Typography.caption.size
 }
 
 /// Where a History event leads until the file browser lands: the resolved
