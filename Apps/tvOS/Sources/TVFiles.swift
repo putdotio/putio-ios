@@ -173,6 +173,7 @@ struct TVFolderView: View {
   @State private var model: PutioFolderModel
   @State private var refreshRegistration: PutioFolderRefreshRegistration
   @State private var menuItem: PutioFileItem?
+  @FocusState private var focusedRow: PutioFileID?
   @State private var choosesSort = false
   @State private var toast: PutioToast?
   @State private var hasAppeared = false
@@ -343,12 +344,16 @@ struct TVFolderView: View {
           open: { open(item) },
           showMenu: { if model.canStartAction { menuItem = item } }
         )
+        .focused($focusedRow, equals: item.id)
       }
       if contents.nextCursor != nil {
         if let failure = model.loadMoreFailure {
           TVRetrySection(
             message: "\(failure.title). \(failure.message)", identifier: "files.more-retry"
           ) {
+            // The retry row goes away as the page loads; without a target,
+            // focus would jump back to the top of the folder.
+            focusedRow = contents.items.last?.id
             await model.loadMore()
           }
         } else {

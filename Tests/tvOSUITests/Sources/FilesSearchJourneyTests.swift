@@ -36,8 +36,11 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(focus("files.more-retry", moving: .down, limit: 16))
     attach("runtime-tv-files-more-recovery")
     remote.press(.select)
-    XCTAssertTrue(element("files.item.422").waitForExistence(timeout: 10))
-    XCTAssertFalse(moreRetry.exists)
+    XCTAssertTrue(waitUntil(timeout: 10) { !moreRetry.exists })
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("files.item.424") },
+      "focus stays at the end of the list, not back at the top")
+    XCTAssertTrue(focus("files.item.422", moving: .down, limit: 3), "the second page loaded")
 
     // Sorting persists on the server and the list reloads in its order.
     XCTAssertTrue(focus("files.sort", moving: .up, limit: 20))
@@ -47,7 +50,8 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(selectModalButton("files.sort.NAME_DESC"))
     XCTAssertTrue(
       waitUntil(timeout: 10) { self.element("files.sort").label.contains("descending") })
-    XCTAssertTrue(waitUntil(timeout: 10) { self.isAbove("files.item.424", "files.item.410") })
+    // The fixture reverses the first page, so the last folders now lead.
+    XCTAssertTrue(waitUntil(timeout: 10) { self.isAbove("files.item.424", "files.item.413") })
 
     // Long press opens the centered menu without opening the row.
     XCTAssertTrue(focus("files.item.412"))
@@ -151,6 +155,7 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(element("search.more-retry").waitForExistence(timeout: 10))
     XCTAssertTrue(focus("search.more-retry", moving: .down, limit: 6))
     remote.press(.select)
+    XCTAssertTrue(waitUntil(timeout: 5) { self.hasFocus("search.item.410") })
     XCTAssertTrue(element("search.item.411").waitForExistence(timeout: 10))
     attach("runtime-tv-search-results")
 

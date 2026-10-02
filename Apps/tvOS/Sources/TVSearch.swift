@@ -13,6 +13,7 @@ struct TVSearchView: View {
   @State private var model: PutioFileSearchModel
   @State private var itemActions: PutioFileItemActionModel
   @State private var menuItem: PutioFileItem?
+  @FocusState private var focusedRow: PutioFileID?
   @State private var toast: PutioToast?
   @State private var now: Date
   private let locale: Locale
@@ -121,10 +122,13 @@ struct TVSearchView: View {
           open: { open(item) },
           showMenu: { if itemActions.canStartAction { menuItem = item } }
         )
+        .focused($focusedRow, equals: item.id)
       }
       if let cursor = page.nextCursor, model.refreshFailure == nil {
         if let failure = model.loadMoreFailure {
           TVRetrySection(message: failure.message, identifier: "search.more-retry") {
+            // Keeps focus at the end of the results as the retry row goes.
+            focusedRow = page.items.last?.id
             await model.loadMore()
           }
         } else {
