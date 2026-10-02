@@ -63,7 +63,7 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(selectModalButton("history.clear-confirm"))
     let mutationRetry = element("history.mutation-retry")
     XCTAssertTrue(mutationRetry.waitForExistence(timeout: 10))
-    XCTAssertTrue(focus("history.mutation-retry", moving: .up))
+    XCTAssertTrue(focus("history.mutation-retry"))
     remote.press(.select)
     XCTAssertTrue(element("history.empty").waitForExistence(timeout: 10))
     attach("runtime-tv-history-empty")
