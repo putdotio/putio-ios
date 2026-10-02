@@ -1,8 +1,8 @@
 import Foundation
-import PutioCore
 import XCTest
 
 @testable import Putio
+@testable import PutioCore
 
 @MainActor
 final class DeepLinkTests: XCTestCase {

@@ -1,8 +1,7 @@
 import Foundation
-import PutioCore
 
 @MainActor
-final class PutioFilesNavigationRestoration {
+public final class PutioFilesNavigationRestoration {
   private struct Snapshot: Codable {
     struct Folder: Codable {
       let id: Int
@@ -15,11 +14,11 @@ final class PutioFilesNavigationRestoration {
 
   private let defaults: UserDefaults
 
-  init(defaults: UserDefaults = .standard) {
+  public init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
   }
 
-  func save(path: [PutioFolderRoute], for accountID: Int) {
+  public func save(path: [PutioFolderRoute], for accountID: Int) {
     guard accountID > 0 else { return }
     guard Self.isValid(path) else {
       clear(accountID: accountID)
@@ -33,11 +32,11 @@ final class PutioFilesNavigationRestoration {
     defaults.set(data, forKey: key(accountID))
   }
 
-  func clear(accountID: Int) {
+  public func clear(accountID: Int) {
     defaults.removeObject(forKey: key(accountID))
   }
 
-  func restore(accountID: Int, load: PutioFolderLoad) async -> [PutioFolderRoute] {
+  public func restore(accountID: Int, load: PutioFolderLoad) async -> [PutioFolderRoute] {
     guard accountID > 0, let data = defaults.data(forKey: key(accountID)) else { return [] }
     guard let snapshot = try? JSONDecoder().decode(Snapshot.self, from: data),
       snapshot.version == 1

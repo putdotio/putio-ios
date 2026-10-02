@@ -1,8 +1,7 @@
 import Foundation
 import Observation
-import PutioCore
 
-enum PutioAccountPreferenceMutation: Equatable, Sendable {
+public enum PutioAccountPreferenceMutation: Equatable, Sendable {
   case defaultSort(PutioFolderSort)
   case resetFolderSorts
   case trash(Bool)
@@ -12,7 +11,7 @@ enum PutioAccountPreferenceMutation: Equatable, Sendable {
   case dontAutoSelectSubtitles(Bool)
 }
 
-struct PutioAccountPreferenceActions: Sendable {
+public struct PutioAccountPreferenceActions: Sendable {
   let save:
     @MainActor @Sendable (PutioAccountPreferenceMutation) async throws ->
       PutioAccountPreferencesMutationResult
@@ -21,7 +20,7 @@ struct PutioAccountPreferenceActions: Sendable {
   let isStale: @MainActor @Sendable () -> Bool
   let isUpdating: @MainActor @Sendable () -> Bool
 
-  init(runtime: PutioRuntime) {
+  public init(runtime: PutioRuntime) {
     save = { mutation in
       switch mutation {
       case .defaultSort(let sort): try await runtime.setDefaultFolderSort(sort)
@@ -62,23 +61,23 @@ struct PutioAccountPreferenceActions: Sendable {
 
 @MainActor
 @Observable
-final class PutioAccountPreferencesModel {
+public final class PutioAccountPreferencesModel {
   private(set) var saving: PutioAccountPreferenceMutation?
-  private(set) var isRefreshing = false
-  private(set) var failure: String?
-  private(set) var failedMutation: PutioAccountPreferenceMutation?
+  public private(set) var isRefreshing = false
+  public private(set) var failure: String?
+  public private(set) var failedMutation: PutioAccountPreferenceMutation?
   @ObservationIgnored private let actions: PutioAccountPreferenceActions
-  init(actions: PutioAccountPreferenceActions) {
+  public init(actions: PutioAccountPreferenceActions) {
     self.actions = actions
   }
 
-  var account: PutioAccountSnapshot? { actions.account() }
-  var isStale: Bool { actions.isStale() }
-  var isSaving: Bool { saving != nil || actions.isUpdating() }
-  var isBusy: Bool { isSaving || isRefreshing }
-  var canSave: Bool { !isBusy && !isStale && account != nil }
+  public var account: PutioAccountSnapshot? { actions.account() }
+  public var isStale: Bool { actions.isStale() }
+  public var isSaving: Bool { saving != nil || actions.isUpdating() }
+  public var isBusy: Bool { isSaving || isRefreshing }
+  public var canSave: Bool { !isBusy && !isStale && account != nil }
 
-  func save(_ mutation: PutioAccountPreferenceMutation) async {
+  public func save(_ mutation: PutioAccountPreferenceMutation) async {
     guard canSave else { return }
     saving = mutation
     failure = nil
@@ -106,12 +105,12 @@ final class PutioAccountPreferencesModel {
     await task.value
   }
 
-  func retrySave() async {
+  public func retrySave() async {
     guard let failedMutation else { return }
     await save(failedMutation)
   }
 
-  func retryRefresh() async {
+  public func retryRefresh() async {
     guard !isBusy, account != nil else { return }
     isRefreshing = true
     failure = nil
@@ -137,6 +136,25 @@ final class PutioAccountPreferencesModel {
     case .rateLimited: return "put.io is receiving too many requests. Try again shortly."
     case .invalidResponse: return "put.io returned an invalid response. Try again."
     case .notFound, .unknown, nil: return "Could not save account settings. Try again."
+    }
+  }
+}
+
+/// Account changes can arrive after the settings screen has been dismissed,
+/// including through a storage refresh following an uncertain settings write.
+public enum PutioAccountPreferencesReconciliation {
+  @MainActor
+  public static func apply(
+    previous: PutioAccountSnapshot, current: PutioAccountSnapshot,
+    folders: PutioFolderRefreshRequests, trash: PutioTrashReconciliation
+  ) {
+    guard previous.id == current.id else { return }
+    if previous.defaultSort != current.defaultSort || previous.trashEnabled != current.trashEnabled
+    {
+      folders.requestAllLoadedFolders()
+    }
+    if previous.trashEnabled && !current.trashEnabled {
+      trash.recordEmptied()
     }
   }
 }

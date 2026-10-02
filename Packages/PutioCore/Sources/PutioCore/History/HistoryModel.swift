@@ -1,14 +1,13 @@
 import Foundation
 import Observation
-import PutioCore
 
-struct PutioHistoryActions: Sendable {
+public struct PutioHistoryActions: Sendable {
   let list: @MainActor @Sendable (Int?) async throws -> PutioHistoryPage
   let delete: @MainActor @Sendable (Int) async throws -> Void
   let clear: @MainActor @Sendable () async throws -> Void
   let file: @MainActor @Sendable (PutioFileID) async throws -> PutioFileItem
 
-  init(runtime: PutioRuntime) {
+  public init(runtime: PutioRuntime) {
     list = { try await runtime.listHistory(before: $0) }
     delete = { try await runtime.deleteHistoryEvent(id: $0) }
     clear = { try await runtime.clearHistory() }
@@ -28,8 +27,8 @@ struct PutioHistoryActions: Sendable {
   }
 }
 
-struct PutioHistoryFailure: Equatable {
-  let message: String
+public struct PutioHistoryFailure: Equatable {
+  public let message: String
 
   init(message: String) { self.message = message }
 
@@ -48,50 +47,50 @@ struct PutioHistoryFailure: Equatable {
 
 @MainActor
 @Observable
-final class PutioHistoryModel {
-  enum State: Equatable {
+public final class PutioHistoryModel {
+  public enum State: Equatable {
     case loading
     case loaded(PutioHistoryPage)
     case failed(PutioHistoryFailure)
   }
 
-  enum Mutation: Equatable {
+  public enum Mutation: Equatable {
     case delete(Int)
     case clear
   }
 
-  private(set) var state: State = .loading
-  private(set) var isRefreshing = false
+  public private(set) var state: State = .loading
+  public private(set) var isRefreshing = false
   private(set) var isLoadingMore = false
-  private(set) var refreshFailure: PutioHistoryFailure?
-  private(set) var loadMoreFailure: PutioHistoryFailure?
-  private(set) var paginationEpoch: UInt64 = 0
-  private(set) var mutation: Mutation?
+  public private(set) var refreshFailure: PutioHistoryFailure?
+  public private(set) var loadMoreFailure: PutioHistoryFailure?
+  public private(set) var paginationEpoch: UInt64 = 0
+  public private(set) var mutation: Mutation?
   private(set) var failedMutation: Mutation?
-  private(set) var mutationFailure: PutioHistoryFailure?
-  private(set) var openingEventID: Int?
-  private(set) var openedFile: PutioFileItem?
-  private(set) var openFailure: PutioHistoryFailure?
+  public private(set) var mutationFailure: PutioHistoryFailure?
+  public private(set) var openingEventID: Int?
+  public private(set) var openedFile: PutioFileItem?
+  public private(set) var openFailure: PutioHistoryFailure?
   @ObservationIgnored private let actions: PutioHistoryActions
-  private(set) var generation: UInt64 = 0
+  public private(set) var generation: UInt64 = 0
   @ObservationIgnored private var failedOpen: PutioHistoryEventItem?
   @ObservationIgnored private var openGeneration: UInt64 = 0
 
-  init(actions: PutioHistoryActions) {
+  public init(actions: PutioHistoryActions) {
     self.actions = actions
   }
 
-  var page: PutioHistoryPage? {
+  public var page: PutioHistoryPage? {
     if case .loaded(let page) = state { return page }
     return nil
   }
 
-  func loadIfNeeded() async {
+  public func loadIfNeeded() async {
     guard case .loading = state else { return }
     await refresh()
   }
 
-  func refresh() async {
+  public func refresh() async {
     guard mutation == nil else { return }
     let previous = state
     generation &+= 1
@@ -138,7 +137,7 @@ final class PutioHistoryModel {
     }
   }
 
-  func loadMore() async {
+  public func loadMore() async {
     guard mutation == nil, !isRefreshing, !isLoadingMore, refreshFailure == nil,
       case .loaded(let current) = state, let before = current.nextBefore
     else { return }
@@ -170,14 +169,14 @@ final class PutioHistoryModel {
     }
   }
 
-  func delete(eventID: Int) async {
+  public func delete(eventID: Int) async {
     guard case .loaded(let page) = state, page.items.contains(where: { $0.id == eventID }) else {
       return
     }
     await mutate(.delete(eventID), page: page)
   }
 
-  func clear() async {
+  public func clear() async {
     guard case .loaded(let page) = state else { return }
     await mutate(.clear, page: page)
   }
@@ -216,7 +215,7 @@ final class PutioHistoryModel {
     await task.value
   }
 
-  func retryMutation() async {
+  public func retryMutation() async {
     guard let failedMutation else { return }
     switch failedMutation {
     case .delete(let id): await delete(eventID: id)
@@ -224,7 +223,7 @@ final class PutioHistoryModel {
     }
   }
 
-  func openFile(event: PutioHistoryEventItem) async {
+  public func openFile(event: PutioHistoryEventItem) async {
     guard let fileID = event.fileID, fileID.rawValue > 0 else { return }
     failedOpen = nil
     openGeneration &+= 1
@@ -251,7 +250,7 @@ final class PutioHistoryModel {
     PutioHistorySection.group(page?.items ?? [], now: now, calendar: calendar)
   }
 
-  func cancelOpen() {
+  public func cancelOpen() {
     openGeneration &+= 1
     openingEventID = nil
     openedFile = nil
@@ -259,12 +258,12 @@ final class PutioHistoryModel {
     failedOpen = nil
   }
 
-  func retryOpen() async {
+  public func retryOpen() async {
     guard let failedOpen else { return }
     await openFile(event: failedOpen)
   }
 
-  func clearOpenedFile() { openedFile = nil }
+  public func clearOpenedFile() { openedFile = nil }
   func clearMutationFailure() {
     mutationFailure = nil
     failedMutation = nil
@@ -275,21 +274,21 @@ final class PutioHistoryModel {
   }
 }
 
-struct PutioHistorySection: Identifiable {
-  enum Day: String, CaseIterable {
+public struct PutioHistorySection: Identifiable {
+  public enum Day: String, CaseIterable {
     case today = "Today"
     case yesterday = "Yesterday"
     case lastWeek = "Last week"
     case ancientTimes = "Ancient times"
   }
 
-  let id: Day
-  let items: [PutioHistoryEventItem]
-  var title: String { id.rawValue }
+  public let id: Day
+  public let items: [PutioHistoryEventItem]
+  public var title: String { id.rawValue }
 
   /// Calendar days back from `now`: today, yesterday, the rest of the last
   /// week (under 8 days), then everything older.
-  static func group(
+  public static func group(
     _ items: [PutioHistoryEventItem], now: Date = .now, calendar: Calendar = .current
   ) -> [PutioHistorySection] {
     let today = calendar.startOfDay(for: now)

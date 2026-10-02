@@ -1,10 +1,9 @@
 import Foundation
 import Observation
-import PutioCore
 
 /// Runtime seam for the security and danger-zone screens so tests drive the
 /// models with closures instead of a signed-in runtime.
-struct PutioAccountSecurityActions: Sendable {
+public struct PutioAccountSecurityActions: Sendable {
   let listApps: @MainActor @Sendable () async throws -> [PutioAuthorizedApp]
   let revokeApp: @MainActor @Sendable (Int) async throws -> Void
   let linkDevice: @MainActor @Sendable (String) async throws -> PutioAuthorizedApp
@@ -15,11 +14,11 @@ struct PutioAccountSecurityActions: Sendable {
   let regenerateRecoveryCodes: @MainActor @Sendable () async throws -> [PutioTwoFactorRecoveryCode]
   let clearData: @MainActor @Sendable (Set<PutioAccountDataCategory>) async throws -> Bool
   let destroyAccount: @MainActor @Sendable (String) async throws -> Void
-  let refreshAccount: @MainActor @Sendable () async -> Bool
-  let account: @MainActor @Sendable () -> PutioAccountSnapshot?
-  let isStale: @MainActor @Sendable () -> Bool
+  public let refreshAccount: @MainActor @Sendable () async -> Bool
+  public let account: @MainActor @Sendable () -> PutioAccountSnapshot?
+  public let isStale: @MainActor @Sendable () -> Bool
 
-  init(runtime: PutioRuntime) {
+  public init(runtime: PutioRuntime) {
     listApps = { try await runtime.listAuthorizedApps() }
     revokeApp = { try await runtime.revokeAuthorizedApp(id: $0) }
     linkDevice = { try await runtime.linkDevice(code: $0) }
@@ -73,7 +72,7 @@ struct PutioAccountSecurityActions: Sendable {
   }
 }
 
-enum PutioAccountSecurityPresentation {
+public enum PutioAccountSecurityPresentation {
   /// Copy for a failed request, or nil when the session itself ended and the
   /// root view already reacts.
   static func message(for error: Error) -> String? {
@@ -97,7 +96,7 @@ enum PutioAccountSecurityPresentation {
     }
   }
 
-  static let refreshWarning =
+  public static let refreshWarning =
     "Saved, but the latest account settings could not be loaded. Refresh to continue."
 }
 
@@ -106,8 +105,8 @@ enum PutioAccountSecurityPresentation {
 /// goes away, because the server may already have committed it.
 @MainActor
 @Observable
-final class PutioTwoFactorChangeModel {
-  enum Step: Equatable {
+public final class PutioTwoFactorChangeModel {
+  public enum Step: Equatable {
     case loadingSecret
     case secret(String)
     case code
@@ -115,21 +114,21 @@ final class PutioTwoFactorChangeModel {
     case finished(accountRefreshed: Bool)
   }
 
-  let enabling: Bool
-  private(set) var step: Step
-  var code = ""
-  private(set) var secretFailure: String?
-  private(set) var codeFailure: String?
-  private(set) var isSubmitting = false
-  private(set) var isLoadingRecoveryCodes = false
-  private(set) var recoveryCodesFailure: String?
+  public let enabling: Bool
+  public private(set) var step: Step
+  public var code = ""
+  public private(set) var secretFailure: String?
+  public private(set) var codeFailure: String?
+  public private(set) var isSubmitting = false
+  public private(set) var isLoadingRecoveryCodes = false
+  public private(set) var recoveryCodesFailure: String?
   @ObservationIgnored private let actions: PutioAccountSecurityActions
   @ObservationIgnored private var secretGeneration = 0
   // Whether the account reload after the save succeeded; the codes step
   // must carry it through to the finish so a stale warning is not dropped.
   @ObservationIgnored private var accountRefreshed = true
 
-  init(enabling: Bool, actions: PutioAccountSecurityActions) {
+  public init(enabling: Bool, actions: PutioAccountSecurityActions) {
     self.enabling = enabling
     self.actions = actions
     step = enabling ? .loadingSecret : .code
@@ -140,12 +139,12 @@ final class PutioTwoFactorChangeModel {
     return nil
   }
 
-  var canSubmit: Bool {
+  public var canSubmit: Bool {
     !isSubmitting && !isLoadingRecoveryCodes && recoveryCodesFailure == nil
       && !code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
 
-  func loadSecret() async {
+  public func loadSecret() async {
     guard enabling, secret == nil else { return }
     secretGeneration += 1
     let generation = secretGeneration
@@ -161,12 +160,12 @@ final class PutioTwoFactorChangeModel {
     }
   }
 
-  func continueToCode() {
+  public func continueToCode() {
     guard secret != nil else { return }
     step = .code
   }
 
-  func submit() async {
+  public func submit() async {
     guard canSubmit, case .code = step else { return }
     isSubmitting = true
     codeFailure = nil
@@ -194,19 +193,19 @@ final class PutioTwoFactorChangeModel {
     await task.value
   }
 
-  func retryRecoveryCodes() async {
+  public func retryRecoveryCodes() async {
     guard case .code = step, !isSubmitting, recoveryCodesFailure != nil else { return }
     await loadRecoveryCodes()
   }
 
-  func finish() {
+  public func finish() {
     guard case .recoveryCodes = step else { return }
     step = .finished(accountRefreshed: accountRefreshed)
   }
 
   /// Two-factor is already on but the codes never loaded; the Security screen
   /// keeps offering them, so leaving here is explicit rather than blocked.
-  func finishWithoutRecoveryCodes() {
+  public func finishWithoutRecoveryCodes() {
     guard case .code = step, recoveryCodesFailure != nil, !isLoadingRecoveryCodes else { return }
     step = .finished(accountRefreshed: accountRefreshed)
   }
@@ -229,24 +228,26 @@ final class PutioTwoFactorChangeModel {
   }
 }
 
+extension PutioTwoFactorChangeModel: Identifiable {}
+
 @MainActor
 @Observable
-final class PutioRecoveryCodesModel {
-  private(set) var codes: [PutioTwoFactorRecoveryCode]?
+public final class PutioRecoveryCodesModel {
+  public private(set) var codes: [PutioTwoFactorRecoveryCode]?
   private(set) var isLoading = false
-  private(set) var isRegenerating = false
-  private(set) var failure: String?
-  private(set) var canRetryRegenerate = false
+  public private(set) var isRegenerating = false
+  public private(set) var failure: String?
+  public private(set) var canRetryRegenerate = false
   @ObservationIgnored private let actions: PutioAccountSecurityActions
   @ObservationIgnored private var generation = 0
 
-  init(actions: PutioAccountSecurityActions) {
+  public init(actions: PutioAccountSecurityActions) {
     self.actions = actions
   }
 
-  var isBusy: Bool { isLoading || isRegenerating }
+  public var isBusy: Bool { isLoading || isRegenerating }
 
-  func load() async {
+  public func load() async {
     guard codes == nil, !isBusy else { return }
     generation += 1
     let generation = generation
@@ -266,12 +267,12 @@ final class PutioRecoveryCodesModel {
     }
   }
 
-  func retryLoad() async {
+  public func retryLoad() async {
     guard codes == nil else { return }
     await load()
   }
 
-  func regenerate() async {
+  public func regenerate() async {
     guard !isBusy else { return }
     generation += 1
     let generation = generation
@@ -325,16 +326,16 @@ final class PutioRecoveryCodesModel {
   }
 
   /// Unused codes only; a used code has no value to the user.
-  var copyableText: String {
+  public var copyableText: String {
     Self.unusedText(codes ?? [])
   }
 
-  nonisolated static func unusedText(_ codes: [PutioTwoFactorRecoveryCode]) -> String {
+  public nonisolated static func unusedText(_ codes: [PutioTwoFactorRecoveryCode]) -> String {
     codes.filter { !$0.isUsed }.map(\.code).joined(separator: "\n")
   }
 
   /// put.io's web export name, stamped with milliseconds since 1970.
-  nonisolated static func exportFilename(at date: Date) -> String {
+  public nonisolated static func exportFilename(at date: Date) -> String {
     let milliseconds = Int64((date.timeIntervalSince1970 * 1000).rounded(.down))
     return "putio-two-factor-recovery-codes_\(milliseconds).txt"
   }
@@ -342,24 +343,24 @@ final class PutioRecoveryCodesModel {
 
 @MainActor
 @Observable
-final class PutioAuthorizedAppsModel {
-  enum State: Equatable {
+public final class PutioAuthorizedAppsModel {
+  public enum State: Equatable {
     case loading
     case loaded([PutioAuthorizedApp])
     case failed(String)
   }
 
-  private(set) var state: State = .loading
+  public private(set) var state: State = .loading
   /// A failed reload while rows are shown; the rows stay, but they are no
   /// longer known to be current.
-  private(set) var refreshFailure: String?
-  private(set) var revokingID: Int?
+  public private(set) var refreshFailure: String?
+  public private(set) var revokingID: Int?
   private(set) var failedRevokeID: Int?
-  private(set) var revokeFailure: String?
+  public private(set) var revokeFailure: String?
   @ObservationIgnored private let actions: PutioAccountSecurityActions
   @ObservationIgnored private var generation = 0
 
-  init(actions: PutioAccountSecurityActions) {
+  public init(actions: PutioAccountSecurityActions) {
     self.actions = actions
   }
 
@@ -368,7 +369,7 @@ final class PutioAuthorizedAppsModel {
     return []
   }
 
-  func load() async {
+  public func load() async {
     generation += 1
     let generation = generation
     if apps.isEmpty { state = .loading }
@@ -390,7 +391,7 @@ final class PutioAuthorizedAppsModel {
     }
   }
 
-  func revoke(id: Int) async {
+  public func revoke(id: Int) async {
     guard revokingID == nil, let app = apps.first(where: { $0.id == id }), !app.isCurrentClient
     else { return }
     revokingID = id
@@ -413,7 +414,7 @@ final class PutioAuthorizedAppsModel {
     await task.value
   }
 
-  func retryRevoke() async {
+  public func retryRevoke() async {
     guard let failedRevokeID else { return }
     await revoke(id: failedRevokeID)
   }
@@ -421,31 +422,31 @@ final class PutioAuthorizedAppsModel {
 
 @MainActor
 @Observable
-final class PutioLinkDeviceModel {
+public final class PutioLinkDeviceModel {
   /// Activation codes are six characters, as put.io's web linking form requires.
   static let codeLength = 6
   static let codeLengthFailure = "Must be exactly 6 characters."
 
-  var code: String
-  private(set) var isLinking = false
-  private(set) var failure: String?
-  private(set) var linkedApp: PutioAuthorizedApp?
+  public var code: String
+  public private(set) var isLinking = false
+  public private(set) var failure: String?
+  public private(set) var linkedApp: PutioAuthorizedApp?
   @ObservationIgnored private let actions: PutioAccountSecurityActions
 
-  init(actions: PutioAccountSecurityActions, code: String? = nil) {
+  public init(actions: PutioAccountSecurityActions, code: String? = nil) {
     self.actions = actions
     self.code = code.map(Self.normalized) ?? ""
   }
 
-  nonisolated static func normalized(_ code: String) -> String {
+  public nonisolated static func normalized(_ code: String) -> String {
     code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
   }
 
-  var canLink: Bool {
+  public var canLink: Bool {
     !isLinking && !Self.normalized(code).isEmpty
   }
 
-  func link() async {
+  public func link() async {
     guard canLink else { return }
     let code = Self.normalized(code)
     guard code.count == Self.codeLength else {
@@ -467,7 +468,7 @@ final class PutioLinkDeviceModel {
     await task.value
   }
 
-  func acknowledgeLink() {
+  public func acknowledgeLink() {
     linkedApp = nil
     code = ""
   }
@@ -475,12 +476,12 @@ final class PutioLinkDeviceModel {
 
 @MainActor
 @Observable
-final class PutioClearDataModel {
-  var selection: Set<PutioAccountDataCategory> = []
-  private(set) var isClearing = false
-  private(set) var failure: String?
-  private(set) var didClear = false
-  private(set) var refreshWarning: String?
+public final class PutioClearDataModel {
+  public var selection: Set<PutioAccountDataCategory> = []
+  public private(set) var isClearing = false
+  public private(set) var failure: String?
+  public private(set) var didClear = false
+  public private(set) var refreshWarning: String?
   @ObservationIgnored private let actions: PutioAccountSecurityActions
   /// Tells the shell which categories may be gone so mounted Files and
   /// History screens reload instead of showing deleted rows. Runs after every
@@ -489,7 +490,7 @@ final class PutioClearDataModel {
   @ObservationIgnored private let onCleared:
     @MainActor (_ categories: Set<PutioAccountDataCategory>, _ committed: Bool) -> Void
 
-  init(
+  public init(
     actions: PutioAccountSecurityActions,
     onCleared: @escaping @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void = { _, _ in }
   ) {
@@ -497,9 +498,9 @@ final class PutioClearDataModel {
     self.onCleared = onCleared
   }
 
-  var canClear: Bool { !isClearing && !selection.isEmpty }
+  public var canClear: Bool { !isClearing && !selection.isEmpty }
 
-  func clear() async {
+  public func clear() async {
     guard canClear else { return }
     isClearing = true
     failure = nil
@@ -523,7 +524,7 @@ final class PutioClearDataModel {
     await task.value
   }
 
-  func refreshAccount() async {
+  public func refreshAccount() async {
     guard refreshWarning != nil, !isClearing else { return }
     isClearing = true
     defer { isClearing = false }
@@ -533,28 +534,30 @@ final class PutioClearDataModel {
 
 @MainActor
 @Observable
-final class PutioDestroyAccountModel {
-  var password = ""
-  private(set) var isDestroying = false
-  private(set) var failure: String?
+public final class PutioDestroyAccountModel {
+  public var password = ""
+  public private(set) var isDestroying = false
+  public private(set) var failure: String?
   @ObservationIgnored private let actions: PutioAccountSecurityActions
   /// Runs once the account is gone, before the signed-in shell unmounts, so
   /// the shell can purge account-scoped local state such as offline media.
   @ObservationIgnored private let onDestroyed: @MainActor () -> Void
 
-  init(actions: PutioAccountSecurityActions, onDestroyed: @escaping @MainActor () -> Void = {}) {
+  public init(
+    actions: PutioAccountSecurityActions, onDestroyed: @escaping @MainActor () -> Void = {}
+  ) {
     self.actions = actions
     self.onDestroyed = onDestroyed
   }
 
-  var canDestroy: Bool {
+  public var canDestroy: Bool {
     !isDestroying && !password.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
   }
 
   /// A blank password is reported rather than ignored, since the alert has
   /// already closed by the time this runs. The password is sent as typed and
   /// never outlives its one request.
-  func destroy() async {
+  public func destroy() async {
     guard !isDestroying else { return }
     guard canDestroy else {
       password = ""

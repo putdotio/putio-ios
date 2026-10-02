@@ -1,7 +1,6 @@
-import PutioCore
 import XCTest
 
-@testable import Putio
+@testable import PutioCore
 
 private actor ControlledFolderLoader {
   private struct PendingRequest {

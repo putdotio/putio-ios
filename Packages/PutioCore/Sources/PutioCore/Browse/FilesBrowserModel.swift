@@ -1,11 +1,10 @@
 import Foundation
 import Observation
-import PutioCore
 import Synchronization
 
-typealias PutioFolderLoad =
+public typealias PutioFolderLoad =
   @MainActor @Sendable (PutioFileID) async throws -> PutioFolderContents
-typealias PutioFolderContinue =
+public typealias PutioFolderContinue =
   @MainActor @Sendable (String) async throws -> PutioFolderContents
 typealias PutioFolderSortUpdate =
   @MainActor @Sendable (PutioFileID, PutioFolderSort) async throws -> Void
@@ -25,7 +24,7 @@ typealias PutioFileBatchDelete =
 typealias PutioFileBatchMove =
   @MainActor @Sendable ([PutioFileID], PutioFileID) async throws -> [PutioFileID: Error]
 
-struct PutioFileActions: Sendable {
+public struct PutioFileActions: Sendable {
   /// Items per bulk request, well under the server's per-request file limit.
   static let defaultBatchSize = 100
 
@@ -37,13 +36,13 @@ struct PutioFileActions: Sendable {
   let moveFiles: PutioFileBatchMove
   let batchSize: Int
   /// Folders-only listing for the move picker; `nil` reuses the screen's load.
-  let loadFolders: PutioFolderLoad?
+  public let loadFolders: PutioFolderLoad?
   /// Continues a `loadFolders` listing; `nil` reuses the screen's continuation.
-  let continueFolders: PutioFolderContinue?
+  public let continueFolders: PutioFolderContinue?
   let setSort: PutioFolderSortUpdate
   let canDelete: @MainActor @Sendable () -> Bool
 
-  init(runtime: PutioRuntime) {
+  public init(runtime: PutioRuntime) {
     canDelete = {
       !runtime.session.isAccountPreferencesStale && !runtime.session.isUpdatingAccountPreferences
     }
@@ -121,17 +120,23 @@ struct PutioFileActions: Sendable {
   }
 }
 
-struct PutioFolderRoute: Identifiable, Sendable {
-  let id: PutioFileID
-  let title: String
+public struct PutioFolderRoute: Identifiable, Sendable {
+  public let id: PutioFileID
+  public let title: String
 
-  static let root = PutioFolderRoute(id: .root, title: "Files")
+  public static let root = PutioFolderRoute(id: .root, title: "Files")
+
+  public init(id: PutioFileID, title: String) {
+    self.id = id
+    self.title = title
+  }
 }
 
+@MainActor
 @Observable
-final class PutioFolderRefreshRequests {
-  private(set) var revision: UInt64 = 0
-  struct Sequence: Equatable, Sendable {
+public final class PutioFolderRefreshRequests {
+  public private(set) var revision: UInt64 = 0
+  public struct Sequence: Equatable, Sendable {
     let folder: UInt64
     let allFolders: UInt64
   }
@@ -146,6 +151,9 @@ final class PutioFolderRefreshRequests {
 
   private var registrations: [PutioFileID: [UUID: Registration]] = [:]
 
+  // Views build one as a default argument, which is evaluated nonisolated.
+  nonisolated public init() {}
+
   func register(folderID: PutioFileID, owner: UUID) {
     guard registrations[folderID]?[owner] == nil else { return }
     registrations[folderID, default: [:]][owner] = Registration()
@@ -159,7 +167,7 @@ final class PutioFolderRefreshRequests {
     }
   }
 
-  func request(folderID: PutioFileID, excludingOwner: UUID? = nil) {
+  public func request(folderID: PutioFileID, excludingOwner: UUID? = nil) {
     revision &+= 1
     sequences[folderID, default: 0] &+= 1
     let owners = registrations[folderID].map { Array($0.keys) } ?? []
@@ -169,7 +177,7 @@ final class PutioFolderRefreshRequests {
     }
   }
 
-  func requestAllLoadedFolders(excludingOwner: UUID? = nil) {
+  public func requestAllLoadedFolders(excludingOwner: UUID? = nil) {
     revision &+= 1
     allFoldersSequence &+= 1
     for folderID in Array(registrations.keys) {
@@ -183,7 +191,7 @@ final class PutioFolderRefreshRequests {
 
   /// Each mounted screen consumes its own refresh, including when Files and
   /// Search both display the same folder.
-  func sequence(for folderID: PutioFileID, owner: UUID) -> Sequence? {
+  public func sequence(for folderID: PutioFileID, owner: UUID) -> Sequence? {
     guard let registration = registrations[folderID]?[owner] else { return nil }
     let current = Sequence(
       folder: registration.folderSequence,
@@ -193,7 +201,7 @@ final class PutioFolderRefreshRequests {
     return current
   }
 
-  func markConsumed(_ sequence: Sequence, for folderID: PutioFileID, owner: UUID) {
+  public func markConsumed(_ sequence: Sequence, for folderID: PutioFileID, owner: UUID) {
     registrations[folderID]?[owner]?.consumed = sequence
   }
 }
@@ -206,18 +214,18 @@ final class PutioFolderRefreshRequests {
 /// throwaway instance each time; only the instance SwiftUI retains ever calls
 /// `activate()`, so only that one registers and unregisters.
 @MainActor
-final class PutioFolderRefreshRegistration {
+public final class PutioFolderRefreshRegistration {
   private let folderID: PutioFileID
   private let requests: PutioFolderRefreshRequests
-  let owner = UUID()
+  public let owner = UUID()
   private var isActive = false
 
-  init(folderID: PutioFileID, requests: PutioFolderRefreshRequests) {
+  public init(folderID: PutioFileID, requests: PutioFolderRefreshRequests) {
     self.folderID = folderID
     self.requests = requests
   }
 
-  func activate() {
+  public func activate() {
     guard !isActive else { return }
     isActive = true
     requests.register(folderID: folderID, owner: owner)
@@ -232,18 +240,18 @@ final class PutioFolderRefreshRegistration {
   }
 }
 
-struct PutioMovePickerPolicy: Sendable {
+public struct PutioMovePickerPolicy: Sendable {
   let items: [PutioFileItem]
 
   init(item: PutioFileItem) {
     items = [item]
   }
 
-  init(items: [PutioFileItem]) {
+  public init(items: [PutioFileItem]) {
     self.items = items
   }
 
-  func canMove(to destination: PutioFolderRoute) -> Bool {
+  public func canMove(to destination: PutioFolderRoute) -> Bool {
     !items.isEmpty
       && items.allSatisfy { item in
         destination.id != item.parentID
@@ -251,7 +259,7 @@ struct PutioMovePickerPolicy: Sendable {
       }
   }
 
-  func folders(in contents: PutioFolderContents) -> [PutioFileItem] {
+  public func folders(in contents: PutioFolderContents) -> [PutioFileItem] {
     let selectedFolderIDs = Set(
       items.lazy.filter { $0.kind == .folder }.map(\.id)
     )
@@ -262,23 +270,27 @@ struct PutioMovePickerPolicy: Sendable {
 }
 
 extension PutioFolderRoute: Hashable {
-  static func == (lhs: PutioFolderRoute, rhs: PutioFolderRoute) -> Bool {
+  public static func == (lhs: PutioFolderRoute, rhs: PutioFolderRoute) -> Bool {
     lhs.id == rhs.id
   }
 
-  func hash(into hasher: inout Hasher) {
+  public func hash(into hasher: inout Hasher) {
     hasher.combine(id)
   }
 }
 
-struct PutioFileRoute: Identifiable, Hashable, Sendable {
-  let item: PutioFileItem
+public struct PutioFileRoute: Identifiable, Hashable, Sendable {
+  public let item: PutioFileItem
 
-  var id: PutioFileID {
+  public init(item: PutioFileItem) {
+    self.item = item
+  }
+
+  public var id: PutioFileID {
     item.id
   }
 
-  var videoPlaybackRoute: PutioVideoRoute? {
+  public var videoPlaybackRoute: PutioVideoRoute? {
     guard item.kind == .video else { return nil }
     return PutioVideoRoute(id: item.id, parentID: item.parentID, title: item.name)
   }
@@ -301,7 +313,7 @@ struct PutioFileRoute: Identifiable, Hashable, Sendable {
 
   /// The typed routing table: every non-folder item resolves to exactly one
   /// action, so a tap never lands on a dead row.
-  var openAction: PutioFileOpenAction {
+  public var openAction: PutioFileOpenAction {
     if let videoPlaybackRoute { return .video(videoPlaybackRoute) }
     if let audioPlaybackRoute { return .audio(audioPlaybackRoute) }
     if let previewRoute { return .preview(previewRoute) }
@@ -314,59 +326,65 @@ struct PutioFileRoute: Identifiable, Hashable, Sendable {
   }
 
   /// Media the VLC handoff can stream; previews and unknown types stay in-app.
-  var supportsExternalPlayback: Bool {
+  public var supportsExternalPlayback: Bool {
     isPlayable
   }
 
   /// Receivers play video only; audio stays on the phone.
-  var supportsCasting: Bool {
+  public var supportsCasting: Bool {
     item.kind == .video
   }
 
   /// Media the offline queue can store: the same set the players handle.
-  var supportsOfflineDownload: Bool {
+  public var supportsOfflineDownload: Bool {
     isPlayable
   }
 }
 
-enum PutioFileOpenAction: Equatable, Sendable {
+public enum PutioFileOpenAction: Equatable, Sendable {
   case video(PutioVideoRoute)
   case audio(PutioAudioRoute)
   case preview(PutioPreviewRoute)
   case unsupported(PutioUnsupportedFileRoute)
 }
 
-struct PutioPreviewRoute: Identifiable, Equatable, Sendable {
-  enum Kind: Equatable, Sendable {
+public struct PutioPreviewRoute: Identifiable, Equatable, Sendable {
+  public enum Kind: Equatable, Sendable {
     case image
     case pdf
   }
 
-  let id: PutioFileID
-  let parentID: PutioFileID
-  let title: String
-  let kind: Kind
+  public let id: PutioFileID
+  public let parentID: PutioFileID
+  public let title: String
+  public let kind: Kind
 }
 
-struct PutioUnsupportedFileRoute: Identifiable, Equatable, Sendable {
-  let item: PutioFileItem
+public struct PutioUnsupportedFileRoute: Identifiable, Equatable, Sendable {
+  public let item: PutioFileItem
 
-  var id: PutioFileID { item.id }
+  public var id: PutioFileID { item.id }
 }
 
-struct PutioAudioRoute: Identifiable, Equatable, Sendable {
-  let id: PutioFileID
-  let parentID: PutioFileID
-  let title: String
+public struct PutioAudioRoute: Identifiable, Equatable, Sendable {
+  public let id: PutioFileID
+  public let parentID: PutioFileID
+  public let title: String
+
+  public init(id: PutioFileID, parentID: PutioFileID, title: String) {
+    self.id = id
+    self.parentID = parentID
+    self.title = title
+  }
 }
 
-struct PutioVideoRoute: Identifiable, Equatable, Sendable {
-  let id: PutioFileID
-  let parentID: PutioFileID
-  let title: String
-  let initialResolution: PutioPlaybackResolution?
+public struct PutioVideoRoute: Identifiable, Equatable, Sendable {
+  public let id: PutioFileID
+  public let parentID: PutioFileID
+  public let title: String
+  public let initialResolution: PutioPlaybackResolution?
 
-  init(
+  public init(
     id: PutioFileID,
     parentID: PutioFileID,
     title: String,
@@ -378,7 +396,7 @@ struct PutioVideoRoute: Identifiable, Equatable, Sendable {
     self.initialResolution = initialResolution
   }
 
-  init(nextVideo: PutioPlayableNextVideo) {
+  public init(nextVideo: PutioPlayableNextVideo) {
     self.init(
       id: nextVideo.video.id,
       parentID: nextVideo.video.parentID,
@@ -396,12 +414,12 @@ enum PutioBrowserErrorKind: Hashable, Sendable {
   case unknown
 }
 
-struct PutioBrowserErrorPresentation: Equatable, Sendable {
+public struct PutioBrowserErrorPresentation: Equatable, Sendable {
   let kind: PutioBrowserErrorKind
-  let title: String
-  let message: String
+  public let title: String
+  public let message: String
 
-  init?(error: Error) {
+  public init?(error: Error) {
     switch error as? PutioRuntimeError {
     case .authenticationRequired, .sessionExpired:
       return nil
@@ -445,13 +463,13 @@ struct PutioBrowserErrorPresentation: Equatable, Sendable {
   }
 }
 
-enum PutioFolderLoadState: Equatable, Sendable {
+public enum PutioFolderLoadState: Equatable, Sendable {
   case loading
   case loaded(PutioFolderContents)
   case failed(PutioBrowserErrorPresentation)
 }
 
-enum PutioFileAction: Equatable, Sendable {
+public enum PutioFileAction: Equatable, Sendable {
   case createFolder(name: String)
   case sort(folderID: PutioFileID, sort: PutioFolderSort)
   case rename(fileID: PutioFileID, oldName: String, newName: String)
@@ -465,9 +483,9 @@ enum PutioFileAction: Equatable, Sendable {
   )
 }
 
-struct PutioFileActionFailure: Equatable, Sendable {
-  let title: String
-  let message: String
+public struct PutioFileActionFailure: Equatable, Sendable {
+  public let title: String
+  public let message: String
 
   init?(action: PutioFileAction, error: Error) {
     guard let browserFailure = PutioBrowserErrorPresentation(error: error) else {
@@ -489,68 +507,68 @@ struct PutioFileActionFailure: Equatable, Sendable {
   }
 }
 
-enum PutioFileActionOutcome: Equatable, Sendable {
+public enum PutioFileActionOutcome: Equatable, Sendable {
   case succeeded(PutioFileAction)
   case failed(PutioFileAction, PutioFileActionFailure)
 }
 
-enum PutioBulkFileAction: Equatable, Sendable {
+public enum PutioBulkFileAction: Equatable, Sendable {
   case delete
   case move(destination: PutioFolderRoute)
 }
 
-struct PutioBulkFileProgress: Equatable, Sendable {
-  let action: PutioBulkFileAction
-  let completedCount: Int
-  let totalCount: Int
-  let currentItem: PutioFileItem
+public struct PutioBulkFileProgress: Equatable, Sendable {
+  public let action: PutioBulkFileAction
+  public let completedCount: Int
+  public let totalCount: Int
+  public let currentItem: PutioFileItem
 }
 
-struct PutioBulkFileItemFailure: Equatable, Sendable {
-  let item: PutioFileItem
+public struct PutioBulkFileItemFailure: Equatable, Sendable {
+  public let item: PutioFileItem
   let error: PutioRuntimeError
   let presentation: PutioFileActionFailure?
 }
 
-struct PutioBulkFileOutcome: Equatable, Sendable {
-  let action: PutioBulkFileAction
-  let succeeded: [PutioFileItem]
-  let failures: [PutioBulkFileItemFailure]
+public struct PutioBulkFileOutcome: Equatable, Sendable {
+  public let action: PutioBulkFileAction
+  public let succeeded: [PutioFileItem]
+  public let failures: [PutioBulkFileItemFailure]
 
-  var completedCount: Int {
+  public var completedCount: Int {
     succeeded.count + failures.count
   }
 
-  func retryableItems(in currentItems: [PutioFileItem]) -> [PutioFileItem] {
+  public func retryableItems(in currentItems: [PutioFileItem]) -> [PutioFileItem] {
     let currentItemsByID = Dictionary(uniqueKeysWithValues: currentItems.map { ($0.id, $0) })
     return failures.compactMap { currentItemsByID[$0.item.id] }
   }
 }
 
-enum PutioBulkRetryPreparation: Equatable, Sendable {
+public enum PutioBulkRetryPreparation: Equatable, Sendable {
   case ready([PutioFileItem])
   case failed
 }
 
 @MainActor
 @Observable
-final class PutioFolderModel {
+public final class PutioFolderModel {
   let folderID: PutioFileID
 
-  private(set) var state: PutioFolderLoadState
-  private(set) var refreshFailure: PutioBrowserErrorPresentation?
-  private(set) var isLoadingMore = false
-  private(set) var loadMoreFailure: PutioBrowserErrorPresentation?
+  public private(set) var state: PutioFolderLoadState
+  public private(set) var refreshFailure: PutioBrowserErrorPresentation?
+  public private(set) var isLoadingMore = false
+  public private(set) var loadMoreFailure: PutioBrowserErrorPresentation?
   // Bumped whenever a load or mutation settles, or a continuation is
   // cancelled, so a continuation the settling work superseded, or one whose
   // row reappeared before the cancelled request unwound, starts again even
   // when the cursor is unchanged.
   private(set) var continuationEpoch: UInt64 = 0
-  private(set) var activeAction: PutioFileAction?
-  private(set) var actionOutcome: PutioFileActionOutcome?
-  private(set) var activeBulkAction: PutioBulkFileAction?
-  private(set) var bulkProgress: PutioBulkFileProgress?
-  private(set) var bulkOutcome: PutioBulkFileOutcome?
+  public private(set) var activeAction: PutioFileAction?
+  public private(set) var actionOutcome: PutioFileActionOutcome?
+  public private(set) var activeBulkAction: PutioBulkFileAction?
+  public private(set) var bulkProgress: PutioBulkFileProgress?
+  public private(set) var bulkOutcome: PutioBulkFileOutcome?
 
   @ObservationIgnored private let load: PutioFolderLoad
   @ObservationIgnored private let continueLoad: PutioFolderContinue?
@@ -564,7 +582,7 @@ final class PutioFolderModel {
   @ObservationIgnored private var queuedRefresh: Task<Bool, Never>?
   @ObservationIgnored private var refreshRequestedWhileActionActive = false
 
-  init(
+  public init(
     folderID: PutioFileID,
     load: @escaping PutioFolderLoad,
     continueLoad: PutioFolderContinue? = nil,
@@ -578,22 +596,22 @@ final class PutioFolderModel {
     state = initialContents.map { .loaded($0) } ?? .loading
   }
 
-  var supportsActions: Bool {
+  public var supportsActions: Bool {
     actions != nil
   }
 
-  var canStartAction: Bool {
+  public var canStartAction: Bool {
     guard supportsActions, !mutationIsActive, case .loaded = state else { return false }
     return true
   }
 
-  var canDelete: Bool { canStartAction && actions?.canDelete() == true }
+  public var canDelete: Bool { canStartAction && actions?.canDelete() == true }
 
   private var mutationIsActive: Bool {
     activeAction != nil || activeBulkAction != nil
   }
 
-  var isLoaded: Bool {
+  public var isLoaded: Bool {
     if case .loaded = state { return true }
     return false
   }
@@ -605,7 +623,7 @@ final class PutioFolderModel {
     return contents.nextCursor != nil
   }
 
-  struct ContinuationKey: Hashable {
+  public struct ContinuationKey: Hashable {
     let cursor: String?
     let epoch: UInt64
   }
@@ -616,13 +634,13 @@ final class PutioFolderModel {
   }
 
   /// Identity for the view task that fetches the next page.
-  var continuationKey: ContinuationKey {
+  public var continuationKey: ContinuationKey {
     ContinuationKey(cursor: nextCursor, epoch: continuationEpoch)
   }
 
   /// The folder's own server-side sort, or `nil` when it inherits the account
   /// default. Inherited folders accept any explicit choice.
-  var sort: PutioFolderSort? {
+  public var sort: PutioFolderSort? {
     if case .loaded(let contents) = state { return contents.sort }
     return nil
   }
@@ -630,7 +648,7 @@ final class PutioFolderModel {
   /// Appends the next page. Any full reload in flight or started meanwhile
   /// supersedes the result through the load generation.
   @discardableResult
-  func loadMore() async -> Bool {
+  public func loadMore() async -> Bool {
     guard let continueLoad, canLoadMore, case .loaded(let contents) = state,
       let cursor = contents.nextCursor
     else { return false }
@@ -664,7 +682,7 @@ final class PutioFolderModel {
   /// server's order. The server call is the action; the reload is the single
   /// refresh queued behind it, so a reload failure surfaces as
   /// `refreshFailure` over the committed sort instead of failing the sort.
-  func setSort(_ sort: PutioFolderSort) async {
+  public func setSort(_ sort: PutioFolderSort) async {
     guard let actions, canStartAction, case .loaded(let contents) = state else { return }
     guard sort != self.sort else { return }
     let action = PutioFileAction.sort(folderID: folderID, sort: sort)
@@ -679,7 +697,7 @@ final class PutioFolderModel {
 
   /// Returns true when this call performed a successful load.
   @discardableResult
-  func loadIfNeeded() async -> Bool {
+  public func loadIfNeeded() async -> Bool {
     // `.loading` means the initial attempt never settled — including a
     // cancelled attempt that is still unwinding when the screen is
     // re-entered. Starting a new request here supersedes that unwind via
@@ -688,12 +706,12 @@ final class PutioFolderModel {
     return await performLoad(mode: .replace)
   }
 
-  func retry() async {
+  public func retry() async {
     _ = await performLoad(mode: .replace)
   }
 
   @discardableResult
-  func refresh() async -> Bool {
+  public func refresh() async -> Bool {
     guard case .loaded = state else { return false }
     guard !mutationIsActive else {
       refreshRequestedWhileActionActive = true
@@ -705,7 +723,7 @@ final class PutioFolderModel {
   /// Like `refresh()`, but a call that lands during a mutation waits for the
   /// refresh queued behind that mutation and reports its result, so a pending
   /// folder request can be consumed by the refresh that actually served it.
-  func refreshWhenIdle() async -> Bool {
+  public func refreshWhenIdle() async -> Bool {
     guard case .loaded = state else { return false }
     guard mutationIsActive else { return await performLoad(mode: .refresh) }
     refreshRequestedWhileActionActive = true
@@ -714,7 +732,7 @@ final class PutioFolderModel {
     return await queuedRefresh.value
   }
 
-  func createFolder(name: String) async {
+  public func createFolder(name: String) async {
     guard let actions, canStartAction, case .loaded(let contents) = state else { return }
     let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !name.isEmpty else { return }
@@ -727,7 +745,7 @@ final class PutioFolderModel {
     }
   }
 
-  func rename(_ item: PutioFileItem, to proposedName: String) async {
+  public func rename(_ item: PutioFileItem, to proposedName: String) async {
     guard let actions, canStartAction, case .loaded(let contents) = state else { return }
     guard let currentItem = contents.items.first(where: { $0.id == item.id }) else { return }
     let name = proposedName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -746,7 +764,7 @@ final class PutioFolderModel {
     }
   }
 
-  func delete(_ item: PutioFileItem) async {
+  public func delete(_ item: PutioFileItem) async {
     guard let actions, canDelete, case .loaded(let contents) = state else { return }
     guard let currentItem = contents.items.first(where: { $0.id == item.id }) else { return }
     let action = PutioFileAction.delete(fileID: currentItem.id, name: currentItem.name)
@@ -759,7 +777,7 @@ final class PutioFolderModel {
     }
   }
 
-  func move(_ item: PutioFileItem, to destination: PutioFolderRoute) async {
+  public func move(_ item: PutioFileItem, to destination: PutioFolderRoute) async {
     guard let actions, canStartAction, case .loaded(let contents) = state else { return }
     guard let currentItem = contents.items.first(where: { $0.id == item.id }) else { return }
     guard destination.id != currentItem.parentID, destination.id != currentItem.id else { return }
@@ -779,7 +797,7 @@ final class PutioFolderModel {
     }
   }
 
-  func delete(_ selectedItems: [PutioFileItem]) async {
+  public func delete(_ selectedItems: [PutioFileItem]) async {
     guard
       let actions,
       canDelete,
@@ -798,7 +816,7 @@ final class PutioFolderModel {
     }
   }
 
-  func move(_ selectedItems: [PutioFileItem], to destination: PutioFolderRoute) async {
+  public func move(_ selectedItems: [PutioFileItem], to destination: PutioFolderRoute) async {
     guard
       let actions,
       canStartAction,
@@ -821,15 +839,15 @@ final class PutioFolderModel {
 
   /// Suspends until the active mutation, if any, has settled. Callers whose
   /// own task was cancelled mid-mutation use this to rejoin the outcome.
-  func waitForActiveAction() async {
+  public func waitForActiveAction() async {
     await actionTask?.value
   }
 
-  func clearActionOutcome() {
+  public func clearActionOutcome() {
     actionOutcome = nil
   }
 
-  func clearBulkOutcome() {
+  public func clearBulkOutcome() {
     bulkOutcome = nil
   }
 
@@ -838,7 +856,7 @@ final class PutioFolderModel {
     bulkOutcome = outcome
   }
 
-  func prepareBulkRetry(_ outcome: PutioBulkFileOutcome) async -> PutioBulkRetryPreparation {
+  public func prepareBulkRetry(_ outcome: PutioBulkFileOutcome) async -> PutioBulkRetryPreparation {
     let refreshed: Bool
     if let queuedRefresh {
       refreshed = await queuedRefresh.value
@@ -1206,27 +1224,27 @@ private enum LoadMode {
   case refresh
 }
 
-struct PutioBrowserItemPresentation: Equatable, Identifiable, Sendable {
-  let item: PutioFileItem
-  let row: PutioFileRowModel
+public struct PutioBrowserItemPresentation: Equatable, Identifiable, Sendable {
+  public let item: PutioFileItem
+  public let row: PutioFileRowModel
 
-  var id: PutioFileID {
+  public var id: PutioFileID {
     item.id
   }
 
-  var folderRoute: PutioFolderRoute? {
+  public var folderRoute: PutioFolderRoute? {
     guard item.kind == .folder else { return nil }
     return PutioFolderRoute(id: item.id, title: item.name)
   }
 
-  var fileRoute: PutioFileRoute? {
+  public var fileRoute: PutioFileRoute? {
     guard item.kind != .folder else { return nil }
     return PutioFileRoute(item: item)
   }
 
   /// `sort` is the folder's effective sort: rows show when an item was added
   /// under Date Added, and when it last changed otherwise.
-  init(
+  public init(
     item: PutioFileItem,
     relativeTo referenceDate: Date = .now,
     locale: Locale = .current,
@@ -1269,7 +1287,7 @@ struct PutioBrowserItemPresentation: Equatable, Identifiable, Sendable {
   }
 
   /// A named relative date such as "yesterday" or "3 days ago".
-  static func relativeDateText(
+  public static func relativeDateText(
     for date: Date, relativeTo referenceDate: Date = .now, locale: Locale = .current
   ) -> String {
     relativeDateFormatters.withLock { formatters in
@@ -1294,10 +1312,10 @@ struct PutioBrowserItemPresentation: Equatable, Identifiable, Sendable {
 
 /// A sort key as the Files app presents it: one row per key, direction as a
 /// subtitle, and re-selecting the current key flips direction.
-enum PutioFolderSortKey: CaseIterable, Hashable {
+public enum PutioFolderSortKey: CaseIterable, Hashable {
   case name, size, dateAdded, dateModified, type, watchStatus
 
-  var title: String {
+  public var title: String {
     switch self {
     case .name: "Name"
     case .size: "Size"
@@ -1326,14 +1344,14 @@ enum PutioFolderSortKey: CaseIterable, Hashable {
   }
 
   /// The sort to request when the user taps this key while `current` applies.
-  func selection(from current: PutioFolderSort?) -> PutioFolderSort {
+  public func selection(from current: PutioFolderSort?) -> PutioFolderSort {
     guard let current, current.key == self else { return sort(ascending: true) }
     return sort(ascending: !current.isAscending)
   }
 }
 
 extension PutioFolderSort {
-  var key: PutioFolderSortKey {
+  public var key: PutioFolderSortKey {
     switch self {
     case .nameAscending, .nameDescending: .name
     case .sizeAscending, .sizeDescending: .size
@@ -1354,11 +1372,11 @@ extension PutioFolderSort {
     }
   }
 
-  var directionTitle: String {
+  public var directionTitle: String {
     isAscending ? "Ascending" : "Descending"
   }
 
-  var title: String {
+  public var title: String {
     "\(key.title), \(directionTitle.lowercased())"
   }
 }

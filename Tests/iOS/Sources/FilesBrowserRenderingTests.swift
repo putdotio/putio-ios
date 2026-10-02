@@ -1,9 +1,9 @@
-import PutioCore
 import SwiftUI
 import UIKit
 import XCTest
 
 @testable import Putio
+@testable import PutioCore
 
 final class FilesBrowserRenderingTests: XCTestCase {
   @MainActor

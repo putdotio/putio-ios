@@ -94,10 +94,6 @@ struct AccountSecurityView: View {
   }
 }
 
-extension PutioTwoFactorChangeModel: Identifiable {
-  var id: ObjectIdentifier { ObjectIdentifier(self) }
-}
-
 /// Enrollment walks secret → code → recovery codes; disabling is code only.
 /// Dismissal is blocked while a code is in flight so the outcome is seen.
 private struct TwoFactorChangeSheet: View {

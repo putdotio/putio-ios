@@ -1,12 +1,11 @@
 import Foundation
 import Observation
-import PutioCore
 
-struct PutioAppConfigActions: Sendable {
+public struct PutioAppConfigActions: Sendable {
   let load: @MainActor @Sendable () async throws -> PutioAppConfig
   let saveAutoplayNextVideo: @MainActor @Sendable (Bool) async throws -> Void
 
-  init(runtime: PutioRuntime) {
+  public init(runtime: PutioRuntime) {
     load = { try await runtime.appConfig() }
     saveAutoplayNextVideo = { try await runtime.setAutoplayNextVideo($0) }
   }
@@ -27,28 +26,28 @@ struct PutioAppConfigActions: Sendable {
 /// value with a retry.
 @MainActor
 @Observable
-final class PutioAppConfigModel {
-  private(set) var config: PutioAppConfig?
-  private(set) var isLoading = false
-  private(set) var isSaving = false
-  private(set) var failure: String?
+public final class PutioAppConfigModel {
+  public private(set) var config: PutioAppConfig?
+  public private(set) var isLoading = false
+  public private(set) var isSaving = false
+  public private(set) var failure: String?
   private(set) var failedAutoplayNextVideo: Bool?
   @ObservationIgnored private let actions: PutioAppConfigActions
   @ObservationIgnored private var loadGeneration: UInt64 = 0
   @ObservationIgnored private var activeLoad: Task<Void, Never>?
 
-  init(actions: PutioAppConfigActions) {
+  public init(actions: PutioAppConfigActions) {
     self.actions = actions
   }
 
   /// `false` until the document loads, matching the server default.
-  var autoplayNextVideo: Bool { config?.autoplayNextVideo ?? false }
-  var isBusy: Bool { isLoading || isSaving }
-  var canSave: Bool { config != nil && !isBusy }
+  public var autoplayNextVideo: Bool { config?.autoplayNextVideo ?? false }
+  public var isBusy: Bool { isLoading || isSaving }
+  public var canSave: Bool { config != nil && !isBusy }
 
   /// A load already in flight is awaited rather than duplicated, so every
   /// caller observes the same settled document.
-  func loadIfNeeded(force: Bool = false) async {
+  public func loadIfNeeded(force: Bool = false) async {
     if let activeLoad {
       await activeLoad.value
       return
@@ -83,12 +82,12 @@ final class PutioAppConfigModel {
   /// The autoplay decision at end of video. A document still loading, or one
   /// whose load failed earlier, is awaited or retried first so a value that
   /// arrives late still counts; only an unreachable document reads as off.
-  func resolveAutoplayNextVideo() async -> Bool {
+  public func resolveAutoplayNextVideo() async -> Bool {
     if config == nil { await loadIfNeeded() }
     return autoplayNextVideo
   }
 
-  func setAutoplayNextVideo(_ enabled: Bool) async {
+  public func setAutoplayNextVideo(_ enabled: Bool) async {
     guard canSave, enabled != autoplayNextVideo else { return }
     isSaving = true
     failure = nil
@@ -110,7 +109,7 @@ final class PutioAppConfigModel {
 
   /// Repeats the failed write when one is pending; otherwise reloads the
   /// document, which is the only recovery after a failed read.
-  func retry() async {
+  public func retry() async {
     if let failedAutoplayNextVideo {
       await setAutoplayNextVideo(failedAutoplayNextVideo)
     } else {

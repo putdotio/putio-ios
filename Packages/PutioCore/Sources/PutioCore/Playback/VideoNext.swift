@@ -1,20 +1,19 @@
 import Observation
-import PutioCore
 
-typealias PutioNextVideoResetWait =
+public typealias PutioNextVideoResetWait =
   @MainActor @Sendable (PutioFileID) async -> Void
-typealias PutioNextVideoLoad =
+public typealias PutioNextVideoLoad =
   @MainActor @Sendable (PutioFileID) async throws -> PutioPlayableNextVideo?
-typealias PutioNextVideoSleep =
+public typealias PutioNextVideoSleep =
   @MainActor @Sendable (Duration) async throws -> Void
-typealias PutioNextVideoAutoplayPolicy = @MainActor @Sendable () async -> Bool
+public typealias PutioNextVideoAutoplayPolicy = @MainActor @Sendable () async -> Bool
 
-struct PutioPlayableNextVideo: Equatable, Sendable {
-  let video: PutioNextVideo
-  let initialResolution: PutioPlaybackResolution
+public struct PutioPlayableNextVideo: Equatable, Sendable {
+  public let video: PutioNextVideo
+  public let initialResolution: PutioPlaybackResolution
 }
 
-enum PutioNextVideoState: Equatable {
+public enum PutioNextVideoState: Equatable {
   case idle
   case loading
   case available(PutioPlayableNextVideo)
@@ -25,14 +24,14 @@ enum PutioNextVideoState: Equatable {
 
 @MainActor
 @Observable
-final class PutioNextVideoModel {
-  nonisolated static let defaultAutoplayDelay = Duration.seconds(5)
+public final class PutioNextVideoModel {
+  public nonisolated static let defaultAutoplayDelay = Duration.seconds(5)
   nonisolated static let maximumAutoplayDelay = Duration.seconds(10)
 
-  private(set) var state: PutioNextVideoState = .idle
+  public private(set) var state: PutioNextVideoState = .idle
   /// Whole seconds left before the suggestion plays itself; nil while no
   /// autoplay countdown runs.
-  private(set) var autoplaySecondsRemaining: Int?
+  public private(set) var autoplaySecondsRemaining: Int?
 
   @ObservationIgnored private let suggestionsEnabled: Bool
   /// Awaited when the suggestion appears, so the config document that owns
@@ -45,7 +44,7 @@ final class PutioNextVideoModel {
   @ObservationIgnored private let sleep: PutioNextVideoSleep
   @ObservationIgnored private var generation: UInt64 = 0
 
-  init(
+  public init(
     suggestionsEnabled: Bool = true,
     autoplayEnabled: @escaping PutioNextVideoAutoplayPolicy,
     autoplayDelay: Duration = PutioNextVideoModel.defaultAutoplayDelay,
@@ -79,7 +78,7 @@ final class PutioNextVideoModel {
     )
   }
 
-  func playbackEnded(completedFileID: PutioFileID) async {
+  public func playbackEnded(completedFileID: PutioFileID) async {
     let requestGeneration = nextGeneration()
     state = .loading
 
@@ -125,13 +124,13 @@ final class PutioNextVideoModel {
     }
   }
 
-  func playNext() {
+  public func playNext() {
     guard case .available(let nextVideo) = state else { return }
     _ = nextGeneration()
     state = .playing(nextVideo)
   }
 
-  func cancel() {
+  public func cancel() {
     switch state {
     case .loading, .available, .playing:
       _ = nextGeneration()
@@ -178,7 +177,7 @@ final class PutioNextVideoModel {
 /// A downloaded successor plays from its local file, so it keeps working
 /// offline and its locally recorded position wins over the server's.
 @MainActor
-func resolveSuccessorSource(
+public func resolveSuccessorSource(
   fileID: PutioFileID,
   localSource: @MainActor (PutioFileID) -> PutioPlaybackSource?,
   resolve: PutioPlaybackResolve
@@ -191,7 +190,7 @@ func resolveSuccessorSource(
 /// successor from the offline queue keeps a finished download advancing
 /// offline; a server answer of "none" is final and never consults the queue.
 @MainActor
-func prepareNextVideo(
+public func prepareNextVideo(
   after fileID: PutioFileID,
   findNext: @MainActor @Sendable (PutioFileID) async throws -> PutioNextVideo?,
   findOfflineNext: @MainActor (PutioFileID) -> PutioNextVideo? = { _ in nil },
