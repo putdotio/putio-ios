@@ -94,6 +94,12 @@ struct TVSignedInShell: View {
         trash: trashReconciliation)
       path = TVRoute.reconcile(path, account: current)
     }
+    // A stale row selected as it disappears must not open a screen the
+    // account no longer offers.
+    .onChange(of: path) { _, pushed in
+      let allowed = TVRoute.reconcile(pushed, account: account)
+      if allowed != pushed { path = allowed }
+    }
     .onChange(of: scenePhase) { _, phase in
       if phase == .active { Task { await runtime.refreshAccount() } }
     }
@@ -119,6 +125,9 @@ struct TVSignedInShell: View {
 struct TVHomeScreen: View {
   let entries: [TVHomeEntry]
 
+  @FocusState private var focusedEntry: TVHomeEntry?
+  @State private var lastFocusedEntry: TVHomeEntry?
+
   var body: some View {
     VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.medium) {
       Text("put.io")
@@ -135,9 +144,19 @@ struct TVHomeScreen: View {
             }
             .tvRowPadding()
           }
+          .focused($focusedEntry, equals: entry)
           .accessibilityIdentifier("home.\(entry.route.identifier)")
         }
       }
+      .defaultFocus($focusedEntry, entries.first)
+    }
+    .onChange(of: focusedEntry) { _, entry in
+      if let entry { lastFocusedEntry = entry }
+    }
+    // Hiding History while its row has focus would strand the remote.
+    .onChange(of: entries) { _, entries in
+      guard let lastFocusedEntry, !entries.contains(lastFocusedEntry) else { return }
+      focusedEntry = entries.first
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .tvOverscanPadding()
