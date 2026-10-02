@@ -77,6 +77,18 @@ final class TVFilesTests: XCTestCase {
     XCTAssertEqual(TVRoute.reconcile([.history, folder], account: historyOff), [])
   }
 
+  func testRemovingARowFocusesTheNextRowOrThePreviousAtTheEnd() {
+    let items = [410, 412, 406].map { Self.video(id: $0) }
+    XCTAssertEqual(
+      TVFilePresentation.focusAfterRemoving(PutioFileID(rawValue: 412), from: items),
+      PutioFileID(rawValue: 406))
+    XCTAssertEqual(
+      TVFilePresentation.focusAfterRemoving(PutioFileID(rawValue: 406), from: items),
+      PutioFileID(rawValue: 412))
+    XCTAssertNil(
+      TVFilePresentation.focusAfterRemoving(PutioFileID(rawValue: 410), from: [items[0]]))
+  }
+
   func testToastsNameTheActionAndFollowTheTrashSetting() {
     let video = Self.video()
     let delete = PutioFileAction.delete(fileID: video.id, name: video.name)

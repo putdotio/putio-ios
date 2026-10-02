@@ -84,7 +84,11 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(selectModalButton("files.menu.delete"))
     XCTAssertTrue(label(containing: "Moved to Trash").waitForExistence(timeout: 10))
     XCTAssertTrue(waitUntil(timeout: 10) { !movie.exists })
-    XCTAssertTrue(waitUntil(timeout: 5) { self.focusedRowIsOnScreen() })
+    // Under the reversed sort the row after the movie is Harness Folder.
+    XCTAssertTrue(
+      waitUntil(timeout: 5) { self.hasFocus("files.item.410") },
+      "focus moves to the next row, not back to the top")
+    XCTAssertTrue(focusedRowIsOnScreen())
     attach("runtime-tv-files-trashed")
 
     // A folder opens; returning refetches the root.

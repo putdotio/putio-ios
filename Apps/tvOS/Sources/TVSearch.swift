@@ -68,6 +68,10 @@ struct TVSearchView: View {
         item: $menuItem, account: account, canDelete: itemActions.canDelete,
         setWatched: { item, watched in Task { await itemActions.setWatched(item, watched) } },
         delete: { item in
+          if case .loaded(let page) = model.state {
+            let visible = page.items.filter { !itemActions.hiddenIDs.contains($0.id) }
+            focusedRow = TVFilePresentation.focusAfterRemoving(item.id, from: visible)
+          }
           if account.trashEnabled { itemActions.hideForTrash(item) }
           Task { await itemActions.delete(item) }
         }

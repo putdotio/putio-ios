@@ -37,6 +37,16 @@ enum TVFilePresentation {
     folderSort ?? account.defaultSort ?? .nameAscending
   }
 
+  /// Where focus goes when a row leaves the list: the row after it, or the
+  /// one before it at the end. Left alone, tvOS jumps to the first row.
+  static func focusAfterRemoving(
+    _ id: PutioFileID, from items: [PutioFileItem]
+  ) -> PutioFileID? {
+    guard let index = items.firstIndex(where: { $0.id == id }) else { return nil }
+    if index + 1 < items.count { return items[index + 1].id }
+    return index > 0 ? items[index - 1].id : nil
+  }
+
   static func sortButtonTitle(_ sort: PutioFolderSort) -> String {
     "\(sort.key.title) \(sort.isAscending ? "↑" : "↓")"
   }
@@ -278,7 +288,12 @@ struct TVFolderView: View {
     .tvFileMenu(
       item: $menuItem, account: account, canDelete: model.canDelete,
       setWatched: { item, watched in Task { await model.setWatched(item, watched) } },
-      delete: { item in Task { await model.delete(item) } }
+      delete: { item in
+        if case .loaded(let contents) = model.state {
+          focusedRow = TVFilePresentation.focusAfterRemoving(item.id, from: contents.items)
+        }
+        Task { await model.delete(item) }
+      }
     )
     .tvToast($toast)
     .task(id: route.id) {
