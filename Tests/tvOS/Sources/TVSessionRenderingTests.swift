@@ -28,12 +28,134 @@ final class TVSessionRenderingTests: XCTestCase {
   }
 
   @MainActor
+  func testHomeMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-home",
+      view: NavigationStack { TVHomeScreen(entries: TVHomeEntry.entries(for: Self.account)) },
+      size: viewport
+    )
+  }
+
+  @MainActor
   func testAccountMatchesBaseline() throws {
     _ = try assertRenderingSnapshot(
       name: "tv-account",
-      view: TVAccountScreen(account: Self.account, locale: Locale(identifier: "en_US")) {},
+      view: NavigationStack {
+        TVAccountScreen(
+          account: Self.account, appInfo: Self.appInfo, locale: Locale(identifier: "en_US")
+        ) {}
+      },
       size: viewport
     )
+  }
+
+  /// Hidden subtitles and disabled Trash drop their dependent rows; a stale
+  /// account offers the refresh recovery.
+  @MainActor
+  func testAccountWithDependentRowsHiddenAndStaleSettingsMatchesBaseline() throws {
+    // tvOS 26 draws disabled card rows without a platter; tvOS 27 keeps it.
+    // The default baseline comes from CI's tvOS 26 toolchain.
+    var name = "tv-account-stale"
+    if #available(tvOS 27.0, *) { name += "-tvos27" }
+    _ = try assertRenderingSnapshot(
+      name: name,
+      view: NavigationStack {
+        TVAccountScreen(
+          account: Self.account(hideSubtitles: true, trashEnabled: false),
+          appInfo: Self.appInfo,
+          status: TVAccountStatus(
+            failure:
+              "Saved, but the latest account settings could not be loaded. Refresh to continue.",
+            isStale: true, canSave: false),
+          locale: Locale(identifier: "en_US")
+        ) {}
+      },
+      size: viewport
+    )
+  }
+
+  @MainActor
+  func testProxyChooserMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-proxy-chooser",
+      view: TVProxyChooserScreen(
+        currentRoute: "edge",
+        routes: [
+          PutioPlaybackRoute(name: "default", description: "Amsterdam (Direct)"),
+          PutioPlaybackRoute(name: "edge", description: "Alternate proxy"),
+          PutioPlaybackRoute(name: "london", description: ""),
+        ]),
+      size: viewport
+    )
+  }
+
+  @MainActor
+  func testHistoryMatchesBaseline() async throws {
+    let runtime = try await Self.seededRuntime()
+    let model = PutioHistoryModel(actions: PutioHistoryActions(runtime: runtime))
+    await model.refresh()
+    // The fixture's first continuation fails once; the retry ends the list.
+    await model.loadMore()
+    await model.loadMore()
+    XCTAssertNil(model.page?.nextBefore)
+
+    _ = try assertRenderingSnapshot(
+      name: "tv-history",
+      view: TVHistoryView(model: model, now: Self.fixtureNoon, locale: Self.locale) { _ in },
+      size: viewport
+    )
+  }
+
+  @MainActor
+  func testTrashMatchesBaseline() async throws {
+    let runtime = try await Self.seededRuntime()
+    let model = PutioTrashModel(runtime: runtime, reconciliation: PutioTrashReconciliation())
+    await model.refresh()
+    await model.loadMore()
+    XCTAssertEqual(model.page?.items.count, 3)
+    XCTAssertNil(model.page?.nextCursor)
+
+    _ = try assertRenderingSnapshot(
+      name: "tv-trash",
+      view: TVTrashView(
+        model: model, now: Self.trashNow, locale: Self.locale, loadsOnAppear: false),
+      size: viewport
+    )
+  }
+
+  /// Restores never refresh storage on their own, and one can commit after
+  /// Trash is gone; the account's trash size must still follow it.
+  @MainActor
+  func testRestoreRefreshesTheAccountTrashSize() async throws {
+    let runtime = try await Self.seededRuntime()
+    XCTAssertEqual(Self.trashSize(runtime), 3 * 1_073_741_824)
+    let model = TVTrashView.model(runtime: runtime, reconciliation: PutioTrashReconciliation())
+    await model.refresh()
+    let item = try XCTUnwrap(model.page?.items.first)
+    await model.restore(item)
+    let deadline = Date().addingTimeInterval(10)
+    while Self.trashSize(runtime) != 2 * 1_073_741_824, Date() < deadline {
+      try await Task.sleep(for: .milliseconds(100))
+    }
+    XCTAssertEqual(Self.trashSize(runtime), 2 * 1_073_741_824)
+  }
+
+  /// A failed refresh on returning to Account must say so and offer the
+  /// retry, rather than keep showing the old trash size silently.
+  @MainActor
+  func testAFailedRefreshOnReturningToAccountOffersRecovery() async throws {
+    let runtime = try await Self.seededRuntime()
+    let model = PutioAccountPreferencesModel(actions: .init(runtime: runtime))
+    HarnessSeededAPI.failNextAccountRefresh()
+    await TVAccountView.refreshAfterReturning(model: model)
+    XCTAssertEqual(model.failure, "Could not refresh account settings. Try again.")
+    XCTAssertEqual(TVAccountStatus(model: model).failure, model.failure)
+  }
+
+  @MainActor
+  private static func trashSize(_ runtime: PutioRuntime) -> Int64? {
+    guard case .signedIn(let account) = runtime.session.state else { return nil }
+    return account.trashSizeBytes
   }
 
   func testSignInPhaseFollowsTheSessionStore() {
@@ -53,23 +175,57 @@ final class TVSessionRenderingTests: XCTestCase {
       .failed(message: "offline", canRetryRestore: true))
   }
 
-  private static let account = PutioAccountSnapshot(
-    id: 1001,
-    username: "moviebuff",
-    email: "moviebuff@example.com",
-    suggestNextVideo: true,
-    rememberVideoTime: true,
-    defaultSort: nil,
-    historyEnabled: true,
-    trashEnabled: true,
-    storage: PutioAccountSnapshot.Storage(
-      availableBytes: 1_068_893_827_072,
-      totalBytes: 1_099_511_627_776,
-      usedBytes: 30_617_800_704
-    ),
-    routeName: "default",
-    hideSubtitles: false,
-    dontAutoSelectSubtitles: false,
-    twoFactorEnabled: false
-  )
+  /// A signed-in runtime against the seeded API, with its fixture counters
+  /// reset so each test sees the first responses.
+  @MainActor
+  private static func seededRuntime() async throws -> PutioRuntime {
+    HarnessSeededAPI.resetFileActions()
+    let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
+    await runtime.session.restore()
+    guard case .signedIn = runtime.session.state else {
+      XCTFail("the seeded session did not sign in: \(runtime.session.state)")
+      throw CancellationError()
+    }
+    return runtime
+  }
+
+  /// Seeded History events land at the start of today; noon keeps their
+  /// relative times fixed.
+  private static var fixtureNoon: Date {
+    Calendar.current.startOfDay(for: .now).addingTimeInterval(12 * 60 * 60)
+  }
+
+  private static let locale = Locale(identifier: "en_US")
+
+  private static let trashNow = ISO8601DateFormatter().date(from: "2026-09-10T12:00:00Z")!
+
+  private static let appInfo = TVAppInfo(
+    app: "io.put.dev.tvos@1.0+1", device: "Living Room - Apple TV", system: "tvOS 27.0")
+
+  private static let account = account()
+
+  private static func account(
+    hideSubtitles: Bool = false, trashEnabled: Bool = true
+  ) -> PutioAccountSnapshot {
+    PutioAccountSnapshot(
+      id: 1001,
+      username: "moviebuff",
+      email: "moviebuff@example.com",
+      suggestNextVideo: true,
+      rememberVideoTime: true,
+      defaultSort: nil,
+      historyEnabled: true,
+      trashEnabled: trashEnabled,
+      storage: PutioAccountSnapshot.Storage(
+        availableBytes: 1_068_893_827_072,
+        totalBytes: 1_099_511_627_776,
+        usedBytes: 30_617_800_704
+      ),
+      routeName: "edge",
+      hideSubtitles: hideSubtitles,
+      dontAutoSelectSubtitles: false,
+      twoFactorEnabled: false,
+      trashSizeBytes: 3_221_225_472
+    )
+  }
 }

@@ -22,7 +22,7 @@ struct TVSessionRootView: View {
       case .signOutFailed(let failure):
         TVSignOutFailureView(session: runtime.session, failure: failure)
       case .signedIn(let account):
-        TVSignedInShell(session: runtime.session, account: account)
+        TVSignedInShell(runtime: runtime, account: account)
           .id(account.id)
       }
     }
@@ -244,77 +244,6 @@ private struct TVSignOutFailureView: View {
       "put.io could not revoke your session. Check your connection and try again."
     case .credentialRemovalAndRevocation:
       "Saved sign-in details could not be removed and put.io could not revoke your session. Check your connection and try again before closing the app."
-    }
-  }
-}
-
-// MARK: - Signed in
-
-// The 10-foot shell: a stock top tab bar the OS owns. Menu on content moves
-// focus to the bar; Menu on the bar leaves the app, which is the system
-// contract for a root screen. Content tabs arrive with the browser slices.
-private struct TVSignedInShell: View {
-  let session: PutioSessionStore
-  let account: PutioAccountSnapshot
-
-  var body: some View {
-    TabView {
-      Tab("Account", systemImage: "person.crop.circle") {
-        TVAccountScreen(account: account) {
-          await session.signOut()
-        }
-      }
-    }
-  }
-}
-
-struct TVAccountScreen: View {
-  let account: PutioAccountSnapshot
-  var locale: Locale = .current
-  let signOut: () async -> Void
-
-  @State private var confirmsSignOut = false
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.large) {
-      VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.xs) {
-        Text(account.username)
-          .putioFont(PutioTheme.TV.Typography.heading)
-          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
-          .accessibilityIdentifier("account.username")
-        Text(account.email)
-          .putioFont(PutioTheme.TV.Typography.body)
-          .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-      }
-      VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
-        Text("Storage")
-          .putioFont(PutioTheme.TV.Typography.label)
-          .foregroundStyle(PutioTheme.TV.Colors.textPrimary)
-        ProgressView(value: account.storage.usedFraction)
-          .tint(PutioTheme.Colors.accent)
-        Text(account.storage.usageSummary(locale: locale))
-          .putioFont(PutioTheme.TV.Typography.numeric)
-          .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-          .accessibilityIdentifier("account.storage")
-      }
-      PutioButton("Log out", tier: .secondary) {
-        confirmsSignOut = true
-      }
-      .accessibilityIdentifier("auth.sign-out")
-    }
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    .tvOverscanPadding()
-    .background(PutioTheme.Colors.background.ignoresSafeArea())
-    .confirmationDialog(
-      "Log out of put.io?", isPresented: $confirmsSignOut, titleVisibility: .visible
-    ) {
-      Button("Log out", role: .destructive) {
-        Task { await signOut() }
-      }
-      .accessibilityIdentifier("auth.sign-out-confirm")
-      Button("Cancel", role: .cancel) {}
-    } message: {
-      Text("This Apple TV will need a new activation code to sign in again.")
     }
   }
 }

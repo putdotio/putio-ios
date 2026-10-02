@@ -433,7 +433,8 @@ public final class PutioSessionStore {
         routeName: routeName ?? account.routeName,
         hideSubtitles: hideSubtitles ?? account.hideSubtitles,
         dontAutoSelectSubtitles: dontAutoSelectSubtitles ?? account.dontAutoSelectSubtitles,
-        twoFactorEnabled: twoFactorEnabled ?? account.twoFactorEnabled))
+        twoFactorEnabled: twoFactorEnabled ?? account.twoFactorEnabled,
+        avatarURL: account.avatarURL, trashSizeBytes: account.trashSizeBytes))
   }
 
   @discardableResult
@@ -548,7 +549,9 @@ public final class PutioSessionStore {
       routeName: account.settings.routeName,
       hideSubtitles: account.settings.hideSubtitles,
       dontAutoSelectSubtitles: account.settings.dontAutoSelectSubtitles,
-      twoFactorEnabled: account.settings.twoFactorEnabled
+      twoFactorEnabled: account.settings.twoFactorEnabled,
+      avatarURL: URL(string: account.avatarURL).flatMap { $0.scheme == "https" ? $0 : nil },
+      trashSizeBytes: max(0, account.trashSize)
     )
   }
 

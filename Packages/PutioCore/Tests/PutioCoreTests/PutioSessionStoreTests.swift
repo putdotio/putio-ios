@@ -207,7 +207,9 @@ final class PutioSessionStoreTests: XCTestCase {
     rememberVideoTime: Bool,
     suggestNextVideo: Bool = true,
     historyEnabled: Bool = true,
-    trashEnabled: Bool = true
+    trashEnabled: Bool = true,
+    avatarURL: String = "",
+    trashSize: Int64 = 0
   ) -> String {
     """
     {
@@ -215,11 +217,11 @@ final class PutioSessionStoreTests: XCTestCase {
         "user_id": 1001,
         "username": "moviebuff",
         "mail": "tests@example.com",
-        "avatar_url": "",
+        "avatar_url": "\(avatarURL)",
         "user_hash": "hash",
         "features": {},
         "download_token": "token",
-        "trash_size": 0,
+        "trash_size": \(trashSize),
         "account_active": true,
         "files_will_be_deleted_at": "",
         "password_last_changed_at": "",
@@ -347,6 +349,40 @@ final class PutioSessionStoreTests: XCTestCase {
         )
       )
     )
+  }
+
+  func testAvatarAndTrashSizeSurvivePreferenceAcknowledgement() async {
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    fixtures.fixtures["GET /v2/account/info"] = (
+      200,
+      Self.accountInfo(
+        rememberVideoTime: true, avatarURL: "https://static.put.io/avatar.png",
+        trashSize: 4096)
+    )
+    let (store, _) = makeStore(token: "stored-token")
+    await store.restore()
+    store.applyAcknowledgedPreferences(hideSubtitles: true)
+
+    guard case .signedIn(let account) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertTrue(account.hideSubtitles)
+    XCTAssertEqual(account.avatarURL, URL(string: "https://static.put.io/avatar.png"))
+    XCTAssertEqual(account.trashSizeBytes, 4096)
+  }
+
+  func testNonHTTPSAvatarIsDropped() async {
+    fixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
+    fixtures.fixtures["GET /v2/account/info"] = (
+      200, Self.accountInfo(rememberVideoTime: true, avatarURL: "http://example.com/a.png")
+    )
+    let (store, _) = makeStore(token: "stored-token")
+    await store.restore()
+
+    guard case .signedIn(let account) = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertNil(account.avatarURL)
   }
 
   func testRestoreMapsDisabledRememberVideoTimeSetting() async {

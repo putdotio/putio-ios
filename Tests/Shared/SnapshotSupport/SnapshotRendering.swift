@@ -284,6 +284,12 @@ extension XCTestCase {
         withIntermediateDirectories: true
       )
       try? renderedData.write(to: failureURL, options: .atomic)
+      // CI uploads result bundles, not the failure directory; the attachment
+      // carries the render off the runner.
+      let attachment = XCTAttachment(image: rendered)
+      attachment.name = "\(name)-rendered"
+      attachment.lifetime = .keepAlways
+      add(attachment)
       XCTFail(
         "\(name) diverged from its baseline (\(comparison.detail)); "
           + "rendered image written to \(failureURL.path)",

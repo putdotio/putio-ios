@@ -39,6 +39,10 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
   public let hideSubtitles: Bool
   public let dontAutoSelectSubtitles: Bool
   public let twoFactorEnabled: Bool
+  public let avatarURL: URL?
+  /// Bytes in Trash as the account reports them; the Trash listing owns the
+  /// live total while it is open.
+  public let trashSizeBytes: Int64
 
   public init(
     id: Int,
@@ -53,7 +57,9 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     routeName: String = "default",
     hideSubtitles: Bool = false,
     dontAutoSelectSubtitles: Bool = false,
-    twoFactorEnabled: Bool = false
+    twoFactorEnabled: Bool = false,
+    avatarURL: URL? = nil,
+    trashSizeBytes: Int64 = 0
   ) {
     self.id = id
     self.username = username
@@ -68,6 +74,35 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     self.hideSubtitles = hideSubtitles
     self.dontAutoSelectSubtitles = dontAutoSelectSubtitles
     self.twoFactorEnabled = twoFactorEnabled
+    self.avatarURL = avatarURL
+    self.trashSizeBytes = trashSizeBytes
+  }
+}
+
+// The avatar URL identifies the account, so diagnostics never print it.
+extension PutioAccountSnapshot: CustomReflectable {
+  public var customMirror: Mirror {
+    Mirror(
+      self,
+      children: [
+        "id": id,
+        "username": username,
+        "email": email,
+        "suggestNextVideo": suggestNextVideo,
+        "rememberVideoTime": rememberVideoTime,
+        "defaultSort": defaultSort as Any,
+        "historyEnabled": historyEnabled,
+        "trashEnabled": trashEnabled,
+        "storage": storage,
+        "routeName": routeName,
+        "hideSubtitles": hideSubtitles,
+        "dontAutoSelectSubtitles": dontAutoSelectSubtitles,
+        "twoFactorEnabled": twoFactorEnabled,
+        "avatarURL": avatarURL == nil ? "nil" : "<redacted>",
+        "trashSizeBytes": trashSizeBytes,
+      ],
+      displayStyle: .struct
+    )
   }
 }
 

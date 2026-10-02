@@ -322,6 +322,42 @@ final class HistoryTests: XCTestCase {
     XCTAssertFalse(model.isRefreshing)
   }
 
+  /// A lookup that resolves while History is being cleared must not open a
+  /// file from the list being cleared.
+  func testClearingRejectsAFileLookupThatResolvesMidClear() async throws {
+    let lookup = PendingHistoryPage()
+    let clearing = PendingHistoryPage()
+    defer {
+      lookup.cancel()
+      clearing.cancel()
+    }
+    let model = model(
+      list: { _ in Self.page([30]) },
+      clear: { _ = try await clearing.load() },
+      file: { _ in
+        _ = try await lookup.load()
+        return BrowserTestFixtures.item(id: 10)
+      })
+    await model.loadIfNeeded()
+    let event = PutioHistoryEventItem(
+      id: 30, createdAt: .now,
+      kind: .upload(name: "File", sizeBytes: 0, fileID: PutioFileID(rawValue: 10)))
+    let opening = Task { await model.openFile(event: event) }
+    defer { opening.cancel() }
+    try await lookup.waitForRequest()
+    let clear = Task { await model.clear() }
+    defer { clear.cancel() }
+    try await clearing.waitForRequest()
+    lookup.finish(Self.page([]))
+    await opening.value
+    XCTAssertNil(model.openedFile)
+    XCTAssertNil(model.openingEventID)
+    clearing.finish(Self.page([]))
+    await clear.value
+    XCTAssertEqual(model.page, Self.page([]))
+    XCTAssertNil(model.openedFile)
+  }
+
   func testLeavingHistoryRejectsLateFileLookup() async throws {
     let pending = PendingHistoryPage()
     defer { pending.cancel() }

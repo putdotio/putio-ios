@@ -59,6 +59,9 @@ card style.
 [tvOverscanPadding](Apps/tvOS/Sources/TVLayout.swift) tops up the safe area to the
 token overscan ratios; adding both in full would double the margin. Device-code
 sign-in uses tabular figures and a solid surface; sign-out uses the native dialog.
+Settings rows put the label left and the value right: two-state values cycle on
+select, larger choices open a full-screen chooser, and there are no toggles.
+Destructive actions confirm in a centered alert.
 
 Watch interactions are counts, states, and remote control, with one action per
 screen. File browsing and text entry belong on the phone.
