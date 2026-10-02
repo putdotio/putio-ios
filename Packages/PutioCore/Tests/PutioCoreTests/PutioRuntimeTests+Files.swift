@@ -574,7 +574,7 @@ extension PutioRuntimeTests {
     XCTAssertEqual(source.kind, .image)
     XCTAssertEqual(source.name, "Poster.png")
     XCTAssertEqual(source.url.path, "/v2/files/440/download")
-    XCTAssertEqual(source.url.query?.contains("oauth_token=stored-token"), true)
+    XCTAssertEqual(source.url.query, "oauth_token=account-download-secret")
     XCTAssertFalse(String(describing: source).contains("stored-token"))
     XCTAssertFalse(String(reflecting: source).contains("stored-token"))
   }

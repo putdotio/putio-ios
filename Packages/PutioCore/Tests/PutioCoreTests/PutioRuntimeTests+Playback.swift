@@ -138,7 +138,7 @@ extension PutioRuntimeTests {
     XCTAssertEqual(
       URLComponents(url: source.url, resolvingAgainstBaseURL: false)?
         .queryItems?.first(where: { $0.name == "oauth_token" })?.value,
-      "stored-token"
+      "account-download-secret"
     )
     XCTAssertFalse(String(describing: source).contains("stored-token"))
     XCTAssertFalse(String(reflecting: source).contains("stored-token"))
@@ -177,6 +177,10 @@ extension PutioRuntimeTests {
     let source = try await runtime.resolveAudioPlaybackSource(fileID: PutioFileID(rawValue: 430))
 
     XCTAssertEqual(source.url.path, "/v2/files/430/stream")
+    XCTAssertEqual(
+      URLComponents(url: source.url, resolvingAgainstBaseURL: false)?.queryItems?
+        .filter { $0.name == "oauth_token" }.map(\.value),
+      ["account-download-secret"])
     XCTAssertEqual(source.startFromSeconds, 45)
     XCTAssertFalse(String(describing: source).contains("stored-token"))
   }
@@ -476,7 +480,8 @@ extension PutioRuntimeTests {
     let components = try XCTUnwrap(URLComponents(url: media.url, resolvingAgainstBaseURL: false))
     XCTAssertEqual(components.path, "/v2/files/412/hls/media.m3u8")
     XCTAssertEqual(components.queryItems?.first { $0.name == "subtitle_key" }?.value, "all")
-    XCTAssertEqual(components.queryItems?.first { $0.name == "oauth_token" }?.value, "stored-token")
+    XCTAssertEqual(
+      components.queryItems?.first { $0.name == "oauth_token" }?.value, "account-download-secret")
     XCTAssertFalse(String(reflecting: media).contains("stored-token"))
     XCTAssertFalse(String(describing: media).contains("stored-token"))
     XCTAssertFalse(
@@ -498,7 +503,7 @@ extension PutioRuntimeTests {
     fixtures.setFixture(
       """
       {"default":"tr","subtitles":[
-        {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/en?oauth_token=stored-token"},
+        {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/en?oauth_token=account-download-secret"},
         {"key":"tr","language":"Turkish","language_code":"tur","name":"Turkish.srt","source":"opensubtitles","url":"https://api.put.io/v2/files/412/subtitles/tr"},
         {"key":"tr","language":"Turkish","language_code":"tur","name":"Dup.srt","source":"x","url":"https://api.put.io/v2/files/412/subtitles/tr"},
         {"key":"de","language":"German","language_code":"ger","name":"Other.srt","source":"x","url":"https://evil.example/v2/files/412/subtitles/de"},
@@ -523,11 +528,11 @@ extension PutioRuntimeTests {
     let subtitle = try XCTUnwrap(
       URLComponents(url: converted.subtitles[0].url, resolvingAgainstBaseURL: false))
     XCTAssertEqual(subtitle.queryItems?.map(\.name), ["oauth_token", "format"])
-    XCTAssertEqual(subtitle.queryItems?.map(\.value), ["stored-token", "webvtt"])
+    XCTAssertEqual(subtitle.queryItems?.map(\.value), ["account-download-secret", "webvtt"])
     let untokened = try XCTUnwrap(
       URLComponents(url: converted.subtitles[1].url, resolvingAgainstBaseURL: false))
     XCTAssertEqual(
-      untokened.queryItems?.map(\.value), ["stored-token", "webvtt"],
+      untokened.queryItems?.map(\.value), ["account-download-secret", "webvtt"],
       "the receiver fetches tracks without the app's header")
     XCTAssertFalse(String(reflecting: converted).contains("stored-token"))
 
@@ -640,6 +645,89 @@ extension PutioRuntimeTests {
       }
       XCTAssertNil(media.defaultSubtitleKey, setting)
       XCTAssertEqual(media.subtitles.isEmpty, setting == "hide_subtitles", setting)
+    }
+  }
+
+  func testMediaURLsLeavingTheAppNeverCarryTheSessionToken() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      Self.playbackFile(needConvert: false, startFrom: 0), for: Self.playbackRoute)
+    fixtures.setFixture(
+      #"{"file":{"id":430,"file_type":"AUDIO","start_from":0}}"#, for: "GET /v2/files/430")
+    fixtures.setFixture(
+      """
+      {"file":{"id":412,"name":"Movie.mkv","file_type":"VIDEO","parent_id":7,
+       "created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00",
+       "need_convert":false,"is_mp4_available":true,"start_from":0}}
+      """, for: "GET /v2/files/412")
+    fixtures.setFixture(
+      """
+      {"default":"en","subtitles":[
+        {"key":"en","language":"English","language_code":"eng","name":"English.srt","source":"x","url":"https://api.put.io/v2/files/412/subtitles/en?oauth_token=stored-token"}
+      ]}
+      """, for: "GET /v2/files/412/subtitles")
+
+    var urls: [URL] = []
+    for playbackType in [PutioCastPlaybackType.hls, .mp4] {
+      guard
+        case .ready(let media) = try await runtime.resolveCastMedia(
+          fileID: PutioFileID(rawValue: 412), playbackType: playbackType)
+      else { return XCTFail("expected ready \(playbackType) media") }
+      urls.append(media.url)
+      urls += media.subtitles.map(\.url)
+    }
+    urls.append(
+      try await runtime.resolveFileDownloadSource(fileID: PutioFileID(rawValue: 412)).url)
+    guard
+      case .ready(let video) = try await runtime.resolveVideoPlaybackSource(
+        fileID: PutioFileID(rawValue: 411))
+    else { return XCTFail("expected ready playback") }
+    urls.append(video.url)
+    urls.append(
+      try await runtime.resolveAudioPlaybackSource(fileID: PutioFileID(rawValue: 430)).url)
+
+    XCTAssertEqual(urls.count, 6)
+    for url in urls {
+      XCTAssertFalse(url.absoluteString.contains("stored-token"), url.path)
+      XCTAssertEqual(
+        URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+          .filter { $0.name == "oauth_token" }.map(\.value),
+        ["account-download-secret"], url.path)
+    }
+    let accountRequest = try XCTUnwrap(
+      fixtures.capturedRequests().first { $0.url?.path == "/v2/account/info" }?.url)
+    XCTAssertEqual(
+      URLComponents(url: accountRequest, resolvingAgainstBaseURL: false)?.queryItems,
+      [URLQueryItem(name: "download_token", value: "1")],
+      "put.io returns the download token only when asked")
+  }
+
+  func testMediaURLsFailWithoutADownloadTokenInsteadOfUsingTheSessionToken() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      Self.accountInfo.replacingOccurrences(
+        of: #""download_token": "account-download-secret","#, with: ""),
+      for: "GET /v2/account/info")
+    let refreshed = await runtime.refreshAccount()
+    XCTAssertTrue(refreshed)
+    fixtures.setFixture(
+      #"{"file":{"id":411,"name":"Movie.mkv","file_type":"VIDEO","parent_id":0,"need_convert":false,"is_mp4_available":true,"created_at":"2026-09-01T12:00:00","updated_at":"2026-09-01T12:00:00"}}"#,
+      for: Self.playbackRoute)
+
+    for playbackType in [PutioCastPlaybackType.hls, .mp4] {
+      await assertRuntimeError(.invalidResponse) {
+        _ = try await runtime.resolveCastMedia(
+          fileID: PutioFileID(rawValue: 411), playbackType: playbackType)
+      }
+    }
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.resolveFileDownloadSource(fileID: PutioFileID(rawValue: 411))
+    }
+    await assertRuntimeError(.invalidResponse) {
+      _ = try await runtime.resolveVideoPlaybackSource(fileID: PutioFileID(rawValue: 411))
+    }
+    guard case .signedIn = runtime.session.state else {
+      return XCTFail("a missing download token must not end the session")
     }
   }
 

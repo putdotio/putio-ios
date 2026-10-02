@@ -180,16 +180,17 @@ extension PutioRuntime {
     return snapshot(file)
   }
 
-  /// Resolves the tokened download URL for previews and external players.
+  /// Resolves the download-token URL for previews and external players.
   /// Folders have no download representation and resolve as invalid.
   public func resolveFileDownloadSource(fileID: PutioFileID) async throws
     -> PutioFileDownloadSource
   {
     guard fileID.rawValue > 0 else { throw PutioRuntimeError.invalidResponse }
-    let (file, token) = try await performAuthenticatedOperation {
-      (try await sdk.getFile(fileID: fileID.rawValue), sdk.config.token)
+    let (file, downloadToken) = try await performAuthenticatedOperation {
+      (try await sdk.getFile(fileID: fileID.rawValue), session.downloadToken)
     }
     guard file.id == fileID.rawValue else { throw PutioRuntimeError.invalidResponse }
+    let token = try requireDownloadToken(downloadToken)
     let item = snapshot(file)
     guard item.kind != .folder else { throw PutioRuntimeError.invalidResponse }
     return PutioFileDownloadSource(
