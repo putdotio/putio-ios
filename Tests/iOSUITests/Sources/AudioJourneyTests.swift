@@ -60,12 +60,20 @@ final class AudioJourneyTests: XCTestCase {
     attachment.lifetime = .keepAlways
     add(attachment)
 
-    let elapsedBeforeSkip = app.staticTexts["audio.elapsed"]
-    let skipped = elapsedBeforeSkip.label
+    // Skipping while paused moves exactly 15 s, clamped to the track, and
+    // does not start playback.
+    let elapsedLabel = app.staticTexts["audio.elapsed"]
+    let before = try XCTUnwrap(Self.seconds(elapsedLabel.label), elapsedLabel.label)
+    let durationLabel = app.staticTexts["audio.duration"].label
+    let duration = try XCTUnwrap(Self.seconds(durationLabel), durationLabel)
+    let expected = Self.clock(min(before + 15, duration))
     app.buttons["audio.skip-forward"].tap()
     let skip = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "label != %@", skipped), object: elapsedBeforeSkip)
-    XCTAssertEqual(XCTWaiter.wait(for: [skip], timeout: 5), .completed, "skip forward did not seek")
+      predicate: NSPredicate(format: "label == %@", expected), object: elapsedLabel)
+    XCTAssertEqual(
+      XCTWaiter.wait(for: [skip], timeout: 5), .completed,
+      "skip forward from \(Self.clock(before)) showed \(elapsedLabel.label), not \(expected)")
+    XCTAssertTrue(waitForValue(state, "id=408;state=paused"), "skip forward resumed playback")
 
     let speed = app.buttons["audio.speed"]
     XCTAssertEqual(speed.value as? String, "1×")
@@ -120,6 +128,17 @@ final class AudioJourneyTests: XCTestCase {
     app.confirmSignOut()
     XCTAssertTrue(signIn.waitForExistence(timeout: 10))
     XCTAssertFalse(miniPlayer.exists)
+  }
+
+  /// Reads the player's "m:ss" clock.
+  private static func seconds(_ clock: String) -> Int? {
+    let parts = clock.split(separator: ":").compactMap { Int($0) }
+    guard parts.count == 2 else { return nil }
+    return parts[0] * 60 + parts[1]
+  }
+
+  private static func clock(_ seconds: Int) -> String {
+    String(format: "%d:%02d", seconds / 60, seconds % 60)
   }
 
   private func waitForValue(_ element: XCUIElement, _ value: String, timeout: TimeInterval = 10)
