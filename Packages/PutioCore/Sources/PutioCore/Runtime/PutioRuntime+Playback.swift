@@ -96,7 +96,8 @@ extension PutioRuntime {
   }
 
   /// Resolves a video into what a Cast receiver plays. Every URL carries the
-  /// download token, never the session token. HLS uses the tokened playlist with server-muxed subtitles; MP4 uses the converted file when
+  /// download token, never the session token. HLS uses the tokened playlist
+  /// with server-muxed subtitles; MP4 uses the converted file when
   /// available (or the original when it needs no conversion) and lists the
   /// file's subtitles as WebVTT tracks. Files that still need conversion for
   /// MP4 playback resolve as `conversionRequired`. MP4 tracks follow the
