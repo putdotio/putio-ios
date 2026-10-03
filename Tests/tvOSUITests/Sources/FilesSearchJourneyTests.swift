@@ -227,10 +227,12 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertTrue(selectModalButton("files.menu.delete"))
     XCTAssertTrue(selectModalButton("files.delete-confirm"))
     XCTAssertTrue(label(containing: "Item deleted").waitForExistence(timeout: 10))
-    XCTAssertTrue(waitUntil(timeout: 10) { !folder.exists })
-    pause(3)
+    // A second request would fail and replace that toast; watching for the
+    // whole three-second life of a toast means it cannot expire unseen.
+    let failed = label(containing: "Could not delete item")
     XCTAssertFalse(
-      label(containing: "Could not delete item").exists, "the delete was sent more than once")
+      waitUntil(timeout: 6) { failed.exists }, "the delete was sent more than once")
+    XCTAssertFalse(folder.exists)
   }
 
   // MARK: - Remote helpers

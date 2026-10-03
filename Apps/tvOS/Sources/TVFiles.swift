@@ -121,71 +121,55 @@ struct TVFileRowButton: View {
   }
 }
 
-/// Removes a row the menu accepted, once focus has left it. The menu's
-/// alert holds focus when the removal is chosen, so a focus change made then
-/// is dropped; tvOS hands focus back to the row as the alert closes, and
-/// removing a focused row sends focus to the top of the list.
-///
-/// The removal runs in its own task, so leaving the screen first still
-/// deletes. Only focus waits on the screen. The menu chose Trash or a
-/// confirmed permanent delete for the account's trash setting at that
-/// moment; if the setting changes before the removal starts, nothing is
-/// deleted.
-@MainActor
-@Observable
-final class TVRowRemoval {
-  struct Request: Equatable {
-    let item: PutioFileItem
-    let focus: PutioFileID?
-    let trashEnabled: Bool
+/// Moves focus to a row once the menu that removed its neighbour has let
+/// go of focus. A focus change made while the alert is up is dropped, and
+/// tvOS then puts focus on the first row, so the move waits for the next
+/// focus change, or one second.
+struct TVFocusHandoff: ViewModifier {
+  @Binding var target: PutioFileID?
+  var focusedRow: FocusState<PutioFileID?>.Binding
+
+  func body(content: Content) -> some View {
+    content
+      .onChange(of: focusedRow.wrappedValue) { _, row in
+        if row != nil { apply() }
+      }
+      .task(id: target) {
+        guard target != nil else { return }
+        try? await Task.sleep(for: .seconds(1))
+        if !Task.isCancelled { apply() }
+      }
   }
 
-  private(set) var pending: Request?
-  /// A removal dropped because the trash setting changed under it.
-  private(set) var dropped: PutioFileItem?
-  /// The account's current trash setting, kept up to date by the screen.
-  @ObservationIgnored var trashEnabled: Bool
-  @ObservationIgnored private var focusReturned = false
-  @ObservationIgnored private let fallback: Duration
+  private func apply() {
+    guard let row = target else { return }
+    target = nil
+    focusedRow.wrappedValue = row
+  }
+}
 
-  init(trashEnabled: Bool, fallback: Duration = .seconds(1)) {
-    self.trashEnabled = trashEnabled
-    self.fallback = fallback
+/// Runs a folder mutation and then asks the other mounted screens, Search
+/// included, to refresh. The request follows the mutation itself, not the
+/// screen, so it is sent even if the screen closed meanwhile; a failed
+/// mutation may still have reached the server, so it is sent either way.
+enum TVFolderMutation {
+  enum Scope {
+    /// A deleted folder can contain any other mounted folder.
+    case allFolders
+    case folder(PutioFileID)
   }
 
-  func start(
-    _ request: Request, moveFocus: @escaping @MainActor (PutioFileID) -> Void,
-    remove: @escaping @MainActor (PutioFileItem) async -> Void
-  ) {
-    guard pending == nil else { return }
-    pending = request
-    focusReturned = false
-    Task { @MainActor in
-      let deadline = ContinuousClock.now + fallback
-      while !focusReturned, ContinuousClock.now < deadline {
-        try? await Task.sleep(for: .milliseconds(20))
-      }
-      pending = nil
-      guard request.trashEnabled == trashEnabled else {
-        dropped = request.item
-        return
-      }
-      if let focus = request.focus { moveFocus(focus) }
-      await remove(request.item)
+  @MainActor
+  static func run(
+    _ scope: Scope, requests: PutioFolderRefreshRequests, owner: UUID,
+    operation: @MainActor () async -> Void
+  ) async {
+    await operation()
+    switch scope {
+    case .allFolders: requests.requestAllLoadedFolders(excludingOwner: owner)
+    case .folder(let id): requests.request(folderID: id, excludingOwner: owner)
     }
   }
-
-  func focusChanged(to row: PutioFileID?) {
-    if let pending, row == pending.item.id { focusReturned = true }
-  }
-
-  func clearDropped() {
-    dropped = nil
-  }
-
-  static let droppedToast = PutioToast(
-    variant: .info, title: "Nothing was deleted",
-    message: "The Trash setting changed. Long-press the file to try again.")
 }
 
 /// The long-press menu and the permanent-delete confirmation, both centered
@@ -277,7 +261,7 @@ struct TVFolderView: View {
   @State private var refreshRegistration: PutioFolderRefreshRegistration
   @State private var menuItem: PutioFileItem?
   @FocusState private var focusedRow: PutioFileID?
-  @State private var removal: TVRowRemoval
+  @State private var focusTarget: PutioFileID?
   @State private var choosesSort = false
   @State private var toast: PutioToast?
   @State private var hasAppeared = false
@@ -316,7 +300,6 @@ struct TVFolderView: View {
     _model = State(initialValue: model)
     _refreshRegistration = State(
       initialValue: PutioFolderRefreshRegistration(folderID: route.id, requests: refreshRequests))
-    _removal = State(initialValue: TVRowRemoval(trashEnabled: account.trashEnabled))
     _now = State(initialValue: now)
   }
 
@@ -366,28 +349,17 @@ struct TVFolderView: View {
     }
     .tvFileMenu(
       item: $menuItem, account: account, canDelete: model.canDelete,
-      setWatched: { item, watched in Task { await model.setWatched(item, watched) } },
+      setWatched: { item, watched in
+        mutate(.folder(route.id)) { [model] in await model.setWatched(item, watched) }
+      },
       delete: { item in
         guard case .loaded(let contents) = model.state else { return }
-        removal.start(
-          TVRowRemoval.Request(
-            item: item,
-            focus: TVFilePresentation.focusAfterRemoving(
-              item.id, from: contents.items, firstPage: model.firstPageIDs),
-            trashEnabled: account.trashEnabled),
-          moveFocus: { focusedRow = $0 },
-          remove: { [model] item in await model.delete(item) })
+        focusTarget = TVFilePresentation.focusAfterRemoving(
+          item.id, from: contents.items, firstPage: model.firstPageIDs)
+        mutate(.allFolders) { [model] in await model.delete(item) }
       }
     )
-    .onChange(of: focusedRow) { _, row in removal.focusChanged(to: row) }
-    .onChange(of: account.trashEnabled, initial: true) { _, enabled in
-      removal.trashEnabled = enabled
-    }
-    .onChange(of: removal.dropped) { _, item in
-      guard item != nil else { return }
-      toast = TVRowRemoval.droppedToast
-      removal.clearDropped()
-    }
+    .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
     .tvToast($toast)
     .task(id: route.id) {
       guard loadsOnAppear else { return }
@@ -420,7 +392,6 @@ struct TVFolderView: View {
     }
     .onChange(of: model.actionOutcome) { _, outcome in
       guard let outcome else { return }
-      notifyOtherScreens(after: outcome)
       toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)
       model.clearActionOutcome()
     }
@@ -498,21 +469,13 @@ struct TVFolderView: View {
     refreshRequests.markConsumed(pending, for: route.id, owner: refreshRegistration.owner)
   }
 
-  /// A failed mutation may still have reached the server, so other mounted
-  /// screens, Search included, refresh after either outcome.
-  private func notifyOtherScreens(after outcome: PutioFileActionOutcome) {
-    let action =
-      switch outcome {
-      case .succeeded(let action), .failed(let action, _): action
-      }
-    switch action {
-    case .delete:
-      // A deleted folder can contain any other mounted folder.
-      refreshRequests.requestAllLoadedFolders(excludingOwner: refreshRegistration.owner)
-    case .sort:
-      break
-    default:
-      refreshRequests.request(folderID: route.id, excludingOwner: refreshRegistration.owner)
+  private func mutate(
+    _ scope: TVFolderMutation.Scope, _ operation: @escaping @MainActor () async -> Void
+  ) {
+    let requests = refreshRequests
+    let owner = refreshRegistration.owner
+    Task {
+      await TVFolderMutation.run(scope, requests: requests, owner: owner, operation: operation)
     }
   }
 
