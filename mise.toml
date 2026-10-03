@@ -49,5 +49,5 @@ description = "Run the headless iOS proof subset used by CI"
 run = "./scripts/harness-ci.sh"
 
 [tasks.verify]
-description = "Test the shared core and build every Apple app shell"
+description = "Test the shared core and build every Apple app shell; pass lanes (checks, build, ios, tvos) to run a subset"
 run = "./scripts/verify.sh"
