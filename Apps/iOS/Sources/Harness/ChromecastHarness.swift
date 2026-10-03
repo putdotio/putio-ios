@@ -177,4 +177,23 @@
         .allowsHitTesting(false)
     }
   }
+
+  /// Presents the harness stub picker; a no-op outside the seeded scenario.
+  struct PutioHarnessCastPresentation: ViewModifier {
+    let model: PutioCastModel
+
+    func body(content: Content) -> some View {
+      if let controller = model.harnessController {
+        content.sheet(
+          isPresented: Binding(
+            get: { controller.presentsPicker }, set: { if !$0 { controller.dismissPicker() } })
+        ) {
+          PutioHarnessCastPicker(controller: controller)
+            .preferredColorScheme(.dark)
+        }
+      } else {
+        content
+      }
+    }
+  }
 #endif

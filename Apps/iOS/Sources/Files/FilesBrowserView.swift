@@ -155,3 +155,8 @@ struct FilesBrowserView: View {
     }
   }
 }
+
+struct PutioFilesNavigationRequest: Equatable {
+  let id = UUID()
+  let path: [PutioFolderRoute]
+}

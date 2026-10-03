@@ -247,31 +247,3 @@ struct TVHistoryEventRow: View {
     .accessibilityElement(children: .combine)
   }
 }
-
-/// A failure message with its retry, and optionally a way to set it aside.
-struct TVRetrySection: View {
-  let message: String
-  let identifier: String
-  var retryTitle = "Try again"
-  var dismiss: (() -> Void)?
-  let retry: @MainActor () async -> Void
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.small) {
-      Text(message)
-        .putioFont(PutioTheme.TV.Typography.body)
-        .foregroundStyle(PutioTheme.TV.Colors.textSecondary)
-        .accessibilityIdentifier("\(identifier).message")
-      HStack(spacing: PutioTheme.TV.Spacing.small) {
-        PutioButton(retryTitle, tier: .secondary) { Task { await retry() } }
-          .accessibilityIdentifier(identifier)
-        if let dismiss {
-          PutioButton("Dismiss", tier: .secondary, action: dismiss)
-            .accessibilityIdentifier("\(identifier).dismiss")
-        }
-      }
-    }
-    .padding(.horizontal, PutioTheme.TV.Spacing.medium)
-    .focusSection()
-  }
-}
