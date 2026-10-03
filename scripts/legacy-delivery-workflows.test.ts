@@ -180,6 +180,6 @@ test("next CI admits rollout PR bases without broadening push", async () => {
   const push = recordAt(triggers, "push", "ci-next.yml.on");
   assert.deepEqual(arrayAt(push, "branches", "ci-next.yml.on.push"), ["next"]);
 
-  const verify = recordAt(recordAt(workflow, "jobs", "ci-next.yml"), "verify", "ci-next.yml jobs");
-  assert.equal(verify.name, "Verify next Apple workspace");
+  const jobs = recordAt(workflow, "jobs", "ci-next.yml");
+  assert.deepEqual(Object.keys(jobs), ["changes", "checks", "ios", "build"]);
 });

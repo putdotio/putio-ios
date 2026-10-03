@@ -82,7 +82,9 @@ mise run verify
 
 The [verification script](scripts/verify.sh) owns the full gate, including
 [tooling and package checks](scripts/test.sh), app builds, and iOS/tvOS native
-suites. Keep generation and verification secret-free.
+suites. Pass lanes to run a subset in order: `mise run verify checks tvos` runs
+the tooling checks and tvOS suites; the lanes are `checks`, `build`, `ios`, and
+`tvos`. Keep generation and verification secret-free.
 
 For runtime changes, exercise the affected shell through the
 [headless harness](docs/harness.md); the

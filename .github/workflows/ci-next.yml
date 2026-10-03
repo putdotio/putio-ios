@@ -18,10 +18,68 @@ permissions:
   contents: read
 
 jobs:
-  verify:
-    name: Verify next Apple workspace
+  changes:
+    name: Select affected lanes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    # Pushes to next verify everything. Pull requests skip lanes whose platform
+    # no changed path can affect; unlisted paths count for every lane.
+    outputs:
+      code: ${{ github.event_name == 'push' || steps.filter.outputs.code == 'true' }}
+      ios: ${{ github.event_name == 'push' || steps.filter.outputs.ios == 'true' }}
+      tvos: ${{ github.event_name == 'push' || steps.filter.outputs.tvos == 'true' }}
+    steps:
+      - name: Classify changed paths
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          predicate-quantifier: every
+          filters: |
+            code:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+              - '!.agents/**'
+              - '!.claude/**'
+              - '!.github/ISSUE_TEMPLATE/**'
+              - '!LICENSE'
+              - '!skills-lock.json'
+            ios:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+              - '!.agents/**'
+              - '!.claude/**'
+              - '!.github/ISSUE_TEMPLATE/**'
+              - '!LICENSE'
+              - '!skills-lock.json'
+              - '!Apps/tvOS/**'
+              - '!Tests/tvOS/**'
+              - '!Tests/tvOSUITests/**'
+            tvos:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+              - '!.agents/**'
+              - '!.claude/**'
+              - '!.github/ISSUE_TEMPLATE/**'
+              - '!LICENSE'
+              - '!skills-lock.json'
+              - '!Apps/iOS/**'
+              - '!Apps/watchOS/**'
+              - '!Tests/iOS/**'
+              - '!Tests/iOSUITests/**'
+
+  checks:
+    name: Checks and tvOS
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
@@ -29,54 +87,68 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Select Xcode 26.6
-        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
-        with:
-          xcode-version: "26.6"
+      - name: Set up the Apple toolchain
+        uses: ./.github/actions/setup-apple
 
-      - name: Install the pinned toolchain
-        uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
-        with:
-          version: "2026.9.15"
-
-      - name: Restore pnpm store cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/Library/pnpm/store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
-
-      - name: Restore SwiftPM repository cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/Library/Caches/org.swift.swiftpm
-          key: ${{ runner.os }}-swiftpm-${{ hashFiles('**/Package.resolved') }}
-          restore-keys: |
-            ${{ runner.os }}-swiftpm-
-
-      - name: Restore Tuist dependency cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: Tuist/.build
-          key: ${{ runner.os }}-tuist-build-${{ hashFiles('Tuist/Package.swift', 'Tuist/Package.resolved', 'Packages/GoogleCastSDK/Package.swift') }}
-          restore-keys: |
-            ${{ runner.os }}-tuist-build-
-
-      - name: Provision licensed brand fonts
-        run: mise run fonts-setup
-
-      - name: Verify repository
-        run: mise run verify
-
-      - name: Exercise the headless Apple harness
-        run: mise run harness-ci
+      - name: Verify checks and tvOS snapshots
+        run: mise run verify checks ${{ needs.changes.outputs.tvos == 'true' && 'tvos' || '' }}
 
       - name: Upload test result bundles
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-results-attempt-${{ github.run_attempt }}
+          name: test-results-checks-attempt-${{ github.run_attempt }}
           path: build/DerivedData/Logs/Test/*.xcresult
           if-no-files-found: ignore
           retention-days: 5
+
+  ios:
+    name: iOS tests
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up the Apple toolchain
+        uses: ./.github/actions/setup-apple
+
+      - name: Verify iOS snapshots and features
+        run: mise run verify ios
+
+      - name: Upload test result bundles
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-results-ios-attempt-${{ github.run_attempt }}
+          path: build/DerivedData/Logs/Test/*.xcresult
+          if-no-files-found: ignore
+          retention-days: 5
+
+  build:
+    name: Builds and iOS proof
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up the Apple toolchain
+        uses: ./.github/actions/setup-apple
+
+      - name: Build every app shell
+        run: mise run verify build
+
+      - name: Exercise the headless Apple harness
+        if: needs.changes.outputs.ios == 'true'
+        run: mise run harness-ci
