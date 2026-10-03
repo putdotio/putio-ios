@@ -1260,7 +1260,8 @@ extension PutioFileItem {
       sizeBytes: sizeBytes,
       createdAt: createdAt,
       updatedAt: updatedAt,
-      resumePositionSeconds: resumePositionSeconds
+      resumePositionSeconds: resumePositionSeconds,
+      isShared: isShared
     )
   }
 
@@ -1273,7 +1274,8 @@ extension PutioFileItem {
       sizeBytes: sizeBytes,
       createdAt: createdAt,
       updatedAt: updatedAt,
-      resumePositionSeconds: seconds
+      resumePositionSeconds: seconds,
+      isShared: isShared
     )
   }
 }

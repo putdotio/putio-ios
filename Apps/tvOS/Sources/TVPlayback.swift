@@ -208,7 +208,7 @@ struct TVVideoPlaybackView: View {
     stage = .measuring
     probes.resumePosition = source.startFromSeconds
     let asset = AVURLAsset(url: source.url)
-    let item = AVPlayerItem(asset: asset)
+    let item = Self.playerItem(asset: asset, title: route.title)
     let duration = try? await asset.load(.duration)
     guard !Task.isCancelled else { return }
     let seconds = duration.map(CMTimeGetSeconds)
@@ -221,6 +221,18 @@ struct TVVideoPlaybackView: View {
       stage = .playing(
         item, startSeconds: remembersPosition ? source.startFromSeconds : 0)
     }
+  }
+
+  /// The system player shows the item's title over its transport bar and in
+  /// its Info panel; the shipped app names the file there.
+  static func playerItem(asset: AVAsset, title: String) -> AVPlayerItem {
+    let item = AVPlayerItem(asset: asset)
+    let titleMetadata = AVMutableMetadataItem()
+    titleMetadata.identifier = .commonIdentifierTitle
+    titleMetadata.value = title as NSString
+    titleMetadata.extendedLanguageTag = "und"
+    item.externalMetadata = [titleMetadata]
+    return item
   }
 
   private func playbackEnded() {

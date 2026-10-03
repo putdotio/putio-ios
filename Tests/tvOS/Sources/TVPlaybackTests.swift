@@ -38,6 +38,18 @@ private final class ReportedPositions {
 final class TVPlaybackTests: XCTestCase {
   private let viewport = CGSize(width: 1920, height: 1080)
 
+  /// The system player titles its transport bar and Info panel from the
+  /// item's metadata; the shipped app shows the file name there.
+  func testThePlayerItemCarriesTheFileNameAsItsTitle() async throws {
+    let item = TVVideoPlaybackView.playerItem(
+      asset: AVURLAsset(url: URL(fileURLWithPath: "/dev/null")), title: "Root Movie.mkv")
+    let title = AVMetadataItem.metadataItems(
+      from: item.externalMetadata, filteredByIdentifier: .commonIdentifierTitle
+    ).first
+    let value = try await XCTUnwrap(title).load(.stringValue)
+    XCTAssertEqual(value, "Root Movie.mkv")
+  }
+
   /// put.io shapes the subtitle renditions from the account: the first one
   /// `DEFAULT` with auto-selection on, none `DEFAULT` with it off, and none
   /// at all while subtitles are hidden. Applying that default changes only
