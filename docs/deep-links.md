@@ -6,7 +6,7 @@ also routes `/history` to History when enabled, `/account` or `/settings` to
 Account, and `/link` to Account's Link your account screen. As on put.io's web,
 `/link?code=AB12CD` prefills the activation code, trimmed and uppercased; the
 user still taps Link, which requires exactly six characters. Non-folder files use the
-[normal file dispatcher](../Apps/iOS/Sources/PutioApp.swift) (`selectFile`):
+[normal file dispatcher](../Apps/iOS/Sources/MainTabView.swift) (`selectFile`):
 video, audio, preview, or an unsupported-file explanation.
 
 `/downloads` opens the Downloads tab. `putio:///downloads/412` plays file 412

@@ -226,24 +226,13 @@ private struct TVSignOutFailureView: View {
 
   var body: some View {
     PutioErrorStateView(
-      title: "Sign-out did not finish",
-      message: message,
-      retryTitle: "Try signing out again",
+      title: failure.title,
+      message: failure.message,
+      retryTitle: failure.retryTitle,
       retryIdentifier: "auth.retry-sign-out"
     ) {
       Task { await session.signOut() }
     }
     .tvOverscanPadding()
-  }
-
-  private var message: String {
-    switch failure {
-    case .credentialRemoval:
-      "Saved sign-in details could not be removed. Try again before closing the app."
-    case .revocation:
-      "put.io could not revoke your session. Check your connection and try again."
-    case .credentialRemovalAndRevocation:
-      "Saved sign-in details could not be removed and put.io could not revoke your session. Check your connection and try again before closing the app."
-    }
   }
 }

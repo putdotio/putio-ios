@@ -4,6 +4,31 @@ import PutioCore
 import Synchronization
 import os
 
+/// The transport behind the queue: AVAssetDownloadURLSession in production, a
+/// scripted fake in tests. Every callback lands on the main actor.
+@MainActor
+protocol PutioOfflineDownloadEngine: AnyObject {
+  var onProgress: ((PutioFileID, Double) -> Void)? { get set }
+  var onLocation: ((PutioFileID, URL) -> Void)? { get set }
+  var onFinished: ((PutioFileID, Error?) -> Void)? { get set }
+  /// The engine confirmed a cancellation the queue asked for.
+  var onCancelled: ((PutioFileID) -> Void)? { get set }
+  /// A write the engine could not make; the queue reports it with its own.
+  var onPersistenceFailure: ((Error) -> Void)? { get set }
+
+  /// Inspects the asset without downloading it.
+  func inventory(url: URL) async throws -> PutioOfflineInventory
+  func start(fileID: PutioFileID, url: URL, title: String, audioLanguages: [String]) async throws
+  func pause(fileID: PutioFileID)
+  func resume(fileID: PutioFileID)
+  func cancel(fileID: PutioFileID)
+  /// File ids with tasks the system kept alive across relaunch.
+  func restoreTasks() async -> [PutioFileID]
+  func stop()
+  /// Writes again what failed before.
+  func retryPersisting() throws
+}
+
 /// AVAssetDownloadURLSession with a background configuration. The system owns
 /// the transfer, keeps it alive across relaunch, and reports the final
 /// location before completion. Task identity is the put.io file id carried in
