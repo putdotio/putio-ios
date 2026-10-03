@@ -565,8 +565,10 @@ struct TVProxyChooserScreen: View {
         PutioErrorStateView(
           title: "Could not load proxies", message: failure, retryTitle: "Try again",
           retryIdentifier: "proxy.retry", retry: retry)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else {
         PutioLoadingStateView(title: "Loading proxies")
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

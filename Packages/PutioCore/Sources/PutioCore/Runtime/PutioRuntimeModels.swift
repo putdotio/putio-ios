@@ -134,6 +134,9 @@ public struct PutioFileItem: Identifiable, Hashable, Sendable {
   public let createdAt: Date
   public let updatedAt: Date
   public let resumePositionSeconds: Int
+  /// put.io's `is_shared`: the file reaches this account through another
+  /// account's share.
+  public let isShared: Bool
 
   public var isWatched: Bool {
     kind == .video && resumePositionSeconds > 0
@@ -147,7 +150,8 @@ public struct PutioFileItem: Identifiable, Hashable, Sendable {
     sizeBytes: Int64,
     createdAt: Date,
     updatedAt: Date,
-    resumePositionSeconds: Int
+    resumePositionSeconds: Int,
+    isShared: Bool = false
   ) {
     self.id = id
     self.parentID = parentID
@@ -157,6 +161,7 @@ public struct PutioFileItem: Identifiable, Hashable, Sendable {
     self.createdAt = createdAt
     self.updatedAt = updatedAt
     self.resumePositionSeconds = resumePositionSeconds
+    self.isShared = isShared
   }
 }
 

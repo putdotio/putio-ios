@@ -133,7 +133,11 @@ struct TVSearchView: View {
           identifier: "search.item.\(item.id.rawValue)",
           isMenuOpen: menuItem?.id == item.id,
           open: { open(item) },
-          showMenu: { if itemActions.canStartAction { menuItem = item } }
+          showMenu: {
+            let actions = TVFilePresentation.menuActions(
+              for: item, account: account, canDelete: itemActions.canDelete)
+            if itemActions.canStartAction, !actions.isEmpty { menuItem = item }
+          }
         )
         .focused($focusedRow, equals: item.id)
       }

@@ -10,10 +10,13 @@ enum TVFileMenuAction: Hashable {
 
 enum TVFilePresentation {
   /// Watch status needs remember-position on and a video; Trash or Delete
-  /// waits for the account's trash setting to be known.
+  /// waits for the account's trash setting to be known. As in the shipped
+  /// app, a shared file offers neither, and with nothing to offer there is
+  /// no menu.
   static func menuActions(
     for item: PutioFileItem, account: PutioAccountSnapshot, canDelete: Bool
   ) -> [TVFileMenuAction] {
+    guard !item.isShared else { return [] }
     var actions: [TVFileMenuAction] = []
     if account.rememberVideoTime, item.kind == .video {
       actions.append(item.isWatched ? .markUnwatched : .markWatched)
@@ -452,7 +455,11 @@ struct TVFolderView: View {
           identifier: "files.item.\(item.id.rawValue)",
           isMenuOpen: menuItem?.id == item.id,
           open: { open(item) },
-          showMenu: { if model.canStartAction { menuItem = item } }
+          showMenu: {
+            let actions = TVFilePresentation.menuActions(
+              for: item, account: account, canDelete: model.canDelete)
+            if model.canStartAction, !actions.isEmpty { menuItem = item }
+          }
         )
         .focused($focusedRow, equals: item.id)
       }

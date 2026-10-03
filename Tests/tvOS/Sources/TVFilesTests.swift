@@ -27,6 +27,21 @@ final class TVFilesTests: XCTestCase {
       [.markWatched], "Trash or Delete waits for the trash setting to be known")
   }
 
+  /// The shipped app offers no actions on a file shared from another
+  /// account, so its long press opens nothing.
+  func testASharedFileHasNoMenuActions() {
+    XCTAssertEqual(
+      TVFilePresentation.menuActions(
+        for: Self.video(resumePositionSeconds: 90, isShared: true), account: Self.account(),
+        canDelete: true),
+      [])
+    XCTAssertEqual(
+      TVFilePresentation.menuActions(
+        for: Self.video(kind: .other("ZIP"), isShared: true), account: Self.account(),
+        canDelete: true),
+      [])
+  }
+
   /// The shipped TV sort menu: the current key flips, every other key keeps
   /// the current direction, and the current sort itself is never offered.
   func testSortChoicesMatchTheShippedMenu() {
@@ -178,12 +193,13 @@ final class TVFilesTests: XCTestCase {
   }
 
   private static func video(
-    id: Int = 412, kind: PutioFileKind = .video, resumePositionSeconds: Int = 0
+    id: Int = 412, kind: PutioFileKind = .video, resumePositionSeconds: Int = 0,
+    isShared: Bool = false
   ) -> PutioFileItem {
     PutioFileItem(
       id: PutioFileID(rawValue: id), parentID: .root, name: "Root Movie.mkv", kind: kind,
       sizeBytes: 1, createdAt: .distantPast, updatedAt: .distantPast,
-      resumePositionSeconds: resumePositionSeconds)
+      resumePositionSeconds: resumePositionSeconds, isShared: isShared)
   }
 
   private static func account(

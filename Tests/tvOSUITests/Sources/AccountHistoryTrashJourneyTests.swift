@@ -76,6 +76,7 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(focus("history.mutation-retry"))
     remote.press(.select)
     XCTAssertTrue(element("history.empty").waitForExistence(timeout: 10))
+    XCTAssertTrue(isCentered(element("history.empty")), "History's empty state is off-center")
     attach("runtime-tv-history-empty")
 
     // Home reloads the account, which now has History off.
@@ -128,6 +129,7 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     XCTAssertTrue(focus("trash.restore-all", moving: .up))
     remote.press(.select)
     XCTAssertTrue(element("trash.empty-state").waitForExistence(timeout: 15))
+    XCTAssertTrue(isCentered(element("trash.empty-state")), "Trash's empty state is off-center")
     attach("runtime-tv-trash-empty")
   }
 
@@ -150,6 +152,7 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
     remote.press(.select)
     let proxyRetry = element("proxy.retry")
     XCTAssertTrue(proxyRetry.waitForExistence(timeout: 10))
+    XCTAssertTrue(isCentered(proxyRetry), "the proxy listing failure is off-center")
     attach("runtime-tv-proxy-failure")
     XCTAssertTrue(focus("proxy.retry"))
     remote.press(.select)
@@ -223,6 +226,17 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
   private func isOnScreen(_ element: XCUIElement) -> Bool {
     guard element.exists, !element.frame.isEmpty else { return false }
     return app.windows.firstMatch.frame.contains(element.frame)
+  }
+
+  /// A full-screen empty or failure state sits in the middle of the screen
+  /// below the header, as in the shipped app, not in its top-left corner.
+  private func isCentered(_ element: XCUIElement) -> Bool {
+    guard element.exists, !element.frame.isEmpty else { return false }
+    let screen = app.windows.firstMatch.frame
+    let frame = element.frame
+    return abs(frame.midX - screen.midX) < screen.width * 0.05
+      && frame.midY > screen.minY + screen.height * 0.3
+      && frame.midY < screen.minY + screen.height * 0.75
   }
 
   private func hasFocus(_ identifier: String) -> Bool {

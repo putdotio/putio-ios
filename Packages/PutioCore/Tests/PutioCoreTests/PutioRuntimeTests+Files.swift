@@ -52,6 +52,7 @@ extension PutioRuntimeTests {
     XCTAssertEqual(video.sizeBytes, 1_024)
     XCTAssertEqual(video.resumePositionSeconds, 42)
     XCTAssertTrue(video.isWatched)
+    XCTAssertFalse(video.isShared)
     XCTAssertEqual(
       video.createdAt,
       try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-08-28T10:00:00Z"))
@@ -154,7 +155,7 @@ extension PutioRuntimeTests {
   func testSearchEncodesQueryAndMapsAppOwnedResults() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
-      #"{"total":2,"cursor":"search-page-2","files":[{"id":31,"name":"Summer & snow.mkv","file_type":"VIDEO","parent_id":42,"size":1024,"start_from":12,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z","stream_url":"https://example.com/stream-secret"}]}"#,
+      #"{"total":2,"cursor":"search-page-2","files":[{"id":31,"name":"Summer & snow.mkv","file_type":"VIDEO","parent_id":42,"size":1024,"start_from":12,"is_shared":true,"created_at":"2026-08-28T10:00:00Z","updated_at":"2026-08-29T10:00:00Z","stream_url":"https://example.com/stream-secret"}]}"#,
       for: Self.searchRoute
     )
 
@@ -170,6 +171,7 @@ extension PutioRuntimeTests {
     XCTAssertEqual(item.kind, .video)
     XCTAssertEqual(item.sizeBytes, 1024)
     XCTAssertEqual(item.resumePositionSeconds, 12)
+    XCTAssertTrue(item.isShared)
     XCTAssertFalse(String(reflecting: page).contains("stream-secret"))
     let request = try XCTUnwrap(fixtures.capturedRequests().last)
     XCTAssertEqual(request.httpMethod, "GET")

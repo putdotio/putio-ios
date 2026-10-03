@@ -85,6 +85,7 @@ struct TVHistoryView: View {
         }
       }
       content
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .tvOverscanPadding()

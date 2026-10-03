@@ -142,7 +142,8 @@ public final class PutioRuntime {
       sizeBytes: file.size,
       createdAt: file.createdAt,
       updatedAt: file.updatedAt,
-      resumePositionSeconds: file.startFrom
+      resumePositionSeconds: file.startFrom,
+      isShared: file.isShared
     )
   }
 
