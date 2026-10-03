@@ -27,6 +27,23 @@ public enum PutioSignOutFailure: Equatable, Sendable {
   case credentialRemovalAndRevocation
 }
 
+extension PutioSignOutFailure {
+  public var title: String { "Sign-out did not finish" }
+
+  public var message: String {
+    switch self {
+    case .credentialRemoval:
+      "Saved sign-in details could not be removed. Try again before closing the app."
+    case .revocation:
+      "put.io could not revoke your session. Check your connection and try again."
+    case .credentialRemovalAndRevocation:
+      "Saved sign-in details could not be removed and put.io could not revoke your session. Check your connection and try again before closing the app."
+    }
+  }
+
+  public var retryTitle: String { "Try signing out again" }
+}
+
 public enum PutioSessionOperationError: Error, Equatable, Sendable {
   case signInUnavailable
 }
