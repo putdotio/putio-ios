@@ -29,28 +29,15 @@ struct TVVideoSession: View {
   var body: some View {
     TVVideoPlaybackView(
       route: route, runtime: runtime, account: account, pipeline: pipeline,
-      onPlayNext: { next in
-        let completed = route
-        route = PutioVideoRoute(nextVideo: next)
-        refreshAfterReports(completed)
+      onPlayNext: { route = PutioVideoRoute(nextVideo: $0) },
+      // A row shows its watched state once the player's last report
+      // landed; the folder's own refresh on reappearing can run before it.
+      onPlayerReportsSettled: { [refreshRequests] finished in
+        refreshRequests.request(folderID: finished.parentID)
       },
       onFinish: { dismiss() }
     )
     .id(route.id)
-    .onDisappear { refreshAfterReports(route) }
-  }
-
-  /// A row shows its watched state once the player's last report landed;
-  /// the folder's own refresh on reappearing can run before it does.
-  private func refreshAfterReports(_ route: PutioVideoRoute) {
-    let pipeline = pipeline
-    let requests = refreshRequests
-    Task { @MainActor in
-      // The player enqueues its final report as it is torn down.
-      await Task.yield()
-      await pipeline.waitForPendingReports(fileID: route.id)
-      requests.request(folderID: route.parentID)
-    }
   }
 }
 
@@ -79,12 +66,14 @@ struct TVVideoPlaybackView: View {
   private let runtime: PutioRuntime
   private let showsProbes: Bool
   private let onPlayNext: @MainActor (PutioPlayableNextVideo) -> Void
+  private let onPlayerReportsSettled: @MainActor (PutioVideoRoute) -> Void
   private let onFinish: @MainActor () -> Void
 
   init(
     route: PutioVideoRoute, runtime: PutioRuntime, account: PutioAccountSnapshot,
     pipeline: PutioPlaybackPositionPipeline,
     onPlayNext: @escaping @MainActor (PutioPlayableNextVideo) -> Void,
+    onPlayerReportsSettled: @escaping @MainActor (PutioVideoRoute) -> Void,
     onFinish: @escaping @MainActor () -> Void
   ) {
     let media = TVPlaybackMedia(runtime: runtime, account: account)
@@ -94,6 +83,7 @@ struct TVVideoPlaybackView: View {
     self.runtime = runtime
     self.showsProbes = media.isHarness
     self.onPlayNext = onPlayNext
+    self.onPlayerReportsSettled = onPlayerReportsSettled
     self.onFinish = onFinish
     _model = State(
       initialValue: PutioVideoPlaybackModel(
@@ -200,6 +190,7 @@ struct TVVideoPlaybackView: View {
         },
         probes: showsProbes ? probes : nil,
         onEnded: playbackEnded,
+        onReportsSettled: { [route, onPlayerReportsSettled] in onPlayerReportsSettled(route) },
         onFailure: { model.playerFailed() }
       )
       .ignoresSafeArea()
@@ -561,6 +552,7 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
   let reportPosition: PutioPlaybackPositionReport
   let probes: TVPlaybackProbes?
   let onEnded: @MainActor () -> Void
+  let onReportsSettled: @MainActor () -> Void
   let onFailure: @MainActor () -> Void
 
   func makeCoordinator() -> TVVideoPlayerCoordinator {
@@ -578,7 +570,8 @@ private struct TVSystemVideoPlayer: UIViewControllerRepresentable {
         try await report(fileID, seconds)
         probes?.reportedPosition = "id=\(fileID.rawValue);seconds=\(seconds)"
       },
-      in: controller, probes: probes, onEnded: onEnded, onFailure: onFailure)
+      in: controller, probes: probes, onEnded: onEnded, onReportsSettled: onReportsSettled,
+      onFailure: onFailure)
     controller.view.accessibilityIdentifier = "video.system-player"
     return controller
   }
@@ -611,7 +604,21 @@ final class TVVideoPlayerCoordinator {
   private var audioSessionIsActive = false
   private var probes: TVPlaybackProbes?
   private var onEnded: (@MainActor () -> Void)?
+  private var onReportsSettled: (@MainActor () -> Void)?
+  private var waitForReports: (@MainActor () async -> Void)?
   private var onFailure: (@MainActor () -> Void)?
+  private let makePlayer: @MainActor (AVPlayerItem) -> AVPlayer
+  private let applyDefaultSubtitle: @MainActor (AVPlayerItem, AVPlayer) async -> Void
+
+  init(
+    makePlayer: @escaping @MainActor (AVPlayerItem) -> AVPlayer = { AVPlayer(playerItem: $0) },
+    applyDefaultSubtitle: @escaping @MainActor (AVPlayerItem, AVPlayer) async -> Void = {
+      await TVVideoPlayerCoordinator.selectDefaultSubtitle(in: $0, for: $1)
+    }
+  ) {
+    self.makePlayer = makePlayer
+    self.applyDefaultSubtitle = applyDefaultSubtitle
+  }
 
   func start(
     item: AVPlayerItem,
@@ -623,6 +630,7 @@ final class TVVideoPlayerCoordinator {
     in controller: AVPlayerViewController,
     probes: TVPlaybackProbes? = nil,
     onEnded: @escaping @MainActor () -> Void = {},
+    onReportsSettled: @escaping @MainActor () -> Void = {},
     onFailure: @escaping @MainActor () -> Void
   ) {
     generation &+= 1
@@ -632,13 +640,11 @@ final class TVVideoPlayerCoordinator {
     reporter?.cancel()
     self.probes = probes
     self.onEnded = onEnded
+    self.onReportsSettled = onReportsSettled
+    waitForReports = { await pipeline.waitForPendingReports(fileID: fileID) }
     self.onFailure = onFailure
 
-    let player = AVPlayer(playerItem: item)
-    // The tvOS player otherwise re-applies the system's subtitle preference
-    // over the server's default once playback starts. The item still opens
-    // on each group's default, and the transport menus still choose freely.
-    player.appliesMediaSelectionCriteriaAutomatically = false
+    let player = makePlayer(item)
     self.player = player
     let reporter = PutioVideoPositionReporter(
       fileID: fileID, remembersPosition: remembersPosition, pipeline: pipeline,
@@ -743,6 +749,16 @@ final class TVVideoPlayerCoordinator {
       try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
       audioSessionIsActive = false
     }
+    // The final position is enqueued by now; the callback follows it, and
+    // every report before it, to the server.
+    if let settled = onReportsSettled, let waitForReports {
+      Task { @MainActor in
+        await waitForReports()
+        settled()
+      }
+    }
+    onReportsSettled = nil
+    waitForReports = nil
   }
 
   private func itemStatusChanged(
@@ -754,12 +770,15 @@ final class TVVideoPlayerCoordinator {
     case .readyToPlay:
       guard !readyReported, !failureReported else { return }
       readyReported = true
-      Task { @MainActor [weak self, weak controller] in
-        await Self.selectDefaultSubtitle(in: item)
+      // Playing already, so the end and the exit must count from here, even
+      // while the subtitle default is still loading.
+      reporter?.ready()
+      probes?.isReady = true
+      let applyDefaultSubtitle = applyDefaultSubtitle
+      Task { @MainActor [weak self, weak controller, weak player] in
+        if let player { await applyDefaultSubtitle(item, player) }
         guard let self, generation == playbackGeneration else { return }
         controller?.showsPlaybackControls = true
-        reporter?.ready()
-        probes?.isReady = true
         reportMediaSelection(for: item, generation: playbackGeneration)
       }
     case .failed:
@@ -772,14 +791,22 @@ final class TVVideoPlayerCoordinator {
   }
 
   /// put.io marks the first subtitle `DEFAULT` unless the account disables
-  /// auto-selection, and omits subtitles when they are hidden. AVPlayer's
-  /// automatic selection leaves that default off under the system caption
-  /// setting, so it is applied before controls appear. Only the legible
-  /// group changes; the audible selection is never touched.
-  static func selectDefaultSubtitle(in item: AVPlayerItem) async {
+  /// auto-selection, and omits subtitles when they are hidden. Automatic
+  /// selection leaves that default off under the system subtitle setting,
+  /// and the tvOS player re-applies it once playback starts, so the legible
+  /// criteria name the default's language before it is selected. Only the
+  /// legible group changes: audio keeps the system's automatic choice, as on
+  /// iOS.
+  static func selectDefaultSubtitle(in item: AVPlayerItem, for player: AVPlayer) async {
     guard let group = try? await item.asset.loadMediaSelectionGroup(for: .legible),
       let option = group.defaultOption
     else { return }
+    if let language = option.extendedLanguageTag ?? option.locale?.identifier {
+      player.setMediaSelectionCriteria(
+        AVPlayerMediaSelectionCriteria(
+          preferredLanguages: [language], preferredMediaCharacteristics: nil),
+        forMediaCharacteristic: .legible)
+    }
     item.select(option, in: group)
   }
 

@@ -35,6 +35,9 @@ renditions above in the shapes put.io's HLS endpoint serves for
   default".
 - `multi-subtitles-hidden.m3u8`: no subtitle renditions, for "Show subtitles"
   off.
+- `multi-subtitles-autoselect-audio.m3u8`: `multi-subtitles.m3u8` with both
+  audio renditions `AUTOSELECT=YES`, so automatic selection may pick either by
+  the viewer's language.
 
 These masters declare `CLOSED-CAPTIONS=NONE`, as put.io does. The subtitles
 journey streams them with `--putio-harness-subtitled-stream`.

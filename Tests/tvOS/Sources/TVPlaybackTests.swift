@@ -6,6 +6,23 @@ import XCTest
 
 @testable import PutioTV
 
+/// Holds an async step open until the test releases it.
+@MainActor
+private final class Gate {
+  private(set) var entered = false
+  private var continuation: CheckedContinuation<Void, Never>?
+
+  func wait() async {
+    entered = true
+    await withCheckedContinuation { continuation = $0 }
+  }
+
+  func release() {
+    continuation?.resume()
+    continuation = nil
+  }
+}
+
 @MainActor
 private final class ReportedPositions {
   private(set) var reports: [(PutioFileID, Int)] = []
@@ -34,7 +51,6 @@ final class TVPlaybackTests: XCTestCase {
     ] {
       let item = AVPlayerItem(url: base.appending(path: "multi-audio/\(manifest).m3u8"))
       let player = AVPlayer(playerItem: item)
-      player.appliesMediaSelectionCriteriaAutomatically = false
       await waitUntil("\(manifest) ready") { item.status == .readyToPlay }
       let audibleGroup = try await item.asset.loadMediaSelectionGroup(for: .audible)
       let audible = try XCTUnwrap(audibleGroup)
@@ -42,7 +58,7 @@ final class TVPlaybackTests: XCTestCase {
         audible.options.first { TVMediaSelection.languageCode(of: $0) == "tr" })
       item.select(turkish, in: audible)
 
-      await TVVideoPlayerCoordinator.selectDefaultSubtitle(in: item)
+      await TVVideoPlayerCoordinator.selectDefaultSubtitle(in: item, for: player)
 
       await waitUntil("\(manifest) subtitle") {
         await TVMediaSelection.current(in: item).subtitle == expected
@@ -134,6 +150,117 @@ final class TVPlaybackTests: XCTestCase {
     XCTAssertEqual(next.player?.defaultRate, 1, "a new playback starts at 1x")
     XCTAssertEqual(nextController.selectedSpeed?.rate, 1)
     next.stop(controller: nextController)
+  }
+
+  /// Audio stays on the system's automatic choice: a viewer whose
+  /// preferred language is Turkish hears the Turkish track, and the server's
+  /// English subtitle default is applied on top without moving it.
+  func testAudioFollowsThePreferredLanguageUnderTheSubtitleDefault() async throws {
+    let (server, base) = try await serveMedia()
+    defer { server.stop() }
+    // Stands in for a Turkish system language, in place before the item loads.
+    let coordinator = TVVideoPlayerCoordinator(makePlayer: { item in
+      let player = AVPlayer()
+      player.setMediaSelectionCriteria(
+        AVPlayerMediaSelectionCriteria(
+          preferredLanguages: ["tr"], preferredMediaCharacteristics: nil),
+        forMediaCharacteristic: .audible)
+      player.replaceCurrentItem(with: item)
+      return player
+    })
+    let controller = AVPlayerViewController()
+    let probes = TVPlaybackProbes()
+    // Automatic selection only picks renditions marked AUTOSELECT.
+    coordinator.start(
+      item: AVPlayerItem(
+        url: base.appending(path: "multi-audio/multi-subtitles-autoselect-audio.m3u8")),
+      fileID: Self.fileID, startSeconds: 0, remembersPosition: false,
+      pipeline: PutioPlaybackPositionPipeline(), reportPosition: { _, _ in }, in: controller,
+      probes: probes, onFailure: { XCTFail("playback failed") })
+    await waitUntil("subtitle default") { probes.subtitle == "en" }
+    await waitUntil("preferred audio") { probes.audioLanguage == "tr" }
+    XCTAssertEqual(probes.audioLanguage, "tr", "audio no longer follows the preferred language")
+    coordinator.stop(controller: controller)
+  }
+
+  /// A video can end, or be left, while the subtitle default is still
+  /// loading; playback already runs, so the end still counts and resets the
+  /// position, and leaving still flushes it.
+  func testEndAndExitDuringTheSubtitleLoadStillCount() async throws {
+    let (server, base) = try await serveMedia()
+    defer { server.stop() }
+    for leaves in [false, true] {
+      let gate = Gate()
+      let reported = ReportedPositions()
+      let pipeline = PutioPlaybackPositionPipeline()
+      let coordinator = TVVideoPlayerCoordinator { _, _ in await gate.wait() }
+      let controller = AVPlayerViewController()
+      let item = AVPlayerItem(url: base.appending(path: "runtime-proof.m3u8"))
+      var ended = false
+      coordinator.start(
+        item: item, fileID: Self.fileID, startSeconds: 0, remembersPosition: true,
+        pipeline: pipeline, reportPosition: { reported.record($0, $1) }, in: controller,
+        onEnded: { ended = true }, onFailure: { XCTFail("playback failed") })
+      await waitUntil("subtitle load started") { gate.entered }
+      XCTAssertFalse(controller.showsPlaybackControls, "controls before the subtitle default")
+
+      if leaves {
+        coordinator.stop(controller: controller)
+      } else {
+        NotificationCenter.default.post(
+          name: AVPlayerItem.didPlayToEndTimeNotification, object: item)
+        await waitUntil("end handled") { ended }
+        coordinator.stop(controller: controller)
+      }
+      gate.release()
+      await pipeline.waitForPendingReports(fileID: Self.fileID)
+      if leaves {
+        XCTAssertEqual(reported.reports.count, 1, "leaving during the load lost the final sample")
+      } else {
+        XCTAssertTrue(ended, "the end during the load never reached Up Next")
+        XCTAssertEqual(reported.reports.map(\.1), [0], "the end did not reset the position")
+      }
+    }
+  }
+
+  /// The folder refresh after leaving waits for the teardown's final report
+  /// to settle, so the row never shows the position from before.
+  func testFolderRefreshFollowsTheTeardownReport() async throws {
+    let (server, base) = try await serveMedia()
+    defer { server.stop() }
+    let gate = Gate()
+    let pipeline = PutioPlaybackPositionPipeline()
+    let requests = PutioFolderRefreshRequests()
+    let registration = PutioFolderRefreshRegistration(folderID: .root, requests: requests)
+    registration.activate()
+    let route = PutioVideoRoute(id: Self.fileID, parentID: .root, title: "Root Movie.mkv")
+    var reportLanded = false
+    let coordinator = TVVideoPlayerCoordinator()
+    let controller = AVPlayerViewController()
+    let probes = TVPlaybackProbes()
+    coordinator.start(
+      item: AVPlayerItem(url: base.appending(path: "runtime-proof.m3u8")),
+      fileID: Self.fileID, startSeconds: 0, remembersPosition: true, pipeline: pipeline,
+      reportPosition: { _, _ in
+        await gate.wait()
+        reportLanded = true
+      },
+      in: controller, probes: probes,
+      onReportsSettled: { requests.request(folderID: route.parentID) },
+      onFailure: { XCTFail("playback failed") })
+    await waitUntil("player ready") { probes.isReady }
+
+    coordinator.stop(controller: controller)
+    await waitUntil("final report sent") { gate.entered }
+    try await Task.sleep(for: .milliseconds(500))
+    XCTAssertNil(
+      requests.sequence(for: .root, owner: registration.owner),
+      "the folder refreshed before the exit position landed")
+    gate.release()
+    await waitUntil("refresh requested") {
+      requests.sequence(for: .root, owner: registration.owner) != nil
+    }
+    XCTAssertTrue(reportLanded)
   }
 
   func testResumePromptMatchesBaseline() throws {
