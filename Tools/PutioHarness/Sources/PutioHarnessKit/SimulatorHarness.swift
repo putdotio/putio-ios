@@ -514,6 +514,9 @@ public struct SimulatorHarness {
 
   private func buildProduct(_ platform: HarnessPlatform) throws {
     let config = platform.configuration
+    let architectureArguments =
+      environment["CI"] == nil && environment["GITHUB_ACTIONS"] == nil
+      ? ["ARCHS=$(NATIVE_ARCH_ACTUAL)"] : []
     for scheme in [config.scheme] + config.extraBuildSchemes {
       _ = try runner.checked(
         "xcodebuild",
@@ -524,16 +527,11 @@ public struct SimulatorHarness {
           "-configuration", "Debug",
           "-destination", config.destination,
           "-derivedDataPath", context.derivedData.path,
-        ] + simulatorArchitectureArguments,
+        ] + architectureArguments,
         currentDirectory: context.root,
         context: "build \(platform.rawValue) scheme \(scheme)"
       )
     }
-  }
-
-  private var simulatorArchitectureArguments: [String] {
-    environment["CI"] == nil && environment["GITHUB_ACTIONS"] == nil
-      ? ["ARCHS=$(NATIVE_ARCH_ACTUAL)"] : []
   }
 
   public func launch(_ platform: HarnessPlatform) throws -> SurfaceRun {
@@ -1544,8 +1542,10 @@ public struct SimulatorHarness {
     try requireGeneratedWorkspace()
     try fileManager.createDirectory(at: context.derivedData, withIntermediateDirectories: true)
     // Compile the first suite while the Simulator boots; the build needs no
-    // device. A failed prebuild is left for `xcodebuild test` to rebuild and
-    // report. Suites share DerivedData, so tests start only after it exits.
+    // device. Tests run on the host architecture only, so the prebuild skips
+    // the others even in CI. A failed prebuild is left for `xcodebuild test`
+    // to rebuild and report. Suites share DerivedData, so tests start only
+    // after it exits.
     let prebuild = try runner.start(
       "xcodebuild",
       [
@@ -1555,7 +1555,8 @@ public struct SimulatorHarness {
         "-destination", platform.configuration.destination,
         "-derivedDataPath", context.derivedData.path,
         "-only-testing:\(suites[0].target)",
-      ] + simulatorArchitectureArguments,
+        "ARCHS=$(NATIVE_ARCH_ACTUAL)",
+      ],
       currentDirectory: context.root
     )
     defer { _ = prebuild.interruptAndWait() }
