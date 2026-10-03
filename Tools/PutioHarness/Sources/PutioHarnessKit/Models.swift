@@ -134,7 +134,7 @@ public enum JourneyScenario: String, CaseIterable, Equatable, Sendable {
   var fixtureSet: String {
     switch self {
     case .filesBrowser: "seeded-runtime-loop-v5"
-    case .deviceSignIn: "seeded-device-sign-in-v3"
+    case .deviceSignIn: "seeded-device-sign-in-v4"
     case .liveFilesBrowser: "live-devs-auto-fixture-folder-v1"
     case .liveDeviceSignIn: "live-devs-auto-device-code-v1"
     }
@@ -542,6 +542,31 @@ enum TVBrowseJourneyContract {
   static let searchAttachmentNames = [
     "runtime-tv-search-keyboard", "runtime-tv-search-empty", "runtime-tv-search-error",
     "runtime-tv-search-results", "runtime-tv-search-menu", "runtime-tv-search-delete-confirm",
+  ]
+}
+
+/// TV playback: the pre-play resume decision, episodic continuation,
+/// subtitle and speed controls in the system player, and the conversion
+/// gate, against loopback HLS fixtures.
+enum TVPlaybackJourneyContract {
+  static let continuationTestIdentifier =
+    "PutioTVUITests/PlaybackJourneyTests/testResumeChoicesAndEpisodicContinuation"
+  static let continuationAttachmentNames = [
+    "runtime-tv-playback-resume", "runtime-tv-playback-resume-start-over",
+    "runtime-tv-playback-up-next", "runtime-tv-playback-successor-resume",
+    "runtime-tv-playback-playing",
+  ]
+  static let controlsTestIdentifier =
+    "PutioTVUITests/PlaybackJourneyTests/testSubtitleAndSpeedControlsKeepTheAudioTrack"
+  static let controlsAttachmentNames = [
+    "runtime-tv-playback-subtitles", "runtime-tv-playback-subtitle-selected",
+    "runtime-tv-playback-speed",
+  ]
+  static let conversionTestIdentifier =
+    "PutioTVUITests/PlaybackJourneyTests/testConversionGateThenResume"
+  static let conversionAttachmentNames = [
+    "runtime-tv-playback-conversion-failure", "runtime-tv-playback-converting",
+    "runtime-tv-playback-converted-resume",
   ]
 }
 

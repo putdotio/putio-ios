@@ -61,7 +61,7 @@ final class FilesSearchJourneyTests: XCTestCase {
     remote.press(.select, forDuration: 6.5)
     XCTAssertTrue(element("files.menu.unwatched").waitForExistence(timeout: 5))
     XCTAssertFalse(
-      element("file.playback-placeholder.412").exists, "the long press opened the video")
+      element("video.screen.412").exists, "the long press opened the video")
     XCTAssertTrue(element("files.menu.delete").exists)
     attach("runtime-tv-files-menu")
     XCTAssertTrue(selectModalButton("files.menu.unwatched"))

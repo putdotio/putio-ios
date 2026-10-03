@@ -22,6 +22,12 @@ public enum PutioVideoPlaybackState: Equatable {
   case failed(PutioVideoPlaybackFailure)
 }
 
+extension PutioVideoPlaybackState {
+  /// app.put.io's explanation of why a video waits for its conversion.
+  public static let conversionExplanation =
+    "This video is not in a format that can be played in this app yet. But since you're here, we'll start transcoding."
+}
+
 public struct PutioVideoPlaybackFailure: Equatable, Sendable {
   public enum Kind: Equatable, Sendable {
     case notFound

@@ -1216,21 +1216,72 @@ public struct SimulatorHarness {
           defaultExecutionTimeAllowance: 180,
           maximumExecutionTimeAllowance: 300
         )
+        let mediaDirectory = appURL(for: platform).appending(path: "HarnessMedia")
+        for (path, fixture) in [
+          ("runtime-proof.m3u8", "runtime-proof HLS playlist"),
+          ("runtime-proof-000.ts", "runtime-proof HLS segment"),
+          ("multi-audio/runtime-proof-multi.m3u8", "runtime-proof multi-audio playlist"),
+          ("multi-audio/multi-subtitles.m3u8", "runtime-proof subtitled playlist"),
+          ("multi-audio/multi-subtitle-English.vtt", "runtime-proof WebVTT subtitle"),
+        ] {
+          try requireNonemptyFile(mediaDirectory.appending(path: path), context: fixture)
+        }
+        let mediaServer = try HarnessMediaServer(mediaDirectory: mediaDirectory)
+        defer { mediaServer.stop() }
+        try SimulatorLifecycle.shared.register {
+          mediaServer.stop()
+        }
+        let mediaBaseURL = try mediaServer.start()
+        var playbackBundles: [URL] = []
+        var playbackScreenshots: [URL] = []
+        var playbackNames: [String] = []
+        for (identifier, names, bundleName) in [
+          (
+            TVPlaybackJourneyContract.continuationTestIdentifier,
+            TVPlaybackJourneyContract.continuationAttachmentNames, ".tv-playback-continuation"
+          ),
+          (
+            TVPlaybackJourneyContract.controlsTestIdentifier,
+            TVPlaybackJourneyContract.controlsAttachmentNames, ".tv-playback-controls"
+          ),
+          (
+            TVPlaybackJourneyContract.conversionTestIdentifier,
+            TVPlaybackJourneyContract.conversionAttachmentNames, ".tv-playback-conversion"
+          ),
+        ] {
+          let bundle = platformDirectory.appending(path: "\(bundleName).xcresult")
+          playbackBundles.append(bundle)
+          playbackScreenshots += try runJourneyPreflightTest(
+            identifier: identifier,
+            platform: platform,
+            session: session,
+            mediaBaseURL: mediaBaseURL,
+            resultBundle: bundle,
+            attachmentNames: names,
+            artifactDirectory: platformDirectory,
+            defaultExecutionTimeAllowance: 300,
+            maximumExecutionTimeAllowance: 420
+          )
+          playbackNames += names
+        }
         let accountScreenshots =
           historyTrashScreenshots + settingsScreenshots + browseScreenshots + searchScreenshots
+          + playbackScreenshots
         let accountNames =
           TVAccountJourneyContract.historyTrashAttachmentNames
           + TVAccountJourneyContract.settingsAttachmentNames
           + TVBrowseJourneyContract.browseAttachmentNames
           + TVBrowseJourneyContract.searchAttachmentNames
+          + playbackNames
         for (name, screenshot) in zip(accountNames, accountScreenshots) {
           _ = try requireMeaningfulScreenshot(screenshot, context: "\(name) attachment")
         }
         try requireCleanSource()
         try requireRevision(sourceRevision)
-        let bundles = [
-          resultBundle, historyTrashBundle, settingsBundle, browseBundle, searchBundle,
-        ]
+        let bundles =
+          [
+            resultBundle, historyTrashBundle, settingsBundle, browseBundle, searchBundle,
+          ] + playbackBundles
         for bundle in bundles {
           try fileManager.removeItem(at: bundle)
         }
@@ -1249,7 +1300,7 @@ public struct SimulatorHarness {
           platform: platform,
           artifacts: artifacts + [manifest],
           message:
-            "device sign-in journey passed 5/5 tests in \(context.relativePath(for: platformDirectory))"
+            "device sign-in journey passed 8/8 tests in \(context.relativePath(for: platformDirectory))"
         )
       }
     } catch {
