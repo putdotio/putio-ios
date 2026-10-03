@@ -39,7 +39,7 @@ jobs:
         with:
           predicate-quantifier: every
           filters: |
-            code:
+            code: &code
               - '**'
               - '!**/*.md'
               - '!docs/**'
@@ -49,26 +49,12 @@ jobs:
               - '!LICENSE'
               - '!skills-lock.json'
             ios:
-              - '**'
-              - '!**/*.md'
-              - '!docs/**'
-              - '!.agents/**'
-              - '!.claude/**'
-              - '!.github/ISSUE_TEMPLATE/**'
-              - '!LICENSE'
-              - '!skills-lock.json'
+              - *code
               - '!Apps/tvOS/**'
               - '!Tests/tvOS/**'
               - '!Tests/tvOSUITests/**'
             tvos:
-              - '**'
-              - '!**/*.md'
-              - '!docs/**'
-              - '!.agents/**'
-              - '!.claude/**'
-              - '!.github/ISSUE_TEMPLATE/**'
-              - '!LICENSE'
-              - '!skills-lock.json'
+              - *code
               - '!Apps/iOS/**'
               - '!Apps/watchOS/**'
               - '!Tests/iOS/**'
