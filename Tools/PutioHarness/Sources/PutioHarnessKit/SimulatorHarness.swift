@@ -514,9 +514,6 @@ public struct SimulatorHarness {
 
   private func buildProduct(_ platform: HarnessPlatform) throws {
     let config = platform.configuration
-    let architectureArguments =
-      environment["CI"] == nil && environment["GITHUB_ACTIONS"] == nil
-      ? ["ARCHS=$(NATIVE_ARCH_ACTUAL)"] : []
     for scheme in [config.scheme] + config.extraBuildSchemes {
       _ = try runner.checked(
         "xcodebuild",
@@ -527,11 +524,16 @@ public struct SimulatorHarness {
           "-configuration", "Debug",
           "-destination", config.destination,
           "-derivedDataPath", context.derivedData.path,
-        ] + architectureArguments,
+        ] + simulatorArchitectureArguments,
         currentDirectory: context.root,
         context: "build \(platform.rawValue) scheme \(scheme)"
       )
     }
+  }
+
+  private var simulatorArchitectureArguments: [String] {
+    environment["CI"] == nil && environment["GITHUB_ACTIONS"] == nil
+      ? ["ARCHS=$(NATIVE_ARCH_ACTUAL)"] : []
   }
 
   public func launch(_ platform: HarnessPlatform) throws -> SurfaceRun {
@@ -1541,7 +1543,24 @@ public struct SimulatorHarness {
     }
     try requireGeneratedWorkspace()
     try fileManager.createDirectory(at: context.derivedData, withIntermediateDirectories: true)
+    // Compile the first suite while the Simulator boots; the build needs no
+    // device. A failed prebuild is left for `xcodebuild test` to rebuild and
+    // report. Suites share DerivedData, so tests start only after it exits.
+    let prebuild = try runner.start(
+      "xcodebuild",
+      [
+        "build-for-testing",
+        "-workspace", "Putio.xcworkspace",
+        "-scheme", suites[0].scheme,
+        "-destination", platform.configuration.destination,
+        "-derivedDataPath", context.derivedData.path,
+        "-only-testing:\(suites[0].target)",
+      ] + simulatorArchitectureArguments,
+      currentDirectory: context.root
+    )
+    defer { _ = prebuild.interruptAndWait() }
     return try withSession(platform: platform, runID: UUID().uuidString.lowercased()) { session in
+      _ = prebuild.wait()
       let environment =
         recordSnapshots
         ? [
