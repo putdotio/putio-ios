@@ -1,5 +1,4 @@
 import AVFoundation
-import AuthenticationServices
 import PutioCore
 import SwiftUI
 
@@ -144,14 +143,14 @@ private struct SessionRootView: View {
       switch runtime.session.state {
       case .unknown:
         PutioLoadingStateView()
-      case .authenticating:
-        PutioLoadingStateView(title: "Signing in…")
       case .signingOut:
         PutioLoadingStateView(title: "Signing out…")
       case .signOutFailed(let failure):
         SignOutFailureView(session: runtime.session, failure: failure)
-      case .signedOut(let reason):
-        SignInView(session: runtime.session, reason: reason, scenario: scenario)
+      case .signedOut, .authenticating:
+        // One branch keeps the welcome screen mounted under the browser
+        // sheet instead of swapping in a loading screen.
+        SignInView(session: runtime.session, scenario: scenario)
       case .signedIn(let account):
         MainTabView(
           runtime: runtime,
@@ -270,102 +269,6 @@ private struct SignOutFailureView: View {
       "put.io could not revoke your session. Check your connection and try again."
     case .credentialRemovalAndRevocation:
       "Saved sign-in details could not be removed and put.io could not revoke your session. Check your connection and try again before closing the app."
-    }
-  }
-}
-
-private struct SignInView: View {
-  let session: PutioSessionStore
-  let reason: PutioSignedOutReason?
-  let scenario: HarnessScenario
-
-  @Environment(\.webAuthenticationSession) private var webAuthenticationSession
-  @PutioScaledMetric(PutioTheme.ScaledMetrics.contentGap) private var contentGap
-
-  var body: some View {
-    VStack(spacing: contentGap) {
-      Text("put.io")
-        .putioFont(PutioTheme.Typography.title)
-        .foregroundStyle(PutioTheme.Colors.textPrimary)
-      Text(subtitle)
-        .putioFont(PutioTheme.Typography.body)
-        .foregroundStyle(subtitleColor)
-        .multilineTextAlignment(.center)
-      if case .restoreFailed = reason {
-        PutioButton("Try again", icon: .arrowCounterClockwise, tier: .primary) {
-          Task { await session.restore() }
-        }
-        .accessibilityIdentifier("auth.retry")
-        // Abandoning the saved sign-in is only ever the user's choice; a
-        // transient failure must not cost a valid session.
-        PutioButton("Sign in again", tier: .secondary) {
-          session.discardUnrestoredCredential()
-          Task { await startSignIn() }
-        }
-        .accessibilityIdentifier("auth.discard-credential")
-        Text("Signing in again removes the saved sign-in from this device.")
-          .putioFont(PutioTheme.Typography.caption)
-          .foregroundStyle(PutioTheme.Colors.textSecondary)
-          .multilineTextAlignment(.center)
-      } else {
-        PutioButton("Sign in", tier: .primary) {
-          Task { await startSignIn() }
-        }
-        .accessibilityIdentifier("auth.sign-in")
-      }
-    }
-    .padding(PutioTheme.Spacing.space4)
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(PutioTheme.Colors.background)
-  }
-
-  private var subtitle: String {
-    switch reason {
-    case nil, .userSignedOut:
-      "Sign in to continue"
-    case .sessionExpired:
-      "Your session expired. Sign in again."
-    case .authenticationFailed(let message), .restoreFailed(let message):
-      message
-    }
-  }
-
-  private var subtitleColor: Color {
-    switch reason {
-    case .authenticationFailed, .restoreFailed, .sessionExpired:
-      PutioTheme.Colors.destructive
-    default:
-      PutioTheme.Colors.textSecondary
-    }
-  }
-
-  private func startSignIn() async {
-    #if DEBUG
-      // Live harness runs cannot drive the web login; the harness approves
-      // the device code instead.
-      if scenario == .live {
-        await session.signInWithDeviceCode()
-        return
-      }
-    #endif
-    do {
-      let request = try session.beginSignIn()
-      #if DEBUG
-        if scenario == .filesBrowser {
-          let callbackURL = try PutioRuntimeFactory.runtimeProofCallback(for: request)
-          await session.completeSignIn(callbackURL: callbackURL)
-          return
-        }
-      #endif
-      let callbackURL = try await webAuthenticationSession.authenticate(
-        using: request.url,
-        callbackURLScheme: request.callbackScheme
-      )
-      await session.completeSignIn(callbackURL: callbackURL)
-    } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
-      session.cancelSignIn()
-    } catch {
-      session.failSignIn(error)
     }
   }
 }
