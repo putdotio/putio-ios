@@ -2,7 +2,8 @@
 
 Native SwiftUI apps for iOS, watchOS, and tvOS. Platform UI and lifecycle belong
 in `Apps`; shared models, session, API, and feature logic belong in
-`Packages/PutioCore`.
+`Packages/PutioCore`. Both are grouped by domain with the same folder names;
+see [Development](CONTRIBUTING.md#development).
 
 ## Work in this repository
 
