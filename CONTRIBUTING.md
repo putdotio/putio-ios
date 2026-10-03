@@ -30,6 +30,15 @@ The platform shells in [Apps](Apps) own UI and lifecycle behavior;
 dependencies. [Project.swift](Project.swift) owns targets, bundle identifiers,
 and build settings; generated Xcode projects and workspaces are disposable.
 
+Sources are grouped by domain, and the iOS and tvOS shells reuse PutioCore's
+folder names: `Files`, `Playback`, `Account`, `History`, `Trash`, `Session`. A
+shell adds a folder only for a domain the core lacks, such as iOS `Cast` and
+`Offline`. `App/` holds entry points, root and tab views, deep links, and
+wiring; `Components/` holds cross-domain UI; `Harness/` holds harness-only code.
+PutioCore also keeps `Runtime/` for the API client, plus `Generated/` and
+`Resources/`. PutioCore and iOS unit tests mirror their sources' folders; the
+tvOS, UI, and snapshot test targets stay flat.
+
 Run `mise run generate` after manifest or dependency changes. Files added inside
 existing `buildableFolders` appear without regeneration. The
 [generation script](scripts/generate.sh) includes the standard-SwiftPM workaround

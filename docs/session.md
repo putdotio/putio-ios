@@ -34,7 +34,7 @@ which removes it again.
 Sign-out removes the saved credential and revokes the server session. If either
 fails, the app shows a retry and blocks sign-in and restoration in that instance
 until cleanup succeeds. The failed operation is covered by the
-[session tests](../Packages/PutioCore/Tests/PutioCoreTests/PutioSessionStoreTests.swift).
+[session tests](../Packages/PutioCore/Tests/PutioCoreTests/Session/PutioSessionStoreTests.swift).
 
 Sign-out intent is not persisted. If credential removal and revocation both
 fail, reopening the app can restore the retained token. Complete the retry

@@ -1,12 +1,12 @@
 # iOS deep links
 
 Use `putio:///files/410` to open an item by ID, or `putio:///files/0` for Files
-root. The [parser](../Apps/iOS/Sources/DeepLinks.swift) (`PutioDeepLink.parse`)
+root. The [parser](../Apps/iOS/Sources/App/DeepLinks.swift) (`PutioDeepLink.parse`)
 also routes `/history` to History when enabled, `/account` or `/settings` to
 Account, and `/link` to Account's Link your account screen. As on put.io's web,
 `/link?code=AB12CD` prefills the activation code, trimmed and uppercased; the
 user still taps Link, which requires exactly six characters. Non-folder files use the
-[normal file dispatcher](../Apps/iOS/Sources/MainTabView.swift) (`selectFile`):
+[normal file dispatcher](../Apps/iOS/Sources/App/MainTabView.swift) (`selectFile`):
 video, audio, preview, or an unsupported-file explanation.
 
 `/downloads` opens the Downloads tab. `putio:///downloads/412` plays file 412
@@ -46,7 +46,7 @@ download track picker, so its destination is visible without manual dismissal.
 The destination replaces the Files path and takes precedence over saved folder
 restoration, so native Back follows the linked item's parents.
 
-[DeepLinkTests](../Tests/iOS/Sources/DeepLinkTests.swift) cover parsing, session
+[DeepLinkTests](../Tests/iOS/Sources/App/DeepLinkTests.swift) cover parsing, session
 binding, cancellation, and resolution. The
 [deep-link journey](../Tests/iOSUITests/Sources/DeepLinkJourneyTests.swift) covers
 native cold/warm delivery and navigation with synthetic URLs and files. Run it

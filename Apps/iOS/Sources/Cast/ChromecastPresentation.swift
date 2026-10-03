@@ -17,30 +17,9 @@ struct PutioCastPresentation: ViewModifier {
         PutioCastControlsView(model: model)
           .preferredColorScheme(.dark)
       }
-      .modifier(PutioHarnessCastPresentation(model: model))
-  }
-}
-
-/// Presents the harness stub picker; a no-op outside the seeded scenario.
-struct PutioHarnessCastPresentation: ViewModifier {
-  let model: PutioCastModel
-
-  func body(content: Content) -> some View {
-    #if DEBUG
-      if let controller = model.harnessController {
-        content.sheet(
-          isPresented: Binding(
-            get: { controller.presentsPicker }, set: { if !$0 { controller.dismissPicker() } })
-        ) {
-          PutioHarnessCastPicker(controller: controller)
-            .preferredColorScheme(.dark)
-        }
-      } else {
-        content
-      }
-    #else
-      content
-    #endif
+      #if DEBUG
+        .modifier(PutioHarnessCastPresentation(model: model))
+      #endif
   }
 }
 

@@ -36,10 +36,10 @@ The iOS journey runs feature preflights and records the sign-in, browse, playbac
 and sign-out loop. [BrowserJourneyContract](../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift)
 owns the selected tests and required screenshots; the
 [UI tests](../Tests/iOSUITests/Sources) contain their assertions. HTTP responses
-and OAuth input come from [fixtures](../Apps/Shared/Sources/HarnessSeededAPI.swift).
+and OAuth input come from [fixtures](../Apps/Shared/Sources/Harness/HarnessSeededAPI.swift).
 Session transitions, navigation, and AVFoundation playback are real; media is
 served by the harness's [loopback server](../Tools/PutioHarness/Sources/PutioHarnessKit/HarnessMediaServer.swift).
-Cast uses a [stub receiver](../Apps/iOS/Sources/ChromecastHarness.swift), so this
+Cast uses a [stub receiver](../Apps/iOS/Sources/Harness/ChromecastHarness.swift), so this
 journey cannot establish compatibility with a physical Chromecast.
 
 Accessibility preflights use the largest Dynamic Type size and enable Reduce

@@ -22,6 +22,7 @@
         .deletingLastPathComponent()
         .deletingLastPathComponent()
         .deletingLastPathComponent()
+        .deletingLastPathComponent()
         .appending(path: "Resources/BrandFonts")
     }
 

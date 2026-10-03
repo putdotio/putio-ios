@@ -254,8 +254,3 @@ final class PutioDeepLinkModel {
     return .files(path, file: item.kind == .folder ? nil : PutioFileRoute(item: item))
   }
 }
-
-struct PutioFilesNavigationRequest: Equatable {
-  let id = UUID()
-  let path: [PutioFolderRoute]
-}

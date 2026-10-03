@@ -28,7 +28,7 @@ when updating the package or its generated adapter.
   offers retry with an accessible reason.
 - Let `AVPlayerViewController` own video transport, AirPlay, and Picture in
   Picture. Keep over-video text in the
-  [player palette](Apps/iOS/Sources/VideoPlayback.swift) and preserve the app
+  [player palette](Apps/iOS/Sources/Playback/VideoPlayback.swift) and preserve the app
   accent on transport controls.
 
 ## Typography and layout
@@ -56,7 +56,7 @@ keep the system focus fill so accent text remains readable. Non-control surfaces
 use solid backgrounds and TV token roles. Rows acting as controls use the stock
 card style.
 
-[tvOverscanPadding](Apps/tvOS/Sources/TVLayout.swift) tops up the safe area to the
+[tvOverscanPadding](Apps/tvOS/Sources/Components/TVLayout.swift) tops up the safe area to the
 token overscan ratios; adding both in full would double the margin. Device-code
 sign-in uses tabular figures and a solid surface; sign-out uses the native dialog.
 Settings rows put the label left and the value right: two-state values cycle on
