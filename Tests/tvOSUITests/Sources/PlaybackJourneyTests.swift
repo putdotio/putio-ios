@@ -276,6 +276,11 @@ final class PlaybackJourneyTests: XCTestCase {
       .firstMatch
   }
 
+  private func focusIsSettled() -> Bool {
+    app.descendants(matching: .any).matching(NSPredicate(format: "hasFocus == true"))
+      .firstMatch.exists
+  }
+
   private func hasFocus(_ identifier: String) -> Bool {
     app.descendants(matching: .any)
       .matching(NSPredicate(format: "identifier == %@ AND hasFocus == true", identifier))
@@ -295,6 +300,9 @@ final class PlaybackJourneyTests: XCTestCase {
   ) -> Bool {
     for _ in 0..<limit {
       if waitUntil(timeout: 0.75, { self.hasFocus(identifier) }) { return true }
+      // A move that scrolls the list reports no focused element until the
+      // focus engine settles; pressing again before then skips the row.
+      if waitUntil(timeout: 3, { self.focusIsSettled() }), hasFocus(identifier) { return true }
       remote.press(direction)
     }
     return waitUntil(timeout: 1.5) { self.hasFocus(identifier) }
