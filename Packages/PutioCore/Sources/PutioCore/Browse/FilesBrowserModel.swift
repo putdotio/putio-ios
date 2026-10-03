@@ -16,6 +16,8 @@ typealias PutioFileDelete =
   @MainActor @Sendable (PutioFileID) async throws -> Void
 typealias PutioFileMove =
   @MainActor @Sendable (PutioFileID, PutioFileID) async throws -> Void
+typealias PutioFileWatchedUpdate =
+  @MainActor @Sendable (PutioFileID, Bool) async throws -> Void
 /// Deletes a batch in one request. A throw fails every item in the batch;
 /// returned entries fail only those items.
 typealias PutioFileBatchDelete =
@@ -40,6 +42,7 @@ public struct PutioFileActions: Sendable {
   /// Continues a `loadFolders` listing; `nil` reuses the screen's continuation.
   public let continueFolders: PutioFolderContinue?
   let setSort: PutioFolderSortUpdate
+  let setWatched: PutioFileWatchedUpdate
   let canDelete: @MainActor @Sendable () -> Bool
 
   public init(runtime: PutioRuntime) {
@@ -48,6 +51,9 @@ public struct PutioFileActions: Sendable {
     }
     setSort = { folderID, sort in
       try await runtime.setFolderSort(folderID: folderID, sort: sort)
+    }
+    setWatched = { fileID, watched in
+      try await runtime.setFileWatched(fileID: fileID, watched: watched)
     }
     createFolder = { name, parentID in
       try await runtime.createFolder(name: name, parentID: parentID)
@@ -90,6 +96,7 @@ public struct PutioFileActions: Sendable {
     loadFolders: PutioFolderLoad? = nil,
     continueFolders: PutioFolderContinue? = nil,
     setSort: @escaping PutioFolderSortUpdate = { _, _ in throw PutioRuntimeError.unknown },
+    setWatched: @escaping PutioFileWatchedUpdate = { _, _ in throw PutioRuntimeError.unknown },
     canDelete: @escaping @MainActor @Sendable () -> Bool = { true }
   ) {
     self.createFolder = createFolder
@@ -116,6 +123,7 @@ public struct PutioFileActions: Sendable {
     self.loadFolders = loadFolders
     self.continueFolders = continueFolders
     self.setSort = setSort
+    self.setWatched = setWatched
     self.canDelete = canDelete
   }
 }
@@ -481,6 +489,7 @@ public enum PutioFileAction: Equatable, Sendable {
     destinationID: PutioFileID,
     destinationName: String
   )
+  case setWatched(fileID: PutioFileID, parentID: PutioFileID, name: String, watched: Bool)
 }
 
 public struct PutioFileActionFailure: Equatable, Sendable {
@@ -502,6 +511,8 @@ public struct PutioFileActionFailure: Equatable, Sendable {
       title = "Could not move item"
     case .sort:
       title = "Could not change sorting"
+    case .setWatched:
+      title = "Could not update watch status"
     }
     message = browserFailure.message
   }
@@ -569,6 +580,10 @@ public final class PutioFolderModel {
   public private(set) var activeBulkAction: PutioBulkFileAction?
   public private(set) var bulkProgress: PutioBulkFileProgress?
   public private(set) var bulkOutcome: PutioBulkFileOutcome?
+  /// Items the latest full load returned on the first page. A refresh after
+  /// a mutation keeps only the first page, so later-page rows vanish until
+  /// paging reaches them again.
+  public private(set) var firstPageIDs: Set<PutioFileID> = []
 
   @ObservationIgnored private let load: PutioFolderLoad
   @ObservationIgnored private let continueLoad: PutioFolderContinue?
@@ -581,6 +596,8 @@ public final class PutioFolderModel {
   // result instead of a cleared slot.
   @ObservationIgnored private var queuedRefresh: Task<Bool, Never>?
   @ObservationIgnored private var refreshRequestedWhileActionActive = false
+  // Kept apart from `actionOutcome`, which screens clear once they show it.
+  @ObservationIgnored private var lastCommittedAction: PutioFileAction?
 
   public init(
     folderID: PutioFileID,
@@ -594,6 +611,7 @@ public final class PutioFolderModel {
     self.continueLoad = continueLoad
     self.actions = actions
     state = initialContents.map { .loaded($0) } ?? .loading
+    firstPageIDs = Set(initialContents?.items.map(\.id) ?? [])
   }
 
   public var supportsActions: Bool {
@@ -764,15 +782,37 @@ public final class PutioFolderModel {
     }
   }
 
-  public func delete(_ item: PutioFileItem) async {
-    guard let actions, canDelete, case .loaded(let contents) = state else { return }
-    guard let currentItem = contents.items.first(where: { $0.id == item.id }) else { return }
+  /// Returns true when the server confirmed the delete.
+  @discardableResult
+  public func delete(_ item: PutioFileItem) async -> Bool {
+    guard let actions, canDelete, case .loaded(let contents) = state else { return false }
+    guard let currentItem = contents.items.first(where: { $0.id == item.id }) else { return false }
     let action = PutioFileAction.delete(fileID: currentItem.id, name: currentItem.name)
     begin(action)
     state = .loaded(contents.removing(currentItem.id))
 
-    await run(action, rollback: contents) {
+    return await run(action, rollback: contents) {
       try await actions.deleteFile(currentItem.id)
+      return nil
+    }
+  }
+
+  /// Marks a video watched or unwatched; the row's eye follows at once and
+  /// rolls back if the server refuses.
+  @discardableResult
+  public func setWatched(_ item: PutioFileItem, _ watched: Bool) async -> Bool {
+    guard let actions, canStartAction, case .loaded(let contents) = state else { return false }
+    guard let currentItem = contents.items.first(where: { $0.id == item.id }),
+      currentItem.kind == .video, currentItem.isWatched != watched
+    else { return false }
+    let action = PutioFileAction.setWatched(
+      fileID: currentItem.id, parentID: currentItem.parentID, name: currentItem.name,
+      watched: watched)
+    begin(action)
+    state = .loaded(contents.replacing(currentItem.withResumePosition(watched ? 1 : 0)))
+
+    return await run(action, rollback: contents) {
+      try await actions.setWatched(currentItem.id, watched)
       return nil
     }
   }
@@ -885,6 +925,7 @@ public final class PutioFolderModel {
     loadMoreFailure = nil
     activeAction = action
     actionOutcome = nil
+    lastCommittedAction = nil
   }
 
   private func beginBulk(_ action: PutioBulkFileAction, items: [PutioFileItem]) {
@@ -908,11 +949,13 @@ public final class PutioFolderModel {
   // The mutation runs in a model-owned task: a screen that disappears
   // (tab switch, pop) cancels its view task, but the server may already
   // have applied the request, so the outcome must still be observed.
+  /// Returns true when the server confirmed the action.
+  @discardableResult
   private func run(
     _ action: PutioFileAction,
     rollback: PutioFolderContents,
     operation: @escaping @MainActor @Sendable () async throws -> PutioFolderContents?
-  ) async {
+  ) async -> Bool {
     let task = Task { @MainActor [weak self] in
       guard let self else { return }
       do {
@@ -931,6 +974,7 @@ public final class PutioFolderModel {
         }
         activeAction = nil
         actionOutcome = .succeeded(action)
+        lastCommittedAction = action
       } catch {
         settleFailure(action: action, error: error, rollback: rollback)
       }
@@ -939,6 +983,7 @@ public final class PutioFolderModel {
     }
     actionTask = task
     await task.value
+    return lastCommittedAction == action
   }
 
   /// Sends the items in batches. A thrown batch fails all of its items; a
@@ -1108,6 +1153,7 @@ public final class PutioFolderModel {
       try Task.checkCancellation()
       guard requestGeneration == generation else { return false }
       state = .loaded(contents)
+      firstPageIDs = Set(contents.items.map(\.id))
       refreshFailure = nil
       return true
     } catch {
@@ -1215,6 +1261,19 @@ extension PutioFileItem {
       createdAt: createdAt,
       updatedAt: updatedAt,
       resumePositionSeconds: resumePositionSeconds
+    )
+  }
+
+  fileprivate func withResumePosition(_ seconds: Int) -> PutioFileItem {
+    PutioFileItem(
+      id: id,
+      parentID: parentID,
+      name: name,
+      kind: kind,
+      sizeBytes: sizeBytes,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      resumePositionSeconds: seconds
     )
   }
 }
@@ -1326,7 +1385,7 @@ public enum PutioFolderSortKey: CaseIterable, Hashable {
     }
   }
 
-  func sort(ascending: Bool) -> PutioFolderSort {
+  public func sort(ascending: Bool) -> PutioFolderSort {
     switch (self, ascending) {
     case (.name, true): .nameAscending
     case (.name, false): .nameDescending
@@ -1362,7 +1421,7 @@ extension PutioFolderSort {
     }
   }
 
-  var isAscending: Bool {
+  public var isAscending: Bool {
     switch self {
     case .nameAscending, .sizeAscending, .dateAddedAscending, .dateModifiedAscending,
       .typeAscending, .watchStatusAscending:

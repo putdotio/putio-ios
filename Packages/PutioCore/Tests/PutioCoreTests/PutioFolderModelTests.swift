@@ -1091,6 +1091,81 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertTrue(model.canStartAction)
   }
 
+  func testMarkWatchedIsOptimisticAndRollsBackWithRecoverableFailure() async throws {
+    let mutation = SuspendedFileMutation()
+    addTeardownBlock { await mutation.cancelPending() }
+    let item = BrowserTestFixtures.item(id: 7, name: "Episode.mkv")
+    let original = BrowserTestFixtures.contents(items: [item])
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        setWatched: { _, _ in try await mutation.run() }
+      ),
+      initialContents: original
+    )
+
+    let task = Task { await model.setWatched(item, true) }
+    try await mutation.waitUntilStarted()
+    XCTAssertFalse(model.canStartAction)
+    guard case .loaded(let optimistic) = model.state else {
+      return XCTFail("expected loaded, got \(model.state)")
+    }
+    XCTAssertEqual(optimistic.items.first?.isWatched, true, "the eye must follow at once")
+
+    await mutation.fail(with: PutioRuntimeError.transient)
+    let committed = await task.value
+
+    XCTAssertFalse(committed, "a rolled-back action did not commit")
+    XCTAssertEqual(model.state, .loaded(original))
+    guard case .failed(let action, let failure) = model.actionOutcome else {
+      return XCTFail("expected failed action, got \(String(describing: model.actionOutcome))")
+    }
+    XCTAssertEqual(
+      action, .setWatched(fileID: item.id, parentID: .root, name: "Episode.mkv", watched: true))
+    XCTAssertEqual(failure.title, "Could not update watch status")
+    XCTAssertTrue(model.canStartAction)
+  }
+
+  func testWatchStatusChangesOnlyVideosWhoseStateDiffers() async {
+    let watched = BrowserTestFixtures.item(id: 7, resumePositionSeconds: 90)
+    let unwatched = BrowserTestFixtures.item(id: 8)
+    let audio = BrowserTestFixtures.item(id: 9, kind: .audio)
+    let folder = BrowserTestFixtures.item(id: 10, kind: .folder)
+    let original = BrowserTestFixtures.contents(items: [watched, unwatched, audio, folder])
+    var calls: [String] = []
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in original },
+      actions: PutioFileActions(
+        createFolder: { _, _ in throw PutioRuntimeError.unknown },
+        renameFile: { _, _ in throw PutioRuntimeError.unknown },
+        deleteFile: { _ in throw PutioRuntimeError.unknown },
+        setWatched: { fileID, isWatched in calls.append("\(fileID.rawValue) \(isWatched)") }
+      ),
+      initialContents: original
+    )
+
+    let noOp = await model.setWatched(watched, true)
+    XCTAssertFalse(noOp, "an action that never started did not commit")
+    await model.setWatched(unwatched, false)
+    await model.setWatched(audio, true)
+    await model.setWatched(folder, true)
+    XCTAssertEqual(calls, [], "no request when the state already matches or is not a video")
+    XCTAssertNil(model.actionOutcome)
+
+    let committed = await model.setWatched(watched, false)
+    XCTAssertTrue(committed)
+    XCTAssertEqual(calls, ["7 false"])
+    XCTAssertEqual(
+      model.actionOutcome,
+      .succeeded(
+        .setWatched(fileID: watched.id, parentID: .root, name: watched.name, watched: false)))
+  }
+
   func testMutationSupersedesAnInFlightRefresh() async throws {
     let loader = ControlledFolderLoader()
     addTeardownBlock { await loader.cancelPending() }
@@ -2215,6 +2290,31 @@ final class PutioFolderModelTests: XCTestCase {
       .loaded(BrowserTestFixtures.contents(items: [first, second], hasMore: false))
     )
     XCTAssertFalse(model.canLoadMore)
+  }
+
+  /// A refresh after a mutation keeps only the first page, so screens need
+  /// to know which rows survive it.
+  func testFirstPageIDsFollowFullLoadsAndIgnoreAppendedPages() async {
+    let first = BrowserTestFixtures.item(id: 1)
+    let second = BrowserTestFixtures.item(id: 2)
+    let third = BrowserTestFixtures.item(id: 3)
+    var loads = 0
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in
+        loads += 1
+        return BrowserTestFixtures.contents(
+          items: loads == 1 ? [first] : [first, third], hasMore: true)
+      },
+      continueLoad: { _ in PutioFolderContents(folder: nil, items: [second], nextCursor: nil) }
+    )
+
+    await model.loadIfNeeded()
+    XCTAssertEqual(model.firstPageIDs, [first.id])
+    await model.loadMore()
+    XCTAssertEqual(model.firstPageIDs, [first.id], "an appended page is not the first page")
+    await model.refresh()
+    XCTAssertEqual(model.firstPageIDs, [first.id, third.id])
   }
 
   func testLoadMoreWithoutAContinuationLoaderIsInert() async {

@@ -54,7 +54,14 @@ and UI run in the app. Its [signed-in tests](../Tests/tvOSUITests/Sources/Accoun
 record Home, History, Account, the proxy chooser, and Trash, with their
 centered modals, empty states, and recovery from the fixtures' one-time
 failures. Clearing History turns it off on the fixture account, so the Home
-capture after it shows the gate following an account change.
+capture after it shows the gate following an account change. The
+[browser tests](../Tests/tvOSUITests/Sources/FilesSearchJourneyTests.swift)
+record Your Files with its sort and long-press menus, paging, empty, error, and
+recovery states, the unsupported-type screen, and Search on the system keyboard.
+`--putio-harness-tv-browse` adds the empty and failing folders, a second root
+page that fails once and holds two files, and a root row that appears while
+Harness Folder is open, for the refetch on return. The Search test runs with
+`--putio-harness-trash-disabled`, so its menu offers a confirmed permanent delete.
 
 For launch and rendering evidence, use:
 

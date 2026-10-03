@@ -335,7 +335,13 @@ import Foundation
     }
 
     nonisolated(unsafe) static var isEnabled = false
-    nonisolated(unsafe) static var trashEnabled = true
+    /// `--putio-harness-trash-disabled` starts the account with Trash off,
+    /// so file menus offer a confirmed permanent delete. A repeated delete
+    /// of Harness Folder then fails, so a duplicate request shows.
+    private static var trashDisabledAtLaunch: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-trash-disabled")
+    }
+    nonisolated(unsafe) static var trashEnabled = !trashDisabledAtLaunch
     nonisolated(unsafe) private static var playbackPositions = [411: 90, 412: 589, 414: 37]
     nonisolated(unsafe) private static var conversionStarted = false
     nonisolated(unsafe) private static var conversionCompleted = false
@@ -366,6 +372,22 @@ import Foundation
     nonisolated(unsafe) private static var externalPlaybackFailurePending =
       ProcessInfo.processInfo.arguments.contains("--putio-harness-vlc-resolution-fails-once")
     nonisolated(unsafe) private static var searchRetryFailed = false
+    /// `--putio-harness-tv-browse` adds an empty folder and one whose first
+    /// listing fails to the root, fails the root's first continuation and
+    /// adds a second file to that page, and adds a root row once the Harness
+    /// Folder is opened, so the tvOS browser journey records empty, error,
+    /// recovery, later-page deletion, and refetch-on-return states.
+    private static var usesTVBrowse: Bool {
+      ProcessInfo.processInfo.arguments.contains("--putio-harness-tv-browse")
+    }
+    static let tvEmptyFolderID = 423
+    static let tvFlakyFolderID = 424
+    nonisolated(unsafe) private static var tvRootContinuationFailed = false
+    nonisolated(unsafe) private static var tvFlakyFolderFailed = false
+    nonisolated(unsafe) private static var tvSeasonPackTrashed = false
+    nonisolated(unsafe) private static var tvHarnessFolderOpened = false
+    static let tvSecondPageFileID = 426
+    static let tvArrivedFileID = 427
     nonisolated(unsafe) private static var emptySearchLoads = 0
     nonisolated(unsafe) private static var searchContinuationFailed = false
     nonisolated(unsafe) private static var renameAttempts = 0
@@ -457,6 +479,10 @@ import Foundation
       externalPlaybackFailurePending =
         ProcessInfo.processInfo.arguments.contains("--putio-harness-vlc-resolution-fails-once")
       searchRetryFailed = false
+      tvRootContinuationFailed = false
+      tvFlakyFolderFailed = false
+      tvSeasonPackTrashed = false
+      tvHarnessFolderOpened = false
       emptySearchLoads = 0
       searchContinuationFailed = false
       renameAttempts = 0
@@ -598,24 +624,43 @@ import Foundation
           )
         )
       }
-      return (
-        200,
-        """
-        {
-          "files": [
-            {
-              "id": \(rootContinuationFileID),
-              "name": "Season Pack.zip",
-              "file_type": "ARCHIVE",
-              "parent_id": 0,
-              "size": 2147483648,
-              "created_at": "2026-08-27T10:00:00Z",
-              "updated_at": "2026-08-27T10:00:00Z"
-            }
-          ]
+      let failContinuation =
+        usesTVBrowse
+        && fileActionsLock.withLock {
+          defer { tvRootContinuationFailed = true }
+          return !tvRootContinuationFailed
         }
-        """
-      )
+      if failContinuation {
+        return (
+          503,
+          fixtureError(
+            statusCode: 503, type: "HARNESS_FILES_CONTINUATION_RETRY",
+            message: "The first root continuation fails for retry proof")
+        )
+      }
+      let seasonPackTrashed = fileActionsLock.withLock { tvSeasonPackTrashed }
+      var rows =
+        seasonPackTrashed
+        ? []
+        : [
+          """
+          {
+            "id": \(rootContinuationFileID),
+            "name": "Season Pack.zip",
+            "file_type": "ARCHIVE",
+            "parent_id": 0,
+            "size": 2147483648,
+            "created_at": "2026-08-27T10:00:00Z",
+            "updated_at": "2026-08-27T10:00:00Z"
+          }
+          """
+        ]
+      if usesTVBrowse {
+        rows.append(
+          previewObject(
+            id: tvSecondPageFileID, name: "Season Pack 2.zip", type: "ARCHIVE", size: 4096))
+      }
+      return (200, "{\"files\":[\(rows.joined(separator: ","))]}")
     }
 
     private static func historyFailure(_ operation: String) -> (Int, String) {
@@ -1236,6 +1281,10 @@ import Foundation
         return setPlaybackPosition(request: request, fileID: 412)
       case "POST /v2/files/414/start-from/set":
         return setPlaybackPosition(request: request, fileID: 414)
+      case "GET /v2/files/411/start-from/delete":
+        return clearPlaybackPosition(fileID: 411)
+      case "GET /v2/files/412/start-from/delete":
+        return clearPlaybackPosition(fileID: 412)
       default:
         return (
           404,
@@ -1340,7 +1389,35 @@ import Foundation
       case 0:
         return (200, rootFiles)
       case 410:
+        if usesTVBrowse { fileActionsLock.withLock { tvHarnessFolderOpened = true } }
         return (200, nestedFiles)
+      case tvEmptyFolderID where usesTVBrowse:
+        return (
+          200,
+          "{\"parent\":\(folderObject(id: tvEmptyFolderID, name: "Empty Folder", parentID: 0)),\"files\":[],\"total\":0}"
+        )
+      case tvFlakyFolderID where usesTVBrowse:
+        let fail = fileActionsLock.withLock {
+          defer { tvFlakyFolderFailed = true }
+          return !tvFlakyFolderFailed
+        }
+        if fail {
+          return (
+            503,
+            fixtureError(
+              statusCode: 503, type: "HARNESS_FOLDER_RETRY",
+              message: "The first listing of the flaky folder fails for retry proof")
+          )
+        }
+        return (
+          200,
+          """
+          {"parent":\(folderObject(id: tvFlakyFolderID, name: "Flaky Folder", parentID: 0)),
+          "files":[{"id":425,"name":"Flaky Episode.mkv","file_type":"VIDEO",
+          "parent_id":\(tvFlakyFolderID),"size":524288000,"created_at":"2026-08-28T10:00:00Z",
+          "updated_at":"2026-08-29T10:00:00Z","start_from":0}],"total":1}
+          """
+        )
       case .none:
         return (
           400,
@@ -1377,6 +1454,11 @@ import Foundation
       playbackPositionLock.lock()
       defer { playbackPositionLock.unlock() }
       return playbackPositions[fileID] ?? 0
+    }
+
+    private static func clearPlaybackPosition(fileID: Int) -> (Int, String) {
+      playbackPositionLock.withLock { playbackPositions[fileID] = 0 }
+      return (200, #"{"status":"OK"}"#)
     }
 
     private static func setPlaybackPosition(request: URLRequest, fileID: Int) -> (Int, String) {
@@ -1544,6 +1626,10 @@ import Foundation
       guard fileIDs.count == 1 else { return deleteActionFolders(fileIDs) }
       let fileID = fileIDs[0]
 
+      if usesTVBrowse, fileID == rootContinuationFileID {
+        fileActionsLock.withLock { tvSeasonPackTrashed = true }
+        return (200, #"{"status":"OK"}"#)
+      }
       fileActionsLock.lock()
       if fileID == 412 {
         defer { fileActionsLock.unlock() }
@@ -1562,6 +1648,14 @@ import Foundation
         )
       }
       if fileID == 410 {
+        if trashDisabledAtLaunch, harnessFolderDeleted {
+          fileActionsLock.unlock()
+          return (
+            404,
+            fixtureError(
+              statusCode: 404, type: "FILE_NOT_FOUND", message: "Harness Folder is already deleted")
+          )
+        }
         harnessFolderDeleted = true
         if trashEnabled { trashFolders[410] = ActionFolder(name: harnessFolderName, parentID: 0) }
         fileActionsLock.unlock()
@@ -1972,6 +2066,8 @@ import Foundation
       let folderName = harnessFolderName
       let folderDeleted = harnessFolderDeleted
       let rootVideoTrashed = offlineOriginalTrashed
+      let arrived = usesTVBrowse && tvHarnessFolderOpened
+      let rootContinuationCount = (tvSeasonPackTrashed ? 0 : 1) + (usesTVBrowse ? 1 : 0)
       fileActionsLock.unlock()
       let mutableFolderRows = mutableFolders.map { id, folder in
         folderObject(id: id, name: folder.name, parentID: folder.parentID)
@@ -2017,6 +2113,12 @@ import Foundation
           }
           """,
         ] + mutableFolderRows
+        + (usesTVBrowse
+          ? [
+            folderObject(id: tvEmptyFolderID, name: "Empty Folder", parentID: 0),
+            folderObject(id: tvFlakyFolderID, name: "Flaky Folder", parentID: 0),
+          ] : [])
+        + (arrived ? [folderObject(id: tvArrivedFileID, name: "Arrived Folder", parentID: 0)] : [])
       if folderDeleted { rows.removeFirst() }
       if rootVideoTrashed { rows.removeAll { $0.contains(#""id": 412,"#) } }
       // Only the two name orders are modelled; the journey proves the
@@ -2038,7 +2140,7 @@ import Foundation
           "files": [
             \(rows.joined(separator: ",\n"))
           ],
-          "total": \(8 + mutableFolders.count - (folderDeleted ? 1 : 0) - (rootVideoTrashed ? 1 : 0))
+          "total": \(rows.count + rootContinuationCount)
         }
         """
     }

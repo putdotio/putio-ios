@@ -123,6 +123,47 @@ final class TVSessionRenderingTests: XCTestCase {
     )
   }
 
+  /// The seeded root with both pages loaded: a folder with its chevron, the
+  /// watched video's eye, and each type icon under the persisted sort header.
+  @MainActor
+  func testFilesMatchesBaseline() async throws {
+    HarnessSeededAPI.resetPlaybackPositions()
+    let runtime = try await Self.seededRuntime()
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { try await runtime.listFiles(parentID: $0) },
+      continueLoad: { try await runtime.continueFiles(cursor: $0) },
+      actions: PutioFileActions(runtime: runtime))
+    await model.loadIfNeeded()
+    await model.loadMore()
+    guard case .loaded(let contents) = model.state else {
+      return XCTFail("expected the root to load, got \(model.state)")
+    }
+    XCTAssertNil(contents.nextCursor)
+
+    _ = try assertRenderingSnapshot(
+      name: "tv-files",
+      view: TVFolderView(
+        route: .root, model: model, account: Self.account, now: Self.trashNow,
+        locale: Self.locale, loadsOnAppear: false
+      ) { _ in },
+      size: viewport
+    )
+  }
+
+  @MainActor
+  func testUnsupportedFileMatchesBaseline() throws {
+    _ = try assertRenderingSnapshot(
+      name: "tv-file-unsupported",
+      view: TVFileScreen(
+        item: PutioFileItem(
+          id: PutioFileID(rawValue: 407), parentID: .root, name: "Harness Bundle.zip",
+          kind: .other("ARCHIVE"), sizeBytes: 4_096, createdAt: Self.trashNow,
+          updatedAt: Self.trashNow, resumePositionSeconds: 0)),
+      size: viewport
+    )
+  }
+
   /// Restores never refresh storage on their own, and one can commit after
   /// Trash is gone; the account's trash size must still follow it.
   @MainActor

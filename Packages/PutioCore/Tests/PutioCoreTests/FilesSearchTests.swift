@@ -91,6 +91,15 @@ final class FilesSearchTests: XCTestCase {
     XCTAssertEqual(cursors, ["second", "second"])
   }
 
+  func testFirstPageIDsFollowSearchesAndIgnoreAppendedPages() async {
+    let model = PutioFileSearchModel(
+      search: { _ in Self.page([1], cursor: "second") },
+      continueSearch: { _ in Self.page([2]) })
+    await model.update(query: "movie", debounced: false)
+    await model.loadMore()
+    XCTAssertEqual(model.firstPageIDs, [PutioFileID(rawValue: 1)])
+  }
+
   func testRefreshFailureRetainsResultsAndRetryReplacesThem() async {
     var attempts = 0
     var continuationCalls = 0

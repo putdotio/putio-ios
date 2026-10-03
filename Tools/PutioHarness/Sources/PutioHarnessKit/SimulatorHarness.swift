@@ -1194,16 +1194,44 @@ public struct SimulatorHarness {
           defaultExecutionTimeAllowance: 180,
           maximumExecutionTimeAllowance: 300
         )
-        let accountScreenshots = historyTrashScreenshots + settingsScreenshots
+        let browseBundle = platformDirectory.appending(path: ".tv-browse.xcresult")
+        let browseScreenshots = try runJourneyPreflightTest(
+          identifier: TVBrowseJourneyContract.browseTestIdentifier,
+          platform: platform,
+          session: session,
+          resultBundle: browseBundle,
+          attachmentNames: TVBrowseJourneyContract.browseAttachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 360,
+          maximumExecutionTimeAllowance: 480
+        )
+        let searchBundle = platformDirectory.appending(path: ".tv-search.xcresult")
+        let searchScreenshots = try runJourneyPreflightTest(
+          identifier: TVBrowseJourneyContract.searchTestIdentifier,
+          platform: platform,
+          session: session,
+          resultBundle: searchBundle,
+          attachmentNames: TVBrowseJourneyContract.searchAttachmentNames,
+          artifactDirectory: platformDirectory,
+          defaultExecutionTimeAllowance: 180,
+          maximumExecutionTimeAllowance: 300
+        )
+        let accountScreenshots =
+          historyTrashScreenshots + settingsScreenshots + browseScreenshots + searchScreenshots
         let accountNames =
           TVAccountJourneyContract.historyTrashAttachmentNames
           + TVAccountJourneyContract.settingsAttachmentNames
+          + TVBrowseJourneyContract.browseAttachmentNames
+          + TVBrowseJourneyContract.searchAttachmentNames
         for (name, screenshot) in zip(accountNames, accountScreenshots) {
           _ = try requireMeaningfulScreenshot(screenshot, context: "\(name) attachment")
         }
         try requireCleanSource()
         try requireRevision(sourceRevision)
-        for bundle in [resultBundle, historyTrashBundle, settingsBundle] {
+        let bundles = [
+          resultBundle, historyTrashBundle, settingsBundle, browseBundle, searchBundle,
+        ]
+        for bundle in bundles {
           try fileManager.removeItem(at: bundle)
         }
         let artifacts = screenshots + accountScreenshots
@@ -1221,7 +1249,7 @@ public struct SimulatorHarness {
           platform: platform,
           artifacts: artifacts + [manifest],
           message:
-            "device sign-in journey passed 3/3 tests in \(context.relativePath(for: platformDirectory))"
+            "device sign-in journey passed 5/5 tests in \(context.relativePath(for: platformDirectory))"
         )
       }
     } catch {
