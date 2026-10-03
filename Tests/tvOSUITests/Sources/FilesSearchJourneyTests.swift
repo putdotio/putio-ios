@@ -207,7 +207,8 @@ final class FilesSearchJourneyTests: XCTestCase {
 
     // A permanent delete asks first; Cancel keeps the folder.
     let folder = element("search.item.410")
-    XCTAssertTrue(focus("search.item.410", moving: .up, limit: 6))
+    // The alert can hand focus back to the keyboard above the results.
+    XCTAssertTrue(focus("search.item.410"))
     longPress()
     XCTAssertTrue(element("files.menu.delete").waitForExistence(timeout: 5))
     XCTAssertEqual(element("files.menu.delete").label, "Delete")
@@ -220,7 +221,8 @@ final class FilesSearchJourneyTests: XCTestCase {
     XCTAssertFalse(label(containing: "Item deleted").exists)
 
     // Confirming deletes it once: the fixture fails a repeated delete.
-    XCTAssertTrue(focus("search.item.410", moving: .up, limit: 6))
+    // The alert can hand focus back to the keyboard above the results.
+    XCTAssertTrue(focus("search.item.410"))
     longPress()
     XCTAssertTrue(selectModalButton("files.menu.delete"))
     XCTAssertTrue(selectModalButton("files.delete-confirm"))
