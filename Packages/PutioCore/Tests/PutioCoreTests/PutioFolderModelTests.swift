@@ -1117,8 +1117,9 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertEqual(optimistic.items.first?.isWatched, true, "the eye must follow at once")
 
     await mutation.fail(with: PutioRuntimeError.transient)
-    await task.value
+    let committed = await task.value
 
+    XCTAssertFalse(committed, "a rolled-back action did not commit")
     XCTAssertEqual(model.state, .loaded(original))
     guard case .failed(let action, let failure) = model.actionOutcome else {
       return XCTFail("expected failed action, got \(String(describing: model.actionOutcome))")
@@ -1148,14 +1149,16 @@ final class PutioFolderModelTests: XCTestCase {
       initialContents: original
     )
 
-    await model.setWatched(watched, true)
+    let noOp = await model.setWatched(watched, true)
+    XCTAssertFalse(noOp, "an action that never started did not commit")
     await model.setWatched(unwatched, false)
     await model.setWatched(audio, true)
     await model.setWatched(folder, true)
     XCTAssertEqual(calls, [], "no request when the state already matches or is not a video")
     XCTAssertNil(model.actionOutcome)
 
-    await model.setWatched(watched, false)
+    let committed = await model.setWatched(watched, false)
+    XCTAssertTrue(committed)
     XCTAssertEqual(calls, ["7 false"])
     XCTAssertEqual(
       model.actionOutcome,

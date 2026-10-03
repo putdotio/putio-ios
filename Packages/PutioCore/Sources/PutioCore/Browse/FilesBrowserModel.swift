@@ -596,6 +596,8 @@ public final class PutioFolderModel {
   // result instead of a cleared slot.
   @ObservationIgnored private var queuedRefresh: Task<Bool, Never>?
   @ObservationIgnored private var refreshRequestedWhileActionActive = false
+  // Kept apart from `actionOutcome`, which screens clear once they show it.
+  @ObservationIgnored private var lastCommittedAction: PutioFileAction?
 
   public init(
     folderID: PutioFileID,
@@ -780,14 +782,16 @@ public final class PutioFolderModel {
     }
   }
 
-  public func delete(_ item: PutioFileItem) async {
-    guard let actions, canDelete, case .loaded(let contents) = state else { return }
-    guard let currentItem = contents.items.first(where: { $0.id == item.id }) else { return }
+  /// Returns true when the server confirmed the delete.
+  @discardableResult
+  public func delete(_ item: PutioFileItem) async -> Bool {
+    guard let actions, canDelete, case .loaded(let contents) = state else { return false }
+    guard let currentItem = contents.items.first(where: { $0.id == item.id }) else { return false }
     let action = PutioFileAction.delete(fileID: currentItem.id, name: currentItem.name)
     begin(action)
     state = .loaded(contents.removing(currentItem.id))
 
-    await run(action, rollback: contents) {
+    return await run(action, rollback: contents) {
       try await actions.deleteFile(currentItem.id)
       return nil
     }
@@ -795,18 +799,19 @@ public final class PutioFolderModel {
 
   /// Marks a video watched or unwatched; the row's eye follows at once and
   /// rolls back if the server refuses.
-  public func setWatched(_ item: PutioFileItem, _ watched: Bool) async {
-    guard let actions, canStartAction, case .loaded(let contents) = state else { return }
+  @discardableResult
+  public func setWatched(_ item: PutioFileItem, _ watched: Bool) async -> Bool {
+    guard let actions, canStartAction, case .loaded(let contents) = state else { return false }
     guard let currentItem = contents.items.first(where: { $0.id == item.id }),
       currentItem.kind == .video, currentItem.isWatched != watched
-    else { return }
+    else { return false }
     let action = PutioFileAction.setWatched(
       fileID: currentItem.id, parentID: currentItem.parentID, name: currentItem.name,
       watched: watched)
     begin(action)
     state = .loaded(contents.replacing(currentItem.withResumePosition(watched ? 1 : 0)))
 
-    await run(action, rollback: contents) {
+    return await run(action, rollback: contents) {
       try await actions.setWatched(currentItem.id, watched)
       return nil
     }
@@ -920,6 +925,7 @@ public final class PutioFolderModel {
     loadMoreFailure = nil
     activeAction = action
     actionOutcome = nil
+    lastCommittedAction = nil
   }
 
   private func beginBulk(_ action: PutioBulkFileAction, items: [PutioFileItem]) {
@@ -943,11 +949,13 @@ public final class PutioFolderModel {
   // The mutation runs in a model-owned task: a screen that disappears
   // (tab switch, pop) cancels its view task, but the server may already
   // have applied the request, so the outcome must still be observed.
+  /// Returns true when the server confirmed the action.
+  @discardableResult
   private func run(
     _ action: PutioFileAction,
     rollback: PutioFolderContents,
     operation: @escaping @MainActor @Sendable () async throws -> PutioFolderContents?
-  ) async {
+  ) async -> Bool {
     let task = Task { @MainActor [weak self] in
       guard let self else { return }
       do {
@@ -966,6 +974,7 @@ public final class PutioFolderModel {
         }
         activeAction = nil
         actionOutcome = .succeeded(action)
+        lastCommittedAction = action
       } catch {
         settleFailure(action: action, error: error, rollback: rollback)
       }
@@ -974,6 +983,7 @@ public final class PutioFolderModel {
     }
     actionTask = task
     await task.value
+    return lastCommittedAction == action
   }
 
   /// Sends the items in batches. A thrown batch fails all of its items; a

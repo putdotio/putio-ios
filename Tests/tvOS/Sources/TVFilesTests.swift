@@ -121,10 +121,39 @@ final class TVFilesTests: XCTestCase {
     await TVFolderMutation.run(.allFolders, requests: requests, owner: screen) {
       XCTAssertNil(requests.sequence(for: .root, owner: search.owner), "asked before settling")
       settled = true
+      return true
     }
 
     XCTAssertTrue(settled)
     XCTAssertNotNil(requests.sequence(for: .root, owner: search.owner))
+  }
+
+  /// A delete the server applied but answered with an error rolls the row
+  /// back, and the model does not refresh itself; the starting screen must.
+  @MainActor
+  func testFailedFolderMutationRefreshesTheStartingScreenToo() async {
+    let requests = PutioFolderRefreshRequests()
+    let screen = PutioFolderRefreshRegistration(folderID: .root, requests: requests)
+    screen.activate()
+
+    await TVFolderMutation.run(.allFolders, requests: requests, owner: screen.owner) { true }
+    XCTAssertNil(
+      requests.sequence(for: .root, owner: screen.owner), "a committed delete refreshes itself")
+
+    await TVFolderMutation.run(.allFolders, requests: requests, owner: screen.owner) { false }
+    XCTAssertNotNil(requests.sequence(for: .root, owner: screen.owner))
+  }
+
+  /// A watch toggle reloads the first page; a later-page row would vanish.
+  func testWatchToggleKeepsFocusOnARowTheReloadKeeps() {
+    let items = [424, 410, 422, 426].map { Self.video(id: $0) }
+    let firstPage: Set = [PutioFileID(rawValue: 424), PutioFileID(rawValue: 410)]
+    XCTAssertEqual(
+      TVFilePresentation.focusKeeping(PutioFileID(rawValue: 410), in: items, firstPage: firstPage),
+      PutioFileID(rawValue: 410))
+    XCTAssertEqual(
+      TVFilePresentation.focusKeeping(PutioFileID(rawValue: 426), in: items, firstPage: firstPage),
+      PutioFileID(rawValue: 410))
   }
 
   func testToastsNameTheActionAndFollowTheTrashSetting() {

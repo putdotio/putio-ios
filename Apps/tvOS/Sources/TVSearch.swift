@@ -67,7 +67,13 @@ struct TVSearchView: View {
       .onChange(of: model.state) { itemActions.revealHiddenItems() }
       .tvFileMenu(
         item: $menuItem, account: account, canDelete: itemActions.canDelete,
-        setWatched: { item, watched in Task { await itemActions.setWatched(item, watched) } },
+        setWatched: { item, watched in
+          if case .loaded(let page) = model.state {
+            focusTarget = TVFilePresentation.focusKeeping(
+              item.id, in: page.items, firstPage: model.firstPageIDs)
+          }
+          Task { await itemActions.setWatched(item, watched) }
+        },
         delete: { item in
           guard case .loaded(let page) = model.state else { return }
           let visible = page.items.filter { !itemActions.hiddenIDs.contains($0.id) }

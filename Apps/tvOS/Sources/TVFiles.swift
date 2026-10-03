@@ -50,6 +50,14 @@ enum TVFilePresentation {
     return (following + preceding).first { firstPage.contains($0.id) }?.id
   }
 
+  /// Where focus goes when a row stays but the list reloads its first page:
+  /// the row itself if that page holds it, otherwise that page's last row.
+  static func focusKeeping(
+    _ id: PutioFileID, in items: [PutioFileItem], firstPage: Set<PutioFileID>
+  ) -> PutioFileID? {
+    firstPage.contains(id) ? id : focusAfterRemoving(id, from: items, firstPage: firstPage)
+  }
+
   static func sortButtonTitle(_ sort: PutioFolderSort) -> String {
     "\(sort.key.title) \(sort.isAscending ? "↑" : "↓")"
   }
@@ -150,8 +158,9 @@ struct TVFocusHandoff: ViewModifier {
 
 /// Runs a folder mutation and then asks the other mounted screens, Search
 /// included, to refresh. The request follows the mutation itself, not the
-/// screen, so it is sent even if the screen closed meanwhile; a failed
-/// mutation may still have reached the server, so it is sent either way.
+/// screen, so it is sent even if the screen closed meanwhile. A failed
+/// mutation may still have reached the server, and the model only rolls
+/// back, so then the screen that started it refreshes too.
 enum TVFolderMutation {
   enum Scope {
     /// A deleted folder can contain any other mounted folder.
@@ -162,12 +171,13 @@ enum TVFolderMutation {
   @MainActor
   static func run(
     _ scope: Scope, requests: PutioFolderRefreshRequests, owner: UUID,
-    operation: @MainActor () async -> Void
+    operation: @MainActor () async -> Bool
   ) async {
-    await operation()
+    let committed = await operation()
+    let excluded = committed ? owner : nil
     switch scope {
-    case .allFolders: requests.requestAllLoadedFolders(excludingOwner: owner)
-    case .folder(let id): requests.request(folderID: id, excludingOwner: owner)
+    case .allFolders: requests.requestAllLoadedFolders(excludingOwner: excluded)
+    case .folder(let id): requests.request(folderID: id, excludingOwner: excluded)
     }
   }
 }
@@ -350,6 +360,10 @@ struct TVFolderView: View {
     .tvFileMenu(
       item: $menuItem, account: account, canDelete: model.canDelete,
       setWatched: { item, watched in
+        if case .loaded(let contents) = model.state {
+          focusTarget = TVFilePresentation.focusKeeping(
+            item.id, in: contents.items, firstPage: model.firstPageIDs)
+        }
         mutate(.folder(route.id)) { [model] in await model.setWatched(item, watched) }
       },
       delete: { item in
@@ -470,7 +484,7 @@ struct TVFolderView: View {
   }
 
   private func mutate(
-    _ scope: TVFolderMutation.Scope, _ operation: @escaping @MainActor () async -> Void
+    _ scope: TVFolderMutation.Scope, _ operation: @escaping @MainActor () async -> Bool
   ) {
     let requests = refreshRequests
     let owner = refreshRegistration.owner
