@@ -134,8 +134,8 @@ public struct PutioFileItem: Identifiable, Hashable, Sendable {
   public let createdAt: Date
   public let updatedAt: Date
   public let resumePositionSeconds: Int
-  /// put.io's `is_shared`: the file reaches this account through another
-  /// account's share.
+  /// put.io's `is_shared`, or the "items shared with you" root: the file
+  /// reaches this account through another account's share.
   public let isShared: Bool
 
   public var isWatched: Bool {

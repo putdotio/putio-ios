@@ -143,7 +143,7 @@ public final class PutioRuntime {
       createdAt: file.createdAt,
       updatedAt: file.updatedAt,
       resumePositionSeconds: file.startFrom,
-      isShared: file.isShared
+      isShared: file.isShared || file.isSharedRoot
     )
   }
 

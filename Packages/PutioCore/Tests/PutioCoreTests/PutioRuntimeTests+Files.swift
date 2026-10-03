@@ -489,6 +489,37 @@ extension PutioRuntimeTests {
     XCTAssertEqual(query.first(where: { $0.name == "parent_id" })?.value, "42")
   }
 
+  func testListFilesMarksTheSharedRootAsShared() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      """
+      {
+        "parent": {
+          "id": 0, "name": "Your Files", "file_type": "FOLDER", "parent_id": 0, "size": 0,
+          "created_at": "2026-08-01T10:00:00Z", "updated_at": "2026-08-01T10:00:00Z"
+        },
+        "cursor": "",
+        "files": [
+          {
+            "id": 21, "name": "Movies", "file_type": "FOLDER", "parent_id": 0, "size": 0,
+            "created_at": "2026-08-01T10:00:00Z", "updated_at": "2026-08-01T10:00:00Z"
+          },
+          {
+            "id": 22, "name": "items shared with you", "file_type": "FOLDER",
+            "folder_type": "SHARED_ROOT", "parent_id": 0, "size": 0,
+            "created_at": "2026-08-01T10:00:00Z", "updated_at": "2026-08-01T10:00:00Z"
+          }
+        ]
+      }
+      """,
+      for: Self.filesRoute
+    )
+
+    let contents = try await runtime.listFiles()
+
+    XCTAssertEqual(contents.items.map(\.isShared), [false, true])
+  }
+
   func testFolderContinuationStillHidesTheSharedRoot() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
