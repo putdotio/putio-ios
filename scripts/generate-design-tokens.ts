@@ -56,6 +56,26 @@ const assetCatalogPath = path.join(
   "Resources",
   "PutioColors.xcassets",
 );
+const brandAssetCatalogPath = path.join(
+  repositoryRoot,
+  "Packages",
+  "PutioCore",
+  "Sources",
+  "PutioCore",
+  "Resources",
+  "PutioBrand.xcassets",
+);
+
+type BrandImage = {
+  readonly assetName: string;
+  readonly source: string;
+};
+
+// Vector brand art copied byte-for-byte from the pinned package's public
+// `./assets/*` export; the catalog keeps the SVG as a vector representation.
+export const brandImages = [
+  { assetName: "PutioLogoRetroDark", source: "logo-retro-dark.svg" },
+] as const satisfies readonly BrandImage[];
 
 type CoverageManifest = {
   readonly sourcePackageVersion: string;
@@ -555,6 +575,45 @@ export function renderAssetCatalog(
   }
   return files;
 }
+
+export function renderBrandAssetCatalog(
+  sources: Readonly<Record<string, string>>,
+): Readonly<Record<string, string>> {
+  const files: Record<string, string> = {
+    "Contents.json": formattedJSON({ info: { author: "xcode", version: 1 } }),
+  };
+  for (const image of brandImages) {
+    const svg = sources[image.source];
+    if (svg === undefined) throw new Error(`missing brand asset ${image.source}`);
+    if (!/<svg[\s>]/.test(svg)) throw new Error(`brand asset ${image.source} is not an SVG`);
+    files[`${image.assetName}.imageset/Contents.json`] = formattedJSON({
+      images: [{ filename: image.source, idiom: "universal" }],
+      info: { author: "xcode", version: 1 },
+      properties: {
+        "preserves-vector-representation": true,
+        "template-rendering-intent": "original",
+      },
+    });
+    files[`${image.assetName}.imageset/${image.source}`] = svg;
+  }
+  return files;
+}
+
+const readBrandSources = async (): Promise<Readonly<Record<string, string>>> => {
+  const entries = await Promise.all(
+    brandImages.map(
+      async (image) =>
+        [
+          image.source,
+          await readFile(
+            fileURLToPath(import.meta.resolve(`@putdotio/design/assets/${image.source}`)),
+            "utf8",
+          ),
+        ] as const,
+    ),
+  );
+  return Object.fromEntries(entries);
+};
 
 const dimensionPoints = (value: string | number): number => {
   if (typeof value === "number") return value;
@@ -1169,14 +1228,17 @@ const run = async (): Promise<void> => {
   validateCoverage(entries, coverage, packageMetadata.version);
   const generated = renderSwift(entries, packageMetadata.version);
   const generatedAssets = renderAssetCatalog(entries);
+  const generatedBrandAssets = renderBrandAssetCatalog(await readBrandSources());
   if (process.argv.includes("--check")) {
-    const [currentSwift, currentAssets] = await Promise.all([
+    const [currentSwift, currentAssets, currentBrandAssets] = await Promise.all([
       readFile(outputPath, "utf8").catch(() => ""),
       readGeneratedTree(assetCatalogPath),
+      readGeneratedTree(brandAssetCatalogPath),
     ]);
     try {
       assert.equal(currentSwift, generated, "generated Swift design tokens are stale");
       assertGeneratedTree(currentAssets, generatedAssets);
+      assertGeneratedTree(currentBrandAssets, generatedBrandAssets);
     } catch (error) {
       throw new Error("generated design tokens are stale; run pnpm tokens:generate", {
         cause: error,
@@ -1188,6 +1250,7 @@ const run = async (): Promise<void> => {
   await Promise.all([
     writeFile(outputPath, generated),
     writeGeneratedTree(assetCatalogPath, generatedAssets),
+    writeGeneratedTree(brandAssetCatalogPath, generatedBrandAssets),
   ]);
 };
 

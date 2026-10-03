@@ -6,7 +6,9 @@ import { fileURLToPath } from "node:url";
 import {
   parseCoverageManifest,
   parseTokens,
+  brandImages,
   renderAssetCatalog,
+  renderBrandAssetCatalog,
   renderSwift,
   semanticColorRoles,
   validateCoverage,
@@ -54,6 +56,32 @@ test("renders dark-only semantic colors into the asset catalog", async () => {
     assert.equal(asset.colors?.length, 1, role.assetName);
     assert.equal(asset.colors?.[0]?.appearances, undefined, role.assetName);
   }
+});
+
+test("vendors brand art from the package export as vector image sets", async () => {
+  const sources = Object.fromEntries(
+    await Promise.all(
+      brandImages.map(
+        async (image) =>
+          [
+            image.source,
+            await readFile(
+              fileURLToPath(import.meta.resolve(`@putdotio/design/assets/${image.source}`)),
+              "utf8",
+            ),
+          ] as const,
+      ),
+    ),
+  );
+  const files = renderBrandAssetCatalog(sources);
+  for (const image of brandImages) {
+    assert.equal(files[`${image.assetName}.imageset/${image.source}`], sources[image.source]);
+    const asset = JSON.parse(files[`${image.assetName}.imageset/Contents.json`] ?? "null") as {
+      properties?: Record<string, unknown>;
+    };
+    assert.equal(asset.properties?.["preserves-vector-representation"], true);
+  }
+  assert.throws(() => renderBrandAssetCatalog({}), /missing brand asset/);
 });
 
 test("rejects light-mode sources for dark-only semantic colors", async () => {
