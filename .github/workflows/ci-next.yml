@@ -75,9 +75,18 @@ jobs:
 
       - name: Set up the Apple toolchain
         uses: ./.github/actions/setup-apple
+        with:
+          lane: checks
 
       - name: Verify checks and tvOS snapshots
         run: mise run verify checks ${{ needs.changes.outputs.tvos == 'true' && 'tvos' || '' }}
+
+      - name: Save Xcode compilation cache
+        if: success() && github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/DerivedData/CompilationCache.noindex
+          key: ${{ runner.os }}-xcode-cas-checks-${{ github.sha }}
 
       - name: Upload test result bundles
         if: failure()
@@ -103,9 +112,18 @@ jobs:
 
       - name: Set up the Apple toolchain
         uses: ./.github/actions/setup-apple
+        with:
+          lane: ios
 
       - name: Verify iOS snapshots and features
         run: mise run verify ios
+
+      - name: Save Xcode compilation cache
+        if: success() && github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/DerivedData/CompilationCache.noindex
+          key: ${{ runner.os }}-xcode-cas-ios-${{ github.sha }}
 
       - name: Upload test result bundles
         if: failure()
@@ -131,6 +149,8 @@ jobs:
 
       - name: Set up the Apple toolchain
         uses: ./.github/actions/setup-apple
+        with:
+          lane: build
 
       - name: Build every app shell
         run: mise run verify build
@@ -138,3 +158,10 @@ jobs:
       - name: Exercise the headless Apple harness
         if: needs.changes.outputs.ios == 'true'
         run: mise run harness-ci
+
+      - name: Save Xcode compilation cache
+        if: success() && github.event_name == 'push'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/DerivedData/CompilationCache.noindex
+          key: ${{ runner.os }}-xcode-cas-build-${{ github.sha }}

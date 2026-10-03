@@ -1,5 +1,9 @@
 name: Set up the Apple toolchain
-description: Select Xcode, install the pinned toolchain, restore dependency caches, and provision brand fonts.
+description: Select Xcode, install the pinned toolchain, restore dependency and compilation caches, and provision brand fonts.
+inputs:
+  lane:
+    description: Verify lane whose Xcode compilation cache to restore.
+    required: true
 runs:
   using: composite
   steps:
@@ -36,6 +40,25 @@ runs:
         key: ${{ runner.os }}-tuist-build-${{ hashFiles('Tuist/Package.swift', 'Tuist/Package.resolved', 'Packages/GoogleCastSDK/Package.swift') }}
         restore-keys: |
           ${{ runner.os }}-tuist-build-
+
+    # Compilation cache entries are keyed by inputs and absolute paths, so they
+    # survive fresh DerivedData on the fixed runner checkout path. Pushes to
+    # next build cold and save; pull requests only restore, so the cache never
+    # accumulates stale entries.
+    - name: Enable Xcode compilation caching
+      shell: bash
+      run: |
+        printf 'COMPILATION_CACHE_ENABLE_CACHING = YES\n' > "$RUNNER_TEMP/compilation-cache.xcconfig"
+        printf 'XCODE_XCCONFIG_FILE=%s\n' "$RUNNER_TEMP/compilation-cache.xcconfig" >> "$GITHUB_ENV"
+
+    - name: Restore Xcode compilation cache
+      if: github.event_name != 'push'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: build/DerivedData/CompilationCache.noindex
+        key: ${{ runner.os }}-xcode-cas-${{ inputs.lane }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-xcode-cas-${{ inputs.lane }}-
 
     - name: Provision licensed brand fonts
       shell: bash
