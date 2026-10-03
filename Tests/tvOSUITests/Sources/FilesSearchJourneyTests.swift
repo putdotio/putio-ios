@@ -280,7 +280,14 @@ final class FilesSearchJourneyTests: XCTestCase {
   /// Moves focus onto the element with the remote: down first, then up,
   /// bounded so a screen that never offers it still fails.
   private func focus(_ identifier: String) -> Bool {
-    focus(identifier, moving: .down, limit: 14) || focus(identifier, moving: .up, limit: 20)
+    if focus(identifier, moving: .down, limit: 14) || focus(identifier, moving: .up, limit: 20) {
+      return true
+    }
+    let tree = XCTAttachment(string: app.debugDescription)
+    tree.name = "focus-miss-\(identifier)"
+    tree.lifetime = .keepAlways
+    add(tree)
+    return false
   }
 
   private func focus(
