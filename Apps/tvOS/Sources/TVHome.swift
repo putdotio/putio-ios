@@ -85,6 +85,7 @@ struct TVSignedInShell: View {
   @State private var path: [TVRoute] = []
   @State private var trashReconciliation = PutioTrashReconciliation()
   @State private var folderRefreshRequests = PutioFolderRefreshRequests()
+  @State private var playbackPositionPipeline = PutioPlaybackPositionPipeline()
   @State private var hasShownHome = false
 
   var body: some View {
@@ -144,7 +145,13 @@ struct TVSignedInShell: View {
         route: folder, runtime: runtime, account: account,
         refreshRequests: folderRefreshRequests, open: open)
     case .file(let item):
-      TVFileScreen(item: item)
+      if case .video(let video) = PutioFileRoute(item: item).openAction {
+        TVVideoSession(
+          route: video, runtime: runtime, account: account, pipeline: playbackPositionPipeline,
+          refreshRequests: folderRefreshRequests)
+      } else {
+        TVFileScreen(item: item)
+      }
     }
   }
 }

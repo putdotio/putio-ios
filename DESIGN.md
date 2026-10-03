@@ -65,6 +65,10 @@ Destructive actions confirm in a centered alert. File rows open on select and
 offer their actions on a long press, in a centered alert; Trash moves are
 recoverable and skip the confirmation. Search uses the system keyboard from
 `.searchable`, and its results reuse the browser's rows.
+Videos play in the system player, which owns transport, subtitles, audio, and
+speed. A saved position asks first in a centered pre-play overlay: the raw
+filename, a progress preview of the focused choice, and two stacked buttons with
+the system focus fill. Up Next uses the same overlay shape.
 
 Watch interactions are counts, states, and remote control, with one action per
 screen. File browsing and text entry belong on the phone.

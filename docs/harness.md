@@ -62,6 +62,13 @@ recovery states, the unsupported-type screen, and Search on the system keyboard.
 page that fails once and holds two files, and a root row that appears while
 Harness Folder is open, for the refetch on return. The Search test runs with
 `--putio-harness-trash-disabled`, so its menu offers a confirmed permanent delete.
+The [playback tests](../Tests/tvOSUITests/Sources/PlaybackJourneyTests.swift)
+stream the bundled HLS fixtures from the same loopback server: the resume
+decision with both choices, the successor's Up Next and its start over, a
+position report on the 15-second cadence, the system player's subtitle and
+speed menus with the audio track kept, and the conversion gate with its
+one-time failure. `--putio-harness-subtitled-stream` serves the multi-audio
+fixture shaped by the account's subtitle settings, as on iOS.
 
 For launch and rendering evidence, use:
 

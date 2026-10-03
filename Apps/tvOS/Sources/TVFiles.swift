@@ -499,8 +499,8 @@ struct TVFolderView: View {
   }
 }
 
-/// Where a non-folder file leads. Apple TV plays video only; playback itself
-/// arrives with the player, so a video stops at a marked hand-off point.
+/// A file Apple TV cannot open: it plays video only, and videos open the
+/// player instead.
 struct TVFileScreen: View {
   let item: PutioFileItem
 
@@ -509,32 +509,16 @@ struct TVFileScreen: View {
   var body: some View {
     VStack(alignment: .leading, spacing: PutioTheme.TV.Spacing.medium) {
       TVScreenHeader(title: item.name) {}
-      destination
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    .tvOverscanPadding()
-    .background(PutioTheme.Colors.background.ignoresSafeArea())
-  }
-
-  @ViewBuilder
-  private var destination: some View {
-    switch PutioFileRoute(item: item).openAction {
-    case .video:
-      // Hand-off point for the tvOS player.
-      PutioEmptyStateView(
-        icon: .fileVideo, title: "Playback is not available yet",
-        message: "Video playback on Apple TV arrives in a later build.",
-        actionTitle: "Go back", action: { dismiss() }
-      )
-      .accessibilityIdentifier("file.playback-placeholder.\(item.id.rawValue)")
-    case .audio, .preview, .unsupported:
       PutioEmptyStateView(
         icon: .xCircle, title: "Unsupported file type",
         message: "We currently only support video files in this app (for now).",
         actionTitle: "Go back", action: { dismiss() }
       )
       .accessibilityIdentifier("file.unsupported")
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .tvOverscanPadding()
+    .background(PutioTheme.Colors.background.ignoresSafeArea())
   }
 }

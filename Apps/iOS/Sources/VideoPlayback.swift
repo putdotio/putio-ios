@@ -354,14 +354,12 @@ struct PutioConversionStatusView<Status: View>: View {
 
   private var content: some View {
     VStack(spacing: PutioTheme.Spacing.space5) {
-      Text(
-        "This video is not in a format that can be played in this app yet. But since you're here, we'll start transcoding."
-      )
-      .putioFont(PutioTheme.Typography.body)
-      .foregroundStyle(PutioTheme.Colors.textPrimary)
-      .multilineTextAlignment(.center)
-      .fixedSize(horizontal: false, vertical: true)
-      .accessibilityIdentifier("conversion.explanation")
+      Text(PutioVideoPlaybackState.conversionExplanation)
+        .putioFont(PutioTheme.Typography.body)
+        .foregroundStyle(PutioTheme.Colors.textPrimary)
+        .multilineTextAlignment(.center)
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityIdentifier("conversion.explanation")
       status
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -591,11 +589,7 @@ extension NSKeyValueObservation: PutioPlayerItemStatusObservation {}
 final class PutioSystemVideoPlayerCoordinator {
   typealias DefaultSubtitleApplier = @MainActor (AVPlayerItem) async -> Void
   typealias DriverFactory = @MainActor (AVPlayerItem) -> any PutioVideoPlayerDriving
-  typealias PositionReportScheduler =
-    @MainActor (
-      Duration,
-      @escaping @MainActor @Sendable () -> Void
-    ) -> any PutioPositionReportSchedule
+  typealias PositionReportScheduler = PutioVideoPositionReporter.Scheduler
   typealias StatusObserverFactory =
     @MainActor (
       AVPlayerItem,
@@ -612,7 +606,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private let positionPipeline: PutioPlaybackPositionPipeline
   private let schedulePositionReports: PositionReportScheduler
   private var statusObservation: (any PutioPlayerItemStatusObservation)?
-  private var positionReportSchedule: (any PutioPositionReportSchedule)?
+  private var positionReporter: PutioVideoPositionReporter?
   private var positionObservation: Any?
   private var failedToEndObservation: NSObjectProtocol?
   private var playedToEndObservation: NSObjectProtocol?
@@ -634,11 +628,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private var readyReported = false
   private var defaultSubtitleRequested = false
   private var failureReported = false
-  private var remembersPlaybackPosition = false
   private var fileID: PutioFileID?
-  private var reportPosition: PutioPlaybackPositionReport?
-  private var finalPositionEnqueued = false
-  private var positionIsEstablished = false
   private var audioSessionIsActive = false
 
   convenience init() {
@@ -712,12 +702,9 @@ final class PutioSystemVideoPlayerCoordinator {
     readyReported = false
     defaultSubtitleRequested = false
     failureReported = false
-    finalPositionEnqueued = false
-    positionIsEstablished = false
+    positionReporter?.cancel()
     self.observesPlaybackState = observesPlaybackState
     self.fileID = fileID
-    self.remembersPlaybackPosition = remembersPlaybackPosition
-    self.reportPosition = reportPosition
     self.onReady = onReady
     self.onAudioSelected = observesPlaybackState ? onAudioSelected : nil
     self.onPositionChanged = observesPlaybackState ? onPositionChanged : nil
@@ -790,6 +777,19 @@ final class PutioSystemVideoPlayerCoordinator {
     let driver = makeDriver(item)
     self.driver = driver
     controller.player = driver.player
+    let positionReporter = PutioVideoPositionReporter(
+      fileID: fileID,
+      remembersPosition: remembersPlaybackPosition,
+      pipeline: positionPipeline,
+      report: reportPosition,
+      currentPosition: { [weak self, weak driver] in
+        guard let self, let driver, self.driver === driver else { return nil }
+        return PutioVideoPositionReporter.normalizedPosition(
+          seconds: CMTimeGetSeconds(driver.currentTime))
+      },
+      schedule: schedulePositionReports
+    )
+    self.positionReporter = positionReporter
     if self.onPositionChanged != nil {
       positionObservation = driver.observePosition(
         every: CMTime(seconds: 0.25, preferredTimescale: 600)
@@ -819,7 +819,7 @@ final class PutioSystemVideoPlayerCoordinator {
     }
 
     guard remembersPlaybackPosition, source.startFromSeconds > 0 else {
-      positionIsEstablished = true
+      positionReporter.positionEstablished()
       driver.play()
       return true
     }
@@ -836,8 +836,8 @@ final class PutioSystemVideoPlayerCoordinator {
           reportFailure(generation: playbackGeneration)
           return
         }
-        positionIsEstablished = true
-        startPositionReporting(generation: playbackGeneration)
+        positionReporter.positionEstablished()
+        positionReporter.startReporting()
         driver.play()
       }
     }
@@ -846,12 +846,11 @@ final class PutioSystemVideoPlayerCoordinator {
 
   func stop(controller: AVPlayerViewController) {
     let stoppedDriver = driver
-    enqueueFinalPositionIfNeeded(from: stoppedDriver)
+    positionReporter?.stop()
+    positionReporter = nil
     generation &+= 1
     statusObservation?.invalidate()
     statusObservation = nil
-    positionReportSchedule?.invalidate()
-    positionReportSchedule = nil
     if let positionObservation, let stoppedDriver {
       stoppedDriver.removePositionObservation(positionObservation)
       self.positionObservation = nil
@@ -991,7 +990,7 @@ final class PutioSystemVideoPlayerCoordinator {
   private func reportReady(generation playbackGeneration: UInt64) {
     guard generation == playbackGeneration, !readyReported, !failureReported else { return }
     readyReported = true
-    startPositionReporting(generation: playbackGeneration)
+    positionReporter?.ready()
     onReady?()
   }
 
@@ -999,14 +998,9 @@ final class PutioSystemVideoPlayerCoordinator {
     guard
       generation == playbackGeneration,
       readyReported,
-      positionIsEstablished,
       !failureReported,
-      !finalPositionEnqueued
+      positionReporter?.playbackEnded() == true
     else { return }
-    finalPositionEnqueued = true
-    if remembersPlaybackPosition {
-      enqueuePosition(0, preservesOrdering: true)
-    }
     onPlaybackEnded?()
   }
 
@@ -1014,69 +1008,20 @@ final class PutioSystemVideoPlayerCoordinator {
   /// back into the item. HLS discontinuities at the end jump to the duration,
   /// and treating those as a restart would overwrite the zero reset.
   private func reportPlaybackRestarted(generation playbackGeneration: UInt64) {
-    guard generation == playbackGeneration, finalPositionEnqueued, let driver else { return }
+    guard
+      generation == playbackGeneration, let driver, let positionReporter,
+      positionReporter.hasReportedFinalPosition
+    else { return }
     guard !Self.isAtItemEnd(position: driver.currentTime, duration: driver.itemDuration) else {
       return
     }
-    finalPositionEnqueued = false
+    guard positionReporter.playbackRestarted() else { return }
     onPlaybackRestarted?()
   }
 
   private static func isAtItemEnd(position: CMTime, duration: CMTime) -> Bool {
     guard duration.isValid, duration.isNumeric else { return false }
-    let seconds = CMTimeGetSeconds(position)
-    let total = CMTimeGetSeconds(duration)
-    guard seconds.isFinite, total.isFinite, total > 0 else { return false }
-    return seconds >= total - 1
-  }
-
-  private func startPositionReporting(generation playbackGeneration: UInt64) {
-    guard
-      remembersPlaybackPosition,
-      positionIsEstablished,
-      positionReportSchedule == nil,
-      let driver
-    else { return }
-    positionReportSchedule = schedulePositionReports(.seconds(15)) { [weak self, weak driver] in
-      guard
-        let self,
-        let driver,
-        generation == playbackGeneration,
-        self.driver === driver,
-        readyReported,
-        !finalPositionEnqueued,
-        let position = Self.normalizedPosition(driver.currentTime)
-      else { return }
-      enqueuePosition(position)
-    }
-  }
-
-  private func enqueueFinalPositionIfNeeded(from driver: (any PutioVideoPlayerDriving)?) {
-    guard
-      !finalPositionEnqueued,
-      remembersPlaybackPosition,
-      readyReported,
-      positionIsEstablished,
-      let driver,
-      let position = Self.normalizedPosition(driver.currentTime)
-    else { return }
-    finalPositionEnqueued = true
-    enqueuePosition(position)
-  }
-
-  private func enqueuePosition(_ position: Int, preservesOrdering: Bool = false) {
-    guard let fileID, let reportPosition else { return }
-    positionPipeline.enqueue(
-      fileID: fileID,
-      position: position,
-      preservesOrdering: preservesOrdering,
-      report: reportPosition
-    )
-  }
-
-  private static func normalizedPosition(_ time: CMTime) -> Int? {
-    let seconds = CMTimeGetSeconds(time)
-    guard seconds.isFinite, seconds >= 0, seconds < Double(Int.max) else { return nil }
-    return Int(seconds.rounded(.down))
+    return PutioVideoPositionReporter.isAtEnd(
+      positionSeconds: CMTimeGetSeconds(position), durationSeconds: CMTimeGetSeconds(duration))
   }
 }

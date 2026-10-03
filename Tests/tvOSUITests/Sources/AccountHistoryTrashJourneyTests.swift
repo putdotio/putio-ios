@@ -58,9 +58,10 @@ final class AccountHistoryTrashJourneyTests: XCTestCase {
 
     XCTAssertTrue(focus("history.item.809"))
     remote.press(.select)
-    // A video event opens the playback hand-off point for that file.
-    XCTAssertTrue(element("file.playback-placeholder.411").waitForExistence(timeout: 10))
-    XCTAssertTrue(label(containing: "Nested Movie.mkv").exists)
+    // A video event opens that file's player; this one waits on its
+    // conversion, whose first request fails.
+    XCTAssertTrue(element("video.screen.411").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("video.retry").waitForExistence(timeout: 15))
     remote.press(.menu)
     XCTAssertTrue(element("history.item.809").waitForExistence(timeout: 5))
 
