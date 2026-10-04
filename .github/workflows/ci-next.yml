@@ -136,6 +136,35 @@ jobs:
         with:
           lane: ios
 
+      - name: Probe a cached template Simulator (experiment)
+        run: |
+          set -uo pipefail
+          summ() { grep -oE "Status=[0-9]+, isTerminal=[A-Z]+, Elapsed=[0-9:]+" | awk -F', ' '{s=$1} s!=last {print; last=s}'; }
+          devs="$HOME/Library/Developer/CoreSimulator/Devices"
+          echo "service at job start: $(pgrep -lf CoreSimulatorService || echo none)"
+          rt=$(xcrun simctl list runtimes -j | jq -r '[.runtimes[] | select(.platform=="iOS" and .isAvailable)] | last | .identifier')
+          dt=$(xcrun simctl list runtimes -j | jq -r --arg rt "$rt" '.runtimes[] | select(.identifier==$rt) | [.supportedDeviceTypes[] | select(.productFamily=="iPhone")][0].identifier')
+          echo "runtime $rt device $dt"
+          t=$(xcrun simctl create probe-template "$dt" "$rt")
+          s=$SECONDS; xcrun simctl boot "$t"; xcrun simctl bootstatus "$t" -b -d | summ; echo "template first boot: $((SECONDS-s))s"
+          sleep 60; echo "load after 60s idle: $(sysctl -n vm.loadavg)"
+          s=$SECONDS; xcrun simctl shutdown "$t"; echo "shutdown: $((SECONDS-s))s"
+          du -sh "$devs/$t"
+          s=$SECONDS; tar -cf "$RUNNER_TEMP/template.tar" -C "$devs" "$t" 2>&1 | tail -3; echo "tar exit ${PIPESTATUS[0]} in $((SECONDS-s))s"
+          echo "tar bytes $(stat -f %z "$RUNNER_TEMP/template.tar")"
+          zstd -q -T0 -3 "$RUNNER_TEMP/template.tar" -o "$RUNNER_TEMP/template.tar.zst" && echo "zstd bytes $(stat -f %z "$RUNNER_TEMP/template.tar.zst")"
+          xcrun simctl delete "$t"
+          s=$SECONDS; tar -xf "$RUNNER_TEMP/template.tar" -C "$devs" 2>&1 | tail -3; echo "untar in $((SECONDS-s))s"
+          echo "visible after restore: $(xcrun simctl list devices | grep -c "$t")"
+          if ! xcrun simctl list devices | grep -q "$t"; then
+            killall -9 com.apple.CoreSimulator.CoreSimulatorService 2>/dev/null; sleep 3
+            echo "visible after service restart: $(xcrun simctl list devices | grep -c "$t")"
+          fi
+          s=$SECONDS; c=$(xcrun simctl clone "$t" probe-clone); echo "clone in $((SECONDS-s))s: $c"
+          s=$SECONDS; xcrun simctl boot "$c"; xcrun simctl bootstatus "$c" -b -d | summ; echo "clone boot: $((SECONDS-s))s"
+          sleep 20; echo "load 20s after clone boot: $(sysctl -n vm.loadavg)"
+          xcrun simctl shutdown "$c"; xcrun simctl delete "$c" "$t"
+
       - name: Verify iOS snapshots and features
         run: mise run verify ios
 
