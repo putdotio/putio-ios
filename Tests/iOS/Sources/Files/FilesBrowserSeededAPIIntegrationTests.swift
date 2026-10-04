@@ -7,9 +7,15 @@ import XCTest
 final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
   override func setUp() {
     super.setUp()
+    HarnessSeededAPI.delaysResponses = false
     HarnessSeededAPI.resetPlaybackPositions()
     HarnessSeededAPI.resetVideoConversion()
     HarnessSeededAPI.resetFileActions()
+  }
+
+  override func tearDown() {
+    HarnessSeededAPI.delaysResponses = true
+    super.tearDown()
   }
 
   func testSeededUnsupportedDeepLinkReturnsPDFMetadataThroughTheSDK() async throws {
@@ -387,6 +393,7 @@ final class FilesBrowserSeededAPIIntegrationTests: XCTestCase {
   }
 
   func testCancellingSeededRenameDoesNotWaitForDelayedFixture() async throws {
+    HarnessSeededAPI.delaysResponses = true
     let runtime = PutioRuntimeFactory.make(scenario: .signedIn)
     await runtime.session.restore()
     let created = try await runtime.createFolder(name: "Watch Later", parentID: .root)

@@ -335,6 +335,9 @@ import Foundation
     }
 
     nonisolated(unsafe) static var isEnabled = false
+    /// Journeys hold some responses in flight for seconds so they can observe
+    /// progress and retry states. Hosted tests turn this off.
+    nonisolated(unsafe) static var delaysResponses = true
     /// `--putio-harness-trash-disabled` starts the account with Trash off,
     /// so file menus offer a confirmed permanent delete. A repeated delete
     /// of Harness Folder then fails, so a duplicate request shows.
@@ -533,7 +536,9 @@ import Foundation
         }
       }
       let restorationDelay = Self.deepLinkRestorationDelay(url)
-      if restorationDelay > 0 {
+      if !Self.delaysResponses {
+        deliverResponse()
+      } else if restorationDelay > 0 {
         DispatchQueue.global().asyncAfter(
           deadline: .now() + restorationDelay, execute: deliverResponse)
       } else if statusCode == 503, url.path == "/v2/files/410" {
