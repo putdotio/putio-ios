@@ -107,7 +107,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/DerivedData/CompilationCache.noindex
-          key: ${{ runner.os }}-xcode-cas-tvos-${{ github.sha }}
+          key: ${{ runner.os }}-xcode-cas-tvos-${{ env.PUTIO_CAS_WEEK }}-${{ github.sha }}
 
       - name: Upload test result bundles
         if: failure()
@@ -144,7 +144,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/DerivedData/CompilationCache.noindex
-          key: ${{ runner.os }}-xcode-cas-ios-${{ github.sha }}
+          key: ${{ runner.os }}-xcode-cas-ios-${{ env.PUTIO_CAS_WEEK }}-${{ github.sha }}
 
       - name: Upload test result bundles
         if: failure()
@@ -181,7 +181,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/DerivedData/CompilationCache.noindex
-          key: ${{ runner.os }}-xcode-cas-build-${{ github.sha }}
+          key: ${{ runner.os }}-xcode-cas-build-${{ env.PUTIO_CAS_WEEK }}-${{ github.sha }}
 
   proof:
     name: iOS proof

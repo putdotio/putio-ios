@@ -35,31 +35,61 @@ runs:
           ${{ runner.os }}-swiftpm-
 
     - name: Restore Tuist dependency cache
+      id: tuist-dependencies
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: Tuist/.build
-        key: ${{ runner.os }}-tuist-build-${{ hashFiles('Tuist/Package.swift', 'Tuist/Package.resolved', 'Packages/GoogleCastSDK/Package.swift') }}
+        key: ${{ runner.os }}-tuist-build-${{ hashFiles('mise.toml', 'Tuist/Package.swift', 'Tuist/Package.resolved', 'Packages/GoogleCastSDK/Package.swift') }}
         restore-keys: |
           ${{ runner.os }}-tuist-build-
 
+    # An exact hit is what tuist install would produce, so generation skips it.
+    - name: Skip tuist install on an exact cache hit
+      if: steps.tuist-dependencies.outputs.cache-hit == 'true'
+      shell: bash
+      run: echo "PUTIO_TUIST_DEPENDENCIES_CACHED=1" >> "$GITHUB_ENV"
+
+    # SwiftPM rebuilds a restored .build because checkout resets file times, so
+    # the finished harness binary is cached instead, keyed on its sources.
+    - name: Restore the harness binary
+      id: harness-binary
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/putio-harness
+        key: ${{ runner.os }}-${{ runner.arch }}-putio-harness-${{ hashFiles('Tools/PutioHarness/Package.swift', 'Tools/PutioHarness/Sources/**') }}
+
+    - name: Build the harness binary
+      if: steps.harness-binary.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        swift build --package-path Tools/PutioHarness --product putio-harness
+        mkdir -p ~/.cache/putio-harness
+        cp "$(swift build --package-path Tools/PutioHarness --show-bin-path)/putio-harness" ~/.cache/putio-harness/
+
+    - name: Use the harness binary
+      shell: bash
+      run: echo "PUTIO_HARNESS_BINARY=$HOME/.cache/putio-harness/putio-harness" >> "$GITHUB_ENV"
+
     # Compilation cache entries are keyed by inputs and absolute paths, so they
     # survive fresh DerivedData on the fixed runner checkout path. Pushes to
-    # next build cold and save; pull requests only restore, so the cache never
-    # accumulates stale entries.
+    # next build on this ISO week's cache and save it; the first push of a week
+    # builds cold, so stale entries stop accumulating. Pull requests restore the
+    # latest cache and save none.
     - name: Enable Xcode compilation caching
       shell: bash
       run: |
         printf 'COMPILATION_CACHE_ENABLE_CACHING = YES\n' > "$RUNNER_TEMP/compilation-cache.xcconfig"
         printf 'XCODE_XCCONFIG_FILE=%s\n' "$RUNNER_TEMP/compilation-cache.xcconfig" >> "$GITHUB_ENV"
+        printf 'PUTIO_CAS_WEEK=%s\n' "$(date -u +%G-%V)" >> "$GITHUB_ENV"
 
     - name: Restore Xcode compilation cache
-      if: github.event_name != 'push' && inputs.lane != ''
+      if: inputs.lane != ''
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: build/DerivedData/CompilationCache.noindex
-        key: ${{ runner.os }}-xcode-cas-${{ inputs.lane }}-${{ github.sha }}
+        key: ${{ runner.os }}-xcode-cas-${{ inputs.lane }}-${{ env.PUTIO_CAS_WEEK }}-${{ github.sha }}
         restore-keys: |
-          ${{ runner.os }}-xcode-cas-${{ inputs.lane }}-
+          ${{ runner.os }}-xcode-cas-${{ inputs.lane }}-${{ github.event_name == 'push' && format('{0}-', env.PUTIO_CAS_WEEK) || '' }}
 
     # Once provisioned, a font-gated test that can't find a face fails instead of skipping.
     - name: Provision licensed brand fonts

@@ -2033,11 +2033,18 @@ public struct SimulatorHarness {
   private func boot(_ identifier: String, label: String) throws {
     _ = try runner.checked(
       "xcrun", ["simctl", "boot", identifier], context: "boot \(label) Simulator")
-    _ = try runner.checked(
+    let started = ContinuousClock.now
+    let status = try runner.checked(
       "xcrun",
-      ["simctl", "bootstatus", identifier, "-b"],
+      ["simctl", "bootstatus", identifier, "-b", "-d"],
       context: "wait for \(label) Simulator"
     )
+    // First boots on CI range from under a minute to several; the progress
+    // lines name the phase a slow one waited on.
+    if ContinuousClock.now - started >= .seconds(180) {
+      FileHandle.standardError.write(
+        Data("putio-harness: \(label) Simulator boot progress\n\(status.combinedOutput)\n".utf8))
+    }
   }
 
   private func install(platform: HarnessPlatform, session: SimulatorSession) throws {
