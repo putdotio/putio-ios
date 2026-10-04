@@ -146,7 +146,7 @@ jobs:
           dt=$(xcrun simctl list runtimes -j | jq -r --arg rt "$rt" '.runtimes[] | select(.identifier==$rt) | [.supportedDeviceTypes[] | select(.productFamily=="iPhone")][0].identifier')
           echo "runtime $rt device $dt"
           t=$(xcrun simctl create probe-template "$dt" "$rt")
-          s=$SECONDS; xcrun simctl boot "$t"; xcrun simctl bootstatus "$t" -b -d | summ; echo "template first boot: $((SECONDS-s))s"
+          s=$SECONDS; xcrun simctl boot "$t"; xcrun simctl bootstatus "$t" -b -d | (summ || true); echo "template first boot: $((SECONDS-s))s"
           sleep 60; echo "load after 60s idle: $(sysctl -n vm.loadavg)"
           s=$SECONDS; xcrun simctl shutdown "$t"; echo "shutdown: $((SECONDS-s))s"
           du -sh "$devs/$t"
@@ -161,8 +161,11 @@ jobs:
             echo "visible after service restart: $(xcrun simctl list devices | grep -c "$t")"
           fi
           s=$SECONDS; c=$(xcrun simctl clone "$t" probe-clone); echo "clone in $((SECONDS-s))s: $c"
-          s=$SECONDS; xcrun simctl boot "$c"; xcrun simctl bootstatus "$c" -b -d | summ; echo "clone boot: $((SECONDS-s))s"
+          s=$SECONDS; xcrun simctl boot "$c"; echo "simctl boot returned after $((SECONDS-s))s"
+          xcrun simctl bootstatus "$c" -b -d > "$RUNNER_TEMP/clone-boot.log" 2>&1; echo "bootstatus exit $? after $((SECONDS-s))s"
+          summ < "$RUNNER_TEMP/clone-boot.log" || true; tail -3 "$RUNNER_TEMP/clone-boot.log"
           sleep 20; echo "load 20s after clone boot: $(sysctl -n vm.loadavg)"
+          sleep 40; echo "load 60s after clone boot: $(sysctl -n vm.loadavg)"
           xcrun simctl shutdown "$c"; xcrun simctl delete "$c" "$t"
 
       - name: Verify iOS snapshots and features
