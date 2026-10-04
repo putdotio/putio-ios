@@ -82,7 +82,8 @@ four weekly.
 
 Pull requests target `next` and squash-merge. [Next CI](.github/workflows/ci-next.yml)
 runs the lanes a pull request's paths affect, plus a Markdown formatting check
-when it changes Markdown; a push to `next` runs every lane and saves the Xcode
+when it changes Markdown, and a new push cancels its stale run. A push to `next`
+runs every lane, keeps running when a later push lands, and saves the Xcode
 compilation caches. Nothing on `next` signs, versions, or publishes. Upload
 reviewed screenshots or recordings with `gh pr comment <n> --attach ./file.png`;
 never commit them.
