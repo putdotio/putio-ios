@@ -280,12 +280,12 @@ Inspect retained diagnostics locally before sharing them.
 ## CI coverage
 
 [Next CI](../.github/workflows/ci-next.yml) owns branch triggers, toolchain
-selection, font provisioning, and checks. It splits the `mise run verify` lanes
-across three parallel runners and adds the iOS launch-proof subset in
-`mise run harness-ci` to the build runner. Pull requests skip the iOS lanes when
-every change is tvOS-only or documentation, and the tvOS suites when every
-change is iOS- or watchOS-only or documentation; pushes to `next` run every
-lane. Each runner enables Xcode compilation caching through
+selection, font provisioning, and checks. It runs each `mise run verify` lane and
+the iOS launch-proof subset in `mise run harness-ci` on its own runner, five in
+parallel; the proof reuses the build runner's compilation cache. Pull requests
+skip the iOS lanes and proof when every change is tvOS-only or documentation, and
+the tvOS suites when every change is iOS- or watchOS-only or documentation;
+pushes to `next` run every lane. Each runner enables Xcode compilation caching through
 `XCODE_XCCONFIG_FILE`; pushes to `next` build each lane cold and save its cache,
 and pull requests restore the latest one. When a test fails, its runner uploads
 the `.xcresult` bundles from `build/DerivedData/Logs/Test` as a five-day

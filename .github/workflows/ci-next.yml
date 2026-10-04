@@ -60,8 +60,10 @@ jobs:
               - '!Tests/iOS/**'
               - '!Tests/iOSUITests/**'
 
+  # Five macOS jobs fill the organization's concurrent macOS limit, so a run
+  # that overlaps another queues until slots free up.
   checks:
-    name: Checks and tvOS
+    name: Checks
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: macos-26
@@ -75,24 +77,43 @@ jobs:
 
       - name: Set up the Apple toolchain
         uses: ./.github/actions/setup-apple
-        with:
-          lane: checks
 
-      - name: Verify checks and tvOS snapshots
-        run: mise run verify checks ${{ needs.changes.outputs.tvos == 'true' && 'tvos' || '' }}
+      - name: Verify checks
+        run: mise run verify checks
+
+  tvos:
+    name: tvOS tests
+    needs: changes
+    if: needs.changes.outputs.tvos == 'true'
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up the Apple toolchain
+        uses: ./.github/actions/setup-apple
+        with:
+          lane: tvos
+
+      - name: Verify tvOS snapshots and features
+        run: mise run verify tvos
 
       - name: Save Xcode compilation cache
         if: success() && github.event_name == 'push'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/DerivedData/CompilationCache.noindex
-          key: ${{ runner.os }}-xcode-cas-checks-${{ github.sha }}
+          key: ${{ runner.os }}-xcode-cas-tvos-${{ github.sha }}
 
       - name: Upload test result bundles
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-results-checks-attempt-${{ github.run_attempt }}
+          name: test-results-tvos-attempt-${{ github.run_attempt }}
           path: build/DerivedData/Logs/Test/*.xcresult
           if-no-files-found: ignore
           retention-days: 5
@@ -135,7 +156,7 @@ jobs:
           retention-days: 5
 
   build:
-    name: Builds and iOS proof
+    name: Builds
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: macos-26
@@ -155,13 +176,32 @@ jobs:
       - name: Build every app shell
         run: mise run verify build
 
-      - name: Exercise the headless Apple harness
-        if: needs.changes.outputs.ios == 'true'
-        run: mise run harness-ci
-
       - name: Save Xcode compilation cache
         if: success() && github.event_name == 'push'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build/DerivedData/CompilationCache.noindex
           key: ${{ runner.os }}-xcode-cas-build-${{ github.sha }}
+
+  proof:
+    name: iOS proof
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The proof builds the same Debug app as the build job, so it reuses
+      # that job's compilation cache and saves none of its own.
+      - name: Set up the Apple toolchain
+        uses: ./.github/actions/setup-apple
+        with:
+          lane: build
+
+      - name: Exercise the headless Apple harness
+        run: mise run harness-ci
