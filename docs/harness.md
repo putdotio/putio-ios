@@ -292,10 +292,12 @@ and save it, the first push of a week builds cold, and pull requests restore the
 latest one. Runners also reuse a cached harness binary keyed on its sources, and
 skip `tuist install` when its dependency cache matches exactly. A Simulator boot
 that takes 3 minutes or more prints its `bootstatus` progress. The iOS tests and
-proof jobs set `PUTIO_SIMULATOR_TEMPLATES=1`: the harness clones a cached
-`putio-template-*` device that has already booted once, which skips first-boot
-data migration, and creates it on a cache miss for the job to save after a green
-run. The template is keyed on the runner image and Xcode version. When a test fails,
+proof jobs restore a cached `putio-template-*` device that has already booted
+once and set `PUTIO_SIMULATOR_TEMPLATES=1`, so the harness clones it and skips
+first-boot data migration. The template is keyed on the Xcode build, the iOS
+runtime build, and the CoreSimulator version, so it survives runner image
+updates. On a miss, a push to `next` has the harness create the template and
+saves it after a green run; a pull request boots a fresh device. When a test fails,
 its runner uploads the `.xcresult` bundles from `build/DerivedData/Logs/Test` as
 a five-day artifact.
 Feature journeys are separate; run the affected journey for local interactive
