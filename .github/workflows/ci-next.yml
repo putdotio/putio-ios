@@ -26,11 +26,14 @@ jobs:
       contents: read
       pull-requests: read
     # Pushes to next verify everything. Pull requests skip lanes whose platform
-    # no changed path can affect; unlisted paths count for every lane.
+    # no changed path can affect; unlisted paths count for every lane. The
+    # checks lane also checks Markdown; the Markdown job covers pull requests
+    # that change Markdown, including the docs-only ones that skip every lane.
     outputs:
       code: ${{ github.event_name == 'push' || steps.filter.outputs.code == 'true' }}
       ios: ${{ github.event_name == 'push' || steps.filter.outputs.ios == 'true' }}
       tvos: ${{ github.event_name == 'push' || steps.filter.outputs.tvos == 'true' }}
+      markdown: ${{ github.event_name == 'pull_request' && steps.filter.outputs.markdown == 'true' }}
     steps:
       - name: Classify changed paths
         id: filter
@@ -59,6 +62,33 @@ jobs:
               - '!Apps/watchOS/**'
               - '!Tests/iOS/**'
               - '!Tests/iOSUITests/**'
+            markdown:
+              - '**/*.md'
+
+  markdown:
+    name: Markdown
+    needs: changes
+    if: needs.changes.outputs.markdown == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Node.js and pnpm
+        uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+        with:
+          version: "2026.9.15"
+          install_args: node pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check Markdown formatting
+        run: pnpm run markdown:check
 
   # Five macOS jobs fill the organization's concurrent macOS limit, so a run
   # that overlaps another queues until slots free up.

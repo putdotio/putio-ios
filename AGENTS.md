@@ -64,7 +64,7 @@ Report skipped or unavailable checks.
 
 | Change                              | Focused proof                                                                                                          |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Docs or skill files only            | None; check the links and commands you touched. Pull-request CI skips every lane for these paths                       |
+| Docs or skill files only            | `pnpm run markdown:check`; check the links and commands you touched. Pull-request CI runs only the Markdown job        |
 | Shared logic                        | `swift test --package-path Packages/PutioCore`                                                                         |
 | Tooling scripts, tokens, or fonts   | `pnpm run verify`                                                                                                      |
 | Manifest or dependency graph        | `mise run build` (regenerates and builds every app scheme)                                                             |
@@ -77,10 +77,11 @@ Report skipped or unavailable checks.
 ## Delivery
 
 Pull requests target `next` and squash-merge. [Next CI](.github/workflows/ci-next.yml)
-runs the lanes a pull request's paths affect; a push to `next` runs every lane
-and saves the Xcode compilation caches. Nothing on `next` signs, versions, or
-publishes. Upload reviewed screenshots or recordings with
-`gh pr comment <n> --attach ./file.png`; never commit them.
+runs the lanes a pull request's paths affect, plus a Markdown formatting check
+when it changes Markdown; a push to `next` runs every lane and saves the Xcode
+compilation caches. Nothing on `next` signs, versions, or publishes. Upload
+reviewed screenshots or recordings with `gh pr comment <n> --attach ./file.png`;
+never commit them.
 
 ## Skills
 
