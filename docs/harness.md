@@ -19,8 +19,9 @@ App builds use Debug and compile only the host's simulator architecture, locally
 and on CI. Device builds are unchanged. `mise run build` also compiles every app
 scheme in Release for the simulator, unoptimized and unsigned, so non-Debug
 branches keep compiling; optimized builds come from the beta and release
-archives. Release builds ignore harness launch arguments. Commands that take
-10 seconds or more print their duration.
+archives. Release builds ignore harness launch arguments. `test` compiles its
+suites before it creates a Simulator, because a freshly booted one keeps every
+core busy. Commands that take 10 seconds or more print their duration.
 
 ## Choose the proof
 
