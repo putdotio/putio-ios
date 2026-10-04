@@ -769,6 +769,35 @@ func requirePassingJourneySummary(_ summaryData: Data) throws -> XCResultTestSum
   return summary
 }
 
+/// A suite must run tests and fail none. Skips are allowed only while brand
+/// fonts are optional: without them every font-gated test skips.
+@discardableResult
+func requirePassingSuiteSummary(
+  _ summaryData: Data,
+  suite: String,
+  allowsSkips: Bool
+) throws -> XCResultTestSummary {
+  let summary: XCResultTestSummary
+  do {
+    summary = try JSONDecoder().decode(XCResultTestSummary.self, from: summaryData)
+  } catch {
+    throw HarnessFailure("decode \(suite) result summary: \(error)")
+  }
+  let acceptable =
+    allowsSkips
+    ? ["Passed", "Skipped"].contains(summary.result)
+    : summary.result == "Passed" && summary.skippedTests == 0
+  guard acceptable, summary.totalTestCount > 0, summary.failedTests == 0 else {
+    throw HarnessFailure(
+      "\(suite) must run at least one test with no failures\(allowsSkips ? "" : " or skips"); "
+        + "result=\(summary.result), total=\(summary.totalTestCount), "
+        + "passed=\(summary.passedTests), failed=\(summary.failedTests), "
+        + "skipped=\(summary.skippedTests), expectedFailures=\(summary.expectedFailures)"
+    )
+  }
+  return summary
+}
+
 public struct HarnessFailure: Error, CustomStringConvertible, Sendable {
   public let message: String
 

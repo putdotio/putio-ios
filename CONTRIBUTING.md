@@ -81,7 +81,8 @@ mise run generate
 and destination platforms. Font binaries remain ignored. `mise run verify-fonts`
 checks installed files. Tests render without fonts, but native-face assertions
 and brand-baseline comparisons skip; recording brand baselines requires the
-fonts. CI installs them for full visual coverage.
+fonts. CI installs them and sets `PUTIO_REQUIRE_BRAND_FONTS=1`, so a missing face
+fails there instead of skipping.
 
 ## Verification
 

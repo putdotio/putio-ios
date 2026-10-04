@@ -80,15 +80,18 @@
     }
 
     private func fontDescriptors() throws -> [CTFontDescriptor] {
+      let urls =
+        (try? FileManager.default.contentsOfDirectory(
+          at: fontDirectory,
+          includingPropertiesForKeys: nil
+        ))?.filter { $0.pathExtension == "otf" } ?? []
+      if ProcessInfo.processInfo.environment["PUTIO_REQUIRE_BRAND_FONTS"] == "1" {
+        _ = try XCTUnwrap(
+          urls.count == 5 ? urls : nil, "brand fonts are required here; found \(urls.count) of 5")
+      }
       try XCTSkipUnless(
-        FileManager.default.fileExists(atPath: fontDirectory.path),
-        "optional brand fonts are absent; run mise run fonts-setup to test native faces"
-      )
-      let urls = try FileManager.default.contentsOfDirectory(
-        at: fontDirectory,
-        includingPropertiesForKeys: nil
-      ).filter { $0.pathExtension == "otf" }
-      try XCTSkipUnless(urls.count == 5, "complete brand font set required for native-face tests")
+        urls.count == 5,
+        "complete brand font set required for native-face tests; run mise run fonts-setup")
       return urls.flatMap { url in
         CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor] ?? []
       }

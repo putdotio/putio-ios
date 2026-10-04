@@ -1528,21 +1528,30 @@ public struct SimulatorHarness {
     }
   }
 
-  public func test(_ platform: HarnessPlatform, recordSnapshots: Bool) throws -> SurfaceRun {
+  public func test(
+    _ platform: HarnessPlatform,
+    recordSnapshots: Bool,
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) throws -> SurfaceRun {
     let suites = platform.configuration.snapshotSuites
     guard !suites.isEmpty else {
       throw HarnessFailure("test supports only platforms with snapshot suites: ios, tvos")
     }
+    guard !(recordSnapshots && environment["CI"] == "true") else {
+      throw HarnessFailure(
+        "--snapshots record runs only locally; CI compares against the committed baselines")
+    }
+    // CI provisions the brand fonts, so a missing face fails there instead of skipping.
+    let requiresBrandFonts = environment["PUTIO_REQUIRE_BRAND_FONTS"] == "1"
     try requireGeneratedWorkspace()
-    try fileManager.createDirectory(at: context.derivedData, withIntermediateDirectories: true)
-    return try withSession(platform: platform, runID: UUID().uuidString.lowercased()) { session in
-      let environment =
-        recordSnapshots
-        ? [
-          "TEST_RUNNER_PUTIO_SNAPSHOT_RECORD": "1",
-          "TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1",
-        ]
-        : ["TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1"]
+    // Logs/Test is where CI uploads result bundles from a failed run.
+    let resultsDirectory = context.derivedData.appending(path: "Logs/Test")
+    try fileManager.createDirectory(at: resultsDirectory, withIntermediateDirectories: true)
+    let runID = UUID().uuidString.lowercased()
+    return try withSession(platform: platform, runID: runID) { session in
+      var testEnvironment = ["TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1"]
+      if recordSnapshots { testEnvironment["TEST_RUNNER_PUTIO_SNAPSHOT_RECORD"] = "1" }
+      if requiresBrandFonts { testEnvironment["TEST_RUNNER_PUTIO_REQUIRE_BRAND_FONTS"] = "1" }
       func arguments(_ action: String, _ suite: SnapshotSuite) -> [String] {
         [
           action,
@@ -1561,14 +1570,30 @@ public struct SimulatorHarness {
           context: "build \(platform.rawValue) \(suite.target)"
         )
       }
+      var results: [String] = []
       for suite in suites {
+        let resultBundle = resultsDirectory.appending(path: "\(suite.target)-\(runID).xcresult")
         _ = try runner.checked(
           "xcodebuild",
-          arguments("test-without-building", suite),
-          environment: environment,
+          arguments("test-without-building", suite) + ["-resultBundlePath", resultBundle.path],
+          environment: testEnvironment,
           currentDirectory: context.root,
           context: "test \(platform.rawValue) \(suite.target)"
         )
+        let summary = try runner.checked(
+          "xcrun",
+          [
+            "xcresulttool", "get", "test-results", "summary",
+            "--path", resultBundle.path,
+            "--compact",
+          ],
+          context: "read \(suite.target) test summary"
+        )
+        let passed = try requirePassingSuiteSummary(
+          Data(summary.stdout.utf8), suite: suite.target, allowsSkips: !requiresBrandFonts)
+        results.append(
+          "\(suite.target) passed \(passed.passedTests)"
+            + (passed.skippedTests > 0 ? " and skipped \(passed.skippedTests)" : ""))
       }
       let targets = suites.map(\.target).joined(separator: ", ")
       return SurfaceRun(
@@ -1576,7 +1601,7 @@ public struct SimulatorHarness {
         artifacts: [],
         message: recordSnapshots
           ? "recorded and re-asserted \(targets) snapshot baselines"
-          : "\(targets) snapshot suites passed"
+          : results.joined(separator: "; ")
       )
     }
   }

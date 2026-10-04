@@ -60,6 +60,9 @@ runs:
         restore-keys: |
           ${{ runner.os }}-xcode-cas-${{ inputs.lane }}-
 
+    # Once provisioned, a font-gated test that can't find a face fails instead of skipping.
     - name: Provision licensed brand fonts
       shell: bash
-      run: mise run fonts-setup
+      run: |
+        mise run fonts-setup
+        echo "PUTIO_REQUIRE_BRAND_FONTS=1" >> "$GITHUB_ENV"
