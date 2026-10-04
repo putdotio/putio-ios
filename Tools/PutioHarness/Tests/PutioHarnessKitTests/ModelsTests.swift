@@ -5,7 +5,6 @@ import Testing
 
 @Test func platformContractsStayExplicit() {
   #expect(HarnessPlatform.ios.configuration.scheme == "Putio")
-  #expect(HarnessPlatform.ios.configuration.extraBuildSchemes == ["PutioNightly"])
   #expect(
     HarnessPlatform.ios.configuration.snapshotSuites
       == [
@@ -23,7 +22,6 @@ import Testing
         SnapshotSuite(scheme: "PutioTVFeatureTests", target: "PutioTVFeatureTests"),
       ]
   )
-  #expect(HarnessPlatform.tvos.configuration.extraBuildSchemes.isEmpty)
 }
 
 @Test func proofManifestRoundTrips() throws {

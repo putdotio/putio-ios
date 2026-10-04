@@ -4,7 +4,6 @@ import Testing
 @testable import PutioHarnessKit
 
 private func withFakeXcodebuild(
-  environment: [String: String],
   _ body: (SimulatorHarness) throws -> Void
 ) throws -> [[String]] {
   let root = FileManager.default.temporaryDirectory.appending(
@@ -36,24 +35,23 @@ private func withFakeXcodebuild(
     "PATH": "\(bin.path):\(originalPath)",
     "PUTIO_BUILD_CALL_LOG": log.path,
   ])
-  try body(SimulatorHarness(context: context, runner: runner, environment: environment))
+  try body(SimulatorHarness(context: context, runner: runner))
   return try String(contentsOf: log, encoding: .utf8)
     .components(separatedBy: "CALL\n").dropFirst()
     .map { $0.split(separator: "\n").map(String.init) }
 }
 
 struct SimulatorBuildTests {
-  @Test(arguments: [[:], ["CI": "true"], ["CI": "false"], ["GITHUB_ACTIONS": "true"]])
-  func allAppBuildsPreserveCIArchitectures(environment: [String: String]) throws {
-    let calls = try withFakeXcodebuild(environment: environment) { harness in
+  @Test func everyAppBuildCompilesOnlyTheHostArchitecture() throws {
+    let calls = try withFakeXcodebuild { harness in
       _ = try harness.build(.ios)
       _ = try harness.build(.watchos, iosCompanionAvailable: true)
       _ = try harness.build(.tvos)
     }
-    let expectedSchemes = ["Putio", "PutioNightly", "PutioWatch", "PutioTV"]
+    let expectedSchemes = ["Putio", "PutioWatch", "PutioTV"]
     let expectedDestinations = [
-      "generic/platform=iOS Simulator", "generic/platform=iOS Simulator",
-      "generic/platform=watchOS Simulator", "generic/platform=tvOS Simulator",
+      "generic/platform=iOS Simulator", "generic/platform=watchOS Simulator",
+      "generic/platform=tvOS Simulator",
     ]
     try #require(calls.count == expectedSchemes.count)
     for (index, arguments) in calls.enumerated() {
@@ -64,14 +62,12 @@ struct SimulatorBuildTests {
       #expect(arguments[destinationIndex + 1] == expectedDestinations[index])
       let configurationIndex = try #require(arguments.firstIndex(of: "-configuration"))
       #expect(arguments[configurationIndex + 1] == "Debug")
-      #expect(
-        arguments.filter { $0.hasPrefix("ARCHS=") }
-          == (environment.isEmpty ? ["ARCHS=$(NATIVE_ARCH_ACTUAL)"] : []))
+      #expect(arguments.filter { $0.hasPrefix("ARCHS=") } == ["ARCHS=$(NATIVE_ARCH_ACTUAL)"])
     }
   }
 
   @Test func standaloneWatchBuildAlsoBuildsNativeCompanion() throws {
-    let calls = try withFakeXcodebuild(environment: [:]) { harness in
+    let calls = try withFakeXcodebuild { harness in
       _ = try harness.build(.watchos)
     }
     let schemes = try calls.map { arguments in
@@ -79,6 +75,6 @@ struct SimulatorBuildTests {
       #expect(arguments.contains("ARCHS=$(NATIVE_ARCH_ACTUAL)"))
       return arguments[index + 1]
     }
-    #expect(schemes == ["Putio", "PutioNightly", "PutioWatch"])
+    #expect(schemes == ["Putio", "PutioWatch"])
   }
 }

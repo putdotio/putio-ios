@@ -299,7 +299,7 @@ private struct StubbedToolchain {
   ) -> PhysicalDeviceHarness {
     PhysicalDeviceHarness(
       context: context,
-      simulator: SimulatorHarness(context: context, runner: runner, environment: environment),
+      simulator: SimulatorHarness(context: context, runner: runner),
       runner: runner,
       environment: environment
     )
