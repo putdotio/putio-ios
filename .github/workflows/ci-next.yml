@@ -115,6 +115,15 @@ jobs:
         with:
           lane: ios
 
+      - name: Probe the Simulator dyld cache (experiment)
+        run: |
+          find /Library/Developer/CoreSimulator/Caches/dyld -maxdepth 3 2>&1 | head -20
+          xcrun simctl runtime list
+          started=$SECONDS
+          xcrun simctl runtime dyld_shared_cache update --all
+          echo "dyld cache update returned after $((SECONDS - started))s"
+          find /Library/Developer/CoreSimulator/Caches/dyld -maxdepth 3 2>&1 | head -20
+
       - name: Verify iOS snapshots and features
         run: mise run verify ios
 
