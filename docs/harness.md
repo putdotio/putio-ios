@@ -154,9 +154,14 @@ owns baseline paths, comparison tolerance, and failure images. iOS rasterizes
 the hosted view's layer off-screen. tvOS 27 draws bordered controls as Liquid
 Glass, which off-screen layer rendering leaves as undefined solid fills, so both
 tvOS suites are app-hosted and capture through the render server. Missing brand
-fonts allow rendering with system fallbacks, then skip brand-baseline comparison.
+fonts allow rendering with system fallbacks, then skip brand-baseline comparison;
+with `PUTIO_REQUIRE_BRAND_FONTS=1`, which CI sets once it installs the fonts, they
+fail instead. Each suite writes a result bundle under `build/DerivedData/Logs/Test`,
+and `test` fails unless the suite ran at least one test with no failures, and with
+no skips when fonts are required.
 Gallery pages whose native layout changed in OS 27 keep a separate `-ios27` or
-`-tvos27` baseline beside the shared one. Recording requires `mise run fonts-setup`. After an intentional visual change:
+`-tvos27` baseline beside the shared one. Recording requires `mise run fonts-setup`
+and is refused when `CI=true`. After an intentional visual change:
 
 ```bash
 mise run harness -- test --platform ios --snapshots record

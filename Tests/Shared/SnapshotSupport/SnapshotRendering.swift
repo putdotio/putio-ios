@@ -45,6 +45,9 @@ enum SnapshotEnvironment {
     if isRecording && !available {
       throw SnapshotFailure("recording brand baselines requires mise run fonts-setup")
     }
+    if ProcessInfo.processInfo.environment["PUTIO_REQUIRE_BRAND_FONTS"] == "1" && !available {
+      throw SnapshotFailure("brand fonts are required here but failed to register")
+    }
     try XCTSkipUnless(
       available,
       "rendered with system fonts; brand baseline comparison requires mise run fonts-setup"

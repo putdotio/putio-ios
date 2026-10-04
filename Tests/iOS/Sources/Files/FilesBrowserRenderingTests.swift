@@ -7,26 +7,36 @@ import XCTest
 
 final class FilesBrowserRenderingTests: XCTestCase {
   @MainActor
-  func testLargeFolderInitialRenderingPerformance() {
+  func testLargeFolderRendersOnlyItsVisibleRows() throws {
     let contents = BrowserTestFixtures.contents(
       items: (1...2_000).map { BrowserTestFixtures.item(id: $0) })
-    let options = XCTMeasureOptions()
-    options.iterationCount = 3
-    measure(metrics: [XCTClockMetric()], options: options) {
-      let controller = UIHostingController(
-        rootView: NavigationStack {
-          PutioFolderScreen(
-            route: .root, load: { _ in contents }, initialContents: contents,
-            relativeTo: BrowserTestFixtures.referenceDate,
-            locale: Locale(identifier: "en_US"), onFileSelected: { _ in })
-        })
-      let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
-      window.rootViewController = controller
-      window.isHidden = false
-      controller.view.frame = window.bounds
-      window.layoutIfNeeded()
-      window.isHidden = true
+    let controller = UIHostingController(
+      rootView: NavigationStack {
+        PutioFolderScreen(
+          route: .root, load: { _ in contents }, initialContents: contents,
+          relativeTo: BrowserTestFixtures.referenceDate,
+          locale: Locale(identifier: "en_US"), onFileSelected: { _ in })
+      })
+    let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+    window.rootViewController = controller
+    window.isHidden = false
+    defer { window.isHidden = true }
+    controller.view.frame = window.bounds
+    window.layoutIfNeeded()
+
+    let list = try XCTUnwrap(
+      Self.descendants(of: controller.view).compactMap { $0 as? UICollectionView }.first,
+      "the folder list is not backed by a collection view")
+    let rowCount = (0..<list.numberOfSections).reduce(0) {
+      $0 + list.numberOfItems(inSection: $1)
     }
+    XCTAssertGreaterThanOrEqual(rowCount, 2_000)
+    XCTAssertFalse(list.visibleCells.isEmpty, "no rows rendered")
+    XCTAssertLessThan(list.visibleCells.count, 50, "the list laid out rows past the viewport")
+  }
+
+  private static func descendants(of view: UIView) -> [UIView] {
+    view.subviews.flatMap { [$0] + descendants(of: $0) }
   }
 
   @MainActor

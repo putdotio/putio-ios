@@ -214,6 +214,46 @@ import Testing
   }
 }
 
+@Test func suiteSummaryRequiresRunTestsAndRejectsSkipsWhenFontsAreRequired() throws {
+  func summary(passed: Int, failed: Int = 0, skipped: Int = 0) -> Data {
+    let result = failed > 0 ? "Failed" : passed == 0 && skipped > 0 ? "Skipped" : "Passed"
+    return Data(
+      #"{"result":"\#(result)","totalTestCount":\#(passed + failed + skipped),"passedTests":\#(passed),"failedTests":\#(failed),"skippedTests":\#(skipped),"expectedFailures":0}"#
+        .utf8
+    )
+  }
+  #expect(
+    try requirePassingSuiteSummary(summary(passed: 6), suite: "S", allowsSkips: false)
+      .passedTests == 6)
+  #expect(
+    try requirePassingSuiteSummary(summary(passed: 6, skipped: 3), suite: "S", allowsSkips: true)
+      .skippedTests == 3)
+  #expect(throws: HarnessFailure.self) {
+    try requirePassingSuiteSummary(summary(passed: 6, skipped: 3), suite: "S", allowsSkips: false)
+  }
+  #expect(throws: HarnessFailure.self) {
+    try requirePassingSuiteSummary(summary(passed: 0), suite: "S", allowsSkips: true)
+  }
+  #expect(
+    try requirePassingSuiteSummary(summary(passed: 0, skipped: 4), suite: "S", allowsSkips: true)
+      .skippedTests == 4)
+  #expect(throws: HarnessFailure.self) {
+    try requirePassingSuiteSummary(summary(passed: 0, skipped: 4), suite: "S", allowsSkips: false)
+  }
+  #expect(throws: HarnessFailure.self) {
+    try requirePassingSuiteSummary(summary(passed: 5, failed: 1), suite: "S", allowsSkips: true)
+  }
+}
+
+@Test func snapshotRecordingIsRefusedOnCI() {
+  let harness = SimulatorHarness(
+    context: RepositoryContext(root: FileManager.default.temporaryDirectory))
+  let failure = #expect(throws: HarnessFailure.self) {
+    try harness.test(.ios, recordSnapshots: true, environment: ["CI": "true"])
+  }
+  #expect(failure?.message.contains("CI compares against the committed baselines") == true)
+}
+
 @Test func proofRevisionRejectsDriftFromPinnedCommit() throws {
   try requireMatchingProofRevision(expected: "abc123", actual: "abc123")
   #expect(throws: HarnessFailure.self) {
