@@ -2070,7 +2070,9 @@ public struct SimulatorHarness {
     }
 
     let baselinePixels = try decodedPixels(at: baseline)
-    let deadline = Date().addingTimeInterval(12)
+    // A just-booted CI Simulator can take well over 12 seconds to draw the first frame.
+    let timeout: TimeInterval = 30
+    let deadline = Date().addingTimeInterval(timeout)
     repeat {
       guard processIsRunning(pid) else {
         throw HarnessFailure("\(config.bundleIdentifier) exited before its first rendered frame")
@@ -2090,7 +2092,8 @@ public struct SimulatorHarness {
     } while Date() < deadline
 
     throw HarnessFailure(
-      "\(config.bundleIdentifier) stayed running but its screen did not change within 12 seconds")
+      "\(config.bundleIdentifier) stayed running but its screen did not change within \(Int(timeout)) seconds"
+    )
   }
 
   private func processIsRunning(_ pid: Int) -> Bool {
