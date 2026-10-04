@@ -2043,7 +2043,9 @@ public struct SimulatorHarness {
     // lines name the phase a slow one waited on.
     if ContinuousClock.now - started >= .seconds(180) {
       FileHandle.standardError.write(
-        Data("putio-harness: \(label) Simulator boot progress\n\(status.combinedOutput)\n".utf8))
+        Data(
+          "putio-harness: \(label) Simulator boot progress\n\(bootProgressSummary(status.combinedOutput))\n"
+            .utf8))
     }
   }
 

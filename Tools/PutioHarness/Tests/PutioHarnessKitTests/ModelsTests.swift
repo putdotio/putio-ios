@@ -336,3 +336,25 @@ import Testing
       .watchos, iosCompanionAvailable: true)
   }
 }
+
+@Test func bootProgressKeepsOnlyStatusChanges() {
+  let output = """
+    Monitoring boot status for putio-harness-ios-run (FC13).
+    [2026-10-04 17:35:26 +0000] Status=2, isTerminal=NO, Elapsed=01:03.
+
+
+    [2026-10-04 17:35:27 +0000] Status=2, isTerminal=NO, Elapsed=01:04.
+    [2026-10-04 17:40:31 +0000] Status=4, isTerminal=NO, Elapsed=06:08.
+    [2026-10-04 17:40:32 +0000] Status=4, isTerminal=NO, Elapsed=06:09.
+    [2026-10-04 17:40:45 +0000] Status=4294967295, isTerminal=YES, Elapsed=06:22.
+    Data migration details:
+    """
+  #expect(
+    bootProgressSummary(output) == """
+      Monitoring boot status for putio-harness-ios-run (FC13).
+      [2026-10-04 17:35:26 +0000] Status=2, isTerminal=NO, Elapsed=01:03.
+      [2026-10-04 17:40:31 +0000] Status=4, isTerminal=NO, Elapsed=06:08.
+      [2026-10-04 17:40:45 +0000] Status=4294967295, isTerminal=YES, Elapsed=06:22.
+      Data migration details:
+      """)
+}
