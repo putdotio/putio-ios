@@ -103,13 +103,22 @@ runs:
           ${{ runner.os }}-xcode-cas-${{ inputs.lane }}-${{ github.event_name == 'push' && format('{0}-', env.PUTIO_CAS_WEEK) || '' }}
 
     # A clone of an iOS Simulator that has already booted once skips first-boot
-    # data migration, which takes one to several minutes on hosted runners. The
-    # harness creates a missing template; the job saves it after a green run.
+    # data migration, which takes one to several minutes on hosted runners.
+    # Runner images change every one to three weeks, so the template is keyed on
+    # what it depends on instead: the Xcode build, the build of the iOS runtime
+    # the harness picks for the SDK, and CoreSimulator.
     - name: Key the iOS Simulator template
       id: simulator-template-key
       if: inputs.simulator-template == 'true'
       shell: bash
-      run: echo "key=${{ runner.os }}-simulator-template-${ImageVersion:-unknown}-xcode-26.6" >> "$GITHUB_OUTPUT"
+      run: |
+        xcode="$(xcodebuild -version | awk '/Build version/ { print $3 }')"
+        sdk="$(xcrun --sdk iphonesimulator --show-sdk-version)"
+        runtime="$(xcrun simctl list runtimes -j | jq -r --arg sdk "$sdk" '
+          [.runtimes[] | select(.platform == "iOS" and .isAvailable
+            and (.version | split(".")[0:2]) == ($sdk | split(".")[0:2]))][0].buildversion // "none"')"
+        coresimulator="$(defaults read /Library/Developer/PrivateFrameworks/CoreSimulator.framework/Resources/Info.plist CFBundleVersion)"
+        echo "key=${{ runner.os }}-simulator-template-xcode-$xcode-ios-$runtime-coresimulator-$coresimulator" >> "$GITHUB_OUTPUT"
 
     - name: Restore the iOS Simulator template
       id: simulator-template
@@ -129,8 +138,11 @@ runs:
           mv "$HOME"/.cache/putio-simulator-templates/*/ "$devices/"
           # CoreSimulator only lists devices that existed when its service started.
           killall -9 com.apple.CoreSimulator.CoreSimulatorService 2>/dev/null || true
+          echo "PUTIO_SIMULATOR_TEMPLATES=1" >> "$GITHUB_ENV"
+        elif [[ "$GITHUB_EVENT_NAME" == push ]]; then
+          # Only pushes to next save a template, so only they spend a boot creating one.
+          echo "PUTIO_SIMULATOR_TEMPLATES=1" >> "$GITHUB_ENV"
         fi
-        echo "PUTIO_SIMULATOR_TEMPLATES=1" >> "$GITHUB_ENV"
 
     # Once provisioned, a font-gated test that can't find a face fails instead of skipping.
     - name: Provision licensed brand fonts

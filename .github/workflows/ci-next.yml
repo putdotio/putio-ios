@@ -142,7 +142,7 @@ jobs:
         run: mise run verify ios
 
       - name: Stage a new iOS Simulator template
-        if: success() && steps.setup.outputs.simulator-template-hit != 'true'
+        if: success() && github.event_name == 'push' && steps.setup.outputs.simulator-template-hit != 'true'
         run: |
           mkdir -p ~/.cache/putio-simulator-templates
           xcrun simctl list devices -j \
@@ -152,7 +152,7 @@ jobs:
               done
 
       - name: Save a new iOS Simulator template
-        if: success() && steps.setup.outputs.simulator-template-hit != 'true'
+        if: success() && github.event_name == 'push' && steps.setup.outputs.simulator-template-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/putio-simulator-templates
@@ -228,7 +228,7 @@ jobs:
         run: mise run harness-ci
 
       - name: Stage a new iOS Simulator template
-        if: success() && steps.setup.outputs.simulator-template-hit != 'true'
+        if: success() && github.event_name == 'push' && steps.setup.outputs.simulator-template-hit != 'true'
         run: |
           mkdir -p ~/.cache/putio-simulator-templates
           xcrun simctl list devices -j \
@@ -238,7 +238,7 @@ jobs:
               done
 
       - name: Save a new iOS Simulator template
-        if: success() && steps.setup.outputs.simulator-template-hit != 'true'
+        if: success() && github.event_name == 'push' && steps.setup.outputs.simulator-template-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/putio-simulator-templates
