@@ -21,7 +21,9 @@ scheme in Release for the simulator, unoptimized and unsigned, so non-Debug
 branches keep compiling; optimized builds come from the beta and release
 archives. Release builds ignore harness launch arguments. `test` compiles its
 suites before it creates a Simulator, because a freshly booted one keeps every
-core busy. Commands that take 10 seconds or more print their duration.
+core busy. Right after an iOS Simulator boots, the harness unloads the system
+jobs the apps never use, such as Siri, Health, and Mail sync, which roughly
+halves that work. Commands that take 10 seconds or more print their duration.
 
 ## Choose the proof
 

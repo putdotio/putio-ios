@@ -302,6 +302,92 @@ final class OwnedSimulator: @unchecked Sendable {
   }
 }
 
+/// iOS Simulator jobs for features the apps and tests never touch: Siri and
+/// intelligence, Health and Fitness, Mail and Calendar sync, widgets, Game
+/// Center, the App Store, Home, Wallet, Find My, and Watch pairing.
+let unusedSimulatorJobs = [
+  "com.apple.activityawardsd",
+  "com.apple.activitysharingd",
+  "com.apple.addressbooksyncd",
+  "com.apple.amsengagementd",
+  "com.apple.ap.adprivacyd",
+  "com.apple.ap.promotedcontentd",
+  "com.apple.appstored",
+  "com.apple.assistant_cdmd",
+  "com.apple.assistantd",
+  "com.apple.avatarsd",
+  "com.apple.biomesyncd",
+  "com.apple.brook.brookcompaniond",
+  "com.apple.calaccessd",
+  "com.apple.carkitd",
+  "com.apple.chronod",
+  "com.apple.ClipServices.clipserviced",
+  "com.apple.cloudd",
+  "com.apple.companionappd",
+  "com.apple.corespeechd",
+  "com.apple.dataaccess.dataaccessd",
+  "com.apple.diagnosticextensionsd",
+  "com.apple.email.maild",
+  "com.apple.eventkitsyncd",
+  "com.apple.familycircled",
+  "com.apple.FamilyControlsAgent",
+  "com.apple.fileindexerd",
+  "com.apple.financed",
+  "com.apple.findmy.findmylocated",
+  "com.apple.fitcore",
+  "com.apple.fitnesscoachingd",
+  "com.apple.fitnessintelligenced",
+  "com.apple.gamed",
+  "com.apple.generativeexperiencesd",
+  "com.apple.geoanalyticsd",
+  "com.apple.healthd",
+  "com.apple.homed",
+  "com.apple.homeeventsd",
+  "com.apple.icloudmailagent",
+  "com.apple.identityservicesd",
+  "com.apple.intelligencecontextd",
+  "com.apple.intelligenceflowd",
+  "com.apple.itunescloudd",
+  "com.apple.itunesstored",
+  "com.apple.linkd",
+  "com.apple.MapKit.SnapshotService",
+  "com.apple.mediaanalysisd",
+  "com.apple.mobiletimerd",
+  "com.apple.modelcatalogd",
+  "com.apple.modelmanagerd",
+  "com.apple.nanoprefsyncd.2",
+  "com.apple.nanoregistryd",
+  "com.apple.nanotimekitcompaniond",
+  "com.apple.navd",
+  "com.apple.newsd",
+  "com.apple.NPKCompanionAgent",
+  "com.apple.parsecd",
+  "com.apple.passd",
+  "com.apple.peopled",
+  "com.apple.photoanalysisd",
+  "com.apple.remindd",
+  "com.apple.replicatord",
+  "com.apple.routined",
+  "com.apple.SafariBookmarksSyncAgent",
+  "com.apple.ScreenTimeAgent",
+  "com.apple.ScreenTimeSettingsAgent",
+  "com.apple.searchd",
+  "com.apple.siri.context.service",
+  "com.apple.siriactionsd",
+  "com.apple.siriinferenced",
+  "com.apple.siriknowledged",
+  "com.apple.sirittsd",
+  "com.apple.sleepd",
+  "com.apple.sociallayerd",
+  "com.apple.spotlightknowledged.updater",
+  "com.apple.suggestd",
+  "com.apple.textunderstandingd",
+  "com.apple.triald",
+  "com.apple.voicebankingd",
+  "com.apple.weatherd",
+  "com.apple.WebBookmarks.webbookmarksd",
+]
+
 /// CI caches devices with this prefix; the harness never deletes them.
 let simulatorTemplatePrefix = "putio-template-"
 
@@ -1987,6 +2073,9 @@ public struct SimulatorHarness {
         try boot(phoneIdentifier, label: "iPhone companion")
       }
       try boot(deviceIdentifier, label: platform.rawValue)
+      if platform == .ios {
+        try unloadUnusedJobs(deviceIdentifier)
+      }
       if platform == .watchos {
         _ = try runner.checked(
           "xcrun",
@@ -2066,6 +2155,26 @@ public struct SimulatorHarness {
     try runner.checked(
       "xcrun", ["simctl", "clone", template, name], context: "clone Simulator template"
     ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  /// A freshly booted iOS Simulator spends its first minutes on about 170
+  /// jobs, which keeps a 3-core CI runner saturated through the first test run.
+  /// Unloading the ones the apps never use roughly halves that work. One
+  /// `bootout` with every plist path is a single spawn; jobs that aren't
+  /// loaded only fail their own path, so the result is ignored.
+  func unloadUnusedJobs(_ identifier: String) throws {
+    let root = try runner.checked(
+      "xcrun", ["simctl", "getenv", identifier, "SIMULATOR_ROOT"],
+      context: "read iOS Simulator runtime root"
+    ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+    let plists = unusedSimulatorJobs.compactMap { label in
+      ["System/Library/LaunchDaemons", "System/Library/LaunchAgents"]
+        .map { "\(root)/\($0)/\(label).plist" }
+        .first { fileManager.fileExists(atPath: $0) }
+    }
+    guard !plists.isEmpty else { return }
+    _ = try runner.run(
+      "xcrun", ["simctl", "spawn", identifier, "launchctl", "bootout", "system"] + plists)
   }
 
   private func createDevice(name: String, type: String, runtime: String) throws -> String {
