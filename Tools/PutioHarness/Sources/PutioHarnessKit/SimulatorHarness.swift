@@ -472,18 +472,15 @@ public struct SimulatorHarness {
   private let context: RepositoryContext
   private let runner: ProcessRunner
   private let fileManager: FileManager
-  private let environment: [String: String]
 
   public init(
     context: RepositoryContext,
     runner: ProcessRunner = ProcessRunner(),
-    fileManager: FileManager = .default,
-    environment: [String: String] = ProcessInfo.processInfo.environment
+    fileManager: FileManager = .default
   ) {
     self.context = context
     self.runner = runner
     self.fileManager = fileManager
-    self.environment = environment
   }
 
   public func build(_ platform: HarnessPlatform, iosCompanionAvailable: Bool = false) throws
@@ -508,30 +505,27 @@ public struct SimulatorHarness {
       throw HarnessFailure(
         "build \(platform.rawValue) succeeded but product is missing at \(app.path)")
     }
-    let builtSchemes = ([config.scheme] + config.extraBuildSchemes).joined(separator: ", ")
-    return SurfaceRun(platform: platform, artifacts: [], message: "built \(builtSchemes)")
+    return SurfaceRun(platform: platform, artifacts: [], message: "built \(config.scheme)")
   }
 
+  // Simulators run the host architecture, so the second slice would only
+  // double compile time.
   private func buildProduct(_ platform: HarnessPlatform) throws {
     let config = platform.configuration
-    let architectureArguments =
-      environment["CI"] == nil && environment["GITHUB_ACTIONS"] == nil
-      ? ["ARCHS=$(NATIVE_ARCH_ACTUAL)"] : []
-    for scheme in [config.scheme] + config.extraBuildSchemes {
-      _ = try runner.checked(
-        "xcodebuild",
-        [
-          "build",
-          "-workspace", "Putio.xcworkspace",
-          "-scheme", scheme,
-          "-configuration", "Debug",
-          "-destination", config.destination,
-          "-derivedDataPath", context.derivedData.path,
-        ] + architectureArguments,
-        currentDirectory: context.root,
-        context: "build \(platform.rawValue) scheme \(scheme)"
-      )
-    }
+    _ = try runner.checked(
+      "xcodebuild",
+      [
+        "build",
+        "-workspace", "Putio.xcworkspace",
+        "-scheme", config.scheme,
+        "-configuration", "Debug",
+        "-destination", config.destination,
+        "-derivedDataPath", context.derivedData.path,
+        "ARCHS=$(NATIVE_ARCH_ACTUAL)",
+      ],
+      currentDirectory: context.root,
+      context: "build \(platform.rawValue) scheme \(config.scheme)"
+    )
   }
 
   public func launch(_ platform: HarnessPlatform) throws -> SurfaceRun {
@@ -1549,17 +1543,28 @@ public struct SimulatorHarness {
           "TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1",
         ]
         : ["TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1"]
+      func arguments(_ action: String, _ suite: SnapshotSuite) -> [String] {
+        [
+          action,
+          "-workspace", "Putio.xcworkspace",
+          "-scheme", suite.scheme,
+          "-destination", "id=\(session.deviceIdentifier)",
+          "-derivedDataPath", context.derivedData.path,
+          "-only-testing:\(suite.target)",
+        ]
+      }
       for suite in suites {
         _ = try runner.checked(
           "xcodebuild",
-          [
-            "test",
-            "-workspace", "Putio.xcworkspace",
-            "-scheme", suite.scheme,
-            "-destination", "id=\(session.deviceIdentifier)",
-            "-derivedDataPath", context.derivedData.path,
-            "-only-testing:\(suite.target)",
-          ],
+          arguments("build-for-testing", suite),
+          currentDirectory: context.root,
+          context: "build \(platform.rawValue) \(suite.target)"
+        )
+      }
+      for suite in suites {
+        _ = try runner.checked(
+          "xcodebuild",
+          arguments("test-without-building", suite),
           environment: environment,
           currentDirectory: context.root,
           context: "test \(platform.rawValue) \(suite.target)"

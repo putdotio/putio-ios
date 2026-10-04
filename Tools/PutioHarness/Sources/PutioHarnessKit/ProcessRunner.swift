@@ -203,6 +203,7 @@ public struct ProcessRunner: Sendable {
     currentDirectory: URL? = nil,
     context: String
   ) throws -> ProcessOutput {
+    let started = ContinuousClock.now
     let output = try run(
       executable,
       arguments,
@@ -210,6 +211,7 @@ public struct ProcessRunner: Sendable {
       removingEnvironment: removingEnvironment,
       currentDirectory: currentDirectory
     )
+    reportDuration(of: context, since: started)
     guard output.status == 0 else {
       throw HarnessFailure("\(context) failed\n\(tail(output.combinedOutput))")
     }
@@ -259,6 +261,16 @@ public struct ProcessRunner: Sendable {
     process.environment = childEnvironment
     process.currentDirectoryURL = currentDirectory
     return process
+  }
+
+  // Successful children print nothing, so without this a CI step is one
+  // silent block; short commands stay quiet.
+  private func reportDuration(of context: String, since started: ContinuousClock.Instant) {
+    let elapsed = ContinuousClock.now - started
+    guard elapsed >= .seconds(10) else { return }
+    let seconds = Int(elapsed.components.seconds)
+    FileHandle.standardError.write(
+      Data("putio-harness: \(context) took \(seconds / 60)m \(seconds % 60)s\n".utf8))
   }
 
   private func tail(_ output: String, lineCount: Int = 40) -> String {

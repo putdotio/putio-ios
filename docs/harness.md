@@ -15,13 +15,12 @@ and the generated workspace. Its required failures exit nonzero; the optional li
 putio CLI produces a warning. The [doctor wrapper](../scripts/doctor.sh) reports toolchain
 failures even when Swift cannot compile the harness.
 
-Local app builds use Debug and compile only the host's simulator architecture.
-When `CI` or `GITHUB_ACTIONS` is present, builds retain the project's architecture
-defaults. Run `CI=1 mise run build` locally to build both simulator architectures;
-switching modes can trigger recompilation. Device builds are unchanged.
-`mise run build` also compiles every app scheme in Release for the simulator,
-host architecture only and unsigned, so non-Debug branches keep compiling.
-Release builds ignore harness launch arguments.
+App builds use Debug and compile only the host's simulator architecture, locally
+and on CI. Device builds are unchanged. `mise run build` also compiles every app
+scheme in Release for the simulator, unoptimized and unsigned, so non-Debug
+branches keep compiling; optimized builds come from the beta and release
+archives. Release builds ignore harness launch arguments. Commands that take
+10 seconds or more print their duration.
 
 ## Choose the proof
 
