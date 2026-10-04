@@ -1547,35 +1547,41 @@ public struct SimulatorHarness {
     // Logs/Test is where CI uploads result bundles from a failed run.
     let resultsDirectory = context.derivedData.appending(path: "Logs/Test")
     try fileManager.createDirectory(at: resultsDirectory, withIntermediateDirectories: true)
+    func arguments(_ action: String, _ suite: SnapshotSuite, destination: String) -> [String] {
+      [
+        action,
+        "-workspace", "Putio.xcworkspace",
+        "-scheme", suite.scheme,
+        "-destination", destination,
+        "-derivedDataPath", context.derivedData.path,
+        "-only-testing:\(suite.target)",
+      ]
+    }
+    // A freshly booted Simulator keeps every runner core busy with first-boot
+    // work, so the suites compile before it exists rather than after.
+    for suite in suites {
+      _ = try runner.checked(
+        "xcodebuild",
+        arguments(
+          "build-for-testing", suite, destination: platform.configuration.destination)
+          + ["ARCHS=$(NATIVE_ARCH_ACTUAL)"],
+        currentDirectory: context.root,
+        context: "build \(platform.rawValue) \(suite.target)"
+      )
+    }
     let runID = UUID().uuidString.lowercased()
     return try withSession(platform: platform, runID: runID) { session in
       var testEnvironment = ["TEST_RUNNER_PUTIO_SNAPSHOT_RASTER": "1"]
       if recordSnapshots { testEnvironment["TEST_RUNNER_PUTIO_SNAPSHOT_RECORD"] = "1" }
       if requiresBrandFonts { testEnvironment["TEST_RUNNER_PUTIO_REQUIRE_BRAND_FONTS"] = "1" }
-      func arguments(_ action: String, _ suite: SnapshotSuite) -> [String] {
-        [
-          action,
-          "-workspace", "Putio.xcworkspace",
-          "-scheme", suite.scheme,
-          "-destination", "id=\(session.deviceIdentifier)",
-          "-derivedDataPath", context.derivedData.path,
-          "-only-testing:\(suite.target)",
-        ]
-      }
-      for suite in suites {
-        _ = try runner.checked(
-          "xcodebuild",
-          arguments("build-for-testing", suite),
-          currentDirectory: context.root,
-          context: "build \(platform.rawValue) \(suite.target)"
-        )
-      }
       var results: [String] = []
       for suite in suites {
         let resultBundle = resultsDirectory.appending(path: "\(suite.target)-\(runID).xcresult")
         _ = try runner.checked(
           "xcodebuild",
-          arguments("test-without-building", suite) + ["-resultBundlePath", resultBundle.path],
+          arguments(
+            "test-without-building", suite, destination: "id=\(session.deviceIdentifier)")
+            + ["-resultBundlePath", resultBundle.path],
           environment: testEnvironment,
           currentDirectory: context.root,
           context: "test \(platform.rawValue) \(suite.target)"

@@ -30,6 +30,15 @@ private func withFakeXcodebuild(
   """.write(to: executable, atomically: true, encoding: .utf8)
   try FileManager.default.setAttributes(
     [.posixPermissions: 0o755], ofItemAtPath: executable.path)
+  // Simulator work fails at its first step, so tests can see what ran before it.
+  let simulatorTools = bin.appending(path: "xcrun")
+  try """
+  #!/bin/sh
+  printf '%s\\n' CALL xcrun "$@" >> "$PUTIO_BUILD_CALL_LOG"
+  exit 1
+  """.write(to: simulatorTools, atomically: true, encoding: .utf8)
+  try FileManager.default.setAttributes(
+    [.posixPermissions: 0o755], ofItemAtPath: simulatorTools.path)
   let originalPath = ProcessInfo.processInfo.environment["PATH"] ?? ""
   let runner = ProcessRunner(environment: [
     "PATH": "\(bin.path):\(originalPath)",
@@ -64,6 +73,24 @@ struct SimulatorBuildTests {
       #expect(arguments[configurationIndex + 1] == "Debug")
       #expect(arguments.filter { $0.hasPrefix("ARCHS=") } == ["ARCHS=$(NATIVE_ARCH_ACTUAL)"])
     }
+  }
+
+  @Test func testSuitesCompileForTheHostArchitectureBeforeAnySimulatorWork() throws {
+    let calls = try withFakeXcodebuild { harness in
+      #expect(throws: HarnessFailure.self) {
+        try harness.test(.ios, recordSnapshots: false, environment: [:])
+      }
+    }
+    try #require(calls.count == 3)
+    for (index, target) in ["PutioSnapshotTests", "PutioFeatureTests"].enumerated() {
+      let arguments = calls[index]
+      #expect(arguments.first == "build-for-testing")
+      #expect(arguments.contains("-only-testing:\(target)"))
+      let destinationIndex = try #require(arguments.firstIndex(of: "-destination"))
+      #expect(arguments[destinationIndex + 1] == "generic/platform=iOS Simulator")
+      #expect(arguments.contains("ARCHS=$(NATIVE_ARCH_ACTUAL)"))
+    }
+    #expect(calls[2].starts(with: ["xcrun", "simctl"]))
   }
 
   @Test func standaloneWatchBuildAlsoBuildsNativeCompanion() throws {
