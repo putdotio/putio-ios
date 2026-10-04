@@ -9,7 +9,6 @@
 
 <!-- Link local proof that CI cannot show. For visible changes, upload reviewed
 screenshots or recordings with `gh pr create --attach ./file.png` or
-`gh pr comment <n> --attach ./file.mp4`; never commit them. Publishing remains
-a separate authorized action.
+`gh pr comment <n> --attach ./file.mp4`; never commit them.
 For performance changes, include before/after measurements. Name skipped checks
 and unresolved failures. Remove this comment when writing the description. -->
