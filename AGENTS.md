@@ -1,15 +1,13 @@
 # Agent Guide
 
-Native SwiftUI apps for iOS, watchOS, and tvOS. Platform UI and lifecycle belong
-in `Apps`; shared models, session, API, and feature logic belong in
+Native SwiftUI rewrite of the put.io apps for iOS, watchOS, and tvOS. It lives
+on `next`; the App Store app is still the legacy 3.x line on protected `main`
+([Distribution](docs/distribution.md)). Platform UI and lifecycle belong in
+`Apps`; shared models, session, API, and feature logic belong in
 `Packages/PutioCore`. Both are grouped by domain with the same folder names;
 see [Development](CONTRIBUTING.md#development).
 
 ## Work in this repository
-
-Supporting docs use lowercase kebab-case under `docs/`; the uppercase root guides,
-`LICENSE`, tool-defined agent entrypoints (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`),
-and upstream skill files keep their names and content.
 
 - Run `mise run bootstrap` in a fresh checkout or worktree; [mise.toml](mise.toml)
   owns the task commands and [Contributing](CONTRIBUTING.md#development) the
@@ -25,37 +23,64 @@ and upstream skill files keep their names and content.
   For routing changes, check [deep-link behavior](docs/deep-links.md).
 - Keep checked-in defaults, generation, and verification usable without accounts,
   tokens, secrets, or downloaded brand fonts.
+- Supporting docs use lowercase kebab-case under `docs/`; the uppercase root
+  guides, `LICENSE`, tool-defined agent entrypoints (`AGENTS.md`, `CLAUDE.md`,
+  `SKILL.md`), and upstream skill files keep their names and content.
+
+## Hazards
+
+- **Legacy store delivery.** The [Beta](.github/workflows/beta.yml) and
+  [Release](.github/workflows/release.yml) dispatches build the shipping app
+  from protected `main` with production signing and upload it to TestFlight or
+  App Store Connect, where it reaches testers or users and cannot be taken
+  back. The [dispatcher](.github/workflows/legacy-ios-dispatch.yml) pins the
+  reviewed legacy workflow blobs: update them only after reviewing that legacy
+  change, and never copy signing configuration into it.
+- **Shared test account.** Live journeys and `live-fixture` use the `devs-auto`
+  put.io CLI profile ([live-profile contract](docs/harness.md#live-profile-and-publishing)),
+  shared with the web, Android, and TV harnesses. Each live journey approves a
+  real grant and revokes it on sign-out; an interrupted approval can leave one
+  live, and the harness names the manual revocation. The Account > Security
+  capture lists every app on that account, so review captures before uploading
+  them.
+- **tvOS launch reaches put.io.** The default tvOS launch, including
+  `proof --platform all`, requests an activation code; the tvOS journey covers
+  sign-in offline.
+- **Simulators and devices.** The harness creates, shuts down, and deletes its
+  own uniquely named simulators and never opens Simulator.app; don't open it
+  from automation either. If cleanup fails, delete only the run's reported
+  UDIDs. Physical Apple TV builds use automatic provisioning and may register
+  the device with the development team.
+- **One verify per worktree.** Verify lanes share `build/DerivedData`.
 
 ## Verification and completion
 
-Run `mise run verify` before handoff and fix change-caused failures. Completion
-requires that gate plus the affected shell running in its simulator or passing
-harness proof. Report skipped or unavailable checks explicitly.
+`mise run verify` is the full gate; pass lanes (`checks`, `build`, `ios`,
+`tvos`) to run a subset in order. Code changes pass the lanes they affect plus
+the focused proof below; runtime changes also exercise the affected shell
+through the [typed headless harness](docs/harness.md). Proof and journey
+commands need a clean committed worktree and write under ignored `build/proof/`.
+Report skipped or unavailable checks.
 
-Use the [typed headless harness](docs/harness.md); never open Simulator.app from
-automation. Keep capture local; publish only after reviewing the artifact and
-receiving authorization, with `gh pr comment <n> --attach ./file.png` rather
-than a commit.
-
-| Change | Required focused proof |
+| Change | Focused proof |
 | --- | --- |
+| Docs or skill files only | None; check the links and commands you touched. CI skips every lane for these paths |
 | Shared logic | `swift test --package-path Packages/PutioCore` |
-| Manifest or dependency graph | Regenerate and build every app scheme |
-| Runtime behavior | Launch or exercise the affected shell in addition to verification |
-| Components or theming | `mise run harness -- test --platform <ios\|tvos>`; intentional visual changes require inspected, re-recorded baselines |
+| Tooling scripts, tokens, or fonts | `pnpm run verify` |
+| Manifest or dependency graph | `mise run build` (regenerates and builds every app scheme) |
+| Shell logic, components, or theming | `mise run harness -- test --platform <ios\|tvos>`; intentional visual changes require inspected, re-recorded baselines |
 | iOS Files browser | `mise run harness -- journey --platform ios --scenario files-browser` |
 | tvOS shell or sign-in | `mise run harness -- journey --platform tvos --scenario device-sign-in` |
 | Recorded platform proof | `mise run harness -- proof --platform <ios\|watchos\|tvos\|all>` |
 | tvOS device launch and rendering | `mise run harness -- proof --platform tvos --device <udid>` on a [paired Apple TV](docs/harness.md#physical-apple-tv) |
 
-Deterministic checks are secret-free. Live smoke uses only the `devs-auto`
-put.io CLI profile from the [live-profile contract](docs/harness.md#live-profile-and-publishing).
-Proof artifacts and manifests live under ignored `build/proof/`.
+## Delivery
 
-Finish authorized edits, checks, and fixes without pausing. Ask before publishing,
-TestFlight or store actions, signing changes, or work outside the task. Follow
-[Distribution](docs/distribution.md) for release ownership and
-[Security](https://github.com/putdotio/.github/blob/main/SECURITY.md) for private reports.
+Pull requests target `next` and squash-merge. [Next CI](.github/workflows/ci-next.yml)
+runs the lanes a pull request's paths affect; a push to `next` runs every lane
+and saves the Xcode compilation caches. Nothing on `next` signs, versions, or
+publishes. Upload reviewed screenshots or recordings with
+`gh pr comment <n> --attach ./file.png`; never commit them.
 
 ## Skills
 

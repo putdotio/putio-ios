@@ -263,8 +263,8 @@ app, not per session, so that screen cannot show whether one run's token is gone
 The cleanup result is the per-run evidence. That capture shows every app on the
 shared account, so review it before sharing.
 
-Capture never uploads implicitly. Review the artifact and obtain publishing
-authorization, then upload it to the pull request:
+Capture never uploads implicitly. Review the artifact, then upload it to the
+pull request:
 
 ```bash
 gh pr comment <number> --attach build/proof/<run-id>/ios/exercised.png
