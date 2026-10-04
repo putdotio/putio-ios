@@ -60,7 +60,8 @@ see [Development](CONTRIBUTING.md#development).
 the focused proof below; runtime changes also exercise the affected shell
 through the [typed headless harness](docs/harness.md). Proof and journey
 commands need a clean committed worktree and write under ignored `build/proof/`.
-Report skipped or unavailable checks.
+Report skipped or unavailable checks. [Links](.github/workflows/links.yml)
+checks relative Markdown links and anchors on pull requests and `next` pushes.
 
 | Change                              | Focused proof                                                                                                          |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
