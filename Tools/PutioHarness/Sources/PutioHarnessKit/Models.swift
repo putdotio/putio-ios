@@ -798,6 +798,19 @@ func requirePassingSuiteSummary(
   return summary
 }
 
+/// `simctl bootstatus` prints a status line every second; keep each status
+/// change and the non-status lines.
+func bootProgressSummary(_ output: String) -> String {
+  var lastStatus: Substring?
+  return output.split(separator: "\n").filter { line in
+    guard !line.allSatisfy(\.isWhitespace) else { return false }
+    guard let range = line.range(of: "Status=") else { return true }
+    let status = line[range.upperBound...].prefix { $0 != "," }
+    defer { lastStatus = status }
+    return status != lastStatus
+  }.joined(separator: "\n")
+}
+
 public struct HarnessFailure: Error, CustomStringConvertible, Sendable {
   public let message: String
 

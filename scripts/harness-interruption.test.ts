@@ -52,10 +52,12 @@ test("interruption checks preserve unrelated devices and clean only their own on
         await writeFile(executable, `#!${process.execPath}\n${fixture}`, { mode: 0o755 });
         await symlink(executable, path.join(bin, "swift"));
         await symlink(executable, path.join(bin, "xcrun"));
+        // CI's prebuilt harness binary would bypass the stubbed `swift run`.
+        const { PUTIO_HARNESS_BINARY: _prebuilt, ...environment } = process.env;
         const result = await new Promise<{ code: number | null; output: string }>((resolve, reject) => {
           const child = spawn("bash", [new URL("./test-harness-interruption.sh", import.meta.url).pathname], {
             env: {
-              ...process.env,
+              ...environment,
               PATH: `${bin}:${process.env.PATH ?? ""}`,
               INTERRUPTION_FIXTURE: directory,
               LEAVE_OWNED: leaveOwned ? "1" : "0",
