@@ -166,9 +166,12 @@ jobs:
         uses: ./.github/actions/setup-apple
         with:
           lane: ios
+          simulator-template: true
 
       - name: Verify iOS snapshots and features
-        run: ./scripts/probe-template-settle.sh
+        run: ./scripts/probe-bootout.sh
+        env:
+          JOBS_FILE: scripts/simulator-bootout-jobs.txt
 
       - name: Stage a new iOS Simulator template
         if: success() && github.event_name == 'push' && steps.setup.outputs.simulator-template-hit != 'true'
