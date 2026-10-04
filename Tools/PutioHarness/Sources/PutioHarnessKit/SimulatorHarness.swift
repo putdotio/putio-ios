@@ -1581,7 +1581,8 @@ public struct SimulatorHarness {
           "xcodebuild",
           arguments(
             "test-without-building", suite, destination: "id=\(session.deviceIdentifier)")
-            + ["-resultBundlePath", resultBundle.path],
+            // The default collects a 600 s Simulator diagnose even after some passing runs.
+            + ["-resultBundlePath", resultBundle.path, "-collect-test-diagnostics", "never"],
           environment: testEnvironment,
           currentDirectory: context.root,
           context: "test \(platform.rawValue) \(suite.target)"
