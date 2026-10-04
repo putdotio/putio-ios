@@ -62,6 +62,9 @@ through the [typed headless harness](docs/harness.md). Proof and journey
 commands need a clean committed worktree and write under ignored `build/proof/`.
 Report skipped or unavailable checks. [Links](.github/workflows/links.yml)
 checks relative Markdown links and anchors on pull requests and `next` pushes.
+[Scan](.github/workflows/scan.yml) runs Gitleaks and TruffleHog on pull
+requests, Actionlint and Zizmor on pull requests that change `.github/`, and all
+four weekly.
 
 | Change                              | Focused proof                                                                                                          |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
