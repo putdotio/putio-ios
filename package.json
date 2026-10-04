@@ -5,15 +5,17 @@
   "scripts": {
     "fonts:setup": "node scripts/sync-brand-fonts.ts",
     "fonts:check": "node scripts/sync-brand-fonts.ts --check",
+    "markdown:check": "oxfmt --check \"**/*.md\"",
     "tokens:generate": "node scripts/generate-design-tokens.ts",
     "tokens:check": "node scripts/generate-design-tokens.ts --check",
     "test": "node --test \"scripts/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
-    "verify": "pnpm typecheck && pnpm test && pnpm tokens:check && pnpm fonts:check"
+    "verify": "pnpm typecheck && pnpm test && pnpm tokens:check && pnpm fonts:check && pnpm markdown:check"
   },
   "devDependencies": {
     "@putdotio/design": "3.3.0",
     "@types/node": "26.6.3",
+    "oxfmt": "0.70.0",
     "typescript": "7.0.2",
     "yaml": "2.9.1"
   },

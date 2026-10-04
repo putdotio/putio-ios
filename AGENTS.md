@@ -62,25 +62,26 @@ through the [typed headless harness](docs/harness.md). Proof and journey
 commands need a clean committed worktree and write under ignored `build/proof/`.
 Report skipped or unavailable checks.
 
-| Change | Focused proof |
-| --- | --- |
-| Docs or skill files only | None; check the links and commands you touched. Pull-request CI skips every lane for these paths |
-| Shared logic | `swift test --package-path Packages/PutioCore` |
-| Tooling scripts, tokens, or fonts | `pnpm run verify` |
-| Manifest or dependency graph | `mise run build` (regenerates and builds every app scheme) |
+| Change                              | Focused proof                                                                                                          |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Docs or skill files only            | `pnpm run markdown:check`; check the links and commands you touched. Pull-request CI runs only the Markdown job        |
+| Shared logic                        | `swift test --package-path Packages/PutioCore`                                                                         |
+| Tooling scripts, tokens, or fonts   | `pnpm run verify`                                                                                                      |
+| Manifest or dependency graph        | `mise run build` (regenerates and builds every app scheme)                                                             |
 | Shell logic, components, or theming | `mise run harness -- test --platform <ios\|tvos>`; intentional visual changes require inspected, re-recorded baselines |
-| iOS Files browser | `mise run harness -- journey --platform ios --scenario files-browser` |
-| tvOS shell or sign-in | `mise run harness -- journey --platform tvos --scenario device-sign-in` |
-| Recorded platform proof | `mise run harness -- proof --platform <ios\|watchos\|tvos\|all>` |
-| tvOS device launch and rendering | `mise run harness -- proof --platform tvos --device <udid>` on a [paired Apple TV](docs/harness.md#physical-apple-tv) |
+| iOS Files browser                   | `mise run harness -- journey --platform ios --scenario files-browser`                                                  |
+| tvOS shell or sign-in               | `mise run harness -- journey --platform tvos --scenario device-sign-in`                                                |
+| Recorded platform proof             | `mise run harness -- proof --platform <ios\|watchos\|tvos\|all>`                                                       |
+| tvOS device launch and rendering    | `mise run harness -- proof --platform tvos --device <udid>` on a [paired Apple TV](docs/harness.md#physical-apple-tv)  |
 
 ## Delivery
 
 Pull requests target `next` and squash-merge. [Next CI](.github/workflows/ci-next.yml)
-runs the lanes a pull request's paths affect; a push to `next` runs every lane
-and saves the Xcode compilation caches. Nothing on `next` signs, versions, or
-publishes. Upload reviewed screenshots or recordings with
-`gh pr comment <n> --attach ./file.png`; never commit them.
+runs the lanes a pull request's paths affect, plus a Markdown formatting check
+when it changes Markdown; a push to `next` runs every lane and saves the Xcode
+compilation caches. Nothing on `next` signs, versions, or publishes. Upload
+reviewed screenshots or recordings with `gh pr comment <n> --attach ./file.png`;
+never commit them.
 
 ## Skills
 

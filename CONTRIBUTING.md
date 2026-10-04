@@ -96,6 +96,10 @@ suites. Pass lanes to run a subset in order: `mise run verify checks tvos` runs
 the tooling checks and tvOS suites; the lanes are `checks`, `build`, `ios`, and
 `tvos`. Keep generation and verification secret-free.
 
+The `checks` lane includes the oxfmt Markdown check; `pnpm exec oxfmt "**/*.md"`
+fixes findings. [.oxfmtrc.json](.oxfmtrc.json) skips the installed upstream
+skills under `.agents/`, which keep their upstream content.
+
 For runtime changes, exercise the affected shell through the
 [headless harness](docs/harness.md); the
 [proof table](AGENTS.md#verification-and-completion) maps change types to the
