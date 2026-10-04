@@ -132,12 +132,31 @@ jobs:
           persist-credentials: false
 
       - name: Set up the Apple toolchain
+        id: setup
         uses: ./.github/actions/setup-apple
         with:
           lane: ios
+          simulator-template: true
 
       - name: Verify iOS snapshots and features
         run: mise run verify ios
+
+      - name: Stage a new iOS Simulator template
+        if: success() && steps.setup.outputs.simulator-template-hit != 'true'
+        run: |
+          mkdir -p ~/.cache/putio-simulator-templates
+          xcrun simctl list devices -j \
+            | jq -r '.devices[][] | select(.name | startswith("putio-template-")) | .udid' \
+            | while read -r udid; do
+                ditto "$HOME/Library/Developer/CoreSimulator/Devices/$udid" "$HOME/.cache/putio-simulator-templates/$udid"
+              done
+
+      - name: Save a new iOS Simulator template
+        if: success() && steps.setup.outputs.simulator-template-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/putio-simulator-templates
+          key: ${{ steps.setup.outputs.simulator-template-key }}
 
       - name: Save Xcode compilation cache
         if: success() && github.event_name == 'push'
@@ -199,9 +218,28 @@ jobs:
       # The proof builds the same Debug app as the build job, so it reuses
       # that job's compilation cache and saves none of its own.
       - name: Set up the Apple toolchain
+        id: setup
         uses: ./.github/actions/setup-apple
         with:
           lane: build
+          simulator-template: true
 
       - name: Exercise the headless Apple harness
         run: mise run harness-ci
+
+      - name: Stage a new iOS Simulator template
+        if: success() && steps.setup.outputs.simulator-template-hit != 'true'
+        run: |
+          mkdir -p ~/.cache/putio-simulator-templates
+          xcrun simctl list devices -j \
+            | jq -r '.devices[][] | select(.name | startswith("putio-template-")) | .udid' \
+            | while read -r udid; do
+                ditto "$HOME/Library/Developer/CoreSimulator/Devices/$udid" "$HOME/.cache/putio-simulator-templates/$udid"
+              done
+
+      - name: Save a new iOS Simulator template
+        if: success() && steps.setup.outputs.simulator-template-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/putio-simulator-templates
+          key: ${{ steps.setup.outputs.simulator-template-key }}

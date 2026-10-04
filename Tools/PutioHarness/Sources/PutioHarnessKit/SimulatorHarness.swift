@@ -302,6 +302,15 @@ final class OwnedSimulator: @unchecked Sendable {
   }
 }
 
+/// CI caches devices with this prefix; the harness never deletes them.
+let simulatorTemplatePrefix = "putio-template-"
+
+func simulatorTemplateName(runtime: String, deviceType: String) -> String {
+  let runtimeName = runtime.split(separator: ".").last ?? Substring(runtime)
+  let deviceTypeName = deviceType.split(separator: ".").last ?? Substring(deviceType)
+  return "\(simulatorTemplatePrefix)\(runtimeName)-\(deviceTypeName)"
+}
+
 private struct SimulatorDeviceList: Decodable {
   let devices: [String: [SimulatorDevice]]
 }
@@ -1922,14 +1931,19 @@ public struct SimulatorHarness {
     let suffix = "\(runID)-\(String(UUID().uuidString.prefix(8)).lowercased())"
     let deviceName = "putio-harness-\(platform.rawValue)-\(suffix)"
 
+    let template = try simulatorTemplate(
+      platform: platform, runtime: runtime, deviceType: deviceType)
+
     do {
       try requireNoSimulator(named: deviceName)
       let ownedDevice = OwnedSimulator(name: deviceName)
       try SimulatorLifecycle.shared.register {
         try ownedDevice.cleanup(runner: runner)
       }
-      let deviceIdentifier = try createDevice(
-        name: deviceName, type: deviceType.identifier, runtime: runtime.identifier)
+      let deviceIdentifier =
+        try template.map { try cloneDevice($0, name: deviceName) }
+        ?? createDevice(
+          name: deviceName, type: deviceType.identifier, runtime: runtime.identifier)
       ownedDevice.claim(deviceIdentifier)
       var companionIdentifier: String?
       if platform == .watchos {
@@ -2020,6 +2034,38 @@ public struct SimulatorHarness {
         "Simulator \(name) already exists (\(owners.map(\.udid).joined(separator: ", "))); a previous run left it behind. Delete it with xcrun simctl delete <udid>, then retry"
       )
     }
+  }
+
+  /// CI restores an iOS device that has already booted once. Its clones skip
+  /// first-boot data migration, which takes one to several minutes on hosted
+  /// runners. A missing template is created here and kept for CI to cache.
+  func simulatorTemplate(
+    platform: HarnessPlatform,
+    runtime: RuntimeRecord,
+    deviceType: DeviceTypeRecord,
+    environment: [String: String] = ProcessInfo.processInfo.environment
+  ) throws -> String? {
+    guard platform == .ios, environment["PUTIO_SIMULATOR_TEMPLATES"] == "1" else { return nil }
+    let name = simulatorTemplateName(runtime: runtime.identifier, deviceType: deviceType.identifier)
+    let output = try runner.checked(
+      "xcrun", ["simctl", "list", "devices", "-j"], context: "find Simulator template")
+    let devices = try JSONDecoder().decode(SimulatorDeviceList.self, from: Data(output.stdout.utf8))
+    if let template = devices.devices[runtime.identifier]?.first(where: { $0.name == name }) {
+      return template.udid
+    }
+    let identifier = try createDevice(
+      name: name, type: deviceType.identifier, runtime: runtime.identifier)
+    try boot(identifier, label: "\(platform.rawValue) template")
+    _ = try runner.checked(
+      "xcrun", ["simctl", "shutdown", identifier],
+      context: "shut down \(platform.rawValue) Simulator template")
+    return identifier
+  }
+
+  private func cloneDevice(_ template: String, name: String) throws -> String {
+    try runner.checked(
+      "xcrun", ["simctl", "clone", template, name], context: "clone Simulator template"
+    ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
   }
 
   private func createDevice(name: String, type: String, runtime: String) throws -> String {
