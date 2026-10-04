@@ -5,6 +5,17 @@ inputs:
     description: Lane whose Xcode compilation cache to restore; omit when the job compiles nothing with Xcode.
     required: false
     default: ""
+  simulator-template:
+    description: Restore the cached iOS Simulator template for the harness to clone.
+    required: false
+    default: "false"
+outputs:
+  simulator-template-hit:
+    description: Whether the iOS Simulator template came from the cache.
+    value: ${{ steps.simulator-template.outputs.cache-hit }}
+  simulator-template-key:
+    description: Cache key the job saves a newly created template under.
+    value: ${{ steps.simulator-template-key.outputs.key }}
 runs:
   using: composite
   steps:
@@ -90,6 +101,36 @@ runs:
         key: ${{ runner.os }}-xcode-cas-${{ inputs.lane }}-${{ env.PUTIO_CAS_WEEK }}-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-xcode-cas-${{ inputs.lane }}-${{ github.event_name == 'push' && format('{0}-', env.PUTIO_CAS_WEEK) || '' }}
+
+    # A clone of an iOS Simulator that has already booted once skips first-boot
+    # data migration, which takes one to several minutes on hosted runners. The
+    # harness creates a missing template; the job saves it after a green run.
+    - name: Key the iOS Simulator template
+      id: simulator-template-key
+      if: inputs.simulator-template == 'true'
+      shell: bash
+      run: echo "key=${{ runner.os }}-simulator-template-${ImageVersion:-unknown}-xcode-26.6" >> "$GITHUB_OUTPUT"
+
+    - name: Restore the iOS Simulator template
+      id: simulator-template
+      if: inputs.simulator-template == 'true'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/putio-simulator-templates
+        key: ${{ steps.simulator-template-key.outputs.key }}
+
+    - name: Install the iOS Simulator template
+      if: inputs.simulator-template == 'true'
+      shell: bash
+      run: |
+        devices="$HOME/Library/Developer/CoreSimulator/Devices"
+        if compgen -G "$HOME/.cache/putio-simulator-templates/*/" >/dev/null; then
+          mkdir -p "$devices"
+          mv "$HOME"/.cache/putio-simulator-templates/*/ "$devices/"
+          # CoreSimulator only lists devices that existed when its service started.
+          killall -9 com.apple.CoreSimulator.CoreSimulatorService 2>/dev/null || true
+        fi
+        echo "PUTIO_SIMULATOR_TEMPLATES=1" >> "$GITHUB_ENV"
 
     # Once provisioned, a font-gated test that can't find a face fails instead of skipping.
     - name: Provision licensed brand fonts
