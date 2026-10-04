@@ -64,7 +64,7 @@ Report skipped or unavailable checks.
 
 | Change | Focused proof |
 | --- | --- |
-| Docs or skill files only | None; check the links and commands you touched. CI skips every lane for these paths |
+| Docs or skill files only | None; check the links and commands you touched. Pull-request CI skips every lane for these paths |
 | Shared logic | `swift test --package-path Packages/PutioCore` |
 | Tooling scripts, tokens, or fonts | `pnpm run verify` |
 | Manifest or dependency graph | `mise run build` (regenerates and builds every app scheme) |
