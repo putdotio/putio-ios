@@ -34,8 +34,9 @@ jobs:
     # checks lane also checks Markdown; the Markdown job covers pull requests
     # that change Markdown, including the docs-only ones that skip every lane.
     # This job runs on every event, so it also checks Markdown links and scans
-    # each pushed range. A dispatch runs only this job: links plus a scan that
-    # audits every workflow.
+    # each pushed range. A link or scan failure fails this job without skipping
+    # the lanes, which use `!cancelled()`. A dispatch runs only this job: links
+    # plus a scan that audits every workflow.
     outputs:
       code: ${{ github.event_name == 'push' || steps.filter.outputs.code == 'true' }}
       ios: ${{ github.event_name == 'push' || steps.filter.outputs.ios == 'true' }}
@@ -77,15 +78,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: putdotio/.github/.github/actions/links@c1830f7938b7dc98f085082e988d3c46437bb15c # v1.2.0
+      - name: Check Markdown links
+        uses: putdotio/.github/.github/actions/links@c1830f7938b7dc98f085082e988d3c46437bb15c # v1.2.0
 
-      - if: ${{ !cancelled() }}
+      - name: Scan secrets and workflows
+        if: ${{ !cancelled() }}
         uses: putdotio/.github/.github/actions/scan@c1830f7938b7dc98f085082e988d3c46437bb15c # v1.2.0
 
   markdown:
     name: Markdown
     needs: changes
-    if: needs.changes.outputs.markdown == 'true'
+    if: ${{ !cancelled() && needs.changes.outputs.markdown == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -112,7 +115,7 @@ jobs:
   checks:
     name: Checks
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
     runs-on: macos-26
     timeout-minutes: 30
 
@@ -131,7 +134,7 @@ jobs:
   tvos:
     name: tvOS tests
     needs: changes
-    if: needs.changes.outputs.tvos == 'true'
+    if: ${{ !cancelled() && needs.changes.outputs.tvos == 'true' }}
     runs-on: macos-26
     timeout-minutes: 30
 
@@ -168,7 +171,7 @@ jobs:
   ios:
     name: iOS tests
     needs: changes
-    if: needs.changes.outputs.ios == 'true'
+    if: ${{ !cancelled() && needs.changes.outputs.ios == 'true' }}
     runs-on: macos-26
     timeout-minutes: 30
 
@@ -224,7 +227,7 @@ jobs:
   build:
     name: Builds
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
     runs-on: macos-26
     timeout-minutes: 30
 
@@ -252,7 +255,7 @@ jobs:
   proof:
     name: iOS proof
     needs: changes
-    if: needs.changes.outputs.ios == 'true'
+    if: ${{ !cancelled() && needs.changes.outputs.ios == 'true' }}
     runs-on: macos-26
     timeout-minutes: 30
 
