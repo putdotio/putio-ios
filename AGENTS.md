@@ -60,11 +60,11 @@ see [Development](CONTRIBUTING.md#development).
 the focused proof below; runtime changes also exercise the affected shell
 through the [typed headless harness](docs/harness.md). Proof and journey
 commands need a clean committed worktree and write under ignored `build/proof/`.
-Report skipped or unavailable checks. [Links](.github/workflows/links.yml)
-checks relative Markdown links and anchors on pull requests and `next` pushes.
-[Scan](.github/workflows/scan.yml) runs Gitleaks and TruffleHog on pull
-requests, Actionlint and Zizmor on pull requests that change `.github/`, and all
-four weekly.
+Report skipped or unavailable checks. Next CI's `Select affected lanes` job
+checks relative Markdown links and anchors on every run. It also runs the shared
+scan: Actionlint and Zizmor on `next` pushes that change `.github/`, and on
+every workflow when Next CI is dispatched. GitHub secret scanning and push
+protection catch secrets at push time.
 
 | Change                              | Focused proof                                                                                                          |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
