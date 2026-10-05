@@ -1,14 +1,15 @@
 ## Change
 
-<!-- Describe the problem and resulting behavior. Include material risks. -->
+<!-- One sentence on the outcome, then one visual aid: a screenshot or short
+recording for UI (`gh pr create --attach ./file.png`, never committed), a
+Mermaid diagram for a flow, a table for numbers, or a short code sample for an
+API. Add one-line bullets only for risks the aid doesn't show. -->
 
 ## Validation
 
 - [ ] `mise run verify`
 - [ ] Required focused checks and affected runtime behavior exercised
 
-<!-- Link local proof that CI cannot show. For visible changes, upload reviewed
-screenshots or recordings with `gh pr create --attach ./file.png` or
-`gh pr comment <n> --attach ./file.mp4`; never commit them.
-For performance changes, include before/after measurements. Name skipped checks
-and unresolved failures. Remove this comment when writing the description. -->
+<!-- Link only proof CI cannot show. End with one "Unverified:" line for
+skipped or unavailable proof. Remove this comment when writing the
+description. -->
