@@ -134,7 +134,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up the Apple toolchain
-        uses: ./.github/actions/setup-apple
+        uses: ./.github/actions/setup-apple # zizmor: ignore[self-repository]
 
       - name: Verify checks
         run: mise run verify checks
@@ -153,7 +153,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up the Apple toolchain
-        uses: ./.github/actions/setup-apple
+        uses: ./.github/actions/setup-apple # zizmor: ignore[self-repository]
         with:
           lane: tvos
 
@@ -191,7 +191,7 @@ jobs:
 
       - name: Set up the Apple toolchain
         id: setup
-        uses: ./.github/actions/setup-apple
+        uses: ./.github/actions/setup-apple # zizmor: ignore[self-repository]
         with:
           lane: ios
           simulator-template: true
@@ -246,7 +246,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up the Apple toolchain
-        uses: ./.github/actions/setup-apple
+        uses: ./.github/actions/setup-apple # zizmor: ignore[self-repository]
         with:
           lane: build
 
@@ -277,7 +277,7 @@ jobs:
       # that job's compilation cache and saves none of its own.
       - name: Set up the Apple toolchain
         id: setup
-        uses: ./.github/actions/setup-apple
+        uses: ./.github/actions/setup-apple # zizmor: ignore[self-repository]
         with:
           lane: build
           simulator-template: true
