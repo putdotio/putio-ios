@@ -10,9 +10,11 @@ on:
     branches:
       - next
 
+# Pull requests share a group per ref so a new push cancels the stale run. Each
+# push to next gets its own group, so every merged commit keeps its own result.
 concurrency:
-  group: next-ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: next-ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
