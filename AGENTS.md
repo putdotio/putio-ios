@@ -60,15 +60,11 @@ see [Development](CONTRIBUTING.md#development).
 the focused proof below; runtime changes also exercise the affected shell
 through the [typed headless harness](docs/harness.md). Proof and journey
 commands need a clean committed worktree and write under ignored `build/proof/`.
-Report skipped or unavailable checks. Next CI's `Select affected lanes` job
-checks relative Markdown links and anchors on every run. It also runs the shared
-scan: Actionlint and Zizmor on `next` pushes that change `.github/`, and on
-every workflow when Next CI is dispatched. GitHub secret scanning and push
-protection catch secrets at push time.
+Report skipped or unavailable checks.
 
 | Change                              | Focused proof                                                                                                          |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Docs or skill files only            | `pnpm run markdown:check`; check the links and commands you touched. Pull-request CI runs only the Markdown job        |
+| Docs or skill files only            | `pnpm run markdown:check`; check web links and commands. Pull-request CI checks relative links, skips every lane       |
 | Shared logic                        | `swift test --package-path Packages/PutioCore`                                                                         |
 | Tooling scripts, tokens, or fonts   | `pnpm run verify`                                                                                                      |
 | Manifest or dependency graph        | `mise run build` (regenerates and builds every app scheme)                                                             |
@@ -84,11 +80,16 @@ Pull requests target `next` and squash-merge. [Next CI](.github/workflows/ci-nex
 runs the lanes a pull request's paths affect, plus a Markdown formatting check
 when it changes Markdown, and a new push cancels its stale run. A push to `next`
 runs every lane, keeps running when a later push lands, and saves the Xcode
-compilation caches. To re-verify a ref without pushing, dispatch Next CI with
-`verify` on: `gh workflow run ci-next.yml --ref next -f verify=true`. Nothing on
-`next` signs, versions, or publishes. Upload
+compilation caches. Nothing on `next` signs, versions, or publishes. Upload
 reviewed screenshots or recordings with `gh pr comment <n> --attach ./file.png`;
 never commit them.
+
+Every Next CI run starts with `Select affected lanes`, which checks relative
+Markdown links and anchors offline, then runs the shared scan: Actionlint and
+Zizmor on `next` pushes that change `.github/`, and on every workflow when Next
+CI is dispatched. GitHub secret scanning and push protection catch secrets at
+push time. To re-verify a ref without pushing, dispatch Next CI with `verify`
+on: `gh workflow run ci-next.yml --ref next -f verify=true`.
 
 ## Skills
 
