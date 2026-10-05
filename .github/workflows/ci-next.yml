@@ -10,6 +10,12 @@ on:
     branches:
       - next
   workflow_dispatch:
+    inputs:
+      verify:
+        description: Run every macOS lane, as a push to next does. Off runs only links and the full-history scan.
+        required: false
+        default: false
+        type: boolean
 
 # Pull requests share a group per ref so a new push cancels the stale run. Each
 # push to next and each dispatch gets its own group, so every merged commit keeps
@@ -36,11 +42,12 @@ jobs:
     # This job runs on every event, so it also checks Markdown links and scans
     # each pushed range. A link or scan failure fails this job without skipping
     # the lanes, which use `!cancelled()`. A dispatch runs only this job: links
-    # plus a scan that audits every workflow.
+    # plus a scan that audits every workflow. A dispatch with `verify` also runs
+    # every lane; only pushes save compilation caches and Simulator templates.
     outputs:
-      code: ${{ github.event_name == 'push' || steps.filter.outputs.code == 'true' }}
-      ios: ${{ github.event_name == 'push' || steps.filter.outputs.ios == 'true' }}
-      tvos: ${{ github.event_name == 'push' || steps.filter.outputs.tvos == 'true' }}
+      code: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.code == 'true' }}
+      ios: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.ios == 'true' }}
+      tvos: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.tvos == 'true' }}
       markdown: ${{ github.event_name == 'pull_request' && steps.filter.outputs.markdown == 'true' }}
     steps:
       - name: Classify changed paths
@@ -111,7 +118,8 @@ jobs:
         run: pnpm run markdown:check
 
   # Five macOS jobs fill the organization's concurrent macOS limit, so a run
-  # that overlaps another queues until slots free up.
+  # that overlaps another, a `verify` dispatch included, queues until slots
+  # free up.
   checks:
     name: Checks
     needs: changes
