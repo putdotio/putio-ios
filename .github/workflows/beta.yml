@@ -31,7 +31,7 @@ permissions:
 jobs:
   dispatch:
     name: Validate and queue the protected legacy beta workflow
-    uses: ./.github/workflows/legacy-ios-dispatch.yml
+    uses: ./.github/workflows/legacy-ios-dispatch.yml # zizmor: ignore[self-repository]
     with:
       operation: beta
       legacy_ref: ${{ inputs.legacy_ref }}
