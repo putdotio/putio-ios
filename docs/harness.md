@@ -288,10 +288,11 @@ the iOS launch-proof subset in `mise run harness-ci` on its own runner, five in
 parallel; the proof reuses the build runner's compilation cache. Pull requests
 skip the iOS lanes and proof when every change is tvOS-only or documentation, and
 the tvOS suites when every change is iOS- or watchOS-only or documentation;
-pushes to `next` run every lane. Each runner enables Xcode compilation caching
-through `XCODE_XCCONFIG_FILE`; pushes to `next` build on that ISO week's cache
-and save it, the first push of a week builds cold, and pull requests restore the
-latest one. Runners also reuse a cached harness binary keyed on its sources, and
+pushes to `next` and dispatches with `verify` run every lane. Each runner
+enables Xcode compilation caching through `XCODE_XCCONFIG_FILE`; pushes to
+`next` build on that ISO week's cache and save it, the first push of a week
+builds cold, and pull requests restore the latest one. Runners also reuse a
+cached harness binary keyed on its sources, and
 skip `tuist install` when its dependency cache matches exactly. A Simulator boot
 that takes 3 minutes or more prints its `bootstatus` progress. The iOS tests and
 proof jobs restore a cached `putio-template-*` device that has already booted
