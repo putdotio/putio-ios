@@ -6,6 +6,8 @@ updates:
       - /.github/actions/*
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 1
     groups:
       actions-patch-minor:
         update-types: ["patch", "minor"]
@@ -33,6 +35,8 @@ updates:
       - /Tuist
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 1
     groups:
       swift-patch-minor:
         update-types: ["patch", "minor"]

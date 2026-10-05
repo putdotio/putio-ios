@@ -77,18 +77,22 @@ runs:
         mkdir -p ~/.cache/putio-harness
         cp "$(swift build --package-path Tools/PutioHarness --show-bin-path)/putio-harness" ~/.cache/putio-harness/
 
+    # zizmor flags GITHUB_ENV writes in composite actions; this path comes from
+    # the runner's $HOME, not from event input.
     - name: Use the harness binary
       shell: bash
-      run: echo "PUTIO_HARNESS_BINARY=$HOME/.cache/putio-harness/putio-harness" >> "$GITHUB_ENV"
+      run: echo "PUTIO_HARNESS_BINARY=$HOME/.cache/putio-harness/putio-harness" >> "$GITHUB_ENV" # zizmor: ignore[github-env]
 
     # Compilation cache entries are keyed by inputs and absolute paths, so they
     # survive fresh DerivedData on the fixed runner checkout path. Pushes to
     # next build on this ISO week's cache and save it; the first push of a week
     # builds cold, so stale entries stop accumulating. Pull requests restore the
-    # latest cache and save none.
+    # latest cache and save none. The GITHUB_ENV values come from $RUNNER_TEMP
+    # and the date, not from event input, so zizmor's github-env finding is a
+    # false positive.
     - name: Enable Xcode compilation caching
       shell: bash
-      run: |
+      run: | # zizmor: ignore[github-env]
         printf 'COMPILATION_CACHE_ENABLE_CACHING = YES\n' > "$RUNNER_TEMP/compilation-cache.xcconfig"
         printf 'XCODE_XCCONFIG_FILE=%s\n' "$RUNNER_TEMP/compilation-cache.xcconfig" >> "$GITHUB_ENV"
         printf 'PUTIO_CAS_WEEK=%s\n' "$(date -u +%G-%V)" >> "$GITHUB_ENV"
