@@ -16,6 +16,9 @@ and logs out when the session ends. It logs in with the account id and the
 sends nothing else. Intercom keeps its user across launches, so a relaunch
 reuses the login, and a session that ended while the app was closed is logged
 out on the next launch, the one case that starts Intercom while signed out.
+Only one login runs at a time: a session change waits for the login in flight,
+and if that login landed for someone the session no longer wants, it is logged
+out before the next one starts.
 
 Account › Contact us opens the messenger once the login finished. While it is
 logging in, or without keys or a hash, it opens an email to support; after a

@@ -76,6 +76,41 @@ final class SupportMessengerTests: XCTestCase {
     XCTAssertEqual(client.calls.filter { $0 == .logOut }.count, 1, "the stale failure logged out")
   }
 
+  func testALateLoginOfThePreviousUserIsLoggedOutBeforeTheNextOne() throws {
+    let client = RecordingSupportClient(defersCompletions: true)
+    let messenger = try makeMessenger(client)
+    let other = PutioSupportIdentity(userID: "2002", userHash: "other-hash")
+    messenger.sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
+    messenger.sessionDidChange(.signedOut(.userSignedOut), identity: nil)
+    messenger.sessionDidChange(.signedIn(Self.account(id: 2002)), identity: other)
+    XCTAssertEqual(client.calls, [.start, .logIn("1001", "synthetic-hash")], "logins overlapped")
+
+    client.complete(0, succeeded: true)
+    XCTAssertEqual(
+      client.calls,
+      [.start, .logIn("1001", "synthetic-hash"), .logOut, .logIn("2002", "other-hash")])
+    client.complete(1, succeeded: true)
+    XCTAssertEqual(messenger.login, .loggedIn(userID: "2002"))
+  }
+
+  func testARelaunchReusesTheSameUserAndReplacesAnotherOne() throws {
+    let defaults = try makeDefaults()
+    let first = RecordingSupportClient()
+    PutioSupportMessenger(configuration: configuration, client: first, defaults: defaults)
+      .sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
+
+    let sameUser = RecordingSupportClient()
+    PutioSupportMessenger(configuration: configuration, client: sameUser, defaults: defaults)
+      .sessionDidChange(.signedIn(Self.account(id: 1001)), identity: identity)
+    XCTAssertEqual(sameUser.calls, [.start, .logIn("1001", "synthetic-hash")])
+
+    let other = PutioSupportIdentity(userID: "2002", userHash: "other-hash")
+    let otherUser = RecordingSupportClient()
+    PutioSupportMessenger(configuration: configuration, client: otherUser, defaults: defaults)
+      .sessionDidChange(.signedIn(Self.account(id: 2002)), identity: other)
+    XCTAssertEqual(otherUser.calls, [.start, .logOut, .logIn("2002", "other-hash")])
+  }
+
   func testContactUsWaitsForTheLoginAndRetriesAFailedOneOnce() throws {
     var opened: [URL] = []
     let client = RecordingSupportClient(defersCompletions: true)

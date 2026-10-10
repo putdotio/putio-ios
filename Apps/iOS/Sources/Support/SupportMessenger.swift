@@ -38,15 +38,28 @@ final class PutioSupportMessenger {
   static let shared = PutioSupportMessenger(
     configuration: IntercomConfiguration(), client: IntercomSupportClient())
   static let supportEmail = URL(string: "mailto:support@put.io")!
-  /// Intercom keeps its user across launches, so a login attempt is remembered
-  /// until a logout clears it, even if the session ends while the app is closed.
-  static let loginAttemptedKey = "io.put.support.login-attempted"
+  /// Intercom keeps its user across launches, so the id of the last login
+  /// attempt is kept until a logout clears it, even if the session ends while
+  /// the app is closed.
+  static let attemptedUserKey = "io.put.support.attempted-user-id"
+
+  /// The login the session wants, numbered so a completion can tell whether it
+  /// still answers the current request.
+  private struct Request {
+    let identity: PutioSupportIdentity
+    let number: UInt64
+    let retrying: Bool
+    let finished: (@MainActor (Bool) -> Void)?
+  }
 
   private let configuration: IntercomConfiguration?
   private let client: any SupportMessengerClient
   private let defaults: UserDefaults
   private var isStarted = false
-  private var attempt: UInt64 = 0
+  private var requests: UInt64 = 0
+  private var wanted: Request?
+  /// Intercom runs one login at a time; a newer request waits for it.
+  private var inFlight: UInt64?
   private(set) var login = Login.idle
 
   init(
@@ -67,8 +80,8 @@ final class PutioSupportMessenger {
       // Without put.io's hash identity verification rejects the login.
       guard let identity else { return endSession() }
       guard identity.userID != login.userID else { return }
-      endSession()
-      logIn(identity, retrying: false)
+      if login != .idle { endSession() }
+      request(identity, retrying: false)
     case .signedOut, .authenticating, .signingOut, .signOutFailed:
       endSession()
     }
@@ -82,7 +95,7 @@ final class PutioSupportMessenger {
     case .loggedIn:
       client.present()
     case .failed(let identity):
-      logIn(identity, retrying: true) { [client] succeeded in
+      request(identity, retrying: true) { [client] succeeded in
         succeeded ? client.present() : openURL(Self.supportEmail)
       }
     case .idle, .loggingIn, .retryFailed:
@@ -90,54 +103,70 @@ final class PutioSupportMessenger {
     }
   }
 
-  private func logIn(
+  private func request(
     _ identity: PutioSupportIdentity, retrying: Bool,
     finished: (@MainActor (Bool) -> Void)? = nil
   ) {
-    guard let configuration else { return }
-    if !isStarted {
-      client.start(configuration)
-      isStarted = true
-    }
-    attempt &+= 1
-    let current = attempt
+    requests &+= 1
+    wanted = Request(identity: identity, number: requests, retrying: retrying, finished: finished)
     login = .loggingIn(userID: identity.userID)
-    defaults.set(true, forKey: Self.loginAttemptedKey)
-    client.logIn(identity) { [weak self] succeeded in
-      guard let self else { return }
-      guard current == attempt else {
-        // The session moved on while this login was in flight.
-        if succeeded, login == .idle {
-          defaults.set(true, forKey: Self.loginAttemptedKey)
-          logOutAttemptedUser()
-        }
-        return
-      }
-      if succeeded {
-        login = .loggedIn(userID: identity.userID)
-      } else {
-        logOutAttemptedUser()
-        login = retrying ? .retryFailed(userID: identity.userID) : .failed(identity)
-      }
-      finished?(succeeded)
+    startNextLogin()
+  }
+
+  private func startNextLogin() {
+    guard inFlight == nil, let wanted, let configuration else { return }
+    startIfNeeded(configuration)
+    if let held = attemptedUserID, held != wanted.identity.userID { logOutAttemptedUser() }
+    inFlight = wanted.number
+    defaults.set(wanted.identity.userID, forKey: Self.attemptedUserKey)
+    client.logIn(wanted.identity) { [weak self] succeeded in
+      self?.loginFinished(wanted, succeeded: succeeded)
     }
   }
 
+  private func loginFinished(_ attempt: Request, succeeded: Bool) {
+    inFlight = nil
+    guard let wanted, wanted.identity.userID == attempt.identity.userID,
+      succeeded || wanted.number == attempt.number
+    else {
+      // Intercom may now hold a user the session no longer wants.
+      logOutAttemptedUser()
+      return startNextLogin()
+    }
+    self.wanted = nil
+    if succeeded {
+      login = .loggedIn(userID: wanted.identity.userID)
+    } else {
+      logOutAttemptedUser()
+      login =
+        wanted.retrying ? .retryFailed(userID: wanted.identity.userID) : .failed(wanted.identity)
+    }
+    wanted.finished?(succeeded)
+  }
+
   private func endSession() {
-    attempt &+= 1
+    wanted = nil
     login = .idle
-    logOutAttemptedUser()
+    // A login in flight is logged out when it lands.
+    if inFlight == nil { logOutAttemptedUser() }
+  }
+
+  private var attemptedUserID: String? {
+    defaults.string(forKey: Self.attemptedUserKey)
+  }
+
+  private func startIfNeeded(_ configuration: IntercomConfiguration) {
+    guard !isStarted else { return }
+    client.start(configuration)
+    isStarted = true
   }
 
   /// Logs out whoever a login may have left in Intercom, including a user from
   /// an earlier launch whose session ended while the app was closed.
   private func logOutAttemptedUser() {
-    guard let configuration, defaults.bool(forKey: Self.loginAttemptedKey) else { return }
-    if !isStarted {
-      client.start(configuration)
-      isStarted = true
-    }
+    guard let configuration, attemptedUserID != nil else { return }
+    startIfNeeded(configuration)
     client.logOut()
-    defaults.removeObject(forKey: Self.loginAttemptedKey)
+    defaults.removeObject(forKey: Self.attemptedUserKey)
   }
 }
