@@ -47,7 +47,7 @@ struct PrivacyControlsView: View {
             Text("Privacy controls")
           } footer: {
             Text(
-              "Sign-in, your files, transfers, playback, and these privacy choices. Always on; nothing optional is collected here."
+              "Required for login, security, account access, transfers, downloads, playback, billing operations, and remembering your choices. These cannot be turned off."
             )
           }
           Section {
@@ -56,7 +56,7 @@ struct PrivacyControlsView: View {
               .accessibilityIdentifier("privacy.diagnostics")
           } footer: {
             Text(
-              "Send crash and playback error reports so we can fix problems. They never include file names or content."
+              "Send crash reports, error details, and limited playback diagnostics so we can find and fix problems. We do not send filenames, media titles, URLs, search text, or tokens."
             )
           }
           Section {
@@ -68,7 +68,9 @@ struct PrivacyControlsView: View {
             .accessibilityIdentifier("privacy.product-analytics")
           } footer: {
             VStack(alignment: .leading, spacing: PutioTheme.Spacing.space2) {
-              Text("Share which features you use so we can improve the app.")
+              Text(
+                "Help us understand which apps and features work well by sending limited usage, device, billing, and playback information. We never send filenames, media titles, URLs, search text, or tokens."
+              )
               Text("These choices apply to every put.io app you sign in to.")
             }
           }
