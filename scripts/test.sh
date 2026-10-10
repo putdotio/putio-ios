@@ -12,6 +12,12 @@ if git grep --untracked -nE '^[[:space:]]*(@[A-Za-z_]+(\([^)]*\))?[[:space:]]+)*
   echo "test: import Sentry only in Apps/iOS/Sources/Telemetry/SentryTelemetry.swift." >&2
   exit 1
 fi
+# Intercom gets only the support identity, through one client.
+if git grep --untracked -nE '^[[:space:]]*(@[A-Za-z_]+(\([^)]*\))?[[:space:]]+)*import[[:space:]]+([a-z]+[[:space:]]+)?Intercom([.[:space:]]|$)' \
+  -- 'Apps/*.swift' 'Packages/*.swift' ':(exclude)Apps/iOS/Sources/Support/IntercomSupportClient.swift'; then
+  echo "test: import Intercom only in IntercomSupportClient.swift." >&2
+  exit 1
+fi
 swift format lint --strict --recursive Apps Packages Tests Tools Project.swift Tuist.swift Tuist/Package.swift
 swift test --package-path Packages/PutioCore
 swift test --package-path Tools/PutioHarness

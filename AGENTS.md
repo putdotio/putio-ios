@@ -23,6 +23,8 @@ see [Development](CONTRIBUTING.md#development).
   For routing changes, check [deep-link behavior](docs/deep-links.md).
 - Report crashes and errors only through the
   [telemetry boundary](docs/telemetry.md); nothing else imports Sentry.
+- Reach Intercom only through `Apps/iOS/Sources/Support`
+  ([support messenger](docs/support.md)).
 - Keep checked-in defaults, generation, and verification usable without accounts,
   tokens, secrets, or downloaded brand fonts.
 - Supporting docs use lowercase kebab-case under `docs/`; the uppercase root

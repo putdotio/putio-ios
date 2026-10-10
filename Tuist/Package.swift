@@ -7,5 +7,6 @@ let package = Package(
   dependencies: [
     .package(path: "../Packages/GoogleCastSDK"),
     .package(path: "../Packages/SentrySDK"),
+    .package(url: "https://github.com/intercom/intercom-ios-sp", exact: "19.9.0"),
   ]
 )

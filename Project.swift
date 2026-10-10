@@ -88,6 +88,22 @@ private let sentryBuildSettings: SettingsDictionary = [
   "PUTIO_SENTRY_DSN": "",
   "PUTIO_SENTRY_ENABLED": "YES",
 ]
+// Support messenger (#139), read by `IntercomConfiguration`. The checked-in
+// keys are empty, so local and CI builds never start Intercom; signed builds
+// supply them. Any `PUTIO_INTERCOM_ENABLED` other than `YES` is the kill switch.
+private let intercomBuildSettings: SettingsDictionary = [
+  "PUTIO_INTERCOM_API_KEY": "",
+  "PUTIO_INTERCOM_APP_ID": "",
+  "PUTIO_INTERCOM_ENABLED": "YES",
+]
+// The Intercom messenger offers attachments, and iOS requires these strings
+// for the system APIs the SDK links, as the 3.x app declares them.
+private let supportCameraUsage: Plist.Value = "Take photos to attach to support conversations."
+private let supportMicrophoneUsage: Plist.Value =
+  "Record audio for videos you attach to support conversations."
+private let supportPhotoLibraryUsage: Plist.Value = "Attach photos to support conversations."
+private let supportLocationUsage: Plist.Value =
+  "Share your location in a support conversation when you choose to."
 private func sentrySettings(releaseEnvironment: String) -> [Configuration] {
   [
     .debug(name: .debug, settings: ["PUTIO_SENTRY_ENVIRONMENT": "development"]),
@@ -130,6 +146,15 @@ let project = Project(
         "PUTIO_SENTRY_DSN": "$(PUTIO_SENTRY_DSN)",
         "PUTIO_SENTRY_ENABLED": "$(PUTIO_SENTRY_ENABLED)",
         "PUTIO_SENTRY_ENVIRONMENT": "$(PUTIO_SENTRY_ENVIRONMENT)",
+        "PUTIO_INTERCOM_API_KEY": "$(PUTIO_INTERCOM_API_KEY)",
+        "PUTIO_INTERCOM_APP_ID": "$(PUTIO_INTERCOM_APP_ID)",
+        "PUTIO_INTERCOM_ENABLED": "$(PUTIO_INTERCOM_ENABLED)",
+        // No remote push yet; keep Intercom from swizzling the app delegate.
+        "IntercomAutoIntegratePushNotifications": false,
+        "NSCameraUsageDescription": supportCameraUsage,
+        "NSMicrophoneUsageDescription": supportMicrophoneUsage,
+        "NSPhotoLibraryUsageDescription": supportPhotoLibraryUsage,
+        "NSLocationWhenInUseUsageDescription": supportLocationUsage,
       ]),
       resources: brandFontResources(for: "ios"),
       buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
@@ -161,12 +186,14 @@ let project = Project(
         .package(product: "PutioCore"),
         .external(name: "GoogleCast"),
         .external(name: "Sentry"),
+        .external(name: "Intercom"),
         .target(name: "PutioWatch"),
       ],
       settings: .settings(
         base: castBuildSettings.merging(oauthBuildSettings) { $1 }
           .merging(appStoreBuildSettings) { $1 }
-          .merging(sentryBuildSettings) { $1 },
+          .merging(sentryBuildSettings) { $1 }
+          .merging(intercomBuildSettings) { $1 },
         configurations: sentrySettings(releaseEnvironment: "production"))
     ),
     // The nightly flavor: same iOS sources, its own bundle ID so it installs
@@ -193,6 +220,15 @@ let project = Project(
         "PUTIO_SENTRY_DSN": "$(PUTIO_SENTRY_DSN)",
         "PUTIO_SENTRY_ENABLED": "$(PUTIO_SENTRY_ENABLED)",
         "PUTIO_SENTRY_ENVIRONMENT": "$(PUTIO_SENTRY_ENVIRONMENT)",
+        "PUTIO_INTERCOM_API_KEY": "$(PUTIO_INTERCOM_API_KEY)",
+        "PUTIO_INTERCOM_APP_ID": "$(PUTIO_INTERCOM_APP_ID)",
+        "PUTIO_INTERCOM_ENABLED": "$(PUTIO_INTERCOM_ENABLED)",
+        // No remote push yet; keep Intercom from swizzling the app delegate.
+        "IntercomAutoIntegratePushNotifications": false,
+        "NSCameraUsageDescription": supportCameraUsage,
+        "NSMicrophoneUsageDescription": supportMicrophoneUsage,
+        "NSPhotoLibraryUsageDescription": supportPhotoLibraryUsage,
+        "NSLocationWhenInUseUsageDescription": supportLocationUsage,
       ]),
       resources: .resources(
         brandFontResourceElements(for: "ios") + [
@@ -204,11 +240,13 @@ let project = Project(
         .package(product: "PutioCore"),
         .external(name: "GoogleCast"),
         .external(name: "Sentry"),
+        .external(name: "Intercom"),
       ],
       settings: .settings(
         base: castBuildSettings.merging(oauthBuildSettings) { $1 }
           .merging(appStoreBuildSettings) { $1 }
           .merging(sentryBuildSettings) { $1 }
+          .merging(intercomBuildSettings) { $1 }
           .merging(["ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon"]) { $1 },
         configurations: sentrySettings(releaseEnvironment: "nightly"))
     ),

@@ -1,0 +1,15 @@
+{
+  "originHash" : "de9b6c0fd7c387e5e25a09bdc1db61936e07a903621b1934f40cc071db1cc7d1",
+  "pins" : [
+    {
+      "identity" : "intercom-ios-sp",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/intercom/intercom-ios-sp",
+      "state" : {
+        "revision" : "4c01efd7230dd7b66809bcb499cdcce40f1822b2",
+        "version" : "19.9.0"
+      }
+    }
+  ],
+  "version" : 3
+}

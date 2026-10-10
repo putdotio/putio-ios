@@ -48,6 +48,8 @@ struct SessionRootView: View {
     }
     .onChange(of: runtime.session.state, initial: true) { previous, state in
       PutioDiagnostics.sessionDidChange(state)
+      PutioSupportMessenger.shared.sessionDidChange(
+        state, identity: runtime.session.supportIdentity)
       deepLinks.updateSession(state)
       if case .signedIn(let previousAccount) = previous {
         if case .signedIn(let currentAccount) = state, previousAccount.id == currentAccount.id {
