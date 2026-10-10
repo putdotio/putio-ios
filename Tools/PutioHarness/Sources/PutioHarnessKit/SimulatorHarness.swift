@@ -303,8 +303,12 @@ final class OwnedSimulator: @unchecked Sendable {
 }
 
 /// iOS Simulator jobs for features the apps and tests never touch: Siri and
-/// intelligence, Health and Fitness, Mail and Calendar sync, widgets, Game
-/// Center, the App Store, Home, Wallet, Find My, and Watch pairing.
+/// intelligence, Health and Fitness, Mail and Calendar sync, widgets, the App
+/// Store, Home, Wallet, Find My, and Watch pairing.
+///
+/// Game Center's `com.apple.gamed` stays loaded: Xcode's DTServiceHub looks it
+/// up on every app launch, and without it each `XCUIApplication.launch()`
+/// waits about 10 seconds before the app starts.
 let unusedSimulatorJobs = [
   "com.apple.activityawardsd",
   "com.apple.activitysharingd",
@@ -337,7 +341,6 @@ let unusedSimulatorJobs = [
   "com.apple.fitcore",
   "com.apple.fitnesscoachingd",
   "com.apple.fitnessintelligenced",
-  "com.apple.gamed",
   "com.apple.generativeexperiencesd",
   "com.apple.geoanalyticsd",
   "com.apple.healthd",

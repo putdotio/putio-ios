@@ -23,7 +23,8 @@ archives. Release builds ignore harness launch arguments. `test` compiles its
 suites before it creates a Simulator, because a freshly booted one keeps every
 core busy. Right after an iOS Simulator boots, the harness unloads the system
 jobs the apps never use, such as Siri, Health, and Mail sync, which roughly
-halves that work. Commands that take 10 seconds or more print their duration.
+halves that work. Game Center stays loaded: Xcode looks it up on every UI-test
+app launch, and each launch waits about 10 seconds without it. Commands that take 10 seconds or more print their duration.
 
 ## Choose the proof
 
