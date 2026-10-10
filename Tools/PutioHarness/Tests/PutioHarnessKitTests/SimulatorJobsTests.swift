@@ -10,7 +10,8 @@ struct SimulatorJobsTests {
     defer { try? FileManager.default.removeItem(at: root) }
     let runtimeRoot = root.appending(path: "RuntimeRoot")
     let daemon = runtimeRoot.appending(path: "System/Library/LaunchDaemons/com.apple.chronod.plist")
-    let agent = runtimeRoot.appending(path: "System/Library/LaunchAgents/com.apple.assistantd.plist")
+    let agent = runtimeRoot.appending(
+      path: "System/Library/LaunchAgents/com.apple.assistantd.plist")
     let kept = runtimeRoot.appending(path: "System/Library/LaunchDaemons/com.apple.securityd.plist")
     // DTServiceHub needs gamed for every UI-test app launch.
     let keptGameCenter = runtimeRoot.appending(
