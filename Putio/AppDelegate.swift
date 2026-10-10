@@ -3,7 +3,6 @@ import Intercom
 import RealmSwift
 import PutioSDK
 import SwiftyBeaver
-import Sentry
 import GoogleCast
 
 let log = SwiftyBeaver.self
@@ -76,11 +75,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         PutioRealm.setup()
 
         if SENTRY_ENABLED {
-            SentrySDK.start { options in
-                options.dsn = SENTRY_DSN
-                options.enableAutoSessionTracking = true
-                options.sessionTrackingIntervalMillis = 60000
-            }
+            SentryTelemetry.start(dsn: SENTRY_DSN)
         }
 
         if INTERCOM_ENABLED {
@@ -165,7 +160,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         if SENTRY_ENABLED {
-            SentrySDK.capture(error: error)
+            SentryTelemetry.capture(TelemetryFailure(.pushRegistration, error: error))
         }
     }
 

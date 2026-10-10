@@ -2,7 +2,6 @@ import Foundation
 import AVFoundation
 import RealmSwift
 import UserNotifications
-import Sentry
 import NotificationCenter
 
 class DownloadManager: NSObject {
@@ -187,11 +186,7 @@ class DownloadManager: NSObject {
 
         guard let url = DownloadSupport.url(from: download.path, context: "DownloadManager.deleteDownloadedAssetFromDisk") else { return }
         guard DownloadSupport.deleteItemIfPresent(at: url, context: "DownloadManager.deleteDownloadedAssetFromDisk.remove") else {
-            SentrySDK.capture(error: NSError(
-                domain: "DownloadManager",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Unable to delete downloaded asset at \(url.path)"]
-            ))
+            SentryTelemetry.capture(TelemetryFailure(.downloadedAssetDeletion))
             return
         }
     }

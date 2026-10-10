@@ -68,6 +68,7 @@ Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-
 - Route put.io API behavior through the local SDK wrapper in `Putio/Common/API` unless a focused system API is the smaller choice
 - Use `PutioRealm` helpers for Realm open/write paths and include useful context strings for diagnostics
 - Surface unexpected internal failures with `InternalFailurePresenter` instead of silent returns
+- Report failures to Sentry only as `SentryTelemetry.capture(TelemetryFailure(...))`: a category, the error's domain and code, and allowlisted context, never messages, URLs, or file names. `SentryTelemetry.redact` filters every event and breadcrumb, and `verify-fast` rejects `import Sentry` outside `Putio/Common/Telemetry`
 - Update UI on the main thread, but keep expensive network response parsing, image decoding, and PDF parsing off the main thread
 - Make every async loading path finish cleanly on success, failure, cancellation, and back navigation
 - Put user-facing copy in localized strings; when Swift copy changes, update `Putio/en.lproj/Localizable.strings`
@@ -85,4 +86,5 @@ Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-
 
 - Auth callback handling, post-login persistence, and user-facing recovery copy are covered by `PutioTests/ErrorPresentationTests.swift` and `PutioTests/PutioRealmTests.swift`
 - Files action labels and related localization expectations are covered by `PutioTests/NavigationLocalizationTests.swift`
+- Telemetry redaction is covered by `PutioTests/SentryTelemetryTests.swift`, which fails when a Sentry upgrade adds an event field the boundary has not reviewed
 - File preview changes should be smoke-tested in Simulator with real image and PDF files when possible

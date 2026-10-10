@@ -1,7 +1,6 @@
 import UIKit
 import RealmSwift
 import StatefulViewController
-import Sentry
 
 class DownloadsViewController: UIViewController, DownloadedFilePresenter, StatefulViewController {
     @IBOutlet weak var tableView: UITableView!
@@ -162,7 +161,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
                     }
                 }
             case .error(let error):
-                SentrySDK.capture(error: error)
+                SentryTelemetry.capture(TelemetryFailure(.downloadsObservation, error: error))
             }
 
             self.reconcileSelectionAfterDownloadsChange()

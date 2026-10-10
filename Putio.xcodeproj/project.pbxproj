@@ -43,6 +43,10 @@
 		810000000000000000000002 /* DownloadsViewController+TableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 810000000000000000000004 /* DownloadsViewController+TableView.swift */; };
 		810000000000000000000005 /* DownloadsSelectionSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 810000000000000000000006 /* DownloadsSelectionSupport.swift */; };
 		8B5C2D1E4F60718293A4B5C6 /* ErrorPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */; };
+		0DE80D10D3D86F6F049BA7D1 /* TelemetryRedactionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A46A3807E5A8F00A49BCDE1 /* TelemetryRedactionTests.swift */; };
+		125E0CAD12FD631739C87B9C /* TelemetryRedaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E6937F6A8894242DFB0B58 /* TelemetryRedaction.swift */; };
+		86BF154D3B0B37FF6B673E89 /* SentryTelemetryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C22F65CCDE7A7515A9184817 /* SentryTelemetryTests.swift */; };
+		DE4E255A75D0AB510B1623B7 /* SentryTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE72AC5255691B21C30248E2 /* SentryTelemetry.swift */; };
 		9554916755C204A76581CC3A /* Pods_PutioTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7010BA68B2C5ECA69752D4D4 /* Pods_PutioTests.framework */; };
 		9C3E5A7B2D4F6A8C0E1B3D5F /* HistoryErrorUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B2D4F6A1C3E5A7B9D0F2A4C /* HistoryErrorUITests.swift */; };
 		AA4ADDA00F4D5221A3ABBB60 /* TypeScaleRampArtifactTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A924230BA95F3FB946456266 /* TypeScaleRampArtifactTests.swift */; };
@@ -219,6 +223,10 @@
 		7F8A9B0C1D2E3F4A5B6C7D8E /* BrandFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandFont.swift; sourceTree = "<group>"; };
 		8B2D4F6A1C3E5A7B9D0F2A4C /* HistoryErrorUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryErrorUITests.swift; sourceTree = "<group>"; };
 		8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ErrorPresentationTests.swift; sourceTree = "<group>"; };
+		6A46A3807E5A8F00A49BCDE1 /* TelemetryRedactionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TelemetryRedactionTests.swift; sourceTree = "<group>"; };
+		A5E6937F6A8894242DFB0B58 /* TelemetryRedaction.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TelemetryRedaction.swift; sourceTree = "<group>"; };
+		C22F65CCDE7A7515A9184817 /* SentryTelemetryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SentryTelemetryTests.swift; sourceTree = "<group>"; };
+		CE72AC5255691B21C30248E2 /* SentryTelemetry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SentryTelemetry.swift; sourceTree = "<group>"; };
 		8B9C0D1E2F3A4B5C6D7E8F90 /* BrandTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandTypography.swift; sourceTree = "<group>"; };
 		9061977704DB05372D01A172 /* PutioKeychainTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioKeychainTests.swift; sourceTree = "<group>"; };
 		969D8492C4F12034E0FD0421 /* FilesViewController+Navigation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "FilesViewController+Navigation.swift"; sourceTree = "<group>"; };
@@ -385,6 +393,8 @@
 				103000000000000000000004 /* AudioPlayerTests.swift */,
 				333E41E81298A2E8796ACE97 /* APIErrorLocalizerTests.swift */,
 				8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */,
+				C22F65CCDE7A7515A9184817 /* SentryTelemetryTests.swift */,
+				6A46A3807E5A8F00A49BCDE1 /* TelemetryRedactionTests.swift */,
 				C2B1049C9B1A0CA9C66F6CD2 /* HistoryViewModelTests.swift */,
 				109100000000000000000002 /* DownloadQueueControllerTests.swift */,
 				7A112233445566778899AABC /* NavigationLocalizationTests.swift */,
@@ -547,8 +557,18 @@
 				ACAA622223BD02F60043458C /* Managers */,
 				AC6546581FAB3F4800E278EE /* Extensions */,
 				AC6546511FAB2CCF00E278EE /* Helpers */,
+				ED212A81898D2AFE9244F57C /* Telemetry */,
 			);
 			path = Common;
+			sourceTree = "<group>";
+		};
+		ED212A81898D2AFE9244F57C /* Telemetry */ = {
+			isa = PBXGroup;
+			children = (
+				CE72AC5255691B21C30248E2 /* SentryTelemetry.swift */,
+				A5E6937F6A8894242DFB0B58 /* TelemetryRedaction.swift */,
+			);
+			path = Telemetry;
 			sourceTree = "<group>";
 		};
 		ACAA621E23BD02620043458C /* Features */ = {
@@ -1168,6 +1188,8 @@
 				103000000000000000000003 /* AudioPlayerTests.swift in Sources */,
 				0E4F147822C01DF9814EE2C9 /* APIErrorLocalizerTests.swift in Sources */,
 				8B5C2D1E4F60718293A4B5C6 /* ErrorPresentationTests.swift in Sources */,
+				86BF154D3B0B37FF6B673E89 /* SentryTelemetryTests.swift in Sources */,
+				0DE80D10D3D86F6F049BA7D1 /* TelemetryRedactionTests.swift in Sources */,
 				51D9E494DFC76AF375536663 /* HistoryViewModelTests.swift in Sources */,
 				109100000000000000000001 /* DownloadQueueControllerTests.swift in Sources */,
 				7A112233445566778899AABB /* NavigationLocalizationTests.swift in Sources */,
@@ -1298,6 +1320,8 @@
 				7F88FAC086E3EACC35AEAD10 /* UIStoryboard+TypedInstantiation.swift in Sources */,
 				CEBF9BFFE49971BF6934E873 /* InternalFailurePresenter.swift in Sources */,
 				66592A832C92EA206BAB25BF /* DownloadSupport.swift in Sources */,
+				DE4E255A75D0AB510B1623B7 /* SentryTelemetry.swift in Sources */,
+				125E0CAD12FD631739C87B9C /* TelemetryRedaction.swift in Sources */,
 				109000000000000000000001 /* DownloadQueueController.swift in Sources */,
 				F9E4EEE0C7237C463865FD19 /* FilesViewController+Navigation.swift in Sources */,
 				49366D1A1B213117EB390D4E /* FilesViewController+Playback.swift in Sources */,

@@ -2,7 +2,6 @@ import UIKit
 import Foundation
 import UserNotifications
 import AVFoundation
-import Sentry
 
 class Utils {
     static func delayWithSeconds(_ seconds: Double, completion: @escaping () -> Void) {
