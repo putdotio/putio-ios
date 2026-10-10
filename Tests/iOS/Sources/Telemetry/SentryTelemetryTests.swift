@@ -91,6 +91,47 @@ final class SentryTelemetryTests: XCTestCase {
     XCTAssertNil(options.beforeSend?(makeLeakyEvent()))
   }
 
+  func testTransportCancelsEveryUploadWhileDiagnosticsAreOff() throws {
+    let options = Options()
+    SentryTelemetry.configure(options)
+    let gate = try XCTUnwrap(options.urlSessionDelegate as? SentryTransportGate)
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.invalidateAndCancel() }
+    let envelope = try XCTUnwrap(URL(string: "https://relay.example.invalid/api/1/envelope/"))
+
+    allowCapture(true)
+    let allowed = session.dataTask(with: envelope)
+    gate.urlSession(session, didCreateTask: allowed)
+    XCTAssertEqual(allowed.state, .suspended)
+
+    allowCapture(false)
+    let blocked = session.dataTask(with: envelope)
+    gate.urlSession(session, didCreateTask: blocked)
+    XCTAssertNotEqual(blocked.state, .suspended, "an upload left while diagnostics were off")
+  }
+
+  func testSwitchingOffDiscardsEverythingWaitingForUpload() throws {
+    let options = Options()
+    SentryTelemetry.configure(options)
+    XCTAssertEqual(options.cacheDirectoryPath, SentryTelemetry.cacheDirectory.path)
+    let pending = SentryTelemetry.cacheDirectory.appending(path: "envelopes/pending")
+    try FileManager.default.createDirectory(
+      at: pending.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data("synthetic".utf8).write(to: pending)
+    let configuration = try XCTUnwrap(
+      SentryConfiguration(info: [
+        "PUTIO_SENTRY_ENABLED": "YES", "PUTIO_SENTRY_DSN": "https://k@relay.put.io/1",
+        "CFBundleIdentifier": "io.put.synthetic", "CFBundleShortVersionString": "1",
+        "CFBundleVersion": "1",
+      ]))
+    allowCapture(true)
+
+    SentryTelemetry.setCapturing(false, configuration: configuration)
+
+    XCTAssertFalse(SentryTelemetry.isCapturing)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: SentryTelemetry.cacheDirectory.path))
+  }
+
   private func allowCapture(_ enabled: Bool) {
     let previous = SentryTelemetry.isCapturing
     SentryTelemetry.isCapturing = enabled

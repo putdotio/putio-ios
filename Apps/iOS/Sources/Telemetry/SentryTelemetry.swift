@@ -22,11 +22,22 @@ enum SentryTelemetry {
     set { capturing.withLock { $0 = newValue } }
   }
 
+  /// Where Sentry keeps envelopes and crash reports waiting for upload. The app
+  /// owns it so turning diagnostics off can discard them.
+  static let cacheDirectory = URL.cachesDirectory.appending(path: "io.put.diagnostics")
+
+  /// The SDK holds its session delegate weakly.
+  private static let transportGate = SentryTransportGate()
+
   /// Starts Sentry when capture is allowed and closes it when not, so no event,
   /// breadcrumb, or release-health session is recorded while diagnostics are off.
+  /// Closing queues a final session and uploads cached envelopes without
+  /// `beforeSend`; the transport gate cancels those uploads and the cache is
+  /// deleted, so nothing recorded before the switch-off leaves later either.
   static func setCapturing(_ enabled: Bool, configuration: SentryConfiguration) {
     isCapturing = enabled
-    if enabled, !SentrySDK.isEnabled {
+    if enabled {
+      guard !SentrySDK.isEnabled else { return }
       SentrySDK.start { options in
         options.dsn = configuration.dsn
         options.environment = configuration.environment
@@ -35,13 +46,16 @@ enum SentryTelemetry {
         options.sessionTrackingIntervalMillis = 60000
         configure(options)
       }
-    } else if !enabled, SentrySDK.isEnabled {
-      SentrySDK.close()
+    } else {
+      if SentrySDK.isEnabled { SentrySDK.close() }
+      try? FileManager.default.removeItem(at: cacheDirectory)
     }
   }
 
   static func configure(_ options: Options) {
     options.sendDefaultPii = false
+    options.cacheDirectoryPath = cacheDirectory.path
+    options.urlSessionDelegate = transportGate
     options.beforeBreadcrumb = { isCapturing ? redact(breadcrumb: $0) : nil }
     options.beforeSend = { isCapturing ? redact(event: $0) : nil }
   }
@@ -131,5 +145,13 @@ enum SentryTelemetry {
         SentryNSError(domain: TelemetryRedaction.scrub($0.domain), code: $0.code)
       }
     }
+  }
+}
+
+/// Cancels every Sentry upload while diagnostics are off, including the cached
+/// envelopes the SDK sends on close and start without running `beforeSend`.
+final class SentryTransportGate: NSObject, URLSessionTaskDelegate, Sendable {
+  func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask) {
+    if !SentryTelemetry.isCapturing { task.cancel() }
   }
 }

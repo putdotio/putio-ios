@@ -17,13 +17,14 @@ public final class PutioDiagnosticsConsent {
   }
 
   /// Applies the session's answer and returns whether `isEnabled` changed.
-  /// Transitional states keep the current answer: restore has not resolved,
-  /// or the account is still on the device while signing out.
+  /// Transitional states keep the current answer: restore has not resolved or
+  /// failed with the credential kept, or the account is still on the device
+  /// while signing out.
   @discardableResult
   public func update(for state: PutioSessionState) -> Bool {
     let enabled: Bool
     switch state {
-    case .unknown, .signingOut, .signOutFailed:
+    case .unknown, .signedOut(.restoreFailed), .signingOut, .signOutFailed:
       return false
     case .signedOut, .authenticating:
       enabled = true

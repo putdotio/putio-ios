@@ -33,8 +33,12 @@ final class DiagnosticsConsentTests: XCTestCase {
 
     let relaunched = PutioDiagnosticsConsent(defaults: defaults)
     XCTAssertFalse(relaunched.isEnabled)
-    relaunched.update(for: .unknown)
-    XCTAssertFalse(relaunched.isEnabled)
+    for unresolved in [PutioSessionState.unknown, .signedOut(.restoreFailed("offline"))] {
+      XCTAssertFalse(relaunched.update(for: unresolved))
+      XCTAssertFalse(relaunched.isEnabled, "\(unresolved) turned diagnostics on")
+      XCTAssertFalse(
+        PutioDiagnosticsConsent(defaults: defaults).isEnabled, "\(unresolved) erased the opt-out")
+    }
 
     relaunched.update(for: .signedOut(.sessionExpired))
     XCTAssertTrue(PutioDiagnosticsConsent(defaults: defaults).isEnabled)

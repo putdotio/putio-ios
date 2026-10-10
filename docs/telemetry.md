@@ -1,8 +1,7 @@
 # Telemetry
 
 The iOS app reports crashes and errors to Sentry under the account's
-Diagnostics choice. The privacy contract is [putdotio/support#95](https://github.com/putdotio/support/issues/95); this page
-covers how the app keeps it.
+Diagnostics choice ([#139](https://github.com/putdotio/putio-ios/issues/139)).
 
 ## Diagnostics
 
@@ -23,6 +22,12 @@ the last account answer is kept so a cold launch honors an opt-out before the
 session restores. [PutioDiagnostics](../Apps/iOS/Sources/Telemetry/PutioDiagnostics.swift)
 starts Sentry at launch and on every session change, including the Account ›
 Privacy toggle, so turning Diagnostics off closes the SDK in the running app.
+A failed restore that keeps the credential leaves the answer as it was.
+
+Sentry queues envelopes and crash reports under `Caches/io.put.diagnostics`
+and uploads them on close and start without running `beforeSend`. Turning
+Diagnostics off, or launching with it off, deletes that folder, and a URL
+session delegate cancels every upload while it is off.
 
 ## Redaction
 
