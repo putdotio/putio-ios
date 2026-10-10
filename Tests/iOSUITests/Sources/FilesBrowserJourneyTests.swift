@@ -20,9 +20,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.launch()
 
     let signIn = element(identifier: "auth.sign-in")
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
 
     let unsupportedFile = documentRowBeforeEditing()
 
@@ -32,10 +32,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let edit = app.buttons["files.selection.toggle"]
     XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
     edit.tap()
-    XCTAssertTrue(app.staticTexts["Select Items"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Select Items"].appears(within: 5))
     XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
     let bulkMove = app.buttons["files.bulk.move"]
-    XCTAssertTrue(bulkMove.waitForExistence(timeout: 5), "bulk toolbar did not appear")
+    XCTAssertTrue(bulkMove.appears(within: 5), "bulk toolbar did not appear")
     XCTAssertEqual(unsupportedFile.value as? String, "Not selected")
     XCTAssertFalse(bulkMove.isEnabled)
 
@@ -59,12 +59,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(successFolder.value as? String, "Selected")
     XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
     edit.tap()
-    XCTAssertTrue(app.buttons["files.menu"].waitForExistence(timeout: 5))
-    XCTAssertTrue(bulkMove.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["files.menu"].appears(within: 5))
+    XCTAssertTrue(bulkMove.disappears(within: 5))
     openBrowseMenu()
     XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
     edit.tap()
-    XCTAssertTrue(bulkMove.waitForExistence(timeout: 5))
+    XCTAssertTrue(bulkMove.appears(within: 5))
     XCTAssertEqual(successFolder.value as? String, "Not selected")
     XCTAssertFalse(bulkMove.isEnabled, "ending selection retained the previous selection")
 
@@ -82,38 +82,38 @@ final class FilesBrowserJourneyTests: XCTestCase {
     bulkRemove.tap()
     XCTAssertFalse(app.buttons["files.bulk.remove-confirm"].exists)
     let progress = element(identifier: "files.bulk.progress")
-    XCTAssertTrue(progress.waitForExistence(timeout: 5))
+    XCTAssertTrue(progress.appears(within: 5))
     assertCurrentBulkProgress(progress, itemNames: ["Bulk Success", "Bulk Retry"])
     // One batched request: the server fails the whole batch or none of it.
     XCTAssertTrue(
-      app.staticTexts["Could not move items to Trash"].waitForExistence(timeout: 10)
+      app.staticTexts["Could not move items to Trash"].appears(within: 10)
     )
     let retry = app.buttons["files.bulk.retry"].firstMatch
     XCTAssertTrue(waitUntilHittable(retry, timeout: 5))
     retry.tap()
-    XCTAssertTrue(app.staticTexts["Moved 2 items to Trash."].waitForExistence(timeout: 10))
-    XCTAssertTrue(retryFolder.waitForNonExistence(timeout: 5))
-    XCTAssertTrue(successFolder.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Moved 2 items to Trash."].appears(within: 10))
+    XCTAssertTrue(retryFolder.disappears(within: 5))
+    XCTAssertTrue(successFolder.disappears(within: 5))
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
   }
 
   func testRunnableAlphaLoop() {
     app.launch()
 
     let signIn = element(identifier: "auth.sign-in")
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
     let root = element(identifier: "files.screen.0")
     addScreenshot(named: "runtime-sign-in")
 
     XCTAssertTrue(signIn.isHittable, "sign-in action is not tappable")
     signIn.tap()
-    XCTAssertTrue(root.waitForExistence(timeout: 10), "signed-in root browser never appeared")
+    XCTAssertTrue(root.appears(within: 10), "signed-in root browser never appeared")
 
     let rootVideo = element(identifier: "files.item.412")
     let done = element(identifier: "video.done")
@@ -130,21 +130,21 @@ final class FilesBrowserJourneyTests: XCTestCase {
       .completed,
       "root video tap did not select route 412"
     )
-    XCTAssertTrue(done.waitForExistence(timeout: 5), "root video screen never appeared")
+    XCTAssertTrue(done.appears(within: 5), "root video screen never appeared")
     let playbackError = element(identifier: "video.error")
     XCTAssertTrue(
-      playbackError.waitForExistence(timeout: 5),
+      playbackError.appears(within: 5),
       "invalid playback fixture did not produce a recoverable failure"
     )
     let retry = app.buttons["Try again"]
     XCTAssertTrue(retry.isHittable, "playback retry is not tappable")
     retry.tap()
     XCTAssertTrue(
-      element(identifier: "video.ready").waitForExistence(timeout: 10),
+      element(identifier: "video.ready").appears(within: 10),
       "root video never became ready near EOF"
     )
     let nextTitle = element(identifier: "video.next-title")
-    XCTAssertTrue(nextTitle.waitForExistence(timeout: 15), "next-video suggestion never appeared")
+    XCTAssertTrue(nextTitle.appears(within: 15), "next-video suggestion never appeared")
     XCTAssertFalse(
       rootVideo.isHittable,
       "root browser remained interactive while the next-video player was presented"
@@ -161,7 +161,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     add(nextVideoAttachment)
     XCTAssertTrue(
-      element(identifier: "video.ended").waitForExistence(timeout: 5),
+      element(identifier: "video.ended").appears(within: 5),
       "root video never reached EOF"
     )
     let reportedPosition = element(identifier: "video.position-reported")
@@ -191,7 +191,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(done.isHittable, "successor video Done button is not tappable")
     done.tap()
 
-    XCTAssertTrue(root.waitForExistence(timeout: 5), "successor video did not return to root")
+    XCTAssertTrue(root.appears(within: 5), "successor video did not return to root")
     let unwatchedRow = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value == %@", "Not watched"),
       object: rootVideo
@@ -206,14 +206,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(account.isHittable, "Account tab is not tappable")
     account.tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
     if !signOut.isHittable { app.swipeUp() }
     XCTAssertTrue(
       waitUntilHittable(signOut, timeout: 5), "sign-out action is not tappable")
     signOut.tap()
     app.confirmSignOut()
 
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
     addScreenshot(named: "runtime-signed-out")
   }
 
@@ -223,14 +223,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     ]
     app.launch()
     let account = app.buttons["Account"]
-    XCTAssertTrue(account.waitForExistence(timeout: 10), "seeded session did not restore")
+    XCTAssertTrue(account.appears(within: 10), "seeded session did not restore")
     account.tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
     signOut.tap()
     app.confirmSignOut()
     let retry = element(identifier: "auth.retry-sign-out")
-    XCTAssertTrue(retry.waitForExistence(timeout: 15), "failed sign-out did not offer retry")
+    XCTAssertTrue(retry.appears(within: 15), "failed sign-out did not offer retry")
     XCTAssertTrue(app.staticTexts["Sign-out did not finish"].exists)
     XCTAssertTrue(
       app.staticTexts.matching(
@@ -244,7 +244,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     addScreenshot(named: "runtime-sign-out-failure")
     XCTAssertTrue(retry.isHittable, "sign-out retry is not tappable")
     retry.tap()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "retry did not complete sign-out")
+    XCTAssertTrue(signIn.appears(within: 10), "retry did not complete sign-out")
     XCTAssertFalse(retry.exists)
   }
 
@@ -253,10 +253,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.launch()
 
     let signIn = element(identifier: "auth.sign-in")
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
     signIn.tap()
     XCTAssertTrue(
-      element(identifier: "files.screen.0").waitForExistence(timeout: 10),
+      element(identifier: "files.screen.0").appears(within: 10),
       "signed-in root browser never appeared"
     )
 
@@ -266,42 +266,42 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(delete.label, "Delete")
     delete.tap()
     XCTAssertTrue(
-      app.staticTexts["Delete “Delete Forever” permanently?"].waitForExistence(timeout: 5)
+      app.staticTexts["Delete “Delete Forever” permanently?"].appears(within: 5)
     )
     XCTAssertTrue(app.staticTexts["This item cannot be restored."].exists)
     let confirm = app.buttons["files.delete-confirm"].firstMatch
     XCTAssertTrue(waitUntilHittable(confirm, timeout: 5))
     XCTAssertEqual(confirm.label, "Delete")
     confirm.tap()
-    XCTAssertTrue(app.staticTexts["Item deleted"].waitForExistence(timeout: 5))
-    XCTAssertTrue(folder.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Item deleted"].appears(within: 5))
+    XCTAssertTrue(folder.disappears(within: 5))
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
   }
 
   func testTrashManagementRestoreRetryDeleteAndEmpty() {
     app.launch()
 
     let signIn = element(identifier: "auth.sign-in")
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
 
     app.buttons["Account"].tap()
     let trashEntry = element(identifier: "account.trash")
     XCTAssertTrue(waitUntilHittable(trashEntry, timeout: 5))
     let usedStorage = element(identifier: "account.storage-used")
-    XCTAssertTrue(usedStorage.waitForExistence(timeout: 5))
+    XCTAssertTrue(usedStorage.appears(within: 5))
     let usedBeforeDeletions = usedStorage.label
     trashEntry.tap()
 
     let restoreRow = app.staticTexts["Restore Me"]
-    XCTAssertTrue(restoreRow.waitForExistence(timeout: 10))
+    XCTAssertTrue(restoreRow.appears(within: 10))
     let refreshStart = restoreRow.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
     refreshStart.press(
       forDuration: 0.1,
@@ -310,16 +310,16 @@ final class FilesBrowserJourneyTests: XCTestCase {
       thenHoldForDuration: 1
     )
     let refreshError = app.staticTexts["Could not refresh Trash"]
-    XCTAssertTrue(refreshError.waitForExistence(timeout: 5), app.debugDescription)
+    XCTAssertTrue(refreshError.appears(within: 5), app.debugDescription)
     XCTAssertTrue(restoreRow.exists, "failed refresh discarded the loaded Trash page")
     addScreenshot(named: "runtime-trash-refresh-error")
     let retryRefresh = app.buttons["Try again"]
     XCTAssertTrue(waitUntilHittable(retryRefresh, timeout: 5))
     retryRefresh.tap()
-    XCTAssertTrue(refreshError.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(refreshError.disappears(within: 5))
     // The second page loads on its own, as Files pages do.
-    XCTAssertTrue(app.staticTexts["Empty Me"].waitForExistence(timeout: 5))
-    XCTAssertTrue(element(identifier: "trash.load-more").waitForNonExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Empty Me"].appears(within: 5))
+    XCTAssertTrue(element(identifier: "trash.load-more").disappears(within: 5))
     XCTAssertTrue(element(identifier: "trash.expiry-notice").exists)
     let restoreDetail = app.staticTexts.matching(
       NSPredicate(format: "label BEGINSWITH %@", "Expires on ")
@@ -331,73 +331,73 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
     XCTAssertEqual(trashMenu.label, "Trash Actions")
     trashMenu.tap()
-    XCTAssertTrue(app.buttons["trash.restore-all"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["trash.restore-all"].appears(within: 5))
     let select = app.buttons["trash.select"]
     XCTAssertTrue(waitUntilHittable(select, timeout: 5))
     select.tap()
     let bulkRestore = app.buttons["trash.bulk.restore"]
-    XCTAssertTrue(bulkRestore.waitForExistence(timeout: 5))
+    XCTAssertTrue(bulkRestore.appears(within: 5))
     XCTAssertFalse(bulkRestore.isEnabled)
     app.staticTexts["Empty Me"].tap()
     XCTAssertTrue(bulkRestore.isEnabled, "selecting a Trash row did not enable Restore")
     XCTAssertTrue(app.buttons["trash.bulk.delete"].isEnabled)
     app.buttons["trash.selection.done"].tap()
-    XCTAssertTrue(bulkRestore.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(bulkRestore.disappears(within: 5))
     let restoreActions = app.buttons["trash.item.419.actions"]
     XCTAssertTrue(waitUntilHittable(restoreActions, timeout: 5))
     restoreActions.tap()
     let restore = app.buttons["trash.restore.419"]
     XCTAssertTrue(waitUntilHittable(restore, timeout: 5))
     restore.tap()
-    XCTAssertTrue(element(identifier: "trash.progress").waitForExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "trash.progress").appears(within: 5))
     app.navigationBars.buttons.element(boundBy: 0).tap()
 
     app.buttons["Files"].tap()
     XCTAssertTrue(
-      element(identifier: "files.item.419").waitForExistence(timeout: 10),
+      element(identifier: "files.item.419").appears(within: 10),
       "restored item did not return to its authoritative root destination"
     )
     app.buttons["Account"].tap()
     XCTAssertTrue(waitUntilHittable(trashEntry, timeout: 5))
     trashEntry.tap()
-    XCTAssertTrue(app.staticTexts["Delete Me"].waitForExistence(timeout: 5))
-    XCTAssertTrue(restoreRow.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Delete Me"].appears(within: 5))
+    XCTAssertTrue(restoreRow.disappears(within: 5))
 
     let deleteRow = app.staticTexts["Delete Me"]
-    XCTAssertTrue(deleteRow.waitForExistence(timeout: 5))
+    XCTAssertTrue(deleteRow.appears(within: 5))
     permanentlyDeleteTrashItem(id: 420, name: "Delete Me")
     XCTAssertTrue(
-      app.staticTexts["Could not permanently delete item"].waitForExistence(timeout: 5)
+      app.staticTexts["Could not permanently delete item"].appears(within: 5)
     )
     XCTAssertTrue(deleteRow.exists, "failed permanent delete removed the row")
 
     permanentlyDeleteTrashItem(id: 420, name: "Delete Me")
-    XCTAssertTrue(app.staticTexts["Item deleted"].waitForExistence(timeout: 5))
-    XCTAssertTrue(deleteRow.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Item deleted"].appears(within: 5))
+    XCTAssertTrue(deleteRow.disappears(within: 5))
 
     XCTAssertTrue(waitUntilHittable(trashMenu, timeout: 5))
     trashMenu.tap()
     let emptyTrash = app.buttons["trash.empty"]
     XCTAssertTrue(waitUntilHittable(emptyTrash, timeout: 5))
     emptyTrash.tap()
-    XCTAssertTrue(app.staticTexts["Empty Trash permanently?"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Empty Trash permanently?"].appears(within: 5))
     XCTAssertTrue(
       app.staticTexts["Every item in Trash will be deleted and cannot be restored."].exists
     )
     let confirmEmpty = app.buttons["trash.empty-confirm"].firstMatch
     XCTAssertTrue(waitUntilHittable(confirmEmpty, timeout: 5))
     confirmEmpty.tap()
-    XCTAssertTrue(app.staticTexts["Trash is empty"].waitForExistence(timeout: 10))
-    XCTAssertTrue(app.staticTexts["Trash emptied"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Trash is empty"].appears(within: 10))
+    XCTAssertTrue(app.staticTexts["Trash emptied"].appears(within: 5))
     // The seeded account refresh after emptying fails once: the stale-storage
     // warning must stay visible with its own retry, alongside the empty state.
     let staleStorage = app.staticTexts["Storage totals are out of date"]
-    XCTAssertTrue(staleStorage.waitForExistence(timeout: 5), app.debugDescription)
+    XCTAssertTrue(staleStorage.appears(within: 5), app.debugDescription)
     XCTAssertTrue(app.staticTexts["Trash is empty"].exists, "empty state hidden behind the error")
     let updateStorage = app.buttons["Update storage"]
     XCTAssertTrue(waitUntilHittable(updateStorage, timeout: 5))
     updateStorage.tap()
-    XCTAssertTrue(staleStorage.waitForNonExistence(timeout: 5), "storage retry did not clear")
+    XCTAssertTrue(staleStorage.disappears(within: 5), "storage retry did not clear")
     let emptyRefreshStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.25))
     emptyRefreshStart.press(
       forDuration: 0.1,
@@ -405,39 +405,39 @@ final class FilesBrowserJourneyTests: XCTestCase {
       withVelocity: .slow,
       thenHoldForDuration: 1
     )
-    XCTAssertTrue(refreshError.waitForExistence(timeout: 5), app.debugDescription)
+    XCTAssertTrue(refreshError.appears(within: 5), app.debugDescription)
     XCTAssertTrue(waitUntilHittable(retryRefresh, timeout: 5))
     retryRefresh.tap()
-    XCTAssertTrue(refreshError.waitForNonExistence(timeout: 5))
-    XCTAssertTrue(app.staticTexts["Trash is empty"].waitForExistence(timeout: 5))
+    XCTAssertTrue(refreshError.disappears(within: 5))
+    XCTAssertTrue(app.staticTexts["Trash is empty"].appears(within: 5))
     addScreenshot(named: "runtime-trash-empty")
 
     app.navigationBars.buttons.element(boundBy: 0).tap()
-    XCTAssertTrue(usedStorage.waitForExistence(timeout: 5))
+    XCTAssertTrue(usedStorage.appears(within: 5))
     let storageChanged = expectation(
       for: NSPredicate(format: "label != %@", usedBeforeDeletions), evaluatedWith: usedStorage)
     wait(for: [storageChanged], timeout: 5)
     XCTAssertNotEqual(
       usedStorage.label, usedBeforeDeletions, "emptying Trash did not change account storage")
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
   }
 
   func testSortRoundTripAndContinuationAppendsTheSecondPage() {
     app.launch()
 
     let signIn = element(identifier: "auth.sign-in")
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
     signIn.tap()
     let root = element(identifier: "files.screen.0")
-    XCTAssertTrue(root.waitForExistence(timeout: 10), "signed-in root browser never appeared")
+    XCTAssertTrue(root.appears(within: 10), "signed-in root browser never appeared")
 
     // Continuation: the second page lands without a tap once the footer renders.
     let secondPageRow = app.staticTexts["Season Pack.zip"]
-    XCTAssertTrue(secondPageRow.waitForExistence(timeout: 10), "continuation page never appended")
+    XCTAssertTrue(secondPageRow.appears(within: 10), "continuation page never appended")
     XCTAssertFalse(element(identifier: "files.more.0").exists, "load-more footer lingered")
 
     openBrowseMenu()
@@ -446,14 +446,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     assertSortRowSelected(nameSort, label: "Name, Ascending")
     addScreenshot(named: "runtime-browse-menu-ascending")
     nameSort.tap()
-    XCTAssertTrue(app.staticTexts["Sorting changed"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["Sorting changed"].appears(within: 10))
     openBrowseMenu()
     assertSortRowSelected(nameSort, label: "Name, Descending")
     addScreenshot(named: "runtime-browse-menu-descending")
     dismissMenu()
     assertSortValue("Name, descending", on: app.buttons["files.menu"])
     let firstRow = app.cells.firstMatch
-    XCTAssertTrue(firstRow.waitForExistence(timeout: 5))
+    XCTAssertTrue(firstRow.appears(within: 5))
     XCTAssertTrue(
       firstRow.staticTexts["Document.pdf"].exists,
       "reload did not apply the server order: \(firstRow.debugDescription)"
@@ -462,124 +462,124 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
   }
 
   func testSearchPaginationRetryAndFolderRestoration() {
     app.launch()
     let signIn = element(identifier: "auth.sign-in")
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
 
     let folder = element(identifier: "files.item.410")
     XCTAssertTrue(waitUntilHittable(folder, timeout: 5))
     folder.tap()
-    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 10))
+    XCTAssertTrue(element(identifier: "files.screen.410").appears(within: 10))
     XCTAssertFalse(element(identifier: "files.item.415").exists)
 
     app.buttons["Search"].tap()
     let searchField = app.searchFields.firstMatch
-    XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+    XCTAssertTrue(searchField.appears(within: 5))
     searchField.tap()
     searchField.typeText("Harness\n")
     let folderResult = element(identifier: "files.search-item.410")
     let videoResult = element(identifier: "files.search-item.411")
-    XCTAssertTrue(folderResult.waitForExistence(timeout: 10))
+    XCTAssertTrue(folderResult.appears(within: 10))
     let moreRetry = app.buttons["files.search-more-retry"]
-    XCTAssertTrue(moreRetry.waitForExistence(timeout: 10))
+    XCTAssertTrue(moreRetry.appears(within: 10))
     XCTAssertTrue(folderResult.exists, "failed continuation removed the first page")
     moreRetry.tap()
-    XCTAssertTrue(videoResult.waitForExistence(timeout: 10), "search continuation never appended")
+    XCTAssertTrue(videoResult.appears(within: 10), "search continuation never appended")
     addScreenshot(named: "runtime-search-results")
     // Search results offer the same file actions as folder rows.
     let searchMove = openContextMenu(for: videoResult, actionLabel: "Move")
     XCTAssertTrue(app.buttons["Rename"].exists, "search result menu lacks Rename")
     XCTAssertTrue(app.buttons["Trash"].exists, "search result menu lacks Trash")
     dismissMenu()
-    XCTAssertTrue(searchMove.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(searchMove.disappears(within: 5))
     videoResult.tap()
-    XCTAssertTrue(element(identifier: "video.error").waitForExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "video.error").appears(within: 5))
     app.buttons["Try again"].tap()
-    XCTAssertTrue(element(identifier: "video.ready").waitForExistence(timeout: 15))
+    XCTAssertTrue(element(identifier: "video.ready").appears(within: 15))
     element(identifier: "video.done").tap()
-    XCTAssertTrue(folderResult.waitForExistence(timeout: 10))
+    XCTAssertTrue(folderResult.appears(within: 10))
     folderResult.tap()
-    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 10))
+    XCTAssertTrue(element(identifier: "files.screen.410").appears(within: 10))
     XCTAssertTrue(element(identifier: "files.item.411").exists)
     createFolder(named: "Cross-tab Refresh", expectedID: 415)
     app.navigationBars.buttons["BackButton"].tap()
-    XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+    XCTAssertTrue(searchField.appears(within: 5))
 
     app.buttons["Files"].tap()
-    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "files.screen.410").appears(within: 5))
     let crossTabFolder = element(identifier: "files.item.415")
     XCTAssertTrue(
-      crossTabFolder.waitForExistence(timeout: 10),
+      crossTabFolder.appears(within: 10),
       "the Files folder did not refresh after its Search counterpart was popped"
     )
     XCTAssertEqual(crossTabFolder.label, "Cross-tab Refresh")
     app.navigationBars.buttons["BackButton"].tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
     app.buttons["Search"].tap()
-    XCTAssertTrue(searchField.waitForExistence(timeout: 5))
+    XCTAssertTrue(searchField.appears(within: 5))
 
     replaceSearchQuery("no-matching-file", in: searchField)
-    XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["No results"].appears(within: 10))
     XCTAssertFalse(folderResult.exists)
     let refreshStart = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
     let refreshEnd = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7))
     refreshStart.press(forDuration: 0.1, thenDragTo: refreshEnd)
     let emptyRefreshRetry = app.buttons["files.search-retry"]
-    XCTAssertTrue(emptyRefreshRetry.waitForExistence(timeout: 10))
+    XCTAssertTrue(emptyRefreshRetry.appears(within: 10))
     emptyRefreshRetry.tap()
-    XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["No results"].appears(within: 10))
     replaceSearchQuery("retry", in: searchField)
     let retry = element(identifier: "files.search-retry")
-    XCTAssertTrue(retry.waitForExistence(timeout: 10))
+    XCTAssertTrue(retry.appears(within: 10))
     retry.tap()
-    XCTAssertTrue(videoResult.waitForExistence(timeout: 10))
+    XCTAssertTrue(videoResult.appears(within: 10))
 
     app.buttons["Files"].tap()
-    XCTAssertTrue(folder.waitForExistence(timeout: 5))
+    XCTAssertTrue(folder.appears(within: 5))
     folder.tap()
-    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 10))
+    XCTAssertTrue(element(identifier: "files.screen.410").appears(within: 10))
     app.terminate()
     app.launch()
     XCTAssertTrue(
-      element(identifier: "files.screen.410").waitForExistence(timeout: 15),
+      element(identifier: "files.screen.410").appears(within: 15),
       "relaunch did not restore the folder for the signed-in account")
     let back = app.navigationBars.buttons["BackButton"]
     XCTAssertTrue(waitUntilHittable(back, timeout: 5))
     back.tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
     folder.tap()
-    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "files.screen.410").appears(within: 5))
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    XCTAssertTrue(signOut.appears(within: 5))
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
     XCTAssertFalse(element(identifier: "files.screen.410").exists)
     app.buttons["Account"].tap()
-    XCTAssertTrue(app.revealed("auth.sign-out").waitForExistence(timeout: 5))
+    XCTAssertTrue(app.revealed("auth.sign-out").appears(within: 5))
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
   }
 
   func testRenamingAndDeletingOpenFolderReconcilesOtherTabs() {
     app.launch()
     let signIn = element(identifier: "auth.sign-in")
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
     app.buttons["Search"].tap()
     let search = app.searchFields.firstMatch
     XCTAssertTrue(waitUntilHittable(search, timeout: 5))
@@ -588,15 +588,15 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let folderResult = element(identifier: "files.search-item.410")
     XCTAssertTrue(waitUntilHittable(folderResult, timeout: 10))
     folderResult.tap()
-    XCTAssertTrue(element(identifier: "files.screen.410").waitForExistence(timeout: 10))
+    XCTAssertTrue(element(identifier: "files.screen.410").appears(within: 10))
     XCTAssertTrue(element(identifier: "files.item.411").exists)
     let child = createFolder(named: "Deleted Ancestor Child", expectedID: 415)
     app.buttons["Files"].tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
     let folder = element(identifier: "files.item.410")
     openContextMenu(for: folder, actionLabel: "Rename").tap()
     let name = element(identifier: "files.action-name")
-    XCTAssertTrue(name.waitForExistence(timeout: 5))
+    XCTAssertTrue(name.appears(within: 5))
     typeName("Renamed Harness", into: name, replacing: "Harness Folder")
     app.buttons["Rename"].tap()
     let renamed = XCTNSPredicateExpectation(
@@ -606,32 +606,32 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(XCTWaiter.wait(for: [renamed], timeout: 10), .completed)
     app.buttons["Search"].tap()
     XCTAssertTrue(
-      app.navigationBars["Renamed Harness"].waitForExistence(timeout: 10),
+      app.navigationBars["Renamed Harness"].appears(within: 10),
       "the open Search folder kept its old name after a rename in Files"
     )
     XCTAssertTrue(waitUntilHittable(child, timeout: 5))
     child.tap()
-    XCTAssertTrue(element(identifier: "files.screen.415").waitForExistence(timeout: 10))
-    XCTAssertTrue(app.staticTexts["This folder is empty"].waitForExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "files.screen.415").appears(within: 10))
+    XCTAssertTrue(app.staticTexts["This folder is empty"].appears(within: 5))
     XCTAssertFalse(app.staticTexts["Folder not found"].exists)
 
     app.buttons["Files"].tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
     let trash = openContextMenu(for: folder, actionLabel: "Trash")
     trash.tap()
-    XCTAssertTrue(folder.waitForNonExistence(timeout: 10))
+    XCTAssertTrue(folder.disappears(within: 10))
 
     app.buttons["Search"].tap()
-    XCTAssertTrue(app.navigationBars["Deleted Ancestor Child"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.navigationBars["Deleted Ancestor Child"].appears(within: 5))
     XCTAssertTrue(
-      app.staticTexts["Folder not found"].waitForExistence(timeout: 10),
+      app.staticTexts["Folder not found"].appears(within: 10),
       "the open descendant kept its listing after its ancestor was deleted"
     )
     XCTAssertFalse(app.staticTexts["This folder is empty"].exists)
     app.navigationBars.buttons["BackButton"].tap()
-    XCTAssertTrue(app.navigationBars["Renamed Harness"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.navigationBars["Renamed Harness"].appears(within: 5))
     XCTAssertTrue(
-      app.staticTexts["Folder not found"].waitForExistence(timeout: 10),
+      app.staticTexts["Folder not found"].appears(within: 10),
       "the deleted folder kept its listing when returning from its descendant"
     )
     XCTAssertFalse(
@@ -639,17 +639,17 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertFalse(
       element(identifier: "files.item.415").exists, "deleted folder kept its child row")
     app.navigationBars.buttons["BackButton"].tap()
-    XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["No results"].appears(within: 10))
     XCTAssertFalse(folderResult.exists, "search kept the deleted folder")
     XCTAssertFalse(element(identifier: "files.search-item.411").exists)
     app.buttons["Files"].tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    XCTAssertTrue(signOut.appears(within: 5))
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
   }
 
   private func replaceSearchQuery(_ query: String, in field: XCUIElement) {
@@ -669,7 +669,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(delete, timeout: 5))
     delete.tap()
     XCTAssertTrue(
-      app.staticTexts["Delete “\(name)” permanently?"].waitForExistence(timeout: 5)
+      app.staticTexts["Delete “\(name)” permanently?"].appears(within: 5)
     )
     XCTAssertTrue(app.staticTexts["This item cannot be restored."].exists)
     let confirm = app.buttons["trash.delete-confirm"].firstMatch
@@ -681,35 +681,35 @@ final class FilesBrowserJourneyTests: XCTestCase {
     app.launch()
 
     let signIn = element(identifier: "auth.sign-in")
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
     signIn.tap()
 
     let folder = element(identifier: "files.item.410")
-    XCTAssertTrue(folder.waitForExistence(timeout: 10), "seeded folder never appeared")
+    XCTAssertTrue(folder.appears(within: 10), "seeded folder never appeared")
     folder.tap()
 
     let nested = element(identifier: "files.screen.410")
     let nestedFile = element(identifier: "files.item.411")
-    XCTAssertTrue(nested.waitForExistence(timeout: 10), "nested browser never appeared")
-    XCTAssertTrue(nestedFile.waitForExistence(timeout: 5), "seeded nested file never appeared")
+    XCTAssertTrue(nested.appears(within: 10), "nested browser never appeared")
+    XCTAssertTrue(nestedFile.appears(within: 5), "seeded nested file never appeared")
     nestedFile.tap()
 
     let done = element(identifier: "video.done")
-    XCTAssertTrue(done.waitForExistence(timeout: 5), "video screen never appeared")
+    XCTAssertTrue(done.appears(within: 5), "video screen never appeared")
     let conversionError = element(identifier: "video.error")
     XCTAssertTrue(
-      conversionError.waitForExistence(timeout: 5),
+      conversionError.appears(within: 5),
       "first conversion request did not produce a recoverable failure"
     )
     let retry = app.buttons["Try again"]
     XCTAssertTrue(retry.isHittable, "conversion retry is not tappable")
     retry.tap()
     XCTAssertTrue(
-      element(identifier: "video.conversion-progress").waitForExistence(timeout: 5),
+      element(identifier: "video.conversion-progress").appears(within: 5),
       "conversion progress never appeared"
     )
     XCTAssertTrue(
-      element(identifier: "video.ready").waitForExistence(timeout: 10),
+      element(identifier: "video.ready").appears(within: 10),
       "converted video never became ready through native HLS"
     )
 
@@ -732,10 +732,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(done.isHittable, "video Done button is not tappable")
     done.tap()
 
-    XCTAssertTrue(nested.waitForExistence(timeout: 5), "video did not return to folder")
+    XCTAssertTrue(nested.appears(within: 5), "video did not return to folder")
     let reportedPosition = element(identifier: "video.position-reported")
     XCTAssertTrue(
-      reportedPosition.waitForExistence(timeout: 5),
+      reportedPosition.appears(within: 5),
       "final playback position was not persisted"
     )
     let persistedSeconds = reportedPlaybackSeconds(from: reportedPosition.value as? String)
@@ -759,43 +759,43 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
 
     nestedFile.tap()
-    XCTAssertTrue(done.waitForExistence(timeout: 5), "reopened video screen never appeared")
+    XCTAssertTrue(done.appears(within: 5), "reopened video screen never appeared")
     XCTAssertTrue(
-      resumePosition.waitForExistence(timeout: 5),
+      resumePosition.appears(within: 5),
       "persisted resume position did not resolve on reopen"
     )
     XCTAssertEqual(resumePosition.value as? String, persistedSeconds.map(String.init))
     XCTAssertTrue(done.isHittable, "reopened video Done button is not tappable")
     done.tap()
 
-    XCTAssertTrue(nested.waitForExistence(timeout: 5), "reopened video did not return to folder")
+    XCTAssertTrue(nested.appears(within: 5), "reopened video did not return to folder")
     let navigationBar = app.navigationBars["Harness Folder"]
     let backButton = navigationBar.buttons["Files"]
     XCTAssertTrue(backButton.isHittable, "native Files back button is not tappable")
     backButton.tap()
 
     XCTAssertTrue(
-      element(identifier: "files.screen.0").waitForExistence(timeout: 5),
+      element(identifier: "files.screen.0").appears(within: 5),
       "root browser did not return"
     )
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
   }
 
   func testFileActionsCreateRenameRollbackRetryAndTrash() {
     app.launch()
 
     let signIn = element(identifier: "auth.sign-in")
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-in screen never appeared")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-in screen never appeared")
     signIn.tap()
 
     let root = element(identifier: "files.screen.0")
-    XCTAssertTrue(root.waitForExistence(timeout: 10), "signed-in root browser never appeared")
+    XCTAssertTrue(root.appears(within: 10), "signed-in root browser never appeared")
     documentRowBeforeEditing()
     openBrowseMenu()
     let newFolder = app.buttons["files.new-folder"]
@@ -805,10 +805,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     newFolder.tap()
 
-    XCTAssertTrue(app.staticTexts["New Folder"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["New Folder"].appears(within: 5))
     let createNameField = element(identifier: "files.action-name")
     XCTAssertTrue(
-      createNameField.waitForExistence(timeout: 5),
+      createNameField.appears(within: 5),
       "new-folder name field never appeared"
     )
     typeName("Watch Later", into: createNameField)
@@ -821,13 +821,13 @@ final class FilesBrowserJourneyTests: XCTestCase {
     create.tap()
 
     let createdFolder = element(identifier: "files.item.415")
-    XCTAssertTrue(createdFolder.waitForExistence(timeout: 5), "created folder never appeared")
+    XCTAssertTrue(createdFolder.appears(within: 5), "created folder never appeared")
     XCTAssertEqual(createdFolder.label, "Watch Later")
 
     openContextMenu(for: createdFolder, actionLabel: "Rename").tap()
-    XCTAssertTrue(app.staticTexts["Rename Item"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Rename Item"].appears(within: 5))
     let firstRenameField = element(identifier: "files.action-name")
-    XCTAssertTrue(firstRenameField.waitForExistence(timeout: 5), "rename name field never appeared")
+    XCTAssertTrue(firstRenameField.appears(within: 5), "rename name field never appeared")
     typeName("Weekend", into: firstRenameField, replacing: "Watch Later")
     XCTAssertEqual(firstRenameField.value as? String, "Weekend")
     let firstRename = app.buttons["Rename"]
@@ -839,7 +839,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     let createdFolderButton = app.buttons["files.item.415"]
     XCTAssertTrue(
-      createdFolderButton.waitForExistence(timeout: 3),
+      createdFolderButton.appears(within: 3),
       "folder control disappeared while rename was pending"
     )
     let disabled = XCTNSPredicateExpectation(
@@ -854,25 +854,25 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(createdFolderButton.label, "Weekend")
     let createdFolderScreen = element(identifier: "files.screen.415")
     XCTAssertFalse(
-      createdFolderScreen.waitForExistence(timeout: 1),
+      createdFolderScreen.appears(within: 1),
       "folder navigation remained enabled while rename was pending"
     )
 
     let renameFailure = app.staticTexts["Could not rename item"]
-    XCTAssertTrue(renameFailure.waitForExistence(timeout: 5), "rename failure was not surfaced")
+    XCTAssertTrue(renameFailure.appears(within: 5), "rename failure was not surfaced")
     XCTAssertTrue(
-      createdFolderButton.waitForExistence(timeout: 5) && createdFolderButton.isHittable,
+      createdFolderButton.appears(within: 5) && createdFolderButton.isHittable,
       "folder navigation did not re-enable after rename failure"
     )
     XCTAssertEqual(createdFolderButton.label, "Watch Later", "failed rename did not roll back")
     XCTAssertTrue(
-      renameFailure.waitForNonExistence(timeout: 5), "rename failure toast did not clear")
+      renameFailure.disappears(within: 5), "rename failure toast did not clear")
 
     openContextMenu(for: createdFolder, actionLabel: "Rename").tap()
-    XCTAssertTrue(app.staticTexts["Rename Item"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Rename Item"].appears(within: 5))
     let retryRenameField = element(identifier: "files.action-name")
     XCTAssertTrue(
-      retryRenameField.waitForExistence(timeout: 5), "retry rename field never appeared")
+      retryRenameField.appears(within: 5), "retry rename field never appeared")
     typeName("Weekend", into: retryRenameField, replacing: "Watch Later")
     XCTAssertEqual(retryRenameField.value as? String, "Weekend")
     let retryRename = app.buttons["Rename"]
@@ -895,7 +895,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     openContextMenu(for: renamedFolder, actionLabel: "Move").tap()
     XCTAssertTrue(
-      element(identifier: "files.move-screen.0").waitForExistence(timeout: 5),
+      element(identifier: "files.move-screen.0").appears(within: 5),
       "move picker did not open at Files"
     )
     let moveToCurrentFolder = app.buttons["files.move-here.0"]
@@ -913,7 +913,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     harnessDestination.tap()
     XCTAssertTrue(
-      element(identifier: "files.move-screen.410").waitForExistence(timeout: 5),
+      element(identifier: "files.move-screen.410").appears(within: 5),
       "move picker did not enter Harness Folder"
     )
     let moveHere = app.buttons["files.move-here.410"]
@@ -921,11 +921,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
     moveHere.tap()
 
     XCTAssertTrue(
-      app.staticTexts["Item moved"].waitForExistence(timeout: 5),
+      app.staticTexts["Item moved"].appears(within: 5),
       "move success was not surfaced"
     )
     XCTAssertTrue(
-      renamedFolder.waitForNonExistence(timeout: 5),
+      renamedFolder.disappears(within: 5),
       "moved folder remained in its source list"
     )
 
@@ -933,12 +933,12 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(harnessFolder, timeout: 5))
     harnessFolder.tap()
     XCTAssertTrue(
-      element(identifier: "files.screen.410").waitForExistence(timeout: 5),
+      element(identifier: "files.screen.410").appears(within: 5),
       "Harness Folder did not open after the move"
     )
     let movedFolder = element(identifier: "files.item.415")
     XCTAssertTrue(
-      movedFolder.waitForExistence(timeout: 5),
+      movedFolder.appears(within: 5),
       "moved folder is missing at destination"
     )
     XCTAssertEqual(movedFolder.label, "Weekend")
@@ -948,14 +948,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(swipeMove, timeout: 5), "leading swipe did not offer Move")
     swipeMove.tap()
     XCTAssertTrue(
-      element(identifier: "files.move-screen.0").waitForExistence(timeout: 5),
+      element(identifier: "files.move-screen.0").appears(within: 5),
       "move picker did not reopen at Files"
     )
     let moveBackToRoot = app.buttons["files.move-here.0"]
     XCTAssertTrue(waitUntilHittable(moveBackToRoot, timeout: 5), "moving back to Files is disabled")
     moveBackToRoot.tap()
     XCTAssertTrue(
-      app.staticTexts["Weekend to Files"].waitForExistence(timeout: 5),
+      app.staticTexts["Weekend to Files"].appears(within: 5),
       "move back to Files did not settle"
     )
 
@@ -963,7 +963,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(backToFiles, timeout: 5), "Files back button is unavailable")
     backToFiles.tap()
     XCTAssertTrue(
-      element(identifier: "files.screen.0").waitForExistence(timeout: 5),
+      element(identifier: "files.screen.0").appears(within: 5),
       "Files did not reappear after moving to the ancestor"
     )
     let movedFolderAtRoot = element(identifier: "files.item.415")
@@ -980,11 +980,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertFalse(
       app.buttons["files.delete-confirm"].exists, "a recoverable Trash move asked to confirm")
     XCTAssertTrue(
-      app.staticTexts["Moved to Trash"].waitForExistence(timeout: 5),
+      app.staticTexts["Moved to Trash"].appears(within: 5),
       "Trash success was not surfaced"
     )
     XCTAssertTrue(
-      movedFolderAtRoot.waitForNonExistence(timeout: 5), "trashed folder remained visible")
+      movedFolderAtRoot.disappears(within: 5), "trashed folder remained visible")
 
     let bulkRetryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
     let bulkSuccessFolder = createFolder(named: "Bulk Success", expectedID: 417)
@@ -993,7 +993,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(edit, timeout: 5), "file selection control is unavailable")
     edit.tap()
     XCTAssertTrue(
-      app.buttons["files.bulk.move"].waitForExistence(timeout: 5),
+      app.buttons["files.bulk.move"].appears(within: 5),
       "bulk toolbar did not appear in edit mode"
     )
     XCTAssertEqual(element(identifier: "files.item.413").value as? String, "Not selected")
@@ -1038,14 +1038,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     bulkMoveHere.tap()
     // One batch; the server reports Bulk Retry failed and moves Bulk Success.
     XCTAssertTrue(
-      app.staticTexts["Moved 1 item. 1 couldn’t be moved."].waitForExistence(timeout: 10),
+      app.staticTexts["Moved 1 item. 1 couldn’t be moved."].appears(within: 10),
       "partial bulk-move failure was not surfaced"
     )
     let retryBulkMove = app.buttons["files.bulk.retry"].firstMatch
     XCTAssertTrue(waitUntilHittable(retryBulkMove, timeout: 5), "bulk move retry is unavailable")
     retryBulkMove.tap()
     XCTAssertTrue(
-      app.staticTexts["Moved 1 item."].waitForExistence(timeout: 10),
+      app.staticTexts["Moved 1 item."].appears(within: 10),
       "bulk move retry resent more than the failed item"
     )
 
@@ -1053,7 +1053,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(harnessFolderAfterBulkMove, timeout: 5))
     harnessFolderAfterBulkMove.tap()
     XCTAssertTrue(
-      element(identifier: "files.screen.410").waitForExistence(timeout: 5),
+      element(identifier: "files.screen.410").appears(within: 5),
       "Harness Folder did not open for bulk removal"
     )
     let movedBulkRetryFolder = element(identifier: "files.item.416")
@@ -1066,7 +1066,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(nestedEdit, timeout: 5))
     nestedEdit.tap()
     XCTAssertTrue(
-      app.buttons["files.bulk.remove"].waitForExistence(timeout: 5),
+      app.buttons["files.bulk.remove"].appears(within: 5),
       "nested bulk toolbar did not appear in edit mode"
     )
     movedBulkRetryFolder.tap()
@@ -1081,7 +1081,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertEqual(bulkRemove.label, "Trash")
     bulkRemove.tap()
     let bulkProgress = element(identifier: "files.bulk.progress")
-    XCTAssertTrue(bulkProgress.waitForExistence(timeout: 5))
+    XCTAssertTrue(bulkProgress.appears(within: 5))
     XCTAssertFalse(app.buttons["BackButton"].isHittable, "back remained active during bulk work")
     XCTAssertFalse(app.buttons["Account"].isHittable, "tab remained active during bulk work")
     assertCurrentBulkProgress(bulkProgress, itemNames: ["Bulk Retry"])
@@ -1097,7 +1097,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
 
     XCTAssertTrue(
-      app.staticTexts["Could not move items to Trash"].waitForExistence(timeout: 10),
+      app.staticTexts["Could not move items to Trash"].appears(within: 10),
       "failed bulk-Trash batch was not surfaced"
     )
     XCTAssertTrue(
@@ -1110,15 +1110,15 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(retryBulkRemove, timeout: 5), "bulk retry is unavailable")
     retryBulkRemove.tap()
     XCTAssertTrue(
-      app.staticTexts["Moved 2 items to Trash."].waitForExistence(timeout: 10),
+      app.staticTexts["Moved 2 items to Trash."].appears(within: 10),
       "failed bulk batch did not succeed on retry"
     )
     XCTAssertTrue(
-      movedBulkRetryFolder.waitForNonExistence(timeout: 5),
+      movedBulkRetryFolder.disappears(within: 5),
       "retried bulk item remained visible"
     )
     XCTAssertTrue(
-      movedBulkSuccessFolder.waitForNonExistence(timeout: 5),
+      movedBulkSuccessFolder.disappears(within: 5),
       "retried bulk item remained visible"
     )
 
@@ -1137,11 +1137,11 @@ final class FilesBrowserJourneyTests: XCTestCase {
     moveAmbiguousToRoot.tap()
 
     XCTAssertTrue(
-      app.staticTexts["Could not move items"].waitForExistence(timeout: 10),
+      app.staticTexts["Could not move items"].appears(within: 10),
       "ambiguous bulk-move failure was not surfaced"
     )
     XCTAssertTrue(
-      ambiguousMoveFolder.waitForNonExistence(timeout: 5),
+      ambiguousMoveFolder.disappears(within: 5),
       "authoritative source refresh did not remove the applied move"
     )
     let dismissAmbiguousMove = app.buttons["files.bulk.dismiss"].firstMatch
@@ -1153,7 +1153,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let backToRefreshedRoot = app.navigationBars["Harness Folder"].buttons["Files"]
     XCTAssertTrue(waitUntilHittable(backToRefreshedRoot, timeout: 5))
     backToRefreshedRoot.tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
     let appliedMoveAtRoot = element(identifier: "files.item.418")
     XCTAssertTrue(
       waitUntilHittable(appliedMoveAtRoot, timeout: 5),
@@ -1164,10 +1164,10 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5), "sign-out action never appeared")
+    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10), "sign-out did not return to sign-in")
+    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
   }
 
   private func openBrowseMenu() {
@@ -1207,9 +1207,9 @@ final class FilesBrowserJourneyTests: XCTestCase {
 
   private func assertMovePickerCreationAndSorting(for row: XCUIElement) {
     openContextMenu(for: row, actionLabel: "Move").tap()
-    XCTAssertTrue(element(identifier: "files.move-screen.0").waitForExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "files.move-screen.0").appears(within: 5))
     let summary = element(identifier: "files.move-summary")
-    XCTAssertTrue(summary.waitForExistence(timeout: 5))
+    XCTAssertTrue(summary.appears(within: 5))
     XCTAssertTrue(summary.label.contains("Ambiguous Move"), "move summary lost the source name")
     let menu = app.buttons["files.move-menu"]
     XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
@@ -1217,14 +1217,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     let sizeSort = sortRow("Size")
     XCTAssertTrue(waitUntilHittable(sizeSort, timeout: 5))
     sizeSort.tap()
-    XCTAssertTrue(sizeSort.waitForNonExistence(timeout: 5), "sort selection did not dismiss menu")
+    XCTAssertTrue(sizeSort.disappears(within: 5), "sort selection did not dismiss menu")
     XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
     assertSortValue("Size, ascending", on: menu)
     menu.tap()
     assertSortRowSelected(sizeSort, label: "Size, Ascending")
     addScreenshot(named: "runtime-move-menu-ascending")
     sizeSort.tap()
-    XCTAssertTrue(sizeSort.waitForNonExistence(timeout: 5), "sort selection did not dismiss menu")
+    XCTAssertTrue(sizeSort.disappears(within: 5), "sort selection did not dismiss menu")
     XCTAssertTrue(waitUntilHittable(menu, timeout: 5))
     assertSortValue("Size, descending", on: menu)
     menu.tap()
@@ -1235,22 +1235,22 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(newFolder, timeout: 5))
     newFolder.tap()
     let field = app.alerts["New Folder"].textFields.firstMatch
-    XCTAssertTrue(field.waitForExistence(timeout: 5))
+    XCTAssertTrue(field.appears(within: 5))
     field.tap()
     field.typeText("Move Destination")
     app.alerts.buttons["Create"].tap()
     let destination = element(identifier: "files.move-folder.419")
-    XCTAssertTrue(destination.waitForExistence(timeout: 5), "new move destination did not appear")
+    XCTAssertTrue(destination.appears(within: 5), "new move destination did not appear")
     XCTAssertTrue(destination.label.contains("Move Destination"))
     destination.tap()
-    XCTAssertTrue(element(identifier: "files.move-screen.419").waitForExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "files.move-screen.419").appears(within: 5))
     let cancel = app.buttons["files.move-cancel"]
     XCTAssertTrue(waitUntilHittable(cancel, timeout: 5), "nested move folder lost Cancel")
     cancel.tap()
-    XCTAssertTrue(element(identifier: "files.move-picker").waitForNonExistence(timeout: 5))
-    XCTAssertTrue(element(identifier: "files.screen.0").waitForExistence(timeout: 5))
+    XCTAssertTrue(element(identifier: "files.move-picker").disappears(within: 5))
+    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 5))
     XCTAssertTrue(
-      element(identifier: "files.item.419").waitForExistence(timeout: 5),
+      element(identifier: "files.item.419").appears(within: 5),
       "folder created in the move picker did not reach the browser"
     )
     XCTAssertTrue(row.exists, "cancelling the move removed its source")
@@ -1306,7 +1306,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(row.isHittable, "file row is not available for its context menu")
     row.press(forDuration: 1)
     let action = app.buttons[actionLabel]
-    XCTAssertTrue(action.waitForExistence(timeout: 5), "file context-menu action never appeared")
+    XCTAssertTrue(action.appears(within: 5), "file context-menu action never appeared")
     return action
   }
 
@@ -1315,7 +1315,7 @@ final class FilesBrowserJourneyTests: XCTestCase {
   @discardableResult
   private func documentRowBeforeEditing() -> XCUIElement {
     let documentRow = element(identifier: "files.item.413")
-    XCTAssertTrue(documentRow.waitForExistence(timeout: 5))
+    XCTAssertTrue(documentRow.appears(within: 5))
     return documentRow
   }
 
@@ -1325,14 +1325,14 @@ final class FilesBrowserJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(newFolder, timeout: 5), "new-folder action is unavailable")
     newFolder.tap()
     let field = element(identifier: "files.action-name")
-    XCTAssertTrue(field.waitForExistence(timeout: 5), "new-folder field did not appear")
+    XCTAssertTrue(field.appears(within: 5), "new-folder field did not appear")
     typeName(name, into: field)
     let create = app.buttons["Create"]
     XCTAssertTrue(waitUntilHittable(create, timeout: 5), "create-folder action is unavailable")
     create.tap()
     let folder = element(identifier: "files.item.\(expectedID)")
     XCTAssertTrue(
-      folder.waitForExistence(timeout: 5), "created folder \(expectedID) did not appear")
+      folder.appears(within: 5), "created folder \(expectedID) did not appear")
     XCTAssertEqual(folder.label, name)
     return folder
   }

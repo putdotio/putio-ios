@@ -20,9 +20,9 @@ final class SubtitlesJourneyTests: XCTestCase {
   func testSystemMenuSelectsSubtitlesWithoutChangingAudioAndFollowsPreferences() throws {
     app.launch()
     let signIn = element("auth.sign-in")
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
 
     // Default preferences: the subtitle put.io marks as default is on.
     openVideo(retryingSeededFailure: true)
@@ -36,17 +36,17 @@ final class SubtitlesJourneyTests: XCTestCase {
 
     // A non-default audio pick survives every subtitle change.
     openPlayerMenu("Audio Track")
-    XCTAssertTrue(app.buttons["English"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["English"].appears(within: 5))
     app.buttons["Turkish"].tap()
     XCTAssertTrue(waitForValue(audio, "tr"), "audio: \(audio.value ?? "")")
     XCTAssertTrue(keepsValue(subtitle, "en"), "changing the audio changed the subtitle")
 
     openPlayerMenu("Subtitles")
-    XCTAssertTrue(app.buttons["AVSubtitlesOnAction"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["AVSubtitlesOnAction"].appears(within: 5))
     XCTAssertTrue(app.buttons["AVSubtitlesOffAction"].exists)
     app.buttons["AVLanguagesMenu"].tap()
     let turkishSubtitle = app.buttons["Turkish"]
-    XCTAssertTrue(turkishSubtitle.waitForExistence(timeout: 5))
+    XCTAssertTrue(turkishSubtitle.appears(within: 5))
     XCTAssertTrue(app.buttons["English"].exists)
     screenshot("runtime-subtitles-menu")
     turkishSubtitle.tap()
@@ -69,14 +69,14 @@ final class SubtitlesJourneyTests: XCTestCase {
     openPlayerMenu("Subtitles")
     app.buttons["AVLanguagesMenu"].tap()
     let englishSubtitle = app.buttons["English"]
-    XCTAssertTrue(englishSubtitle.waitForExistence(timeout: 5))
+    XCTAssertTrue(englishSubtitle.appears(within: 5))
     englishSubtitle.tap()
     XCTAssertTrue(waitForValue(subtitle, "en"), "subtitle: \(subtitle.value ?? "")")
     XCTAssertTrue(keepsValue(audio, "tr"), "English subtitles changed the audio track")
 
     openPlayerMenu("Subtitles")
     let off = app.buttons["AVSubtitlesOffAction"]
-    XCTAssertTrue(off.waitForExistence(timeout: 5))
+    XCTAssertTrue(off.appears(within: 5))
     off.tap()
     XCTAssertTrue(waitForValue(subtitle, "off"), "subtitle: \(subtitle.value ?? "")")
     XCTAssertTrue(keepsValue(audio, "tr"), "turning subtitles off changed the audio track")
@@ -99,31 +99,31 @@ final class SubtitlesJourneyTests: XCTestCase {
     app.buttons["Account"].tap()
     app.navigationBars.buttons["BackButton"].tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    XCTAssertTrue(signOut.appears(within: 5))
     if !signOut.isHittable { app.swipeUp() }
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
   }
 
   /// The seeded scenario fails the first playback attempt for retry proof.
   private func openVideo(retryingSeededFailure: Bool) {
     app.buttons["Files"].tap()
     let video = element("files.item.412")
-    XCTAssertTrue(video.waitForExistence(timeout: 10))
+    XCTAssertTrue(video.appears(within: 10))
     video.tap()
     if retryingSeededFailure {
-      XCTAssertTrue(element("video.error").waitForExistence(timeout: 10))
+      XCTAssertTrue(element("video.error").appears(within: 10))
       app.buttons["Try again"].tap()
     }
-    XCTAssertTrue(element("video.ready").waitForExistence(timeout: 15))
+    XCTAssertTrue(element("video.ready").appears(within: 15))
   }
 
   /// The fixture lasts 20 seconds; pausing keeps the menus clear of the
   /// end-of-video suggestion.
   private func pausePlayback() {
     let position = element("video.current-position")
-    XCTAssertTrue(position.waitForExistence(timeout: 10))
+    XCTAssertTrue(position.appears(within: 10))
     let advanced = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value != '0'"), object: position)
     XCTAssertEqual(XCTWaiter.wait(for: [advanced], timeout: 10), .completed)
@@ -140,7 +140,7 @@ final class SubtitlesJourneyTests: XCTestCase {
     showControls(revealing: more)
     more.tap()
     let item = app.buttons[entry]
-    XCTAssertTrue(item.waitForExistence(timeout: 5), "\(entry) is missing from the player menu")
+    XCTAssertTrue(item.appears(within: 5), "\(entry) is missing from the player menu")
     item.tap()
   }
 
@@ -159,7 +159,7 @@ final class SubtitlesJourneyTests: XCTestCase {
   ) {
     app.buttons["Account"].tap()
     let entry = element("account.playback-preferences")
-    if entry.waitForExistence(timeout: 5) { entry.tap() }
+    if entry.appears(within: 5) { entry.tap() }
     let toggle = app.switches[identifier]
     XCTAssertTrue(
       waitFor(NSPredicate(format: "hittable == true AND enabled == true"), toggle, timeout: 10))
@@ -167,7 +167,7 @@ final class SubtitlesJourneyTests: XCTestCase {
     toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
     if retryingSeededFailure {
       let retry = app.buttons["playback-settings.retry-save"]
-      XCTAssertTrue(retry.waitForExistence(timeout: 10))
+      XCTAssertTrue(retry.appears(within: 10))
       retry.tap()
     }
     XCTAssertTrue(

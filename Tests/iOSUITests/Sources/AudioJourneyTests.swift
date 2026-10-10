@@ -9,14 +9,14 @@ final class AudioJourneyTests: XCTestCase {
       ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"])
     app.launch()
     let signIn = app.descendants(matching: .any)["auth.sign-in"]
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
     let track = app.descendants(matching: .any)["files.item.408"]
-    XCTAssertTrue(track.waitForExistence(timeout: 10))
+    XCTAssertTrue(track.appears(within: 10))
     track.tap()
 
     let state = app.descendants(matching: .any)["audio.state"]
-    XCTAssertTrue(state.waitForExistence(timeout: 10))
+    XCTAssertTrue(state.appears(within: 10))
     XCTAssertTrue(waitForValue(state, "id=408;state=playing"))
     assertPlaybackAdvances(in: app)
     XCTAssertEqual(app.descendants(matching: .any)["audio.title"].label, "Harness Track.m4a")
@@ -28,7 +28,7 @@ final class AudioJourneyTests: XCTestCase {
         forDuration: 0.1,
         thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9)))
     let miniPlayer = app.buttons["audio.mini.open"]
-    XCTAssertTrue(miniPlayer.waitForExistence(timeout: 5))
+    XCTAssertTrue(miniPlayer.appears(within: 5))
     let miniToggle = app.buttons["audio.mini.toggle"]
     XCTAssertEqual(miniToggle.label, "Pause")
     miniToggle.tap()
@@ -43,7 +43,7 @@ final class AudioJourneyTests: XCTestCase {
     assertPlaybackAdvances(in: app)
 
     let playPause = app.buttons["audio.play-pause"]
-    XCTAssertTrue(playPause.waitForExistence(timeout: 5))
+    XCTAssertTrue(playPause.appears(within: 5))
     playPause.tap()
     XCTAssertTrue(waitForValue(state, "id=408;state=paused"))
     for identifier in [
@@ -79,7 +79,7 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertEqual(speed.value as? String, "1×")
     speed.tap()
     let faster = app.buttons["audio.speed.1.5"]
-    XCTAssertTrue(faster.waitForExistence(timeout: 5))
+    XCTAssertTrue(faster.appears(within: 5))
     faster.tap()
     XCTAssertTrue(waitForValue(speed, "1.5×"))
 
@@ -88,7 +88,7 @@ final class AudioJourneyTests: XCTestCase {
     // host drives the UI; a playing track can finish first. The remaining 12 s
     // (8 s at 1.5×) leave time to see this track resume before it hands over.
     let scrubber = app.sliders["audio.scrubber"]
-    XCTAssertTrue(scrubber.waitForExistence(timeout: 5))
+    XCTAssertTrue(scrubber.appears(within: 5))
     let elapsed = app.staticTexts["audio.elapsed"]
     let pausedAt = elapsed.label
     scrubber.adjust(toNormalizedSliderPosition: 0.8)
@@ -106,7 +106,7 @@ final class AudioJourneyTests: XCTestCase {
     XCTAssertTrue(app.descendants(matching: .any)["audio.ended"].exists)
 
     app.buttons["audio.done"].tap()
-    XCTAssertTrue(track.waitForExistence(timeout: 5))
+    XCTAssertTrue(track.appears(within: 5))
     for _ in 0..<3 {
       track.tap()
       XCTAssertTrue(waitForValue(state, "id=408;state=playing", timeout: 10))
@@ -116,17 +116,17 @@ final class AudioJourneyTests: XCTestCase {
     }
 
     let account = app.buttons["Account"]
-    XCTAssertTrue(account.waitForExistence(timeout: 5))
+    XCTAssertTrue(account.appears(within: 5))
     account.tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    XCTAssertTrue(signOut.appears(within: 5))
     if !signOut.isHittable { app.swipeUp() }
     let hittable = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "hittable == true"), object: signOut)
     XCTAssertEqual(XCTWaiter.wait(for: [hittable], timeout: 5), .completed)
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
     XCTAssertFalse(miniPlayer.exists)
   }
 
@@ -151,7 +151,7 @@ final class AudioJourneyTests: XCTestCase {
 
   private func assertPlaybackAdvances(in app: XCUIApplication) {
     let elapsed = app.staticTexts["audio.elapsed"]
-    XCTAssertTrue(elapsed.waitForExistence(timeout: 10))
+    XCTAssertTrue(elapsed.appears(within: 10))
     let initial = elapsed.label
     let advances = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "label != %@", initial), object: elapsed)

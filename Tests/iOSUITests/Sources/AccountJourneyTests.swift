@@ -9,16 +9,16 @@ final class AccountJourneyTests: XCTestCase {
     ]
     app.launch()
     let signIn = app.descendants(matching: .any)["auth.sign-in"]
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
     let account = app.buttons["Account"]
-    XCTAssertTrue(account.waitForExistence(timeout: 10))
+    XCTAssertTrue(account.appears(within: 10))
     account.tap()
     let requests = app.descendants(matching: .any)["account.rating-link-requests"]
-    XCTAssertTrue(requests.waitForExistence(timeout: 5))
+    XCTAssertTrue(requests.appears(within: 5))
     XCTAssertEqual(requests.value as? String, "0|")
     let rating = app.revealed("account.rate-app")
-    XCTAssertTrue(rating.waitForExistence(timeout: 5))
+    XCTAssertTrue(rating.appears(within: 5))
     if !rating.isHittable { app.swipeUp() }
     XCTAssertTrue(rating.isHittable)
     let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
@@ -32,7 +32,7 @@ final class AccountJourneyTests: XCTestCase {
     XCTAssertEqual(XCTWaiter.wait(for: [opened], timeout: 5), .completed)
     // Seeded builds carry no Intercom keys, so Contact us falls back to email.
     let contact = app.revealed("account.contact-support")
-    XCTAssertTrue(contact.waitForExistence(timeout: 5))
+    XCTAssertTrue(contact.appears(within: 5))
     if !contact.isHittable { app.swipeUp() }
     contact.tap()
     let mailed = "2|mailto:support@put.io"
@@ -42,20 +42,20 @@ final class AccountJourneyTests: XCTestCase {
     // Scrolling minimizes the tab bar; scroll back so the tabs are buttons again.
     let files = app.buttons["Files"]
     if !files.exists { app.swipeDown() }
-    XCTAssertTrue(files.waitForExistence(timeout: 5))
+    XCTAssertTrue(files.appears(within: 5))
     files.tap()
     account.tap()
-    XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 5))
-    XCTAssertTrue(app.revealed("account.rate-app").waitForExistence(timeout: 5))
+    XCTAssertTrue(app.navigationBars["Account"].appears(within: 5))
+    XCTAssertTrue(app.revealed("account.rate-app").appears(within: 5))
     XCTAssertEqual(requests.value as? String, mailed)
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    XCTAssertTrue(signOut.appears(within: 5))
     if !signOut.isHittable { app.swipeUp() }
     let signOutHittable = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "hittable == true"), object: signOut)
     XCTAssertEqual(XCTWaiter.wait(for: [signOutHittable], timeout: 5), .completed)
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
   }
 }

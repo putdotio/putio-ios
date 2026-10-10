@@ -27,7 +27,7 @@ final class PreviewJourneyTests: XCTestCase {
   private func assertVLCRetry() {
     openInVLC(fileID: 412)
     let failure = app.alerts["Could not open in VLC"]
-    XCTAssertTrue(failure.waitForExistence(timeout: 10))
+    XCTAssertTrue(failure.appears(within: 10))
     let requests = element("vlc.requests")
     XCTAssertEqual(requests.value as? String, "0|")
     failure.buttons["Try again"].tap()
@@ -47,80 +47,80 @@ final class PreviewJourneyTests: XCTestCase {
     // Image: the seeded lookup fails once, so the error state and retry are
     // exercised before the fixture renders.
     let image = element("files.item.406")
-    XCTAssertTrue(image.waitForExistence(timeout: 10))
+    XCTAssertTrue(image.appears(within: 10))
     XCTAssertEqual(image.value as? String, "Image")
     image.tap()
-    XCTAssertTrue(app.staticTexts["Could not open image"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["Could not open image"].appears(within: 10))
     screenshot("runtime-preview-error")
     app.buttons["preview.retry"].tap()
-    XCTAssertTrue(element("preview.image").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("preview.image").appears(within: 10))
     XCTAssertTrue(app.images["Harness Poster.png"].exists)
     screenshot("runtime-preview-image")
     app.buttons["preview.done"].tap()
-    XCTAssertTrue(element("preview.screen.406").waitForNonExistence(timeout: 5))
+    XCTAssertTrue(element("preview.screen.406").disappears(within: 5))
 
     // PDF renders through PDFKit with the page count exposed to accessibility.
     let document = element("files.item.413")
-    XCTAssertTrue(document.waitForExistence(timeout: 5))
+    XCTAssertTrue(document.appears(within: 5))
     XCTAssertEqual(document.value as? String, "Document")
     document.tap()
-    XCTAssertTrue(element("preview.document").waitForExistence(timeout: 10))
-    XCTAssertTrue(app.staticTexts["put.io harness page 1"].waitForExistence(timeout: 10))
+    XCTAssertTrue(element("preview.document").appears(within: 10))
+    XCTAssertTrue(app.staticTexts["put.io harness page 1"].appears(within: 10))
     screenshot("runtime-preview-document")
     app.buttons["preview.done"].tap()
-    XCTAssertTrue(element("preview.screen.413").waitForNonExistence(timeout: 5))
+    XCTAssertTrue(element("preview.screen.413").disappears(within: 5))
 
     // Unsupported: an explanation surface instead of a dead row.
     let archive = element("files.item.407")
-    XCTAssertTrue(archive.waitForExistence(timeout: 5))
+    XCTAssertTrue(archive.appears(within: 5))
     XCTAssertEqual(archive.value as? String, "Unsupported file")
     archive.tap()
-    XCTAssertTrue(element("unsupported.screen.407").waitForExistence(timeout: 5))
+    XCTAssertTrue(element("unsupported.screen.407").appears(within: 5))
     XCTAssertTrue(app.staticTexts["Unsupported file type"].exists)
     XCTAssertFalse(app.activityIndicators.firstMatch.exists)
     screenshot("runtime-preview-unsupported")
     app.buttons["unsupported.done"].tap()
-    XCTAssertTrue(element("unsupported.screen.407").waitForNonExistence(timeout: 5))
+    XCTAssertTrue(element("unsupported.screen.407").disappears(within: 5))
 
     // Search and History dispatch through the same routing table.
     app.buttons["Search"].tap()
     let search = app.searchFields.firstMatch
-    XCTAssertTrue(search.waitForExistence(timeout: 5))
+    XCTAssertTrue(search.appears(within: 5))
     search.tap()
     search.typeText("poster\n")
     let searchImage = element("files.search-item.406")
-    XCTAssertTrue(searchImage.waitForExistence(timeout: 10))
+    XCTAssertTrue(searchImage.appears(within: 10))
     searchImage.tap()
-    XCTAssertTrue(element("preview.image").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("preview.image").appears(within: 10))
     app.buttons["preview.done"].tap()
     let searchArchive = element("files.search-item.407")
-    XCTAssertTrue(searchArchive.waitForExistence(timeout: 5))
+    XCTAssertTrue(searchArchive.appears(within: 5))
     searchArchive.tap()
-    XCTAssertTrue(element("unsupported.screen.407").waitForExistence(timeout: 5))
+    XCTAssertTrue(element("unsupported.screen.407").appears(within: 5))
     app.buttons["unsupported.done"].tap()
     // The Search tab collapses the tab bar; Files restores it.
     app.buttons["Files"].tap()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 5))
+    XCTAssertTrue(element("files.screen.0").appears(within: 5))
     let history = app.buttons["History"]
-    XCTAssertTrue(history.waitForExistence(timeout: 5))
+    XCTAssertTrue(history.appears(within: 5))
     history.tap()
     let historyImage = element("history.item.811")
-    XCTAssertTrue(historyImage.waitForExistence(timeout: 10))
+    XCTAssertTrue(historyImage.appears(within: 10))
     historyImage.tap()
-    XCTAssertTrue(element("preview.image").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("preview.image").appears(within: 10))
     app.buttons["preview.done"].tap()
-    XCTAssertTrue(element("preview.screen.406").waitForNonExistence(timeout: 5))
+    XCTAssertTrue(element("preview.screen.406").disappears(within: 5))
     app.buttons["Files"].tap()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 5))
+    XCTAssertTrue(element("files.screen.0").appears(within: 5))
 
     // VLC handoff without VLC: the explicit not-installed outcome with a store link.
     let requests = element("vlc.requests")
-    XCTAssertTrue(requests.waitForExistence(timeout: 5))
+    XCTAssertTrue(requests.appears(within: 5))
     XCTAssertEqual(requests.value as? String, "0|")
     assertNoVLCAction(fileID: 407)
     assertNoVLCAction(fileID: 406)
     openInVLC(fileID: 412)
-    XCTAssertTrue(app.staticTexts["VLC is not installed"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["VLC is not installed"].appears(within: 5))
     screenshot("runtime-vlc-missing")
     app.buttons["Get VLC"].tap()
     XCTAssertTrue(
@@ -132,7 +132,7 @@ final class PreviewJourneyTests: XCTestCase {
     app.terminate()
     app.launchArguments.append("--putio-harness-vlc-installed")
     app.launch()
-    XCTAssertTrue(element("files.item.412").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("files.item.412").appears(within: 10))
     openInVLC(fileID: 408)
     XCTAssertTrue(
       waitForValue(
@@ -146,43 +146,43 @@ final class PreviewJourneyTests: XCTestCase {
     app.terminate()
     app.launchArguments.append("--putio-harness-vlc-resolution-fails-once")
     app.launch()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
     assertVLCRetry()
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    XCTAssertTrue(signOut.appears(within: 5))
     if !signOut.isHittable { app.swipeUp() }
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(element("auth.sign-in").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
   /// Preview and unsupported rows show a context menu without the handoff.
   private func assertNoVLCAction(fileID: Int) {
     let row = element("files.item.\(fileID)")
-    XCTAssertTrue(row.waitForExistence(timeout: 5))
+    XCTAssertTrue(row.appears(within: 5))
     row.press(forDuration: 1)
-    XCTAssertTrue(app.buttons["Rename"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Rename"].appears(within: 5))
     XCTAssertFalse(app.buttons["Open in VLC"].exists)
     app.coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.25)).tap()
-    XCTAssertTrue(app.buttons["Rename"].waitForNonExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["Rename"].disappears(within: 5))
   }
 
   private func openInVLC(fileID: Int) {
     let row = element("files.item.\(fileID)")
-    XCTAssertTrue(row.waitForExistence(timeout: 5))
+    XCTAssertTrue(row.appears(within: 5))
     row.press(forDuration: 1)
     let action = app.buttons["Open in VLC"]
-    XCTAssertTrue(action.waitForExistence(timeout: 5), "Open in VLC never appeared")
+    XCTAssertTrue(action.appears(within: 5), "Open in VLC never appeared")
     action.tap()
   }
 
   private func signIn() {
     let button = element("auth.sign-in")
-    XCTAssertTrue(button.waitForExistence(timeout: 10))
+    XCTAssertTrue(button.appears(within: 10))
     button.tap()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
   }
 
   private func waitForValue(_ element: XCUIElement, _ value: String, timeout: TimeInterval = 5)

@@ -17,11 +17,11 @@ final class HistoryJourneyTests: XCTestCase {
     app.launch()
     signIn()
     let history = app.buttons["History"]
-    XCTAssertTrue(history.waitForExistence(timeout: 5))
+    XCTAssertTrue(history.appears(within: 5))
     history.tap()
     let folderEvent = element("history.item.810")
     let missingEvent = element("history.item.808")
-    XCTAssertTrue(folderEvent.waitForExistence(timeout: 10))
+    XCTAssertTrue(folderEvent.appears(within: 10))
     XCTAssertTrue(app.staticTexts["Today"].exists)
     XCTAssertTrue(
       app.staticTexts.matching(NSPredicate(format: "label ENDSWITH %@", " ago")).firstMatch.exists,
@@ -44,17 +44,17 @@ final class HistoryJourneyTests: XCTestCase {
 
     pullToRefresh()
     let refreshRetry = app.buttons["history.retry"]
-    XCTAssertTrue(refreshRetry.waitForExistence(timeout: 10))
+    XCTAssertTrue(refreshRetry.appears(within: 10))
     XCTAssertTrue(folderEvent.exists, "failed refresh discarded loaded history")
     addScreenshot(named: "runtime-history-error")
     refreshRetry.tap()
-    XCTAssertTrue(refreshRetry.waitForNonExistence(timeout: 10))
-    XCTAssertTrue(folderEvent.waitForExistence(timeout: 5))
+    XCTAssertTrue(refreshRetry.disappears(within: 10))
+    XCTAssertTrue(folderEvent.appears(within: 5))
 
     reveal(missingEvent)
     missingEvent.tap()
     let openRetry = app.buttons["history.open-retry"]
-    XCTAssertTrue(openRetry.waitForExistence(timeout: 10))
+    XCTAssertTrue(openRetry.appears(within: 10))
     XCTAssertTrue(app.staticTexts["This item is no longer available."].exists)
     XCTAssertTrue(missingEvent.exists, "missing file removed its history event")
     openRetry.tap()
@@ -63,39 +63,39 @@ final class HistoryJourneyTests: XCTestCase {
 
     reveal(folderEvent)
     folderEvent.tap()
-    XCTAssertTrue(element("files.screen.410").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("files.screen.410").appears(within: 10))
     XCTAssertTrue(element("files.item.411").exists)
     app.navigationBars.buttons["BackButton"].tap()
-    XCTAssertTrue(folderEvent.waitForExistence(timeout: 5))
+    XCTAssertTrue(folderEvent.appears(within: 5))
     XCTAssertFalse(openRetry.exists)
     let videoEvent = element("history.item.809")
     reveal(videoEvent)
     videoEvent.tap()
-    XCTAssertTrue(element("video.error").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("video.error").appears(within: 10))
     app.buttons["Try again"].tap()
-    XCTAssertTrue(element("video.ready").waitForExistence(timeout: 15))
+    XCTAssertTrue(element("video.ready").appears(within: 15))
     element("video.done").tap()
-    XCTAssertTrue(folderEvent.waitForExistence(timeout: 5))
+    XCTAssertTrue(folderEvent.appears(within: 5))
 
     reveal(missingEvent)
     missingEvent.tap()
-    XCTAssertTrue(openRetry.waitForExistence(timeout: 10))
+    XCTAssertTrue(openRetry.appears(within: 10))
     missingEvent.swipeLeft()
     let delete = app.buttons["Delete"]
     XCTAssertTrue(waitUntilHittable(delete))
     delete.tap()
     let mutationRetry = app.buttons["history.mutation-retry"]
-    XCTAssertTrue(mutationRetry.waitForExistence(timeout: 10))
+    XCTAssertTrue(mutationRetry.appears(within: 10))
     XCTAssertTrue(missingEvent.exists, "failed deletion removed its event")
     mutationRetry.tap()
-    XCTAssertTrue(missingEvent.waitForNonExistence(timeout: 10))
-    XCTAssertTrue(mutationRetry.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(missingEvent.disappears(within: 10))
+    XCTAssertTrue(mutationRetry.disappears(within: 5))
     XCTAssertFalse(openRetry.exists, "deleted event left an obsolete navigation retry")
 
     let clear = app.buttons["history.clear"]
     XCTAssertTrue(waitUntilHittable(clear))
     clear.tap()
-    XCTAssertTrue(app.staticTexts["Clear all history?"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Clear all history?"].appears(within: 5))
     let cancel = app.buttons["Cancel"].firstMatch
     if cancel.exists {
       cancel.tap()
@@ -103,23 +103,23 @@ final class HistoryJourneyTests: XCTestCase {
       // Native popovers cancel by tapping outside their content.
       app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)).tap()
     }
-    XCTAssertTrue(app.staticTexts["Clear all history?"].waitForNonExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["Clear all history?"].disappears(within: 5))
     XCTAssertTrue(folderEvent.exists, "cancel cleared history")
     clear.tap()
     let confirm = app.buttons["history.clear-confirm"].firstMatch
     XCTAssertTrue(waitUntilHittable(confirm))
     confirm.tap()
-    XCTAssertTrue(mutationRetry.waitForExistence(timeout: 10))
+    XCTAssertTrue(mutationRetry.appears(within: 10))
     XCTAssertTrue(folderEvent.exists, "failed clear discarded history")
     mutationRetry.tap()
-    XCTAssertTrue(app.staticTexts["No history"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["No history"].appears(within: 10))
     XCTAssertFalse(clear.exists)
     addScreenshot(named: "runtime-history-empty")
     pullToRefresh()
-    XCTAssertTrue(app.staticTexts["No history"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["No history"].appears(within: 5))
 
     app.buttons["Files"].tap()
-    XCTAssertTrue(element("files.item.410").waitForExistence(timeout: 5))
+    XCTAssertTrue(element("files.item.410").appears(within: 5))
     XCTAssertTrue(element("files.item.412").exists, "clearing history deleted files")
     signOut()
     app.terminate()
@@ -132,18 +132,18 @@ final class HistoryJourneyTests: XCTestCase {
 
   private func signIn() {
     let signIn = element("auth.sign-in")
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
   }
 
   private func signOut() {
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    XCTAssertTrue(signOut.appears(within: 5))
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(element("auth.sign-in").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
   private func element(_ identifier: String) -> XCUIElement {
