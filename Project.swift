@@ -81,6 +81,21 @@ private let appStoreBuildSettings: SettingsDictionary = [
 ]
 private let appStoreInfoPlist: Plist.Value = "$(PUTIO_APP_STORE_ID)"
 
+// Diagnostics (#139), read by `SentryConfiguration`. The checked-in DSN is
+// empty, so local and CI builds report nothing; signed builds supply it. Any
+// `PUTIO_SENTRY_ENABLED` other than `YES` is the kill switch.
+private let sentryBuildSettings: SettingsDictionary = [
+  "PUTIO_SENTRY_DSN": "",
+  "PUTIO_SENTRY_ENABLED": "YES",
+]
+private func sentrySettings(releaseEnvironment: String) -> [Configuration] {
+  [
+    .debug(name: .debug, settings: ["PUTIO_SENTRY_ENVIRONMENT": "development"]),
+    .release(
+      name: .release, settings: ["PUTIO_SENTRY_ENVIRONMENT": .string(releaseEnvironment)]),
+  ]
+}
+
 let project = Project(
   name: "Putio",
   organizationName: "put.io",
@@ -112,6 +127,9 @@ let project = Project(
         ],
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
+        "PUTIO_SENTRY_DSN": "$(PUTIO_SENTRY_DSN)",
+        "PUTIO_SENTRY_ENABLED": "$(PUTIO_SENTRY_ENABLED)",
+        "PUTIO_SENTRY_ENVIRONMENT": "$(PUTIO_SENTRY_ENVIRONMENT)",
       ]),
       resources: brandFontResources(for: "ios"),
       buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
@@ -142,11 +160,14 @@ let project = Project(
       dependencies: [
         .package(product: "PutioCore"),
         .external(name: "GoogleCast"),
+        .external(name: "Sentry"),
         .target(name: "PutioWatch"),
       ],
       settings: .settings(
         base: castBuildSettings.merging(oauthBuildSettings) { $1 }
-          .merging(appStoreBuildSettings) { $1 })
+          .merging(appStoreBuildSettings) { $1 }
+          .merging(sentryBuildSettings) { $1 },
+        configurations: sentrySettings(releaseEnvironment: "production"))
     ),
     // The nightly flavor: same iOS sources, its own bundle ID so it installs
     // beside the dev and production apps, and the starfield icon that only
@@ -169,6 +190,9 @@ let project = Project(
         "PUTIO_APP_STORE_ID": appStoreInfoPlist,
         "UILaunchScreen": [:],
         "UIUserInterfaceStyle": "Dark",
+        "PUTIO_SENTRY_DSN": "$(PUTIO_SENTRY_DSN)",
+        "PUTIO_SENTRY_ENABLED": "$(PUTIO_SENTRY_ENABLED)",
+        "PUTIO_SENTRY_ENVIRONMENT": "$(PUTIO_SENTRY_ENVIRONMENT)",
       ]),
       resources: .resources(
         brandFontResourceElements(for: "ios") + [
@@ -179,11 +203,14 @@ let project = Project(
       dependencies: [
         .package(product: "PutioCore"),
         .external(name: "GoogleCast"),
+        .external(name: "Sentry"),
       ],
       settings: .settings(
         base: castBuildSettings.merging(oauthBuildSettings) { $1 }
           .merging(appStoreBuildSettings) { $1 }
-          .merging(["ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon"]) { $1 })
+          .merging(sentryBuildSettings) { $1 }
+          .merging(["ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon"]) { $1 },
+        configurations: sentrySettings(releaseEnvironment: "nightly"))
     ),
     .target(
       name: "PutioWatch",
