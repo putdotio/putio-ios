@@ -114,7 +114,10 @@ struct PutioFileNameEditor: View {
         }
       }
     }
-    .presentationDetents([.height(220)])
+    // A fixed-height detent that the keyboard lifts as the sheet opens leaves
+    // a UIKit animation that never reports finishing, so the app never goes
+    // idle for XCTest again (#265). The system medium detent doesn't.
+    .presentationDetents([.medium])
     .onAppear { isFocused = true }
   }
 
