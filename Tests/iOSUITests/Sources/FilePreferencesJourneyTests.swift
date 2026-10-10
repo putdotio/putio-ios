@@ -103,6 +103,21 @@ final class FilePreferencesJourneyTests: XCTestCase {
     assertToggle(trash, enabled: false)
     addScreenshot(named: "runtime-file-preferences")
 
+    // Privacy choices are account settings too: diagnostics start on,
+    // product analytics starts off, and both survive the relaunch below.
+    let diagnostics = app.switches["privacy.diagnostics"]
+    let analytics = app.switches["privacy.product-analytics"]
+    app.navigationBars.buttons["BackButton"].tap()
+    openPrivacy()
+    XCTAssertTrue(element("privacy.strictly-necessary").exists)
+    assertToggle(diagnostics, enabled: true)
+    assertToggle(analytics, enabled: false)
+    tapToggle(analytics)
+    assertToggle(analytics, enabled: true)
+    tapToggle(diagnostics)
+    assertToggle(diagnostics, enabled: false)
+    addScreenshot(named: "runtime-privacy-controls")
+
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-reset-file-preferences" }
     app.launch()
@@ -113,6 +128,10 @@ final class FilePreferencesJourneyTests: XCTestCase {
     XCTAssertEqual(sort.label, savedSort)
     assertToggle(trash, enabled: false)
     assertToggle(history, enabled: true)
+    app.navigationBars.buttons["BackButton"].tap()
+    openPrivacy()
+    assertToggle(diagnostics, enabled: false)
+    assertToggle(analytics, enabled: true)
     app.navigationBars.buttons["BackButton"].tap()
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
@@ -142,6 +161,13 @@ final class FilePreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(entry))
     entry.tap()
     XCTAssertTrue(waitUntilHittable(sort))
+  }
+
+  private func openPrivacy() {
+    let entry = element("account.privacy")
+    XCTAssertTrue(waitUntilHittable(entry))
+    entry.tap()
+    XCTAssertTrue(waitUntilHittable(app.switches["privacy.diagnostics"]))
   }
 
   private func assertFirstFile(_ name: String) {

@@ -437,7 +437,8 @@ public final class PutioSessionStore {
   func applyAcknowledgedPreferences(
     defaultSort: PutioFolderSort? = nil, trashEnabled: Bool? = nil, historyEnabled: Bool? = nil,
     routeName: String? = nil, hideSubtitles: Bool? = nil, dontAutoSelectSubtitles: Bool? = nil,
-    twoFactorEnabled: Bool? = nil
+    twoFactorEnabled: Bool? = nil, diagnosticsEnabled: Bool? = nil,
+    productAnalyticsEnabled: Bool? = nil
   ) {
     guard case .signedIn(let account) = state else { return }
     state = .signedIn(
@@ -451,6 +452,8 @@ public final class PutioSessionStore {
         hideSubtitles: hideSubtitles ?? account.hideSubtitles,
         dontAutoSelectSubtitles: dontAutoSelectSubtitles ?? account.dontAutoSelectSubtitles,
         twoFactorEnabled: twoFactorEnabled ?? account.twoFactorEnabled,
+        diagnosticsEnabled: diagnosticsEnabled ?? account.diagnosticsEnabled,
+        productAnalyticsEnabled: productAnalyticsEnabled ?? account.productAnalyticsEnabled,
         avatarURL: account.avatarURL, trashSizeBytes: account.trashSizeBytes))
   }
 
@@ -567,6 +570,8 @@ public final class PutioSessionStore {
       hideSubtitles: account.settings.hideSubtitles,
       dontAutoSelectSubtitles: account.settings.dontAutoSelectSubtitles,
       twoFactorEnabled: account.settings.twoFactorEnabled,
+      diagnosticsEnabled: account.settings.diagnosticsEnabled,
+      productAnalyticsEnabled: account.settings.productAnalyticsEnabled,
       avatarURL: URL(string: account.avatarURL).flatMap { $0.scheme == "https" ? $0 : nil },
       trashSizeBytes: max(0, account.trashSize)
     )

@@ -313,6 +313,55 @@ extension PutioRuntimeTests {
         .count, 1)
   }
 
+  func testPrivacyChoicesDefaultWhenMissingAndRoundTripAsSingleFieldPatches() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    guard case .signedIn(let initial) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertTrue(
+      initial.diagnosticsEnabled, "diagnostics are on unless the account turned them off")
+    XCTAssertFalse(initial.productAnalyticsEnabled, "product analytics is opt-in")
+    fixtures.setFixture(#"{"status":"OK"}"#, for: "POST /v2/account/settings")
+    fixtures.setFixture(
+      Self.privacyAccountInfo(diagnostics: false, analytics: true), for: "GET /v2/account/info")
+
+    let diagnostics = try await runtime.setDiagnosticsEnabled(false)
+    let analytics = try await runtime.setProductAnalyticsEnabled(true)
+
+    XCTAssertTrue(diagnostics.accountRefreshed)
+    XCTAssertTrue(analytics.accountRefreshed)
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertFalse(account.diagnosticsEnabled)
+    XCTAssertTrue(account.productAnalyticsEnabled)
+    let bodies = try fixtures.capturedRequests()
+      .filter { $0.url?.path == "/v2/account/settings" }
+      .map { request in
+        try XCTUnwrap(
+          JSONSerialization.jsonObject(with: XCTUnwrap(requestBodyData(for: request)))
+            as? [String: Bool])
+      }
+    XCTAssertEqual(bodies, [["diagnostics_enabled": false], ["product_analytics_enabled": true]])
+  }
+
+  func testLostPrivacyWriteIsAcceptedOnlyWhenTheAccountShowsIt() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/settings")
+    await assertRuntimeError(.transient) { _ = try await runtime.setProductAnalyticsEnabled(true) }
+
+    fixtures.setFixture(
+      Self.privacyAccountInfo(diagnostics: true, analytics: true), for: "GET /v2/account/info")
+    let result = try await runtime.setProductAnalyticsEnabled(true)
+
+    XCTAssertTrue(result.accountRefreshed)
+    guard case .signedIn(let account) = runtime.session.state else {
+      return XCTFail("missing account")
+    }
+    XCTAssertTrue(account.productAnalyticsEnabled)
+  }
+
   func testOldAccountResponseCannotOverwritePreferencesAfterCommittedMutation() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     let route = "GET /v2/account/info"
@@ -356,5 +405,13 @@ extension PutioRuntimeTests {
       return XCTFail("missing account")
     }
     XCTAssertNil(account.defaultSort)
+  }
+
+  private static func privacyAccountInfo(diagnostics: Bool, analytics: Bool) -> String {
+    accountInfo.replacingOccurrences(
+      of: #""dont_autoselect_subtitles": false"#,
+      with:
+        #""dont_autoselect_subtitles": false, "diagnostics_enabled": \#(diagnostics), "product_analytics_enabled": \#(analytics)"#
+    )
   }
 }

@@ -42,6 +42,10 @@ struct AccountView: View {
             AccountSecurityView(runtime: runtime)
           }
           .accessibilityIdentifier("account.security")
+          NavigationLink("Privacy") {
+            PrivacyControlsView(runtime: runtime)
+          }
+          .accessibilityIdentifier("account.privacy")
         }
         Section("Storage") {
           VStack(alignment: .leading, spacing: PutioTheme.Spacing.space2) {

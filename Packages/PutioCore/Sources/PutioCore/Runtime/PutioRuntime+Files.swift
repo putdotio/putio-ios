@@ -208,7 +208,7 @@ extension PutioRuntime {
     let item = snapshot(file)
     guard item.kind != .folder else { throw PutioRuntimeError.invalidResponse }
     return PutioFileDownloadSource(
-      id: item.id, kind: item.kind, name: item.name, url: file.getDownloadURL(token: token))
+      id: item.id, kind: item.kind, name: item.name, url: file.getDownloadURL(downloadToken: token))
   }
 
   private func runtimeError(forStructuredStatusCode statusCode: Int) -> PutioRuntimeError {
