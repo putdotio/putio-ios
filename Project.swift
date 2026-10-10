@@ -96,6 +96,14 @@ private let intercomBuildSettings: SettingsDictionary = [
   "PUTIO_INTERCOM_APP_ID": "",
   "PUTIO_INTERCOM_ENABLED": "YES",
 ]
+// The Intercom messenger offers attachments, and iOS requires these strings
+// for the system APIs the SDK links, as the 3.x app declares them.
+private let supportCameraUsage: Plist.Value = "Take photos to attach to support conversations."
+private let supportMicrophoneUsage: Plist.Value =
+  "Record audio for videos you attach to support conversations."
+private let supportPhotoLibraryUsage: Plist.Value = "Attach photos to support conversations."
+private let supportLocationUsage: Plist.Value =
+  "Share your location in a support conversation when you choose to."
 private func sentrySettings(releaseEnvironment: String) -> [Configuration] {
   [
     .debug(name: .debug, settings: ["PUTIO_SENTRY_ENVIRONMENT": "development"]),
@@ -143,6 +151,10 @@ let project = Project(
         "PUTIO_INTERCOM_ENABLED": "$(PUTIO_INTERCOM_ENABLED)",
         // No remote push yet; keep Intercom from swizzling the app delegate.
         "IntercomAutoIntegratePushNotifications": false,
+        "NSCameraUsageDescription": supportCameraUsage,
+        "NSMicrophoneUsageDescription": supportMicrophoneUsage,
+        "NSPhotoLibraryUsageDescription": supportPhotoLibraryUsage,
+        "NSLocationWhenInUseUsageDescription": supportLocationUsage,
       ]),
       resources: brandFontResources(for: "ios"),
       buildableFolders: ["Apps/iOS/Sources", "Apps/Shared/Sources"],
@@ -213,6 +225,10 @@ let project = Project(
         "PUTIO_INTERCOM_ENABLED": "$(PUTIO_INTERCOM_ENABLED)",
         // No remote push yet; keep Intercom from swizzling the app delegate.
         "IntercomAutoIntegratePushNotifications": false,
+        "NSCameraUsageDescription": supportCameraUsage,
+        "NSMicrophoneUsageDescription": supportMicrophoneUsage,
+        "NSPhotoLibraryUsageDescription": supportPhotoLibraryUsage,
+        "NSLocationWhenInUseUsageDescription": supportLocationUsage,
       ]),
       resources: .resources(
         brandFontResourceElements(for: "ios") + [

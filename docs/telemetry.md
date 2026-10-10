@@ -1,8 +1,7 @@
 # Telemetry
 
 The iOS app reports crashes and errors to Sentry under the account's
-Diagnostics choice and runs the Intercom support messenger for signed-in users
-([#139](https://github.com/putdotio/putio-ios/issues/139)).
+Diagnostics choice ([#139](https://github.com/putdotio/putio-ios/issues/139)).
 
 ## Diagnostics
 
@@ -41,21 +40,3 @@ shared with the legacy app on `main` ([#150](https://github.com/putdotio/putio-i
 `TelemetryFailure` categories, never as raw errors or messages.
 `SentryTelemetryTests` fails when a Sentry upgrade adds an event field the
 boundary has not reviewed.
-
-## Support messenger
-
-| Build setting            | Default | Effect                                       |
-| ------------------------ | ------- | -------------------------------------------- |
-| `PUTIO_INTERCOM_API_KEY` | empty   | Empty never starts Intercom                  |
-| `PUTIO_INTERCOM_APP_ID`  | empty   | Empty never starts Intercom                  |
-| `PUTIO_INTERCOM_ENABLED` | `YES`   | Kill switch: any other value never starts it |
-
-[PutioSupportMessenger](../Apps/iOS/Sources/Support/SupportMessenger.swift)
-starts Intercom after sign-in, so replies and notifications reach the account,
-and logs out when the session ends. It logs in with the account id and the
-`user_hash` put.io returns for `platform=ios`, for identity verification, and
-sends nothing else. Without keys, a hash, or a successful login, Account ›
-Contact us opens an email to support instead. Only
-[IntercomSupportClient](../Apps/iOS/Sources/Support/IntercomSupportClient.swift)
-imports Intercom; `scripts/test.sh` enforces it. The app has no remote push
-yet, so Intercom push notifications are not wired.

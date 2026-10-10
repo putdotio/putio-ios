@@ -13,7 +13,7 @@ if git grep --untracked -nE '^[[:space:]]*(@[A-Za-z_]+(\([^)]*\))?[[:space:]]+)*
   exit 1
 fi
 # Intercom gets only the support identity, through one client.
-if git grep --untracked -nE '^[[:space:]]*(@[A-Za-z_]+[[:space:]]+)*import[[:space:]]+([a-z]+[[:space:]]+)?Intercom([.[:space:]]|$)' \
+if git grep --untracked -nE '^[[:space:]]*(@[A-Za-z_]+(\([^)]*\))?[[:space:]]+)*import[[:space:]]+([a-z]+[[:space:]]+)?Intercom([.[:space:]]|$)' \
   -- 'Apps/*.swift' 'Packages/*.swift' ':(exclude)Apps/iOS/Sources/Support/IntercomSupportClient.swift'; then
   echo "test: import Intercom only in IntercomSupportClient.swift." >&2
   exit 1
