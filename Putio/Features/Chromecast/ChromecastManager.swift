@@ -1,7 +1,6 @@
 import Foundation
 import GoogleCast
 import PutioSDK
-import Sentry
 
 class ChromecastManager: NSObject {
     static let sharedInstance = ChromecastManager()
