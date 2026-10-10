@@ -30,13 +30,15 @@ extension XCUIElement {
     }
   }
 
-  /// True once two frames read 100 ms apart match.
+  /// True once two frames read 100 ms apart match. Reads the first match,
+  /// because `frame` fails a query that matches several elements.
   private func hasSettled(by deadline: Date) -> Bool {
-    var previous = frame
+    let target = firstMatch
+    var previous = target.frame
     while Date.now < deadline {
       Self.pause(until: deadline)
-      guard exists else { return false }
-      let current = frame
+      guard target.exists else { return false }
+      let current = target.frame
       if current == previous { return true }
       previous = current
     }

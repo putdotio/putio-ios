@@ -38,7 +38,9 @@ mise run harness -- journey --platform tvos --scenario device-sign-in
 The iOS journey runs feature preflights and records the sign-in, browse, playback,
 and sign-out loop. [BrowserJourneyContract](../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift)
 owns the selected tests and required screenshots; the
-[UI tests](../Tests/iOSUITests/Sources) contain their assertions. HTTP responses
+[UI tests](../Tests/iOSUITests/Sources) contain their assertions. They wait with
+[`appears(within:)` and `disappears(within:)`](../Tests/iOSUITests/Sources/XCUIElement+Wait.swift),
+because XCTest's existence waits sleep a second before they first look. HTTP responses
 and OAuth input come from [fixtures](../Apps/Shared/Sources/Harness/HarnessSeededAPI.swift).
 Session transitions, navigation, and AVFoundation playback are real; media is
 served by the harness's [loopback server](../Tools/PutioHarness/Sources/PutioHarnessKit/HarnessMediaServer.swift).
