@@ -10,16 +10,18 @@ struct IntercomSupportClient: SupportMessengerClient {
   }
 
   func logIn(_ identity: PutioSupportIdentity, completion: @escaping @MainActor (Bool) -> Void) {
-    // Identity verification needs the hash before the login.
-    Intercom.setUserHash(identity.userHash)
     // Intercom keeps its user across launches and asks for one login per
     // user; a relaunch reuses it, and anyone else is logged out first.
     if Intercom.isUserLoggedIn() {
       if Intercom.fetchLoggedInUserAttributes()?.userId == identity.userID {
+        Intercom.setUserHash(identity.userHash)
         return completion(true)
       }
       Intercom.logout()
     }
+    // Identity verification needs the hash right before the login; a logout
+    // clears it.
+    Intercom.setUserHash(identity.userHash)
     let attributes = ICMUserAttributes()
     attributes.userId = identity.userID
     Intercom.loginUser(with: attributes) { result in
