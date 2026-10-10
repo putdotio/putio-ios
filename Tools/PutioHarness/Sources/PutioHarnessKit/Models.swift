@@ -639,7 +639,7 @@ enum BrowserJourneyContract {
   static let filePreferencesTestIdentifier =
     "PutioUITests/FilePreferencesJourneyTests/testFilePreferencesFailureRecoveryResetAndPersistence"
   static let filePreferencesAttachmentNames = [
-    "runtime-file-preferences", "runtime-file-preferences-refresh",
+    "runtime-file-preferences", "runtime-file-preferences-refresh", "runtime-privacy-controls",
   ]
   static let historyTestIdentifier =
     "PutioUITests/HistoryJourneyTests/testHistoryPagingNavigationMutationsAndSettingGate"

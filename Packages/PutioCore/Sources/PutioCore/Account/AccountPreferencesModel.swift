@@ -9,6 +9,8 @@ public enum PutioAccountPreferenceMutation: Equatable, Sendable {
   case route(String)
   case showSubtitles(Bool)
   case dontAutoSelectSubtitles(Bool)
+  case diagnostics(Bool)
+  case productAnalytics(Bool)
 }
 
 public struct PutioAccountPreferenceActions: Sendable {
@@ -31,6 +33,8 @@ public struct PutioAccountPreferenceActions: Sendable {
       case .showSubtitles(let show): try await runtime.setSubtitlesVisible(show)
       case .dontAutoSelectSubtitles(let disabled):
         try await runtime.setSubtitleAutoSelectionDisabled(disabled)
+      case .diagnostics(let enabled): try await runtime.setDiagnosticsEnabled(enabled)
+      case .productAnalytics(let enabled): try await runtime.setProductAnalyticsEnabled(enabled)
       }
     }
     refresh = { await runtime.refreshAccount() }

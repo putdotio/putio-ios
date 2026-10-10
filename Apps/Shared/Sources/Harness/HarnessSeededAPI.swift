@@ -49,6 +49,8 @@ import Foundation
       var hideSubtitles = false
       var dontAutoSelectSubtitles = false
       var autoplayNextVideo = false
+      var diagnosticsEnabled = true
+      var productAnalyticsEnabled = false
     }
 
     /// Chromecast config is process-scoped: the seeded journey never relaunches
@@ -168,7 +170,7 @@ import Foundation
         !payload.isEmpty,
         Set(payload.keys).isSubset(of: [
           "sort_by", "trash_enabled", "history_enabled", "tunnel_route_name", "hide_subtitles",
-          "dont_autoselect_subtitles",
+          "dont_autoselect_subtitles", "diagnostics_enabled", "product_analytics_enabled",
         ])
       else {
         return (
@@ -211,6 +213,12 @@ import Foundation
         preferencesRouteCommitted = true
       }
       if let hidden = payload["hide_subtitles"] as? Bool { filePreferences?.hideSubtitles = hidden }
+      if let diagnostics = payload["diagnostics_enabled"] as? Bool {
+        filePreferences?.diagnosticsEnabled = diagnostics
+      }
+      if let analytics = payload["product_analytics_enabled"] as? Bool {
+        filePreferences?.productAnalyticsEnabled = analytics
+      }
       if let disabled = payload["dont_autoselect_subtitles"] as? Bool {
         filePreferences?.dontAutoSelectSubtitles = disabled
       }
@@ -2047,7 +2055,9 @@ import Foundation
               "show_optimistic_usage": false,
               "two_factor_enabled": \(securityLock.withLock { securityTwoFactorEnabled }),
               "hide_subtitles": \(filePreferences?.hideSubtitles ?? false),
-              "dont_autoselect_subtitles": \(filePreferences?.dontAutoSelectSubtitles ?? false)
+              "dont_autoselect_subtitles": \(filePreferences?.dontAutoSelectSubtitles ?? false),
+              "diagnostics_enabled": \(filePreferences?.diagnosticsEnabled ?? true),
+              "product_analytics_enabled": \(filePreferences?.productAnalyticsEnabled ?? false)
             }
           }
         }

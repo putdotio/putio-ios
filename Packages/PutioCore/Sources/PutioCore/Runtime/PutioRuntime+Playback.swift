@@ -18,29 +18,28 @@ extension PutioRuntime {
   public func resolveVideoPlaybackSource(fileID: PutioFileID) async throws
     -> PutioPlaybackResolution
   {
-    let (resolution, downloadToken) = try await performAuthenticatedOperation {
-      (
-        try await sdk.resolveVideoPlaybackSource(fileID: fileID.rawValue),
-        session.downloadToken
-      )
+    let resolution = try await performAuthenticatedOperation {
+      () -> PutioVideoPlaybackResolution? in
+      guard let token = try? requireDownloadToken(session.downloadToken) else { return nil }
+      return try await sdk.resolveVideoPlaybackSource(fileID: fileID.rawValue, downloadToken: token)
     }
+    guard let resolution else { throw PutioRuntimeError.invalidResponse }
 
     switch resolution {
     case .ready(let source):
-      let url = try replacingMediaToken(
-        in: source.url, with: requireDownloadToken(downloadToken))
-      return .ready(PutioPlaybackSource(url: url, startFromSeconds: source.startFrom))
+      return .ready(PutioPlaybackSource(url: source.url, startFromSeconds: source.startFrom))
     case .conversionRequired:
       return .conversionRequired
     }
   }
 
   public func resolveAudioPlaybackSource(fileID: PutioFileID) async throws -> PutioPlaybackSource {
-    let (source, downloadToken) = try await performAuthenticatedOperation {
-      (try await sdk.resolveAudioPlaybackSource(fileID: fileID.rawValue), session.downloadToken)
+    let source = try await performAuthenticatedOperation { () -> PutioAudioPlaybackSource? in
+      guard let token = try? requireDownloadToken(session.downloadToken) else { return nil }
+      return try await sdk.resolveAudioPlaybackSource(fileID: fileID.rawValue, downloadToken: token)
     }
-    let url = try replacingMediaToken(in: source.url, with: requireDownloadToken(downloadToken))
-    return PutioPlaybackSource(url: url, startFromSeconds: source.startFrom)
+    guard let source else { throw PutioRuntimeError.invalidResponse }
+    return PutioPlaybackSource(url: source.url, startFromSeconds: source.startFrom)
   }
 
   public func findNextAudio(after fileID: PutioFileID) async throws -> PutioNextAudio? {
@@ -130,15 +129,16 @@ extension PutioRuntime {
       return .ready(
         PutioCastMedia(
           id: fileID, parentID: PutioFileID(rawValue: file.parentID), title: file.name,
-          playbackType: .hls, url: file.getHlsStreamURL(token: token), artworkURL: artworkURL,
+          playbackType: .hls, url: file.getHlsStreamURL(downloadToken: token),
+          artworkURL: artworkURL,
           durationSeconds: duration, startFromSeconds: file.startFrom, subtitles: [],
           defaultSubtitleKey: nil))
     case .mp4:
       let url: URL
       if file.hasMp4 {
-        url = file.getMp4DownloadURL(token: token)
+        url = file.getMp4DownloadURL(downloadToken: token)
       } else if !file.needConvert {
-        url = file.getDownloadURL(token: token)
+        url = file.getDownloadURL(downloadToken: token)
       } else {
         return .conversionRequired
       }

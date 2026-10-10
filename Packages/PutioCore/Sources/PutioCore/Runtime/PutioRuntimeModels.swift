@@ -39,6 +39,10 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
   public let hideSubtitles: Bool
   public let dontAutoSelectSubtitles: Bool
   public let twoFactorEnabled: Bool
+  /// Account-wide privacy choices shared with every put.io app: crash and
+  /// error reports are on by default, product analytics is opt-in.
+  public let diagnosticsEnabled: Bool
+  public let productAnalyticsEnabled: Bool
   public let avatarURL: URL?
   /// Bytes in Trash as the account reports them; the Trash listing owns the
   /// live total while it is open.
@@ -58,6 +62,8 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     hideSubtitles: Bool = false,
     dontAutoSelectSubtitles: Bool = false,
     twoFactorEnabled: Bool = false,
+    diagnosticsEnabled: Bool = true,
+    productAnalyticsEnabled: Bool = false,
     avatarURL: URL? = nil,
     trashSizeBytes: Int64 = 0
   ) {
@@ -74,6 +80,8 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
     self.hideSubtitles = hideSubtitles
     self.dontAutoSelectSubtitles = dontAutoSelectSubtitles
     self.twoFactorEnabled = twoFactorEnabled
+    self.diagnosticsEnabled = diagnosticsEnabled
+    self.productAnalyticsEnabled = productAnalyticsEnabled
     self.avatarURL = avatarURL
     self.trashSizeBytes = trashSizeBytes
   }
@@ -98,6 +106,8 @@ extension PutioAccountSnapshot: CustomReflectable {
         "hideSubtitles": hideSubtitles,
         "dontAutoSelectSubtitles": dontAutoSelectSubtitles,
         "twoFactorEnabled": twoFactorEnabled,
+        "diagnosticsEnabled": diagnosticsEnabled,
+        "productAnalyticsEnabled": productAnalyticsEnabled,
         "avatarURL": avatarURL == nil ? "nil" : "<redacted>",
         "trashSizeBytes": trashSizeBytes,
       ],

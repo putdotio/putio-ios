@@ -50,6 +50,18 @@ extension PutioRuntime {
     try await savePreferences(.init(dontAutoSelectSubtitles: disabled))
   }
 
+  public func setDiagnosticsEnabled(_ enabled: Bool) async throws
+    -> PutioAccountPreferencesMutationResult
+  {
+    try await savePreferences(.init(diagnosticsEnabled: enabled))
+  }
+
+  public func setProductAnalyticsEnabled(_ enabled: Bool) async throws
+    -> PutioAccountPreferencesMutationResult
+  {
+    try await savePreferences(.init(productAnalyticsEnabled: enabled))
+  }
+
   public func resetFolderSorts() async throws -> PutioAccountPreferencesMutationResult {
     guard case .signedIn = session.state else { throw currentSessionError }
     guard !session.isUpdatingAccountPreferences else { throw PutioRuntimeError.transient }
@@ -95,7 +107,9 @@ extension PutioRuntime {
         patch.historyEnabled.map({ account.historyEnabled == $0 }) ?? true,
         patch.tunnelRouteName.map({ account.routeName == $0 }) ?? true,
         patch.hideSubtitles.map({ account.hideSubtitles == $0 }) ?? true,
-        patch.dontAutoSelectSubtitles.map({ account.dontAutoSelectSubtitles == $0 }) ?? true
+        patch.dontAutoSelectSubtitles.map({ account.dontAutoSelectSubtitles == $0 }) ?? true,
+        patch.diagnosticsEnabled.map({ account.diagnosticsEnabled == $0 }) ?? true,
+        patch.productAnalyticsEnabled.map({ account.productAnalyticsEnabled == $0 }) ?? true
       {
         return PutioAccountPreferencesMutationResult(accountRefreshed: true)
       }
@@ -106,7 +120,9 @@ extension PutioRuntime {
     session.applyAcknowledgedPreferences(
       defaultSort: defaultSort, trashEnabled: patch.trashEnabled,
       historyEnabled: patch.historyEnabled, routeName: patch.tunnelRouteName,
-      hideSubtitles: patch.hideSubtitles, dontAutoSelectSubtitles: patch.dontAutoSelectSubtitles)
+      hideSubtitles: patch.hideSubtitles, dontAutoSelectSubtitles: patch.dontAutoSelectSubtitles,
+      diagnosticsEnabled: patch.diagnosticsEnabled,
+      productAnalyticsEnabled: patch.productAnalyticsEnabled)
     return await preferencesMutationResult(storageChanged: storageChanged)
   }
 
