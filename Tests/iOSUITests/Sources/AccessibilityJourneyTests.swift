@@ -17,8 +17,7 @@ final class AccessibilityJourneyTests: XCTestCase {
     let originalValue = try XCTUnwrap(reduceMotion.value as? String)
     XCTAssertTrue(["0", "1"].contains(originalValue))
     originalReduceMotion = originalValue == "1"
-    if originalValue == "0" { tapSwitch(reduceMotion) }
-    XCTAssertTrue(waitForValue(reduceMotion, "1"))
+    XCTAssertTrue(setSwitch(reduceMotion, to: "1"))
     app = XCUIApplication()
     app.launchArguments = [
       "--putio-harness-scenario", "files-browser", "--putio-harness-accessibility",
@@ -44,8 +43,7 @@ final class AccessibilityJourneyTests: XCTestCase {
       settings.activate()
       let reduceMotion = try reduceMotionSwitch(in: settings)
       let originalValue = originalReduceMotion ? "1" : "0"
-      if reduceMotion.value as? String != originalValue { tapSwitch(reduceMotion) }
-      XCTAssertTrue(waitForValue(reduceMotion, originalValue))
+      XCTAssertTrue(setSwitch(reduceMotion, to: originalValue))
     }
     try super.tearDownWithError()
   }
@@ -186,9 +184,16 @@ final class AccessibilityJourneyTests: XCTestCase {
     return toggle
   }
 
-  private func tapSwitch(_ toggle: XCUIElement) {
-    // Settings exposes the whole row as a switch; its center is the label.
-    toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+  /// Settings drops a tap that lands while it is still coming to the
+  /// foreground, so a tap that changed nothing is retried once.
+  private func setSwitch(_ toggle: XCUIElement, to value: String) -> Bool {
+    for _ in 0..<2 {
+      if toggle.value as? String == value { return true }
+      // Settings exposes the whole row as a switch; its center is the label.
+      toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+      if waitForValue(toggle, value, timeout: 3) { return true }
+    }
+    return false
   }
 
   private func reachable(_ target: XCUIElement, maximumSwipes: Int = 4) -> XCUIElement {
