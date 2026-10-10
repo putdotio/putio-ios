@@ -7,6 +7,7 @@ struct PutioApp: App {
   private let scenario = HarnessLaunch.scenario
 
   init() {
+    PutioDiagnostics.start()
     // The Cast context is process-global and set once; the seeded scenario
     // drives a stub receiver instead and never touches the SDK.
     if PutioCastControllerFactory.usesGoogleCast(scenario: scenario) {

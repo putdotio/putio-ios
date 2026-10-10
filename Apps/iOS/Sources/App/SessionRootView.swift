@@ -47,6 +47,7 @@ struct SessionRootView: View {
       if let url = activity.webpageURL { deepLinks.receive(url) }
     }
     .onChange(of: runtime.session.state, initial: true) { previous, state in
+      PutioDiagnostics.sessionDidChange(state)
       deepLinks.updateSession(state)
       if case .signedIn(let previousAccount) = previous {
         if case .signedIn(let currentAccount) = state, previousAccount.id == currentAccount.id {

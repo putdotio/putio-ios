@@ -5,6 +5,7 @@ import PackageDescription
 let package = Package(
   name: "PutioDependencies",
   dependencies: [
-    .package(path: "../Packages/GoogleCastSDK")
+    .package(path: "../Packages/GoogleCastSDK"),
+    .package(path: "../Packages/SentrySDK"),
   ]
 )

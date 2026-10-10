@@ -50,7 +50,7 @@ runs:
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: Tuist/.build
-        key: ${{ runner.os }}-tuist-build-${{ hashFiles('mise.toml', 'Tuist/Package.swift', 'Tuist/Package.resolved', 'Packages/GoogleCastSDK/Package.swift') }}
+        key: ${{ runner.os }}-tuist-build-${{ hashFiles('mise.toml', 'Tuist/Package.swift', 'Tuist/Package.resolved', 'Packages/GoogleCastSDK/Package.swift', 'Packages/SentrySDK/Package.swift') }}
         restore-keys: |
           ${{ runner.os }}-tuist-build-
 
