@@ -10,9 +10,12 @@ struct SimulatorJobsTests {
     defer { try? FileManager.default.removeItem(at: root) }
     let runtimeRoot = root.appending(path: "RuntimeRoot")
     let daemon = runtimeRoot.appending(path: "System/Library/LaunchDaemons/com.apple.chronod.plist")
-    let agent = runtimeRoot.appending(path: "System/Library/LaunchAgents/com.apple.gamed.plist")
+    let agent = runtimeRoot.appending(path: "System/Library/LaunchAgents/com.apple.assistantd.plist")
     let kept = runtimeRoot.appending(path: "System/Library/LaunchDaemons/com.apple.securityd.plist")
-    for plist in [daemon, agent, kept] {
+    // DTServiceHub needs gamed for every UI-test app launch.
+    let keptGameCenter = runtimeRoot.appending(
+      path: "System/Library/LaunchAgents/com.apple.gamed.plist")
+    for plist in [daemon, agent, kept, keptGameCenter] {
       try FileManager.default.createDirectory(
         at: plist.deletingLastPathComponent(), withIntermediateDirectories: true)
       try Data().write(to: plist)
@@ -39,7 +42,7 @@ struct SimulatorJobsTests {
     #expect(
       calls == [
         "simctl getenv DEVICE SIMULATOR_ROOT",
-        "simctl spawn DEVICE launchctl bootout system \(daemon.path) \(agent.path)",
+        "simctl spawn DEVICE launchctl bootout system \(agent.path) \(daemon.path)",
       ])
   }
 }
