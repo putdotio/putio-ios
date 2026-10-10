@@ -22,13 +22,13 @@ final class DownloadsJourneyTests: XCTestCase {
 
     // Inventory and bounded multi-select.
     let row = element("files.item.412")
-    XCTAssertTrue(row.waitForExistence(timeout: 10))
+    XCTAssertTrue(row.appears(within: 10))
     row.press(forDuration: 1)
     let download = app.buttons["Download"]
-    XCTAssertTrue(download.waitForExistence(timeout: 5))
+    XCTAssertTrue(download.appears(within: 5))
     download.tap()
     let turkish = element("downloads.track.tr")
-    XCTAssertTrue(turkish.waitForExistence(timeout: 20), "track picker never appeared")
+    XCTAssertTrue(turkish.appears(within: 20), "track picker never appeared")
     XCTAssertTrue(isOn(turkish), "preferred language was not preselected: \(turkish.value ?? "")")
     let english = element("downloads.track.en")
     XCTAssertFalse(isOn(english))
@@ -41,7 +41,7 @@ final class DownloadsJourneyTests: XCTestCase {
 
     // Queue: progress through completion.
     let item = element("downloads.item.412")
-    XCTAssertTrue(item.waitForExistence(timeout: 10))
+    XCTAssertTrue(item.appears(within: 10))
     XCTAssertTrue(
       waitForValue(item, "completed", timeout: 90),
       "download did not complete: \(item.value ?? "")")
@@ -51,11 +51,11 @@ final class DownloadsJourneyTests: XCTestCase {
     // Details disclose both stored tracks.
     item.press(forDuration: 1)
     let details = app.buttons["downloads.details.412"]
-    XCTAssertTrue(details.waitForExistence(timeout: 5))
+    XCTAssertTrue(details.appears(within: 5))
     details.tap()
-    XCTAssertTrue(element("downloads.detail.412").waitForExistence(timeout: 5))
-    XCTAssertTrue(element("downloads.detail.audio.en").waitForExistence(timeout: 5))
-    XCTAssertTrue(element("downloads.detail.audio.tr").waitForExistence(timeout: 5))
+    XCTAssertTrue(element("downloads.detail.412").appears(within: 5))
+    XCTAssertTrue(element("downloads.detail.audio.en").appears(within: 5))
+    XCTAssertTrue(element("downloads.detail.audio.tr").appears(within: 5))
     screenshot("runtime-downloads-detail")
     app.buttons["downloads.detail.done"].tap()
 
@@ -63,20 +63,20 @@ final class DownloadsJourneyTests: XCTestCase {
     // position stays pending locally.
     item.tap()
     let ready = element("video.ready")
-    XCTAssertTrue(ready.waitForExistence(timeout: 20))
+    XCTAssertTrue(ready.appears(within: 20))
     let language = element("video.audio-language")
-    XCTAssertTrue(language.waitForExistence(timeout: 10))
+    XCTAssertTrue(language.appears(within: 10))
     XCTAssertTrue(
       waitForValue(language, "tr", timeout: 10),
       "offline playback did not pick Turkish: \(language.value ?? "")")
     let position = element("video.current-position")
-    XCTAssertTrue(position.waitForExistence(timeout: 10))
+    XCTAssertTrue(position.appears(within: 10))
     let advanced = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value != '0'"), object: position)
     XCTAssertEqual(XCTWaiter.wait(for: [advanced], timeout: 15), .completed)
     element("video.done").tap()
     let pending = element("downloads.pending-positions")
-    XCTAssertTrue(pending.waitForExistence(timeout: 10))
+    XCTAssertTrue(pending.appears(within: 10))
     XCTAssertEqual(pending.value as? String, "1")
 
     // Relaunch without the failure flag: the item and its pending position
@@ -84,16 +84,16 @@ final class DownloadsJourneyTests: XCTestCase {
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-offline-positions-fail" }
     app.launch()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
     app.buttons["Downloads"].tap()
-    XCTAssertTrue(item.waitForExistence(timeout: 10))
+    XCTAssertTrue(item.appears(within: 10))
     XCTAssertEqual(item.value as? String, "completed")
-    XCTAssertTrue(pending.waitForNonExistence(timeout: 15), "pending position did not sync")
+    XCTAssertTrue(pending.disappears(within: 15), "pending position did not sync")
 
     // Multi-select removal: local removal is the default, the original is a
     // separately worded destructive choice, and both are named for VoiceOver.
     app.buttons["downloads.select"].tap()
-    XCTAssertTrue(app.buttons["downloads.remove-selected"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["downloads.remove-selected"].appears(within: 5))
     XCTAssertFalse(app.buttons["downloads.remove-selected"].isEnabled)
     XCTAssertEqual(item.value as? String, "Not selected")
     item.tap()
@@ -101,7 +101,7 @@ final class DownloadsJourneyTests: XCTestCase {
     XCTAssertEqual(item.value as? String, "Selected")
     app.buttons["downloads.remove-selected"].tap()
     let removeLocal = app.buttons["downloads.remove-local"].firstMatch
-    XCTAssertTrue(removeLocal.waitForExistence(timeout: 5))
+    XCTAssertTrue(removeLocal.appears(within: 5))
     XCTAssertTrue(app.staticTexts["Remove “Root Movie.mkv”?"].exists, "the title names the file")
     XCTAssertTrue(
       app.staticTexts.element(
@@ -116,33 +116,33 @@ final class DownloadsJourneyTests: XCTestCase {
     // The seeded first delete fails: the local copy is gone, the failure is
     // reported without claiming success, and retry moves the original.
     removeOriginal.tap()
-    XCTAssertTrue(item.waitForNonExistence(timeout: 10))
+    XCTAssertTrue(item.disappears(within: 10))
     let failure = app.alerts["Could not move original to Trash"]
-    XCTAssertTrue(failure.waitForExistence(timeout: 10))
+    XCTAssertTrue(failure.appears(within: 10))
     XCTAssertTrue(
       failure.staticTexts.element(
         matching: NSPredicate(
           format: "label CONTAINS %@", "was removed from this device, but put.io did not confirm")
       ).exists, "the failure report does not keep the local outcome honest")
     app.buttons["downloads.remove-original-retry"].firstMatch.tap()
-    XCTAssertTrue(failure.waitForNonExistence(timeout: 10))
-    XCTAssertTrue(app.staticTexts["No downloads"].waitForExistence(timeout: 5))
+    XCTAssertTrue(failure.disappears(within: 10))
+    XCTAssertTrue(app.staticTexts["No downloads"].appears(within: 5))
     XCTAssertFalse(app.alerts.firstMatch.exists, "retry must not report a second failure")
 
     // The loaded root reconciles with the moved original.
     app.buttons["Files"].tap()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
     XCTAssertTrue(
-      element("files.item.412").waitForNonExistence(timeout: 10),
+      element("files.item.412").disappears(within: 10),
       "the root still lists the original after put.io moved it to Trash")
 
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    XCTAssertTrue(signOut.appears(within: 5))
     if !signOut.isHittable { app.swipeUp() }
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(element("auth.sign-in").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
   func testAnUnsavedDownloadIsReportedOutsideDownloads() throws {
@@ -152,25 +152,25 @@ final class DownloadsJourneyTests: XCTestCase {
 
     // Restore's write fails at launch and is reported over Files.
     let unsaved = app.alerts["Could not save downloads"]
-    XCTAssertTrue(unsaved.waitForExistence(timeout: 10))
+    XCTAssertTrue(unsaved.appears(within: 10))
 
     // Nothing else writes yet, so only the retry's own failure can bring the
     // alert back.
     app.buttons["downloads.save-retry"].firstMatch.tap()
     // Past the tapped alert's dismissal, so only a new presentation counts.
     Thread.sleep(forTimeInterval: 2)
-    XCTAssertTrue(unsaved.waitForExistence(timeout: 8), "a retry that fails again is not reported")
+    XCTAssertTrue(unsaved.appears(within: 8), "a retry that fails again is not reported")
     app.buttons["downloads.save-dismiss"].firstMatch.tap()
-    XCTAssertTrue(unsaved.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(unsaved.disappears(within: 5))
 
     // Queuing from Files is reported there; Downloads is never opened.
     let track = element("files.item.408")
-    XCTAssertTrue(track.waitForExistence(timeout: 10))
+    XCTAssertTrue(track.appears(within: 10))
     track.press(forDuration: 1)
     let download = app.buttons["Download"]
-    XCTAssertTrue(download.waitForExistence(timeout: 5))
+    XCTAssertTrue(download.appears(within: 5))
     download.tap()
-    XCTAssertTrue(unsaved.waitForExistence(timeout: 10))
+    XCTAssertTrue(unsaved.appears(within: 10))
     XCTAssertTrue(app.buttons["downloads.save-retry"].firstMatch.exists)
 
     // Every write keeps failing, so the alert returns; relaunch with working
@@ -178,15 +178,15 @@ final class DownloadsJourneyTests: XCTestCase {
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-offline-writes-fail" }
     app.launch()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
     XCTAssertFalse(unsaved.exists)
     app.buttons["Account"].tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    XCTAssertTrue(signOut.appears(within: 5))
     if !signOut.isHittable { app.swipeUp() }
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(element("auth.sign-in").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("auth.sign-in").appears(within: 10))
   }
 
   /// Toggle rows expose the switch value as "1"/"0" on the row or its switch.
@@ -209,9 +209,9 @@ final class DownloadsJourneyTests: XCTestCase {
 
   private func signIn() {
     let button = element("auth.sign-in")
-    XCTAssertTrue(button.waitForExistence(timeout: 10))
+    XCTAssertTrue(button.appears(within: 10))
     button.tap()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
   }
 
   private func waitForValue(_ element: XCUIElement, _ value: String, timeout: TimeInterval)

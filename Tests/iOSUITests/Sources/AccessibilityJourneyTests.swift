@@ -17,8 +17,7 @@ final class AccessibilityJourneyTests: XCTestCase {
     let originalValue = try XCTUnwrap(reduceMotion.value as? String)
     XCTAssertTrue(["0", "1"].contains(originalValue))
     originalReduceMotion = originalValue == "1"
-    if originalValue == "0" { tapSwitch(reduceMotion) }
-    XCTAssertTrue(waitForValue(reduceMotion, "1"))
+    XCTAssertTrue(setSwitch(reduceMotion, to: "1"))
     app = XCUIApplication()
     app.launchArguments = [
       "--putio-harness-scenario", "files-browser", "--putio-harness-accessibility",
@@ -27,12 +26,12 @@ final class AccessibilityJourneyTests: XCTestCase {
       ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"])
     app.launch()
     let configuration = element("harness.accessibility")
-    XCTAssertTrue(configuration.waitForExistence(timeout: 10))
+    XCTAssertTrue(configuration.appears(within: 10))
     XCTAssertEqual(configuration.value as? String, "text=accessibility5;reduce-motion=true")
     let signIn = app.buttons["auth.sign-in"]
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
   }
 
   override func tearDownWithError() throws {
@@ -44,8 +43,7 @@ final class AccessibilityJourneyTests: XCTestCase {
       settings.activate()
       let reduceMotion = try reduceMotionSwitch(in: settings)
       let originalValue = originalReduceMotion ? "1" : "0"
-      if reduceMotion.value as? String != originalValue { tapSwitch(reduceMotion) }
-      XCTAssertTrue(waitForValue(reduceMotion, originalValue))
+      XCTAssertTrue(setSwitch(reduceMotion, to: originalValue))
     }
     try super.tearDownWithError()
   }
@@ -55,7 +53,7 @@ final class AccessibilityJourneyTests: XCTestCase {
     app.buttons["files.menu"].tap()
     app.buttons["files.new-folder"].tap()
     let field = element("files.action-name")
-    XCTAssertTrue(field.waitForExistence(timeout: 5))
+    XCTAssertTrue(field.appears(within: 5))
     let focused = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: field)
     XCTAssertEqual(XCTWaiter.wait(for: [focused], timeout: 5), .completed)
@@ -79,20 +77,20 @@ final class AccessibilityJourneyTests: XCTestCase {
     app.buttons["files.selection.toggle"].tap()
 
     selectTab("Downloads")
-    XCTAssertTrue(app.staticTexts["No downloads"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.staticTexts["No downloads"].appears(within: 5))
     screenshot("runtime-accessibility-downloads")
     selectTab("Files")
     reachable(element("files.item.412")).press(forDuration: 1)
     let download = app.buttons["Download"]
-    XCTAssertTrue(download.waitForExistence(timeout: 5))
+    XCTAssertTrue(download.appears(within: 5))
     download.tap()
     let track = element("downloads.track.en")
-    XCTAssertTrue(track.waitForExistence(timeout: 20))
+    XCTAssertTrue(track.appears(within: 20))
     XCTAssertTrue(app.staticTexts["English"].exists)
     XCTAssertTrue(reachable(app.buttons["downloads.picker.confirm"]).isEnabled)
     screenshot("runtime-accessibility-download-picker")
     app.buttons["downloads.picker.cancel"].tap()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 5))
+    XCTAssertTrue(element("files.screen.0").appears(within: 5))
     signOut()
   }
 
@@ -141,7 +139,7 @@ final class AccessibilityJourneyTests: XCTestCase {
       screenshot(name + "-controls")
     }
     app.buttons["audio.done"].tap()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 5))
+    XCTAssertTrue(element("files.screen.0").appears(within: 5))
     signOut()
   }
 
@@ -154,7 +152,7 @@ final class AccessibilityJourneyTests: XCTestCase {
     if !tab.exists {
       app.tabBars.buttons.matching(NSPredicate(format: "selected == true")).firstMatch.tap()
     }
-    XCTAssertTrue(tab.waitForExistence(timeout: 5))
+    XCTAssertTrue(tab.appears(within: 5))
     tab.tap()
   }
 
@@ -163,12 +161,12 @@ final class AccessibilityJourneyTests: XCTestCase {
     selectTab("Account")
     reachable(app.buttons["auth.sign-out"], maximumSwipes: 12).tap()
     app.confirmSignOut()
-    XCTAssertTrue(app.buttons["auth.sign-in"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.buttons["auth.sign-in"].appears(within: 10))
   }
 
   private func reduceMotionSwitch(in settings: XCUIApplication) throws -> XCUIElement {
     let toggle = settings.switches["Reduce Motion"]
-    if toggle.waitForExistence(timeout: 2) { return toggle }
+    if toggle.appears(within: 2) { return toggle }
     let motion = settings.staticTexts["Motion"].firstMatch
     if !motion.exists {
       let accessibility = settings.staticTexts["Accessibility"].firstMatch
@@ -179,16 +177,23 @@ final class AccessibilityJourneyTests: XCTestCase {
       XCTAssertTrue(accessibility.exists && accessibility.isHittable)
       accessibility.tap()
     }
-    XCTAssertTrue(motion.waitForExistence(timeout: 5))
+    XCTAssertTrue(motion.appears(within: 5))
     if !motion.isHittable { settings.swipeUp() }
     motion.tap()
-    XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+    XCTAssertTrue(toggle.appears(within: 5))
     return toggle
   }
 
-  private func tapSwitch(_ toggle: XCUIElement) {
-    // Settings exposes the whole row as a switch; its center is the label.
-    toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+  /// Settings drops a tap that lands while it is still coming to the
+  /// foreground, so a tap that changed nothing is retried once.
+  private func setSwitch(_ toggle: XCUIElement, to value: String) -> Bool {
+    for _ in 0..<2 {
+      if toggle.value as? String == value { return true }
+      // Settings exposes the whole row as a switch; its center is the label.
+      toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+      if waitForValue(toggle, value, timeout: 3) { return true }
+    }
+    return false
   }
 
   private func reachable(_ target: XCUIElement, maximumSwipes: Int = 4) -> XCUIElement {

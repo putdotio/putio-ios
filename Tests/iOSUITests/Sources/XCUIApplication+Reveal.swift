@@ -7,7 +7,7 @@ extension XCUIApplication {
   func revealed(_ identifier: String, maximumSwipes: Int = 3) -> XCUIElement {
     let target = descendants(matching: .any)[identifier]
     var swipes = 0
-    while !target.waitForExistence(timeout: 3), swipes < maximumSwipes {
+    while !target.appears(within: 3), swipes < maximumSwipes {
       swipeUp()
       swipes += 1
     }
@@ -18,7 +18,7 @@ extension XCUIApplication {
   func confirmSignOut(file: StaticString = #filePath, line: UInt = #line) {
     let confirm = buttons["auth.sign-out-confirm"].firstMatch
     XCTAssertTrue(
-      confirm.waitForExistence(timeout: 5), "log out was not confirmed", file: file, line: line)
+      confirm.appears(within: 5), "log out was not confirmed", file: file, line: line)
     confirm.tap()
   }
 }

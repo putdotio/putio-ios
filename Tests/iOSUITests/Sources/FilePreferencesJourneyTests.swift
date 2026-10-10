@@ -19,9 +19,9 @@ final class FilePreferencesJourneyTests: XCTestCase {
   func testFilePreferencesFailureRecoveryResetAndPersistence() {
     app.launch()
     let signIn = element("auth.sign-in")
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 10))
+    XCTAssertTrue(element("files.screen.0").appears(within: 10))
     assertFirstFile("Harness Folder")
     openPreferences()
     let sort = element("settings.default-sort")
@@ -32,16 +32,16 @@ final class FilePreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(descending))
     descending.tap()
     let retrySave = app.buttons["settings.retry-save"]
-    XCTAssertTrue(retrySave.waitForExistence(timeout: 10))
+    XCTAssertTrue(retrySave.appears(within: 10))
     XCTAssertEqual(sort.label, initialSort, "failed save changed the account preference")
     retrySave.tap()
     let refresh = app.buttons["settings.refresh"]
-    XCTAssertTrue(refresh.waitForExistence(timeout: 10))
+    XCTAssertTrue(refresh.appears(within: 10))
     XCTAssertFalse(retrySave.exists, "committed save offered another mutation")
     XCTAssertFalse(sort.isEnabled, "stale account preferences remained editable")
     addScreenshot(named: "runtime-file-preferences-refresh")
     refresh.tap()
-    XCTAssertTrue(refresh.waitForNonExistence(timeout: 10))
+    XCTAssertTrue(refresh.disappears(within: 10))
     XCTAssertTrue(waitUntilHittable(sort))
     let savedSort = sort.label
     XCTAssertEqual(savedSort, "Default sort, Name, descending")
@@ -53,7 +53,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(reset))
     reset.tap()
     let resetConfirm = app.buttons["settings.reset-sort-confirm"].firstMatch
-    XCTAssertTrue(resetConfirm.waitForExistence(timeout: 5))
+    XCTAssertTrue(resetConfirm.appears(within: 5))
     cancelConfirmation(resetConfirm)
     app.buttons["Files"].tap()
     assertFirstFile("Harness Folder")
@@ -61,7 +61,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     reset.tap()
     XCTAssertTrue(waitUntilHittable(resetConfirm))
     resetConfirm.tap()
-    XCTAssertTrue(resetConfirm.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(resetConfirm.disappears(within: 5))
     XCTAssertTrue(waitUntilHittable(reset))
     app.buttons["Files"].tap()
     assertFirstFile("Document.pdf")
@@ -73,12 +73,12 @@ final class FilePreferencesJourneyTests: XCTestCase {
     let historyConfirm = app.buttons["settings.history-disable"].firstMatch
     XCTAssertTrue(waitUntilHittable(trash))
     tapToggle(trash)
-    XCTAssertTrue(trashConfirm.waitForExistence(timeout: 5))
+    XCTAssertTrue(trashConfirm.appears(within: 5))
     cancelConfirmation(trashConfirm)
     assertToggle(trash, enabled: true)
     XCTAssertTrue(waitUntilHittable(history))
     tapToggle(history)
-    XCTAssertTrue(historyConfirm.waitForExistence(timeout: 5))
+    XCTAssertTrue(historyConfirm.appears(within: 5))
     cancelConfirmation(historyConfirm)
     assertToggle(history, enabled: true)
     XCTAssertTrue(app.buttons["History"].exists)
@@ -89,10 +89,10 @@ final class FilePreferencesJourneyTests: XCTestCase {
     tapToggle(history)
     historyConfirm.tap()
     assertToggle(history, enabled: false)
-    XCTAssertTrue(app.buttons["History"].waitForNonExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["History"].disappears(within: 5))
     tapToggle(history)
     assertToggle(history, enabled: true)
-    XCTAssertTrue(app.buttons["History"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.buttons["History"].appears(within: 5))
 
     tapToggle(trash)
     assertToggle(trash, enabled: true)
@@ -121,7 +121,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-reset-file-preferences" }
     app.launch()
-    XCTAssertTrue(element("files.screen.0").waitForExistence(timeout: 15))
+    XCTAssertTrue(element("files.screen.0").appears(within: 15))
     assertFirstFile("Document.pdf")
     XCTAssertTrue(app.buttons["History"].exists)
     openPreferences()
@@ -134,12 +134,12 @@ final class FilePreferencesJourneyTests: XCTestCase {
     assertToggle(analytics, enabled: true)
     app.navigationBars.buttons["BackButton"].tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    XCTAssertTrue(signOut.appears(within: 5))
     if !signOut.isHittable { app.swipeUp() }
     XCTAssertTrue(waitUntilHittable(signOut))
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
   }
 
   private func cancelConfirmation(_ confirmation: XCUIElement) {
@@ -150,7 +150,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
       // Native popovers cancel by tapping outside their content.
       app.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5)).tap()
     }
-    XCTAssertTrue(confirmation.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(confirmation.disappears(within: 5))
   }
 
   private func openPreferences() {

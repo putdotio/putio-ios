@@ -12,57 +12,57 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
       ProcessInfo.processInfo.environment["PUTIO_HARNESS_MEDIA_BASE_URL"])
     app.launch()
     let signIn = app.descendants(matching: .any)["auth.sign-in"]
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
-    XCTAssertTrue(app.buttons["Account"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.buttons["Account"].appears(within: 10))
     playNextManuallyWithAutoplayOff(app)
     openPreferences(app)
     let routeRetry = app.buttons["playback-settings.retry-routes"]
-    XCTAssertTrue(routeRetry.waitForExistence(timeout: 10))
+    XCTAssertTrue(routeRetry.appears(within: 10))
     routeRetry.tap()
     let proxy = app.descendants(matching: .any)["playback-settings.route"]
-    XCTAssertTrue(proxy.waitForExistence(timeout: 10))
+    XCTAssertTrue(proxy.appears(within: 10))
     proxy.tap()
     let alternate = app.descendants(matching: .any)["playback-settings.route.edge"]
-    XCTAssertTrue(alternate.waitForExistence(timeout: 5))
+    XCTAssertTrue(alternate.appears(within: 5))
     alternate.tap()
     if !app.navigationBars["Playback preferences"].exists {
       app.navigationBars.buttons["BackButton"].tap()
     }
     let saveRetry = app.buttons["playback-settings.retry-save"]
-    XCTAssertTrue(saveRetry.waitForExistence(timeout: 10))
+    XCTAssertTrue(saveRetry.appears(within: 10))
     XCTAssertEqual(proxy.value as? String, "Default proxy")
     saveRetry.tap()
     let refresh = app.buttons["playback-settings.refresh"]
-    XCTAssertTrue(refresh.waitForExistence(timeout: 10))
+    XCTAssertTrue(refresh.appears(within: 10))
     XCTAssertFalse(saveRetry.exists)
     XCTAssertFalse(proxy.isEnabled)
     XCTAssertEqual(proxy.value as? String, "Alternate proxy")
     refresh.tap()
-    XCTAssertTrue(refresh.waitForNonExistence(timeout: 10))
+    XCTAssertTrue(refresh.disappears(within: 10))
     let subtitles = app.switches["playback-settings.subtitles"]
     let autoSelection = app.switches["playback-settings.subtitle-selection"]
-    XCTAssertTrue(autoSelection.waitForExistence(timeout: 5))
+    XCTAssertTrue(autoSelection.appears(within: 5))
     tapToggle(autoSelection)
     assertToggle(autoSelection, value: "1")
     tapToggle(subtitles)
     assertToggle(subtitles, value: "0")
-    XCTAssertTrue(autoSelection.waitForNonExistence(timeout: 5))
+    XCTAssertTrue(autoSelection.disappears(within: 5))
     tapToggle(subtitles)
     assertToggle(subtitles, value: "1")
-    XCTAssertTrue(autoSelection.waitForExistence(timeout: 5))
+    XCTAssertTrue(autoSelection.appears(within: 5))
     assertToggle(autoSelection, value: "1")
     // Autoplay lives in the config document, not the account settings: the
     // first write fails and the switch keeps the authoritative value.
     let autoplay = app.switches["playback-settings.autoplay"]
-    XCTAssertTrue(autoplay.waitForExistence(timeout: 5))
+    XCTAssertTrue(autoplay.appears(within: 5))
     assertToggle(autoplay, value: "0")
     tapToggle(autoplay)
     let autoplayRetry = app.buttons["playback-settings.retry-autoplay"]
-    XCTAssertTrue(autoplayRetry.waitForExistence(timeout: 10))
+    XCTAssertTrue(autoplayRetry.appears(within: 10))
     assertToggle(autoplay, value: "0")
     autoplayRetry.tap()
-    XCTAssertTrue(autoplayRetry.waitForNonExistence(timeout: 10))
+    XCTAssertTrue(autoplayRetry.disappears(within: 10))
     assertToggle(autoplay, value: "1")
     let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
     attachment.name = "runtime-playback-preferences"
@@ -71,21 +71,21 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     app.terminate()
     app.launchArguments.removeAll { $0 == "--putio-harness-reset-file-preferences" }
     app.launch()
-    XCTAssertTrue(app.buttons["Account"].waitForExistence(timeout: 15))
+    XCTAssertTrue(app.buttons["Account"].appears(within: 15))
     openPreferences(app)
-    XCTAssertTrue(routeRetry.waitForExistence(timeout: 10))
+    XCTAssertTrue(routeRetry.appears(within: 10))
     routeRetry.tap()
-    XCTAssertTrue(proxy.waitForExistence(timeout: 10))
+    XCTAssertTrue(proxy.appears(within: 10))
     XCTAssertEqual(proxy.value as? String, "Alternate proxy")
     assertToggle(subtitles, value: "1")
     assertToggle(autoSelection, value: "1")
     assertToggle(autoplay, value: "1")
     app.navigationBars.buttons["BackButton"].tap()
     let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.waitForExistence(timeout: 5))
+    XCTAssertTrue(signOut.appears(within: 5))
     signOut.tap()
     app.confirmSignOut()
-    XCTAssertTrue(signIn.waitForExistence(timeout: 10))
+    XCTAssertTrue(signIn.appears(within: 10))
   }
 
   /// With the persisted default (autoplay off) the suggestion still appears
@@ -94,14 +94,14 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
   /// position.
   private func playNextManuallyWithAutoplayOff(_ app: XCUIApplication) {
     let rootVideo = app.descendants(matching: .any)["files.item.412"]
-    XCTAssertTrue(rootVideo.waitForExistence(timeout: 10))
+    XCTAssertTrue(rootVideo.appears(within: 10))
     rootVideo.tap()
     // The seeded scenario fails the first playback attempt for retry proof.
-    XCTAssertTrue(app.descendants(matching: .any)["video.error"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.descendants(matching: .any)["video.error"].appears(within: 10))
     app.buttons["Try again"].tap()
-    XCTAssertTrue(app.descendants(matching: .any)["video.ready"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.descendants(matching: .any)["video.ready"].appears(within: 10))
     let nextTitle = app.descendants(matching: .any)["video.next-title"]
-    XCTAssertTrue(nextTitle.waitForExistence(timeout: 15), "next-video suggestion never appeared")
+    XCTAssertTrue(nextTitle.appears(within: 15), "next-video suggestion never appeared")
     XCTAssertEqual(nextTitle.label, "Up next, Root Movie 2.mkv")
     XCTAssertFalse(
       app.descendants(matching: .any)["video.next-countdown"].exists,
@@ -114,7 +114,7 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
     XCTAssertEqual(playNext.label, "Play next, Root Movie 2.mkv")
     XCTAssertEqual(cancelNext.label, "Cancel playing Root Movie 2.mkv")
     let presentedRoute = app.descendants(matching: .any)["video.presented-route"]
-    XCTAssertTrue(presentedRoute.waitForExistence(timeout: 5))
+    XCTAssertTrue(presentedRoute.appears(within: 5))
     let successorRoute = NSPredicate(format: "value == %@", "id=414")
     XCTAssertEqual(
       XCTWaiter.wait(
@@ -136,13 +136,13 @@ final class PlaybackPreferencesJourneyTests: XCTestCase {
       XCTWaiter.wait(for: [resumePosition], timeout: 10), .completed,
       "manual play-next did not open the successor at its saved position")
     app.descendants(matching: .any)["video.done"].tap()
-    XCTAssertTrue(app.descendants(matching: .any)["files.screen.0"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.descendants(matching: .any)["files.screen.0"].appears(within: 5))
   }
 
   private func openPreferences(_ app: XCUIApplication) {
     app.buttons["Account"].tap()
     let entry = app.descendants(matching: .any)["account.playback-preferences"]
-    XCTAssertTrue(entry.waitForExistence(timeout: 5))
+    XCTAssertTrue(entry.appears(within: 5))
     entry.tap()
   }
 
