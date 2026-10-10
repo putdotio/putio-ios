@@ -84,6 +84,8 @@ struct PrivacyControlsView: View {
       }
     }
     .navigationTitle("Privacy")
+    // Default spacing pushes the last footer under the floating tab bar at rest.
+    .listSectionSpacing(.compact)
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
   }
