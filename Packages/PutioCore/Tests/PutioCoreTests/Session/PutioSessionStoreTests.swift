@@ -251,7 +251,8 @@ final class PutioSessionStoreTests: XCTestCase {
   }
 
   private func makeStore(
-    tokenStore: PutioTokenStore, fixtures: SessionMockURLProtocol.Fixtures? = nil
+    tokenStore: PutioTokenStore, fixtures: SessionMockURLProtocol.Fixtures? = nil,
+    supportIdentityPlatform: String? = nil
   ) -> (PutioSessionStore, PutioSDK) {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [SessionMockURLProtocol.self]
@@ -260,7 +261,11 @@ final class PutioSessionStoreTests: XCTestCase {
       config: PutioSDKConfig(clientID: "3001", clientName: "tests"),
       urlSession: URLSession(configuration: configuration)
     )
-    return (PutioSessionStore(sdk: sdk, tokenStore: tokenStore), sdk)
+    return (
+      PutioSessionStore(
+        sdk: sdk, tokenStore: tokenStore, supportIdentityPlatform: supportIdentityPlatform),
+      sdk
+    )
   }
 
   private func stubSignedInRoutes() {
@@ -714,6 +719,27 @@ final class PutioSessionStoreTests: XCTestCase {
       return XCTFail("expected authenticationFailed, got \(store.state)")
     }
     XCTAssertNil(try tokenStore.read())
+  }
+
+  func testSupportIdentityComesFromThePlatformHashAndEndsWithTheSession() async throws {
+    stubSignedInRoutes()
+    let (unasked, _) = makeStore(
+      tokenStore: PutioInMemoryTokenStore(token: "stored-token"))
+    await unasked.restore()
+    XCTAssertNil(unasked.supportIdentity, "a runtime that did not ask must not log anyone in")
+    let unaskedQuery = try XCTUnwrap(fixtures.requests.last?.url?.query)
+    XCTAssertFalse(unaskedQuery.contains("intercom"), unaskedQuery)
+
+    let (store, _) = makeStore(
+      tokenStore: PutioInMemoryTokenStore(token: "stored-token"), supportIdentityPlatform: "ios")
+    await store.restore()
+    let query = try XCTUnwrap(fixtures.requests.last?.url?.query)
+    XCTAssertTrue(query.contains("intercom=1") && query.contains("platform=ios"), query)
+    XCTAssertEqual(store.supportIdentity, PutioSupportIdentity(userID: "1001", userHash: "hash"))
+    XCTAssertFalse(String(reflecting: store.supportIdentity).contains("\"hash\""))
+
+    await store.signOut()
+    XCTAssertNil(store.supportIdentity)
   }
 
   func testSignOutClearsSessionState() async {

@@ -12,6 +12,7 @@ struct AccountView: View {
   let linkDeviceCode: String?
   let onDataCleared: @MainActor (Set<PutioAccountDataCategory>, Bool) -> Void
   let onAccountDestroyed: @MainActor () -> Void
+  @Environment(\.openURL) private var openURL
   @State private var isRefreshingStorage = false
   @State private var confirmsSignOut = false
 
@@ -94,6 +95,10 @@ struct AccountView: View {
             .accessibilityIdentifier("account.about")
             Link("Rate put.io on App Store", destination: reviewURL)
               .accessibilityIdentifier("account.rate-app")
+            Button("Contact us") {
+              PutioSupportMessenger.shared.contactSupport { openURL($0) }
+            }
+            .accessibilityIdentifier("account.contact-support")
           }
         }
         Section("Danger zone") {

@@ -81,6 +81,7 @@ public final class PutioSessionStore {
   /// download URLs. Anything that leaves the app carries this instead of the
   /// session token. Nil until the signed-in account loads.
   @ObservationIgnored private(set) var downloadToken: String?
+  @ObservationIgnored private var supportUserHash: String?
   private var lastPreferencesMutationSequence: UInt64 = 0
   /// Advances at every session boundary (restore, sign-in, sign-out,
   /// expiry), so work bound to one signed-in shell can tell it has ended.
@@ -98,6 +99,7 @@ public final class PutioSessionStore {
   private let callbackScheme: String
   private let callbackHost = "auth"
   private let deviceCodePollInterval: Duration
+  private let accountQuery: PutioAccountInfoQuery
   private var pendingOAuthState: String?
   private var pendingOAuthGeneration: UInt64?
   private var deviceCodeTask: Task<Void, Never>?
@@ -109,12 +111,23 @@ public final class PutioSessionStore {
     sdk: PutioSDK,
     tokenStore: PutioTokenStore,
     callbackScheme: String = "putio",
-    deviceCodePollInterval: Duration = .seconds(3)
+    deviceCodePollInterval: Duration = .seconds(3),
+    supportIdentityPlatform: String? = nil
   ) {
     self.sdk = sdk
     self.tokenStore = tokenStore
     self.callbackScheme = callbackScheme
     self.deviceCodePollInterval = deviceCodePollInterval
+    accountQuery = PutioAccountInfoQuery(
+      downloadToken: true, intercom: supportIdentityPlatform != nil,
+      platform: supportIdentityPlatform)
+  }
+
+  /// The signed-in account's support-messenger identity, when the runtime asked
+  /// put.io for one and it answered with a hash for this platform.
+  public var supportIdentity: PutioSupportIdentity? {
+    guard case .signedIn(let account) = state, let supportUserHash else { return nil }
+    return PutioSupportIdentity(userID: String(account.id), userHash: supportUserHash)
   }
 
   // MARK: - Launch restore
@@ -478,7 +491,7 @@ public final class PutioSessionStore {
     accountRefreshSequence &+= 1
     let sequence = accountRefreshSequence
     do {
-      let account = try await sdk.getAccountInfo(query: Self.accountQuery)
+      let account = try await sdk.getAccountInfo(query: accountQuery)
       guard generation == authenticationGeneration, !Task.isCancelled,
         case .signedIn = state
       else { return false }
@@ -509,7 +522,7 @@ public final class PutioSessionStore {
     generation: UInt64
   ) async {
     do {
-      let account = try await sdk.getAccountInfo(query: Self.accountQuery)
+      let account = try await sdk.getAccountInfo(query: accountQuery)
       guard generation == authenticationGeneration else { return }
       apply(account)
     } catch {
@@ -523,10 +536,9 @@ public final class PutioSessionStore {
     }
   }
 
-  private static let accountQuery = PutioAccountInfoQuery(downloadToken: true)
-
   private func apply(_ account: PutioAccount) {
     downloadToken = account.downloadToken.isEmpty ? nil : account.downloadToken
+    supportUserHash = accountQuery.intercom && !account.hash.isEmpty ? account.hash : nil
     state = .signedIn(snapshot(account))
   }
 
@@ -536,6 +548,7 @@ public final class PutioSessionStore {
   private func advanceAuthenticationGeneration() -> UInt64 {
     authenticationGeneration += 1
     downloadToken = nil
+    supportUserHash = nil
     // A new session boundary starts from a fresh bootstrap snapshot.
     isAccountStorageStale = false
     isAccountPreferencesStale = false

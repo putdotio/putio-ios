@@ -615,7 +615,7 @@ enum BrowserJourneyContract {
   static let folderReconciliationTestIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testRenamingAndDeletingOpenFolderReconcilesOtherTabs"
   static let accountRatingTestIdentifier =
-    "PutioUITests/AccountJourneyTests/testRatingLinkOpensReviewPageOnlyAfterExplicitTap"
+    "PutioUITests/AccountJourneyTests/testRatingAndContactLinksOpenOnlyAfterExplicitTaps"
   static let accountRatingAttachmentName = "runtime-account-rating"
   static let audioTestIdentifier =
     "PutioUITests/AudioJourneyTests/testAudioPlaysPausesChangesSpeedAndAdvancesToTheNextTrack"

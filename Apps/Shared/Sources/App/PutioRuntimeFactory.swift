@@ -18,7 +18,8 @@ enum PutioRuntimeFactory {
         return PutioRuntime(
           clientID: clientID,
           clientName: clientName,
-          tokenStore: liveTokenStore
+          tokenStore: liveTokenStore,
+          supportIdentityPlatform: supportIdentityPlatform
         )
       }
       if scenario == .signedIn || scenario == .filesBrowser || scenario == .deviceSignIn {
@@ -49,15 +50,27 @@ enum PutioRuntimeFactory {
           urlSession: URLSession(configuration: configuration),
           // The SDK clamps polling to one second; the seeded flow answers
           // pending, expired, and approved in consecutive polls.
-          deviceCodePollInterval: .seconds(1)
+          deviceCodePollInterval: .seconds(1),
+          supportIdentityPlatform: supportIdentityPlatform
         )
       }
     #endif
     return PutioRuntime(
       clientID: clientID,
       clientName: clientName,
-      tokenStore: PutioKeychainTokenStore()
+      tokenStore: PutioKeychainTokenStore(),
+      supportIdentityPlatform: supportIdentityPlatform
     )
+  }
+
+  /// put.io signs the support-messenger identity per platform; only the iOS
+  /// app runs the messenger.
+  private static var supportIdentityPlatform: String? {
+    #if os(iOS)
+      "ios"
+    #else
+      nil
+    #endif
   }
 
   static func usesSignOutFailureFixture(scenario: HarnessScenario) -> Bool {

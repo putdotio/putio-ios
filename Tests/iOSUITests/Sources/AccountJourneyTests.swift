@@ -1,7 +1,7 @@
 import XCTest
 
 final class AccountJourneyTests: XCTestCase {
-  func testRatingLinkOpensReviewPageOnlyAfterExplicitTap() {
+  func testRatingAndContactLinksOpenOnlyAfterExplicitTaps() {
     continueAfterFailure = false
     let app = XCUIApplication()
     app.launchArguments = [
@@ -30,6 +30,15 @@ final class AccountJourneyTests: XCTestCase {
     let opened = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "value == %@", expected), object: requests)
     XCTAssertEqual(XCTWaiter.wait(for: [opened], timeout: 5), .completed)
+    // Seeded builds carry no Intercom keys, so Contact us falls back to email.
+    let contact = app.revealed("account.contact-support")
+    XCTAssertTrue(contact.waitForExistence(timeout: 5))
+    if !contact.isHittable { app.swipeUp() }
+    contact.tap()
+    let mailed = "2|mailto:support@put.io"
+    let contacted = XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "value == %@", mailed), object: requests)
+    XCTAssertEqual(XCTWaiter.wait(for: [contacted], timeout: 5), .completed)
     // Scrolling minimizes the tab bar; scroll back so the tabs are buttons again.
     let files = app.buttons["Files"]
     if !files.exists { app.swipeDown() }
@@ -38,7 +47,7 @@ final class AccountJourneyTests: XCTestCase {
     account.tap()
     XCTAssertTrue(app.navigationBars["Account"].waitForExistence(timeout: 5))
     XCTAssertTrue(app.revealed("account.rate-app").waitForExistence(timeout: 5))
-    XCTAssertEqual(requests.value as? String, expected)
+    XCTAssertEqual(requests.value as? String, mailed)
     let signOut = app.revealed("auth.sign-out")
     XCTAssertTrue(signOut.waitForExistence(timeout: 5))
     if !signOut.isHittable { app.swipeUp() }
