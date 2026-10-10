@@ -13,6 +13,10 @@ extension XCUIElement {
     poll("appear", timeout: timeout) { $0.exists && $0.hasSettled(by: $1) }
   }
 
+  func becomesHittable(within timeout: TimeInterval) -> Bool {
+    poll("become hittable", timeout: timeout) { element, _ in element.isHittable }
+  }
+
   func disappears(within timeout: TimeInterval) -> Bool {
     poll("disappear", timeout: timeout) { element, _ in !element.exists }
   }

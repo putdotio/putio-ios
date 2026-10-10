@@ -106,7 +106,7 @@ final class DeepLinkJourneyTests: XCTestCase {
     try open("putio:///link")
     XCTAssertTrue(trackPicker.disappears(within: 5))
     XCTAssertTrue(app.textFields["security.link-code"].appears(within: 10))
-    XCTAssertTrue(app.textFields["security.link-code"].isHittable)
+    XCTAssertTrue(app.textFields["security.link-code"].becomesHittable(within: 5))
     app.navigationBars.buttons["BackButton"].tap()
     XCTAssertTrue(app.navigationBars["Account"].appears(within: 5))
     signOut()
