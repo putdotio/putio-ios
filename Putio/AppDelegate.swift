@@ -74,9 +74,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func configureSDKs() {
         PutioRealm.setup()
 
-        if SENTRY_ENABLED {
-            SentryTelemetry.start(dsn: SENTRY_DSN)
-        }
+        SentryTelemetry.start()
 
         if INTERCOM_ENABLED {
             Intercom.setApiKey(INTERCOM_API_KEY, forAppId: INTERCOM_APP_ID)
@@ -159,9 +157,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        if SENTRY_ENABLED {
-            SentryTelemetry.capture(.pushRegistration, error: error)
-        }
+        SentryTelemetry.capture(.pushRegistration, error: error)
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
@@ -237,6 +233,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func fetchUserSuccess(account: PutioAccount, config: AppConfig) {
+        SentryTelemetry.update(diagnosticsEnabled: account.settings.diagnosticsEnabled)
+
         guard let realm = PutioRealm.open(context: "fetchUserSuccess") else {
             InternalFailurePresenter.log("Unable to open Realm during fetchUserSuccess")
             return presentLoginScreen(afterBootstrapFailure: "Realm unavailable in fetchUserSuccess")
@@ -310,6 +308,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         api.clearToken()
         VideoPlaybackPositionStore.shared.clearAllPositions()
         Intercom.logout()
+        SentryTelemetry.update(diagnosticsEnabled: nil)
         presentLoginScreen()
     }
 

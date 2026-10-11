@@ -1,9 +1,10 @@
 import Foundation
+import os
 import Sentry
 
 /// The app's only Sentry entry point. `scripts/verify-fast.sh` rejects
 /// `import Sentry` anywhere else, so only the SDK fills the contexts and user
-/// that `allowlisted` keeps.
+/// that `allowlisted` keeps. It runs only while the account allows diagnostics.
 enum SentryTelemetry {
     enum Failure: String {
         case downloadedAssetDeletion = "downloaded_asset_deletion"
@@ -11,8 +12,55 @@ enum SentryTelemetry {
         case pushRegistration = "push_registration"
     }
 
-    static func start(dsn: String) {
-        SentrySDK.start(options: options(dsn: dsn))
+    /// put.io's tunnel to Sentry ingest. Some networks reset connections to
+    /// Sentry's own host, and the tunnel forwards only allowlisted project ids.
+    private static let relayHost = "relay.put.io"
+
+    private static let capturing = OSAllocatedUnfairLock(initialState: false)
+
+    /// Also read by the SDK's callbacks, so a report racing a switch-off is dropped.
+    static var isCapturing: Bool {
+        get { capturing.withLock { $0 } }
+        set { capturing.withLock { $0 = newValue } }
+    }
+
+    static let cacheDirectory = URL.cachesDirectory.appending(path: "io.put.diagnostics")
+
+    /// The SDK holds its session delegate weakly.
+    private static let transportGate = SentryTransportGate()
+
+    private static let consentKey = "io.put.diagnostics-enabled"
+
+    /// The account's last known `diagnostics_enabled`, kept so a cold launch
+    /// honours an opt-out before the account loads. Missing, as when signed out,
+    /// is on.
+    static func diagnosticsEnabled(_ defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: consentKey) as? Bool ?? true
+    }
+
+    static func start(dsn: String? = SENTRY_DSN, defaults: UserDefaults = .standard) {
+        guard let dsn else { return }
+        setCapturing(diagnosticsEnabled(defaults), dsn: dsn)
+    }
+
+    /// Keeps the account's answer, even in a build without a DSN, and applies it.
+    /// `nil` is signed out.
+    static func update(diagnosticsEnabled enabled: Bool?, dsn: String? = SENTRY_DSN, defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: consentKey)
+        start(dsn: dsn, defaults: defaults)
+    }
+
+    /// `SentrySDK.close()` uploads cached envelopes and a final session without
+    /// `beforeSend`. The transport gate cancels those uploads and the cache is
+    /// deleted, so nothing recorded before a switch-off leaves later either.
+    static func setCapturing(_ enabled: Bool, dsn: String) {
+        isCapturing = enabled
+        if enabled {
+            if !SentrySDK.isEnabled { SentrySDK.start(options: options(dsn: dsn)) }
+        } else {
+            if SentrySDK.isEnabled { SentrySDK.close() }
+            try? FileManager.default.removeItem(at: cacheDirectory)
+        }
     }
 
     static func options(dsn: String) -> Options {
@@ -20,10 +68,25 @@ enum SentryTelemetry {
         options.dsn = dsn
         options.enableAutoSessionTracking = true
         options.sessionTrackingIntervalMillis = 60000
+        options.cacheDirectoryPath = cacheDirectory.path
+        options.urlSessionDelegate = transportGate
         options.maxBreadcrumbs = 0
         options.enableCaptureFailedRequests = false
-        options.beforeSend = allowlisted
+        options.beforeSend = { isCapturing ? allowlisted($0) : nil }
         return options
+    }
+
+    /// Rewrites `https://<key>@<host>/<projectId>` to post through the relay.
+    /// Anything else, including an unexpanded `$(PUTIO_SENTRY_DSN)`, is nil.
+    static func relayDSN(_ dsn: String) -> String? {
+        guard let components = URLComponents(string: dsn),
+              components.scheme == "https" || components.scheme == "http",
+              let key = components.user, !key.isEmpty,
+              components.host?.isEmpty == false,
+              let projectID = components.path.split(separator: "/").last,
+              projectID.allSatisfy({ $0.isASCII && $0.isNumber })
+        else { return nil }
+        return "https://\(key)@\(relayHost)/\(projectID)"
     }
 
     static func capture(_ failure: Failure, error: Error? = nil) {
@@ -63,5 +126,11 @@ enum SentryTelemetry {
             return kept
         }
         return sent
+    }
+}
+
+final class SentryTransportGate: NSObject, URLSessionTaskDelegate {
+    func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask) {
+        if !SentryTelemetry.isCapturing { task.cancel() }
     }
 }

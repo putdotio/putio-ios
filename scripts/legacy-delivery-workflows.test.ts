@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -25,6 +26,12 @@ const arrayAt = (record: RecordValue, key: string, context: string): readonly un
 const loadWorkflow = async (name: string): Promise<RecordValue> =>
   asRecord(
     parse(await readFile(new URL(`../.github/workflows/${name}`, import.meta.url), "utf8")) as unknown,
+    name,
+  );
+
+const loadAction = async (name: string): Promise<RecordValue> =>
+  asRecord(
+    parse(await readFile(new URL(`../.github/actions/${name}/action.yml`, import.meta.url), "utf8")) as unknown,
     name,
   );
 
@@ -83,4 +90,22 @@ test("beta persists the selected TestFlight groups before distribution", async (
   assert.notEqual(envWrite, -1);
   assert.ok(newlineGuard < envWrite, "group newline validation must precede the GITHUB_ENV write");
   assert.match(run.slice(newlineGuard, envWrite), /exit 1/);
+});
+
+test("release builds fail without a Sentry DSN for project ios", async () => {
+  const action = await loadAction("load-ios-release-secrets");
+  const steps = arrayAt(recordAt(action, "runs", "action.yml"), "steps", "action.yml.runs");
+  const preflight = steps
+    .map((step, index) => asRecord(step, `action.yml.runs.steps[${index}]`))
+    .find((step) => step.name === "Require release environment secrets");
+  assert.notEqual(preflight, undefined);
+  const run = String(preflight?.run);
+  const secrets = Object.fromEntries([...run.matchAll(/^\s+([A-Z][A-Z0-9_]*)$/gm)].map(([, name]) => [name, "synthetic"]));
+  const status = (dsn: string) =>
+    spawnSync("bash", ["-c", run], { env: { PATH: process.env.PATH, ...secrets, PUTIO_SENTRY_DSN: dsn } }).status;
+
+  assert.equal(status("https://synthetickey@o0.ingest.example.invalid/5282170"), 0);
+  for (const dsn of ["", "https://synthetickey@o0.ingest.example.invalid/5282171", "not a dsn"]) {
+    assert.equal(status(dsn), 1, dsn);
+  }
 });

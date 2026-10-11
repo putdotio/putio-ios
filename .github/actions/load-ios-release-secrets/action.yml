@@ -17,6 +17,7 @@ runs:
           PUTIO_DEVELOPMENT_TEAM
           PUTIO_OAUTH_CLIENT_ID
           PUTIO_CHROMECAST_RECEIVER_APP_ID
+          PUTIO_SENTRY_DSN
           MATCH_GIT_URL
           MATCH_TYPE
           MATCH_PASSWORD
@@ -32,6 +33,13 @@ runs:
 
         if (( ${#missing[@]} > 0 )); then
           printf 'Missing release Environment secrets: %s\n' "${missing[*]}" >&2
+          exit 1
+        fi
+
+        # Release builds report to Sentry project ios while the account allows
+        # it (#161), so one without that project's DSN must not ship.
+        if [[ ! "$PUTIO_SENTRY_DSN" =~ ^https://[^@/]+@[^/]+/5282170$ ]]; then
+          echo "PUTIO_SENTRY_DSN must be a DSN for Sentry project 5282170" >&2
           exit 1
         fi
 

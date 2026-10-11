@@ -52,10 +52,10 @@ The `release` Environment must provide:
   - `PUTIO_DEVELOPMENT_TEAM`
   - `PUTIO_OAUTH_CLIENT_ID`
   - `PUTIO_CHROMECAST_RECEIVER_APP_ID`
-- Optional support and telemetry fields:
+  - `PUTIO_SENTRY_DSN`: the DSN for Sentry project `ios` (`5282170`); beta and release fail without it. The app posts through `relay.put.io` and only while the account's `diagnostics_enabled` is on
+- Optional support fields:
   - `PUTIO_INTERCOM_API_KEY`
   - `PUTIO_INTERCOM_APP_ID`
-  - `PUTIO_SENTRY_DSN`
 - Signing fields:
   - `MATCH_GIT_URL`
   - `MATCH_TYPE`

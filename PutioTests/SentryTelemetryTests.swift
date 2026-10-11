@@ -3,6 +3,8 @@ import XCTest
 @testable import Putio
 
 final class SentryTelemetryTests: XCTestCase {
+    private let dsn = "https://synthetickey@relay.example.invalid/1"
+
     func testOnlyAllowlistedFieldsLeaveTheDevice() throws {
         let title = "Synthetic Feature Title"
         let fileName = "Synthetic.Feature.Title.2001.mkv"
@@ -65,7 +67,8 @@ final class SentryTelemetryTests: XCTestCase {
         // Watchdog terminations carry breadcrumbs read back from disk here.
         event.setValue([breadcrumb.serialize()], forKey: "serializedBreadcrumbs")
 
-        let options = SentryTelemetry.options(dsn: "https://synthetickey@sentry.example.invalid/1")
+        allowCapture()
+        let options = SentryTelemetry.options(dsn: dsn)
         let sent = try XCTUnwrap(options.beforeSend?(event))
         let json = String(decoding: try JSONSerialization.data(withJSONObject: sent.serialize()), as: UTF8.self)
 
@@ -83,5 +86,84 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertEqual(sent.context?["os"]?["name"] as? String, "iOS")
         XCTAssertEqual(sent.user?.userId, "synthetic-installation")
         XCTAssertEqual(sent.releaseName, "io.put.synthetic@1.0+1")
+    }
+
+    func testSwitchingOffSendsNothingRecordedBefore() throws {
+        let options = SentryTelemetry.options(dsn: dsn)
+        XCTAssertEqual(options.cacheDirectoryPath, SentryTelemetry.cacheDirectory.path)
+        try cacheEnvelope()
+        let gate = try XCTUnwrap(options.urlSessionDelegate as? URLSessionTaskDelegate)
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.invalidateAndCancel() }
+        let envelope = try XCTUnwrap(URL(string: "https://relay.example.invalid/api/1/envelope/"))
+        func upload() -> URLSessionTask {
+            let task = session.dataTask(with: envelope)
+            gate.urlSession?(session, didCreateTask: task)
+            return task
+        }
+
+        allowCapture()
+        XCTAssertNotNil(options.beforeSend?(Event(level: .error)))
+        XCTAssertEqual(upload().state, .suspended)
+
+        SentryTelemetry.setCapturing(false, dsn: dsn)
+
+        XCTAssertNil(options.beforeSend?(Event(level: .error)))
+        XCTAssertNotEqual(upload().state, .suspended, "an upload left while diagnostics were off")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: SentryTelemetry.cacheDirectory.path))
+    }
+
+    func testColdLaunchHonoursAStoredOptOut() throws {
+        let defaults = try isolatedDefaults()
+        SentryTelemetry.update(diagnosticsEnabled: false, dsn: nil, defaults: defaults)
+        try cacheEnvelope()
+        allowCapture()
+
+        SentryTelemetry.start(dsn: dsn, defaults: defaults)
+
+        XCTAssertFalse(SentryTelemetry.isCapturing)
+        XCTAssertFalse(SentrySDK.isEnabled)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: SentryTelemetry.cacheDirectory.path))
+    }
+
+    func testMissingOrSignedOutAnswerReports() throws {
+        let defaults = try isolatedDefaults()
+        XCTAssertTrue(SentryTelemetry.diagnosticsEnabled(defaults), "before any account loads")
+
+        SentryTelemetry.update(diagnosticsEnabled: false, dsn: nil, defaults: defaults)
+        SentryTelemetry.update(diagnosticsEnabled: nil, dsn: nil, defaults: defaults)
+        XCTAssertTrue(SentryTelemetry.diagnosticsEnabled(defaults), "after signing out")
+
+        SentryTelemetry.update(diagnosticsEnabled: true, dsn: nil, defaults: defaults)
+        XCTAssertTrue(SentryTelemetry.diagnosticsEnabled(defaults))
+    }
+
+    func testReportsThroughTheRelay() {
+        XCTAssertEqual(
+            SentryTelemetry.relayDSN("https://synthetickey@o0.ingest.example.invalid/5282170"),
+            "https://synthetickey@relay.put.io/5282170"
+        )
+        for unusable in ["", "$(PUTIO_SENTRY_DSN)", "https://sentry.example.invalid/12", "https://k@host/not-a-project"] {
+            XCTAssertNil(SentryTelemetry.relayDSN(unusable), unusable)
+        }
+    }
+
+    private func cacheEnvelope() throws {
+        let pending = SentryTelemetry.cacheDirectory.appending(path: "envelopes/pending")
+        try FileManager.default.createDirectory(at: pending.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("synthetic".utf8).write(to: pending)
+    }
+
+    private func isolatedDefaults() throws -> UserDefaults {
+        let suite = "SentryTelemetryTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        return defaults
+    }
+
+    private func allowCapture() {
+        let previous = SentryTelemetry.isCapturing
+        SentryTelemetry.isCapturing = true
+        addTeardownBlock { SentryTelemetry.isCapturing = previous }
     }
 }
