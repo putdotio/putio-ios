@@ -41,6 +41,7 @@ enum SentryTelemetry {
     options.cacheDirectoryPath = cacheDirectory.path
     options.urlSessionDelegate = transportGate
     options.maxBreadcrumbs = 0
+    options.enableCaptureFailedRequests = false
     options.beforeSend = { isCapturing ? allowlisted($0) : nil }
     return options
   }

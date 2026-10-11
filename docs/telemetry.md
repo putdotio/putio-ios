@@ -33,9 +33,8 @@ session delegate cancels every upload while it is off.
 
 [SentryTelemetry](../Apps/iOS/Sources/Telemetry/SentryTelemetry.swift) is the
 only file that imports Sentry; `scripts/test.sh` fails on an import anywhere
-else in the apps. Breadcrumbs are off. `beforeSend` drops everything while
-diagnostics are off; otherwise it copies each event, crashes and hangs
-included, into a new one with only exception types, stack frames and mechanism
-codes, the app, device, OS and runtime contexts, release, environment, and user
-id. `SentryTelemetryTests` fills every other field with a URL, token, file
-name, and title and fails if any is sent.
+else in the apps. Breadcrumbs and failed-request capture are off. `beforeSend`
+drops everything while diagnostics are off; otherwise it rebuilds each event,
+crashes and hangs included, from the allowlist in `SentryTelemetry.allowlisted`.
+`SentryTelemetryTests` fills every other field with a URL, token, file name,
+and title and fails if any is sent.
