@@ -155,7 +155,7 @@ class ChromecastManager: NSObject {
 
         if userConfig?.chromecastPlaybackType == "hls" {
             log.debug("Chromecast: playing HLS")
-            mediaInfo.contentID = file.getHlsStreamURL(token: api.config.token).absoluteString
+            mediaInfo.contentID = file.getHlsStreamURL(downloadToken: api.config.token).absoluteString
             mediaInfo.streamType = .none
             mediaInfo.contentType = "video/m3u"
             return completion(mediaInfo.build(), nil)

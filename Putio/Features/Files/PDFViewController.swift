@@ -57,7 +57,7 @@ class PDFViewController: UIViewController {
             return presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the PDF", comment: ""))
         }
 
-        let url = file.getDownloadURL(token: api.config.token)
+        let url = file.getDownloadURL(downloadToken: api.config.token)
 
         request = URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
             guard let self = self else { return }

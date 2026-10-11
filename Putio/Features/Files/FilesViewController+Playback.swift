@@ -22,7 +22,7 @@ extension FilesViewController {
                     case .success(let file):
                         let streamURLString = file.type == .video
                             ? file.streamURL
-                            : file.getAudioStreamURL(token: api.config.token).absoluteString
+                            : file.getAudioStreamURL(downloadToken: api.config.token).absoluteString
 
                         guard let destinationURL = URL(string: "vlc://\(streamURLString)") else {
                             return InternalFailurePresenter.logAndPresent(

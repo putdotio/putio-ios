@@ -190,7 +190,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         var account: PutioAccount?
         var accountError: PutioSDKError?
         
-        var config: PutioConfig?
+        var config: AppConfig?
         var configError: PutioSDKError?
         
         let accountInfoQuery = PutioAccountInfoQuery(
@@ -236,7 +236,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
-    func fetchUserSuccess(account: PutioAccount, config: PutioConfig) {
+    func fetchUserSuccess(account: PutioAccount, config: AppConfig) {
         guard let realm = PutioRealm.open(context: "fetchUserSuccess") else {
             InternalFailurePresenter.log("Unable to open Realm during fetchUserSuccess")
             return presentLoginScreen(afterBootstrapFailure: "Realm unavailable in fetchUserSuccess")
