@@ -25,9 +25,9 @@ runs:
         xcode-version: "26.6"
 
     - name: Install the pinned toolchain
-      uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+      uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
       with:
-        version: "2026.9.15"
+        version: "2026.10.7"
 
     - name: Restore pnpm store cache
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

@@ -106,9 +106,9 @@ jobs:
           persist-credentials: false
 
       - name: Install Node.js and pnpm
-        uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+        uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
         with:
-          version: "2026.9.15"
+          version: "2026.10.7"
           install_args: node pnpm
 
       - name: Install dependencies
@@ -169,7 +169,7 @@ jobs:
 
       - name: Upload test result bundles
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results-tvos-attempt-${{ github.run_attempt }}
           path: build/DerivedData/Logs/Test/*.xcresult
@@ -225,7 +225,7 @@ jobs:
 
       - name: Upload test result bundles
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results-ios-attempt-${{ github.run_attempt }}
           path: build/DerivedData/Logs/Test/*.xcresult
