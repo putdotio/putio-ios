@@ -29,14 +29,13 @@ and uploads them on close and start without running `beforeSend`. Turning
 Diagnostics off, or launching with it off, deletes that folder, and a URL
 session delegate cancels every upload while it is off.
 
-## Redaction
+## What leaves the device
 
 [SentryTelemetry](../Apps/iOS/Sources/Telemetry/SentryTelemetry.swift) is the
 only file that imports Sentry; `scripts/test.sh` fails on an import anywhere
-else in the apps. Its `beforeSend` and `beforeBreadcrumb` drop everything while
-diagnostics are off and pass the rest through
-[TelemetryRedaction](../Apps/iOS/Sources/Telemetry/TelemetryRedaction.swift),
-shared with the legacy app on `main` ([#150](https://github.com/putdotio/putio-ios/issues/150)). Report failures as
-`TelemetryFailure` categories, never as raw errors or messages.
-`SentryTelemetryTests` fails when a Sentry upgrade adds an event field the
-boundary has not reviewed.
+else in the apps. Breadcrumbs are off. `beforeSend` drops everything while
+diagnostics are off; otherwise it copies each event, crashes and hangs
+included, into a new one with only exception types, stack frames and mechanism
+codes, the app, device, OS and runtime contexts, release, environment, and user
+id. `SentryTelemetryTests` fills every other field with a URL, token, file
+name, and title and fails if any is sent.
