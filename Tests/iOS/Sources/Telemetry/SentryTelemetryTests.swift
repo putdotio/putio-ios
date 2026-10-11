@@ -54,6 +54,8 @@ final class SentryTelemetryTests: XCTestCase {
       {
         let exception = Exception(value: leak, type: "NSURLErrorDomain")
         exception.module = leak
+        exception.threadId = 1
+        exception.stacktrace = SentryStacktrace(frames: [Frame()], registers: [:])
         exception.mechanism = Mechanism(type: "NSError")
         exception.mechanism?.desc = leak
         exception.mechanism?.data = [leak: leak]
@@ -63,6 +65,8 @@ final class SentryTelemetryTests: XCTestCase {
         return exception
       }()
     ]
+    event.threads = [SentryThread(threadId: 1)]
+    event.debugMeta = [DebugMeta()]
     let breadcrumb = Breadcrumb(level: .info, category: leak)
     breadcrumb.type = leak
     breadcrumb.origin = leak
@@ -83,6 +87,10 @@ final class SentryTelemetryTests: XCTestCase {
     }
     XCTAssertEqual(sent.exceptions?.first?.type, "NSURLErrorDomain")
     XCTAssertEqual(sent.exceptions?.first?.mechanism?.meta?.error?.code, -1009)
+    XCTAssertEqual(sent.exceptions?.first?.threadId, 1)
+    XCTAssertEqual(sent.exceptions?.first?.stacktrace?.frames.count, 1)
+    XCTAssertEqual(sent.threads?.first?.threadId, 1)
+    XCTAssertEqual(sent.debugMeta?.count, 1)
     XCTAssertEqual(sent.context?["os"]?["name"] as? String, "iOS")
     XCTAssertEqual(sent.user?.userId, "synthetic-installation")
     XCTAssertEqual(sent.releaseName, "io.put.synthetic@1.0+1")
