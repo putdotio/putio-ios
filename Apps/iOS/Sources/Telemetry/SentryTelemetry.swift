@@ -45,8 +45,9 @@ enum SentryTelemetry {
     return options
   }
 
-  /// Copies listed fields into a new event, so anything else, including
-  /// fields a Sentry upgrade adds, stays on the device.
+  /// Copies listed fields into a new event, so unlisted ones, including any a
+  /// Sentry upgrade adds to the event, stay on the device. Assumes tracing stays
+  /// off: a transaction would lose its spans and trace state here.
   static func allowlisted(_ event: Event) -> Event {
     let sent = Event(level: event.level)
     sent.eventId = event.eventId
