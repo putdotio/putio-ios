@@ -1,9 +1,9 @@
 import Foundation
 
-/// Where and as what the app reports, read from build settings through
+/// Where the app reports, read from build settings through
 /// Info.plist. Nil is the kill switch: `PUTIO_SENTRY_ENABLED` other than `YES`,
 /// or an empty or malformed `PUTIO_SENTRY_DSN`, which the checked-in default is.
-struct SentryConfiguration: Equatable {
+struct SentryConfiguration {
   /// put.io's tunnel to Sentry ingest (putio-web `infra/telemetry.ts`). Some
   /// networks reset connections to Sentry's own ingest host, and the tunnel
   /// forwards only allowlisted project ids.
@@ -11,7 +11,6 @@ struct SentryConfiguration: Equatable {
 
   let dsn: String
   let environment: String
-  let releaseName: String
 
   init?(bundle: Bundle = .main) {
     self.init(info: bundle.infoDictionary ?? [:])
@@ -22,16 +21,11 @@ struct SentryConfiguration: Equatable {
       (info[key] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
     guard value("PUTIO_SENTRY_ENABLED") == "YES",
-      let dsn = Self.relayDSN(value("PUTIO_SENTRY_DSN")),
-      let bundleID = info["CFBundleIdentifier"] as? String,
-      let version = info["CFBundleShortVersionString"] as? String,
-      let build = info["CFBundleVersion"] as? String
+      let dsn = Self.relayDSN(value("PUTIO_SENTRY_DSN"))
     else { return nil }
     let environment = value("PUTIO_SENTRY_ENVIRONMENT")
     self.dsn = dsn
     self.environment = environment.isEmpty ? "production" : environment
-    // Sentry's own release format, spelled out so the app identity is explicit.
-    releaseName = "\(bundleID)@\(version)+\(build)"
   }
 
   /// Rewrites `https://<key>@<host>/<projectId>` to post through the relay.

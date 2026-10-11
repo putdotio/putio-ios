@@ -5,8 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
 pnpm run verify
-# Sentry is reachable only through the telemetry redaction boundary (#150), so
-# no capture can skip it.
+# Only the SDK may fill the event fields SentryTelemetry's allowlist keeps.
 if git grep --untracked -nE '^[[:space:]]*(@[A-Za-z_]+(\([^)]*\))?[[:space:]]+)*import[[:space:]]+([a-z]+[[:space:]]+)?Sentry[A-Za-z_]*([.[:space:]]|$)' \
   -- 'Apps/*.swift' 'Packages/*.swift' ':(exclude)Apps/iOS/Sources/Telemetry/SentryTelemetry.swift'; then
   echo "test: import Sentry only in Apps/iOS/Sources/Telemetry/SentryTelemetry.swift." >&2

@@ -5,12 +5,11 @@ import XCTest
 final class SentryConfigurationTests: XCTestCase {
   private let dsn = "https://synthetickey@o0.ingest.example.invalid/4500000000000001"
 
-  func testReportsThroughTheRelayAsTheBuiltAppAndEnvironment() throws {
+  func testReportsThroughTheRelayInTheBuiltEnvironment() throws {
     let configuration = try XCTUnwrap(SentryConfiguration(info: info()))
 
     XCTAssertEqual(configuration.dsn, "https://synthetickey@relay.put.io/4500000000000001")
     XCTAssertEqual(configuration.environment, "nightly")
-    XCTAssertEqual(configuration.releaseName, "io.put.nightly.ios@1.2.3+45")
     XCTAssertEqual(
       SentryConfiguration.relayDSN("https://k@relay.put.io/12"), "https://k@relay.put.io/12")
     XCTAssertEqual(
@@ -39,9 +38,6 @@ final class SentryConfigurationTests: XCTestCase {
       "PUTIO_SENTRY_DSN": dsn ?? self.dsn,
       "PUTIO_SENTRY_ENABLED": enabled,
       "PUTIO_SENTRY_ENVIRONMENT": "nightly",
-      "CFBundleIdentifier": "io.put.nightly.ios",
-      "CFBundleShortVersionString": "1.2.3",
-      "CFBundleVersion": "45",
     ]
   }
 }
