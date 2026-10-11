@@ -4,6 +4,10 @@ import XCTest
 @testable import Putio
 
 final class SentryTelemetryTests: XCTestCase {
+  private let configuration = SentryConfiguration(info: [
+    "PUTIO_SENTRY_ENABLED": "YES", "PUTIO_SENTRY_DSN": "https://synthetickey@relay.put.io/1",
+  ])
+
   func testOnlyAllowlistedFieldsLeaveTheDevice() throws {
     let title = "Synthetic Feature Title"
     let fileName = "Synthetic.Feature.Title.2001.mkv"
@@ -69,8 +73,7 @@ final class SentryTelemetryTests: XCTestCase {
     event.setValue([breadcrumb.serialize()], forKey: "serializedBreadcrumbs")
 
     allowCapture(true)
-    let options = Options()
-    SentryTelemetry.configure(options)
+    let options = SentryTelemetry.options(try XCTUnwrap(configuration))
     let sent = try XCTUnwrap(options.beforeSend?(event))
     let json = String(
       decoding: try JSONSerialization.data(withJSONObject: sent.serialize()), as: UTF8.self)
@@ -86,8 +89,8 @@ final class SentryTelemetryTests: XCTestCase {
   }
 
   func testSwitchingOffSendsNothingRecordedBefore() throws {
-    let options = Options()
-    SentryTelemetry.configure(options)
+    let configuration = try XCTUnwrap(self.configuration)
+    let options = SentryTelemetry.options(configuration)
     XCTAssertEqual(options.cacheDirectoryPath, SentryTelemetry.cacheDirectory.path)
     let pending = SentryTelemetry.cacheDirectory.appending(path: "envelopes/pending")
     try FileManager.default.createDirectory(
@@ -102,10 +105,6 @@ final class SentryTelemetryTests: XCTestCase {
       gate.urlSession?(session, didCreateTask: task)
       return task
     }
-    let configuration = try XCTUnwrap(
-      SentryConfiguration(info: [
-        "PUTIO_SENTRY_ENABLED": "YES", "PUTIO_SENTRY_DSN": "https://k@relay.put.io/1",
-      ]))
 
     allowCapture(true)
     XCTAssertNotNil(options.beforeSend?(Event(level: .error)))

@@ -25,25 +25,24 @@ enum SentryTelemetry {
   static func setCapturing(_ enabled: Bool, configuration: SentryConfiguration) {
     isCapturing = enabled
     if enabled {
-      guard !SentrySDK.isEnabled else { return }
-      SentrySDK.start { options in
-        options.dsn = configuration.dsn
-        options.environment = configuration.environment
-        options.enableAutoSessionTracking = true
-        options.sessionTrackingIntervalMillis = 60000
-        configure(options)
-      }
+      if !SentrySDK.isEnabled { SentrySDK.start(options: options(configuration)) }
     } else {
       if SentrySDK.isEnabled { SentrySDK.close() }
       try? FileManager.default.removeItem(at: cacheDirectory)
     }
   }
 
-  static func configure(_ options: Options) {
+  static func options(_ configuration: SentryConfiguration) -> Options {
+    let options = Options()
+    options.dsn = configuration.dsn
+    options.environment = configuration.environment
+    options.enableAutoSessionTracking = true
+    options.sessionTrackingIntervalMillis = 60000
     options.cacheDirectoryPath = cacheDirectory.path
     options.urlSessionDelegate = transportGate
     options.maxBreadcrumbs = 0
     options.beforeSend = { isCapturing ? allowlisted($0) : nil }
+    return options
   }
 
   /// Copies listed fields into a new event, so anything else, including
