@@ -12,17 +12,17 @@ enum SentryTelemetry {
     }
 
     static func start(dsn: String) {
-        SentrySDK.start { options in
-            options.dsn = dsn
-            options.enableAutoSessionTracking = true
-            options.sessionTrackingIntervalMillis = 60000
-            configure(options)
-        }
+        SentrySDK.start(options: options(dsn: dsn))
     }
 
-    static func configure(_ options: Options) {
+    static func options(dsn: String) -> Options {
+        let options = Options()
+        options.dsn = dsn
+        options.enableAutoSessionTracking = true
+        options.sessionTrackingIntervalMillis = 60000
         options.maxBreadcrumbs = 0
         options.beforeSend = allowlisted
+        return options
     }
 
     static func capture(_ failure: Failure, error: Error? = nil) {

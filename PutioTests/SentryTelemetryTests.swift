@@ -61,8 +61,7 @@ final class SentryTelemetryTests: XCTestCase {
         // Watchdog terminations carry breadcrumbs read back from disk here.
         event.setValue([breadcrumb.serialize()], forKey: "serializedBreadcrumbs")
 
-        let options = Options()
-        SentryTelemetry.configure(options)
+        let options = SentryTelemetry.options(dsn: "https://synthetickey@sentry.example.invalid/1")
         let sent = try XCTUnwrap(options.beforeSend?(event))
         let json = String(decoding: try JSONSerialization.data(withJSONObject: sent.serialize()), as: UTF8.self)
 
