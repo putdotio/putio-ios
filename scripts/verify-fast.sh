@@ -15,8 +15,7 @@ if git ls-files | grep -iE '\.(otf|ttf|ttc)$'; then
     exit 1
 fi
 
-# Sentry is reachable only through the telemetry redaction boundary (#150), so
-# no capture can skip it.
+# Only the SDK may fill the event fields SentryTelemetry's allowlist keeps.
 if git grep -nE '^[[:space:]]*(@[A-Za-z_]+[[:space:]]+)*import[[:space:]]+([a-z]+[[:space:]]+)?Sentry([.[:space:]]|$)' -- 'Putio/*.swift' ':(exclude)Putio/Common/Telemetry/*'; then
     echo "verify-fast: import Sentry only in Putio/Common/Telemetry; report through SentryTelemetry." >&2
     exit 1
