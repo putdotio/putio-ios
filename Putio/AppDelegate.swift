@@ -293,6 +293,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         case .httpError(let statusCode, let errorType):
             if statusCode == 401 || errorType == "Unauthorized" {
+                SentryTelemetry.update(diagnosticsEnabled: nil)
                 return self.presentLoginScreen(afterBootstrapFailure: "account fetch rejected the token (\(statusCode))")
             }
 
