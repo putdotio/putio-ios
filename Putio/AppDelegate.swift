@@ -218,6 +218,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         dispatchGroup.notify(queue: .main) {
+            // Before the /config check: its failure still opens the cached main screen.
+            if let account {
+                SentryTelemetry.update(diagnosticsEnabled: account.settings.diagnosticsEnabled)
+            }
+
             if let accountError = accountError {
                 return self.fetchUserFailure(error: accountError)
             }
@@ -233,8 +238,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func fetchUserSuccess(account: PutioAccount, config: AppConfig) {
-        SentryTelemetry.update(diagnosticsEnabled: account.settings.diagnosticsEnabled)
-
         guard let realm = PutioRealm.open(context: "fetchUserSuccess") else {
             InternalFailurePresenter.log("Unable to open Realm during fetchUserSuccess")
             return presentLoginScreen(afterBootstrapFailure: "Realm unavailable in fetchUserSuccess")
