@@ -126,16 +126,23 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: SentryTelemetry.cacheDirectory.path))
     }
 
-    func testMissingOrSignedOutAnswerReports() throws {
+    func testOnMissingOrSignedOutAnswerReports() throws {
         let defaults = try isolatedDefaults()
-        XCTAssertTrue(SentryTelemetry.diagnosticsEnabled(defaults), "before any account loads")
+        addTeardownBlock { SentryTelemetry.setCapturing(false, dsn: self.dsn) }
+        func assertReports(_ moment: String) {
+            XCTAssertTrue(SentryTelemetry.isCapturing, moment)
+            XCTAssertTrue(SentrySDK.isEnabled, moment)
+        }
 
-        SentryTelemetry.update(diagnosticsEnabled: false, dsn: nil, defaults: defaults)
-        SentryTelemetry.update(diagnosticsEnabled: nil, dsn: nil, defaults: defaults)
-        XCTAssertTrue(SentryTelemetry.diagnosticsEnabled(defaults), "after signing out")
+        SentryTelemetry.start(dsn: dsn, defaults: defaults)
+        assertReports("before any account loads")
 
-        SentryTelemetry.update(diagnosticsEnabled: true, dsn: nil, defaults: defaults)
-        XCTAssertTrue(SentryTelemetry.diagnosticsEnabled(defaults))
+        SentryTelemetry.update(diagnosticsEnabled: false, dsn: dsn, defaults: defaults)
+        SentryTelemetry.update(diagnosticsEnabled: nil, dsn: dsn, defaults: defaults)
+        assertReports("after signing out")
+
+        SentryTelemetry.update(diagnosticsEnabled: true, dsn: dsn, defaults: defaults)
+        assertReports("while diagnostics are on")
     }
 
     func testReportsThroughTheRelay() {
