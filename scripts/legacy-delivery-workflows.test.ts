@@ -105,7 +105,12 @@ test("release builds fail without a Sentry DSN for project ios", async () => {
     spawnSync("bash", ["-c", run], { env: { PATH: process.env.PATH, ...secrets, PUTIO_SENTRY_DSN: dsn } }).status;
 
   assert.equal(status("https://synthetickey@o0.ingest.example.invalid/5282170"), 0);
-  for (const dsn of ["", "https://synthetickey@o0.ingest.example.invalid/5282171", "not a dsn"]) {
+  for (const dsn of [
+    "",
+    "not a dsn",
+    "https://synthetickey@o0.ingest.example.invalid/5282171",
+    "https://synthetickey@o0.ingest.example.invalid?x=/5282170",
+  ]) {
     assert.equal(status(dsn), 1, dsn);
   }
 });
