@@ -160,7 +160,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         if SENTRY_ENABLED {
-            SentryTelemetry.capture(TelemetryFailure(.pushRegistration, error: error))
+            SentryTelemetry.capture(.pushRegistration, error: error)
         }
     }
 

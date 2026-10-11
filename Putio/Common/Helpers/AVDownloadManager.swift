@@ -186,7 +186,7 @@ class DownloadManager: NSObject {
 
         guard let url = DownloadSupport.url(from: download.path, context: "DownloadManager.deleteDownloadedAssetFromDisk") else { return }
         guard DownloadSupport.deleteItemIfPresent(at: url, context: "DownloadManager.deleteDownloadedAssetFromDisk.remove") else {
-            SentryTelemetry.capture(TelemetryFailure(.downloadedAssetDeletion))
+            SentryTelemetry.capture(.downloadedAssetDeletion)
             return
         }
     }

@@ -161,7 +161,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
                     }
                 }
             case .error(let error):
-                SentryTelemetry.capture(TelemetryFailure(.downloadsObservation, error: error))
+                SentryTelemetry.capture(.downloadsObservation, error: error)
             }
 
             self.reconcileSelectionAfterDownloadsChange()
