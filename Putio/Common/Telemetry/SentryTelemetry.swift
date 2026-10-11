@@ -21,6 +21,7 @@ enum SentryTelemetry {
         options.enableAutoSessionTracking = true
         options.sessionTrackingIntervalMillis = 60000
         options.maxBreadcrumbs = 0
+        options.enableCaptureFailedRequests = false
         options.beforeSend = allowlisted
         return options
     }

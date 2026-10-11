@@ -68,7 +68,7 @@ Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-
 - Route put.io API behavior through the local SDK wrapper in `Putio/Common/API` unless a focused system API is the smaller choice
 - Use `PutioRealm` helpers for Realm open/write paths and include useful context strings for diagnostics
 - Surface unexpected internal failures with `InternalFailurePresenter` instead of silent returns
-- Report failures to Sentry only as `SentryTelemetry.capture(.category, error:)`. Breadcrumbs are off, and `beforeSend` rebuilds every event, crashes included, from an allowlist: exception types and stack frames, the category, device, OS and app contexts, release, and user id. `verify-fast` rejects `import Sentry` outside `Putio/Common/Telemetry`
+- Report failures to Sentry only as `SentryTelemetry.capture(.category, error:)`. Breadcrumbs and failed-request capture are off, and `beforeSend` rebuilds every event, crashes included, from the allowlist in `SentryTelemetry.allowlisted`. `verify-fast` rejects `import Sentry` outside `Putio/Common/Telemetry`
 - Update UI on the main thread, but keep expensive network response parsing, image decoding, and PDF parsing off the main thread
 - Make every async loading path finish cleanly on success, failure, cancellation, and back navigation
 - Put user-facing copy in localized strings; when Swift copy changes, update `Putio/en.lproj/Localizable.strings`
