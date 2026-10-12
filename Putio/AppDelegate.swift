@@ -200,6 +200,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             switch result {
             case .success(let accountData):
                 account = accountData
+                // Not behind /config: an opt-out applies as soon as the account
+                // answers, and a /config failure still opens the cached main screen.
+                SentryTelemetry.update(diagnosticsEnabled: accountData.settings.diagnosticsEnabled)
             case .failure(let error):
                 accountError = error
             }
@@ -218,11 +221,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         dispatchGroup.notify(queue: .main) {
-            // Before the /config check: its failure still opens the cached main screen.
-            if let account {
-                SentryTelemetry.update(diagnosticsEnabled: account.settings.diagnosticsEnabled)
-            }
-
             if let accountError = accountError {
                 return self.fetchUserFailure(error: accountError)
             }
