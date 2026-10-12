@@ -151,7 +151,7 @@ final class SentryTelemetryTests: XCTestCase {
             SentryTelemetry.relayDSN("https://synthetickey@o0.ingest.example.invalid/5282170"),
             "https://synthetickey@relay.put.io/5282170"
         )
-        for unusable in ["", "$(PUTIO_SENTRY_DSN)", "https://sentry.example.invalid/12", "https://k@host/not-a-project"] {
+        for unusable in ["", "$(PUTIO_SENTRY_DSN)", "http://k@host/1", "https://sentry.example.invalid/12", "https://k@host/not-a-project"] {
             XCTAssertNil(SentryTelemetry.relayDSN(unusable), unusable)
         }
     }

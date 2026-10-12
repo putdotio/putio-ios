@@ -77,7 +77,7 @@ enum SentryTelemetry {
     /// Anything else, including an unexpanded `$(PUTIO_SENTRY_DSN)`, is nil.
     static func relayDSN(_ dsn: String) -> String? {
         guard let components = URLComponents(string: dsn),
-              components.scheme == "https" || components.scheme == "http",
+              components.scheme == "https",
               let key = components.user, !key.isEmpty,
               components.host?.isEmpty == false,
               let projectID = components.path.split(separator: "/").last,
