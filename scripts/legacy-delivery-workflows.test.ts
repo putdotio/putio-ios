@@ -89,7 +89,7 @@ test("release builds fail without a Sentry DSN for project ios", async () => {
   const preflight = steps
     .map((step, index) => asRecord(step, `action.yml.runs.steps[${index}]`))
     .find((step) => step.name === "Require release environment secrets");
-  assert.ok(preflight, "Require release environment secrets step");
+  assert.ok(preflight, "action.yml must have a 'Require release environment secrets' step");
   const run = String(preflight.run);
   const secrets = Object.fromEntries([...run.matchAll(/^\s+([A-Z][A-Z0-9_]*)$/gm)].map(([, name]) => [name, "synthetic"]));
   const status = (dsn: string) =>
