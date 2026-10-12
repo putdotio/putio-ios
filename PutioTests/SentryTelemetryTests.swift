@@ -96,7 +96,7 @@ final class SentryTelemetryTests: XCTestCase {
         try cacheEnvelope()
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RecordingURLProtocol.self]
-        // Built and resumed the way Sentry's transport does it.
+        // Built the way Sentry's transport builds its session.
         let session = URLSession(configuration: configuration, delegate: options.urlSessionDelegate, delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         func uploadReachesTheNetwork() throws -> Bool {
