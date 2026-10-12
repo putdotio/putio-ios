@@ -56,7 +56,13 @@ enum SentryTelemetry {
             if !SentrySDK.isEnabled { SentrySDK.start(options: options(dsn: dsn)) }
         } else {
             if SentrySDK.isEnabled { SentrySDK.close() }
-            try? FileManager.default.removeItem(at: cacheDirectory)
+            do {
+                try FileManager.default.removeItem(at: cacheDirectory)
+            } catch let error as CocoaError where error.code == .fileNoSuchFile {
+                // Deleted by an earlier switch-off; every launch while off lands here.
+            } catch {
+                InternalFailurePresenter.log("SentryTelemetry: cache not deleted: \(error.localizedDescription)")
+            }
         }
     }
 
