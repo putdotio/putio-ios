@@ -56,6 +56,10 @@ struct AppConfig: Decodable {
 }
 
 extension PutioSDK {
+    /// The token every media URL carries as `oauth_token`: the OAuth token,
+    /// not the narrower `User.downloadToken` the SDK's `downloadToken:` asks for.
+    var mediaToken: String { config.token }
+
     private func complete<T>(
         _ completion: @escaping (Result<T, PutioSDKError>) -> Void,
         operation: @escaping () async throws -> T

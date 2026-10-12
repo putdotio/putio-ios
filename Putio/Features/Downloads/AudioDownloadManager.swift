@@ -98,7 +98,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     func createDownload(from file: PutioFile) {
         guard file.type == .audio else { return }
 
-        let url = file.getAudioStreamURL(downloadToken: api.config.token).absoluteString
+        let url = file.getAudioStreamURL(downloadToken: api.mediaToken).absoluteString
         log.debug("ADM: createDownload url: \(url)")
 
         guard let download = Download(file: file, url: url) else { return }
