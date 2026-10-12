@@ -1,3 +1,4 @@
+import os
 import Sentry
 import XCTest
 @testable import Putio
@@ -93,24 +94,27 @@ final class SentryTelemetryTests: XCTestCase {
         let options = SentryTelemetry.options(dsn: dsn)
         XCTAssertEqual(options.cacheDirectoryPath, SentryTelemetry.cacheDirectory.path)
         try cacheEnvelope()
-        let gate = try XCTUnwrap(options.urlSessionDelegate as? URLSessionTaskDelegate)
-        let session = URLSession(configuration: .ephemeral)
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [RecordingURLProtocol.self]
+        // Built and resumed the way Sentry's transport does it.
+        let session = URLSession(configuration: configuration, delegate: options.urlSessionDelegate, delegateQueue: nil)
         defer { session.invalidateAndCancel() }
-        let envelope = try XCTUnwrap(URL(string: "https://relay.example.invalid/api/1/envelope/"))
-        func upload() -> URLSessionTask {
-            let task = session.dataTask(with: envelope)
-            gate.urlSession?(session, didCreateTask: task)
-            return task
+        func uploadReachesTheNetwork() throws -> Bool {
+            let envelope = try XCTUnwrap(URL(string: "https://relay.example.invalid/api/1/envelope/?\(UUID().uuidString)"))
+            let finished = expectation(description: "upload finished")
+            session.dataTask(with: URLRequest(url: envelope)) { _, _, _ in finished.fulfill() }.resume()
+            wait(for: [finished], timeout: 5)
+            return RecordingURLProtocol.loaded(envelope)
         }
 
         SentryTelemetry.update(diagnosticsEnabled: true, dsn: dsn, defaults: defaults)
         XCTAssertNotNil(options.beforeSend?(Event(level: .error)))
-        XCTAssertEqual(upload().state, .suspended)
+        XCTAssertTrue(try uploadReachesTheNetwork(), "the gate held an upload while diagnostics were on")
 
         SentryTelemetry.update(diagnosticsEnabled: false, dsn: dsn, defaults: defaults)
 
         XCTAssertNil(options.beforeSend?(Event(level: .error)))
-        XCTAssertNotEqual(upload().state, .suspended, "an upload left while diagnostics were off")
+        XCTAssertFalse(try uploadReachesTheNetwork(), "an upload left while diagnostics were off")
         XCTAssertFalse(FileManager.default.fileExists(atPath: SentryTelemetry.cacheDirectory.path))
     }
 
@@ -174,4 +178,28 @@ final class SentryTelemetryTests: XCTestCase {
         SentryTelemetry.isCapturing = true
         addTeardownBlock { SentryTelemetry.isCapturing = previous }
     }
+}
+
+/// Stands in for the network: records every request that starts loading.
+private final class RecordingURLProtocol: URLProtocol {
+    private static let loadedURLs = OSAllocatedUnfairLock(initialState: Set<URL>())
+
+    static func loaded(_ url: URL) -> Bool {
+        loadedURLs.withLock { $0.contains(url) }
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url,
+              let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)
+        else { return }
+        Self.loadedURLs.withLock { _ = $0.insert(url) }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }
