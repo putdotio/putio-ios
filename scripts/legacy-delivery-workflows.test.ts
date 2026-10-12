@@ -23,24 +23,15 @@ const arrayAt = (record: RecordValue, key: string, context: string): readonly un
   return value as readonly unknown[];
 };
 
-const loadWorkflow = async (name: string): Promise<RecordValue> =>
-  asRecord(
-    parse(await readFile(new URL(`../.github/workflows/${name}`, import.meta.url), "utf8")) as unknown,
-    name,
-  );
-
-const loadAction = async (name: string): Promise<RecordValue> =>
-  asRecord(
-    parse(await readFile(new URL(`../.github/actions/${name}/action.yml`, import.meta.url), "utf8")) as unknown,
-    name,
-  );
+const loadYaml = async (path: string): Promise<RecordValue> =>
+  asRecord(parse(await readFile(new URL(`../${path}`, import.meta.url), "utf8")) as unknown, path);
 
 test("manual legacy delivery validates before entering the release Environment", async () => {
   for (const [name, deliveryJob] of [
     ["beta.yml", "beta"],
     ["release.yml", "release"],
   ] as const) {
-    const workflow = await loadWorkflow(name);
+    const workflow = await loadYaml(`.github/workflows/${name}`);
     const jobs = recordAt(workflow, "jobs", name);
     const validate = recordAt(jobs, "validate-ref", `${name}.jobs`);
     const delivery = recordAt(jobs, deliveryJob, `${name}.jobs`);
@@ -60,7 +51,7 @@ test("manual legacy delivery validates before entering the release Environment",
 });
 
 test("the shared guard binds manual dispatch to the protected main event SHA", async () => {
-  const workflow = await loadWorkflow("legacy-delivery-ref.yml");
+  const workflow = await loadYaml(".github/workflows/legacy-delivery-ref.yml");
   assert.deepEqual(recordAt(workflow, "permissions", "legacy-delivery-ref.yml"), {
     contents: "read",
   });
@@ -75,7 +66,7 @@ test("the shared guard binds manual dispatch to the protected main event SHA", a
 });
 
 test("beta persists the selected TestFlight groups before distribution", async () => {
-  const workflow = await loadWorkflow("beta.yml");
+  const workflow = await loadYaml(".github/workflows/beta.yml");
   const jobs = recordAt(workflow, "jobs", "beta.yml");
   const beta = recordAt(jobs, "beta", "beta.yml.jobs");
   const steps = arrayAt(beta, "steps", "beta.yml.jobs.beta").map((step, index) =>
@@ -93,13 +84,13 @@ test("beta persists the selected TestFlight groups before distribution", async (
 });
 
 test("release builds fail without a Sentry DSN for project ios", async () => {
-  const action = await loadAction("load-ios-release-secrets");
+  const action = await loadYaml(".github/actions/load-ios-release-secrets/action.yml");
   const steps = arrayAt(recordAt(action, "runs", "action.yml"), "steps", "action.yml.runs");
   const preflight = steps
     .map((step, index) => asRecord(step, `action.yml.runs.steps[${index}]`))
     .find((step) => step.name === "Require release environment secrets");
-  assert.notEqual(preflight, undefined);
-  const run = String(preflight?.run);
+  assert.ok(preflight, "Require release environment secrets step");
+  const run = String(preflight.run);
   const secrets = Object.fromEntries([...run.matchAll(/^\s+([A-Z][A-Z0-9_]*)$/gm)].map(([, name]) => [name, "synthetic"]));
   const status = (dsn: string) =>
     spawnSync("bash", ["-c", run], { env: { PATH: process.env.PATH, ...secrets, PUTIO_SENTRY_DSN: dsn } }).status;
