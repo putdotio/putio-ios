@@ -88,7 +88,8 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertEqual(sent.releaseName, "io.put.synthetic@1.0+1")
     }
 
-    func testSwitchingOffSendsNothingRecordedBefore() throws {
+    func testSwitchingOffDropsEventsCancelsUploadsAndDeletesTheCache() throws {
+        let defaults = try isolatedDefaults()
         let options = SentryTelemetry.options(dsn: dsn)
         XCTAssertEqual(options.cacheDirectoryPath, SentryTelemetry.cacheDirectory.path)
         try cacheEnvelope()
@@ -102,11 +103,11 @@ final class SentryTelemetryTests: XCTestCase {
             return task
         }
 
-        allowCapture()
+        SentryTelemetry.update(diagnosticsEnabled: true, dsn: dsn, defaults: defaults)
         XCTAssertNotNil(options.beforeSend?(Event(level: .error)))
         XCTAssertEqual(upload().state, .suspended)
 
-        SentryTelemetry.setCapturing(false, dsn: dsn)
+        SentryTelemetry.update(diagnosticsEnabled: false, dsn: dsn, defaults: defaults)
 
         XCTAssertNil(options.beforeSend?(Event(level: .error)))
         XCTAssertNotEqual(upload().state, .suspended, "an upload left while diagnostics were off")
@@ -126,9 +127,9 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: SentryTelemetry.cacheDirectory.path))
     }
 
-    func testOnMissingOrSignedOutAnswerReports() throws {
+    func testReportsWhenTheAnswerIsOnMissingOrSignedOut() throws {
         let defaults = try isolatedDefaults()
-        addTeardownBlock { SentryTelemetry.setCapturing(false, dsn: self.dsn) }
+        addTeardownBlock { SentryTelemetry.update(diagnosticsEnabled: false, dsn: self.dsn, defaults: defaults) }
         func assertReports(_ moment: String) {
             XCTAssertTrue(SentryTelemetry.isCapturing, moment)
             XCTAssertTrue(SentrySDK.isEnabled, moment)

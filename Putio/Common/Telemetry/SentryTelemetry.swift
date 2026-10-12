@@ -29,31 +29,28 @@ enum SentryTelemetry {
     /// The SDK holds its session delegate weakly.
     private static let transportGate = SentryTransportGate()
 
-    private static let consentKey = "io.put.diagnostics-enabled"
-
     /// The account's last known `diagnostics_enabled`, kept so a cold launch
     /// honours an opt-out before the account loads. Missing, as when signed out,
     /// is on.
-    static func diagnosticsEnabled(_ defaults: UserDefaults = .standard) -> Bool {
-        defaults.object(forKey: consentKey) as? Bool ?? true
-    }
+    private static let consentKey = "io.put.diagnostics-enabled"
 
     static func start(dsn: String? = SENTRY_DSN, defaults: UserDefaults = .standard) {
-        guard let dsn else { return }
-        setCapturing(diagnosticsEnabled(defaults), dsn: dsn)
+        apply(dsn: dsn, defaults: defaults)
     }
 
     /// Keeps the account's answer, even in a build without a DSN, and applies it.
     /// `nil` is signed out.
     static func update(diagnosticsEnabled enabled: Bool?, dsn: String? = SENTRY_DSN, defaults: UserDefaults = .standard) {
         defaults.set(enabled, forKey: consentKey)
-        start(dsn: dsn, defaults: defaults)
+        apply(dsn: dsn, defaults: defaults)
     }
 
     /// `SentrySDK.close()` uploads cached envelopes and a final session without
     /// `beforeSend`. The transport gate cancels those uploads and the cache is
     /// deleted, so nothing recorded before a switch-off leaves later either.
-    static func setCapturing(_ enabled: Bool, dsn: String) {
+    private static func apply(dsn: String?, defaults: UserDefaults) {
+        guard let dsn else { return }
+        let enabled = defaults.object(forKey: consentKey) as? Bool ?? true
         isCapturing = enabled
         if enabled {
             if !SentrySDK.isEnabled { SentrySDK.start(options: options(dsn: dsn)) }
