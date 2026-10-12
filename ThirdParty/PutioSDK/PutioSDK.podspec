@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name = "PutioSDK"
   s.version = "4.1.0"
-  s.summary = "Swift SDK for the put.io API (vendored podspec; upstream is SPM-only since 4.0.1)."
+  s.summary = "Swift SDK for the put.io API."
   s.homepage = "https://github.com/putdotio/putio-sdk-swift"
   s.license = { :type => "MIT", :file => "LICENSE" }
   s.authors = { "put.io" => "devs@put.io" }
