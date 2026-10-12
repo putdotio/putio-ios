@@ -63,11 +63,6 @@ EXTERNAL SOURCES:
   SnapshotTesting:
     :podspec: ThirdParty/SnapshotTesting/SnapshotTesting.podspec
 
-CHECKOUT OPTIONS:
-  PutioSDK:
-    :commit: 0ee27ab353dee96072f3629072aec289c43987c6
-    :git: https://github.com/putdotio/putio-sdk-swift.git
-
 SPEC CHECKSUMS:
   google-cast-sdk-no-bluetooth-xcframework: 1783f52a1b2dc0293ac3ae995db5435989a87da7
   Intercom: 74d4318a7275fa6f6a1466443f2af10ebd679d57
