@@ -1,7 +1,7 @@
 [tools]
 node = "24.21.0"
 pnpm = "12.11.2"
-tuist = "4.211.0"
+tuist = "4.212.0"
 
 [tasks.doctor]
 description = "Validate the local Apple development toolchain"
