@@ -67,12 +67,9 @@ struct PrivacyControlsView: View {
             .disabled(!model.canSave)
             .accessibilityIdentifier("privacy.product-analytics")
           } footer: {
-            VStack(alignment: .leading, spacing: PutioTheme.Spacing.space2) {
-              Text(
-                "Help us understand which apps and features work well by sending limited usage, device, billing, and playback information. We never send filenames, media titles, URLs, search text, or tokens."
-              )
-              Text("These choices apply to every put.io app you sign in to.")
-            }
+            Text(
+              "Help us understand which apps and features work well by sending limited usage, device, billing, and playback information. We never send filenames, media titles, URLs, search text, or tokens."
+            )
           }
         }
         .listRowBackground(PutioTheme.Colors.surface)
