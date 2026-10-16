@@ -39,7 +39,7 @@ struct MediaPlayerItem {
         self.id = file.id
         self.name = file.name
         self.url = PutioE2EPlaybackAsset.url(for: file)
-            ?? (file.type == PutioFileType.video ? file.getHlsStreamURL(token: api.config.token) : file.getAudioStreamURL(token: api.config.token))
+            ?? (file.type == PutioFileType.video ? file.getHlsStreamURL(downloadToken: api.mediaToken) : file.getAudioStreamURL(downloadToken: api.mediaToken))
         self.fileType = file.type == PutioFileType.video ? .video : .audio
         self.consumptionType = .online
         self.startFrom = file.startFrom
@@ -48,7 +48,7 @@ struct MediaPlayerItem {
     init(file: PutioNextFile) {
         self.id = file.id
         self.name = file.name
-        self.url = file.getStreamURL(token: api.config.token)
+        self.url = file.getStreamURL(downloadToken: api.mediaToken)
         self.fileType = file.type == PutioNextFileType.video ? .video : .audio
         self.consumptionType = .online
         self.startFrom = 0

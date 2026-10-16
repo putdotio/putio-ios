@@ -7,7 +7,8 @@ target 'Putio' do
   pod 'google-cast-sdk-no-bluetooth-xcframework', '4.8.0'
   pod 'Intercom', '19.5.7'
   pod 'KeychainAccess'
-  pod 'PutioSDK', :git => 'https://github.com/putdotio/putio-sdk-swift.git', :commit => '0ee27ab353dee96072f3629072aec289c43987c6' # 3.1.1
+  # Upstream dropped CocoaPods in 4.0.1; ThirdParty/ carries a pinned podspec.
+  pod 'PutioSDK', :podspec => 'ThirdParty/PutioSDK/PutioSDK.podspec'
   pod 'RealmSwift', '20.0.4'
   pod 'Sentry', '9.10.0'
   pod 'StatefulViewController', '~> 3.0'

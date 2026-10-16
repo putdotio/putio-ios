@@ -6,7 +6,7 @@ PODS:
     - ViewState (>= 1.2.1)
   - KeychainAccess (4.2.2)
   - Protobuf (3.29.6)
-  - PutioSDK (3.1.1)
+  - PutioSDK (4.1.0)
   - Realm (20.0.4):
     - Realm/Headers (= 20.0.4)
   - Realm/Headers (20.0.4)
@@ -31,7 +31,7 @@ DEPENDENCIES:
   - Intercom (= 19.5.7)
   - KeyboardAvoidingView (~> 5.2)
   - KeychainAccess
-  - PutioSDK (from `https://github.com/putdotio/putio-sdk-swift.git`, commit `0ee27ab353dee96072f3629072aec289c43987c6`)
+  - PutioSDK (from `ThirdParty/PutioSDK/PutioSDK.podspec`)
   - RealmSwift (= 20.0.4)
   - Sentry (= 9.10.0)
   - SnapshotTesting (from `ThirdParty/SnapshotTesting/SnapshotTesting.podspec`)
@@ -59,15 +59,9 @@ SPEC REPOS:
 
 EXTERNAL SOURCES:
   PutioSDK:
-    :commit: 0ee27ab353dee96072f3629072aec289c43987c6
-    :git: https://github.com/putdotio/putio-sdk-swift.git
+    :podspec: ThirdParty/PutioSDK/PutioSDK.podspec
   SnapshotTesting:
     :podspec: ThirdParty/SnapshotTesting/SnapshotTesting.podspec
-
-CHECKOUT OPTIONS:
-  PutioSDK:
-    :commit: 0ee27ab353dee96072f3629072aec289c43987c6
-    :git: https://github.com/putdotio/putio-sdk-swift.git
 
 SPEC CHECKSUMS:
   google-cast-sdk-no-bluetooth-xcframework: 1783f52a1b2dc0293ac3ae995db5435989a87da7
@@ -75,7 +69,7 @@ SPEC CHECKSUMS:
   KeyboardAvoidingView: acc530b2435bba760b2270e722cb7132cf1c4d31
   KeychainAccess: c0c4f7f38f6fc7bbe58f5702e25f7bd2f65abf51
   Protobuf: 8d5596f7468be5400861a6bbfb2dfe9d0d1cde34
-  PutioSDK: ab903c297beba9945f4d48f28482d57dd4f1ca71
+  PutioSDK: 3841376789217e33b6283b2a3d10ebf0815e85e4
   Realm: 1fca83c42ac1d5c7767974882c8de5a7abca4d89
   RealmSwift: 84f36320f6133dea78d05c55bb46bba4387d6828
   RoutableLogger: 31ce799b16b4868c169ed68c36e25437dd0ca40e
@@ -87,6 +81,6 @@ SPEC CHECKSUMS:
   ViewState: 82f26f9b716f6673c19e491f8bf234c4ff519a0a
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: f996429d3d8b752169060f3fb29c98bbae532dae
+PODFILE CHECKSUM: ac5a2d308e7a921572ccbd213d18c04dffcec2ba
 
 COCOAPODS: 1.17.0

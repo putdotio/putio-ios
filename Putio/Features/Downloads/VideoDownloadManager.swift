@@ -81,7 +81,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     private func getRemoteStreamURL(for download: Download, completion: @escaping (_ url: URL?) -> Void) {
-        var url = "\(api.config.baseURL)/files/\(download.id)/hls/media.m3u8?oauth_token=\(api.config.token)"
+        var url = "\(api.config.baseURL)/files/\(download.id)/hls/media.m3u8?oauth_token=\(api.mediaToken)"
 
         api.getSubtitles(fileID: download.id) { result in
             switch result {

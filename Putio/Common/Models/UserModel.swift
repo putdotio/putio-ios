@@ -71,7 +71,7 @@ class UserSettings: Object {
 class UserConfig: Object {
     @objc dynamic var chromecastPlaybackType: String = "hls"
 
-    convenience init?(config: PutioConfig) {
+    convenience init?(config: AppConfig) {
         self.init()
         self.chromecastPlaybackType = config.chromecastPlaybackType.rawValue
     }

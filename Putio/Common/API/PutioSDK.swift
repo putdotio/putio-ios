@@ -40,7 +40,26 @@ extension PutioListTrashResponse {
     var trash_size: Int64 { trashSize }
 }
 
+/// The app's keys in the account's `/config` document.
+struct AppConfig: Decodable {
+    enum CodingKeys: String, CodingKey {
+        case chromecastPlaybackType = "chromecast_playback_type"
+    }
+
+    let chromecastPlaybackType: PutioChromecastPlaybackType
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let rawValue = try container.decodeIfPresent(String.self, forKey: .chromecastPlaybackType)
+        chromecastPlaybackType = rawValue.flatMap(PutioChromecastPlaybackType.init(rawValue:)) ?? .hls
+    }
+}
+
 extension PutioSDK {
+    /// The token every media URL carries as `oauth_token`: the OAuth token,
+    /// not the narrower `User.downloadToken` the SDK's `downloadToken:` asks for.
+    var mediaToken: String { config.token }
+
     private func complete<T>(
         _ completion: @escaping (Result<T, PutioSDKError>) -> Void,
         operation: @escaping () async throws -> T
@@ -80,9 +99,9 @@ extension PutioSDK {
         }
     }
 
-    func getConfig(_ completion: @escaping (Result<PutioConfig, PutioSDKError>) -> Void) {
+    func getConfig(_ completion: @escaping (Result<AppConfig, PutioSDKError>) -> Void) {
         complete(completion) {
-            try await self.getConfig()
+            try await self.getConfig(as: AppConfig.self)
         }
     }
 
@@ -91,7 +110,7 @@ extension PutioSDK {
         _ completion: @escaping (Result<PutioOKResponse, PutioSDKError>) -> Void
     ) {
         complete(completion) {
-            try await self.setChromecastPlaybackType(playbackType)
+            try await self.setConfigValue(key: AppConfig.CodingKeys.chromecastPlaybackType.rawValue, playbackType)
         }
     }
 
