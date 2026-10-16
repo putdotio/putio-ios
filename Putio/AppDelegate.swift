@@ -74,9 +74,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func configureSDKs() {
         PutioRealm.setup()
 
-        if SENTRY_ENABLED {
-            SentryTelemetry.start(dsn: SENTRY_DSN)
-        }
+        SentryTelemetry.start()
 
         if INTERCOM_ENABLED {
             Intercom.setApiKey(INTERCOM_API_KEY, forAppId: INTERCOM_APP_ID)
@@ -159,9 +157,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        if SENTRY_ENABLED {
-            SentryTelemetry.capture(.pushRegistration, error: error)
-        }
+        SentryTelemetry.capture(.pushRegistration, error: error)
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
@@ -204,6 +200,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             switch result {
             case .success(let accountData):
                 account = accountData
+                // Not behind /config: an opt-out applies as soon as the account
+                // answers, and a /config failure still opens the cached main screen.
+                SentryTelemetry.update(diagnosticsEnabled: accountData.settings.diagnosticsEnabled)
             case .failure(let error):
                 accountError = error
             }
@@ -292,6 +291,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         case .httpError(let statusCode, let errorType):
             if statusCode == 401 || errorType == "Unauthorized" {
+                SentryTelemetry.update(diagnosticsEnabled: nil)
                 return self.presentLoginScreen(afterBootstrapFailure: "account fetch rejected the token (\(statusCode))")
             }
 
@@ -310,6 +310,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         api.clearToken()
         VideoPlaybackPositionStore.shared.clearAllPositions()
         Intercom.logout()
+        SentryTelemetry.update(diagnosticsEnabled: nil)
         presentLoginScreen()
     }
 

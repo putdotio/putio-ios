@@ -1,8 +1,11 @@
+import os
 import Sentry
 import XCTest
 @testable import Putio
 
 final class SentryTelemetryTests: XCTestCase {
+    private let dsn = "https://synthetickey@relay.example.invalid/1"
+
     func testOnlyAllowlistedFieldsLeaveTheDevice() throws {
         let title = "Synthetic Feature Title"
         let fileName = "Synthetic.Feature.Title.2001.mkv"
@@ -65,7 +68,8 @@ final class SentryTelemetryTests: XCTestCase {
         // Watchdog terminations carry breadcrumbs read back from disk here.
         event.setValue([breadcrumb.serialize()], forKey: "serializedBreadcrumbs")
 
-        let options = SentryTelemetry.options(dsn: "https://synthetickey@sentry.example.invalid/1")
+        allowCapture()
+        let options = SentryTelemetry.options(dsn: dsn)
         let sent = try XCTUnwrap(options.beforeSend?(event))
         let json = String(decoding: try JSONSerialization.data(withJSONObject: sent.serialize()), as: UTF8.self)
 
@@ -84,4 +88,118 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertEqual(sent.user?.userId, "synthetic-installation")
         XCTAssertEqual(sent.releaseName, "io.put.synthetic@1.0+1")
     }
+
+    func testSwitchingOffDropsEventsCancelsUploadsAndDeletesTheCache() throws {
+        let defaults = try isolatedDefaults()
+        let options = SentryTelemetry.options(dsn: dsn)
+        XCTAssertEqual(options.cacheDirectoryPath, SentryTelemetry.cacheDirectory.path)
+        try cacheEnvelope()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [RecordingURLProtocol.self]
+        // Built the way Sentry's transport builds its session.
+        let session = URLSession(configuration: configuration, delegate: options.urlSessionDelegate, delegateQueue: nil)
+        defer { session.invalidateAndCancel() }
+        func uploadReachesTheNetwork() throws -> Bool {
+            let envelope = try XCTUnwrap(URL(string: "https://relay.example.invalid/api/1/envelope/?\(UUID().uuidString)"))
+            let finished = expectation(description: "upload finished")
+            session.dataTask(with: URLRequest(url: envelope)) { _, _, _ in finished.fulfill() }.resume()
+            wait(for: [finished], timeout: 5)
+            return RecordingURLProtocol.loaded(envelope)
+        }
+
+        SentryTelemetry.update(diagnosticsEnabled: true, dsn: dsn, defaults: defaults)
+        XCTAssertNotNil(options.beforeSend?(Event(level: .error)))
+        XCTAssertTrue(try uploadReachesTheNetwork(), "the gate held an upload while diagnostics were on")
+
+        SentryTelemetry.update(diagnosticsEnabled: false, dsn: dsn, defaults: defaults)
+
+        XCTAssertNil(options.beforeSend?(Event(level: .error)))
+        XCTAssertFalse(try uploadReachesTheNetwork(), "an upload left while diagnostics were off")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: SentryTelemetry.cacheDirectory.path))
+    }
+
+    func testColdLaunchHonoursAStoredOptOut() throws {
+        let defaults = try isolatedDefaults()
+        SentryTelemetry.update(diagnosticsEnabled: false, dsn: nil, defaults: defaults)
+        try cacheEnvelope()
+        allowCapture()
+
+        SentryTelemetry.start(dsn: dsn, defaults: defaults)
+
+        XCTAssertFalse(SentryTelemetry.isCapturing)
+        XCTAssertFalse(SentrySDK.isEnabled)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: SentryTelemetry.cacheDirectory.path))
+    }
+
+    func testReportsWhenTheAnswerIsOnMissingOrSignedOut() throws {
+        let defaults = try isolatedDefaults()
+        addTeardownBlock { SentryTelemetry.update(diagnosticsEnabled: false, dsn: self.dsn, defaults: defaults) }
+        func assertReports(_ moment: String) {
+            XCTAssertTrue(SentryTelemetry.isCapturing, moment)
+            XCTAssertTrue(SentrySDK.isEnabled, moment)
+        }
+
+        SentryTelemetry.start(dsn: dsn, defaults: defaults)
+        assertReports("before any account loads")
+
+        SentryTelemetry.update(diagnosticsEnabled: false, dsn: dsn, defaults: defaults)
+        SentryTelemetry.update(diagnosticsEnabled: nil, dsn: dsn, defaults: defaults)
+        assertReports("after signing out")
+
+        SentryTelemetry.update(diagnosticsEnabled: true, dsn: dsn, defaults: defaults)
+        assertReports("while diagnostics are on")
+    }
+
+    func testReportsThroughTheRelay() {
+        XCTAssertEqual(
+            SentryTelemetry.relayDSN("https://synthetickey@o0.ingest.example.invalid/5282170"),
+            "https://synthetickey@relay.put.io/5282170"
+        )
+        for unusable in ["", "$(PUTIO_SENTRY_DSN)", "http://k@host/1", "https://sentry.example.invalid/12", "https://k@host/not-a-project"] {
+            XCTAssertNil(SentryTelemetry.relayDSN(unusable), unusable)
+        }
+    }
+
+    private func cacheEnvelope() throws {
+        let pending = SentryTelemetry.cacheDirectory.appending(path: "envelopes/pending")
+        try FileManager.default.createDirectory(at: pending.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("synthetic".utf8).write(to: pending)
+    }
+
+    private func isolatedDefaults() throws -> UserDefaults {
+        let suite = "SentryTelemetryTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        return defaults
+    }
+
+    private func allowCapture() {
+        let previous = SentryTelemetry.isCapturing
+        SentryTelemetry.isCapturing = true
+        addTeardownBlock { SentryTelemetry.isCapturing = previous }
+    }
+}
+
+/// Stands in for the network: records every request that starts loading.
+private final class RecordingURLProtocol: URLProtocol {
+    private static let loadedURLs = OSAllocatedUnfairLock(initialState: Set<URL>())
+
+    static func loaded(_ url: URL) -> Bool {
+        loadedURLs.withLock { $0.contains(url) }
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url,
+              let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)
+        else { return }
+        Self.loadedURLs.withLock { _ = $0.insert(url) }
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }

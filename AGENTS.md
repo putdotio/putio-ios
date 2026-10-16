@@ -69,6 +69,7 @@ Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-
 - Use `PutioRealm` helpers for Realm open/write paths and include useful context strings for diagnostics
 - Surface unexpected internal failures with `InternalFailurePresenter` instead of silent returns
 - Report failures to Sentry only as `SentryTelemetry.capture(.category, error:)`. Breadcrumbs and failed-request capture are off, and `beforeSend` rebuilds every event, crashes included, from the allowlist in `SentryTelemetry.allowlisted`. `verify-fast` rejects `import Sentry` outside `Putio/Common/Telemetry`
+- Sentry runs only while the account's `diagnostics_enabled` is on. Launch applies the last answer `SentryTelemetry.update(diagnosticsEnabled:)` stored, so an opt-out holds before the account loads; signed out or never answered is on. Switching off drops events, cancels uploads, and deletes the app-owned Sentry cache
 - Update UI on the main thread, but keep expensive network response parsing, image decoding, and PDF parsing off the main thread
 - Make every async loading path finish cleanly on success, failure, cancellation, and back navigation
 - Put user-facing copy in localized strings; when Swift copy changes, update `Putio/en.lproj/Localizable.strings`
