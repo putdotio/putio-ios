@@ -1,5 +1,5 @@
 {
-  "sourcePackageVersion": "3.3.0",
+  "sourcePackageVersion": "3.5.0",
   "generated": [
     "border.width",
     "color.neutral.dark.border",
@@ -550,6 +550,15 @@
       "tv.video.heroScrimBottom",
       "tv.video.heroScrimTop",
       "tv.video.textOnVideo"
+    ],
+    "native-tv-focus": [
+      "tv.focus.borderWidth",
+      "tv.focus.control.background",
+      "tv.focus.control.backgroundFocused",
+      "tv.focus.control.border",
+      "tv.focus.control.borderFocused",
+      "tv.focus.row.background",
+      "tv.focus.row.backgroundFocused"
     ]
   }
 }
