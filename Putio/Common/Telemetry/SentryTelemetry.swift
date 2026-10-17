@@ -28,17 +28,22 @@ enum SentryTelemetry {
 
     static let cacheDirectory = URL.cachesDirectory.appending(path: "io.put.diagnostics")
 
-    /// Deletes where 2.58.0's Sentry 7.9.0 kept envelopes and crash reports, unredacted.
-    static func deleteLegacyCache(in cachesDirectory: URL = .cachesDirectory) {
+    /// Deletes where 2.58.0's Sentry 7.9.0 kept envelopes and crash reports,
+    /// unredacted. False when either is still there.
+    @discardableResult
+    static func deleteLegacyCache(in cachesDirectory: URL = .cachesDirectory) -> Bool {
+        var deleted = true
         for name in ["io.sentry", "SentryCrash"] {
             do {
                 try FileManager.default.removeItem(at: cachesDirectory.appending(path: name))
             } catch let error as CocoaError where error.code == .fileNoSuchFile {
                 // Nothing to delete on an install that never ran 2.58.0.
             } catch {
+                deleted = false
                 InternalFailurePresenter.log("SentryTelemetry: legacy cache not deleted: \(error.localizedDescription)")
             }
         }
+        return deleted
     }
 
     /// The SDK holds its session delegate weakly.

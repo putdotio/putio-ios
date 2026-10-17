@@ -28,11 +28,11 @@ enum LegacyInstallCleanup {
 
     static func runOnce(defaults: UserDefaults = .standard) {
         guard !defaults.bool(forKey: didRunKey) else { return }
-        SentryTelemetry.deleteLegacyCache()
-        // Marked done only once every session answers, so a background launch
-        // suspended before then retries on the next one.
+        let cacheDeleted = SentryTelemetry.deleteLegacyCache()
+        // Marked done only once the cache is gone and every session answers, so
+        // a background launch that fails or is suspended first retries.
         BackgroundDownloadSessionEvents.cancelShipped258Sessions {
-            defaults.set(true, forKey: didRunKey)
+            if cacheDeleted { defaults.set(true, forKey: didRunKey) }
         }
     }
 }
@@ -408,9 +408,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         applyWindowAppearance()
         window?.rootViewController = RootContainerViewController()
         window?.makeKeyAndVisible()
-        // A no-op unless setup() deleted an unreadable Realm, as on the upgrade
-        // from 2.58.0. After a fresh sign-in, recovering stays a Restore tap.
-        if isRestoredSession {
+        // Only the launch that replaced 2.58.0's Realm still holds the session
+        // its downloads belong to. Otherwise recovering stays a Restore tap.
+        if isRestoredSession, PutioRealm.didDeleteUnreadableFile {
             PutioRealm.recoverDownloadsIfNeeded()
         }
         let urls = pendingURLs

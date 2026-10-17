@@ -190,11 +190,12 @@ final class SentryTelemetryTests: XCTestCase {
             try Data("synthetic".utf8).write(to: file)
         }
 
-        SentryTelemetry.deleteLegacyCache(in: caches)
+        XCTAssertTrue(SentryTelemetry.deleteLegacyCache(in: caches))
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: caches.appending(path: "io.sentry").path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: caches.appending(path: "SentryCrash").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: caches.appending(path: kept).path))
+        XCTAssertTrue(SentryTelemetry.deleteLegacyCache(in: caches), "nothing left to delete is done")
     }
 
     func testReportsThroughTheRelay() {

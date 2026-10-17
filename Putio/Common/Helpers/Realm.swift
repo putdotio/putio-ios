@@ -77,6 +77,9 @@ class PutioRealm {
     // An in-memory Realm keeps its rows only while an instance is open.
     private static var fallbackRealm: Realm?
 
+    /// Whether this launch deleted an unreadable file, as the first one after 2.58.0 does.
+    private(set) static var didDeleteUnreadableFile = false
+
     /// Returns the failure, if any, for the caller to report once telemetry runs.
     @discardableResult
     static func setup(configuration: Realm.Configuration = configuration(), defaults: UserDefaults = .standard) -> Error? {
@@ -87,6 +90,7 @@ class PutioRealm {
             // Download file references survive in UserDefaults.
             log.warning("[PutioRealm] Unreadable Realm file (\(error.code.rawValue)), deleting old database")
             deleteFiles(of: configuration)
+            didDeleteUnreadableFile = true
             setNeedsDownloadRecovery(true, defaults: defaults)
             failure = openingError(configuration)
         }
