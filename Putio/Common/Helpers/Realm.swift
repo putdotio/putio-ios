@@ -113,7 +113,10 @@ class PutioRealm {
             log.warning("[PutioRealm] Unreadable Realm file (\(error.code.rawValue)), deleting old database")
             deleteFiles(of: configuration)
             setNeedsDownloadRecovery(true, defaults: defaults)
-            setUpgradingFromShipped258(true, defaults: defaults)
+            // An older format is 2.58.0's file; a corrupt 3.x one is not.
+            if error.code == .unsupportedFileFormatVersion {
+                setUpgradingFromShipped258(true, defaults: defaults)
+            }
             failure = openingError(configuration)
         }
 

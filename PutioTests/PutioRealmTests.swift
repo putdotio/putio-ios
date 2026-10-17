@@ -189,6 +189,8 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertNil(PutioRealm.setup(configuration: PutioRealm.configuration(fileURL: realmURL), defaults: defaults))
 
         XCTAssertTrue(PutioRealm.needsDownloadRecovery(defaults: defaults))
+        // Not 2.58.0's file, so a 2.58.0 token left beside it must not sign in.
+        XCTAssertFalse(PutioRealm.isUpgradingFromShipped258(defaults: defaults))
         XCTAssertEqual(try realmFileFormat(at: realmURL), 24)
     }
 
