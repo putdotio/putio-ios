@@ -76,6 +76,9 @@ extension FilesViewController {
     }
 
     func selectAll() {
+        let signpost = PerfSignpost.begin("SelectAll", rows: viewModel.files.count)
+        defer { PerfSignpost.endAfterCommit(signpost) }
+
         for section in 0..<tableView.numberOfSections {
             for row in 0..<tableView.numberOfRows(inSection: section) {
                 let selectableFiles = viewModel.getSelectableFiles()

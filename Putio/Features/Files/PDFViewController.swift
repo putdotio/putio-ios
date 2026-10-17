@@ -5,6 +5,7 @@ import PutioSDK
 class PDFViewController: UIViewController {
     var file: PutioFile?
     private var request: URLSessionDataTask?
+    private var openSignpost: PerfSignpost.Interval?
 
     @IBOutlet weak var pdfView: PDFView!
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
@@ -22,6 +23,7 @@ class PDFViewController: UIViewController {
 
         if let file = file {
             title = file.name
+            openSignpost = PerfSignpost.begin("PDFOpen")
             downloadAndShowPDF()
         }
     }
@@ -67,6 +69,7 @@ class PDFViewController: UIViewController {
                 return DispatchQueue.main.async {
                     self.finishLoading()
                     self.presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the PDF", comment: ""))
+                    self.endOpenSignpost()
                 }
             }
 
@@ -74,6 +77,7 @@ class PDFViewController: UIViewController {
                 return DispatchQueue.main.async {
                     self.finishLoading()
                     self.presentErrorMessage(message: NSLocalizedString("An error occurred while displaying the PDF", comment: ""))
+                    self.endOpenSignpost()
                 }
             }
 
@@ -81,6 +85,8 @@ class PDFViewController: UIViewController {
                 self.finishLoading()
                 self.pdfView.isUserInteractionEnabled = true
                 self.pdfView.document = pdfDocument
+                // After the commit, which lays out the document's pages.
+                self.endOpenSignpost()
             }
         }
         request?.resume()
@@ -89,6 +95,17 @@ class PDFViewController: UIViewController {
     private func cancelRequest() {
         request?.cancel()
         request = nil
+        endOpenSignpost(afterCommit: false)
+    }
+
+    private func endOpenSignpost(afterCommit: Bool = true) {
+        guard let signpost = openSignpost else { return }
+        openSignpost = nil
+        if afterCommit {
+            PerfSignpost.endAfterCommit(signpost)
+        } else {
+            PerfSignpost.end(signpost)
+        }
     }
 
     private func finishLoading() {

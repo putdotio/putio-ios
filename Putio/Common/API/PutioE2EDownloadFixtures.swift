@@ -54,6 +54,10 @@ enum PutioE2EDownloadFixtures {
     ]
 
     static func install(into realm: Realm) {
+        if PutioE2ELargeFixture.isEnabled {
+            return installLarge(into: realm)
+        }
+
         let now = Date()
 
         for seed in seeds where seed.state == .completed {
@@ -75,6 +79,33 @@ enum PutioE2EDownloadFixtures {
                 download.completedAt = seed.completedHoursAgo.map {
                     now.addingTimeInterval(TimeInterval(-3600 * $0))
                 }
+                realm.add(download, update: .modified)
+            }
+        }
+    }
+
+    // 500 rows for the per-cell download lookup to scan: half are root videos
+    // and audio, half ids no listing has. Rows only, no local files, since
+    // creating 500 at launch would land inside every launch measurement.
+    private static func installLarge(into realm: Realm) {
+        let now = Date()
+        var rows: [(id: Int, fileType: Download.FileType)] = []
+        rows += PutioE2ELargeFixture.rootVideoIDs(count: 200).map { (id: $0, fileType: .video) }
+        rows += PutioE2ELargeFixture.rootAudioIDs(count: 50).map { (id: $0, fileType: .audio) }
+        rows += (1...250).map { (id: 700_000_000 + $0, fileType: $0 % 5 == 0 ? .audio : .video) }
+        let states: [Download.State] = [.active, .queued, .failed] + Array(repeating: .completed, count: 7)
+
+        _ = PutioRealm.write(realm, context: "PutioE2EDownloadFixtures.installLarge") {
+            for (index, row) in rows.enumerated() {
+                let download = Download()
+                download.id = row.id
+                download.name = "Large fixture download \(index + 1).\(row.fileType == .audio ? "mp3" : "mkv")"
+                download.size = 104_857_600 + Int64(index) * 7_340_032
+                download.fileType = row.fileType
+                download.state = states[index % states.count]
+                download.progress = download.state == .active ? "0.4" : "0"
+                download.createdAt = now.addingTimeInterval(TimeInterval(-60 * (index + 1)))
+                download.completedAt = download.state == .completed ? download.createdAt : nil
                 realm.add(download, update: .modified)
             }
         }
