@@ -81,7 +81,7 @@ Never paste the DSN or the event payload into issues, pull requests, or logs.
 
 ## App Privacy
 
-[`Putio/PrivacyInfo.xcprivacy`](../Putio/PrivacyInfo.xcprivacy) declares what the app sends and what its SDKs' own manifests leave out, including the required-reason APIs of Google Cast, which links into the app binary. Before submitting a release, check that the App Privacy answers in App Store Connect match this table. Nothing is used for tracking.
+[`Putio/PrivacyInfo.xcprivacy`](../Putio/PrivacyInfo.xcprivacy) declares what the app sends and what its SDKs' own manifests leave out: the required-reason APIs of Google Cast, which links into the app binary, and the data [Intercom's App Store guidance](https://www.intercom.com/help/en/articles/4686934-apple-s-app-store-data-privacy-details-and-intercom-s-ios-sdk) lists beyond its manifest. Before submitting a release, check that the App Privacy answers in App Store Connect include every row of this table, alongside put.io's own answers for the account, file and search data the put.io API holds. A type is linked when any source links it. Nothing is used for tracking.
 
 | Data type | Linked to the user | Purposes | From |
 | --- | --- | --- | --- |
@@ -89,14 +89,15 @@ Never paste the DSN or the event payload into issues, pull requests, or logs.
 | Customer Support | Yes | App Functionality | Intercom conversations |
 | Email Address | Yes | App Functionality | Intercom's manifest |
 | Photos or Videos | Yes | App Functionality | Intercom's manifest |
+| Device ID | Yes | App Functionality, Analytics | Intercom's device ID; unlinked from Sentry's installation ID and Google Cast |
+| Product Interaction | Yes | App Functionality, Analytics | Intercom; unlinked from Google Cast |
+| Coarse Location | Yes | App Functionality, Analytics | Intercom, from the IP address; unlinked from Google Cast |
+| Search History | Yes | App Functionality, Analytics | Intercom Help Center searches |
 | Crash Data | No | App Functionality | Sentry |
 | Performance Data | No | App Functionality, Analytics | Sentry, Intercom, Google Cast |
 | Other Diagnostic Data | No | App Functionality, Analytics | Sentry, Intercom, Google Cast |
-| Device ID | No | App Functionality, Analytics | Sentry's installation ID, Google Cast |
-| Product Interaction | No | App Functionality, Analytics | Google Cast |
-| Coarse Location | No | App Functionality, Analytics | Google Cast |
 
-The table doesn't cover the account and file data the put.io API itself holds. Sentry sends only while the account's `diagnostics_enabled` is on.
+Intercom's guidance also lists Developer's Advertising or Marketing for Email Address, Device ID and Product Interaction; add it if put.io sends marketing messages through Intercom. Sentry sends only while the account's `diagnostics_enabled` is on.
 
 Organizer's Generate Privacy Report merges every manifest in an archive; Xcode has no command-line equivalent. CI deletes its archives, so archive locally, then open the archive in Organizer:
 
