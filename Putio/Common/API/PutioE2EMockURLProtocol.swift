@@ -65,6 +65,10 @@ private enum PutioE2EMockAPI {
             """)
         }
 
+        if routeKey == "GET /v2/account/info", accountScenario == "inactive" {
+            return Fixture(body: inactiveAccountInfo)
+        }
+
         if routeKey == "GET /v2/files/42/hls/media.m3u8" || routeKey == "GET /v2/files/43/hls/media.m3u8" {
             return Fixture(contentType: "application/vnd.apple.mpegurl", body: hlsPlaylist)
         }
@@ -91,6 +95,9 @@ private enum PutioE2EMockAPI {
 
         return Set(raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
     }()
+
+    // "inactive" answers /account/info as a deactivated account; unset is active.
+    private static let accountScenario = ProcessInfo.processInfo.environment["PUTIO_E2E_ACCOUNT"]
 
     private static let ok = #"{"status":"OK"}"#
 
@@ -177,40 +184,66 @@ private enum PutioE2EMockAPI {
     }
     """
 
-    private static let accountInfo = """
-    {
-      "info": {
-        "user_id": 1001,
-        "username": "moviebuff",
-        "mail": "e2e@example.com",
-        "avatar_url": "https://static.put.io/e2e-avatar.png",
-        "user_hash": "e2e-hash",
-        "features": {},
-        "download_token": "e2e-download-token",
-        "trash_size": 189792256,
-        "account_active": true,
-        "files_will_be_deleted_at": "",
-        "password_last_changed_at": "",
-        "disk": {
-          "avail": 1068893827072,
-          "size": 1099511627776,
-          "used": 30617800704
-        },
-        "settings": {
-          "tunnel_route_name": "default",
-          "next_episode": true,
-          "start_from": true,
-          "history_enabled": true,
-          "trash_enabled": true,
-          "sort_by": "NAME_ASC",
-          "show_optimistic_usage": false,
-          "two_factor_enabled": false,
-          "hide_subtitles": false,
-          "dont_autoselect_subtitles": false
+    private static let accountInfo = accountInfoBody(status: """
+            "account_active": true,
+            "account_status": "active",
+            "is_sub_account": false,
+            "files_will_be_deleted_at": "",
+    """)
+
+    // The API's shape for a lapsed plan: account_active is null rather than
+    // false, and the deletion date is a naive UTC datetime. Fourteen days out
+    // in the device's calendar, which the notice counts in too, so the
+    // countdown reads 14 at any hour of the run.
+    private static let inactiveAccountInfo: String = {
+        let deletionDate = Calendar.current.date(byAdding: .day, value: 14, to: Date()) ?? Date()
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withFullDate, .withTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+
+        return accountInfoBody(status: """
+                "account_active": null,
+                "account_status": "inactive",
+                "is_sub_account": false,
+                "files_will_be_deleted_at": "\(formatter.string(from: deletionDate)).123456",
+        """)
+    }()
+
+    private static func accountInfoBody(status: String) -> String {
+        """
+        {
+          "info": {
+            "user_id": 1001,
+            "username": "moviebuff",
+            "mail": "e2e@example.com",
+            "avatar_url": "https://static.put.io/e2e-avatar.png",
+            "user_hash": "e2e-hash",
+            "features": {},
+            "download_token": "e2e-download-token",
+            "trash_size": 189792256,
+        \(status)
+            "password_last_changed_at": "",
+            "disk": {
+              "avail": 1068893827072,
+              "size": 1099511627776,
+              "used": 30617800704
+            },
+            "settings": {
+              "tunnel_route_name": "default",
+              "next_episode": true,
+              "start_from": true,
+              "history_enabled": true,
+              "trash_enabled": true,
+              "sort_by": "NAME_ASC",
+              "show_optimistic_usage": false,
+              "two_factor_enabled": false,
+              "hide_subtitles": false,
+              "dont_autoselect_subtitles": false
+            }
+          }
         }
-      }
+        """
     }
-    """
 
     private static let config = """
     {

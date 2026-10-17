@@ -510,6 +510,9 @@
 /* No comment provided by engineer. */
 "Rename %@" = "Rename %@";
 
+/* Inactive-account notice. Plain text only: App Review rules out a purchase link or button. */
+"Renew your plan at put.io to keep your files." = "Renew your plan at put.io to keep your files.";
+
 /* No comment provided by engineer. */
 "Reset all sort settings" = "Reset all sort settings";
 
@@ -711,8 +714,20 @@
 /* No comment provided by engineer. */
 "You have successfully linked to %@" = "You have successfully linked to %@";
 
+/* Inactive-account notice title, matching the web and Android apps. */
+"Your account has been deactivated 😢" = "Your account has been deactivated 😢";
+
+/* Inactive-account notice for a family plan member. */
+"Your family plan is no longer active." = "Your family plan is no longer active.";
+
 /* No comment provided by engineer. */
 "Your Files" = "Your Files";
+
+/* Inactive-account notice countdown, singular. */
+"Your files are still here, but they are scheduled to be deleted in 1 day." = "Your files are still here, but they are scheduled to be deleted in 1 day.";
+
+/* Inactive-account notice countdown; %d is a whole number of days other than one. */
+"Your files are still here, but they are scheduled to be deleted in %d days." = "Your files are still here, but they are scheduled to be deleted in %d days.";
 
 /* No comment provided by engineer. */
 "Your files are still on this device but need to be restored after an app update.\n\nA stable internet connection is recommended." = "Your files are still on this device but need to be restored after an app update.\n\nA stable internet connection is recommended.";

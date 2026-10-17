@@ -203,6 +203,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 // Not behind /config: an opt-out applies as soon as the account
                 // answers, and a /config failure still opens the cached main screen.
                 SentryTelemetry.update(diagnosticsEnabled: accountData.settings.diagnosticsEnabled)
+                AccountNoticeStore.shared.update(with: accountData)
             case .failure(let error):
                 accountError = error
             }
@@ -303,6 +304,29 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
+    // Signed-in only: a cold launch reaches the foreground before fetchUser
+    // answers, and that answer already carries the status. An answer that
+    // lands after sign-out is dropped. Failures other than a rejected token
+    // keep the last notice, so going offline does not hide it.
+    func refreshAccountStatus() {
+        guard window?.rootViewController is RootContainerViewController else { return }
+
+        api.getAccountInfo { result in
+            guard self.window?.rootViewController is RootContainerViewController else { return }
+
+            switch result {
+            case .success(let account):
+                SentryTelemetry.update(diagnosticsEnabled: account.settings.diagnosticsEnabled)
+                AccountNoticeStore.shared.update(with: account)
+            case .failure(let error):
+                if case .httpError(let statusCode, let errorType) = error.type,
+                   statusCode == 401 || errorType == "Unauthorized" {
+                    AccountNoticeStore.shared.clear()
+                }
+            }
+        }
+    }
+
     func logout() {
         DownloadQueueController.sharedInstance.pause()
         OfflineVideoPlaybackPositionStore.shared.clearAllUpdates()
@@ -327,6 +351,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func presentLoginScreen() {
         DownloadQueueController.sharedInstance.pause()
+        AccountNoticeStore.shared.clear()
         applyWindowAppearance()
         let storyboard = UIStoryboard(name: "Login", bundle: nil)
         guard let loginViewController = storyboard.instantiateViewController(withIdentifier: "LoginVC", as: UIViewController.self) else {

@@ -84,6 +84,7 @@ class SettingsViewModel {
             switch result {
             case .success(let account):
                 SentryTelemetry.update(diagnosticsEnabled: account.settings.diagnosticsEnabled)
+                AccountNoticeStore.shared.update(with: account)
                 guard let realm = PutioRealm.open(context: "SettingsViewModel.fetchData") else { return }
 
                 let didWrite = PutioRealm.write(realm, context: "SettingsViewModel.fetchData.write") {

@@ -59,6 +59,7 @@ final class PlaybackSmokeUITests: XCTestCase {
         guard app.waitForSignedInTabBar() else { return }
         let movie = app.tables["putio-files-table"].cells["putio-file-42"]
         XCTAssertTrue(movie.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.descendants(matching: .any)["putio-account-notice"].exists, "an active account sees no notice")
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
         screenshot.name = "Files Phosphor icons"
