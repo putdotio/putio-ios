@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 import PutioSDK
 @testable import Putio
@@ -60,11 +61,14 @@ final class AccountNoticeTests: XCTestCase {
     }
 
     // 22:30 UTC on the 20th is already the 21st in Istanbul, so the same
-    // instant is two days out in UTC and three in Istanbul. Reading the naive
-    // timestamp as local time would make Istanbul two as well.
+    // instant is two days out in UTC and three in Istanbul. The parse runs
+    // with the device in Istanbul, where reading the naive timestamp as local
+    // time would make Istanbul two as well, even on a UTC host.
     func testNaiveTimestampIsUTCAndDaysFollowTheDeviceTimeZone() {
         let now = date("2026-10-18T12:00:00Z")
-        let deletion = AccountNotice.timestamp(from: "2026-10-20T22:30:00")
+        let deletion = inDeviceTimeZone("Europe/Istanbul") {
+            AccountNotice.timestamp(from: "2026-10-20T22:30:00")
+        }
 
         XCTAssertEqual(deletion, date("2026-10-20T22:30:00Z"))
         XCTAssertEqual(deletion.map { AccountNotice.calendarDays(from: now, to: $0, calendar: calendar("UTC")) }, 2)
@@ -81,6 +85,57 @@ final class AccountNoticeTests: XCTestCase {
     }
 
     func testNoticeReadsTheAccountInfoFields() throws {
+        XCTAssertEqual(AccountNotice(account: try inactiveAccount()), .deactivated(filesDeletedAt: date("2026-11-01T09:30:00Z")))
+    }
+
+    // A download with no local successor falls back to put.io's next file,
+    // which would queue a stream behind the playback gate.
+    func testInactiveAccountQueuesNoStreamAfterTheLastDownload() throws {
+        AccountNoticeStore.shared.update(with: try inactiveAccount())
+        defer { AccountNoticeStore.shared.clear() }
+
+        for consumptionType in [MediaPlayerItem.ConsumptionType.offline, .online] {
+            let queue = NextMediaQueueSpy()
+            let finder = NextMediaFinder()
+            finder.delegate = queue
+
+            finder.findNextMedia(for: MediaPlayerItem(
+                id: -1,
+                name: "Track",
+                url: URL(fileURLWithPath: "/dev/null"),
+                fileType: .audio,
+                consumptionType: consumptionType
+            ))
+
+            XCTAssertTrue(queue.ended, consumptionType.rawValue)
+            XCTAssertTrue(queue.found.isEmpty, consumptionType.rawValue)
+        }
+    }
+
+    // The banner sits above every signed-in screen, so at the largest text
+    // size on the smallest iPhone it must still leave most of the screen to
+    // the files under it.
+    func testBannerLeavesTheScreenUsableAtTheLargestTextSize() {
+        let screen = CGRect(x: 0, y: 0, width: 375, height: 667)
+        let window = UIWindow(frame: screen)
+        window.traitOverrides.preferredContentSizeCategory = .accessibilityExtraExtraExtraLarge
+
+        let banner = AccountNoticeView()
+        banner.translatesAutoresizingMaskIntoConstraints = false
+        window.addSubview(banner)
+        NSLayoutConstraint.activate([
+            banner.leadingAnchor.constraint(equalTo: window.leadingAnchor),
+            banner.trailingAnchor.constraint(equalTo: window.trailingAnchor),
+            banner.topAnchor.constraint(equalTo: window.topAnchor)
+        ])
+        let now = date("2026-10-18T12:00:00Z")
+        banner.configure(with: .deactivated(filesDeletedAt: now.addingTimeInterval(14 * 86_400)), now: now)
+        window.layoutIfNeeded()
+
+        XCTAssertLessThanOrEqual(banner.bounds.height, screen.height * 0.4, "banner height \(banner.bounds.height)")
+    }
+
+    private func inactiveAccount() throws -> PutioAccount {
         let json = """
         {
           "user_id": 1, "username": "u", "mail": "u@example.com",
@@ -90,9 +145,7 @@ final class AccountNoticeTests: XCTestCase {
           "settings": {}
         }
         """
-        let account = try JSONDecoder().decode(PutioAccount.self, from: Data(json.utf8))
-
-        XCTAssertEqual(AccountNotice(account: account), .deactivated(filesDeletedAt: date("2026-11-01T09:30:00Z")))
+        return try JSONDecoder().decode(PutioAccount.self, from: Data(json.utf8))
     }
 
     private func date(_ value: String) -> Date {
@@ -103,9 +156,37 @@ final class AccountNoticeTests: XCTestCase {
         return formatter.date(from: value)!
     }
 
+    // TimeZone.current rereads TZ once the cached system zone is reset;
+    // setting NSTimeZone.default leaves it alone.
+    private func inDeviceTimeZone<T>(_ identifier: String, _ body: () -> T) -> T {
+        let hostTZ = getenv("TZ").map { String(cString: $0) }
+        setenv("TZ", identifier, 1)
+        NSTimeZone.resetSystemTimeZone()
+        defer {
+            if let hostTZ { setenv("TZ", hostTZ, 1) } else { unsetenv("TZ") }
+            NSTimeZone.resetSystemTimeZone()
+        }
+
+        XCTAssertEqual(TimeZone.current.identifier, identifier)
+        return body()
+    }
+
     private func calendar(_ timeZone: String) -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: timeZone)!
         return calendar
+    }
+}
+
+private final class NextMediaQueueSpy: NextMediaFinderDelegate {
+    private(set) var found: [MediaPlayerItem] = []
+    private(set) var ended = false
+
+    func didFindNextMedia(nextMedia: MediaPlayerItem) {
+        found.append(nextMedia)
+    }
+
+    func didCannotFindNextMedia() {
+        ended = true
     }
 }

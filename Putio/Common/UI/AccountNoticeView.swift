@@ -41,11 +41,14 @@ final class AccountNoticeView: UIView {
         iconView.image = PutioIcon.warningCircle.image(pointSize: 20)
         iconView.tintColor = UIColor.Putio.Yellow.textSecondary
 
-        titleLabel.font = UIFontMetrics(forTextStyle: .subheadline)
-            .scaledFont(for: BrandFont.sans(size: 15, weight: .medium))
+        // Text stops growing at the first accessibility size, so a persistent
+        // banner never crowds out the screen under it. VoiceOver and the
+        // playback alert still carry the full notice.
+        maximumContentSizeCategory = .accessibilityMedium
+
+        titleLabel.font = BrandTypography.fontIfAvailable(.body) ?? .preferredFont(forTextStyle: .body)
         titleLabel.textColor = UIColor.Putio.Yellow.text
-        messageLabel.font = UIFontMetrics(forTextStyle: .footnote)
-            .scaledFont(for: BrandFont.sans(size: 13))
+        messageLabel.font = BrandTypography.fontIfAvailable(.small) ?? .preferredFont(forTextStyle: .footnote)
         messageLabel.textColor = UIColor.Putio.Fg.foreground
         for label in [titleLabel, messageLabel] {
             label.adjustsFontForContentSizeCategory = true
