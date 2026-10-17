@@ -21,6 +21,11 @@ final class PutioE2EMockURLProtocol: URLProtocol {
             return
         }
 
+        if PutioE2EMockAPI.isOffline(request, url: url) {
+            client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+            return
+        }
+
         let fixture = PutioE2EMockAPI.fixture(for: request, url: url)
         let response = HTTPURLResponse(
             url: url,
@@ -87,14 +92,22 @@ private enum PutioE2EMockAPI {
         """)
     }
 
+    static func isOffline(_ request: URLRequest, url: URL) -> Bool {
+        offlineRoutes.contains("\(request.httpMethod ?? "GET") \(url.path)")
+    }
+
+    private static let failRoutes = routeSet("PUTIO_E2E_FAIL_ROUTES")
+    // Fail with a transport error, the way a request does with no connection.
+    private static let offlineRoutes = routeSet("PUTIO_E2E_OFFLINE_ROUTES")
+
     // "METHOD /path", comma-separated.
-    private static let failRoutes: Set<String> = {
-        guard let raw = ProcessInfo.processInfo.environment["PUTIO_E2E_FAIL_ROUTES"] else {
+    private static func routeSet(_ key: String) -> Set<String> {
+        guard let raw = ProcessInfo.processInfo.environment[key] else {
             return []
         }
 
         return Set(raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
-    }()
+    }
 
     // "inactive" answers /account/info as a deactivated account; unset is active.
     private static let accountScenario = ProcessInfo.processInfo.environment["PUTIO_E2E_ACCOUNT"]
