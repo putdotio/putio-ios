@@ -7,10 +7,17 @@ import PutioSDK
 
 class SettingsViewModel {
     typealias SaveAccountSettingsRequest = (PutioAccountSettingsUpdate, @escaping (Result<Void, PutioSDKError>) -> Void) -> Void
+    typealias FetchAccountInfoRequest = (@escaping (Result<PutioAccount, PutioSDKError>) -> Void) -> Void
+
+    /// Counts the saves put.io has confirmed from Account. An account read
+    /// that started before the latest one carries older settings, so none of
+    /// them apply: a Diagnostics opt-out must not switch Sentry back on.
+    static var confirmedSaves = 0
 
     let saveAccountSettingsRequest: SaveAccountSettingsRequest
     let markProductAnalyticsPromptAnsweredRequest: ProductAnalyticsChoice.Request
     let applyDiagnostics: (Bool) -> Void
+    let fetchAccountInfoRequest: FetchAccountInfoRequest
 
     private(set) var user = User()
     private(set) var settings = UserSettings()
@@ -29,11 +36,13 @@ class SettingsViewModel {
             api.saveAccountSettings(update) { completion($0.map { _ in }) }
         },
         markProductAnalyticsPromptAnsweredRequest: @escaping ProductAnalyticsChoice.Request = ProductAnalyticsChoice.markAnsweredRequest,
-        applyDiagnostics: @escaping (Bool) -> Void = { SentryTelemetry.update(diagnosticsEnabled: $0) }
+        applyDiagnostics: @escaping (Bool) -> Void = { SentryTelemetry.update(diagnosticsEnabled: $0) },
+        fetchAccountInfoRequest: @escaping FetchAccountInfoRequest = { api.getAccountInfo($0) }
     ) {
         self.saveAccountSettingsRequest = saveAccountSettingsRequest
         self.markProductAnalyticsPromptAnsweredRequest = markProductAnalyticsPromptAnsweredRequest
         self.applyDiagnostics = applyDiagnostics
+        self.fetchAccountInfoRequest = fetchAccountInfoRequest
         reloadPersistedState()
         registerObservers()
         update()
@@ -97,12 +106,14 @@ class SettingsViewModel {
 
     func fetchData() {
         let noticeSession = AccountNoticeStore.shared.session
+        let savesBeforeRead = Self.confirmedSaves
 
-        api.getAccountInfo { result in
+        fetchAccountInfoRequest { result in
             switch result {
             case .success(let account):
-                SentryTelemetry.update(diagnosticsEnabled: account.settings.diagnosticsEnabled)
                 AccountNoticeStore.shared.update(with: account, startedIn: noticeSession)
+                guard savesBeforeRead == Self.confirmedSaves else { return }
+                self.applyDiagnostics(account.settings.diagnosticsEnabled)
                 guard let realm = PutioRealm.open(context: "SettingsViewModel.fetchData") else { return }
 
                 let didWrite = PutioRealm.write(realm, context: "SettingsViewModel.fetchData.write") {

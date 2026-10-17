@@ -315,16 +315,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // rejected token keep the last notice, so going offline does not hide it.
     func refreshAccountStatus() {
         guard let signedInRoot = window?.rootViewController as? RootContainerViewController else { return }
+        let savesBeforeRead = SettingsViewModel.confirmedSaves
 
         api.getAccountInfo { [weak signedInRoot] result in
             guard let signedInRoot, self.window?.rootViewController === signedInRoot else { return }
 
             switch result {
             case .success(let account):
-                SentryTelemetry.update(diagnosticsEnabled: account.settings.diagnosticsEnabled)
-                // An answer changed on another device lands here; PostHog
-                // capture (#345) follows account.settings.productAnalyticsEnabled
-                // here once it exists, as it does at ProductAnalyticsChoice.settingDidSave.
+                if savesBeforeRead == SettingsViewModel.confirmedSaves {
+                    SentryTelemetry.update(diagnosticsEnabled: account.settings.diagnosticsEnabled)
+                    // An answer changed on another device lands here; PostHog
+                    // capture (#345) follows account.settings.productAnalyticsEnabled
+                    // here once it exists, as it does at ProductAnalyticsChoice.settingDidSave.
+                }
                 AccountNoticeStore.shared.update(with: account)
             case .failure(let error):
                 if case .httpError(let statusCode, let errorType) = error.type,

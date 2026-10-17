@@ -83,6 +83,9 @@ extension SettingsViewModel {
         let loadingAlert = presentLoadingAlert(title: title)
 
         mutation { result in
+            if case .success = result {
+                Self.confirmedSaves += 1
+            }
             loadingAlert.dismiss(animated: true) {
                 switch result {
                 case .success:

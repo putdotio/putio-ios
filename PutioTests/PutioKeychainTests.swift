@@ -243,6 +243,45 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(spy.presentedAlerts.last?.title, "Network error")
     }
 
+    func testAnAccountReadFromBeforeASaveLeavesTheSavedPrivacySettings() throws {
+        var reads: [(Result<PutioAccount, PutioSDKError>) -> Void] = []
+        var applied: [Bool] = []
+        let viewModel = SettingsViewModel(
+            saveAccountSettingsRequest: { _, completion in completion(.success(())) },
+            markProductAnalyticsPromptAnsweredRequest: { completion in completion(.success(())) },
+            applyDiagnostics: { applied.append($0) },
+            fetchAccountInfoRequest: { reads.append($0) }
+        )
+        attachSpy(to: viewModel)
+        let before = try account(diagnosticsEnabled: true, productAnalyticsEnabled: false)
+
+        viewModel.fetchData()
+        try toggle("Diagnostics", in: viewModel)
+        try toggle("Product analytics", in: viewModel)
+        reads[0](.success(before))
+
+        XCTAssertEqual(applied, [false])
+        XCTAssertEqual(privacyValues(viewModel), [false, true])
+
+        viewModel.fetchData()
+        reads[1](.success(before))
+
+        XCTAssertEqual(applied, [false, true], "a read that starts after the save applies")
+        XCTAssertEqual(privacyValues(viewModel), [true, false])
+    }
+
+    private func account(diagnosticsEnabled: Bool, productAnalyticsEnabled: Bool) throws -> PutioAccount {
+        let json = """
+        {
+          "user_id": 1, "username": "tester", "mail": "test@put.io",
+          "account_active": true, "account_status": "active", "is_sub_account": false,
+          "disk": { "avail": 0, "size": 0, "used": 0 },
+          "settings": { "diagnostics_enabled": \(diagnosticsEnabled), "product_analytics_enabled": \(productAnalyticsEnabled) }
+        }
+        """
+        return try JSONDecoder().decode(PutioAccount.self, from: Data(json.utf8))
+    }
+
     private func privacyValues(_ viewModel: SettingsViewModel) -> [Bool] {
         let items = viewModel.sections.flatMap(\.items)
         return ["Diagnostics", "Product analytics"].compactMap { title in
