@@ -179,3 +179,41 @@ final class BackgroundDownloadSessionEventsTests: XCTestCase {
         wait(for: [completed], timeout: 1)
     }
 }
+
+final class LegacyInstallCleanupTests: XCTestCase {
+    func testFirstLaunchDropsTheLegacyURLCache() throws {
+        let suiteName = "LegacyInstallCleanupTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let directory = FileManager.default.temporaryDirectory.appending(path: suiteName)
+        addTeardownBlock {
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        // On disk only, as 2.58.0 left it, with the token in the URL as 2.58.0 sent it.
+        let cache = URLCache(memoryCapacity: 0, diskCapacity: 10_000_000, directory: directory)
+        let token = "synthetic-token-\(UUID().uuidString)"
+        let url = try XCTUnwrap(URL(string: "https://api.put.io/v2/files/list?oauth_token=\(token)"))
+        let response = try XCTUnwrap(HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: ["Cache-Control": "max-age=3600"]))
+        let request = URLRequest(url: url)
+        cache.storeCachedResponse(CachedURLResponse(response: response, data: Data("{}".utf8)), for: request)
+        let tokenOnDisk = {
+            let files = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: nil)?.allObjects as? [URL] ?? []
+            return files.contains { (try? Data(contentsOf: $0))?.range(of: Data(token.utf8)) != nil }
+        }
+        wait(for: [eventually("the response reaches disk", tokenOnDisk)], timeout: 10)
+
+        LegacyInstallCleanup.runOnce(defaults: defaults, urlCache: cache)
+
+        wait(for: [
+            eventually("the response is gone") { cache.cachedResponse(for: request) == nil },
+            eventually("the token is gone from disk") { !tokenOnDisk() },
+            eventually("the cleanup is marked done") { defaults.bool(forKey: LegacyInstallCleanup.didRunKey) }
+        ], timeout: 10)
+    }
+
+    private func eventually(_ description: String, _ condition: @escaping () -> Bool) -> XCTestExpectation {
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in condition() }, object: nil)
+        expectation.expectationDescription = description
+        return expectation
+    }
+}

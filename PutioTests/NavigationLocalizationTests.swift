@@ -88,6 +88,18 @@ final class NavigationLocalizationTests: XCTestCase {
             items.first { $0.title == NSLocalizedString("Where you are logged in", comment: "") }?.icon,
             .devices
         )
+        XCTAssertEqual(
+            items.first { $0.title == NSLocalizedString("Strictly necessary", comment: "") }?.icon,
+            .lock
+        )
+        XCTAssertEqual(
+            items.first { $0.title == NSLocalizedString("Diagnostics", comment: "") }?.icon,
+            .pulse
+        )
+        XCTAssertEqual(
+            items.first { $0.title == NSLocalizedString("Product analytics", comment: "") }?.icon,
+            .chartPie
+        )
     }
 
     func testConfigureFileActionsButtonMenuItemsUsesLocalizedTitles() throws {

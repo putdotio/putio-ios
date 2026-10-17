@@ -35,17 +35,29 @@ class SettingsTableViewController: UITableViewController, TwoFactorAuthPresenter
         return viewModel.sections[section].title
     }
 
+    override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
+        return viewModel.sections[section].footer
+    }
+
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return viewModel.sections[section].items.filter { $0.visible }.count
     }
 
     override func tableView(_ tableView: UITableView, willDisplayHeaderView view: UIView, forSection section: Int) {
-        guard let headerView = view as? UITableViewHeaderFooterView else { return }
-        headerView.textLabel?.textColor = UIColor.Putio.Neutral.textSecondary
+        styleHeaderFooter(view)
+    }
+
+    override func tableView(_ tableView: UITableView, willDisplayFooterView view: UIView, forSection section: Int) {
+        styleHeaderFooter(view)
+    }
+
+    private func styleHeaderFooter(_ view: UIView) {
+        guard let headerFooterView = view as? UITableViewHeaderFooterView else { return }
+        headerFooterView.textLabel?.textColor = UIColor.Putio.Neutral.textSecondary
         // UIKit-created, so the nib font hook never reaches them.
         if let brandFont = BrandTypography.fontIfAvailable(.small) {
-            headerView.textLabel?.font = brandFont
-            headerView.textLabel?.adjustsFontForContentSizeCategory = true
+            headerFooterView.textLabel?.font = brandFont
+            headerFooterView.textLabel?.adjustsFontForContentSizeCategory = true
         }
     }
 

@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		51A7C0DE5E1B4A0C9D2E3F06 /* PrivacyControlsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A7C0DE5E1B4A0C9D2E3F05 /* PrivacyControlsUITests.swift */; };
+		51A7C0DE5E1B4A0C9D2E3F04 /* ProductAnalyticsPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A7C0DE5E1B4A0C9D2E3F03 /* ProductAnalyticsPromptTests.swift */; };
+		51A7C0DE5E1B4A0C9D2E3F02 /* ProductAnalyticsPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A7C0DE5E1B4A0C9D2E3F01 /* ProductAnalyticsPrompt.swift */; };
 		00B1394779C26A8412502962 /* PutioE2EMockURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42113E74CF811CB4E40A41C6 /* PutioE2EMockURLProtocol.swift */; };
 		103000000000000000000001 /* AudioPlayerViewController+PlaybackRate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 103000000000000000000002 /* AudioPlayerViewController+PlaybackRate.swift */; };
 		101000000000000000000001 /* OfflineVideoPlaybackPositionSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101000000000000000000002 /* OfflineVideoPlaybackPositionSync.swift */; };
@@ -168,6 +171,7 @@
 		DC635AF0F100AD63CD875379 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EEE14DC43F881736BEDFD030 /* Foundation.framework */; };
 		DF84BAD3CCED8B054A1E09E7 /* FilesViewController+TableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B31D9D86843A740051235A /* FilesViewController+TableView.swift */; };
 		F5F55CEFFA917A837390DE86 /* PutioRealmTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */; };
+		F7A35C2E9B1D4E6F8A0C2E41 /* putio-2.58.0.realm in Resources */ = {isa = PBXBuildFile; fileRef = F7A35C2E9B1D4E6F8A0C2E42 /* putio-2.58.0.realm */; };
 		F9E4EEE0C7237C463865FD19 /* FilesViewController+Navigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969D8492C4F12034E0FD0421 /* FilesViewController+Navigation.swift */; };
 /* End PBXBuildFile section */
 
@@ -189,6 +193,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		51A7C0DE5E1B4A0C9D2E3F05 /* PrivacyControlsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyControlsUITests.swift; sourceTree = "<group>"; };
+		51A7C0DE5E1B4A0C9D2E3F03 /* ProductAnalyticsPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductAnalyticsPromptTests.swift; sourceTree = "<group>"; };
+		51A7C0DE5E1B4A0C9D2E3F01 /* ProductAnalyticsPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductAnalyticsPrompt.swift; sourceTree = "<group>"; };
 		101000000000000000000002 /* OfflineVideoPlaybackPositionSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineVideoPlaybackPositionSync.swift; sourceTree = "<group>"; };
 		101000000000000000000004 /* OfflineVideoPlaybackPositionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineVideoPlaybackPositionStore.swift; sourceTree = "<group>"; };
 		103000000000000000000002 /* AudioPlayerViewController+PlaybackRate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AudioPlayerViewController+PlaybackRate.swift"; sourceTree = "<group>"; };
@@ -364,6 +371,8 @@
 		D6621E70422BFD153917AB79 /* SettingsViewModel+Persistence.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "SettingsViewModel+Persistence.swift"; sourceTree = "<group>"; };
 		E00971069F13C4F9912DC53A /* TypeScaleScalingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TypeScaleScalingTests.swift; sourceTree = "<group>"; };
 		E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioRealmTests.swift; sourceTree = "<group>"; };
+		F7A35C2E9B1D4E6F8A0C2E42 /* putio-2.58.0.realm */ = {isa = PBXFileReference; lastKnownFileType = file; path = "putio-2.58.0.realm"; sourceTree = "<group>"; };
+		F7A35C2E9B1D4E6F8A0C2E43 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		EEE14DC43F881736BEDFD030 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
@@ -411,6 +420,7 @@
 				9061977704DB05372D01A172 /* PutioKeychainTests.swift */,
 				E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */,
 				293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */,
+				51A7C0DE5E1B4A0C9D2E3F03 /* ProductAnalyticsPromptTests.swift */,
 				F1C53A65C635463CC4EC2252 /* AccountNoticeTests.swift */,
 				5C7E9B1D3F4A6C8E0B2D5F7A /* BrandFontTests.swift */,
 				5928D8EE387188412DBE6925 /* BrandTypographyCoverageTests.swift */,
@@ -418,9 +428,19 @@
 				465A7CDCD9D300C8BA947448 /* TypeScaleSpecimen.swift */,
 				E00971069F13C4F9912DC53A /* TypeScaleScalingTests.swift */,
 				A924230BA95F3FB946456266 /* TypeScaleRampArtifactTests.swift */,
+				F7A35C2E9B1D4E6F8A0C2E44 /* Fixtures */,
 			);
 			name = PutioTests;
 			path = PutioTests;
+			sourceTree = "<group>";
+		};
+		F7A35C2E9B1D4E6F8A0C2E44 /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				F7A35C2E9B1D4E6F8A0C2E43 /* README.md */,
+				F7A35C2E9B1D4E6F8A0C2E42 /* putio-2.58.0.realm */,
+			);
+			path = Fixtures;
 			sourceTree = "<group>";
 		};
 		30BC48A08C4548A56B8C2951 /* Frameworks */ = {
@@ -441,6 +461,7 @@
 				94C9F07E252A00E23B7969F4 /* ClearDataUITests.swift */,
 				4F8E2A6C0B3D7F1A5C9E3B6D /* HistorySmokeUITests.swift */,
 				8B2D4F6A1C3E5A7B9D0F2A4C /* HistoryErrorUITests.swift */,
+				51A7C0DE5E1B4A0C9D2E3F05 /* PrivacyControlsUITests.swift */,
 				993DCCD7D09E1165737A70AF /* InactiveAccountUITests.swift */,
 				3D7E2A6C0B4D7F1A5C9E3B6E /* ScreenshotWalkUITests.swift */,
 				9F3A1C7D2E4B6A8C0D1E2F32 /* SignedInLaunch.swift */,
@@ -702,6 +723,7 @@
 				AC34D74927830B4E000DD4CA /* SettingsTableViewCell.swift */,
 				D6621E70422BFD153917AB79 /* SettingsViewModel+Persistence.swift */,
 				38466C37F620EDDBF46BFEF7 /* SettingsViewModel+Sections.swift */,
+				51A7C0DE5E1B4A0C9D2E3F01 /* ProductAnalyticsPrompt.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -917,9 +939,6 @@
 						LastSwiftMigration = 1150;
 						ProvisioningStyle = Manual;
 						SystemCapabilities = {
-							com.apple.AccessWiFi = {
-								enabled = 1;
-							};
 							com.apple.BackgroundModes = {
 								enabled = 1;
 							};
@@ -958,6 +977,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F7A35C2E9B1D4E6F8A0C2E41 /* putio-2.58.0.realm in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1214,6 +1234,7 @@
 				B5E0A31A3EECB199CBAC08D0 /* PutioKeychainTests.swift in Sources */,
 				F5F55CEFFA917A837390DE86 /* PutioRealmTests.swift in Sources */,
 				20CA6ABE176EC66E70EC090E /* UserConfigTests.swift in Sources */,
+				51A7C0DE5E1B4A0C9D2E3F04 /* ProductAnalyticsPromptTests.swift in Sources */,
 				BF321A72B367B270B371FCC5 /* AccountNoticeTests.swift in Sources */,
 				4B6D8F0A2C3E5A7C9E1B4D6F /* BrandFontTests.swift in Sources */,
 				7B88F60D63D668CD54205A98 /* BrandTypographyCoverageTests.swift in Sources */,
@@ -1233,6 +1254,7 @@
 				7A1C9E4B2D6F8A0C3E5B7D9F /* HistorySmokeUITests.swift in Sources */,
 				9F3A1C7D2E4B6A8C0D1E2F33 /* SignedInLaunch.swift in Sources */,
 				9C3E5A7B2D4F6A8C0E1B3D5F /* HistoryErrorUITests.swift in Sources */,
+				51A7C0DE5E1B4A0C9D2E3F06 /* PrivacyControlsUITests.swift in Sources */,
 				7DC87C4E70905D0A3B4F678B /* InactiveAccountUITests.swift in Sources */,
 				4E8F2B6D0C3E7F1A5C9E3B7F /* ScreenshotWalkUITests.swift in Sources */,
 			);
@@ -1281,6 +1303,7 @@
 				ACD159AF2099E5B1001241BC /* MediaPlaybackManager.swift in Sources */,
 				AC76E02A1FB4D6A100693A18 /* UITableViewCell+Appearance.swift in Sources */,
 				AC34D74C27841B71000DD4CA /* SettingsModel.swift in Sources */,
+				51A7C0DE5E1B4A0C9D2E3F02 /* ProductAnalyticsPrompt.swift in Sources */,
 				ACF5FEC91FBDD8B1000F83CB /* MoveFilesViewController.swift in Sources */,
 				AC5AF8771FBF16E8003B8C3C /* VideoConversionViewController.swift in Sources */,
 				AC6E26071FD9A43200BC9AEC /* DownloadedFilePresenter.swift in Sources */,

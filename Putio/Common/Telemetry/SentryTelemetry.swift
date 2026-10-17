@@ -11,6 +11,7 @@ enum SentryTelemetry {
         case downloadedAssetDeletion = "downloaded_asset_deletion"
         case downloadsObservation = "downloads_observation"
         case pushRegistration = "push_registration"
+        case realmOpen = "realm_open"
     }
 
     /// put.io's tunnel to Sentry ingest. Some networks reset connections to
@@ -27,6 +28,25 @@ enum SentryTelemetry {
 
     static let cacheDirectory = URL.cachesDirectory.appending(path: "io.put.diagnostics")
 
+    /// Deletes where 2.58.0's Sentry 7.9.0 kept envelopes and crash reports,
+    /// unredacted, and its installation id. Sentry 9 keeps its own id under
+    /// `cacheDirectory`. False when any of them is still there.
+    @discardableResult
+    static func deleteLegacyCache(in cachesDirectory: URL = .cachesDirectory) -> Bool {
+        var deleted = true
+        for name in ["io.sentry", "SentryCrash", "INSTALLATION"] {
+            do {
+                try FileManager.default.removeItem(at: cachesDirectory.appending(path: name))
+            } catch let error as CocoaError where error.code == .fileNoSuchFile {
+                // Nothing to delete on an install that never ran 2.58.0.
+            } catch {
+                deleted = false
+                InternalFailurePresenter.log("SentryTelemetry: legacy cache not deleted: \(error.localizedDescription)")
+            }
+        }
+        return deleted
+    }
+
     /// The SDK holds its session delegate weakly.
     private static let transportGate = SentryTransportGate()
 
@@ -34,6 +54,10 @@ enum SentryTelemetry {
     /// honours an opt-out before the account loads. Missing, as when signed out,
     /// is on.
     private static let consentKey = "io.put.diagnostics-enabled"
+
+    static func lastKnownDiagnosticsEnabled(defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: consentKey) as? Bool ?? true
+    }
 
     static func start(dsn: String? = SENTRY_DSN, defaults: UserDefaults = .standard) {
         apply(dsn: dsn, defaults: defaults)
@@ -51,7 +75,7 @@ enum SentryTelemetry {
     /// deleted, so nothing recorded before a switch-off leaves later either.
     private static func apply(dsn: String?, defaults: UserDefaults) {
         guard let dsn else { return }
-        let enabled = defaults.object(forKey: consentKey) as? Bool ?? true
+        let enabled = lastKnownDiagnosticsEnabled(defaults: defaults)
         isCapturing = enabled
         if enabled {
             if !SentrySDK.isEnabled { SentrySDK.start(options: options(dsn: dsn)) }

@@ -17,6 +17,8 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
     private var maskingView: UIView!
     private var maskingViewHeightConstraint: NSLayoutConstraint!
 
+    var asksProductAnalytics = false
+
     func installViewController(_ viewController: UIViewController, inContainerView containerView: UIView) {
         addChild(viewController)
         viewController.view.translatesAutoresizingMaskIntoConstraints = false
@@ -156,6 +158,18 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
         createMiniMediaControllerView()
         createMaskingView()
         updateControlBarsVisibility(shouldAppear: false)
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        guard asksProductAnalytics else { return }
+        asksProductAnalytics = false
+
+        var presenter: UIViewController = self
+        while let presented = presenter.presentedViewController, !presented.isBeingDismissed {
+            presenter = presented
+        }
+        presenter.present(ProductAnalyticsPromptViewController(), animated: true)
     }
 
     // GCKUIStyle resolves colors eagerly, so Cast chrome must be restyled on
