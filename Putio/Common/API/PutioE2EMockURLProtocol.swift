@@ -96,6 +96,7 @@ private enum PutioE2EMockAPI {
 
     private static let routes: [String: Fixture] = [
         "GET /v2/account/info": Fixture(body: accountInfo),
+        "POST /v2/account/clear": Fixture(body: ok),
         "GET /v2/config": Fixture(body: config),
         "GET /v2/files/list": Fixture(body: filesList),
         "GET /v2/files/42": Fixture(body: fileDetails),
