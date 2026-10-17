@@ -20,6 +20,7 @@
 - `mise run verify`
 - `mise run e2e-simulator`
 - `mise run run-simulator`
+- `mise run perf`
 
 ## Worktrees
 
@@ -81,7 +82,7 @@ Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-
 - SDK-backed app flow: run `mise run e2e-simulator` before live-account checks
 - When auth, keychain, or signed-in persistence changes, run both `mise run verify` and `mise run run-simulator`
 - When user-facing copy changes, update the matching files under `Putio/en.lproj` and lint them with `plutil -lint Putio/en.lproj/*.strings`
-- When preparing a PR or handoff, include the most helpful evidence for review: visual aids for UI changes, sanity checks for risky flows, and before or after benchmarks for performance-sensitive work
+- When preparing a PR or handoff, include the most helpful evidence for review: visual aids for UI changes, sanity checks for risky flows, and before or after benchmarks for performance-sensitive work, measured with `mise run perf` on one simulator ([Measure Performance](./CONTRIBUTING.md#measure-performance))
 
 ## Regression Hotspots
 

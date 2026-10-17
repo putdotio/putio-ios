@@ -1,10 +1,12 @@
 import UIKit
 import PDFKit
 import PutioSDK
+import os
 
 class PDFViewController: UIViewController {
     var file: PutioFile?
     private var request: URLSessionDataTask?
+    private var openSignpost: OSSignpostIntervalState?
 
     @IBOutlet weak var pdfView: PDFView!
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
@@ -22,6 +24,8 @@ class PDFViewController: UIViewController {
 
         if let file = file {
             title = file.name
+            let signposter = PerfSignpost.signposter
+            openSignpost = signposter.beginInterval("PDFOpen", id: signposter.makeSignpostID(), "file \(file.id)")
             downloadAndShowPDF()
         }
     }
@@ -67,6 +71,7 @@ class PDFViewController: UIViewController {
                 return DispatchQueue.main.async {
                     self.finishLoading()
                     self.presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the PDF", comment: ""))
+                    self.endOpenSignpost()
                 }
             }
 
@@ -74,6 +79,7 @@ class PDFViewController: UIViewController {
                 return DispatchQueue.main.async {
                     self.finishLoading()
                     self.presentErrorMessage(message: NSLocalizedString("An error occurred while displaying the PDF", comment: ""))
+                    self.endOpenSignpost()
                 }
             }
 
@@ -81,6 +87,8 @@ class PDFViewController: UIViewController {
                 self.finishLoading()
                 self.pdfView.isUserInteractionEnabled = true
                 self.pdfView.document = pdfDocument
+                // After the commit, which lays out the document's pages.
+                self.endOpenSignpost()
             }
         }
         request?.resume()
@@ -89,6 +97,17 @@ class PDFViewController: UIViewController {
     private func cancelRequest() {
         request?.cancel()
         request = nil
+        endOpenSignpost(afterCommit: false)
+    }
+
+    private func endOpenSignpost(afterCommit: Bool = true) {
+        guard let signpost = openSignpost else { return }
+        openSignpost = nil
+        if afterCommit {
+            PerfSignpost.endAfterCommit("PDFOpen", signpost)
+        } else {
+            PerfSignpost.signposter.endInterval("PDFOpen", signpost)
+        }
     }
 
     private func finishLoading() {

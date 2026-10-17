@@ -94,6 +94,10 @@ run = "mise run screenshots-record -- --tier components"
 description = "Record the full-screen walk baselines only"
 run = "mise run screenshots-record -- --tier screens"
 
+[tasks.perf]
+description = "Measure the large-account fixture and print medians"
+run = "node scripts/perf.ts"
+
 [tasks.verify-scripts-types]
 description = "Type-check the repo's TypeScript tooling"
 run = "pnpm exec tsc --noEmit"

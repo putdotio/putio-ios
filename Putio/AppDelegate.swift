@@ -67,6 +67,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        PerfSignpost.beginLaunchToFiles()
+
         if isRunningUnitTests {
             return true
         }
@@ -210,6 +212,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func fetchUser() {
+        let signposter = PerfSignpost.signposter
+        let signpost = signposter.beginInterval("FetchUser", id: signposter.makeSignpostID())
         let dispatchGroup = DispatchGroup()
         
         var account: PutioAccount?
@@ -251,6 +255,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         dispatchGroup.notify(queue: .main) {
+            signposter.endInterval("FetchUser", signpost)
+
             if let accountError = accountError {
                 return self.fetchUserFailure(error: accountError)
             }
@@ -421,6 +427,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         rootViewController.asksProductAnalytics = asksProductAnalytics
         window?.rootViewController = rootViewController
         window?.makeKeyAndVisible()
+        #if DEBUG
+        PutioE2EPerfProbe.installIfEnabled(in: window)
+        #endif
         // Until the next sign-in, the session restored at launch is the one
         // 2.58.0's downloads belong to. After one, recovering stays a Restore tap.
         if isRestoredSession, PutioRealm.isUpgradingFromShipped258() {
