@@ -235,9 +235,10 @@ final class ErrorPresentationTests: XCTestCase {
 
         let predicate = NSPredicate(format: "subsystem == %@ AND category == %@", Bundle.main.bundleIdentifier ?? "", "app")
         let entries = try store.getEntries(at: start, matching: predicate).compactMap { $0 as? OSLogEntryLog }
-        let entry = try XCTUnwrap(entries.last)
+        // The simulator shows private values, so the entry can be found by its
+        // text, and privacy is checked by the marker a device redacts by.
+        let entry = try XCTUnwrap(entries.last { $0.composedMessage.contains("Synthetic.Feature.Title") })
         XCTAssertEqual(entry.level, .error)
-        // The simulator shows private values, so this checks the marker a device redacts by.
         XCTAssertEqual(entry.formatString, "%{private}s")
     }
 
