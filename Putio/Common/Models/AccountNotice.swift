@@ -105,6 +105,11 @@ final class AccountNoticeStore {
 
     private(set) var notice: AccountNotice?
 
+    /// Moves on whenever the notice is cleared, which every sign-out does. A
+    /// request that cannot check its own session passes the value it started
+    /// with, so another account's late answer is dropped.
+    private(set) var session = 0
+
     private var timeChangeObserver: NSObjectProtocol?
 
     // Midnight, a time zone change, or a clock change moves the countdown
@@ -131,7 +136,13 @@ final class AccountNoticeStore {
         replace(with: AccountNotice(account: account))
     }
 
+    func update(with account: PutioAccount, startedIn session: Int) {
+        guard session == self.session else { return }
+        update(with: account)
+    }
+
     func clear() {
+        session += 1
         replace(with: nil)
     }
 

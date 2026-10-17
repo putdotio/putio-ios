@@ -106,6 +106,20 @@ final class AccountNoticeTests: XCTestCase {
         XCTAssertEqual(store.notice, .deactivated(filesDeletedAt: date("2026-11-01T09:30:00Z")))
     }
 
+    // The Account screen's request can outlive a sign-out and a sign-in to
+    // another account, whose notice its answer must not replace.
+    func testAnswerFromAnEarlierSessionIsDropped() throws {
+        let store = AccountNoticeStore()
+        let signedOutSession = store.session
+        store.clear()
+
+        store.update(with: try inactiveAccount(), startedIn: signedOutSession)
+        XCTAssertNil(store.notice)
+
+        store.update(with: try inactiveAccount(), startedIn: store.session)
+        XCTAssertNotNil(store.notice)
+    }
+
     // A download with no local successor falls back to put.io's next file,
     // which would queue a stream behind the playback gate.
     func testInactiveAccountQueuesNoStreamAfterTheLastDownload() throws {
