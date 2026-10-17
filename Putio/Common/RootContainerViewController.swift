@@ -125,7 +125,6 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
         guard asksProductAnalytics else { return }
         asksProductAnalytics = false
 
-        // A replayed launch link may already have presented something.
         var presenter: UIViewController = self
         while let presented = presenter.presentedViewController, !presented.isBeingDismissed {
             presenter = presented

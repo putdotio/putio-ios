@@ -627,6 +627,39 @@ final class PutioRealmTests: XCTestCase {
     }
 
     func testSchema12SessionOpensWithDiagnosticsOnAndProductAnalyticsOff() throws {
+        let realm = try openSchema12Session(defaults: isolatedDefaults())
+
+        let settings = try XCTUnwrap(realm.object(ofType: User.self, forPrimaryKey: 7)?.settings)
+        XCTAssertFalse(settings.historyEnabled, "the user kept its own settings row")
+        XCTAssertEqual(settings.sortBy, "NAME_ASC")
+        XCTAssertEqual(realm.objects(UserSettings.self).map(\.diagnosticsEnabled), [true, true])
+        XCTAssertEqual(realm.objects(UserSettings.self).map(\.productAnalyticsEnabled), [false, false])
+    }
+
+    func testSchema12SessionKeepsTheDiagnosticsOptOutSentryFollows() throws {
+        let defaults = try isolatedDefaults()
+        SentryTelemetry.update(diagnosticsEnabled: false, dsn: nil, defaults: defaults)
+
+        let realm = try openSchema12Session(defaults: defaults)
+
+        XCTAssertEqual(realm.objects(UserSettings.self).map(\.diagnosticsEnabled), [false, false])
+    }
+
+    func testUserSettingsCopyThePrivacyControlsFromTheAccount() throws {
+        let account = try JSONDecoder().decode(
+            PutioAccount.Settings.self,
+            from: Data(#"{"diagnostics_enabled":false,"product_analytics_enabled":true}"#.utf8)
+        )
+
+        let settings = try XCTUnwrap(UserSettings(settings: account))
+
+        XCTAssertFalse(settings.diagnosticsEnabled)
+        XCTAssertTrue(settings.productAnalyticsEnabled)
+    }
+
+    /// A user with its own settings row, plus the row an earlier launch's
+    /// replaceUserSession left behind, opened with the current configuration.
+    private func openSchema12Session(defaults: UserDefaults) throws -> Realm {
         let realmURL = temporaryDirectory.appendingPathComponent("Schema12.realm")
         try autoreleasepool {
             let schema12 = Realm.Configuration(
@@ -643,30 +676,19 @@ final class PutioRealmTests: XCTestCase {
                 user.id = 7
                 user.settings = settings
                 realm.add(user)
-                // What an earlier launch's replaceUserSession left behind.
                 realm.add(Schema12UserSettings())
             }
         }
 
-        let realm = try XCTUnwrap(PutioRealm.open(context: #function, configuration: PutioRealm.configuration(fileURL: realmURL)))
-
-        let settings = try XCTUnwrap(realm.object(ofType: User.self, forPrimaryKey: 7)?.settings)
-        XCTAssertFalse(settings.historyEnabled, "the user kept its own settings row")
-        XCTAssertEqual(settings.sortBy, "NAME_ASC")
-        XCTAssertEqual(realm.objects(UserSettings.self).map(\.diagnosticsEnabled), [true, true])
-        XCTAssertEqual(realm.objects(UserSettings.self).map(\.productAnalyticsEnabled), [false, false])
+        let configuration = PutioRealm.configuration(fileURL: realmURL, defaults: defaults)
+        return try XCTUnwrap(PutioRealm.open(context: #function, configuration: configuration))
     }
 
-    func testUserSettingsCopyThePrivacyControlsFromTheAccount() throws {
-        let account = try JSONDecoder().decode(
-            PutioAccount.Settings.self,
-            from: Data(#"{"diagnostics_enabled":false,"product_analytics_enabled":true}"#.utf8)
-        )
-
-        let settings = try XCTUnwrap(UserSettings(settings: account))
-
-        XCTAssertFalse(settings.diagnosticsEnabled)
-        XCTAssertTrue(settings.productAnalyticsEnabled)
+    private func isolatedDefaults() throws -> UserDefaults {
+        let suite = "PutioRealmTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        return defaults
     }
 
     private func makeUser(id: Int, username: String, mail: String) -> User {

@@ -14,19 +14,27 @@ final class ProductAnalyticsPromptTests: XCTestCase {
     private var writes: [String] = []
     private var settingResults: [Result<Void, PutioSDKError>] = []
     private var answerResults: [Result<Void, PutioSDKError>] = []
+    private var holdsSetting = false
+    private var heldSetting: ((Result<Void, PutioSDKError>) -> Void)?
 
     override func setUp() {
         super.setUp()
         writes = []
         settingResults = []
         answerResults = []
+        holdsSetting = false
+        heldSetting = nil
     }
 
     func testAsksOnlyAnAccountWithAnalyticsOffAndNoAnswer() {
-        XCTAssertTrue(ProductAnalyticsChoice.shouldAsk(productAnalyticsEnabled: false, promptAnswered: false))
-        XCTAssertFalse(ProductAnalyticsChoice.shouldAsk(productAnalyticsEnabled: true, promptAnswered: false))
-        XCTAssertFalse(ProductAnalyticsChoice.shouldAsk(productAnalyticsEnabled: false, promptAnswered: true))
-        XCTAssertFalse(ProductAnalyticsChoice.shouldAsk(productAnalyticsEnabled: true, promptAnswered: true))
+        XCTAssertTrue(ProductAnalyticsChoice.shouldAsk(productAnalyticsEnabled: false, promptAnswered: false, opensLaunchLinks: false))
+        XCTAssertFalse(ProductAnalyticsChoice.shouldAsk(productAnalyticsEnabled: true, promptAnswered: false, opensLaunchLinks: false))
+        XCTAssertFalse(ProductAnalyticsChoice.shouldAsk(productAnalyticsEnabled: false, promptAnswered: true, opensLaunchLinks: false))
+        XCTAssertFalse(ProductAnalyticsChoice.shouldAsk(productAnalyticsEnabled: true, promptAnswered: true, opensLaunchLinks: false))
+    }
+
+    func testALaunchThatOpensLinksWaitsForTheNextLaunch() {
+        XCTAssertFalse(ProductAnalyticsChoice.shouldAsk(productAnalyticsEnabled: false, promptAnswered: false, opensLaunchLinks: true))
     }
 
     func testAllowSavesTheSettingThenTheAnswerThenTheLocalCopy() {
@@ -84,19 +92,8 @@ final class ProductAnalyticsPromptTests: XCTestCase {
     }
 
     func testCannotBeClosedOrAnsweredTwiceWhileSaving() {
-        var pendingSetting: ((Result<Void, PutioSDKError>) -> Void)?
-        let prompt = ProductAnalyticsPromptViewController(
-            saveSetting: { enabled, completion in
-                self.writes.append("setting: \(enabled)")
-                pendingSetting = completion
-            },
-            markAnswered: { completion in
-                self.writes.append("answer")
-                completion(.success(()))
-            },
-            storeLocally: { self.writes.append("local: \($0)") }
-        )
-        prompt.loadViewIfNeeded()
+        holdsSetting = true
+        let prompt = makePrompt()
 
         prompt.allowButton.sendActions(for: .touchUpInside)
         prompt.denyButton.sendActions(for: .touchUpInside)
@@ -105,35 +102,69 @@ final class ProductAnalyticsPromptTests: XCTestCase {
         XCTAssertFalse(prompt.accessibilityPerformEscape())
         XCTAssertEqual(writes, ["setting: true"])
 
-        pendingSetting?(.success(()))
+        heldSetting?(.success(()))
 
         XCTAssertFalse(prompt.isModalInPresentation)
         XCTAssertEqual(writes, ["setting: true", "answer", "local: true"])
     }
 
-    func testClosingWithoutAnsweringWritesNothing() {
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 440, height: 956))
+    func testAnAnswerSavedWhileThePrivacyPolicyIsOpenClosesBoth() throws {
+        holdsSetting = true
+        let prompt = makePrompt()
+        let root = try presentOnWindow(prompt)
+        prompt.allowButton.sendActions(for: .touchUpInside)
+        let policyOpened = expectation(description: "policy opened")
+        prompt.present(UIViewController(), animated: false) { policyOpened.fulfill() }
+        wait(for: [policyOpened], timeout: 5)
+
+        heldSetting?(.success(()))
+
+        let deadline = Date().addingTimeInterval(5)
+        while root.presentedViewController != nil, Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        }
+        XCTAssertNil(root.presentedViewController, "only the policy closed")
+        XCTAssertEqual(writes, ["setting: true", "answer", "local: true"])
+    }
+
+    func testClosingWithoutAnsweringWritesNothing() throws {
+        let prompt = makePrompt()
+        let root = try presentOnWindow(prompt)
+        let sheet = try XCTUnwrap(prompt.presentationController)
+
+        // What UIKit sends a swipe-down, around the dismissal itself.
+        sheet.delegate?.presentationControllerWillDismiss?(sheet)
+        let dismissed = expectation(description: "dismissed")
+        root.dismiss(animated: false) { dismissed.fulfill() }
+        wait(for: [dismissed], timeout: 5)
+        sheet.delegate?.presentationControllerDidDismiss?(sheet)
+
+        XCTAssertNil(root.presentedViewController)
+        XCTAssertEqual(writes, [])
+    }
+
+    private func presentOnWindow(_ prompt: ProductAnalyticsPromptViewController) throws -> UIViewController {
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
         let root = UIViewController()
         window.rootViewController = root
         window.isHidden = false
-        defer { window.isHidden = true }
-        let prompt = makePrompt()
+        addTeardownBlock { window.isHidden = true }
 
         let presented = expectation(description: "presented")
         root.present(prompt, animated: false) { presented.fulfill() }
         wait(for: [presented], timeout: 5)
-        let dismissed = expectation(description: "dismissed")
-        root.dismiss(animated: false) { dismissed.fulfill() }
-        wait(for: [dismissed], timeout: 5)
-
-        XCTAssertNil(root.presentedViewController)
-        XCTAssertEqual(writes, [])
+        return root
     }
 
     private func makePrompt() -> ProductAnalyticsPromptViewController {
         let prompt = ProductAnalyticsPromptViewController(
             saveSetting: { enabled, completion in
                 self.writes.append("setting: \(enabled)")
+                if self.holdsSetting {
+                    self.heldSetting = completion
+                    return
+                }
                 completion(self.settingResults.isEmpty ? .success(()) : self.settingResults.removeFirst())
             },
             markAnswered: { completion in

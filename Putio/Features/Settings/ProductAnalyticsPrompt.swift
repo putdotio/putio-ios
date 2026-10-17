@@ -24,9 +24,11 @@ enum ProductAnalyticsChoice {
     }
 
     /// Unset reads as off, so an account is asked until it turns analytics on
-    /// or this app stores an answer.
-    static func shouldAsk(productAnalyticsEnabled: Bool, promptAnswered: Bool) -> Bool {
-        !productAnalyticsEnabled && !promptAnswered
+    /// or this app stores an answer. A launch that opens links skips the ask:
+    /// DeeplinkManager dismisses whatever is presented, which could close the
+    /// sheet mid-animation and lose the link, and the next launch asks anyway.
+    static func shouldAsk(productAnalyticsEnabled: Bool, promptAnswered: Bool, opensLaunchLinks: Bool) -> Bool {
+        !productAnalyticsEnabled && !promptAnswered && !opensLaunchLinks
     }
 
     /// The setting, then the prompt's answer: the order web writes them, so a
@@ -150,7 +152,9 @@ final class ProductAnalyticsPromptViewController: UIViewController {
             case .success:
                 self.storeLocally(enabled)
                 self.setSaving(false, enabled: enabled)
-                self.dismiss(animated: true)
+                // Through the presenter, so a privacy policy opened during the
+                // save closes with the sheet instead of in its place.
+                self.presentingViewController?.dismiss(animated: true)
 
             case .failure(.setting(let error)), .failure(.answer(let error)):
                 self.setSaving(false, enabled: enabled)

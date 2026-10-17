@@ -274,7 +274,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         self.presentMainScreen(asksProductAnalytics: ProductAnalyticsChoice.shouldAsk(
             productAnalyticsEnabled: account.settings.productAnalyticsEnabled,
-            promptAnswered: config.productAnalyticsPromptAnswered
+            promptAnswered: config.productAnalyticsPromptAnswered,
+            opensLaunchLinks: !pendingURLs.isEmpty
         ))
     }
 
