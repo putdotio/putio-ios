@@ -89,9 +89,9 @@ Never paste the DSN or the event payload into issues, pull requests, or logs.
 | Customer Support | Yes | App Functionality | Intercom conversations |
 | Email Address | Yes | App Functionality | Intercom's manifest |
 | Photos or Videos | Yes | App Functionality | Intercom's manifest |
-| Device ID | Yes | App Functionality, Analytics | Intercom's device ID; unlinked from Sentry's installation ID and Google Cast |
-| Product Interaction | Yes | App Functionality, Analytics | Intercom; unlinked from Google Cast |
-| Coarse Location | Yes | App Functionality, Analytics | Intercom, from the IP address; unlinked from Google Cast |
+| Device ID | Yes | App Functionality, Analytics | Intercom's device ID; Sentry's installation ID and Google Cast send theirs unlinked |
+| Product Interaction | Yes | App Functionality, Analytics | Intercom; Google Cast sends it unlinked |
+| Coarse Location | Yes | App Functionality, Analytics | Intercom, from the IP address; Google Cast sends it unlinked |
 | Search History | Yes | App Functionality, Analytics | Intercom Help Center searches |
 | Crash Data | No | App Functionality | Sentry |
 | Performance Data | No | App Functionality, Analytics | Sentry, Intercom, Google Cast |
