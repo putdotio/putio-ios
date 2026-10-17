@@ -228,6 +228,22 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertEqual(sentEvents(token: token).map { $0["event"] as? String }, ["screen_viewed", "app_opened"])
     }
 
+    func testAHeldEventKeepsTheTimeItHappened() throws {
+        let opened = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970) - 600)
+        var clock = opened
+        let (gate, token) = makeGate(now: { clock })
+
+        // The cold launch's open, then ten minutes offline before the account answers.
+        gate.capture(.appOpened(.direct))
+        clock += 600
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        _ = try waitForEvents(token: token, count: 1)
+        gate.capture(.screenViewed(.files))
+        let events = try waitForEvents(token: token, count: 2)
+
+        XCTAssertEqual(events.map { ($0["timestamp"] as? String).flatMap(toISO8601Date) }, [opened, clock])
+    }
+
     func testABackgroundWithoutAnOpenSinceTheStartIsDropped() throws {
         let (gate, token) = makeGate()
         gate.update(accountID: 1001, productAnalyticsEnabled: true)
@@ -423,7 +439,11 @@ final class ProductAnalyticsTests: XCTestCase {
 
     /// A gate on a project token of its own, so no other test's SDK, requests,
     /// or storage are in the way.
-    private func makeGate(token: String? = "phc_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))", eligible: Bool = true) -> (ProductAnalyticsGate, String) {
+    private func makeGate(
+        token: String? = "phc_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))",
+        eligible: Bool = true,
+        now: @escaping () -> Date = Date.init
+    ) -> (ProductAnalyticsGate, String) {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RecordingURLProtocol.self]
         let gate = ProductAnalyticsGate(environment: .init(
@@ -431,7 +451,8 @@ final class ProductAnalyticsTests: XCTestCase {
             isEligible: eligible,
             storageDirectory: URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? ""),
             urlSessionConfiguration: configuration,
-            compression: .none
+            compression: .none,
+            now: now
         ))
         addTeardownBlock { gate.update(accountID: nil, productAnalyticsEnabled: nil) }
         return (gate, token ?? "phc_none")

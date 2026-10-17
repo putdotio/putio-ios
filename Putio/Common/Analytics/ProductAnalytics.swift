@@ -70,6 +70,7 @@ final class ProductAnalyticsGate {
         var storageDirectory: URL
         var urlSessionConfiguration: URLSessionConfiguration?
         var compression: PostHogCompression = .gzip
+        var now: () -> Date = Date.init
 
         static var live: Environment {
             Environment(
@@ -102,7 +103,7 @@ final class ProductAnalyticsGate {
     private var accountID: Int?
     private var enabled: Bool?
     private var hasAnswer = false
-    private var held: [AnalyticsEvent] = []
+    private var held: [(event: AnalyticsEvent, at: Date)] = []
     private var running: Running?
 
     /// Read by `beforeSend` on any SDK thread, so it has its own lock.
@@ -153,10 +154,11 @@ final class ProductAnalyticsGate {
     func capture(_ event: AnalyticsEvent) {
         lock.withLock {
             guard environment.token != nil, environment.isEligible else { return }
+            let at = environment.now()
             if hasAnswer, running != nil {
-                send(event)
+                send(event, at: at)
             } else if !hasAnswer {
-                held.append(event)
+                held.append((event, at))
                 if held.count > Self.heldLimit { held.removeFirst() }
             }
         }
@@ -191,7 +193,7 @@ final class ProductAnalyticsGate {
     private func sendHeld() {
         let pending = held
         held.removeAll()
-        pending.forEach(send)
+        pending.forEach { send($0.event, at: $0.at) }
     }
 
     /// `apply()` stops first, so every start is a fresh install, even after a
@@ -242,7 +244,8 @@ final class ProductAnalyticsGate {
         return true
     }
 
-    private func send(_ event: AnalyticsEvent) {
+    /// A held event keeps the time it happened, not the time the answer came.
+    private func send(_ event: AnalyticsEvent, at timestamp: Date) {
         guard var running else { return }
         switch event {
         case .appOpened: running.hasSentOpen = true
@@ -250,7 +253,7 @@ final class ProductAnalyticsGate {
         default: break
         }
         self.running = running
-        running.sdk.capture(event.name, properties: running.commonProperties.merging(event.properties) { $1 })
+        running.sdk.capture(event.name, properties: running.commonProperties.merging(event.properties) { $1 }, timestamp: timestamp)
     }
 
     static func config(
