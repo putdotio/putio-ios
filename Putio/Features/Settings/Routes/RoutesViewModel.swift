@@ -67,11 +67,12 @@ class RoutesViewModel {
 
     func setRoute(route: PutioRoute, completion: @escaping ActionCompletion) {
         state = .loading
+        let session = AccountNoticeStore.shared.session
 
         api.saveAccountSettings(.patch(PutioAccountSettingsPatch(tunnelRouteName: route.name))) { result in
             switch result {
             case .success:
-                ProductAnalytics.capture(.settingsChanged(.tunnelRoute, .option))
+                ProductAnalytics.capture(.settingsChanged(.tunnelRoute, .option), startedIn: session)
                 if let realm = self.userSettings.realm ?? PutioRealm.open(context: "RoutesViewModel.setRoute") {
                     _ = PutioRealm.write(realm, context: "RoutesViewModel.setRoute.write") {
                         self.userSettings.routeName = route.name

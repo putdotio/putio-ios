@@ -33,6 +33,11 @@ enum ProductAnalytics {
         shared.capture(event)
     }
 
+    /// For an event that waited on put.io, from `AccountNoticeStore.shared.session`.
+    static func capture(_ event: AnalyticsEvent, startedIn session: Int) {
+        shared.capture(event, startedIn: session)
+    }
+
     /// PostHog's public project token, which only names the project. Anything
     /// else, including an unexpanded `$(PUTIO_POSTHOG_TOKEN)`, is nil.
     static func projectToken(_ value: String) -> String? {
@@ -134,6 +139,13 @@ final class ProductAnalyticsGate {
         }
     }
 
+    /// Signing out moves the session on, so a save that lands after it was
+    /// the earlier account's and sends nothing.
+    func capture(_ event: AnalyticsEvent, startedIn session: Int) {
+        guard session == AccountNoticeStore.shared.session else { return }
+        capture(event)
+    }
+
     /// Storage the SDK keeps under its project token.
     func storageDirectory(token: String) -> URL {
         environment.storageDirectory.appending(path: token)
@@ -144,8 +156,8 @@ final class ProductAnalyticsGate {
         let target = enabled == true ? accountID : nil
         if let running, running.accountID == target { return }
 
-        stop(token: token)
-        guard let target else {
+        // A survivor could hand the next start the earlier identity or queue.
+        guard stop(token: token), let target else {
             held.removeAll()
             return
         }
@@ -177,26 +189,30 @@ final class ProductAnalyticsGate {
     }
 
     /// `close()` sends what is queued, so the queue goes first; close may
-    /// write again, so the folder goes after it too.
-    private func stop(token: String) {
+    /// write again, so the folder goes after it too. False while the folder
+    /// survives; the next update tries again.
+    private func stop(token: String) -> Bool {
         capturing.withLock { $0 = false }
         deleteStorage(token: token)
         running?.sdk.close()
         running = nil
-        deleteStorage(token: token)
         // The last-seen app version the SDK writes when it starts.
         UserDefaults.standard.removeObject(forKey: "PHGVersionKey")
         UserDefaults.standard.removeObject(forKey: "PHGBuildKeyV2")
+        return deleteStorage(token: token)
     }
 
-    private func deleteStorage(token: String) {
+    @discardableResult
+    private func deleteStorage(token: String) -> Bool {
         do {
             try FileManager.default.removeItem(at: storageDirectory(token: token))
         } catch let error as CocoaError where error.code == .fileNoSuchFile {
             // Already gone; every update while off lands here.
         } catch {
             InternalFailurePresenter.log("ProductAnalytics: storage not deleted: \(error.localizedDescription)")
+            return false
         }
+        return true
     }
 
     private func send(_ event: AnalyticsEvent) {

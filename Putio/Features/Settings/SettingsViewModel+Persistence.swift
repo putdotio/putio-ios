@@ -119,11 +119,12 @@ extension SettingsViewModel {
         to valueClass: AnalyticsEvent.ValueClass,
         onSuccess: @escaping () -> Void
     ) {
+        let session = AccountNoticeStore.shared.session
         performRemoteMutation(
             mutation: { completion in
                 self.saveAccountSettingsRequest(update) { result in
                     if case .success = result {
-                        ProductAnalytics.capture(.settingsChanged(setting, valueClass))
+                        ProductAnalytics.capture(.settingsChanged(setting, valueClass), startedIn: session)
                     }
                     completion(result)
                 }
@@ -184,12 +185,13 @@ extension SettingsViewModel {
     }
 
     func saveChromecastPlaybackType(_ playbackType: PutioChromecastPlaybackType) {
+        let session = AccountNoticeStore.shared.session
         performRemoteMutation(
             mutation: { completion in
                 api.setChromecastPlaybackType(playbackType) { result in
                     switch result {
                     case .success:
-                        ProductAnalytics.capture(.settingsChanged(.chromecastPlaybackType, .option))
+                        ProductAnalytics.capture(.settingsChanged(.chromecastPlaybackType, .option), startedIn: session)
                         completion(.success(()))
                     case .failure(let error):
                         completion(.failure(error))

@@ -277,7 +277,6 @@ final class PlaybackAnalytics {
     private let now: () -> Date
     private let lock = NSLock()
     private var startedAt: Date?
-    private var reachedEnd = false
     private var isFinished = false
     private var queueObservation: NSKeyValueObservation?
 
@@ -310,18 +309,23 @@ final class PlaybackAnalytics {
         start()
     }
 
+    /// The media played to its end, whether or not the player stays open.
     func didReachEnd() {
-        lock.withLock { reachedEnd = true }
+        finish(.completed)
     }
 
     /// Before `start()`, as when the player closes while it looks up the
     /// position, it sends nothing and a later `start()` sends nothing either.
     func end() {
+        finish(.partial)
+    }
+
+    private func finish(_ completion: AnalyticsEvent.Completion) {
         let ended: AnalyticsEvent? = lock.withLock {
             queueObservation = nil
             defer { isFinished = true }
             guard let startedAt, !isFinished else { return nil }
-            return .playbackEnded(playback, reachedEnd ? .completed : .partial, .init(seconds: now().timeIntervalSince(startedAt)))
+            return .playbackEnded(playback, completion, .init(seconds: now().timeIntervalSince(startedAt)))
         }
         ended.map(capture)
     }

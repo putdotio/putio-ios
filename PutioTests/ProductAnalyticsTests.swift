@@ -221,6 +221,45 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertEqual((events.last?["properties"] as? [String: Any])?["session_duration"] as? String, "lt_1m")
     }
 
+    func testStorageThatCannotBeDeletedKeepsTheGateClosed() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "ProductAnalyticsTests-\(UUID().uuidString)")
+        let token = "phc_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
+        try FileManager.default.createDirectory(at: root.appending(path: token), withIntermediateDirectories: true)
+        // A read-only parent keeps its token folder from being removed.
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: root.path)
+        addTeardownBlock {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: root.path)
+            try? FileManager.default.removeItem(at: root)
+        }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [RecordingURLProtocol.self]
+        let gate = ProductAnalyticsGate(environment: .init(
+            token: token, isEligible: true, storageDirectory: root, urlSessionConfiguration: configuration, compression: .none
+        ))
+        addTeardownBlock { gate.update(accountID: nil, productAnalyticsEnabled: nil) }
+
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        gate.capture(.screenViewed(.files))
+        spinRunLoop(seconds: 1)
+
+        XCTAssertNil(gate.runningSDK)
+        XCTAssertEqual(requests(token: token).map(\.url), [])
+    }
+
+    func testASaveThatOutlivesItsSessionSendsNothing() throws {
+        let (gate, token) = makeGate()
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        let session = AccountNoticeStore.shared.session
+
+        // What signing out, then signing in again, does to the session.
+        AccountNoticeStore.shared.clear()
+        gate.capture(.settingsChanged(.sortBy, .option), startedIn: session)
+        gate.capture(.screenViewed(.files), startedIn: AccountNoticeStore.shared.session)
+        let events = try waitForEvents(token: token, count: 1)
+
+        XCTAssertEqual(events.map { $0["event"] as? String }, ["screen_viewed"])
+    }
+
     func testAStartAfterAKilledLaunchDropsItsIdentity() throws {
         let (killed, token) = makeGate()
         killed.update(accountID: 1001, productAnalyticsEnabled: true)
@@ -297,8 +336,14 @@ final class ProductAnalyticsTests: XCTestCase {
         playback.start()
         clock += 2000
         playback.didReachEnd()
+        // The finished player stays open for an hour before it closes.
+        clock += 3600
         playback.end()
         playback.fail(URLError(.timedOut))
+
+        let closed = PlaybackAnalytics(video, capture: { events.append($0) }, now: { clock })
+        closed.start()
+        closed.end()
 
         let failing = PlaybackAnalytics(video, capture: { events.append($0) }, now: { clock })
         failing.fail(NSError(domain: AVFoundationErrorDomain, code: -11800, userInfo: [NSLocalizedDescriptionKey: fileName]))
@@ -306,7 +351,9 @@ final class ProductAnalyticsTests: XCTestCase {
         failing.end()
 
         XCTAssertEqual(events, [
-            .playbackStarted(video), .playbackEnded(video, .completed, .from30mTo90m), .playbackFailed(video, .media)
+            .playbackStarted(video), .playbackEnded(video, .completed, .from30mTo90m),
+            .playbackStarted(video), .playbackEnded(video, .partial, .under5m),
+            .playbackFailed(video, .media)
         ])
         XCTAssertEqual(AnalyticsEvent.PlaybackError(PutioSDKError.offline("/files/1")), .network)
         XCTAssertEqual(AnalyticsEvent.PlaybackError(URLError(.timedOut)), .network)
