@@ -21,6 +21,7 @@ if git grep -nE '^[[:space:]]*(@[A-Za-z_]+[[:space:]]+)*import[[:space:]]+([a-z]
     exit 1
 fi
 
+plutil -lint Putio/PrivacyInfo.xcprivacy
 plutil -lint Putio/en.lproj/*.strings
 
 # en.lproj is a folder reference, copied into the app verbatim, so a build
