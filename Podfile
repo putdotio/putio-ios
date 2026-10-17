@@ -17,7 +17,6 @@ target 'Putio' do
   pod 'Sentry', '9.19.1'
   pod 'StatefulViewController', '~> 3.0'
   pod 'SwiftLint', '~> 0.63'
-  pod 'SwiftyBeaver', '~> 2.1'
   pod 'VTAcknowledgementsViewController'
   pod "KeyboardAvoidingView", '~> 5.2'
   
