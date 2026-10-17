@@ -151,6 +151,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 PutioE2EDownloadFixtures.install(into: realm)
             }
         }
+        // The reset leaves a token and no Realm user, as the first launch after
+        // the update from 2.58.0 does once it has replaced that Realm.
+        if ProcessInfo.processInfo.environment["PUTIO_E2E_UPGRADING_FROM_258"] == "1" {
+            PutioRealm.setUpgradingFromShipped258(true)
+        }
         #endif
     }
 
@@ -319,10 +324,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let keepsSession = realm.objects(User.self).first != nil || (isRestoredSession && PutioRealm.isUpgradingFromShipped258())
 
         switch error.localizerType {
-        // Offline, any restored session keeps downloads reachable.
-        case .networkError where isRestoredSession:
-            return self.presentMainScreen(startDownloadQueue: false)
-
         case .decodingError, .unknownError, .networkError:
             if keepsSession {
                 return self.presentMainScreen(startDownloadQueue: false)
