@@ -6,6 +6,7 @@ class MediaPlaybackManager {
     static let sharedInstance = MediaPlaybackManager()
 
     func play(_ media: MediaPlayerItem, sourceViewController: UIViewController) {
+        ProductAnalytics.capture(.screenViewed(.player))
         switch media.fileType {
         case .audio:
             self.playAudio(media, sourceViewController)

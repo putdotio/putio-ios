@@ -16,6 +16,7 @@ extension SettingsViewModel {
                 style: .default
             ) { _ in
                 DownloadConcurrencyPreference.setLimit(limit)
+                ProductAnalytics.capture(.settingsChanged(.downloadConcurrency, .number))
                 DownloadQueueController.sharedInstance.concurrencyLimitDidChange()
                 self.update()
             })
@@ -114,11 +115,18 @@ extension SettingsViewModel {
 
     func saveAccountSettings(
         _ update: PutioAccountSettingsUpdate,
+        changing setting: AnalyticsEvent.Setting,
+        to valueClass: AnalyticsEvent.ValueClass,
         onSuccess: @escaping () -> Void
     ) {
         performRemoteMutation(
             mutation: { completion in
-                self.saveAccountSettingsRequest(update, completion)
+                self.saveAccountSettingsRequest(update) { result in
+                    if case .success = result {
+                        ProductAnalytics.capture(.settingsChanged(setting, valueClass))
+                    }
+                    completion(result)
+                }
             },
             onSuccess: { _ in
                 onSuccess()
@@ -181,6 +189,7 @@ extension SettingsViewModel {
                 api.setChromecastPlaybackType(playbackType) { result in
                     switch result {
                     case .success:
+                        ProductAnalytics.capture(.settingsChanged(.chromecastPlaybackType, .option))
                         completion(.success(()))
                     case .failure(let error):
                         completion(.failure(error))
@@ -195,7 +204,7 @@ extension SettingsViewModel {
 
     func toggleOptimisticUsage() {
         let value = !settings.showOptimisticUsage
-        saveAccountSettings(.patch(PutioAccountSettingsPatch(showOptimisticUsage: value))) {
+        saveAccountSettings(.patch(PutioAccountSettingsPatch(showOptimisticUsage: value)), changing: .showOptimisticUsage, to: .init(value)) {
             self.settings.showOptimisticUsage = value
         }
     }
@@ -208,7 +217,7 @@ extension SettingsViewModel {
             return update()
         }
 
-        saveAccountSettings(.patch(PutioAccountSettingsPatch(trashEnabled: nextValue))) {
+        saveAccountSettings(.patch(PutioAccountSettingsPatch(trashEnabled: nextValue)), changing: .trashEnabled, to: .init(nextValue)) {
             self.settings.trashEnabled = nextValue
         }
     }
@@ -232,7 +241,7 @@ extension SettingsViewModel {
     }
 
     func saveHistoryEnabled(isEnabled: Bool) {
-        saveAccountSettings(.patch(PutioAccountSettingsPatch(historyEnabled: isEnabled))) {
+        saveAccountSettings(.patch(PutioAccountSettingsPatch(historyEnabled: isEnabled)), changing: .historyEnabled, to: .init(isEnabled)) {
             self.settings.historyEnabled = isEnabled
         }
     }
@@ -283,7 +292,7 @@ extension SettingsViewModel {
     }
 
     func saveSortSettings(_ sortBy: String) {
-        saveAccountSettings(.patch(PutioAccountSettingsPatch(sortBy: sortBy))) {
+        saveAccountSettings(.patch(PutioAccountSettingsPatch(sortBy: sortBy)), changing: .sortBy, to: .option) {
             self.settings.sortBy = sortBy
         }
     }

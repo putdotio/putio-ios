@@ -31,8 +31,7 @@ enum ProductAnalyticsChoice {
         !productAnalyticsEnabled && !promptAnswered && !opensLaunchLinks
     }
 
-    /// The setting, then the prompt's answer: the order web writes them, so a
-    /// failed setting never records an answer.
+    /// The setting, then the prompt's answer: the order web writes them, so a failed setting never records an answer.
     static func save(
         _ enabled: Bool,
         saveSetting: SaveSettingRequest,
@@ -50,9 +49,11 @@ enum ProductAnalyticsChoice {
         }
     }
 
-    /// put.io now holds `enabled`. Both writers pass through here; PostHog
-    /// capture (#345) starts or stops here once it exists.
-    static func settingDidSave(enabled: Bool) {}
+    /// put.io now holds `enabled`. Both writers pass through here, so capture follows it and an older account read can't undo it.
+    static func settingDidSave(enabled: Bool) {
+        SettingsViewModel.confirmedSaves += 1
+        ProductAnalytics.settingDidSave(enabled: enabled)
+    }
 }
 
 /// Asks once whether the account allows product analytics. Closing it without

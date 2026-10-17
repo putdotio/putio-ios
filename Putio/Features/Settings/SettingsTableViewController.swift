@@ -24,6 +24,7 @@ class SettingsTableViewController: UITableViewController, TwoFactorAuthPresenter
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        ProductAnalytics.capture(.screenViewed(.account))
         viewModel.fetchData()
     }
 

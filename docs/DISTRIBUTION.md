@@ -69,6 +69,8 @@ The `release` Environment must provide:
 
 Keep item IDs, service-account tokens, and private key material out of git.
 
+Product analytics needs no Environment field: `Config/Release.xcconfig` carries PostHog's public project token, which only names the project, so Debug, verify, and e2e builds have none. The app sends through `burrow.put.io` only from the `com.putio.tvOS` bundle and only while a signed-in account's `product_analytics_enabled` is on; TestFlight installs tag their events `release_channel: beta`.
+
 ## TestFlight Diagnostics Check
 
 One controlled, non-fatal event proves a build's Sentry path. Run the check on the beta, then again on the release-lane upload before submitting it for review. `release` archives its own binary and uploads it with `submit_for_review: false`, so add that build to an internal TestFlight group and install it from TestFlight.

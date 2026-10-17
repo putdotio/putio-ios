@@ -4,6 +4,7 @@ import PutioSDK
 
 class DestroyAccounViewController: UIViewController {
     @IBAction func supportButtonTapped(_ sender: Any) {
+        ProductAnalytics.capture(.supportStarted)
         Intercom.present()
     }
 

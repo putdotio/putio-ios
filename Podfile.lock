@@ -5,6 +5,7 @@ PODS:
   - KeyboardAvoidingView (5.2.0):
     - ViewState (>= 1.2.1)
   - KeychainAccess (4.2.2)
+  - PostHog (3.92.0)
   - Protobuf (3.29.6)
   - PutioSDK (4.2.0)
   - Realm (20.0.6):
@@ -31,6 +32,7 @@ DEPENDENCIES:
   - Intercom (= 19.9.0)
   - KeyboardAvoidingView (~> 5.2)
   - KeychainAccess
+  - PostHog (= 3.92.0)
   - PutioSDK (from `ThirdParty/PutioSDK/PutioSDK.podspec`)
   - RealmSwift (= 20.0.6)
   - Sentry (= 9.19.1)
@@ -46,6 +48,7 @@ SPEC REPOS:
     - Intercom
     - KeyboardAvoidingView
     - KeychainAccess
+    - PostHog
     - Protobuf
     - Realm
     - RealmSwift
@@ -68,6 +71,7 @@ SPEC CHECKSUMS:
   Intercom: 4a35bcead5f437a8445a7113a0fe4991f36559fc
   KeyboardAvoidingView: acc530b2435bba760b2270e722cb7132cf1c4d31
   KeychainAccess: c0c4f7f38f6fc7bbe58f5702e25f7bd2f65abf51
+  PostHog: 2e367fb6fadfb1eb851ca97971a7ceac61ffcb48
   Protobuf: 8d5596f7468be5400861a6bbfb2dfe9d0d1cde34
   PutioSDK: bac5860b6b2d6a8c6bab23116256217a323d1817
   Realm: e63b3586386f7ab655dc890a9d0878870ebb1837
@@ -81,6 +85,6 @@ SPEC CHECKSUMS:
   ViewState: 82f26f9b716f6673c19e491f8bf234c4ff519a0a
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: 9121cd7303c0ae84e290f962267996e13fc11789
+PODFILE CHECKSUM: 89e1e2056c5d8e781b4ac2c3bd2bdc689ccfce85
 
 COCOAPODS: 1.17.0

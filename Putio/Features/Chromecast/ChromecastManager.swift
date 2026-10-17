@@ -12,6 +12,14 @@ class ChromecastManager: NSObject {
 
     enum CastErrorReason: Int {
         case fileNotFound, fileNeedsConvert, missingMetadata
+
+        var playbackError: AnalyticsEvent.PlaybackError {
+            switch self {
+            case .fileNotFound: return .notFound
+            case .fileNeedsConvert: return .needsConversion
+            case .missingMetadata: return .media
+            }
+        }
     }
 
     var castingFileId: Int?
@@ -203,8 +211,14 @@ class ChromecastManager: NSObject {
         }
     }
 
-    func castVideo(fileID: Int, completion: @escaping (_ success: Bool, _ error: CastError?) -> Void) {
+    func castVideo(fileID: Int, completion reportResult: @escaping (_ success: Bool, _ error: CastError?) -> Void) {
         let currentCastSession = GCKCastContext.sharedInstance().sessionManager.currentCastSession
+        var castFile: PutioFile?
+        let completion: (Bool, CastError?) -> Void = { success, error in
+            let playback = self.castPlayback(for: castFile)
+            ProductAnalytics.capture(error.map { .playbackFailed(playback, $0.reason.playbackError) } ?? .playbackStarted(playback))
+            reportResult(success, error)
+        }
 
         if timer != nil {
             timer?.invalidate()
@@ -216,6 +230,7 @@ class ChromecastManager: NSObject {
                 guard let file = data.parent else {
                     return completion(false, CastError(fileID: fileID, reason: .fileNotFound))
                 }
+                castFile = file
 
                 if file.needConvert && file.metaData?.codec != "h264" {
                     return completion(false, CastError(fileID: fileID, reason: .fileNeedsConvert))
@@ -242,6 +257,16 @@ class ChromecastManager: NSObject {
                 completion(false, CastError(fileID: fileID, reason: .fileNotFound))
             }
         }
+    }
+
+    private func castPlayback(for file: PutioFile?) -> AnalyticsEvent.Playback {
+        let streamMethod: AnalyticsEvent.StreamMethod
+        if userConfig?.chromecastPlaybackType == "hls" {
+            streamMethod = .hls
+        } else {
+            streamMethod = file?.hasMp4 == false ? .progressive : .mp4
+        }
+        return AnalyticsEvent.Playback(media: .video, streamMethod: streamMethod, player: .chromecast)
     }
 
     @objc private func saveVideoTime() {
