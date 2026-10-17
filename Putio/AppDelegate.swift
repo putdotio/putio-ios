@@ -212,8 +212,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func fetchUser() {
-        let signposter = PerfSignpost.signposter
-        let signpost = signposter.beginInterval("FetchUser", id: signposter.makeSignpostID())
+        let signpost = PerfSignpost.begin("FetchUser")
         let dispatchGroup = DispatchGroup()
         
         var account: PutioAccount?
@@ -255,7 +254,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         dispatchGroup.notify(queue: .main) {
-            signposter.endInterval("FetchUser", signpost)
+            PerfSignpost.end(signpost)
 
             if let accountError = accountError {
                 return self.fetchUserFailure(error: accountError)

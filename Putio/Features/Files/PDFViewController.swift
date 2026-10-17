@@ -1,12 +1,11 @@
 import UIKit
 import PDFKit
 import PutioSDK
-import os
 
 class PDFViewController: UIViewController {
     var file: PutioFile?
     private var request: URLSessionDataTask?
-    private var openSignpost: OSSignpostIntervalState?
+    private var openSignpost: PerfSignpost.Interval?
 
     @IBOutlet weak var pdfView: PDFView!
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
@@ -24,8 +23,7 @@ class PDFViewController: UIViewController {
 
         if let file = file {
             title = file.name
-            let signposter = PerfSignpost.signposter
-            openSignpost = signposter.beginInterval("PDFOpen", id: signposter.makeSignpostID(), "file \(file.id)")
+            openSignpost = PerfSignpost.begin("PDFOpen")
             downloadAndShowPDF()
         }
     }
@@ -104,9 +102,9 @@ class PDFViewController: UIViewController {
         guard let signpost = openSignpost else { return }
         openSignpost = nil
         if afterCommit {
-            PerfSignpost.endAfterCommit("PDFOpen", signpost)
+            PerfSignpost.endAfterCommit(signpost)
         } else {
-            PerfSignpost.signposter.endInterval("PDFOpen", signpost)
+            PerfSignpost.end(signpost)
         }
     }
 

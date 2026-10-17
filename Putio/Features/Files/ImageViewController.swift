@@ -1,11 +1,10 @@
 import UIKit
 import PutioSDK
-import os
 
 class ImageViewController: UIViewController {
     var file: PutioFile?
     private var request: URLSessionDataTask?
-    private var openSignpost: OSSignpostIntervalState?
+    private var openSignpost: PerfSignpost.Interval?
 
     @IBOutlet weak var imageView: UIImageView!
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
@@ -20,8 +19,7 @@ class ImageViewController: UIViewController {
 
         if let file = file {
             title = file.name
-            let signposter = PerfSignpost.signposter
-            openSignpost = signposter.beginInterval("ImageOpen", id: signposter.makeSignpostID(), "file \(file.id)")
+            openSignpost = PerfSignpost.begin("ImageOpen")
             loadImage()
         }
     }
@@ -82,9 +80,9 @@ class ImageViewController: UIViewController {
         guard let signpost = openSignpost else { return }
         openSignpost = nil
         if afterCommit {
-            PerfSignpost.endAfterCommit("ImageOpen", signpost)
+            PerfSignpost.endAfterCommit(signpost)
         } else {
-            PerfSignpost.signposter.endInterval("ImageOpen", signpost)
+            PerfSignpost.end(signpost)
         }
     }
 
