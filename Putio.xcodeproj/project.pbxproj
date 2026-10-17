@@ -167,6 +167,7 @@
 		DC635AF0F100AD63CD875379 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EEE14DC43F881736BEDFD030 /* Foundation.framework */; };
 		DF84BAD3CCED8B054A1E09E7 /* FilesViewController+TableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B31D9D86843A740051235A /* FilesViewController+TableView.swift */; };
 		F5F55CEFFA917A837390DE86 /* PutioRealmTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */; };
+		F7A35C2E9B1D4E6F8A0C2E41 /* putio-2.58.0.realm in Resources */ = {isa = PBXBuildFile; fileRef = F7A35C2E9B1D4E6F8A0C2E42 /* putio-2.58.0.realm */; };
 		F9E4EEE0C7237C463865FD19 /* FilesViewController+Navigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969D8492C4F12034E0FD0421 /* FilesViewController+Navigation.swift */; };
 /* End PBXBuildFile section */
 
@@ -362,6 +363,8 @@
 		D6621E70422BFD153917AB79 /* SettingsViewModel+Persistence.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "SettingsViewModel+Persistence.swift"; sourceTree = "<group>"; };
 		E00971069F13C4F9912DC53A /* TypeScaleScalingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TypeScaleScalingTests.swift; sourceTree = "<group>"; };
 		E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioRealmTests.swift; sourceTree = "<group>"; };
+		F7A35C2E9B1D4E6F8A0C2E42 /* putio-2.58.0.realm */ = {isa = PBXFileReference; lastKnownFileType = file; path = "putio-2.58.0.realm"; sourceTree = "<group>"; };
+		F7A35C2E9B1D4E6F8A0C2E43 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		EEE14DC43F881736BEDFD030 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 /* End PBXFileReference section */
 
@@ -416,9 +419,19 @@
 				465A7CDCD9D300C8BA947448 /* TypeScaleSpecimen.swift */,
 				E00971069F13C4F9912DC53A /* TypeScaleScalingTests.swift */,
 				A924230BA95F3FB946456266 /* TypeScaleRampArtifactTests.swift */,
+				F7A35C2E9B1D4E6F8A0C2E44 /* Fixtures */,
 			);
 			name = PutioTests;
 			path = PutioTests;
+			sourceTree = "<group>";
+		};
+		F7A35C2E9B1D4E6F8A0C2E44 /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				F7A35C2E9B1D4E6F8A0C2E43 /* README.md */,
+				F7A35C2E9B1D4E6F8A0C2E42 /* putio-2.58.0.realm */,
+			);
+			path = Fixtures;
 			sourceTree = "<group>";
 		};
 		30BC48A08C4548A56B8C2951 /* Frameworks */ = {
@@ -914,9 +927,6 @@
 						LastSwiftMigration = 1150;
 						ProvisioningStyle = Manual;
 						SystemCapabilities = {
-							com.apple.AccessWiFi = {
-								enabled = 1;
-							};
 							com.apple.BackgroundModes = {
 								enabled = 1;
 							};
@@ -955,6 +965,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F7A35C2E9B1D4E6F8A0C2E41 /* putio-2.58.0.realm in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

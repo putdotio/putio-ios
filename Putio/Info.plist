@@ -83,16 +83,15 @@
 		<string>_$(PUTIO_CHROMECAST_RECEIVER_APP_ID)._googlecast._tcp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>${PRODUCT_NAME} uses the local network to discover Cast-enabled devices on your WiFi
-network.</string>
+	<string>put.io uses your local network to find Chromecast and other Cast devices on your Wi-Fi.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Take photos in support conversations to help resolve app issues</string>
+	<string>Take photos and videos to send to put.io support.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Implement support messaging</string>
+	<string>Your location is used only if you choose to share it with put.io support.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Record audio in support videos to help resolve app issues</string>
+	<string>Record audio for videos and voice messages you send to put.io support.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Send photos over support interface to help resolve app issues</string>
+	<string>Choose photos and videos to send to put.io support.</string>
 	<key>PUTIO_CHROMECAST_RECEIVER_APP_ID</key>
 	<string>$(PUTIO_CHROMECAST_RECEIVER_APP_ID)</string>
 	<key>PUTIO_INTERCOM_API_KEY</key>

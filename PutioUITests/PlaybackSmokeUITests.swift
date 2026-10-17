@@ -1,13 +1,46 @@
 import XCTest
 
 final class PlaybackSmokeUITests: XCTestCase {
-    private func launchFixtureApp() -> XCUIApplication {
+    private static let offlineBootstrap = "GET /v2/account/info,GET /v2/config"
+
+    private func launchFixtureApp(offlineRoutes: String? = nil, failRoutes: String? = nil, upgradingFrom258: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["PUTIO_E2E_MOCK_API"] = "1"
         app.launchEnvironment["PUTIO_E2E_ACCESS_TOKEN"] = "e2e-token"
         app.launchEnvironment["PUTIO_E2E_RESET_STATE"] = "1"
+        app.launchEnvironment["PUTIO_E2E_OFFLINE_ROUTES"] = offlineRoutes
+        app.launchEnvironment["PUTIO_E2E_FAIL_ROUTES"] = failRoutes
+        app.launchEnvironment["PUTIO_E2E_UPGRADING_FROM_258"] = upgradingFrom258 ? "1" : nil
         app.launch()
         return app
+    }
+
+    // Without a Realm user, only the update from 2.58.0 skips the account. Any
+    // other failed bootstrap lands on Login, so a broken mocked one fails loudly.
+    func testFailedBootstrapWithoutCachedUserShowsLogin() {
+        let failures: [(offline: String?, fail: String?)] = [(nil, "GET /v2/account/info"), (Self.offlineBootstrap, nil)]
+        for (offlineRoutes, failRoutes) in failures {
+            let app = launchFixtureApp(offlineRoutes: offlineRoutes, failRoutes: failRoutes)
+
+            XCTAssertTrue(app.buttons["Log in"].waitForExistence(timeout: 20), offlineRoutes ?? failRoutes ?? "")
+            XCTAssertFalse(app.tabItem("Files").exists)
+            app.terminate()
+        }
+    }
+
+    // The reset leaves a token and no Realm user, as the first launch after the
+    // update from 2.58.0 does. Offline, that must open downloads, not Login.
+    func testOfflineUpgradeLaunchWithoutCachedUserOpensDownloads() {
+        let app = launchFixtureApp(offlineRoutes: Self.offlineBootstrap, upgradingFrom258: true)
+        guard app.waitForSignedInTabBar() else { return }
+
+        app.tabItem("Downloads").tap()
+        XCTAssertTrue(app.tables["putio-downloads-table"].cells["putio-download-42"].waitForExistence(timeout: 10))
+
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Offline upgrade launch without a cached user"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
     }
 
     func testMockedPlaybackResumeFlow() {

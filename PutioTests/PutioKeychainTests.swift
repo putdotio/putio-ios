@@ -16,6 +16,54 @@ final class PutioKeychainTests: XCTestCase {
         keychain.clearToken()
         XCTAssertNil(keychain.getToken())
     }
+
+    // 2.58.0 wrote the token under its own literal service, not this build's.
+    func testShipped258TokenMovesToTheCurrentService() {
+        let serviceKey = "com.putio.tests.keychain.\(UUID().uuidString)"
+        let legacyServiceKey = "\(serviceKey).2.58.0"
+        let shipped = PutioKeychain(serviceKey: legacyServiceKey, legacyServiceKey: nil)
+        shipped.setToken("shipped-token")
+        let keychain = PutioKeychain(serviceKey: serviceKey, legacyServiceKey: legacyServiceKey)
+        addTeardownBlock { keychain.clearToken() }
+
+        XCTAssertEqual(keychain.getToken(adoptsShipped258Token: true), "shipped-token")
+        XCTAssertNil(shipped.getToken())
+        XCTAssertEqual(PutioKeychain(serviceKey: serviceKey, legacyServiceKey: nil).getToken(), "shipped-token")
+
+        // Signing out must not leave the old copy to sign back in with.
+        shipped.setToken("shipped-token")
+        keychain.clearToken()
+        XCTAssertNil(keychain.getToken(adoptsShipped258Token: true))
+    }
+
+    // A 3.x sign-out cleared only 3.x's service, so on an install 3.x already
+    // ran, 2.58.0's copy must not sign anyone back in.
+    func testShipped258TokenIsDeletedWhenNotAdopted() {
+        let serviceKey = "com.putio.tests.keychain.\(UUID().uuidString)"
+        let legacyServiceKey = "\(serviceKey).2.58.0"
+        let shipped = PutioKeychain(serviceKey: legacyServiceKey, legacyServiceKey: nil)
+        shipped.setToken("shipped-token")
+        let keychain = PutioKeychain(serviceKey: serviceKey, legacyServiceKey: legacyServiceKey)
+        addTeardownBlock { keychain.clearToken() }
+
+        XCTAssertNil(keychain.getToken())
+        XCTAssertNil(shipped.getToken())
+        XCTAssertNil(keychain.getToken(adoptsShipped258Token: true))
+    }
+
+    // 2.58.0's own service, not one the test names: the default is the upgrade.
+    func testDefaultKeychainReadsTheServiceThat258Shipped() {
+        let shipped = PutioKeychain(serviceKey: "com.putio.tvOS", legacyServiceKey: nil)
+        shipped.setToken("shipped-token")
+        let keychain = PutioKeychain(serviceKey: "com.putio.tests.keychain.\(UUID().uuidString)")
+        addTeardownBlock {
+            keychain.clearToken()
+            shipped.clearToken()
+        }
+
+        XCTAssertEqual(keychain.getToken(adoptsShipped258Token: true), "shipped-token")
+        XCTAssertNil(shipped.getToken())
+    }
 }
 
 final class DownloadSupportTests: XCTestCase {
