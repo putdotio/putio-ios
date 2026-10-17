@@ -1029,10 +1029,10 @@
             </objects>
             <point key="canvasLocation" x="5140" y="2224"/>
         </scene>
-        <!--Clear Your Data-->
+        <!--Clear your data-->
         <scene sceneID="tXl-CZ-5JW">
             <objects>
-                <tableViewController title="Clear Your Data" id="vsw-Zm-mff" customClass="ClearDataTableViewController" customModule="Putio" customModuleProvider="target" sceneMemberID="viewController">
+                <tableViewController title="Clear your data" id="vsw-Zm-mff" customClass="ClearDataTableViewController" customModule="Putio" customModuleProvider="target" sceneMemberID="viewController">
                     <tableView key="view" clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" dataMode="prototypes" style="plain" separatorStyle="default" rowHeight="-1" estimatedRowHeight="-1" sectionHeaderHeight="-1" estimatedSectionHeaderHeight="-1" sectionFooterHeight="-1" estimatedSectionFooterHeight="-1" id="rTB-sL-06p">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="635"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -1065,8 +1065,8 @@
                             <outlet property="delegate" destination="vsw-Zm-mff" id="5Fn-qO-I8d"/>
                         </connections>
                     </tableView>
-                    <navigationItem key="navigationItem" title="Select items to clean" largeTitleDisplayMode="never" id="Hu3-ND-kF7">
-                        <barButtonItem key="rightBarButtonItem" title="Cleanup" style="done" id="p5P-Pw-3hZ">
+                    <navigationItem key="navigationItem" title="Clear your data" largeTitleDisplayMode="never" id="Hu3-ND-kF7">
+                        <barButtonItem key="rightBarButtonItem" title="Clear" id="p5P-Pw-3hZ">
                             <color key="tintColor" name="putio.yellow.text-secondary"/>
                             <connections>
                                 <action selector="cleanUpButtonPressed:" destination="vsw-Zm-mff" id="ino-6C-FyA"/>

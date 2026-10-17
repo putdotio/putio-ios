@@ -53,6 +53,9 @@
 "Account" = "Account";
 
 /* No comment provided by engineer. */
+"Active transfers" = "Active transfers";
+
+/* No comment provided by engineer. */
 "Amsterdam" = "Amsterdam";
 
 /* No comment provided by engineer. */
@@ -129,6 +132,9 @@
 
 /* No comment provided by engineer. */
 "Clear" = "Clear";
+
+/* No comment provided by engineer. */
+"Clear the selected data?" = "Clear the selected data?";
 
 /* No comment provided by engineer. */
 "Clear your data" = "Clear your data";
@@ -313,10 +319,16 @@
 "Files" = "Files";
 
 /* No comment provided by engineer. */
+"Finished transfers" = "Finished transfers";
+
+/* No comment provided by engineer. */
 "Folder Name" = "Folder Name";
 
 /* Audio player controls. */
 "Forward 15 seconds" = "Forward 15 seconds";
+
+/* No comment provided by engineer. */
+"Friends" = "Friends";
 
 /* No comment provided by engineer. */
 "Go Back" = "Go Back";
@@ -502,6 +514,12 @@
 "Recovering..." = "Recovering...";
 
 /* No comment provided by engineer. */
+"RSS feeds" = "RSS feeds";
+
+/* No comment provided by engineer. */
+"RSS logs" = "RSS logs";
+
+/* No comment provided by engineer. */
 "Regenerate" = "Regenerate";
 
 /* No comment provided by engineer. */
@@ -640,7 +658,13 @@
 "There will be information when things start happening." = "There will be information when things start happening.";
 
 /* No comment provided by engineer. */
+"These permanently delete data from your put.io account, on every device. To free up space on this device, delete downloads in Downloads instead." = "These permanently delete data from your put.io account, on every device. To free up space on this device, delete downloads in Downloads instead.";
+
+/* No comment provided by engineer. */
 "This directory doesn't contain any folder" = "This directory doesn't contain any folder";
+
+/* %@ is the selected categories, for example "Files, History, and Trash". */
+"This permanently deletes %@ from your put.io account. It can't be undone." = "This permanently deletes %@ from your put.io account. It can't be undone.";
 
 /* No comment provided by engineer. */
 "Today" = "Today";

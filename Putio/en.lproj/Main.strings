@@ -26,8 +26,8 @@
 /* Class = "UILabel"; text = "Enter the code shown on your device to link it to your put.io account."; ObjectID = "HXS-w2-HnI"; */
 "HXS-w2-HnI.text" = "Enter the code shown on your device to link it to your put.io account.";
 
-/* Class = "UINavigationItem"; title = "Select items to clean"; ObjectID = "Hu3-ND-kF7"; */
-"Hu3-ND-kF7.title" = "Select items to clean";
+/* Class = "UINavigationItem"; title = "Clear your data"; ObjectID = "Hu3-ND-kF7"; */
+"Hu3-ND-kF7.title" = "Clear your data";
 
 /* Class = "UITabBarItem"; title = "Downloads"; ObjectID = "JPZ-4q-6Dh"; */
 "JPZ-4q-6Dh.title" = "Downloads";
@@ -77,8 +77,8 @@
 /* Class = "UIViewController"; title = "Link Your Account"; ObjectID = "oZc-ox-W6e"; */
 "oZc-ox-W6e.title" = "Link Your Account";
 
-/* Class = "UIBarButtonItem"; title = "Cleanup"; ObjectID = "p5P-Pw-3hZ"; */
-"p5P-Pw-3hZ.title" = "Cleanup";
+/* Class = "UIBarButtonItem"; title = "Clear"; ObjectID = "p5P-Pw-3hZ"; */
+"p5P-Pw-3hZ.title" = "Clear";
 
 /* Class = "UINavigationItem"; title = "History"; ObjectID = "pFy-kL-Qan"; */
 "pFy-kL-Qan.title" = "History";
@@ -86,8 +86,8 @@
 /* Class = "UINavigationItem"; title = "Trash"; ObjectID = "qFx-Mp-mrf"; */
 "qFx-Mp-mrf.title" = "Trash";
 
-/* Class = "UITableViewController"; title = "Clear Your Data"; ObjectID = "vsw-Zm-mff"; */
-"vsw-Zm-mff.title" = "Clear Your Data";
+/* Class = "UITableViewController"; title = "Clear your data"; ObjectID = "vsw-Zm-mff"; */
+"vsw-Zm-mff.title" = "Clear your data";
 
 /* Class = "UINavigationItem"; title = "Downloads: Mini Tutorial"; ObjectID = "wiF-8p-yTc"; */
 "wiF-8p-yTc.title" = "Downloads: Mini Tutorial";
