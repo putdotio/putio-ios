@@ -48,6 +48,10 @@ enum ProductAnalytics {
         shared.capture(event, startedIn: session)
     }
 
+    static func captureInCurrentSession() -> (AnalyticsEvent) -> Void {
+        shared.captureInCurrentSession()
+    }
+
     /// PostHog's public project token, which only names the project. Anything
     /// else, including an unexpanded `$(PUTIO_POSTHOG_TOKEN)`, is nil.
     static func projectToken(_ value: String) -> String? {
@@ -169,6 +173,16 @@ final class ProductAnalyticsGate {
     func capture(_ event: AnalyticsEvent, startedIn session: Int) {
         guard session == AccountNoticeStore.shared.session else { return }
         capture(event)
+    }
+
+    /// Bound to the session it is made in, on the main thread. Its events can
+    /// come from any thread, so each moves to the main thread, where the
+    /// session is read, keeping the order they came in.
+    func captureInCurrentSession() -> (AnalyticsEvent) -> Void {
+        let session = AccountNoticeStore.shared.session
+        return { [self] event in
+            DispatchQueue.main.async { self.capture(event, startedIn: session) }
+        }
     }
 
     /// Storage the SDK keeps under its project token.

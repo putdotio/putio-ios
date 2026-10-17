@@ -300,6 +300,23 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertEqual(events.map { $0["event"] as? String }, ["screen_viewed"])
     }
 
+    func testAPlaybackThatOutlivesItsSessionSendsNothing() throws {
+        let (gate, token) = makeGate()
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .native)
+        let pictureInPicture = PlaybackAnalytics(video, capture: gate.captureInCurrentSession())
+        pictureInPicture.start()
+        _ = try waitForEvents(token: token, count: 1)
+
+        // Signed out and in again while Picture in Picture kept playing.
+        AccountNoticeStore.shared.clear()
+        pictureInPicture.end()
+        PlaybackAnalytics(video, capture: gate.captureInCurrentSession()).fail(URLError(.timedOut))
+        let events = try waitForEvents(token: token, count: 2)
+
+        XCTAssertEqual(events.map { $0["event"] as? String }, ["playback_started", "playback_failed"])
+    }
+
     func testAStartAfterAKilledLaunchDropsItsIdentity() throws {
         let (killed, token) = makeGate()
         killed.update(accountID: 1001, productAnalyticsEnabled: true)
@@ -398,6 +415,31 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertEqual(AnalyticsEvent.PlaybackError(PutioSDKError.offline("/files/1")), .network)
         XCTAssertEqual(AnalyticsEvent.PlaybackError(URLError(.timedOut)), .network)
         XCTAssertEqual(AnalyticsEvent.PlaybackError(NSError(domain: "Missing Metadata", code: 0)), .unknown)
+    }
+
+    func testAnEndFromAnotherThreadLeavesAfterTheStart() {
+        let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .native)
+        let events = OSAllocatedUnfairLock(uncheckedState: [AnalyticsEvent]())
+        let ending = DispatchGroup()
+        var playback: PlaybackAnalytics?
+        playback = PlaybackAnalytics(video, capture: { event in
+            if case .playbackStarted = event {
+                // AVFoundation reports the end on its own thread while the start is on its way out.
+                ending.enter()
+                DispatchQueue.global().async {
+                    playback?.end()
+                    ending.leave()
+                }
+                _ = ending.wait(timeout: .now() + 0.2)
+            }
+            events.withLock { $0.append(event) }
+        })
+
+        playback?.start()
+
+        XCTAssertEqual(ending.wait(timeout: .now() + 5), .success)
+        XCTAssertEqual(events.withLock { $0 }, [.playbackStarted(video), .playbackEnded(video, .partial, .under5m)])
+        playback = nil
     }
 
     // MARK: - Helpers

@@ -271,7 +271,8 @@ final class AppSessionAnalytics {
 }
 
 /// One player's playback events: started once, then ended or failed once.
-/// AVFoundation can report from any thread.
+/// AVFoundation can report from any thread, so each event is captured under
+/// the lock, in the order it happened; `capture` must not call back in.
 final class PlaybackAnalytics {
     private let playback: AnalyticsEvent.Playback
     private let capture: (AnalyticsEvent) -> Void
@@ -281,19 +282,24 @@ final class PlaybackAnalytics {
     private var isFinished = false
     private var queueObservation: NSKeyValueObservation?
 
-    init(_ playback: AnalyticsEvent.Playback, capture: @escaping (AnalyticsEvent) -> Void = ProductAnalytics.capture, now: @escaping () -> Date = Date.init) {
+    /// Made on the main thread by default, so a playback that outlives a
+    /// sign-out, as in Picture in Picture, sends nothing to the next account.
+    init(
+        _ playback: AnalyticsEvent.Playback,
+        capture: @escaping (AnalyticsEvent) -> Void = ProductAnalytics.captureInCurrentSession(),
+        now: @escaping () -> Date = Date.init
+    ) {
         self.playback = playback
         self.capture = capture
         self.now = now
     }
 
     func start() {
-        let started: Bool = lock.withLock {
-            guard startedAt == nil, !isFinished else { return false }
+        lock.withLock {
+            guard startedAt == nil, !isFinished else { return }
             startedAt = now()
-            return true
+            capture(.playbackStarted(playback))
         }
-        if started { capture(.playbackStarted(playback)) }
     }
 
     /// For a queue: failed when its current item fails, played to the end
@@ -322,21 +328,19 @@ final class PlaybackAnalytics {
     }
 
     private func finish(_ completion: AnalyticsEvent.Completion) {
-        let ended: AnalyticsEvent? = lock.withLock {
+        lock.withLock {
             queueObservation = nil
             defer { isFinished = true }
-            guard let startedAt, !isFinished else { return nil }
-            return .playbackEnded(playback, completion, .init(seconds: now().timeIntervalSince(startedAt)))
+            guard let startedAt, !isFinished else { return }
+            capture(.playbackEnded(playback, completion, .init(seconds: now().timeIntervalSince(startedAt))))
         }
-        ended.map(capture)
     }
 
     func fail(_ error: Error?) {
-        let failed: Bool = lock.withLock {
-            guard !isFinished else { return false }
+        lock.withLock {
+            guard !isFinished else { return }
             isFinished = true
-            return true
+            capture(.playbackFailed(playback, .init(error)))
         }
-        if failed { capture(.playbackFailed(playback, .init(error))) }
     }
 }
