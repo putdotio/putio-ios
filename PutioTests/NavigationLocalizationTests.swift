@@ -152,6 +152,27 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(items[2].title, NSLocalizedString("Delete", comment: ""))
     }
 
+    func testSelectAllSelectsEveryRowExceptSharedRoots() throws {
+        let viewController = FilesViewController()
+        let tableView = UITableView()
+        tableView.allowsMultipleSelectionDuringEditing = true
+        tableView.dataSource = viewController
+        tableView.delegate = viewController
+        viewController.tableView = tableView
+        viewController.viewModel.files = [
+            try makeFile(id: 2, name: "Video", type: "VIDEO"),
+            try makeFolder(id: 3, name: "Shared with me", sortBy: "NAME_ASC", folderType: "SHARED_ROOT"),
+            try makeFile(id: 4, name: "Audio", type: "AUDIO")
+        ]
+        tableView.setEditing(true, animated: false)
+
+        viewController.selectAll()
+
+        XCTAssertEqual(tableView.indexPathsForSelectedRows?.map(\.row).sorted(), [0, 2])
+        XCTAssertTrue(viewController.allSelected)
+        XCTAssertEqual(viewController.navigationItem.title, String(format: NSLocalizedString("%d Items", comment: ""), 2))
+    }
+
     func testAuthAppsContextualDeleteActionUsesLocalizedRevokeTitle() {
         let viewController = AuthAppsTableViewController(style: .insetGrouped)
 
@@ -671,7 +692,7 @@ final class NavigationLocalizationTests: XCTestCase {
         return cell
     }
 
-    private func makeFolder(id: Int, name: String, sortBy: String) throws -> PutioFile {
+    private func makeFolder(id: Int, name: String, sortBy: String, folderType: String = "REGULAR") throws -> PutioFile {
         return try makePutioFile([
                 "id": id,
                 "name": name,
@@ -682,7 +703,7 @@ final class NavigationLocalizationTests: XCTestCase {
                 "created_at": "2026-04-20T00:00:00Z",
                 "updated_at": "2026-04-20T00:00:00Z",
                 "is_shared": false,
-                "folder_type": "REGULAR",
+                "folder_type": folderType,
                 "sort_by": sortBy
             ]
         )

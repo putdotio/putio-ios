@@ -79,12 +79,10 @@ extension FilesViewController {
         let signpost = PerfSignpost.begin("SelectAll", rows: viewModel.files.count)
         defer { PerfSignpost.endAfterCommit(signpost) }
 
+        let selectableIDs = Set(viewModel.getSelectableFiles().map(\.id))
         for section in 0..<tableView.numberOfSections {
-            for row in 0..<tableView.numberOfRows(inSection: section) {
-                let selectableFiles = viewModel.getSelectableFiles()
-                if selectableFiles.contains(where: { $0.id == self.viewModel.files[row].id }) {
-                    tableView.selectRow(at: IndexPath(row: row, section: section), animated: false, scrollPosition: .none)
-                }
+            for row in 0..<tableView.numberOfRows(inSection: section) where selectableIDs.contains(viewModel.files[row].id) {
+                tableView.selectRow(at: IndexPath(row: row, section: section), animated: false, scrollPosition: .none)
             }
         }
 
