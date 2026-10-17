@@ -123,6 +123,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         applyWindowAppearance()
         window.makeKeyAndVisible()
         if !isRunningUnitTests {
+            // A scene needs an unlocked device, so a setup the lock stopped
+            // runs now, before the session is restored.
+            if let realmFailure = PutioRealm.setupIfLocked(isProtectedDataAvailable: UIApplication.shared.isProtectedDataAvailable) {
+                SentryTelemetry.capture(.realmOpen, error: realmFailure)
+            }
             authenticate(token: e2eAccessToken, isRestoredSession: true)
         }
     }

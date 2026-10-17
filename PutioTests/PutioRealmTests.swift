@@ -235,6 +235,24 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertNotNil(realm.object(ofType: User.self, forPrimaryKey: 4242))
     }
 
+    // Before first unlock the open fails with an I/O error, not 16. Unless setup
+    // runs again once the device unlocks, 2.58.0's token reads as a 3.x leftover.
+    func testSetupStoppedByTheLockStillReplacesShipped258Realm() throws {
+        let realmURL = temporaryDirectory.appendingPathComponent("locked/default.realm")
+        preserveDefaultRealmConfiguration()
+        XCTAssertNotNil(PutioRealm.setup(configuration: PutioRealm.configuration(fileURL: realmURL), defaults: defaults, isProtectedDataAvailable: false))
+        XCTAssertFalse(PutioRealm.isUpgradingFromShipped258(defaults: defaults))
+
+        // Unlocked, the file reads as 2.58.0's.
+        try FileManager.default.createDirectory(at: realmURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let fixture = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "putio-2.58.0", withExtension: "realm"))
+        try FileManager.default.copyItem(at: fixture, to: realmURL)
+
+        XCTAssertNil(PutioRealm.setupIfLocked(defaults: defaults))
+        XCTAssertTrue(PutioRealm.isUpgradingFromShipped258(defaults: defaults))
+        XCTAssertEqual(try realmFileFormat(at: realmURL), 24)
+    }
+
     func testSetupKeepsTheFileWhileProtectedDataIsUnavailable() throws {
         let realmURL = temporaryDirectory.appendingPathComponent("locked/default.realm")
         preserveDefaultRealmConfiguration()

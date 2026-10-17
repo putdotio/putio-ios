@@ -94,6 +94,9 @@ class PutioRealm {
     // An in-memory Realm keeps its rows only while an instance is open.
     private static var fallbackRealm: Realm?
 
+    // What a setup while the device was locked could not open.
+    private static var lockedConfiguration: Realm.Configuration?
+
     /// Returns the failure, if any, for the caller to report once telemetry runs.
     @discardableResult
     static func setup(
@@ -102,6 +105,7 @@ class PutioRealm {
         isProtectedDataAvailable: Bool = true
     ) -> Error? {
         Realm.Configuration.defaultConfiguration = configuration
+        lockedConfiguration = nil
         var failure = openingError(configuration)
 
         if let error = failure as? Realm.Error, unreadableFileCodes.contains(error.code) {
@@ -118,14 +122,24 @@ class PutioRealm {
         // Without a default Realm every sign-in lands back on Login, so this
         // launch keeps its rows in memory and the next one tries the file again.
         // Not while the device is locked, as in a background launch before first
-        // unlock: then later opens retry the file once it unlocks.
-        if isProtectedDataAvailable {
-            var fallback = configuration
-            fallback.inMemoryIdentifier = "PutioRealm.fallback"
-            Realm.Configuration.defaultConfiguration = fallback
-            fallbackRealm = try? Realm(configuration: fallback)
+        // unlock: later opens retry the file, and so does setupIfLocked().
+        guard isProtectedDataAvailable else {
+            lockedConfiguration = configuration
+            return failure
         }
+        var fallback = configuration
+        fallback.inMemoryIdentifier = "PutioRealm.fallback"
+        Realm.Configuration.defaultConfiguration = fallback
+        fallbackRealm = try? Realm(configuration: fallback)
         return failure
+    }
+
+    /// Runs again a setup the locked device stopped, so 2.58.0's file is still
+    /// found and replaced before anything reads the session.
+    @discardableResult
+    static func setupIfLocked(defaults: UserDefaults = .standard, isProtectedDataAvailable: Bool = true) -> Error? {
+        guard let configuration = lockedConfiguration else { return nil }
+        return setup(configuration: configuration, defaults: defaults, isProtectedDataAvailable: isProtectedDataAvailable)
     }
 
     private static func openingError(_ configuration: Realm.Configuration) -> Error? {
