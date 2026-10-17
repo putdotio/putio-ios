@@ -52,7 +52,7 @@ The `release` Environment must provide:
   - `PUTIO_DEVELOPMENT_TEAM`
   - `PUTIO_OAUTH_CLIENT_ID`
   - `PUTIO_CHROMECAST_RECEIVER_APP_ID`
-  - `PUTIO_SENTRY_DSN`: the DSN for Sentry project `ios` (`5282170`); beta and release fail without it. The app posts through `relay.put.io` and only while the account's `diagnostics_enabled` is on
+  - `PUTIO_SENTRY_DSN`: the DSN for Sentry project `ios` (`5282170`); beta and release fail without it. The app posts through `relay.put.io` unless the account's `diagnostics_enabled` is off, so also while signed out and before the account answers
 - Intercom fields: beta and release fail without them, because Contact us and destroy-account support open Intercom. Each must match `[A-Za-z0-9._:-]+` and must not be `null`:
   - `PUTIO_INTERCOM_API_KEY`
   - `PUTIO_INTERCOM_APP_ID`
@@ -78,6 +78,47 @@ One controlled, non-fatal event proves a build's Sentry path. Run the check on t
 3. In Sentry project `ios` (`5282170`), not `tvos`, find `category:diagnostics_check` and confirm release `com.putio.tvOS@3.0.0+<build>` for the installed build, environment `production`, OS `iOS` or `iPadOS`, and `app.build_type` `test`. TestFlight and App Store events share the `production` environment, so the build type is what tells them apart.
 
 Never paste the DSN or the event payload into issues, pull requests, or logs.
+
+## App Privacy
+
+[`Putio/PrivacyInfo.xcprivacy`](../Putio/PrivacyInfo.xcprivacy) declares what put.io's servers keep, what Sentry and Intercom get, and what the SDKs' own manifests leave out, including the required-reason APIs of Google Cast, which links into the app binary. Organizer's privacy report merges it with those manifests, and the App Privacy answers in App Store Connect must match that report. App Store Connect takes one linked answer per data type: yes when any source links it. Nothing is used for tracking.
+
+Before submitting 3.x, change the 2.58.0 answers to these:
+
+| Data type | 2.58.0 | 3.x | Source |
+| --- | --- | --- | --- |
+| Email Address | Linked: App Functionality | Unchanged | put.io account; Intercom's manifest |
+| User ID | Linked: Analytics, App Functionality | Unchanged | put.io account ID and username; Intercom gets the account ID; PostHog, for Analytics |
+| Customer Support | Linked: App Functionality | Unchanged | Intercom conversations |
+| Product Interaction | Linked: Analytics, App Functionality | Unchanged | put.io playback positions and IFTTT playback events; Intercom; Google Cast, not linked |
+| Crash Data | Linked: App Functionality | Unchanged | Sentry |
+| Performance Data | Linked: App Functionality | Linked: Analytics, App Functionality | Sentry, Intercom; Google Cast's nutrition label |
+| Other Diagnostic Data | Not declared | Linked: Analytics, App Functionality | Sentry, Intercom, Google Cast |
+| Device ID | Not declared | Linked: Analytics, App Functionality | Intercom's device ID and push token; Sentry's installation ID and `device_app_hash`; Google Cast, not linked |
+| Photos or Videos | Not declared | Linked: App Functionality | Intercom attachments |
+| Audio Data | Not declared | Linked: App Functionality | Intercom voice notes |
+| Other User Content | Not declared | Linked: App Functionality | put.io folder names and renames |
+| Coarse Location | Not declared | Linked: Analytics, App Functionality | Intercom, from the IP address; Google Cast's nutrition label, not linked |
+| Search History | Not declared | Unchanged, unless question 2 or 3 is yes | Intercom Help Center search; put.io file search |
+
+- PostHog ([#345](https://github.com/putdotio/putio-ios/issues/345)) ships in 3.x, so User ID keeps Analytics. Until it merges, the manifest declares only what the app sends today, and Xcode's report lacks Analytics on User ID; #345 adds it, and linked Product Interaction, to the manifest.
+- Intercom's rows beyond its manifest come from [its App Store guidance](https://www.intercom.com/help/en/articles/4686934-apple-s-app-store-data-privacy-details-and-intercom-s-ios-sdk). Intercom 19.9.0 also records and uploads voice notes, which `NSMicrophoneUsageDescription` covers.
+- Google Cast 4.8.3's `NutritionLabel.txt`, in the SDK download ([Google's guidance](https://developers.google.com/cast/docs/ios_sender/app_privacy)), lists Coarse Location, Device ID, Performance Data and Product Interaction for Analytics and App Functionality. Its manifest declares only Device ID, Other Diagnostic Data and Product Interaction. The app turns Cast's analytics logging off, but that doesn't change Google's declaration, so the app's manifest adds Analytics to Coarse Location and Performance Data.
+- [Apple counts free-form text fields](https://developer.apple.com/app-store/app-privacy-details/) as Other User Content, which covers folder names and renames. The app uploads no files and adds no transfers.
+- Sentry sends unless the account's `diagnostics_enabled` is off, so also while signed out and before the account answers. Its events carry the random installation ID and `device_app_hash`, a hash of the IDFV, in the `app` context. Neither carries the account, but [Apple counts data as linked](https://developer.apple.com/app-store/app-privacy-details/) to a user's identity "via their account, device, or other details", so Sentry's crash, performance and diagnostic data are linked.
+
+Questions to settle before changing the answers:
+
+1. Does put.io send marketing messages through Intercom? If so, add Developer's Advertising or Marketing to Email Address, Device ID and Product Interaction, here and in the manifest.
+2. Does put.io's Messenger offer Help Center search? If so, declare Search History, linked, for Analytics and App Functionality, here and in the manifest.
+3. Do put.io's server logs keep file-search text? File search sends the query to put.io as a `GET /files/search` request parameter; whether server logs keep it is unverified. If they do, declare Search History, linked, for App Functionality.
+
+Organizer's Generate Privacy Report has no command-line equivalent. CI deletes its archives, so archive locally, then open the archive in Organizer:
+
+```sh
+xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -archivePath build/privacy/Putio.xcarchive CODE_SIGNING_ALLOWED=NO archive
+open build/privacy/Putio.xcarchive
+```
 
 ## GitHub Release Settings
 

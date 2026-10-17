@@ -2,10 +2,7 @@ import UIKit
 import Intercom
 import RealmSwift
 import PutioSDK
-import SwiftyBeaver
 import GoogleCast
-
-let log = SwiftyBeaver.self
 
 enum DownloadQueueLifecyclePolicy {
     static func shouldRestoreBackgroundSession(identifier: String, isMockAPIEnabled: Bool) -> Bool {
@@ -71,7 +68,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         PerfSignpost.beginLaunchToFiles()
-        configureLogger()
 
         if isRunningUnitTests {
             return true
@@ -85,13 +81,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         configureUI()
         return true
-    }
-
-    func configureLogger() {
-        #if DEBUG
-        let console = ConsoleDestination()
-        log.addDestination(console)
-        #endif
     }
 
     func configureSDKs() {

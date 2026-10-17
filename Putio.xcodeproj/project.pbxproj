@@ -108,6 +108,7 @@
 		AC88746027C366EB00BC65E9 /* Pods-Putio-acknowledgements.plist in Resources */ = {isa = PBXBuildFile; fileRef = AC88745F27C366EB00BC65E9 /* Pods-Putio-acknowledgements.plist */; };
 		AC8CA4FE1FECE78200262B2A /* ChromecastManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8CA4FD1FECE78200262B2A /* ChromecastManager.swift */; };
 		AC8F20012B10000100C0F001 /* en.lproj in Resources */ = {isa = PBXBuildFile; fileRef = AC8F20002B10000100C0F001 /* en.lproj */; };
+		AC8F20032B10000100C0F001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AC8F20022B10000100C0F001 /* PrivacyInfo.xcprivacy */; };
 		AC918F6E2AF128920082BFAF /* RootContainerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC918F6D2AF128920082BFAF /* RootContainerViewController.swift */; };
 		AC9E11FA27A7DFFB00E50966 /* DestroyAccounViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC9E11F927A7DFFB00E50966 /* DestroyAccounViewController.swift */; };
 		AC9F15EC23B98A5700C09BAB /* UIView+FindSubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC9F15EB23B98A5700C09BAB /* UIView+FindSubView.swift */; };
@@ -122,6 +123,7 @@
 		ACB05CC71FF16CC800F844E4 /* OfflineStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB05CC61FF16CC800F844E4 /* OfflineStatusView.swift */; };
 		ACB05CCB1FF16E1100F844E4 /* OfflineStatusView.xib in Resources */ = {isa = PBXBuildFile; fileRef = ACB05CCA1FF16E1100F844E4 /* OfflineStatusView.xib */; };
 		ACB7637124B3B439007289DA /* Debouncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB7637024B3B439007289DA /* Debouncer.swift */; };
+		10A000000000000000000001 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10A000000000000000000002 /* Log.swift */; };
 		ACB8168920566475008F1D3E /* DownloadsTutorialViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB8168820566475008F1D3E /* DownloadsTutorialViewController.swift */; };
 		ACB8168D20567A21008F1D3E /* downloadsTutorial.mov in Resources */ = {isa = PBXBuildFile; fileRef = ACB8168C20567A20008F1D3E /* downloadsTutorial.mov */; };
 		ACB8E04B1FC45926003DFF4F /* Bundle+Info.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB8E04A1FC45926003DFF4F /* Bundle+Info.swift */; };
@@ -305,6 +307,7 @@
 		AC88745F27C366EB00BC65E9 /* Pods-Putio-acknowledgements.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "Pods-Putio-acknowledgements.plist"; path = "Pods/Target Support Files/Pods-Putio/Pods-Putio-acknowledgements.plist"; sourceTree = "<group>"; };
 		AC8CA4FD1FECE78200262B2A /* ChromecastManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChromecastManager.swift; sourceTree = "<group>"; };
 		AC8F20002B10000100C0F001 /* en.lproj */ = {isa = PBXFileReference; lastKnownFileType = folder; path = en.lproj; sourceTree = "<group>"; };
+		AC8F20022B10000100C0F001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AC918F6D2AF128920082BFAF /* RootContainerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootContainerViewController.swift; sourceTree = "<group>"; };
 		AC9E11F927A7DFFB00E50966 /* DestroyAccounViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestroyAccounViewController.swift; sourceTree = "<group>"; };
 		AC9F15EB23B98A5700C09BAB /* UIView+FindSubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIView+FindSubView.swift"; sourceTree = "<group>"; };
@@ -319,6 +322,7 @@
 		ACB05CC61FF16CC800F844E4 /* OfflineStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineStatusView.swift; sourceTree = "<group>"; };
 		ACB05CCA1FF16E1100F844E4 /* OfflineStatusView.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = OfflineStatusView.xib; sourceTree = "<group>"; };
 		ACB7637024B3B439007289DA /* Debouncer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Debouncer.swift; sourceTree = "<group>"; };
+		10A000000000000000000002 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		ACB8168820566475008F1D3E /* DownloadsTutorialViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsTutorialViewController.swift; sourceTree = "<group>"; };
 		ACB8168C20567A20008F1D3E /* downloadsTutorial.mov */ = {isa = PBXFileReference; lastKnownFileType = video.quicktime; path = downloadsTutorial.mov; sourceTree = "<group>"; };
 		ACB8E04A1FC45926003DFF4F /* Bundle+Info.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+Info.swift"; sourceTree = "<group>"; };
@@ -559,6 +563,7 @@
 				ACCE5D2A1FF11067007E811B /* NetworkReachability.swift */,
 				ACB7637024B3B439007289DA /* Debouncer.swift */,
 				54B45BFE24B989083E180F82 /* InternalFailurePresenter.swift */,
+				10A000000000000000000002 /* Log.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -798,6 +803,7 @@
 				AC30947A1FF3DBD000CB3C7C /* Putio.entitlements */,
 				ACEF62F91F9A26AA0026B25E /* Info.plist */,
 				AC8F20002B10000100C0F001 /* en.lproj */,
+				AC8F20022B10000100C0F001 /* PrivacyInfo.xcprivacy */,
 				AC2C4CA7202394070089DAD9 /* discoball.gif */,
 				ACB8168C20567A20008F1D3E /* downloadsTutorial.mov */,
 				AC328A3721988B500056D25B /* blank.pdf */,
@@ -999,6 +1005,7 @@
 			files = (
 				AC79B68F2AF0E0FD00D47BAF /* Assets.xcassets in Resources */,
 				AC8F20012B10000100C0F001 /* en.lproj in Resources */,
+				AC8F20032B10000100C0F001 /* PrivacyInfo.xcprivacy in Resources */,
 				ACAD072220E126D100C3FB5F /* Image.storyboard in Resources */,
 				ACFA837B1FF12FA2008711B4 /* LoaderView.xib in Resources */,
 				AC78631C2052C6FE00E26106 /* DownloadsEmptyStateView.xib in Resources */,
@@ -1045,7 +1052,6 @@
 				"${BUILT_PRODUCTS_DIR}/RoutableLogger/RoutableLogger.framework",
 				"${BUILT_PRODUCTS_DIR}/Sentry/Sentry.framework",
 				"${BUILT_PRODUCTS_DIR}/StatefulViewController/StatefulViewController.framework",
-				"${BUILT_PRODUCTS_DIR}/SwiftyBeaver/SwiftyBeaver.framework",
 				"${BUILT_PRODUCTS_DIR}/VTAcknowledgementsViewController/VTAcknowledgementsViewController.framework",
 				"${BUILT_PRODUCTS_DIR}/ViewState/ViewState.framework",
 				"${PODS_XCFRAMEWORKS_BUILD_DIR}/Intercom/Intercom.framework/Intercom",
@@ -1061,7 +1067,6 @@
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/RoutableLogger.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Sentry.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/StatefulViewController.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/SwiftyBeaver.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/VTAcknowledgementsViewController.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ViewState.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Intercom.framework",
@@ -1280,6 +1285,7 @@
 				ACB05CC71FF16CC800F844E4 /* OfflineStatusView.swift in Sources */,
 				AC9F15EC23B98A5700C09BAB /* UIView+FindSubView.swift in Sources */,
 				ACB7637124B3B439007289DA /* Debouncer.swift in Sources */,
+				10A000000000000000000001 /* Log.swift in Sources */,
 				AC6F93951FD6C22D00B2E79F /* DownloadsViewController.swift in Sources */,
 				810000000000000000000001 /* DownloadsViewController+Selection.swift in Sources */,
 				810000000000000000000002 /* DownloadsViewController+TableView.swift in Sources */,
@@ -1656,8 +1662,6 @@
 					"-framework",
 					"\"StatefulViewController\"",
 					"-framework",
-					"\"SwiftyBeaver\"",
-					"-framework",
 					"\"SystemConfiguration\"",
 					"-framework",
 					"\"UIKit\"",
@@ -1742,8 +1746,6 @@
 					"\"Sentry\"",
 					"-framework",
 					"\"StatefulViewController\"",
-					"-framework",
-					"\"SwiftyBeaver\"",
 					"-framework",
 					"\"SystemConfiguration\"",
 					"-framework",

@@ -134,7 +134,7 @@ plutil -lint Putio/en.lproj/*.strings
 ```
 
 - Notes:
-  - `mise run verify-fast` is the sub-second gate (icon sync check, strings lint, workspace sanity); the pre-push hook runs it automatically
+  - `mise run verify-fast` is the sub-second gate (icon sync check, privacy manifest and strings lint, workspace sanity); the pre-push hook runs it automatically
   - `mise run verify-scripts-types` type-checks the repo's TypeScript tooling with `tsc --noEmit`. The scripts run directly — Node strips types, so there is no build step — but stripping is not checking, and an unchecked annotation drifts into a lie. Kept out of `verify-fast` so that gate keeps running without Node; CI runs it in the `verify-tooling` job instead
   - `mise run vref` renders `.vref/index.html` from the committed baselines for design review, and `mise run vref-serve` serves it on `127.0.0.1:4173`. It is deliberately **not** part of `verify-fast`: validating it needs Node and the regenerated copies, and `verify-fast` is a sub-second gate that runs without Node. Baseline/manifest drift is caught when `mise run vref` runs, which today means locally; publishing the gallery, and checking it in CI, is future work in #49
 
