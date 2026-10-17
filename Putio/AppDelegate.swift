@@ -349,6 +349,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func refreshAccountStatus() {
         guard let signedInRoot = window?.rootViewController as? RootContainerViewController else { return }
         let savesBeforeRead = SettingsViewModel.confirmedSaves
+        ProductAnalytics.awaitAnswer()
 
         api.getAccountInfo { [weak signedInRoot] result in
             guard let signedInRoot, self.window?.rootViewController === signedInRoot else { return }
@@ -359,6 +360,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 if savesBeforeRead == SettingsViewModel.confirmedSaves {
                     SentryTelemetry.update(diagnosticsEnabled: account.settings.diagnosticsEnabled)
                     ProductAnalytics.update(accountID: account.id, productAnalyticsEnabled: account.settings.productAnalyticsEnabled)
+                } else {
+                    ProductAnalytics.keepAnswer()
                 }
                 AccountNoticeStore.shared.update(with: account)
             case .failure(let error):
@@ -366,6 +369,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                    statusCode == 401 || errorType == "Unauthorized" {
                     AccountNoticeStore.shared.clear()
                     ProductAnalytics.update(accountID: nil, productAnalyticsEnabled: nil)
+                } else {
+                    ProductAnalytics.keepAnswer()
                 }
             }
         }

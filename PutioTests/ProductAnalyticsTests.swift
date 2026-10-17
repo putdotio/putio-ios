@@ -206,6 +206,28 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertFalse(events.contains { $0["event"] as? String == "$identify" })
     }
 
+    func testAForegroundHoldsEventsUntilTheRefreshAnswers() throws {
+        let (gate, token) = makeGate()
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        gate.capture(.screenViewed(.files))
+        _ = try waitForEvents(token: token, count: 1)
+
+        gate.awaitAnswer()
+        gate.capture(.appOpened(.resume))
+        spinRunLoop(seconds: 1)
+        XCTAssertEqual(sentEvents(token: token).count, 1, "an open left before the refresh answered")
+        gate.keepAnswer()
+        _ = try waitForEvents(token: token, count: 2)
+
+        // Turned off on another device while the app was away.
+        gate.awaitAnswer()
+        gate.capture(.appOpened(.resume))
+        gate.update(accountID: 1001, productAnalyticsEnabled: false)
+        spinRunLoop(seconds: 1)
+
+        XCTAssertEqual(sentEvents(token: token).map { $0["event"] as? String }, ["screen_viewed", "app_opened"])
+    }
+
     func testABackgroundWithoutAnOpenSinceTheStartIsDropped() throws {
         let (gate, token) = makeGate()
         gate.update(accountID: 1001, productAnalyticsEnabled: true)
@@ -421,15 +443,16 @@ final class ProductAnalyticsTests: XCTestCase {
         }
     }
 
+    private func sentEvents(token: String) -> [[String: Any]] {
+        requests(token: token).flatMap { $0.json?["batch"] as? [[String: Any]] ?? [] }
+    }
+
     private func waitForEvents(token: String, count: Int, timeout: TimeInterval = 10) throws -> [[String: Any]] {
-        func events() -> [[String: Any]] {
-            requests(token: token).flatMap { $0.json?["batch"] as? [[String: Any]] ?? [] }
-        }
         let deadline = Date().addingTimeInterval(timeout)
-        while events().count < count, Date() < deadline {
+        while sentEvents(token: token).count < count, Date() < deadline {
             spinRunLoop(seconds: 0.05)
         }
-        let sent = events()
+        let sent = sentEvents(token: token)
         XCTAssertEqual(sent.count, count, "\(requests(token: token).map(\.url))")
         return sent
     }

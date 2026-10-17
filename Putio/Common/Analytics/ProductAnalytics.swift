@@ -29,6 +29,16 @@ enum ProductAnalytics {
         shared.settingDidSave(enabled: enabled)
     }
 
+    /// The foreground refresh is reading the account again.
+    static func awaitAnswer() {
+        shared.awaitAnswer()
+    }
+
+    /// The refresh ended without an answer, so the last one stands.
+    static func keepAnswer() {
+        shared.keepAnswer()
+    }
+
     static func capture(_ event: AnalyticsEvent) {
         shared.capture(event)
     }
@@ -84,7 +94,7 @@ final class ProductAnalyticsGate {
     }
 
     /// Events from before the first answer of this launch, such as the cold
-    /// launch's `app_opened`. Dropped if that answer is off.
+    /// launch's `app_opened`, or of a foreground. Dropped if that answer is off.
     private static let heldLimit = 16
 
     private let environment: Environment
@@ -127,10 +137,23 @@ final class ProductAnalyticsGate {
         }
     }
 
+    /// Held until the refresh answers, so an opt-out made on another device
+    /// while the app was away applies before the foreground's first event.
+    func awaitAnswer() {
+        lock.withLock { hasAnswer = false }
+    }
+
+    func keepAnswer() {
+        lock.withLock {
+            hasAnswer = true
+            sendHeld()
+        }
+    }
+
     func capture(_ event: AnalyticsEvent) {
         lock.withLock {
             guard environment.token != nil, environment.isEligible else { return }
-            if running != nil {
+            if hasAnswer, running != nil {
                 send(event)
             } else if !hasAnswer {
                 held.append(event)
@@ -154,14 +177,18 @@ final class ProductAnalyticsGate {
     private func apply() {
         guard let token = environment.token, environment.isEligible else { return }
         let target = enabled == true ? accountID : nil
-        if let running, running.accountID == target { return }
-
-        // A survivor could hand the next start the earlier identity or queue.
-        guard stop(token: token), let target else {
-            held.removeAll()
-            return
+        if running == nil || running?.accountID != target {
+            // A survivor could hand the next start the earlier identity or queue.
+            guard stop(token: token), let target else {
+                held.removeAll()
+                return
+            }
+            start(token: token, accountID: target)
         }
-        start(token: token, accountID: target)
+        sendHeld()
+    }
+
+    private func sendHeld() {
         let pending = held
         held.removeAll()
         pending.forEach(send)
