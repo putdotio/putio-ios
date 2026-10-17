@@ -88,4 +88,5 @@ Full human-facing setup lives in [Contributing](./CONTRIBUTING.md#local-private-
 - Auth callback handling, post-login persistence, and user-facing recovery copy are covered by `PutioTests/ErrorPresentationTests.swift` and `PutioTests/PutioRealmTests.swift`
 - Files action labels and related localization expectations are covered by `PutioTests/NavigationLocalizationTests.swift`
 - The Sentry allowlist is covered by `PutioTests/SentryTelemetryTests.swift`, which fails if a URL, token, file name, or title in any field outside the allowlist reaches the upload
+- The inactive-account notice keys on `account_status`, never `account_active`, which the API sends as `true` or `null`; `PutioTests/AccountNoticeTests.swift` covers its states, day count and its redraw when the day changes, banner height at the largest text size, and the audio queue stopping at the last download, and `PutioUITests/InactiveAccountUITests.swift` the banner and the playback gate
 - File preview changes should be smoke-tested in Simulator with real image and PDF files when possible

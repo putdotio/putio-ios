@@ -4,6 +4,10 @@ import PutioSDK
 
 extension FilesViewController {
     func openInVLC(_ file: PutioFile) {
+        if presentAccountNoticeInsteadOfPlayback() {
+            return
+        }
+
         guard let vlcURL = URL(string: "vlc://") else {
             return InternalFailurePresenter.logAndPresent(on: self, logMessage: "Unable to construct VLC URL scheme")
         }

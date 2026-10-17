@@ -11,6 +11,10 @@ extension FilePresenter where Self: UIViewController {
             toFolder(file: file)
 
         case .video:
+            if presentAccountNoticeInsteadOfPlayback() {
+                return
+            }
+
             if ChromecastManager.sharedInstance.isActive() {
                 return toChromecast(file: file)
             }
@@ -22,6 +26,10 @@ extension FilePresenter where Self: UIViewController {
             toVideo(file: file)
 
         case .audio:
+            if presentAccountNoticeInsteadOfPlayback() {
+                return
+            }
+
             toAudio(file: file)
 
         case .image:
@@ -39,6 +47,17 @@ extension FilePresenter where Self: UIViewController {
             alertController.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .cancel, handler: nil))
             present(alertController, animated: true, completion: nil)
         }
+    }
+
+    /// Shows the account notice in place of streaming, casting, or a VLC
+    /// handoff, and returns true when it did. Downloads still play offline.
+    func presentAccountNoticeInsteadOfPlayback() -> Bool {
+        guard let notice = AccountNoticeStore.shared.notice else { return false }
+
+        let alertController = UIAlertController(title: notice.title, message: notice.message(), preferredStyle: .alert)
+        alertController.addAction(UIAlertAction(title: NSLocalizedString("Close", comment: ""), style: .cancel, handler: nil))
+        present(alertController, animated: true, completion: nil)
+        return true
     }
 
     private func toFolder(file: PutioFile) {

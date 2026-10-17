@@ -80,10 +80,13 @@ class SettingsViewModel {
     }
 
     func fetchData() {
+        let noticeSession = AccountNoticeStore.shared.session
+
         api.getAccountInfo { result in
             switch result {
             case .success(let account):
                 SentryTelemetry.update(diagnosticsEnabled: account.settings.diagnosticsEnabled)
+                AccountNoticeStore.shared.update(with: account, startedIn: noticeSession)
                 guard let realm = PutioRealm.open(context: "SettingsViewModel.fetchData") else { return }
 
                 let didWrite = PutioRealm.write(realm, context: "SettingsViewModel.fetchData.write") {

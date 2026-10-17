@@ -74,7 +74,11 @@ class NextMediaFinder {
         }
     }
 
+    // An inactive account streams nothing, so a downloaded queue ends at its
+    // last local file instead of rolling into a stream.
     private func findNextMediaFromAPI(for item: MediaPlayerItem) {
+        guard AccountNoticeStore.shared.notice == nil else { return onNextMediaCannotFound() }
+
         api.findNextFile(fileID: item.id, fileType: getMappedAPIFileType(for: item)) { result in
             switch result {
             case .success(let nextFile):
