@@ -150,6 +150,34 @@ final class SentryTelemetryTests: XCTestCase {
         assertReports("while diagnostics are on")
     }
 
+    func testDiagnosticsCheckSendsOneAllowlistedEventOnlyFromASandboxReceipt() throws {
+        let defaults = try isolatedDefaults()
+        addTeardownBlock { SentryTelemetry.update(diagnosticsEnabled: false, dsn: self.dsn, defaults: defaults) }
+        let options = SentryTelemetry.options(dsn: dsn)
+        let beforeSend = try XCTUnwrap(options.beforeSend)
+        var sent: [Event] = []
+        options.beforeSend = { event in
+            beforeSend(event).map { sent.append($0) }
+            return nil
+        }
+        SentrySDK.start(options: options)
+        allowCapture()
+        let receipts = URL(filePath: "/synthetic/StoreKit", directoryHint: .isDirectory)
+
+        XCTAssertFalse(SentryTelemetry.captureDiagnosticsCheck(receiptURL: receipts.appending(path: "receipt")))
+        XCTAssertFalse(SentryTelemetry.captureDiagnosticsCheck(receiptURL: nil))
+        XCTAssertTrue(sent.isEmpty, "an App Store install sent the check")
+
+        XCTAssertTrue(SentryTelemetry.captureDiagnosticsCheck(receiptURL: receipts.appending(path: "sandboxReceipt")))
+        XCTAssertEqual(sent.count, 1)
+        XCTAssertEqual(sent.first?.tags, ["category": "diagnostics_check"])
+        XCTAssertEqual(sent.first?.exceptions?.first?.value, "diagnostics_check")
+
+        SentryTelemetry.isCapturing = false
+        SentryTelemetry.captureDiagnosticsCheck(receiptURL: receipts.appending(path: "sandboxReceipt"))
+        XCTAssertEqual(sent.count, 1, "the check skipped the diagnostics gate")
+    }
+
     func testReportsThroughTheRelay() {
         XCTAssertEqual(
             SentryTelemetry.relayDSN("https://synthetickey@o0.ingest.example.invalid/5282170"),

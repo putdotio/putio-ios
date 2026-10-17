@@ -31,6 +31,10 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         appDelegate?.openIncomingURL(url)
     }
 
+    func sceneWillEnterForeground(_ scene: UIScene) {
+        appDelegate?.refreshAccountStatus()
+    }
+
     func sceneDidDisconnect(_ scene: UIScene) {
         if appDelegate?.window === window {
             appDelegate?.window = nil

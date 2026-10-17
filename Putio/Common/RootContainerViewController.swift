@@ -4,6 +4,10 @@ import UIKit
 class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewControllerDelegate {
     private var mainTabBarContainerView: UIView!
     private var mainTabBarController: MainTabBarController!
+    private var mainTabBarTopToViewConstraint: NSLayoutConstraint!
+
+    private var accountNoticeView: AccountNoticeView!
+    private var mainTabBarTopToNoticeConstraint: NSLayoutConstraint!
 
     private var miniMediaControlsViewController: GCKUIMiniMediaControlsViewController!
     private var miniMediaControlsContainerView: UIView!
@@ -43,10 +47,11 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
         view.addSubview(mainTabBarContainerView)
         view.bringSubviewToFront(mainTabBarContainerView)
 
+        mainTabBarTopToViewConstraint = mainTabBarContainerView.topAnchor.constraint(equalTo: view.topAnchor)
         NSLayoutConstraint.activate([
             mainTabBarContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             mainTabBarContainerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            mainTabBarContainerView.topAnchor.constraint(equalTo: view.topAnchor)
+            mainTabBarTopToViewConstraint
         ])
 
         let bottomConstraint = mainTabBarContainerView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
@@ -55,6 +60,40 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
 
         mainTabBarController = UIStoryboard(name: "Main", bundle: nil).instantiateViewController(withIdentifier: "MainTabBarController") as? MainTabBarController
         installViewController(mainTabBarController, inContainerView: mainTabBarContainerView)
+    }
+
+    // Hidden for an account in good standing, which keeps the tabs pinned to
+    // the top exactly as before; shown, it pushes them down.
+    func createAccountNoticeView() {
+        accountNoticeView = AccountNoticeView()
+        accountNoticeView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(accountNoticeView)
+
+        NSLayoutConstraint.activate([
+            accountNoticeView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            accountNoticeView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            accountNoticeView.topAnchor.constraint(equalTo: view.topAnchor)
+        ])
+
+        mainTabBarTopToNoticeConstraint = mainTabBarContainerView.topAnchor.constraint(equalTo: accountNoticeView.bottomAnchor)
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(updateAccountNotice),
+            name: .accountNoticeDidChange,
+            object: nil
+        )
+        updateAccountNotice()
+    }
+
+    @objc func updateAccountNotice() {
+        let notice = AccountNoticeStore.shared.notice
+        accountNoticeView.configure(with: notice)
+
+        let isShowing = notice != nil
+        NSLayoutConstraint.deactivate([isShowing ? mainTabBarTopToViewConstraint : mainTabBarTopToNoticeConstraint])
+        NSLayoutConstraint.activate([isShowing ? mainTabBarTopToNoticeConstraint : mainTabBarTopToViewConstraint])
+        view.setNeedsLayout()
     }
 
     func createMiniMediaControllerView() {
@@ -115,6 +154,7 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
         super.viewDidLoad()
         view.backgroundColor = UIColor.Putio.Surface.appBg
         createMainTabBarControllerView()
+        createAccountNoticeView()
         createMiniMediaControllerView()
         createMaskingView()
         updateControlBarsVisibility(shouldAppear: false)

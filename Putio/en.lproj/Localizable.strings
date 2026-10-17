@@ -53,6 +53,9 @@
 "Account" = "Account";
 
 /* No comment provided by engineer. */
+"Active transfers" = "Active transfers";
+
+/* No comment provided by engineer. */
 "Allow" = "Allow";
 
 /* No comment provided by engineer. */
@@ -183,6 +186,9 @@
 
 /* No comment provided by engineer. */
 "Clear" = "Clear";
+
+/* No comment provided by engineer. */
+"Clear the selected data?" = "Clear the selected data?";
 
 /* No comment provided by engineer. */
 "Clear your data" = "Clear your data";
@@ -367,10 +373,16 @@
 "Files" = "Files";
 
 /* No comment provided by engineer. */
+"Finished transfers" = "Finished transfers";
+
+/* No comment provided by engineer. */
 "Folder Name" = "Folder Name";
 
 /* Audio player controls. */
 "Forward 15 seconds" = "Forward 15 seconds";
+
+/* No comment provided by engineer. */
+"Friends" = "Friends";
 
 /* No comment provided by engineer. */
 "Go Back" = "Go Back";
@@ -556,6 +568,12 @@
 "Recovering..." = "Recovering...";
 
 /* No comment provided by engineer. */
+"RSS feeds" = "RSS feeds";
+
+/* No comment provided by engineer. */
+"RSS logs" = "RSS logs";
+
+/* No comment provided by engineer. */
 "Regenerate" = "Regenerate";
 
 /* No comment provided by engineer. */
@@ -563,6 +581,9 @@
 
 /* No comment provided by engineer. */
 "Rename %@" = "Rename %@";
+
+/* Inactive-account notice. Plain text only: App Review rules out a purchase link or button. */
+"Renew your plan at put.io to keep your files." = "Renew your plan at put.io to keep your files.";
 
 /* No comment provided by engineer. */
 "Reset all sort settings" = "Reset all sort settings";
@@ -694,7 +715,13 @@
 "There will be information when things start happening." = "There will be information when things start happening.";
 
 /* No comment provided by engineer. */
+"These permanently delete data from your put.io account, on every device. To free up space on this device, delete downloads in Downloads instead." = "These permanently delete data from your put.io account, on every device. To free up space on this device, delete downloads in Downloads instead.";
+
+/* No comment provided by engineer. */
 "This directory doesn't contain any folder" = "This directory doesn't contain any folder";
+
+/* %@ is the selected categories, for example "Files, History, and Trash". */
+"This permanently deletes %@ from your put.io account. It can't be undone." = "This permanently deletes %@ from your put.io account. It can't be undone.";
 
 /* No comment provided by engineer. */
 "Today" = "Today";
@@ -774,8 +801,20 @@
 /* No comment provided by engineer. */
 "You have successfully linked to %@" = "You have successfully linked to %@";
 
+/* Inactive-account notice title, matching the web and Android apps. */
+"Your account has been deactivated 😢" = "Your account has been deactivated 😢";
+
+/* Inactive-account notice for a family plan member. */
+"Your family plan is no longer active." = "Your family plan is no longer active.";
+
 /* No comment provided by engineer. */
 "Your Files" = "Your Files";
+
+/* Inactive-account notice countdown, singular. */
+"Your files are still here, but they are scheduled to be deleted in 1 day." = "Your files are still here, but they are scheduled to be deleted in 1 day.";
+
+/* Inactive-account notice countdown; %d is a whole number of days other than one. */
+"Your files are still here, but they are scheduled to be deleted in %d days." = "Your files are still here, but they are scheduled to be deleted in %d days.";
 
 /* No comment provided by engineer. */
 "Your files are still on this device but need to be restored after an app update.\n\nA stable internet connection is recommended." = "Your files are still on this device but need to be restored after an app update.\n\nA stable internet connection is recommended.";

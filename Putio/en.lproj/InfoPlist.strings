@@ -1,5 +1,5 @@
-"NSCameraUsageDescription" = "Take photos in support conversations to help resolve app issues";
-"NSLocalNetworkUsageDescription" = "${PRODUCT_NAME} uses the local network to discover Cast-enabled devices on your WiFi network.";
-"NSLocationWhenInUseUsageDescription" = "Implement support messaging";
-"NSMicrophoneUsageDescription" = "Record audio in support videos to help resolve app issues";
-"NSPhotoLibraryUsageDescription" = "Send photos over support interface to help resolve app issues";
+"NSCameraUsageDescription" = "Take photos and videos to send to put.io support.";
+"NSLocalNetworkUsageDescription" = "put.io uses your local network to find Chromecast and other Cast devices on your Wi-Fi.";
+"NSLocationWhenInUseUsageDescription" = "Your location is used only if you choose to share it with put.io support.";
+"NSMicrophoneUsageDescription" = "Record audio for videos and voice messages you send to put.io support.";
+"NSPhotoLibraryUsageDescription" = "Choose photos and videos to send to put.io support.";

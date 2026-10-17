@@ -53,7 +53,7 @@ The `release` Environment must provide:
   - `PUTIO_OAUTH_CLIENT_ID`
   - `PUTIO_CHROMECAST_RECEIVER_APP_ID`
   - `PUTIO_SENTRY_DSN`: the DSN for Sentry project `ios` (`5282170`); beta and release fail without it. The app posts through `relay.put.io` and only while the account's `diagnostics_enabled` is on
-- Optional support fields:
+- Intercom fields: beta and release fail without them, because Contact us and destroy-account support open Intercom. Each must match `[A-Za-z0-9._:-]+` and must not be `null`:
   - `PUTIO_INTERCOM_API_KEY`
   - `PUTIO_INTERCOM_APP_ID`
 - Signing fields:
@@ -68,6 +68,16 @@ The `release` Environment must provide:
   mismatch, so a system-font build cannot ship silently
 
 Keep item IDs, service-account tokens, and private key material out of git.
+
+## TestFlight Diagnostics Check
+
+One controlled, non-fatal event proves a build's Sentry path. Run the check on the beta, then again on the release-lane upload before submitting it for review. `release` archives its own binary and uploads it with `submit_for_review: false`, so add that build to an internal TestFlight group and install it from TestFlight.
+
+1. On a TestFlight device, sign in to an account whose `diagnostics_enabled` is on.
+2. Open `putio:///diagnostics-check` from Safari or Notes; the three slashes make it a path. Nothing changes on screen. The install's receipt decides, not the lane: a TestFlight install sends the event, and an App Store install ignores the link. With diagnostics off the event is dropped like any other.
+3. In Sentry project `ios` (`5282170`), not `tvos`, find `category:diagnostics_check` and confirm release `com.putio.tvOS@3.0.0+<build>` for the installed build, environment `production`, OS `iOS` or `iPadOS`, and `app.build_type` `test`. TestFlight and App Store events share the `production` environment, so the build type is what tells them apart.
+
+Never paste the DSN or the event payload into issues, pull requests, or logs.
 
 ## GitHub Release Settings
 

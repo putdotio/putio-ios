@@ -6,7 +6,7 @@ PODS:
     - ViewState (>= 1.2.1)
   - KeychainAccess (4.2.2)
   - Protobuf (3.29.6)
-  - PutioSDK (4.1.0)
+  - PutioSDK (4.2.0)
   - Realm (20.0.4):
     - Realm/Headers (= 20.0.4)
   - Realm/Headers (20.0.4)
@@ -69,7 +69,7 @@ SPEC CHECKSUMS:
   KeyboardAvoidingView: acc530b2435bba760b2270e722cb7132cf1c4d31
   KeychainAccess: c0c4f7f38f6fc7bbe58f5702e25f7bd2f65abf51
   Protobuf: 8d5596f7468be5400861a6bbfb2dfe9d0d1cde34
-  PutioSDK: 3841376789217e33b6283b2a3d10ebf0815e85e4
+  PutioSDK: bac5860b6b2d6a8c6bab23116256217a323d1817
   Realm: 1fca83c42ac1d5c7767974882c8de5a7abca4d89
   RealmSwift: 84f36320f6133dea78d05c55bb46bba4387d6828
   RoutableLogger: 31ce799b16b4868c169ed68c36e25437dd0ca40e
