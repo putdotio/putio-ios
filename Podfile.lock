@@ -19,7 +19,6 @@ PODS:
   - SnapshotTesting (1.17.2)
   - StatefulViewController (3.0)
   - SwiftLint (0.65.1)
-  - SwiftyBeaver (2.1.1)
   - ViewState (3.0.0):
     - ViewState/Core (= 3.0.0)
   - ViewState/Core (3.0.0):
@@ -37,7 +36,6 @@ DEPENDENCIES:
   - SnapshotTesting (from `ThirdParty/SnapshotTesting/SnapshotTesting.podspec`)
   - StatefulViewController (~> 3.0)
   - SwiftLint (~> 0.63)
-  - SwiftyBeaver (~> 2.1)
   - VTAcknowledgementsViewController
 
 SPEC REPOS:
@@ -53,7 +51,6 @@ SPEC REPOS:
     - Sentry
     - StatefulViewController
     - SwiftLint
-    - SwiftyBeaver
     - ViewState
     - VTAcknowledgementsViewController
 
@@ -77,10 +74,9 @@ SPEC CHECKSUMS:
   SnapshotTesting: fa82e8e3e59db7516682c92f1dbd5c1a896cf448
   StatefulViewController: 4803bf900d44de26074344998e10e041113b5931
   SwiftLint: 7d51ad56923e88694cee5ca806dbbab30f85eaaa
-  SwiftyBeaver: ade157e4f857812e7d7f15f2e3396bb8733f8a1c
   ViewState: 82f26f9b716f6673c19e491f8bf234c4ff519a0a
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: 9121cd7303c0ae84e290f962267996e13fc11789
+PODFILE CHECKSUM: c03a8df68db46d11a6ffc4caaec7df55f25bb00d
 
 COCOAPODS: 1.17.0

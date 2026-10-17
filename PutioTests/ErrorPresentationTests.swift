@@ -1,3 +1,4 @@
+import OSLog
 import XCTest
 @testable import Putio
 import GoogleCast
@@ -224,6 +225,20 @@ final class ErrorPresentationTests: XCTestCase {
 
         XCTAssertEqual((receivedError as NSError?)?.domain, expectedError.domain)
         XCTAssertEqual((receivedError as NSError?)?.code, expectedError.code)
+    }
+
+    func testInternalFailureLogIsPrivateInTheUnifiedLog() throws {
+        let store = try OSLogStore(scope: .currentProcessIdentifier)
+        let start = store.position(date: Date())
+
+        InternalFailurePresenter.log("Unable to bookmark /Documents/Synthetic.Feature.Title.2001.mkv")
+
+        let predicate = NSPredicate(format: "subsystem == %@ AND category == %@", Bundle.main.bundleIdentifier ?? "", "app")
+        let entries = try store.getEntries(at: start, matching: predicate).compactMap { $0 as? OSLogEntryLog }
+        let entry = try XCTUnwrap(entries.last)
+        XCTAssertEqual(entry.level, .error)
+        // The simulator shows private values, so this checks the marker a device redacts by.
+        XCTAssertEqual(entry.formatString, "%{private}s")
     }
 
     private func makePutioFile(_ payload: [String: Any]) throws -> PutioFile {

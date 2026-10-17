@@ -93,7 +93,7 @@ Before submitting 3.x, change the 2.58.0 answers to these:
 | Product Interaction | Linked: Analytics, App Functionality | Unchanged | put.io playback positions and IFTTT playback events; Intercom; Google Cast, not linked |
 | Crash Data | Linked: App Functionality | Unchanged | Sentry |
 | Performance Data | Linked: App Functionality | Linked: Analytics, App Functionality | Sentry, Intercom; Google Cast's nutrition label |
-| Other Diagnostic Data | Not declared | Linked: Analytics, App Functionality | Sentry, Intercom, Google Cast; SwiftyBeaver's manifest |
+| Other Diagnostic Data | Not declared | Linked: Analytics, App Functionality | Sentry, Intercom, Google Cast |
 | Device ID | Not declared | Linked: Analytics, App Functionality | Intercom's device ID and push token; Sentry's installation ID and `device_app_hash`; Google Cast, not linked |
 | Photos or Videos | Not declared | Linked: App Functionality | Intercom attachments |
 | Audio Data | Not declared | Linked: App Functionality | Intercom voice notes |
