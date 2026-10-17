@@ -45,6 +45,12 @@ while IFS= read -r path; do
     # cannot break an iOS build, so these skip the macOS lane — but they do
     # invalidate the committed images, which the tooling lane checks.
     Config/Store*.json | fastlane/screenshots/*) tooling=true ;;
+    # Composite actions. The tooling lane's workflow tests run their guards, and
+    # the app lane stays on as it would for any unrecognized path.
+    .github/actions/*)
+        app=true
+        tooling=true
+        ;;
     *) app=true ;;
     esac
 done
