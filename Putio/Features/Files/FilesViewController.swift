@@ -12,6 +12,9 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     var chromecastButton: GCKUICastButton?
     var navigationActionsBarButtonItem: UIBarButtonItem?
     var editingToolbar: UIToolbar?
+    #if DEBUG
+    private let perfProbeToken = PutioE2EPerfProbe.FilesControllerToken()
+    #endif
 
     lazy var downloads: Results<Download>? = {
         guard let realm = PutioRealm.open(context: "FilesViewController.downloads") else {
@@ -144,7 +147,16 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
             stateMachine.transitionToState(.view("loading"))
         }
 
+        let fetchSignpost = PerfSignpost.begin("FilesFetch")
+
         api.getFiles(parentID: viewModel.fileID, query: PutioFilesListQuery(mp4Status: true)) { result in
+            defer {
+                PerfSignpost.endAfterCommit(fetchSignpost)
+                if case .success = result, self is FilesRootViewController {
+                    PerfSignpost.endLaunchToFilesIfNeeded()
+                }
+            }
+
             self.tableView.refreshControl?.endRefreshing()
 
             switch result {
@@ -152,7 +164,9 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
                 self.viewModel.file = data.parent
                 self.viewModel.files = data.children
 
+                let reloadSignpost = PerfSignpost.begin("FilesReload", rows: data.children.count)
                 self.tableView.reloadData()
+                PerfSignpost.endAfterCommit(reloadSignpost)
                 self.configureFileActionsButtonMenuItems()
                 UIView.performWithoutAnimation {
                     self.setFileActionsEnabled(data.parent.map { !$0.isShared } ?? false)

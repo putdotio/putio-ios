@@ -17,6 +17,11 @@
 		103000000000000000000003 /* AudioPlayerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 103000000000000000000004 /* AudioPlayerTests.swift */; };
 		17DD2CCF4F2FFD056E0D7D36 /* PutioE2EDownloadFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E37FB6D557730098AC8864 /* PutioE2EDownloadFixtures.swift */; };
 		9F3A1C7D2E4B6A8C0D1E2F31 /* PutioE2EEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F3A1C7D2E4B6A8C0D1E2F30 /* PutioE2EEnvironment.swift */; };
+		5963E6B5F143FF65CEB99DE4 /* PutioE2ELargeFixture+Media.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6FB68E371D4069DB3CB62B1 /* PutioE2ELargeFixture+Media.swift */; };
+		FF1E7850E61E28080B23A890 /* PerformanceUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C5079B7A1C5D4F669A9434 /* PerformanceUITests.swift */; };
+		181A6C29891E7CE2196114BB /* PutioE2EPerfProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2F8616DE5FE6A0FF36D1FA /* PutioE2EPerfProbe.swift */; };
+		0C481814FCCCE71B1AE9713F /* PutioE2ELargeFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4A1C365D24A9274371C36C6 /* PutioE2ELargeFixture.swift */; };
+		4BF0CACE291D5C3C83E851C8 /* PerfSignpost.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0EE00F65FA10D0FF5B80740 /* PerfSignpost.swift */; };
 		9F3A1C7D2E4B6A8C0D1E2F33 /* SignedInLaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F3A1C7D2E4B6A8C0D1E2F32 /* SignedInLaunch.swift */; };
 		0E4F147822C01DF9814EE2C9 /* APIErrorLocalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333E41E81298A2E8796ACE97 /* APIErrorLocalizerTests.swift */; };
 		103DAFDBBC962819703ED902 /* TypeScaleSpecimen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 465A7CDCD9D300C8BA947448 /* TypeScaleSpecimen.swift */; };
@@ -218,6 +223,11 @@
 		42113E74CF811CB4E40A41C6 /* PutioE2EMockURLProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioE2EMockURLProtocol.swift; sourceTree = "<group>"; };
 		C4E37FB6D557730098AC8864 /* PutioE2EDownloadFixtures.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioE2EDownloadFixtures.swift; sourceTree = "<group>"; };
 		9F3A1C7D2E4B6A8C0D1E2F30 /* PutioE2EEnvironment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioE2EEnvironment.swift; sourceTree = "<group>"; };
+		D6FB68E371D4069DB3CB62B1 /* PutioE2ELargeFixture+Media.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "PutioE2ELargeFixture+Media.swift"; sourceTree = "<group>"; };
+		D5C5079B7A1C5D4F669A9434 /* PerformanceUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PerformanceUITests.swift; sourceTree = "<group>"; };
+		BF2F8616DE5FE6A0FF36D1FA /* PutioE2EPerfProbe.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioE2EPerfProbe.swift; sourceTree = "<group>"; };
+		E4A1C365D24A9274371C36C6 /* PutioE2ELargeFixture.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioE2ELargeFixture.swift; sourceTree = "<group>"; };
+		C0EE00F65FA10D0FF5B80740 /* PerfSignpost.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PerfSignpost.swift; sourceTree = "<group>"; };
 		9F3A1C7D2E4B6A8C0D1E2F32 /* SignedInLaunch.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SignedInLaunch.swift; sourceTree = "<group>"; };
 		465A7CDCD9D300C8BA947448 /* TypeScaleSpecimen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TypeScaleSpecimen.swift; sourceTree = "<group>"; };
 		46A8E3AED9C75CAB1221EDFD /* FilesViewController+Selection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "FilesViewController+Selection.swift"; sourceTree = "<group>"; };
@@ -465,6 +475,7 @@
 				8B2D4F6A1C3E5A7B9D0F2A4C /* HistoryErrorUITests.swift */,
 				51A7C0DE5E1B4A0C9D2E3F05 /* PrivacyControlsUITests.swift */,
 				993DCCD7D09E1165737A70AF /* InactiveAccountUITests.swift */,
+				D5C5079B7A1C5D4F669A9434 /* PerformanceUITests.swift */,
 				3D7E2A6C0B4D7F1A5C9E3B6E /* ScreenshotWalkUITests.swift */,
 				9F3A1C7D2E4B6A8C0D1E2F32 /* SignedInLaunch.swift */,
 			);
@@ -546,6 +557,7 @@
 			isa = PBXGroup;
 			children = (
 				AC0EACE91FDEA76C00A728CB /* Realm.swift */,
+				C0EE00F65FA10D0FF5B80740 /* PerfSignpost.swift */,
 				AC0FC8BE1FC2D6DF002E775B /* Utils.swift */,
 				AC6546521FAB2CF100E278EE /* Keychain.swift */,
 				ACCE5D2A1FF11067007E811B /* NetworkReachability.swift */,
@@ -747,6 +759,9 @@
 				42113E74CF811CB4E40A41C6 /* PutioE2EMockURLProtocol.swift */,
 				C4E37FB6D557730098AC8864 /* PutioE2EDownloadFixtures.swift */,
 				9F3A1C7D2E4B6A8C0D1E2F30 /* PutioE2EEnvironment.swift */,
+				D6FB68E371D4069DB3CB62B1 /* PutioE2ELargeFixture+Media.swift */,
+				BF2F8616DE5FE6A0FF36D1FA /* PutioE2EPerfProbe.swift */,
+				E4A1C365D24A9274371C36C6 /* PutioE2ELargeFixture.swift */,
 			);
 			path = API;
 			sourceTree = "<group>";
@@ -1257,6 +1272,7 @@
 				9C3E5A7B2D4F6A8C0E1B3D5F /* HistoryErrorUITests.swift in Sources */,
 				51A7C0DE5E1B4A0C9D2E3F06 /* PrivacyControlsUITests.swift in Sources */,
 				7DC87C4E70905D0A3B4F678B /* InactiveAccountUITests.swift in Sources */,
+				FF1E7850E61E28080B23A890 /* PerformanceUITests.swift in Sources */,
 				4E8F2B6D0C3E7F1A5C9E3B7F /* ScreenshotWalkUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1379,6 +1395,10 @@
 				00B1394779C26A8412502962 /* PutioE2EMockURLProtocol.swift in Sources */,
 				17DD2CCF4F2FFD056E0D7D36 /* PutioE2EDownloadFixtures.swift in Sources */,
 				9F3A1C7D2E4B6A8C0D1E2F31 /* PutioE2EEnvironment.swift in Sources */,
+				5963E6B5F143FF65CEB99DE4 /* PutioE2ELargeFixture+Media.swift in Sources */,
+				181A6C29891E7CE2196114BB /* PutioE2EPerfProbe.swift in Sources */,
+				0C481814FCCCE71B1AE9713F /* PutioE2ELargeFixture.swift in Sources */,
+				4BF0CACE291D5C3C83E851C8 /* PerfSignpost.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

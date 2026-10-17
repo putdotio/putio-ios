@@ -22,6 +22,9 @@ enum PutioSDKFactory {
             // the login screen.
             sessionConfiguration.timeoutIntervalForRequest = 10
             sessionConfiguration.timeoutIntervalForResource = 10
+            // Image and PDF previews load through URLSession.shared, which
+            // only consults protocols registered globally.
+            URLProtocol.registerClass(PutioE2EMockURLProtocol.self)
             return PutioSDK(config: config, urlSession: URLSession(configuration: sessionConfiguration))
         }
         #endif

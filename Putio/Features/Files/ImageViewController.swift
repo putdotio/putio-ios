@@ -4,6 +4,7 @@ import PutioSDK
 class ImageViewController: UIViewController {
     var file: PutioFile?
     private var request: URLSessionDataTask?
+    private var openSignpost: PerfSignpost.Interval?
 
     @IBOutlet weak var imageView: UIImageView!
     @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
@@ -18,6 +19,7 @@ class ImageViewController: UIViewController {
 
         if let file = file {
             title = file.name
+            openSignpost = PerfSignpost.begin("ImageOpen")
             loadImage()
         }
     }
@@ -46,6 +48,7 @@ class ImageViewController: UIViewController {
                 return DispatchQueue.main.async {
                     self.finishLoading()
                     self.presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the image", comment: ""))
+                    self.endOpenSignpost()
                 }
             }
 
@@ -53,12 +56,15 @@ class ImageViewController: UIViewController {
                 return DispatchQueue.main.async {
                     self.finishLoading()
                     self.presentErrorMessage(message: NSLocalizedString("An error occurred while displaying the image", comment: ""))
+                    self.endOpenSignpost()
                 }
             }
 
             DispatchQueue.main.async {
                 self.finishLoading()
                 self.imageView.image = image
+                // After the commit, which is where UIKit decodes the image.
+                self.endOpenSignpost()
             }
         }
         request?.resume()
@@ -67,6 +73,17 @@ class ImageViewController: UIViewController {
     private func cancelRequest() {
         request?.cancel()
         request = nil
+        endOpenSignpost(afterCommit: false)
+    }
+
+    private func endOpenSignpost(afterCommit: Bool = true) {
+        guard let signpost = openSignpost else { return }
+        openSignpost = nil
+        if afterCommit {
+            PerfSignpost.endAfterCommit(signpost)
+        } else {
+            PerfSignpost.end(signpost)
+        }
     }
 
     private func finishLoading() {
