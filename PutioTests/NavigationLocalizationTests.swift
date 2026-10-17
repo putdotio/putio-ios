@@ -125,6 +125,26 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(selectedAction.subtitle, NSLocalizedString("Ascending", comment: ""))
     }
 
+    // The controller owns the button that owns the menu, so a strongly captured
+    // action keeps every popped folder alive and refetching on each foreground.
+    func testFileActionsMenuDoesNotRetainItsController() throws {
+        weak var releasedController: FilesViewController?
+
+        try autoreleasepool {
+            let viewController = FilesViewController()
+            viewController.fileActionsButton = viewController.createNavigationBarFileActionsButton()
+            viewController.viewModel.file = try makeFolder(id: 1, name: "Folder", sortBy: "NAME_ASC")
+            viewController.viewModel.files = [try makeFile(id: 2, name: "Video", type: "VIDEO")]
+
+            viewController.configureFileActionsButtonMenuItems()
+
+            XCTAssertNotNil(viewController.fileActionsButton?.menu)
+            releasedController = viewController
+        }
+
+        XCTAssertNil(releasedController)
+    }
+
     func testConfigureToolbarUsesLocalizedMoveAndTrashTitles() throws {
         let viewController = FilesViewController()
         let userSettings = UserSettings()

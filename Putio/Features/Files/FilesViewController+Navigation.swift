@@ -75,18 +75,19 @@ extension FilesViewController {
         let selectButton = UIAction(
             title: NSLocalizedString("Select", comment: ""),
             image: PutioIcon.checkCircle.image
-        ) { _ in
-            self.toggleTableEditing()
+        ) { [weak self] _ in
+            self?.toggleTableEditing()
         }
         if children.isEmpty { selectButton.attributes = .disabled }
 
         let newFolderButton = UIAction(
             title: NSLocalizedString("New Folder", comment: ""),
             image: PutioIcon.folderPlus.image
-        ) { _ in
-            let createFolderAlert = self.createFolderCreatorAlert(parentID: parent.id) { _, error in
+        ) { [weak self] _ in
+            guard let self else { return }
+            let createFolderAlert = self.createFolderCreatorAlert(parentID: parent.id) { [weak self] _, error in
                 guard error == nil else { return }
-                self.fetchData(withLoader: true)
+                self?.fetchData(withLoader: true)
             }
 
             self.present(createFolderAlert, animated: true)
@@ -108,8 +109,8 @@ extension FilesViewController {
             let item = UIAction(
                 title: label,
                 identifier: UIAction.Identifier(sortKey)
-            ) { _ in
-                self.setSortSettings(nextSortKey: sortKey)
+            ) { [weak self] _ in
+                self?.setSortSettings(nextSortKey: sortKey)
             }
 
             if sortKey == selectedSortKey {
