@@ -131,10 +131,10 @@
 			</array>
 		</dict>
 		<!--
-			Intercom: its device ID and the push token, linked.
-			Sentry, not linked: its random installation id and device_app_hash,
-			a hash of the IDFV that the app context keeps. Both are device-scoped
-			and carry no account.
+			Intercom: its device ID and the push token.
+			Sentry: its random installation id and device_app_hash, a hash of
+			the IDFV that the app context keeps. They carry no account, but Apple
+			links data through the device too.
 		-->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
@@ -169,13 +169,13 @@
 		</dict>
 		<!--
 			Sentry, for these three, except while the account's diagnostics_enabled
-			is off. Events carry the device IDs above, not the account id.
+			is off. Events carry the Sentry device IDs above, so they are linked.
 		-->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeCrashData</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<false/>
+			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>
@@ -188,7 +188,7 @@
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypePerformanceData</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<false/>
+			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>
@@ -201,7 +201,7 @@
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeOtherDiagnosticData</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<false/>
+			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>
