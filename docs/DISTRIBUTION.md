@@ -79,6 +79,32 @@ One controlled, non-fatal event proves a build's Sentry path. Run the check on t
 
 Never paste the DSN or the event payload into issues, pull requests, or logs.
 
+## App Privacy
+
+[`Putio/PrivacyInfo.xcprivacy`](../Putio/PrivacyInfo.xcprivacy) declares what the app sends and what its SDKs' own manifests leave out, including the required-reason APIs of Google Cast, which links into the app binary. Before submitting a release, check that the App Privacy answers in App Store Connect match this table. Nothing is used for tracking.
+
+| Data type | Linked to the user | Purposes | From |
+| --- | --- | --- | --- |
+| User ID | Yes | App Functionality | Intercom, which gets the account ID |
+| Customer Support | Yes | App Functionality | Intercom conversations |
+| Email Address | Yes | App Functionality | Intercom's manifest |
+| Photos or Videos | Yes | App Functionality | Intercom's manifest |
+| Crash Data | No | App Functionality | Sentry |
+| Performance Data | No | App Functionality, Analytics | Sentry, Intercom, Google Cast |
+| Other Diagnostic Data | No | App Functionality, Analytics | Sentry, Intercom, Google Cast |
+| Device ID | No | App Functionality, Analytics | Sentry's installation ID, Google Cast |
+| Product Interaction | No | App Functionality, Analytics | Google Cast |
+| Coarse Location | No | App Functionality, Analytics | Google Cast |
+
+The table doesn't cover the account and file data the put.io API itself holds. Sentry sends only while the account's `diagnostics_enabled` is on.
+
+Organizer's Generate Privacy Report merges every manifest in an archive; Xcode has no command-line equivalent. CI deletes its archives, so archive locally, then open the archive in Organizer:
+
+```sh
+xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -archivePath build/privacy/Putio.xcarchive CODE_SIGNING_ALLOWED=NO archive
+open build/privacy/Putio.xcarchive
+```
+
 ## GitHub Release Settings
 
 Repository admins must keep these settings aligned with the workflow trust model:

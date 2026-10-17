@@ -21,5 +21,6 @@ if git grep -nE '^[[:space:]]*(@[A-Za-z_]+[[:space:]]+)*import[[:space:]]+([a-z]
     exit 1
 fi
 
+plutil -lint Putio/PrivacyInfo.xcprivacy
 plutil -lint Putio/en.lproj/*.strings
 xcodebuild -list -workspace Putio.xcworkspace
