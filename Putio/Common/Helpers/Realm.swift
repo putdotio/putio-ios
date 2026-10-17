@@ -14,10 +14,27 @@ class PutioRealm {
     }
 
     static func setNeedsDownloadRecovery(_ value: Bool, defaults: UserDefaults = .standard) {
+        setFlag(value, forKey: needsDownloadRecoveryKey, defaults: defaults)
+    }
+
+    private static let upgradingFromShipped258Key = "PutioRealm.upgradingFromShipped258"
+
+    /// Set when setup replaces 2.58.0's file and kept until the next sign-in, so
+    /// it outlives a background launch. Until then the session restored at launch
+    /// is the one 2.58.0 left: its token moves over and its downloads come back.
+    static func isUpgradingFromShipped258(defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: upgradingFromShipped258Key)
+    }
+
+    static func setUpgradingFromShipped258(_ value: Bool, defaults: UserDefaults = .standard) {
+        setFlag(value, forKey: upgradingFromShipped258Key, defaults: defaults)
+    }
+
+    private static func setFlag(_ value: Bool, forKey key: String, defaults: UserDefaults) {
         if value {
-            defaults.set(true, forKey: needsDownloadRecoveryKey)
+            defaults.set(true, forKey: key)
         } else {
-            defaults.removeObject(forKey: needsDownloadRecoveryKey)
+            defaults.removeObject(forKey: key)
         }
     }
 
@@ -77,12 +94,13 @@ class PutioRealm {
     // An in-memory Realm keeps its rows only while an instance is open.
     private static var fallbackRealm: Realm?
 
-    /// Whether this launch deleted an unreadable file, as the first one after 2.58.0 does.
-    private(set) static var didDeleteUnreadableFile = false
-
     /// Returns the failure, if any, for the caller to report once telemetry runs.
     @discardableResult
-    static func setup(configuration: Realm.Configuration = configuration(), defaults: UserDefaults = .standard) -> Error? {
+    static func setup(
+        configuration: Realm.Configuration = configuration(),
+        defaults: UserDefaults = .standard,
+        isProtectedDataAvailable: Bool = true
+    ) -> Error? {
         Realm.Configuration.defaultConfiguration = configuration
         var failure = openingError(configuration)
 
@@ -90,15 +108,18 @@ class PutioRealm {
             // Download file references survive in UserDefaults.
             log.warning("[PutioRealm] Unreadable Realm file (\(error.code.rawValue)), deleting old database")
             deleteFiles(of: configuration)
-            didDeleteUnreadableFile = true
             setNeedsDownloadRecovery(true, defaults: defaults)
+            setUpgradingFromShipped258(true, defaults: defaults)
             failure = openingError(configuration)
         }
 
-        // Without a default Realm every sign-in lands back on Login. This launch
-        // keeps its rows in memory and the next one tries the file again.
-        if let failure {
-            logFailure("setup", error: failure)
+        guard let failure else { return nil }
+        logFailure("setup", error: failure)
+        // Without a default Realm every sign-in lands back on Login, so this
+        // launch keeps its rows in memory and the next one tries the file again.
+        // Not while the device is locked, as in a background launch before first
+        // unlock: then later opens retry the file once it unlocks.
+        if isProtectedDataAvailable {
             var fallback = configuration
             fallback.inMemoryIdentifier = "PutioRealm.fallback"
             Realm.Configuration.defaultConfiguration = fallback
@@ -255,11 +276,15 @@ class PutioRealm {
 
         let allKeys = defaults.dictionaryRepresentation().keys
 
-        var recovered = 0
+        var recovered: [Download] = []
         var recoveredFileIds = Set<Int>()
+        // A row that is already there is the real one; recovery only fills gaps.
+        func isMissing(_ fileId: Int) -> Bool {
+            !recoveredFileIds.contains(fileId) && realm.object(ofType: Download.self, forPrimaryKey: fileId) == nil
+        }
 
         for key in allKeys {
-            guard let fileId = Int(key), fileId > 0 else { continue }
+            guard let fileId = Int(key), fileId > 0, isMissing(fileId) else { continue }
 
             guard let download = buildRecoveredDownload(
                 fileId: fileId,
@@ -267,8 +292,7 @@ class PutioRealm {
                 documentsURL: documentsURL
             ) else { continue }
 
-            addRecoveredDownload(download, to: realm)
-            recovered += 1
+            recovered.append(download)
             recoveredFileIds.insert(fileId)
         }
 
@@ -276,16 +300,21 @@ class PutioRealm {
             for filename in contents where filename.hasPrefix("putio_adm_") {
                 guard let fileId = recoveredAudioFileId(from: filename),
                       fileId > 0,
-                      !recoveredFileIds.contains(fileId) else { continue }
+                      isMissing(fileId) else { continue }
 
                 let fileURL = documentsURL.appendingPathComponent(filename)
                 guard FileManager.default.fileExists(atPath: fileURL.path) else { continue }
 
-                addRecoveredDownload(buildRecoveredDownload(fileId: fileId, isVideo: false), to: realm)
+                recovered.append(buildRecoveredDownload(fileId: fileId, isVideo: false))
                 defaults.set(filename, forKey: String(fileId))
-                recovered += 1
                 recoveredFileIds.insert(fileId)
             }
+        }
+
+        // One transaction, since this now runs on the main thread at launch. A
+        // failed write keeps the flag, so Restore can try again.
+        if !recovered.isEmpty, !write(realm, context: "recoverDownloadsIfNeeded", updates: { realm.add(recovered, update: .all) }) {
+            return
         }
 
         // Cleared here, not after enrichment: enrichment is fire-and-forget and
@@ -293,7 +322,7 @@ class PutioRealm {
         // this launch, so there it stays set for the next one.
         setNeedsDownloadRecovery(realm.configuration.inMemoryIdentifier != nil, defaults: defaults)
 
-        log.info("[PutioRealm] Recovered \(recovered) download record(s)")
+        log.info("[PutioRealm] Recovered \(recovered.count) download record(s)")
 
         if shouldEnrichPlaceholders {
             enrichPlaceholderDownloads(in: realm)
@@ -335,12 +364,6 @@ class PutioRealm {
         download.completedAt = Date()
         download.createdAt = Date()
         return download
-    }
-
-    private static func addRecoveredDownload(_ download: Download, to realm: Realm) {
-        try? realm.write {
-            realm.add(download, update: .all)
-        }
     }
 
     private static func hasValidVideoBookmark(fileId: Int, defaults: UserDefaults) -> Bool {

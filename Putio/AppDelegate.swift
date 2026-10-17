@@ -92,7 +92,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func configureSDKs() {
-        let realmFailure = PutioRealm.setup()
+        let realmFailure = PutioRealm.setup(isProtectedDataAvailable: UIApplication.shared.isProtectedDataAvailable)
 
         SentryTelemetry.start()
         // Not from setup(): Sentry drops events until start() has applied the
@@ -197,7 +197,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func authenticate(token: String? = nil, isRestoredSession: Bool = false) {
         self.isRestoredSession = isRestoredSession
-        guard let token = token ?? PutioKeychain.sharedInstance.getToken() else {
+        if !isRestoredSession {
+            PutioRealm.setUpgradingFromShipped258(false)
+        }
+        guard let token = token ?? PutioKeychain.sharedInstance.getToken(adoptsShipped258Token: PutioRealm.isUpgradingFromShipped258()) else {
             return presentLoginScreen()
         }
 
@@ -306,11 +309,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         guard let realm = PutioRealm.open(context: "fetchUserFailure") else {
             return presentLoginScreen(afterBootstrapFailure: "Realm unavailable in fetchUserFailure")
         }
-        // The upgrade from 2.58.0 deletes its Realm user, so a session restored
-        // at launch stands in for it. Keep downloads reachable.
-        let keepsSession = realm.objects(User.self).first != nil || isRestoredSession
+        // The upgrade from 2.58.0 deletes its Realm user, so until the next
+        // sign-in the session restored at launch stands in for it.
+        let keepsSession = realm.objects(User.self).first != nil || (isRestoredSession && PutioRealm.isUpgradingFromShipped258())
 
         switch error.localizerType {
+        // Offline, any restored session keeps downloads reachable.
+        case .networkError where isRestoredSession:
+            return self.presentMainScreen(startDownloadQueue: false)
+
         case .decodingError, .unknownError, .networkError:
             if keepsSession {
                 return self.presentMainScreen(startDownloadQueue: false)
@@ -404,9 +411,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         applyWindowAppearance()
         window?.rootViewController = RootContainerViewController()
         window?.makeKeyAndVisible()
-        // Only the launch that replaced 2.58.0's Realm still holds the session
-        // its downloads belong to. Otherwise recovering stays a Restore tap.
-        if isRestoredSession, PutioRealm.didDeleteUnreadableFile {
+        // Until the next sign-in, the session restored at launch is the one
+        // 2.58.0's downloads belong to. After one, recovering stays a Restore tap.
+        if isRestoredSession, PutioRealm.isUpgradingFromShipped258() {
             PutioRealm.recoverDownloadsIfNeeded()
         }
         let urls = pendingURLs

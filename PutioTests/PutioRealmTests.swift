@@ -136,6 +136,7 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertNil(PutioRealm.setup(configuration: configuration, defaults: defaults))
 
         XCTAssertTrue(PutioRealm.needsDownloadRecovery(defaults: defaults))
+        XCTAssertTrue(PutioRealm.isUpgradingFromShipped258(defaults: defaults))
         XCTAssertEqual(Realm.Configuration.defaultConfiguration.fileURL, realmURL)
         XCTAssertEqual(try realmFileFormat(at: realmURL), 24)
         // Realm's own copy of the rejected file, which would keep 2.58.0's rows.
@@ -180,6 +181,39 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertFalse(PutioRealm.needsDownloadRecovery(defaults: defaults))
     }
 
+    func testSetupReplacesAFileThatIsNotARealm() throws {
+        let realmURL = temporaryDirectory.appendingPathComponent("default.realm")
+        try Data(repeating: 0x2A, count: 4096).write(to: realmURL)
+        preserveDefaultRealmConfiguration()
+
+        XCTAssertNil(PutioRealm.setup(configuration: PutioRealm.configuration(fileURL: realmURL), defaults: defaults))
+
+        XCTAssertTrue(PutioRealm.needsDownloadRecovery(defaults: defaults))
+        XCTAssertEqual(try realmFileFormat(at: realmURL), 24)
+    }
+
+    func testRecoveryKeepsRowsThatAreAlreadyThere() throws {
+        let configuration = PutioRealm.configuration(fileURL: temporaryDirectory.appendingPathComponent("Existing.realm"))
+        let realm = try XCTUnwrap(PutioRealm.open(context: #function, configuration: configuration))
+        let existing = Download()
+        existing.id = 501
+        existing.name = "Downloaded Since.mp3"
+        existing.state = .completed
+        existing.fileType = .audio
+        XCTAssertTrue(PutioRealm.write(realm, context: #function) { realm.add(existing) })
+        for id in [501, 502] {
+            let path = "putio_adm_\(id)_fixture.mp3"
+            FileManager.default.createFile(atPath: temporaryDirectory.appendingPathComponent(path).path, contents: Data("audio".utf8))
+            defaults.set(path, forKey: String(id))
+        }
+
+        PutioRealm.setNeedsDownloadRecovery(true, defaults: defaults)
+        PutioRealm.recoverDownloadsIfNeeded(defaults: defaults, documentsURL: temporaryDirectory, realm: realm, shouldEnrichPlaceholders: false)
+
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 501)?.name, "Downloaded Since.mp3")
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 502)?.name, "Recovering...")
+    }
+
     func testSetupFallsBackToMemoryWhenTheFileCannotOpen() throws {
         let realmURL = temporaryDirectory.appendingPathComponent("missing/default.realm")
         preserveDefaultRealmConfiguration()
@@ -187,14 +221,31 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertNotNil(PutioRealm.setup(configuration: PutioRealm.configuration(fileURL: realmURL), defaults: defaults))
 
         XCTAssertFalse(PutioRealm.needsDownloadRecovery(defaults: defaults))
-        // A user written now must still be there for the next open, or sign-in
-        // would land back on Login.
+        XCTAssertFalse(PutioRealm.isUpgradingFromShipped258(defaults: defaults))
+        // Sign-in writes the user and lets go of its instance. The next open must
+        // still find it, or every sign-in lands back on Login.
+        autoreleasepool {
+            let user = User()
+            user.id = 4242
+            guard let realm = PutioRealm.open(context: #function) else { return XCTFail("no fallback Realm") }
+            XCTAssertTrue(PutioRealm.write(realm, context: #function) { realm.add(user) })
+        }
         let realm = try XCTUnwrap(PutioRealm.open(context: #function))
-        let user = User()
-        user.id = 4242
-        XCTAssertTrue(PutioRealm.write(realm, context: #function) { realm.add(user) })
-        addTeardownBlock { try? realm.write { realm.deleteAll() } }
-        XCTAssertNotNil(PutioRealm.open(context: #function)?.object(ofType: User.self, forPrimaryKey: 4242))
+        defer { try? realm.write { realm.deleteAll() } }
+        XCTAssertNotNil(realm.object(ofType: User.self, forPrimaryKey: 4242))
+    }
+
+    func testSetupKeepsTheFileWhileProtectedDataIsUnavailable() throws {
+        let realmURL = temporaryDirectory.appendingPathComponent("locked/default.realm")
+        preserveDefaultRealmConfiguration()
+
+        XCTAssertNotNil(PutioRealm.setup(configuration: PutioRealm.configuration(fileURL: realmURL), defaults: defaults, isProtectedDataAvailable: false))
+
+        // Once the device unlocks, the next open reaches the file.
+        try FileManager.default.createDirectory(at: realmURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let realm = try XCTUnwrap(PutioRealm.open(context: #function))
+        XCTAssertNil(realm.configuration.inMemoryIdentifier)
+        XCTAssertEqual(realm.configuration.fileURL, realmURL)
     }
 
     func testRecoveredAudioFileIdParsesLegacyAndNormalAudioFilenames() {

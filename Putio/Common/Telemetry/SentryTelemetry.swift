@@ -29,11 +29,12 @@ enum SentryTelemetry {
     static let cacheDirectory = URL.cachesDirectory.appending(path: "io.put.diagnostics")
 
     /// Deletes where 2.58.0's Sentry 7.9.0 kept envelopes and crash reports,
-    /// unredacted. False when either is still there.
+    /// unredacted, and its installation id. Sentry 9 keeps its own id under
+    /// `cacheDirectory`. False when any of them is still there.
     @discardableResult
     static func deleteLegacyCache(in cachesDirectory: URL = .cachesDirectory) -> Bool {
         var deleted = true
-        for name in ["io.sentry", "SentryCrash"] {
+        for name in ["io.sentry", "SentryCrash", "INSTALLATION"] {
             do {
                 try FileManager.default.removeItem(at: cachesDirectory.appending(path: name))
             } catch let error as CocoaError where error.code == .fileNoSuchFile {

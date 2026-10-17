@@ -181,10 +181,10 @@ final class SentryTelemetryTests: XCTestCase {
     func testDeletesTheLegacySentryCacheOnly() throws {
         let caches = FileManager.default.temporaryDirectory.appending(path: "SentryTelemetryTests-\(UUID().uuidString)")
         addTeardownBlock { try? FileManager.default.removeItem(at: caches) }
-        // Paths from Sentry 7.9.0's SentryFileManager and SentryCrash, as 2.58.0 ran them.
-        let legacy = ["io.sentry/0123abcd/envelopes/pending", "SentryCrash/put.io/Reports/report.json"]
-        let kept = "io.put.diagnostics/envelopes/pending"
-        for path in legacy + [kept] {
+        // Paths from Sentry 7.9.0's SentryFileManager, SentryCrash and SentryInstallation, as 2.58.0 ran them.
+        let legacy = ["io.sentry/0123abcd/envelopes/pending", "SentryCrash/put.io/Reports/report.json", "INSTALLATION"]
+        let kept = ["io.put.diagnostics/envelopes/pending", "io.put.diagnostics/INSTALLATION"]
+        for path in legacy + kept {
             let file = caches.appending(path: path)
             try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
             try Data("synthetic".utf8).write(to: file)
@@ -192,9 +192,12 @@ final class SentryTelemetryTests: XCTestCase {
 
         XCTAssertTrue(SentryTelemetry.deleteLegacyCache(in: caches))
 
-        XCTAssertFalse(FileManager.default.fileExists(atPath: caches.appending(path: "io.sentry").path))
-        XCTAssertFalse(FileManager.default.fileExists(atPath: caches.appending(path: "SentryCrash").path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: caches.appending(path: kept).path))
+        for path in ["io.sentry", "SentryCrash", "INSTALLATION"] {
+            XCTAssertFalse(FileManager.default.fileExists(atPath: caches.appending(path: path).path), path)
+        }
+        for path in kept {
+            XCTAssertTrue(FileManager.default.fileExists(atPath: caches.appending(path: path).path), path)
+        }
         XCTAssertTrue(SentryTelemetry.deleteLegacyCache(in: caches), "nothing left to delete is done")
     }
 

@@ -1,14 +1,24 @@
 import XCTest
 
 final class PlaybackSmokeUITests: XCTestCase {
-    private func launchFixtureApp(offlineRoutes: String? = nil) -> XCUIApplication {
+    private func launchFixtureApp(offlineRoutes: String? = nil, failRoutes: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["PUTIO_E2E_MOCK_API"] = "1"
         app.launchEnvironment["PUTIO_E2E_ACCESS_TOKEN"] = "e2e-token"
         app.launchEnvironment["PUTIO_E2E_RESET_STATE"] = "1"
         app.launchEnvironment["PUTIO_E2E_OFFLINE_ROUTES"] = offlineRoutes
+        app.launchEnvironment["PUTIO_E2E_FAIL_ROUTES"] = failRoutes
         app.launch()
         return app
+    }
+
+    // Only offline does that launch skip the account. A server failure still
+    // lands on Login, so a broken mocked bootstrap fails the suite loudly.
+    func testServerFailureWithoutCachedUserShowsLogin() {
+        let app = launchFixtureApp(failRoutes: "GET /v2/account/info")
+
+        XCTAssertTrue(app.buttons["Log in"].waitForExistence(timeout: 20))
+        XCTAssertFalse(app.tabItem("Files").exists)
     }
 
     // The reset leaves a token and no Realm user, as the first launch after the

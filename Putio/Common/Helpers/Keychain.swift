@@ -20,12 +20,19 @@ class PutioKeychain {
         legacyKeychain = legacyServiceKey.flatMap { $0 == serviceKey ? nil : Keychain(service: $0) }
     }
 
-    func getToken() -> String? {
+    /// Moves 2.58.0's token over only when `adoptsShipped258Token`. Elsewhere it
+    /// is one a 3.x sign-out left behind, since 3.x cleared only its own service,
+    /// so it is deleted unused.
+    func getToken(adoptsShipped258Token: Bool = false) -> String? {
         if let token = keychain[tokenKey] {
             return token
         }
 
         guard let legacyKeychain, let token = legacyKeychain[tokenKey] else { return nil }
+        guard adoptsShipped258Token else {
+            legacyKeychain[tokenKey] = nil
+            return nil
+        }
         keychain[tokenKey] = token
         // Moved only once the copy reads back, so a failed write keeps the session.
         if keychain[tokenKey] == token {
