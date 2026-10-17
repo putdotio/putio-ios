@@ -73,6 +73,9 @@ final class ProductAnalyticsGate {
         let sdk: PostHogSDK
         let accountID: Int
         let commonProperties: [String: String]
+        /// Without an open since the start, a background would time a session
+        /// that began before consent.
+        var hasSentOpen = false
     }
 
     /// Events from before the first answer of this launch, such as the cold
@@ -122,8 +125,8 @@ final class ProductAnalyticsGate {
     func capture(_ event: AnalyticsEvent) {
         lock.withLock {
             guard environment.token != nil, environment.isEligible else { return }
-            if let running {
-                send(event, with: running)
+            if running != nil {
+                send(event)
             } else if !hasAnswer {
                 held.append(event)
                 if held.count > Self.heldLimit { held.removeFirst() }
@@ -149,9 +152,7 @@ final class ProductAnalyticsGate {
         start(token: token, accountID: target)
         let pending = held
         held.removeAll()
-        if let running {
-            pending.forEach { send($0, with: running) }
-        }
+        pending.forEach(send)
     }
 
     /// `apply()` stops first, so every start is a fresh install, even after a
@@ -198,7 +199,14 @@ final class ProductAnalyticsGate {
         }
     }
 
-    private func send(_ event: AnalyticsEvent, with running: Running) {
+    private func send(_ event: AnalyticsEvent) {
+        guard var running else { return }
+        switch event {
+        case .appOpened: running.hasSentOpen = true
+        case .appBackgrounded where !running.hasSentOpen: return
+        default: break
+        }
+        self.running = running
         running.sdk.capture(event.name, properties: running.commonProperties.merging(event.properties) { $1 })
     }
 

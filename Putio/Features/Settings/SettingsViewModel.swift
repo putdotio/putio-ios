@@ -118,7 +118,10 @@ class SettingsViewModel {
                 AccountNoticeStore.shared.update(with: account, startedIn: noticeSession)
                 guard savesBeforeRead == Self.confirmedSaves else { return }
                 self.applyDiagnostics(account.settings.diagnosticsEnabled)
-                self.applyProductAnalytics(account.id, account.settings.productAnalyticsEnabled)
+                // Signing out moves the session on, and a signed-out app sends nothing.
+                if noticeSession == AccountNoticeStore.shared.session {
+                    self.applyProductAnalytics(account.id, account.settings.productAnalyticsEnabled)
+                }
                 guard let realm = PutioRealm.open(context: "SettingsViewModel.fetchData") else { return }
 
                 let didWrite = PutioRealm.write(realm, context: "SettingsViewModel.fetchData.write") {

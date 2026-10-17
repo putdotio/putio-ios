@@ -340,6 +340,23 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(applied, [false], "a read that starts after the answer applies")
     }
 
+    func testAnAccountReadThatOutlivesTheSessionLeavesProductAnalyticsAlone() throws {
+        var reads: [(Result<PutioAccount, PutioSDKError>) -> Void] = []
+        var applied: [Bool] = []
+        let viewModel = SettingsViewModel(
+            applyDiagnostics: { _ in },
+            applyProductAnalytics: { _, enabled in applied.append(enabled) },
+            fetchAccountInfoRequest: { reads.append($0) }
+        )
+
+        viewModel.fetchData()
+        // What signing out does to the session.
+        AccountNoticeStore.shared.clear()
+        reads[0](.success(try account(diagnosticsEnabled: true, productAnalyticsEnabled: true)))
+
+        XCTAssertEqual(applied, [], "a read from before the sign-out restarted capture")
+    }
+
     private func account(diagnosticsEnabled: Bool, productAnalyticsEnabled: Bool) throws -> PutioAccount {
         let json = """
         {

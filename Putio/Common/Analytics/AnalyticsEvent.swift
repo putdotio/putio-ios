@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import PutioSDK
 
 /// The events from the Analytics event contract that this app has a hook for.
 /// Every value is a fixed vocabulary, so a call site can't send free text.
@@ -87,8 +88,16 @@ enum AnalyticsEvent: Equatable {
     enum PlaybackError: String, CaseIterable {
         case network, media, notFound = "not_found", needsConversion = "needs_conversion", unknown
 
-        /// The error's domain only: its message and URL stay on the device.
+        /// The error's kind only: its message and URL stay on the device.
         init(_ error: Error?) {
+            if let error = error as? PutioSDKError {
+                switch error.type {
+                case .networkError: self = .network
+                case .httpError(404, _): self = .notFound
+                default: self = .unknown
+                }
+                return
+            }
             switch (error as NSError?)?.domain {
             case NSURLErrorDomain?: self = .network
             case AVFoundationErrorDomain?, "CoreMediaErrorDomain"?: self = .media
@@ -305,11 +314,13 @@ final class PlaybackAnalytics {
         lock.withLock { reachedEnd = true }
     }
 
+    /// Before `start()`, as when the player closes while it looks up the
+    /// position, it sends nothing and a later `start()` sends nothing either.
     func end() {
         let ended: AnalyticsEvent? = lock.withLock {
             queueObservation = nil
+            defer { isFinished = true }
             guard let startedAt, !isFinished else { return nil }
-            isFinished = true
             return .playbackEnded(playback, reachedEnd ? .completed : .partial, .init(seconds: now().timeIntervalSince(startedAt)))
         }
         ended.map(capture)

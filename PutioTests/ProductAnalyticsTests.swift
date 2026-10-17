@@ -1,6 +1,7 @@
 import AVFoundation
 import os
 import PostHog
+import PutioSDK
 import XCTest
 @testable import Putio
 
@@ -205,6 +206,21 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertFalse(events.contains { $0["event"] as? String == "$identify" })
     }
 
+    func testABackgroundWithoutAnOpenSinceTheStartIsDropped() throws {
+        let (gate, token) = makeGate()
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+
+        // The foreground began before the opt-in, so its length isn't the account's to send.
+        gate.capture(.appBackgrounded(.over60m))
+        gate.capture(.appOpened(.resume))
+        _ = try waitForEvents(token: token, count: 1)
+        gate.capture(.appBackgrounded(.under1m))
+        let events = try waitForEvents(token: token, count: 2)
+
+        XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_backgrounded"])
+        XCTAssertEqual((events.last?["properties"] as? [String: Any])?["session_duration"] as? String, "lt_1m")
+    }
+
     func testAStartAfterAKilledLaunchDropsItsIdentity() throws {
         let (killed, token) = makeGate()
         killed.update(accountID: 1001, productAnalyticsEnabled: true)
@@ -268,9 +284,11 @@ final class ProductAnalyticsTests: XCTestCase {
         var events: [AnalyticsEvent] = []
         var clock = Date(timeIntervalSince1970: 0)
         let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .native)
-        let playback = PlaybackAnalytics(video, capture: { events.append($0) }, now: { clock })
+        let closedEarly = PlaybackAnalytics(video, capture: { events.append($0) }, now: { clock })
+        closedEarly.end()
+        closedEarly.start()
 
-        playback.end()
+        let playback = PlaybackAnalytics(video, capture: { events.append($0) }, now: { clock })
         playback.start()
         playback.start()
         clock += 2000
@@ -286,6 +304,9 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertEqual(events, [
             .playbackStarted(video), .playbackEnded(video, .completed, .from30mTo90m), .playbackFailed(video, .media)
         ])
+        XCTAssertEqual(AnalyticsEvent.PlaybackError(PutioSDKError.offline("/files/1")), .network)
+        XCTAssertEqual(AnalyticsEvent.PlaybackError(URLError(.timedOut)), .network)
+        XCTAssertEqual(AnalyticsEvent.PlaybackError(NSError(domain: "Missing Metadata", code: 0)), .unknown)
     }
 
     // MARK: - Helpers

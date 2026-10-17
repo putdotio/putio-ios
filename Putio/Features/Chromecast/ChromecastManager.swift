@@ -214,9 +214,12 @@ class ChromecastManager: NSObject {
     func castVideo(fileID: Int, completion reportResult: @escaping (_ success: Bool, _ error: CastError?) -> Void) {
         let currentCastSession = GCKCastContext.sharedInstance().sessionManager.currentCastSession
         var castFile: PutioFile?
+        // The put.io request behind a failure, which says more than its CastErrorReason.
+        var requestError: PutioSDKError?
         let completion: (Bool, CastError?) -> Void = { success, error in
             let playback = self.castPlayback(for: castFile)
-            ProductAnalytics.capture(error.map { .playbackFailed(playback, $0.reason.playbackError) } ?? .playbackStarted(playback))
+            let failure = error.map { castError in requestError.map { AnalyticsEvent.PlaybackError($0) } ?? castError.reason.playbackError }
+            ProductAnalytics.capture(failure.map { .playbackFailed(playback, $0) } ?? .playbackStarted(playback))
             reportResult(success, error)
         }
 
@@ -239,8 +242,9 @@ class ChromecastManager: NSObject {
                 let metadata = self.createGCKMediaMetadata(for: file)
                 let mediaLoadOptions = self.createGCKMediaLoadOptions(for: file)
 
-                self.createGCKMediaInformation(for: file, metadata: metadata, mediaLoadOptions: mediaLoadOptions) { (mediaInformation, _) in
+                self.createGCKMediaInformation(for: file, metadata: metadata, mediaLoadOptions: mediaLoadOptions) { (mediaInformation, error) in
                     guard let mediaInformation = mediaInformation else {
+                        requestError = error as? PutioSDKError
                         return completion(false, CastError(fileID: fileID, reason: .missingMetadata))
                     }
 
@@ -253,7 +257,8 @@ class ChromecastManager: NSObject {
                     completion(true, nil)
                 }
 
-            case .failure:
+            case .failure(let error):
+                requestError = error
                 completion(false, CastError(fileID: fileID, reason: .fileNotFound))
             }
         }
