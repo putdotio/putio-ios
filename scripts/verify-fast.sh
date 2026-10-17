@@ -15,9 +15,23 @@ if git ls-files | grep -iE '\.(otf|ttf|ttc)$'; then
     exit 1
 fi
 
+# Each pattern also matches attributed imports such as `@_spi(Private) import`.
 # Only the SDK may fill the event fields SentryTelemetry's allowlist keeps.
-if git grep -nE '^[[:space:]]*(@[A-Za-z_]+[[:space:]]+)*import[[:space:]]+([a-z]+[[:space:]]+)?Sentry([.[:space:]]|$)' -- 'Putio/*.swift' ':(exclude)Putio/Common/Telemetry/*'; then
+if git grep -nE '^[[:space:]]*(@[A-Za-z_]+(\([^)]*\))?[[:space:]]+)*import[[:space:]]+([a-z]+[[:space:]]+)?Sentry([.[:space:]]|$)' -- 'Putio/*.swift' ':(exclude)Putio/Common/Telemetry/*'; then
     echo "verify-fast: import Sentry only in Putio/Common/Telemetry; report through SentryTelemetry." >&2
+    exit 1
+fi
+
+# Every PostHog event leaves through ProductAnalytics' gate and allowlist.
+if git grep -nE '^[[:space:]]*(@[A-Za-z_]+(\([^)]*\))?[[:space:]]+)*import[[:space:]]+([a-z]+[[:space:]]+)?PostHog([.[:space:]]|$)' -- 'Putio/*.swift' ':(exclude)Putio/Common/Analytics/*'; then
+    echo "verify-fast: import PostHog only in Putio/Common/Analytics; capture through ProductAnalytics." >&2
+    exit 1
+fi
+
+# ProductAnalytics.projectToken takes only this shape; any other value, an
+# empty one included, ships an App Store build that never starts PostHog.
+if ! grep -qE '^PUTIO_POSTHOG_TOKEN = phc_[A-Za-z0-9]{20,64}( //.*)?$' Config/Release.xcconfig; then
+    echo "verify-fast: Config/Release.xcconfig needs PostHog's public project token (phc_...)." >&2
     exit 1
 fi
 

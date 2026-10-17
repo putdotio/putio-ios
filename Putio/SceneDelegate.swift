@@ -32,7 +32,16 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneWillEnterForeground(_ scene: UIScene) {
+        ProductAnalytics.appSession.willEnterForeground()
         appDelegate?.refreshAccountStatus()
+    }
+
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        ProductAnalytics.appSession.didBecomeActive()
+    }
+
+    func sceneDidEnterBackground(_ scene: UIScene) {
+        ProductAnalytics.appSession.didEnterBackground()
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {

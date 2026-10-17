@@ -100,6 +100,8 @@
 	<string>$(PUTIO_INTERCOM_APP_ID)</string>
 	<key>PUTIO_OAUTH_CLIENT_ID</key>
 	<string>$(PUTIO_OAUTH_CLIENT_ID)</string>
+	<key>PUTIO_POSTHOG_TOKEN</key>
+	<string>$(PUTIO_POSTHOG_TOKEN)</string>
 	<key>PUTIO_SENTRY_DSN</key>
 	<string>$(PUTIO_SENTRY_DSN)</string>
 	<key>UIBackgroundModes</key>

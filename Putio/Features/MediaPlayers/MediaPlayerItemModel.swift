@@ -55,6 +55,18 @@ struct MediaPlayerItem {
     }
 }
 
+extension MediaPlayerItem {
+    var analyticsPlayback: AnalyticsEvent.Playback {
+        let streamMethod: AnalyticsEvent.StreamMethod
+        switch (consumptionType, fileType) {
+        case (.offline, _): streamMethod = .localFile
+        case (.online, .video): streamMethod = .hls
+        case (.online, .audio): streamMethod = .progressive
+        }
+        return AnalyticsEvent.Playback(media: fileType == .video ? .video : .audio, streamMethod: streamMethod, player: .native)
+    }
+}
+
 struct VideoPlaybackPositionEntry: Codable {
     let position: Int
     let updatedAt: Date

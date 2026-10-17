@@ -56,7 +56,10 @@
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
 			</array>
 		</dict>
-		<!-- put.io: the account id and username; Intercom gets the account id as userId. -->
+		<!--
+			put.io: the account id and username; Intercom gets the account id
+			as userId, and PostHog as its distinct id.
+		-->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeUserID</string>
@@ -67,6 +70,7 @@
 			<key>NSPrivacyCollectedDataTypePurposes</key>
 			<array>
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
 			</array>
 		</dict>
 		<!-- Intercom: support conversations. -->
@@ -114,8 +118,9 @@
 			https://www.intercom.com/help/en/articles/4686934-apple-s-app-store-data-privacy-details-and-intercom-s-ios-sdk
 		-->
 		<!--
-			put.io: playback positions and IFTTT playback events; Intercom.
-			Google Cast's manifest declares its own, not linked.
+			put.io: playback positions and IFTTT playback events; Intercom;
+			PostHog's events, linked by the account id. Google Cast's and
+			PostHog's manifests declare their own, not linked.
 		-->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
@@ -127,6 +132,23 @@
 			<key>NSPrivacyCollectedDataTypePurposes</key>
 			<array>
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+			</array>
+		</dict>
+		<!--
+			PostHog: the app version, OS version and device class on each
+			event. Its manifest declares Other Usage Data, not linked; the
+			account id links it.
+		-->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUsageData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
 				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
 			</array>
 		</dict>

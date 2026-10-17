@@ -18,6 +18,7 @@ class VideoPlayerViewController: AVPlayerViewController {
     private var playerStatusObserver: NSKeyValueObservation?
     private var hasStoppedPlayback = false
     private var hasDisposedPlayer = false
+    private var playbackAnalytics: PlaybackAnalytics?
 
     override var prefersStatusBarHidden: Bool {
         return true
@@ -27,6 +28,7 @@ class VideoPlayerViewController: AVPlayerViewController {
         super.viewDidLoad()
         view.accessibilityIdentifier = "putio-video-player"
         view.accessibilityValue = "loading"
+        playbackAnalytics = item.map { PlaybackAnalytics($0.analyticsPlayback) }
         registerLifecycleObservers()
     }
 
@@ -190,6 +192,7 @@ class VideoPlayerViewController: AVPlayerViewController {
         )
 
         api.sendIFTTTEvent(event: iftttEvent, completion: { _ in })
+        playbackAnalytics?.start()
     }
 
     private func onPlaybackStoppedIfNeeded() {
@@ -219,6 +222,7 @@ class VideoPlayerViewController: AVPlayerViewController {
         unregisterPlayerTimeObserver()
         player?.pause()
         onPlaybackStoppedIfNeeded()
+        playbackAnalytics?.end()
     }
 
     private func registerPlayerTimeObserver() {
@@ -253,6 +257,9 @@ class VideoPlayerViewController: AVPlayerViewController {
                     ? "ready"
                     : (playerItem.status == .failed ? "failed" : "loading")
                 self?.view.accessibilityValue = accessibilityValue
+                if playerItem.status == .failed {
+                    self?.playbackAnalytics?.fail(playerItem.error)
+                }
             }
         }
     }
@@ -297,11 +304,13 @@ class VideoPlayerViewController: AVPlayerViewController {
     @objc private func handlePlaybackFailed(_ notification: Notification) {
         guard isNotificationForCurrentPlayerItem(notification) else { return }
         persistPlaybackPosition(shouldSyncRemoteInBackground: true)
+        playbackAnalytics?.fail(notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)
     }
 
     @objc private func handlePlaybackEnded(_ notification: Notification) {
         guard isNotificationForCurrentPlayerItem(notification) else { return }
         persistPlaybackPosition(shouldSyncRemoteInBackground: true)
+        playbackAnalytics?.didReachEnd()
     }
 
     private func isNotificationForCurrentPlayerItem(_ notification: Notification) -> Bool {
