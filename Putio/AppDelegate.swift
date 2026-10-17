@@ -314,7 +314,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             Intercom.setUserHash(account.hash)
         }
 
-        self.presentMainScreen()
+        self.presentMainScreen(asksProductAnalytics: ProductAnalyticsChoice.shouldAsk(
+            productAnalyticsEnabled: account.settings.productAnalyticsEnabled,
+            promptAnswered: config.productAnalyticsPromptAnswered,
+            opensLaunchLinks: !pendingURLs.isEmpty
+        ))
     }
 
     func fetchUserFailure(error: any PutioErrorLocalizableInput) {
@@ -354,13 +358,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // rejected token keep the last notice, so going offline does not hide it.
     func refreshAccountStatus() {
         guard let signedInRoot = window?.rootViewController as? RootContainerViewController else { return }
+        let savesBeforeRead = SettingsViewModel.confirmedSaves
 
         api.getAccountInfo { [weak signedInRoot] result in
             guard let signedInRoot, self.window?.rootViewController === signedInRoot else { return }
 
             switch result {
             case .success(let account):
-                SentryTelemetry.update(diagnosticsEnabled: account.settings.diagnosticsEnabled)
+                if savesBeforeRead == SettingsViewModel.confirmedSaves {
+                    SentryTelemetry.update(diagnosticsEnabled: account.settings.diagnosticsEnabled)
+                    // An answer changed on another device lands here; PostHog
+                    // capture (#345) follows account.settings.productAnalyticsEnabled
+                    // here once it exists, as it does at ProductAnalyticsChoice.settingDidSave.
+                }
                 AccountNoticeStore.shared.update(with: account)
             case .failure(let error):
                 if case .httpError(let statusCode, let errorType) = error.type,
@@ -406,7 +416,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.makeKeyAndVisible()
     }
 
-    func presentMainScreen(startDownloadQueue: Bool = true) {
+    /// Only a fresh account and config can ask about product analytics; the
+    /// cached shell after a failed load never does.
+    func presentMainScreen(startDownloadQueue: Bool = true, asksProductAnalytics: Bool = false) {
         if DownloadQueueLifecyclePolicy.shouldStartQueue(
             requested: startDownloadQueue,
             isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled
@@ -417,7 +429,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         OfflineVideoPlaybackPositionSynchronizer.shared.syncPendingUpdates()
         ChromecastManager.sharedInstance.setup()
         applyWindowAppearance()
-        window?.rootViewController = RootContainerViewController()
+        let rootViewController = RootContainerViewController()
+        rootViewController.asksProductAnalytics = asksProductAnalytics
+        window?.rootViewController = rootViewController
         window?.makeKeyAndVisible()
         // Until the next sign-in, the session restored at launch is the one
         // 2.58.0's downloads belong to. After one, recovering stays a Restore tap.

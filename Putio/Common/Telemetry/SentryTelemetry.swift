@@ -55,6 +55,10 @@ enum SentryTelemetry {
     /// is on.
     private static let consentKey = "io.put.diagnostics-enabled"
 
+    static func lastKnownDiagnosticsEnabled(defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: consentKey) as? Bool ?? true
+    }
+
     static func start(dsn: String? = SENTRY_DSN, defaults: UserDefaults = .standard) {
         apply(dsn: dsn, defaults: defaults)
     }
@@ -71,7 +75,7 @@ enum SentryTelemetry {
     /// deleted, so nothing recorded before a switch-off leaves later either.
     private static func apply(dsn: String?, defaults: UserDefaults) {
         guard let dsn else { return }
-        let enabled = defaults.object(forKey: consentKey) as? Bool ?? true
+        let enabled = lastKnownDiagnosticsEnabled(defaults: defaults)
         isCapturing = enabled
         if enabled {
             if !SentrySDK.isEnabled { SentrySDK.start(options: options(dsn: dsn)) }

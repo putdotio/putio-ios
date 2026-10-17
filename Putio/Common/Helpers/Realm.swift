@@ -3,7 +3,7 @@ import RealmSwift
 
 class PutioRealm {
     private static let needsDownloadRecoveryKey = "PutioRealm.needsDownloadRecovery"
-    static let latestSchemaVersion: UInt64 = 12
+    static let latestSchemaVersion: UInt64 = 13
 
     static var needsDownloadRecovery: Bool {
         return needsDownloadRecovery(defaults: .standard)
@@ -42,10 +42,10 @@ class PutioRealm {
         log.error("[PutioRealm] \(context): \(error.localizedDescription)")
     }
 
-    static func configuration(fileURL: URL? = nil) -> Realm.Configuration {
+    static func configuration(fileURL: URL? = nil, defaults: UserDefaults = .standard) -> Realm.Configuration {
         var configuration = Realm.Configuration(
             schemaVersion: latestSchemaVersion,
-            migrationBlock: migrate
+            migrationBlock: { migrate($0, $1, defaults: defaults) }
         )
 
         if let fileURL {
@@ -175,7 +175,7 @@ class PutioRealm {
     private static let hlsExtensions: Set<String> = ["movpkg"]
     private static let mediaExtensions: Set<String> = ["mp4", "mkv", "avi", "mov", "m4v", "wmv", "webm"]
 
-    private static func migrate(_ migration: Migration, _ oldSchemaVersion: UInt64) {
+    private static func migrate(_ migration: Migration, _ oldSchemaVersion: UInt64, defaults: UserDefaults) {
         if oldSchemaVersion < 1 {
             migration.enumerateObjects(ofType: Download.className()) { _, newDownload in
                 newDownload!["fileTypeRaw"] = Download.FileType.audio.rawValue
@@ -235,6 +235,18 @@ class PutioRealm {
 
         if oldSchemaVersion < 12 {
             migrateDownloadRawColumns(migration)
+        }
+
+        // Not updateUserSettings: it relinks the user to whichever settings row
+        // it visits last, and every replaceUserSession leaves the previous
+        // session's row behind. Diagnostics starts from the answer Sentry
+        // already follows, so a cached shell shows the switch Sentry obeys.
+        if oldSchemaVersion < 13 {
+            let diagnosticsEnabled = SentryTelemetry.lastKnownDiagnosticsEnabled(defaults: defaults)
+            migration.enumerateObjects(ofType: UserSettings.className()) { _, newAppUserSettings in
+                newAppUserSettings!["diagnosticsEnabled"] = diagnosticsEnabled
+                newAppUserSettings!["productAnalyticsEnabled"] = false
+            }
         }
     }
 
