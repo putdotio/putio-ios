@@ -61,7 +61,7 @@ class PDFViewController: UIViewController {
 
         let url = file.getDownloadURL(downloadToken: api.mediaToken)
 
-        request = URLSession.shared.dataTask(with: url) { [weak self] data, _, error in
+        request = MediaPreviewSession.shared.dataTask(with: url) { [weak self] data, _, error in
             guard let self = self else { return }
             if (error as? URLError)?.code == .cancelled { return }
 
