@@ -92,17 +92,19 @@ Before submitting 3.x, change the 2.58.0 answers to these:
 | Customer Support | Linked: App Functionality | Unchanged | Intercom conversations |
 | Product Interaction | Linked: Analytics, App Functionality | Unchanged | put.io playback positions and IFTTT playback events; Intercom; Google Cast, not linked |
 | Crash Data | Linked: App Functionality | Not linked: App Functionality | Sentry |
-| Performance Data | Linked: App Functionality | Not linked: Analytics, App Functionality | Sentry, Intercom; Google Cast's nutrition label |
+| Performance Data | Linked: App Functionality | Not linked: App Functionality | Sentry, Intercom |
 | Other Diagnostic Data | Not declared | Not linked: Analytics, App Functionality | Sentry, Intercom, Google Cast |
 | Device ID | Not declared | Linked: Analytics, App Functionality | Intercom's device ID and push token; Sentry's installation ID and Google Cast, not linked |
 | Photos or Videos | Not declared | Linked: App Functionality | Intercom attachments |
-| Coarse Location | Not declared | Linked: Analytics, App Functionality | Intercom, from the IP address; Google Cast's nutrition label |
+| Other User Content | Not declared | Linked: App Functionality | put.io folder names and renames |
+| Coarse Location | Not declared | Linked: App Functionality | Intercom, from the IP address |
 | Search History | Not declared | Linked: Analytics, App Functionality | Intercom Help Center searches |
 
 - Intercom's rows beyond its manifest come from [its App Store guidance](https://www.intercom.com/help/en/articles/4686934-apple-s-app-store-data-privacy-details-and-intercom-s-ios-sdk). It also lists Developer's Advertising or Marketing for Email Address, Device ID and Product Interaction; add it if put.io sends marketing messages through Intercom.
+- Google Cast's manifest declares its Device ID, Other Diagnostic Data and Product Interaction whatever the app configures. The app turns Cast's analytics logging off, so it declares nothing more from Cast's nutrition label.
+- [Apple counts free-form text fields](https://developer.apple.com/app-store/app-privacy-details/) as Other User Content, which covers folder names and renames. The app uploads no files and adds no transfers.
 - Search History holds while put.io's Messenger offers Help Center search. File search isn't Search History: the put.io API answers it from its search index and doesn't store the query.
-- put.io's files aren't Other User Content, which [Apple defines](https://developer.apple.com/app-store/app-privacy-details/) as user-generated: the app uploads nothing and adds no transfers, and only folder names and renames carry text the user typed.
-- Sentry sends only while the account's `diagnostics_enabled` is on, and its events carry an installation ID, not the account ID.
+- Sentry sends unless the account's `diagnostics_enabled` is off, so also while signed out and before the account answers. Its events carry an installation ID, not the account ID.
 
 Organizer's Generate Privacy Report has no command-line equivalent. CI deletes its archives, so archive locally, then open the archive in Organizer:
 
