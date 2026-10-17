@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/putdotio/putio-sdk-swift",
       "state" : {
-        "revision" : "640510a31bcead483dad39db835b44d141a5b4bd",
-        "version" : "4.1.0"
+        "revision" : "1a7831e0d0c45964622f230124e879c96c6eb569",
+        "version" : "4.2.0"
       }
     }
   ],
