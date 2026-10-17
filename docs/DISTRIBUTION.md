@@ -92,7 +92,8 @@ Before submitting 3.x, change the 2.58.0 answers to these:
 | Email Address | Linked: App Functionality | Unchanged | put.io account; Intercom's manifest |
 | User ID | Linked: Analytics, App Functionality | Unchanged | put.io account ID and username; Intercom gets the account ID; PostHog, for Analytics |
 | Customer Support | Linked: App Functionality | Unchanged | Intercom conversations |
-| Product Interaction | Linked: Analytics, App Functionality | Unchanged | put.io playback positions and IFTTT playback events; Intercom; Google Cast, not linked |
+| Product Interaction | Linked: Analytics, App Functionality | Unchanged | put.io playback positions and IFTTT playback events; Intercom; PostHog events; Google Cast, not linked |
+| Other Usage Data | Not declared | Linked: Analytics | PostHog: app version, OS version and device class on each event |
 | Crash Data | Linked: App Functionality | Unchanged | Sentry |
 | Performance Data | Linked: App Functionality | Linked: Analytics, App Functionality | Sentry, Intercom; Google Cast's nutrition label |
 | Other Diagnostic Data | Not declared | Linked: Analytics, App Functionality | Sentry, Intercom, Google Cast; SwiftyBeaver's manifest |
@@ -103,7 +104,7 @@ Before submitting 3.x, change the 2.58.0 answers to these:
 | Coarse Location | Not declared | Linked: Analytics, App Functionality | Intercom, from the IP address; Google Cast's nutrition label, not linked |
 | Search History | Not declared | Unchanged, unless question 2 or 3 is yes | Intercom Help Center search; put.io file search |
 
-- PostHog ([#345](https://github.com/putdotio/putio-ios/issues/345)) ships in 3.x, so User ID keeps Analytics. Until it merges, the manifest declares only what the app sends today, and Xcode's report lacks Analytics on User ID; #345 adds it, and linked Product Interaction, to the manifest.
+- PostHog ([#345](https://github.com/putdotio/putio-ios/issues/345)) sends the account ID as its distinct ID, so User ID keeps Analytics, and its Product Interaction and Other Usage Data are linked although its own manifest says not linked.
 - Intercom's rows beyond its manifest come from [its App Store guidance](https://www.intercom.com/help/en/articles/4686934-apple-s-app-store-data-privacy-details-and-intercom-s-ios-sdk). Intercom 19.9.0 also records and uploads voice notes, which `NSMicrophoneUsageDescription` covers.
 - Google Cast 4.8.3's `NutritionLabel.txt`, in the SDK download ([Google's guidance](https://developers.google.com/cast/docs/ios_sender/app_privacy)), lists Coarse Location, Device ID, Performance Data and Product Interaction for Analytics and App Functionality. Its manifest declares only Device ID, Other Diagnostic Data and Product Interaction. The app turns Cast's analytics logging off, but that doesn't change Google's declaration, so the app's manifest adds Analytics to Coarse Location and Performance Data.
 - [Apple counts free-form text fields](https://developer.apple.com/app-store/app-privacy-details/) as Other User Content, which covers folder names and renames. The app uploads no files and adds no transfers.
