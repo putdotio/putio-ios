@@ -88,6 +88,24 @@ final class AccountNoticeTests: XCTestCase {
         XCTAssertEqual(AccountNotice(account: try inactiveAccount()), .deactivated(filesDeletedAt: date("2026-11-01T09:30:00Z")))
     }
 
+    // The banner computes its countdown only when the store posts, and
+    // midnight brings no account answer.
+    func testCalendarDayChangeRedrawsTheCountdown() throws {
+        let store = AccountNoticeStore()
+        store.update(with: try inactiveAccount())
+
+        var redraws = 0
+        let observer = NotificationCenter.default.addObserver(forName: .accountNoticeDidChange, object: store, queue: nil) { _ in
+            redraws += 1
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        NotificationCenter.default.post(name: UIApplication.significantTimeChangeNotification, object: nil)
+
+        XCTAssertEqual(redraws, 1)
+        XCTAssertEqual(store.notice, .deactivated(filesDeletedAt: date("2026-11-01T09:30:00Z")))
+    }
+
     // A download with no local successor falls back to put.io's next file,
     // which would queue a stream behind the playback gate.
     func testInactiveAccountQueuesNoStreamAfterTheLastDownload() throws {

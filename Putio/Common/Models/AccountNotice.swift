@@ -1,5 +1,5 @@
-import Foundation
 import PutioSDK
+import UIKit
 
 /// The notice an inactive account shows above every signed-in screen and in
 /// place of online playback, with the web and Android apps' states: a family
@@ -104,6 +104,28 @@ final class AccountNoticeStore {
     static let shared = AccountNoticeStore()
 
     private(set) var notice: AccountNotice?
+
+    private var timeChangeObserver: NSObjectProtocol?
+
+    // Midnight, a time zone change, or a clock change moves the countdown
+    // without a new account answer. iOS holds the notification while the app
+    // is suspended and delivers it on resume, so an offline return redraws too.
+    init() {
+        timeChangeObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.significantTimeChangeNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            guard let self, let notice = self.notice else { return }
+            self.replace(with: notice)
+        }
+    }
+
+    deinit {
+        if let timeChangeObserver {
+            NotificationCenter.default.removeObserver(timeChangeObserver)
+        }
+    }
 
     func update(with account: PutioAccount) {
         replace(with: AccountNotice(account: account))

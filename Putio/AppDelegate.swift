@@ -305,14 +305,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     // Signed-in only: a cold launch reaches the foreground before fetchUser
-    // answers, and that answer already carries the status. An answer that
-    // lands after sign-out is dropped. Failures other than a rejected token
-    // keep the last notice, so going offline does not hide it.
+    // answers, and that answer already carries the status. Every sign-in
+    // builds a new root, so an answer that lands after sign-out, or after
+    // signing in to another account, is dropped. Failures other than a
+    // rejected token keep the last notice, so going offline does not hide it.
     func refreshAccountStatus() {
-        guard window?.rootViewController is RootContainerViewController else { return }
+        guard let signedInRoot = window?.rootViewController as? RootContainerViewController else { return }
 
-        api.getAccountInfo { result in
-            guard self.window?.rootViewController is RootContainerViewController else { return }
+        api.getAccountInfo { [weak signedInRoot] result in
+            guard let signedInRoot, self.window?.rootViewController === signedInRoot else { return }
 
             switch result {
             case .success(let account):
