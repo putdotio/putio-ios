@@ -1,13 +1,29 @@
 import XCTest
 
 final class PlaybackSmokeUITests: XCTestCase {
-    private func launchFixtureApp() -> XCUIApplication {
+    private func launchFixtureApp(offlineRoutes: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["PUTIO_E2E_MOCK_API"] = "1"
         app.launchEnvironment["PUTIO_E2E_ACCESS_TOKEN"] = "e2e-token"
         app.launchEnvironment["PUTIO_E2E_RESET_STATE"] = "1"
+        app.launchEnvironment["PUTIO_E2E_OFFLINE_ROUTES"] = offlineRoutes
         app.launch()
         return app
+    }
+
+    // The reset leaves a token and no Realm user, as the first launch after the
+    // upgrade from 2.58.0 does. Offline, that must open downloads, not Login.
+    func testOfflineLaunchWithoutCachedUserOpensDownloads() {
+        let app = launchFixtureApp(offlineRoutes: "GET /v2/account/info,GET /v2/config")
+        guard app.waitForSignedInTabBar() else { return }
+
+        app.tabItem("Downloads").tap()
+        XCTAssertTrue(app.tables["putio-downloads-table"].cells["putio-download-42"].waitForExistence(timeout: 10))
+
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Offline launch without a cached user"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
     }
 
     func testMockedPlaybackResumeFlow() {

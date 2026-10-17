@@ -21,6 +21,20 @@ enum DownloadQueueLifecyclePolicy {
     }
 }
 
+/// 2.58.0 leaves background downloads and Sentry 7 envelopes that nothing in
+/// this app reads. The first launch after the upgrade drops them.
+enum LegacyInstallCleanup {
+    private static let didRunKey = "LegacyInstallCleanup.didRun"
+
+    static func runOnce(defaults: UserDefaults = .standard) {
+        guard !defaults.bool(forKey: didRunKey) else { return }
+        // Set first, so a cleanup that crashes can't crash every launch.
+        defaults.set(true, forKey: didRunKey)
+        BackgroundDownloadSessionEvents.cancelShipped258Sessions()
+        SentryTelemetry.deleteLegacyCache()
+    }
+}
+
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
@@ -58,6 +72,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         configureSDKs()
         prepareForE2ETestsIfNeeded()
         if !PutioE2EEnvironment.isMockAPIEnabled {
+            LegacyInstallCleanup.runOnce()
             DownloadQueueController.sharedInstance.restoreBackgroundSessions()
         }
         configureUI()
@@ -72,9 +87,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func configureSDKs() {
-        PutioRealm.setup()
+        let realmFailure = PutioRealm.setup()
 
         SentryTelemetry.start()
+        // Not from setup(): Sentry drops events until start() has applied the
+        // stored diagnostics answer.
+        if let realmFailure {
+            SentryTelemetry.capture(.realmOpen, error: realmFailure)
+        }
 
         if INTERCOM_ENABLED {
             Intercom.setApiKey(INTERCOM_API_KEY, forAppId: INTERCOM_APP_ID)
@@ -288,6 +308,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 return self.presentMainScreen(startDownloadQueue: false)
             }
 
+            // The upgrade from 2.58.0 deletes its Realm user, so an offline
+            // first launch has only the keychain token. Keep downloads reachable.
+            if case .networkError = error.localizerType {
+                return self.presentMainScreen(startDownloadQueue: false)
+            }
+
             self.presentLoginScreen(afterBootstrapFailure: "account fetch failed: \(error.localizerType)")
 
         case .httpError(let statusCode, let errorType):
@@ -376,6 +402,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         applyWindowAppearance()
         window?.rootViewController = RootContainerViewController()
         window?.makeKeyAndVisible()
+        // A no-op unless setup() deleted an unreadable Realm, as on the upgrade
+        // from 2.58.0. The Downloads Restore button stays as a fallback.
+        PutioRealm.recoverDownloadsIfNeeded()
         let urls = pendingURLs
         pendingURLs.removeAll()
         urls.forEach(openIncomingURL)

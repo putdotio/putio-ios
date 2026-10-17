@@ -16,6 +16,25 @@ final class PutioKeychainTests: XCTestCase {
         keychain.clearToken()
         XCTAssertNil(keychain.getToken())
     }
+
+    // 2.58.0 wrote the token under its own literal service, not this build's.
+    func testShipped258TokenMovesToTheCurrentService() {
+        let serviceKey = "com.putio.tests.keychain.\(UUID().uuidString)"
+        let legacyServiceKey = "\(serviceKey).2.58.0"
+        let shipped = PutioKeychain(serviceKey: legacyServiceKey, legacyServiceKey: nil)
+        shipped.setToken("shipped-token")
+        let keychain = PutioKeychain(serviceKey: serviceKey, legacyServiceKey: legacyServiceKey)
+        addTeardownBlock { keychain.clearToken() }
+
+        XCTAssertEqual(keychain.getToken(), "shipped-token")
+        XCTAssertNil(shipped.getToken())
+        XCTAssertEqual(PutioKeychain(serviceKey: serviceKey, legacyServiceKey: nil).getToken(), "shipped-token")
+
+        // Signing out must not leave the old copy to sign back in with.
+        shipped.setToken("shipped-token")
+        keychain.clearToken()
+        XCTAssertNil(keychain.getToken())
+    }
 }
 
 final class DownloadSupportTests: XCTestCase {
