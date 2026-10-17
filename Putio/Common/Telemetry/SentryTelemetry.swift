@@ -99,9 +99,10 @@ enum SentryTelemetry {
         }
     }
 
-    /// Lets a tester prove a beta's Sentry path on demand. TestFlight names the
-    /// receipt `sandboxReceipt`, the test Sentry uses for build type `test`; the
-    /// App Store and the simulator name it `receipt`, whether or not it exists.
+    /// Lets a tester prove a TestFlight install's Sentry path on demand, beta or
+    /// release lane. TestFlight names the receipt `sandboxReceipt`, the test
+    /// Sentry uses for build type `test`; the App Store and the simulator name it
+    /// `receipt`, whether or not it exists.
     @discardableResult
     static func captureDiagnosticsCheck(receiptURL: URL? = Bundle.main.appStoreReceiptURL) -> Bool {
         guard receiptURL?.lastPathComponent == "sandboxReceipt" else { return false }
