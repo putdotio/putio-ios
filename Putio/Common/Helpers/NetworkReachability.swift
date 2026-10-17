@@ -21,7 +21,7 @@ class NetworkReachability {
                 self.isReachable = isReachable
                 guard self.lastReportedReachability != isReachable else { return }
                 self.lastReportedReachability = isReachable
-                log.info("Network status changed: \(status)", context: nil)
+                log.info("Network status changed: \(status)")
                 NotificationCenter.default.post(name: NetworkReachability.NOTIFICATION, object: nil)
             }
         }
