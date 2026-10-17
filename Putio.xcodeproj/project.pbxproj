@@ -51,6 +51,9 @@
 		8B5C2D1E4F60718293A4B5C6 /* ErrorPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */; };
 		86BF154D3B0B37FF6B673E89 /* SentryTelemetryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C22F65CCDE7A7515A9184817 /* SentryTelemetryTests.swift */; };
 		DE4E255A75D0AB510B1623B7 /* SentryTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE72AC5255691B21C30248E2 /* SentryTelemetry.swift */; };
+		5A1E0C000000000000000002 /* AnalyticsEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C000000000000000001 /* AnalyticsEvent.swift */; };
+		5A1E0C000000000000000004 /* ProductAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C000000000000000003 /* ProductAnalytics.swift */; };
+		5A1E0C000000000000000006 /* ProductAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C000000000000000005 /* ProductAnalyticsTests.swift */; };
 		9554916755C204A76581CC3A /* Pods_PutioTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7010BA68B2C5ECA69752D4D4 /* Pods_PutioTests.framework */; };
 		9C3E5A7B2D4F6A8C0E1B3D5F /* HistoryErrorUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B2D4F6A1C3E5A7B9D0F2A4C /* HistoryErrorUITests.swift */; };
 		7DC87C4E70905D0A3B4F678B /* InactiveAccountUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 993DCCD7D09E1165737A70AF /* InactiveAccountUITests.swift */; };
@@ -241,6 +244,9 @@
 		8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ErrorPresentationTests.swift; sourceTree = "<group>"; };
 		C22F65CCDE7A7515A9184817 /* SentryTelemetryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SentryTelemetryTests.swift; sourceTree = "<group>"; };
 		CE72AC5255691B21C30248E2 /* SentryTelemetry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SentryTelemetry.swift; sourceTree = "<group>"; };
+		5A1E0C000000000000000001 /* AnalyticsEvent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AnalyticsEvent.swift; sourceTree = "<group>"; };
+		5A1E0C000000000000000003 /* ProductAnalytics.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProductAnalytics.swift; sourceTree = "<group>"; };
+		5A1E0C000000000000000005 /* ProductAnalyticsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProductAnalyticsTests.swift; sourceTree = "<group>"; };
 		8B9C0D1E2F3A4B5C6D7E8F90 /* BrandTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandTypography.swift; sourceTree = "<group>"; };
 		9061977704DB05372D01A172 /* PutioKeychainTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioKeychainTests.swift; sourceTree = "<group>"; };
 		969D8492C4F12034E0FD0421 /* FilesViewController+Navigation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "FilesViewController+Navigation.swift"; sourceTree = "<group>"; };
@@ -415,6 +421,7 @@
 				333E41E81298A2E8796ACE97 /* APIErrorLocalizerTests.swift */,
 				8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */,
 				C22F65CCDE7A7515A9184817 /* SentryTelemetryTests.swift */,
+				5A1E0C000000000000000005 /* ProductAnalyticsTests.swift */,
 				52F5F9EEE22658373A7BD1D0 /* ClearDataViewModelTests.swift */,
 				C2B1049C9B1A0CA9C66F6CD2 /* HistoryViewModelTests.swift */,
 				109100000000000000000002 /* DownloadQueueControllerTests.swift */,
@@ -594,9 +601,19 @@
 				ACAA622223BD02F60043458C /* Managers */,
 				AC6546581FAB3F4800E278EE /* Extensions */,
 				AC6546511FAB2CCF00E278EE /* Helpers */,
+				5A1E0C000000000000000007 /* Analytics */,
 				ED212A81898D2AFE9244F57C /* Telemetry */,
 			);
 			path = Common;
+			sourceTree = "<group>";
+		};
+		5A1E0C000000000000000007 /* Analytics */ = {
+			isa = PBXGroup;
+			children = (
+				5A1E0C000000000000000001 /* AnalyticsEvent.swift */,
+				5A1E0C000000000000000003 /* ProductAnalytics.swift */,
+			);
+			path = Analytics;
 			sourceTree = "<group>";
 		};
 		ED212A81898D2AFE9244F57C /* Telemetry */ = {
@@ -1030,6 +1047,7 @@
 				"${PODS_ROOT}/Target Support Files/Pods-Putio/Pods-Putio-frameworks.sh",
 				"${BUILT_PRODUCTS_DIR}/KeyboardAvoidingView/KeyboardAvoidingView.framework",
 				"${BUILT_PRODUCTS_DIR}/KeychainAccess/KeychainAccess.framework",
+				"${BUILT_PRODUCTS_DIR}/PostHog/PostHog.framework",
 				"${BUILT_PRODUCTS_DIR}/Protobuf/Protobuf.framework",
 				"${BUILT_PRODUCTS_DIR}/PutioSDK/PutioSDK.framework",
 				"${BUILT_PRODUCTS_DIR}/Realm/Realm.framework",
@@ -1045,6 +1063,7 @@
 			outputPaths = (
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/KeyboardAvoidingView.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/KeychainAccess.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/PostHog.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Protobuf.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/PutioSDK.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Realm.framework",
@@ -1228,6 +1247,7 @@
 				0E4F147822C01DF9814EE2C9 /* APIErrorLocalizerTests.swift in Sources */,
 				8B5C2D1E4F60718293A4B5C6 /* ErrorPresentationTests.swift in Sources */,
 				86BF154D3B0B37FF6B673E89 /* SentryTelemetryTests.swift in Sources */,
+				5A1E0C000000000000000006 /* ProductAnalyticsTests.swift in Sources */,
 				AC4AE379C21342CAB0F36251 /* ClearDataViewModelTests.swift in Sources */,
 				51D9E494DFC76AF375536663 /* HistoryViewModelTests.swift in Sources */,
 				109100000000000000000001 /* DownloadQueueControllerTests.swift in Sources */,
@@ -1369,6 +1389,8 @@
 				CEBF9BFFE49971BF6934E873 /* InternalFailurePresenter.swift in Sources */,
 				66592A832C92EA206BAB25BF /* DownloadSupport.swift in Sources */,
 				DE4E255A75D0AB510B1623B7 /* SentryTelemetry.swift in Sources */,
+				5A1E0C000000000000000002 /* AnalyticsEvent.swift in Sources */,
+				5A1E0C000000000000000004 /* ProductAnalytics.swift in Sources */,
 				109000000000000000000001 /* DownloadQueueController.swift in Sources */,
 				F9E4EEE0C7237C463865FD19 /* FilesViewController+Navigation.swift in Sources */,
 				49366D1A1B213117EB390D4E /* FilesViewController+Playback.swift in Sources */,

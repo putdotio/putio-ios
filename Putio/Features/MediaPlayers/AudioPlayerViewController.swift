@@ -21,6 +21,7 @@ class AudioPlayerViewController: UIViewController {
     var timeObservers: [Any?] = []
     var playerQueueObserver: NSKeyValueObservation?
     var playerTimeControlStatusObserver: NSKeyValueObservation?
+    private lazy var playbackAnalytics = mediaItems?.first.map { PlaybackAnalytics($0.analyticsPlayback) }
     var playerTimeObserver: Any?
     var playerSetStartFromTimeObserver: Any?
     var setStartFromTimer: Timer?
@@ -177,9 +178,11 @@ class AudioPlayerViewController: UIViewController {
         player?.insert(playerItem, after: player?.currentItem)
         player?.seek(to: CMTimeMakeWithSeconds(Float64(media.startFrom), preferredTimescale: 600))
         playAtQueueRate()
+        playbackAnalytics?.start(following: player)
     }
 
     func disposePlayer() {
+        playbackAnalytics?.end()
         player?.pause()
         unregisterPlayerObservers()
         unregisterPlayerTimeObservers()

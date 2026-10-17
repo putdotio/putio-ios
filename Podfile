@@ -9,6 +9,7 @@ target 'Putio' do
   pod 'google-cast-sdk', '4.8.3'
   pod 'Intercom', '19.9.0'
   pod 'KeychainAccess'
+  pod 'PostHog', '3.92.0'
   # Upstream dropped CocoaPods in 4.0.1; ThirdParty/ carries a pinned podspec.
   pod 'PutioSDK', :podspec => 'ThirdParty/PutioSDK/PutioSDK.podspec'
   pod 'RealmSwift', '20.0.6'

@@ -318,6 +318,57 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(privacyValues(viewModel), [true, false])
     }
 
+    func testAnAccountReadFromBeforeThePromptsAllowLeavesProductAnalyticsOn() throws {
+        var reads: [(Result<PutioAccount, PutioSDKError>) -> Void] = []
+        var applied: [Bool] = []
+        let viewModel = SettingsViewModel(
+            applyDiagnostics: { _ in },
+            applyProductAnalytics: { _, enabled in applied.append(enabled) },
+            fetchAccountInfoRequest: { reads.append($0) }
+        )
+        let before = try account(diagnosticsEnabled: true, productAnalyticsEnabled: false)
+
+        viewModel.fetchData()
+        ProductAnalyticsChoice.save(true, saveSetting: { _, saved in saved(.success(())) }, markAnswered: { $0(.success(())) }) { _ in }
+        reads[0](.success(before))
+
+        XCTAssertEqual(applied, [], "a read from before the Allow stopped capture")
+
+        viewModel.fetchData()
+        reads[1](.success(before))
+
+        XCTAssertEqual(applied, [false], "a read that starts after the answer applies")
+    }
+
+    func testAnAnswerSavedAfterItsAccountSignedOutAppliesToNobody() {
+        var held: ((Result<Void, PutioSDKError>) -> Void)?
+        let before = SettingsViewModel.confirmedSaves
+
+        ProductAnalyticsChoice.save(true, saveSetting: { _, saved in held = saved }, markAnswered: { $0(.success(())) }) { _ in }
+        // What signing out does to the session.
+        AccountNoticeStore.shared.clear()
+        held?(.success(()))
+
+        XCTAssertEqual(SettingsViewModel.confirmedSaves, before, "a late answer reached the next account's gate")
+    }
+
+    func testAnAccountReadThatOutlivesTheSessionLeavesProductAnalyticsAlone() throws {
+        var reads: [(Result<PutioAccount, PutioSDKError>) -> Void] = []
+        var applied: [Bool] = []
+        let viewModel = SettingsViewModel(
+            applyDiagnostics: { _ in },
+            applyProductAnalytics: { _, enabled in applied.append(enabled) },
+            fetchAccountInfoRequest: { reads.append($0) }
+        )
+
+        viewModel.fetchData()
+        // What signing out does to the session.
+        AccountNoticeStore.shared.clear()
+        reads[0](.success(try account(diagnosticsEnabled: true, productAnalyticsEnabled: true)))
+
+        XCTAssertEqual(applied, [], "a read from before the sign-out restarted capture")
+    }
+
     private func account(diagnosticsEnabled: Bool, productAnalyticsEnabled: Bool) throws -> PutioAccount {
         let json = """
         {

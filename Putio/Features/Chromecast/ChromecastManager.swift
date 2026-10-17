@@ -12,10 +12,20 @@ class ChromecastManager: NSObject {
 
     enum CastErrorReason: Int {
         case fileNotFound, fileNeedsConvert, missingMetadata
+
+        var playbackError: AnalyticsEvent.PlaybackError {
+            switch self {
+            case .fileNotFound: return .notFound
+            case .fileNeedsConvert: return .needsConversion
+            case .missingMetadata: return .media
+            }
+        }
     }
 
     var castingFileId: Int?
     var timer: Timer?
+    /// The load the receiver has yet to answer; its answer sends the start or the failure.
+    private var pendingLoad: (request: GCKRequest, playback: AnalyticsEvent.Playback, session: Int)?
 
     var debug: Bool = false
 
@@ -203,8 +213,19 @@ class ChromecastManager: NSObject {
         }
     }
 
-    func castVideo(fileID: Int, completion: @escaping (_ success: Bool, _ error: CastError?) -> Void) {
+    func castVideo(fileID: Int, completion reportResult: @escaping (_ success: Bool, _ error: CastError?) -> Void) {
         let currentCastSession = GCKCastContext.sharedInstance().sessionManager.currentCastSession
+        let session = AccountNoticeStore.shared.session
+        var castFile: PutioFile?
+        // The put.io request behind a failure, which says more than its CastErrorReason.
+        var requestError: PutioSDKError?
+        let completion: (Bool, CastError?) -> Void = { success, error in
+            if let error {
+                let failure = requestError.map { AnalyticsEvent.PlaybackError($0) } ?? error.reason.playbackError
+                ProductAnalytics.capture(.playbackFailed(self.castPlayback(for: castFile), failure), startedIn: session)
+            }
+            reportResult(success, error)
+        }
 
         if timer != nil {
             timer?.invalidate()
@@ -216,6 +237,7 @@ class ChromecastManager: NSObject {
                 guard let file = data.parent else {
                     return completion(false, CastError(fileID: fileID, reason: .fileNotFound))
                 }
+                castFile = file
 
                 if file.needConvert && file.metaData?.codec != "h264" {
                     return completion(false, CastError(fileID: fileID, reason: .fileNeedsConvert))
@@ -224,24 +246,39 @@ class ChromecastManager: NSObject {
                 let metadata = self.createGCKMediaMetadata(for: file)
                 let mediaLoadOptions = self.createGCKMediaLoadOptions(for: file)
 
-                self.createGCKMediaInformation(for: file, metadata: metadata, mediaLoadOptions: mediaLoadOptions) { (mediaInformation, _) in
+                self.createGCKMediaInformation(for: file, metadata: metadata, mediaLoadOptions: mediaLoadOptions) { (mediaInformation, error) in
                     guard let mediaInformation = mediaInformation else {
+                        requestError = error as? PutioSDKError
                         return completion(false, CastError(fileID: fileID, reason: .missingMetadata))
                     }
 
                     self.castingFileId = fileID
                     self.timer = Timer.scheduledTimer(timeInterval: 15, target: self, selector: #selector(self.saveVideoTime), userInfo: nil, repeats: true)
 
-                    currentCastSession?.remoteMediaClient?.loadMedia(mediaInformation, with: mediaLoadOptions)
+                    if let load = currentCastSession?.remoteMediaClient?.loadMedia(mediaInformation, with: mediaLoadOptions) {
+                        load.delegate = self
+                        self.pendingLoad = (load, self.castPlayback(for: file), session)
+                    }
                     GCKCastContext.sharedInstance().presentDefaultExpandedMediaControls()
 
                     completion(true, nil)
                 }
 
-            case .failure:
+            case .failure(let error):
+                requestError = error
                 completion(false, CastError(fileID: fileID, reason: .fileNotFound))
             }
         }
+    }
+
+    private func castPlayback(for file: PutioFile?) -> AnalyticsEvent.Playback {
+        let streamMethod: AnalyticsEvent.StreamMethod
+        if userConfig?.chromecastPlaybackType == "hls" {
+            streamMethod = .hls
+        } else {
+            streamMethod = file?.hasMp4 == false ? .progressive : .mp4
+        }
+        return AnalyticsEvent.Playback(media: .video, streamMethod: streamMethod, player: .chromecast)
     }
 
     @objc private func saveVideoTime() {
@@ -283,6 +320,29 @@ extension ChromecastManager: GCKSessionManagerListener {
     func sessionManager(_ sessionManager: GCKSessionManager, didFailToStart session: GCKCastSession, withError error: Error) {
         if timer != nil { timer?.invalidate() }
         logError(error: error)
+    }
+}
+
+extension ChromecastManager: GCKRequestDelegate {
+    func requestDidComplete(_ request: GCKRequest) {
+        guard let load = takePendingLoad(request) else { return }
+        ProductAnalytics.capture(.playbackStarted(load.playback), startedIn: load.session)
+    }
+
+    func request(_ request: GCKRequest, didFailWithError error: GCKError) {
+        guard let load = takePendingLoad(request) else { return }
+        ProductAnalytics.capture(.playbackFailed(load.playback, .init(error)), startedIn: load.session)
+    }
+
+    /// Replaced or dropped, so neither a start nor a failure.
+    func request(_ request: GCKRequest, didAbortWith abortReason: GCKRequestAbortReason) {
+        _ = takePendingLoad(request)
+    }
+
+    private func takePendingLoad(_ request: GCKRequest) -> (playback: AnalyticsEvent.Playback, session: Int)? {
+        guard let pendingLoad, pendingLoad.request === request else { return nil }
+        self.pendingLoad = nil
+        return (pendingLoad.playback, pendingLoad.session)
     }
 }
 

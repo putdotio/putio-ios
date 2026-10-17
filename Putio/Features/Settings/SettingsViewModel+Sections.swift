@@ -150,7 +150,7 @@ extension SettingsViewModel {
                     value: !settings.hideSubtitles,
                     action: {
                         let value = !self.settings.hideSubtitles
-                        self.saveAccountSettings(.patch(PutioAccountSettingsPatch(hideSubtitles: value))) {
+                        self.saveAccountSettings(.patch(PutioAccountSettingsPatch(hideSubtitles: value)), changing: .hideSubtitles, to: .init(value)) {
                             self.settings.hideSubtitles = value
                         }
                     },
@@ -163,7 +163,7 @@ extension SettingsViewModel {
                     value: settings.dontAutoSelectSubtitles,
                     action: {
                         let value = !self.settings.dontAutoSelectSubtitles
-                        self.saveAccountSettings(.patch(PutioAccountSettingsPatch(dontAutoSelectSubtitles: value))) {
+                        self.saveAccountSettings(.patch(PutioAccountSettingsPatch(dontAutoSelectSubtitles: value)), changing: .dontAutoSelectSubtitles, to: .init(value)) {
                             self.settings.dontAutoSelectSubtitles = value
                         }
                     },
@@ -314,7 +314,10 @@ extension SettingsViewModel {
                     type: .button,
                     icon: Intercom.unreadConversationCount() > 0 ? .chatCircleDotsFill : .chatCircleDots,
                     value: "",
-                    action: { Intercom.present() },
+                    action: {
+                        ProductAnalytics.capture(.supportStarted)
+                        Intercom.present()
+                    },
                     visible: true
                 )
             ]

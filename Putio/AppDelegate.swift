@@ -43,7 +43,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // A session restored at launch, not a fresh sign-in, which may be another
     // account than the one that left 2.58.0's downloads.
     private var isRestoredSession = false
-    private var isRunningUnitTests: Bool {
+    // Only the latest foreground refresh answers; an older one carries older settings.
+    private var accountRefreshes = 0
+    static var isRunningUnitTests: Bool {
         let environment = ProcessInfo.processInfo.environment
         return [
             "XCTestConfigurationFilePath",
@@ -67,7 +69,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        if isRunningUnitTests {
+        if Self.isRunningUnitTests {
             return true
         }
 
@@ -107,12 +109,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func connect(window: UIWindow) {
         self.window = window
-        if isRunningUnitTests {
+        if Self.isRunningUnitTests {
             window.rootViewController = UIViewController()
         }
         applyWindowAppearance()
         window.makeKeyAndVisible()
-        if !isRunningUnitTests {
+        if !Self.isRunningUnitTests {
             // A scene needs an unlocked device, so a setup the lock stopped
             // runs now, before the session is restored.
             if let realmFailure = PutioRealm.setupIfLocked(isProtectedDataAvailable: UIApplication.shared.isProtectedDataAvailable) {
@@ -167,6 +169,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func openIncomingURL(_ url: URL) {
+        ProductAnalytics.appSession.didOpenLink()
         // A cold-launch link arrives before asynchronous account loading finishes.
         guard window?.rootViewController is RootContainerViewController else {
             pendingURLs.append(url)
@@ -232,6 +235,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 // Not behind /config: an opt-out applies as soon as the account
                 // answers, and a /config failure still opens the cached main screen.
                 SentryTelemetry.update(diagnosticsEnabled: accountData.settings.diagnosticsEnabled)
+                ProductAnalytics.update(accountID: accountData.id, productAnalyticsEnabled: accountData.settings.productAnalyticsEnabled)
                 AccountNoticeStore.shared.update(with: accountData)
             case .failure(let error):
                 accountError = error
@@ -347,23 +351,30 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func refreshAccountStatus() {
         guard let signedInRoot = window?.rootViewController as? RootContainerViewController else { return }
         let savesBeforeRead = SettingsViewModel.confirmedSaves
+        accountRefreshes += 1
+        let refresh = accountRefreshes
+        ProductAnalytics.awaitAnswer()
 
         api.getAccountInfo { [weak signedInRoot] result in
-            guard let signedInRoot, self.window?.rootViewController === signedInRoot else { return }
+            guard let signedInRoot, self.window?.rootViewController === signedInRoot, refresh == self.accountRefreshes else { return }
 
             switch result {
             case .success(let account):
+                // An answer changed on another device lands here.
                 if savesBeforeRead == SettingsViewModel.confirmedSaves {
                     SentryTelemetry.update(diagnosticsEnabled: account.settings.diagnosticsEnabled)
-                    // An answer changed on another device lands here; PostHog
-                    // capture (#345) follows account.settings.productAnalyticsEnabled
-                    // here once it exists, as it does at ProductAnalyticsChoice.settingDidSave.
+                    ProductAnalytics.update(accountID: account.id, productAnalyticsEnabled: account.settings.productAnalyticsEnabled)
+                } else {
+                    ProductAnalytics.keepAnswer()
                 }
                 AccountNoticeStore.shared.update(with: account)
             case .failure(let error):
                 if case .httpError(let statusCode, let errorType) = error.type,
                    statusCode == 401 || errorType == "Unauthorized" {
                     AccountNoticeStore.shared.clear()
+                    ProductAnalytics.update(accountID: nil, productAnalyticsEnabled: nil)
+                } else {
+                    ProductAnalytics.keepAnswer()
                 }
             }
         }
@@ -391,9 +402,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         presentLoginScreen()
     }
 
+    /// Every way out of the signed-in app ends here: logout, a rejected token,
+    /// a launch with no session, or a failed bootstrap.
     func presentLoginScreen() {
         DownloadQueueController.sharedInstance.pause()
         AccountNoticeStore.shared.clear()
+        ProductAnalytics.update(accountID: nil, productAnalyticsEnabled: nil)
         applyWindowAppearance()
         let storyboard = UIStoryboard(name: "Login", bundle: nil)
         guard let loginViewController = storyboard.instantiateViewController(withIdentifier: "LoginVC", as: UIViewController.self) else {

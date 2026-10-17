@@ -9,14 +9,16 @@ class SettingsViewModel {
     typealias SaveAccountSettingsRequest = (PutioAccountSettingsUpdate, @escaping (Result<Void, PutioSDKError>) -> Void) -> Void
     typealias FetchAccountInfoRequest = (@escaping (Result<PutioAccount, PutioSDKError>) -> Void) -> Void
 
-    /// Counts the saves put.io has confirmed from Account. An account read
-    /// that started before the latest one carries older settings, so none of
-    /// them apply: a Diagnostics opt-out must not switch Sentry back on.
+    /// Counts the saves put.io has confirmed from Account and the product
+    /// analytics prompt. An account read that started before the latest one
+    /// carries older settings, so none of them apply: a Diagnostics opt-out
+    /// must not switch Sentry back on, nor an Allow switch PostHog off.
     static var confirmedSaves = 0
 
     let saveAccountSettingsRequest: SaveAccountSettingsRequest
     let markProductAnalyticsPromptAnsweredRequest: ProductAnalyticsChoice.Request
     let applyDiagnostics: (Bool) -> Void
+    let applyProductAnalytics: (Int, Bool) -> Void
     let fetchAccountInfoRequest: FetchAccountInfoRequest
 
     private(set) var user = User()
@@ -37,11 +39,13 @@ class SettingsViewModel {
         },
         markProductAnalyticsPromptAnsweredRequest: @escaping ProductAnalyticsChoice.Request = ProductAnalyticsChoice.markAnsweredRequest,
         applyDiagnostics: @escaping (Bool) -> Void = { SentryTelemetry.update(diagnosticsEnabled: $0) },
+        applyProductAnalytics: @escaping (Int, Bool) -> Void = { ProductAnalytics.update(accountID: $0, productAnalyticsEnabled: $1) },
         fetchAccountInfoRequest: @escaping FetchAccountInfoRequest = { api.getAccountInfo($0) }
     ) {
         self.saveAccountSettingsRequest = saveAccountSettingsRequest
         self.markProductAnalyticsPromptAnsweredRequest = markProductAnalyticsPromptAnsweredRequest
         self.applyDiagnostics = applyDiagnostics
+        self.applyProductAnalytics = applyProductAnalytics
         self.fetchAccountInfoRequest = fetchAccountInfoRequest
         reloadPersistedState()
         registerObservers()
@@ -114,6 +118,10 @@ class SettingsViewModel {
                 AccountNoticeStore.shared.update(with: account, startedIn: noticeSession)
                 guard savesBeforeRead == Self.confirmedSaves else { return }
                 self.applyDiagnostics(account.settings.diagnosticsEnabled)
+                // Signing out moves the session on, and a signed-out app sends nothing.
+                if noticeSession == AccountNoticeStore.shared.session {
+                    self.applyProductAnalytics(account.id, account.settings.productAnalyticsEnabled)
+                }
                 guard let realm = PutioRealm.open(context: "SettingsViewModel.fetchData") else { return }
 
                 let didWrite = PutioRealm.write(realm, context: "SettingsViewModel.fetchData.write") {
