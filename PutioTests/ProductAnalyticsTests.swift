@@ -14,6 +14,8 @@ final class ProductAnalyticsTests: XCTestCase {
     private let address = "203.0.113.7"
     private var leaks: [String] { [title, fileName, host, token, email, address] }
     private var leak: String { "\(title) /Documents/\(fileName) https://\(host)/hls/master.m3u8?oauth_token=\(token) \(email) \(address)" }
+    /// Every gate `makeGate` built, so a wait can flush their SDKs.
+    private var gates: [ProductAnalyticsGate] = []
 
     /// What the SDK adds to an event before `beforeSend`, from PostHogContext
     /// and PostHogSDK.buildProperties in 3.92.0.
@@ -454,6 +456,7 @@ final class ProductAnalyticsTests: XCTestCase {
             compression: .none,
             now: now
         ))
+        gates.append(gate)
         addTeardownBlock { gate.update(accountID: nil, productAnalyticsEnabled: nil) }
         return (gate, token ?? "phc_none")
     }
@@ -471,6 +474,9 @@ final class ProductAnalyticsTests: XCTestCase {
     private func waitForEvents(token: String, count: Int, timeout: TimeInterval = 10) throws -> [[String: Any]] {
         let deadline = Date().addingTimeInterval(timeout)
         while sentEvents(token: token).count < count, Date() < deadline {
+            // An event queued while a batch is in flight otherwise waits for
+            // the SDK's 30-second flush timer.
+            gates.forEach { $0.runningSDK?.flush() }
             spinRunLoop(seconds: 0.05)
         }
         let sent = sentEvents(token: token)
