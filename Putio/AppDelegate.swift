@@ -21,10 +21,29 @@ enum DownloadQueueLifecyclePolicy {
     }
 }
 
+/// 2.58.0 leaves background downloads and Sentry 7 envelopes that nothing in
+/// this app reads. The first launch after the upgrade drops them.
+enum LegacyInstallCleanup {
+    private static let didRunKey = "LegacyInstallCleanup.didRun"
+
+    static func runOnce(defaults: UserDefaults = .standard) {
+        guard !defaults.bool(forKey: didRunKey) else { return }
+        let cacheDeleted = SentryTelemetry.deleteLegacyCache()
+        // Marked done only once the cache is gone and every session answers, so
+        // a background launch that fails or is suspended first retries.
+        BackgroundDownloadSessionEvents.cancelShipped258Sessions {
+            if cacheDeleted { defaults.set(true, forKey: didRunKey) }
+        }
+    }
+}
+
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     private var pendingURLs: [URL] = []
+    // A session restored at launch, not a fresh sign-in, which may be another
+    // account than the one that left 2.58.0's downloads.
+    private var isRestoredSession = false
     private var isRunningUnitTests: Bool {
         let environment = ProcessInfo.processInfo.environment
         return [
@@ -58,6 +77,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         configureSDKs()
         prepareForE2ETestsIfNeeded()
         if !PutioE2EEnvironment.isMockAPIEnabled {
+            LegacyInstallCleanup.runOnce()
             DownloadQueueController.sharedInstance.restoreBackgroundSessions()
         }
         configureUI()
@@ -72,9 +92,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func configureSDKs() {
-        PutioRealm.setup()
+        let realmFailure = PutioRealm.setup(isProtectedDataAvailable: UIApplication.shared.isProtectedDataAvailable)
 
         SentryTelemetry.start()
+        // Not from setup(): Sentry drops events until start() has applied the
+        // stored diagnostics answer.
+        if let realmFailure {
+            SentryTelemetry.capture(.realmOpen, error: realmFailure)
+        }
 
         if INTERCOM_ENABLED {
             Intercom.setApiKey(INTERCOM_API_KEY, forAppId: INTERCOM_APP_ID)
@@ -98,7 +123,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         applyWindowAppearance()
         window.makeKeyAndVisible()
         if !isRunningUnitTests {
-            authenticate(token: e2eAccessToken)
+            // A scene needs an unlocked device, so a setup the lock stopped
+            // runs now, before the session is restored.
+            if let realmFailure = PutioRealm.setupIfLocked(isProtectedDataAvailable: UIApplication.shared.isProtectedDataAvailable) {
+                SentryTelemetry.capture(.realmOpen, error: realmFailure)
+            }
+            authenticate(token: e2eAccessToken, isRestoredSession: true)
         }
     }
 
@@ -120,6 +150,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             if clearCommitted {
                 PutioE2EDownloadFixtures.install(into: realm)
             }
+        }
+        // The reset leaves a token and no Realm user, as the first launch after
+        // the update from 2.58.0 does once it has replaced that Realm.
+        if ProcessInfo.processInfo.environment["PUTIO_E2E_UPGRADING_FROM_258"] == "1" {
+            PutioRealm.setUpgradingFromShipped258(true)
         }
         #endif
     }
@@ -170,8 +205,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         completionHandler()
     }
 
-    func authenticate(token: String? = nil) {
-        guard let token = token ?? PutioKeychain.sharedInstance.getToken() else {
+    func authenticate(token: String? = nil, isRestoredSession: Bool = false) {
+        self.isRestoredSession = isRestoredSession
+        if !isRestoredSession {
+            PutioRealm.setUpgradingFromShipped258(false)
+        }
+        guard let token = token ?? PutioKeychain.sharedInstance.getToken(adoptsShipped258Token: PutioRealm.isUpgradingFromShipped258()) else {
             return presentLoginScreen()
         }
 
@@ -284,11 +323,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         guard let realm = PutioRealm.open(context: "fetchUserFailure") else {
             return presentLoginScreen(afterBootstrapFailure: "Realm unavailable in fetchUserFailure")
         }
-        let user = realm.objects(User.self).first
+        // The upgrade from 2.58.0 deletes its Realm user, so until the next
+        // sign-in the session restored at launch stands in for it.
+        let keepsSession = realm.objects(User.self).first != nil || (isRestoredSession && PutioRealm.isUpgradingFromShipped258())
 
         switch error.localizerType {
         case .decodingError, .unknownError, .networkError:
-            if user != nil {
+            if keepsSession {
                 return self.presentMainScreen(startDownloadQueue: false)
             }
 
@@ -300,7 +341,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 return self.presentLoginScreen(afterBootstrapFailure: "account fetch rejected the token (\(statusCode))")
             }
 
-            if user != nil {
+            if keepsSession {
                 return self.presentMainScreen(startDownloadQueue: false)
             }
 
@@ -390,6 +431,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         rootViewController.asksProductAnalytics = asksProductAnalytics
         window?.rootViewController = rootViewController
         window?.makeKeyAndVisible()
+        // Until the next sign-in, the session restored at launch is the one
+        // 2.58.0's downloads belong to. After one, recovering stays a Restore tap.
+        if isRestoredSession, PutioRealm.isUpgradingFromShipped258() {
+            PutioRealm.recoverDownloadsIfNeeded()
+        }
         let urls = pendingURLs
         pendingURLs.removeAll()
         urls.forEach(openIncomingURL)

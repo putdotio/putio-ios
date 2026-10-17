@@ -178,6 +178,29 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertEqual(sent.count, 1, "the check skipped the diagnostics gate")
     }
 
+    func testDeletesTheLegacySentryCacheOnly() throws {
+        let caches = FileManager.default.temporaryDirectory.appending(path: "SentryTelemetryTests-\(UUID().uuidString)")
+        addTeardownBlock { try? FileManager.default.removeItem(at: caches) }
+        // Paths from Sentry 7.9.0's SentryFileManager, SentryCrash and SentryInstallation, as 2.58.0 ran them.
+        let legacy = ["io.sentry/0123abcd/envelopes/pending", "SentryCrash/put.io/Reports/report.json", "INSTALLATION"]
+        let kept = ["io.put.diagnostics/envelopes/pending", "io.put.diagnostics/INSTALLATION"]
+        for path in legacy + kept {
+            let file = caches.appending(path: path)
+            try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data("synthetic".utf8).write(to: file)
+        }
+
+        XCTAssertTrue(SentryTelemetry.deleteLegacyCache(in: caches))
+
+        for path in ["io.sentry", "SentryCrash", "INSTALLATION"] {
+            XCTAssertFalse(FileManager.default.fileExists(atPath: caches.appending(path: path).path), path)
+        }
+        for path in kept {
+            XCTAssertTrue(FileManager.default.fileExists(atPath: caches.appending(path: path).path), path)
+        }
+        XCTAssertTrue(SentryTelemetry.deleteLegacyCache(in: caches), "nothing left to delete is done")
+    }
+
     func testReportsThroughTheRelay() {
         XCTAssertEqual(
             SentryTelemetry.relayDSN("https://synthetickey@o0.ingest.example.invalid/5282170"),
