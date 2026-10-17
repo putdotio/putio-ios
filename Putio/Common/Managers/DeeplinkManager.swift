@@ -8,6 +8,7 @@ class DeeplinkManager {
 
     var tabBarController: MainTabBarController?
     var isReadyToHandleURL: Bool = false
+    var diagnosticsCheck: () -> Bool = { SentryTelemetry.captureDiagnosticsCheck() }
 
     func setup(with tabBarController: MainTabBarController) {
         self.tabBarController = tabBarController
@@ -119,6 +120,8 @@ class DeeplinkManager {
             tabBarController?.setSelectedTab(.account)
             openLinkPage()
             return true
+        case "/diagnostics-check":
+            return diagnosticsCheck()
         default:
             return false
         }

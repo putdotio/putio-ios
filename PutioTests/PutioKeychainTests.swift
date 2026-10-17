@@ -135,6 +135,27 @@ final class DeeplinkManagerTests: XCTestCase {
         XCTAssertEqual(tabBarController.selectedIndex, 3)
     }
 
+    func testOnlyTheExactPathSendsTheDiagnosticsCheck() throws {
+        let manager = DeeplinkManager()
+        let tabBarController = makeTabBarController()
+        manager.tabBarController = tabBarController
+        manager.isReadyToHandleURL = true
+        var checks = 0
+        manager.diagnosticsCheck = {
+            checks += 1
+            return true
+        }
+
+        for near in ["putio://diagnostics-check", "putio:///diagnostics", "putio:///diagnostics-checks", "putio:///diagnostics-check/1"] {
+            XCTAssertFalse(manager.handleURL(url: try XCTUnwrap(URL(string: near))), near)
+        }
+        XCTAssertEqual(checks, 0)
+
+        XCTAssertTrue(manager.handleURL(url: try XCTUnwrap(URL(string: "putio:///diagnostics-check"))))
+        XCTAssertEqual(checks, 1)
+        XCTAssertEqual(tabBarController.selectedIndex, 0, "the check changed the visible screen")
+    }
+
     func testTabIconsDoNotDependOnLocalizedTitles() throws {
         let tabBarController = makeTabBarController()
         let items = try XCTUnwrap(tabBarController.tabBar.items)

@@ -69,6 +69,16 @@ The `release` Environment must provide:
 
 Keep item IDs, service-account tokens, and private key material out of git.
 
+## TestFlight Diagnostics Check
+
+One controlled, non-fatal event proves a build's Sentry path. Run the check on the beta, then again on the release-lane upload before submitting it for review. `release` archives its own binary and uploads it with `submit_for_review: false`, so add that build to an internal TestFlight group and install it from TestFlight.
+
+1. On a TestFlight device, sign in to an account whose `diagnostics_enabled` is on.
+2. Open `putio:///diagnostics-check` from Safari or Notes; the three slashes make it a path. Nothing changes on screen. The install's receipt decides, not the lane: a TestFlight install sends the event, and an App Store install ignores the link. With diagnostics off the event is dropped like any other.
+3. In Sentry project `ios` (`5282170`), not `tvos`, find `category:diagnostics_check` and confirm release `com.putio.tvOS@3.0.0+<build>` for the installed build, environment `production`, OS `iOS` or `iPadOS`, and `app.build_type` `test`. TestFlight and App Store events share the `production` environment, so the build type is what tells them apart.
+
+Never paste the DSN or the event payload into issues, pull requests, or logs.
+
 ## GitHub Release Settings
 
 Repository admins must keep these settings aligned with the workflow trust model:

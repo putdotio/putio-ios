@@ -7,6 +7,7 @@ import Sentry
 /// that `allowlisted` keeps. It runs only while the account allows diagnostics.
 enum SentryTelemetry {
     enum Failure: String {
+        case diagnosticsCheck = "diagnostics_check"
         case downloadedAssetDeletion = "downloaded_asset_deletion"
         case downloadsObservation = "downloads_observation"
         case pushRegistration = "push_registration"
@@ -96,6 +97,17 @@ enum SentryTelemetry {
         SentrySDK.capture(error: error ?? NSError(domain: "io.put.telemetry", code: 0)) { scope in
             scope.setTag(value: failure.rawValue, key: "category")
         }
+    }
+
+    /// Lets a tester prove a TestFlight install's Sentry path on demand, beta or
+    /// release lane. TestFlight names the receipt `sandboxReceipt`, the test
+    /// Sentry uses for build type `test`; the App Store and the simulator name it
+    /// `receipt`, whether or not it exists.
+    @discardableResult
+    static func captureDiagnosticsCheck(receiptURL: URL? = Bundle.main.appStoreReceiptURL) -> Bool {
+        guard receiptURL?.lastPathComponent == "sandboxReceipt" else { return false }
+        capture(.diagnosticsCheck)
+        return true
     }
 
     /// Copies listed fields into a new event, so unlisted ones, including any a
