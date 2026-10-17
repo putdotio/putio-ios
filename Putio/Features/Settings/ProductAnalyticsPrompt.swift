@@ -31,19 +31,20 @@ enum ProductAnalyticsChoice {
         !productAnalyticsEnabled && !promptAnswered && !opensLaunchLinks
     }
 
-    /// The setting, then the prompt's answer: the order web writes them, so a failed setting never records an answer.
+    /// The setting, then the prompt's answer, the order web writes them: a failed setting records no answer, and a save that lands after a sign-out applies to nobody.
     static func save(
         _ enabled: Bool,
         saveSetting: SaveSettingRequest,
         markAnswered: @escaping Request,
         completion: @escaping (Result<Void, Failure>) -> Void
     ) {
+        let session = AccountNoticeStore.shared.session
         saveSetting(enabled) { result in
             switch result {
             case .failure(let error):
                 completion(.failure(.setting(error)))
             case .success:
-                settingDidSave(enabled: enabled)
+                if session == AccountNoticeStore.shared.session { settingDidSave(enabled: enabled) }
                 markAnswered { completion($0.mapError(Failure.answer)) }
             }
         }

@@ -272,11 +272,15 @@ final class ProductAnalyticsTests: XCTestCase {
         session.didEnterBackground()
         session.willEnterForeground()
         session.didBecomeActive()
+        // A cold-launch link replays once the account loads, after the open it marked.
+        session.didOpenLink()
         clock += 30
         session.didEnterBackground()
+        session.willEnterForeground()
+        session.didBecomeActive()
 
         XCTAssertEqual(events, [
-            .appOpened(.deeplink), .appBackgrounded(.from5mTo15m), .appOpened(.resume), .appBackgrounded(.under1m)
+            .appOpened(.deeplink), .appBackgrounded(.from5mTo15m), .appOpened(.resume), .appBackgrounded(.under1m), .appOpened(.resume)
         ])
     }
 

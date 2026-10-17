@@ -340,6 +340,18 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(applied, [false], "a read that starts after the answer applies")
     }
 
+    func testAnAnswerSavedAfterItsAccountSignedOutAppliesToNobody() {
+        var held: ((Result<Void, PutioSDKError>) -> Void)?
+        let before = SettingsViewModel.confirmedSaves
+
+        ProductAnalyticsChoice.save(true, saveSetting: { _, saved in held = saved }, markAnswered: { $0(.success(())) }) { _ in }
+        // What signing out does to the session.
+        AccountNoticeStore.shared.clear()
+        held?(.success(()))
+
+        XCTAssertEqual(SettingsViewModel.confirmedSaves, before, "a late answer reached the next account's gate")
+    }
+
     func testAnAccountReadThatOutlivesTheSessionLeavesProductAnalyticsAlone() throws {
         var reads: [(Result<PutioAccount, PutioSDKError>) -> Void] = []
         var applied: [Bool] = []

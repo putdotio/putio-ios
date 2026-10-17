@@ -24,6 +24,8 @@ class ChromecastManager: NSObject {
 
     var castingFileId: Int?
     var timer: Timer?
+    /// The load the receiver has yet to answer; its answer sends the start or the failure.
+    private var pendingLoad: (request: GCKRequest, playback: AnalyticsEvent.Playback)?
 
     var debug: Bool = false
 
@@ -217,9 +219,10 @@ class ChromecastManager: NSObject {
         // The put.io request behind a failure, which says more than its CastErrorReason.
         var requestError: PutioSDKError?
         let completion: (Bool, CastError?) -> Void = { success, error in
-            let playback = self.castPlayback(for: castFile)
-            let failure = error.map { castError in requestError.map { AnalyticsEvent.PlaybackError($0) } ?? castError.reason.playbackError }
-            ProductAnalytics.capture(failure.map { .playbackFailed(playback, $0) } ?? .playbackStarted(playback))
+            if let error {
+                let failure = requestError.map { AnalyticsEvent.PlaybackError($0) } ?? error.reason.playbackError
+                ProductAnalytics.capture(.playbackFailed(self.castPlayback(for: castFile), failure))
+            }
             reportResult(success, error)
         }
 
@@ -251,7 +254,10 @@ class ChromecastManager: NSObject {
                     self.castingFileId = fileID
                     self.timer = Timer.scheduledTimer(timeInterval: 15, target: self, selector: #selector(self.saveVideoTime), userInfo: nil, repeats: true)
 
-                    currentCastSession?.remoteMediaClient?.loadMedia(mediaInformation, with: mediaLoadOptions)
+                    if let load = currentCastSession?.remoteMediaClient?.loadMedia(mediaInformation, with: mediaLoadOptions) {
+                        load.delegate = self
+                        self.pendingLoad = (load, self.castPlayback(for: file))
+                    }
                     GCKCastContext.sharedInstance().presentDefaultExpandedMediaControls()
 
                     completion(true, nil)
@@ -313,6 +319,29 @@ extension ChromecastManager: GCKSessionManagerListener {
     func sessionManager(_ sessionManager: GCKSessionManager, didFailToStart session: GCKCastSession, withError error: Error) {
         if timer != nil { timer?.invalidate() }
         logError(error: error)
+    }
+}
+
+extension ChromecastManager: GCKRequestDelegate {
+    func requestDidComplete(_ request: GCKRequest) {
+        guard let playback = takePendingLoad(request) else { return }
+        ProductAnalytics.capture(.playbackStarted(playback))
+    }
+
+    func request(_ request: GCKRequest, didFailWithError error: GCKError) {
+        guard let playback = takePendingLoad(request) else { return }
+        ProductAnalytics.capture(.playbackFailed(playback, .init(error)))
+    }
+
+    /// Replaced or dropped, so neither a start nor a failure.
+    func request(_ request: GCKRequest, didAbortWith abortReason: GCKRequestAbortReason) {
+        _ = takePendingLoad(request)
+    }
+
+    private func takePendingLoad(_ request: GCKRequest) -> AnalyticsEvent.Playback? {
+        guard let pendingLoad, pendingLoad.request === request else { return nil }
+        self.pendingLoad = nil
+        return pendingLoad.playback
     }
 }
 
