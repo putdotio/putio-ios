@@ -1,15 +1,11 @@
 PODS:
-  - google-cast-sdk (4.8.6):
-    - GTMSessionFetcher
-  - GTMSessionFetcher (3.5.0):
-    - GTMSessionFetcher/Full (= 3.5.0)
-  - GTMSessionFetcher/Core (3.5.0)
-  - GTMSessionFetcher/Full (3.5.0):
-    - GTMSessionFetcher/Core
+  - google-cast-sdk (4.8.3):
+    - Protobuf (~> 3.13)
   - Intercom (19.9.0)
   - KeyboardAvoidingView (5.2.0):
     - ViewState (>= 1.2.1)
   - KeychainAccess (4.2.2)
+  - Protobuf (3.29.6)
   - PutioSDK (4.2.0)
   - Realm (20.0.6):
     - Realm/Headers (= 20.0.6)
@@ -31,8 +27,7 @@ PODS:
   - VTAcknowledgementsViewController (2.0.1)
 
 DEPENDENCIES:
-  - google-cast-sdk (= 4.8.6)
-  - GTMSessionFetcher (~> 3.5)
+  - google-cast-sdk (= 4.8.3)
   - Intercom (= 19.9.0)
   - KeyboardAvoidingView (~> 5.2)
   - KeychainAccess
@@ -48,10 +43,10 @@ DEPENDENCIES:
 SPEC REPOS:
   trunk:
     - google-cast-sdk
-    - GTMSessionFetcher
     - Intercom
     - KeyboardAvoidingView
     - KeychainAccess
+    - Protobuf
     - Realm
     - RealmSwift
     - RoutableLogger
@@ -69,11 +64,11 @@ EXTERNAL SOURCES:
     :podspec: ThirdParty/SnapshotTesting/SnapshotTesting.podspec
 
 SPEC CHECKSUMS:
-  google-cast-sdk: e90a401e59b477644157fa782359b31b24448c9f
-  GTMSessionFetcher: 5aea5ba6bd522a239e236100971f10cb71b96ab6
+  google-cast-sdk: 1fb6724e94cc5ff23b359176e0cf6360586bb97a
   Intercom: 4a35bcead5f437a8445a7113a0fe4991f36559fc
   KeyboardAvoidingView: acc530b2435bba760b2270e722cb7132cf1c4d31
   KeychainAccess: c0c4f7f38f6fc7bbe58f5702e25f7bd2f65abf51
+  Protobuf: 8d5596f7468be5400861a6bbfb2dfe9d0d1cde34
   PutioSDK: bac5860b6b2d6a8c6bab23116256217a323d1817
   Realm: e63b3586386f7ab655dc890a9d0878870ebb1837
   RealmSwift: 7955ebe63fa6e46cdaea394fa17758d1028dd594
@@ -86,6 +81,6 @@ SPEC CHECKSUMS:
   ViewState: 82f26f9b716f6673c19e491f8bf234c4ff519a0a
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: 4fb4dc0a81b8e892c82eec79d8ab3376dab53d4f
+PODFILE CHECKSUM: 9121cd7303c0ae84e290f962267996e13fc11789
 
 COCOAPODS: 1.17.0

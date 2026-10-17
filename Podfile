@@ -4,16 +4,15 @@ platform :ios, ios_deployment_target
 target 'Putio' do
   use_frameworks!
 
-  # Cast 4.8.6 and Sentry 9.19.1 are the last releases on trunk; later ones
-  # ship through SPM only.
-  pod 'google-cast-sdk', '4.8.6'
-  # Cast's podspec leaves this open; Google's SPM manifest tests 3.x.
-  pod 'GTMSessionFetcher', '~> 3.5'
+  # Held below 4.8.4, which adds a terms-of-service sheet; 4.8.6 also calls
+  # api.ipify.org and an experiments service on every launch.
+  pod 'google-cast-sdk', '4.8.3'
   pod 'Intercom', '19.9.0'
   pod 'KeychainAccess'
   # Upstream dropped CocoaPods in 4.0.1; ThirdParty/ carries a pinned podspec.
   pod 'PutioSDK', :podspec => 'ThirdParty/PutioSDK/PutioSDK.podspec'
   pod 'RealmSwift', '20.0.6'
+  # The last release on trunk; later ones ship through SPM only.
   pod 'Sentry', '9.19.1'
   pod 'StatefulViewController', '~> 3.0'
   pod 'SwiftLint', '~> 0.63'
