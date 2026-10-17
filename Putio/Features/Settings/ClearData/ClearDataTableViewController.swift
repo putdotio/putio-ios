@@ -1,11 +1,14 @@
 import UIKit
 
 class ClearDataTableViewController: UITableViewController {
+    private static let headerReuseIdentifier = "clearDataHeader"
+
     let viewModel = ClearDataViewModel()
 
     override func viewDidLoad() {
         super.viewDidLoad()
         tableView.accessibilityIdentifier = "putio-clear-data-table"
+        tableView.register(UITableViewHeaderFooterView.self, forHeaderFooterViewReuseIdentifier: Self.headerReuseIdentifier)
         navigationItem.rightBarButtonItem?.isEnabled = viewModel.canClear
     }
 
@@ -83,7 +86,8 @@ class ClearDataTableViewController: UITableViewController {
         var background = UIBackgroundConfiguration.listHeader()
         background.backgroundColor = UIColor.Putio.Surface.appBg
 
-        let header = UITableViewHeaderFooterView()
+        let header = tableView.dequeueReusableHeaderFooterView(withIdentifier: Self.headerReuseIdentifier)
+            ?? UITableViewHeaderFooterView(reuseIdentifier: Self.headerReuseIdentifier)
         header.contentConfiguration = content
         header.backgroundConfiguration = background
         return header

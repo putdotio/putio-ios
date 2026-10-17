@@ -33,6 +33,7 @@ final class ClearDataUITests: XCTestCase {
         let clear = app.navigationBars["Clear your data"].buttons["Clear"]
 
         XCTAssertFalse(clear.isEnabled, "Clear should wait for a selection")
+        attachScreenshot(of: app, named: "Clear your data, nothing selected")
         table.staticTexts["Files"].tap()
         table.staticTexts["History"].tap()
         XCTAssertTrue(clear.isEnabled)

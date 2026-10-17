@@ -1066,7 +1066,7 @@
                         </connections>
                     </tableView>
                     <navigationItem key="navigationItem" title="Clear your data" largeTitleDisplayMode="never" id="Hu3-ND-kF7">
-                        <barButtonItem key="rightBarButtonItem" title="Clear" style="done" id="p5P-Pw-3hZ">
+                        <barButtonItem key="rightBarButtonItem" title="Clear" id="p5P-Pw-3hZ">
                             <color key="tintColor" name="putio.yellow.text-secondary"/>
                             <connections>
                                 <action selector="cleanUpButtonPressed:" destination="vsw-Zm-mff" id="ino-6C-FyA"/>

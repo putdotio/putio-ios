@@ -68,10 +68,9 @@ final class ClearDataViewModelTests: XCTestCase {
 
         viewModel.cleanUp(confirm: { prompt, _ in message = prompt }, completion: { _ in })
 
-        XCTAssertEqual(
-            message,
-            "This permanently deletes Files, RSS feeds, and Trash from your put.io account. It can't be undone."
-        )
+        // The list punctuation follows the device region, so join the titles the same way.
+        let titles = ListFormatter.localizedString(byJoining: ["Files", "RSS feeds", "Trash"])
+        XCTAssertEqual(message, "This permanently deletes \(titles) from your put.io account. It can't be undone.")
     }
 
     func testEverySDKOptionHasATitle() {
