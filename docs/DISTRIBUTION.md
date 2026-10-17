@@ -90,7 +90,7 @@ Before submitting 3.x, change the 2.58.0 answers to these:
 | Data type | 2.58.0 | 3.x | Source |
 | --- | --- | --- | --- |
 | Email Address | Linked: App Functionality | Unchanged | put.io account; Intercom's manifest |
-| User ID | Linked: Analytics, App Functionality | Unchanged | put.io account ID and username; Intercom gets the account ID; PostHog, for Analytics |
+| User ID | Linked: Analytics, App Functionality | Unchanged | put.io account ID and username; Intercom gets the account ID, and PostHog sends it as its distinct ID |
 | Customer Support | Linked: App Functionality | Unchanged | Intercom conversations |
 | Product Interaction | Linked: Analytics, App Functionality | Unchanged | put.io playback positions and IFTTT playback events; Intercom; PostHog events; Google Cast, not linked |
 | Other Usage Data | Not declared | Linked: Analytics | PostHog: app version, OS version and device class on each event |

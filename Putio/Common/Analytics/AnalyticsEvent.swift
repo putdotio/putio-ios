@@ -41,7 +41,8 @@ enum AnalyticsEvent: Equatable {
         case downloadConcurrency = "download_concurrency"
     }
 
-    /// The kind of value saved, never the value itself.
+    /// A switch's new state, as the web app's `settings_changed` sends it; for
+    /// any other setting, only the kind of value saved, never the value.
     enum ValueClass: String, CaseIterable {
         case on, off, option, number
 
