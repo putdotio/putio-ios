@@ -1,24 +1,24 @@
 PODS:
-  - google-cast-sdk-no-bluetooth-xcframework (4.8.0):
+  - google-cast-sdk (4.8.3):
     - Protobuf (~> 3.13)
-  - Intercom (19.5.7)
+  - Intercom (19.9.0)
   - KeyboardAvoidingView (5.2.0):
     - ViewState (>= 1.2.1)
   - KeychainAccess (4.2.2)
   - Protobuf (3.29.6)
   - PutioSDK (4.2.0)
-  - Realm (20.0.4):
-    - Realm/Headers (= 20.0.4)
-  - Realm/Headers (20.0.4)
-  - RealmSwift (20.0.4):
-    - Realm (= 20.0.4)
+  - Realm (20.0.6):
+    - Realm/Headers (= 20.0.6)
+  - Realm/Headers (20.0.6)
+  - RealmSwift (20.0.6):
+    - Realm (= 20.0.6)
   - RoutableLogger (13.0.0)
-  - Sentry (9.10.0):
-    - Sentry/Core (= 9.10.0)
-  - Sentry/Core (9.10.0)
+  - Sentry (9.19.1):
+    - Sentry/Core (= 9.19.1)
+  - Sentry/Core (9.19.1)
   - SnapshotTesting (1.17.2)
   - StatefulViewController (3.0)
-  - SwiftLint (0.63.2)
+  - SwiftLint (0.65.1)
   - SwiftyBeaver (2.1.1)
   - ViewState (3.0.0):
     - ViewState/Core (= 3.0.0)
@@ -27,13 +27,13 @@ PODS:
   - VTAcknowledgementsViewController (2.0.1)
 
 DEPENDENCIES:
-  - google-cast-sdk-no-bluetooth-xcframework (= 4.8.0)
-  - Intercom (= 19.5.7)
+  - google-cast-sdk (= 4.8.3)
+  - Intercom (= 19.9.0)
   - KeyboardAvoidingView (~> 5.2)
   - KeychainAccess
   - PutioSDK (from `ThirdParty/PutioSDK/PutioSDK.podspec`)
-  - RealmSwift (= 20.0.4)
-  - Sentry (= 9.10.0)
+  - RealmSwift (= 20.0.6)
+  - Sentry (= 9.19.1)
   - SnapshotTesting (from `ThirdParty/SnapshotTesting/SnapshotTesting.podspec`)
   - StatefulViewController (~> 3.0)
   - SwiftLint (~> 0.63)
@@ -42,7 +42,7 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
-    - google-cast-sdk-no-bluetooth-xcframework
+    - google-cast-sdk
     - Intercom
     - KeyboardAvoidingView
     - KeychainAccess
@@ -64,23 +64,23 @@ EXTERNAL SOURCES:
     :podspec: ThirdParty/SnapshotTesting/SnapshotTesting.podspec
 
 SPEC CHECKSUMS:
-  google-cast-sdk-no-bluetooth-xcframework: 1783f52a1b2dc0293ac3ae995db5435989a87da7
-  Intercom: 74d4318a7275fa6f6a1466443f2af10ebd679d57
+  google-cast-sdk: 1fb6724e94cc5ff23b359176e0cf6360586bb97a
+  Intercom: 4a35bcead5f437a8445a7113a0fe4991f36559fc
   KeyboardAvoidingView: acc530b2435bba760b2270e722cb7132cf1c4d31
   KeychainAccess: c0c4f7f38f6fc7bbe58f5702e25f7bd2f65abf51
   Protobuf: 8d5596f7468be5400861a6bbfb2dfe9d0d1cde34
   PutioSDK: bac5860b6b2d6a8c6bab23116256217a323d1817
-  Realm: 1fca83c42ac1d5c7767974882c8de5a7abca4d89
-  RealmSwift: 84f36320f6133dea78d05c55bb46bba4387d6828
+  Realm: e63b3586386f7ab655dc890a9d0878870ebb1837
+  RealmSwift: 7955ebe63fa6e46cdaea394fa17758d1028dd594
   RoutableLogger: 31ce799b16b4868c169ed68c36e25437dd0ca40e
-  Sentry: 4e85b40e4b0235853f40f959d315a6b28e3148d8
+  Sentry: e4588d62ac3fd3c82652bb7c8a215ec8c3de776b
   SnapshotTesting: fa82e8e3e59db7516682c92f1dbd5c1a896cf448
   StatefulViewController: 4803bf900d44de26074344998e10e041113b5931
-  SwiftLint: 4fa4a9b437ccc4fc72f6c0bc98556e8e9e05bccf
+  SwiftLint: 7d51ad56923e88694cee5ca806dbbab30f85eaaa
   SwiftyBeaver: ade157e4f857812e7d7f15f2e3396bb8733f8a1c
   ViewState: 82f26f9b716f6673c19e491f8bf234c4ff519a0a
   VTAcknowledgementsViewController: 2cae5539fb84081196ab00d267caad390f418ce6
 
-PODFILE CHECKSUM: ac5a2d308e7a921572ccbd213d18c04dffcec2ba
+PODFILE CHECKSUM: 9121cd7303c0ae84e290f962267996e13fc11789
 
 COCOAPODS: 1.17.0
