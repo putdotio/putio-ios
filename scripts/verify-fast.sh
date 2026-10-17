@@ -28,6 +28,13 @@ if git grep -nE '^[[:space:]]*(@[A-Za-z_]+(\([^)]*\))?[[:space:]]+)*import[[:spa
     exit 1
 fi
 
+# ProductAnalytics.projectToken takes only this shape; any other value, an
+# empty one included, ships an App Store build that never starts PostHog.
+if ! grep -qE '^PUTIO_POSTHOG_TOKEN = phc_[A-Za-z0-9]{20,64}( //.*)?$' Config/Release.xcconfig; then
+    echo "verify-fast: Config/Release.xcconfig needs PostHog's public project token (phc_...)." >&2
+    exit 1
+fi
+
 plutil -lint Putio/PrivacyInfo.xcprivacy
 plutil -lint Putio/en.lproj/*.strings
 

@@ -3,6 +3,6 @@
 
 // PostHog's public project token; it only names the project. Release only, so
 // Debug, verify, and e2e builds stay empty and send nothing.
-PUTIO_POSTHOG_TOKEN =
+PUTIO_POSTHOG_TOKEN = phc_DcWvN8MzbwTfNxki3GhGuBBBDHY5sfvtxfaKZQ3iRDvm // gitleaks:allow (public project token; putio-web ships the same one)
 
 #include? "Local.xcconfig"
