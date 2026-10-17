@@ -4,13 +4,17 @@ platform :ios, ios_deployment_target
 target 'Putio' do
   use_frameworks!
 
-  pod 'google-cast-sdk-no-bluetooth-xcframework', '4.8.0'
-  pod 'Intercom', '19.5.7'
+  # Cast 4.8.6 and Sentry 9.19.1 are the last releases on trunk; later ones
+  # ship through SPM only.
+  pod 'google-cast-sdk', '4.8.6'
+  # Cast's podspec leaves this open; Google's SPM manifest tests 3.x.
+  pod 'GTMSessionFetcher', '~> 3.5'
+  pod 'Intercom', '19.9.0'
   pod 'KeychainAccess'
   # Upstream dropped CocoaPods in 4.0.1; ThirdParty/ carries a pinned podspec.
   pod 'PutioSDK', :podspec => 'ThirdParty/PutioSDK/PutioSDK.podspec'
-  pod 'RealmSwift', '20.0.4'
-  pod 'Sentry', '9.10.0'
+  pod 'RealmSwift', '20.0.6'
+  pod 'Sentry', '9.19.1'
   pod 'StatefulViewController', '~> 3.0'
   pod 'SwiftLint', '~> 0.63'
   pod 'SwiftyBeaver', '~> 2.1'
@@ -112,29 +116,9 @@ def patch_snapshot_testing_record_issue!
   File.write(file_path, contents)
 end
 
-def remove_flag_from_xcconfig!(file_path, flag)
-  return unless File.exist?(file_path)
-
-  contents = File.read(file_path)
-  updated_contents = contents.gsub(" #{flag}", "")
-
-  return if updated_contents == contents
-
-  File.chmod(0o644, file_path)
-  File.write(file_path, updated_contents)
-end
-
-def patch_realm_linker_flags!
-  %w[debug release].each do |configuration|
-    file_path = File.join(__dir__, "Pods", "Target Support Files", "Realm", "Realm.#{configuration}.xcconfig")
-    remove_flag_from_xcconfig!(file_path, '-l"c++"')
-  end
-end
-
 post_install do |installer|
   patch_keyboard_avoiding_view_loader!
   patch_snapshot_testing_record_issue!
-  patch_realm_linker_flags!
   installer.pods_project.targets.each do |target|
     if target.name == "Realm"
       target.shell_script_build_phases.each do |phase|
