@@ -1,8 +1,11 @@
 import Foundation
+import os
 
 #if DEBUG
 // swiftlint:disable static_over_final_class
 final class PutioE2EMockURLProtocol: URLProtocol {
+    private let isStopped = OSAllocatedUnfairLock(initialState: false)
+
     override class func canInit(with request: URLRequest) -> Bool {
         guard ProcessInfo.processInfo.environment["PUTIO_E2E_MOCK_API"] == "1" else {
             return false
@@ -21,6 +24,19 @@ final class PutioE2EMockURLProtocol: URLProtocol {
             return
         }
 
+        PutioE2EPerfProbe.recordRequest(path: url.path)
+
+        guard let latency = PutioE2EMockAPI.latency else {
+            return respond(to: url)
+        }
+
+        DispatchQueue.global().asyncAfter(deadline: .now() + latency) { [weak self] in
+            guard let self, !self.isStopped.withLock({ $0 }) else { return }
+            self.respond(to: url)
+        }
+    }
+
+    private func respond(to url: URL) {
         if PutioE2EMockAPI.isOffline(request, url: url) {
             client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
             return
@@ -39,7 +55,9 @@ final class PutioE2EMockURLProtocol: URLProtocol {
         client?.urlProtocolDidFinishLoading(self)
     }
 
-    override func stopLoading() {}
+    override func stopLoading() {
+        isStopped.withLock { $0 = true }
+    }
 }
 // swiftlint:enable static_over_final_class
 
@@ -53,6 +71,12 @@ private enum PutioE2EMockAPI {
             self.statusCode = statusCode
             self.contentType = contentType
             self.body = Data(body.utf8)
+        }
+
+        init(_ response: PutioE2ELargeFixture.Response) {
+            statusCode = response.statusCode
+            contentType = response.contentType
+            body = response.body
         }
     }
 
@@ -68,6 +92,10 @@ private enum PutioE2EMockAPI {
               "message": "Forced failure for \(routeKey)"
             }
             """)
+        }
+
+        if let response = PutioE2ELargeFixture.response(method: request.httpMethod ?? "GET", url: url) {
+            return Fixture(response)
         }
 
         if routeKey == "GET /v2/account/info", accountScenario == "inactive" {
@@ -108,6 +136,14 @@ private enum PutioE2EMockAPI {
 
         return Set(raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) })
     }
+
+    // PUTIO_E2E_LATENCY_MS delays every response, so the serial round trips a
+    // real network adds show up in launch measurements. Unset answers at once.
+    static let latency: DispatchTimeInterval? = {
+        guard let milliseconds = ProcessInfo.processInfo.environment["PUTIO_E2E_LATENCY_MS"].flatMap(Int.init),
+              milliseconds > 0 else { return nil }
+        return .milliseconds(milliseconds)
+    }()
 
     // "inactive" answers /account/info as a deactivated account; unset is active.
     private static let accountScenario = ProcessInfo.processInfo.environment["PUTIO_E2E_ACCOUNT"]
