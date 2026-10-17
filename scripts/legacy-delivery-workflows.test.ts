@@ -83,7 +83,11 @@ test("beta persists the selected TestFlight groups before distribution", async (
   assert.match(run.slice(newlineGuard, envWrite), /exit 1/);
 });
 
-test("release builds fail without a Sentry DSN for project ios", async () => {
+const validSentryDsn = "https://synthetickey@o0.ingest.example.invalid/5282170";
+
+// Runs the release preflight with every required secret set to a valid
+// synthetic value, then the overrides.
+const releasePreflight = async () => {
   const action = await loadYaml(".github/actions/load-ios-release-secrets/action.yml");
   const steps = arrayAt(recordAt(action, "runs", "action.yml"), "steps", "action.yml.runs");
   const preflight = steps
@@ -92,10 +96,18 @@ test("release builds fail without a Sentry DSN for project ios", async () => {
   assert.ok(preflight, "action.yml must have a 'Require release environment secrets' step");
   const run = String(preflight.run);
   const secrets = Object.fromEntries([...run.matchAll(/^\s+([A-Z][A-Z0-9_]*)$/gm)].map(([, name]) => [name, "synthetic"]));
-  const status = (dsn: string) =>
-    spawnSync("bash", ["-c", run], { env: { PATH: process.env.PATH, ...secrets, PUTIO_SENTRY_DSN: dsn } }).status;
+  return (overrides: Record<string, string>) =>
+    spawnSync("bash", ["-c", run], {
+      encoding: "utf8",
+      env: { PATH: process.env.PATH, ...secrets, PUTIO_SENTRY_DSN: validSentryDsn, ...overrides },
+    });
+};
 
-  assert.equal(status("https://synthetickey@o0.ingest.example.invalid/5282170"), 0);
+test("release builds fail without a Sentry DSN for project ios", async () => {
+  const preflight = await releasePreflight();
+  const status = (dsn: string) => preflight({ PUTIO_SENTRY_DSN: dsn }).status;
+
+  assert.equal(status(validSentryDsn), 0);
   for (const dsn of [
     "",
     "not a dsn",
@@ -103,5 +115,19 @@ test("release builds fail without a Sentry DSN for project ios", async () => {
     "https://synthetickey@o0.ingest.example.invalid?x=/5282170",
   ]) {
     assert.equal(status(dsn), 1, dsn);
+  }
+});
+
+test("release builds fail without well-formed Intercom keys", async () => {
+  const preflight = await releasePreflight();
+
+  for (const name of ["PUTIO_INTERCOM_API_KEY", "PUTIO_INTERCOM_APP_ID"]) {
+    assert.equal(preflight({ [name]: "Synthetic.key_0:a-z" }).status, 0, name);
+    for (const value of ["", "null", "canary value", "canary\n", "'canary'", "canary/key"]) {
+      const result = preflight({ [name]: value });
+      assert.equal(result.status, 1, `${name}=${JSON.stringify(value)}`);
+      assert.match(result.stderr, new RegExp(name));
+      assert.doesNotMatch(result.stdout + result.stderr, /canary/, "the preflight must not print the value");
+    }
   }
 });
