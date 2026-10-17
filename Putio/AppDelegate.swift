@@ -28,10 +28,12 @@ enum LegacyInstallCleanup {
 
     static func runOnce(defaults: UserDefaults = .standard) {
         guard !defaults.bool(forKey: didRunKey) else { return }
-        // Set first, so a cleanup that crashes can't crash every launch.
-        defaults.set(true, forKey: didRunKey)
-        BackgroundDownloadSessionEvents.cancelShipped258Sessions()
         SentryTelemetry.deleteLegacyCache()
+        // Marked done only once every session answers, so a background launch
+        // suspended before then retries on the next one.
+        BackgroundDownloadSessionEvents.cancelShipped258Sessions {
+            defaults.set(true, forKey: didRunKey)
+        }
     }
 }
 
@@ -39,6 +41,9 @@ enum LegacyInstallCleanup {
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     private var pendingURLs: [URL] = []
+    // A session restored at launch, not a fresh sign-in, which may be another
+    // account than the one that left 2.58.0's downloads.
+    private var isRestoredSession = false
     private var isRunningUnitTests: Bool {
         let environment = ProcessInfo.processInfo.environment
         return [
@@ -118,7 +123,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         applyWindowAppearance()
         window.makeKeyAndVisible()
         if !isRunningUnitTests {
-            authenticate(token: e2eAccessToken)
+            authenticate(token: e2eAccessToken, isRestoredSession: true)
         }
     }
 
@@ -190,7 +195,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         completionHandler()
     }
 
-    func authenticate(token: String? = nil) {
+    func authenticate(token: String? = nil, isRestoredSession: Bool = false) {
+        self.isRestoredSession = isRestoredSession
         guard let token = token ?? PutioKeychain.sharedInstance.getToken() else {
             return presentLoginScreen()
         }
@@ -310,7 +316,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
             // The upgrade from 2.58.0 deletes its Realm user, so an offline
             // first launch has only the keychain token. Keep downloads reachable.
-            if case .networkError = error.localizerType {
+            if isRestoredSession, case .networkError = error.localizerType {
                 return self.presentMainScreen(startDownloadQueue: false)
             }
 
@@ -403,8 +409,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.rootViewController = RootContainerViewController()
         window?.makeKeyAndVisible()
         // A no-op unless setup() deleted an unreadable Realm, as on the upgrade
-        // from 2.58.0. The Downloads Restore button stays as a fallback.
-        PutioRealm.recoverDownloadsIfNeeded()
+        // from 2.58.0. After a fresh sign-in, recovering stays a Restore tap.
+        if isRestoredSession {
+            PutioRealm.recoverDownloadsIfNeeded()
+        }
         let urls = pendingURLs
         pendingURLs.removeAll()
         urls.forEach(openIncomingURL)

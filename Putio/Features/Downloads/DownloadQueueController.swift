@@ -379,16 +379,20 @@ enum BackgroundDownloadSessionEvents {
     }
 
     /// 2.58.0's sessions, renamed since. Their downloads land where nothing reads them.
-    static func cancelShipped258Sessions() {
+    static func cancelShipped258Sessions(completion: @escaping () -> Void) {
         let audio = URLSession(configuration: .background(withIdentifier: "com.putio.tvOS.background.url"))
         let video: [URLSession] = ["com.putio.tvOS.background.av", "com.putio.tvOS.background"].map {
             AVAssetDownloadURLSession(configuration: .background(withIdentifier: $0), assetDownloadDelegate: nil, delegateQueue: .main)
         }
+        let group = DispatchGroup()
         for session in [audio] + video {
+            group.enter()
             session.getAllTasks { tasks in
                 log.info("[Downloads] Cancelling \(tasks.count) task(s) left in \(session.configuration.identifier ?? "")")
                 session.invalidateAndCancel()
+                group.leave()
             }
         }
+        group.notify(queue: .main, execute: completion)
     }
 }
