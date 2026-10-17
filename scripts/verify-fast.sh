@@ -22,4 +22,12 @@ if git grep -nE '^[[:space:]]*(@[A-Za-z_]+[[:space:]]+)*import[[:space:]]+([a-z]
 fi
 
 plutil -lint Putio/en.lproj/*.strings
+
+# en.lproj is a folder reference, copied into the app verbatim, so a build
+# setting such as ${PRODUCT_NAME} in a .strings file reaches users unexpanded.
+if grep -nE '\$[({]' Putio/en.lproj/*.strings; then
+    echo "verify-fast: .strings files are not build-setting expanded; write the literal text." >&2
+    exit 1
+fi
+
 xcodebuild -list -workspace Putio.xcworkspace
