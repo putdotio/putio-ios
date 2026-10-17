@@ -306,17 +306,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         guard let realm = PutioRealm.open(context: "fetchUserFailure") else {
             return presentLoginScreen(afterBootstrapFailure: "Realm unavailable in fetchUserFailure")
         }
-        let user = realm.objects(User.self).first
+        // The upgrade from 2.58.0 deletes its Realm user, so a session restored
+        // at launch stands in for it. Keep downloads reachable.
+        let keepsSession = realm.objects(User.self).first != nil || isRestoredSession
 
         switch error.localizerType {
         case .decodingError, .unknownError, .networkError:
-            if user != nil {
-                return self.presentMainScreen(startDownloadQueue: false)
-            }
-
-            // The upgrade from 2.58.0 deletes its Realm user, so an offline
-            // first launch has only the keychain token. Keep downloads reachable.
-            if isRestoredSession, case .networkError = error.localizerType {
+            if keepsSession {
                 return self.presentMainScreen(startDownloadQueue: false)
             }
 
@@ -328,7 +324,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 return self.presentLoginScreen(afterBootstrapFailure: "account fetch rejected the token (\(statusCode))")
             }
 
-            if user != nil {
+            if keepsSession {
                 return self.presentMainScreen(startDownloadQueue: false)
             }
 
