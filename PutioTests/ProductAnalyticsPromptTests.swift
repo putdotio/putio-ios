@@ -77,18 +77,19 @@ final class ProductAnalyticsPromptTests: XCTestCase {
         XCTAssertTrue(prompt.errorLabel.isHidden)
     }
 
-    func testAFailedAnswerShowsTheErrorAndRetriesBothWrites() {
+    func testAFailedAnswerKeepsTheSavedSettingAndRetriesBothWrites() {
         answerResults = [.failure(.offline("/config/dismissed.product_analytics_prompt"))]
         let prompt = makePrompt()
 
-        prompt.denyButton.sendActions(for: .touchUpInside)
+        prompt.allowButton.sendActions(for: .touchUpInside)
 
-        XCTAssertEqual(writes, ["setting: false", "answer"])
+        XCTAssertEqual(writes, ["setting: true", "answer", "local: true"])
         XCTAssertFalse(prompt.errorLabel.isHidden)
 
-        prompt.denyButton.sendActions(for: .touchUpInside)
+        prompt.allowButton.sendActions(for: .touchUpInside)
 
-        XCTAssertEqual(writes, ["setting: false", "answer", "setting: false", "answer", "local: false"])
+        XCTAssertEqual(writes, ["setting: true", "answer", "local: true", "setting: true", "answer", "local: true"])
+        XCTAssertTrue(prompt.errorLabel.isHidden)
     }
 
     func testCannotBeClosedOrAnsweredTwiceWhileSaving() {

@@ -156,7 +156,14 @@ final class ProductAnalyticsPromptViewController: UIViewController {
                 // save closes with the sheet instead of in its place.
                 self.presentingViewController?.dismiss(animated: true)
 
-            case .failure(.setting(let error)), .failure(.answer(let error)):
+            case .failure(.answer(let error)):
+                // put.io holds the setting, so the local copy follows it; a
+                // retry sends both again.
+                self.storeLocally(enabled)
+                self.setSaving(false, enabled: enabled)
+                self.showError(error)
+
+            case .failure(.setting(let error)):
                 self.setSaving(false, enabled: enabled)
                 self.showError(error)
             }
