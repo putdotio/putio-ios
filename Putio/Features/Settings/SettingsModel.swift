@@ -41,5 +41,6 @@ class SettingsModel {
     struct Section {
         let title: String
         let items: [SectionItem]
+        var footer: String?
     }
 }

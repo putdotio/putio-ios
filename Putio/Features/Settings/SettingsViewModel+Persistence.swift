@@ -53,6 +53,18 @@ extension SettingsViewModel {
         tableViewController?.present(errorAlert, animated: true)
     }
 
+    func presentSaveSettingFailure(_ error: PutioErrorLocalizableInput) {
+        let localizedError = api.localizeError(error: error)
+        let errorAlert = UIAlertController(
+            title: NSLocalizedString("Couldn't save setting", comment: ""),
+            message: "\(localizedError.message)\n\(localizedError.recoverySuggestion.description)",
+            preferredStyle: .alert
+        )
+        errorAlert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel))
+        update()
+        tableViewController?.present(errorAlert, animated: true)
+    }
+
     func presentPersistenceFailure() {
         update()
         InternalFailurePresenter.present(
@@ -65,6 +77,7 @@ extension SettingsViewModel {
     private func performRemoteMutation(
         title: String = NSLocalizedString("Saving...", comment: ""),
         mutation: (@escaping (Result<Void, PutioSDKError>) -> Void) -> Void,
+        onFailure: ((PutioSDKError) -> Void)? = nil,
         onSuccess: @escaping (Realm) -> Void
     ) {
         let loadingAlert = presentLoadingAlert(title: title)
@@ -86,7 +99,11 @@ extension SettingsViewModel {
                     self.update()
 
                 case .failure(let error):
-                    self.presentRemoteMutationError(error)
+                    if let onFailure {
+                        onFailure(error)
+                    } else {
+                        self.presentRemoteMutationError(error)
+                    }
                 }
             }
         }
@@ -98,17 +115,59 @@ extension SettingsViewModel {
     ) {
         performRemoteMutation(
             mutation: { completion in
-                api.saveAccountSettings(update) { result in
-                    switch result {
-                    case .success:
-                        completion(.success(()))
-                    case .failure(let error):
-                        completion(.failure(error))
-                    }
-                }
+                self.saveAccountSettingsRequest(update, completion)
             },
             onSuccess: { _ in
                 onSuccess()
+            }
+        )
+    }
+
+    func saveDiagnosticsEnabled(_ isEnabled: Bool) {
+        performRemoteMutation(
+            mutation: { completion in
+                self.saveAccountSettingsRequest(.patch(PutioAccountSettingsPatch(diagnosticsEnabled: isEnabled))) { result in
+                    // Ahead of the Realm write, so Sentry follows put.io even
+                    // when the local copy can't be saved.
+                    if case .success = result {
+                        self.applyDiagnostics(isEnabled)
+                    }
+                    completion(result)
+                }
+            },
+            onFailure: presentSaveSettingFailure,
+            onSuccess: { _ in
+                self.settings.diagnosticsEnabled = isEnabled
+            }
+        )
+    }
+
+    func saveProductAnalyticsEnabled(_ isEnabled: Bool) {
+        performRemoteMutation(
+            mutation: { completion in
+                ProductAnalyticsChoice.save(
+                    isEnabled,
+                    saveSetting: { enabled, settingCompletion in
+                        self.saveAccountSettingsRequest(.patch(PutioAccountSettingsPatch(productAnalyticsEnabled: enabled)), settingCompletion)
+                    },
+                    markAnswered: self.markProductAnalyticsPromptAnsweredRequest,
+                    completion: { result in
+                        switch result {
+                        case .success:
+                            completion(.success(()))
+                        case .failure(.setting(let error)):
+                            completion(.failure(error))
+                        case .failure(.answer(let error)):
+                            // The setting holds; without the answer the prompt asks once more.
+                            InternalFailurePresenter.log("Product analytics saved, but not as the prompt's answer: \(error.localizerType)")
+                            completion(.success(()))
+                        }
+                    }
+                )
+            },
+            onFailure: presentSaveSettingFailure,
+            onSuccess: { _ in
+                self.settings.productAnalyticsEnabled = isEnabled
             }
         )
     }

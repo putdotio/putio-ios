@@ -3,7 +3,7 @@ import RealmSwift
 
 class PutioRealm {
     private static let needsDownloadRecoveryKey = "PutioRealm.needsDownloadRecovery"
-    static let latestSchemaVersion: UInt64 = 12
+    static let latestSchemaVersion: UInt64 = 13
 
     static var needsDownloadRecovery: Bool {
         return needsDownloadRecovery(defaults: .standard)
@@ -163,6 +163,16 @@ class PutioRealm {
 
         if oldSchemaVersion < 12 {
             migrateDownloadRawColumns(migration)
+        }
+
+        // Not updateUserSettings: it relinks the user to whichever settings row
+        // it visits last, and every replaceUserSession leaves the previous
+        // session's row behind.
+        if oldSchemaVersion < 13 {
+            migration.enumerateObjects(ofType: UserSettings.className()) { _, newAppUserSettings in
+                newAppUserSettings!["diagnosticsEnabled"] = true
+                newAppUserSettings!["productAnalyticsEnabled"] = false
+            }
         }
     }
 

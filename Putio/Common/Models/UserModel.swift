@@ -52,6 +52,8 @@ class UserSettings: Object {
     @objc dynamic var twoFactorEnabled: Bool = false
     @objc dynamic var hideSubtitles: Bool = false
     @objc dynamic var dontAutoSelectSubtitles: Bool = false
+    @objc dynamic var diagnosticsEnabled: Bool = true
+    @objc dynamic var productAnalyticsEnabled: Bool = false
 
     convenience init?(settings: PutioAccount.Settings) {
         self.init()
@@ -65,6 +67,8 @@ class UserSettings: Object {
         self.twoFactorEnabled = settings.twoFactorEnabled
         self.hideSubtitles = settings.hideSubtitles
         self.dontAutoSelectSubtitles = settings.dontAutoSelectSubtitles
+        self.diagnosticsEnabled = settings.diagnosticsEnabled
+        self.productAnalyticsEnabled = settings.productAnalyticsEnabled
     }
 }
 

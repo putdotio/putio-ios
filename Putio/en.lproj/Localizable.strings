@@ -53,7 +53,16 @@
 "Account" = "Account";
 
 /* No comment provided by engineer. */
+"Allow" = "Allow";
+
+/* No comment provided by engineer. */
+"Always on" = "Always on";
+
+/* No comment provided by engineer. */
 "Amsterdam" = "Amsterdam";
+
+/* No comment provided by engineer. */
+"App and device type" = "App and device type";
 
 /* No comment provided by engineer. */
 "Ascending" = "Ascending";
@@ -101,7 +110,52 @@
 "Authentication state did not match the current session." = "Authentication state did not match the current session.";
 
 /* No comment provided by engineer. */
+"Couldn't save setting" = "Couldn't save setting";
+
+/* No comment provided by engineer. */
+"Diagnostics" = "Diagnostics";
+
+/* No comment provided by engineer. */
+"Don't allow" = "Don't allow";
+
+/* No comment provided by engineer. */
+"Features you use" = "Features you use";
+
+/* No comment provided by engineer. */
+"Filenames or media titles" = "Filenames or media titles";
+
+/* No comment provided by engineer. */
+"Help us understand which apps and features work well by sending limited usage, device, billing, and playback information. We never send filenames, media titles, URLs, search text, or tokens." = "Help us understand which apps and features work well by sending limited usage, device, billing, and playback information. We never send filenames, media titles, URLs, search text, or tokens.";
+
+/* No comment provided by engineer. */
+"It helps us understand which apps and features work well. It stays off unless you allow it, and you can change it in Account → Privacy controls." = "It helps us understand which apps and features work well. It stays off unless you allow it, and you can change it in Account → Privacy controls.";
+
+/* No comment provided by engineer. */
+"Playback and billing events" = "Playback and billing events";
+
+/* No comment provided by engineer. */
+"Privacy controls" = "Privacy controls";
+
+/* No comment provided by engineer. */
+"Product analytics" = "Product analytics";
+
+/* No comment provided by engineer. */
+"Required for login, security, account access, transfers, downloads, playback, billing operations, and remembering your choices. These cannot be turned off." = "Required for login, security, account access, transfers, downloads, playback, billing operations, and remembering your choices. These cannot be turned off.";
+
+/* No comment provided by engineer. */
+"Send crash reports, error details, and limited playback diagnostics so we can find and fix problems. We do not send filenames, media titles, URLs, search text, or tokens." = "Send crash reports, error details, and limited playback diagnostics so we can find and fix problems. We do not send filenames, media titles, URLs, search text, or tokens.";
+
+/* No comment provided by engineer. */
+"Strictly necessary" = "Strictly necessary";
+
+/* No comment provided by engineer. */
 "The authentication session did not return a callback URL." = "The authentication session did not return a callback URL.";
+
+/* No comment provided by engineer. */
+"Tokens" = "Tokens";
+
+/* No comment provided by engineer. */
+"Turn on product analytics?" = "Turn on product analytics?";
 
 /* No comment provided by engineer. */
 "Unexpected authentication callback URL." = "Unexpected authentication callback URL.";
@@ -658,6 +712,9 @@
 "Unsupported File" = "Unsupported File";
 
 /* No comment provided by engineer. */
+"URLs or search text" = "URLs or search text";
+
+/* No comment provided by engineer. */
 "Usage" = "Usage";
 
 /* No comment provided by engineer. */
@@ -695,6 +752,12 @@
 
 /* No comment provided by engineer. */
 "We're unable to show this kind of file in the app yet." = "We're unable to show this kind of file in the app yet.";
+
+/* No comment provided by engineer. */
+"What we never send" = "What we never send";
+
+/* No comment provided by engineer. */
+"What we'd send" = "What we'd send";
 
 /* No comment provided by engineer. */
 "Where would you like to start?" = "Where would you like to start?";

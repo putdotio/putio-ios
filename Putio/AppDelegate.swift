@@ -272,7 +272,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             Intercom.setUserHash(account.hash)
         }
 
-        self.presentMainScreen()
+        self.presentMainScreen(asksProductAnalytics: ProductAnalyticsChoice.shouldAsk(
+            productAnalyticsEnabled: account.settings.productAnalyticsEnabled,
+            promptAnswered: config.productAnalyticsPromptAnswered
+        ))
     }
 
     func fetchUserFailure(error: any PutioErrorLocalizableInput) {
@@ -337,7 +340,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.makeKeyAndVisible()
     }
 
-    func presentMainScreen(startDownloadQueue: Bool = true) {
+    /// Only a fresh account and config can ask about product analytics; the
+    /// cached shell after a failed load never does.
+    func presentMainScreen(startDownloadQueue: Bool = true, asksProductAnalytics: Bool = false) {
         if DownloadQueueLifecyclePolicy.shouldStartQueue(
             requested: startDownloadQueue,
             isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled
@@ -348,7 +353,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         OfflineVideoPlaybackPositionSynchronizer.shared.syncPendingUpdates()
         ChromecastManager.sharedInstance.setup()
         applyWindowAppearance()
-        window?.rootViewController = RootContainerViewController()
+        let rootViewController = RootContainerViewController()
+        rootViewController.asksProductAnalytics = asksProductAnalytics
+        window?.rootViewController = rootViewController
         window?.makeKeyAndVisible()
         let urls = pendingURLs
         pendingURLs.removeAll()

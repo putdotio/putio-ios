@@ -1,5 +1,6 @@
 import XCTest
 @testable import Putio
+import PutioSDK
 import RealmSwift
 import UIKit
 
@@ -112,6 +113,166 @@ final class SettingsViewModelTests: XCTestCase {
 
         XCTAssertEqual(downloadsSection?.items.first?.title, "Simultaneous downloads")
         XCTAssertEqual(downloadsSection?.items.first?.value as? String, "\(limit) at a time")
+    }
+
+    func testPrivacyControlsFollowPrivacyAndSafetyWithTheContractCopy() throws {
+        let sections = SettingsViewModel().buildSections()
+        let start = try XCTUnwrap(sections.firstIndex { $0.title == "Privacy and safety" }) + 1
+        let controls = Array(sections[start..<start + 3])
+
+        XCTAssertEqual(controls.map(\.title), ["Privacy controls", "", ""])
+        XCTAssertEqual(sections[start + 3].title, "Support")
+        XCTAssertEqual(controls.flatMap(\.items).map(\.title), ["Strictly necessary", "Diagnostics", "Product analytics"])
+        XCTAssertEqual(controls.flatMap(\.items).map(\.type), [.text, .toggle, .toggle])
+        XCTAssertEqual(controls[0].items[0].value as? String, "Always on")
+        XCTAssertNil(controls[0].items[0].action)
+        XCTAssertEqual(controls.map(\.footer), [
+            "Required for login, security, account access, transfers, downloads, playback, billing operations, and remembering your choices. These cannot be turned off.",
+            "Send crash reports, error details, and limited playback diagnostics so we can find and fix problems. We do not send filenames, media titles, URLs, search text, or tokens.",
+            "Help us understand which apps and features work well by sending limited usage, device, billing, and playback information. We never send filenames, media titles, URLs, search text, or tokens."
+        ])
+    }
+
+    func testPrivacySwitchesShowTheStoredSettings() throws {
+        let viewModel = SettingsViewModel()
+        XCTAssertEqual(privacyValues(viewModel), [true, false])
+
+        let realm = try XCTUnwrap(PutioRealm.open(context: #function))
+        XCTAssertTrue(PutioRealm.write(realm, context: #function) {
+            viewModel.settings.diagnosticsEnabled = false
+            viewModel.settings.productAnalyticsEnabled = true
+        })
+        viewModel.update()
+
+        XCTAssertEqual(privacyValues(viewModel), [false, true])
+    }
+
+    func testDiagnosticsSwitchSavesThePatchAndAppliesItBeforeTheLocalWrite() throws {
+        var patches: [PutioAccountSettingsPatch] = []
+        var applied: [(value: Bool, storedAtTheTime: Bool)] = []
+        var viewModel: SettingsViewModel!
+        viewModel = SettingsViewModel(
+            saveAccountSettingsRequest: { update, completion in
+                if case .patch(let patch) = update { patches.append(patch) }
+                completion(.success(()))
+            },
+            markProductAnalyticsPromptAnsweredRequest: { _ in XCTFail("diagnostics is not the prompt's answer") },
+            applyDiagnostics: { applied.append(($0, viewModel.settings.diagnosticsEnabled)) }
+        )
+        attachSpy(to: viewModel)
+
+        try toggle("Diagnostics", in: viewModel)
+
+        XCTAssertEqual(patches.map(\.diagnosticsEnabled), [false])
+        XCTAssertEqual(patches.map(\.productAnalyticsEnabled), [nil])
+        XCTAssertEqual(applied.map(\.value), [false])
+        XCTAssertEqual(applied.map(\.storedAtTheTime), [true])
+        XCTAssertFalse(viewModel.settings.diagnosticsEnabled)
+        XCTAssertEqual(privacyValues(viewModel), [false, false])
+    }
+
+    func testProductAnalyticsSwitchSavesTheSettingThenAnswersThePrompt() throws {
+        var writes: [String] = []
+        let viewModel = SettingsViewModel(
+            saveAccountSettingsRequest: { update, completion in
+                if case .patch(let patch) = update {
+                    writes.append("setting: \(String(describing: patch.productAnalyticsEnabled))")
+                }
+                completion(.success(()))
+            },
+            markProductAnalyticsPromptAnsweredRequest: { completion in
+                writes.append("answer")
+                completion(.success(()))
+            },
+            applyDiagnostics: { _ in XCTFail("analytics must not touch Sentry") }
+        )
+        attachSpy(to: viewModel)
+
+        try toggle("Product analytics", in: viewModel)
+
+        XCTAssertEqual(writes, ["setting: Optional(true)", "answer"])
+        XCTAssertTrue(viewModel.settings.productAnalyticsEnabled)
+    }
+
+    func testProductAnalyticsSwitchKeepsTheSettingWhenOnlyTheAnswerFails() throws {
+        let viewModel = SettingsViewModel(
+            saveAccountSettingsRequest: { _, completion in completion(.success(())) },
+            markProductAnalyticsPromptAnsweredRequest: { completion in
+                completion(.failure(.offline("/config/dismissed.product_analytics_prompt")))
+            }
+        )
+        let spy = attachSpy(to: viewModel)
+
+        try toggle("Product analytics", in: viewModel)
+
+        XCTAssertTrue(viewModel.settings.productAnalyticsEnabled)
+        XCTAssertEqual(spy.presentedAlerts.map(\.title), ["Saving..."])
+    }
+
+    func testFailedPrivacySaveSaysSoAndKeepsTheStoredValue() throws {
+        for title in ["Diagnostics", "Product analytics"] {
+            var answered = false
+            var applied = false
+            let viewModel = SettingsViewModel(
+                saveAccountSettingsRequest: { _, completion in completion(.failure(.offline("/account/settings"))) },
+                markProductAnalyticsPromptAnsweredRequest: { _ in answered = true },
+                applyDiagnostics: { _ in applied = true }
+            )
+            let spy = attachSpy(to: viewModel)
+            let before = privacyValues(viewModel)
+
+            try toggle(title, in: viewModel)
+
+            let alert = try XCTUnwrap(spy.presentedAlerts.last, title)
+            XCTAssertEqual(alert.title, "Couldn't save setting", title)
+            XCTAssertEqual(alert.message, "Network error\nPlease check your internet connection and try again.", title)
+            XCTAssertEqual(privacyValues(viewModel), before, title)
+            XCTAssertFalse(answered, title)
+            XCTAssertFalse(applied, title)
+        }
+    }
+
+    func testOtherSwitchesKeepTheirFailureAlert() throws {
+        let viewModel = SettingsViewModel(
+            saveAccountSettingsRequest: { _, completion in completion(.failure(.offline("/account/settings"))) }
+        )
+        let spy = attachSpy(to: viewModel)
+
+        try toggle("Show subtitles", in: viewModel)
+
+        XCTAssertEqual(spy.presentedAlerts.last?.title, "Network error")
+    }
+
+    private func privacyValues(_ viewModel: SettingsViewModel) -> [Bool] {
+        let items = viewModel.sections.flatMap(\.items)
+        return ["Diagnostics", "Product analytics"].compactMap { title in
+            items.first { $0.title == title }?.value as? Bool
+        }
+    }
+
+    private func toggle(_ title: String, in viewModel: SettingsViewModel) throws {
+        let item = try XCTUnwrap(viewModel.sections.flatMap(\.items).first { $0.title == title })
+        let action = try XCTUnwrap(item.action, title)
+        action()
+    }
+
+    @discardableResult
+    private func attachSpy(to viewModel: SettingsViewModel) -> SettingsPresenterSpy {
+        let spy = SettingsPresenterSpy(style: .insetGrouped)
+        viewModel.tableViewController = spy
+        addTeardownBlock { _ = spy }
+        return spy
+    }
+
+    private final class SettingsPresenterSpy: SettingsTableViewController {
+        var presentedAlerts: [UIAlertController] = []
+
+        override func present(_ viewControllerToPresent: UIViewController, animated flag: Bool, completion: (() -> Void)? = nil) {
+            if let alert = viewControllerToPresent as? UIAlertController {
+                presentedAlerts.append(alert)
+            }
+            completion?()
+        }
     }
 }
 

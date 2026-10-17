@@ -94,9 +94,16 @@ private enum PutioE2EMockAPI {
 
     private static let ok = #"{"status":"OK"}"#
 
+    // Without the flag the account has already answered, so no other test meets
+    // the prompt.
+    private static let isProductAnalyticsPromptUnanswered =
+        ProcessInfo.processInfo.environment["PUTIO_E2E_PRODUCT_ANALYTICS_UNANSWERED"] == "1"
+
     private static let routes: [String: Fixture] = [
         "GET /v2/account/info": Fixture(body: accountInfo),
         "GET /v2/config": Fixture(body: config),
+        "PUT /v2/config/dismissed.product_analytics_prompt": Fixture(body: ok),
+        "POST /v2/account/settings": Fixture(body: ok),
         "GET /v2/files/list": Fixture(body: filesList),
         "GET /v2/files/42": Fixture(body: fileDetails),
         "GET /v2/files/42/start-from": Fixture(body: #"{"start_from":125}"#),
@@ -206,19 +213,30 @@ private enum PutioE2EMockAPI {
           "show_optimistic_usage": false,
           "two_factor_enabled": false,
           "hide_subtitles": false,
-          "dont_autoselect_subtitles": false
+          "dont_autoselect_subtitles": false,
+          "diagnostics_enabled": true,
+          "product_analytics_enabled": false
         }
       }
     }
     """
 
-    private static let config = """
-    {
-      "config": {
-        "chromecast_playback_type": "hls"
-      }
-    }
-    """
+    private static let config = isProductAnalyticsPromptUnanswered
+        ? """
+        {
+          "config": {
+            "chromecast_playback_type": "hls"
+          }
+        }
+        """
+        : """
+        {
+          "config": {
+            "chromecast_playback_type": "hls",
+            "dismissed.product_analytics_prompt": true
+          }
+        }
+        """
 
     private static let filesList = """
     {

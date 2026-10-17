@@ -287,6 +287,27 @@
       "sha256": "936ca05fb4830a81d02170ecaf5a1e422f45403871bcd567bb7efa90f4e10226"
     },
     {
+      "name": "lock",
+      "weight": "regular",
+      "asset_name": "lock-regular",
+      "source_path": "package/assets/regular/lock.svg",
+      "sha256": "d9d058193cb43e54d01032d544b17d7d239d6f8222c1cafbee573fad953dc681"
+    },
+    {
+      "name": "pulse",
+      "weight": "regular",
+      "asset_name": "pulse-regular",
+      "source_path": "package/assets/regular/pulse.svg",
+      "sha256": "af42e7330cbc9f0fbc589e8cadf79d633fc82e56deb6b253811ec461350d5340"
+    },
+    {
+      "name": "chart-pie",
+      "weight": "regular",
+      "asset_name": "chart-pie-regular",
+      "source_path": "package/assets/regular/chart-pie.svg",
+      "sha256": "b8ab20e560b0872d457fd5df7f3f3e932bbb0780887ef742f6ffdbf7e09d98fa"
+    },
+    {
       "name": "key",
       "weight": "regular",
       "asset_name": "key-regular",

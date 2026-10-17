@@ -44,14 +44,26 @@ extension PutioListTrashResponse {
 struct AppConfig: Decodable {
     enum CodingKeys: String, CodingKey {
         case chromecastPlaybackType = "chromecast_playback_type"
+        // One flat key, dot included. put.io keeps it per OAuth app, so an
+        // answer given on the web doesn't reach this app.
+        case productAnalyticsPromptAnswered = "dismissed.product_analytics_prompt"
     }
 
     let chromecastPlaybackType: PutioChromecastPlaybackType
+    let productAnalyticsPromptAnswered: Bool
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let rawValue = try container.decodeIfPresent(String.self, forKey: .chromecastPlaybackType)
         chromecastPlaybackType = rawValue.flatMap(PutioChromecastPlaybackType.init(rawValue:)) ?? .hls
+
+        do {
+            productAnalyticsPromptAnswered = try container.decodeIfPresent(Bool.self, forKey: .productAnalyticsPromptAnswered) ?? false
+        } catch {
+            // Only a readable "not answered" asks, and an unreadable value must
+            // not fail /config, which would fail sign-in.
+            productAnalyticsPromptAnswered = true
+        }
     }
 }
 
@@ -111,6 +123,12 @@ extension PutioSDK {
     ) {
         complete(completion) {
             try await self.setConfigValue(key: AppConfig.CodingKeys.chromecastPlaybackType.rawValue, playbackType)
+        }
+    }
+
+    func markProductAnalyticsPromptAnswered(_ completion: @escaping (Result<PutioOKResponse, PutioSDKError>) -> Void) {
+        complete(completion) {
+            try await self.setConfigValue(key: AppConfig.CodingKeys.productAnalyticsPromptAnswered.rawValue, true)
         }
     }
 

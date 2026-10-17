@@ -1,5 +1,6 @@
 import XCTest
 @testable import Putio
+import PutioSDK
 import RealmSwift
 
 final class PutioRealmTests: XCTestCase {
@@ -625,6 +626,49 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertEqual(realm.objects(UserConfig.self).first?.chromecastPlaybackType, "mp4")
     }
 
+    func testSchema12SessionOpensWithDiagnosticsOnAndProductAnalyticsOff() throws {
+        let realmURL = temporaryDirectory.appendingPathComponent("Schema12.realm")
+        try autoreleasepool {
+            let schema12 = Realm.Configuration(
+                fileURL: realmURL,
+                schemaVersion: 12,
+                objectTypes: [Schema12User.self, Schema12UserSettings.self]
+            )
+            let realm = try Realm(configuration: schema12)
+            try realm.write {
+                let settings = Schema12UserSettings()
+                settings.historyEnabled = false
+                settings.sortBy = "NAME_ASC"
+                let user = Schema12User()
+                user.id = 7
+                user.settings = settings
+                realm.add(user)
+                // What an earlier launch's replaceUserSession left behind.
+                realm.add(Schema12UserSettings())
+            }
+        }
+
+        let realm = try XCTUnwrap(PutioRealm.open(context: #function, configuration: PutioRealm.configuration(fileURL: realmURL)))
+
+        let settings = try XCTUnwrap(realm.object(ofType: User.self, forPrimaryKey: 7)?.settings)
+        XCTAssertFalse(settings.historyEnabled, "the user kept its own settings row")
+        XCTAssertEqual(settings.sortBy, "NAME_ASC")
+        XCTAssertEqual(realm.objects(UserSettings.self).map(\.diagnosticsEnabled), [true, true])
+        XCTAssertEqual(realm.objects(UserSettings.self).map(\.productAnalyticsEnabled), [false, false])
+    }
+
+    func testUserSettingsCopyThePrivacyControlsFromTheAccount() throws {
+        let account = try JSONDecoder().decode(
+            PutioAccount.Settings.self,
+            from: Data(#"{"diagnostics_enabled":false,"product_analytics_enabled":true}"#.utf8)
+        )
+
+        let settings = try XCTUnwrap(UserSettings(settings: account))
+
+        XCTAssertFalse(settings.diagnosticsEnabled)
+        XCTAssertTrue(settings.productAnalyticsEnabled)
+    }
+
     private func makeUser(id: Int, username: String, mail: String) -> User {
         let user = User()
         user.id = id
@@ -687,4 +731,31 @@ private final class OfflinePlaybackRemotePosition {
     init(value: Int) {
         self.value = value
     }
+}
+
+// Schema 12 as 3.0.0 shipped it, cut to the tables the version 13 step changes.
+// Out of the default schema, which would otherwise hold two of each.
+final class Schema12User: Object {
+    @objc dynamic var id = 0
+    @objc dynamic var settings: Schema12UserSettings?
+
+    override static func primaryKey() -> String? { "id" }
+    override class func _realmObjectName() -> String? { "User" }
+    override class func shouldIncludeInDefaultSchema() -> Bool { false }
+}
+
+final class Schema12UserSettings: Object {
+    @objc dynamic var routeName = ""
+    @objc dynamic var suggestNextVideo = false
+    @objc dynamic var rememberVideoTime = false
+    @objc dynamic var historyEnabled = true
+    @objc dynamic var trashEnabled = true
+    @objc dynamic var sortBy = ""
+    @objc dynamic var showOptimisticUsage = false
+    @objc dynamic var twoFactorEnabled = false
+    @objc dynamic var hideSubtitles = false
+    @objc dynamic var dontAutoSelectSubtitles = false
+
+    override class func _realmObjectName() -> String? { "UserSettings" }
+    override class func shouldIncludeInDefaultSchema() -> Bool { false }
 }
