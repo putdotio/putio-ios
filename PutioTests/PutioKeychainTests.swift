@@ -369,6 +369,28 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(applied, [], "a read from before the sign-out restarted capture")
     }
 
+    func testAnAccountReadFromBeforeAForegroundRefreshLeavesProductAnalyticsToIt() throws {
+        var reads: [(Result<PutioAccount, PutioSDKError>) -> Void] = []
+        var applied: [Bool] = []
+        let viewModel = SettingsViewModel(
+            applyDiagnostics: { _ in },
+            applyProductAnalytics: { _, enabled in applied.append(enabled) },
+            fetchAccountInfoRequest: { reads.append($0) }
+        )
+
+        viewModel.fetchData()
+        // Away while another device turned it off; the refresh reads the account again.
+        SettingsViewModel.accountRefreshes += 1
+        reads[0](.success(try account(diagnosticsEnabled: true, productAnalyticsEnabled: true)))
+
+        XCTAssertEqual(applied, [], "a read from before the refresh restarted capture")
+
+        viewModel.fetchData()
+        reads[1](.success(try account(diagnosticsEnabled: true, productAnalyticsEnabled: false)))
+
+        XCTAssertEqual(applied, [false], "a read that starts after the refresh applies")
+    }
+
     private func account(diagnosticsEnabled: Bool, productAnalyticsEnabled: Bool) throws -> PutioAccount {
         let json = """
         {

@@ -43,8 +43,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // A session restored at launch, not a fresh sign-in, which may be another
     // account than the one that left 2.58.0's downloads.
     private var isRestoredSession = false
-    // Only the latest foreground refresh answers; an older one carries older settings.
-    private var accountRefreshes = 0
     static var isRunningUnitTests: Bool {
         let environment = ProcessInfo.processInfo.environment
         return [
@@ -356,12 +354,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func refreshAccountStatus() {
         guard let signedInRoot = window?.rootViewController as? RootContainerViewController else { return }
         let savesBeforeRead = SettingsViewModel.confirmedSaves
-        accountRefreshes += 1
-        let refresh = accountRefreshes
+        SettingsViewModel.accountRefreshes += 1
+        let refresh = SettingsViewModel.accountRefreshes
         ProductAnalytics.awaitAnswer()
 
         api.getAccountInfo { [weak signedInRoot] result in
-            guard let signedInRoot, self.window?.rootViewController === signedInRoot, refresh == self.accountRefreshes else { return }
+            guard let signedInRoot, self.window?.rootViewController === signedInRoot, refresh == SettingsViewModel.accountRefreshes else { return }
 
             switch result {
             case .success(let account):

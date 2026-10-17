@@ -15,6 +15,11 @@ class SettingsViewModel {
     /// must not switch Sentry back on, nor an Allow switch PostHog off.
     static var confirmedSaves = 0
 
+    /// Counts the foreground refreshes. Only the latest one answers, and an
+    /// Account read that started before it carries older consent, so the
+    /// refresh decides product analytics instead.
+    static var accountRefreshes = 0
+
     let saveAccountSettingsRequest: SaveAccountSettingsRequest
     let markProductAnalyticsPromptAnsweredRequest: ProductAnalyticsChoice.Request
     let applyDiagnostics: (Bool) -> Void
@@ -111,6 +116,7 @@ class SettingsViewModel {
     func fetchData() {
         let noticeSession = AccountNoticeStore.shared.session
         let savesBeforeRead = Self.confirmedSaves
+        let refreshesBeforeRead = Self.accountRefreshes
 
         fetchAccountInfoRequest { result in
             switch result {
@@ -119,7 +125,7 @@ class SettingsViewModel {
                 guard savesBeforeRead == Self.confirmedSaves else { return }
                 self.applyDiagnostics(account.settings.diagnosticsEnabled)
                 // Signing out moves the session on, and a signed-out app sends nothing.
-                if noticeSession == AccountNoticeStore.shared.session {
+                if noticeSession == AccountNoticeStore.shared.session, refreshesBeforeRead == Self.accountRefreshes {
                     self.applyProductAnalytics(account.id, account.settings.productAnalyticsEnabled)
                 }
                 guard let realm = PutioRealm.open(context: "SettingsViewModel.fetchData") else { return }
