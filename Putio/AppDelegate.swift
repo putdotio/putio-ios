@@ -21,15 +21,17 @@ enum DownloadQueueLifecyclePolicy {
     }
 }
 
-/// 2.58.0 leaves background downloads and Sentry 7 envelopes that nothing in
-/// this app reads. The first launch after the upgrade drops them.
+/// 2.58.0 leaves background downloads, Sentry 7 envelopes, and cached
+/// responses whose URLs carry the OAuth token, none of which this app reads.
+/// The first launch after the upgrade drops them.
 enum LegacyInstallCleanup {
-    private static let didRunKey = "LegacyInstallCleanup.didRun"
+    static let didRunKey = "LegacyInstallCleanup.didRun"
 
-    static func runOnce(defaults: UserDefaults = .standard) {
+    static func runOnce(defaults: UserDefaults = .standard, urlCache: URLCache = .shared) {
         guard !defaults.bool(forKey: didRunKey) else { return }
+        urlCache.removeAllCachedResponses()
         let cacheDeleted = SentryTelemetry.deleteLegacyCache()
-        // Marked done only once the cache is gone and every session answers, so
+        // Marked done only once the Sentry cache is gone and every session answers, so
         // a background launch that fails or is suspended first retries.
         BackgroundDownloadSessionEvents.cancelShipped258Sessions {
             if cacheDeleted { defaults.set(true, forKey: didRunKey) }
