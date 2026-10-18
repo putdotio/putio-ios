@@ -2,8 +2,6 @@ import UIKit
 import WebKit
 import PutioSDK
 
-/// The account's product-analytics answer, as the Settings switch and the
-/// one-time prompt both save it.
 enum ProductAnalyticsChoice {
     typealias Request = (@escaping (Result<Void, PutioSDKError>) -> Void) -> Void
     typealias SaveSettingRequest = (Bool, @escaping (Result<Void, PutioSDKError>) -> Void) -> Void
