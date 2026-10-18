@@ -3,7 +3,7 @@
 <!--
 	What put.io and the app's SDKs collect beyond the SDKs' own manifests.
 	Google Cast is linked statically into the app binary, so its API use is
-	declared here. Keep the App Privacy answers in docs/DISTRIBUTION.md in step.
+	declared here. Keep the App Privacy answers in docs/distribution.md in step.
 -->
 <plist version="1.0">
 <dict>

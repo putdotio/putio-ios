@@ -1,11 +1,9 @@
 # Distribution
 
-Distribution guidance for `putio-ios`.
-
 ## Workflows
 
 - [CI](../.github/workflows/ci.yml) verifies pushes and pull requests. A `changes` job on Linux classifies the diff with [`scripts/ci-affected.sh`](../scripts/ci-affected.sh), then `verify-app` runs `mise run bootstrap-ci` and `mise run verify` on macOS, and `verify-tooling` type-checks the Node scripts and checks the committed marketing images against their inputs, both on Linux. Each lane runs only when the diff can affect it, and an unrecognized path counts as app-affecting — a needless macOS run is cheaper than a missed break. Nothing is filtered at the `on:` level, so both checks always report a state.
-- [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. A secretless job first requires the exact current protected-main SHA, then the Environment-bearing job checks out that immutable commit, verifies, prepares metadata, loads release secrets, and splits delivery into archive, upload, and distribute steps.
+- [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. A secretless job ([Legacy delivery ref contract](../.github/workflows/legacy-delivery-ref.yml)) first requires the exact current protected-main SHA, then the Environment-bearing job checks out that immutable commit, verifies, prepares metadata, loads release secrets, and splits delivery into archive, upload, and distribute steps.
 - [Release](../.github/workflows/release.yml) runs on published semantic `v*` GitHub releases and builds the release artifact from the immutable release-event SHA. Manual dispatch requires the exact current protected-main SHA and supplied version.
 - [Screenshots](../.github/workflows/screenshots.yml) is a dispatch-only lane that uploads the committed App Store images from `fastlane/screenshots/` and nothing else. It defaults to a dry run. It builds no app: no Xcode, no CocoaPods, no simulator.
   - The release lane keeps `skip_screenshots: true` on purpose. Shipping a build and changing the product page are separate decisions, and coupling them means every release either silently republishes the listing or silently does not.
@@ -150,4 +148,4 @@ Repository admins must keep these settings aligned with the workflow trust model
 - Apple processing failures may surface only after upload
 - release uploads must complete App Store Connect processing before promotion or submission can continue
 - privacy usage strings in `Putio/Info.plist` must stay aligned with enabled SDK features
-- Blacksmith macOS minutes are normalized aggressively, so prefer local validation and Fastlane contract checks before rerunning full beta uploads
+- Beta and release run on GitHub-hosted macOS runners, whose minutes count tenfold against the organization's included minutes, so prefer local validation and Fastlane contract checks before rerunning full beta uploads

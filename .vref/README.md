@@ -4,9 +4,8 @@ A browsable gallery of the app's committed snapshot baselines, for design review
 and store-asset prep. It is not a visual regression suite — that is
 `mise run verify` and `mise run e2e-simulator`, which pixel-compare the same images.
 
-The gallery is **local-only today** — build it with `mise run vref` and view it with
-`mise run vref-serve`. Publishing it at `ios.put.io/vref/` is separate, future work
-tracked in [#49](https://github.com/putdotio/putio-ios/issues/49).
+The gallery is local: build it with `mise run vref` and view it with
+`mise run vref-serve`.
 
 ## What is committed, and what is not
 
@@ -28,7 +27,7 @@ regenerate them first, so any of them works immediately after cloning.
 ```sh
 mise run vref            # copy baselines, refresh the manifest, write index.html
 mise run vref-serve      # the above, then serve on 127.0.0.1:4173
-mise run verify-vref   # regenerate, then check the manifest and every asset
+mise run verify-vref     # regenerate, then check the manifest and every asset
 ```
 
 ## Editing the manifest
@@ -47,11 +46,8 @@ yours:
 without one gets the baseline's last commit **author** date, or the current time
 if the baseline is not committed yet; after that it is yours like the text above.
 
-It used to be recomputed on every run. Author date rather than committer date
-already kept a rebase from churning it, but a squash merge writes a new commit
-with a new author date, so every squashed pull request touching a baseline left
-the manifest stale on `main` — #75 exists solely to have refreshed it. The field
-is required by `@putdotio/vref`, so it stays; only its ownership moved.
+Recomputing it would churn the manifest on every squash merge that touches a
+baseline, since a squash writes a new author date.
 
 Adding or removing a baseline is a deliberate step: a baseline with no manifest
 entry fails the sync rather than being added with a placeholder title, and a
@@ -59,7 +55,7 @@ manifest entry with no baseline fails too. Both messages name the id.
 
 ## Rules
 
-The gallery is published publicly, so everything here must be public-safe.
+The baselines live in a public repository, so everything here must be public-safe.
 
 - The images come from `PUTIO_E2E_MOCK_API` fixtures, never a real account. Keep
   it that way: no real usernames, file names, content ids, tokens, or local IPs.
@@ -68,8 +64,3 @@ The gallery is published publicly, so everything here must be public-safe.
 - The app is dark-only, so every capture is dark mode.
 - Screens are captured on a pinned iPhone 17 Pro Max (1320x2868); components
   render directly in unit tests at their own sizes.
-
-Nothing here is published yet, but keep to the rule anyway: once #49 lands, a
-**removed or renamed** screenshot can persist at its old URL until the bucket is
-purged. Treat public-safe content as the control, not after-the-fact deletion —
-the same warning `putio-roku` carries.
