@@ -288,7 +288,6 @@ struct PutioOfflineDownloadsView: View {
   }
 }
 
-/// Stored tracks and sizes for one download.
 /// Writes can fail while queuing from Files or during playback, so the
 /// signed-in shell presents the failure on every tab, not only in Downloads.
 struct PutioOfflinePersistenceFailureAlert: ViewModifier {
@@ -328,6 +327,7 @@ struct PutioOfflinePersistenceFailureAlert: ViewModifier {
   }
 }
 
+/// Stored tracks and sizes for one download.
 struct PutioOfflineDetailView: View {
   let item: PutioOfflineItem
   @Environment(\.dismiss) private var dismiss

@@ -290,11 +290,11 @@ final class PutioSystemOfflineDownloadEngine: NSObject, PutioOfflineDownloadEngi
     return ids
   }
 
-  /// Abandon pending starts and forget tasks without invalidating the shared
-  /// session, so a successor engine can reclaim transfers through restore.
   /// Advanced by every stop, so work that suspended before it ends there.
   private var lifetime: UInt64 = 0
 
+  /// Abandons pending starts and forgets tasks without invalidating the shared
+  /// session, so a successor engine can reclaim transfers through restore.
   func stop() {
     lifetime &+= 1
     pendingStarts.removeAll()
@@ -400,7 +400,6 @@ final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
 {
   typealias Dispatch = @Sendable (@escaping @MainActor @Sendable () -> Void) -> Void
 
-  /// Every hop to the main actor goes through here.
   private let dispatch: Dispatch
 
   private typealias Tracked = (task: URLSessionTask, gate: PutioOfflineProgressGate)
@@ -557,7 +556,7 @@ final class PutioOfflineDownloadRelay: NSObject, AVAssetDownloadDelegate,
   }
 }
 
-/// A tiny on-disk record of location and completion events delivered while
+/// An on-disk record of location and completion events delivered while
 /// the app was not ready to handle them. Keyed by task description so the
 /// owning account's engine can claim its entries, and by task identifier so a
 /// replaced task's events stay apart from its successor's.

@@ -272,9 +272,8 @@ struct TVPlaybackMedia {
   }
 }
 
-/// The pre-play decision of the `tvos-s03-continue-watching` contract: the
-/// raw filename, a progress preview of the focused choice, and two stacked
-/// buttons with the system focus. Continue takes the first focus; Menu
+/// The pre-play decision: the raw filename, a progress preview of the focused
+/// choice, and two stacked buttons with the system focus. Continue takes the first focus; Menu
 /// leaves the screen like any pushed screen.
 struct TVResumePromptView: View {
   let fileName: String
@@ -362,8 +361,7 @@ private struct TVResumeProgress: View {
   }
 }
 
-/// Geometry from the contract; only the yellow elapsed segment carries a
-/// put.io colour.
+/// Only the yellow elapsed segment carries a put.io colour.
 enum TVResumePromptLayout {
   static let width: CGFloat = 960
   static let titleGap: CGFloat = 20

@@ -30,9 +30,9 @@ import Foundation
     }
   }
 
-  // Deterministic in-process API for signed-in harness scenarios, mirroring
-  // the legacy app's E2E mock approach. Anything outside the seeded session
-  // and browser surface fails loudly with a named fixture gap.
+  // Deterministic in-process API for signed-in harness scenarios. Anything
+  // outside the seeded session and browser surface fails loudly with a named
+  // fixture gap.
   final class HarnessSeededAPI: URLProtocol, @unchecked Sendable {
     private struct ActionFolder {
       var name: String
@@ -370,14 +370,14 @@ import Foundation
     nonisolated(unsafe) private static var historyDeletedIDs: Set<Int> = []
     nonisolated(unsafe) private static var historyCleared = false
     nonisolated(unsafe) private static var deepLinkLookupFailed = false
-    /// The previews journey opens the image once against a failing lookup so
-    /// the error state and retry are exercised before the fixture renders.
     /// `--putio-harness-offline-positions-fail` makes the seeded root video's
     /// start-from set return 503 so the downloads journey proves local
     /// recording and sync; other files keep reporting normally.
     private static var offlinePositionsFail: Bool {
       ProcessInfo.processInfo.arguments.contains("--putio-harness-offline-positions-fail")
     }
+    /// The previews journey opens the image once against a failing lookup so
+    /// the error state and retry are exercised before the fixture renders.
     nonisolated(unsafe) private static var previewImageFailuresRemaining =
       ProcessInfo.processInfo.arguments.contains("--putio-harness-previews") ? 1 : 0
     nonisolated(unsafe) private static var externalPlaybackFailurePending =

@@ -11,10 +11,9 @@ protocol SupportMessengerClient {
   func present()
 }
 
-/// Intercom for signed-in users only (#139): it starts after sign-in so replies
-/// and notifications reach the account, logs in with put.io's identity hash,
-/// and logs out when the session ends. It receives the account id and nothing
-/// else.
+/// Intercom for signed-in users only: it starts after sign-in so replies and
+/// notifications reach the account, logs in with put.io's identity hash, and
+/// logs out when the session ends. It receives the account id and nothing else.
 @MainActor
 final class PutioSupportMessenger {
   enum Login: Equatable {

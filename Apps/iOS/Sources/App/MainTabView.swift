@@ -2,7 +2,7 @@ import AVFoundation
 import PutioCore
 import SwiftUI
 
-// The iOS 26 shell (ios-s00, ios-e10): a stock TabView whose floating glass
+// The iOS 26 shell: a stock TabView whose floating glass
 // capsule, shrink-on-scroll, and separate Search capsule are all owned by the
 // OS. put.io supplies the tint on the selected tab and the Phosphor glyphs.
 struct MainTabView: View {
@@ -153,7 +153,7 @@ struct MainTabView: View {
       }
     }
     .environment(\.putioDefaultFolderSort, account.defaultSort)
-    // Shrink-on-scroll is opt-in on iOS 26 and part of the ios-e10 treatment.
+    // Shrink-on-scroll is opt-in on iOS 26.
     .tabBarMinimizeBehavior(.onScrollDown)
     .task { await appConfig.loadIfNeeded() }
     .modifier(PutioCastPresentation(model: cast, audioPlayback: audioPlayback))

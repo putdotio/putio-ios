@@ -113,9 +113,8 @@ enum PutioRuntimeFactory {
     }
   #endif
 
-  // The checked-in default stays open-source-safe; a registered client id
-  // arrives with the app-identity work through the same Info.plist key the
-  // legacy app uses.
+  // The checked-in default is the public open-source client; signed builds
+  // set their own through Info.plist.
   private static var clientID: String {
     let configured = Bundle.main.object(forInfoDictionaryKey: "PUTIO_OAUTH_CLIENT_ID") as? String
     let trimmed = configured?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

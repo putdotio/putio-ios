@@ -1,6 +1,6 @@
 import PutioCore
 
-/// Runs Sentry only while the account allows diagnostics (#139). The launch
+/// Runs Sentry only while the account allows diagnostics. The launch
 /// starts it from the last known answer; every session change, including a
 /// toggle in Account › Privacy, re-applies it in the running process.
 @MainActor

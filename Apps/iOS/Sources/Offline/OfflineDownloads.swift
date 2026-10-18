@@ -779,7 +779,6 @@ final class PutioOfflineQueue {
     estimatedBytes <= maximumSelectedBytes && estimatedBytes + minimumFreeBytes <= freeBytes
   }
 
-  /// Conversion and download are distinct stages under one queue identity.
   private func convert(fileID: PutioFileID) async throws -> PutioPlaybackResolution {
     try checkActiveWork()
     update(fileID) { $0.stage = .converting(progress: 0) }
@@ -853,7 +852,6 @@ final class PutioOfflineQueue {
   /// `suspend()` on an AVAssetDownloadTask does not stop a transfer that is
   /// already finishing. A success that lands on a paused row is real: the
   /// package exists, so it completes rather than being thrown away.
-
   private func engineFinished(_ fileID: PutioFileID, _ error: Error?) {
     guard let index = items.firstIndex(where: { $0.id == fileID }) else { return }
     suspended.remove(fileID)
@@ -920,7 +918,6 @@ final class PutioOfflineQueue {
     }
   }
 
-  /// Storage accounting is a snapshot; the UI refreshes it on demand.
   func refreshStorage() {
     recomputeStorage()
   }
