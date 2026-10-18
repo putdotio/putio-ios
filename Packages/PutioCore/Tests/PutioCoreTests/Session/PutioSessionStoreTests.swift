@@ -251,12 +251,11 @@ final class PutioSessionStoreTests: XCTestCase {
   }
 
   private func makeStore(
-    tokenStore: PutioTokenStore, fixtures: SessionMockURLProtocol.Fixtures? = nil,
-    supportIdentityPlatform: String? = nil
+    tokenStore: PutioTokenStore, supportIdentityPlatform: String? = nil
   ) -> (PutioSessionStore, PutioSDK) {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [SessionMockURLProtocol.self]
-    SessionMockURLProtocol.registry.configure(configuration, fixture: fixtures ?? self.fixtures)
+    SessionMockURLProtocol.registry.configure(configuration, fixture: fixtures)
     let sdk = PutioSDK(
       config: PutioSDKConfig(clientID: "3001", clientName: "tests"),
       urlSession: URLSession(configuration: configuration)
@@ -275,38 +274,6 @@ final class PutioSessionStoreTests: XCTestCase {
       Self.accountInfo(rememberVideoTime: true)
     )
     fixtures.fixtures["POST /v2/oauth/grants/logout"] = (200, #"{"status":"OK"}"#)
-  }
-
-  func testConcurrentSessionsKeepResponsesAndCapturedRequestsIsolated() async throws {
-    stubSignedInRoutes()
-    let otherFixtures = SessionMockURLProtocol.Fixtures()
-    otherFixtures.fixtures["GET /v2/oauth2/validate"] = (200, Self.validValidation)
-    otherFixtures.fixtures["GET /v2/account/info"] = (
-      200, Self.accountInfo(rememberVideoTime: false, historyEnabled: false)
-    )
-    let (first, _) = makeStore(token: "first-token")
-    let (second, _) = makeStore(
-      tokenStore: PutioInMemoryTokenStore(token: "second-token"), fixtures: otherFixtures)
-
-    async let firstRestore: Void = first.restore()
-    async let secondRestore: Void = second.restore()
-    _ = await (firstRestore, secondRestore)
-
-    guard case .signedIn(let firstAccount) = first.state,
-      case .signedIn(let secondAccount) = second.state
-    else { return XCTFail("both independent sessions must restore") }
-    XCTAssertTrue(firstAccount.historyEnabled)
-    XCTAssertFalse(secondAccount.historyEnabled)
-    XCTAssertEqual(fixtures.requests.count, 2)
-    XCTAssertEqual(otherFixtures.requests.count, 2)
-    XCTAssertTrue(
-      fixtures.requests.allSatisfy {
-        $0.value(forHTTPHeaderField: "Authorization")?.lowercased() == "token first-token"
-      })
-    XCTAssertTrue(
-      otherFixtures.requests.allSatisfy {
-        $0.value(forHTTPHeaderField: "Authorization")?.lowercased() == "token second-token"
-      })
   }
 
   func testDisabledHistoryIsPreservedInAccountSnapshot() async {

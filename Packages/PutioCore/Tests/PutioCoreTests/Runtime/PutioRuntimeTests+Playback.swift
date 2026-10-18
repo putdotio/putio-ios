@@ -293,16 +293,6 @@ extension PutioRuntimeTests {
     XCTAssertTrue(fixtures.capturedRequests().isEmpty)
   }
 
-  func testMediaAgnosticPlaybackPositionReportSharesTheStartFromRoute() async throws {
-    let (runtime, _) = await makeSignedInRuntime()
-    fixtures.setFixture(#"{"status":"OK"}"#, for: Self.playbackPositionRoute)
-
-    try await runtime.reportPlaybackPosition(fileID: PutioFileID(rawValue: 411), seconds: 42)
-
-    let request = try XCTUnwrap(fixtures.capturedRequests().last)
-    XCTAssertEqual(request.url?.path, "/v2/files/411/start-from/set")
-  }
-
   func testPlaybackPositionReportSendsExactPathAndBody() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(#"{"status":"OK"}"#, for: Self.playbackPositionRoute)

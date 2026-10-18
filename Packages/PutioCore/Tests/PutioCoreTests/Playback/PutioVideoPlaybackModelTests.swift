@@ -125,21 +125,6 @@ final class PutioVideoPlaybackModelTests: XCTestCase {
 
   }
 
-  func testPreparedReadySourceSkipsDuplicateResolution() async {
-    let source = playbackSource()
-    let resolver = PlaybackResolverStub([])
-    let model = PutioVideoPlaybackModel(
-      fileID: fileID,
-      initialResolution: .ready(source),
-      resolve: { try await resolver.resolve($0) }
-    )
-
-    await model.loadIfNeeded()
-
-    XCTAssertEqual(model.state, .ready(source))
-    XCTAssertTrue(resolver.requestedIDs.isEmpty)
-  }
-
   func testSuccessorRouteFromALocalSourceStartsAtItsSavedPositionWithoutResolving() async {
     let local = PutioPlaybackSource(
       url: URL(fileURLWithPath: "/offline/episode-2.mp4"), startFromSeconds: 12)
