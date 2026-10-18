@@ -21,6 +21,7 @@
 - `mise run e2e-simulator`
 - `mise run run-simulator`
 - `mise run perf`
+- `mise run dead-code` (Periphery, configured in `.periphery.yml`; local only)
 
 `mise tasks` lists every task; [mise.toml](./mise.toml) owns their definitions.
 

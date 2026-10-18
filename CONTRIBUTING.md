@@ -110,6 +110,7 @@ mise run print-simulator-destination
 mise run print-simulator-device
 mise run download-ios-platform
 mise run verify-icons
+mise run dead-code   # Periphery scan; builds the app, so it stays out of CI
 plutil -lint Putio/en.lproj/*.strings
 ```
 

@@ -1,0 +1,22 @@
+project: Putio.xcworkspace
+# Putio builds the unit tests, PutioE2E the UI tests; scanning both means a
+# symbol only tests reach counts as used.
+schemes:
+  - Putio
+  - PutioE2E
+# CocoaPods sources are vendored; their unused API is not ours to delete.
+index_exclude:
+  - Pods/**
+# Generated from Config/DesignTokens.json, which carries the whole palette.
+report_exclude:
+  - Putio/Common/Extensions/UIColor+Putio.swift
+# Decoded API shapes are contracts. Realm columns are not covered: mark an
+# unread persisted property `// periphery:ignore` rather than deleting it.
+retain_codable_properties: true
+# A class-level ignore on a Realm schema also covers its read columns.
+superfluous_ignore_comments: false
+build_arguments:
+  - -destination
+  - generic/platform=iOS Simulator
+  - CODE_SIGNING_ALLOWED=NO
+disable_update_check: true
