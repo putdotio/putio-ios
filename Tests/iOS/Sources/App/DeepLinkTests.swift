@@ -8,8 +8,8 @@ import XCTest
 final class DeepLinkTests: XCTestCase {
   func testLegacyPathFormsAndOwnedHTTPSHosts() throws {
     for value in [
-      "putio:///files/410", "putio://put.io/files/410", "https://put.io/files/410",
-      "https://app.put.io/files/410",
+      "putio:///files/410", "putio://files/410", "putio://put.io/files/410",
+      "https://put.io/files/410", "https://app.put.io/files/410",
     ] {
       XCTAssertEqual(
         PutioDeepLink.parse(try XCTUnwrap(URL(string: value))), .file(.init(rawValue: 410)))
@@ -22,6 +22,21 @@ final class DeepLinkTests: XCTestCase {
     XCTAssertEqual(
       PutioDeepLink.parse(try url("/downloads/412")), .downloads(.init(rawValue: 412)))
     XCTAssertEqual(PutioDeepLink.parse(try url("/link")), .linkDevice(code: nil))
+  }
+
+  func testHostFormTreatsTheHostAsTheFirstRouteSegment() throws {
+    for (value, link) in [
+      ("putio://files/1", PutioDeepLink.file(.init(rawValue: 1))),
+      ("putio://downloads", .downloads(nil)),
+      ("putio://downloads/5", .downloads(.init(rawValue: 5))),
+      ("putio://history", .history), ("putio://HISTORY", .history),
+      ("putio://account", .account), ("putio://settings", .account),
+      ("putio://link?code=ab12cd", .linkDevice(code: "AB12CD")),
+      ("putio://files", .unavailable), ("putio://files/1#synthetic", .unavailable),
+      ("putio://unknown", .unavailable),
+    ] {
+      XCTAssertEqual(PutioDeepLink.parse(try XCTUnwrap(URL(string: value))), link, value)
+    }
   }
 
   func testLinkPrefillsOnlyASingleNormalizedCode() throws {
@@ -42,8 +57,8 @@ final class DeepLinkTests: XCTestCase {
   func testForeignHostsAndAuthenticationCallbacksAreNotConsumed() throws {
     for value in [
       "https://evilput.io/files/1", "https://put.io.invalid/files/1", "http://put.io/files/1",
-      "other:///files/1", "putio://files/1", "putio://history",
-      "putio://auth#access_token=synthetic&state=synthetic",
+      "other:///files/1", "putio://auth#access_token=synthetic&state=synthetic",
+      "putio://auth", "putio://AUTH/files/1",
     ] {
       XCTAssertNil(PutioDeepLink.parse(try XCTUnwrap(URL(string: value))))
     }

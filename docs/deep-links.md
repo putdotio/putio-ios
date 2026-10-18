@@ -16,9 +16,9 @@ matching the legacy app for ids outside its queue.
 
 ## URL delivery
 
-Custom-scheme URLs keep the legacy path convention: `putio:///files/410`
-and `putio://put.io/files/410` both route through `/files/410`, while
-`putio://files/410` is ignored because its host is not a route. The parser also
+Custom-scheme URLs `putio:///files/410`, `putio://put.io/files/410`, and
+`putio://files/410` all route through `/files/410`: a host other than put.io is
+the first route segment. `putio://auth` is the sign-in callback and never routes. The parser also
 accepts HTTPS URLs on `put.io` and its subdomains when delivered to the app;
 this does not register universal-link delivery. Only Putio registers the
 `putio` scheme in [Project.swift](../Project.swift), so Nightly does not
