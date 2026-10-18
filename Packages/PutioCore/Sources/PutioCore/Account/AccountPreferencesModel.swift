@@ -127,11 +127,6 @@ public final class PutioAccountPreferencesModel {
     await task.value
   }
 
-  func clearFailure() {
-    failure = nil
-    failedMutation = nil
-  }
-
   private static func message(for error: Error) -> String? {
     guard !(error is CancellationError) else { return nil }
     switch error as? PutioRuntimeError {

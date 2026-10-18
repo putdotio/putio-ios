@@ -1,5 +1,4 @@
 import Foundation
-import PutioCore
 
 /// Queue persistence is a JSON document in Application Support. The queue is
 /// small, read once at launch, and written on every change; a database would

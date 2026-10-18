@@ -119,7 +119,6 @@ protocol PutioAudioEngine: AnyObject {
   var onEnded: (@MainActor () -> Void)? { get set }
   var onFailed: (@MainActor () -> Void)? { get set }
   var onPositionChanged: (@MainActor (Int) -> Void)? { get set }
-  var elapsedSeconds: Int { get }
   var durationSeconds: Int? { get }
 
   func load(url: URL, startFromSeconds: Int)
@@ -569,10 +568,6 @@ final class PutioSystemAudioEngine: PutioAudioEngine {
 
   init() {
     player.automaticallyWaitsToMinimizeStalling = true
-  }
-
-  var elapsedSeconds: Int {
-    Self.seconds(player.currentTime()) ?? 0
   }
 
   var durationSeconds: Int? {

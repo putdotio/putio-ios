@@ -66,36 +66,6 @@ struct FilesBrowserView: View {
     self.navigationRequest = navigationRequest
   }
 
-  init(
-    load: @escaping PutioFolderLoad,
-    continueLoad: @escaping PutioFolderContinue = { _ in throw PutioRuntimeError.unknown },
-    actions: PutioFileActions? = nil,
-    trashEnabled: Bool = true,
-    onFileSelected: @escaping PutioFileSelection,
-    onExternalPlayback: PutioFileSelection? = nil,
-    onDownload: PutioFileSelection? = nil,
-    onCast: PutioFileSelection? = nil,
-    onRootLoaded: @escaping PutioRootLoaded = {},
-    onReturnToRoot: @escaping @MainActor @Sendable () -> Void = {},
-    refreshRequests: PutioFolderRefreshRequests = PutioFolderRefreshRequests(),
-    navigationRequest: PutioFilesNavigationRequest? = nil
-  ) {
-    self.onCast = onCast
-    self.castButton = nil
-    self.load = load
-    self.accountID = nil
-    self.continueLoad = continueLoad
-    self.actions = actions
-    self.trashEnabled = trashEnabled
-    self.onFileSelected = onFileSelected
-    self.onExternalPlayback = onExternalPlayback
-    self.onDownload = onDownload
-    self.onRootLoaded = onRootLoaded
-    self.onReturnToRoot = onReturnToRoot
-    self.refreshRequests = refreshRequests
-    self.navigationRequest = navigationRequest
-  }
-
   var body: some View {
     NavigationStack(path: $path) {
       PutioFolderScreen(

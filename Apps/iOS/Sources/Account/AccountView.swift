@@ -25,10 +25,7 @@ struct AccountView: View {
         }
         Section {
           NavigationLink("File preferences") {
-            FilePreferencesView(
-              runtime: runtime,
-              refreshRequests: refreshRequests
-            )
+            FilePreferencesView(runtime: runtime)
           }
           .accessibilityIdentifier("account.file-preferences")
           NavigationLink("Playback preferences") {

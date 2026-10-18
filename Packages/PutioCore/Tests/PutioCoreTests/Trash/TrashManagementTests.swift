@@ -13,7 +13,7 @@ private final class SuspendedTrashRefresh {
     self.initialPage = initialPage
   }
 
-  func load(cursor: String?) async throws -> PutioTrashPage {
+  func load(cursor _: String?) async throws -> PutioTrashPage {
     requestCount += 1
     if requestCount == 1 { return initialPage }
     return try await withCheckedThrowingContinuation { continuation = $0 }
@@ -56,7 +56,7 @@ private final class ControlledTrashLoader {
   private var pending: [Int: CheckedContinuation<PutioTrashPage, any Error>] = [:]
   private(set) var requestCount = 0
 
-  func load(cursor: String?) async throws -> PutioTrashPage {
+  func load(cursor _: String?) async throws -> PutioTrashPage {
     let request = requestCount
     requestCount += 1
     return try await withCheckedThrowingContinuation { pending[request] = $0 }
@@ -76,7 +76,7 @@ private final class GatedTrashDelete {
   private var continuation: CheckedContinuation<PutioTrashMutationResult, any Error>?
   private(set) var requestCount = 0
 
-  func permanentlyDelete(fileID: PutioFileID) async throws -> PutioTrashMutationResult {
+  func permanentlyDelete(fileID _: PutioFileID) async throws -> PutioTrashMutationResult {
     requestCount += 1
     return try await withCheckedThrowingContinuation { continuation = $0 }
   }

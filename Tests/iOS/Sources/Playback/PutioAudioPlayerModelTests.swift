@@ -12,7 +12,6 @@ private final class AudioEngineSpy: PutioAudioEngine {
   var onEnded: (@MainActor () -> Void)?
   var onFailed: (@MainActor () -> Void)?
   var onPositionChanged: (@MainActor (Int) -> Void)?
-  var elapsedSeconds = 0
   var durationSeconds: Int? = 240
   private(set) var events: [String] = []
 
