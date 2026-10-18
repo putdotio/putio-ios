@@ -821,7 +821,6 @@ public final class PutioTrashModel {
             totalCount: shownPage.totalCount,
             sizeBytes: shownPage.sizeBytes
           )))
-      // Load More has nothing left to retry once the cursor is gone.
       paginationFailure = nil
       if !(error is CancellationError) {
         refreshFailure = PutioTrashErrorPresentation(
