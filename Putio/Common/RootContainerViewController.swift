@@ -166,8 +166,6 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
         presenter.present(ProductAnalyticsPromptViewController(), animated: true)
     }
 
-    // GCKUIStyle resolves colors eagerly, so Cast chrome must be restyled on
-    // every effective appearance change.
     func miniMediaControlsViewController(_ miniMediaControlsViewController: GCKUIMiniMediaControlsViewController, shouldAppear: Bool) {
         updateControlBarsVisibility(shouldAppear: shouldAppear)
     }
