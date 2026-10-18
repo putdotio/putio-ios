@@ -8,6 +8,7 @@ import SwiftUI
 /// links (putdotio/support#135).
 @MainActor
 struct PrivacyControlsView: View {
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @State private var model: PutioAccountPreferencesModel
 
   init(runtime: PutioRuntime) {
@@ -43,10 +44,14 @@ struct PrivacyControlsView: View {
       if model.account != nil {
         Group {
           Section {
-            LabeledContent {
-              Text("Always on")
-            } label: {
+            // LabeledContent wraps its value under a two-line label, so the value
+            // is laid out as a trailing column like a toggle's switch.
+            alwaysOnLayout {
               controlLabel(PutioPrivacyControls.strictlyNecessary)
+              if !dynamicTypeSize.isAccessibilitySize { Spacer(minLength: 0) }
+              Text("Always on")
+                .foregroundStyle(PutioTheme.Colors.textSecondary)
+                .fixedSize()
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("privacy.strictly-necessary")
@@ -83,6 +88,13 @@ struct PrivacyControlsView: View {
     .navigationTitle(PutioPrivacyControls.title)
     .putioFont(PutioTheme.Typography.body)
     .putioContentBackground()
+  }
+
+  /// At accessibility sizes a trailing column leaves the label too narrow to read.
+  private var alwaysOnLayout: AnyLayout {
+    dynamicTypeSize.isAccessibilitySize
+      ? AnyLayout(VStackLayout(alignment: .leading, spacing: PutioTheme.Spacing.space1))
+      : AnyLayout(HStackLayout(spacing: PutioTheme.Spacing.space2))
   }
 
   /// The description sits inside the row, so the control's accessibility label
