@@ -2138,10 +2138,6 @@ final class OfflineDownloadsTests: XCTestCase {
       PutioFileID(rawValue: 1),
       NSError(domain: NSCocoaErrorDomain, code: NSFileWriteOutOfSpaceError))
     XCTAssertEqual(queue.item(for: PutioFileID(rawValue: 1))?.stage, .failed(.storage))
-    resolutions[2] = []
-    let notFound = makeQueue()
-    notFound.enqueue(fileID: PutioFileID(rawValue: 2), parentID: .root, name: "b", kind: .video)
-    // The default resolver succeeds; force notFound through a fresh resolver.
     XCTAssertTrue(PutioOfflineFailure.resolving(PutioRuntimeError.notFound)?.canRetry == false)
     XCTAssertEqual(PutioOfflineFailure.resolving(PutioRuntimeError.sessionExpired), .authentication)
   }

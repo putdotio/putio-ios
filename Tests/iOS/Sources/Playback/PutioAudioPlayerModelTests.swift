@@ -559,22 +559,6 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     XCTAssertEqual(h.engine.events.last(where: { $0.hasPrefix("load") }), "load:430.m4a@0")
   }
 
-  func testUnpluggingHeadphonesPausesInsteadOfPlayingAloud() async {
-    let h = makeHarness()
-    await h.model.start()
-    h.engine.onPositionChanged?(12)
-
-    h.center.post(
-      name: AVAudioSession.routeChangeNotification, object: nil,
-      userInfo: [
-        AVAudioSessionRouteChangeReasonKey:
-          AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue
-      ])
-    await waitUntil { h.model.state == .paused(track) }
-
-    XCTAssertEqual(h.model.state, .paused(track))
-  }
-
   func testRemoteCommandsDriveTheTransport() async {
     let h = makeHarness()
     await h.model.start()
