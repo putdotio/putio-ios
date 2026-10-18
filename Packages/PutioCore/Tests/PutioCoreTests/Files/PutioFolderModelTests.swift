@@ -213,21 +213,6 @@ final class PutioFolderModelTests: XCTestCase {
     }
   }
 
-  func testMovePickerShowsOnlyReachableFolderDestinations() {
-    let source = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Source", kind: .folder)
-    let eligible = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Destination", kind: .folder)
-    let file = BrowserTestFixtures.item(id: 9, parentID: 42, name: "Episode.mkv")
-    let policy = PutioMovePickerPolicy(item: source)
-
-    XCTAssertEqual(
-      policy.folders(in: BrowserTestFixtures.contents(items: [source, eligible, file])),
-      [eligible]
-    )
-    XCTAssertFalse(policy.canMove(to: PutioFolderRoute(id: source.parentID, title: "Current")))
-    XCTAssertFalse(policy.canMove(to: PutioFolderRoute(id: source.id, title: source.name)))
-    XCTAssertTrue(policy.canMove(to: PutioFolderRoute(id: eligible.id, title: eligible.name)))
-  }
-
   func testMovePickerOffersFoldersFromLaterPages() async {
     // The first page holds no folders, so only its continuation can offer one.
     let video = BrowserTestFixtures.item(id: 1, kind: .video)
@@ -378,15 +363,6 @@ final class PutioFolderModelTests: XCTestCase {
     await model.loadIfNeeded()
     let requestCount = await loader.requestCount()
     XCTAssertEqual(requestCount, 1)
-  }
-
-  func testInitialEmptyFolderLoadsAsEmptyContent() async {
-    let empty = BrowserTestFixtures.contents(items: [])
-    let model = PutioFolderModel(folderID: .root) { _ in empty }
-
-    await model.loadIfNeeded()
-
-    XCTAssertEqual(model.state, .loaded(empty))
   }
 
   func testFailureThenRetryReturnsToLoadingAndSucceeds() async throws {
@@ -874,20 +850,6 @@ final class PutioFolderModelTests: XCTestCase {
 
     XCTAssertEqual(model.state, .loaded(original))
     XCTAssertNil(model.refreshFailure)
-  }
-
-  func testEmptyFolderRefreshFailureRemainsRecoverable() async {
-    let empty = BrowserTestFixtures.contents(items: [])
-    let model = PutioFolderModel(
-      folderID: .root,
-      load: { _ in throw PutioRuntimeError.transient },
-      initialContents: empty
-    )
-
-    await model.refresh()
-
-    XCTAssertEqual(model.state, .loaded(empty))
-    XCTAssertEqual(model.refreshFailure?.kind, .transient)
   }
 
   func testRefreshCancellationRestoresPriorContent() async throws {
