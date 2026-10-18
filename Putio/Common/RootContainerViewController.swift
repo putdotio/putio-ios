@@ -63,7 +63,7 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
     }
 
     // Hidden for an account in good standing, which keeps the tabs pinned to
-    // the top exactly as before; shown, it pushes them down.
+    // the top; shown, it pushes them down.
     func createAccountNoticeView() {
         accountNoticeView = AccountNoticeView()
         accountNoticeView.translatesAutoresizingMaskIntoConstraints = false
@@ -173,8 +173,7 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
     }
 
     // GCKUIStyle resolves colors eagerly, so Cast chrome must be restyled on
-    // every effective appearance change — whether from the in-app theme picker
-    // or an OS-level light/dark flip while the theme is System.
+    // every effective appearance change.
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
