@@ -26,6 +26,7 @@
 		0E4F147822C01DF9814EE2C9 /* APIErrorLocalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333E41E81298A2E8796ACE97 /* APIErrorLocalizerTests.swift */; };
 		103DAFDBBC962819703ED902 /* TypeScaleSpecimen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 465A7CDCD9D300C8BA947448 /* TypeScaleSpecimen.swift */; };
 		20CA6ABE176EC66E70EC090E /* UserConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */; };
+		73797D49E2047D4AA432BD9C /* MediaPreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EED087A518DE50908A5982 /* MediaPreviewTests.swift */; };
 		BF321A72B367B270B371FCC5 /* AccountNoticeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1C53A65C635463CC4EC2252 /* AccountNoticeTests.swift */; };
 		2A3B4C5D6E7F8A9B0C1D2E3F /* ComponentSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B4C5D6E7F8A9B0C1D2E3F4A /* ComponentSnapshotTests.swift */; };
 		3C5E7A9B1D2F4A6C8E0B3D5F /* UILabel+Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D4F6A8C0E1B3D5F7A9C1E3B /* UILabel+Appearance.swift */; };
@@ -136,6 +137,7 @@
 		ACC92DDA1FC5843100064BF9 /* AudioPlayerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC92DD91FC5843100064BF9 /* AudioPlayerViewController.swift */; };
 		ACC92DE01FC5993800064BF9 /* Stylize.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC92DDF1FC5993800064BF9 /* Stylize.swift */; };
 		ACCAE1CF27A90E56007DA85F /* PutioSDK.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCAE1CE27A90E56007DA85F /* PutioSDK.swift */; };
+		D7B6DE68882384D2027E17A2 /* MediaPreviewSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CAF2954D270726E7E879662 /* MediaPreviewSession.swift */; };
 		ACCAE1D127A91A14007DA85F /* PutioSDK+ErrorLocalizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCAE1D027A91A14007DA85F /* PutioSDK+ErrorLocalizer.swift */; };
 		ACCBBB351FF0DB4600A44F9C /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCBBB341FF0DB4600A44F9C /* SettingsViewModel.swift */; };
 		ACCBBB371FF0DD9C00A44F9C /* UserModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCBBB361FF0DD9C00A44F9C /* UserModel.swift */; };
@@ -215,6 +217,7 @@
 		109100000000000000000002 /* DownloadQueueControllerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DownloadQueueControllerTests.swift; sourceTree = "<group>"; };
 		28B31D9D86843A740051235A /* FilesViewController+TableView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "FilesViewController+TableView.swift"; sourceTree = "<group>"; };
 		293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UserConfigTests.swift; sourceTree = "<group>"; };
+		36EED087A518DE50908A5982 /* MediaPreviewTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MediaPreviewTests.swift; sourceTree = "<group>"; };
 		F1C53A65C635463CC4EC2252 /* AccountNoticeTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AccountNoticeTests.swift; sourceTree = "<group>"; };
 		2D4F6A8C0E1B3D5F7A9C1E3B /* UILabel+Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UILabel+Appearance.swift"; sourceTree = "<group>"; };
 		333E41E81298A2E8796ACE97 /* APIErrorLocalizerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = APIErrorLocalizerTests.swift; sourceTree = "<group>"; };
@@ -338,6 +341,7 @@
 		ACC92DD91FC5843100064BF9 /* AudioPlayerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerViewController.swift; sourceTree = "<group>"; };
 		ACC92DDF1FC5993800064BF9 /* Stylize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stylize.swift; sourceTree = "<group>"; };
 		ACCAE1CE27A90E56007DA85F /* PutioSDK.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PutioSDK.swift; sourceTree = "<group>"; };
+		4CAF2954D270726E7E879662 /* MediaPreviewSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPreviewSession.swift; sourceTree = "<group>"; };
 		ACCAE1D027A91A14007DA85F /* PutioSDK+ErrorLocalizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PutioSDK+ErrorLocalizer.swift"; sourceTree = "<group>"; };
 		ACCBBB341FF0DB4600A44F9C /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
 		ACCBBB361FF0DD9C00A44F9C /* UserModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserModel.swift; sourceTree = "<group>"; };
@@ -439,6 +443,7 @@
 				9061977704DB05372D01A172 /* PutioKeychainTests.swift */,
 				E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */,
 				293907FB8C6DC1B35D3AD1E0 /* UserConfigTests.swift */,
+				36EED087A518DE50908A5982 /* MediaPreviewTests.swift */,
 				51A7C0DE5E1B4A0C9D2E3F03 /* ProductAnalyticsPromptTests.swift */,
 				F1C53A65C635463CC4EC2252 /* AccountNoticeTests.swift */,
 				5C7E9B1D3F4A6C8E0B2D5F7A /* BrandFontTests.swift */,
@@ -772,6 +777,7 @@
 			isa = PBXGroup;
 			children = (
 				ACCAE1CE27A90E56007DA85F /* PutioSDK.swift */,
+				4CAF2954D270726E7E879662 /* MediaPreviewSession.swift */,
 				ACCAE1D027A91A14007DA85F /* PutioSDK+ErrorLocalizer.swift */,
 				42113E74CF811CB4E40A41C6 /* PutioE2EMockURLProtocol.swift */,
 				C4E37FB6D557730098AC8864 /* PutioE2EDownloadFixtures.swift */,
@@ -1270,6 +1276,7 @@
 				B5E0A31A3EECB199CBAC08D0 /* PutioKeychainTests.swift in Sources */,
 				F5F55CEFFA917A837390DE86 /* PutioRealmTests.swift in Sources */,
 				20CA6ABE176EC66E70EC090E /* UserConfigTests.swift in Sources */,
+				73797D49E2047D4AA432BD9C /* MediaPreviewTests.swift in Sources */,
 				51A7C0DE5E1B4A0C9D2E3F04 /* ProductAnalyticsPromptTests.swift in Sources */,
 				BF321A72B367B270B371FCC5 /* AccountNoticeTests.swift in Sources */,
 				4B6D8F0A2C3E5A7C9E1B4D6F /* BrandFontTests.swift in Sources */,
@@ -1328,6 +1335,7 @@
 				ACFA837D1FF13141008711B4 /* UIView+InterfaceBuilderInstantiable.swift in Sources */,
 				AC7F4E881FD677FA001FFBA9 /* FilesViewModel.swift in Sources */,
 				ACCAE1CF27A90E56007DA85F /* PutioSDK.swift in Sources */,
+				D7B6DE68882384D2027E17A2 /* MediaPreviewSession.swift in Sources */,
 				ACDA73E4278C31AC00C59611 /* Int64+BytesToHumanReadable.swift in Sources */,
 				AC6F939D1FD6D53300B2E79F /* DownloadModel.swift in Sources */,
 				AC9E11FA27A7DFFB00E50966 /* DestroyAccounViewController.swift in Sources */,
