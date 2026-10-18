@@ -132,8 +132,6 @@ final class PerformanceUITests: XCTestCase {
         }
     }
 
-    // MARK: - Helpers
-
     private func makeApp() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment = [

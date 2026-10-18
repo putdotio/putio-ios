@@ -2,11 +2,8 @@ import XCTest
 import PutioSDK
 @testable import Putio
 
-// Asserts the resolved *face* on surfaces the snapshot suite cannot speak for.
-//
-// A pixel comparison can tell you two images match; it cannot tell you they
-// match because the surface never adopted the brand font at all. Naming the
-// face directly is what turns that silent gap into a failure.
+// A pixel comparison cannot tell a matching image from a surface that never
+// adopted the brand font, so these name the resolved face directly.
 @MainActor
 final class BrandTypographyCoverageTests: XCTestCase {
     private static let sansFamily = "GT America"

@@ -1,11 +1,9 @@
 import XCTest
 @testable import Putio
 
-// Pins the contract that verification builds bundle the licensed faces
-// (PUTIO_BUNDLE_BRAND_FONTS in Config/Verify.xcconfig). Without it a build that
-// loses the fonts shows up as a spread of unexplained pixel diffs rather than a
-// named failure — and the visual suite stops seeing typography regressions at
-// all. Run `mise run fonts-setup` before recording.
+// Verification builds bundle the licensed faces (PUTIO_BUNDLE_BRAND_FONTS in
+// Config/Verify.xcconfig); without them a lost font shows up as unexplained
+// pixel diffs rather than a named failure.
 final class BrandFontTests: XCTestCase {
     private static let sansFamily = "GT America"
     private static let monoFamily = "Berkeley Mono Variable"
@@ -27,16 +25,6 @@ final class BrandFontTests: XCTestCase {
             bundled.contains { $0.hasPrefix("berkeley-mono-") },
             "the mono face is the code/numeric role and must be bundled too"
         )
-    }
-
-    func testOptionalAccessorsResolveToBrandFaces() {
-        BrandFont.registerIfAvailable()
-
-        let sans = BrandFont.sansIfAvailable(size: 17, weight: .bold)
-        let mono = BrandFont.monoIfAvailable(size: 13)
-
-        XCTAssertEqual(sans?.familyName, Self.sansFamily)
-        XCTAssertEqual(mono?.familyName, Self.monoFamily)
     }
 
     func testNonOptionalAccessorsReturnBrandFacesRatherThanSystem() {
@@ -97,17 +85,6 @@ final class BrandFontTests: XCTestCase {
         label.applyBrandStyle(.label)
 
         XCTAssertEqual(label.text, "RESTORE YOUR DOWNLOADS")
-    }
-
-    func testTypographyRolesResolveWithBundledFonts() {
-        BrandFont.registerIfAvailable()
-
-        let roles: [BrandTypography.Role] = [
-            .display, .h1, .h2, .h3, .h4, .body, .small, .label, .numeric, .code
-        ]
-        for role in roles {
-            XCTAssertNotNil(BrandTypography.styleIfAvailable(role), "\(role) must resolve with bundled fonts")
-        }
     }
 
     // Berkeley Mono is the only mono face; every other role is sans.

@@ -6,7 +6,6 @@ import XCTest
 // same for brand and system faces, so asserting either proves the wiring.
 @MainActor
 final class TypeScaleScalingTests: XCTestCase {
-    // Smallest to largest, across the standard and accessibility ranges.
     private let ramp: [UIContentSizeCategory] = [
         .extraSmall, .large, .extraExtraExtraLarge, .accessibilityExtraExtraExtraLarge
     ]
@@ -28,7 +27,6 @@ final class TypeScaleScalingTests: XCTestCase {
                 )
             }
 
-            // End to end it must still genuinely grow.
             XCTAssertGreaterThan(
                 sizes.last!, sizes.first!,
                 "\(row.role) must be larger at the largest accessibility size than the smallest (got \(sizes))"
