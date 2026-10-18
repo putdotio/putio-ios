@@ -36,6 +36,9 @@ class SettingsModel {
         let value: Any
         let action: (() -> Void)?
         let visible: Bool
+        /// A second line under the title. Rows with one are drawn in the
+        /// subtitle style, and a switch reads it to VoiceOver as its hint.
+        var subtitle: String?
     }
 
     struct Section {

@@ -40,18 +40,27 @@ final class PrivacyControlsUITests: XCTestCase {
 
         let table = app.tables.firstMatch
         XCTAssertTrue(table.staticTexts["Manage your trash"].waitForExistence(timeout: 10))
-        let header = table.staticTexts["Privacy controls"]
-        for _ in 0..<10 where !(header.exists && header.isHittable) {
+        let row = table.cells.containing(.staticText, identifier: "Privacy controls").firstMatch
+        for _ in 0..<10 where !(row.exists && row.isHittable) {
             table.swipeUp(velocity: .slow)
         }
-        // Header to the top, so the whole group is on screen.
-        header.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            .press(forDuration: 0.3, thenDragTo: table.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)))
-        let analytics = table.cells.containing(.staticText, identifier: "Product analytics").firstMatch
-        XCTAssertTrue(analytics.waitForExistence(timeout: 5) && analytics.isHittable, "the Product analytics row should be reachable")
-        XCTAssertTrue(table.staticTexts["Always on"].exists)
+        XCTAssertTrue(row.isHittable, "Account should have one Privacy controls row")
+        XCTAssertTrue(row.staticTexts["Diagnostics on · Product analytics off"].exists, "the row should show the current state")
+        XCTAssertFalse(table.staticTexts["Strictly necessary"].exists, "the controls live on their own page")
+        attachScreenshot(of: app, named: "Account privacy row")
+        row.tap()
 
-        let diagnosticsSwitch = table.cells.containing(.staticText, identifier: "Diagnostics").switches.firstMatch
+        XCTAssertTrue(app.navigationBars["Privacy controls"].waitForExistence(timeout: 5))
+        let page = app.tables.firstMatch
+        let analytics = page.cells.containing(.staticText, identifier: "Product analytics").firstMatch
+        XCTAssertTrue(analytics.waitForExistence(timeout: 5) && analytics.isHittable, "the Product analytics row should be reachable")
+        XCTAssertTrue(page.staticTexts["Always on"].exists)
+        XCTAssertTrue(page.staticTexts["Needed for sign-in, security, transfers, downloads, playback, billing, and saving your choices."].exists)
+        XCTAssertTrue(page.staticTexts["Diagnostics and product analytics never send filenames, media titles, URLs, search text, or tokens."].exists)
+        XCTAssertTrue(page.staticTexts["Privacy policy"].exists)
+        XCTAssertTrue(page.staticTexts["Services we use"].exists)
+
+        let diagnosticsSwitch = page.cells.containing(.staticText, identifier: "Diagnostics").switches.firstMatch
         let analyticsSwitch = analytics.switches.firstMatch
         XCTAssertEqual(diagnosticsSwitch.value as? String, "1")
         XCTAssertEqual(analyticsSwitch.value as? String, "0")
@@ -64,6 +73,12 @@ final class PrivacyControlsUITests: XCTestCase {
 
         Thread.sleep(forTimeInterval: 0.8)
         attachScreenshot(of: app, named: "Privacy controls")
+
+        app.navigationBars["Privacy controls"].buttons["Account"].tap()
+        XCTAssertTrue(
+            table.staticTexts["Diagnostics off · Product analytics on"].waitForExistence(timeout: 5),
+            "the Account row should follow the saved answers"
+        )
     }
 
     private func waitForValue(_ value: String, of element: XCUIElement) -> Bool {

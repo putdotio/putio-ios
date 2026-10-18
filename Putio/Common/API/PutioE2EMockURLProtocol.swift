@@ -94,12 +94,16 @@ private enum PutioE2EMockAPI {
             """)
         }
 
+        if routeKey == "POST /v2/account/settings" {
+            rememberPrivacySettings(from: request)
+        }
+
         if let response = PutioE2ELargeFixture.response(method: request.httpMethod ?? "GET", url: url) {
             return Fixture(response)
         }
 
-        if routeKey == "GET /v2/account/info", accountScenario == "inactive" {
-            return Fixture(body: inactiveAccountInfo)
+        if routeKey == "GET /v2/account/info" {
+            return Fixture(body: accountScenario == "inactive" ? inactiveAccountInfo : accountInfo)
         }
 
         if routeKey == "GET /v2/files/42/hls/media.m3u8" || routeKey == "GET /v2/files/43/hls/media.m3u8" {
@@ -156,7 +160,6 @@ private enum PutioE2EMockAPI {
         ProcessInfo.processInfo.environment["PUTIO_E2E_PRODUCT_ANALYTICS_UNANSWERED"] == "1"
 
     private static let routes: [String: Fixture] = [
-        "GET /v2/account/info": Fixture(body: accountInfo),
         "POST /v2/account/clear": Fixture(body: ok),
         "GET /v2/config": Fixture(body: config),
         "PUT /v2/config/dismissed.product_analytics_prompt": Fixture(body: ok),
@@ -241,18 +244,58 @@ private enum PutioE2EMockAPI {
     }
     """
 
-    private static let accountInfo = accountInfoBody(status: """
+    // The privacy switches as last saved, so a read after a save answers the
+    // way put.io does. Every launch starts from the fixture's answers.
+    private struct PrivacySettings {
+        var diagnosticsEnabled = true
+        var productAnalyticsEnabled = false
+    }
+
+    private static let privacySettings = OSAllocatedUnfairLock(initialState: PrivacySettings())
+
+    private static func rememberPrivacySettings(from request: URLRequest) {
+        guard let body = requestBody(request),
+              let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else { return }
+        privacySettings.withLock { settings in
+            if let enabled = json["diagnostics_enabled"] as? Bool {
+                settings.diagnosticsEnabled = enabled
+            }
+            if let enabled = json["product_analytics_enabled"] as? Bool {
+                settings.productAnalyticsEnabled = enabled
+            }
+        }
+    }
+
+    // URLProtocol hands a body set with httpBody back as a stream.
+    private static func requestBody(_ request: URLRequest) -> Data? {
+        if let body = request.httpBody {
+            return body
+        }
+        guard let stream = request.httpBodyStream else { return nil }
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 1024)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count > 0 else { break }
+            data.append(buffer, count: count)
+        }
+        return data
+    }
+
+    private static var accountInfo: String { accountInfoBody(status: """
             "account_active": true,
             "account_status": "active",
             "is_sub_account": false,
             "files_will_be_deleted_at": "",
-    """)
+    """) }
 
     // The API's shape for a lapsed plan: account_active is null rather than
     // false, and the deletion date is a naive UTC datetime. Fourteen days out
     // in the device's calendar, which the notice counts in too, so the
     // countdown reads 14 at any hour of the run.
-    private static let inactiveAccountInfo: String = {
+    private static var inactiveAccountInfo: String {
         let deletionDate = Calendar.current.date(byAdding: .day, value: 14, to: Date()) ?? Date()
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withFullDate, .withTime, .withDashSeparatorInDate, .withColonSeparatorInTime]
@@ -264,10 +307,11 @@ private enum PutioE2EMockAPI {
                 "is_sub_account": false,
                 "files_will_be_deleted_at": "\(formatter.string(from: deletionDate)).123456",
         """)
-    }()
+    }
 
     private static func accountInfoBody(status: String) -> String {
-        """
+        let privacy = privacySettings.withLock { $0 }
+        return """
         {
           "info": {
             "user_id": 1001,
@@ -296,8 +340,8 @@ private enum PutioE2EMockAPI {
               "two_factor_enabled": false,
               "hide_subtitles": false,
               "dont_autoselect_subtitles": false,
-              "diagnostics_enabled": true,
-              "product_analytics_enabled": false
+              "diagnostics_enabled": \(privacy.diagnosticsEnabled),
+              "product_analytics_enabled": \(privacy.productAnalyticsEnabled)
             }
           }
         }

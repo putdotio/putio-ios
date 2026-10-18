@@ -10,6 +10,7 @@
 		51A7C0DE5E1B4A0C9D2E3F06 /* PrivacyControlsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A7C0DE5E1B4A0C9D2E3F05 /* PrivacyControlsUITests.swift */; };
 		51A7C0DE5E1B4A0C9D2E3F04 /* ProductAnalyticsPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A7C0DE5E1B4A0C9D2E3F03 /* ProductAnalyticsPromptTests.swift */; };
 		51A7C0DE5E1B4A0C9D2E3F02 /* ProductAnalyticsPrompt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A7C0DE5E1B4A0C9D2E3F01 /* ProductAnalyticsPrompt.swift */; };
+		51A7C0DE5E1B4A0C9D2E3F08 /* PrivacyControlsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A7C0DE5E1B4A0C9D2E3F07 /* PrivacyControlsViewController.swift */; };
 		00B1394779C26A8412502962 /* PutioE2EMockURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42113E74CF811CB4E40A41C6 /* PutioE2EMockURLProtocol.swift */; };
 		103000000000000000000001 /* AudioPlayerViewController+PlaybackRate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 103000000000000000000002 /* AudioPlayerViewController+PlaybackRate.swift */; };
 		101000000000000000000001 /* OfflineVideoPlaybackPositionSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101000000000000000000002 /* OfflineVideoPlaybackPositionSync.swift */; };
@@ -207,6 +208,7 @@
 		51A7C0DE5E1B4A0C9D2E3F05 /* PrivacyControlsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyControlsUITests.swift; sourceTree = "<group>"; };
 		51A7C0DE5E1B4A0C9D2E3F03 /* ProductAnalyticsPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductAnalyticsPromptTests.swift; sourceTree = "<group>"; };
 		51A7C0DE5E1B4A0C9D2E3F01 /* ProductAnalyticsPrompt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductAnalyticsPrompt.swift; sourceTree = "<group>"; };
+		51A7C0DE5E1B4A0C9D2E3F07 /* PrivacyControlsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyControlsViewController.swift; sourceTree = "<group>"; };
 		101000000000000000000002 /* OfflineVideoPlaybackPositionSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineVideoPlaybackPositionSync.swift; sourceTree = "<group>"; };
 		101000000000000000000004 /* OfflineVideoPlaybackPositionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineVideoPlaybackPositionStore.swift; sourceTree = "<group>"; };
 		103000000000000000000002 /* AudioPlayerViewController+PlaybackRate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AudioPlayerViewController+PlaybackRate.swift"; sourceTree = "<group>"; };
@@ -761,6 +763,7 @@
 				D6621E70422BFD153917AB79 /* SettingsViewModel+Persistence.swift */,
 				38466C37F620EDDBF46BFEF7 /* SettingsViewModel+Sections.swift */,
 				51A7C0DE5E1B4A0C9D2E3F01 /* ProductAnalyticsPrompt.swift */,
+				51A7C0DE5E1B4A0C9D2E3F07 /* PrivacyControlsViewController.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -1350,6 +1353,7 @@
 				AC76E02A1FB4D6A100693A18 /* UITableViewCell+Appearance.swift in Sources */,
 				AC34D74C27841B71000DD4CA /* SettingsModel.swift in Sources */,
 				51A7C0DE5E1B4A0C9D2E3F02 /* ProductAnalyticsPrompt.swift in Sources */,
+				51A7C0DE5E1B4A0C9D2E3F08 /* PrivacyControlsViewController.swift in Sources */,
 				ACF5FEC91FBDD8B1000F83CB /* MoveFilesViewController.swift in Sources */,
 				AC5AF8771FBF16E8003B8C3C /* VideoConversionViewController.swift in Sources */,
 				AC6E26071FD9A43200BC9AEC /* DownloadedFilePresenter.swift in Sources */,
