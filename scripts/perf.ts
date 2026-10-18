@@ -9,7 +9,7 @@
 // Without --simulator it creates an ephemeral simulator and deletes it on exit;
 // pass one UDID for a whole before/after series so both sides share a device.
 //
-// Usage (run directly — Node strips the types, there is no build step):
+// Usage:
 //   mise run perf
 //   mise run perf -- --iterations 5 --only testLaunchToFiles,testSelectAll
 //   mise run perf -- --simulator <udid> --label before

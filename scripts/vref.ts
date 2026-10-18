@@ -6,16 +6,12 @@
 // goes through its CLI, since it is not exported. Needs vref 2.0.0 or newer for
 // encodeWebp.
 //
-// Encoding baselines and refreshing the manifest is this driver's job either way.
-//
 // Commands:
 //   sync      encode committed baselines into .vref/screenshots/ and refresh the
 //             manifest's mechanical fields, preserving curated text
 //   build     sync, then write .vref/index.html
 //   validate  check the manifest and that every referenced asset exists
 //   serve     serve the gallery locally
-//
-// Run directly: Node strips the types, there is no build step.
 
 import { execFileSync } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -104,8 +100,7 @@ async function main(): Promise<void> {
     case "serve": {
       await sync();
       await buildGallery({ cwd: process.cwd(), manifestPath: MANIFEST, outputPath: OUTPUT });
-      // serve is not part of vref's library exports, so it goes through the
-      // CLI — safe as of 1.1.1, which fixed the bin under pnpm.
+      // serve is not part of vref's library exports, so it goes through the CLI.
       execFileSync("pnpm", ["exec", "vref", "serve", "--dir", VREF_DIR], { stdio: "inherit" });
       return;
     }
@@ -159,9 +154,8 @@ async function readManifest(): Promise<Manifest> {
  * device, viewport, sizeBytes — while curated text is preserved. A baseline with
  * no manifest entry is reported rather than added with a placeholder title.
  *
- * capturedAt is curated too: set once when an entry is created, then preserved.
- * Recomputing it from git on every run left the manifest stale on main after any
- * squash merge that touched a baseline.
+ * capturedAt is curated too: set once when an entry is created, then preserved,
+ * because a squash merge moves the git date a recompute would read.
  */
 async function sync(): Promise<void> {
   const manifest = await readManifest();
@@ -187,8 +181,6 @@ async function sync(): Promise<void> {
         );
       }
 
-      // Encoding reports the dimensions, so the gallery no longer shells out to
-      // sips to read them back.
       const { data, width, height } = await encodeWebp({ sourcePath });
 
       await mkdir(dirname(destination), { recursive: true });

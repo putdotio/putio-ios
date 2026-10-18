@@ -9,7 +9,7 @@
 //
 // Output is gitignored and intermediate; store-images.ts frames it.
 //
-// Usage (run directly — Node strips the types, there is no build step):
+// Usage:
 //   node scripts/store-screenshots.ts          # assemble into dist/store-screenshots/
 //   node scripts/store-screenshots.ts --check  # verify sources without writing
 
@@ -20,7 +20,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 
-// Anchored on the script so it can be run from anywhere.
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CONFIG = join(ROOT, "Config/StoreScreenshots.json");
 const OUTPUT_DIR = join(ROOT, "dist/store-screenshots");
