@@ -454,9 +454,18 @@ final class DeeplinkManagerTests: XCTestCase {
 
         XCTAssertTrue(manager.handleURL(url: URL(string: "https://put.io/settings")!))
         XCTAssertEqual(tabBarController.selectedIndex, 3)
+
+        XCTAssertTrue(manager.handleURL(url: URL(string: "putio://history")!))
+        XCTAssertEqual(tabBarController.selectedIndex, 1)
+
+        XCTAssertTrue(manager.handleURL(url: URL(string: "putio://put.io/history")!))
+        XCTAssertEqual(tabBarController.selectedIndex, 1)
+
+        XCTAssertTrue(manager.handleURL(url: URL(string: "putio:///account")!))
+        XCTAssertEqual(tabBarController.selectedIndex, 3)
     }
 
-    func testOnlyTheExactPathSendsTheDiagnosticsCheck() throws {
+    func testOnlyTheExactRouteSendsTheDiagnosticsCheck() throws {
         let manager = DeeplinkManager()
         let tabBarController = makeTabBarController()
         manager.tabBarController = tabBarController
@@ -467,13 +476,15 @@ final class DeeplinkManagerTests: XCTestCase {
             return true
         }
 
-        for near in ["putio://diagnostics-check", "putio:///diagnostics", "putio:///diagnostics-checks", "putio:///diagnostics-check/1"] {
+        for near in ["putio:///diagnostics", "putio:///diagnostics-checks", "putio:///diagnostics-check/1", "putio://diagnostics/check"] {
             XCTAssertFalse(manager.handleURL(url: try XCTUnwrap(URL(string: near))), near)
         }
         XCTAssertEqual(checks, 0)
 
-        XCTAssertTrue(manager.handleURL(url: try XCTUnwrap(URL(string: "putio:///diagnostics-check"))))
-        XCTAssertEqual(checks, 1)
+        for exact in ["putio:///diagnostics-check", "putio://diagnostics-check"] {
+            XCTAssertTrue(manager.handleURL(url: try XCTUnwrap(URL(string: exact))), exact)
+        }
+        XCTAssertEqual(checks, 2)
         XCTAssertEqual(tabBarController.selectedIndex, 0, "the check changed the visible screen")
     }
 

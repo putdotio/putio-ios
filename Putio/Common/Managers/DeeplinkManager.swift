@@ -77,15 +77,26 @@ class DeeplinkManager {
     func handleURL(url: URL) -> Bool {
         guard isReadyToHandleURL else { return false }
 
-        if url.path.starts(with: "/files") {
-            return handleFileURL(path: url.path)
+        let path = Self.routePath(of: url)
+
+        if path.starts(with: "/files") {
+            return handleFileURL(path: path)
         }
 
-        if url.path.starts(with: "/downloads") {
-            return handleDownloadURL(path: url.path)
+        if path.starts(with: "/downloads") {
+            return handleDownloadURL(path: path)
         }
 
-        return handleStaticURL(path: url.path)
+        return handleStaticURL(path: path)
+    }
+
+    // putio://files/1 parses "files" as the host, so the custom scheme reads
+    // host and path together. putio:///files/1, putio://put.io/files/1 and
+    // https://put.io/files/1 have the route in the path alone.
+    static func routePath(of url: URL) -> String {
+        guard url.scheme?.lowercased() == "putio", let host = url.host?.lowercased(), !host.isEmpty,
+              host != "put.io", !host.hasSuffix(".put.io") else { return url.path }
+        return "/" + host + url.path
     }
 
     private func handleFileURL(path: String) -> Bool {
