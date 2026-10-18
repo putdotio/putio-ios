@@ -38,7 +38,7 @@ final class DeepLinkJourneyTests: XCTestCase {
     XCTAssertTrue(element("video.error").appears(within: 10))
     app.buttons["Try again"].tap()
     XCTAssertTrue(element("video.ready").appears(within: 15))
-    try open("putio:///history")
+    try open("putio://history")
     XCTAssertTrue(element("history.item.810").appears(within: 10))
     XCTAssertTrue(element("video.ready").disappears(within: 5))
 
@@ -83,7 +83,7 @@ final class DeepLinkJourneyTests: XCTestCase {
     XCTAssertTrue(app.navigationBars["Account"].appears(within: 10))
     XCTAssertFalse(element("auth.sign-in").exists)
     signOut()
-    try open("putio:///history")
+    try open("putio://history")
     XCTAssertTrue(element("auth.sign-in").appears(within: 5))
     XCTAssertFalse(element("history.item.810").exists)
     signIn()

@@ -2,8 +2,10 @@ import Foundation
 import Observation
 import PutioCore
 
-// Legacy navigation uses URL paths, including putio:///files/123. The URL host
-// is never interpreted as a route, and authentication callbacks stay with ASWebAuthenticationSession.
+// Legacy navigation uses URL paths, including putio:///files/123. A putio URL
+// whose host is not put.io carries its first route segment there instead, so
+// putio://files/123 routes as /files/123. The `auth` host is the
+// ASWebAuthenticationSession callback and is never a route.
 enum PutioDeepLink: Equatable {
   case file(PutioFileID)
   /// The Downloads list, or one downloaded item by its put.io file id.
@@ -19,19 +21,21 @@ enum PutioDeepLink: Equatable {
       let scheme = components.scheme?.lowercased(), ["putio", "https"].contains(scheme)
     else { return nil }
     let host = components.host?.lowercased() ?? ""
-    guard (scheme == "putio" && host.isEmpty) || host == "put.io" || host.hasSuffix(".put.io")
-    else { return nil }
+    let ownedHost = host == "put.io" || host.hasSuffix(".put.io")
+    guard scheme == "putio" || ownedHost, host != "auth" else { return nil }
     guard components.user == nil, components.password == nil, components.port == nil,
-      components.fragment == nil, components.percentEncodedPath == components.path
+      components.fragment == nil, components.percentEncodedPath == components.path,
+      components.percentEncodedHost == components.host
     else { return .unavailable }
-    if components.path == "/link" { return linkDevice(query: components.queryItems) }
+    let path = ownedHost || host.isEmpty ? components.path : "/\(host)\(components.path)"
+    if path == "/link" { return linkDevice(query: components.queryItems) }
     guard components.query == nil else { return .unavailable }
-    switch components.path {
+    switch path {
     case "/downloads": return .downloads(nil)
     case "/history": return .history
     case "/account", "/settings": return .account
     default:
-      let parts = components.path.split(separator: "/", omittingEmptySubsequences: false)
+      let parts = path.split(separator: "/", omittingEmptySubsequences: false)
       guard parts.count == 3, parts[0].isEmpty,
         !parts[2].isEmpty, parts[2].utf8.allSatisfy({ (48...57).contains($0) }),
         let id = Int(parts[2]), id >= 0
