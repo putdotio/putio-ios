@@ -147,13 +147,11 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
             stateMachine.transitionToState(.view("loading"))
         }
 
-        let signposter = PerfSignpost.signposter
-        let signpostID = signposter.makeSignpostID()
-        let fetchSignpost = signposter.beginInterval("FilesFetch", id: signpostID, "parent \(self.viewModel.fileID)")
+        let fetchSignpost = PerfSignpost.begin("FilesFetch")
 
         api.getFiles(parentID: viewModel.fileID, query: PutioFilesListQuery(mp4Status: true)) { result in
             defer {
-                PerfSignpost.endAfterCommit("FilesFetch", fetchSignpost)
+                PerfSignpost.endAfterCommit(fetchSignpost)
                 if case .success = result, self is FilesRootViewController {
                     PerfSignpost.endLaunchToFilesIfNeeded()
                 }
@@ -166,9 +164,9 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
                 self.viewModel.file = data.parent
                 self.viewModel.files = data.children
 
-                let reloadSignpost = signposter.beginInterval("FilesReload", id: signpostID, "rows \(data.children.count)")
+                let reloadSignpost = PerfSignpost.begin("FilesReload", rows: data.children.count)
                 self.tableView.reloadData()
-                PerfSignpost.endAfterCommit("FilesReload", reloadSignpost)
+                PerfSignpost.endAfterCommit(reloadSignpost)
                 self.configureFileActionsButtonMenuItems()
                 UIView.performWithoutAnimation {
                     self.setFileActionsEnabled(data.parent.map { !$0.isShared } ?? false)

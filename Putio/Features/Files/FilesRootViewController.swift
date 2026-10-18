@@ -59,6 +59,11 @@ class FilesRootViewController: FilesViewController {
         navigationItem.hidesSearchBarWhenScrolling = false
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        ProductAnalytics.capture(.screenViewed(.files))
+    }
+
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
 
