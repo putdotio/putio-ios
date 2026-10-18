@@ -38,6 +38,7 @@ import SwiftUI
 
   /// Re-renders on every handed-off URL so the recorded summary stays current.
   struct HarnessExternalPlaybackProbe: View {
+    // periphery:ignore - a changed count is what makes SwiftUI re-render the probe
     let requestCount: Int
 
     var body: some View {

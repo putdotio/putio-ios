@@ -2,6 +2,7 @@
 node = "24.22.0"
 pnpm = "12.13.0"
 tuist = "4.212.0"
+periphery = "3.8.0"
 
 [tasks.doctor]
 description = "Validate the local Apple development toolchain"
@@ -47,6 +48,10 @@ run = "./scripts/harness.sh"
 [tasks.harness-ci]
 description = "Run the headless iOS proof subset used by CI"
 run = "./scripts/harness-ci.sh"
+
+[tasks.dead-code]
+description = "Scan the app shells, PutioCore, and the harness for unused code with Periphery"
+run = "./scripts/dead-code.sh"
 
 [tasks.verify]
 description = "Test the shared core and build every Apple app shell; pass lanes (checks, build, ios, tvos) to run a subset"

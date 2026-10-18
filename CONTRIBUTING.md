@@ -100,6 +100,9 @@ The `checks` lane includes the oxfmt Markdown check; `pnpm exec oxfmt "**/*.md"`
 fixes findings. [.oxfmtrc.json](.oxfmtrc.json) skips the installed upstream
 skills under `.agents/`, which keep their upstream content.
 
+`mise run dead-code` builds both app shells with their tests, PutioCore, and the
+harness, then runs [Periphery](.periphery.yml) over them; it is local only.
+
 For runtime changes, exercise the affected shell through the
 [headless harness](docs/harness.md); the
 [proof table](AGENTS.md#verification-and-completion) maps change types to the

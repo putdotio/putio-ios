@@ -1,0 +1,18 @@
+project: Putio.xcworkspace
+schemes:
+  - Putio
+  - PutioFeatureTests
+  - PutioTV
+  - PutioTVFeatureTests
+retain_swift_ui_previews: true
+retain_codable_properties: true
+# Equatable keys drive `.task(id:)` and `onChange`; synthesized `==` reads them.
+retain_equatable_properties: true
+# Design tokens mirror @putdotio/design; regenerate instead of pruning.
+retain_files:
+  - "Packages/PutioCore/Sources/PutioCore/Generated/**"
+index_exclude:
+  - "build/**"
+  - "Tuist/.build/**"
+disable_redundant_public_analysis: true
+relative_results: true
