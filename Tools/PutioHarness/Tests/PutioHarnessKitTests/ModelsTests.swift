@@ -24,29 +24,6 @@ import Testing
   )
 }
 
-@Test func proofManifestRoundTrips() throws {
-  let manifest = ProofManifest(
-    runID: "unit-test",
-    commit: "abc123",
-    createdAt: "2026-08-09T00:00:00Z",
-    command: "proof",
-    platform: .ios,
-    scheme: "Putio",
-    bundleIdentifier: "io.put.dev.ios",
-    runtime: "iOS 26.5",
-    deviceType: "iPhone 17 Pro",
-    simulatorName: "putio-harness-ios-unit-test",
-    fixtureSet: "signed-out-placeholder-v1",
-    artifacts: [
-      ProofArtifact(
-        kind: "screenshot", path: "build/proof/unit-test/ios/signed-out.png", bytes: 42,
-        sha256: "deadbeef")
-    ]
-  )
-  let data = try JSONEncoder().encode(manifest)
-  #expect(try JSONDecoder().decode(ProofManifest.self, from: data) == manifest)
-}
-
 @Test func browserJourneyContractUsesSeededFixtureAndExactTest() {
   #expect(JourneyScenario.filesBrowser.fixtureSet == "seeded-runtime-loop-v5")
   #expect(

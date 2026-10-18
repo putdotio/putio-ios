@@ -220,7 +220,6 @@ struct LiveSessionContractTests {
 
 }
 
-/// Events recorded from several threads, in order.
 private final class EventLog: @unchecked Sendable {
   private let lock = NSLock()
   private var events: [String] = []

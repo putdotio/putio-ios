@@ -3,8 +3,6 @@ import Testing
 
 @testable import PutioHarnessKit
 
-/// Exercises `OwnedSimulator.cleanup` on both sides of `claim` through a fake
-/// `xcrun` ahead on the runner's PATH, recording every simctl invocation.
 private func withFakeSimctl<T>(
   devices: [(udid: String, name: String)],
   listedAfterCalls: Int = 0,
