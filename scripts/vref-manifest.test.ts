@@ -1,5 +1,4 @@
-// Run with `mise run verify-scripts-tests`. Node's built-in runner strips types
-// and executes directly, so there is no test framework and no build step.
+// Run with `mise run verify-scripts-tests`.
 
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";

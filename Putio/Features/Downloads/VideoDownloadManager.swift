@@ -15,7 +15,6 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     private let activeDownloadsLock = NSLock()
     fileprivate var willDownloadToURLMap = [AVAssetDownloadTask: URL]()
     fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
-    fileprivate var didRestore = false
 
     var activeDownloadCount: Int {
         withActiveDownloadsMap { $0.count }

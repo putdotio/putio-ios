@@ -22,8 +22,8 @@ class Download: Object {
     @objc dynamic var message: String = ""
     @objc dynamic var fileTypeRaw: Int = FileType.video.rawValue
 
-    // TO BE DEPRECATED
     @objc dynamic var url: String = ""
+    // periphery:ignore - persisted Realm column
     @objc dynamic var path: String = ""
 
     convenience init?(file: PutioFile, url: String) {
@@ -35,7 +35,6 @@ class Download: Object {
         self.createdAt = Date()
         self.startFrom = file.startFrom
 
-        // TO BE DEPRECATED
         self.url = url
 
         switch file.type {

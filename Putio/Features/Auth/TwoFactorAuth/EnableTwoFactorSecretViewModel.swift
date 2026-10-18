@@ -13,13 +13,6 @@ class EnableTwoFactorSecretViewModel {
         case failure(error: Error)
     }
 
-    enum ActionResult {
-        case success
-        case failure(error: Error)
-    }
-
-    typealias ActionCompletion = ((_ result: ActionResult) -> Void)
-
     weak var delegate: EnableTwoFactorSecretViewModelDelegate?
 
     var state: State = .idle {

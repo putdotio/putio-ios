@@ -937,6 +937,7 @@ final class Schema12User: Object {
     override class func shouldIncludeInDefaultSchema() -> Bool { false }
 }
 
+// periphery:ignore - its properties are the schema under test
 final class Schema12UserSettings: Object {
     @objc dynamic var routeName = ""
     @objc dynamic var suggestNextVideo = false

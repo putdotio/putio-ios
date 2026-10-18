@@ -79,12 +79,6 @@ final class HistoryViewModelTests: XCTestCase {
         assertEmpty(viewModel.state)
     }
 
-    private func assertLoaded(_ state: HistoryViewModel.State, file: StaticString = #filePath, line: UInt = #line) {
-        guard case .loaded = state else {
-            return XCTFail("Expected loaded state", file: file, line: line)
-        }
-    }
-
     private func assertEmpty(_ state: HistoryViewModel.State, file: StaticString = #filePath, line: UInt = #line) {
         guard case .empty = state else {
             return XCTFail("Expected empty state", file: file, line: line)

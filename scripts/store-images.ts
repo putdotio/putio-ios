@@ -2,15 +2,15 @@
 
 // Frames the raw store screenshots into finished App Store marketing images:
 // brand-yellow field, bold caption, screenshot in a rounded black device that
-// runs off the bottom edge — matching the Apple TV and Android TV listings.
+// runs off the bottom edge.
 //
 // Input comes from `mise run store-screenshots` (gitignored). Output is
 // committed, so it is reviewed as an image diff before upload.
 //
 // Brand values come from @putdotio/design and the caption face is the licensed
-// GT America the app bundles, so these match the product rather than resemble it.
+// GT America the app bundles.
 //
-// Usage (run directly — Node strips the types, there is no build step):
+// Usage:
 //   node scripts/store-images.ts          # render into fastlane/screenshots/
 //   node scripts/store-images.ts --check  # verify inputs without rendering
 

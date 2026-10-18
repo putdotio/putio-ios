@@ -56,11 +56,10 @@ class DestroyAccounViewController: UIViewController {
         let localizedError = api.localizeError(error: error, localizers: [
             APIErrorLocalizer(
                 matcher: .errorType("INVALID_CURRENT_PASSWORD"),
-                localize: { error in
+                localize: { _ in
                     return PutioLocalizedError(
                         message: NSLocalizedString("The password you entered doesn't match the one in our records", comment: ""),
-                        recoverySuggestion: .instruction(description: NSLocalizedString("Please check your password and try again.", comment: "")),
-                        underlyingError: error
+                        recoverySuggestion: .instruction(description: NSLocalizedString("Please check your password and try again.", comment: ""))
                     )
             })
         ])

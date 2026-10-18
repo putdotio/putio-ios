@@ -62,7 +62,6 @@
 		5A1E0C000000000000000004 /* ProductAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C000000000000000003 /* ProductAnalytics.swift */; };
 		5A1E0C000000000000000006 /* ProductAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C000000000000000005 /* ProductAnalyticsTests.swift */; };
 		9554916755C204A76581CC3A /* Pods_PutioTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7010BA68B2C5ECA69752D4D4 /* Pods_PutioTests.framework */; };
-		9C3E5A7B2D4F6A8C0E1B3D5F /* HistoryErrorUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B2D4F6A1C3E5A7B9D0F2A4C /* HistoryErrorUITests.swift */; };
 		7DC87C4E70905D0A3B4F678B /* InactiveAccountUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 993DCCD7D09E1165737A70AF /* InactiveAccountUITests.swift */; };
 		AA4ADDA00F4D5221A3ABBB60 /* TypeScaleRampArtifactTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A924230BA95F3FB946456266 /* TypeScaleRampArtifactTests.swift */; };
 		AC0EACEA1FDEA76C00A728CB /* Realm.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0EACE91FDEA76C00A728CB /* Realm.swift */; };
@@ -116,7 +115,6 @@
 		AC8F20032B10000100C0F001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AC8F20022B10000100C0F001 /* PrivacyInfo.xcprivacy */; };
 		AC918F6E2AF128920082BFAF /* RootContainerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC918F6D2AF128920082BFAF /* RootContainerViewController.swift */; };
 		AC9E11FA27A7DFFB00E50966 /* DestroyAccounViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC9E11F927A7DFFB00E50966 /* DestroyAccounViewController.swift */; };
-		AC9F15EC23B98A5700C09BAB /* UIView+FindSubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC9F15EB23B98A5700C09BAB /* UIView+FindSubView.swift */; };
 		ACA0E003282CF66A00184DF7 /* EnableTwoFactorCodeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACA0E002282CF66A00184DF7 /* EnableTwoFactorCodeViewController.swift */; };
 		ACAA621C23BCC2430043458C /* CMTime+getFiniteSeconds.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACAA621B23BCC2430043458C /* CMTime+getFiniteSeconds.swift */; };
 		ACAA622923BD05A80043458C /* VideoConversion.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = ACAA622823BD05A80043458C /* VideoConversion.storyboard */; };
@@ -254,7 +252,6 @@
 		7A112233445566778899AABC /* NavigationLocalizationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NavigationLocalizationTests.swift; sourceTree = "<group>"; };
 		7AD1192F6A523D03D09DF523 /* Pods_PutioUITests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_PutioUITests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		7F8A9B0C1D2E3F4A5B6C7D8E /* BrandFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandFont.swift; sourceTree = "<group>"; };
-		8B2D4F6A1C3E5A7B9D0F2A4C /* HistoryErrorUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryErrorUITests.swift; sourceTree = "<group>"; };
 		993DCCD7D09E1165737A70AF /* InactiveAccountUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InactiveAccountUITests.swift; sourceTree = "<group>"; };
 		8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ErrorPresentationTests.swift; sourceTree = "<group>"; };
 		C22F65CCDE7A7515A9184817 /* SentryTelemetryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SentryTelemetryTests.swift; sourceTree = "<group>"; };
@@ -321,7 +318,6 @@
 		AC8F20022B10000100C0F001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AC918F6D2AF128920082BFAF /* RootContainerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootContainerViewController.swift; sourceTree = "<group>"; };
 		AC9E11F927A7DFFB00E50966 /* DestroyAccounViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestroyAccounViewController.swift; sourceTree = "<group>"; };
-		AC9F15EB23B98A5700C09BAB /* UIView+FindSubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIView+FindSubView.swift"; sourceTree = "<group>"; };
 		ACA0E002282CF66A00184DF7 /* EnableTwoFactorCodeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnableTwoFactorCodeViewController.swift; sourceTree = "<group>"; };
 		ACAA621B23BCC2430043458C /* CMTime+getFiniteSeconds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CMTime+getFiniteSeconds.swift"; sourceTree = "<group>"; };
 		ACAA622823BD05A80043458C /* VideoConversion.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = VideoConversion.storyboard; sourceTree = "<group>"; };
@@ -486,7 +482,6 @@
 				6152DB33E9792260A66491D4 /* PlaybackSmokeUITests.swift */,
 				94C9F07E252A00E23B7969F4 /* ClearDataUITests.swift */,
 				4F8E2A6C0B3D7F1A5C9E3B6D /* HistorySmokeUITests.swift */,
-				8B2D4F6A1C3E5A7B9D0F2A4C /* HistoryErrorUITests.swift */,
 				51A7C0DE5E1B4A0C9D2E3F05 /* PrivacyControlsUITests.swift */,
 				993DCCD7D09E1165737A70AF /* InactiveAccountUITests.swift */,
 				D5C5079B7A1C5D4F669A9434 /* PerformanceUITests.swift */,
@@ -590,7 +585,6 @@
 				2D4F6A8C0E1B3D5F7A9C1E3B /* UILabel+Appearance.swift */,
 				AC76E0271FB4D68800693A18 /* UITableView+HeaderFooter.swift */,
 				AC76E0291FB4D6A100693A18 /* UITableViewCell+Appearance.swift */,
-				AC9F15EB23B98A5700C09BAB /* UIView+FindSubView.swift */,
 				ACB8E04A1FC45926003DFF4F /* Bundle+Info.swift */,
 				AC0FC8BC1FC2D18B002E775B /* String+Truncate.swift */,
 				AC1B592223B7EDCB00CDAF1D /* String+Slugify.swift */,
@@ -1299,7 +1293,6 @@
 				4A46E6C53155BA88AC2B2345 /* ClearDataUITests.swift in Sources */,
 				7A1C9E4B2D6F8A0C3E5B7D9F /* HistorySmokeUITests.swift in Sources */,
 				9F3A1C7D2E4B6A8C0D1E2F33 /* SignedInLaunch.swift in Sources */,
-				9C3E5A7B2D4F6A8C0E1B3D5F /* HistoryErrorUITests.swift in Sources */,
 				51A7C0DE5E1B4A0C9D2E3F06 /* PrivacyControlsUITests.swift in Sources */,
 				7DC87C4E70905D0A3B4F678B /* InactiveAccountUITests.swift in Sources */,
 				FF1E7850E61E28080B23A890 /* PerformanceUITests.swift in Sources */,
@@ -1313,7 +1306,6 @@
 			files = (
 				ACDA73E6278D991200C59611 /* Date+TimeAgo.swift in Sources */,
 				ACB05CC71FF16CC800F844E4 /* OfflineStatusView.swift in Sources */,
-				AC9F15EC23B98A5700C09BAB /* UIView+FindSubView.swift in Sources */,
 				ACB7637124B3B439007289DA /* Debouncer.swift in Sources */,
 				10A000000000000000000001 /* Log.swift in Sources */,
 				AC6F93951FD6C22D00B2E79F /* DownloadsViewController.swift in Sources */,

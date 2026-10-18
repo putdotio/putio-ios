@@ -27,11 +27,9 @@ extension XCUIApplication {
         return false
     }
 
-    // iPadOS renders a UITabBarController with no TabBar element in the
-    // accessibility tree at all, just buttons in an anonymous container, so
-    // `tabBars` matches nothing there. The scoped query stays first so iPhone
-    // resolves exactly what it did before; the app-wide fallback is safe
-    // because no other button these tests meet carries a tab label.
+    // iPadOS exposes no TabBar element, only buttons in an anonymous container,
+    // so `tabBars` matches nothing there. The app-wide fallback is safe because
+    // no other button these tests meet carries a tab label.
     func tabItem(_ name: String) -> XCUIElement {
         let scoped = tabBars.buttons[name]
         return scoped.exists ? scoped : buttons[name].firstMatch

@@ -1,5 +1,4 @@
 import UIKit
-import PutioSDK
 
 class SettingsTableViewCell: UITableViewCell {
     static let subtitleReuseIdentifier = "settingsSubtitleReuse"

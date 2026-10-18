@@ -20,8 +20,6 @@ enum DownloadConcurrencyPreference {
 }
 
 protocol DownloadQueueManaging: AnyObject {
-    var activeDownloadIDs: Set<Int> { get }
-    func beginDownload(id: Int)
     func resumeDownload(id: Int)
     func discardDownload(id: Int)
 }

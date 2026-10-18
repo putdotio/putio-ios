@@ -1,9 +1,8 @@
 import UIKit
-import PutioSDK
 import RealmSwift
 
 protocol DownloadsTableViewCellDelegate: AnyObject {
-    func downloadCellActionButtonTapped(download: Download, sender: DownloadsTableViewCell)
+    func downloadCellActionButtonTapped(download: Download)
     func downloadCellSelectionAccessibilityActivated(sender: DownloadsTableViewCell) -> Bool
 }
 
@@ -56,10 +55,7 @@ class DownloadsTableViewCell: UITableViewCell {
             return false
         }
 
-        delegate.downloadCellActionButtonTapped(
-            download: download,
-            sender: self
-        )
+        delegate.downloadCellActionButtonTapped(download: download)
         return true
     }
 

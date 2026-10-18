@@ -46,13 +46,6 @@ class HistoryViewModel {
         var eventIDs: [Int]
     }
 
-    static let BASE_SECTIONS = [
-        HistorySection(title: NSLocalizedString("Today", comment: ""), events: []),
-        HistorySection(title: NSLocalizedString("Yesterday", comment: ""), events: []),
-        HistorySection(title: NSLocalizedString("Last Week", comment: ""), events: []),
-        HistorySection(title: NSLocalizedString("Ancient Times", comment: ""), events: [])
-    ]
-
     typealias FetchEventsRequest = (@escaping (Result<[PutioHistoryEvent], PutioSDKError>) -> Void) -> Void
     typealias RemoveEventRequest = (Int, @escaping (Result<Void, PutioSDKError>) -> Void) -> Void
     typealias ClearEventsRequest = (@escaping (Result<Void, PutioSDKError>) -> Void) -> Void

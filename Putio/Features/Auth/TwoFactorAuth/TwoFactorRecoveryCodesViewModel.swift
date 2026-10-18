@@ -13,13 +13,6 @@ class TwoFactorRecoveryCodesViewModel {
         case failure(error: Error)
     }
 
-    enum ActionResult {
-        case success
-        case failure(error: Error)
-    }
-
-    typealias ActionCompletion = ((_ result: ActionResult) -> Void)
-
     weak var delegate: TwoFactorRecoveryCodesViewModelDelegate?
 
     var state: State = .idle {
@@ -39,7 +32,7 @@ class TwoFactorRecoveryCodesViewModel {
         }
     }
 
-    func regenerateRecoveryCodes(completion: @escaping ActionCompletion) {
+    func regenerateRecoveryCodes() {
         state = .loading
 
         api.regenerateRecoveryCodes { result in

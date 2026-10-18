@@ -1,9 +1,6 @@
 import UIKit
 import WebKit
 
-/// Account › Privacy controls: the three controls, each with its description,
-/// then the privacy policy and the services put.io uses. Saving goes through
-/// Account's view model, so the switches behave as they did on Account.
 class PrivacyControlsViewController: UITableViewController {
     static let privacyPolicyURL = ProductAnalyticsPromptViewController.privacyPolicyURL
     // Linked from the privacy policy as the list of services put.io uses.
@@ -94,9 +91,7 @@ class PrivacyControlsViewController: UITableViewController {
 }
 
 extension SettingsViewModel {
-    // The Privacy controls page: each control with its description under it,
-    // then the policy links. The descriptions and the group footer are the
-    // contract copy, word for word.
+    // The descriptions and the group footer are contract copy, word for word.
     func privacyControlsSections() -> [SettingsModel.Section] {
         [
             SettingsModel.Section(

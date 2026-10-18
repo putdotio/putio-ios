@@ -4,12 +4,11 @@ import PutioSDK
 
 private struct MockPutioError: PutioErrorLocalizableInput {
     let localizerType: PutioSDKErrorType
-    let localizerMessage: String
 }
 
 final class APIErrorLocalizerTests: XCTestCase {
     func testNetworkErrorsUseDefaultLocalizedCopy() {
-        let localizedError = api.localizeError(error: MockPutioError(localizerType: .networkError, localizerMessage: "offline"))
+        let localizedError = api.localizeError(error: MockPutioError(localizerType: .networkError))
 
         XCTAssertEqual(localizedError.message, "Network error")
         XCTAssertEqual(localizedError.recoverySuggestion.description, "Please check your internet connection and try again.")
@@ -17,13 +16,12 @@ final class APIErrorLocalizerTests: XCTestCase {
 
     func testStatusCodeLocalizersOverrideDefaultMessage() {
         let localizedError = api.localizeError(
-            error: MockPutioError(localizerType: .httpError(statusCode: 401, errorType: "unauthorized"), localizerMessage: "Unauthorized"),
+            error: MockPutioError(localizerType: .httpError(statusCode: 401, errorType: "unauthorized")),
             localizers: [
-                APIErrorLocalizer(matcher: .statusCode(401)) { error in
+                APIErrorLocalizer(matcher: .statusCode(401)) { _ in
                     PutioLocalizedError(
                         message: "Session expired",
-                        recoverySuggestion: .instruction(description: "Please sign in again."),
-                        underlyingError: error
+                        recoverySuggestion: .instruction(description: "Please sign in again.")
                     )
                 }
             ]
@@ -35,13 +33,12 @@ final class APIErrorLocalizerTests: XCTestCase {
 
     func testErrorTypeLocalizersOverrideDefaultMessage() {
         let localizedError = api.localizeError(
-            error: MockPutioError(localizerType: .httpError(statusCode: 429, errorType: "rate_limited"), localizerMessage: "Too many requests"),
+            error: MockPutioError(localizerType: .httpError(statusCode: 429, errorType: "rate_limited")),
             localizers: [
-                APIErrorLocalizer(matcher: .errorType("rate_limited")) { error in
+                APIErrorLocalizer(matcher: .errorType("rate_limited")) { _ in
                     PutioLocalizedError(
                         message: "Slow down",
-                        recoverySuggestion: .instruction(description: "Please wait a moment before trying again."),
-                        underlyingError: error
+                        recoverySuggestion: .instruction(description: "Please wait a moment before trying again.")
                     )
                 }
             ]
@@ -53,7 +50,7 @@ final class APIErrorLocalizerTests: XCTestCase {
 
     func testUnknownHttpErrorsFallBackToGenericMessage() {
         let localizedError = api.localizeError(
-            error: MockPutioError(localizerType: .httpError(statusCode: 500, errorType: "server_error"), localizerMessage: "Server exploded")
+            error: MockPutioError(localizerType: .httpError(statusCode: 500, errorType: "server_error"))
         )
 
         XCTAssertEqual(localizedError.message, "Something went wrong")
@@ -62,7 +59,7 @@ final class APIErrorLocalizerTests: XCTestCase {
 
     func testUnknownErrorsFallBackToGenericMessage() {
         let localizedError = api.localizeError(
-            error: MockPutioError(localizerType: .unknownError, localizerMessage: "Mystery failure")
+            error: MockPutioError(localizerType: .unknownError)
         )
 
         XCTAssertEqual(localizedError.message, "Something went wrong")

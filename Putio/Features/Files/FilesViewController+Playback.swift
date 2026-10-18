@@ -83,7 +83,7 @@ extension FilesViewController: AVPlayerViewControllerDelegate {
 }
 
 extension FilesViewController: MoveFilesViewControllerDelegate {
-    func moveFilesCompleted(movedTo: PutioFile) {
+    func moveFilesCompleted() {
         stopEditing()
         fetchData()
     }

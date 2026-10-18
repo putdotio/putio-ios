@@ -135,10 +135,6 @@ class VideoPlayerViewController: AVPlayerViewController {
         return (Int(currentTime), Int(duration))
     }
 
-    @objc func saveVideoTime() {
-        persistPlaybackPosition(shouldSyncRemoteInBackground: false)
-    }
-
     func handlePictureInPictureDidStart() {
         isPlayingInPictureOnPictureMode = true
         persistPlaybackPosition(shouldSyncRemoteInBackground: true)

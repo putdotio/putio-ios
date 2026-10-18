@@ -34,12 +34,6 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
         viewController.didMove(toParent: self)
     }
 
-    func uninstallViewController(_ viewController: UIViewController) {
-        viewController.willMove(toParent: nil)
-        viewController.view.removeFromSuperview()
-        viewController.removeFromParent()
-    }
-
     func createMainTabBarControllerView() {
         mainTabBarContainerView = UIView()
         mainTabBarContainerView.translatesAutoresizingMaskIntoConstraints = false
@@ -63,7 +57,7 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
     }
 
     // Hidden for an account in good standing, which keeps the tabs pinned to
-    // the top exactly as before; shown, it pushes them down.
+    // the top; shown, it pushes them down.
     func createAccountNoticeView() {
         accountNoticeView = AccountNoticeView()
         accountNoticeView.translatesAutoresizingMaskIntoConstraints = false
@@ -170,16 +164,6 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
             presenter = presented
         }
         presenter.present(ProductAnalyticsPromptViewController(), animated: true)
-    }
-
-    // GCKUIStyle resolves colors eagerly, so Cast chrome must be restyled on
-    // every effective appearance change — whether from the in-app theme picker
-    // or an OS-level light/dark flip while the theme is System.
-    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-        super.traitCollectionDidChange(previousTraitCollection)
-        if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
-            ChromecastManager.sharedInstance.applyAppearanceStyling()
-        }
     }
 
     func miniMediaControlsViewController(_ miniMediaControlsViewController: GCKUIMiniMediaControlsViewController, shouldAppear: Bool) {

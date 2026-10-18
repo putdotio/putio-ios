@@ -92,6 +92,7 @@ class PutioRealm {
     private static let unreadableFileCodes: Set<Realm.Error.Code> = [.fileFormatUpgradeRequired, .unsupportedFileFormatVersion, .invalidDatabase]
 
     // An in-memory Realm keeps its rows only while an instance is open.
+    // periphery:ignore - held, never read
     private static var fallbackRealm: Realm?
 
     // What a setup while the device was locked could not open.
@@ -340,7 +341,7 @@ class PutioRealm {
             }
         }
 
-        // One transaction, since this now runs on the main thread at launch. A
+        // One transaction, since this runs on the main thread at launch. A
         // failed write keeps the flag, so Restore can try again.
         if !recovered.isEmpty, !write(realm, context: "recoverDownloadsIfNeeded", updates: { realm.add(recovered, update: .all) }) {
             return
@@ -415,8 +416,8 @@ class PutioRealm {
         return FileManager.default.fileExists(atPath: fileURL.path)
     }
 
-    /// Re-attempt API enrichment for downloads that still have placeholder names.
-    /// Safe to call on every launch - just a query + API calls, no full recovery re-run.
+    /// Re-attempts API enrichment for downloads that still have placeholder names.
+    /// Safe on every launch: it never reruns full recovery.
     static func enrichPlaceholderDownloads(in realm: Realm? = nil) {
         guard let realm = realm ?? (try? Realm()) else { return }
 
@@ -445,7 +446,7 @@ class PutioRealm {
                     }
                     log.info("[PutioRealm] Enriched download \(fileId): \(file.name)")
                 case .failure:
-                    // Only replace "Recovering..." with a fallback - keep existing "Video/Audio X" as-is
+                    // A "Video/Audio X" fallback name stays as it is.
                     if download.name == localizedRecoveringPlaceholder {
                         let fallbackName = isVideo
                             ? String(format: localizedVideoPlaceholderFormat, fileId)

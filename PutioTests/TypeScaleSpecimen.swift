@@ -1,11 +1,7 @@
 import UIKit
 @testable import Putio
 
-// Shared specimen for the Type · Scale, used by the scaling test and the ramp
-// renderer.
-//
-// The role → anchor map mirrors Config/TypeScale.json and must be kept in sync
-// with it when roles are re-anchored.
+// The role → anchor map mirrors Config/TypeScale.json; keep the two in sync.
 enum TypeScaleSpecimen {
     struct Row {
         let role: BrandTypography.Role

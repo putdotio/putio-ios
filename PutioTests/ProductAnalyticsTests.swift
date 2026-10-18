@@ -34,8 +34,6 @@ final class ProductAnalyticsTests: XCTestCase {
         RecordingURLProtocol.reset()
     }
 
-    // MARK: - Allowlist
-
     func testOnlyContractFieldsSurviveTheAllowlist() throws {
         var properties: [String: Any] = [leak: leak]
         for key in sdkKeys + ["file_name", "title", "url", "search", "magnet", "oauth_token", "error", "email"] {
@@ -97,8 +95,6 @@ final class ProductAnalyticsTests: XCTestCase {
         }
     }
 
-    // MARK: - The SDK
-
     func testBeforeSendStripsWhatTheSDKAndCallersAddOnTheWire() throws {
         let (gate, token) = makeGate()
         gate.update(accountID: 1001, productAnalyticsEnabled: true)
@@ -121,8 +117,6 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertEqual(properties["screen"] as? String, "files")
         XCTAssertTrue(Set(properties.keys).isSubset(of: contractKeys(for: "screen_viewed")), "\(properties.keys)")
     }
-
-    // MARK: - The gate
 
     func testNoRequestBeforeSignInWithTheAnswerUnsetOrOff() throws {
         let (gate, token) = makeGate()
@@ -353,8 +347,6 @@ final class ProductAnalyticsTests: XCTestCase {
         }
     }
 
-    // MARK: - Event sources
-
     func testScenesOpenOnceAndTimeTheSession() {
         var events: [AnalyticsEvent] = []
         var clock = Date(timeIntervalSince1970: 0)
@@ -441,8 +433,6 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertEqual(events.withLock { $0 }, [.playbackStarted(video), .playbackEnded(video, .partial, .under5m)])
         playback = nil
     }
-
-    // MARK: - Helpers
 
     private var validSDKProperties: [String: Any] {
         [

@@ -6,7 +6,6 @@ class ChromecastManager: NSObject {
     static let sharedInstance = ChromecastManager()
 
     struct CastError {
-        var fileID: Int
         var reason: CastErrorReason
     }
 
@@ -68,11 +67,6 @@ class ChromecastManager: NSObject {
 
         GCKLogger.sharedInstance().filter = logFilter
         GCKLogger.sharedInstance().delegate = self
-    }
-
-    // Cast chrome is styled once at setup, so a theme change has to re-run it.
-    func applyAppearanceStyling() {
-        stylize()
     }
 
     private func stylize() {
@@ -235,12 +229,12 @@ class ChromecastManager: NSObject {
             switch result {
             case .success(let data):
                 guard let file = data.parent else {
-                    return completion(false, CastError(fileID: fileID, reason: .fileNotFound))
+                    return completion(false, CastError(reason: .fileNotFound))
                 }
                 castFile = file
 
                 if file.needConvert && file.metaData?.codec != "h264" {
-                    return completion(false, CastError(fileID: fileID, reason: .fileNeedsConvert))
+                    return completion(false, CastError(reason: .fileNeedsConvert))
                 }
 
                 let metadata = self.createGCKMediaMetadata(for: file)
@@ -249,7 +243,7 @@ class ChromecastManager: NSObject {
                 self.createGCKMediaInformation(for: file, metadata: metadata, mediaLoadOptions: mediaLoadOptions) { (mediaInformation, error) in
                     guard let mediaInformation = mediaInformation else {
                         requestError = error as? PutioSDKError
-                        return completion(false, CastError(fileID: fileID, reason: .missingMetadata))
+                        return completion(false, CastError(reason: .missingMetadata))
                     }
 
                     self.castingFileId = fileID
@@ -266,7 +260,7 @@ class ChromecastManager: NSObject {
 
             case .failure(let error):
                 requestError = error
-                completion(false, CastError(fileID: fileID, reason: .fileNotFound))
+                completion(false, CastError(reason: .fileNotFound))
             }
         }
     }
