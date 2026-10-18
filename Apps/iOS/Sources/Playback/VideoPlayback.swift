@@ -374,7 +374,7 @@ struct PutioNextVideoOverlay: View {
   let onPlay: () -> Void
   let onCancel: () -> Void
 
-  // Video chrome uses fixed white opacities under Apple contract 0.2.0.
+  // Video chrome uses fixed white opacities under the Apple contract (DESIGN.md).
   var body: some View {
     VStack(alignment: .leading, spacing: PutioTheme.Spacing.space3) {
       Text("Up Next")
