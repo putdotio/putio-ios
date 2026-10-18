@@ -88,12 +88,8 @@ compilation caches. Nothing on `next` signs, versions, or publishes. Upload
 reviewed screenshots or recordings with `gh pr comment <n> --attach ./file.png`;
 never commit them.
 
-Every Next CI run starts with `Select affected lanes`, which checks relative
-Markdown links and anchors offline, then runs the shared scan: Actionlint and
-Zizmor on `next` pushes that change `.github/`, and on every workflow when Next
-CI is dispatched. GitHub secret scanning and push protection catch secrets at
-push time. To re-verify a ref without pushing, dispatch Next CI with `verify`
-on: `gh workflow run ci-next.yml --ref next -f verify=true`.
+To re-verify a ref without pushing, dispatch Next CI with `verify` on:
+`gh workflow run ci-next.yml --ref next -f verify=true`.
 
 ## Skills
 

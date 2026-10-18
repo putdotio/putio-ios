@@ -16,15 +16,9 @@ putio CLI produces a warning. The [doctor wrapper](../scripts/doctor.sh) reports
 failures even when Swift cannot compile the harness.
 
 App builds use Debug and compile only the host's simulator architecture, locally
-and on CI. Device builds are unchanged. `mise run build` also compiles every app
-scheme in Release for the simulator, unoptimized and unsigned, so non-Debug
-branches keep compiling; optimized builds come from the beta and release
-archives. Release builds ignore harness launch arguments. `test` compiles its
-suites before it creates a Simulator, because a freshly booted one keeps every
-core busy. Right after an iOS Simulator boots, the harness unloads the system
-jobs the apps never use, such as Siri, Health, and Mail sync, which roughly
-halves that work. Game Center stays loaded: Xcode looks it up on every UI-test
-app launch, and each launch waits about 10 seconds without it. Commands that take 10 seconds or more print their duration.
+and on CI. `mise run build` also compiles every app scheme in Release for the
+simulator, unoptimized and unsigned, so non-Debug branches keep compiling.
+Release builds ignore harness launch arguments.
 
 ## Choose the proof
 
@@ -55,25 +49,13 @@ Slider dragging does not prove VoiceOver gestures, spoken output, or focus order
 The [tvOS journey](../Tests/tvOSUITests/Sources/DeviceSignInJourneyTests.swift)
 drives code expiry, approval, restored sign-in, and sign-out using simulated
 Siri Remote input. HTTP responses are fixtures; device-code polling, keychain,
-and UI run in the app. Its [signed-in tests](../Tests/tvOSUITests/Sources/AccountHistoryTrashJourneyTests.swift)
-record Home, History, Account, the proxy chooser, and Trash, with their
-centered modals, empty states, and recovery from the fixtures' one-time
-failures. Clearing History turns it off on the fixture account, so the Home
-capture after it shows the gate following an account change. The
-[browser tests](../Tests/tvOSUITests/Sources/FilesSearchJourneyTests.swift)
-record Your Files with its sort and long-press menus, paging, empty, error, and
-recovery states, the unsupported-type screen, and Search on the system keyboard.
-`--putio-harness-tv-browse` adds the empty and failing folders, a second root
-page that fails once and holds two files, and a root row that appears while
-Harness Folder is open, for the refetch on return. The Search test runs with
-`--putio-harness-trash-disabled`, so its menu offers a confirmed permanent delete.
-The [playback tests](../Tests/tvOSUITests/Sources/PlaybackJourneyTests.swift)
-stream the bundled HLS fixtures from the same loopback server: the resume
-decision with both choices, the successor's Up Next and its start over, a
-position report on the 15-second cadence, the system player's subtitle and
-speed menus with the audio track kept, and the conversion gate with its
-one-time failure. `--putio-harness-subtitled-stream` serves the multi-audio
-fixture shaped by the account's subtitle settings, as on iOS.
+and UI run in the app. The
+[signed-in](../Tests/tvOSUITests/Sources/AccountHistoryTrashJourneyTests.swift),
+[browser](../Tests/tvOSUITests/Sources/FilesSearchJourneyTests.swift), and
+[playback](../Tests/tvOSUITests/Sources/PlaybackJourneyTests.swift) tests record
+Home, History, Account, Trash, Your Files, Search, and the system player against
+the same fixtures and loopback server, including empty, error, and recovery
+states.
 
 For launch and rendering evidence, use:
 
@@ -249,23 +231,16 @@ token stays inside the app; the harness never sees it. The tvOS journey then
 signs out through the account screen. The iOS journey first opens the fixture
 folder and previews the image. Neither journey writes files.
 
-Signing out revokes the run's grant. Sign-out removes the saved token before it
-revokes it, so the live scenario's token store keeps a pending-revocation copy
-until put.io revokes or rejects the token. Then the app records the revocation in
-its data container. After any approval, even in a failed journey, the harness
-relaunches the app with `--putio-harness-live-sign-out`. The app restores the
-saved or pending token, signs it out, and reports the result. The harness makes
-up to three attempts while a launch fails, times out, or cannot revoke the saved
-token. A missing token is not proof: the
-journey passes only when put.io revoked or rejected the token in this launch or
-an earlier one. The journey and the interrupt handler share one guard for the
-run's grant. The approval write runs inside it, so SIGINT or SIGTERM either
-cancels an approval that has not started or revokes after it finishes. Revocation
-runs once, before simulator deletion. Interrupt cleanup waits for a simulator
-teardown the finished command has already started, and otherwise does the
-teardown itself. If an approval is interrupted before the app saves its
-token, nothing in the simulator can revoke the grant. The harness then reports
-that the grant may still be live and names the manual revocation.
+Signing out revokes the run's grant; the live token store keeps a
+pending-revocation copy until put.io revokes or rejects the token. After any
+approval, even in a failed journey, the harness relaunches the app with
+`--putio-harness-live-sign-out` to restore and sign out that token, making up to
+three attempts. A missing token is not proof: the journey passes only when
+put.io revoked or rejected the token. SIGINT or SIGTERM either cancels an
+approval that has not started or revokes after it finishes, once, before
+simulator deletion. If an approval is interrupted before the app saves its
+token, nothing in the simulator can revoke the grant; the harness reports that
+the grant may still be live and names the manual revocation.
 
 The CLI refuses to list authorized apps. The iOS journey captures Account >
 Security > "Where you're signed in" while signed in, but put.io lists grants per
@@ -285,26 +260,11 @@ Inspect retained diagnostics locally before sharing them.
 
 ## CI coverage
 
-[Next CI](../.github/workflows/ci-next.yml) owns branch triggers, toolchain
-selection, font provisioning, and checks. It runs each `mise run verify` lane and
-the iOS launch-proof subset in `mise run harness-ci` on its own runner, five in
-parallel; the proof reuses the build runner's compilation cache. Pull requests
-skip the iOS lanes and proof when every change is tvOS-only or documentation, and
-the tvOS suites when every change is iOS- or watchOS-only or documentation;
-pushes to `next` and dispatches with `verify` run every lane. Each runner
-enables Xcode compilation caching through `XCODE_XCCONFIG_FILE`; pushes to
-`next` build on that ISO week's cache and save it, the first push of a week
-builds cold, and pull requests restore the latest one. Runners also reuse a
-cached harness binary keyed on its sources, and
-skip `tuist install` when its dependency cache matches exactly. A Simulator boot
-that takes 3 minutes or more prints its `bootstatus` progress. The iOS tests and
-proof jobs restore a cached `putio-template-*` device that has already booted
-once and set `PUTIO_SIMULATOR_TEMPLATES=1`, so the harness clones it and skips
-first-boot data migration. The template is keyed on the Xcode build, the iOS
-runtime build, and the CoreSimulator version, so it survives runner image
-updates. On a miss, a push to `next` has the harness create the template and
-saves it after a green run; a pull request boots a fresh device. When a test fails,
-its runner uploads the `.xcresult` bundles from `build/DerivedData/Logs/Test` as
-a five-day artifact.
-Feature journeys are separate; run the affected journey for local interactive
-evidence.
+[Next CI](../.github/workflows/ci-next.yml) owns triggers, toolchain, font
+provisioning, path-based lane selection, and caching. It runs each
+`mise run verify` lane and the iOS launch-proof subset in `mise run harness-ci`
+on separate runners, and uploads `.xcresult` bundles when a test fails.
+`PUTIO_SIMULATOR_TEMPLATES=1`, which CI's
+[setup action](../.github/actions/setup-apple/action.yml) sets, makes the iOS
+harness clone a cached, already-booted `putio-template-*` device. Feature
+journeys do not run in CI; run the affected journey locally.
