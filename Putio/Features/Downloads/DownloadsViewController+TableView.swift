@@ -57,7 +57,7 @@ extension DownloadsViewController {
 }
 
 extension DownloadsViewController: DownloadsTableViewCellDelegate {
-    func downloadCellActionButtonTapped(download: Download, sender: DownloadsTableViewCell) {
+    func downloadCellActionButtonTapped(download: Download) {
         switch download.state {
         case .queued, .starting, .active:
             if download.fileType == .audio {

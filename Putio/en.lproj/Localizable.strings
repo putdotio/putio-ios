@@ -418,9 +418,6 @@
 "Information" = "Information";
 
 /* No comment provided by engineer. */
-"Invalid username or password" = "Invalid username or password";
-
-/* No comment provided by engineer. */
 "It may take a long time if there are too many files." = "It may take a long time if there are too many files.";
 
 /* No comment provided by engineer. */
@@ -548,9 +545,6 @@
 
 /* No comment provided by engineer. */
 "Please check your code and try again." = "Please check your code and try again.";
-
-/* No comment provided by engineer. */
-"Please check your credentials and try again." = "Please check your credentials and try again.";
 
 /* No comment provided by engineer. */
 "Please check your internet connection and try again." = "Please check your internet connection and try again.";

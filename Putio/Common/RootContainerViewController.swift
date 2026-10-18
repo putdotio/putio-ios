@@ -34,12 +34,6 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
         viewController.didMove(toParent: self)
     }
 
-    func uninstallViewController(_ viewController: UIViewController) {
-        viewController.willMove(toParent: nil)
-        viewController.view.removeFromSuperview()
-        viewController.removeFromParent()
-    }
-
     func createMainTabBarControllerView() {
         mainTabBarContainerView = UIView()
         mainTabBarContainerView.translatesAutoresizingMaskIntoConstraints = false
@@ -174,13 +168,6 @@ class RootContainerViewController: UIViewController, GCKUIMiniMediaControlsViewC
 
     // GCKUIStyle resolves colors eagerly, so Cast chrome must be restyled on
     // every effective appearance change.
-    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-        super.traitCollectionDidChange(previousTraitCollection)
-        if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
-            ChromecastManager.sharedInstance.applyAppearanceStyling()
-        }
-    }
-
     func miniMediaControlsViewController(_ miniMediaControlsViewController: GCKUIMiniMediaControlsViewController, shouldAppear: Bool) {
         updateControlBarsVisibility(shouldAppear: shouldAppear)
     }

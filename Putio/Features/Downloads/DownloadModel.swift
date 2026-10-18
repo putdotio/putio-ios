@@ -23,6 +23,7 @@ class Download: Object {
     @objc dynamic var fileTypeRaw: Int = FileType.video.rawValue
 
     @objc dynamic var url: String = ""
+    // periphery:ignore - persisted Realm column
     @objc dynamic var path: String = ""
 
     convenience init?(file: PutioFile, url: String) {

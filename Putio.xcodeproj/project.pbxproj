@@ -115,7 +115,6 @@
 		AC8F20032B10000100C0F001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AC8F20022B10000100C0F001 /* PrivacyInfo.xcprivacy */; };
 		AC918F6E2AF128920082BFAF /* RootContainerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC918F6D2AF128920082BFAF /* RootContainerViewController.swift */; };
 		AC9E11FA27A7DFFB00E50966 /* DestroyAccounViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC9E11F927A7DFFB00E50966 /* DestroyAccounViewController.swift */; };
-		AC9F15EC23B98A5700C09BAB /* UIView+FindSubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC9F15EB23B98A5700C09BAB /* UIView+FindSubView.swift */; };
 		ACA0E003282CF66A00184DF7 /* EnableTwoFactorCodeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACA0E002282CF66A00184DF7 /* EnableTwoFactorCodeViewController.swift */; };
 		ACAA621C23BCC2430043458C /* CMTime+getFiniteSeconds.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACAA621B23BCC2430043458C /* CMTime+getFiniteSeconds.swift */; };
 		ACAA622923BD05A80043458C /* VideoConversion.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = ACAA622823BD05A80043458C /* VideoConversion.storyboard */; };
@@ -319,7 +318,6 @@
 		AC8F20022B10000100C0F001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AC918F6D2AF128920082BFAF /* RootContainerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootContainerViewController.swift; sourceTree = "<group>"; };
 		AC9E11F927A7DFFB00E50966 /* DestroyAccounViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DestroyAccounViewController.swift; sourceTree = "<group>"; };
-		AC9F15EB23B98A5700C09BAB /* UIView+FindSubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIView+FindSubView.swift"; sourceTree = "<group>"; };
 		ACA0E002282CF66A00184DF7 /* EnableTwoFactorCodeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnableTwoFactorCodeViewController.swift; sourceTree = "<group>"; };
 		ACAA621B23BCC2430043458C /* CMTime+getFiniteSeconds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CMTime+getFiniteSeconds.swift"; sourceTree = "<group>"; };
 		ACAA622823BD05A80043458C /* VideoConversion.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = VideoConversion.storyboard; sourceTree = "<group>"; };
@@ -587,7 +585,6 @@
 				2D4F6A8C0E1B3D5F7A9C1E3B /* UILabel+Appearance.swift */,
 				AC76E0271FB4D68800693A18 /* UITableView+HeaderFooter.swift */,
 				AC76E0291FB4D6A100693A18 /* UITableViewCell+Appearance.swift */,
-				AC9F15EB23B98A5700C09BAB /* UIView+FindSubView.swift */,
 				ACB8E04A1FC45926003DFF4F /* Bundle+Info.swift */,
 				AC0FC8BC1FC2D18B002E775B /* String+Truncate.swift */,
 				AC1B592223B7EDCB00CDAF1D /* String+Slugify.swift */,
@@ -1309,7 +1306,6 @@
 			files = (
 				ACDA73E6278D991200C59611 /* Date+TimeAgo.swift in Sources */,
 				ACB05CC71FF16CC800F844E4 /* OfflineStatusView.swift in Sources */,
-				AC9F15EC23B98A5700C09BAB /* UIView+FindSubView.swift in Sources */,
 				ACB7637124B3B439007289DA /* Debouncer.swift in Sources */,
 				10A000000000000000000001 /* Log.swift in Sources */,
 				AC6F93951FD6C22D00B2E79F /* DownloadsViewController.swift in Sources */,

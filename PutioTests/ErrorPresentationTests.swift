@@ -6,7 +6,6 @@ import GoogleCast
 
 private struct MockPutioError: PutioErrorLocalizableInput {
     let localizerType: PutioSDKErrorType
-    let localizerMessage: String
 }
 
 final class ErrorPresentationTests: XCTestCase {
@@ -68,7 +67,7 @@ final class ErrorPresentationTests: XCTestCase {
         let tableViewController = SettingsTableViewControllerSpy(style: .insetGrouped)
         viewModel.tableViewController = tableViewController
 
-        viewModel.presentSettingsRefreshError(MockPutioError(localizerType: .networkError, localizerMessage: "offline"))
+        viewModel.presentSettingsRefreshError(MockPutioError(localizerType: .networkError))
 
         let alert = try XCTUnwrap(tableViewController.presentedAlert)
         XCTAssertEqual(alert.title, NSLocalizedString("Network error", comment: ""))
@@ -93,7 +92,7 @@ final class ErrorPresentationTests: XCTestCase {
     func testAuthAppsTableViewControllerPresentsLocalizedErrorCopy() throws {
         let viewController = AuthAppsTableViewControllerSpy(style: .insetGrouped)
 
-        viewController.presentAuthAppsError(MockPutioError(localizerType: .unknownError, localizerMessage: "boom"))
+        viewController.presentAuthAppsError(MockPutioError(localizerType: .unknownError))
 
         let alert = try XCTUnwrap(viewController.presentedAlert)
         XCTAssertEqual(alert.title, NSLocalizedString("Something went wrong", comment: ""))

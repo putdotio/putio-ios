@@ -30,8 +30,6 @@ class TrashViewModel {
         }
     }
 
-    var cursor: String = ""
-
     var files: [PutioTrashFile] = [] {
         didSet {
             if files.count == 0 {
@@ -61,7 +59,6 @@ class TrashViewModel {
         api.listTrash { result in
             switch result {
             case .success(let data):
-                self.cursor = data.cursor ?? ""
                 self.files = data.files
                 self.trashSize = data.trash_size
 

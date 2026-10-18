@@ -1,31 +1,13 @@
 import Foundation
 import PutioSDK
 
-struct PutioLocalizedErrorRecoveryActionTrigger {
-    let label: String
-    let callback: () -> Void
-}
-
 enum PutioLocalizedErrorRecoverySuggestion {
     case instruction(description: String)
-    case action(description: String, trigger: PutioLocalizedErrorRecoveryActionTrigger)
 
     var description: String {
         switch self {
         case .instruction(let description):
             return description
-
-        case .action(let description, _):
-            return description
-        }
-    }
-
-    var trigger: PutioLocalizedErrorRecoveryActionTrigger? {
-        switch self {
-        case .instruction:
-            return nil
-        case .action(_, let trigger):
-            return trigger
         }
     }
 }
@@ -33,17 +15,14 @@ enum PutioLocalizedErrorRecoverySuggestion {
 struct PutioLocalizedError {
     let message: String
     let recoverySuggestion: PutioLocalizedErrorRecoverySuggestion
-    let underlyingError: Error
 }
 
 protocol PutioErrorLocalizableInput: Error {
     var localizerType: PutioSDKErrorType { get }
-    var localizerMessage: String { get }
 }
 
 extension PutioSDKError: PutioErrorLocalizableInput {
     var localizerType: PutioSDKErrorType { type }
-    var localizerMessage: String { message }
 }
 
 struct APIErrorLocalizer {
@@ -59,22 +38,20 @@ struct APIErrorLocalizer {
 
 let unknownErrorLocalizer = APIErrorLocalizer(
     matcher: .unknown,
-    localize: { error in
+    localize: { _ in
         return PutioLocalizedError(
             message: NSLocalizedString("Something went wrong", comment: ""),
-            recoverySuggestion: .instruction(description: NSLocalizedString("Please try again later", comment: "")),
-            underlyingError: error
+            recoverySuggestion: .instruction(description: NSLocalizedString("Please try again later", comment: ""))
         )
     }
 )
 
 let networkErrorLocalizer = APIErrorLocalizer(
     matcher: .statusCode(0),
-    localize: { error in
+    localize: { _ in
         return PutioLocalizedError(
             message: NSLocalizedString("Network error", comment: ""),
-            recoverySuggestion: .instruction(description: NSLocalizedString("Please check your internet connection and try again.", comment: "")),
-            underlyingError: error
+            recoverySuggestion: .instruction(description: NSLocalizedString("Please check your internet connection and try again.", comment: ""))
         )
     }
 )

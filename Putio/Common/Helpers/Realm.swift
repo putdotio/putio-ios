@@ -92,6 +92,7 @@ class PutioRealm {
     private static let unreadableFileCodes: Set<Realm.Error.Code> = [.fileFormatUpgradeRequired, .unsupportedFileFormatVersion, .invalidDatabase]
 
     // An in-memory Realm keeps its rows only while an instance is open.
+    // periphery:ignore - held, never read
     private static var fallbackRealm: Realm?
 
     // What a setup while the device was locked could not open.

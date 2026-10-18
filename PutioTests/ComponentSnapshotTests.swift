@@ -25,32 +25,30 @@ final class ComponentSnapshotTests: XCTestCase {
             XCTFail("Component snapshots require the app's window scene", file: file, line: line)
             return
         }
-        for (label, style) in [("dark", UIUserInterfaceStyle.dark)] {
-            let window = UIWindow(windowScene: scene)
-            window.frame = CGRect(origin: .zero, size: size)
-            window.overrideUserInterfaceStyle = style
-            if let contentSizeCategory {
-                window.traitOverrides.preferredContentSizeCategory = contentSizeCategory
-            }
-            window.backgroundColor = UIColor.Putio.Surface.appBg
-            view.frame = window.bounds
-            window.addSubview(view)
-            window.isHidden = false
-            window.layoutIfNeeded()
-
-            assertSnapshot(
-                of: window,
-                as: .image(precision: 0.995, perceptualPrecision: 0.98),
-                named: "\(label)-\(name)",
-                record: isRecording,
-                file: file,
-                testName: testName,
-                line: line
-            )
-
-            view.removeFromSuperview()
-            window.isHidden = true
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(origin: .zero, size: size)
+        window.overrideUserInterfaceStyle = .dark
+        if let contentSizeCategory {
+            window.traitOverrides.preferredContentSizeCategory = contentSizeCategory
         }
+        window.backgroundColor = UIColor.Putio.Surface.appBg
+        view.frame = window.bounds
+        window.addSubview(view)
+        window.isHidden = false
+        window.layoutIfNeeded()
+
+        assertSnapshot(
+            of: window,
+            as: .image(precision: 0.995, perceptualPrecision: 0.98),
+            named: "dark-\(name)",
+            record: isRecording,
+            file: file,
+            testName: testName,
+            line: line
+        )
+
+        view.removeFromSuperview()
+        window.isHidden = true
     }
 
     private func selfSizingHeight(

@@ -18,13 +18,11 @@ class AudioPlayerViewController: UIViewController {
     var nextMediaFinder = NextMediaFinder()
 
     var player: AVQueuePlayer?
-    var timeObservers: [Any?] = []
     var playerQueueObserver: NSKeyValueObservation?
     var playerTimeControlStatusObserver: NSKeyValueObservation?
     private lazy var playbackAnalytics = mediaItems?.first.map { PlaybackAnalytics($0.analyticsPlayback) }
     var playerTimeObserver: Any?
     var playerSetStartFromTimeObserver: Any?
-    var setStartFromTimer: Timer?
     var setStartFromMap = [Int: Int]()
 
     var commandCenterTargets: [String: Any] = [:]

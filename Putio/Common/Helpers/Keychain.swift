@@ -9,13 +9,11 @@ class PutioKeychain {
     /// without this an upgrade from 2.58.0 signs everyone out.
     static let shipped258ServiceKey = "com.putio.tvOS"
 
-    let serviceKey: String
     let tokenKey: String = "access_token"
     let keychain: Keychain
     private let legacyKeychain: Keychain?
 
     init(serviceKey: String = APP_KEYCHAIN_SERVICE, legacyServiceKey: String? = PutioKeychain.shipped258ServiceKey) {
-        self.serviceKey = serviceKey
         keychain = Keychain(service: serviceKey)
         legacyKeychain = legacyServiceKey.flatMap { $0 == serviceKey ? nil : Keychain(service: $0) }
     }

@@ -760,7 +760,7 @@ private final class DownloadCellDelegateSpy: DownloadsTableViewCellDelegate {
     private(set) var selectionActivationCount = 0
     var selectionActivationResult = false
 
-    func downloadCellActionButtonTapped(download: Download, sender: DownloadsTableViewCell) {
+    func downloadCellActionButtonTapped(download: Download) {
         activatedDownloadIDs.append(download.id)
     }
 

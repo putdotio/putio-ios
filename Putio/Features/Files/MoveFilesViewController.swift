@@ -3,7 +3,7 @@ import StatefulViewController
 import PutioSDK
 
 protocol MoveFilesViewControllerDelegate: AnyObject {
-    func moveFilesCompleted(movedTo: PutioFile)
+    func moveFilesCompleted()
     func moveFilesCancelled()
 }
 
@@ -122,7 +122,7 @@ class MoveFilesViewController: UIViewController, StatefulViewController, FolderC
                 switch result {
                 case .success:
                     self.dismiss(animated: true, completion: nil)
-                    self.delegate?.moveFilesCompleted(movedTo: destination)
+                    self.delegate?.moveFilesCompleted()
 
                 case .failure(let error):
                     let errorAlert = UIAlertController(

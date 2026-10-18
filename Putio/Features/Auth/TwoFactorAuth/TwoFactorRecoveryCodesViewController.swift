@@ -77,7 +77,7 @@ class TwoFactorRecoveryCodesViewController: UIViewController, StatefulViewContro
         case .confirmSave:
             navigationController?.dismiss(animated: true)
         case .regenerateCodes:
-            viewModel.regenerateRecoveryCodes { _ in }
+            viewModel.regenerateRecoveryCodes()
         }
     }
 

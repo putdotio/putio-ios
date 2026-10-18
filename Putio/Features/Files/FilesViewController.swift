@@ -13,6 +13,7 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     var navigationActionsBarButtonItem: UIBarButtonItem?
     var editingToolbar: UIToolbar?
     #if DEBUG
+    // periphery:ignore - held for its init/deinit side effects
     private let perfProbeToken = PutioE2EPerfProbe.FilesControllerToken()
     #endif
 
