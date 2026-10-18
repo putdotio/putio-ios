@@ -47,6 +47,7 @@ final class PrivacyControlsUITests: XCTestCase {
         XCTAssertTrue(row.isHittable, "Account should have one Privacy controls row")
         XCTAssertTrue(row.staticTexts["Diagnostics on · Product analytics off"].exists, "the row should show the current state")
         XCTAssertFalse(table.staticTexts["Strictly necessary"].exists, "the controls live on their own page")
+        attachScreenshot(of: app, named: "Account privacy row")
         row.tap()
 
         XCTAssertTrue(app.navigationBars["Privacy controls"].waitForExistence(timeout: 5))
