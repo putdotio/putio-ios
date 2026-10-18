@@ -72,8 +72,6 @@ final class TVFilesTests: XCTestCase {
       .nameAscending)
   }
 
-  /// History and Search open what the browser opens: folders browse, and
-  /// every other file gets its own screen.
   func testOpeningAFolderBrowsesItAndAFileOpensItsScreen() {
     let folder = Self.video(id: 410, kind: .folder)
     XCTAssertEqual(

@@ -171,7 +171,6 @@ final class FilePreviewTests: XCTestCase {
       url, limit: 16, configuration: configuration)
     XCTAssertEqual(data.count, 12)
 
-    // Exactly at the cap is allowed; one byte over is rejected.
     url = PreviewStubURLProtocol.url(status: 200, byteCount: 16)
     let full = try await PutioPreviewDownloader.download(
       url, limit: 16, configuration: configuration)

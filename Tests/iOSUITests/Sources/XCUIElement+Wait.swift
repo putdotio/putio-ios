@@ -3,8 +3,8 @@ import XCTest
 extension XCUIElement {
   /// XCTest's `waitForExistence(timeout:)` and `waitForNonExistence(timeout:)`
   /// sleep a full one-second poll before they first look, even when the answer
-  /// is already true, which made those waits nearly half of a journey test's
-  /// time. These look first, then poll every 100 ms until the timeout.
+  /// is already true. These look first, then poll every 100 ms until the
+  /// timeout.
   ///
   /// `appears` also waits until the element stops moving, because a tap lands
   /// where the element is at that instant: a button in a sheet or cover that
