@@ -108,8 +108,11 @@ final class FilePreferencesJourneyTests: XCTestCase {
     let diagnostics = app.switches["privacy.diagnostics"]
     let analytics = app.switches["privacy.product-analytics"]
     app.navigationBars.buttons["BackButton"].tap()
+    assertPrivacySummary("Diagnostics on · Product analytics off")
     openPrivacy()
     XCTAssertTrue(element("privacy.strictly-necessary").exists)
+    XCTAssertTrue(element("privacy.policy").exists)
+    XCTAssertTrue(element("privacy.services").exists)
     assertToggle(diagnostics, enabled: true)
     assertToggle(analytics, enabled: false)
     tapToggle(analytics)
@@ -129,6 +132,7 @@ final class FilePreferencesJourneyTests: XCTestCase {
     assertToggle(trash, enabled: false)
     assertToggle(history, enabled: true)
     app.navigationBars.buttons["BackButton"].tap()
+    assertPrivacySummary("Diagnostics off · Product analytics on")
     openPrivacy()
     assertToggle(diagnostics, enabled: false)
     assertToggle(analytics, enabled: true)
@@ -168,6 +172,12 @@ final class FilePreferencesJourneyTests: XCTestCase {
     XCTAssertTrue(waitUntilHittable(entry))
     entry.tap()
     XCTAssertTrue(waitUntilHittable(app.switches["privacy.diagnostics"]))
+  }
+
+  private func assertPrivacySummary(_ summary: String) {
+    let entry = element("account.privacy")
+    XCTAssertTrue(waitUntilHittable(entry))
+    XCTAssertTrue(entry.label.contains(summary), "Account row read \(entry.label)")
   }
 
   private func assertFirstFile(_ name: String) {

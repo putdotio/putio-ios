@@ -43,8 +43,15 @@ struct AccountView: View {
             AccountSecurityView(runtime: runtime)
           }
           .accessibilityIdentifier("account.security")
-          NavigationLink("Privacy") {
+          NavigationLink {
             PrivacyControlsView(runtime: runtime)
+          } label: {
+            VStack(alignment: .leading, spacing: PutioTheme.Spacing.space1) {
+              Text(PutioPrivacyControls.title)
+              Text(PutioPrivacyControls.summary(for: account))
+                .putioFont(PutioTheme.Typography.caption)
+                .foregroundStyle(PutioTheme.Colors.textSecondary)
+            }
           }
           .accessibilityIdentifier("account.privacy")
         }
