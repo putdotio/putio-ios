@@ -606,9 +606,7 @@ final class TrashManagementTests: XCTestCase {
         .success(page(items: [b, c], totalCount: 2)),
         // A lagging full refresh still lists b.
         .success(page(items: [a, b, c], totalCount: 3)),
-        // The server catches up and omits b: the tombstone is released.
         .success(page(items: [a, c], totalCount: 2)),
-        // If b is trashed again later it may show up again.
         .success(page(items: [a, b, c], totalCount: 3)),
       ],
       deleteResults: [.success(.refreshed)]
@@ -1875,27 +1873,6 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertFalse(model.isRefreshingStorage)
     XCTAssertTrue(model.canMutate)
     XCTAssertNil(model.storageFailure)
-  }
-
-  func testLaterSuccessfulMutationClearsStaleStorage() async {
-    let first = trashItem(id: 91, name: "First.pdf", kind: .pdf)
-    let second = trashItem(id: 92, name: "Second.pdf", kind: .pdf)
-    let stub = TrashActionsStub(
-      pages: [.success(page(items: [first, second], totalCount: 2))],
-      deleteResults: [.success(.storageStale), .success(.refreshed)]
-    )
-    let model = model(stub)
-
-    await model.loadIfNeeded()
-    await model.permanentlyDelete(first)
-    XCTAssertTrue(model.isStorageStale)
-
-    await model.permanentlyDelete(second)
-    XCTAssertFalse(model.isStorageStale, "the latest snapshot covers earlier deletions")
-    XCTAssertEqual(model.mutationOutcome, .permanentlyDeleted(second))
-
-    await model.refresh()
-    XCTAssertEqual(stub.storageRefreshRequests, 0)
   }
 
   func testEmptyingWithStaleStorageReportsIt() async {

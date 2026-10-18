@@ -16,8 +16,9 @@ public enum PutioDownloadState: Equatable, Sendable {
   // A queue is not progress, so queued shows no ring; failed reuses the idle
   // glyph and leaves the reason to the row subtitle.
   //
-  // Apple contract 0.2.0 accepts the intrinsic 47pt ring and its tint-derived
-  // track. The 44pt target is a minimum, not a constraint on the stock gauge.
+  // The Apple contract (DESIGN.md) accepts the intrinsic 47pt ring and its
+  // tint-derived track. The 44pt target is a minimum, not a constraint on
+  // the stock gauge.
   public struct PutioDownloadStateButton: View {
     private let state: PutioDownloadState
     private let action: () -> Void
