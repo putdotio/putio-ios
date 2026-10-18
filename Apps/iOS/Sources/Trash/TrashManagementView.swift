@@ -21,13 +21,6 @@ struct TrashManagementView: View {
         runtime: runtime, reconciliation: reconciliation, onRestored: onRestored))
   }
 
-  init(
-    actions: PutioTrashActions,
-    onRestored: @escaping PutioTrashDidRestore = { _ in }
-  ) {
-    _model = State(initialValue: PutioTrashModel(actions: actions, onRestored: onRestored))
-  }
-
   var body: some View {
     Group {
       switch model.state {

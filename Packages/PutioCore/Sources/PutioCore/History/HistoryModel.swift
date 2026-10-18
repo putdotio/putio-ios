@@ -30,8 +30,6 @@ public struct PutioHistoryActions: Sendable {
 public struct PutioHistoryFailure: Equatable {
   public let message: String
 
-  init(message: String) { self.message = message }
-
   init?(error: Error) {
     guard !(error is CancellationError) else { return nil }
     switch error as? PutioRuntimeError {
@@ -270,10 +268,6 @@ public final class PutioHistoryModel {
   func clearMutationFailure() {
     mutationFailure = nil
     failedMutation = nil
-  }
-  func clearOpenFailure() {
-    openFailure = nil
-    failedOpen = nil
   }
 }
 

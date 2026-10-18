@@ -212,10 +212,6 @@ struct TVIconLabel: View {
   let title: String
   let image: Image
 
-  init(title: String, icon: PutioIcon) {
-    self.init(title: title, image: Image(putioIcon: icon))
-  }
-
   init(title: String, image: Image) {
     self.title = title
     self.image = image

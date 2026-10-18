@@ -51,7 +51,7 @@ private func brandFontInfoPlist(for platform: String) -> Plist.Value {
 }
 
 // Google Cast discovers receivers over Bonjour; the receiver-specific service
-// name lets iOS 14+ local-network permission scope discovery to one app ID.
+// name lets local-network permission scope discovery to one app ID.
 // `CC1AD845` is Google's public Default Media Receiver, so the checked-in
 // default stays open-source-safe; beta and release builds override it.
 private let castBonjourServices: Plist.Value = [
@@ -66,8 +66,8 @@ private let castBuildSettings: SettingsDictionary = [
 
 // The put.io OAuth client is supplied per build through this setting and
 // read from Info.plist by `PutioRuntimeFactory`; the checked-in value is
-// empty so the runtime falls back to the public open-source client. App
-// identity work overrides it in signed builds without touching source.
+// empty so the runtime falls back to the public open-source client; signed
+// builds override it.
 private let oauthBuildSettings: SettingsDictionary = [
   "PUTIO_OAUTH_CLIENT_ID": ""
 ]
@@ -81,14 +81,14 @@ private let appStoreBuildSettings: SettingsDictionary = [
 ]
 private let appStoreInfoPlist: Plist.Value = "$(PUTIO_APP_STORE_ID)"
 
-// Diagnostics (#139), read by `SentryConfiguration`. The checked-in DSN is
+// Diagnostics, read by `SentryConfiguration`. The checked-in DSN is
 // empty, so local and CI builds report nothing; signed builds supply it. Any
 // `PUTIO_SENTRY_ENABLED` other than `YES` is the kill switch.
 private let sentryBuildSettings: SettingsDictionary = [
   "PUTIO_SENTRY_DSN": "",
   "PUTIO_SENTRY_ENABLED": "YES",
 ]
-// Support messenger (#139), read by `IntercomConfiguration`. The checked-in
+// Support messenger, read by `IntercomConfiguration`. The checked-in
 // keys are empty, so local and CI builds never start Intercom; signed builds
 // supply them. Any `PUTIO_INTERCOM_ENABLED` other than `YES` is the kill switch.
 private let intercomBuildSettings: SettingsDictionary = [

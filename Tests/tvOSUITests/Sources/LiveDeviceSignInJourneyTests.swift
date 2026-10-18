@@ -1,8 +1,9 @@
 import XCTest
 
 /// Signs in to the devs-auto put.io account with a real activation code,
-/// opens Account from Home, and signs out again. Only `journey --scenario live-device-sign-in` runs it: the
-/// harness approves the code the app reports while this test waits.
+/// opens Account from Home, and signs out again. Only
+/// `journey --scenario live-device-sign-in` runs it: the harness approves the
+/// code the app reports while this test waits.
 final class LiveDeviceSignInJourneyTests: XCTestCase {
   func testApprovedCodeSignsInAndSignOutRevokes() throws {
     try XCTSkipUnless(

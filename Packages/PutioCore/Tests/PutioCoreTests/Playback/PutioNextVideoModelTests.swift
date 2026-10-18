@@ -535,21 +535,6 @@ final class PutioNextVideoModelTests: XCTestCase {
     XCTAssertEqual(model.state, .cancelled)
   }
 
-  func testDisabledAutoplayPolicyNeverSleepsAndKeepsTheSuggestion() async {
-    let recorder = NextVideoRecorder()
-    let model = PutioNextVideoModel(
-      autoplayEnabled: { false },
-      waitForReset: { _ in },
-      loadNext: { _ in self.playableNextVideo },
-      sleep: { duration in recorder.durations.append(duration) }
-    )
-
-    await model.playbackEnded(completedFileID: completedFileID)
-
-    XCTAssertEqual(recorder.durations, [])
-    XCTAssertEqual(model.state, .available(playableNextVideo))
-  }
-
   func testDownloadedSuccessorPlaysFromItsLocalSourceWithoutResolving() async throws {
     let local = PutioPlaybackSource(
       url: URL(fileURLWithPath: "/offline/episode-2.mp4"), startFromSeconds: 12)

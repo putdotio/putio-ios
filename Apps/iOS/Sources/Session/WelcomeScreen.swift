@@ -2,9 +2,9 @@ import AuthenticationServices
 import PutioCore
 import SwiftUI
 
-/// The signed-out phone screen (mobile-s00-welcome): the retro wordmark in the
-/// navigation-bar slot, the kaomoji lockup anchored in the upper third, and a
-/// single action pinned above the bottom safe area.
+/// The signed-out phone screen: the retro wordmark in the navigation-bar
+/// slot, the kaomoji lockup anchored in the upper third, and a single action
+/// pinned above the bottom safe area.
 struct WelcomeScreen: View {
   enum Mode: Equatable {
     case fresh

@@ -51,47 +51,6 @@ public struct PutioSheetScaffold<Content: View>: View {
   }
 }
 
-extension View {
-  // System sheet on iOS and watchOS; centered solid modal on tvOS.
-  public func putioModal<Content: View>(
-    isPresented: Binding<Bool>,
-    title: String,
-    @ViewBuilder content: @escaping () -> Content
-  ) -> some View {
-    modifier(PutioModalPresenter(isPresented: isPresented, title: title, modal: content))
-  }
-}
-
-private struct PutioModalPresenter<Modal: View>: ViewModifier {
-  @Binding var isPresented: Bool
-  let title: String
-  @ViewBuilder let modal: () -> Modal
-
-  func body(content: Content) -> some View {
-    #if os(tvOS)
-      content.overlay {
-        if isPresented {
-          ZStack {
-            PutioTheme.Components.Sheet.scrim.ignoresSafeArea()
-            PutioSheetScaffold(title: title) { modal() }
-              .padding(PutioTheme.TV.Spacing.xl)
-          }
-          .transition(.opacity)
-          .zIndex(PutioTheme.TV.ZIndex.modal)
-        }
-      }
-      .animation(
-        PutioTheme.Motion.easingInOut.animation(duration: PutioTheme.Motion.durationBase),
-        value: isPresented
-      )
-    #else
-      content.sheet(isPresented: $isPresented) {
-        PutioSheetScaffold(title: title) { modal() }
-      }
-    #endif
-  }
-}
-
 enum PutioSheetLayout {
   #if os(tvOS)
     static let titleFont = PutioTheme.TV.Typography.label

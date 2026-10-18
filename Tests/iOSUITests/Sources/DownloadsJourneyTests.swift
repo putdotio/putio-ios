@@ -195,12 +195,6 @@ final class DownloadsJourneyTests: XCTestCase {
     return value == "1"
   }
 
-  private func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
-    let expectation = XCTNSPredicateExpectation(
-      predicate: NSPredicate(format: "hittable == true"), object: element)
-    return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
-  }
-
   private func waitUntil(timeout: TimeInterval, _ condition: @escaping () -> Bool) -> Bool {
     let expectation = XCTNSPredicateExpectation(
       predicate: NSPredicate { _, _ in condition() }, object: nil)

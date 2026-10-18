@@ -24,5 +24,4 @@ Account › Contact us opens the messenger once the login finished. While it is
 logging in, or without keys or a hash, it opens an email to support; after a
 failed login it retries once, then opens email. Only
 [IntercomSupportClient](../Apps/iOS/Sources/Support/IntercomSupportClient.swift)
-imports Intercom; `scripts/test.sh` enforces it. The app has no remote push
-yet, so Intercom push notifications are not wired.
+imports Intercom; `scripts/test.sh` enforces it.

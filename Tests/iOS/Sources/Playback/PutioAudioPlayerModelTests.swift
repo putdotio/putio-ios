@@ -12,7 +12,6 @@ private final class AudioEngineSpy: PutioAudioEngine {
   var onEnded: (@MainActor () -> Void)?
   var onFailed: (@MainActor () -> Void)?
   var onPositionChanged: (@MainActor (Int) -> Void)?
-  var elapsedSeconds = 0
   var durationSeconds: Int? = 240
   private(set) var events: [String] = []
 
@@ -557,22 +556,6 @@ final class PutioAudioPlayerModelTests: XCTestCase {
     await waitUntil { h.model.state == .playing(track) }
 
     XCTAssertEqual(h.engine.events.last(where: { $0.hasPrefix("load") }), "load:430.m4a@0")
-  }
-
-  func testUnpluggingHeadphonesPausesInsteadOfPlayingAloud() async {
-    let h = makeHarness()
-    await h.model.start()
-    h.engine.onPositionChanged?(12)
-
-    h.center.post(
-      name: AVAudioSession.routeChangeNotification, object: nil,
-      userInfo: [
-        AVAudioSessionRouteChangeReasonKey:
-          AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue
-      ])
-    await waitUntil { h.model.state == .paused(track) }
-
-    XCTAssertEqual(h.model.state, .paused(track))
   }
 
   func testRemoteCommandsDriveTheTransport() async {

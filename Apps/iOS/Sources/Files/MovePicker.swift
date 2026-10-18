@@ -12,6 +12,7 @@ struct PutioMovePicker: View {
   let onMove: @MainActor (PutioFolderRoute) -> Void
 
   @Environment(\.dismiss) private var dismiss
+  // periphery:ignore - read only through `$path`
   @State private var path: [PutioFolderRoute] = []
 
   var body: some View {

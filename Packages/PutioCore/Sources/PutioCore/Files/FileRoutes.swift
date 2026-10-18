@@ -63,7 +63,6 @@ public struct PutioFileRoute: Identifiable, Hashable, Sendable {
     return .unsupported(PutioUnsupportedFileRoute(item: item))
   }
 
-  /// A route that opens a player of any kind.
   var isPlayable: Bool {
     videoPlaybackRoute != nil || audioPlaybackRoute != nil
   }

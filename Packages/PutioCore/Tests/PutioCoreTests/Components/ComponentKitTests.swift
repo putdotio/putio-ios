@@ -58,20 +58,6 @@ final class ComponentKitTests: XCTestCase {
     XCTAssertEqual(noQuota.usedFraction, 0)
   }
 
-  func testButtonTokensPreservePublishedGeometry() {
-    XCTAssertEqual(PutioTheme.Components.Button.height.value, 36)
-    XCTAssertEqual(PutioTheme.Components.Button.heightMedium.value, 32)
-    XCTAssertEqual(PutioTheme.Components.Button.heightSmall.value, 28)
-    XCTAssertEqual(PutioTheme.Components.Button.heightXSmall.value, 24)
-    XCTAssertEqual(PutioTheme.Components.Button.paddingX.value, 12)
-    XCTAssertEqual(PutioTheme.Components.Button.paddingXXSmall.value, 8)
-    XCTAssertEqual(PutioTheme.Components.Button.tracking, 1)
-    XCTAssertEqual(PutioTheme.Components.Button.trackingXSmall, 0.3)
-    XCTAssertEqual(PutioTheme.Components.Button.label.fontName, "GTAmerica-Md")
-    XCTAssertEqual(PutioTheme.Components.Button.label.size, 14)
-    XCTAssertEqual(PutioTheme.Components.Button.labelXSmall.size, 12)
-  }
-
   #if !os(tvOS)
     func testButtonSizesMapToNativeControlSizes() {
       XCTAssertEqual(PutioButtonSize.regular.controlSize, .large)

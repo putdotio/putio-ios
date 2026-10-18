@@ -32,11 +32,6 @@ public struct PutioComponentGallery: View {
   private let page: Page
   private let autoAdvanceInterval: TimeInterval?
 
-  public init(page: Page) {
-    self.page = page
-    self.autoAdvanceInterval = nil
-  }
-
   public init(autoAdvanceEvery interval: TimeInterval) {
     self.page = .buttons
     self.autoAdvanceInterval = interval
@@ -294,9 +289,13 @@ private struct FeedbackPage: View {
 }
 
 private struct FormsGallery: View {
+  // periphery:ignore - read only through `$` bindings, as are the three below
   @State private var name = "incoming"
+  // periphery:ignore
   @State private var invalid = ""
+  // periphery:ignore
   @State private var usesTrash = true
+  // periphery:ignore
   @State private var route = "Frankfurt"
 
   var body: some View {

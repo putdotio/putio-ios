@@ -13,8 +13,6 @@ private let runtime = try! JSONDecoder().decode(
        "productFamily":"iPhone"}]}
     """#.utf8))
 
-/// Runs `simulatorTemplate` against a fake `xcrun` that lists the template
-/// only when `existing` is set, recording every simctl invocation.
 private func withFakeTemplateSimctl(
   existing: String?, _ body: (SimulatorHarness) throws -> String?
 ) throws -> (template: String?, calls: [String]) {

@@ -1,10 +1,8 @@
 import Foundation
-import PutioCore
 
 /// Queue persistence is a JSON document in Application Support. The queue is
 /// small, read once at launch, and written on every change; a database would
-/// add a dependency for nothing. This is the repository pattern for offline
-/// state going forward.
+/// add a dependency for nothing.
 struct PutioOfflineStore: Sendable {
   private struct Document: Codable {
     let version: Int

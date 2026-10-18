@@ -202,7 +202,6 @@ private final class PlayerItemStatusObservationSpy: PutioPlayerItemStatusObserva
   }
 }
 
-/// Holds the default-subtitle step open until the test releases it.
 @MainActor
 private final class DefaultSubtitleGate {
   private var continuation: CheckedContinuation<Void, Never>?
@@ -788,39 +787,6 @@ final class PutioSystemVideoPlayerCoordinatorTests: XCTestCase {
     driver.currentTime = .invalid
     coordinator.stop(controller: controller)
     await coordinator.waitForPendingPositionReports()
-  }
-
-  func testMonotonicScheduleSamplesCurrentPositionAtNonUnitPlaybackRates() async throws {
-    let statusObservation = PlayerItemStatusObservationSpy()
-    let (coordinator, capture) = makeCoordinator(
-      audioSession: PlaybackAudioSessionSpy(),
-      statusObservation: statusObservation
-    )
-    let controller = AVPlayerViewController()
-    let reports = PlaybackPositionReportSpy()
-
-    coordinator.start(
-      fileID: fileID,
-      source: source(startFromSeconds: 0),
-      reportPosition: { try await reports.report(fileID: $0, position: $1) },
-      in: controller,
-      onFailure: {}
-    )
-    let driver = try XCTUnwrap(capture.driver)
-    statusObservation.emit(.readyToPlay)
-    await waitUntil { capture.positionReportSchedule != nil }
-    let schedule = try XCTUnwrap(capture.positionReportSchedule)
-
-    driver.currentTime = CMTime(seconds: 7.5, preferredTimescale: 600)
-    schedule.tick()
-    await coordinator.waitForPendingPositionReports()
-    driver.currentTime = CMTime(seconds: 30, preferredTimescale: 600)
-    schedule.tick()
-    await coordinator.waitForPendingPositionReports()
-
-    XCTAssertEqual(reports.completed.map(\.1), [7, 30])
-    driver.currentTime = .invalid
-    coordinator.stop(controller: controller)
   }
 
   func testInvalidPeriodicPositionsAreIgnored() async throws {

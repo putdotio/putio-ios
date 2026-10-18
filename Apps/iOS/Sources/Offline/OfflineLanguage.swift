@@ -2,7 +2,7 @@ import Foundation
 
 enum PutioOfflineLanguage {
   /// The track to play: the user's first preferred language present in the
-  /// stored set, else the first stored track. Deterministic and documented.
+  /// stored set, else the first stored track.
   static func preferred(
     from stored: [PutioOfflineTrack], preferredLanguages: [String] = Locale.preferredLanguages
   ) -> PutioOfflineTrack? {

@@ -3,18 +3,10 @@ import SwiftUI
 
 @MainActor
 struct FilePreferencesView: View {
-  let runtime: PutioRuntime
-  let refreshRequests: PutioFolderRefreshRequests
-
   @State private var model: PutioAccountPreferencesModel
   @State private var confirmation: Confirmation?
 
-  init(
-    runtime: PutioRuntime,
-    refreshRequests: PutioFolderRefreshRequests
-  ) {
-    self.runtime = runtime
-    self.refreshRequests = refreshRequests
+  init(runtime: PutioRuntime) {
     _model = State(
       initialValue: PutioAccountPreferencesModel(
         actions: PutioAccountPreferenceActions(runtime: runtime)))

@@ -80,9 +80,11 @@ issues define scope for [TV browsing](https://github.com/putdotio/putio-ios/issu
 [TV playback](https://github.com/putdotio/putio-ios/issues/142),
 [TV settings](https://github.com/putdotio/putio-ios/issues/143),
 [the watch companion](https://github.com/putdotio/putio-ios/issues/154), and
-[Continue Watching](https://github.com/putdotio/putio-ios/issues/152). Preserve the
-TV settings exclusion of playback-type settings and Continue Watching's
-post-v1 scope when reconciling older design cards.
+[Continue Watching](https://github.com/putdotio/putio-ios/issues/152); product
+rules live in the put.io Notion
+[Mobile app](https://app.notion.com/p/3ded546ba2f58193a18bd3c42b4d5504) and
+[Settings contract](https://app.notion.com/p/3ded546ba2f5812485d9d597fbcc1a80)
+pages.
 
 ## Verification
 

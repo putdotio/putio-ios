@@ -94,7 +94,7 @@ enum TVAccountRow: Hashable, Identifiable {
   }
 
   /// What choosing `isOn` asks for, or `nil` when the app cannot change the
-  /// row. putio-sdk-swift's settings patch (through 4.0.0) cannot write
+  /// row. putio-sdk-swift's settings patch cannot write
   /// `use_start_from`, so remember-position is shown but not editable.
   func change(to isOn: Bool) -> TVAccountChange? {
     switch self {
