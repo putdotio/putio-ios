@@ -10,7 +10,8 @@ derived_data=build/DeadCode/DerivedData
 
 # Periphery cannot pick a destination per scheme, so build the index here.
 # Test schemes are included so test-only callers count as uses.
-for scheme_platform in Putio:iOS PutioFeatureTests:iOS PutioTV:tvOS PutioTVFeatureTests:tvOS; do
+for scheme_platform in Putio:iOS PutioFeatureTests:iOS PutioSnapshotTests:iOS \
+  PutioTV:tvOS PutioTVFeatureTests:tvOS PutioTVSnapshotTests:tvOS; do
   xcodebuild build-for-testing -quiet \
     -workspace Putio.xcworkspace \
     -scheme "${scheme_platform%%:*}" \
