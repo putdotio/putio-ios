@@ -116,7 +116,19 @@
 "Couldn't save setting" = "Couldn't save setting";
 
 /* No comment provided by engineer. */
+"Crash reports, error details, and limited playback diagnostics, so we can fix problems." = "Crash reports, error details, and limited playback diagnostics, so we can fix problems.";
+
+/* No comment provided by engineer. */
 "Diagnostics" = "Diagnostics";
+
+/* No comment provided by engineer. */
+"Diagnostics and product analytics never send filenames, media titles, URLs, search text, or tokens." = "Diagnostics and product analytics never send filenames, media titles, URLs, search text, or tokens.";
+
+/* No comment provided by engineer. */
+"Diagnostics off" = "Diagnostics off";
+
+/* No comment provided by engineer. */
+"Diagnostics on" = "Diagnostics on";
 
 /* No comment provided by engineer. */
 "Don't allow" = "Don't allow";
@@ -128,10 +140,13 @@
 "Filenames or media titles" = "Filenames or media titles";
 
 /* No comment provided by engineer. */
-"Help us understand which apps and features work well by sending limited usage, device, billing, and playback information. We never send filenames, media titles, URLs, search text, or tokens." = "Help us understand which apps and features work well by sending limited usage, device, billing, and playback information. We never send filenames, media titles, URLs, search text, or tokens.";
+"It helps us understand which apps and features work well. It stays off unless you allow it, and you can change it in Account → Privacy controls." = "It helps us understand which apps and features work well. It stays off unless you allow it, and you can change it in Account → Privacy controls.";
 
 /* No comment provided by engineer. */
-"It helps us understand which apps and features work well. It stays off unless you allow it, and you can change it in Account → Privacy controls." = "It helps us understand which apps and features work well. It stays off unless you allow it, and you can change it in Account → Privacy controls.";
+"Limited usage, device, billing, and playback data that shows which apps and features work." = "Limited usage, device, billing, and playback data that shows which apps and features work.";
+
+/* No comment provided by engineer. */
+"Needed for sign-in, security, transfers, downloads, playback, billing, and saving your choices." = "Needed for sign-in, security, transfers, downloads, playback, billing, and saving your choices.";
 
 /* No comment provided by engineer. */
 "Playback and billing events" = "Playback and billing events";
@@ -143,10 +158,13 @@
 "Product analytics" = "Product analytics";
 
 /* No comment provided by engineer. */
-"Required for login, security, account access, transfers, downloads, playback, billing operations, and remembering your choices. These cannot be turned off." = "Required for login, security, account access, transfers, downloads, playback, billing operations, and remembering your choices. These cannot be turned off.";
+"Product analytics off" = "Product analytics off";
 
 /* No comment provided by engineer. */
-"Send crash reports, error details, and limited playback diagnostics so we can find and fix problems. We do not send filenames, media titles, URLs, search text, or tokens." = "Send crash reports, error details, and limited playback diagnostics so we can find and fix problems. We do not send filenames, media titles, URLs, search text, or tokens.";
+"Product analytics on" = "Product analytics on";
+
+/* No comment provided by engineer. */
+"Services we use" = "Services we use";
 
 /* No comment provided by engineer. */
 "Strictly necessary" = "Strictly necessary";

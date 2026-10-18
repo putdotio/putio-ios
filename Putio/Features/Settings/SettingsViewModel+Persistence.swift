@@ -22,12 +22,12 @@ extension SettingsViewModel {
             })
         }
         alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
-        tableViewController?.present(alert, animated: true)
+        presenter?.present(alert, animated: true)
     }
 
     private func presentLoadingAlert(title: String = NSLocalizedString("Saving...", comment: "")) -> UIAlertController {
         let alert = UIAlertController(title: title, message: nil, preferredStyle: .alert)
-        tableViewController?.present(alert, animated: true)
+        presenter?.present(alert, animated: true)
         return alert
     }
 
@@ -40,7 +40,7 @@ extension SettingsViewModel {
         )
         errorAlert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel))
         update()
-        tableViewController?.present(errorAlert, animated: true)
+        presenter?.present(errorAlert, animated: true)
     }
 
     func presentSettingsRefreshError(_ error: PutioErrorLocalizableInput) {
@@ -51,7 +51,7 @@ extension SettingsViewModel {
             preferredStyle: .alert
         )
         errorAlert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel))
-        tableViewController?.present(errorAlert, animated: true)
+        presenter?.present(errorAlert, animated: true)
     }
 
     func presentSaveSettingFailure(_ error: PutioErrorLocalizableInput) {
@@ -63,13 +63,13 @@ extension SettingsViewModel {
         )
         errorAlert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel))
         update()
-        tableViewController?.present(errorAlert, animated: true)
+        presenter?.present(errorAlert, animated: true)
     }
 
     func presentPersistenceFailure() {
         update()
         InternalFailurePresenter.present(
-            on: tableViewController,
+            on: presenter,
             title: NSLocalizedString("Settings updated", comment: ""),
             message: NSLocalizedString("The change was saved on put.io, but the app could not refresh local data. Please reopen Account settings.", comment: "")
         )
@@ -236,7 +236,7 @@ extension SettingsViewModel {
                 self.saveTrashEnabled(isEnabled: false)
             })
 
-            tableViewController?.present(alert, animated: true)
+            presenter?.present(alert, animated: true)
         } else {
             saveTrashEnabled(isEnabled: true)
         }
@@ -260,7 +260,7 @@ extension SettingsViewModel {
                 self.saveHistoryEnabled(isEnabled: false)
             })
 
-            tableViewController?.present(alert, animated: true)
+            presenter?.present(alert, animated: true)
         } else {
             saveHistoryEnabled(isEnabled: true)
         }
@@ -290,7 +290,7 @@ extension SettingsViewModel {
         }
 
         actionSheet.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
-        tableViewController?.present(actionSheet, animated: true)
+        presenter?.present(actionSheet, animated: true)
     }
 
     func saveSortSettings(_ sortBy: String) {
@@ -315,6 +315,6 @@ extension SettingsViewModel {
             appDelegate.logout()
         })
 
-        tableViewController?.present(alert, animated: true)
+        presenter?.present(alert, animated: true)
     }
 }

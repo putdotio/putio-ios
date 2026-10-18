@@ -33,6 +33,16 @@ class SettingsViewModel {
     var notificationTokens: [NotificationToken] = []
 
     weak var tableViewController: SettingsTableViewController?
+    weak var privacyControlsViewController: PrivacyControlsViewController?
+
+    /// Alerts go to the Privacy controls page while it is on screen, since
+    /// Account sits under it in the navigation stack.
+    var presenter: UIViewController? {
+        if let page = privacyControlsViewController, page.viewIfLoaded?.window != nil {
+            return page
+        }
+        return tableViewController
+    }
 
     var sections: [SettingsModel.Section] = []
     var selectedSortByKey: SettingsModel.SortByKey = SettingsModel.sortByKeys.first!
@@ -182,6 +192,7 @@ class SettingsViewModel {
         updateSelectedSortState()
         sections = buildSections()
         tableViewController?.tableView.reloadData()
+        privacyControlsViewController?.reload()
     }
 
     func updateSelectedSortState() {

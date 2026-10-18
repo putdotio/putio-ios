@@ -63,14 +63,25 @@ class SettingsTableViewController: UITableViewController, TwoFactorAuthPresenter
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let item = viewModel.sections[indexPath.section].items.filter { $0.visible }[indexPath.row]
+
+        if item.subtitle != nil {
+            let cell = SettingsTableViewCell.dequeueSubtitleCell(from: tableView)
+            cell.configure(with: item)
+            return cell
+        }
+
         guard let cell = tableView.dequeueReusableCell(withIdentifier: "settingsReuse", for: indexPath) as? SettingsTableViewCell else {
             InternalFailurePresenter.log("Unable to dequeue SettingsTableViewCell")
             return UITableViewCell()
         }
 
-        let item = viewModel.sections[indexPath.section].items.filter { $0.visible }[indexPath.row]
         cell.configure(with: item)
         return cell
+    }
+
+    func showPrivacyControls() {
+        navigationController?.pushViewController(PrivacyControlsViewController(viewModel: viewModel), animated: true)
     }
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {

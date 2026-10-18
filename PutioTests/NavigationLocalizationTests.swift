@@ -74,7 +74,8 @@ final class NavigationLocalizationTests: XCTestCase {
     }
 
     func testAccountSettingsUseSemanticPhosphorIcons() throws {
-        let items = SettingsViewModel().buildSections().flatMap(\.items)
+        let viewModel = SettingsViewModel()
+        let items = (viewModel.buildSections() + viewModel.privacyControlsSections()).flatMap(\.items)
 
         XCTAssertEqual(
             items.first { $0.title == NSLocalizedString("Show subtitles", comment: "") }?.icon,
@@ -99,6 +100,10 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertEqual(
             items.first { $0.title == NSLocalizedString("Product analytics", comment: "") }?.icon,
             .chartPie
+        )
+        XCTAssertEqual(
+            items.first { $0.title == NSLocalizedString("Privacy controls", comment: "") }?.icon,
+            .shieldCheck
         )
     }
 

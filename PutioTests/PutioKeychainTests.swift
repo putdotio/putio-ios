@@ -163,22 +163,80 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(downloadsSection?.items.first?.value as? String, "\(limit) at a time")
     }
 
-    func testPrivacyControlsFollowPrivacyAndSafetyWithTheContractCopy() throws {
-        let sections = SettingsViewModel().buildSections()
-        let start = try XCTUnwrap(sections.firstIndex { $0.title == "Privacy and safety" }) + 1
-        let controls = Array(sections[start..<start + 3])
+    func testAccountShowsOnePrivacyControlsRowWithTheCurrentState() throws {
+        let viewModel = SettingsViewModel()
+        let sections = viewModel.buildSections()
+        let privacy = try XCTUnwrap(sections.first { $0.title == "Privacy and safety" })
+        let next = try XCTUnwrap(sections.firstIndex { $0.title == "Privacy and safety" }) + 1
 
-        XCTAssertEqual(controls.map(\.title), ["Privacy controls", "", ""])
-        XCTAssertEqual(sections[start + 3].title, "Support")
-        XCTAssertEqual(controls.flatMap(\.items).map(\.title), ["Strictly necessary", "Diagnostics", "Product analytics"])
-        XCTAssertEqual(controls.flatMap(\.items).map(\.type), [.text, .toggle, .toggle])
-        XCTAssertEqual(controls[0].items[0].value as? String, "Always on")
-        XCTAssertNil(controls[0].items[0].action)
-        XCTAssertEqual(controls.map(\.footer), [
-            "Required for login, security, account access, transfers, downloads, playback, billing operations, and remembering your choices. These cannot be turned off.",
-            "Send crash reports, error details, and limited playback diagnostics so we can find and fix problems. We do not send filenames, media titles, URLs, search text, or tokens.",
-            "Help us understand which apps and features work well by sending limited usage, device, billing, and playback information. We never send filenames, media titles, URLs, search text, or tokens."
+        XCTAssertEqual(sections[next].title, "Support", "the controls moved to their own page")
+        XCTAssertFalse(sections.flatMap(\.items).contains { ["Strictly necessary", "Diagnostics", "Product analytics"].contains($0.title) })
+        XCTAssertNil(privacy.footer)
+
+        let row = try XCTUnwrap(privacy.items.last)
+        XCTAssertEqual(row.title, "Privacy controls")
+        XCTAssertEqual(row.type, .link)
+        XCTAssertNotNil(row.action)
+        XCTAssertEqual(row.subtitle, "Diagnostics on · Product analytics off")
+
+        let realm = try XCTUnwrap(PutioRealm.open(context: #function))
+        XCTAssertTrue(PutioRealm.write(realm, context: #function) {
+            viewModel.settings.diagnosticsEnabled = false
+            viewModel.settings.productAnalyticsEnabled = true
+        })
+        viewModel.update()
+
+        let updated = viewModel.sections.flatMap(\.items).first { $0.title == "Privacy controls" }
+        XCTAssertEqual(updated?.subtitle, "Diagnostics off · Product analytics on")
+    }
+
+    func testPrivacyControlsPageHasTheThreeControlsThenThePolicyLinks() throws {
+        let sections = SettingsViewModel().privacyControlsSections()
+        XCTAssertEqual(sections.count, 2)
+        let controls = sections[0].items
+
+        XCTAssertEqual(controls.map(\.title), ["Strictly necessary", "Diagnostics", "Product analytics"])
+        XCTAssertEqual(controls.map(\.type), [.text, .toggle, .toggle])
+        XCTAssertEqual(controls[0].value as? String, "Always on")
+        XCTAssertNil(controls[0].action)
+        XCTAssertEqual(controls.map(\.subtitle), [
+            "Needed for sign-in, security, transfers, downloads, playback, billing, and saving your choices.",
+            "Crash reports, error details, and limited playback diagnostics, so we can fix problems.",
+            "Limited usage, device, billing, and playback data that shows which apps and features work."
         ])
+        XCTAssertEqual(sections[0].footer, "Diagnostics and product analytics never send filenames, media titles, URLs, search text, or tokens.")
+
+        XCTAssertEqual(sections[1].items.map(\.title), ["Privacy policy", "Services we use"])
+        XCTAssertEqual(sections[1].items.map(\.type), [.link, .link])
+        XCTAssertNil(sections[1].footer)
+    }
+
+    func testPolicyLinksOpenThePrivacyPolicyAndTheServicesPutioUses() throws {
+        let viewModel = SettingsViewModel()
+        let page = PrivacyControlsPageSpy(viewModel: viewModel)
+        viewModel.privacyControlsViewController = page
+
+        for item in viewModel.privacyControlsSections()[1].items {
+            try XCTUnwrap(item.action, item.title)()
+        }
+
+        XCTAssertEqual(page.openedURLs.map(\.absoluteString), [
+            "https://put.io/privacy-policy/?webview",
+            "https://put.io/services-we-use?webview"
+        ])
+    }
+
+    func testPrivacySwitchesReadTheirDescriptionToVoiceOver() throws {
+        let toggles = SettingsViewModel().privacyControlsSections()[0].items.filter { $0.type == .toggle }
+
+        for item in toggles {
+            let cell = SettingsTableViewCell(style: .subtitle, reuseIdentifier: SettingsTableViewCell.subtitleReuseIdentifier)
+            cell.configure(with: item)
+            let control = try XCTUnwrap(cell.accessoryView as? UISwitch, item.title)
+            XCTAssertEqual(control.accessibilityLabel, item.title)
+            XCTAssertEqual(control.accessibilityHint, item.subtitle)
+            XCTAssertNotNil(control.accessibilityHint)
+        }
     }
 
     func testPrivacySwitchesShowTheStoredSettings() throws {
@@ -404,14 +462,15 @@ final class SettingsViewModelTests: XCTestCase {
     }
 
     private func privacyValues(_ viewModel: SettingsViewModel) -> [Bool] {
-        let items = viewModel.sections.flatMap(\.items)
+        let items = viewModel.privacyControlsSections().flatMap(\.items)
         return ["Diagnostics", "Product analytics"].compactMap { title in
             items.first { $0.title == title }?.value as? Bool
         }
     }
 
     private func toggle(_ title: String, in viewModel: SettingsViewModel) throws {
-        let item = try XCTUnwrap(viewModel.sections.flatMap(\.items).first { $0.title == title })
+        let items = (viewModel.sections + viewModel.privacyControlsSections()).flatMap(\.items)
+        let item = try XCTUnwrap(items.first { $0.title == title })
         let action = try XCTUnwrap(item.action, title)
         action()
     }
@@ -422,6 +481,14 @@ final class SettingsViewModelTests: XCTestCase {
         viewModel.tableViewController = spy
         addTeardownBlock { _ = spy }
         return spy
+    }
+
+    private final class PrivacyControlsPageSpy: PrivacyControlsViewController {
+        var openedURLs: [URL] = []
+
+        override func presentWebPage(_ url: URL) {
+            openedURLs.append(url)
+        }
     }
 
     private final class SettingsPresenterSpy: SettingsTableViewController {

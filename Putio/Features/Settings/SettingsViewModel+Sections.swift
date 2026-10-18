@@ -12,8 +12,7 @@ extension SettingsViewModel {
             filesSection(),
             mediaPlaybackSection(),
             securitySection(),
-            privacySection()
-        ] + privacyControlsSections() + [
+            privacySection(),
             supportSection(),
             dangerZoneSection(),
             logoutSection()
@@ -232,62 +231,30 @@ extension SettingsViewModel {
                     value: settings.historyEnabled,
                     action: { self.toggleHistoryEnabled() },
                     visible: true
+                ),
+                SettingsModel.SectionItem(
+                    title: NSLocalizedString("Privacy controls", comment: ""),
+                    type: .link,
+                    icon: .shieldCheck,
+                    value: "",
+                    action: { self.tableViewController?.showPrivacyControls() },
+                    visible: true,
+                    subtitle: privacyControlsSummary()
                 )
             ]
         )
     }
 
-    // One section per row, so each row's description can be its footer. The
-    // footers are the contract copy, word for word, whatever their length.
-    // swiftlint:disable line_length
-    private func privacyControlsSections() -> [SettingsModel.Section] {
+    func privacyControlsSummary() -> String {
         [
-            SettingsModel.Section(
-                title: NSLocalizedString("Privacy controls", comment: ""),
-                items: [
-                    SettingsModel.SectionItem(
-                        title: NSLocalizedString("Strictly necessary", comment: ""),
-                        type: .text,
-                        icon: .lock,
-                        value: NSLocalizedString("Always on", comment: ""),
-                        action: nil,
-                        visible: true
-                    )
-                ],
-                footer: NSLocalizedString("Required for login, security, account access, transfers, downloads, playback, billing operations, and remembering your choices. These cannot be turned off.", comment: "")
-            ),
-            SettingsModel.Section(
-                title: "",
-                items: [
-                    SettingsModel.SectionItem(
-                        title: NSLocalizedString("Diagnostics", comment: ""),
-                        type: .toggle,
-                        icon: .pulse,
-                        value: settings.diagnosticsEnabled,
-                        action: { self.saveDiagnosticsEnabled(!self.settings.diagnosticsEnabled) },
-                        visible: true
-                    )
-                ],
-                footer: NSLocalizedString("Send crash reports, error details, and limited playback diagnostics so we can find and fix problems. We do not send filenames, media titles, URLs, search text, or tokens.", comment: "")
-            ),
-            SettingsModel.Section(
-                title: "",
-                items: [
-                    SettingsModel.SectionItem(
-                        title: NSLocalizedString("Product analytics", comment: ""),
-                        type: .toggle,
-                        icon: .chartPie,
-                        value: settings.productAnalyticsEnabled,
-                        action: { self.saveProductAnalyticsEnabled(!self.settings.productAnalyticsEnabled) },
-                        visible: true
-                    )
-                ],
-                footer: NSLocalizedString("Help us understand which apps and features work well by sending limited usage, device, billing, and playback information. We never send filenames, media titles, URLs, search text, or tokens.", comment: "")
-            )
-        ]
+            settings.diagnosticsEnabled
+                ? NSLocalizedString("Diagnostics on", comment: "")
+                : NSLocalizedString("Diagnostics off", comment: ""),
+            settings.productAnalyticsEnabled
+                ? NSLocalizedString("Product analytics on", comment: "")
+                : NSLocalizedString("Product analytics off", comment: "")
+        ].joined(separator: " · ")
     }
-
-    // swiftlint:enable line_length
 
     private func supportSection() -> SettingsModel.Section {
         SettingsModel.Section(
