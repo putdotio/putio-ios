@@ -1,8 +1,8 @@
 import Foundation
 
 /// The account-wide privacy controls every put.io app shares
-/// (putdotio/support#95, putdotio/support#135). The descriptions are today's
-/// contract copy, word for word, until legal approves new copy.
+/// (putdotio/support#95, putdotio/support#135). The copy is the
+/// legal-approved set from putdotio/support#135, word for word.
 public enum PutioPrivacyControls {
   public struct Control: Equatable, Sendable {
     public let title: String
@@ -14,20 +14,24 @@ public enum PutioPrivacyControls {
   public static let strictlyNecessary = Control(
     title: "Strictly necessary",
     description:
-      "Required for login, security, account access, transfers, downloads, playback, billing operations, and remembering your choices. These cannot be turned off."
+      "Needed for sign-in, security, transfers, downloads, playback, billing, and saving your choices."
   )
 
   public static let diagnostics = Control(
     title: "Diagnostics",
     description:
-      "Send crash reports, error details, and limited playback diagnostics so we can find and fix problems. We do not send filenames, media titles, URLs, search text, or tokens."
+      "Crash reports, error details, and limited playback diagnostics, so we can fix problems."
   )
 
   public static let productAnalytics = Control(
     title: "Product analytics",
     description:
-      "Help us understand which apps and features work well by sending limited usage, device, billing, and playback information. We never send filenames, media titles, URLs, search text, or tokens."
+      "Limited usage, device, billing, and playback data that shows which apps and features work."
   )
+
+  /// Shown once under the group, not repeated in each row.
+  public static let groupFooter =
+    "Diagnostics and product analytics never send filenames, media titles, URLs, search text, or tokens."
 
   public static let privacyPolicyURL = URL(string: "https://put.io/privacy-policy/")!
   public static let servicesWeUseURL = URL(string: "https://put.io/services-we-use/")!

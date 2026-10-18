@@ -62,6 +62,8 @@ struct PrivacyControlsView: View {
             }
             .disabled(!model.canSave)
             .accessibilityIdentifier("privacy.product-analytics")
+          } footer: {
+            Text(PutioPrivacyControls.groupFooter)
           }
           Section {
             Link("Privacy policy", destination: PutioPrivacyControls.privacyPolicyURL)

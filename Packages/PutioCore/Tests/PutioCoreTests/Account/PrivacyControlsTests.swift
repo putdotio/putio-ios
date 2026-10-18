@@ -12,18 +12,22 @@ final class PrivacyControlsTests: XCTestCase {
       "Diagnostics off · Product analytics on")
   }
 
-  func testDescriptionsKeepTheContractCopy() {
+  func testDescriptionsKeepTheApprovedCopy() {
     XCTAssertEqual(
       PutioPrivacyControls.strictlyNecessary.description,
-      "Required for login, security, account access, transfers, downloads, playback, billing operations, and remembering your choices. These cannot be turned off."
+      "Needed for sign-in, security, transfers, downloads, playback, billing, and saving your choices."
     )
     XCTAssertEqual(
       PutioPrivacyControls.diagnostics.description,
-      "Send crash reports, error details, and limited playback diagnostics so we can find and fix problems. We do not send filenames, media titles, URLs, search text, or tokens."
+      "Crash reports, error details, and limited playback diagnostics, so we can fix problems."
     )
     XCTAssertEqual(
       PutioPrivacyControls.productAnalytics.description,
-      "Help us understand which apps and features work well by sending limited usage, device, billing, and playback information. We never send filenames, media titles, URLs, search text, or tokens."
+      "Limited usage, device, billing, and playback data that shows which apps and features work."
+    )
+    XCTAssertEqual(
+      PutioPrivacyControls.groupFooter,
+      "Diagnostics and product analytics never send filenames, media titles, URLs, search text, or tokens."
     )
   }
 
