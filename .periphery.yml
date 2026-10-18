@@ -2,10 +2,8 @@ project: Putio.xcworkspace
 schemes:
   - Putio
   - PutioFeatureTests
-  - PutioSnapshotTests
   - PutioTV
   - PutioTVFeatureTests
-  - PutioTVSnapshotTests
 retain_swift_ui_previews: true
 retain_codable_properties: true
 # Equatable keys drive `.task(id:)` and `onChange`; synthesized `==` reads them.
