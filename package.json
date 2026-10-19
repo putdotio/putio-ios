@@ -19,5 +19,5 @@
     "typescript": "7.0.2",
     "yaml": "2.9.1"
   },
-  "packageManager": "pnpm@12.13.0"
+  "packageManager": "pnpm@12.14.0"
 }

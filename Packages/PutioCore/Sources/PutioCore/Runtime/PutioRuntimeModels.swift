@@ -18,7 +18,7 @@ public struct PutioAccountSnapshot: Equatable, Sendable {
       return min(max(Double(usedBytes) / Double(totalBytes), 0), 1)
     }
 
-    /// Worded as put.io's web and legacy apps show usage: "20 GB of 1 TB used".
+    /// Worded as put.io's web app and the main app show usage: "20 GB of 1 TB used".
     public func usageSummary(locale: Locale = .current) -> String {
       let used = PutioFileRowModel.sizeText(bytes: usedBytes, locale: locale)
       let total = PutioFileRowModel.sizeText(bytes: totalBytes, locale: locale)

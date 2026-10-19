@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import PutioCore
 
-// Legacy navigation uses URL paths, including putio:///files/123. A putio URL
+// The main app's navigation uses URL paths, including putio:///files/123. A putio URL
 // whose host is not put.io carries its first route segment there instead, so
 // putio://files/123 routes as /files/123. The `auth` host is the
 // ASWebAuthenticationSession callback and is never a route.
@@ -68,7 +68,7 @@ enum PutioDeepLinkDestination: Equatable {
   case linkDevice(code: String?)
 
   /// A downloads link plays a finished item as its row would. An unfinished
-  /// or unknown item leaves the Downloads list showing, as the legacy app did
+  /// or unknown item leaves the Downloads list showing, as the main app does
   /// for ids outside its queue.
   @MainActor static func playableDownload(
     _ id: PutioFileID?, in item: (PutioFileID) -> PutioOfflineItem?
