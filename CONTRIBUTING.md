@@ -18,6 +18,14 @@ mise run open
 dependencies, generates the workspace, and checks the host. It needs no Tuist
 account, application secret, or signing material.
 
+App Store work also needs the pinned [asc](https://asccli.sh) CLI, which
+`mise install` does not provide. Install it and turn its telemetry off once:
+
+```bash
+./scripts/install-asc.sh   # asc 5.15.0 into ~/.local/bin, checksum-verified
+asc telemetry disable
+```
+
 For a machine-readable prerequisite report:
 
 ```bash
