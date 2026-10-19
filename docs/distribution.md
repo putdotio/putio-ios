@@ -3,7 +3,7 @@
 ## Workflows
 
 - [CI](../.github/workflows/ci.yml) verifies pushes and pull requests. A `changes` job on Linux classifies the diff with [`scripts/ci-affected.sh`](../scripts/ci-affected.sh), then `verify-app` runs `mise run bootstrap-ci` and `mise run verify` on macOS, and `verify-tooling` type-checks the Node scripts and checks the committed marketing images against their inputs, both on Linux. Each lane runs only when the diff can affect it, and an unrecognized path counts as app-affecting — a needless macOS run is cheaper than a missed break. Nothing is filtered at the `on:` level, so both checks always report a state.
-- [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. A secretless job ([Delivery ref contract](../.github/workflows/delivery-ref.yml)) first requires the exact current protected-main SHA. The Environment-bearing job then checks out that commit, verifies, installs the signing identity with `fastlane signing`, archives with [archive-ios.sh](../scripts/archive-ios.sh), and uploads and distributes with `asc publish testflight --notify`, which emails external testers as pilot did.
+- [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. A secretless job ([Delivery ref contract](../.github/workflows/delivery-ref.yml)) first requires the exact current protected-main SHA. The Environment-bearing job then checks out that commit, verifies, installs the signing identity with `fastlane signing`, archives with [archive-ios.sh](../scripts/archive-ios.sh), and uploads and distributes with `asc publish testflight --notify`, which emails external testers.
 - [Release](../.github/workflows/release.yml) is dispatch-only with the same SHA check and a version. It fails before building when `metadata/version/<version>/en-US.json` has no `whatsNew`, uploads with `asc publish appstore` (which creates or finds the version and attaches the build, never submits), then applies the listing and runs `asc validate` into the job summary. A last job tags the commit `v<version>` only after the upload succeeded, as the `putio-ci` GitHub App: it mints a token for this repository with `contents: write` from the `release` Environment's `PUTIO_RELEASE_BOT_APP_ID` and `PUTIO_RELEASE_BOT_PRIVATE_KEY`, because the `v*` ruleset lets only that App and organization admins create tags.
 - [Screenshots](../.github/workflows/screenshots.yml) changes the product page without a build: it plans the listing, uploads App Store Connect's current metadata and age rating as an artifact, and previews the screenshot replacement. With `dry_run` off it applies metadata and settings and replaces each screenshot set. It requires the current protected-main SHA, defaults to a dry run, and runs on Linux with only the App Store Connect key.
 - [Submit](../.github/workflows/submit.yml) takes a version and the build number Release uploaded, from the same validated SHA. Dispatching it is the approval: it runs in the `release` Environment, checks the committed What's New offline, attaches the requested build, runs `asc validate --strict` against it, and runs `asc review submit`.
@@ -78,7 +78,7 @@ push --identity`, without creating or revoking a certificate.
 
 ## Release Secret Contract
 
-Beta and release workflows read GitHub `release` Environment secrets directly.
+Beta, Release, Screenshots, and Submit read GitHub `release` Environment secrets directly.
 The canonical source copy for those values stays in the 1Password CI/restricted
 vault for human administration and rotation, but CI must not call 1Password or
 use `OP_SERVICE_ACCOUNT_TOKEN` at runtime.
@@ -120,10 +120,10 @@ Product analytics needs no Environment field: `Config/Release.xcconfig` carries 
 
 ## TestFlight Diagnostics Check
 
-One controlled, non-fatal event proves a build's Sentry path. Run the check on the beta, then again on the release-lane upload before submitting it for review. `release` archives its own binary and never submits it, so add that build to an internal TestFlight group and install it from TestFlight.
+One controlled, non-fatal event proves a build's Sentry path. Run the check on the beta, then again on the Release workflow's upload before submitting it for review. `release` archives its own binary and never submits it, so add that build to an internal TestFlight group and install it from TestFlight.
 
 1. On a TestFlight device, sign in to an account whose `diagnostics_enabled` is on.
-2. Open `putio://diagnostics-check` from Safari or Notes. Nothing changes on screen. The install's receipt decides, not the lane: a TestFlight install sends the event, and an App Store install ignores the link. With diagnostics off the event is dropped like any other.
+2. Open `putio://diagnostics-check` from Safari or Notes. Nothing changes on screen. The install's receipt decides, not the workflow: a TestFlight install sends the event, and an App Store install ignores the link. With diagnostics off the event is dropped like any other.
 3. In Sentry project `ios` (`5282170`), not `tvos`, find `category:diagnostics_check` and confirm release `com.putio.tvOS@3.0.0+<build>` for the installed build, environment `production`, OS `iOS` or `iPadOS`, and `app.build_type` `test`. TestFlight and App Store events share the `production` environment, so the build type is what tells them apart.
 
 Never paste the DSN or the event payload into issues, pull requests, or logs.
@@ -147,7 +147,7 @@ Repository admins must keep these settings aligned with the workflow trust model
 
 - protect `main` for trusted team direct push; do not allow force-pushes or branch deletion
 - protect `v*` release tags so only release automation or release admins can create or update them; `putio-ci` holds the bypass the Release workflow tags with
-- configure the `release` Environment with required reviewers and prevent self-review
+- limit the `release` Environment to `main` and `v*` tags with deployment branch policies; it has no required reviewers, so dispatching a delivery workflow on protected `main` is the approval
 
 ## App Store IDs
 
