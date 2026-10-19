@@ -41,6 +41,9 @@ public final class PutioFolderModel {
   // mutation starts (or a bulk retry consumes it) so late waiters read its
   // result instead of a cleared slot.
   @ObservationIgnored private var queuedRefresh: Task<Bool, Never>?
+  // Cursors this listing already paged past; a page handing one back would
+  // cycle forever.
+  @ObservationIgnored private var consumedCursors: Set<String> = []
   @ObservationIgnored private var refreshRequestedWhileActionActive = false
   // Kept apart from `actionOutcome`, which screens clear once they show it.
   @ObservationIgnored private var lastCommittedAction: PutioFileAction?
@@ -131,6 +134,10 @@ public final class PutioFolderModel {
       guard requestGeneration == generation, case .loaded(let current) = state else {
         return false
       }
+      guard page.nextCursor != cursor,
+        page.nextCursor.map({ !consumedCursors.contains($0) }) ?? true
+      else { throw PutioRuntimeError.invalidResponse }
+      consumedCursors.insert(cursor)
       state = .loaded(current.appending(page))
       return true
     } catch {
@@ -600,6 +607,7 @@ public final class PutioFolderModel {
       guard requestGeneration == generation else { return false }
       state = .loaded(contents)
       firstPageIDs = Set(contents.items.map(\.id))
+      consumedCursors = []
       refreshFailure = nil
       return true
     } catch {
