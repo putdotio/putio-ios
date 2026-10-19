@@ -194,14 +194,15 @@ test("check runs the pinned asc against the listing offline", { skip: !ascAvaila
 // A stand-in asc that records every invocation and answers with canned JSON,
 // so the tests can see exactly which App Store Connect calls each command makes.
 // FAKE_TELEMETRY and FAKE_VERSIONS override its telemetry status and version
-// listing; FAKE_PULL_FAILS fails metadata pull.
+// listing; FAKE_PULL_FAILS and FAKE_AGE_RATING_FAILS fail metadata pull and
+// age-rating view.
 const fakeAsc = `#!/bin/sh
 printf '%s\\n' "$*" >> "$ASC_LOG"
 case "$1 $2" in
   "telemetry status") echo "{\\"enabled\\":\${FAKE_TELEMETRY:-false}}" ;;
   "versions list") printf '%s\\n' "$FAKE_VERSIONS" ;;
   "metadata pull") [ -z "$FAKE_PULL_FAILS" ] || exit 1; echo '{}' ;;
-  "age-rating view") echo '{"data":{"id":"a1","attributes":{"socialMedia":true,"socialMediaAgeRestricted":false}}}' ;;
+  "age-rating view") [ -z "$FAKE_AGE_RATING_FAILS" ] || exit 1; echo '{"data":{"id":"a1","attributes":{"socialMedia":true,"socialMediaAgeRestricted":false}}}' ;;
   "metadata push") case "$*" in *--dry-run*) echo "no changes" ;; *) echo '{}' ;; esac ;;
   *) echo '{}' ;;
 esac
@@ -312,11 +313,13 @@ test("plan exports the listing, then stops on a version App Store Connect won't 
 });
 
 test("a failed export leaves no age-rating.json, which marks a complete one", async (t) => {
-  const { dir, invoke } = await recordingFixture(t, { FAKE_PULL_FAILS: "1" });
-  await mkdir(join(dir, "export"));
-  await writeFile(join(dir, "export/age-rating.json"), "{}");
-  await assert.rejects(invoke("plan", "--export", join(dir, "export")), /asc metadata pull exited/);
-  await assert.rejects(readFile(join(dir, "export/age-rating.json")), /ENOENT/);
+  for (const [env, error] of [[{ FAKE_PULL_FAILS: "1" }, /asc metadata pull exited/], [{ FAKE_AGE_RATING_FAILS: "1" }, /asc age-rating view exited/]] as const) {
+    const { dir, invoke } = await recordingFixture(t, env);
+    await mkdir(join(dir, "export"));
+    await writeFile(join(dir, "export/age-rating.json"), "{}");
+    await assert.rejects(invoke("plan", "--export", join(dir, "export")), error);
+    await assert.rejects(readFile(join(dir, "export/age-rating.json")), /ENOENT/, Object.keys(env).join());
+  }
 });
 
 test("screenshots stop on a version App Store Connect won't edit, before uploading", async (t) => {
@@ -348,10 +351,14 @@ test("no command talks to App Store Connect while asc telemetry is on", async (t
   }
 });
 
+const CREATED_VERSION_MISSING = /version 3\.0\.0 is still missing after asc versions create/;
+
 // The fake accepts any flag, so the pinned binary's own help is what proves a flag exists.
 test("every asc flag the store tool passes exists in the pinned asc", { skip: !ascAvailable && !requireAsc && "asc is not installed" }, async (t) => {
   const made = new Set<string>();
-  const scenarios: [Record<string, string>, Record<string, unknown>, string[]][] = [
+  // The fourth entry is the one error a scenario may stop with; any other
+  // failure would drop the commands after it from this check.
+  const scenarios: [Record<string, string>, Record<string, unknown>, string[], RegExp?][] = [
     [{}, {}, ["check"]],
     [{}, {}, ["plan", "--export", "export"]],
     [{}, {}, ["apply", "--confirm"]],
@@ -359,14 +366,15 @@ test("every asc flag the store tool passes exists in the pinned asc", { skip: !a
     [{}, {}, ["screenshots", "--dry-run"]],
     [{}, {}, ["screenshots", "--confirm"]],
     [{ FAKE_VERSIONS: JSON.stringify({ data: [] }) }, {}, ["plan"]],
-    [{ FAKE_VERSIONS: JSON.stringify({ data: [] }) }, {}, ["apply", "--confirm"]],
+    // Creating a version re-reads it, which the fake still reports missing.
+    [{ FAKE_VERSIONS: JSON.stringify({ data: [] }) }, {}, ["apply", "--confirm"], CREATED_VERSION_MISSING],
     [{ FAKE_VERSIONS: listing("PREPARE_FOR_SUBMISSION", { type: "appStoreVersionPhasedReleases", id: "p1" }) }, { version: { releaseType: "MANUAL", phasedRelease: false } }, ["apply", "--confirm"]],
   ];
-  for (const [env, configOverrides, args] of scenarios) {
+  for (const [env, configOverrides, args, expectedError] of scenarios) {
     const { dir, invoke, calls } = await recordingFixture(t, env, configOverrides);
     const resolved = args.map((arg) => (arg === "export" ? join(dir, "export") : arg));
-    // Creating a version re-reads it, which the fake still reports missing.
-    await invoke(...resolved).catch(() => undefined);
+    if (expectedError) await assert.rejects(invoke(...resolved), expectedError, args.join(" "));
+    else await invoke(...resolved);
     for (const call of await calls()) made.add(call);
   }
   const flagsByCommand = new Map<string, Set<string>>();
@@ -378,7 +386,10 @@ test("every asc flag the store tool passes exists in the pinned asc", { skip: !a
     for (const word of words) if (/^--[a-z]/.test(word)) flags.add(word);
     flagsByCommand.set(command, flags);
   }
-  for (const expected of ["age-rating view", "age-rating edit", "versions create", "versions phased-release delete", "screenshots upload", "metadata pull"]) {
+  for (const expected of [
+    "age-rating view", "age-rating edit", "versions create", "versions update", "versions phased-release create",
+    "versions phased-release delete", "screenshots upload", "metadata pull", "metadata push", "validate",
+  ]) {
     assert.ok(flagsByCommand.has(expected), `the scenarios reach asc ${expected}`);
   }
   for (const [command, flags] of flagsByCommand) {
