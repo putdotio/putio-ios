@@ -2,10 +2,10 @@
 
 The native SwiftUI rewrite lives on `next`.
 [Next CI](../.github/workflows/ci-next.yml) verifies it without signing or publishing.
-The shipping legacy iOS app lives on protected `main`, whose workflows own
-signing, versioning, App Store Connect, and the GitHub `release` Environment.
+The App Store app lives on protected `main`, whose workflows own signing,
+versioning, App Store Connect, and the GitHub `release` Environment.
 
-## Legacy releases
+## Releases from main
 
 `main` is the repository's default branch, so GitHub dispatches its own Beta,
 Release, and Screenshots workflows directly. Their input definitions on `main`
@@ -19,14 +19,6 @@ gh workflow run release.yml --repo putdotio/putio-ios --ref main -f expected_sha
 gh workflow run screenshots.yml --repo putdotio/putio-ios --ref main -f expected_sha="$sha" -f app_version=<x.y.z> -f dry_run=true
 ```
 
-The [Beta](../.github/workflows/beta.yml),
-[Release](../.github/workflows/release.yml), and
-[Screenshots](../.github/workflows/screenshots.yml) relays on `next` and their
-[dispatcher](../.github/workflows/legacy-ios-dispatch.yml) date from when `next`
-was the default branch. They are superseded: dispatching a file name without
-`--ref` now runs `main`'s workflow, and the relays run only if someone passes
-`--ref next`. Don't use them for delivery.
-
 Inspect registration without starting a release:
 
 ```bash
@@ -34,7 +26,7 @@ gh workflow list --repo putdotio/putio-ios
 gh workflow view release.yml --repo putdotio/putio-ios --ref main
 ```
 
-[Legacy release tracking](https://github.com/putdotio/putio-ios/issues/149) owns
+[App Store release tracking](https://github.com/putdotio/putio-ios/issues/149) owns
 the App Store rollout.
 
 ## App Store as code
@@ -85,7 +77,7 @@ never run in CI.
 
 ### Signing
 
-The legacy line keeps fastlane `match --readonly` for signing. asc can't read
+`main` keeps fastlane `match --readonly` for signing. asc can't read
 the match repository: `asc signing sync pull` only reads its own `*.enc`
 envelopes, and App Store Connect never returns a certificate's private key.
 Moving to `asc signing sync` means decrypting the distribution identity from
@@ -102,6 +94,7 @@ answers through an Apple ID web session.
 ## Changing branch ownership
 
 The [branch-flip task](https://github.com/putdotio/putio-ios/issues/145) owns
-renaming the legacy line and promoting the rewrite. Update the dispatch trust
-rule, Environment branch policies, and workflow triggers together. A fixed
+moving the App Store app off `main` and promoting the rewrite. Update the
+delivery trust rule, Environment branch policies, and workflow triggers
+together. A fixed
 `refs/heads/main` rule must not silently follow `main` to a different app line.
