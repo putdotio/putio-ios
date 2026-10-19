@@ -33,14 +33,15 @@ see [Development](CONTRIBUTING.md#development).
 
 ## Hazards
 
-- **Legacy store delivery.** The [Beta](.github/workflows/beta.yml) and
-  [Release](.github/workflows/release.yml) dispatches build the shipping app
-  from protected `main` with production signing and upload it to TestFlight or
-  App Store Connect, where it reaches testers or users and cannot be taken
-  back. [Screenshots](.github/workflows/screenshots.yml) replaces the live
-  App Store images unless it runs as a dry run. The [dispatcher](.github/workflows/legacy-ios-dispatch.yml) pins the
-  reviewed legacy workflow blobs: update them only after reviewing that legacy
-  change, and never copy signing configuration into it.
+- **Legacy store delivery.** `main` is the default branch, and its Beta and
+  Release workflows build the shipping app with production signing and upload
+  it to TestFlight or App Store Connect, where it reaches testers or users and
+  cannot be taken back. Its Screenshots workflow replaces the live App Store
+  images unless it runs as a dry run. Dispatch them on `main`
+  ([Distribution](docs/distribution.md#legacy-releases)); the superseded relays
+  on `next` (`beta.yml`, `release.yml`, `screenshots.yml`,
+  `legacy-ios-dispatch.yml`) are not a delivery path, and never copy signing
+  configuration into them.
 - **Shared test account.** Live journeys and `live-fixture` use the `devs-auto`
   put.io CLI profile ([live-profile contract](docs/harness.md#live-profile-and-publishing)),
   shared with the web, Android, and TV harnesses. Each live journey approves a
@@ -82,7 +83,8 @@ Report skipped or unavailable checks.
 
 ## Delivery
 
-Pull requests target `next` and squash-merge. [Next CI](.github/workflows/ci-next.yml)
+Pull requests target `next`, not the default branch `main`: pass
+`gh pr create --base next`. They squash-merge. [Next CI](.github/workflows/ci-next.yml)
 runs the lanes a pull request's paths affect, plus a Markdown formatting check
 when it changes Markdown, and a new push cancels its stale run. A push to `next`
 runs every lane, keeps running when a later push lands, and saves the Xcode
@@ -90,8 +92,10 @@ compilation caches. Nothing on `next` signs, versions, or publishes. Upload
 reviewed screenshots or recordings with `gh pr comment <n> --attach ./file.png`;
 never commit them.
 
-To re-verify a ref without pushing, dispatch Next CI with `verify` on:
-`gh workflow run ci-next.yml --ref next -f verify=true`.
+Next CI can't be dispatched: GitHub only dispatches workflows whose file exists
+on the default branch, `main`, which has no `ci-next.yml`, so
+`gh workflow run ci-next.yml --ref next -f verify=true` fails. Every push to
+`next` still runs every lane.
 
 ## Skills
 
