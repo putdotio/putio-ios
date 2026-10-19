@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -263,7 +263,10 @@ test("apply confirms the metadata push and only changes what drifted", async (t)
 test("check rejects a screenshot locale App Store Connect doesn't know", async (t) => {
   const { dir, invoke } = await recordingFixture(t);
   await rename(join(dir, "screenshots/en-US"), join(dir, "screenshots/en_US"));
+  const staging = async () => (await readdir(tmpdir())).filter((name) => name.startsWith("putio-app-store-screenshots-")).sort();
+  const before = await staging();
   await assert.rejects(invoke("check"), /screenshots\/en_US: en_US is not an App Store locale/);
+  assert.deepEqual(await staging(), before, "a rejected locale leaves no staging directory");
 });
 
 test("check fails when the configured screenshot directory is missing", async (t) => {
