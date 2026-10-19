@@ -1,13 +1,12 @@
 # Contributing
 
-Thanks for contributing to `putio-ios`.
-
 ## Setup
 
 Most local work only needs the normal toolchain and the checked-in development defaults.
 
 - Prerequisites:
-  - Xcode `26.x`
+  - Xcode `26.x`; [CI](.github/workflows/ci.yml) selects the latest stable
+    release
   - iOS `26.x` simulator runtime
   - [mise](https://mise.jdx.dev) — it pins the toolchain and runs every task in
     this repo
@@ -24,7 +23,7 @@ mise run fonts-setup
 `mise run bootstrap` starts with `mise run doctor`, which checks Ruby, Node,
 pnpm, and the Xcode developer directory against the repo's pins and prints a
 fix for each mismatch. `mise tasks` lists every task. The pre-push hook runs
-the sub-second `mise run verify-fast` gate.
+the `mise run verify-fast` gate.
 
 Node is repo tooling only: the app builds and tests without it.
 
@@ -140,7 +139,7 @@ Tapping `Log in` still starts the flow.
 
 ### Visual baselines
 
-- Components render in unit tests into `PutioTests/__Snapshots__/`; 13 full screens come from the e2e walk into `PutioUITests/__Snapshots__/`. The app is dark-only, so baselines are dark mode only
+- Components render in unit tests into `PutioTests/__Snapshots__/`; full screens come from the e2e walk into `PutioUITests/__Snapshots__/`. The app is dark-only, so baselines are dark mode only
 - After an intentional visual change, run `mise run screenshots-record` and commit the image diff. It records and then asserts against what it wrote, so a green exit needs no second run
 - Scope it when you changed one screen: `mise run screenshots-record -- --only PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk` takes about a minute against about five for the full set. `--only` takes xcodebuild's `-only-testing:` syntax and its leading test target picks the tier. `mise run screenshots-record-components` and `mise run screenshots-record-screens` run one whole tier
 - A scoped run skips the baseline-count tripwire; run the full target before committing if you added or removed a snapshot test
