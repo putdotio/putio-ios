@@ -66,15 +66,15 @@ jobs:
           case "$OPERATION" in
             beta)
               workflow_file="beta.yml"
-              expected_workflow_blob="c27edd31d0bd3121d5171dc9075ad63af6b5eeda"
+              expected_workflow_blob="9dc4fa7656705d1847d3b1164b290c67c079ccee"
               ;;
             release)
               workflow_file="release.yml"
-              expected_workflow_blob="9e322da53648de9bc25dd005a2453e69d6bb354c"
+              expected_workflow_blob="86560366f952950060e0e2c9d0f1372e274de929"
               ;;
             screenshots)
               workflow_file="screenshots.yml"
-              expected_workflow_blob="46ce41074f74a2a2045f6b6518529fb767e17a1a"
+              expected_workflow_blob="07b210d6754a1cfbee09983b45062131f5f2ef5d"
               ;;
             *)
               echo "Operation must be beta, release or screenshots; received $OPERATION" >&2
