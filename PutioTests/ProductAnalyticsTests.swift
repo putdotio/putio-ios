@@ -503,11 +503,16 @@ final class ProductAnalyticsTests: XCTestCase {
         requests(token: token).flatMap { $0.json?["batch"] as? [[String: Any]] ?? [] }
     }
 
+    /// Set by the first wait that runs out, so a broken upload path fails
+    /// the rest of the suite in seconds, well inside the CI job's limit.
+    private static var aWaitTimedOut = false
+
     /// Returns as soon as the events arrive. The SDK uploads and writes its
     /// files on utility-QoS queues, which a busy CI runner has held for over
     /// 30 seconds, so the timeout only catches a request that never comes.
-    private func waitForEvents(token: String, count: Int, timeout: TimeInterval = 90) throws -> [[String: Any]] {
-        let deadline = Date().addingTimeInterval(timeout)
+    /// Running out ends the test.
+    private func waitForEvents(token: String, count: Int) throws -> [[String: Any]] {
+        let deadline = Date().addingTimeInterval(Self.aWaitTimedOut ? 10 : 90)
         while sentEvents(token: token).count < count, Date() < deadline {
             // An event queued while a batch is in flight otherwise waits for
             // the SDK's 30-second flush timer.
@@ -515,8 +520,16 @@ final class ProductAnalyticsTests: XCTestCase {
             spinRunLoop(seconds: 0.05)
         }
         let sent = sentEvents(token: token)
+        guard sent.count >= count else {
+            Self.aWaitTimedOut = true
+            throw MissingEvents(description: "\(sent.count) of \(count) events sent: \(requests(token: token).map(\.url))")
+        }
         XCTAssertEqual(sent.count, count, "\(requests(token: token).map(\.url))")
         return sent
+    }
+
+    private struct MissingEvents: Error, CustomStringConvertible {
+        let description: String
     }
 
     private func spinRunLoop(seconds: TimeInterval) {
