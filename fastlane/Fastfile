@@ -426,7 +426,6 @@ platform :ios do
       upload_to_app_store(
         app_identifier: release_app_identifier,
         app_version: release_version,
-        build_number: archived_build_number,
         ipa: release_ipa_path,
         platform: "ios",
         skip_screenshots: true,
@@ -435,7 +434,7 @@ platform :ios do
         force: true
       )
 
-      UI.important("==> Release upload complete: build #{release_version} (#{archived_build_number}) is attached to the App Store release train")
+      UI.important("==> Release upload complete: build #{release_version} (#{archived_build_number}) uploaded to App Store Connect")
     end
   end
 
