@@ -432,6 +432,8 @@ platform :ios do
         skip_screenshots: true,
         skip_metadata: true,
         submit_for_review: false,
+        # Precheck runs after the upload even without submitting, and fails on the API key.
+        run_precheck_before_submit: false,
         force: true
       )
 
@@ -573,6 +575,8 @@ platform :ios do
       skip_metadata: true,
       skip_app_version_update: true,
       submit_for_review: false,
+      # Precheck runs after the upload even without submitting, and fails on the API key.
+      run_precheck_before_submit: false,
       # Apple appends rather than replaces unless told otherwise, which would
       # leave the 2024 screenshots sitting alongside the new ones.
       overwrite_screenshots: true,
