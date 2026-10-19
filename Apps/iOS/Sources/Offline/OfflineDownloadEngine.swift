@@ -24,6 +24,8 @@ protocol PutioOfflineDownloadEngine: AnyObject {
   func cancel(fileID: PutioFileID)
   /// File ids with tasks the system kept alive across relaunch.
   func restoreTasks() async -> [PutioFileID]
+  /// Ends this engine's work when its account's shell goes away.
+  func stop()
   /// Writes again what failed before.
   func retryPersisting() throws
 }
