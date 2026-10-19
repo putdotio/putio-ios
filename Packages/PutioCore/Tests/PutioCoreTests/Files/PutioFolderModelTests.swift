@@ -233,6 +233,42 @@ final class PutioFolderModelTests: XCTestCase {
     XCTAssertFalse(contents.hasMore)
   }
 
+  func testContinuationStopsWhenTheServerHandsBackAConsumedCursor() async {
+    func page(_ id: Int, cursor: String?) -> PutioFolderContents {
+      let base = BrowserTestFixtures.contents(items: [BrowserTestFixtures.item(id: id)])
+      return PutioFolderContents(
+        folder: base.folder, items: base.items, nextCursor: cursor, sort: nil)
+    }
+    // A -> B -> A: each response differs from the cursor it answered.
+    let pages = ["A": page(2, cursor: "B"), "B": page(3, cursor: "A")]
+    var requested: [String] = []
+    let model = PutioFolderModel(
+      folderID: .root,
+      load: { _ in page(1, cursor: "A") },
+      continueLoad: { cursor in
+        requested.append(cursor)
+        return pages[cursor]!
+      }
+    )
+
+    _ = await model.loadIfNeeded()
+    let first = await model.loadMore()
+    let cycled = await model.loadMore()
+
+    XCTAssertTrue(first)
+    XCTAssertFalse(cycled)
+    XCTAssertEqual(requested, ["A", "B"])
+    XCTAssertNotNil(model.loadMoreFailure)
+    guard case .loaded(let contents) = model.state else { return XCTFail("Expected contents") }
+    XCTAssertEqual(contents.items.map(\.id.rawValue), [1, 2])
+
+    // A fresh listing may page through the same cursors again.
+    _ = await model.refresh()
+    let restarted = await model.loadMore()
+    XCTAssertTrue(restarted)
+    XCTAssertEqual(requested, ["A", "B", "A"])
+  }
+
   func testBulkOutcomeRetriesOnlyFailuresStillPresentInTheAuthoritativeFolder() {
     let stale = BrowserTestFixtures.item(id: 7, parentID: 42, name: "Stale.mkv")
     let current = BrowserTestFixtures.item(id: 8, parentID: 42, name: "Current.mkv")
