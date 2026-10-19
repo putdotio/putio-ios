@@ -38,10 +38,7 @@ test("manual legacy delivery validates before entering the release Environment",
     const validationInputs = recordAt(validate, "with", `${name}.validate-ref`);
 
     assert.equal(validate.uses, "./.github/workflows/legacy-delivery-ref.yml");
-    assert.equal(
-      validationInputs.expected_sha,
-      name === "release.yml" ? "${{ inputs.expected_sha || '' }}" : "${{ inputs.expected_sha }}",
-    );
+    assert.equal(validationInputs.expected_sha, "${{ inputs.expected_sha }}");
     assert.equal("environment" in validate, false);
     assert.equal(delivery.needs, "validate-ref");
     assert.equal(delivery.environment, "release");
@@ -81,6 +78,46 @@ test("beta persists the selected TestFlight groups before distribution", async (
   assert.notEqual(envWrite, -1);
   assert.ok(newlineGuard < envWrite, "group newline validation must precede the GITHUB_ENV write");
   assert.match(run.slice(newlineGuard, envWrite), /exit 1/);
+});
+
+test("every workflow that runs asc turns its telemetry off first", async () => {
+  for (const name of ["beta.yml", "release.yml", "screenshots.yml", "submit.yml", "ci.yml"]) {
+    const workflow = await loadYaml(`.github/workflows/${name}`);
+    const serialized = JSON.stringify(workflow);
+    assert.match(serialized, /install-asc\.sh/, `${name} installs the pinned asc`);
+    assert.doesNotMatch(serialized, /brew install/, `${name} must not install asc from Homebrew`);
+    assert.doesNotMatch(serialized, /asc web /, `${name} must not use asc web sessions`);
+    const env = name === "ci.yml"
+      ? recordAt(recordAt(recordAt(workflow, "jobs", name), "verify-tooling", name), "env", name)
+      : recordAt(workflow, "env", name);
+    assert.equal(env.ASC_TELEMETRY_DISABLED, "1", `${name} sets ASC_TELEMETRY_DISABLED`);
+  }
+});
+
+test("submission waits for a protected approval before using the App Store Connect key", async () => {
+  const workflow = await loadYaml(".github/workflows/submit.yml");
+  const jobs = recordAt(workflow, "jobs", "submit.yml");
+  const gate = recordAt(jobs, "check-approval-gate", "submit.yml.jobs");
+  const approve = recordAt(jobs, "approve", "submit.yml.jobs");
+  const submit = recordAt(jobs, "submit", "submit.yml.jobs");
+
+  assert.equal("environment" in gate, false);
+  assert.match(JSON.stringify(gate), /environments\/app-store-review.*required_reviewers/);
+  assert.equal(approve.needs, "check-approval-gate");
+  assert.equal(approve.environment, "app-store-review");
+  assert.doesNotMatch(JSON.stringify(approve), /secrets\./);
+  assert.deepEqual(submit.needs, ["validate-ref", "approve"]);
+  assert.equal(submit.environment, "release");
+});
+
+test("release tags only after the upload, from a job without secrets", async () => {
+  const workflow = await loadYaml(".github/workflows/release.yml");
+  assert.deepEqual(Object.keys(recordAt(workflow, "on", "release.yml")), ["workflow_dispatch"]);
+  const tag = recordAt(recordAt(workflow, "jobs", "release.yml"), "tag", "release.yml.jobs");
+  assert.deepEqual(tag.needs, ["validate-ref", "release"]);
+  assert.deepEqual(tag.permissions, { contents: "write" });
+  assert.equal("environment" in tag, false);
+  assert.doesNotMatch(JSON.stringify(tag), /secrets\./);
 });
 
 const validSentryDsn = "https://synthetickey@o0.ingest.example.invalid/5282170";

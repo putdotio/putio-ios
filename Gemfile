@@ -5,7 +5,5 @@ source 'https://rubygems.org'
 ruby file: 'mise.toml'
 
 gem 'cocoapods', '~> 1.17.0'
+# Only for match signing; asc does everything else (docs/distribution.md).
 gem 'fastlane', '~> 2.237'
-
-# fastlane plugins for ios
-eval_gemfile 'fastlane/Pluginfile' if File.exist?(File.join(__dir__, 'fastlane', 'Pluginfile'))

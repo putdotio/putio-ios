@@ -1,8 +1,9 @@
 name: Screenshots
 
-# Publishing the product page is a separate act from shipping a build, so this
-# is dispatch-only and never runs on a push. The images it uploads are already
-# committed and were reviewed as an image diff; this workflow only moves them.
+# The product page without a build: the committed screenshots, metadata, and
+# version settings for one App Store version. Dispatch-only, and a dry run
+# unless told otherwise; the images and text were reviewed as diffs before
+# they landed, so this only moves them.
 on:
   workflow_dispatch:
     inputs:
@@ -11,11 +12,11 @@ on:
         required: true
         type: string
       app_version:
-        description: App Store version the screenshots attach to, for example 3.0.0
+        description: App Store version the listing attaches to, for example 3.0.0
         required: true
         type: string
       dry_run:
-        description: Validate the set and stop before uploading
+        description: Plan, validate, and stop before changing App Store Connect
         required: false
         type: boolean
         default: true
@@ -27,6 +28,12 @@ concurrency:
   group: screenshots-main
   cancel-in-progress: false
 
+env:
+  # Before any asc command: asc 5.15.0 sends command telemetry unless this is set.
+  ASC_TELEMETRY_DISABLED: "1"
+  ASC_SKILLS_AUTO_CHECK: "0"
+  MISE_AUTO_INSTALL: "false"
+
 jobs:
   validate-ref:
     name: Validate protected legacy main
@@ -34,69 +41,67 @@ jobs:
     with:
       expected_sha: ${{ inputs.expected_sha }}
 
+  # No Xcode, no CocoaPods, no signing: Linux, asc, and the App Store Connect
+  # key, nothing else from the release Environment.
   screenshots:
-    name: Upload App Store screenshots
+    name: Plan or apply the App Store listing
     needs: validate-ref
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     environment: release
-    # Must cover deliver's *whole* retry budget, not one attempt:
-    # Deliver::UploadScreenshots retries five times and gives each attempt the
-    # full SCREENSHOT_PROCESSING_TIMEOUT, so the worst case is 5 x 900s = 75
-    # minutes, plus checkout and bundle install.
-    #
-    # overwrite_screenshots deletes the existing set before uploading, so a job
-    # killed mid-replacement leaves the live listing blank. Fastlane has to be
-    # allowed to fail on its own terms rather than be killed part way through.
-    timeout-minutes: 90
+    # --replace deletes a set before uploading it, so a job killed mid-set
+    # leaves it empty. Generous, so asc fails on its own terms first.
+    timeout-minutes: 60
     env:
-      FASTLANE_SKIP_UPDATE_CHECK: '1'
-      FASTLANE_HIDE_PLUGINS_TABLE: '1'
-      FASTLANE_SKIP_ACTION_SUMMARY: '1'
-      FASTLANE_SKIP_ALL_LANE_SUMMARIES: '1'
-      FASTLANE_HIDE_TIMESTAMP: '1'
-      FASTLANE_DISABLE_COLORS: '1'
-      FASTLANE_SKIP_DOCS: '1'
+      ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+      ASC_BYPASS_KEYCHAIN: "1"
+      APP_VERSION: ${{ inputs.app_version }}
 
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.validate-ref.outputs.sha }}
+          persist-credentials: false
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+      - name: Install mise
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
         with:
-          ruby-version: mise.toml
-          bundler-cache: false
+          install: false
+          cache: false
 
-      - name: Install Ruby dependencies
-        run: bundle install --jobs 4 --retry 3
-
-      # No Xcode, no CocoaPods, no simulator: this lane uploads committed images
-      # and never builds the app.
-      # Deliberately not using load-ios-release-secrets: it requires the whole
-      # release secret set and writes the Match signing key to disk. This lane
-      # uploads images and never builds or signs anything, so it takes only the
-      # App Store Connect credentials and the app identifier.
-      - name: Materialize App Store Connect key
-        env:
-          APPSTORE_CONNECT_KEY_CONTENT: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+      - name: Install the pinned Node and asc
         run: |
-          set -euo pipefail
-          if [ -z "${APPSTORE_CONNECT_KEY_CONTENT:-}" ]; then
-            echo "APPSTORE_CONNECT_KEY_CONTENT is not configured in the release Environment" >&2
-            exit 1
-          fi
-          key_path="$RUNNER_TEMP/appstore_connect_key.p8"
-          printf '%s\n' "$APPSTORE_CONNECT_KEY_CONTENT" > "$key_path"
-          chmod 600 "$key_path"
-          echo "APPSTORE_CONNECT_KEY_FILEPATH=$key_path" >> "$GITHUB_ENV"
+          mise install node
+          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
+          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
 
-      - name: Upload screenshots
-        env:
-          APPSTORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
-          APPSTORE_CONNECT_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
-          PUTIO_APP_IDENTIFIER: ${{ secrets.PUTIO_APP_IDENTIFIER }}
-          PUTIO_SCREENSHOTS_DRY_RUN: ${{ inputs.dry_run }}
-          PUTIO_SCREENSHOTS_APP_VERSION: ${{ inputs.app_version }}
-        run: bundle exec fastlane screenshots
+      # Read-only. The export holds App Store Connect's current metadata and
+      # age-rating answers, ready to commit for the fields not managed yet.
+      - name: Plan
+        run: mise exec -- node scripts/app-store.ts plan --version "$APP_VERSION" --export build/app-store
+
+      - name: Upload the current App Store Connect listing
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: app-store-listing-${{ inputs.app_version }}
+          path: build/app-store
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Preview the screenshot replacement
+        if: inputs.dry_run
+        run: mise exec -- node scripts/app-store.ts screenshots --version "$APP_VERSION" --dry-run
+
+      - name: Apply metadata and version settings
+        if: ${{ !inputs.dry_run }}
+        run: mise exec -- node scripts/app-store.ts apply --version "$APP_VERSION" --confirm
+
+      - name: Replace the screenshots
+        if: ${{ !inputs.dry_run }}
+        run: mise exec -- node scripts/app-store.ts screenshots --version "$APP_VERSION" --confirm
+
+      - name: Validate submission readiness
+        if: ${{ !cancelled() }}
+        run: mise exec -- node scripts/app-store.ts validate --version "$APP_VERSION"

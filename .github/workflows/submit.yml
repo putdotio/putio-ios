@@ -1,0 +1,124 @@
+name: Submit for review
+
+# Submits an uploaded, attached build for App Store review. The approve job
+# waits on the app-store-review Environment's required reviewer; the submit job
+# then uses the release Environment's App Store Connect key.
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact protected-main commit SHA the build came from
+        required: true
+        type: string
+      version:
+        description: App Store version to submit, for example 3.0.1
+        required: true
+        type: string
+      build_number:
+        description: Build number the Release run uploaded
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: submit-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  # Before any asc command: asc 5.15.0 sends command telemetry unless this is set.
+  ASC_TELEMETRY_DISABLED: "1"
+  ASC_SKILLS_AUTO_CHECK: "0"
+  MISE_AUTO_INSTALL: "false"
+
+jobs:
+  validate-ref:
+    name: Validate protected legacy main
+    uses: ./.github/workflows/legacy-delivery-ref.yml
+    with:
+      expected_sha: ${{ inputs.expected_sha }}
+
+  # Referencing a missing Environment creates it without protection, which
+  # would turn the approval into a no-op. Refuse unless it exists with a
+  # required reviewer.
+  check-approval-gate:
+    name: Require the app-store-review approval gate
+    needs: validate-ref
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check the Environment's required reviewers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || ! [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "version must look like 3.0.1 and build_number must be an integer" >&2
+            exit 1
+          fi
+          reviewers="$(gh api "repos/$GITHUB_REPOSITORY/environments/app-store-review" \
+            --jq '[.protection_rules[] | select(.type == "required_reviewers") | .reviewers[]] | length' 2>/dev/null || echo 0)"
+          if [ "$reviewers" -lt 1 ]; then
+            echo "The app-store-review Environment must exist with a required reviewer before anything is submitted" >&2
+            exit 1
+          fi
+
+  approve:
+    name: Approve the submission
+    needs: check-approval-gate
+    runs-on: ubuntu-latest
+    environment: app-store-review
+    timeout-minutes: 5
+
+    steps:
+      - name: Record the approval
+        env:
+          VERSION: ${{ inputs.version }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: echo "- Approved submitting $VERSION ($BUILD_NUMBER)" >> "$GITHUB_STEP_SUMMARY"
+
+  submit:
+    name: Submit for App Store review
+    needs: [validate-ref, approve]
+    runs-on: ubuntu-latest
+    environment: release
+    timeout-minutes: 30
+    env:
+      ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+      ASC_BYPASS_KEYCHAIN: "1"
+      VERSION: ${{ inputs.version }}
+      BUILD_NUMBER: ${{ inputs.build_number }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate-ref.outputs.sha }}
+          persist-credentials: false
+
+      - name: Install mise
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+        with:
+          install: false
+          cache: false
+
+      - name: Install the pinned Node and asc
+        run: |
+          mise install node
+          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
+          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
+
+      - name: Validate with warnings as blockers
+        run: mise exec -- node scripts/app-store.ts validate --version "$VERSION" --strict
+
+      - name: Submit
+        run: |
+          asc telemetry status --output json | jq -e '.enabled == false' > /dev/null
+          asc review submit --app 1260479699 --platform IOS --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" --confirm --output markdown | tee -a "$GITHUB_STEP_SUMMARY"

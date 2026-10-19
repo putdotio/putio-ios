@@ -52,7 +52,7 @@ Codex and Claude worktrees. Run `mise run bootstrap`; use `mise run secrets-setu
 - Visual baselines: components in `PutioTests/__Snapshots__/`, full screens in `PutioUITests/__Snapshots__/`, dark mode only, on a pinned iPhone 17 Pro Max. After an intentional visual change run `mise run screenshots-record`, review the image diff, and commit the baselines. Scope one screen with `-- --only PutioUITests/ScreenshotWalkUITests/testVideoPlayerScreenshotWalk` (about 1 minute instead of 5)
 - E2e is local-only: GitHub registers workflows from the default branch, `next`, so `.github/workflows/e2e-simulator.yml` never runs from `main`. Run `mise run e2e-simulator` yourself
 - `mise run vref` builds the local baseline gallery; see [.vref/README.md](./.vref/README.md)
-- App Store images are generated from the baselines. `store-screenshots` selects iPhone slots from `Config/StoreScreenshots.json`; `store-capture-ipad` records the unasserted iPad set into `PutioUITests/__Captures__/ipad-13/`; `store-images` frames both into committed `fastlane/screenshots/en-US/` with captions from `Config/StoreCaptions.json` and writes `Config/StoreImages.lock.json`. Commit images and lock together; `verify-store-images` fails when a baseline changed without a re-render
+- App Store images are generated from the baselines. `store-screenshots` selects iPhone slots from `Config/StoreScreenshots.json`; `store-capture-ipad` records the unasserted iPad set into `PutioUITests/__Captures__/ipad-13/`; `store-images` frames both into committed `screenshots/en-US/` with captions from `Config/StoreCaptions.json` and writes `Config/StoreImages.lock.json`. Commit images and lock together; `verify-store-images` fails when a baseline changed without a re-render
 
 ## Coding Patterns
 

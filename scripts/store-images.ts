@@ -11,7 +11,7 @@
 // GT America the app bundles.
 //
 // Usage:
-//   node scripts/store-images.ts          # render into fastlane/screenshots/
+//   node scripts/store-images.ts          # render into screenshots/
 //   node scripts/store-images.ts --check  # verify inputs without rendering
 
 import { existsSync } from "node:fs";
@@ -28,7 +28,7 @@ const SCREENSHOTS_CONFIG = join(ROOT, "Config/StoreScreenshots.json");
 const CAPTIONS_CONFIG = join(ROOT, "Config/StoreCaptions.json");
 const TEMPLATE = join(ROOT, "scripts/store-images/template.html");
 const RAW_DIR = join(ROOT, "dist/store-screenshots");
-const OUTPUT_DIR = join(ROOT, "fastlane/screenshots");
+const OUTPUT_DIR = join(ROOT, "screenshots");
 const FONTS_DIR = join(ROOT, "Putio/Fonts");
 
 // The weight the caption is set in; template.html must agree.
@@ -187,7 +187,7 @@ async function main(): Promise<void> {
   // After the swap: the lock must never describe a set that is not on disk.
   await writeFile(LOCK_PATH, lock);
 
-  console.log(`rendered ${plan.length} store images into fastlane/screenshots/`);
+  console.log(`rendered ${plan.length} store images into screenshots/`);
 }
 
 /**

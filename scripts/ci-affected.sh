@@ -17,7 +17,7 @@ while IFS= read -r path; do
     # Prose, and the workflows that ship or publish rather than test.
     *.md | LICENSE | docs/* | .github/ISSUE_TEMPLATE/*) ;;
     .github/workflows/beta.yml | .github/workflows/release.yml) ;;
-    .github/workflows/screenshots.yml | .github/workflows/e2e-simulator.yml) ;;
+    .github/workflows/screenshots.yml | .github/workflows/submit.yml | .github/workflows/e2e-simulator.yml) ;;
     # Gallery data. Nothing in CI reads it.
     .vref/*) ;;
     # The control plane. These decide what every lane runs — mise.toml pins Node
@@ -41,10 +41,11 @@ while IFS= read -r path; do
     # at which point it belongs in the default branch below instead.
     scripts/*.ts | scripts/*.mjs | scripts/store-images/*) tooling=true ;;
     package.json | pnpm-lock.yaml | pnpm-workspace.yaml | tsconfig.json) tooling=true ;;
-    # Store artwork and the configs that drive it. A caption or a slot order
-    # cannot break an iOS build, so these skip the macOS lane — but they do
-    # invalidate the committed images, which the tooling lane checks.
-    Config/Store*.json | fastlane/screenshots/*) tooling=true ;;
+    # Store artwork, listing, and the configs that drive them. None can break
+    # an iOS build, so these skip the macOS lane; the tooling lane checks the
+    # images against their inputs and the listing with the pinned asc.
+    Config/Store*.json | Config/AppStore.json | screenshots/* | metadata/*) tooling=true ;;
+    scripts/install-asc.sh) tooling=true ;;
     # Composite actions. The tooling lane's workflow tests run their guards, and
     # the app lane stays on as it would for any unrecognized path.
     .github/actions/*)

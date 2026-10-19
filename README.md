@@ -36,7 +36,6 @@ Sign in with your put.io account to browse files, view history, manage downloads
 ## Repo Internals
 
 - [Agent guide](./AGENTS.md) for repo-specific agent guidance
-- [Fastlane action docs](./fastlane/README.md) for generated fastlane action docs
 
 ## Contributing
 

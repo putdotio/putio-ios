@@ -150,7 +150,7 @@ Tapping `Log in` still starts the flow.
 - `mise run store-screenshots` writes the App Store set to gitignored `dist/store-screenshots/<device>/` in display order; `mise run verify-store-screenshots` validates without writing. Slot order lives in `Config/StoreScreenshots.json`
 - **iPhone** needs no capture: the pinned simulator's 1320x2868 walk output is Apple's 6.9" size, so the store images are the baselines CI compares
 - **iPad** has no asserted walk. `mise run store-capture-ipad` (about 2 minutes) runs the walk on an ephemeral iPad Pro 13-inch (M5) and writes 2064x2752 images to `PutioUITests/__Captures__/ipad-13/`, committed so `store-screenshots` needs no capture. Run it after a visual change that affects a store slot
-- `mise run store-images` frames both into `fastlane/screenshots/en-US/` with captions from `Config/StoreCaptions.json`. Commit the images and `Config/StoreImages.lock.json` together
+- `mise run store-images` frames both into `screenshots/en-US/` with captions from `Config/StoreCaptions.json`. Commit the images and `Config/StoreImages.lock.json` together
 - `mise run verify-store-images` hashes the inputs against that lock instead of re-rendering, so CI runs it on Linux. Keys starting with `$` are excluded from the hashes
 
 ## Targeted Regression Checks
@@ -187,7 +187,7 @@ mise run perf -- --latency-ms 300                    # delay every mocked respon
   - `Config/Shared.xcconfig`
   - optional `Config/Local.xcconfig`
   - `Info.plist` placeholders
-- Fastlane passes the same `PUTIO_*` values through Xcode during beta archive builds
+- `scripts/archive-ios.sh` passes the same `PUTIO_*` values to Xcode during beta and release archive builds
 - User-facing copy has an English base under `Putio/en.lproj`
   - when changing copy in Swift, update `Putio/en.lproj/Localizable.strings`
   - when changing storyboard or xib copy, update the matching `Putio/en.lproj/*.strings` file
@@ -198,7 +198,16 @@ mise run perf -- --latency-ms 300                    # delay every mocked respon
 ## CI And Delivery
 
 [Distribution](./docs/distribution.md) covers workflow roles, CI bootstrap, the
-fastlane release contract, and TestFlight and App Store Connect notes.
+asc delivery contract, and TestFlight and App Store Connect notes.
+
+Listing work needs the pinned [asc](https://asccli.sh) CLI. Install it and turn
+its telemetry off once, then check the listing offline:
+
+```sh
+./scripts/install-asc.sh   # asc 5.15.0 into ~/.local/bin, checksum-verified
+asc telemetry disable
+node scripts/app-store.ts check
+```
 
 ## Good First Contributions
 
