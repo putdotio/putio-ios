@@ -117,14 +117,14 @@ test("release tags only after the upload, as putio-ci with nothing else", async 
   const raw = await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
   assert.match(raw, /create-github-app-token@[0-9a-f]{40} # v\d+\.\d+\.\d+/, "pin carries its version comment");
   assert.deepEqual(recordAt(mint, "with", "tag.steps[0]"), {
-    "app-id": "${{ vars.PUTIO_RELEASE_BOT_APP_ID }}",
-    "private-key": "${{ secrets.PUTIO_RELEASE_BOT_PRIVATE_KEY }}",
+    "client-id": "${{ vars.PUTIO_CI_APP_CLIENT_ID }}",
+    "private-key": "${{ secrets.PUTIO_CI_APP_PRIVATE_KEY }}",
     owner: "${{ github.repository_owner }}",
     repositories: "${{ github.event.repository.name }}",
     "permission-contents": "write",
   });
   const serialized = JSON.stringify(tag);
-  assert.deepEqual([...new Set(serialized.match(/secrets\.[A-Z_]+/g))], ["secrets.PUTIO_RELEASE_BOT_PRIVATE_KEY"]);
+  assert.deepEqual([...new Set(serialized.match(/secrets\.[A-Z_]+/g))], ["secrets.PUTIO_CI_APP_PRIVATE_KEY"]);
   assert.doesNotMatch(serialized, /actions\/checkout/);
   assert.match(JSON.stringify(steps[1]), /GH_TOKEN.*steps\.token\.outputs\.token/);
 });
