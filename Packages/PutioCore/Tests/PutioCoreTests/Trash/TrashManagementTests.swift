@@ -761,6 +761,37 @@ final class TrashManagementTests: XCTestCase {
     XCTAssertEqual(model.mutationOutcome, .restored(item))
   }
 
+  func testACompleteListingThatOmitsTheItemReleasesItsTombstone() async {
+    let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
+    let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
+    let shared = PutioTrashReconciliation()
+    let stub = TrashActionsStub(
+      pages: [
+        .success(page(items: [a, b], totalCount: 2)),
+        // A complete two-page listing without b.
+        .success(page(items: [a], cursor: "n1", totalCount: 1)),
+        .success(page(items: [], totalCount: 1)),
+        // Released, so the next listing is trusted at once.
+        .success(page(items: [a, b], totalCount: 2)),
+      ],
+      deleteResults: [.success(.refreshed)]
+    )
+    let model = model(stub, reconciliation: shared)
+
+    await model.loadIfNeeded()
+    await model.permanentlyDelete(b)
+    await model.refresh()
+    XCTAssertTrue(shared.isRemoved(b), "an incomplete listing settles nothing")
+
+    await model.loadMore()
+    XCTAssertEqual(model.page?.items, [a])
+    XCTAssertFalse(shared.isRemoved(b), "the omitting listing released the tombstone")
+
+    await model.refresh()
+    XCTAssertEqual(model.page?.items, [a, b])
+    XCTAssertEqual(stub.loadedCursors, [nil, nil, "n1", nil])
+  }
+
   func testTombstonesReleaseAfterTheServerConsistentlyReportsTheItem() async {
     let a = trashItem(id: 91, name: "A.pdf", kind: .pdf)
     let b = trashItem(id: 92, name: "B.pdf", kind: .pdf)
