@@ -365,19 +365,28 @@ const requireWhatsNew = async (config: AppStoreConfig, version: string): Promise
 // uploads one device type per directory.
 const stageScreenshots = async (config: AppStoreConfig): Promise<{ dir: string; sets: { locale: string; set: ScreenshotSet; path: string; count: number }[] }> => {
   const source = resolve(root, config.screenshots.dir);
-  const staged = await mkdtemp(join(tmpdir(), "putio-app-store-screenshots-"));
-  const sets: { locale: string; set: ScreenshotSet; path: string; count: number }[] = [];
   const locales = (await readdir(source, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
   if (locales.length === 0) throw new Error(`${config.screenshots.dir} has no locale directories`);
+  // Validate everything before creating the staging directory, so a rejection leaves nothing behind.
+  const plan: { locale: string; assigned: Map<ScreenshotSet, string[]> }[] = [];
   for (const locale of locales) {
     appStoreLocale(locale, `${config.screenshots.dir}/${locale}`);
-    const assigned = assignScreenshots(config.screenshots.sets, await readdir(join(source, locale)));
-    for (const [set, files] of assigned) {
-      const path = join(staged, locale, set.deviceType);
-      await mkdir(path, { recursive: true });
-      for (const file of files) await copyFile(join(source, locale, file), join(path, file));
-      sets.push({ locale, set, path, count: files.length });
+    plan.push({ locale, assigned: assignScreenshots(config.screenshots.sets, await readdir(join(source, locale))) });
+  }
+  const staged = await mkdtemp(join(tmpdir(), "putio-app-store-screenshots-"));
+  const sets: { locale: string; set: ScreenshotSet; path: string; count: number }[] = [];
+  try {
+    for (const { locale, assigned } of plan) {
+      for (const [set, files] of assigned) {
+        const path = join(staged, locale, set.deviceType);
+        await mkdir(path, { recursive: true });
+        for (const file of files) await copyFile(join(source, locale, file), join(path, file));
+        sets.push({ locale, set, path, count: files.length });
+      }
     }
+  } catch (error) {
+    await rm(staged, { recursive: true, force: true });
+    throw error;
   }
   return { dir: staged, sets };
 };
