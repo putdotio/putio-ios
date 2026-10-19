@@ -97,7 +97,8 @@ test("every screenshot lands in exactly one set within Apple's limit", () => {
   const assigned = assignScreenshots(config.screenshots.sets, ["ipad-13-01.jpg", "iphone-6.9-02.jpg", "iphone-6.9-01.jpg", ".DS_Store"]);
   assert.deepEqual([...assigned.values()], [["iphone-6.9-01.jpg", "iphone-6.9-02.jpg"], ["ipad-13-01.jpg"]]);
   assert.throws(() => assignScreenshots(config.screenshots.sets, ["watch-01.png"]), /match no configured set: watch-01.png/);
-  const eleven = Array.from({ length: 11 }, (_, index) => `ipad-13-${String(index).padStart(2, "0")}.png`);
+  assert.throws(() => assignScreenshots(config.screenshots.sets, ["iphone-6.9-01.jpg"]), /IPAD_PRO_3GEN_129 has no screenshots/);
+  const eleven = ["iphone-6.9-01.jpg", ...Array.from({ length: 11 }, (_, index) => `ipad-13-${String(index).padStart(2, "0")}.png`)];
   assert.throws(() => assignScreenshots(config.screenshots.sets, eleven), /11 screenshots/);
 });
 
@@ -155,6 +156,10 @@ test("check runs the pinned asc against the listing offline", { skip: !ascAvaila
   assert.match(stdout, /en-US IPAD_PRO_3GEN_129: 1 screenshots pass/);
 
   await assert.rejects(check("3.1.0"), /version\/3\.1\.0\/en-US\.json is missing/);
+  await assert.rejects(
+    run(process.execPath, [script, "apply", "--config", join(dir, "AppStore.json"), "--version", "3.0.0", "--confirm", "--dry-run"]),
+    /without --dry-run/,
+  );
   await version("x".repeat(4001));
   await assert.rejects(check("3.0.0"), /asc metadata validate exited/);
   await version("Faster folders.");
