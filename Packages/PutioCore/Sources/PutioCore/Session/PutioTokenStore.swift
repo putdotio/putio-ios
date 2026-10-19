@@ -49,6 +49,8 @@ public struct PutioKeychainTokenStore: PutioTokenStore {
     let data = Data(token.utf8)
     var update = [String: Any]()
     update[kSecValueData as String] = data
+    // Items written before this policy keep their old class unless reapplied.
+    update[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
 
     let updateStatus = SecItemUpdate(baseQuery as CFDictionary, update as CFDictionary)
     if updateStatus == errSecSuccess {
