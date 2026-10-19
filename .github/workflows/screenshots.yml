@@ -6,6 +6,10 @@ name: Screenshots
 on:
   workflow_dispatch:
     inputs:
+      expected_sha:
+        description: Exact protected-main commit SHA to upload from
+        required: true
+        type: string
       app_version:
         description: App Store version the screenshots attach to, for example 3.0.0
         required: true
@@ -24,8 +28,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-ref:
+    name: Validate protected legacy main
+    uses: ./.github/workflows/legacy-delivery-ref.yml
+    with:
+      expected_sha: ${{ inputs.expected_sha }}
+
   screenshots:
     name: Upload App Store screenshots
+    needs: validate-ref
     runs-on: macos-latest
     environment: release
     # Must cover deliver's *whole* retry budget, not one attempt:
@@ -50,7 +61,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
+          ref: ${{ needs.validate-ref.outputs.sha }}
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
