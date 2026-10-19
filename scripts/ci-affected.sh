@@ -20,6 +20,7 @@ while IFS= read -r path; do
     # Delivery workflows. Their contract tests run in the tooling lane.
     .github/workflows/beta.yml | .github/workflows/release.yml | .github/workflows/screenshots.yml) tooling=true ;;
     .github/workflows/submit.yml | .github/workflows/delivery-ref.yml) tooling=true ;;
+    .github/workflows/signing-check.yml) tooling=true ;;
     # Gallery data. Nothing in CI reads it.
     .vref/*) ;;
     # The control plane. These decide what every lane runs — mise.toml pins Node
@@ -48,6 +49,8 @@ while IFS= read -r path; do
     # images against their inputs and the listing with the pinned asc.
     Config/Store*.json | Config/AppStore.json | screenshots/* | metadata/*) tooling=true ;;
     scripts/install-asc.sh) tooling=true ;;
+    # Signing runs only in delivery jobs; its tests run in the tooling lane.
+    scripts/install-signing.sh | scripts/check-signing-profile.rb) tooling=true ;;
     # Composite actions. The tooling lane's workflow tests run their guards, and
     # the app lane stays on as it would for any unrecognized path.
     .github/actions/*)

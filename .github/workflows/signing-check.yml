@@ -1,0 +1,83 @@
+name: Signing Check
+
+# Dispatch-only: proves the release Environment's distribution identity and the
+# App Store profile App Store Connect serves for it sign the app, without
+# building, uploading, or creating anything.
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact protected-main commit SHA to check from
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  MISE_AUTO_INSTALL: "false"
+  ASC_TELEMETRY_DISABLED: "1"
+  ASC_SKILLS_AUTO_CHECK: "0"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  validate-ref:
+    name: Validate protected main
+    uses: ./.github/workflows/delivery-ref.yml
+    with:
+      expected_sha: ${{ inputs.expected_sha }}
+
+  signing:
+    name: Install and match the signing identity
+    needs: validate-ref
+    runs-on: macos-latest
+    environment: release
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate-ref.outputs.sha }}
+          persist-credentials: false
+
+      # check-signing-profile.rb runs on the pinned Ruby, as in Beta and Release.
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        with:
+          ruby-version: mise.toml
+          bundler-cache: false
+
+      - name: Install the pinned asc
+        run: |
+          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
+          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
+
+      - name: Install the identity and fetch the App Store profile
+        env:
+          APPLE_DISTRIBUTION_P12: ${{ secrets.APPLE_DISTRIBUTION_P12 }}
+          APPLE_DISTRIBUTION_P12_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_P12_PASSWORD }}
+          PUTIO_APP_IDENTIFIER: ${{ secrets.PUTIO_APP_IDENTIFIER }}
+          PUTIO_DEVELOPMENT_TEAM: ${{ secrets.PUTIO_DEVELOPMENT_TEAM }}
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
+        run: |
+          asc telemetry status --output json | jq -e '.enabled == false' > /dev/null
+          ./scripts/install-signing.sh
+
+      # No keychain argument: codesign finds the identity through the search
+      # list, so that is where this looks too.
+      - name: Find the identity as a valid code-signing identity
+        run: |
+          security find-identity -v -p codesigning | tee -a "$GITHUB_STEP_SUMMARY" \
+            | grep -qi "$PUTIO_SIGNING_CERTIFICATE_SHA1"
+
+      - name: Delete the signing keychain
+        if: always() && env.PUTIO_SIGNING_KEYCHAIN != ''
+        run: |
+          [ ! -e "$PUTIO_SIGNING_KEYCHAIN" ] || asc signing keychain delete --keychain "$PUTIO_SIGNING_KEYCHAIN" --confirm --output json > /dev/null
