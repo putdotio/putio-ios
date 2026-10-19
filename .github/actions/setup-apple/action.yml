@@ -19,10 +19,18 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Select Xcode 26.6
+    # GitHub's macos-26 image carries Xcode 26.6; the zebroid pool's image
+    # carries only Xcode 27.0.
+    - name: Select Xcode
       uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
       with:
-        xcode-version: "26.6"
+        xcode-version: ${{ runner.environment == 'github-hosted' && '26.6' || '27.0' }}
+
+    # New Simulators inherit the host's preferred languages, and the pool image
+    # lists dozens; pin English before anything starts CoreSimulator.
+    - name: Prefer English for new Simulators
+      shell: bash
+      run: defaults write -g AppleLanguages -array en
 
     - name: Install the pinned toolchain
       uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0

@@ -30,7 +30,7 @@ permissions:
 jobs:
   changes:
     name: Select affected lanes
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-24.04-arm' || vars.CI_RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
     timeout-minutes: 5
     permissions:
       contents: read
@@ -101,7 +101,7 @@ jobs:
     name: Markdown
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.markdown == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-24.04-arm' || vars.CI_RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
     timeout-minutes: 10
 
     steps:
@@ -128,7 +128,7 @@ jobs:
     name: App Store tooling
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.store == 'true' }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'ubuntu-24.04-arm' || vars.CI_RUNNER_ARM64 || 'ubuntu-24.04-arm' }}
     timeout-minutes: 10
     env:
       ASC_TELEMETRY_DISABLED: "1"
@@ -171,14 +171,15 @@ jobs:
             exit 1
           fi
 
-  # Five macOS jobs fill the organization's concurrent macOS limit, so a run
-  # that overlaps another, a `verify` dispatch included, queues until slots
-  # free up.
+  # Jobs run on the zebroid pool through ci-failover's repository variables,
+  # and pull requests from forks on GitHub-hosted runners
+  # (scripts/workflow-runners.test.ts). The pool runs four macOS jobs at once
+  # across the organization; the rest queue until a slot frees up.
   checks:
     name: Checks
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
-    runs-on: macos-26
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'macos-26' || vars.CI_RUNNER_MACOS || 'macos-26' }}
     timeout-minutes: 30
 
     steps:
@@ -197,7 +198,7 @@ jobs:
     name: tvOS tests
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.tvos == 'true' }}
-    runs-on: macos-26
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'macos-26' || vars.CI_RUNNER_MACOS || 'macos-26' }}
     timeout-minutes: 30
 
     steps:
@@ -234,7 +235,7 @@ jobs:
     name: iOS tests
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.ios == 'true' }}
-    runs-on: macos-26
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'macos-26' || vars.CI_RUNNER_MACOS || 'macos-26' }}
     timeout-minutes: 30
 
     steps:
@@ -290,7 +291,7 @@ jobs:
     name: Builds
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.code == 'true' }}
-    runs-on: macos-26
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'macos-26' || vars.CI_RUNNER_MACOS || 'macos-26' }}
     timeout-minutes: 30
 
     steps:
@@ -318,7 +319,7 @@ jobs:
     name: iOS proof
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.ios == 'true' }}
-    runs-on: macos-26
+    runs-on: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'macos-26' || vars.CI_RUNNER_MACOS || 'macos-26' }}
     timeout-minutes: 30
 
     steps:
