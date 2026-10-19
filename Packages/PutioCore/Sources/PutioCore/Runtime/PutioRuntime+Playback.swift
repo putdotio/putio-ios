@@ -190,7 +190,7 @@ extension PutioRuntime {
   }
 
   public func startVideoConversion(fileID: PutioFileID) async throws {
-    _ = try await performAuthenticatedOperation {
+    _ = try await performAuthenticatedOperation(commits: true) {
       try await sdk.startMp4Conversion(fileID: fileID.rawValue)
     }
   }
