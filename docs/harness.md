@@ -263,7 +263,13 @@ Inspect retained diagnostics locally before sharing them.
 [Next CI](../.github/workflows/ci-next.yml) owns triggers, toolchain, font
 provisioning, path-based lane selection, and caching. It runs each
 `mise run verify` lane and the iOS launch-proof subset in `mise run harness-ci`
-on separate runners, and uploads `.xcresult` bundles when a test fails.
+on separate runners, and uploads `.xcresult` bundles when a test fails. Jobs
+run on the zebroid pool's single-use VMs (Xcode 27.0), which the
+`CI_RUNNER_MACOS` and `CI_RUNNER_ARM64` repository variables select; pull
+requests from forks, and every job while those variables are unset, run on
+GitHub's `macos-26` (Xcode 26.6) and `ubuntu-24.04-arm`.
+[workflow-runners.test.ts](../scripts/workflow-runners.test.ts) fails any
+job that could reach the pool without that guard.
 `PUTIO_SIMULATOR_TEMPLATES=1`, which CI's
 [setup action](../.github/actions/setup-apple/action.yml) sets, makes the iOS
 harness clone a cached, already-booted `putio-template-*` device. Feature
