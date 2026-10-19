@@ -150,6 +150,13 @@ final class PutioOfflineQueue {
 
   // MARK: Lifecycle
 
+  /// Called when the shell leaves the account, on sign-out or account switch.
+  /// The system keeps the transfers, so the next shell for this account
+  /// reclaims them through `restore()`.
+  func stop() {
+    engine.stop()
+  }
+
   /// Reconnects tasks the system kept alive and re-queues everything else
   /// that was mid-flight when the app died.
   func restore() async {

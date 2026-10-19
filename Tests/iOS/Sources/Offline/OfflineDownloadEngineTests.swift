@@ -138,6 +138,48 @@ struct OfflineDownloadEngineTests {
     #expect(tasks.configurations.isEmpty)
   }
 
+  @Test func aStoppedQueueNeverStartsTheTransferItWasPreparing() async throws {
+    let gate = Gate()
+    let tasks = Tasks()
+    let directory = FileManager.default.temporaryDirectory.appending(
+      path: "offline-engine-tests-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let configuration = AVAssetDownloadConfiguration(asset: AVURLAsset(url: url), title: "video")
+    let relay = PutioOfflineDownloadRelay(dispatch: { work in MainActor.assumeIsolated { work() } })
+    let engine = PutioSystemOfflineDownloadEngine(
+      accountID: 1,
+      prepareConfiguration: { _, _, _ in
+        await gate.wait()
+        return configuration
+      },
+      makeTask: tasks.make, relay: relay)
+    var live = true
+    let queue = PutioOfflineQueue(
+      store: PutioOfflineStore(directory: directory, accountID: 1), engine: engine,
+      availableStorage: { 10_000_000_000 },
+      resolve: { _, _ in .ready(PutioPlaybackSource(url: url, startFromSeconds: 0)) },
+      startConversion: { _ in }, conversionStatus: { _ in .queued },
+      reportPosition: { _, _ in }, deleteOriginal: { _ in }, isLive: { live })
+    defer {
+      gate.open()
+      engine.stop()
+      tasks.close()
+      try? FileManager.default.removeItem(at: directory)
+    }
+    queue.enqueue(fileID: fileID, parentID: .root, name: "video", kind: .video)
+    try await gate.waitUntilEntered()
+
+    // The shell leaves the account while the engine is still preparing.
+    live = false
+    queue.stop()
+    gate.open()
+    for _ in 0..<40 { await Task.yield() }
+    try await Task.sleep(for: .milliseconds(50))
+    for _ in 0..<40 { await Task.yield() }
+
+    #expect(tasks.configurations.isEmpty)
+  }
+
   @Test func cancellingAnotherFileDoesNotInvalidatePreparation() async throws {
     let gate = Gate()
     let tasks = Tasks()

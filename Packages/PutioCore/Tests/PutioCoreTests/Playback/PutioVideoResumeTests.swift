@@ -218,3 +218,37 @@ final class PutioVideoPositionReporterTests: XCTestCase {
     XCTAssertFalse(PutioVideoPositionReporter.isAtEnd(positionSeconds: 12, durationSeconds: .nan))
   }
 }
+
+private final class ScheduleHolder: @unchecked Sendable {
+  var schedule: PutioMonotonicPositionReportSchedule?
+}
+
+@MainActor
+final class PutioMonotonicPositionReportScheduleTests: XCTestCase {
+  func testReleasingTheLastReferenceOffTheMainActorCancelsTheSchedule() async {
+    let sleeping = expectation(description: "schedule sleeping")
+    let cancelled = expectation(description: "schedule cancelled")
+    let holder = ScheduleHolder()
+    holder.schedule = PutioMonotonicPositionReportSchedule(
+      interval: .seconds(3_600),
+      sleep: { interval in
+        sleeping.fulfill()
+        do {
+          try await Task.sleep(for: interval)
+        } catch {
+          cancelled.fulfill()
+          throw error
+        }
+      },
+      callback: {}
+    )
+    await fulfillment(of: [sleeping], timeout: 2)
+
+    await Task.detached {
+      XCTAssertFalse(Thread.isMainThread)
+      holder.schedule = nil
+    }.value
+
+    await fulfillment(of: [cancelled], timeout: 2)
+  }
+}

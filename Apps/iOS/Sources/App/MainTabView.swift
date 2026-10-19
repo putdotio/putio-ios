@@ -171,7 +171,10 @@ struct MainTabView: View {
           showsHarnessReadiness: scenario == .filesBrowser)
       }
     }
-    .onDisappear { stopAudio() }
+    .onDisappear {
+      stopAudio()
+      offlineQueueHolder.stop()
+    }
     .onChange(of: cast.hasSession) { _, hasSession in
       if hasSession { stopAudio() }
     }
@@ -738,4 +741,7 @@ private final class PutioOfflineQueueHolder {
     built = queue
     return queue
   }
+
+  /// Stops only a queue that was built; teardown must not build one.
+  func stop() { built?.stop() }
 }

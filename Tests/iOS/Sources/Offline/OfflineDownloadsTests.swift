@@ -40,6 +40,7 @@ final class OfflineDownloadsTests: XCTestCase {
       if let id = replayCompletionOnRestore { onFinished?(id, nil) }
       return alive
     }
+    func stop() {}
     func retryPersisting() throws {}
 
     func finish(_ id: PutioFileID, at directory: URL) throws {
@@ -113,6 +114,7 @@ final class OfflineDownloadsTests: XCTestCase {
       onCancelled?(fileID)
     }
     func restoreTasks() async -> [PutioFileID] { [] }
+    func stop() {}
     func retryPersisting() throws {}
   }
 
