@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -44,6 +44,7 @@ test("config rejects what App Store Connect would not accept", () => {
   assert.equal(parseConfig({ ...validConfig, ageRating: { violenceRealistic: "INFREQUENT" } }).ageRating.violenceRealistic, "INFREQUENT");
   assert.throws(() => parseConfig({ ...validConfig, ageRating: { seventeenPlus: true } }), /not a supported/);
   assert.throws(() => parseConfig({ ...validConfig, releaseType: "MANUAL" }), /unknown key releaseType/);
+  assert.throws(() => parseConfig({ ...validConfig, primaryLocale: "en_US" }), /en_US is not an App Store locale/);
   assert.throws(
     () => parseConfig({ ...validConfig, screenshots: { dir: "s", sets: [{ deviceType: "A", prefix: "ip" }, { deviceType: "B", prefix: "ipad-" }] } }),
     /prefix ip also matches ipad-/,
@@ -81,17 +82,39 @@ test("version settings converge on the config and stop at a no-op", () => {
   assert.throws(() => versionActions(off, remote({ phasedRelease: { id: "p1", state: "ACTIVE" } })), /ACTIVE/);
 });
 
+const linked = (phased: unknown) => ({ appStoreVersionPhasedRelease: { data: phased } });
+
 test("remote version listings parse with and without a phased release", () => {
   assert.equal(parseRemoteVersion({ data: [] }), undefined);
   assert.deepEqual(
     parseRemoteVersion({
-      data: [{ id: "v1", attributes: { appVersionState: "PREPARE_FOR_SUBMISSION", releaseType: "MANUAL" } }],
+      data: [{
+        id: "v1",
+        attributes: { appVersionState: "PREPARE_FOR_SUBMISSION", releaseType: "MANUAL" },
+        relationships: linked({ type: "appStoreVersionPhasedReleases", id: "p1" }),
+      }],
       included: [{ type: "appStoreVersionPhasedReleases", id: "p1", attributes: { phasedReleaseState: "INACTIVE" } }],
     }),
     remote(),
   );
-  assert.equal(parseRemoteVersion({ data: [{ id: "v1", attributes: { appStoreState: "READY_FOR_SALE" } }] })?.phasedRelease, undefined);
+  assert.equal(
+    parseRemoteVersion({ data: [{ id: "v1", attributes: { appStoreState: "READY_FOR_SALE" }, relationships: linked(null) }] })?.phasedRelease,
+    undefined,
+  );
   assert.throws(() => parseRemoteVersion({ data: [{ id: "a", attributes: {} }, { id: "b", attributes: {} }] }), /more than one/);
+});
+
+test("a malformed phased-release response is rejected, never read as absent", () => {
+  const version = (relationships: unknown) => ({ id: "v1", attributes: { releaseType: "MANUAL" }, relationships });
+  const link = { type: "appStoreVersionPhasedReleases", id: "p1" };
+  assert.throws(() => parseRemoteVersion({ data: [version(undefined)] }), /did not report the phased-release relationship/);
+  assert.throws(() => parseRemoteVersion({ data: [version(linked({ id: 7 }))] }), /malformed phased-release linkage/);
+  assert.throws(() => parseRemoteVersion({ data: [version(linked(link))], included: "nope" }), /included none/);
+  assert.throws(() => parseRemoteVersion({ data: [version(linked(link))], included: [] }), /without a known state/);
+  assert.throws(
+    () => parseRemoteVersion({ data: [version(linked(link))], included: [{ type: link.type, id: "p1", attributes: { phasedReleaseState: 3 } }] }),
+    /without a known state/,
+  );
 });
 
 test("every screenshot lands in exactly one set within Apple's limit", () => {
@@ -166,4 +189,89 @@ test("check runs the pinned asc against the listing offline", { skip: !ascAvaila
   await version("Faster folders.");
   await writeFile(join(dir, "screenshots/en-US/ipad-13-02.png"), png(1320, 2868, 120));
   await assert.rejects(check("3.0.0"), /asc screenshots validate exited/);
+});
+
+// A stand-in asc that records every invocation and answers with canned JSON,
+// so the tests can see exactly which App Store Connect calls each command makes.
+const fakeAsc = `#!/bin/sh
+printf '%s\\n' "$*" >> "$ASC_LOG"
+case "$1 $2" in
+  "telemetry status") echo '{"enabled":false}' ;;
+  "versions list") echo '{"data":[{"id":"v1","attributes":{"appVersionState":"PREPARE_FOR_SUBMISSION","releaseType":"AFTER_APPROVAL"},"relationships":{"appStoreVersionPhasedRelease":{"data":null}}}]}' ;;
+  "age-rating view") echo '{"data":{"id":"a1","attributes":{"socialMedia":true,"socialMediaAgeRestricted":false}}}' ;;
+  "metadata push") case "$*" in *--dry-run*) echo "no changes" ;; *) echo '{}' ;; esac ;;
+  *) echo '{}' ;;
+esac
+`;
+
+const MUTATING = /^(versions (create|update|phased-release (create|delete))|age-rating edit|screenshots upload|review submit|publish )/;
+
+const recordingFixture = async (t: test.TestContext) => {
+  const dir = await mkdtemp(join(tmpdir(), "putio-app-store-fake-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  await writeFile(join(dir, "asc"), fakeAsc);
+  await chmod(join(dir, "asc"), 0o755);
+  await mkdir(join(dir, "metadata/version/3.0.0"), { recursive: true });
+  await mkdir(join(dir, "screenshots/en-US"), { recursive: true });
+  await writeFile(join(dir, "metadata/version/3.0.0/en-US.json"), JSON.stringify({ whatsNew: "Faster folders." }));
+  await writeFile(join(dir, "screenshots/en-US/iphone-6.9-01.png"), "");
+  await writeFile(join(dir, "screenshots/en-US/ipad-13-01.png"), "");
+  const configPath = join(dir, "AppStore.json");
+  await writeFile(configPath, JSON.stringify({ ...validConfig, metadataDir: join(dir, "metadata"), screenshots: { ...validConfig.screenshots, dir: join(dir, "screenshots") } }));
+  const log = join(dir, "asc.log");
+  await writeFile(log, "");
+  const invoke = (...args: string[]) =>
+    run(process.execPath, [script, ...args, "--config", configPath, "--version", "3.0.0"], {
+      env: { ...process.env, ASC_BIN: join(dir, "asc"), ASC_LOG: log, GITHUB_STEP_SUMMARY: "" },
+    });
+  const calls = async () => (await readFile(log, "utf8")).split("\n").filter(Boolean);
+  return { dir, invoke, calls };
+};
+
+test("apply without --confirm calls asc not once", async (t) => {
+  const { invoke, calls } = await recordingFixture(t);
+  await assert.rejects(invoke("apply"), /pass --confirm/);
+  assert.deepEqual(await calls(), []);
+});
+
+test("check and plan only read from App Store Connect", async (t) => {
+  const { invoke, calls } = await recordingFixture(t);
+  await invoke("check");
+  await invoke("plan");
+  const made = await calls();
+  assert.ok(made.some((call) => call.startsWith("versions list")), "plan reads the version");
+  assert.deepEqual(made.filter((call) => MUTATING.test(call)), []);
+  for (const push of made.filter((call) => call.startsWith("metadata push"))) assert.match(push, /--dry-run/);
+});
+
+test("apply confirms the metadata push and only changes what drifted", async (t) => {
+  const { invoke, calls } = await recordingFixture(t);
+  await invoke("apply", "--confirm");
+  const made = (await calls()).filter((call) => MUTATING.test(call) || call.startsWith("metadata push"));
+  assert.deepEqual(made.map((call) => call.split(" --")[0]), [
+    "versions update",
+    "versions phased-release create",
+    "metadata push",
+    "age-rating edit",
+  ]);
+  assert.match(made[2] ?? "", /--confirm/);
+  assert.doesNotMatch(made[2] ?? "", /--dry-run/);
+  assert.match(made[3] ?? "", /--social-media false/);
+  assert.doesNotMatch(made[3] ?? "", /social-media-age-restricted/);
+});
+
+test("check rejects a screenshot locale App Store Connect doesn't know", async (t) => {
+  const { dir, invoke } = await recordingFixture(t);
+  await rename(join(dir, "screenshots/en-US"), join(dir, "screenshots/en_US"));
+  const staging = async () => (await readdir(tmpdir())).filter((name) => name.startsWith("putio-app-store-screenshots-")).sort();
+  const before = await staging();
+  await assert.rejects(invoke("check"), /screenshots\/en_US: en_US is not an App Store locale/);
+  assert.deepEqual(await staging(), before, "a rejected locale leaves no staging directory");
+});
+
+test("check fails when the configured screenshot directory is missing", async (t) => {
+  const { dir, invoke, calls } = await recordingFixture(t);
+  await rm(join(dir, "screenshots"), { recursive: true });
+  await assert.rejects(invoke("check"), /screenshots\/ is missing/);
+  assert.equal((await calls()).some((call) => call.startsWith("screenshots validate")), false);
 });
