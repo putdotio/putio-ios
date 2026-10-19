@@ -489,10 +489,11 @@ const plan = async (config: AppStoreConfig, version: string, exportDir: string |
 const exportListing = async (config: AppStoreConfig, version: string, remote: RemoteVersion | undefined, ageRating: JsonObject, exportDir: string): Promise<void> => {
   const target = resolve(root, exportDir);
   await mkdir(target, { recursive: true });
-  await writeFile(join(target, "age-rating.json"), `${JSON.stringify(ageRating, null, 2)}\n`);
   if (remote) {
     await asc(["metadata", "pull", "--app", config.appId, "--version", version, "--platform", config.platform, "--dir", join(target, "metadata"), "--force", "--output", "json"]);
   }
+  // Last, so its presence means the export is complete.
+  await writeFile(join(target, "age-rating.json"), `${JSON.stringify(ageRating, null, 2)}\n`);
 };
 
 const apply = async (config: AppStoreConfig, version: string): Promise<void> => {

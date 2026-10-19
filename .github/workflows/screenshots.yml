@@ -92,6 +92,7 @@ jobs:
       # Read-only. The export holds App Store Connect's current metadata and
       # age-rating answers, ready to commit for the fields not managed yet.
       # Plan exports, then fails on a version App Store Connect won't edit.
+      # age-rating.json is written last, so it marks a complete export.
       - name: Plan
         id: plan
         env:
