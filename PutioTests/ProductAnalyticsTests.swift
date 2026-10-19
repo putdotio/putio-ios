@@ -503,7 +503,10 @@ final class ProductAnalyticsTests: XCTestCase {
         requests(token: token).flatMap { $0.json?["batch"] as? [[String: Any]] ?? [] }
     }
 
-    private func waitForEvents(token: String, count: Int, timeout: TimeInterval = 10) throws -> [[String: Any]] {
+    /// Returns as soon as the events arrive. The SDK uploads and writes its
+    /// files on utility-QoS queues, which a busy CI runner has held for over
+    /// 30 seconds, so the timeout only catches a request that never comes.
+    private func waitForEvents(token: String, count: Int, timeout: TimeInterval = 90) throws -> [[String: Any]] {
         let deadline = Date().addingTimeInterval(timeout)
         while sentEvents(token: token).count < count, Date() < deadline {
             // An event queued while a batch is in flight otherwise waits for
