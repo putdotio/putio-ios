@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ inputs.version }}
+  group: app-store-${{ inputs.version }}
   cancel-in-progress: false
 
 # mise must never install a tool here: it would compile Ruby from source.

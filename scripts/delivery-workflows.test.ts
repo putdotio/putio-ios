@@ -140,6 +140,18 @@ test("asc output piped to the summary still fails the step", async () => {
   assert.equal(pipe(["-eo", "pipefail"]), 1);
 });
 
+test("workflows that change one App Store version queue behind each other", async () => {
+  for (const [name, input] of [
+    ["release.yml", "version"],
+    ["submit.yml", "version"],
+    ["screenshots.yml", "app_version"],
+  ] as const) {
+    const concurrency = recordAt(await loadYaml(`.github/workflows/${name}`), "concurrency", name);
+    assert.equal(concurrency.group, `app-store-\${{ inputs.${input} }}`, `${name} must share the per-version group`);
+    assert.equal(concurrency["cancel-in-progress"], false, `${name} must not cancel a running delivery`);
+  }
+});
+
 test("beta keeps notifying external testers", async () => {
   const raw = await readFile(new URL("../.github/workflows/beta.yml", import.meta.url), "utf8");
   assert.match(raw, /asc publish testflight[^\n]*(\\\n[^\n]*)*--notify/);
