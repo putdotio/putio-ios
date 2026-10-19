@@ -3,11 +3,11 @@ import XCTest
 @testable import Putio
 
 final class AppStoreReviewTests: XCTestCase {
-  func testRatingLinkUsesTheConfiguredAppStoreIDOrTheLegacyListing() {
-    let legacy = "https://apps.apple.com/app/id1260479699?action=write-review"
+  func testRatingLinkUsesTheConfiguredAppStoreIDOrTheCurrentListing() {
+    let current = "https://apps.apple.com/app/id1260479699?action=write-review"
     for unusable in [nil, "", "  ", "$(PUTIO_APP_STORE_ID)", "id123", "12a4"] {
       XCTAssertEqual(
-        PutioAppStoreReview.url(appID: unusable)?.absoluteString, legacy,
+        PutioAppStoreReview.url(appID: unusable)?.absoluteString, current,
         String(describing: unusable))
     }
     XCTAssertEqual(
