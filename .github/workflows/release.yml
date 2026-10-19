@@ -56,6 +56,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.validate-ref.outputs.sha }}
+          persist-credentials: false
 
       # First: a version without What's New can't be submitted, so it must not
       # cost a macOS verify and archive to find out.
@@ -134,8 +135,6 @@ jobs:
           APPSTORE_CONNECT_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
           APPSTORE_CONNECT_KEY_CONTENT: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
           PUTIO_APP_IDENTIFIER: ${{ secrets.PUTIO_APP_IDENTIFIER }}
-          PUTIO_APPLE_ID: ${{ secrets.PUTIO_APPLE_ID }}
-          PUTIO_ITC_TEAM_ID: ${{ secrets.PUTIO_ITC_TEAM_ID }}
           PUTIO_DEVELOPMENT_TEAM: ${{ secrets.PUTIO_DEVELOPMENT_TEAM }}
           PUTIO_OAUTH_CLIENT_ID: ${{ secrets.PUTIO_OAUTH_CLIENT_ID }}
           PUTIO_CHROMECAST_RECEIVER_APP_ID: ${{ secrets.PUTIO_CHROMECAST_RECEIVER_APP_ID }}
@@ -240,6 +239,8 @@ jobs:
           repositories: ${{ github.event.repository.name }}
           permission-contents: write
 
+      # Annotated, so the tag records which upload is the release build. Submit
+      # refuses a build number the tag does not name.
       - name: Create v${{ inputs.version }}
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
@@ -249,13 +250,24 @@ jobs:
         run: |
           set -euo pipefail
           tag="v$RELEASE_VERSION"
-          existing="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha' 2>/dev/null || true)"
-          if [ -n "$existing" ]; then
-            if [ "$existing" != "$SHA" ]; then
-              echo "$tag already points at $existing, not $SHA" >&2
+          ref="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" 2>/dev/null || true)"
+          if [ -n "$ref" ]; then
+            if [ "$(jq -r .object.type <<< "$ref")" != tag ]; then
+              echo "$tag already exists without a build number" >&2
+              exit 1
+            fi
+            existing="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$(jq -r .object.sha <<< "$ref")")"
+            if [ "$(jq -r .object.sha <<< "$existing")" != "$SHA" ]; then
+              echo "$tag already points at $(jq -r .object.sha <<< "$existing"), not $SHA" >&2
+              exit 1
+            fi
+            if ! jq -r .message <<< "$existing" | grep -xF "Build-Number: $BUILD_NUMBER" > /dev/null; then
+              echo "$tag already records another build; submit that one" >&2
               exit 1
             fi
           else
-            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$SHA" > /dev/null
+            object="$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/tags" -f tag="$tag" -f object="$SHA" -f type=commit \
+              -f message="$(printf 'put.io %s\n\nBuild-Number: %s' "$RELEASE_VERSION" "$BUILD_NUMBER")" | jq -r .sha)"
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$object" > /dev/null
           fi
           echo "- Tagged \`$tag\` at \`$SHA\` (build $BUILD_NUMBER)" >> "$GITHUB_STEP_SUMMARY"

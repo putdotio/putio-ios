@@ -91,7 +91,10 @@ jobs:
 
       # Read-only. The export holds App Store Connect's current metadata and
       # age-rating answers, ready to commit for the fields not managed yet.
+      # Plan exports, then fails on a version App Store Connect won't edit.
+      # age-rating.json is written last, so it marks a complete export.
       - name: Plan
+        id: plan
         env:
           ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
@@ -100,6 +103,7 @@ jobs:
         run: mise exec -- node scripts/app-store.ts plan --version "$APP_VERSION" --export build/app-store
 
       - name: Upload the current App Store Connect listing
+        if: ${{ !cancelled() && hashFiles('build/app-store/age-rating.json') != '' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: app-store-listing-${{ inputs.app_version }}
@@ -134,8 +138,10 @@ jobs:
           ASC_BYPASS_KEYCHAIN: "1"
         run: mise exec -- node scripts/app-store.ts screenshots --version "$APP_VERSION" --confirm
 
+      # After a failed apply or upload, not after a failed Plan: that already
+      # reported why.
       - name: Validate submission readiness
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.plan.outcome == 'success' }}
         env:
           ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}

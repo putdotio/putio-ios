@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { parse } from "yaml";
 
@@ -175,7 +178,149 @@ test("submit checks committed notes and validates the build it submits", async (
   const attach = at(/asc versions attach-build[\s\S]*--build-number "\$BUILD_NUMBER"/);
   const validate = at(/app-store\.ts validate --version "\$VERSION" --strict/);
   const send = at(/asc review submit[\s\S]*--build-number "\$BUILD_NUMBER"/);
+  const tag = at(/Build-Number: \$BUILD_NUMBER/);
+  assert.ok(tag >= 0 && tag < check, "the release tag check comes before anything else uses the build number");
   assert.ok(check >= 0 && check < attach && attach < validate && validate < send, "check, attach, validate, submit in order");
+});
+
+const stepRun = async (name: string, job: string, step: string): Promise<string> => {
+  const workflow = await loadYaml(`.github/workflows/${name}`);
+  const steps = arrayAt(recordAt(recordAt(workflow, "jobs", name), job, `${name}.jobs`), "steps", job).map((entry, index) =>
+    asRecord(entry, `${job}.steps[${index}]`),
+  );
+  const found = steps.find((entry) => entry.name === step);
+  assert.ok(found, `${name} ${job} has a "${step}" step`);
+  return String(found.run);
+};
+
+const tempDir = async (t: test.TestContext): Promise<string> => {
+  const dir = await mkdtemp(join(tmpdir(), "putio-delivery-test-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  return dir;
+};
+
+test("release refuses a version without a non-empty whatsNew before building", async (t) => {
+  const run = await stepRun("release.yml", "release", "Prepare release metadata");
+  const status = async (localization: unknown) => {
+    const dir = await tempDir(t);
+    await mkdir(join(dir, "metadata/version/3.0.1"), { recursive: true });
+    if (localization !== undefined) await writeFile(join(dir, "metadata/version/3.0.1/en-US.json"), JSON.stringify(localization));
+    for (const file of ["env", "output"]) await writeFile(join(dir, file), "");
+    return spawnSync("bash", ["-eo", "pipefail", "-c", run], {
+      cwd: dir,
+      env: { PATH: process.env.PATH, RELEASE_VERSION: "3.0.1", GITHUB_ENV: join(dir, "env"), GITHUB_OUTPUT: join(dir, "output"), RUNNER_TEMP: dir },
+    }).status;
+  };
+  assert.equal(await status({ whatsNew: "Faster folders." }), 0);
+  for (const localization of [undefined, {}, { whatsNew: "" }, { whatsNew: 7 }, { whatsNew: null }, { description: "x" }]) {
+    assert.equal(await status(localization), 1, JSON.stringify(localization));
+  }
+});
+
+// A stand-in gh that serves the tag ref and tag object from FAKE_REF and
+// FAKE_TAG, logs each call on one line (newlines escaped), and answers
+// git/tags POSTs with tag object t1.
+const fakeGh = `#!/bin/bash
+args="$*"
+printf '%s\\n' "\${args//$'\\n'/\\\\n}" >> "$GH_LOG"
+case "$*" in
+  *"--method POST"*"/git/tags"*) echo '{"sha":"t1"}' ;;
+  *"--method POST"*) echo '{}' ;;
+  *"/git/ref/tags/"*) [ -n "$FAKE_REF" ] || { echo "Not Found" >&2; exit 1; }; printf '%s\\n' "$FAKE_REF" ;;
+  *"/git/tags/"*) printf '%s\\n' "$FAKE_TAG" ;;
+  *) exit 1 ;;
+esac
+`;
+
+const SHA = "a".repeat(40);
+const annotatedRef = JSON.stringify({ object: { type: "tag", sha: "t1" } });
+const lightweightRef = JSON.stringify({ object: { type: "commit", sha: SHA } });
+const tagObject = (sha: string, build: string) => JSON.stringify({ object: { type: "commit", sha }, message: `put.io 3.0.1\n\nBuild-Number: ${build}\n` });
+
+const runWithGh = async (t: test.TestContext, run: string, env: Record<string, string>) => {
+  const dir = await tempDir(t);
+  await writeFile(join(dir, "gh"), fakeGh);
+  await chmod(join(dir, "gh"), 0o755);
+  await writeFile(join(dir, "gh.log"), "");
+  const result = spawnSync("bash", ["-eo", "pipefail", "-c", run], {
+    encoding: "utf8",
+    env: { PATH: `${dir}:${process.env.PATH}`, GH_LOG: join(dir, "gh.log"), GITHUB_REPOSITORY: "putdotio/putio-ios", GITHUB_STEP_SUMMARY: join(dir, "summary"), ...env },
+  });
+  return { status: result.status, stderr: result.stderr, calls: (await readFile(join(dir, "gh.log"), "utf8")).split("\n").filter(Boolean) };
+};
+
+test("release tags with an annotated tag that names the uploaded build", async (t) => {
+  const run = await stepRun("release.yml", "tag", "Create v${{ inputs.version }}");
+  const env = { RELEASE_VERSION: "3.0.1", SHA, BUILD_NUMBER: "2610191230" };
+
+  const created = await runWithGh(t, run, { ...env, FAKE_REF: "" });
+  assert.equal(created.status, 0, created.stderr);
+  const tagPost = created.calls.find((call) => call.includes("--method POST") && call.includes("/git/tags"));
+  assert.ok(tagPost, "creates a tag object");
+  assert.match(tagPost, new RegExp(`object=${SHA}`));
+  assert.match(tagPost, /message=put\.io 3\.0\.1\\n\\nBuild-Number: 2610191230$/m);
+  assert.ok(created.calls.some((call) => call.includes("ref=refs/tags/v3.0.1") && call.includes("sha=t1")), "the ref points at the tag object");
+
+  const rerun = await runWithGh(t, run, { ...env, FAKE_REF: annotatedRef, FAKE_TAG: tagObject(SHA, "2610191230") });
+  assert.equal(rerun.status, 0, rerun.stderr);
+  assert.equal(rerun.calls.some((call) => call.includes("--method POST")), false, "a re-run of the same build changes nothing");
+
+  const refusals: [string, string][] = [[annotatedRef, tagObject("b".repeat(40), "2610191230")], [annotatedRef, tagObject(SHA, "2610181200")], [lightweightRef, ""]];
+  for (const [ref, tag] of refusals) {
+    const refused = await runWithGh(t, run, { ...env, FAKE_REF: ref, FAKE_TAG: tag });
+    assert.equal(refused.status, 1, `${ref} ${tag}`);
+    assert.equal(refused.calls.some((call) => call.includes("--method POST")), false);
+  }
+});
+
+test("submit attaches only the build the release tag names, at the validated SHA", async (t) => {
+  const run = await stepRun("submit.yml", "submit", "Check the release tag names this build");
+  const env = { VERSION: "3.0.1", BUILD_NUMBER: "2610191230", EXPECTED_SHA: SHA };
+  const status = async (ref: string, tag: string) => (await runWithGh(t, run, { ...env, FAKE_REF: ref, FAKE_TAG: tag })).status;
+
+  assert.equal(await status(annotatedRef, tagObject(SHA, "2610191230")), 0);
+  assert.equal(await status(annotatedRef, tagObject("b".repeat(40), "2610191230")), 1, "the tag must point at expected_sha");
+  assert.equal(await status(annotatedRef, tagObject(SHA, "2610181200")), 1, "the tag must name build_number");
+  assert.equal(await status(annotatedRef, tagObject(SHA, "26101912300")), 1, "a prefix of another build number is not a match");
+  assert.equal(await status(lightweightRef, ""), 1, "a lightweight tag names no build");
+  assert.equal(await status("", ""), 1, "a missing tag fails");
+});
+
+test("delivery workflow changes run their contract tests in the tooling lane", () => {
+  const script = fileURLToPath(new URL("./ci-affected.sh", import.meta.url));
+  for (const name of ["beta.yml", "release.yml", "screenshots.yml", "submit.yml", "delivery-ref.yml"]) {
+    const result = spawnSync("sh", [script], { encoding: "utf8", input: `.github/workflows/${name}\n` });
+    assert.match(result.stdout, /^tooling=true$/m, name);
+  }
+});
+
+test("macOS delivery checkouts keep no GitHub token on disk", async () => {
+  for (const [name, job] of [["beta.yml", "beta"], ["release.yml", "release"]] as const) {
+    const workflow = await loadYaml(`.github/workflows/${name}`);
+    const steps = arrayAt(recordAt(recordAt(workflow, "jobs", name), job, name), "steps", job).map((step) => asRecord(step, "step"));
+    const checkouts = steps.filter((step) => String(step.uses).startsWith("actions/checkout@"));
+    assert.equal(checkouts.length, 1, name);
+    assert.equal(recordAt(checkouts[0] ?? {}, "with", name)["persist-credentials"], false, name);
+  }
+});
+
+test("signing asks for no Apple ID: match --readonly uses the API key", async () => {
+  const action = await readFile(new URL("../.github/actions/load-ios-release-secrets/action.yml", import.meta.url), "utf8");
+  const example = await readFile(new URL("../fastlane/.env.example", import.meta.url), "utf8");
+  for (const name of ["PUTIO_APPLE_ID", "PUTIO_ITC_TEAM_ID"]) {
+    assert.doesNotMatch(action, new RegExp(name), `the release action requires ${name}`);
+    assert.doesNotMatch(example, new RegExp(name), `fastlane/.env.example lists ${name}`);
+  }
+});
+
+test("screenshots upload the listing after a failed Plan, but don't validate again", async () => {
+  const workflow = await loadYaml(".github/workflows/screenshots.yml");
+  const job = recordAt(recordAt(workflow, "jobs", "screenshots.yml"), "screenshots", "screenshots.yml.jobs");
+  const steps = arrayAt(job, "steps", "screenshots").map((step) => asRecord(step, "step"));
+  const named = (name: string) => steps.find((step) => step.name === name) ?? {};
+  assert.equal(named("Plan").id, "plan");
+  assert.match(String(named("Upload the current App Store Connect listing").if), /!cancelled\(\)/);
+  assert.match(String(named("Validate submission readiness").if), /steps\.plan\.outcome == 'success'/);
 });
 
 const validSentryDsn = "https://synthetickey@o0.ingest.example.invalid/5282170";

@@ -186,17 +186,3 @@ run = "node scripts/store-images-lock.ts verify"
 description = "Verify the store-image inputs without rendering"
 depends = ["store-screenshots", "playwright-chromium"]
 run = "node scripts/store-images.ts --check"
-
-[tasks.beta]
-description = "CI-only. Use .github/workflows/beta.yml via GitHub Actions"
-run = '''
-echo "beta is CI-only. Use .github/workflows/beta.yml via GitHub Actions." >&2
-exit 1
-'''
-
-[tasks.release]
-description = "CI-only. Use .github/workflows/release.yml via GitHub Actions"
-run = '''
-echo "release is CI-only. Use .github/workflows/release.yml via GitHub Actions." >&2
-exit 1
-'''
