@@ -313,6 +313,8 @@ test("plan exports the listing, then stops on a version App Store Connect won't 
 
 test("a failed export leaves no age-rating.json, which marks a complete one", async (t) => {
   const { dir, invoke } = await recordingFixture(t, { FAKE_PULL_FAILS: "1" });
+  await mkdir(join(dir, "export"));
+  await writeFile(join(dir, "export/age-rating.json"), "{}");
   await assert.rejects(invoke("plan", "--export", join(dir, "export")), /asc metadata pull exited/);
   await assert.rejects(readFile(join(dir, "export/age-rating.json")), /ENOENT/);
 });
