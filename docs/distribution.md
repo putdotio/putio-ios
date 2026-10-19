@@ -15,8 +15,7 @@ are the source of truth for release options.
 The default branch exposes these entrypoints so GitHub can list them for manual
 dispatch. The [dispatcher](../.github/workflows/legacy-ios-dispatch.yml) accepts
 only protected `refs/heads/main`, checks the reviewed workflow and ref-guard
-blobs, and passes the resolved commit as `expected_sha` to the Beta and Release
-workflows; Screenshots on `main` checks out `main` itself.
+blobs, and passes the resolved commit as `expected_sha` to the legacy workflow.
 The downstream guard validates that commit before the delivery job loads secrets
 and checks out source. The relay itself remains secretless.
 

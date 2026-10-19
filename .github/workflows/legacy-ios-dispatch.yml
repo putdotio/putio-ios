@@ -74,7 +74,7 @@ jobs:
               ;;
             screenshots)
               workflow_file="screenshots.yml"
-              expected_workflow_blob="d5388cb28bdbade0ad3a1f4e988e2bbf20135d99"
+              expected_workflow_blob="46ce41074f74a2a2045f6b6518529fb767e17a1a"
               ;;
             *)
               echo "Operation must be beta, release or screenshots; received $OPERATION" >&2
@@ -170,9 +170,10 @@ jobs:
               fi
 
               jq -n \
+                --arg expected_sha "$EXPECTED_SHA" \
                 --arg app_version "$VERSION" \
                 --arg dry_run "$DRY_RUN" \
-                '{ref: "main", inputs: {app_version: $app_version, dry_run: $dry_run}}' \
+                '{ref: "main", inputs: {expected_sha: $expected_sha, app_version: $app_version, dry_run: $dry_run}}' \
                 > "$RUNNER_TEMP/legacy-dispatch.json"
               ;;
           esac
