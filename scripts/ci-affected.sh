@@ -17,7 +17,9 @@ while IFS= read -r path; do
     # Prose, and the workflows that ship or publish rather than test.
     *.md | LICENSE | docs/* | .github/ISSUE_TEMPLATE/*) ;;
     .github/workflows/beta.yml | .github/workflows/release.yml) ;;
-    .github/workflows/screenshots.yml | .github/workflows/submit.yml | .github/workflows/e2e-simulator.yml) ;;
+    .github/workflows/screenshots.yml | .github/workflows/e2e-simulator.yml) ;;
+    # Its approval-gate contract tests run in the tooling lane.
+    .github/workflows/submit.yml) tooling=true ;;
     # Gallery data. Nothing in CI reads it.
     .vref/*) ;;
     # The control plane. These decide what every lane runs — mise.toml pins Node

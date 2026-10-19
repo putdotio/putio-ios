@@ -110,14 +110,57 @@ test("submission waits for a protected approval before using the App Store Conne
   assert.equal(submit.environment, "release");
 });
 
-test("release tags only after the upload, from a job without secrets", async () => {
+test("release tags only after the upload, as putio-ci with nothing else", async () => {
   const workflow = await loadYaml(".github/workflows/release.yml");
   assert.deepEqual(Object.keys(recordAt(workflow, "on", "release.yml")), ["workflow_dispatch"]);
   const tag = recordAt(recordAt(workflow, "jobs", "release.yml"), "tag", "release.yml.jobs");
   assert.deepEqual(tag.needs, ["validate-ref", "release"]);
-  assert.deepEqual(tag.permissions, { contents: "write" });
-  assert.equal("environment" in tag, false);
-  assert.doesNotMatch(JSON.stringify(tag), /secrets\./);
+  assert.equal(tag.environment, "release");
+  assert.equal("permissions" in tag, false, "the tag needs the App token, not a broader GITHUB_TOKEN");
+  const steps = arrayAt(tag, "steps", "release.yml.jobs.tag").map((step, index) => asRecord(step, `tag.steps[${index}]`));
+  const mint = steps[0] ?? {};
+  assert.match(String(mint.uses), /^actions\/create-github-app-token@[0-9a-f]{40}$/);
+  const raw = await readFile(new URL("../.github/workflows/release.yml", import.meta.url), "utf8");
+  assert.match(raw, /create-github-app-token@[0-9a-f]{40} # v\d+\.\d+\.\d+/, "pin carries its version comment");
+  assert.deepEqual(recordAt(mint, "with", "tag.steps[0]"), {
+    "app-id": "${{ vars.PUTIO_RELEASE_BOT_APP_ID }}",
+    "private-key": "${{ secrets.PUTIO_RELEASE_BOT_PRIVATE_KEY }}",
+    owner: "${{ github.repository_owner }}",
+    repositories: "${{ github.event.repository.name }}",
+    "permission-contents": "write",
+  });
+  const serialized = JSON.stringify(tag);
+  assert.deepEqual([...new Set(serialized.match(/secrets\.[A-Z_]+/g))], ["secrets.PUTIO_RELEASE_BOT_PRIVATE_KEY"]);
+  assert.doesNotMatch(serialized, /actions\/checkout/);
+  assert.match(JSON.stringify(steps[1]), /GH_TOKEN.*steps\.token\.outputs\.token/);
+});
+
+test("asc output piped to the summary still fails the step", async () => {
+  for (const name of ["beta.yml", "release.yml", "submit.yml", "screenshots.yml"]) {
+    const workflow = await loadYaml(`.github/workflows/${name}`);
+    assert.deepEqual(recordAt(workflow, "defaults", name), { run: { shell: "bash" } }, `${name} runs bash with pipefail`);
+  }
+  // GitHub runs `shell: bash` as `bash -eo pipefail`; its implicit shell drops pipefail.
+  const pipe = (flags: string[]) => spawnSync("bash", [...flags, "-c", "false | tee /dev/null"]).status;
+  assert.equal(pipe(["-e"]), 0);
+  assert.equal(pipe(["-eo", "pipefail"]), 1);
+});
+
+test("beta keeps notifying external testers", async () => {
+  const raw = await readFile(new URL("../.github/workflows/beta.yml", import.meta.url), "utf8");
+  assert.match(raw, /asc publish testflight[^\n]*(\\\n[^\n]*)*--notify/);
+});
+
+test("submit checks committed notes and validates the build it submits", async () => {
+  const workflow = await loadYaml(".github/workflows/submit.yml");
+  const submit = recordAt(recordAt(workflow, "jobs", "submit.yml"), "submit", "submit.yml.jobs");
+  const runs = arrayAt(submit, "steps", "submit").map((step) => String(asRecord(step, "step").run ?? ""));
+  const at = (pattern: RegExp) => runs.findIndex((run) => pattern.test(run));
+  const check = at(/app-store\.ts check --version/);
+  const attach = at(/asc versions attach-build[\s\S]*--build-number "\$BUILD_NUMBER"/);
+  const validate = at(/app-store\.ts validate --version "\$VERSION" --strict/);
+  const send = at(/asc review submit[\s\S]*--build-number "\$BUILD_NUMBER"/);
+  assert.ok(check >= 0 && check < attach && attach < validate && validate < send, "check, attach, validate, submit in order");
 });
 
 const validSentryDsn = "https://synthetickey@o0.ingest.example.invalid/5282170";

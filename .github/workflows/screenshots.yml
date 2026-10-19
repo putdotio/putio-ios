@@ -34,6 +34,12 @@ env:
   ASC_SKILLS_AUTO_CHECK: "0"
   MISE_AUTO_INSTALL: "false"
 
+# Explicit bash runs with -o pipefail, so asc failing in front of tee fails
+# the step; GitHub's default shell does not.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   validate-ref:
     name: Validate protected legacy main

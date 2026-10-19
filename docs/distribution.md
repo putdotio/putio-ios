@@ -3,10 +3,10 @@
 ## Workflows
 
 - [CI](../.github/workflows/ci.yml) verifies pushes and pull requests. A `changes` job on Linux classifies the diff with [`scripts/ci-affected.sh`](../scripts/ci-affected.sh), then `verify-app` runs `mise run bootstrap-ci` and `mise run verify` on macOS, and `verify-tooling` type-checks the Node scripts and checks the committed marketing images against their inputs, both on Linux. Each lane runs only when the diff can affect it, and an unrecognized path counts as app-affecting — a needless macOS run is cheaper than a missed break. Nothing is filtered at the `on:` level, so both checks always report a state.
-- [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. A secretless job ([Legacy delivery ref contract](../.github/workflows/legacy-delivery-ref.yml)) first requires the exact current protected-main SHA. The Environment-bearing job then checks out that commit, verifies, installs the signing identity with `fastlane signing`, archives with [archive-ios.sh](../scripts/archive-ios.sh), and uploads and distributes with `asc publish testflight`.
-- [Release](../.github/workflows/release.yml) is dispatch-only with the same SHA check and a version. It fails before building when `metadata/version/<version>/en-US.json` has no `whatsNew`, uploads with `asc publish appstore` (which creates or finds the version and attaches the build, never submits), then applies the listing and runs `asc validate` into the job summary. A last job tags the commit `v<version>` only after the upload succeeded.
+- [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. A secretless job ([Legacy delivery ref contract](../.github/workflows/legacy-delivery-ref.yml)) first requires the exact current protected-main SHA. The Environment-bearing job then checks out that commit, verifies, installs the signing identity with `fastlane signing`, archives with [archive-ios.sh](../scripts/archive-ios.sh), and uploads and distributes with `asc publish testflight --notify`, which emails external testers as pilot did.
+- [Release](../.github/workflows/release.yml) is dispatch-only with the same SHA check and a version. It fails before building when `metadata/version/<version>/en-US.json` has no `whatsNew`, uploads with `asc publish appstore` (which creates or finds the version and attaches the build, never submits), then applies the listing and runs `asc validate` into the job summary. A last job tags the commit `v<version>` only after the upload succeeded, as the `putio-ci` GitHub App: it mints a token for this repository with `contents: write` from the `release` Environment's `PUTIO_RELEASE_BOT_APP_ID` and `PUTIO_RELEASE_BOT_PRIVATE_KEY`, because the `v*` ruleset lets only that App and organization admins create tags.
 - [Screenshots](../.github/workflows/screenshots.yml) changes the product page without a build: it plans the listing, uploads App Store Connect's current metadata and age rating as an artifact, and previews the screenshot replacement. With `dry_run` off it applies metadata and settings and replaces each screenshot set. It requires the current protected-main SHA, defaults to a dry run, and runs on Linux with only the App Store Connect key.
-- [Submit for review](../.github/workflows/submit.yml) takes a version and the build number Release uploaded. It refuses to start unless the `app-store-review` Environment exists with a required reviewer, waits for that approval, runs `asc validate --strict`, then `asc review submit`.
+- [Submit for review](../.github/workflows/submit.yml) takes a version and the build number Release uploaded. It refuses to start unless the `app-store-review` Environment exists with a required reviewer, waits for that approval, then checks the committed What's New offline, attaches the requested build, runs `asc validate --strict` against it, and runs `asc review submit`.
 - Beta, release, and shared release-secret third-party actions are pinned to full commit SHAs with a trailing comment for the human version tag. Update the SHA and comment together after reviewing upstream release notes.
 
 ## CI Bootstrap
@@ -34,7 +34,7 @@ Nothing the repository manages is edited in App Store Connect:
 | --- | --- |
 | Name, description, keywords, URLs, What's New | `metadata/` in asc's canonical format; `metadata/version/<version>/en-US.json` carries that version's `whatsNew` |
 | Release type, phased release, age-rating answers, screenshot sets | [`Config/AppStore.json`](../Config/AppStore.json) |
-| Screenshots | `screenshots/en-US/`, written by `mise run store-images` |
+| Screenshots | `screenshots/<locale>/`, written by `mise run store-images`; locale folders must be App Store locales such as `en-US` |
 
 A field left out of `metadata/` stays unmanaged: asc never clears it. To adopt
 one, take it from the Screenshots dry run's artifact and commit it.
@@ -49,7 +49,7 @@ node scripts/app-store.ts screenshots --version 3.0.0 --dry-run
 ```
 
 [install-asc.sh](../scripts/install-asc.sh) pins asc 5.15.0 and checks each
-platform's SHA-256; CI never installs asc from Homebrew. asc sends command
+platform's SHA-256; CI never installs asc from Homebrew. Delivery steps run `shell: bash`, so an asc failure piped into the job summary still fails the step. asc sends command
 telemetry to rork.com by default, so every workflow that runs it sets
 `ASC_TELEMETRY_DISABLED=1` before its first asc command, the store tool
 refuses to run while `asc telemetry status` reports it on, and the tooling CI
@@ -95,6 +95,9 @@ The `release` Environment must provide:
   - `MATCH_PASSWORD`
   - `MATCH_GIT_PRIVATE_KEY_CONTENT`
   - `MATCH_GIT_URL` must use a `github.com` SSH URL; CI verifies GitHub's ed25519 host-key fingerprint before updating `known_hosts`
+- Release tagging, used only by the Release workflow's `tag` job:
+  - `PUTIO_RELEASE_BOT_APP_ID` (variable): the `putio-ci` App, `3648620`
+  - `PUTIO_RELEASE_BOT_PRIVATE_KEY`
 - Brand fonts need no credentials: the "Sync licensed brand fonts" step
   downloads them from `static.put.io` and verifies each sha256 from
   `Config/BrandFonts.json`, failing the workflow on a bad download or a
@@ -132,7 +135,7 @@ open build/privacy/Putio.xcarchive
 Repository admins must keep these settings aligned with the workflow trust model:
 
 - protect `main` for trusted team direct push; do not allow force-pushes or branch deletion
-- protect `v*` release tags so only release automation or release admins can create or update them; the Release workflow's tag job needs that bypass
+- protect `v*` release tags so only release automation or release admins can create or update them; `putio-ci` holds the bypass the Release workflow tags with
 - configure the `release` Environment with required reviewers and prevent self-review
 
 ## App Store IDs

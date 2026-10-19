@@ -29,6 +29,12 @@ env:
   ASC_TELEMETRY_DISABLED: "1"
   ASC_SKILLS_AUTO_CHECK: "0"
 
+# Explicit bash runs with -o pipefail, so asc failing in front of tee fails
+# the step; GitHub's default shell does not.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   validate-ref:
     name: Validate protected legacy main
@@ -213,19 +219,30 @@ jobs:
           ASC_BYPASS_KEYCHAIN: "1"
         run: mise exec -- node scripts/app-store.ts validate --version "$RELEASE_VERSION"
 
-  # Separate job so the only token that can write refs never sees a secret.
+  # The v* tag ruleset lets only the putio-ci App create tags. This job holds
+  # nothing but that App's key, mints a token for this repository with
+  # contents:write alone, and checks out nothing.
   tag:
     name: Tag the uploaded commit
     needs: [validate-ref, release]
     runs-on: ubuntu-latest
+    environment: release
     timeout-minutes: 5
-    permissions:
-      contents: write
 
     steps:
+      - name: Mint a putio-ci token for tagging
+        id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.PUTIO_RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.PUTIO_RELEASE_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+
       - name: Create v${{ inputs.version }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
           RELEASE_VERSION: ${{ inputs.version }}
           SHA: ${{ needs.validate-ref.outputs.sha }}
           BUILD_NUMBER: ${{ needs.release.outputs.build_number }}
@@ -238,8 +255,7 @@ jobs:
               echo "$tag already points at $existing, not $SHA" >&2
               exit 1
             fi
-          elif ! gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$SHA" > /dev/null; then
-            echo "Could not create $tag; the v* tag ruleset must allow this workflow. Tag $SHA by hand." >&2
-            exit 1
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$SHA" > /dev/null
           fi
           echo "- Tagged \`$tag\` at \`$SHA\` (build $BUILD_NUMBER)" >> "$GITHUB_STEP_SUMMARY"

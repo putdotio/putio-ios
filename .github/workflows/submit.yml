@@ -32,6 +32,12 @@ env:
   ASC_SKILLS_AUTO_CHECK: "0"
   MISE_AUTO_INSTALL: "false"
 
+# Explicit bash runs with -o pipefail, so asc failing in front of tee fails
+# the step; GitHub's default shell does not.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   validate-ref:
     name: Validate protected legacy main
@@ -109,6 +115,24 @@ jobs:
           mise install node
           ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
           echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
+
+      # Offline, from the validated commit: What's New must be committed, not
+      # only present in App Store Connect.
+      - name: Check the committed listing
+        run: mise exec -- node scripts/app-store.ts check --version "$VERSION"
+
+      # Attach first, so strict validation checks the build being submitted
+      # rather than whichever one a later Release run attached.
+      - name: Attach the approved build
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
+        run: |
+          asc telemetry status --output json | jq -e '.enabled == false' > /dev/null
+          asc versions attach-build --app 1260479699 --platform IOS --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" --output json > /dev/null
 
       - name: Validate with warnings as blockers
         env:
