@@ -1,0 +1,118 @@
+name: Submit
+
+# Submits an uploaded build for App Store review. Dispatching it is the
+# approval; the job uses the release Environment's App Store Connect key.
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact protected-main commit SHA the build came from
+        required: true
+        type: string
+      version:
+        description: App Store version to submit, for example 3.0.1
+        required: true
+        type: string
+      build_number:
+        description: Build number the Release run uploaded
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-store-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  # Before any asc command: asc 5.15.0 sends command telemetry unless this is set.
+  ASC_TELEMETRY_DISABLED: "1"
+  ASC_SKILLS_AUTO_CHECK: "0"
+  MISE_AUTO_INSTALL: "false"
+
+# Explicit bash runs with -o pipefail, so asc failing in front of tee fails
+# the step; GitHub's default shell does not.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  validate-ref:
+    name: Validate protected main
+    uses: ./.github/workflows/delivery-ref.yml
+    with:
+      expected_sha: ${{ inputs.expected_sha }}
+
+  submit:
+    name: Submit for App Store review
+    needs: validate-ref
+    runs-on: ubuntu-latest
+    environment: release
+    timeout-minutes: 30
+    env:
+      VERSION: ${{ inputs.version }}
+      BUILD_NUMBER: ${{ inputs.build_number }}
+
+    steps:
+      - name: Check the inputs
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || ! [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "version must look like 3.0.1 and build_number must be an integer" >&2
+            exit 1
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate-ref.outputs.sha }}
+          persist-credentials: false
+
+      - name: Install mise
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+        with:
+          install: false
+          cache: false
+
+      - name: Install the pinned Node and asc
+        run: |
+          mise install node
+          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
+          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
+
+      # Offline, from the validated commit: What's New must be committed, not
+      # only present in App Store Connect.
+      - name: Check the committed listing
+        run: mise exec -- node scripts/app-store.ts check --version "$VERSION"
+
+      # Attach first, so strict validation checks the build being submitted
+      # rather than whichever one a later Release run attached.
+      - name: Attach the requested build
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
+        run: |
+          asc telemetry status --output json | jq -e '.enabled == false' > /dev/null
+          asc versions attach-build --app 1260479699 --platform IOS --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" --output json > /dev/null
+
+      - name: Validate with warnings as blockers
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
+        run: mise exec -- node scripts/app-store.ts validate --version "$VERSION" --strict
+
+      - name: Submit
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
+        run: |
+          asc telemetry status --output json | jq -e '.enabled == false' > /dev/null
+          asc review submit --app 1260479699 --platform IOS --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" --confirm --output markdown | tee -a "$GITHUB_STEP_SUMMARY"

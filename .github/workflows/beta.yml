@@ -31,11 +31,20 @@ concurrency:
 # ruby/setup-ruby provides the prebuilt one each job runs against.
 env:
   MISE_AUTO_INSTALL: "false"
+  # Before any asc command: asc 5.15.0 sends command telemetry unless this is set.
+  ASC_TELEMETRY_DISABLED: "1"
+  ASC_SKILLS_AUTO_CHECK: "0"
+
+# Explicit bash runs with -o pipefail, so asc failing in front of tee fails
+# the step; GitHub's default shell does not.
+defaults:
+  run:
+    shell: bash
 
 jobs:
   validate-ref:
-    name: Validate protected legacy main
-    uses: ./.github/workflows/legacy-delivery-ref.yml
+    name: Validate protected main
+    uses: ./.github/workflows/delivery-ref.yml
     with:
       expected_sha: ${{ inputs.expected_sha }}
 
@@ -45,14 +54,6 @@ jobs:
     runs-on: macos-latest
     environment: release
     timeout-minutes: 60
-    env:
-      FASTLANE_SKIP_UPDATE_CHECK: '1'
-      FASTLANE_HIDE_PLUGINS_TABLE: '1'
-      FASTLANE_SKIP_ACTION_SUMMARY: '1'
-      FASTLANE_SKIP_ALL_LANE_SUMMARIES: '1'
-      FASTLANE_HIDE_TIMESTAMP: '1'
-      FASTLANE_DISABLE_COLORS: '1'
-      FASTLANE_SKIP_DOCS: '1'
 
     steps:
       - name: Check out repository
@@ -132,11 +133,9 @@ jobs:
 
           PUTIO_BETA_BUILD_NUMBER="$(date -u +%y%m%d%H%M)"
           PUTIO_BETA_IPA_PATH="$RUNNER_TEMP/putio-ios-beta.ipa"
-          PUTIO_BETA_METADATA_PATH="$RUNNER_TEMP/putio-ios-beta.json"
           PUTIO_BETA_WAIT_TIMEOUT_DURATION="$(( PROCESSING_TIMEOUT_MINUTES * 60 ))"
           export PUTIO_BETA_BUILD_NUMBER
           export PUTIO_BETA_IPA_PATH
-          export PUTIO_BETA_METADATA_PATH
           export PUTIO_BETA_WAIT_TIMEOUT_DURATION
 
           if [ -z "$PUTIO_BETA_CHANGELOG" ]; then
@@ -149,7 +148,6 @@ jobs:
           {
             echo "PUTIO_BETA_BUILD_NUMBER=$PUTIO_BETA_BUILD_NUMBER"
             echo "PUTIO_BETA_IPA_PATH=$PUTIO_BETA_IPA_PATH"
-            echo "PUTIO_BETA_METADATA_PATH=$PUTIO_BETA_METADATA_PATH"
             echo "PUTIO_BETA_WAIT_TIMEOUT_DURATION=$PUTIO_BETA_WAIT_TIMEOUT_DURATION"
             echo "PUTIO_BETA_CHANGELOG=$PUTIO_BETA_CHANGELOG"
             echo "PUTIO_BETA_GROUPS=$PUTIO_BETA_GROUPS"
@@ -175,31 +173,34 @@ jobs:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_PRIVATE_KEY_CONTENT: ${{ secrets.MATCH_GIT_PRIVATE_KEY_CONTENT }}
 
+      - name: Install the App Store distribution identity
+        run: bundle exec fastlane signing
+
       - name: Archive and export beta ipa
         env:
           PUTIO_APP_DISPLAY_NAME: put.io
           PUTIO_PRIMARY_APP_ICON: AppIconNightly
-        run: bundle exec fastlane beta_archive
-
-      - name: Read beta archive metadata
         run: |
-          ruby -rjson -e '
-            metadata = JSON.parse(File.read(ENV.fetch("PUTIO_BETA_METADATA_PATH")))
-            File.open(ENV.fetch("GITHUB_ENV"), "a") do |env|
-              env.puts("PUTIO_BETA_APP_VERSION=#{metadata.fetch("app_version")}")
-              env.puts("PUTIO_BETA_BUILD_NUMBER=#{metadata.fetch("build_number")}")
-              env.puts("PUTIO_BETA_IPA_PATH=#{metadata.fetch("ipa_path")}")
-            end
-          '
+          version="$(xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Release -showBuildSettings -json \
+            | jq -r '.[0].buildSettings.MARKETING_VERSION')"
+          echo "PUTIO_BETA_APP_VERSION=$version" >> "$GITHUB_ENV"
+          ./scripts/archive-ios.sh "$version" "$PUTIO_BETA_BUILD_NUMBER" "$PUTIO_BETA_IPA_PATH"
 
-      - name: Upload ipa to TestFlight
-        env:
-          PUTIO_APP_DISPLAY_NAME: put.io
-          PUTIO_PRIMARY_APP_ICON: AppIconNightly
-        run: bundle exec fastlane beta_upload
+      - name: Install the pinned asc
+        run: |
+          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
+          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
 
-      - name: Wait for processing and distribute beta
+      - name: Upload and distribute to TestFlight
         env:
-          PUTIO_APP_DISPLAY_NAME: put.io
-          PUTIO_PRIMARY_APP_ICON: AppIconNightly
-        run: bundle exec fastlane beta_distribute
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
+        run: |
+          asc telemetry status --output json | jq -e '.enabled == false' > /dev/null
+          # --notify keeps pilot's default of emailing external testers.
+          asc publish testflight --app 1260479699 --ipa "$PUTIO_BETA_IPA_PATH" \
+            --group "$PUTIO_BETA_GROUPS" --test-notes "$PUTIO_BETA_CHANGELOG" --locale en-US \
+            --wait --timeout "${PUTIO_BETA_WAIT_TIMEOUT_DURATION}s" --notify --submit --confirm --output markdown \
+            | tee -a "$GITHUB_STEP_SUMMARY"

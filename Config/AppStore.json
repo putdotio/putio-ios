@@ -1,0 +1,22 @@
+{
+  "$comment": "App Store settings asc's metadata format can't hold. scripts/app-store.ts applies them; docs/distribution.md#app-store-as-code.",
+  "appId": "1260479699",
+  "platform": "IOS",
+  "primaryLocale": "en-US",
+  "metadataDir": "metadata",
+  "version": {
+    "releaseType": "MANUAL",
+    "phasedRelease": true
+  },
+  "ageRating": {
+    "socialMedia": false,
+    "socialMediaAgeRestricted": false
+  },
+  "screenshots": {
+    "dir": "screenshots",
+    "sets": [
+      { "deviceType": "IPHONE_69", "prefix": "iphone-6.9-" },
+      { "deviceType": "IPAD_PRO_3GEN_129", "prefix": "ipad-13-" }
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-name: Legacy delivery ref contract
+name: Delivery ref contract
 
 on:
   workflow_call:
@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   validate:
-    name: Validate immutable legacy delivery source
+    name: Validate immutable delivery source
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -51,12 +51,12 @@ jobs:
 
           if [ "$RUN_REF" = "refs/heads/main" ]; then
             if ! [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-              echo "Manual legacy delivery requires an exact expected_sha" >&2
+              echo "Manual delivery requires an exact expected_sha" >&2
               exit 1
             fi
 
             if [ "$EXPECTED_SHA" != "$RUN_SHA" ]; then
-              echo "Protected main moved before the legacy workflow was created" >&2
+              echo "Protected main moved before the delivery workflow was created" >&2
               echo "Expected $EXPECTED_SHA, workflow event resolved $RUN_SHA" >&2
               exit 1
             fi
@@ -66,16 +66,16 @@ jobs:
             current_sha="$(jq -r '.commit.sha' <<< "$branch_json")"
 
             if [ "$protected" != "true" ] || [ "$current_sha" != "$RUN_SHA" ]; then
-              echo "Manual legacy delivery requires the current protected main head" >&2
+              echo "Manual delivery requires the current protected main head" >&2
               exit 1
             fi
           elif [ "$ALLOW_RELEASE_TAG" = "true" ] && [ "$EVENT_NAME" = "release" ]; then
             if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || [ "$RUN_REF" != "refs/tags/$RELEASE_TAG" ]; then
-              echo "Published legacy releases require an exact semantic v* tag ref" >&2
+              echo "Published releases require an exact semantic v* tag ref" >&2
               exit 1
             fi
           else
-            echo "Legacy delivery accepts only protected main or a published semantic v* release tag" >&2
+            echo "Delivery accepts only protected main or a published semantic v* release tag" >&2
             exit 1
           fi
 

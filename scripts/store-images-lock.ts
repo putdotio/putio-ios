@@ -28,7 +28,7 @@ const TEMPLATE = join(ROOT, "scripts/store-images/template.html");
 const DESIGN_TOKENS = join(ROOT, "node_modules/@putdotio/design/dist/css/tokens.css");
 
 export const LOCK_PATH = join(ROOT, "Config/StoreImages.lock.json");
-const OUTPUT_DIR = join(ROOT, "fastlane/screenshots");
+const OUTPUT_DIR = join(ROOT, "screenshots");
 
 /**
  * The only locale rendered today. A code constant, not derived from
@@ -49,7 +49,7 @@ interface LockInputs {
 export interface Lock {
   $comment: string;
   inputs: LockInputs;
-  /** Rendered image path under fastlane/screenshots -> the baseline behind it. */
+  /** Rendered image path under screenshots -> the baseline behind it. */
   images: Record<string, { baseline: string; sha256: string }>;
 }
 
@@ -145,7 +145,7 @@ async function verify(): Promise<void> {
     // rendered files, but hashing them would fail the whole set after a
     // Playwright bump re-encoded identical-looking pixels.
     if (!existsSync(join(OUTPUT_DIR, image))) {
-      problems.push(`${image} is missing from fastlane/screenshots/`);
+      problems.push(`${image} is missing from screenshots/`);
     }
 
     const was = committed.images?.[image];

@@ -156,6 +156,10 @@ jobs:
     if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.tooling == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      # Before any asc command: asc 5.15.0 sends command telemetry unless this is set.
+      ASC_TELEMETRY_DISABLED: "1"
+      ASC_SKILLS_AUTO_CHECK: "0"
 
     steps:
       - name: Check out repository
@@ -180,8 +184,26 @@ jobs:
       - name: Type-check repo tooling
         run: mise run verify-scripts-types
 
+      - name: Install the pinned asc
+        run: |
+          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
+          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
+
+      # Fails if telemetry were off for any reason but the variable.
+      - name: Prove asc telemetry is off
+        run: |
+          asc telemetry status --output json | jq -e '.enabled == false and .reason == "ASC_TELEMETRY_DISABLED"'
+          env -u ASC_TELEMETRY_DISABLED asc telemetry status --output json | jq -e '.enabled == true'
+
       - name: Test repo tooling
+        env:
+          PUTIO_REQUIRE_ASC: "1"
         run: mise run verify-scripts-tests
+
+      # Offline: metadata limits, What's New, and screenshot sizes, as asc
+      # would reject them at upload.
+      - name: Check the App Store listing
+        run: mise exec -- node scripts/app-store.ts check
 
       # No browser: this hashes the committed baselines and configs rather than
       # re-rendering, so a stale marketing image fails by name here instead of

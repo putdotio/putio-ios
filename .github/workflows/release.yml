@@ -1,60 +1,86 @@
 name: Release
 
+# Dispatch-only: builds the exact validated protected-main commit, and tags it
+# v<version> only after App Store Connect accepted the upload.
 on:
-  release:
-    types:
-      - published
   workflow_dispatch:
     inputs:
       expected_sha:
-        description: Exact protected-main commit SHA for manual delivery
+        description: Exact protected-main commit SHA to build
         required: true
         type: string
       version:
-        description: Legacy App Store version for manual protected-main delivery
-        required: false
-        default: ''
+        description: App Store version to build, for example 3.0.1
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.event.release.tag_name || inputs.version || 'main' }}
+  group: app-store-${{ inputs.version }}
   cancel-in-progress: false
 
 # mise must never install a tool here: it would compile Ruby from source.
 # ruby/setup-ruby provides the prebuilt one each job runs against.
 env:
   MISE_AUTO_INSTALL: "false"
+  # Before any asc command: asc 5.15.0 sends command telemetry unless this is set.
+  ASC_TELEMETRY_DISABLED: "1"
+  ASC_SKILLS_AUTO_CHECK: "0"
+
+# Explicit bash runs with -o pipefail, so asc failing in front of tee fails
+# the step; GitHub's default shell does not.
+defaults:
+  run:
+    shell: bash
 
 jobs:
   validate-ref:
-    name: Validate protected legacy release source
-    uses: ./.github/workflows/legacy-delivery-ref.yml
+    name: Validate protected main
+    uses: ./.github/workflows/delivery-ref.yml
     with:
-      expected_sha: ${{ inputs.expected_sha || '' }}
-      allow_release_tag: ${{ github.event_name == 'release' }}
+      expected_sha: ${{ inputs.expected_sha }}
 
   release:
-    name: Build release artifact
+    name: Build and upload the App Store build
     needs: validate-ref
     runs-on: macos-latest
     environment: release
-    timeout-minutes: 60
-    env:
-      FASTLANE_SKIP_UPDATE_CHECK: '1'
-      FASTLANE_HIDE_PLUGINS_TABLE: '1'
-      FASTLANE_SKIP_ACTION_SUMMARY: '1'
-      FASTLANE_SKIP_ALL_LANE_SUMMARIES: '1'
-      FASTLANE_HIDE_TIMESTAMP: '1'
-      FASTLANE_DISABLE_COLORS: '1'
-      FASTLANE_SKIP_DOCS: '1'
+    timeout-minutes: 90
+    outputs:
+      build_number: ${{ steps.metadata.outputs.build_number }}
 
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.validate-ref.outputs.sha }}
+
+      # First: a version without What's New can't be submitted, so it must not
+      # cost a macOS verify and archive to find out.
+      - name: Prepare release metadata
+        id: metadata
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          if ! [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release version must be three period-separated integers, for example 3.0.1" >&2
+            exit 1
+          fi
+          whats_new="metadata/version/$RELEASE_VERSION/en-US.json"
+          if ! jq -e '.whatsNew | type == "string" and length > 0' "$whats_new" > /dev/null; then
+            echo "$whats_new needs a whatsNew before $RELEASE_VERSION can ship" >&2
+            exit 1
+          fi
+          build_number="$(date -u +%y%m%d%H%M)"
+          {
+            echo "PUTIO_RELEASE_VERSION=$RELEASE_VERSION"
+            echo "PUTIO_RELEASE_BUILD_NUMBER=$build_number"
+            echo "PUTIO_RELEASE_IPA_PATH=$RUNNER_TEMP/putio-ios-release.ipa"
+          } >> "$GITHUB_ENV"
+          echo "build_number=$build_number" >> "$GITHUB_OUTPUT"
 
       - name: Select latest stable Xcode
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
@@ -101,31 +127,6 @@ jobs:
       - name: Verify repository
         run: mise run verify
 
-      - name: Prepare release metadata
-        shell: bash
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-          RELEASE_VERSION_INPUT: ${{ inputs.version }}
-        run: |
-          if [ -n "$RELEASE_TAG" ]; then
-            case "$RELEASE_TAG" in
-              v*) release_version="${RELEASE_TAG#v}" ;;
-              *)
-                echo "Release tags must start with v" >&2
-                exit 1
-                ;;
-            esac
-          else
-            release_version="$RELEASE_VERSION_INPUT"
-          fi
-
-          if ! [[ "$release_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Release version must be three period-separated integers, for example 1.2.3" >&2
-            exit 1
-          fi
-
-          echo "PUTIO_RELEASE_VERSION=$release_version" >> "$GITHUB_ENV"
-
       - name: Load shared release secrets
         uses: ./.github/actions/load-ios-release-secrets
         env:
@@ -146,9 +147,115 @@ jobs:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_PRIVATE_KEY_CONTENT: ${{ secrets.MATCH_GIT_PRIVATE_KEY_CONTENT }}
 
-      - name: Build and upload release artifact
+      - name: Install the App Store distribution identity
+        run: bundle exec fastlane signing
+
+      - name: Archive and export the App Store ipa
         env:
           PUTIO_APP_DISPLAY_NAME: put.io
           PUTIO_PRIMARY_APP_ICON: AppIcon
+        run: ./scripts/archive-ios.sh "$PUTIO_RELEASE_VERSION" "$PUTIO_RELEASE_BUILD_NUMBER" "$PUTIO_RELEASE_IPA_PATH"
+
+      - name: Install the pinned asc
         run: |
-          bundle exec fastlane release
+          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
+          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
+
+      # Uploads, waits for processing, creates or finds the version and
+      # attaches the build. Never submits: that is the Submit workflow.
+      - name: Upload and attach the build
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
+        run: |
+          asc telemetry status --output json | jq -e '.enabled == false' > /dev/null
+          asc publish appstore --app 1260479699 --platform IOS --ipa "$PUTIO_RELEASE_IPA_PATH" \
+            --version "$PUTIO_RELEASE_VERSION" --wait --timeout 60m --output markdown \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+  listing:
+    name: Apply the listing and validate
+    needs: [validate-ref, release]
+    runs-on: ubuntu-latest
+    environment: release
+    timeout-minutes: 15
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate-ref.outputs.sha }}
+          persist-credentials: false
+
+      - name: Install mise
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+        with:
+          install: false
+          cache: false
+
+      - name: Install the pinned Node and asc
+        run: |
+          mise install node
+          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
+          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
+
+      - name: Apply metadata, release type, phased release and age rating
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
+        run: mise exec -- node scripts/app-store.ts apply --version "$RELEASE_VERSION" --confirm
+
+      - name: Validate submission readiness
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
+        run: mise exec -- node scripts/app-store.ts validate --version "$RELEASE_VERSION"
+
+  # The v* tag ruleset lets only the putio-ci App create tags. This job holds
+  # nothing but that App's key, mints a token for this repository with
+  # contents:write alone, and checks out nothing.
+  tag:
+    name: Tag the uploaded commit
+    needs: [validate-ref, release]
+    runs-on: ubuntu-latest
+    environment: release
+    timeout-minutes: 5
+
+    steps:
+      - name: Mint a putio-ci token for tagging
+        id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ vars.PUTIO_RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.PUTIO_RELEASE_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+
+      - name: Create v${{ inputs.version }}
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          SHA: ${{ needs.validate-ref.outputs.sha }}
+          BUILD_NUMBER: ${{ needs.release.outputs.build_number }}
+        run: |
+          set -euo pipefail
+          tag="v$RELEASE_VERSION"
+          existing="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha' 2>/dev/null || true)"
+          if [ -n "$existing" ]; then
+            if [ "$existing" != "$SHA" ]; then
+              echo "$tag already points at $existing, not $SHA" >&2
+              exit 1
+            fi
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$SHA" > /dev/null
+          fi
+          echo "- Tagged \`$tag\` at \`$SHA\` (build $BUILD_NUMBER)" >> "$GITHUB_STEP_SUMMARY"
