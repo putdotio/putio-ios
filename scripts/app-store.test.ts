@@ -41,6 +41,7 @@ test("config rejects what App Store Connect would not accept", () => {
   assert.throws(() => parseConfig({ ...validConfig, version: { releaseType: "SCHEDULED", phasedRelease: true } }), /MANUAL or AFTER_APPROVAL/);
   assert.throws(() => parseConfig({ ...validConfig, ageRating: { socialMedia: "false" } }), /must be a boolean/);
   assert.throws(() => parseConfig({ ...validConfig, ageRating: { violenceRealistic: "SOME" } }), /one of NONE/);
+  assert.equal(parseConfig({ ...validConfig, ageRating: { violenceRealistic: "INFREQUENT" } }).ageRating.violenceRealistic, "INFREQUENT");
   assert.throws(() => parseConfig({ ...validConfig, ageRating: { seventeenPlus: true } }), /not a supported/);
   assert.throws(() => parseConfig({ ...validConfig, releaseType: "MANUAL" }), /unknown key releaseType/);
   assert.throws(

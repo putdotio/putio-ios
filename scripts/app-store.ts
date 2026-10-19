@@ -30,7 +30,8 @@ export type AppStoreConfig = Readonly<{
   screenshots: Readonly<{ dir: string; sets: readonly ScreenshotSet[] }>;
 }>;
 
-const LEVELS = ["NONE", "INFREQUENT_OR_MILD", "FREQUENT_OR_INTENSE"] as const;
+// asc 5.15.0 accepts both Apple vocabularies for frequency answers.
+const LEVELS = ["NONE", "INFREQUENT_OR_MILD", "FREQUENT_OR_INTENSE", "INFREQUENT", "FREQUENT"] as const;
 
 // API attribute -> asc age-rating edit flag. asc names several flags
 // differently from the attribute they set.
