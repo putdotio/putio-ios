@@ -466,7 +466,9 @@ public protocol PutioPositionReportSchedule: AnyObject {
 
 @MainActor
 public final class PutioMonotonicPositionReportSchedule: PutioPositionReportSchedule {
-  private var task: Task<Void, Never>?
+  // A `let` so the nonisolated deinit can cancel it from whichever thread
+  // drops the last reference.
+  private let task: Task<Void, Never>
 
   public init(
     interval: Duration,
@@ -489,13 +491,10 @@ public final class PutioMonotonicPositionReportSchedule: PutioPositionReportSche
   }
 
   public func invalidate() {
-    task?.cancel()
-    task = nil
+    task.cancel()
   }
 
   deinit {
-    MainActor.assumeIsolated {
-      invalidate()
-    }
+    task.cancel()
   }
 }
