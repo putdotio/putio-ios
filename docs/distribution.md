@@ -7,6 +7,7 @@
 - [Release](../.github/workflows/release.yml) is dispatch-only with the same SHA check and a version. It fails before building when `metadata/version/<version>/en-US.json` has no `whatsNew`, uploads with `asc publish appstore` (which creates or finds the version and attaches the build, never submits), then applies the listing and runs `asc validate` into the job summary. A last job tags the commit `v<version>` only after the upload succeeded, with an annotated tag whose message carries `Build-Number: <build>`, as the `putio-ci` GitHub App: it mints a token for this repository with `contents: write` from the `release` Environment's `PUTIO_CI_APP_CLIENT_ID` and `PUTIO_CI_APP_PRIVATE_KEY`, because the `v*` ruleset lets only that App and organization admins create tags.
 - [Screenshots](../.github/workflows/screenshots.yml) changes the product page without a build: it plans the listing, uploads App Store Connect's current metadata and age rating as an artifact, and previews the screenshot replacement. Plan and the screenshot step stop with the version's state when App Store Connect won't edit it, such as while it waits for or is in review; the artifact still uploads. With `dry_run` off it applies metadata and settings and replaces each screenshot set. It requires the current protected-main SHA, defaults to a dry run, and runs on Linux with only the App Store Connect key.
 - [Submit](../.github/workflows/submit.yml) takes a version and the build number Release uploaded, from the same validated SHA. Dispatching it is the approval: it runs in the `release` Environment, first requires `v<version>` to be an annotated Release tag at the validated SHA that names the requested build, so a TestFlight build with the same version string can't be submitted, then checks the committed What's New offline, attaches the requested build, runs `asc validate --strict` against it, and runs `asc review submit`.
+- [Signing Check](../.github/workflows/signing-check.yml) proves the signing secrets without building. From the same validated SHA, in the `release` Environment, it runs [install-signing.sh](../scripts/install-signing.sh): `asc signing keychain install` puts `APPLE_DISTRIBUTION_P12` into a new temporary keychain, `asc profiles list` reads every active App Store profile, and [check-signing-profile.rb](../scripts/check-signing-profile.rb) picks one that is unexpired, for this team and `PUTIO_APP_IDENTIFIER`, and includes the identity's certificate, failing with the reason each candidate was refused when none is. It then requires `security find-identity -v -p codesigning` to list the identity through the keychain search list, as codesign would, and deletes the keychain. It creates, renews, and revokes nothing.
 - [E2E Simulator](../.github/workflows/e2e-simulator.yml) runs the mocked XCUITests on macOS against `main` every Monday at 06:00 UTC and on dispatch. It loads no secrets.
 - `main` is the repository's default branch, so these workflows are dispatched directly on it. Pass the current protected-main head as `expected_sha`:
 
@@ -16,6 +17,7 @@
   gh workflow run release.yml --ref main -f expected_sha="$sha" -f version=<x.y.z>
   gh workflow run screenshots.yml --ref main -f expected_sha="$sha" -f app_version=<x.y.z> -f dry_run=true
   gh workflow run submit.yml --ref main -f expected_sha="$sha" -f version=<x.y.z> -f build_number=<build>
+  gh workflow run signing-check.yml --ref main -f expected_sha="$sha"
   ```
 
 - Beta, release, and shared release-secret third-party actions are pinned to full commit SHAs with a trailing comment for the human version tag. Update the SHA and comment together after reviewing upstream release notes.
@@ -104,6 +106,9 @@ The `release` Environment must provide:
   - `MATCH_PASSWORD`
   - `MATCH_GIT_PRIVATE_KEY_CONTENT`
   - `MATCH_GIT_URL` must use a `github.com` SSH URL; CI verifies GitHub's ed25519 host-key fingerprint before updating `known_hosts`
+- Signing identity, used by Signing Check:
+  - `APPLE_DISTRIBUTION_P12`: the Apple Distribution certificate and its private key as one base64 line of a password-protected PKCS#12 that macOS can import, such as a Keychain Access export (`openssl pkcs12 -export` needs `-legacy`)
+  - `APPLE_DISTRIBUTION_P12_PASSWORD`: that file's password
 - Release tagging, used only by the Release workflow's `tag` job:
   - `PUTIO_CI_APP_CLIENT_ID` (variable): the client ID of the `putio-ci` App (ID `3648620`)
   - `PUTIO_CI_APP_PRIVATE_KEY`

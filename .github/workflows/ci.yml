@@ -171,8 +171,8 @@ jobs:
           install: false
           cache: false
 
-      # Named explicitly so mise installs Node and nothing else: its Ruby comes
-      # from source, and this lane runs no Ruby task.
+      # Named explicitly so mise installs Node and nothing else: its Ruby would
+      # compile from source, so ruby/setup-ruby below provides the prebuilt one.
       - name: Install the pinned Node
         run: |
           mise install node
@@ -180,6 +180,13 @@ jobs:
 
       - name: Install Node dependencies
         run: mise exec -- pnpm install --frozen-lockfile
+
+      # The signing profile check is Ruby, so its tests need the pinned one.
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        with:
+          ruby-version: mise.toml
+          bundler-cache: false
 
       - name: Type-check repo tooling
         run: mise run verify-scripts-types
