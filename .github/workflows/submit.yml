@@ -1,8 +1,7 @@
-name: Submit for review
+name: Submit
 
-# Submits an uploaded, attached build for App Store review. The approve job
-# waits on the app-store-review Environment's required reviewer; the submit job
-# then uses the release Environment's App Store Connect key.
+# Submits an uploaded build for App Store review. Dispatching it is the
+# approval; the job uses the release Environment's App Store Connect key.
 on:
   workflow_dispatch:
     inputs:
@@ -40,56 +39,14 @@ defaults:
 
 jobs:
   validate-ref:
-    name: Validate protected legacy main
-    uses: ./.github/workflows/legacy-delivery-ref.yml
+    name: Validate protected main
+    uses: ./.github/workflows/delivery-ref.yml
     with:
       expected_sha: ${{ inputs.expected_sha }}
 
-  # Referencing a missing Environment creates it without protection, which
-  # would turn the approval into a no-op. Refuse unless it exists with a
-  # required reviewer.
-  check-approval-gate:
-    name: Require the app-store-review approval gate
-    needs: validate-ref
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - name: Check the Environment's required reviewers
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
-          BUILD_NUMBER: ${{ inputs.build_number }}
-        run: |
-          set -euo pipefail
-          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || ! [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
-            echo "version must look like 3.0.1 and build_number must be an integer" >&2
-            exit 1
-          fi
-          reviewers="$(gh api "repos/$GITHUB_REPOSITORY/environments/app-store-review" \
-            --jq '[.protection_rules[] | select(.type == "required_reviewers") | .reviewers[]] | length' 2>/dev/null || echo 0)"
-          if [ "$reviewers" -lt 1 ]; then
-            echo "The app-store-review Environment must exist with a required reviewer before anything is submitted" >&2
-            exit 1
-          fi
-
-  approve:
-    name: Approve the submission
-    needs: check-approval-gate
-    runs-on: ubuntu-latest
-    environment: app-store-review
-    timeout-minutes: 5
-
-    steps:
-      - name: Record the approval
-        env:
-          VERSION: ${{ inputs.version }}
-          BUILD_NUMBER: ${{ inputs.build_number }}
-        run: echo "- Approved submitting $VERSION ($BUILD_NUMBER)" >> "$GITHUB_STEP_SUMMARY"
-
   submit:
     name: Submit for App Store review
-    needs: [validate-ref, approve]
+    needs: validate-ref
     runs-on: ubuntu-latest
     environment: release
     timeout-minutes: 30
@@ -98,6 +55,13 @@ jobs:
       BUILD_NUMBER: ${{ inputs.build_number }}
 
     steps:
+      - name: Check the inputs
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || ! [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "version must look like 3.0.1 and build_number must be an integer" >&2
+            exit 1
+          fi
+
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -123,7 +87,7 @@ jobs:
 
       # Attach first, so strict validation checks the build being submitted
       # rather than whichever one a later Release run attached.
-      - name: Attach the approved build
+      - name: Attach the requested build
         env:
           ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}

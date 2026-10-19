@@ -26,7 +26,7 @@ const arrayAt = (record: RecordValue, key: string, context: string): readonly un
 const loadYaml = async (path: string): Promise<RecordValue> =>
   asRecord(parse(await readFile(new URL(`../${path}`, import.meta.url), "utf8")) as unknown, path);
 
-test("manual legacy delivery validates before entering the release Environment", async () => {
+test("manual delivery validates before entering the release Environment", async () => {
   for (const [name, deliveryJob] of [
     ["beta.yml", "beta"],
     ["release.yml", "release"],
@@ -37,7 +37,7 @@ test("manual legacy delivery validates before entering the release Environment",
     const delivery = recordAt(jobs, deliveryJob, `${name}.jobs`);
     const validationInputs = recordAt(validate, "with", `${name}.validate-ref`);
 
-    assert.equal(validate.uses, "./.github/workflows/legacy-delivery-ref.yml");
+    assert.equal(validate.uses, "./.github/workflows/delivery-ref.yml");
     assert.equal(validationInputs.expected_sha, "${{ inputs.expected_sha }}");
     assert.equal("environment" in validate, false);
     assert.equal(delivery.needs, "validate-ref");
@@ -48,8 +48,8 @@ test("manual legacy delivery validates before entering the release Environment",
 });
 
 test("the shared guard binds manual dispatch to the protected main event SHA", async () => {
-  const workflow = await loadYaml(".github/workflows/legacy-delivery-ref.yml");
-  assert.deepEqual(recordAt(workflow, "permissions", "legacy-delivery-ref.yml"), {
+  const workflow = await loadYaml(".github/workflows/delivery-ref.yml");
+  assert.deepEqual(recordAt(workflow, "permissions", "delivery-ref.yml"), {
     contents: "read",
   });
   const serialized = JSON.stringify(workflow);
@@ -94,20 +94,14 @@ test("every workflow that runs asc turns its telemetry off first", async () => {
   }
 });
 
-test("submission waits for a protected approval before using the App Store Connect key", async () => {
+test("submission runs from a validated SHA in the release Environment only", async () => {
   const workflow = await loadYaml(".github/workflows/submit.yml");
   const jobs = recordAt(workflow, "jobs", "submit.yml");
-  const gate = recordAt(jobs, "check-approval-gate", "submit.yml.jobs");
-  const approve = recordAt(jobs, "approve", "submit.yml.jobs");
+  assert.deepEqual(Object.keys(jobs), ["validate-ref", "submit"]);
   const submit = recordAt(jobs, "submit", "submit.yml.jobs");
-
-  assert.equal("environment" in gate, false);
-  assert.match(JSON.stringify(gate), /environments\/app-store-review.*required_reviewers/);
-  assert.equal(approve.needs, "check-approval-gate");
-  assert.equal(approve.environment, "app-store-review");
-  assert.doesNotMatch(JSON.stringify(approve), /secrets\./);
-  assert.deepEqual(submit.needs, ["validate-ref", "approve"]);
+  assert.equal(submit.needs, "validate-ref");
   assert.equal(submit.environment, "release");
+  assert.match(JSON.stringify(submit), /ref.*needs\.validate-ref\.outputs\.sha/);
 });
 
 test("release tags only after the upload, as putio-ci with nothing else", async () => {

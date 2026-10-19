@@ -212,7 +212,7 @@ node scripts/app-store.ts check
 ## Good First Contributions
 
 - Add focused unit coverage around pure logic and model parsing
-- Shrink legacy UIKit and storyboard hotspots, such as Files and Settings, without changing behavior
+- Shrink UIKit and storyboard hotspots, such as Files and Settings, without changing behavior
 - Locales beyond English, and copy consistency, in isolated pull requests
 
 ## Pull Requests

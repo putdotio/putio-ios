@@ -37,8 +37,8 @@ defaults:
 
 jobs:
   validate-ref:
-    name: Validate protected legacy main
-    uses: ./.github/workflows/legacy-delivery-ref.yml
+    name: Validate protected main
+    uses: ./.github/workflows/delivery-ref.yml
     with:
       expected_sha: ${{ inputs.expected_sha }}
 
