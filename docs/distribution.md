@@ -8,6 +8,16 @@
 - [Screenshots](../.github/workflows/screenshots.yml) is a dispatch-only lane that uploads the committed App Store images from `fastlane/screenshots/` and nothing else. Like Beta, it requires `expected_sha` to be the current protected `main` head. It defaults to a dry run. It builds no app: no Xcode, no CocoaPods, no simulator.
   - The release lane keeps `skip_screenshots: true` on purpose. Shipping a build and changing the product page are separate decisions, and coupling them means every release either silently republishes the listing or silently does not.
   - `overwrite_screenshots: true` is required: App Store Connect appends otherwise, which would leave the 2024 images beside the new ones.
+- [E2E Simulator](../.github/workflows/e2e-simulator.yml) runs the mocked XCUITests on macOS against `main` every Monday at 06:00 UTC and on dispatch. It loads no secrets.
+- `main` is the repository's default branch, so these workflows are dispatched directly on it. Pass the current protected-main head as `expected_sha`:
+
+  ```bash
+  sha="$(gh api repos/putdotio/putio-ios/branches/main --jq .commit.sha)"
+  gh workflow run beta.yml --ref main -f expected_sha="$sha"
+  gh workflow run release.yml --ref main -f expected_sha="$sha" -f version=<x.y.z>
+  gh workflow run screenshots.yml --ref main -f expected_sha="$sha" -f app_version=<x.y.z> -f dry_run=true
+  ```
+
 - Beta, release, and shared release-secret third-party actions are pinned to full commit SHAs with a trailing comment for the human version tag. Update the SHA and comment together after reviewing upstream release notes.
 
 ## CI Bootstrap
