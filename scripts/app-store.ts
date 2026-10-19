@@ -210,6 +210,17 @@ export const versionActions = (desired: AppStoreConfig["version"], remote: Remot
   return actions;
 };
 
+// asc 5.15.0's editable version states
+// (internal/cli/shared/app_store_version_diagnostics.go). Apple rejects
+// metadata, screenshot, and age-rating edits on a version in any other state.
+const EDITABLE_STATES = ["PREPARE_FOR_SUBMISSION", "READY_FOR_REVIEW", "DEVELOPER_REJECTED", "REJECTED", "METADATA_REJECTED", "INVALID_BINARY"];
+
+export const requireEditable = (version: string, remote: RemoteVersion | undefined): void => {
+  if (remote && !EDITABLE_STATES.includes(remote.state)) {
+    throw new Error(`version ${version} is ${remote.state}; App Store Connect only edits a version in ${EDITABLE_STATES.join(", ")}`);
+  }
+};
+
 export const describeVersionAction = (action: VersionAction): string => {
   switch (action.kind) {
     case "create":
@@ -423,8 +434,14 @@ const fetchRemoteVersion = async (config: AppStoreConfig, version: string): Prom
     ]),
   );
 
-const fetchAgeRating = async (config: AppStoreConfig): Promise<JsonObject> => {
-  const declaration = await ascJson(["age-rating", "view", "--app", config.appId]);
+// --app resolves only while one app info is current or being prepared, so it
+// fails once a version is in review, rejected, or pending release. The
+// version's own declaration has no such ambiguity.
+const ageRatingTarget = (config: AppStoreConfig, remote: RemoteVersion | undefined): string[] =>
+  remote ? ["--version-id", remote.id] : ["--app", config.appId];
+
+const fetchAgeRating = async (config: AppStoreConfig, remote: RemoteVersion | undefined): Promise<JsonObject> => {
+  const declaration = await ascJson(["age-rating", "view", ...ageRatingTarget(config, remote)]);
   if (!isObject(declaration) || !isObject(declaration.data) || !isObject(declaration.data.attributes)) {
     throw new Error("asc age-rating view returned no attributes");
   }
@@ -442,11 +459,14 @@ const plan = async (config: AppStoreConfig, version: string, exportDir: string |
   const lines = [`## App Store plan for ${version}`, "", ...(await check(config, version)), ""];
   const remote = await fetchRemoteVersion(config, version);
   lines.push(remote ? `Version ${version} is \`${remote.state}\`.` : `Version ${version} does not exist yet.`, "");
+  const ageRating = await fetchAgeRating(config, remote);
+  // Exported first, so a locked version still yields App Store Connect's listing.
+  if (exportDir) await exportListing(config, version, remote, ageRating, exportDir);
+  requireEditable(version, remote);
 
   const actions = versionActions(config.version, remote);
   lines.push("### Version settings", "", ...(actions.length > 0 ? actions.map((action) => `- ${describeVersionAction(action)}`) : ["- No change"]), "");
 
-  const ageRating = await fetchAgeRating(config);
   const changes = ageRatingChanges(config.ageRating, ageRating);
   lines.push(
     "### Age rating",
@@ -464,15 +484,18 @@ const plan = async (config: AppStoreConfig, version: string, exportDir: string |
     lines.push("Applied after the version is created.");
   }
   await report(lines.join("\n"));
+};
 
-  if (exportDir) {
-    const target = resolve(root, exportDir);
-    await mkdir(target, { recursive: true });
-    await writeFile(join(target, "age-rating.json"), `${JSON.stringify(ageRating, null, 2)}\n`);
-    if (remote) {
-      await asc(["metadata", "pull", "--app", config.appId, "--version", version, "--platform", config.platform, "--dir", join(target, "metadata"), "--force", "--output", "json"]);
-    }
+const exportListing = async (config: AppStoreConfig, version: string, remote: RemoteVersion | undefined, ageRating: JsonObject, exportDir: string): Promise<void> => {
+  const target = resolve(root, exportDir);
+  await mkdir(target, { recursive: true });
+  // A marker left by an earlier export must not vouch for this one.
+  await rm(join(target, "age-rating.json"), { force: true });
+  if (remote) {
+    await asc(["metadata", "pull", "--app", config.appId, "--version", version, "--platform", config.platform, "--dir", join(target, "metadata"), "--force", "--output", "json"]);
   }
+  // Last, so its presence means the export is complete.
+  await writeFile(join(target, "age-rating.json"), `${JSON.stringify(ageRating, null, 2)}\n`);
 };
 
 const apply = async (config: AppStoreConfig, version: string): Promise<void> => {
@@ -503,9 +526,9 @@ const apply = async (config: AppStoreConfig, version: string): Promise<void> => 
   await asc([...metadataArgs(config, version), "--confirm", "--output", "json"]);
   lines.push(`- Metadata: applied \`${config.metadataDir}/\` for ${version}`);
 
-  const changes = ageRatingChanges(config.ageRating, await fetchAgeRating(config));
+  const changes = ageRatingChanges(config.ageRating, await fetchAgeRating(config, remote));
   if (changes.length > 0) {
-    await asc(["age-rating", "edit", "--app", config.appId, ...ageRatingFlags(changes), "--output", "json"]);
+    await asc(["age-rating", "edit", ...ageRatingTarget(config, remote), ...ageRatingFlags(changes), "--output", "json"]);
     for (const change of changes) lines.push(`- Age rating: \`${change.field}\` ${formatValue(change.remote)} → ${formatValue(change.desired)}`);
   }
   await report(lines.join("\n"));
@@ -526,6 +549,7 @@ const validate = async (config: AppStoreConfig, version: string, strict: boolean
 
 const screenshots = async (config: AppStoreConfig, version: string, dryRun: boolean): Promise<void> => {
   await check(config, version);
+  requireEditable(version, await fetchRemoteVersion(config, version));
   const staged = await stageScreenshots(config);
   const lines = [`## Screenshots for ${version}${dryRun ? " (dry run)" : ""}`, ""];
   try {
