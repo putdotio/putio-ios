@@ -8,8 +8,9 @@
   <p>SwiftUI apps for <a href="https://put.io">put.io</a> on iOS, watchOS, and tvOS</p>
 </div>
 
-This branch contains the native rewrite. See [Distribution](docs/distribution.md)
-for the shipping app and release workflow.
+This branch, `next`, contains the native rewrite; open its pull requests with
+`--base next`. The default branch, `main`, carries the shipping 3.x app; see
+[Distribution](docs/distribution.md) for its release workflow.
 
 ## Development
 

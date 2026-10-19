@@ -7,30 +7,31 @@ signing, versioning, App Store Connect, and the GitHub `release` Environment.
 
 ## Legacy releases
 
-Use the [Beta](../.github/workflows/beta.yml),
-[Release](../.github/workflows/release.yml), or
-[Screenshots](../.github/workflows/screenshots.yml) entrypoint. Their input definitions
-are the source of truth for release options.
+`main` is the repository's default branch, so GitHub dispatches its own Beta,
+Release, and Screenshots workflows directly. Their input definitions on `main`
+are the source of truth; each takes the current protected-main head as
+`expected_sha`:
 
-The default branch exposes these entrypoints so GitHub can list them for manual
-dispatch. The [dispatcher](../.github/workflows/legacy-ios-dispatch.yml) accepts
-only protected `refs/heads/main`, checks the reviewed workflow and ref-guard
-blobs, and passes the resolved commit as `expected_sha` to the legacy workflow.
-The downstream guard validates that commit before the delivery job loads secrets
-and checks out source. The relay itself remains secretless.
+```bash
+sha="$(gh api repos/putdotio/putio-ios/branches/main --jq .commit.sha)"
+gh workflow run beta.yml --repo putdotio/putio-ios --ref main -f expected_sha="$sha"
+gh workflow run release.yml --repo putdotio/putio-ios --ref main -f expected_sha="$sha" -f version=<x.y.z>
+gh workflow run screenshots.yml --repo putdotio/putio-ios --ref main -f expected_sha="$sha" -f app_version=<x.y.z> -f dry_run=true
+```
 
-A changed workflow blob or moving branch stops dispatch. Review the legacy
-workflow change before updating the dispatcher's expected blob IDs; do not bypass
-that check or copy signing configuration into the relay. The job summary records
-the validated source and downstream run.
+The [Beta](../.github/workflows/beta.yml),
+[Release](../.github/workflows/release.yml), and
+[Screenshots](../.github/workflows/screenshots.yml) relays on `next` and their
+[dispatcher](../.github/workflows/legacy-ios-dispatch.yml) date from when `next`
+was the default branch. They are superseded: dispatching a file name without
+`--ref` now runs `main`'s workflow, and the relays run only if someone passes
+`--ref next`. Don't use them for delivery.
 
 Inspect registration without starting a release:
 
 ```bash
 gh workflow list --repo putdotio/putio-ios
-gh workflow view beta.yml --repo putdotio/putio-ios --ref next
-gh workflow view release.yml --repo putdotio/putio-ios --ref next
-gh workflow view screenshots.yml --repo putdotio/putio-ios --ref next
+gh workflow view release.yml --repo putdotio/putio-ios --ref main
 ```
 
 [Legacy release tracking](https://github.com/putdotio/putio-ios/issues/149) owns
