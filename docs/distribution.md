@@ -4,9 +4,9 @@
 
 - [CI](../.github/workflows/ci.yml) verifies pushes and pull requests. A `changes` job on Linux classifies the diff with [`scripts/ci-affected.sh`](../scripts/ci-affected.sh), then `verify-app` runs `mise run bootstrap-ci` and `mise run verify` on macOS, and `verify-tooling` type-checks the Node scripts and checks the committed marketing images against their inputs, both on Linux. Each lane runs only when the diff can affect it, and an unrecognized path counts as app-affecting — a needless macOS run is cheaper than a missed break. Nothing is filtered at the `on:` level, so both checks always report a state.
 - [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. A secretless job ([Delivery ref contract](../.github/workflows/delivery-ref.yml)) first requires the exact current protected-main SHA. The Environment-bearing job then checks out that commit, verifies, installs the signing identity with `fastlane signing`, archives with [archive-ios.sh](../scripts/archive-ios.sh), and uploads and distributes with `asc publish testflight --notify`, which emails external testers.
-- [Release](../.github/workflows/release.yml) is dispatch-only with the same SHA check and a version. It fails before building when `metadata/version/<version>/en-US.json` has no `whatsNew`, uploads with `asc publish appstore` (which creates or finds the version and attaches the build, never submits), then applies the listing and runs `asc validate` into the job summary. A last job tags the commit `v<version>` only after the upload succeeded, as the `putio-ci` GitHub App: it mints a token for this repository with `contents: write` from the `release` Environment's `PUTIO_CI_APP_CLIENT_ID` and `PUTIO_CI_APP_PRIVATE_KEY`, because the `v*` ruleset lets only that App and organization admins create tags.
-- [Screenshots](../.github/workflows/screenshots.yml) changes the product page without a build: it plans the listing, uploads App Store Connect's current metadata and age rating as an artifact, and previews the screenshot replacement. With `dry_run` off it applies metadata and settings and replaces each screenshot set. It requires the current protected-main SHA, defaults to a dry run, and runs on Linux with only the App Store Connect key.
-- [Submit](../.github/workflows/submit.yml) takes a version and the build number Release uploaded, from the same validated SHA. Dispatching it is the approval: it runs in the `release` Environment, checks the committed What's New offline, attaches the requested build, runs `asc validate --strict` against it, and runs `asc review submit`.
+- [Release](../.github/workflows/release.yml) is dispatch-only with the same SHA check and a version. It fails before building when `metadata/version/<version>/en-US.json` has no `whatsNew`, uploads with `asc publish appstore` (which creates or finds the version and attaches the build, never submits), then applies the listing and runs `asc validate` into the job summary. A last job tags the commit `v<version>` only after the upload succeeded, with an annotated tag whose message carries `Build-Number: <build>`, as the `putio-ci` GitHub App: it mints a token for this repository with `contents: write` from the `release` Environment's `PUTIO_CI_APP_CLIENT_ID` and `PUTIO_CI_APP_PRIVATE_KEY`, because the `v*` ruleset lets only that App and organization admins create tags.
+- [Screenshots](../.github/workflows/screenshots.yml) changes the product page without a build: it plans the listing, uploads App Store Connect's current metadata and age rating as an artifact, and previews the screenshot replacement. Plan and the screenshot step stop with the version's state when App Store Connect won't edit it, such as while it waits for or is in review; the artifact still uploads. With `dry_run` off it applies metadata and settings and replaces each screenshot set. It requires the current protected-main SHA, defaults to a dry run, and runs on Linux with only the App Store Connect key.
+- [Submit](../.github/workflows/submit.yml) takes a version and the build number Release uploaded, from the same validated SHA. Dispatching it is the approval: it runs in the `release` Environment, first requires `v<version>` to be an annotated Release tag at the validated SHA that names the requested build, so a TestFlight build with the same version string can't be submitted, then checks the committed What's New offline, attaches the requested build, runs `asc validate --strict` against it, and runs `asc review submit`.
 - [E2E Simulator](../.github/workflows/e2e-simulator.yml) runs the mocked XCUITests on macOS against `main` every Monday at 06:00 UTC and on dispatch. It loads no secrets.
 - `main` is the repository's default branch, so these workflows are dispatched directly on it. Pass the current protected-main head as `expected_sha`:
 
@@ -30,7 +30,7 @@
 
 ## Delivery Contract
 
-- Beta, release, screenshots, and submit are CI-only; `mise run beta` and `mise run release` intentionally fail locally
+- Beta, release, screenshots, and submit are CI-only
 - Release secret validation and key-file materialization live in [Load iOS release secrets](../.github/actions/load-ios-release-secrets/action.yml); asc reads the key from `ASC_KEY_ID`, `ASC_ISSUER_ID`, and `ASC_PRIVATE_KEY` with `ASC_BYPASS_KEYCHAIN=1`
 - uploaded beta and release builds use UTC timestamp build numbers in `YYMMDDHHMM` format, passed to `xcodebuild` as `CURRENT_PROJECT_VERSION`; release passes its version as `MARKETING_VERSION`, so no tracked file changes at archive time
 - checked-in `CURRENT_PROJECT_VERSION` stays at `1` as a baseline
@@ -91,8 +91,6 @@ The `release` Environment must provide:
   - `APPSTORE_CONNECT_KEY_CONTENT`
 - App metadata and runtime fields:
   - `PUTIO_APP_IDENTIFIER`
-  - `PUTIO_APPLE_ID`
-  - `PUTIO_ITC_TEAM_ID`
   - `PUTIO_DEVELOPMENT_TEAM`
   - `PUTIO_OAUTH_CLIENT_ID`
   - `PUTIO_CHROMECAST_RECEIVER_APP_ID`
@@ -152,7 +150,6 @@ Repository admins must keep these settings aligned with the workflow trust model
 ## App Store IDs
 
 - App Store Connect app ID `1260479699`, in `Config/AppStore.json` and the asc commands
-- `PUTIO_APPLE_ID`: Apple login email used by `match`
 - `putdotio/putio-code-signing-apple` is pinned to the `main` branch in `fastlane/Matchfile`
 
 ## Operational Notes

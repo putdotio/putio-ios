@@ -62,6 +62,29 @@ jobs:
             exit 1
           fi
 
+      # A beta and a release build share the version string, so only the tag
+      # Release created tells them apart.
+      - name: Check the release tag names this build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ needs.validate-ref.outputs.sha }}
+        run: |
+          tag="v$VERSION"
+          ref="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag")"
+          if [ "$(jq -r .object.type <<< "$ref")" != tag ]; then
+            echo "$tag is not an annotated Release tag, so it names no build" >&2
+            exit 1
+          fi
+          object="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$(jq -r .object.sha <<< "$ref")")"
+          if [ "$(jq -r .object.sha <<< "$object")" != "$EXPECTED_SHA" ]; then
+            echo "$tag points at $(jq -r .object.sha <<< "$object"), not $EXPECTED_SHA" >&2
+            exit 1
+          fi
+          if ! jq -r .message <<< "$object" | grep -xF "Build-Number: $BUILD_NUMBER" > /dev/null; then
+            echo "$tag does not name build $BUILD_NUMBER; Release uploaded another one" >&2
+            exit 1
+          fi
+
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
