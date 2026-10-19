@@ -31,6 +31,11 @@ on:
         required: false
         type: string
         default: ''
+      dry_run:
+        description: Screenshots only; validate the set and stop before uploading
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   actions: write
@@ -67,8 +72,12 @@ jobs:
               workflow_file="release.yml"
               expected_workflow_blob="9e322da53648de9bc25dd005a2453e69d6bb354c"
               ;;
+            screenshots)
+              workflow_file="screenshots.yml"
+              expected_workflow_blob="46ce41074f74a2a2045f6b6518529fb767e17a1a"
+              ;;
             *)
-              echo "Operation must be beta or release; received $OPERATION" >&2
+              echo "Operation must be beta, release or screenshots; received $OPERATION" >&2
               exit 1
               ;;
           esac
@@ -128,6 +137,7 @@ jobs:
           BETA_GROUPS: ${{ inputs.groups }}
           PROCESSING_TIMEOUT_MINUTES: ${{ inputs.processing_timeout_minutes }}
           VERSION: ${{ inputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           set -euo pipefail
 
@@ -151,6 +161,19 @@ jobs:
                 --arg expected_sha "$EXPECTED_SHA" \
                 --arg version "$VERSION" \
                 '{ref: "main", inputs: {expected_sha: $expected_sha, version: $version}}' \
+                > "$RUNNER_TEMP/legacy-dispatch.json"
+              ;;
+            screenshots)
+              if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "Legacy App Store version must be three period-separated integers, for example 3.1.0" >&2
+                exit 1
+              fi
+
+              jq -n \
+                --arg expected_sha "$EXPECTED_SHA" \
+                --arg app_version "$VERSION" \
+                --arg dry_run "$DRY_RUN" \
+                '{ref: "main", inputs: {expected_sha: $expected_sha, app_version: $app_version, dry_run: $dry_run}}' \
                 > "$RUNNER_TEMP/legacy-dispatch.json"
               ;;
           esac
@@ -204,6 +227,7 @@ jobs:
           RUN_ID: ${{ steps.dispatch.outputs.run_id }}
           RUN_URL: ${{ steps.dispatch.outputs.run_url }}
           VERSION: ${{ inputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
           {
             echo "## Legacy iOS 3.x $OPERATION queued"
@@ -213,8 +237,11 @@ jobs:
             echo "- Reviewed legacy workflow blob: \`$WORKFLOW_BLOB\`"
             echo "- Reviewed legacy ref-guard blob: \`$GUARD_BLOB\`"
             echo "- Downstream delivery run: [$RUN_ID]($RUN_URL)"
-            if [ "$OPERATION" = "release" ]; then
+            if [ "$OPERATION" = "release" ] || [ "$OPERATION" = "screenshots" ]; then
               echo "- App Store version: \`$VERSION\`"
+            fi
+            if [ "$OPERATION" = "screenshots" ]; then
+              echo "- Dry run: \`$DRY_RUN\`"
             fi
             echo "- Delivery contract: the existing \`.github/workflows/$OPERATION.yml\` from protected \`main\`"
             echo "- Secrets and signing: loaded only by the downstream run's \`release\` Environment"

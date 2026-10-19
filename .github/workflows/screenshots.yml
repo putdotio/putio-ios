@@ -1,0 +1,36 @@
+name: Legacy iOS 3.x Screenshots
+run-name: Queue legacy iOS 3.x screenshots ${{ inputs.app_version }} from protected main
+
+on:
+  workflow_dispatch:
+    inputs:
+      legacy_ref:
+        description: Protected legacy source ref (only refs/heads/main is trusted)
+        required: true
+        type: choice
+        options:
+          - refs/heads/main
+        default: refs/heads/main
+      app_version:
+        description: Legacy iOS 3.x App Store version the screenshots attach to, for example 3.0.0
+        required: true
+        type: string
+      dry_run:
+        description: Validate the set and stop before uploading
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    name: Validate and queue the protected legacy screenshots workflow
+    uses: ./.github/workflows/legacy-ios-dispatch.yml # zizmor: ignore[self-repository]
+    with:
+      operation: screenshots
+      legacy_ref: ${{ inputs.legacy_ref }}
+      version: ${{ inputs.app_version }}
+      dry_run: ${{ inputs.dry_run }}

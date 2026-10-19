@@ -98,6 +98,35 @@ test("legacy release requires an explicit legacy version", async () => {
   assert.equal("secrets" in dispatch, false);
 });
 
+test("legacy screenshots requires a version and defaults to a dry run", async () => {
+  const workflow = await loadWorkflow("screenshots.yml");
+  assert.equal(workflow.name, "Legacy iOS 3.x Screenshots");
+  assert.match(stringAt(workflow, "run-name", "screenshots.yml"), /legacy iOS 3\.x screenshots.*protected main/i);
+
+  const inputs = dispatchInputs(workflow, "screenshots.yml");
+  assert.deepEqual(Object.keys(inputs), ["legacy_ref", "app_version", "dry_run"]);
+  const legacyRef = recordAt(inputs, "legacy_ref", "screenshots.yml inputs");
+  assert.deepEqual(legacyRef.options, ["refs/heads/main"]);
+  assert.equal(legacyRef.default, "refs/heads/main");
+  assert.equal(recordAt(inputs, "app_version", "screenshots.yml inputs").required, true);
+  assert.equal(recordAt(inputs, "dry_run", "screenshots.yml inputs").default, true);
+
+  assert.deepEqual(recordAt(workflow, "permissions", "screenshots.yml"), {
+    actions: "write",
+    contents: "read",
+  });
+  const dispatch = recordAt(recordAt(workflow, "jobs", "screenshots.yml"), "dispatch", "screenshots.yml jobs");
+  assert.equal(dispatch.uses, "./.github/workflows/legacy-ios-dispatch.yml");
+  assert.deepEqual(recordAt(dispatch, "with", "screenshots.yml dispatch"), {
+    operation: "screenshots",
+    legacy_ref: "${{ inputs.legacy_ref }}",
+    version: "${{ inputs.app_version }}",
+    dry_run: "${{ inputs.dry_run }}",
+  });
+  assert.equal("environment" in dispatch, false);
+  assert.equal("secrets" in dispatch, false);
+});
+
 test("the relay fails closed before dispatching the reviewed main workflows", async () => {
   const workflow = await loadWorkflow("legacy-ios-dispatch.yml");
   assert.equal(workflow.name, "Legacy iOS 3.x dispatch contract");
@@ -111,6 +140,7 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
     "groups",
     "processing_timeout_minutes",
     "version",
+    "dry_run",
   ]);
   assert.deepEqual(recordAt(workflow, "permissions", "legacy-ios-dispatch.yml"), {
     actions: "write",
@@ -141,7 +171,7 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
 
   const payloadRun = stringAt(steps[1] ?? {}, "run", "payload step");
   assert.doesNotMatch(payloadRun, /return_run_details/);
-  assert.equal(payloadRun.match(/expected_sha: \$expected_sha/g)?.length, 2);
+  assert.equal(payloadRun.match(/expected_sha: \$expected_sha/g)?.length, 3);
   assert.match(payloadRun, /groups: \$groups/);
 
   const dispatchRun = stringAt(steps[2] ?? {}, "run", "dispatch step");
@@ -157,6 +187,7 @@ test("the relay fails closed before dispatching the reviewed main workflows", as
   const serialized = JSON.stringify(job);
   assert.match(serialized, /c27edd31d0bd3121d5171dc9075ad63af6b5eeda/);
   assert.match(serialized, /9e322da53648de9bc25dd005a2453e69d6bb354c/);
+  assert.match(serialized, /46ce41074f74a2a2045f6b6518529fb767e17a1a/);
   assert.match(serialized, /f959387dac71c6e897b496d00ac0e8b1f1075703/);
   assert.match(serialized, /actions\/workflows\/\$WORKFLOW_FILE\/dispatches/);
   assert.doesNotMatch(serialized, /secrets\./);

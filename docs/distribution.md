@@ -7,8 +7,9 @@ signing, versioning, App Store Connect, and the GitHub `release` Environment.
 
 ## Legacy releases
 
-Use the [Beta](../.github/workflows/beta.yml) or
-[Release](../.github/workflows/release.yml) entrypoint. Their input definitions
+Use the [Beta](../.github/workflows/beta.yml),
+[Release](../.github/workflows/release.yml), or
+[Screenshots](../.github/workflows/screenshots.yml) entrypoint. Their input definitions
 are the source of truth for release options.
 
 The default branch exposes these entrypoints so GitHub can list them for manual
@@ -29,6 +30,7 @@ Inspect registration without starting a release:
 gh workflow list --repo putdotio/putio-ios
 gh workflow view beta.yml --repo putdotio/putio-ios --ref next
 gh workflow view release.yml --repo putdotio/putio-ios --ref next
+gh workflow view screenshots.yml --repo putdotio/putio-ios --ref next
 ```
 
 [Legacy release tracking](https://github.com/putdotio/putio-ios/issues/149) owns

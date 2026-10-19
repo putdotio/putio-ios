@@ -37,7 +37,8 @@ see [Development](CONTRIBUTING.md#development).
   [Release](.github/workflows/release.yml) dispatches build the shipping app
   from protected `main` with production signing and upload it to TestFlight or
   App Store Connect, where it reaches testers or users and cannot be taken
-  back. The [dispatcher](.github/workflows/legacy-ios-dispatch.yml) pins the
+  back. [Screenshots](.github/workflows/screenshots.yml) replaces the live
+  App Store images unless it runs as a dry run. The [dispatcher](.github/workflows/legacy-ios-dispatch.yml) pins the
   reviewed legacy workflow blobs: update them only after reviewing that legacy
   change, and never copy signing configuration into it.
 - **Shared test account.** Live journeys and `live-fixture` use the `devs-auto`
