@@ -80,10 +80,10 @@ jobs:
               - '!Tests/iOSUITests/**'
             markdown:
               - '**/*.md'
+            # One pattern: predicate-quantifier every would require a file to
+            # match every entry in a list.
             store:
-              - 'scripts/app-store*.ts'
-              - 'scripts/install-asc.sh'
-              - '.github/workflows/ci-next.yml'
+              - '{scripts/app-store*.ts,scripts/install-asc.sh,.github/workflows/ci-next.yml}'
 
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
