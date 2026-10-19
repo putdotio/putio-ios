@@ -12,7 +12,7 @@ video, audio, preview, or an unsupported-file explanation.
 `/downloads` opens the Downloads tab. `putio:///downloads/412` plays file 412
 from this account's offline queue when its download has finished, as tapping
 its row would; an unfinished or unqueued item leaves the Downloads list showing,
-matching the legacy app for ids outside its queue.
+matching the App Store app for ids outside its queue.
 
 ## URL delivery
 

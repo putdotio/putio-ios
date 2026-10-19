@@ -19,7 +19,7 @@ Start with [Contributing](CONTRIBUTING.md) for setup, running the apps, and test
 ## Security
 
 Report vulnerabilities through the [put.io security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md).
-Shipping-app reports belong to the [legacy line](docs/distribution.md); rewrite
+App Store app reports belong to [`main`](docs/distribution.md); rewrite
 reports belong to `next`.
 
 ## License

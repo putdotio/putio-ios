@@ -1,7 +1,7 @@
 # Agent Guide
 
 Native SwiftUI rewrite of the put.io apps for iOS, watchOS, and tvOS. It lives
-on `next`; the App Store app is still the legacy 3.x line on protected `main`
+on `next`; the App Store app is still the 3.x line on protected `main`
 ([Distribution](docs/distribution.md)). Platform UI and lifecycle belong in
 `Apps`; shared models, session, API, and feature logic belong in
 `Packages/PutioCore`. Both are grouped by domain with the same folder names;
@@ -33,15 +33,13 @@ see [Development](CONTRIBUTING.md#development).
 
 ## Hazards
 
-- **Legacy store delivery.** `main` is the default branch, and its Beta and
+- **App Store delivery.** `main` is the default branch, and its Beta and
   Release workflows build the shipping app with production signing and upload
   it to TestFlight or App Store Connect, where it reaches testers or users and
   cannot be taken back. Its Screenshots workflow replaces the live App Store
   images unless it runs as a dry run. Dispatch them on `main`
-  ([Distribution](docs/distribution.md#legacy-releases)); the superseded relays
-  on `next` (`beta.yml`, `release.yml`, `screenshots.yml`,
-  `legacy-ios-dispatch.yml`) are not a delivery path, and never copy signing
-  configuration into them.
+  ([Distribution](docs/distribution.md#releases-from-main)); `next` has no
+  delivery workflows, and never copy signing configuration into it.
 - **Shared test account.** Live journeys and `live-fixture` use the `devs-auto`
   put.io CLI profile ([live-profile contract](docs/harness.md#live-profile-and-publishing)),
   shared with the web, Android, and TV harnesses. Each live journey approves a
