@@ -61,6 +61,16 @@ jobs:
       APP_VERSION: ${{ inputs.app_version }}
 
     steps:
+      # The concurrency key uses the raw input, so only the canonical form
+      # may reach App Store Connect.
+      - name: Check the version
+        shell: bash
+        run: |
+          if ! [[ "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "App version must be three period-separated integers, for example 3.0.1" >&2
+            exit 1
+          fi
+
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

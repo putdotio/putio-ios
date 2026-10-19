@@ -150,6 +150,15 @@ test("workflows that change one App Store version queue behind each other", asyn
     assert.equal(concurrency.group, `app-store-\${{ inputs.${input} }}`, `${name} must share the per-version group`);
     assert.equal(concurrency["cancel-in-progress"], false, `${name} must not cancel a running delivery`);
   }
+
+  // A key built from "v3.0.0" would not queue behind one built from "3.0.0".
+  const screenshots = await loadYaml(".github/workflows/screenshots.yml");
+  const job = recordAt(recordAt(screenshots, "jobs", "screenshots.yml"), "screenshots", "screenshots.yml.jobs");
+  const first = asRecord(arrayAt(job, "steps", "screenshots.yml.jobs.screenshots")[0], "screenshots first step");
+  for (const [version, ok] of [["3.0.0", true], ["v3.0.0", false], ["3.0", false]] as const) {
+    const run = spawnSync("bash", ["-e", "-c", String(first.run)], { env: { ...process.env, APP_VERSION: version } });
+    assert.equal(run.status === 0, ok, `screenshots must ${ok ? "accept" : "reject"} ${version} before any other step`);
+  }
 });
 
 test("beta keeps notifying external testers", async () => {
