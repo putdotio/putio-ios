@@ -8,16 +8,22 @@ versioning, App Store Connect, and the GitHub `release` Environment.
 ## Releases from main
 
 `main` is the repository's default branch, so GitHub dispatches its own Beta,
-Release, and Screenshots workflows directly. Their input definitions on `main`
-are the source of truth; each takes the current protected-main head as
-`expected_sha`:
+Release, Screenshots, and Submit workflows directly. Their input definitions
+on `main` are the source of truth; each takes the current protected-main head
+as `expected_sha`:
 
 ```bash
 sha="$(gh api repos/putdotio/putio-ios/branches/main --jq .commit.sha)"
 gh workflow run beta.yml --repo putdotio/putio-ios --ref main -f expected_sha="$sha"
 gh workflow run release.yml --repo putdotio/putio-ios --ref main -f expected_sha="$sha" -f version=<x.y.z>
 gh workflow run screenshots.yml --repo putdotio/putio-ios --ref main -f expected_sha="$sha" -f app_version=<x.y.z> -f dry_run=true
+gh workflow run submit.yml --repo putdotio/putio-ios --ref main -f expected_sha="$sha" -f version=<x.y.z> -f build_number=<build>
 ```
+
+Release uploads and attaches the build, then tags the commit `v<version>` as
+the `putio-ci` App; it never submits. Submit sends that build to App Review,
+and dispatching it is the approval. Release, Submit, and Screenshots for one
+version share the `app-store-<version>` concurrency group.
 
 Inspect registration without starting a release:
 
@@ -53,7 +59,7 @@ node scripts/app-store.ts validate --version 3.0.0     # asc validate, blockers 
 node scripts/app-store.ts screenshots --version 3.0.0 --dry-run
 ```
 
-The listing, `Config/AppStore.json`, and the lanes that run the tool live on
+The listing, `Config/AppStore.json`, and the workflows that run the tool live on
 the line that ships, protected `main`, whose `release` Environment holds the
 App Store Connect key. `next` carries the tool and its tests until the rewrite
 ships.
