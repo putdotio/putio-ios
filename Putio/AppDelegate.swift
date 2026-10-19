@@ -191,6 +191,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         SentryTelemetry.capture(.pushRegistration, error: error)
     }
 
+    // A delegate without this method hides every notification in the foreground.
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        guard notification.request.identifier == DOWNLOAD_LOCAL_NOTIFICATION_IDENTIFIER else {
+            return completionHandler([])
+        }
+        completionHandler([.banner, .list, .sound])
+    }
+
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
 
