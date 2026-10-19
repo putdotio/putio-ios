@@ -208,7 +208,8 @@ export const describeVersionAction = (action: VersionAction): string => {
   }
 };
 
-// Assigns every image under one locale to exactly one configured set.
+// Assigns every image under one locale to exactly one configured set, and
+// every configured set at least one image.
 export const assignScreenshots = (
   sets: readonly ScreenshotSet[],
   files: readonly string[],
@@ -223,6 +224,8 @@ export const assignScreenshots = (
   }
   if (unassigned.length > 0) throw new Error(`screenshots match no configured set: ${unassigned.join(", ")}`);
   for (const [set, images] of assigned) {
+    // An empty set would never be replaced, leaving stale screenshots live.
+    if (images.length === 0) throw new Error(`${set.deviceType} has no screenshots starting with ${set.prefix}`);
     if (images.length > SCREENSHOT_LIMIT) {
       throw new Error(`${set.deviceType} has ${images.length} screenshots; App Store Connect keeps ${SCREENSHOT_LIMIT}`);
     }
@@ -337,7 +340,6 @@ const stageScreenshots = async (config: AppStoreConfig): Promise<{ dir: string; 
   for (const locale of locales) {
     const assigned = assignScreenshots(config.screenshots.sets, await readdir(join(source, locale)));
     for (const [set, files] of assigned) {
-      if (files.length === 0) continue;
       const path = join(staged, locale, set.deviceType);
       await mkdir(path, { recursive: true });
       for (const file of files) await copyFile(join(source, locale, file), join(path, file));
@@ -528,7 +530,7 @@ const main = async (): Promise<number> => {
       await plan(config, requiredVersion(), values.export);
       return 0;
     case "apply":
-      if (!values.confirm) throw new Error("apply changes App Store Connect; pass --confirm");
+      if (!values.confirm || values["dry-run"]) throw new Error("apply changes App Store Connect; pass --confirm without --dry-run, or use plan");
       await apply(config, requiredVersion());
       return 0;
     case "validate":
