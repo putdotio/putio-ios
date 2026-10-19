@@ -426,7 +426,7 @@ platform :ios do
       upload_to_app_store(
         app_identifier: release_app_identifier,
         app_version: release_version,
-        build_number: archived_build_number,
+        # deliver reads the build number from the IPA and rejects build_number alongside it.
         ipa: release_ipa_path,
         platform: "ios",
         skip_screenshots: true,
