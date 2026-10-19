@@ -72,6 +72,7 @@ Report skipped or unavailable checks.
 | Docs or skill files only            | `pnpm run markdown:check`; check web links and commands. Pull-request CI checks relative links, skips every lane       |
 | Shared logic                        | `swift test --package-path Packages/PutioCore`                                                                         |
 | Tooling scripts, tokens, or fonts   | `pnpm run verify`                                                                                                      |
+| App Store tool or asc pin           | `pnpm run verify`, then `PUTIO_REQUIRE_ASC=1 node --test scripts/app-store.test.ts` with the pinned asc on `PATH`      |
 | Manifest or dependency graph        | `mise run build` (regenerates and builds every app scheme)                                                             |
 | Shell logic, components, or theming | `mise run harness -- test --platform <ios\|tvos>`; intentional visual changes require inspected, re-recorded baselines |
 | iOS Files browser                   | `mise run harness -- journey --platform ios --scenario files-browser`                                                  |

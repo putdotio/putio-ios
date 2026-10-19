@@ -212,7 +212,7 @@ test("next CI admits rollout PR bases without broadening push", async () => {
   assert.deepEqual(arrayAt(push, "branches", "ci-next.yml.on.push"), ["next"]);
 
   const jobs = recordAt(workflow, "jobs", "ci-next.yml");
-  assert.deepEqual(Object.keys(jobs), ["changes", "markdown", "checks", "tvos", "ios", "build", "proof"]);
+  assert.deepEqual(Object.keys(jobs), ["changes", "markdown", "app-store", "checks", "tvos", "ios", "build", "proof"]);
 });
 
 type GitHubContext = Readonly<{ event_name: string; ref: string; run_id: string }>;

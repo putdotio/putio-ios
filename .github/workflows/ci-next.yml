@@ -49,6 +49,7 @@ jobs:
       ios: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.ios == 'true' }}
       tvos: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.tvos == 'true' }}
       markdown: ${{ github.event_name == 'pull_request' && steps.filter.outputs.markdown == 'true' }}
+      store: ${{ github.event_name == 'push' || inputs.verify || steps.filter.outputs.store == 'true' }}
     steps:
       - name: Classify changed paths
         id: filter
@@ -79,6 +80,10 @@ jobs:
               - '!Tests/iOSUITests/**'
             markdown:
               - '**/*.md'
+            store:
+              - 'scripts/app-store*.ts'
+              - 'scripts/install-asc.sh'
+              - '.github/workflows/ci-next.yml'
 
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -116,6 +121,55 @@ jobs:
 
       - name: Check Markdown formatting
         run: pnpm run markdown:check
+
+  # asc runs only here, on a fresh Linux runner: the pinned, checksummed binary
+  # with telemetry off, then the store tool's tests against it, offline.
+  app-store:
+    name: App Store tooling
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.store == 'true' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    env:
+      ASC_TELEMETRY_DISABLED: "1"
+      ASC_SKILLS_AUTO_CHECK: "0"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Node.js and pnpm
+        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        with:
+          version: "2026.10.13"
+          install_args: node pnpm
+
+      - name: Install the pinned asc
+        run: |
+          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
+          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
+
+      # The second status runs without the variable, so the check fails if
+      # telemetry was off for any other reason.
+      - name: Prove asc telemetry is off
+        run: |
+          asc telemetry status --output json | jq -e '.enabled == false and .reason == "ASC_TELEMETRY_DISABLED"'
+          env -u ASC_TELEMETRY_DISABLED asc telemetry status --output json | jq -e '.enabled == true'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test the store tool against asc
+        env:
+          PUTIO_REQUIRE_ASC: "1"
+        run: |
+          node --test scripts/app-store.test.ts
+          if [ -s "$HOME/.asc/telemetry-spool.jsonl" ]; then
+            echo "asc queued telemetry events" >&2
+            exit 1
+          fi
 
   # Five macOS jobs fill the organization's concurrent macOS limit, so a run
   # that overlaps another, a `verify` dispatch included, queues until slots
