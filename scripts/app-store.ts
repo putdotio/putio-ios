@@ -456,6 +456,9 @@ const metadataArgs = (config: AppStoreConfig, version: string): string[] => [
 const formatValue = (value: Json | undefined): string => (value === undefined ? "unset" : JSON.stringify(value));
 
 const plan = async (config: AppStoreConfig, version: string, exportDir: string | undefined): Promise<void> => {
+  // Before any read, so a marker left by an earlier export can't vouch for
+  // one that fails partway.
+  if (exportDir) await rm(join(resolve(root, exportDir), "age-rating.json"), { force: true });
   const lines = [`## App Store plan for ${version}`, "", ...(await check(config, version)), ""];
   const remote = await fetchRemoteVersion(config, version);
   lines.push(remote ? `Version ${version} is \`${remote.state}\`.` : `Version ${version} does not exist yet.`, "");
@@ -489,8 +492,6 @@ const plan = async (config: AppStoreConfig, version: string, exportDir: string |
 const exportListing = async (config: AppStoreConfig, version: string, remote: RemoteVersion | undefined, ageRating: JsonObject, exportDir: string): Promise<void> => {
   const target = resolve(root, exportDir);
   await mkdir(target, { recursive: true });
-  // A marker left by an earlier export must not vouch for this one.
-  await rm(join(target, "age-rating.json"), { force: true });
   if (remote) {
     await asc(["metadata", "pull", "--app", config.appId, "--version", version, "--platform", config.platform, "--dir", join(target, "metadata"), "--force", "--output", "json"]);
   }
