@@ -52,10 +52,6 @@ jobs:
     # leaves it empty. Generous, so asc fails on its own terms first.
     timeout-minutes: 60
     env:
-      ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
-      ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
-      ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
-      ASC_BYPASS_KEYCHAIN: "1"
       APP_VERSION: ${{ inputs.app_version }}
 
     steps:
@@ -80,6 +76,11 @@ jobs:
       # Read-only. The export holds App Store Connect's current metadata and
       # age-rating answers, ready to commit for the fields not managed yet.
       - name: Plan
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
         run: mise exec -- node scripts/app-store.ts plan --version "$APP_VERSION" --export build/app-store
 
       - name: Upload the current App Store Connect listing
@@ -92,16 +93,36 @@ jobs:
 
       - name: Preview the screenshot replacement
         if: inputs.dry_run
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
         run: mise exec -- node scripts/app-store.ts screenshots --version "$APP_VERSION" --dry-run
 
       - name: Apply metadata and version settings
         if: ${{ !inputs.dry_run }}
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
         run: mise exec -- node scripts/app-store.ts apply --version "$APP_VERSION" --confirm
 
       - name: Replace the screenshots
         if: ${{ !inputs.dry_run }}
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
         run: mise exec -- node scripts/app-store.ts screenshots --version "$APP_VERSION" --confirm
 
       - name: Validate submission readiness
         if: ${{ !cancelled() }}
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
         run: mise exec -- node scripts/app-store.ts validate --version "$APP_VERSION"

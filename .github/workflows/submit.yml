@@ -88,10 +88,6 @@ jobs:
     environment: release
     timeout-minutes: 30
     env:
-      ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
-      ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
-      ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
-      ASC_BYPASS_KEYCHAIN: "1"
       VERSION: ${{ inputs.version }}
       BUILD_NUMBER: ${{ inputs.build_number }}
 
@@ -115,9 +111,19 @@ jobs:
           echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
 
       - name: Validate with warnings as blockers
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
         run: mise exec -- node scripts/app-store.ts validate --version "$VERSION" --strict
 
       - name: Submit
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
         run: |
           asc telemetry status --output json | jq -e '.enabled == false' > /dev/null
           asc review submit --app 1260479699 --platform IOS --version "$VERSION" \

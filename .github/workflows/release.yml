@@ -176,10 +176,6 @@ jobs:
     environment: release
     timeout-minutes: 15
     env:
-      ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
-      ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
-      ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
-      ASC_BYPASS_KEYCHAIN: "1"
       RELEASE_VERSION: ${{ inputs.version }}
 
     steps:
@@ -202,9 +198,19 @@ jobs:
           echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
 
       - name: Apply metadata, release type, phased release and age rating
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
         run: mise exec -- node scripts/app-store.ts apply --version "$RELEASE_VERSION" --confirm
 
       - name: Validate submission readiness
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
         run: mise exec -- node scripts/app-store.ts validate --version "$RELEASE_VERSION"
 
   # Separate job so the only token that can write refs never sees a secret.
