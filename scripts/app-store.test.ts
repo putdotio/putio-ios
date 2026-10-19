@@ -193,12 +193,14 @@ test("check runs the pinned asc against the listing offline", { skip: !ascAvaila
 
 // A stand-in asc that records every invocation and answers with canned JSON,
 // so the tests can see exactly which App Store Connect calls each command makes.
-// FAKE_TELEMETRY and FAKE_VERSIONS override its telemetry status and version listing.
+// FAKE_TELEMETRY and FAKE_VERSIONS override its telemetry status and version
+// listing; FAKE_PULL_FAILS fails metadata pull.
 const fakeAsc = `#!/bin/sh
 printf '%s\\n' "$*" >> "$ASC_LOG"
 case "$1 $2" in
   "telemetry status") echo "{\\"enabled\\":\${FAKE_TELEMETRY:-false}}" ;;
   "versions list") printf '%s\\n' "$FAKE_VERSIONS" ;;
+  "metadata pull") [ -z "$FAKE_PULL_FAILS" ] || exit 1; echo '{}' ;;
   "age-rating view") echo '{"data":{"id":"a1","attributes":{"socialMedia":true,"socialMediaAgeRestricted":false}}}' ;;
   "metadata push") case "$*" in *--dry-run*) echo "no changes" ;; *) echo '{}' ;; esac ;;
   *) echo '{}' ;;
@@ -307,6 +309,12 @@ test("plan exports the listing, then stops on a version App Store Connect won't 
   const made = await calls();
   assert.ok(made.some((call) => call.startsWith("metadata pull")), "the export still pulls the live metadata");
   assert.equal(made.some((call) => call.startsWith("metadata push")), false);
+});
+
+test("a failed export leaves no age-rating.json, which marks a complete one", async (t) => {
+  const { dir, invoke } = await recordingFixture(t, { FAKE_PULL_FAILS: "1" });
+  await assert.rejects(invoke("plan", "--export", join(dir, "export")), /asc metadata pull exited/);
+  await assert.rejects(readFile(join(dir, "export/age-rating.json")), /ENOENT/);
 });
 
 test("screenshots stop on a version App Store Connect won't edit, before uploading", async (t) => {
