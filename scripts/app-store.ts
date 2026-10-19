@@ -62,6 +62,15 @@ const AGE_RATING_FIELDS: Readonly<Record<string, Readonly<{ flag: string; values
   violenceRealisticProlongedGraphicOrSadistic: { flag: "violence-realistic-graphic", values: LEVELS },
 };
 
+// asc 5.15.0's App Store localization catalog
+// (internal/cli/shared/app_store_localizations.go). Bump with the pin.
+const APP_STORE_LOCALES = [
+  "ar-SA", "bn-BD", "ca", "cs", "da", "de-DE", "el", "en-AU", "en-CA", "en-GB", "en-US", "es-ES", "es-MX",
+  "fi", "fr-CA", "fr-FR", "gu-IN", "he", "hi", "hr", "hu", "id", "it", "ja", "kn-IN", "ko", "ml-IN", "mr-IN",
+  "ms", "nl-NL", "no", "or-IN", "pa-IN", "pl", "pt-BR", "pt-PT", "ro", "ru", "sk", "sl-SI", "sv", "ta-IN",
+  "te-IN", "th", "tr", "uk", "ur-PK", "vi", "zh-Hans", "zh-Hant",
+];
+
 // Apple caps one locale and display type at ten screenshots.
 const SCREENSHOT_LIMIT = 10;
 const SCREENSHOT_EXTENSIONS = /\.(png|jpe?g)$/i;
@@ -88,6 +97,11 @@ const objectAt = (value: JsonObject, key: string, context: string): JsonObject =
   const field = value[key];
   if (!isObject(field)) throw new Error(`${context}.${key} must be an object`);
   return field;
+};
+
+export const appStoreLocale = (locale: string, context: string): string => {
+  if (!APP_STORE_LOCALES.includes(locale)) throw new Error(`${context}: ${locale} is not an App Store locale, such as en-US or pt-BR`);
+  return locale;
 };
 
 export const parseConfig = (raw: unknown): AppStoreConfig => {
@@ -138,7 +152,7 @@ export const parseConfig = (raw: unknown): AppStoreConfig => {
   return {
     appId,
     platform: platform as Platform,
-    primaryLocale: stringAt(raw, "primaryLocale", context),
+    primaryLocale: appStoreLocale(stringAt(raw, "primaryLocale", context), `${context}.primaryLocale`),
     metadataDir: stringAt(raw, "metadataDir", context),
     version: { releaseType, phasedRelease: version.phasedRelease },
     ageRating: ageRating as Record<string, AgeRatingValue>,
@@ -243,21 +257,38 @@ export const parseRemoteVersion = (listing: unknown): RemoteVersion | undefined 
     throw new Error("asc versions list returned a malformed version");
   }
   const attributes = version.attributes;
-  const included = Array.isArray(listing.included) ? listing.included : [];
-  const phased = included.find(
-    (resource): resource is JsonObject => isObject(resource) && resource.type === "appStoreVersionPhasedReleases",
-  );
-  const phasedAttributes = phased && isObject(phased.attributes) ? phased.attributes : undefined;
   const state = attributes.appVersionState ?? attributes.appStoreState;
   return {
     id: version.id,
     state: typeof state === "string" ? state : "UNKNOWN",
     releaseType: typeof attributes.releaseType === "string" ? attributes.releaseType : undefined,
-    phasedRelease:
-      phased && typeof phased.id === "string"
-        ? { id: phased.id, state: typeof phasedAttributes?.phasedReleaseState === "string" ? phasedAttributes.phasedReleaseState : "UNKNOWN" }
-        : undefined,
+    phasedRelease: parsePhasedRelease(version, listing.included),
   };
+};
+
+const PHASED_RELEASE_STATES = ["INACTIVE", "ACTIVE", "PAUSED", "COMPLETE"];
+
+// Reads the phased release from the version's JSON:API linkage. Anything
+// short of an explicit null linkage or a well-formed included resource is
+// rejected, so a malformed response never reads as "no phased release".
+const parsePhasedRelease = (version: JsonObject, included: Json | undefined): RemoteVersion["phasedRelease"] => {
+  const relationships = version.relationships;
+  const relationship = isObject(relationships) ? relationships.appStoreVersionPhasedRelease : undefined;
+  if (!isObject(relationship) || !("data" in relationship)) {
+    throw new Error("asc versions list did not report the phased-release relationship");
+  }
+  const linkage = relationship.data;
+  if (linkage === null) return undefined;
+  if (!isObject(linkage) || linkage.type !== "appStoreVersionPhasedReleases" || typeof linkage.id !== "string") {
+    throw new Error("asc versions list returned a malformed phased-release linkage");
+  }
+  if (!Array.isArray(included)) throw new Error("asc versions list linked a phased release but included none");
+  const resource = included.find((candidate) => isObject(candidate) && candidate.type === linkage.type && candidate.id === linkage.id);
+  const phasedState = isObject(resource) && isObject(resource.attributes) ? resource.attributes.phasedReleaseState : undefined;
+  if (typeof phasedState !== "string" || !PHASED_RELEASE_STATES.includes(phasedState)) {
+    throw new Error(`asc versions list returned phased release ${linkage.id} without a known state`);
+  }
+  return { id: linkage.id, state: phasedState };
 };
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -339,6 +370,7 @@ const stageScreenshots = async (config: AppStoreConfig): Promise<{ dir: string; 
   const locales = (await readdir(source, { withFileTypes: true })).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
   if (locales.length === 0) throw new Error(`${config.screenshots.dir} has no locale directories`);
   for (const locale of locales) {
+    appStoreLocale(locale, `${config.screenshots.dir}/${locale}`);
     const assigned = assignScreenshots(config.screenshots.sets, await readdir(join(source, locale)));
     for (const [set, files] of assigned) {
       const path = join(staged, locale, set.deviceType);
@@ -361,16 +393,15 @@ const check = async (config: AppStoreConfig, version: string | undefined): Promi
     await requireWhatsNew(config, version);
     lines.push(`- ${version} has What's New for ${config.primaryLocale}`);
   }
-  if (await exists(resolve(root, config.screenshots.dir))) {
-    const staged = await stageScreenshots(config);
-    try {
-      for (const { locale, set, path, count } of staged.sets) {
-        await asc(["screenshots", "validate", "--path", path, "--device-type", set.deviceType, "--output", "json"]);
-        lines.push(`- ${locale} ${set.deviceType}: ${count} screenshots pass \`asc screenshots validate\``);
-      }
-    } finally {
-      await rm(staged.dir, { recursive: true, force: true });
+  if (!(await exists(resolve(root, config.screenshots.dir)))) throw new Error(`${config.screenshots.dir}/ is missing`);
+  const staged = await stageScreenshots(config);
+  try {
+    for (const { locale, set, path, count } of staged.sets) {
+      await asc(["screenshots", "validate", "--path", path, "--device-type", set.deviceType, "--output", "json"]);
+      lines.push(`- ${locale} ${set.deviceType}: ${count} screenshots pass \`asc screenshots validate\``);
     }
+  } finally {
+    await rm(staged.dir, { recursive: true, force: true });
   }
   return lines;
 };
@@ -459,7 +490,8 @@ const apply = async (config: AppStoreConfig, version: string): Promise<void> => 
     lines.push(`- Version: ${describeVersionAction(action)}`);
   }
 
-  await asc([...metadataArgs(config, version), "--output", "json"]);
+  // --confirm lets asc apply an explicit null, which clears a managed field.
+  await asc([...metadataArgs(config, version), "--confirm", "--output", "json"]);
   lines.push(`- Metadata: applied \`${config.metadataDir}/\` for ${version}`);
 
   const changes = ageRatingChanges(config.ageRating, await fetchAgeRating(config));
