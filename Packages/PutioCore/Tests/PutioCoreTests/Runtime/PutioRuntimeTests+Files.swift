@@ -292,6 +292,22 @@ extension PutioRuntimeTests {
     XCTAssertEqual(json["sort_by"] as? String, "SIZE_DESC")
   }
 
+  func testSingleFileActionsRejectASuccessfulResponseThatIsNotOK() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    for route in [Self.setSortRoute, Self.renameFileRoute, Self.deleteFilesRoute] {
+      fixtures.setFixture(#"{"status":"ERROR"}"#, for: route)
+    }
+    let fileID = PutioFileID(rawValue: 91)
+
+    await assertRuntimeError(.invalidResponse) {
+      try await runtime.setFolderSort(folderID: fileID, sort: .sizeDescending)
+    }
+    await assertRuntimeError(.invalidResponse) {
+      try await runtime.renameFile(fileID: fileID, name: "Season Two")
+    }
+    await assertRuntimeError(.invalidResponse) { try await runtime.deleteFile(fileID: fileID) }
+  }
+
   func testListSendsTheRequestedParentID() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(Self.filesList(cursor: nil), for: Self.filesRoute)

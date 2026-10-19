@@ -446,7 +446,7 @@ final class PutioRuntimeTests: XCTestCase {
     return data
   }
 
-  private nonisolated func blockCurrentThread(seconds: TimeInterval) {
+  nonisolated func blockCurrentThread(seconds: TimeInterval) {
     Thread.sleep(forTimeInterval: seconds)
   }
 

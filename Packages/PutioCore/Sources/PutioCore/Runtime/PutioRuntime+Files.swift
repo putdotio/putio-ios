@@ -84,9 +84,10 @@ extension PutioRuntime {
   /// Persists the folder's sort on the server. Callers reload the folder to see
   /// the new order.
   public func setFolderSort(folderID: PutioFileID, sort: PutioFolderSort) async throws {
-    _ = try await performAuthenticatedOperation(commits: true) {
+    let response = try await performAuthenticatedOperation(commits: true) {
       try await sdk.setSortBy(fileId: folderID.rawValue, sortBy: sort.rawValue)
     }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
   }
 
   /// Marks a video watched or unwatched as put.io's watch-status action does:
@@ -120,9 +121,10 @@ extension PutioRuntime {
   }
 
   public func renameFile(fileID: PutioFileID, name: String) async throws {
-    _ = try await performAuthenticatedOperation {
+    let response = try await performAuthenticatedOperation {
       try await sdk.renameFile(fileID: fileID.rawValue, name: name)
     }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
   }
 
   public func moveFile(fileID: PutioFileID, to parentID: PutioFileID) async throws {
@@ -180,9 +182,10 @@ extension PutioRuntime {
     guard !session.isAccountPreferencesStale, !session.isUpdatingAccountPreferences else {
       throw PutioRuntimeError.transient
     }
-    _ = try await performAuthenticatedOperation {
+    let response = try await performAuthenticatedOperation {
       try await sdk.deleteFiles(fileIDs: [fileID.rawValue])
     }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
   }
 
   public func getFile(fileID: PutioFileID) async throws -> PutioFileItem {

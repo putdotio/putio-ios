@@ -87,21 +87,23 @@ extension PutioRuntime {
     let generation = session.authenticationGeneration
     session.beginAccountPreferencesUpdate()
     defer { session.endAccountPreferencesUpdate(generation: generation) }
+    let response: PutioOKResponse
     do {
-      let response = try await performAuthenticatedOperation(commits: true) {
+      response = try await performAuthenticatedOperation(commits: true) {
         try await sdk.saveAccountSettings(.patch(patch))
       }
-      guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
     } catch {
-      guard generation == session.authenticationGeneration, case .signedIn = session.state else {
-        throw error
-      }
+      guard isUnsettledWrite(error), generation == session.authenticationGeneration,
+        case .signedIn = session.state
+      else { throw error }
       // A lost response does not establish whether the server committed the
       // write. Reconcile before offering another potentially destructive save.
       let refreshed = await session.refreshAccountAfterPreferencesMutation(
         storageChanged: storageChanged)
-      if refreshed, case .signedIn(let account) = session.state,
-        generation == session.authenticationGeneration,
+      guard generation == session.authenticationGeneration,
+        case .signedIn(let account) = session.state
+      else { throw currentSessionError }
+      if refreshed,
         defaultSort.map({ account.defaultSort == $0 }) ?? true,
         patch.trashEnabled.map({ account.trashEnabled == $0 }) ?? true,
         patch.historyEnabled.map({ account.historyEnabled == $0 }) ?? true,
@@ -115,6 +117,7 @@ extension PutioRuntime {
       }
       throw error
     }
+    guard response.status == "OK" else { throw PutioRuntimeError.invalidResponse }
     // These values are acknowledged by the write, even if the following account
     // reload fails. In particular, stale Trash copy must not promise recovery.
     session.applyAcknowledgedPreferences(
@@ -124,6 +127,17 @@ extension PutioRuntime {
       diagnosticsEnabled: patch.diagnosticsEnabled,
       productAnalyticsEnabled: patch.productAnalyticsEnabled)
     return await preferencesMutationResult(storageChanged: storageChanged)
+  }
+
+  /// Whether a failed write may still have been applied. A client-error
+  /// rejection or a non-OK status is the server's answer, so an account that
+  /// already holds the value does not turn it into a success.
+  private func isUnsettledWrite(_ error: any Error) -> Bool {
+    if error is CancellationError { return true }
+    switch error as? PutioRuntimeError {
+    case .transient, .invalidResponse: return true
+    default: return false
+    }
   }
 
   private func preferencesMutationResult(storageChanged: Bool) async

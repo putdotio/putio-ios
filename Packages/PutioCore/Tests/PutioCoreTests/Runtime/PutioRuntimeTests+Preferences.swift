@@ -313,6 +313,29 @@ extension PutioRuntimeTests {
         .count, 1)
   }
 
+  func testDefinitivelyRejectedWriteFailsEvenWhenTheAccountAlreadyMatches() async {
+    let (runtime, _) = await makeSignedInRuntime()
+    let route = "POST /v2/account/settings"
+    fixtures.setFixture(
+      #"{"status":"ERROR","error_type":"BAD_REQUEST"}"#, statusCode: 400, for: route)
+    await assertRuntimeError(.unknown) { _ = try await runtime.setHistoryEnabled(true) }
+    fixtures.setFixture(#"{"status":"ERROR"}"#, for: route)
+    await assertRuntimeError(.invalidResponse) { _ = try await runtime.setHistoryEnabled(true) }
+    XCTAssertFalse(runtime.session.isAccountPreferencesStale)
+  }
+
+  func testAuthenticationFailureDuringReconcileExpiresTheSession() async {
+    let (runtime, tokenStore) = await makeSignedInRuntime()
+    fixtures.setFixture(
+      #"{"status":"ERROR"}"#, statusCode: 503, for: "POST /v2/account/settings")
+    fixtures.setFixture(
+      #"{"status":"ERROR","error_type":"invalid_grant"}"#, statusCode: 401,
+      for: "GET /v2/account/info")
+    await assertRuntimeError(.sessionExpired) { _ = try await runtime.setHistoryEnabled(false) }
+    XCTAssertEqual(runtime.session.state, .signedOut(.sessionExpired))
+    XCTAssertNil(try? tokenStore.read())
+  }
+
   func testPrivacyChoicesDefaultWhenMissingAndRoundTripAsSingleFieldPatches() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     guard case .signedIn(let initial) = runtime.session.state else {

@@ -169,6 +169,25 @@ extension PutioRuntimeTests {
     XCTAssertEqual(request.url?.path, "/v2/files/411/mp4")
   }
 
+  func testVideoConversionStartKeepsAResponseThatArrivesBeforeCancellation() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    fixtures.gateFixture(#"{"status":"OK"}"#, for: Self.conversionStartRoute)
+
+    let start = Task { try await runtime.startVideoConversion(fileID: PutioFileID(rawValue: 411)) }
+    guard await waitForRequest(Self.conversionStartRoute) else {
+      start.cancel()
+      fixtures.releaseFixture(for: Self.conversionStartRoute)
+      return XCTFail("conversion request did not start")
+    }
+    // Holding the main actor lets the response finish loading before the
+    // cancellation, so the caller polls instead of posting a second start.
+    fixtures.releaseFixture(for: Self.conversionStartRoute)
+    blockCurrentThread(seconds: 0.3)
+    start.cancel()
+
+    try await start.value
+  }
+
   func testAudioPlaybackSourceMapsStreamURLAndPositionThroughTheSDK() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(
