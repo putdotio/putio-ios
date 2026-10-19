@@ -193,20 +193,27 @@ test("check runs the pinned asc against the listing offline", { skip: !ascAvaila
 
 // A stand-in asc that records every invocation and answers with canned JSON,
 // so the tests can see exactly which App Store Connect calls each command makes.
+// FAKE_TELEMETRY and FAKE_VERSIONS override its telemetry status and version listing.
 const fakeAsc = `#!/bin/sh
 printf '%s\\n' "$*" >> "$ASC_LOG"
 case "$1 $2" in
-  "telemetry status") echo '{"enabled":false}' ;;
-  "versions list") echo '{"data":[{"id":"v1","attributes":{"appVersionState":"PREPARE_FOR_SUBMISSION","releaseType":"AFTER_APPROVAL"},"relationships":{"appStoreVersionPhasedRelease":{"data":null}}}]}' ;;
+  "telemetry status") echo "{\\"enabled\\":\${FAKE_TELEMETRY:-false}}" ;;
+  "versions list") printf '%s\\n' "$FAKE_VERSIONS" ;;
   "age-rating view") echo '{"data":{"id":"a1","attributes":{"socialMedia":true,"socialMediaAgeRestricted":false}}}' ;;
   "metadata push") case "$*" in *--dry-run*) echo "no changes" ;; *) echo '{}' ;; esac ;;
   *) echo '{}' ;;
 esac
 `;
 
+const listing = (state: string, phasedRelease: unknown = null) =>
+  JSON.stringify({
+    data: [{ id: "v1", attributes: { appVersionState: state, releaseType: "AFTER_APPROVAL" }, relationships: { appStoreVersionPhasedRelease: { data: phasedRelease } } }],
+    ...(phasedRelease ? { included: [{ type: "appStoreVersionPhasedReleases", id: "p1", attributes: { phasedReleaseState: "INACTIVE" } }] } : {}),
+  });
+
 const MUTATING = /^(versions (create|update|phased-release (create|delete))|age-rating edit|screenshots upload|review submit|publish )/;
 
-const recordingFixture = async (t: test.TestContext) => {
+const recordingFixture = async (t: test.TestContext, env: Record<string, string> = {}, configOverrides: Record<string, unknown> = {}) => {
   const dir = await mkdtemp(join(tmpdir(), "putio-app-store-fake-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   await writeFile(join(dir, "asc"), fakeAsc);
@@ -217,12 +224,12 @@ const recordingFixture = async (t: test.TestContext) => {
   await writeFile(join(dir, "screenshots/en-US/iphone-6.9-01.png"), "");
   await writeFile(join(dir, "screenshots/en-US/ipad-13-01.png"), "");
   const configPath = join(dir, "AppStore.json");
-  await writeFile(configPath, JSON.stringify({ ...validConfig, metadataDir: join(dir, "metadata"), screenshots: { ...validConfig.screenshots, dir: join(dir, "screenshots") } }));
+  await writeFile(configPath, JSON.stringify({ ...validConfig, ...configOverrides, metadataDir: join(dir, "metadata"), screenshots: { ...validConfig.screenshots, dir: join(dir, "screenshots") } }));
   const log = join(dir, "asc.log");
   await writeFile(log, "");
   const invoke = (...args: string[]) =>
     run(process.execPath, [script, ...args, "--config", configPath, "--version", "3.0.0"], {
-      env: { ...process.env, ASC_BIN: join(dir, "asc"), ASC_LOG: log, GITHUB_STEP_SUMMARY: "" },
+      env: { ...process.env, ASC_BIN: join(dir, "asc"), ASC_LOG: log, GITHUB_STEP_SUMMARY: "", FAKE_VERSIONS: listing("PREPARE_FOR_SUBMISSION"), ...env },
     });
   const calls = async () => (await readFile(log, "utf8")).split("\n").filter(Boolean);
   return { dir, invoke, calls };
@@ -274,4 +281,103 @@ test("check fails when the configured screenshot directory is missing", async (t
   await rm(join(dir, "screenshots"), { recursive: true });
   await assert.rejects(invoke("check"), /screenshots\/ is missing/);
   assert.equal((await calls()).some((call) => call.startsWith("screenshots validate")), false);
+});
+
+test("age rating is read and written through the version once it exists", async (t) => {
+  for (const state of ["PREPARE_FOR_SUBMISSION", "REJECTED"]) {
+    const { invoke, calls } = await recordingFixture(t, { FAKE_VERSIONS: listing(state) });
+    await invoke("plan");
+    await invoke("apply", "--confirm");
+    const ageRating = (await calls()).filter((call) => call.startsWith("age-rating"));
+    assert.deepEqual(ageRating.map((call) => call.split(" ").slice(0, 4).join(" ")), [
+      "age-rating view --version-id v1",
+      "age-rating view --version-id v1",
+      "age-rating edit --version-id v1",
+    ], state);
+  }
+  const { invoke, calls } = await recordingFixture(t, { FAKE_VERSIONS: JSON.stringify({ data: [] }) });
+  await invoke("plan");
+  assert.ok((await calls()).includes("age-rating view --app 1260479699 --output json"), "a version that doesn't exist yet falls back to the app");
+});
+
+test("plan exports the listing, then stops on a version App Store Connect won't edit", async (t) => {
+  const { dir, invoke, calls } = await recordingFixture(t, { FAKE_VERSIONS: listing("WAITING_FOR_REVIEW") });
+  await assert.rejects(invoke("plan", "--export", join(dir, "export")), /version 3\.0\.0 is WAITING_FOR_REVIEW/);
+  assert.match(await readFile(join(dir, "export/age-rating.json"), "utf8"), /socialMedia/);
+  const made = await calls();
+  assert.ok(made.some((call) => call.startsWith("metadata pull")), "the export still pulls the live metadata");
+  assert.equal(made.some((call) => call.startsWith("metadata push")), false);
+});
+
+test("screenshots stop on a version App Store Connect won't edit, before uploading", async (t) => {
+  for (const mode of ["--dry-run", "--confirm"]) {
+    const { invoke, calls } = await recordingFixture(t, { FAKE_VERSIONS: listing("IN_REVIEW") });
+    await assert.rejects(invoke("screenshots", mode), /version 3\.0\.0 is IN_REVIEW/);
+    assert.equal((await calls()).some((call) => call.startsWith("screenshots upload")), false, mode);
+  }
+});
+
+test("screenshots replace each set rather than add to it", async (t) => {
+  for (const mode of ["--dry-run", "--confirm"]) {
+    const { invoke, calls } = await recordingFixture(t);
+    await invoke("screenshots", mode);
+    const uploads = (await calls()).filter((call) => call.startsWith("screenshots upload"));
+    assert.equal(uploads.length, 2, mode);
+    for (const upload of uploads) {
+      assert.match(upload, / --replace /, mode);
+      assert.match(upload, new RegExp(` ${mode} `));
+    }
+  }
+});
+
+test("no command talks to App Store Connect while asc telemetry is on", async (t) => {
+  for (const args of [["check"], ["plan"], ["apply", "--confirm"], ["validate"], ["screenshots", "--dry-run"]]) {
+    const { invoke, calls } = await recordingFixture(t, { FAKE_TELEMETRY: "true" });
+    await assert.rejects(invoke(...args), /telemetry is still enabled/, args.join(" "));
+    assert.deepEqual(await calls(), ["telemetry status --output json"], args.join(" "));
+  }
+});
+
+// The fake accepts any flag, so the pinned binary's own help is what proves a flag exists.
+test("every asc flag the store tool passes exists in the pinned asc", { skip: !ascAvailable && !requireAsc && "asc is not installed" }, async (t) => {
+  const made = new Set<string>();
+  const scenarios: [Record<string, string>, Record<string, unknown>, string[]][] = [
+    [{}, {}, ["check"]],
+    [{}, {}, ["plan", "--export", "export"]],
+    [{}, {}, ["apply", "--confirm"]],
+    [{}, {}, ["validate", "--strict"]],
+    [{}, {}, ["screenshots", "--dry-run"]],
+    [{}, {}, ["screenshots", "--confirm"]],
+    [{ FAKE_VERSIONS: JSON.stringify({ data: [] }) }, {}, ["plan"]],
+    [{ FAKE_VERSIONS: JSON.stringify({ data: [] }) }, {}, ["apply", "--confirm"]],
+    [{ FAKE_VERSIONS: listing("PREPARE_FOR_SUBMISSION", { type: "appStoreVersionPhasedReleases", id: "p1" }) }, { version: { releaseType: "MANUAL", phasedRelease: false } }, ["apply", "--confirm"]],
+  ];
+  for (const [env, configOverrides, args] of scenarios) {
+    const { dir, invoke, calls } = await recordingFixture(t, env, configOverrides);
+    const resolved = args.map((arg) => (arg === "export" ? join(dir, "export") : arg));
+    // Creating a version re-reads it, which the fake still reports missing.
+    await invoke(...resolved).catch(() => undefined);
+    for (const call of await calls()) made.add(call);
+  }
+  const flagsByCommand = new Map<string, Set<string>>();
+  for (const call of made) {
+    const words = call.split(" ");
+    const firstFlag = words.findIndex((word) => word.startsWith("--"));
+    const command = words.slice(0, firstFlag === -1 ? undefined : firstFlag).join(" ");
+    const flags = flagsByCommand.get(command) ?? new Set<string>();
+    for (const word of words) if (/^--[a-z]/.test(word)) flags.add(word);
+    flagsByCommand.set(command, flags);
+  }
+  for (const expected of ["age-rating view", "age-rating edit", "versions create", "versions phased-release delete", "screenshots upload", "metadata pull"]) {
+    assert.ok(flagsByCommand.has(expected), `the scenarios reach asc ${expected}`);
+  }
+  for (const [command, flags] of flagsByCommand) {
+    const { stdout, stderr } = await run(process.env.ASC_BIN ?? "asc", [...command.split(" "), "--help"], {
+      env: { ...process.env, ASC_TELEMETRY_DISABLED: "1" },
+    }).catch((error: { stdout?: string; stderr?: string }) => ({ stdout: error.stdout ?? "", stderr: error.stderr ?? "" }));
+    const help = `${stdout}${stderr}`;
+    const known = new Set([...help.matchAll(/^\s+(--[a-z][a-z0-9-]*)/gm)].map(([, flag]) => flag));
+    assert.ok(known.size > 0, `asc ${command} --help lists flags`);
+    for (const flag of flags) assert.ok(known.has(flag), `asc ${command} has no ${flag}`);
+  }
 });

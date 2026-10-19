@@ -21,8 +21,9 @@ gh workflow run submit.yml --repo putdotio/putio-ios --ref main -f expected_sha=
 ```
 
 Release uploads and attaches the build, then tags the commit `v<version>` as
-the `putio-ci` App; it never submits. Submit sends that build to App Review,
-and dispatching it is the approval. Release, Submit, and Screenshots for one
+the `putio-ci` App, with an annotated tag that names the build number; it never
+submits. Submit sends that build to App Review only when the tag points at the
+validated commit and names the build, and dispatching it is the approval. Release, Submit, and Screenshots for one
 version share the `app-store-<version>` concurrency group.
 
 Inspect registration without starting a release:
@@ -58,6 +59,9 @@ node scripts/app-store.ts apply --version 3.0.0 --confirm
 node scripts/app-store.ts validate --version 3.0.0     # asc validate, blockers fail
 node scripts/app-store.ts screenshots --version 3.0.0 --dry-run
 ```
+
+`plan` and `screenshots` stop with the version's state when App Store Connect
+won't edit it, such as while it waits for or is in review.
 
 The listing, `Config/AppStore.json`, and the workflows that run the tool live on
 the line that ships, protected `main`, whose `release` Environment holds the
