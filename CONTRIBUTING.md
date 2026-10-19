@@ -117,7 +117,7 @@ plutil -lint Putio/en.lproj/*.strings
   - `mise run verify` uses an unsigned simulator build; `mise run run-simulator` uses a signed one so auth and keychain persistence behave like a real run. When auth, keychain, or signed-in persistence changes, use both
   - `mise run verify` and `mise run e2e-simulator` each create an ephemeral simulator (pinned status bar and `en_US` locale) and delete it on exit, so parallel worktrees never collide. They write `build/verify.xcresult` and `build/e2e-simulator.xcresult`; CI uploads the verify bundle when a run fails. `PUTIO_SIMULATOR_ID=<udid>` reuses a specific device, but it keeps its own locale, so record baselines on the ephemeral one
   - the simulator is pinned to **iPhone 17 Pro Max** on iOS `26.0+` (`scripts/simctl-iphone-device-id.sh`) so baseline dimensions don't depend on which simulators a machine has
-  - `E2E Simulator` is local-only: GitHub registers workflows from the default branch, `next`, so it never runs from `main`. Run `mise run e2e-simulator` before handing off PRs or SDK-backed flow changes
+  - `E2E Simulator` runs against `main` every Monday at 06:00 UTC and on dispatch (`gh workflow run e2e-simulator.yml --ref main`), never on pull requests. Run `mise run e2e-simulator` before handing off PRs or SDK-backed flow changes
   - `mise run verify-scripts-types` type-checks the repo's TypeScript tooling with `tsc --noEmit`; Node runs the scripts without a build step, and stripping types is not checking them. CI runs it in the `verify-tooling` job
 
 ### Mocked e2e

@@ -7,6 +7,17 @@
 - [Release](../.github/workflows/release.yml) is dispatch-only with the same SHA check and a version. It fails before building when `metadata/version/<version>/en-US.json` has no `whatsNew`, uploads with `asc publish appstore` (which creates or finds the version and attaches the build, never submits), then applies the listing and runs `asc validate` into the job summary. A last job tags the commit `v<version>` only after the upload succeeded, as the `putio-ci` GitHub App: it mints a token for this repository with `contents: write` from the `release` Environment's `PUTIO_RELEASE_BOT_APP_ID` and `PUTIO_RELEASE_BOT_PRIVATE_KEY`, because the `v*` ruleset lets only that App and organization admins create tags.
 - [Screenshots](../.github/workflows/screenshots.yml) changes the product page without a build: it plans the listing, uploads App Store Connect's current metadata and age rating as an artifact, and previews the screenshot replacement. With `dry_run` off it applies metadata and settings and replaces each screenshot set. It requires the current protected-main SHA, defaults to a dry run, and runs on Linux with only the App Store Connect key.
 - [Submit for review](../.github/workflows/submit.yml) takes a version and the build number Release uploaded. It refuses to start unless the `app-store-review` Environment exists with a required reviewer, waits for that approval, then checks the committed What's New offline, attaches the requested build, runs `asc validate --strict` against it, and runs `asc review submit`.
+- [E2E Simulator](../.github/workflows/e2e-simulator.yml) runs the mocked XCUITests on macOS against `main` every Monday at 06:00 UTC and on dispatch. It loads no secrets.
+- `main` is the repository's default branch, so these workflows are dispatched directly on it. Pass the current protected-main head as `expected_sha`:
+
+  ```bash
+  sha="$(gh api repos/putdotio/putio-ios/branches/main --jq .commit.sha)"
+  gh workflow run beta.yml --ref main -f expected_sha="$sha"
+  gh workflow run release.yml --ref main -f expected_sha="$sha" -f version=<x.y.z>
+  gh workflow run screenshots.yml --ref main -f expected_sha="$sha" -f app_version=<x.y.z> -f dry_run=true
+  gh workflow run submit.yml --ref main -f expected_sha="$sha" -f version=<x.y.z> -f build_number=<build>
+  ```
+
 - Beta, release, and shared release-secret third-party actions are pinned to full commit SHAs with a trailing comment for the human version tag. Update the SHA and comment together after reviewing upstream release notes.
 
 ## CI Bootstrap
