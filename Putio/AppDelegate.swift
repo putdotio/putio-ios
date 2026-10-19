@@ -1,4 +1,5 @@
 import UIKit
+import UserNotifications
 import Intercom
 import RealmSwift
 import PutioSDK
@@ -37,7 +38,7 @@ enum LegacyInstallCleanup {
 }
 
 @UIApplicationMain
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     var window: UIWindow?
     private var pendingURLs: [URL] = []
     // A session restored at launch, not a fresh sign-in, which may be another
@@ -74,6 +75,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
 
         configureSDKs()
+        // Before launch returns, so a tap that cold-launches the app reaches didReceive.
+        UNUserNotificationCenter.current().delegate = self
         prepareForE2ETestsIfNeeded()
         if !PutioE2EEnvironment.isMockAPIEnabled {
             LegacyInstallCleanup.runOnce()
