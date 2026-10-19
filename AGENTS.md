@@ -37,7 +37,8 @@ see [Development](CONTRIBUTING.md#development).
   Release workflows build the shipping app with production signing and upload
   it to TestFlight or App Store Connect, where it reaches testers or users and
   cannot be taken back. Its Screenshots workflow replaces the live App Store
-  images unless it runs as a dry run. Dispatch them on `main`
+  images unless it runs as a dry run, and its Submit workflow sends a build to
+  App Review, where dispatching it is the approval. Dispatch them on `main`
   ([Distribution](docs/distribution.md#releases-from-main)); `next` has no
   delivery workflows, and never copy signing configuration into it.
 - **Shared test account.** Live journeys and `live-fixture` use the `devs-auto`
