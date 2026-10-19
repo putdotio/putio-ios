@@ -167,13 +167,23 @@ jobs:
           PUTIO_INTERCOM_API_KEY: ${{ secrets.PUTIO_INTERCOM_API_KEY }}
           PUTIO_INTERCOM_APP_ID: ${{ secrets.PUTIO_INTERCOM_APP_ID }}
           PUTIO_SENTRY_DSN: ${{ secrets.PUTIO_SENTRY_DSN }}
-          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
-          MATCH_TYPE: ${{ secrets.MATCH_TYPE }}
-          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-          MATCH_GIT_PRIVATE_KEY_CONTENT: ${{ secrets.MATCH_GIT_PRIVATE_KEY_CONTENT }}
+
+      - name: Install the pinned asc
+        run: |
+          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
+          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
 
       - name: Install the App Store distribution identity
-        run: bundle exec fastlane signing
+        env:
+          APPLE_DISTRIBUTION_P12: ${{ secrets.APPLE_DISTRIBUTION_P12 }}
+          APPLE_DISTRIBUTION_P12_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_P12_PASSWORD }}
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
+        run: |
+          asc telemetry status --output json | jq -e '.enabled == false' > /dev/null
+          ./scripts/install-signing.sh
 
       - name: Archive and export beta ipa
         env:
@@ -184,11 +194,6 @@ jobs:
             | jq -r '.[0].buildSettings.MARKETING_VERSION')"
           echo "PUTIO_BETA_APP_VERSION=$version" >> "$GITHUB_ENV"
           ./scripts/archive-ios.sh "$version" "$PUTIO_BETA_BUILD_NUMBER" "$PUTIO_BETA_IPA_PATH"
-
-      - name: Install the pinned asc
-        run: |
-          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
-          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
 
       - name: Upload and distribute to TestFlight
         env:
@@ -203,3 +208,8 @@ jobs:
             --group "$PUTIO_BETA_GROUPS" --test-notes "$PUTIO_BETA_CHANGELOG" --locale en-US \
             --wait --timeout "${PUTIO_BETA_WAIT_TIMEOUT_DURATION}s" --notify --submit --confirm --output markdown \
             | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Delete the signing keychain
+        if: always() && env.PUTIO_SIGNING_KEYCHAIN != ''
+        run: |
+          [ ! -e "$PUTIO_SIGNING_KEYCHAIN" ] || asc signing keychain delete --keychain "$PUTIO_SIGNING_KEYCHAIN" --confirm --output json > /dev/null

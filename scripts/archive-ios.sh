@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Archives the App Store build and exports a signed IPA for asc to upload.
-# CI-only: needs the identity and profile `fastlane signing` installs, and the
+# CI-only: needs the identity and profile install-signing.sh installs, and the
 # PUTIO_* build settings the release Environment provides.
 #
 #   scripts/archive-ios.sh <marketing-version> <build-number> <ipa-path>
@@ -17,7 +17,7 @@ ipa_path="$3"
 [[ "$build_number" =~ ^[0-9]+$ ]] || { echo "build number must be an integer" >&2; exit 64; }
 
 : "${PUTIO_APP_IDENTIFIER:?}" "${PUTIO_DEVELOPMENT_TEAM:?}" "${PUTIO_PRIMARY_APP_ICON:?}"
-profile="match AppStore $PUTIO_APP_IDENTIFIER"
+profile="${PUTIO_PROVISIONING_PROFILE_UUID:?}"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 

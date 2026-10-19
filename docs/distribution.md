@@ -3,7 +3,7 @@
 ## Workflows
 
 - [CI](../.github/workflows/ci.yml) verifies pushes and pull requests. A `changes` job on Linux classifies the diff with [`scripts/ci-affected.sh`](../scripts/ci-affected.sh), then `verify-app` runs `mise run bootstrap-ci` and `mise run verify` on macOS, and `verify-tooling` type-checks the Node scripts and checks the committed marketing images against their inputs, both on Linux. Each lane runs only when the diff can affect it, and an unrecognized path counts as app-affecting — a needless macOS run is cheaper than a missed break. Nothing is filtered at the `on:` level, so both checks always report a state.
-- [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. A secretless job ([Delivery ref contract](../.github/workflows/delivery-ref.yml)) first requires the exact current protected-main SHA. The Environment-bearing job then checks out that commit, verifies, installs the signing identity with `fastlane signing`, archives with [archive-ios.sh](../scripts/archive-ios.sh), and uploads and distributes with `asc publish testflight --notify`, which emails external testers.
+- [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. A secretless job ([Delivery ref contract](../.github/workflows/delivery-ref.yml)) first requires the exact current protected-main SHA. The Environment-bearing job then checks out that commit, verifies, installs the signing identity and App Store profile with [install-signing.sh](../scripts/install-signing.sh) ([Signing](#signing)), archives with [archive-ios.sh](../scripts/archive-ios.sh), and uploads and distributes with `asc publish testflight --notify`, which emails external testers.
 - [Release](../.github/workflows/release.yml) is dispatch-only with the same SHA check and a version. It fails before building when `metadata/version/<version>/en-US.json` has no `whatsNew`, uploads with `asc publish appstore` (which creates or finds the version and attaches the build, never submits), then applies the listing and runs `asc validate` into the job summary. A last job tags the commit `v<version>` only after the upload succeeded, with an annotated tag whose message carries `Build-Number: <build>`, as the `putio-ci` GitHub App: it mints a token for this repository with `contents: write` from the `release` Environment's `PUTIO_CI_APP_CLIENT_ID` and `PUTIO_CI_APP_PRIVATE_KEY`, because the `v*` ruleset lets only that App and organization admins create tags.
 - [Screenshots](../.github/workflows/screenshots.yml) changes the product page without a build: it plans the listing, uploads App Store Connect's current metadata and age rating as an artifact, and previews the screenshot replacement. Plan and the screenshot step stop with the version's state when App Store Connect won't edit it, such as while it waits for or is in review; the artifact still uploads. With `dry_run` off it applies metadata and settings and replaces each screenshot set. It requires the current protected-main SHA, defaults to a dry run, and runs on Linux with only the App Store Connect key.
 - [Submit](../.github/workflows/submit.yml) takes a version and the build number Release uploaded, from the same validated SHA. Dispatching it is the approval: it runs in the `release` Environment, first requires `v<version>` to be an annotated Release tag at the validated SHA that names the requested build, so a TestFlight build with the same version string can't be submitted, then checks the committed What's New offline, attaches the requested build, runs `asc validate --strict` against it, and runs `asc review submit`.
@@ -71,12 +71,9 @@ lane proves both. Locally, run `asc telemetry disable` once after installing.
 
 ### Signing
 
-`fastlane signing` is the only fastlane lane left: it runs `match --readonly`
-into a fresh keychain. asc can't read the match repository, because `asc
-signing sync pull` only reads its own `*.enc` envelopes and App Store Connect
-never returns a certificate's private key. Moving means decrypting the
-distribution identity from match locally and pushing it with `asc signing sync
-push --identity`, without creating or revoking a certificate.
+Beta and Release sign with asc. [install-signing.sh](../scripts/install-signing.sh) installs `APPLE_DISTRIBUTION_P12` into a new keychain with `asc signing keychain install`, reads every active App Store profile with `asc profiles list`, lets [check-signing-profile.rb](../scripts/check-signing-profile.rb) pick one for this team and `PUTIO_APP_IDENTIFIER` that includes the identity's certificate, and installs it for [archive-ios.sh](../scripts/archive-ios.sh), which signs with that profile's UUID. The job deletes the keychain at the end. Nothing in App Store Connect is created, renewed, or revoked, so a new certificate needs its App Store profile regenerated in App Store Connect first. Run [Signing Check](../.github/workflows/signing-check.yml) after changing either signing secret.
+
+Ruby and Bundler remain only for CocoaPods and the profile check.
 
 ## Release Secret Contract
 
@@ -100,13 +97,7 @@ The `release` Environment must provide:
 - Intercom fields: beta and release fail without them, because Contact us and destroy-account support open Intercom. Each must match `[A-Za-z0-9._:-]+` and must not be `null`:
   - `PUTIO_INTERCOM_API_KEY`
   - `PUTIO_INTERCOM_APP_ID`
-- Signing fields:
-  - `MATCH_GIT_URL`
-  - `MATCH_TYPE`
-  - `MATCH_PASSWORD`
-  - `MATCH_GIT_PRIVATE_KEY_CONTENT`
-  - `MATCH_GIT_URL` must use a `github.com` SSH URL; CI verifies GitHub's ed25519 host-key fingerprint before updating `known_hosts`
-- Signing identity, used by Signing Check:
+- Signing identity, used by Beta, Release, and Signing Check:
   - `APPLE_DISTRIBUTION_P12`: the Apple Distribution certificate and its private key as one base64 line of a password-protected PKCS#12 that macOS can import, such as a Keychain Access export (`openssl pkcs12 -export` needs `-legacy`)
   - `APPLE_DISTRIBUTION_P12_PASSWORD`: that file's password
 - Release tagging, used only by the Release workflow's `tag` job:
@@ -155,7 +146,6 @@ Repository admins must keep these settings aligned with the workflow trust model
 ## App Store IDs
 
 - App Store Connect app ID `1260479699`, in `Config/AppStore.json` and the asc commands
-- `putdotio/putio-code-signing-apple` is pinned to the `main` branch in `fastlane/Matchfile`
 
 ## Operational Notes
 

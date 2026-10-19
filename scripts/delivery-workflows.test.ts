@@ -304,13 +304,69 @@ test("macOS delivery checkouts keep no GitHub token on disk", async () => {
   }
 });
 
-test("signing asks for no Apple ID: match --readonly uses the API key", async () => {
-  const action = await readFile(new URL("../.github/actions/load-ios-release-secrets/action.yml", import.meta.url), "utf8");
-  const example = await readFile(new URL("../fastlane/.env.example", import.meta.url), "utf8");
-  for (const name of ["PUTIO_APPLE_ID", "PUTIO_ITC_TEAM_ID"]) {
-    assert.doesNotMatch(action, new RegExp(name), `the release action requires ${name}`);
-    assert.doesNotMatch(example, new RegExp(name), `fastlane/.env.example lists ${name}`);
+test("nothing runs fastlane or match: Beta and Release sign with asc and the release Environment's p12", async () => {
+  await assert.rejects(readFile(new URL("../fastlane/Fastfile", import.meta.url)), { code: "ENOENT" });
+  for (const file of ["Gemfile", "Gemfile.lock", ".github/actions/load-ios-release-secrets/action.yml", "scripts/archive-ios.sh"]) {
+    assert.doesNotMatch(await readFile(new URL(`../${file}`, import.meta.url), "utf8"), /fastlane|MATCH_|PUTIO_APPLE_ID|PUTIO_ITC_TEAM_ID/i, file);
   }
+  for (const [name, job] of [["beta.yml", "beta"], ["release.yml", "release"]] as const) {
+    const raw = await readFile(new URL(`../.github/workflows/${name}`, import.meta.url), "utf8");
+    assert.doesNotMatch(raw, /fastlane|MATCH_|PUTIO_APPLE_ID|PUTIO_ITC_TEAM_ID/i, name);
+    const workflow = await loadYaml(`.github/workflows/${name}`);
+    const steps = arrayAt(recordAt(recordAt(workflow, "jobs", name), job, name), "steps", job).map((step) => asRecord(step, "step"));
+    const at = (pattern: RegExp) => steps.findIndex((step) => pattern.test(String(step.run ?? "")));
+    const asc = at(/install-asc\.sh/);
+    const signing = at(/scripts\/install-signing\.sh/);
+    const archive = at(/scripts\/archive-ios\.sh/);
+    const cleanup = at(/asc signing keychain delete --keychain "\$PUTIO_SIGNING_KEYCHAIN"/);
+    assert.ok(asc >= 0 && asc < signing && signing < archive && archive < cleanup, `${name}: asc, signing, archive, then delete the keychain`);
+    assert.equal(cleanup, steps.length - 1, `${name}: deleting the keychain can't hold back the upload`);
+    assert.match(String(steps[cleanup]?.if), /always\(\)/);
+    assert.deepEqual(
+      Object.entries(recordAt(steps[signing] ?? {}, "env", name)).filter(([key]) => key.startsWith("APPLE_")),
+      [["APPLE_DISTRIBUTION_P12", "${{ secrets.APPLE_DISTRIBUTION_P12 }}"], ["APPLE_DISTRIBUTION_P12_PASSWORD", "${{ secrets.APPLE_DISTRIBUTION_P12_PASSWORD }}"]],
+    );
+  }
+});
+
+// Stand-ins for xcodebuild and plutil: xcodebuild logs its arguments, keeps
+// the export options it was handed, and exports one ipa.
+const fakeXcodebuild = `#!/bin/bash
+echo "$*" >> "$XCODEBUILD_LOG"
+if [ "$1" = -exportArchive ]; then
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      -exportOptionsPlist) cp "$2" "$EXPORT_OPTIONS" ;;
+      -exportPath) mkdir -p "$2" && touch "$2/Putio.ipa" ;;
+    esac
+    shift
+  done
+fi
+`;
+
+test("the archive signs and exports with the profile install-signing.sh checked", async (t) => {
+  const dir = await tempDir(t);
+  await writeFile(join(dir, "xcodebuild"), fakeXcodebuild);
+  await writeFile(join(dir, "plutil"), "#!/bin/sh\n");
+  for (const tool of ["xcodebuild", "plutil"]) await chmod(join(dir, tool), 0o755);
+  const archive = (env: Record<string, string>) =>
+    spawnSync("bash", [fileURLToPath(new URL("./archive-ios.sh", import.meta.url)), "3.0.1", "1", join(dir, "a.ipa")], {
+      encoding: "utf8",
+      env: {
+        PATH: `${dir}:${process.env.PATH}`, XCODEBUILD_LOG: join(dir, "xcodebuild.log"), EXPORT_OPTIONS: join(dir, "ExportOptions.plist"),
+        PUTIO_APP_IDENTIFIER: "com.example.app", PUTIO_DEVELOPMENT_TEAM: "TEAM123456", PUTIO_PRIMARY_APP_ICON: "AppIcon", ...env,
+      },
+    });
+
+  const missing = archive({});
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /PUTIO_PROVISIONING_PROFILE_UUID/, "an archive without the checked profile stops before xcodebuild");
+
+  const uuid = "12345678-1234-1234-1234-123456789ABC";
+  const signed = archive({ PUTIO_PROVISIONING_PROFILE_UUID: uuid });
+  assert.equal(signed.status, 0, signed.stderr);
+  assert.match(await readFile(join(dir, "xcodebuild.log"), "utf8"), new RegExp(`archive.*PROVISIONING_PROFILE_SPECIFIER=${uuid}|PROVISIONING_PROFILE_SPECIFIER=${uuid}.*archive`));
+  assert.match(await readFile(join(dir, "ExportOptions.plist"), "utf8"), new RegExp(`<key>com\\.example\\.app</key>\\s*<string>${uuid}</string>`));
 });
 
 test("screenshots upload the listing after a failed Plan, but don't validate again", async () => {
