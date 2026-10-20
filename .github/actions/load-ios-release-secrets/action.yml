@@ -1,5 +1,5 @@
 name: Load iOS release secrets
-description: Validate iOS release environment secrets and materialize key files
+description: Validate iOS release environment secrets and export the archive's build settings
 
 runs:
   using: composite
@@ -18,10 +18,6 @@ runs:
           PUTIO_INTERCOM_API_KEY
           PUTIO_INTERCOM_APP_ID
           PUTIO_SENTRY_DSN
-          MATCH_GIT_URL
-          MATCH_TYPE
-          MATCH_PASSWORD
-          MATCH_GIT_PRIVATE_KEY_CONTENT
         )
 
         missing=()
@@ -52,7 +48,7 @@ runs:
           fi
         done
 
-    - name: Materialize App Store Connect key
+    - name: Export build settings for the archive
       shell: bash
       run: |
         persist_env() {
@@ -68,8 +64,6 @@ runs:
         }
 
         downstream_variables=(
-          APPSTORE_CONNECT_ISSUER_ID
-          APPSTORE_CONNECT_KEY_ID
           PUTIO_APP_IDENTIFIER
           PUTIO_DEVELOPMENT_TEAM
           PUTIO_OAUTH_CLIENT_ID
@@ -77,61 +71,8 @@ runs:
           PUTIO_INTERCOM_API_KEY
           PUTIO_INTERCOM_APP_ID
           PUTIO_SENTRY_DSN
-          MATCH_GIT_URL
-          MATCH_TYPE
-          MATCH_PASSWORD
         )
 
         for name in "${downstream_variables[@]}"; do
           persist_env "$name"
         done
-
-        key_path="$RUNNER_TEMP/AuthKey.p8"
-        printf '%s\n' "$APPSTORE_CONNECT_KEY_CONTENT" > "$key_path"
-        chmod 600 "$key_path"
-        echo "APPSTORE_CONNECT_KEY_FILEPATH=$key_path" >> "$GITHUB_ENV"
-
-        if [ -z "${MATCH_GIT_PRIVATE_KEY_CONTENT:-}" ]; then
-          echo "MATCH_GIT_PRIVATE_KEY_CONTENT is not configured in the release Environment" >&2
-          exit 1
-        fi
-
-        match_git_private_key_path="$RUNNER_TEMP/match-git-private-key"
-        printf '%s\n' "$MATCH_GIT_PRIVATE_KEY_CONTENT" > "$match_git_private_key_path"
-        chmod 600 "$match_git_private_key_path"
-        echo "MATCH_GIT_PRIVATE_KEY=$match_git_private_key_path" >> "$GITHUB_ENV"
-
-        match_git_host=""
-        case "${MATCH_GIT_URL:-}" in
-          git@github.com:*)
-            match_git_host="github.com"
-            ;;
-          ssh://git@github.com/* | ssh://github.com/*)
-            match_git_host="github.com"
-            ;;
-        esac
-
-        if [ -z "$match_git_host" ]; then
-          echo "MATCH_GIT_URL must use a github.com SSH URL when MATCH_GIT_PRIVATE_KEY is used" >&2
-          exit 1
-        fi
-
-        host_key_path="$RUNNER_TEMP/github-ed25519-known-hosts"
-        ssh-keyscan -T 10 -t ed25519 "$match_git_host" > "$host_key_path" 2>/dev/null
-        if [ ! -s "$host_key_path" ]; then
-          echo "No SSH host key was returned for $match_git_host" >&2
-          exit 1
-        fi
-
-        fingerprints="$(ssh-keygen -lf "$host_key_path" -E sha256 | awk '{print $2}' | sort -u)"
-        fingerprint_count="$(printf '%s\n' "$fingerprints" | wc -l | tr -d ' ')"
-
-        if [ "$fingerprint_count" != "1" ] || [ "$fingerprints" != "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU" ]; then
-          echo "Unexpected SSH host key for $match_git_host: $fingerprints" >&2
-          exit 1
-        fi
-
-        mkdir -p "$HOME/.ssh"
-        chmod 700 "$HOME/.ssh"
-        cat "$host_key_path" >> "$HOME/.ssh/known_hosts"
-        chmod 600 "$HOME/.ssh/known_hosts"

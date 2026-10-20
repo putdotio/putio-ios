@@ -141,24 +141,29 @@ jobs:
           PUTIO_INTERCOM_API_KEY: ${{ secrets.PUTIO_INTERCOM_API_KEY }}
           PUTIO_INTERCOM_APP_ID: ${{ secrets.PUTIO_INTERCOM_APP_ID }}
           PUTIO_SENTRY_DSN: ${{ secrets.PUTIO_SENTRY_DSN }}
-          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
-          MATCH_TYPE: ${{ secrets.MATCH_TYPE }}
-          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-          MATCH_GIT_PRIVATE_KEY_CONTENT: ${{ secrets.MATCH_GIT_PRIVATE_KEY_CONTENT }}
+
+      - name: Install the pinned asc
+        run: |
+          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
+          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
 
       - name: Install the App Store distribution identity
-        run: bundle exec fastlane signing
+        env:
+          APPLE_DISTRIBUTION_P12: ${{ secrets.APPLE_DISTRIBUTION_P12 }}
+          APPLE_DISTRIBUTION_P12_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_P12_PASSWORD }}
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
+          ASC_BYPASS_KEYCHAIN: "1"
+        run: |
+          asc telemetry status --output json | jq -e '.enabled == false' > /dev/null
+          ./scripts/install-signing.sh
 
       - name: Archive and export the App Store ipa
         env:
           PUTIO_APP_DISPLAY_NAME: put.io
           PUTIO_PRIMARY_APP_ICON: AppIcon
         run: ./scripts/archive-ios.sh "$PUTIO_RELEASE_VERSION" "$PUTIO_RELEASE_BUILD_NUMBER" "$PUTIO_RELEASE_IPA_PATH"
-
-      - name: Install the pinned asc
-        run: |
-          ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
-          echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
 
       # Uploads, waits for processing, creates or finds the version and
       # attaches the build. Never submits: that is the Submit workflow.
@@ -173,6 +178,11 @@ jobs:
           asc publish appstore --app 1260479699 --platform IOS --ipa "$PUTIO_RELEASE_IPA_PATH" \
             --version "$PUTIO_RELEASE_VERSION" --wait --timeout 60m --output markdown \
             | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Delete the signing keychain
+        if: always() && env.PUTIO_SIGNING_KEYCHAIN != ''
+        run: |
+          [ ! -e "$PUTIO_SIGNING_KEYCHAIN" ] || asc signing keychain delete --keychain "$PUTIO_SIGNING_KEYCHAIN" --confirm --output json > /dev/null
 
   listing:
     name: Apply the listing and validate

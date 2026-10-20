@@ -1,3 +1,0 @@
-app_identifier(ENV.fetch("PUTIO_APP_IDENTIFIER", "io.put.dev"))
-
-team_id(ENV["PUTIO_DEVELOPMENT_TEAM"]) unless ENV["PUTIO_DEVELOPMENT_TEAM"].to_s.empty?

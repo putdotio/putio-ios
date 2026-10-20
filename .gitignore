@@ -35,15 +35,12 @@ playground.xcworkspace
 Pods/
 
 .claude/worktrees/
-# fastlane
-fastlane/report.xml
-fastlane/.env
-fastlane/*.p8
+# App Store Connect API keys, wherever an old setup left one
+*.p8
 .bundle/
 vendor/bundle/
 Config/Local.xcconfig
 Config/1Password.local.env
-fastlane/.env.1password.local
 .env
 .env.*
 .direnv/
@@ -53,7 +50,7 @@ fastlane/.env.1password.local
 ## dirtying the tree. mise.toml itself is checked in and is the shared pin.
 mise.local.toml
 
-## Fastlane DSYM .zip
+## dSYM archives
 *.zip
 
 ## Licensed brand fonts; never committed
