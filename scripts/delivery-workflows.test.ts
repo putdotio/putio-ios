@@ -97,14 +97,18 @@ test("every workflow that runs asc turns its telemetry off first", async () => {
   }
 });
 
-test("submission runs from a validated SHA in the release Environment only", async () => {
+test("submission runs the tagged commit in the release Environment only", async () => {
   const workflow = await loadYaml(".github/workflows/submit.yml");
+  assert.deepEqual(Object.keys(recordAt(recordAt(workflow, "on", "submit.yml"), "workflow_dispatch", "submit.yml.on").inputs as RecordValue), ["version", "build_number"]);
   const jobs = recordAt(workflow, "jobs", "submit.yml");
-  assert.deepEqual(Object.keys(jobs), ["validate-ref", "submit"]);
+  assert.deepEqual(Object.keys(jobs), ["validate-tag", "submit"]);
+  const guard = JSON.stringify(recordAt(jobs, "validate-tag", "submit.yml.jobs"));
+  assert.doesNotMatch(guard, /environment|secrets\.|actions\/checkout/, "the tag guard holds nothing worth stealing");
   const submit = recordAt(jobs, "submit", "submit.yml.jobs");
-  assert.equal(submit.needs, "validate-ref");
+  assert.equal(submit.needs, "validate-tag");
   assert.equal(submit.environment, "release");
-  assert.match(JSON.stringify(submit), /ref.*needs\.validate-ref\.outputs\.sha/);
+  assert.match(JSON.stringify(submit), /ref.*needs\.validate-tag\.outputs\.sha/);
+  assert.doesNotMatch(JSON.stringify(workflow), /delivery-ref|expected_sha/, "Submit doesn't need main's head");
 });
 
 test("release tags only after the upload, as putio-ci with nothing else", async () => {
@@ -178,8 +182,6 @@ test("submit checks committed notes and validates the build it submits", async (
   const attach = at(/asc versions attach-build[\s\S]*--build-number "\$BUILD_NUMBER"/);
   const validate = at(/app-store\.ts validate --version "\$VERSION" --strict/);
   const send = at(/asc review submit[\s\S]*--build-number "\$BUILD_NUMBER"/);
-  const tag = at(/Build-Number: \$BUILD_NUMBER/);
-  assert.ok(tag >= 0 && tag < check, "the release tag check comes before anything else uses the build number");
   assert.ok(check >= 0 && check < attach && attach < validate && validate < send, "check, attach, validate, submit in order");
 });
 
@@ -218,8 +220,9 @@ test("release refuses a version without a non-empty whatsNew before building", a
 });
 
 // A stand-in gh that serves the tag ref and tag object from FAKE_REF and
-// FAKE_TAG, logs each call on one line (newlines escaped), and answers
-// git/tags POSTs with tag object t1.
+// FAKE_TAG, main from FAKE_BRANCH and a comparison status from FAKE_COMPARE,
+// logs each call on one line (newlines escaped), and answers git/tags POSTs
+// with tag object t1.
 const fakeGh = `#!/bin/bash
 args="$*"
 printf '%s\\n' "\${args//$'\\n'/\\\\n}" >> "$GH_LOG"
@@ -228,6 +231,8 @@ case "$*" in
   *"--method POST"*) echo '{}' ;;
   *"/git/ref/tags/"*) [ -n "$FAKE_REF" ] || { echo "Not Found" >&2; exit 1; }; printf '%s\\n' "$FAKE_REF" ;;
   *"/git/tags/"*) printf '%s\\n' "$FAKE_TAG" ;;
+  *"/branches/main"*) printf '%s\\n' "$FAKE_BRANCH" ;;
+  *"/compare/"*) printf '{"status":"%s"}\\n' "$FAKE_COMPARE" ;;
   *) exit 1 ;;
 esac
 `;
@@ -235,7 +240,7 @@ esac
 const SHA = "a".repeat(40);
 const annotatedRef = JSON.stringify({ object: { type: "tag", sha: "t1" } });
 const lightweightRef = JSON.stringify({ object: { type: "commit", sha: SHA } });
-const tagObject = (sha: string, build: string) => JSON.stringify({ object: { type: "commit", sha }, message: `put.io 3.0.1\n\nBuild-Number: ${build}\n` });
+const tagObject = (sha: string, build: string) => JSON.stringify({ tag: "v3.0.1", object: { type: "commit", sha }, message: `put.io 3.0.1\n\nBuild-Number: ${build}\n` });
 
 const runWithGh = async (t: test.TestContext, run: string, env: Record<string, string>) => {
   const dir = await tempDir(t);
@@ -273,17 +278,46 @@ test("release tags with an annotated tag that names the uploaded build", async (
   }
 });
 
-test("submit attaches only the build the release tag names, at the validated SHA", async (t) => {
-  const run = await stepRun("submit.yml", "submit", "Check the release tag names this build");
-  const env = { VERSION: "3.0.1", BUILD_NUMBER: "2610191230", EXPECTED_SHA: SHA };
-  const status = async (ref: string, tag: string) => (await runWithGh(t, run, { ...env, FAKE_REF: ref, FAKE_TAG: tag })).status;
+test("submit takes the commit an annotated Release tag on protected main names for the build", async (t) => {
+  const run = await stepRun("submit.yml", "validate-tag", "Resolve the release tag on protected main");
+  const head = "c".repeat(40);
+  const valid = {
+    RUN_REF: "refs/heads/main", VERSION: "3.0.1", BUILD_NUMBER: "2610191230",
+    FAKE_REF: annotatedRef, FAKE_TAG: tagObject(SHA, "2610191230"),
+    FAKE_BRANCH: JSON.stringify({ protected: true, commit: { sha: head } }), FAKE_COMPARE: "ahead",
+  };
+  const submit = async (overrides: Record<string, string>) => {
+    const dir = await tempDir(t);
+    const output = join(dir, "output");
+    await writeFile(output, "");
+    const result = await runWithGh(t, run, { ...valid, GITHUB_OUTPUT: output, ...overrides });
+    return { ...result, output: await readFile(output, "utf8") };
+  };
 
-  assert.equal(await status(annotatedRef, tagObject(SHA, "2610191230")), 0);
-  assert.equal(await status(annotatedRef, tagObject("b".repeat(40), "2610191230")), 1, "the tag must point at expected_sha");
-  assert.equal(await status(annotatedRef, tagObject(SHA, "2610181200")), 1, "the tag must name build_number");
-  assert.equal(await status(annotatedRef, tagObject(SHA, "26101912300")), 1, "a prefix of another build number is not a match");
-  assert.equal(await status(lightweightRef, ""), 1, "a lightweight tag names no build");
-  assert.equal(await status("", ""), 1, "a missing tag fails");
+  const later = await submit({});
+  assert.equal(later.status, 0, later.stderr);
+  assert.equal(later.output, `sha=${SHA}\n`, "an unrelated commit on main after the tag doesn't block it, and Submit checks out the tag");
+  assert.ok(later.calls.some((call) => call.includes(`/compare/${SHA}...${head}`)), "the tag must be an ancestor of main, not the reverse");
+  assert.equal((await submit({ FAKE_COMPARE: "identical" })).status, 0, "the tag at main's head");
+
+  const refusals: [string, Record<string, string>, RegExp][] = [
+    ["a missing tag", { FAKE_REF: "" }, /does not exist/],
+    ["a lightweight tag", { FAKE_REF: lightweightRef }, /not an annotated Release tag/],
+    ["a tag object named for another version", { FAKE_TAG: tagObject(SHA, "2610191230").replace('"v3.0.1"', '"v3.0.2"') }, /not the tag Release creates/],
+    ["a tag message Release didn't write", { FAKE_TAG: tagObject(SHA, "2610191230").replace("put.io 3.0.1", "hand-made") }, /not the tag Release creates/],
+    ["a wrong Build-Number", { FAKE_TAG: tagObject(SHA, "2610181200") }, /does not name build/],
+    ["a longer Build-Number", { FAKE_TAG: tagObject(SHA, "26101912300") }, /does not name build/],
+    ["a tagged commit behind no main head", { FAKE_COMPARE: "diverged" }, /not on protected main/],
+    ["a tagged commit ahead of main", { FAKE_COMPARE: "behind" }, /not on protected main/],
+    ["an unprotected main", { FAKE_BRANCH: JSON.stringify({ protected: false, commit: { sha: head } }) }, /not protected/],
+    ["a dispatch off main", { RUN_REF: "refs/heads/feature" }, /only from protected main/],
+  ];
+  for (const [name, overrides, reason] of refusals) {
+    const refused = await submit(overrides);
+    assert.equal(refused.status, 1, name);
+    assert.match(refused.stderr, reason, name);
+    assert.equal(refused.output, "", `${name} approves no commit`);
+  }
 });
 
 test("delivery workflow changes run their contract tests in the tooling lane", () => {

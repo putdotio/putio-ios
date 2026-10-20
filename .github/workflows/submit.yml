@@ -5,10 +5,6 @@ name: Submit
 on:
   workflow_dispatch:
     inputs:
-      expected_sha:
-        description: Exact protected-main commit SHA the build came from
-        required: true
-        type: string
       version:
         description: App Store version to submit, for example 3.0.1
         required: true
@@ -38,15 +34,73 @@ defaults:
     shell: bash
 
 jobs:
-  validate-ref:
-    name: Validate protected main
-    uses: ./.github/workflows/delivery-ref.yml
-    with:
-      expected_sha: ${{ inputs.expected_sha }}
+  # Secretless. Submit ships the commit Release tagged, not main's head, so
+  # merges after Release don't block it; that commit must still be on
+  # protected main. A beta and a release build share the version string, so
+  # only the tag's Build-Number tells them apart.
+  validate-tag:
+    name: Validate the release tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.tag.outputs.sha }}
+
+    steps:
+      - name: Resolve the release tag on protected main
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_REF: ${{ github.ref }}
+          VERSION: ${{ inputs.version }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          set -euo pipefail
+          if [ "$RUN_REF" != refs/heads/main ]; then
+            echo "Submit runs only from protected main, not $RUN_REF" >&2
+            exit 1
+          fi
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || ! [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "version must look like 3.0.1 and build_number must be an integer" >&2
+            exit 1
+          fi
+
+          tag="v$VERSION"
+          if ! ref="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag")"; then
+            echo "$tag does not exist; Release creates it after the upload" >&2
+            exit 1
+          fi
+          if [ "$(jq -r .object.type <<< "$ref")" != tag ]; then
+            echo "$tag is not an annotated Release tag, so it names no build" >&2
+            exit 1
+          fi
+          object="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$(jq -r .object.sha <<< "$ref")")"
+          sha="$(jq -r .object.sha <<< "$object")"
+          if [ "$(jq -r .tag <<< "$object")" != "$tag" ] || [ "$(jq -r .object.type <<< "$object")" != commit ] \
+            || ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || [ "$(jq -r '.message | split("\n")[0]' <<< "$object")" != "put.io $VERSION" ]; then
+            echo "$tag is not the tag Release creates for a commit" >&2
+            exit 1
+          fi
+          if ! jq -r .message <<< "$object" | grep -xF "Build-Number: $BUILD_NUMBER" > /dev/null; then
+            echo "$tag does not name build $BUILD_NUMBER; Release uploaded another one" >&2
+            exit 1
+          fi
+
+          branch="$(gh api "repos/$GITHUB_REPOSITORY/branches/main")"
+          if [ "$(jq -r .protected <<< "$branch")" != true ]; then
+            echo "main is not protected, so it vouches for no commit" >&2
+            exit 1
+          fi
+          head="$(jq -r .commit.sha <<< "$branch")"
+          status="$(gh api "repos/$GITHUB_REPOSITORY/compare/$sha...$head?per_page=1" | jq -r .status)"
+          if [ "$status" != ahead ] && [ "$status" != identical ]; then
+            echo "$tag points at $sha, which is not on protected main ($status from $head)" >&2
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
   submit:
     name: Submit for App Store review
-    needs: validate-ref
+    needs: validate-tag
     runs-on: ubuntu-latest
     environment: release
     timeout-minutes: 30
@@ -55,40 +109,10 @@ jobs:
       BUILD_NUMBER: ${{ inputs.build_number }}
 
     steps:
-      - name: Check the inputs
-        run: |
-          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || ! [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
-            echo "version must look like 3.0.1 and build_number must be an integer" >&2
-            exit 1
-          fi
-
-      # A beta and a release build share the version string, so only the tag
-      # Release created tells them apart.
-      - name: Check the release tag names this build
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_SHA: ${{ needs.validate-ref.outputs.sha }}
-        run: |
-          tag="v$VERSION"
-          ref="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag")"
-          if [ "$(jq -r .object.type <<< "$ref")" != tag ]; then
-            echo "$tag is not an annotated Release tag, so it names no build" >&2
-            exit 1
-          fi
-          object="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$(jq -r .object.sha <<< "$ref")")"
-          if [ "$(jq -r .object.sha <<< "$object")" != "$EXPECTED_SHA" ]; then
-            echo "$tag points at $(jq -r .object.sha <<< "$object"), not $EXPECTED_SHA" >&2
-            exit 1
-          fi
-          if ! jq -r .message <<< "$object" | grep -xF "Build-Number: $BUILD_NUMBER" > /dev/null; then
-            echo "$tag does not name build $BUILD_NUMBER; Release uploaded another one" >&2
-            exit 1
-          fi
-
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.validate-ref.outputs.sha }}
+          ref: ${{ needs.validate-tag.outputs.sha }}
           persist-credentials: false
 
       - name: Install mise
