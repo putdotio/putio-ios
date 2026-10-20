@@ -1,8 +1,7 @@
 # Agent Guide
 
-Native SwiftUI rewrite of the put.io apps for iOS, watchOS, and tvOS. It lives
-on `next`; the App Store app is still the 3.x line on protected `main`
-([Distribution](docs/distribution.md)). Platform UI and lifecycle belong in
+Native SwiftUI rewrite of the put.io apps for iOS, watchOS, and tvOS, on the
+`next` branch. Platform UI and lifecycle belong in
 `Apps`; shared models, session, API, and feature logic belong in
 `Packages/PutioCore`. Both are grouped by domain with the same folder names;
 see [Development](CONTRIBUTING.md#development).
@@ -33,14 +32,6 @@ see [Development](CONTRIBUTING.md#development).
 
 ## Hazards
 
-- **App Store delivery.** `main` is the default branch, and its Beta and
-  Release workflows build the shipping app with production signing and upload
-  it to TestFlight or App Store Connect, where it reaches testers or users and
-  cannot be taken back. Its Screenshots workflow replaces the live App Store
-  images unless it runs as a dry run, and its Submit workflow sends a build to
-  App Review, where dispatching it is the approval. Dispatch them on `main`
-  ([Distribution](docs/distribution.md#releases-from-main)); `next` has no
-  delivery workflows, and never copy signing configuration into it.
 - **Shared test account.** Live journeys and `live-fixture` use the `devs-auto`
   put.io CLI profile ([live-profile contract](docs/harness.md#live-profile-and-publishing)),
   shared with the web, Android, and TV harnesses. Each live journey approves a
@@ -82,19 +73,13 @@ Report skipped or unavailable checks.
 
 ## Delivery
 
-Pull requests target `next`, not the default branch `main`: pass
-`gh pr create --base next`. They squash-merge. [Next CI](.github/workflows/ci-next.yml)
+Pull requests target `next` (`gh pr create --base next`) and squash-merge. [Next CI](.github/workflows/ci-next.yml)
 runs the lanes a pull request's paths affect, plus a Markdown formatting check
 when it changes Markdown, and a new push cancels its stale run. A push to `next`
 runs every lane, keeps running when a later push lands, and saves the Xcode
 compilation caches. Nothing on `next` signs, versions, or publishes. Upload
 reviewed screenshots or recordings with `gh pr comment <n> --attach ./file.png`;
 never commit them.
-
-Next CI can't be dispatched: GitHub only dispatches workflows whose file exists
-on the default branch, `main`, which has no `ci-next.yml`, so
-`gh workflow run ci-next.yml --ref next -f verify=true` fails. Every push to
-`next` still runs every lane.
 
 ## Skills
 
