@@ -55,9 +55,6 @@ for Tuist's local GoogleCastSDK resolution failure. Use that command for normal
 development; a standalone dependency install needs
 `TUIST_USE_SWIFTERPM=0 tuist install`.
 
-[AGENTS.md](AGENTS.md#skills) lists the repository-local Codex and Claude Code
-skills.
-
 ### Design tokens
 
 Follow [Design Principles](DESIGN.md) when changing UI. Token values belong in
