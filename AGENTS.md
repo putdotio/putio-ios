@@ -26,9 +26,9 @@ grouped by domain with the same folder names; see
   ([support messenger](docs/support.md)).
 - Keep checked-in defaults, generation, and verification usable without accounts,
   tokens, secrets, or downloaded brand fonts.
-- Supporting docs use lowercase kebab-case under `docs/`; the uppercase root
-  guides, `LICENSE`, tool-defined agent entrypoints (`AGENTS.md`, `CLAUDE.md`,
-  `SKILL.md`), and upstream skill files keep their names and content.
+- Supporting docs use lowercase kebab-case under `docs/`. Root guides,
+  `LICENSE`, and agent entrypoints (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`) keep
+  their uppercase names; upstream skill files stay verbatim.
 
 ## Hazards
 
@@ -43,8 +43,8 @@ grouped by domain with the same folder names; see
   `proof --platform all`, requests an activation code; the tvOS journey covers
   sign-in offline.
 - **Simulators and devices.** The harness creates, shuts down, and deletes its
-  own uniquely named simulators and never opens Simulator.app; don't open it
-  from automation either. If cleanup fails, delete only the run's reported
+  own uniquely named simulators headlessly; keep automation headless too, never
+  through Simulator.app. If cleanup fails, delete only the run's reported
   UDIDs. Physical Apple TV builds use automatic provisioning and may register
   the device with the development team.
 - **One verify per worktree.** Verify lanes share `build/DerivedData`.
@@ -83,10 +83,3 @@ lanes a pull request's changed paths affect, and every lane on a push to
 Codex reads `.agents/skills`; Claude Code reads installer-managed links under
 `.claude/skills`. When installing or restoring skills with the skills CLI, select
 both `--agent codex claude-code`.
-
-- SwiftUI state, composition, navigation, and accessibility: [SwiftUI](.agents/skills/swiftui-expert-skill/SKILL.md)
-- Tasks, cancellation, actors, and Sendable: [Swift Concurrency](.agents/skills/swift-concurrency/SKILL.md)
-- Test design, async tests, and migration: [Swift Testing](.agents/skills/swift-testing-expert/SKILL.md)
-- Build timing and optimization: [Xcode Build Orchestrator](.agents/skills/xcode-build-orchestrator/SKILL.md), which routes to the installed benchmark, compiler, project, package, and fixer skills
-- Workspace generation and target changes: [Tuist](.agents/skills/using-tuist-generated-projects/SKILL.md)
-- Refreshing the SwiftUI skill's API reference: [SwiftUI API Updater](.agents/skills/update-swiftui-apis/SKILL.md)
