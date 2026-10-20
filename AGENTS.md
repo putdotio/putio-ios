@@ -2,19 +2,14 @@
 
 Native SwiftUI rewrite of the put.io apps for iOS, watchOS, and tvOS, on the
 `next` branch. Platform UI and lifecycle belong in `Apps`; shared models,
-session, API, and feature logic belong in `Packages/PutioCore`. Both are
-grouped by domain with the same folder names; see
-[Development](CONTRIBUTING.md#development).
+session, API, and feature logic belong in `Packages/PutioCore`.
 
 ## Work in this repository
 
-- Run `mise run bootstrap` in a fresh checkout or worktree; [mise.toml](mise.toml)
-  owns the task commands and [Contributing](CONTRIBUTING.md#development) the
-  generation workflow.
+- Run `mise run bootstrap` in a fresh checkout or worktree.
 - Edit targets and settings in `Project.swift`, `Tuist.swift`, and
-  `Tuist/Package.swift`; generated Xcode projects and workspaces are never
-  committed. Tuist is local generation only; hosted cache, analytics, previews,
-  and account-backed features are out of scope.
+  `Tuist/Package.swift`. Tuist is local generation only; hosted cache,
+  analytics, previews, and account-backed features are out of scope.
 - Follow [Design Principles](DESIGN.md) for UI. Change tokens through
   [the contributor workflow](CONTRIBUTING.md#design-tokens), then regenerate;
   never hand-edit generated Swift or asset catalogs.
@@ -26,9 +21,6 @@ grouped by domain with the same folder names; see
   ([support messenger](docs/support.md)).
 - Keep checked-in defaults, generation, and verification usable without accounts,
   tokens, secrets, or downloaded brand fonts.
-- Supporting docs use lowercase kebab-case under `docs/`. Root guides,
-  `LICENSE`, and agent entrypoints (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`) keep
-  their uppercase names; upstream skill files stay verbatim.
 
 ## Hazards
 
@@ -60,26 +52,16 @@ Report skipped or unavailable checks.
 
 | Change                              | Focused proof                                                                                                          |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Docs or skill files only            | `pnpm run markdown:check`; check web links and commands. Pull-request CI checks relative links, skips every lane       |
+| Docs only                           | `pnpm run markdown:check`; check web links and commands                                                                |
 | Shared logic                        | `swift test --package-path Packages/PutioCore`                                                                         |
 | Tooling scripts, tokens, or fonts   | `pnpm run verify`                                                                                                      |
 | App Store tool or asc pin           | `pnpm run verify`, then `PUTIO_REQUIRE_ASC=1 node --test scripts/app-store.test.ts` with the pinned asc on `PATH`      |
-| Manifest or dependency graph        | `mise run build` (regenerates and builds every app scheme)                                                             |
+| Manifest or dependency graph        | `mise run build`                                                                                                       |
 | Shell logic, components, or theming | `mise run harness -- test --platform <ios\|tvos>`; intentional visual changes require inspected, re-recorded baselines |
 | iOS Files browser                   | `mise run harness -- journey --platform ios --scenario files-browser`                                                  |
 | tvOS shell or sign-in               | `mise run harness -- journey --platform tvos --scenario device-sign-in`                                                |
 | Recorded platform proof             | `mise run harness -- proof --platform <ios\|watchos\|tvos\|all>`                                                       |
 | tvOS device launch and rendering    | `mise run harness -- proof --platform tvos --device <udid>` on a [paired Apple TV](docs/harness.md#physical-apple-tv)  |
 
-## Delivery
-
-Pull requests squash-merge. [Next CI](.github/workflows/ci-next.yml) runs the
-lanes a pull request's changed paths affect, and every lane on a push to
-`next`. Upload reviewed screenshots or recordings with
+Upload reviewed screenshots or recordings with
 `gh pr comment <n> --attach ./file.png`; never commit them.
-
-## Skills
-
-Codex reads `.agents/skills`; Claude Code reads installer-managed links under
-`.claude/skills`. When installing or restoring skills with the skills CLI, select
-both `--agent codex claude-code`.
