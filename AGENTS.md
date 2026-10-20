@@ -1,10 +1,10 @@
 # Agent Guide
 
 Native SwiftUI rewrite of the put.io apps for iOS, watchOS, and tvOS, on the
-`next` branch. Platform UI and lifecycle belong in
-`Apps`; shared models, session, API, and feature logic belong in
-`Packages/PutioCore`. Both are grouped by domain with the same folder names;
-see [Development](CONTRIBUTING.md#development).
+`next` branch. Platform UI and lifecycle belong in `Apps`; shared models,
+session, API, and feature logic belong in `Packages/PutioCore`. Both are
+grouped by domain with the same folder names; see
+[Development](CONTRIBUTING.md#development).
 
 ## Work in this repository
 
@@ -73,13 +73,10 @@ Report skipped or unavailable checks.
 
 ## Delivery
 
-Pull requests squash-merge. [Next CI](.github/workflows/ci-next.yml)
-runs the lanes a pull request's paths affect, plus a Markdown formatting check
-when it changes Markdown, and a new push cancels its stale run. A push to `next`
-runs every lane, keeps running when a later push lands, and saves the Xcode
-compilation caches. Nothing on `next` signs, versions, or publishes. Upload
-reviewed screenshots or recordings with `gh pr comment <n> --attach ./file.png`;
-never commit them.
+Pull requests squash-merge. [Next CI](.github/workflows/ci-next.yml) runs the
+lanes a pull request's changed paths affect, and every lane on a push to
+`next`. Upload reviewed screenshots or recordings with
+`gh pr comment <n> --attach ./file.png`; never commit them.
 
 ## Skills
 
@@ -92,4 +89,4 @@ both `--agent codex claude-code`.
 - Test design, async tests, and migration: [Swift Testing](.agents/skills/swift-testing-expert/SKILL.md)
 - Build timing and optimization: [Xcode Build Orchestrator](.agents/skills/xcode-build-orchestrator/SKILL.md), which routes to the installed benchmark, compiler, project, package, and fixer skills
 - Workspace generation and target changes: [Tuist](.agents/skills/using-tuist-generated-projects/SKILL.md)
-- Refreshing the skill's API reference: [SwiftUI API Updater](.agents/skills/update-swiftui-apis/SKILL.md)
+- Refreshing the SwiftUI skill's API reference: [SwiftUI API Updater](.agents/skills/update-swiftui-apis/SKILL.md)
