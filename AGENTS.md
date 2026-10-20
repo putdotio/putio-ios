@@ -1,11 +1,10 @@
 # Agent Guide
 
-Native SwiftUI rewrite of the put.io apps for iOS, watchOS, and tvOS. It lives
-on `next`; the App Store app is still the 3.x line on protected `main`
-([Distribution](docs/distribution.md)). Platform UI and lifecycle belong in
-`Apps`; shared models, session, API, and feature logic belong in
-`Packages/PutioCore`. Both are grouped by domain with the same folder names;
-see [Development](CONTRIBUTING.md#development).
+Native SwiftUI rewrite of the put.io apps for iOS, watchOS, and tvOS, on the
+`next` branch. Platform UI and lifecycle belong in `Apps`; shared models,
+session, API, and feature logic belong in `Packages/PutioCore`. Both are
+grouped by domain with the same folder names; see
+[Development](CONTRIBUTING.md#development).
 
 ## Work in this repository
 
@@ -27,20 +26,12 @@ see [Development](CONTRIBUTING.md#development).
   ([support messenger](docs/support.md)).
 - Keep checked-in defaults, generation, and verification usable without accounts,
   tokens, secrets, or downloaded brand fonts.
-- Supporting docs use lowercase kebab-case under `docs/`; the uppercase root
-  guides, `LICENSE`, tool-defined agent entrypoints (`AGENTS.md`, `CLAUDE.md`,
-  `SKILL.md`), and upstream skill files keep their names and content.
+- Supporting docs use lowercase kebab-case under `docs/`. Root guides,
+  `LICENSE`, and agent entrypoints (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`) keep
+  their uppercase names; upstream skill files stay verbatim.
 
 ## Hazards
 
-- **App Store delivery.** `main` is the default branch, and its Beta and
-  Release workflows build the shipping app with production signing and upload
-  it to TestFlight or App Store Connect, where it reaches testers or users and
-  cannot be taken back. Its Screenshots workflow replaces the live App Store
-  images unless it runs as a dry run, and its Submit workflow sends a build to
-  App Review, where dispatching it is the approval. Dispatch them on `main`
-  ([Distribution](docs/distribution.md#releases-from-main)); `next` has no
-  delivery workflows, and never copy signing configuration into it.
 - **Shared test account.** Live journeys and `live-fixture` use the `devs-auto`
   put.io CLI profile ([live-profile contract](docs/harness.md#live-profile-and-publishing)),
   shared with the web, Android, and TV harnesses. Each live journey approves a
@@ -52,8 +43,8 @@ see [Development](CONTRIBUTING.md#development).
   `proof --platform all`, requests an activation code; the tvOS journey covers
   sign-in offline.
 - **Simulators and devices.** The harness creates, shuts down, and deletes its
-  own uniquely named simulators and never opens Simulator.app; don't open it
-  from automation either. If cleanup fails, delete only the run's reported
+  own uniquely named simulators headlessly; keep automation headless too, never
+  through Simulator.app. If cleanup fails, delete only the run's reported
   UDIDs. Physical Apple TV builds use automatic provisioning and may register
   the device with the development team.
 - **One verify per worktree.** Verify lanes share `build/DerivedData`.
@@ -82,29 +73,13 @@ Report skipped or unavailable checks.
 
 ## Delivery
 
-Pull requests target `next`, not the default branch `main`: pass
-`gh pr create --base next`. They squash-merge. [Next CI](.github/workflows/ci-next.yml)
-runs the lanes a pull request's paths affect, plus a Markdown formatting check
-when it changes Markdown, and a new push cancels its stale run. A push to `next`
-runs every lane, keeps running when a later push lands, and saves the Xcode
-compilation caches. Nothing on `next` signs, versions, or publishes. Upload
-reviewed screenshots or recordings with `gh pr comment <n> --attach ./file.png`;
-never commit them.
-
-Next CI can't be dispatched: GitHub only dispatches workflows whose file exists
-on the default branch, `main`, which has no `ci-next.yml`, so
-`gh workflow run ci-next.yml --ref next -f verify=true` fails. Every push to
-`next` still runs every lane.
+Pull requests squash-merge. [Next CI](.github/workflows/ci-next.yml) runs the
+lanes a pull request's changed paths affect, and every lane on a push to
+`next`. Upload reviewed screenshots or recordings with
+`gh pr comment <n> --attach ./file.png`; never commit them.
 
 ## Skills
 
 Codex reads `.agents/skills`; Claude Code reads installer-managed links under
 `.claude/skills`. When installing or restoring skills with the skills CLI, select
 both `--agent codex claude-code`.
-
-- SwiftUI state, composition, navigation, and accessibility: [SwiftUI](.agents/skills/swiftui-expert-skill/SKILL.md)
-- Tasks, cancellation, actors, and Sendable: [Swift Concurrency](.agents/skills/swift-concurrency/SKILL.md)
-- Test design, async tests, and migration: [Swift Testing](.agents/skills/swift-testing-expert/SKILL.md)
-- Build timing and optimization: [Xcode Build Orchestrator](.agents/skills/xcode-build-orchestrator/SKILL.md), which routes to the installed benchmark, compiler, project, package, and fixer skills
-- Workspace generation and target changes: [Tuist](.agents/skills/using-tuist-generated-projects/SKILL.md)
-- Refreshing the skill's API reference: [SwiftUI API Updater](.agents/skills/update-swiftui-apis/SKILL.md)
