@@ -73,7 +73,7 @@ Report skipped or unavailable checks.
 
 ## Delivery
 
-Pull requests target `next` (`gh pr create --base next`) and squash-merge. [Next CI](.github/workflows/ci-next.yml)
+Pull requests squash-merge. [Next CI](.github/workflows/ci-next.yml)
 runs the lanes a pull request's paths affect, plus a Markdown formatting check
 when it changes Markdown, and a new push cancels its stale run. A push to `next`
 runs every lane, keeps running when a later push lands, and saves the Xcode
