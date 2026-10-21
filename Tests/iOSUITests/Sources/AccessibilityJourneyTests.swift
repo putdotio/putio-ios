@@ -211,11 +211,12 @@ final class AccessibilityJourneyTests: XCTestCase {
       }
       // A laid-out target, such as a control under the navigation bar, is
       // dragged toward the middle by its own offset: in a short landscape
-      // viewport a full swipe jumps past it. The drag starts at the edge so
-      // it never grabs a slider.
+      // viewport a full swipe jumps past it. The drag starts beside the
+      // slider, past the landscape safe area, so it never grabs the slider.
       let shift = min(max(app.frame.midY - target.frame.midY, -150), 150)
       let origin = app.coordinate(withNormalizedOffset: .zero)
-      let start = origin.withOffset(CGVector(dx: 12, dy: app.frame.midY))
+      let edge: CGFloat = app.frame.width > app.frame.height ? 100 : 12
+      let start = origin.withOffset(CGVector(dx: edge, dy: app.frame.midY))
       start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: shift)))
     }
     XCTAssertTrue(target.exists && target.isHittable, "Target remained unreachable after scrolling")
