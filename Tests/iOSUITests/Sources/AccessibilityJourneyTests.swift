@@ -127,8 +127,10 @@ final class AccessibilityJourneyTests: XCTestCase {
       XCTAssertEqual(XCTWaiter.wait(for: [seek], timeout: 5), .completed)
       XCTAssertTrue(waitForValue(state, "id=408;state=paused"))
       screenshot(name)
+      // Top to bottom, so scrolling only moves down the stack: an element
+      // scrolled under the navigation bar fails the hittability check.
       for identifier in [
-        "audio.speed", "audio.skip-back", "audio.play-pause", "audio.skip-forward", "audio.next",
+        "audio.skip-back", "audio.play-pause", "audio.skip-forward", "audio.speed", "audio.next",
         "audio.done",
       ] {
         let control = reachable(app.buttons[identifier])
