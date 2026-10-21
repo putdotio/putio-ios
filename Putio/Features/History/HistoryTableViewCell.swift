@@ -143,7 +143,8 @@ class HistoryTableViewCell: UITableViewCell {
     // UIKit's subtitle-style metrics at the default text size, so that size
     // renders as it did; all three grow with the text.
     private static let iconSize: CGFloat = 20
-    private static let minimumHeight: CGFloat = 155 / 3
+    // 60pt rows, less the separator below the content view.
+    private static let minimumHeight: CGFloat = 179 / 3
     private static let labelSpacing: CGFloat = 8 / 3
 
     private let iconView = UIImageView()
