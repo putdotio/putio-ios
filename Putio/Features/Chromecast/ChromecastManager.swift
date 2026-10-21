@@ -14,8 +14,8 @@ class ChromecastManager: NSObject {
 
         var playbackError: AnalyticsEvent.PlaybackError {
             switch self {
-            case .fileNotFound: return .notFound
-            case .fileNeedsConvert: return .needsConversion
+            case .fileNotFound: return .source
+            case .fileNeedsConvert: return .unsupported
             case .missingMetadata: return .media
             }
         }
