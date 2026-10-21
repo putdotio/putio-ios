@@ -3,7 +3,7 @@
 What the workflows, the store tool, and the `release` Environment rely on.
 The release runbook, the TestFlight diagnostics check, App Privacy answers,
 secret rotation, and GitHub settings live in
-[iOS legacy release](https://app.notion.com/p/3fdd546ba2f581a29718c0deeac09e20)
+[iOS release](https://app.notion.com/p/3fdd546ba2f581a29718c0deeac09e20)
 in the put.io Notion.
 
 ## Workflows
