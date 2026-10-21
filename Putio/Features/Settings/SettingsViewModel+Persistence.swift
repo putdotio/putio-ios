@@ -16,7 +16,7 @@ extension SettingsViewModel {
                 style: .default
             ) { _ in
                 DownloadConcurrencyPreference.setLimit(limit)
-                ProductAnalytics.capture(.settingsChanged(.downloadConcurrency, .number))
+                ProductAnalytics.capture(.settingsChanged(.downloadConcurrency, .changed))
                 DownloadQueueController.sharedInstance.concurrencyLimitDidChange()
                 self.update()
             })
@@ -116,7 +116,7 @@ extension SettingsViewModel {
     func saveAccountSettings(
         _ update: PutioAccountSettingsUpdate,
         changing setting: AnalyticsEvent.Setting,
-        to valueClass: AnalyticsEvent.ValueClass,
+        to value: AnalyticsEvent.SettingValue,
         onSuccess: @escaping () -> Void
     ) {
         let session = AccountNoticeStore.shared.session
@@ -124,7 +124,7 @@ extension SettingsViewModel {
             mutation: { completion in
                 self.saveAccountSettingsRequest(update) { result in
                     if case .success = result {
-                        ProductAnalytics.capture(.settingsChanged(setting, valueClass), startedIn: session)
+                        ProductAnalytics.capture(.settingsChanged(setting, value), startedIn: session)
                     }
                     completion(result)
                 }
@@ -191,7 +191,7 @@ extension SettingsViewModel {
                 api.setChromecastPlaybackType(playbackType) { result in
                     switch result {
                     case .success:
-                        ProductAnalytics.capture(.settingsChanged(.chromecastPlaybackType, .option), startedIn: session)
+                        ProductAnalytics.capture(.settingsChanged(.chromecastVideoPlaybackType, .init(playbackType)), startedIn: session)
                         completion(.success(()))
                     case .failure(let error):
                         completion(.failure(error))
@@ -294,7 +294,7 @@ extension SettingsViewModel {
     }
 
     func saveSortSettings(_ sortBy: String) {
-        saveAccountSettings(.patch(PutioAccountSettingsPatch(sortBy: sortBy)), changing: .sortBy, to: .option) {
+        saveAccountSettings(.patch(PutioAccountSettingsPatch(sortBy: sortBy)), changing: .sortBy, to: .changed) {
             self.settings.sortBy = sortBy
         }
     }

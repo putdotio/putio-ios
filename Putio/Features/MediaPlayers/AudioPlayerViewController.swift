@@ -180,7 +180,7 @@ class AudioPlayerViewController: UIViewController {
     }
 
     func disposePlayer() {
-        playbackAnalytics?.end()
+        playbackAnalytics?.close()
         player?.pause()
         unregisterPlayerObservers()
         unregisterPlayerTimeObservers()

@@ -37,17 +37,26 @@ enum AnalyticsEvent: Equatable {
         case hideSubtitles = "hide_subtitles"
         case dontAutoSelectSubtitles = "dont_autoselect_subtitles"
         case tunnelRoute = "tunnel_route_name"
-        case chromecastPlaybackType = "chromecast_playback_type"
+        /// Saved as the app's `chromecast_playback_type` config; named as the web app names it.
+        case chromecastVideoPlaybackType = "chromecast_video_playback_type"
         case downloadConcurrency = "download_concurrency"
     }
 
-    /// A switch's new state, as the web app's `settings_changed` sends it; for
-    /// any other setting, only the kind of value saved, never the value.
-    enum ValueClass: String, CaseIterable {
-        case on, off, option, number
+    /// The saved value as the web app's `settings_changed` sends it: a switch's
+    /// state or a playback type, else `changed`, so a sort, route, or number
+    /// never leaves the device.
+    enum SettingValue: String, CaseIterable {
+        case on, off, hls, mp4, changed
 
         init(_ enabled: Bool) {
             self = enabled ? .on : .off
+        }
+
+        init(_ playbackType: PutioChromecastPlaybackType) {
+            switch playbackType {
+            case .hls: self = .hls
+            case .mp4: self = .mp4
+            }
         }
     }
 
@@ -59,8 +68,9 @@ enum AnalyticsEvent: Equatable {
         case hls, progressive, mp4, localFile = "local_file"
     }
 
+    /// The playback engine, as web and TV name theirs.
     enum Player: String, CaseIterable {
-        case native, chromecast
+        case avplayer, chromecast
     }
 
     struct Playback: Equatable {
@@ -82,19 +92,18 @@ enum AnalyticsEvent: Equatable {
         }
     }
 
-    enum Completion: String, CaseIterable {
-        case completed, partial
-    }
-
+    /// The web app's playback errors: `source` is a deleted, unpaid, or
+    /// throttled file, `unsupported` one the player can't play as it is.
     enum PlaybackError: String, CaseIterable {
-        case network, media, notFound = "not_found", needsConversion = "needs_conversion", unknown
+        case network, media, source, unsupported, unknown
 
         /// The error's kind only: its message and URL stay on the device.
         init(_ error: Error?) {
             if let error = error as? PutioSDKError {
                 switch error.type {
-                case .networkError: self = .network
-                case .httpError(404, _): self = .notFound
+                case .networkError, .httpError(0, _), .httpError(408, _): self = .network
+                case .httpError(402, _), .httpError(404, _), .httpError(429, _): self = .source
+                case .httpError(let status, _) where status >= 500: self = .network
                 default: self = .unknown
                 }
                 return
@@ -110,10 +119,10 @@ enum AnalyticsEvent: Equatable {
     case appOpened(Entry)
     case appBackgrounded(SessionDuration)
     case screenViewed(Screen)
-    case settingsChanged(Setting, ValueClass)
+    case settingsChanged(Setting, SettingValue)
     case supportStarted
     case playbackStarted(Playback)
-    case playbackEnded(Playback, Completion, PlaybackDuration)
+    case playbackEnded(Playback, PlaybackDuration)
     case playbackFailed(Playback, PlaybackError)
 
     var name: String {
@@ -137,16 +146,16 @@ enum AnalyticsEvent: Equatable {
             return ["session_duration": duration.rawValue]
         case .screenViewed(let screen):
             return ["screen": screen.rawValue]
-        case .settingsChanged(let setting, let valueClass):
-            return ["setting": setting.rawValue, "value_class": valueClass.rawValue]
+        case .settingsChanged(let setting, let value):
+            return ["setting": setting.rawValue, "value": value.rawValue]
         case .supportStarted:
             return [:]
         case .playbackStarted(let playback):
             return playback.properties
-        case .playbackEnded(let playback, let completion, let duration):
-            return playback.properties.merging(["completion": completion.rawValue, "duration": duration.rawValue]) { $1 }
+        case .playbackEnded(let playback, let duration):
+            return playback.properties.merging(["duration": duration.rawValue]) { $1 }
         case .playbackFailed(let playback, let error):
-            return playback.properties.merging(["error_class": error.rawValue]) { $1 }
+            return playback.properties.merging(["error": error.rawValue]) { $1 }
         }
     }
 }
@@ -165,7 +174,7 @@ enum AnalyticsAllowlist {
     private static let playback: [String: Set<String>] = [
         "media": ["video", "audio"],
         "stream_method": ["hls", "progressive", "mp4", "local_file"],
-        "player": ["native", "chromecast"]
+        "player": ["avplayer", "chromecast"]
     ]
 
     static let eventProperties: [String: [String: Set<String>]] = [
@@ -175,19 +184,14 @@ enum AnalyticsAllowlist {
         "settings_changed": [
             "setting": [
                 "show_optimistic_usage", "trash_enabled", "history_enabled", "sort_by", "hide_subtitles",
-                "dont_autoselect_subtitles", "tunnel_route_name", "chromecast_playback_type", "download_concurrency"
+                "dont_autoselect_subtitles", "tunnel_route_name", "chromecast_video_playback_type", "download_concurrency"
             ],
-            "value_class": ["on", "off", "option", "number"]
+            "value": ["on", "off", "hls", "mp4", "changed"]
         ],
         "support_started": [:],
         "playback_started": playback,
-        "playback_ended": playback.merging([
-            "completion": ["completed", "partial"],
-            "duration": ["lt_5m", "5m_30m", "30m_90m", "gt_90m"]
-        ]) { $1 },
-        "playback_failed": playback.merging([
-            "error_class": ["network", "media", "not_found", "needs_conversion", "unknown"]
-        ]) { $1 }
+        "playback_ended": playback.merging(["duration": ["lt_5m", "5m_30m", "30m_90m", "gt_90m"]]) { $1 },
+        "playback_failed": playback.merging(["error": ["network", "media", "source", "unsupported", "unknown"]]) { $1 }
     ]
 
     static let commonProperties: [String: Set<String>] = [
@@ -195,6 +199,7 @@ enum AnalyticsAllowlist {
         "runtime": ["ios"],
         "device_class": ["phone", "tablet", "desktop", "unknown"],
         "auth_state": ["signed_in"],
+        "environment": ["production"],
         "release_channel": ["stable", "beta"]
     ]
 
@@ -317,22 +322,22 @@ final class PlaybackAnalytics {
     }
 
     /// The media played to its end, whether or not the player stays open.
+    /// The only `playback_ended`, as on the web app.
     func didReachEnd() {
-        finish(.completed)
-    }
-
-    /// Before `start()`, as when the player closes while it looks up the
-    /// position, it sends nothing and a later `start()` sends nothing either.
-    func end() {
-        finish(.partial)
-    }
-
-    private func finish(_ completion: AnalyticsEvent.Completion) {
         lock.withLock {
             queueObservation = nil
             defer { isFinished = true }
             guard let startedAt, !isFinished else { return }
-            capture(.playbackEnded(playback, completion, .init(seconds: now().timeIntervalSince(startedAt))))
+            capture(.playbackEnded(playback, .init(seconds: now().timeIntervalSince(startedAt))))
+        }
+    }
+
+    /// The player closed. Sends nothing, and neither does a later call, such
+    /// as the `start()` of a player that closes while it looks up the position.
+    func close() {
+        lock.withLock {
+            queueObservation = nil
+            isFinished = true
         }
     }
 

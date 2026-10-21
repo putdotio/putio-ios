@@ -327,6 +327,8 @@ final class ProductAnalyticsGate {
             "runtime_version": device.systemVersion,
             "device_class": deviceClass,
             "auth_state": "signed_in",
+            // Only the App Store build sends, and it talks to production put.io.
+            "environment": "production",
             // TestFlight names its receipt `sandboxReceipt`; the App Store `receipt`.
             "release_channel": bundle.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt" ? "beta" : "stable"
         ]

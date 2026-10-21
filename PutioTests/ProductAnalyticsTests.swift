@@ -1,7 +1,7 @@
 import AVFoundation
 import os
 import PostHog
-import PutioSDK
+@testable import PutioSDK
 import XCTest
 @testable import Putio
 
@@ -73,8 +73,13 @@ final class ProductAnalyticsTests: XCTestCase {
             ("screen_viewed", "screen", true),
             ("settings_changed", "setting", "product_analytics_enabled"),
             ("settings_changed", "setting", "diagnostics_enabled"),
-            ("settings_changed", "value_class", "true"),
-            ("playback_failed", "error_class", "The operation couldn't be completed. (\(host))"),
+            ("settings_changed", "value", "true"),
+            ("settings_changed", "value", "NAME_ASC"),
+            ("settings_changed", "value_class", "on"),
+            ("playback_failed", "error", "The operation couldn't be completed. (\(host))"),
+            ("playback_failed", "error_class", "network"),
+            ("playback_ended", "completion", "partial"),
+            ("screen_viewed", "environment", "development"),
             ("screen_viewed", "$lib", leak),
             ("screen_viewed", "$lib_version", leak),
             ("screen_viewed", "$session_id", leak),
@@ -92,6 +97,34 @@ final class ProductAnalyticsTests: XCTestCase {
             let properties = ProductAnalyticsGate.commonProperties().merging(event.properties) { $1 }
             let kept = try XCTUnwrap(AnalyticsAllowlist.allowedProperties(event: event.name, properties: properties), event.name)
             XCTAssertEqual(kept as? [String: String], properties, "\(event) is not on the allowlist")
+        }
+    }
+
+    /// Names and values as the Analytics event contract and the web app's
+    /// `@putdotio/analytics` spell them, so one dashboard reads every app.
+    func testEventsUseTheContractsNamesAndValues() throws {
+        let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer)
+        let expected: [(AnalyticsEvent, [String: String])] = [
+            (.settingsChanged(.hideSubtitles, .init(true)), ["setting": "hide_subtitles", "value": "on"]),
+            (.settingsChanged(.chromecastVideoPlaybackType, .init(.mp4)), ["setting": "chromecast_video_playback_type", "value": "mp4"]),
+            (.settingsChanged(.sortBy, .changed), ["setting": "sort_by", "value": "changed"]),
+            (.playbackStarted(video), ["media": "video", "stream_method": "hls", "player": "avplayer"]),
+            (.playbackEnded(video, .under5m), ["media": "video", "stream_method": "hls", "player": "avplayer", "duration": "lt_5m"]),
+            (.playbackFailed(video, .source), ["media": "video", "stream_method": "hls", "player": "avplayer", "error": "source"])
+        ]
+        for (event, properties) in expected {
+            XCTAssertEqual(event.properties, properties)
+            let kept = try XCTUnwrap(AnalyticsAllowlist.allowedProperties(event: event.name, properties: properties))
+            XCTAssertEqual(kept as? [String: String], properties)
+        }
+        XCTAssertEqual(ProductAnalyticsGate.commonProperties()["environment"], "production")
+
+        let config = PutioSDKRequestConfig(apiConfig: PutioSDKConfig(clientID: "3001"), url: "/files/1", method: .get)
+        for (status, error) in [(404, "source"), (402, "source"), (429, "source"), (503, "network"), (403, "unknown")] {
+            let failure = PutioSDKError(
+                request: PutioSDKErrorRequestInformation(config: config), statusCode: status, errorType: nil, message: "", underlyingError: URLError(.badServerResponse)
+            )
+            XCTAssertEqual(AnalyticsEvent.PlaybackError(failure).rawValue, error, "\(status)")
         }
     }
 
@@ -287,7 +320,7 @@ final class ProductAnalyticsTests: XCTestCase {
 
         // What signing out, then signing in again, does to the session.
         AccountNoticeStore.shared.clear()
-        gate.capture(.settingsChanged(.sortBy, .option), startedIn: session)
+        gate.capture(.settingsChanged(.sortBy, .changed), startedIn: session)
         gate.capture(.screenViewed(.files), startedIn: AccountNoticeStore.shared.session)
         let events = try waitForEvents(token: token, count: 1)
 
@@ -297,14 +330,14 @@ final class ProductAnalyticsTests: XCTestCase {
     func testAPlaybackThatOutlivesItsSessionSendsNothing() throws {
         let (gate, token) = makeGate()
         gate.update(accountID: 1001, productAnalyticsEnabled: true)
-        let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .native)
+        let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer)
         let pictureInPicture = PlaybackAnalytics(video, capture: gate.captureInCurrentSession())
         pictureInPicture.start()
         _ = try waitForEvents(token: token, count: 1)
 
         // Signed out and in again while Picture in Picture kept playing.
         AccountNoticeStore.shared.clear()
-        pictureInPicture.end()
+        pictureInPicture.didReachEnd()
         PlaybackAnalytics(video, capture: gate.captureInCurrentSession()).fail(URLError(.timedOut))
         let events = try waitForEvents(token: token, count: 2)
 
@@ -372,12 +405,12 @@ final class ProductAnalyticsTests: XCTestCase {
         ])
     }
 
-    func testPlaybackStartsOnceAndEndsOrFailsOnce() {
+    func testPlaybackStartsOnceAndEndsOnlyAtTheEnd() {
         var events: [AnalyticsEvent] = []
         var clock = Date(timeIntervalSince1970: 0)
-        let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .native)
+        let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer)
         let closedEarly = PlaybackAnalytics(video, capture: { events.append($0) }, now: { clock })
-        closedEarly.end()
+        closedEarly.close()
         closedEarly.start()
 
         let playback = PlaybackAnalytics(video, capture: { events.append($0) }, now: { clock })
@@ -387,21 +420,23 @@ final class ProductAnalyticsTests: XCTestCase {
         playback.didReachEnd()
         // The finished player stays open for an hour before it closes.
         clock += 3600
-        playback.end()
+        playback.close()
         playback.fail(URLError(.timedOut))
 
+        // Closed before the end: like the web app, no playback_ended.
         let closed = PlaybackAnalytics(video, capture: { events.append($0) }, now: { clock })
         closed.start()
-        closed.end()
+        closed.close()
+        closed.didReachEnd()
 
         let failing = PlaybackAnalytics(video, capture: { events.append($0) }, now: { clock })
         failing.fail(NSError(domain: AVFoundationErrorDomain, code: -11800, userInfo: [NSLocalizedDescriptionKey: fileName]))
         failing.start()
-        failing.end()
+        failing.didReachEnd()
 
         XCTAssertEqual(events, [
-            .playbackStarted(video), .playbackEnded(video, .completed, .from30mTo90m),
-            .playbackStarted(video), .playbackEnded(video, .partial, .under5m),
+            .playbackStarted(video), .playbackEnded(video, .from30mTo90m),
+            .playbackStarted(video),
             .playbackFailed(video, .media)
         ])
         XCTAssertEqual(AnalyticsEvent.PlaybackError(PutioSDKError.offline("/files/1")), .network)
@@ -410,7 +445,7 @@ final class ProductAnalyticsTests: XCTestCase {
     }
 
     func testAnEndFromAnotherThreadLeavesAfterTheStart() {
-        let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .native)
+        let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer)
         let events = OSAllocatedUnfairLock(uncheckedState: [AnalyticsEvent]())
         let ending = DispatchGroup()
         var playback: PlaybackAnalytics?
@@ -419,7 +454,7 @@ final class ProductAnalyticsTests: XCTestCase {
                 // AVFoundation reports the end on its own thread while the start is on its way out.
                 ending.enter()
                 DispatchQueue.global().async {
-                    playback?.end()
+                    playback?.didReachEnd()
                     ending.leave()
                 }
                 _ = ending.wait(timeout: .now() + 0.2)
@@ -430,7 +465,7 @@ final class ProductAnalyticsTests: XCTestCase {
         playback?.start()
 
         XCTAssertEqual(ending.wait(timeout: .now() + 5), .success)
-        XCTAssertEqual(events.withLock { $0 }, [.playbackStarted(video), .playbackEnded(video, .partial, .under5m)])
+        XCTAssertEqual(events.withLock { $0 }, [.playbackStarted(video), .playbackEnded(video, .under5m)])
         playback = nil
     }
 
@@ -459,13 +494,11 @@ final class ProductAnalyticsTests: XCTestCase {
         events += AnalyticsEvent.SessionDuration.allCases.map(AnalyticsEvent.appBackgrounded)
         events += AnalyticsEvent.Screen.allCases.map(AnalyticsEvent.screenViewed)
         for setting in AnalyticsEvent.Setting.allCases {
-            events += AnalyticsEvent.ValueClass.allCases.map { AnalyticsEvent.settingsChanged(setting, $0) }
+            events += AnalyticsEvent.SettingValue.allCases.map { AnalyticsEvent.settingsChanged(setting, $0) }
         }
         for playback in playbacks {
             events.append(.playbackStarted(playback))
-            for completion in AnalyticsEvent.Completion.allCases {
-                events += AnalyticsEvent.PlaybackDuration.allCases.map { AnalyticsEvent.playbackEnded(playback, completion, $0) }
-            }
+            events += AnalyticsEvent.PlaybackDuration.allCases.map { AnalyticsEvent.playbackEnded(playback, $0) }
             events += AnalyticsEvent.PlaybackError.allCases.map { AnalyticsEvent.playbackFailed(playback, $0) }
         }
         return events

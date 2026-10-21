@@ -72,7 +72,7 @@ class RoutesViewModel {
         api.saveAccountSettings(.patch(PutioAccountSettingsPatch(tunnelRouteName: route.name))) { result in
             switch result {
             case .success:
-                ProductAnalytics.capture(.settingsChanged(.tunnelRoute, .option), startedIn: session)
+                ProductAnalytics.capture(.settingsChanged(.tunnelRoute, .changed), startedIn: session)
                 if let realm = self.userSettings.realm ?? PutioRealm.open(context: "RoutesViewModel.setRoute") {
                     _ = PutioRealm.write(realm, context: "RoutesViewModel.setRoute.write") {
                         self.userSettings.routeName = route.name

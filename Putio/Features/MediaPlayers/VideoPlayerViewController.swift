@@ -218,7 +218,7 @@ class VideoPlayerViewController: AVPlayerViewController {
         unregisterPlayerTimeObserver()
         player?.pause()
         onPlaybackStoppedIfNeeded()
-        playbackAnalytics?.end()
+        playbackAnalytics?.close()
     }
 
     private func registerPlayerTimeObserver() {

@@ -63,7 +63,7 @@ extension MediaPlayerItem {
         case (.online, .video): streamMethod = .hls
         case (.online, .audio): streamMethod = .progressive
         }
-        return AnalyticsEvent.Playback(media: fileType == .video ? .video : .audio, streamMethod: streamMethod, player: .native)
+        return AnalyticsEvent.Playback(media: fileType == .video ? .video : .audio, streamMethod: streamMethod, player: .avplayer)
     }
 }
 
