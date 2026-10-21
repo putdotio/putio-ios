@@ -27,8 +27,8 @@ final class AccessibilityJourneyTests: XCTestCase {
     app.launch()
     let configuration = element("harness.accessibility")
     XCTAssertTrue(configuration.appears(within: 10))
-    // The device runs at accessibility5; the app caps text at accessibility2.
-    XCTAssertEqual(configuration.value as? String, "text=accessibility2;reduce-motion=true")
+    // The device runs at accessibility5; the app caps text at XX Large.
+    XCTAssertEqual(configuration.value as? String, "text=xxLarge;reduce-motion=true")
     let signIn = app.buttons["auth.sign-in"]
     XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
@@ -203,13 +203,21 @@ final class AccessibilityJourneyTests: XCTestCase {
     let scroll = app.scrollViews.firstMatch
     let collection = app.collectionViews.firstMatch
     let surface: XCUIElement = scroll.exists ? scroll : (collection.exists ? collection : app)
-    for _ in 0..<maximumSwipes {
+    for _ in 0..<(maximumSwipes * 2) {
       if target.exists && target.isHittable { return target }
-      surface.swipeUp()
-    }
-    for _ in 0..<maximumSwipes {
-      if target.exists && target.isHittable { return target }
-      surface.swipeDown()
+      guard target.exists, !target.frame.isEmpty else {
+        surface.swipeUp()
+        continue
+      }
+      // A laid-out target, such as a control under the navigation bar, is
+      // dragged toward the middle by its own offset: in a short landscape
+      // viewport a full swipe jumps past it. The drag starts beside the
+      // slider, past the landscape safe area, so it never grabs the slider.
+      let shift = min(max(app.frame.midY - target.frame.midY, -150), 150)
+      let origin = app.coordinate(withNormalizedOffset: .zero)
+      let edge: CGFloat = app.frame.width > app.frame.height ? 100 : 12
+      let start = origin.withOffset(CGVector(dx: edge, dy: app.frame.midY))
+      start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: shift)))
     }
     XCTAssertTrue(target.exists && target.isHittable, "Target remained unreachable after scrolling")
     return target

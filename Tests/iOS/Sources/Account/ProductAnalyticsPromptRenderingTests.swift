@@ -18,10 +18,10 @@ final class ProductAnalyticsPromptRenderingTests: XCTestCase {
       view: sheet(model),
       size: CGSize(width: 393, height: 680))
     _ = try assertRenderingSnapshot(
-      name: "analytics-prompt-accessibility2",
+      name: "analytics-prompt-xxlarge",
       view: sheet(model),
-      size: CGSize(width: 393, height: 1060),
-      dynamicTypeSize: .accessibility2)
+      size: CGSize(width: 393, height: 860),
+      dynamicTypeSize: .xxLarge)
   }
 
   @MainActor

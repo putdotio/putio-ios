@@ -93,9 +93,9 @@ public struct PutioFileRow: View {
     Text(text)
       .putioFont(PutioFileRowLayout.detailFont)
       .foregroundStyle(PutioTheme.Colors.textSecondary)
-      // Details are short; at accessibility sizes they wrap rather than lose
+      // Details are short; above the default size they wrap rather than lose
       // the date or expiry to truncation.
-      .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+      .lineLimit(dynamicTypeSize > .large ? nil : 1)
       .fixedSize(horizontal: false, vertical: true)
   }
 

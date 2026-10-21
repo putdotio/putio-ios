@@ -46,11 +46,11 @@ struct PutioApp: App {
   }
 }
 
-/// Text stops growing at the second accessibility size, past which titles,
-/// rows and sheets crowd out their own content. SwiftUI's `dynamicTypeSize`
+/// Text stops growing at XX Large, past which titles, rows, sheets and the
+/// tab bar accessory crowd out their own content. SwiftUI's `dynamicTypeSize`
 /// misses UIKit-presented menus and alerts; a window override reaches them.
 private struct ContentSizeCap: UIViewRepresentable {
-  static let maximum = UIContentSizeCategory.accessibilityLarge
+  static let maximum = UIContentSizeCategory.extraExtraLarge
 
   func makeUIView(context: Context) -> CapView { CapView() }
   func updateUIView(_ view: CapView, context: Context) {}

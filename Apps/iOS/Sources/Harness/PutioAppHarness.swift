@@ -85,7 +85,7 @@ struct HarnessExerciseView: View {
         "--putio-harness-scenario", "exercised",
       ])
     )
-    .dynamicTypeSize(.accessibility2)
+    .dynamicTypeSize(.xxLarge)
     .onAppear {
       SignedOutPresentation.signalHarnessExercise()
     }
