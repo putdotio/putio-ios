@@ -195,7 +195,7 @@ class HistoryTableViewCell: UITableViewCell {
             iconView.widthAnchor.constraint(equalToConstant: Self.iconSize),
             iconView.heightAnchor.constraint(equalToConstant: Self.iconSize),
             iconView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 21),
-            iconView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            iconView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor, constant: -1 / 3),
             labels.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 16),
             labels.trailingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.trailingAnchor),
             labels.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor, constant: 8),
