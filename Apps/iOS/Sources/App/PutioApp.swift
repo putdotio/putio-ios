@@ -41,9 +41,44 @@ struct PutioApp: App {
       #endif
       .preferredColorScheme(.dark)
       .tint(PutioTheme.Colors.accent)
-      // Text stops growing at the first accessibility sizes, past which
-      // titles, rows and sheets crowd out their own content.
-      .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+      .background { ContentSizeCap().frame(width: 0, height: 0) }
+    }
+  }
+}
+
+/// Text stops growing at the second accessibility size, past which titles,
+/// rows and sheets crowd out their own content. SwiftUI's `dynamicTypeSize`
+/// misses UIKit-presented menus and alerts; a window override reaches them.
+private struct ContentSizeCap: UIViewRepresentable {
+  static let maximum = UIContentSizeCategory.accessibilityLarge
+
+  func makeUIView(context: Context) -> CapView { CapView() }
+  func updateUIView(_ view: CapView, context: Context) {}
+
+  final class CapView: UIView {
+    private weak var observedScene: UIWindowScene?
+
+    override func didMoveToWindow() {
+      super.didMoveToWindow()
+      guard let window, let scene = window.windowScene else { return }
+      if observedScene !== scene {
+        observedScene = scene
+        scene.registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) {
+          [weak self] (_: UIWindowScene, _) in self?.apply()
+        }
+      }
+      apply()
+    }
+
+    // The scene's category is the user's, or a harness override of it.
+    private func apply() {
+      guard let window, let scene = window.windowScene else { return }
+      let category = scene.traitCollection.preferredContentSizeCategory
+      if category == .unspecified {
+        window.traitOverrides.remove(UITraitPreferredContentSizeCategory.self)
+      } else {
+        window.traitOverrides.preferredContentSizeCategory = min(category, ContentSizeCap.maximum)
+      }
     }
   }
 }
