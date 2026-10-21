@@ -225,6 +225,10 @@ extension HistoryViewController: UITableViewDataSource {
 }
 
 extension HistoryViewController: UITableViewDelegate {
+    func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        GroupedSectionHeader.height(in: tableView)
+    }
+
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: false)
         guard let event = (viewModel.sections[indexPath.section].events[indexPath.row] as? PutioFileHistoryEvent) else { return }

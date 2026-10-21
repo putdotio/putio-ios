@@ -31,7 +31,7 @@ class AboutTableViewController: UITableViewController {
 
         cell.textLabel?.text = item.title
         cell.accessoryType = .disclosureIndicator
-        let accessoryImageView = UIImageView(image: PutioIcon.caretRight.image)
+        let accessoryImageView = UIImageView(image: PutioIcon.caretRight.image(pointSize: 16, scaledFor: tableView.traitCollection))
         accessoryImageView.tintColor = UIColor.Putio.Yellow.textSecondary
         cell.accessoryView = accessoryImageView
 

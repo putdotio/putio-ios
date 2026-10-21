@@ -10,17 +10,17 @@ class TrashTableViewCell: UITableViewCell {
 
         switch trashFile.type {
         case .folder:
-            imageView?.image = PutioIcon.folderFill.image(pointSize: 20)
+            imageView?.image = PutioIcon.folderFill.image(pointSize: 20, scaledFor: traitCollection)
             imageView?.tintColor = UIColor.Putio.Yellow.solid
 
         case .video:
-            imageView?.image = PutioIcon.fileVideo.image(pointSize: 20)
+            imageView?.image = PutioIcon.fileVideo.image(pointSize: 20, scaledFor: traitCollection)
 
         case .audio:
-            imageView?.image = PutioIcon.fileAudio.image(pointSize: 20)
+            imageView?.image = PutioIcon.fileAudio.image(pointSize: 20, scaledFor: traitCollection)
 
         default:
-            imageView?.image = PutioIcon.file.image(pointSize: 20)
+            imageView?.image = PutioIcon.file.image(pointSize: 20, scaledFor: traitCollection)
         }
 
         textLabel?.text = trashFile.name

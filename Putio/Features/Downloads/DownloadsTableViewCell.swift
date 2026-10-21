@@ -26,8 +26,17 @@ class DownloadsTableViewCell: UITableViewCell {
         return button
     }()
 
+    private var iconSizes: TextScaledSizes?
+
     override func awakeFromNib() {
         super.awakeFromNib()
+
+        let iconSizes = TextScaledSizes([icon, downloadButtonContainer])
+        iconSizes.apply(traitCollection)
+        self.iconSizes = iconSizes
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (cell: DownloadsTableViewCell, _: UITraitCollection) in
+            cell.iconSizes?.apply(cell.traitCollection)
+        }
 
         stateButton.translatesAutoresizingMaskIntoConstraints = false
         downloadButtonContainer.addSubview(stateButton)
@@ -316,11 +325,14 @@ class DownloadStateButton: UIControl {
         if traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection) {
             resolveLayerColors()
         }
+        if traitCollection.preferredContentSizeCategory != previousTraitCollection?.preferredContentSizeCategory {
+            update(from: nil)
+        }
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let inset: CGFloat = 10
+        let inset = TextScaledSizes.scaled(10, for: traitCollection)
         let rect = bounds.insetBy(dx: inset, dy: inset)
         let path = UIBezierPath(
             arcCenter: CGPoint(x: rect.midX, y: rect.midY),
@@ -334,7 +346,7 @@ class DownloadStateButton: UIControl {
     }
 
     private func setIconSize(_ size: CGFloat) {
-        iconSizeConstraints.forEach { $0.constant = size }
+        iconSizeConstraints.forEach { $0.constant = TextScaledSizes.scaled(size, for: traitCollection) }
     }
 
     private func update(from oldValue: DisplayState?) {
@@ -343,21 +355,21 @@ class DownloadStateButton: UIControl {
             trackLayer.isHidden = true
             progressLayer.isHidden = true
             setIconSize(20)
-            iconView.image = PutioIcon.downloadSimple.image(pointSize: 20)
+            iconView.image = PutioIcon.downloadSimple.image(pointSize: 20, scaledFor: traitCollection)
             iconView.tintColor = gray
 
         case .queued:
             trackLayer.isHidden = true
             progressLayer.isHidden = true
             setIconSize(20)
-            iconView.image = PutioIcon.clock.image(pointSize: 20)
+            iconView.image = PutioIcon.clock.image(pointSize: 20, scaledFor: traitCollection)
             iconView.tintColor = gray
 
         case .progress(let value):
             trackLayer.isHidden = false
             progressLayer.isHidden = false
             setIconSize(14)
-            iconView.image = PutioIcon.stopFill.image(pointSize: 14)
+            iconView.image = PutioIcon.stopFill.image(pointSize: 14, scaledFor: traitCollection)
             iconView.tintColor = gray
 
             let clamped = min(max(value, 0), 1)
@@ -378,7 +390,7 @@ class DownloadStateButton: UIControl {
             trackLayer.isHidden = true
             progressLayer.isHidden = true
             setIconSize(20)
-            iconView.image = PutioIcon.checkCircleFill.image(pointSize: 20)
+            iconView.image = PutioIcon.checkCircleFill.image(pointSize: 20, scaledFor: traitCollection)
             iconView.tintColor = UIColor.Putio.Yellow.solid
         }
     }

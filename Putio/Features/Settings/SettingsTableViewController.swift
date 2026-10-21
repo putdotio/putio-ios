@@ -36,6 +36,10 @@ class SettingsTableViewController: UITableViewController, TwoFactorAuthPresenter
         return viewModel.sections[section].title
     }
 
+    override func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        GroupedSectionHeader.height(in: tableView)
+    }
+
     override func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
         return viewModel.sections[section].footer
     }

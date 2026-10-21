@@ -137,24 +137,99 @@ struct HistoryEventPresentation {
     }
 }
 
+/// Its own icon and labels rather than the built-in subtitle style, which
+/// moves the detail line under the icon at larger text sizes.
 class HistoryTableViewCell: UITableViewCell {
-    func configure(with event: PutioHistoryEvent) {
-        imageView?.contentMode = .scaleAspectFit
-        // Code-built: awakeFromNib never runs on these labels.
-        configureGlobalAppearance()
+    // UIKit's subtitle-style metrics at the default text size, measured from
+    // its rendering, so that size draws as it did; all grow with the text.
+    private static let iconSize: CGFloat = 20
+    private static let minimumHeight: CGFloat = 60
+    private static let labelSpacing: CGFloat = 3
+    private static let centerOffset: CGFloat = -5 / 6
 
-        guard let presentation = HistoryEventPresentation.build(from: event) else {
-            InternalFailurePresenter.log("Unable to build history event presentation for event type: \(event.type)")
-            textLabel?.text = NSLocalizedString("No title", comment: "")
-            detailTextLabel?.text = ""
-            imageView?.image = PutioIcon.imageIcon.image(pointSize: 20)
-            imageView?.tintColor = UIColor.Putio.Neutral.textSecondary
-            return
+    private let iconView = UIImageView()
+    let titleLabel = UILabel()
+    let detailLabel = UILabel()
+    private var iconSizes: TextScaledSizes?
+    private var minimumHeightConstraint: NSLayoutConstraint?
+    private weak var labelsStack: UIStackView?
+
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        buildLayout()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        buildLayout()
+    }
+
+    private func buildLayout() {
+        // The storyboard prototype keeps the built-in style's placeholders.
+        textLabel?.text = nil
+        detailTextLabel?.text = nil
+        imageView?.image = nil
+
+        iconView.contentMode = .scaleAspectFit
+        iconView.tintColor = UIColor.Putio.Neutral.textSecondary
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+
+        titleLabel.font = .preferredFont(forTextStyle: .subheadline)
+        titleLabel.textColor = UIColor.Putio.Neutral.text
+        detailLabel.font = .preferredFont(forTextStyle: .caption2)
+        detailLabel.textColor = UIColor.Putio.Neutral.textSecondary
+        for label in [titleLabel, detailLabel] {
+            label.adjustsFontForContentSizeCategory = true
+            label.applyBrandFontIfAvailable()
         }
 
-        textLabel?.text = presentation.text
-        detailTextLabel?.text = presentation.detailText
-        imageView?.image = presentation.icon.image(pointSize: 20)
-        imageView?.tintColor = UIColor.Putio.Neutral.textSecondary
+        let labels = UIStackView(arrangedSubviews: [titleLabel, detailLabel])
+        labels.axis = .vertical
+        labels.spacing = Self.labelSpacing
+        labels.translatesAutoresizingMaskIntoConstraints = false
+        labelsStack = labels
+
+        contentView.addSubview(iconView)
+        contentView.addSubview(labels)
+        NSLayoutConstraint.activate([
+            iconView.widthAnchor.constraint(equalToConstant: Self.iconSize),
+            iconView.heightAnchor.constraint(equalToConstant: Self.iconSize),
+            iconView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            iconView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor, constant: -1 / 3),
+            labels.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 15),
+            labels.trailingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.trailingAnchor),
+            labels.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor, constant: 8),
+            labels.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -8),
+            labels.centerYAnchor.constraint(equalTo: contentView.centerYAnchor, constant: Self.centerOffset)
+        ])
+        let minimumHeight = contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: Self.minimumHeight)
+        // Below required, so it yields to the table's own height while a row resizes.
+        minimumHeight.priority = .required - 1
+        minimumHeight.isActive = true
+        minimumHeightConstraint = minimumHeight
+
+        iconSizes = TextScaledSizes([iconView])
+        scaleWithText()
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (cell: HistoryTableViewCell, _: UITraitCollection) in
+            cell.scaleWithText()
+        }
+    }
+
+    private func scaleWithText() {
+        iconSizes?.apply(traitCollection)
+        minimumHeightConstraint?.constant = TextScaledSizes.scaled(Self.minimumHeight, for: traitCollection)
+        labelsStack?.spacing = TextScaledSizes.scaled(Self.labelSpacing, for: traitCollection)
+    }
+
+    func configure(with event: PutioHistoryEvent) {
+        let presentation = HistoryEventPresentation.build(from: event)
+        if presentation == nil {
+            InternalFailurePresenter.log("Unable to build history event presentation for event type: \(event.type)")
+        }
+        titleLabel.text = presentation?.text ?? NSLocalizedString("No title", comment: "")
+        detailLabel.text = presentation?.detailText ?? ""
+        // One VoiceOver stop per row, as the built-in subtitle style gave.
+        accessibilityLabel = [titleLabel.text, detailLabel.text].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
+        iconView.image = (presentation?.icon ?? .imageIcon).image
     }
 }

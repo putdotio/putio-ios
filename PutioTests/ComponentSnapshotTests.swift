@@ -220,7 +220,7 @@ final class ComponentSnapshotTests: XCTestCase {
 
         let cell = HistoryTableViewCell(style: .subtitle, reuseIdentifier: "historyReuse")
         cell.configure(with: event)
-        XCTAssertEqual(cell.textLabel?.text, "E2E Upload.mp4", "cell should render the upload, not the fallback")
+        XCTAssertEqual(cell.titleLabel.text, "E2E Upload.mp4", "cell should render the upload, not the fallback")
         assertComponent(cell, size: CGSize(width: 375, height: 64), named: "history-cell-upload")
     }
 

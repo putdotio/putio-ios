@@ -12,7 +12,7 @@ extension UITableViewCell {
     }
 
     // Code-built cells must call this from their own configure(_:) — see
-    // HistoryTableViewCell and TrashTableViewCell. A layoutSubviews override
+    // TrashTableViewCell. A layoutSubviews override
     // here is not an alternative: an extension override of a UIKit method is
     // not reliably installed, and the font measurably stays on the system face.
     func configureGlobalAppearance() {

@@ -83,8 +83,8 @@ final class BrandTypographyCoverageTests: XCTestCase {
         cell.configure(with: event)
         render(cell, size: CGSize(width: 375, height: 64))
 
-        assertBrandFace(cell.textLabel?.font, "History cell title")
-        assertBrandFace(cell.detailTextLabel?.font, "History cell subtitle")
+        assertBrandFace(cell.titleLabel.font, "History cell title")
+        assertBrandFace(cell.detailLabel.font, "History cell subtitle")
     }
 
     func testTrashCellUsesBrandFace() throws {

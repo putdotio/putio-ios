@@ -125,10 +125,21 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
         stateMachine.transitionToState(.view("loading"), animated: false, completion: nil)
     }
 
+    /// Fixed rows up to the default text size, as designed; above it rows
+    /// grow with their text instead of clipping the subtitle.
+    private func applyRowHeight() {
+        let grows = traitCollection.preferredContentSizeCategory > .large
+        tableView.rowHeight = grows ? UITableView.automaticDimension : FilesTableViewCell.minimumHeight
+    }
+
     func configureAppearance() {
         configureToolbar()
 
-        tableView.rowHeight = 55.0
+        tableView.estimatedRowHeight = FilesTableViewCell.minimumHeight
+        applyRowHeight()
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (controller: FilesViewController, _: UITraitCollection) in
+            controller.applyRowHeight()
+        }
         tableView.contentInsetAdjustmentBehavior = .automatic
         tableView.tableHeaderView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNormalMagnitude))
 
