@@ -1108,7 +1108,8 @@ public struct SimulatorHarness {
           ".folder-reconciliation.xcresult",
           ".history.xcresult", ".deep-links.xcresult",
           ".file-preferences.xcresult", ".playback-preferences.xcresult", ".subtitles.xcresult",
-          ".account-rating.xcresult", ".audio.xcresult", ".previews.xcresult",
+          ".account-rating.xcresult", ".analytics-prompt.xcresult", ".audio.xcresult",
+          ".previews.xcresult",
           ".downloads.xcresult", ".cast.xcresult", ".account-security.xcresult",
         ] {
           try? fileManager.removeItem(at: platformDirectory.appending(path: bundle))

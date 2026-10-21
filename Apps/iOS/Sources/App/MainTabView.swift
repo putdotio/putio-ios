@@ -167,6 +167,10 @@ struct MainTabView: View {
         videoPlayer(for: route)
       }
     }
+    // A link that arrives after the ask still wins; the next launch asks.
+    .onChange(of: deepLinks.hasReceivedLink) { _, received in
+      if received, analyticsPrompt?.isSaving == false { analyticsPrompt = nil }
+    }
     .sheet(
       isPresented: Binding(
         get: { analyticsPrompt != nil }, set: { if !$0 { analyticsPrompt = nil } })

@@ -114,6 +114,7 @@ private struct PromptList: View {
   let itemColor: Color
   @ScaledMetric(relativeTo: .subheadline) private var textSize = PromptTypography.text.size
   @ScaledMetric(relativeTo: .subheadline) private var iconSize: CGFloat = 18
+  @ScaledMetric(relativeTo: .subheadline) private var iconGap: CGFloat = 10
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
@@ -125,7 +126,7 @@ private struct PromptList: View {
         .accessibilityAddTraits(.isHeader)
         .padding(.bottom, 2)
       ForEach(items, id: \.self) { item in
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
+        HStack(alignment: .firstTextBaseline, spacing: iconGap) {
           Image(putioIcon: icon)
             .resizable()
             .scaledToFit()
