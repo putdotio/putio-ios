@@ -113,6 +113,9 @@ final class ProductAnalyticsPromptViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = UIColor.Putio.Neutral.bgSecondary
         view.accessibilityIdentifier = "putio-product-analytics-prompt"
+        // As AccountNoticeView: past this size the title and intro fill the
+        // sheet and the choice scrolls out of reach.
+        view.maximumContentSizeCategory = .accessibilityMedium
         buildLayout()
     }
 
@@ -210,16 +213,14 @@ final class ProductAnalyticsPromptViewController: UIViewController {
 
         let titleLabel = makeLabel(
             NSLocalizedString("Turn on product analytics?", comment: ""),
-            role: .h2,
-            fallback: .title1,
+            role: .h3,
+            fallback: .title2,
             color: UIColor.Putio.Neutral.text
         )
         titleLabel.accessibilityTraits = .header
 
-        let bodyLabel = makeLabel(
+        let bodyLabel = makeTextLabel(
             NSLocalizedString("It helps us understand which apps and features work well. It stays off unless you allow it, and you can change it in Account → Privacy controls.", comment: ""),
-            role: .body,
-            fallback: .body,
             color: UIColor.Putio.Neutral.textSecondary
         )
 
@@ -297,7 +298,7 @@ final class ProductAnalyticsPromptViewController: UIViewController {
             contentStack.leadingAnchor.constraint(equalTo: frame.leadingAnchor, constant: Self.horizontalMargin),
             contentStack.trailingAnchor.constraint(equalTo: frame.trailingAnchor, constant: -Self.horizontalMargin),
 
-            denyButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 50)
+            denyButton.heightAnchor.constraint(greaterThanOrEqualToConstant: 44)
         ])
     }
 
@@ -314,39 +315,60 @@ final class ProductAnalyticsPromptViewController: UIViewController {
         return label
     }
 
+    /// Running text in the brand face at the subheadline size, on the face's
+    /// own line height: the brand roles' `lineHeightMultiple` stacks on GT
+    /// America's tall line box and sets wrapped lines far apart.
+    private func makeTextLabel(_ text: String, color: UIColor) -> UILabel {
+        let label = UILabel()
+        label.text = text
+        label.textColor = color
+        label.numberOfLines = 0
+        label.font = Self.subheadlineFont(weight: .regular)
+        label.adjustsFontForContentSizeCategory = true
+        return label
+    }
+
+    /// Pass `traits` where nothing rescales the font later, so it honours the
+    /// sheet's content size cap rather than the app's.
+    private static func subheadlineFont(weight: UIFont.Weight, traits: UITraitCollection? = nil) -> UIFont {
+        let size = UIFont.preferredFont(
+            forTextStyle: .subheadline,
+            compatibleWith: UITraitCollection(preferredContentSizeCategory: .large)
+        ).pointSize
+        guard let brand = BrandFont.sansIfAvailable(size: size, weight: weight) else {
+            return .preferredFont(forTextStyle: .subheadline, compatibleWith: traits)
+        }
+        return UIFontMetrics(forTextStyle: .subheadline).scaledFont(for: brand, compatibleWith: traits)
+    }
+
     private func makeList(title: String, items: [String], icon: PutioIcon, iconColor: UIColor, itemColor: UIColor) -> UIView {
         let stack = UIStackView()
         stack.axis = .vertical
-        stack.spacing = 8
+        stack.spacing = 10
         let titleLabel = makeLabel(title, role: .label, fallback: .caption1, color: UIColor.Putio.Neutral.textSecondary)
         titleLabel.accessibilityTraits = .header
         stack.addArrangedSubview(titleLabel)
-        stack.setCustomSpacing(10, after: titleLabel)
+        stack.setCustomSpacing(12, after: titleLabel)
 
         for item in items {
-            let iconView = UIImageView(image: icon.image(for: .navigationList))
-            iconView.tintColor = iconColor
-            iconView.setContentHuggingPriority(.required, for: .horizontal)
-            iconView.isAccessibilityElement = false
-
-            let row = UIStackView(arrangedSubviews: [iconView, makeLabel(item, role: .body, fallback: .body, color: itemColor)])
-            row.axis = .horizontal
-            row.alignment = .center
-            row.spacing = 8
-            stack.addArrangedSubview(row)
+            stack.addArrangedSubview(PromptListRow(
+                icon: icon.image(pointSize: PromptListRow.iconSize),
+                iconColor: iconColor,
+                label: makeTextLabel(item, color: itemColor)
+            ))
         }
 
         stack.translatesAutoresizingMaskIntoConstraints = false
         let box = UIView()
         box.layer.borderWidth = 1
         box.layer.borderColor = UIColor.Putio.Neutral.line.cgColor
-        box.layer.cornerRadius = 6
+        box.layer.cornerRadius = 8
         box.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: box.topAnchor, constant: 14),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: box.bottomAnchor, constant: -14),
-            stack.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 14),
-            stack.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -14)
+            stack.topAnchor.constraint(equalTo: box.topAnchor, constant: 16),
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: box.bottomAnchor, constant: -16),
+            stack.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -16)
         ])
         return box
     }
@@ -357,10 +379,10 @@ final class ProductAnalyticsPromptViewController: UIViewController {
         configuration.baseBackgroundColor = UIColor.Putio.Neutral.componentBg
         configuration.baseForegroundColor = UIColor.Putio.Neutral.text
         configuration.cornerStyle = .medium
-        configuration.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 12, bottom: 14, trailing: 12)
-        configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
+        configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { [weak button] incoming in
             var outgoing = incoming
-            outgoing.font = BrandTypography.fontIfAvailable(.h4) ?? .preferredFont(forTextStyle: .headline)
+            outgoing.font = Self.subheadlineFont(weight: .medium, traits: button?.traitCollection)
             return outgoing
         }
         button.configuration = configuration
@@ -395,5 +417,49 @@ final class ProductAnalyticsPromptViewController: UIViewController {
 
     @objc private func dismissPrivacyPolicy() {
         presentedViewController?.dismiss(animated: true)
+    }
+}
+
+/// An item with its icon centred on the first line, so a wrapped item keeps
+/// the icon beside where it starts.
+private final class PromptListRow: UIView {
+    static let iconSize: CGFloat = 18
+
+    private let label: UILabel
+    private var iconCenter: NSLayoutConstraint
+
+    init(icon: UIImage?, iconColor: UIColor, label: UILabel) {
+        self.label = label
+        let iconView = UIImageView(image: icon)
+        iconView.tintColor = iconColor
+        iconView.isAccessibilityElement = false
+        iconCenter = iconView.centerYAnchor.constraint(equalTo: label.firstBaselineAnchor)
+        super.init(frame: .zero)
+
+        [iconView, label].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            addSubview($0)
+        }
+        NSLayoutConstraint.activate([
+            iconCenter,
+            iconView.widthAnchor.constraint(equalToConstant: Self.iconSize),
+            iconView.heightAnchor.constraint(equalToConstant: Self.iconSize),
+            iconView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            label.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 10),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor),
+            label.topAnchor.constraint(equalTo: topAnchor),
+            label.bottomAnchor.constraint(equalTo: bottomAnchor)
+        ])
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    override func layoutSubviews() {
+        // Half the cap height above the baseline is the optical middle of
+        // the line; it follows the font through Dynamic Type.
+        iconCenter.constant = -label.font.capHeight / 2
+        super.layoutSubviews()
     }
 }
