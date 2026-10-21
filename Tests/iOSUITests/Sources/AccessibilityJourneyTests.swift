@@ -203,13 +203,15 @@ final class AccessibilityJourneyTests: XCTestCase {
     let scroll = app.scrollViews.firstMatch
     let collection = app.collectionViews.firstMatch
     let surface: XCUIElement = scroll.exists ? scroll : (collection.exists ? collection : app)
-    for _ in 0..<maximumSwipes {
+    for _ in 0..<(maximumSwipes * 2) {
       if target.exists && target.isHittable { return target }
-      surface.swipeUp()
-    }
-    for _ in 0..<maximumSwipes {
-      if target.exists && target.isHittable { return target }
-      surface.swipeDown()
+      // Scroll toward the target: one above the middle, such as a control
+      // under the navigation bar, needs a swipe down.
+      if target.exists && target.frame.midY < app.frame.midY {
+        surface.swipeDown()
+      } else {
+        surface.swipeUp()
+      }
     }
     XCTAssertTrue(target.exists && target.isHittable, "Target remained unreachable after scrolling")
     return target
