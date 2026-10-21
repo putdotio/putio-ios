@@ -170,8 +170,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     /// and bars crowd out their own content. A window override, unlike
     /// `maximumContentSizeCategory`, reaches every view controller under it.
     @objc func capContentSizeCategory() {
-        let system = UIApplication.shared.preferredContentSizeCategory
-        window?.traitOverrides.preferredContentSizeCategory = min(system, Self.maximumContentSizeCategory)
+        guard let window else { return }
+        let capped = min(UIApplication.shared.preferredContentSizeCategory, Self.maximumContentSizeCategory)
+        let previous = window.traitOverrides.contains(UITraitPreferredContentSizeCategory.self)
+            ? window.traitOverrides.preferredContentSizeCategory
+            : nil
+        window.traitOverrides.preferredContentSizeCategory = capped
+        if let previous, previous != capped {
+            Stylize.refreshForTextSize(in: window)
+        }
     }
 
     static let maximumContentSizeCategory = UIContentSizeCategory.extraExtraLarge

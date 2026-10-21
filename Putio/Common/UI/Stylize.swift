@@ -37,6 +37,30 @@ class Stylize {
         return navigationBarAppearance
     }
 
+    /// Navigation-bar fonts and pre-rendered list icons are sized when they
+    /// are made, so a text-size change while the app runs rebuilds them.
+    static func refreshForTextSize(in window: UIWindow) {
+        let appearance = makeNavigationBarAppearance()
+        let proxy = UINavigationBar.appearance()
+        proxy.standardAppearance = appearance
+        proxy.compactAppearance = appearance
+        proxy.scrollEdgeAppearance = appearance
+        proxy.compactScrollEdgeAppearance = appearance
+
+        var views: [UIView] = [window]
+        while let view = views.popLast() {
+            if let bar = view as? UINavigationBar {
+                bar.standardAppearance = appearance
+                bar.compactAppearance = appearance
+                bar.scrollEdgeAppearance = appearance
+                bar.compactScrollEdgeAppearance = appearance
+            } else if let table = view as? UITableView {
+                table.reloadData()
+            }
+            views.append(contentsOf: view.subviews)
+        }
+    }
+
     static func UIKit(window: UIWindow?) {
         window?.backgroundColor = UIColor.Putio.Surface.appBg
 
