@@ -31,7 +31,7 @@ class SettingsTableViewCell: UITableViewCell {
         self.item = item
 
         self.backgroundColor = UIColor.Putio.Neutral.componentBg
-        self.imageView?.image = item.icon.image(for: .navigationList)
+        self.imageView?.image = item.icon.image(for: .navigationList, scaledFor: traitCollection)
         self.imageView?.contentMode = .center
         self.imageView?.tintColor = UIColor.Putio.Neutral.textSecondary
         self.textLabel?.text = item.title
@@ -49,7 +49,7 @@ class SettingsTableViewCell: UITableViewCell {
 
         case .button, .link:
             self.accessoryType = .disclosureIndicator
-            let accessoryImageView = UIImageView(image: PutioIcon.caretRight.image)
+            let accessoryImageView = UIImageView(image: PutioIcon.caretRight.image(pointSize: 16, scaledFor: traitCollection))
             accessoryImageView.tintColor = UIColor.Putio.Yellow.textSecondary
             self.accessoryView = accessoryImageView
 

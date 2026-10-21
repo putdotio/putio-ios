@@ -147,14 +147,14 @@ class HistoryTableViewCell: UITableViewCell {
             InternalFailurePresenter.log("Unable to build history event presentation for event type: \(event.type)")
             textLabel?.text = NSLocalizedString("No title", comment: "")
             detailTextLabel?.text = ""
-            imageView?.image = PutioIcon.imageIcon.image(pointSize: 20)
+            imageView?.image = PutioIcon.imageIcon.image(pointSize: 20, scaledFor: traitCollection)
             imageView?.tintColor = UIColor.Putio.Neutral.textSecondary
             return
         }
 
         textLabel?.text = presentation.text
         detailTextLabel?.text = presentation.detailText
-        imageView?.image = presentation.icon.image(pointSize: 20)
+        imageView?.image = presentation.icon.image(pointSize: 20, scaledFor: traitCollection)
         imageView?.tintColor = UIColor.Putio.Neutral.textSecondary
     }
 }

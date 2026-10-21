@@ -50,6 +50,19 @@ class FilesRootViewController: FilesViewController {
 
         navigationItem.searchController = searchController
         navigationItem.hidesSearchBarWhenScrolling = false
+        capSearchFieldTextSize()
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (controller: FilesRootViewController, _: UITraitCollection) in
+            controller.capSearchFieldTextSize()
+        }
+    }
+
+    /// The pinned search field stops growing before the rest of the screen,
+    /// or it takes a third of it at accessibility sizes.
+    private func capSearchFieldTextSize() {
+        searchController?.searchBar.traitOverrides.preferredContentSizeCategory = min(
+            traitCollection.preferredContentSizeCategory,
+            .extraExtraLarge
+        )
     }
 
     override func viewWillAppear(_ animated: Bool) {

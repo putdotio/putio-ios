@@ -12,6 +12,8 @@ class FilesTableViewCell: UITableViewCell {
     /// Rows grow past this with larger text, rather than clipping the subtitle.
     static let minimumHeight: CGFloat = 55
 
+    private var iconSizes: TextScaledSizes?
+
     override func prepareForReuse() {
         super.prepareForReuse()
         iconRight.isHidden = true
@@ -24,6 +26,13 @@ class FilesTableViewCell: UITableViewCell {
         let minimumHeight = contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: Self.minimumHeight)
         minimumHeight.priority = .required - 1
         minimumHeight.isActive = true
+
+        let iconSizes = TextScaledSizes([icon, subtitleIcon, iconRight])
+        iconSizes.apply(traitCollection)
+        self.iconSizes = iconSizes
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (cell: FilesTableViewCell, _: UITraitCollection) in
+            cell.iconSizes?.apply(cell.traitCollection)
+        }
         let colorView = UIView()
         colorView.backgroundColor = UIColor.Putio.Surface.listItemBgActive
         self.selectedBackgroundView = colorView

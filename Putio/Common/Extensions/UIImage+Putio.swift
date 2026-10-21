@@ -96,6 +96,20 @@ enum PutioIcon: String, CaseIterable {
         renderedImage(glyphPointSize: pointSize, canvasPointSize: pointSize)
     }
 
+    /// `pointSize` at the default text size, grown with body text for
+    /// `traits`, so a list icon keeps its proportion to the row's text.
+    func image(pointSize: CGFloat, scaledFor traits: UITraitCollection) -> UIImage? {
+        image(pointSize: UIFontMetrics(forTextStyle: .body).scaledValue(for: pointSize, compatibleWith: traits))
+    }
+
+    func image(for presentation: PutioIconPresentation, scaledFor traits: UITraitCollection) -> UIImage? {
+        let metrics = UIFontMetrics(forTextStyle: .body)
+        return renderedImage(
+            glyphPointSize: metrics.scaledValue(for: presentation.glyphPointSize, compatibleWith: traits),
+            canvasPointSize: metrics.scaledValue(for: presentation.canvasPointSize, compatibleWith: traits)
+        )
+    }
+
     func image(for presentation: PutioIconPresentation) -> UIImage? {
         renderedImage(
             glyphPointSize: presentation.glyphPointSize,
