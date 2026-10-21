@@ -31,17 +31,13 @@ private struct PutioCastBarAccessory: ViewModifier {
 
   private var hasAccessory: Bool { model.hasSession || audioPlayback?.model != nil }
 
-  // The slot's height is the system's and stays put at any text size, so
-  // the bars' two lines stop growing before they would spill out of it.
+  @ViewBuilder
   private var accessory: some View {
-    Group {
-      if let audioPlayback, let audio = audioPlayback.model {
-        PutioAudioMiniPlayer(model: audio) { audioPlayback.isPresented = true }
-      } else if model.hasSession {
-        PutioCastBar(model: model)
-      }
+    if let audioPlayback, let audio = audioPlayback.model {
+      PutioAudioMiniPlayer(model: audio) { audioPlayback.isPresented = true }
+    } else if model.hasSession {
+      PutioCastBar(model: model)
     }
-    .dynamicTypeSize(...DynamicTypeSize.xxLarge)
   }
 
   func body(content: Content) -> some View {

@@ -45,10 +45,9 @@ Structural spacing, overscan, borders, radii, and minimum interaction geometry
 remain fixed. Content, adjacent icons, and meaningful gaps scale through
 `PutioScaledMetric` with an explicit Dynamic Type text style. Add a semantic
 `PutioMetricRole` when needed instead of scaling the entire spacing ramp.
-On iOS, text stops growing at the second accessibility size through a window
-override in [PutioApp](Apps/iOS/Sources/App/PutioApp.swift), which also reaches
-UIKit menus and alerts. The tab bar accessory keeps the system's height, so its
-bars stop at XX Large.
+On iOS, text stops growing at XX Large through a window override in
+[PutioApp](Apps/iOS/Sources/App/PutioApp.swift), which also reaches UIKit menus
+and alerts.
 
 File-type icons use yellow Phosphor assets. Preserve native tab glyph sizing;
 Search keeps the system glyph.

@@ -27,8 +27,8 @@ final class AccessibilityJourneyTests: XCTestCase {
     app.launch()
     let configuration = element("harness.accessibility")
     XCTAssertTrue(configuration.appears(within: 10))
-    // The device runs at accessibility5; the app caps text at accessibility2.
-    XCTAssertEqual(configuration.value as? String, "text=accessibility2;reduce-motion=true")
+    // The device runs at accessibility5; the app caps text at XX Large.
+    XCTAssertEqual(configuration.value as? String, "text=xxLarge;reduce-motion=true")
     let signIn = app.buttons["auth.sign-in"]
     XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
