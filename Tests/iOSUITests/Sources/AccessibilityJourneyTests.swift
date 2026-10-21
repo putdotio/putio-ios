@@ -27,7 +27,8 @@ final class AccessibilityJourneyTests: XCTestCase {
     app.launch()
     let configuration = element("harness.accessibility")
     XCTAssertTrue(configuration.appears(within: 10))
-    XCTAssertEqual(configuration.value as? String, "text=accessibility5;reduce-motion=true")
+    // The device runs at accessibility5; the app caps text at accessibility2.
+    XCTAssertEqual(configuration.value as? String, "text=accessibility2;reduce-motion=true")
     let signIn = app.buttons["auth.sign-in"]
     XCTAssertTrue(signIn.appears(within: 10))
     signIn.tap()
@@ -126,8 +127,10 @@ final class AccessibilityJourneyTests: XCTestCase {
       XCTAssertEqual(XCTWaiter.wait(for: [seek], timeout: 5), .completed)
       XCTAssertTrue(waitForValue(state, "id=408;state=paused"))
       screenshot(name)
+      // Top to bottom, so scrolling only moves down the stack: an element
+      // scrolled under the navigation bar fails the hittability check.
       for identifier in [
-        "audio.speed", "audio.skip-back", "audio.play-pause", "audio.skip-forward", "audio.next",
+        "audio.skip-back", "audio.play-pause", "audio.skip-forward", "audio.speed", "audio.next",
         "audio.done",
       ] {
         let control = reachable(app.buttons[identifier])

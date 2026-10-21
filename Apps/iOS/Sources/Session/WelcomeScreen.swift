@@ -49,20 +49,20 @@ struct WelcomeScreen: View {
   private var copy: some View {
     VStack(spacing: 0) {
       Text(verbatim: "┌( ಠ‿ಠ)┘")
-        .welcomeFont(WelcomeTypography.kaomoji)
+        .putioFont(WelcomeTypography.kaomoji)
         .tracking(WelcomeTypography.kaomoji.size * 0.02)
         .foregroundStyle(PutioTheme.Colors.textPrimary)
         .accessibilityHidden(true)
         .padding(.bottom, kaomojiGap)
       Text(title)
-        .welcomeFont(WelcomeTypography.title)
+        .putioFont(WelcomeTypography.title)
         .tracking(WelcomeTypography.title.size * -0.02)
         .foregroundStyle(PutioTheme.Colors.textPrimary)
         .accessibilityAddTraits(.isHeader)
         .accessibilityIdentifier("auth.welcome-title")
       if let lede {
         Text(lede)
-          .welcomeFont(WelcomeTypography.lede)
+          .putioFont(WelcomeTypography.lede)
           .foregroundStyle(PutioTheme.Colors.textSecondary)
           .frame(maxWidth: WelcomeMetrics.ledeMaxWidth)
           .padding(.top, ledeGap)
@@ -231,7 +231,7 @@ private struct WelcomeNotice: View {
           Text(footnote).foregroundStyle(PutioTheme.Colors.textSecondary)
         }
       }
-      .welcomeFont(WelcomeTypography.notice)
+      .putioFont(WelcomeTypography.notice)
       .foregroundStyle(PutioTheme.Colors.textPrimary)
       .multilineTextAlignment(.leading)
       .frame(maxWidth: .infinity, alignment: .leading)
@@ -286,7 +286,7 @@ private struct WelcomeButton: View {
 
   private var label: some View {
     Text(title)
-      .welcomeFont(WelcomeTypography.button)
+      .putioFont(WelcomeTypography.button)
       .frame(maxWidth: .infinity)
   }
 }
@@ -297,31 +297,6 @@ private struct WelcomeButtonShape: ViewModifier {
       .controlSize(.large)
       .buttonBorderShape(.capsule)
       .tint(PutioTheme.Colors.accent)
-  }
-}
-
-// `putioFont` adds `size * (lineHeight - 1)` on top of the face's natural line
-// height; the mock's line heights are CSS totals, so subtract the natural one.
-private struct WelcomeFontModifier: ViewModifier {
-  let role: PutioFontRole
-  @ScaledMetric private var size: CGFloat
-
-  init(role: PutioFontRole) {
-    self.role = role
-    _size = ScaledMetric(wrappedValue: role.size, relativeTo: role.textStyle)
-  }
-
-  func body(content: Content) -> some View {
-    let font = UIFont(name: role.fontName, size: size) ?? .systemFont(ofSize: size)
-    content
-      .font(role.font)
-      .lineSpacing(max(0, size * role.lineHeight - font.lineHeight))
-  }
-}
-
-extension View {
-  fileprivate func welcomeFont(_ role: PutioFontRole) -> some View {
-    modifier(WelcomeFontModifier(role: role))
   }
 }
 

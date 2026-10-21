@@ -36,7 +36,7 @@ struct PutioAudioMiniPlayer: View {
       Button(action: onOpen) {
         HStack(spacing: PutioTheme.Spacing.space3) {
           if placement != .inline {
-            Image(putioIcon: .fileAudio)
+            PutioIconView(.fileAudio, size: Self.iconSize)
               .foregroundStyle(PutioTheme.Colors.accent)
               .accessibilityHidden(true)
           }
@@ -93,6 +93,9 @@ struct PutioAudioMiniPlayer: View {
     .buttonStyle(.plain)
     .padding(.horizontal, PutioTheme.Spacing.space3)
   }
+
+  private static let iconSize = PutioMetricRole(
+    value: PutioTheme.Typography.sizeLg, relativeTo: .body)
 
   private var status: String {
     switch model.state {

@@ -41,8 +41,9 @@ served by the harness's [loopback server](../Tools/PutioHarness/Sources/PutioHar
 Cast uses a [stub receiver](../Apps/iOS/Sources/Harness/ChromecastHarness.swift), so this
 journey cannot establish compatibility with a physical Chromecast.
 
-Accessibility preflights use the largest Dynamic Type size and enable Reduce
-Motion in simulator Settings, restoring its prior value afterward. They exercise
+Accessibility preflights use the largest Dynamic Type size, which the app caps
+at its second accessibility size, and enable Reduce Motion in simulator
+Settings, restoring its prior value afterward. They exercise
 long filenames, selection, downloads, and audio controls in portrait and landscape.
 Slider dragging does not prove VoiceOver gestures, spoken output, or focus order.
 

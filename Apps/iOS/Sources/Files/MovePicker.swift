@@ -177,7 +177,7 @@ private struct PutioMoveDestinationScreen: View {
       if let first = items.first {
         PutioIconView(
           first.kind == .folder ? .folderFill : .file,
-          size: PutioTheme.ScaledMetrics.buttonIconSize
+          size: PutioMetricRole(value: PutioTheme.Typography.sizeLg, relativeTo: .body)
         )
         .foregroundStyle(PutioTheme.Components.FileRow.icon)
       }
@@ -189,6 +189,7 @@ private struct PutioMoveDestinationScreen: View {
           .putioFont(PutioTheme.Typography.body)
           .foregroundStyle(PutioTheme.Colors.textPrimary)
           .lineLimit(1)
+          .truncationMode(.middle)
       }
       Spacer()
     }
