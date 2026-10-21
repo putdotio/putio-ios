@@ -48,6 +48,7 @@ Nothing the repository manages is edited in App Store Connect:
 | Name, description, keywords, URLs, What's New | `metadata/` in asc's canonical format; `metadata/version/<version>/en-US.json` carries that version's `whatsNew` |
 | Release type, phased release, age-rating answers, screenshot sets | [`Config/AppStore.json`](../Config/AppStore.json) |
 | Screenshots | `screenshots/<locale>/`, written by `mise run store-images`; locale folders must be App Store locales such as `en-US` |
+| App Review sign-in | The `release` Environment's `APP_REVIEW_DEMO_ACCOUNT_*` secrets; `apply` sets them on every version. The review contact stays in App Store Connect, and a version with none fails `apply` until it is set there |
 
 A field left out of `metadata/` stays unmanaged: asc never clears it. To adopt
 one, take it from the Screenshots dry run's artifact and commit it.
@@ -100,6 +101,9 @@ The `release` Environment must provide:
 - Signing identity, used by Beta, Release, and Signing Check:
   - `APPLE_DISTRIBUTION_P12`: the Apple Distribution certificate and its private key as one base64 line of a password-protected PKCS#12 that macOS can import, such as a Keychain Access export (`openssl pkcs12 -export` needs `-legacy`)
   - `APPLE_DISTRIBUTION_P12_PASSWORD`: that file's password
+- App Review sign-in, used by the store tool's `apply` in Release and Screenshots, which fails before changing anything without them. To rotate, update both and run Screenshots with `dry_run` off:
+  - `APP_REVIEW_DEMO_ACCOUNT_NAME`
+  - `APP_REVIEW_DEMO_ACCOUNT_PASSWORD`: at most 100 characters; the account must not require two-factor sign-in
 - Release tagging, used only by the Release workflow's `tag` job:
   - `PUTIO_CI_APP_CLIENT_ID` (variable): the client ID of the `putio-ci` App (ID `3648620`)
   - `PUTIO_CI_APP_PRIVATE_KEY`

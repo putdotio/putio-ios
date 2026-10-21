@@ -127,6 +127,8 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
           ASC_BYPASS_KEYCHAIN: "1"
+          APP_REVIEW_DEMO_ACCOUNT_NAME: ${{ secrets.APP_REVIEW_DEMO_ACCOUNT_NAME }}
+          APP_REVIEW_DEMO_ACCOUNT_PASSWORD: ${{ secrets.APP_REVIEW_DEMO_ACCOUNT_PASSWORD }}
         run: mise exec -- node scripts/app-store.ts apply --version "$APP_VERSION" --confirm
 
       - name: Replace the screenshots
