@@ -103,6 +103,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     func configureUI() {
         BrandFont.registerIfAvailable()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(capContentSizeCategory),
+            name: UIContentSizeCategory.didChangeNotification,
+            object: nil
+        )
         applyWindowAppearance()
         Stylize.UIKit(window: window)
         NetworkReachability.sharedInstance.setup()
@@ -157,7 +163,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func applyWindowAppearance() {
         window?.backgroundColor = UIColor.Putio.Surface.appBg
         window?.tintColor = UIColor.Putio.Yellow.textSecondary
+        capContentSizeCategory()
     }
+
+    /// Text stops growing at the first accessibility sizes, past which titles,
+    /// rows and sheets crowd out their own content. A window override, unlike
+    /// `maximumContentSizeCategory`, reaches every view controller under it.
+    @objc func capContentSizeCategory() {
+        let system = UIApplication.shared.preferredContentSizeCategory
+        window?.traitOverrides.preferredContentSizeCategory = min(system, Self.maximumContentSizeCategory)
+    }
+
+    static let maximumContentSizeCategory = UIContentSizeCategory.accessibilityMedium
 
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
         guard DownloadQueueLifecyclePolicy.shouldRestoreBackgroundSession(

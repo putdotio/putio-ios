@@ -9,6 +9,9 @@ class FilesTableViewCell: UITableViewCell {
     @IBOutlet weak var iconRight: UIImageView!
     var prevIsHidden: Bool!
 
+    /// Rows grow past this with larger text, rather than clipping the subtitle.
+    static let minimumHeight: CGFloat = 55
+
     override func prepareForReuse() {
         super.prepareForReuse()
         iconRight.isHidden = true
@@ -16,6 +19,11 @@ class FilesTableViewCell: UITableViewCell {
 
     override func awakeFromNib() {
         super.awakeFromNib()
+        // Below required, so it yields to the table's own height constraint
+        // while a row resizes.
+        let minimumHeight = contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: Self.minimumHeight)
+        minimumHeight.priority = .required - 1
+        minimumHeight.isActive = true
         let colorView = UIView()
         colorView.backgroundColor = UIColor.Putio.Surface.listItemBgActive
         self.selectedBackgroundView = colorView

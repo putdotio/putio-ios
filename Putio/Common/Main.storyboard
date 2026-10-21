@@ -128,8 +128,8 @@
                                                 </stackView>
                                             </subviews>
                                             <constraints>
-                                                <constraint firstAttribute="bottom" secondItem="Hu7-Ll-6wY" secondAttribute="bottom" id="PbF-RD-HUz"/>
-                                                <constraint firstItem="Hu7-Ll-6wY" firstAttribute="top" secondItem="0wa-3K-VGa" secondAttribute="top" id="Xc7-iD-31j"/>
+                                                <constraint firstAttribute="bottom" secondItem="Hu7-Ll-6wY" secondAttribute="bottom" constant="6" id="PbF-RD-HUz"/>
+                                                <constraint firstItem="Hu7-Ll-6wY" firstAttribute="top" secondItem="0wa-3K-VGa" secondAttribute="top" constant="6" id="Xc7-iD-31j"/>
                                                 <constraint firstItem="Hu7-Ll-6wY" firstAttribute="leading" secondItem="0wa-3K-VGa" secondAttribute="leading" constant="12" id="u1w-rH-3Ow"/>
                                                 <constraint firstAttribute="trailing" secondItem="Hu7-Ll-6wY" secondAttribute="trailing" constant="12" id="xhw-tT-VlO"/>
                                             </constraints>
@@ -705,9 +705,9 @@
                                             </subviews>
                                             <constraints>
                                                 <constraint firstItem="16e-po-JL2" firstAttribute="leading" secondItem="GrZ-i9-GwP" secondAttribute="leading" constant="12" id="Rzk-Wl-QxZ"/>
-                                                <constraint firstItem="16e-po-JL2" firstAttribute="top" secondItem="GrZ-i9-GwP" secondAttribute="top" id="SK3-Zt-GOX"/>
+                                                <constraint firstItem="16e-po-JL2" firstAttribute="top" secondItem="GrZ-i9-GwP" secondAttribute="top" constant="6" id="SK3-Zt-GOX"/>
                                                 <constraint firstAttribute="trailing" secondItem="16e-po-JL2" secondAttribute="trailing" constant="12" id="ajN-2s-CNi"/>
-                                                <constraint firstAttribute="bottom" secondItem="16e-po-JL2" secondAttribute="bottom" id="h33-VS-Omd"/>
+                                                <constraint firstAttribute="bottom" secondItem="16e-po-JL2" secondAttribute="bottom" constant="6" id="h33-VS-Omd"/>
                                             </constraints>
                                         </tableViewCellContentView>
                                         <color key="backgroundColor" name="putio.surface.app-bg"/>

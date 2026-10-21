@@ -128,7 +128,8 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     func configureAppearance() {
         configureToolbar()
 
-        tableView.rowHeight = 55.0
+        tableView.rowHeight = UITableView.automaticDimension
+        tableView.estimatedRowHeight = FilesTableViewCell.minimumHeight
         tableView.contentInsetAdjustmentBehavior = .automatic
         tableView.tableHeaderView = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: CGFloat.leastNormalMagnitude))
 
