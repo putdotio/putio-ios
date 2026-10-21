@@ -241,10 +241,16 @@ struct TrashManagementView: View {
                 }
                 .accessibilityIdentifier("trash.delete.\(item.id.rawValue)")
               } label: {
-                PutioIconView(.dotsThreeCircle, size: PutioTheme.ScaledMetrics.buttonIconSize)
-                  .foregroundStyle(PutioTheme.Colors.accent)
-                  .frame(minWidth: 44, minHeight: 44)
-                  .contentShape(Rectangle())
+                // Sized as a button icon, but it sits beside the row's
+                // Body name, so it scales with Body.
+                PutioIconView(
+                  .dotsThreeCircle,
+                  size: PutioMetricRole(
+                    value: PutioTheme.ScaledMetrics.buttonIconSize.value, relativeTo: .body)
+                )
+                .foregroundStyle(PutioTheme.Colors.accent)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
               }
               .disabled(!model.canMutate)
               .accessibilityLabel("More actions for \(item.name)")
