@@ -332,8 +332,7 @@ class DownloadStateButton: UIControl {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        // A fifth of the side, which is 10pt at the default 50pt.
-        let inset = bounds.width / 5
+        let inset = TextScaledSizes.scaled(10, for: traitCollection)
         let rect = bounds.insetBy(dx: inset, dy: inset)
         let path = UIBezierPath(
             arcCenter: CGPoint(x: rect.midX, y: rect.midY),

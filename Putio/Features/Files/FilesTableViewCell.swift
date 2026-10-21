@@ -9,10 +9,12 @@ class FilesTableViewCell: UITableViewCell {
     @IBOutlet weak var iconRight: UIImageView!
     var prevIsHidden: Bool!
 
-    /// Rows grow past this with larger text, rather than clipping the subtitle.
+    /// The row height at the default text size; it grows with the text so the
+    /// subtitle never clips and the padding keeps its proportion.
     static let minimumHeight: CGFloat = 55
 
     private var iconSizes: TextScaledSizes?
+    private var minimumHeightConstraint: NSLayoutConstraint?
 
     override func prepareForReuse() {
         super.prepareForReuse()
@@ -26,17 +28,22 @@ class FilesTableViewCell: UITableViewCell {
         let minimumHeight = contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: Self.minimumHeight)
         minimumHeight.priority = .required - 1
         minimumHeight.isActive = true
+        minimumHeightConstraint = minimumHeight
 
-        let iconSizes = TextScaledSizes([icon, subtitleIcon, iconRight])
-        iconSizes.apply(traitCollection)
-        self.iconSizes = iconSizes
+        iconSizes = TextScaledSizes([icon, subtitleIcon, iconRight])
+        scaleWithText()
         registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (cell: FilesTableViewCell, _: UITraitCollection) in
-            cell.iconSizes?.apply(cell.traitCollection)
+            cell.scaleWithText()
         }
         let colorView = UIView()
         colorView.backgroundColor = UIColor.Putio.Surface.listItemBgActive
         self.selectedBackgroundView = colorView
         self.multipleSelectionBackgroundView = colorView
+    }
+
+    private func scaleWithText() {
+        iconSizes?.apply(traitCollection)
+        minimumHeightConstraint?.constant = TextScaledSizes.scaled(Self.minimumHeight, for: traitCollection)
     }
 
     override func setHighlighted(_ highlighted: Bool, animated: Bool) {
