@@ -166,16 +166,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         capContentSizeCategory()
     }
 
-    /// Text stops growing at the largest standard size; the accessibility
-    /// sizes crowd rows, sheets and bars out of their own content. A window
-    /// override, unlike `maximumContentSizeCategory`, reaches every view
-    /// controller under it.
+    /// Text stops growing two steps above the default; past that, rows, sheets
+    /// and bars crowd out their own content. A window override, unlike
+    /// `maximumContentSizeCategory`, reaches every view controller under it.
     @objc func capContentSizeCategory() {
         let system = UIApplication.shared.preferredContentSizeCategory
         window?.traitOverrides.preferredContentSizeCategory = min(system, Self.maximumContentSizeCategory)
     }
 
-    static let maximumContentSizeCategory = UIContentSizeCategory.extraExtraExtraLarge
+    static let maximumContentSizeCategory = UIContentSizeCategory.extraExtraLarge
 
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String, completionHandler: @escaping () -> Void) {
         guard DownloadQueueLifecyclePolicy.shouldRestoreBackgroundSession(

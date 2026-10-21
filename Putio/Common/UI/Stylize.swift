@@ -90,7 +90,7 @@ class Stylize {
 
 
 /// UIKit pads a grouped section header far faster than its title grows: 38pt
-/// at the default text size is over 130pt at the largest standard size. Up to
+/// at the default text size is over 100pt two steps above it. Up to
 /// the default UIKit's own height stands; above it the header grows with its
 /// title instead.
 enum GroupedSectionHeader {
