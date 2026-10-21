@@ -172,6 +172,9 @@ struct MainTabView: View {
     .onChange(of: deepLinks.hasReceivedLink) { _, received in
       if received { analyticsPrompt = nil }
     }
+    .onChange(of: account.productAnalyticsEnabled) { _, enabled in
+      if enabled, analyticsPrompt?.isSaving == false { analyticsPrompt = nil }
+    }
     .sheet(
       isPresented: Binding(
         get: { analyticsPrompt != nil }, set: { if !$0 { analyticsPrompt = nil } })
@@ -313,9 +316,11 @@ struct MainTabView: View {
 
   /// Once per signed-in shell. A config that failed to load asks nothing;
   /// the next launch reads it again. The account is read from the session,
-  /// since a setting changed while the config loaded postdates `account`.
+  /// since a setting changed while the config loaded postdates `account`,
+  /// and a preferences write still in flight leaves the answer to it.
   private func askProductAnalyticsIfNeeded() {
     guard HarnessLaunch.allowsProductAnalyticsPrompt, let config = appConfig.config,
+      !runtime.session.isUpdatingAccountPreferences,
       case .signedIn(let current) = runtime.session.state, current.id == account.id,
       PutioProductAnalyticsPrompt.shouldAsk(
         productAnalyticsEnabled: current.productAnalyticsEnabled,
