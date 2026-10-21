@@ -15,7 +15,7 @@ final class PutioThemeTests: XCTestCase {
       textStyle: .body
     )
 
-    XCTAssertEqual(role.baseLineSpacing, 0)
+    XCTAssertEqual(role.lineSpacing(atSize: 20), 0)
   }
 
   func testTypographyRolesMapToBundledBrandFaces() {

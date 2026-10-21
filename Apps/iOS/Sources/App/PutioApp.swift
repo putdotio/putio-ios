@@ -41,6 +41,9 @@ struct PutioApp: App {
       #endif
       .preferredColorScheme(.dark)
       .tint(PutioTheme.Colors.accent)
+      // Text stops growing at the first accessibility sizes, past which
+      // titles, rows and sheets crowd out their own content.
+      .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
   }
 }

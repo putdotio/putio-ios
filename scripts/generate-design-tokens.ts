@@ -795,6 +795,12 @@ export function renderSwift(entries: readonly TokenEntry[], packageVersion: stri
 
 import SwiftUI
 
+#if canImport(UIKit)
+  import UIKit
+#elseif canImport(AppKit)
+  import AppKit
+#endif
+
 public struct PutioMetricRole: Sendable {
   public let value: CGFloat
   public let textStyle: Font.TextStyle
@@ -850,8 +856,19 @@ public struct PutioFontRole: Sendable {
     .custom(fontName, size: size, relativeTo: textStyle)
   }
 
-  var baseLineSpacing: CGFloat {
-    max(0, size * (lineHeight - 1))
+  /// Token line heights are CSS totals; SwiftUI's lineSpacing adds to the
+  /// face's own line height, so only the difference goes on top.
+  func lineSpacing(atSize size: CGFloat) -> CGFloat {
+    max(0, size * lineHeight - naturalLineHeight(atSize: size))
+  }
+
+  private func naturalLineHeight(atSize size: CGFloat) -> CGFloat {
+    #if canImport(UIKit)
+      (UIFont(name: fontName, size: size) ?? .systemFont(ofSize: size)).lineHeight
+    #else
+      let font = NSFont(name: fontName, size: size) ?? .systemFont(ofSize: size)
+      return font.ascender - font.descender + font.leading
+    #endif
   }
 }
 
@@ -865,20 +882,17 @@ public struct PutioTabularFontRole: Sendable {
 
 private struct PutioFontModifier: ViewModifier {
   let role: PutioFontRole
-  @ScaledMetric private var lineSpacing: CGFloat
+  @ScaledMetric private var size: CGFloat
 
   init(role: PutioFontRole) {
     self.role = role
-    _lineSpacing = ScaledMetric(
-      wrappedValue: role.baseLineSpacing,
-      relativeTo: role.textStyle
-    )
+    _size = ScaledMetric(wrappedValue: role.size, relativeTo: role.textStyle)
   }
 
   func body(content: Content) -> some View {
     content
       .font(role.font)
-      .lineSpacing(lineSpacing)
+      .lineSpacing(role.lineSpacing(atSize: size))
   }
 }
 
