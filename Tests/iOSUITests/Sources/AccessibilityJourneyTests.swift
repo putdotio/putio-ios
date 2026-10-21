@@ -205,13 +205,18 @@ final class AccessibilityJourneyTests: XCTestCase {
     let surface: XCUIElement = scroll.exists ? scroll : (collection.exists ? collection : app)
     for _ in 0..<(maximumSwipes * 2) {
       if target.exists && target.isHittable { return target }
-      // Scroll toward the target: one above the middle, such as a control
-      // under the navigation bar, needs a swipe down.
-      if target.exists && target.frame.midY < app.frame.midY {
-        surface.swipeDown()
-      } else {
+      guard target.exists, !target.frame.isEmpty else {
         surface.swipeUp()
+        continue
       }
+      // A laid-out target, such as a control under the navigation bar, is
+      // dragged toward the middle by its own offset: in a short landscape
+      // viewport a full swipe jumps past it. The drag starts at the edge so
+      // it never grabs a slider.
+      let shift = min(max(app.frame.midY - target.frame.midY, -150), 150)
+      let origin = app.coordinate(withNormalizedOffset: .zero)
+      let start = origin.withOffset(CGVector(dx: 12, dy: app.frame.midY))
+      start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: shift)))
     }
     XCTAssertTrue(target.exists && target.isHittable, "Target remained unreachable after scrolling")
     return target
