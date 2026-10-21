@@ -140,12 +140,12 @@ struct HistoryEventPresentation {
 /// Its own icon and labels rather than the built-in subtitle style, which
 /// moves the detail line under the icon at larger text sizes.
 class HistoryTableViewCell: UITableViewCell {
-    // UIKit's subtitle-style metrics at the default text size, so that size
-    // renders as it did; all three grow with the text.
+    // UIKit's subtitle-style metrics at the default text size, measured from
+    // its rendering, so that size draws as it did; all grow with the text.
     private static let iconSize: CGFloat = 20
-    // 60pt rows, less the separator below the content view.
-    private static let minimumHeight: CGFloat = 179 / 3
-    private static let labelSpacing: CGFloat = 8 / 3
+    private static let minimumHeight: CGFloat = 60
+    private static let labelSpacing: CGFloat = 3
+    private static let centerOffset: CGFloat = -5 / 6
 
     private let iconView = UIImageView()
     let titleLabel = UILabel()
@@ -200,8 +200,7 @@ class HistoryTableViewCell: UITableViewCell {
             labels.trailingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.trailingAnchor),
             labels.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor, constant: 8),
             labels.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -8),
-            // UIKit sat the pair half a point above centre.
-            labels.centerYAnchor.constraint(equalTo: contentView.centerYAnchor, constant: -0.5)
+            labels.centerYAnchor.constraint(equalTo: contentView.centerYAnchor, constant: Self.centerOffset)
         ])
         let minimumHeight = contentView.heightAnchor.constraint(greaterThanOrEqualToConstant: Self.minimumHeight)
         // Below required, so it yields to the table's own height while a row resizes.
