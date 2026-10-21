@@ -1,54 +1,68 @@
 # Distribution
 
+What the workflows, the store tool, and the `release` Environment rely on.
+The release runbook, the TestFlight diagnostics check, App Privacy answers,
+secret rotation, and GitHub settings live in
+[iOS legacy release](https://app.notion.com/p/3fdd546ba2f581a29718c0deeac09e20)
+in the put.io Notion.
+
 ## Workflows
 
-- [CI](../.github/workflows/ci.yml) verifies pushes and pull requests. A `changes` job on Linux classifies the diff with [`scripts/ci-affected.sh`](../scripts/ci-affected.sh), then `verify-app` runs `mise run bootstrap-ci` and `mise run verify` on macOS, and `verify-tooling` type-checks the Node scripts and checks the committed marketing images against their inputs, both on Linux. Each lane runs only when the diff can affect it, and an unrecognized path counts as app-affecting — a needless macOS run is cheaper than a missed break. Nothing is filtered at the `on:` level, so both checks always report a state.
-- [Beta](../.github/workflows/beta.yml) is the manual TestFlight path for `main`. A secretless job ([Delivery ref contract](../.github/workflows/delivery-ref.yml)) first requires the exact current protected-main SHA. The Environment-bearing job then checks out that commit, verifies, installs the signing identity and App Store profile with [install-signing.sh](../scripts/install-signing.sh) ([Signing](#signing)), archives with [archive-ios.sh](../scripts/archive-ios.sh), and uploads and distributes with `asc publish testflight --notify`, which emails external testers.
-- [Release](../.github/workflows/release.yml) is dispatch-only with the same SHA check and a version. It fails before building when `metadata/version/<version>/en-US.json` has no `whatsNew`, uploads with `asc publish appstore` (which creates or finds the version and attaches the build, never submits), then applies the listing and runs `asc validate` into the job summary. A last job tags the commit `v<version>` only after the upload succeeded, with an annotated tag whose message carries `Build-Number: <build>`, as the `putio-ci` GitHub App: it mints a token for this repository with `contents: write` from the `release` Environment's `PUTIO_CI_APP_CLIENT_ID` and `PUTIO_CI_APP_PRIVATE_KEY`, because the `v*` ruleset lets only that App and organization admins create tags.
-- [Screenshots](../.github/workflows/screenshots.yml) changes the product page without a build: it plans the listing, uploads App Store Connect's current metadata and age rating as an artifact, and previews the screenshot replacement. Plan and the screenshot step stop with the version's state when App Store Connect won't edit it, such as while it waits for or is in review; the artifact still uploads. With `dry_run` off it applies metadata and settings and replaces each screenshot set. It requires the current protected-main SHA, defaults to a dry run, and runs on Linux with only the App Store Connect key.
-- [Submit](../.github/workflows/submit.yml) takes a version and the build number Release uploaded, and ships the commit Release tagged, so merges to `main` after Release don't block it. A secretless job first requires `v<version>` to be the annotated tag Release created, whose `Build-Number` is the requested build, so a TestFlight build with the same version string can't be submitted; the tagged commit to be on or behind the current protected `main` head; and `main` to still be protected. Dispatching it is the approval: the `release` Environment job then checks out the tagged commit, checks its committed What's New offline, attaches the requested build, runs `asc validate --strict` against it, and runs `asc review submit`.
-- [Signing Check](../.github/workflows/signing-check.yml) proves the signing secrets without building. From the same validated SHA, in the `release` Environment, it runs [install-signing.sh](../scripts/install-signing.sh): `asc signing keychain install` puts `APPLE_DISTRIBUTION_P12` into a new temporary keychain, `asc profiles list` reads every active App Store profile, and [check-signing-profile.rb](../scripts/check-signing-profile.rb) picks one that is unexpired, for this team and `PUTIO_APP_IDENTIFIER`, and includes the identity's certificate, failing with the reason each candidate was refused when none is. It then requires `security find-identity -v -p codesigning` to list the identity through the keychain search list, as codesign would, and deletes the keychain. It creates, renews, and revokes nothing.
-- [E2E Simulator](../.github/workflows/e2e-simulator.yml) runs the mocked XCUITests on macOS against `main` every Monday at 06:00 UTC and on dispatch. It loads no secrets.
-- `main` is the repository's default branch, so these workflows are dispatched directly on it. Pass the current protected-main head as `expected_sha`; Submit takes none:
+| Workflow                                                | Does                                                                                                                              |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| [CI](../.github/workflows/ci.yml)                       | Verifies pushes and pull requests; [ci-affected.sh](../scripts/ci-affected.sh) skips lanes the diff can't affect                  |
+| [Beta](../.github/workflows/beta.yml)                   | Archives, uploads to TestFlight, and emails external testers                                                                      |
+| [Release](../.github/workflows/release.yml)             | Archives and uploads, applies the listing, runs `asc validate`, and tags `v<version>` with `Build-Number: <build>`; never submits |
+| [Screenshots](../.github/workflows/screenshots.yml)     | Plans the listing and previews screenshots; with `dry_run` off, applies the listing and replaces the screenshot sets              |
+| [Submit](../.github/workflows/submit.yml)               | Attaches Release's build to the tagged version, runs `asc validate --strict`, and submits it to App Review                        |
+| [Signing Check](../.github/workflows/signing-check.yml) | Proves the signing secrets without building; creates, renews, and revokes nothing                                                 |
+| [E2E Simulator](../.github/workflows/e2e-simulator.yml) | Runs the mocked XCUITests against `main` every Monday and on dispatch                                                             |
 
-  ```bash
-  sha="$(gh api repos/putdotio/putio-ios/branches/main --jq .commit.sha)"
-  gh workflow run beta.yml --ref main -f expected_sha="$sha"
-  gh workflow run release.yml --ref main -f expected_sha="$sha" -f version=<x.y.z>
-  gh workflow run screenshots.yml --ref main -f expected_sha="$sha" -f app_version=<x.y.z> -f dry_run=true
-  gh workflow run submit.yml --ref main -f version=<x.y.z> -f build_number=<build>
-  gh workflow run signing-check.yml --ref main -f expected_sha="$sha"
-  ```
+Dispatch them on `main`, passing its current head as `expected_sha`; Submit
+takes none:
 
-- Beta, release, and shared release-secret third-party actions are pinned to full commit SHAs with a trailing comment for the human version tag. Update the SHA and comment together after reviewing upstream release notes.
+```bash
+sha="$(gh api repos/putdotio/putio-ios/branches/main --jq .commit.sha)"
+gh workflow run beta.yml --ref main -f expected_sha="$sha"
+gh workflow run release.yml --ref main -f expected_sha="$sha" -f version=<x.y.z>
+gh workflow run screenshots.yml --ref main -f expected_sha="$sha" -f app_version=<x.y.z> -f dry_run=true
+gh workflow run submit.yml --ref main -f version=<x.y.z> -f build_number=<build>
+gh workflow run signing-check.yml --ref main -f expected_sha="$sha"
+```
 
-## CI Bootstrap
+## Delivery contract
 
-- `mise run bootstrap-ci`
-  - reuses an existing local `Pods` sandbox only when `Pods/Manifest.lock` matches `Podfile.lock`
-  - falls back to `pod install` when the cache is stale
-- GitHub Actions caches CocoaPods download artifacts only; signed beta/release jobs do not restore a generated `Pods` tree from Actions cache
-- Signed beta/release jobs install Ruby gems fresh with Bundler caching disabled before loading App Store Connect and signing secrets
-
-## Delivery Contract
-
-- Beta, release, screenshots, and submit are CI-only
-- Release secret validation and key-file materialization live in [Load iOS release secrets](../.github/actions/load-ios-release-secrets/action.yml); asc reads the key from `ASC_KEY_ID`, `ASC_ISSUER_ID`, and `ASC_PRIVATE_KEY` with `ASC_BYPASS_KEYCHAIN=1`
-- uploaded beta and release builds use UTC timestamp build numbers in `YYMMDDHHMM` format, passed to `xcodebuild` as `CURRENT_PROJECT_VERSION`; release passes its version as `MARKETING_VERSION`, so no tracked file changes at archive time
-- checked-in `CURRENT_PROJECT_VERSION` stays at `1` as a baseline
-- Manual dispatches other than Submit require `expected_sha` to equal both the workflow event SHA and the current protected `main` head. Submit instead requires its Release tag's commit to be on protected `main`. Each validation job is secretless; only its immutable SHA output reaches the `release` Environment job.
-- App icons follow the put.io design-system flavors: `AppIconDev` locally, `AppIconNightly` on TestFlight, `AppIcon` on the App Store
+- Beta, Release, Screenshots, Submit, and Signing Check run only in CI. A
+  secretless job ([Delivery ref contract](../.github/workflows/delivery-ref.yml))
+  requires `expected_sha` to equal both the event SHA and the protected `main`
+  head; only its SHA output reaches the `release` Environment job.
+- Submit instead requires `v<version>` to be Release's annotated tag, with the
+  requested `Build-Number`, on or behind protected `main`, so a TestFlight build
+  with the same version string can't be submitted.
+- Release tags as the `putio-ci` GitHub App, from `PUTIO_CI_APP_CLIENT_ID` and
+  `PUTIO_CI_APP_PRIVATE_KEY`, because the `v*` ruleset lets only that App and
+  organization admins create tags.
+- Build numbers are UTC timestamps (`YYMMDDHHMM`) passed as
+  `CURRENT_PROJECT_VERSION`; Release passes its version as `MARKETING_VERSION`.
+  The checked-in `CURRENT_PROJECT_VERSION` stays `1`, so archiving changes no
+  tracked file.
+- Signed jobs install Ruby gems fresh with Bundler caching off and never restore
+  a generated `Pods` tree from cache; Actions caches only CocoaPods downloads.
+- Third-party actions in delivery workflows are pinned to full commit SHAs with
+  a trailing version comment; update both together.
+- App icons: `AppIconDev` locally, `AppIconNightly` on TestFlight, `AppIcon` on
+  the App Store.
 
 ## App Store as code
 
 Nothing the repository manages is edited in App Store Connect:
 
-| What | Source |
-| --- | --- |
-| Name, description, keywords, URLs, What's New | `metadata/` in asc's canonical format; `metadata/version/<version>/en-US.json` carries that version's `whatsNew` |
-| Release type, phased release, age-rating answers, screenshot sets | [`Config/AppStore.json`](../Config/AppStore.json) |
-| Screenshots | `screenshots/<locale>/`, written by `mise run store-images`; locale folders must be App Store locales such as `en-US` |
-| App Review sign-in | The `release` Environment's `APP_REVIEW_DEMO_ACCOUNT_*` secrets; `apply` sets them on every version. The review contact stays in App Store Connect, and a version with none fails `apply` until it is set there |
+| What                                                              | Source                                                                                                                                                                                                          |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Name, description, keywords, URLs, What's New                     | `metadata/` in asc's canonical format; `metadata/version/<version>/en-US.json` carries that version's `whatsNew`                                                                                                |
+| Release type, phased release, age-rating answers, screenshot sets | [`Config/AppStore.json`](../Config/AppStore.json)                                                                                                                                                               |
+| Screenshots                                                       | `screenshots/<locale>/`, written by `mise run store-images`; locale folders must be App Store locales such as `en-US`                                                                                           |
+| App Review sign-in                                                | The `release` Environment's `APP_REVIEW_DEMO_ACCOUNT_*` secrets; `apply` sets them on every version. The review contact stays in App Store Connect, and a version with none fails `apply` until it is set there |
 
 A field left out of `metadata/` stays unmanaged: asc never clears it. To adopt
 one, take it from the Screenshots dry run's artifact and commit it.
@@ -63,98 +77,62 @@ node scripts/app-store.ts screenshots --version 3.0.0 --dry-run
 ```
 
 [install-asc.sh](../scripts/install-asc.sh) pins asc 5.15.0 and checks each
-platform's SHA-256; CI never installs asc from Homebrew. Delivery steps run `shell: bash`, so an asc failure piped into the job summary still fails the step. asc sends command
-telemetry to rork.com by default, so every workflow that runs it sets
-`ASC_TELEMETRY_DISABLED=1` before its first asc command, the store tool
-refuses to run while `asc telemetry status` reports it on, and the tooling CI
-lane proves both. Locally, run `asc telemetry disable` once after installing.
+platform's SHA-256; CI never installs asc from Homebrew. Delivery steps run
+`shell: bash`, so an asc failure piped into the job summary still fails the
+step. asc sends command telemetry to rork.com by default, so every workflow that
+runs it sets `ASC_TELEMETRY_DISABLED=1` before its first asc command, the store
+tool refuses to run while `asc telemetry status` reports it on, and the tooling
+CI lane proves both. Locally, run `asc telemetry disable` once after installing.
 `asc web` subcommands use an Apple ID web session and never run in CI.
 
-### Signing
+Beta and Release sign with asc: [install-signing.sh](../scripts/install-signing.sh)
+installs `APPLE_DISTRIBUTION_P12` into a temporary keychain,
+[check-signing-profile.rb](../scripts/check-signing-profile.rb) picks an active
+App Store profile for this team and `PUTIO_APP_IDENTIFIER` that includes the
+identity's certificate, and [archive-ios.sh](../scripts/archive-ios.sh) signs
+with that profile's UUID. Ruby and Bundler remain only for CocoaPods and the
+profile check.
 
-Beta and Release sign with asc. [install-signing.sh](../scripts/install-signing.sh) installs `APPLE_DISTRIBUTION_P12` into a new keychain with `asc signing keychain install`, reads every active App Store profile with `asc profiles list`, lets [check-signing-profile.rb](../scripts/check-signing-profile.rb) pick one for this team and `PUTIO_APP_IDENTIFIER` that includes the identity's certificate, and installs it for [archive-ios.sh](../scripts/archive-ios.sh), which signs with that profile's UUID. The job deletes the keychain at the end. Nothing in App Store Connect is created, renewed, or revoked, so a new certificate needs its App Store profile regenerated in App Store Connect first. Run [Signing Check](../.github/workflows/signing-check.yml) after changing either signing secret.
+## Release secret contract
 
-Ruby and Bundler remain only for CocoaPods and the profile check.
+Beta, Release, Screenshots, Submit, and Signing Check read GitHub `release`
+Environment secrets directly; CI never calls 1Password or uses
+`OP_SERVICE_ACCOUNT_TOKEN`. [Load iOS release secrets](../.github/actions/load-ios-release-secrets/action.yml)
+validates them for Beta and Release. The `release` Environment must provide:
 
-## Release Secret Contract
+- App Store Connect API fields: `APPSTORE_CONNECT_ISSUER_ID`,
+  `APPSTORE_CONNECT_KEY_ID`, `APPSTORE_CONNECT_KEY_CONTENT`. asc reads them as
+  `ASC_KEY_ID`, `ASC_ISSUER_ID`, and `ASC_PRIVATE_KEY` with
+  `ASC_BYPASS_KEYCHAIN=1`
+- App metadata and runtime fields: `PUTIO_APP_IDENTIFIER`,
+  `PUTIO_DEVELOPMENT_TEAM`, `PUTIO_OAUTH_CLIENT_ID`,
+  `PUTIO_CHROMECAST_RECEIVER_APP_ID`, and `PUTIO_SENTRY_DSN`, the DSN for Sentry
+  project `ios`; Beta and Release fail without it
+- Intercom fields: `PUTIO_INTERCOM_API_KEY` and `PUTIO_INTERCOM_APP_ID`. Beta and
+  Release fail without them, because Contact us and destroy-account support open
+  Intercom. Each must match `[A-Za-z0-9._:-]+` and must not be `null`
+- Signing identity, for Beta, Release, and Signing Check:
+  `APPLE_DISTRIBUTION_P12`, the Apple Distribution certificate and private key as
+  one base64 line of a password-protected PKCS#12, and
+  `APPLE_DISTRIBUTION_P12_PASSWORD`
+- App Review sign-in, for the store tool's `apply` in Release and Screenshots,
+  which fails before changing anything without them:
+  `APP_REVIEW_DEMO_ACCOUNT_NAME` and `APP_REVIEW_DEMO_ACCOUNT_PASSWORD`, at most
+  100 characters
+- Release tagging, for the Release workflow's `tag` job:
+  `PUTIO_CI_APP_CLIENT_ID` (variable) and `PUTIO_CI_APP_PRIVATE_KEY`
 
-Beta, Release, Screenshots, and Submit read GitHub `release` Environment secrets directly.
-The canonical source copy for those values stays in the 1Password CI/restricted
-vault for human administration and rotation, but CI must not call 1Password or
-use `OP_SERVICE_ACCOUNT_TOKEN` at runtime.
-
-The `release` Environment must provide:
-
-- App Store Connect API fields:
-  - `APPSTORE_CONNECT_ISSUER_ID`
-  - `APPSTORE_CONNECT_KEY_ID`
-  - `APPSTORE_CONNECT_KEY_CONTENT`
-- App metadata and runtime fields:
-  - `PUTIO_APP_IDENTIFIER`
-  - `PUTIO_DEVELOPMENT_TEAM`
-  - `PUTIO_OAUTH_CLIENT_ID`
-  - `PUTIO_CHROMECAST_RECEIVER_APP_ID`
-  - `PUTIO_SENTRY_DSN`: the DSN for Sentry project `ios` (`5282170`); beta and release fail without it. The app posts through `relay.put.io` unless the account's `diagnostics_enabled` is off, so also while signed out and before the account answers
-- Intercom fields: beta and release fail without them, because Contact us and destroy-account support open Intercom. Each must match `[A-Za-z0-9._:-]+` and must not be `null`:
-  - `PUTIO_INTERCOM_API_KEY`
-  - `PUTIO_INTERCOM_APP_ID`
-- Signing identity, used by Beta, Release, and Signing Check:
-  - `APPLE_DISTRIBUTION_P12`: the Apple Distribution certificate and its private key as one base64 line of a password-protected PKCS#12 that macOS can import, such as a Keychain Access export (`openssl pkcs12 -export` needs `-legacy`)
-  - `APPLE_DISTRIBUTION_P12_PASSWORD`: that file's password
-- App Review sign-in, used by the store tool's `apply` in Release and Screenshots, which fails before changing anything without them. To rotate, update both and run Screenshots with `dry_run` off:
-  - `APP_REVIEW_DEMO_ACCOUNT_NAME`
-  - `APP_REVIEW_DEMO_ACCOUNT_PASSWORD`: at most 100 characters; the account must not require two-factor sign-in
-- Release tagging, used only by the Release workflow's `tag` job:
-  - `PUTIO_CI_APP_CLIENT_ID` (variable): the client ID of the `putio-ci` App (ID `3648620`)
-  - `PUTIO_CI_APP_PRIVATE_KEY`
-- Brand fonts need no credentials: the "Sync licensed brand fonts" step
-  downloads them from `static.put.io` and verifies each sha256 from
-  `Config/BrandFonts.json`, failing the workflow on a bad download or a
-  mismatch, so a system-font build cannot ship silently
+Brand fonts need no credentials: the workflows download them from
+`static.put.io` and verify each sha256 from `Config/BrandFonts.json`, so a
+system-font build can't ship silently. Product analytics needs none either:
+`Config/Release.xcconfig` carries PostHog's public project token.
 
 Keep item IDs, service-account tokens, and private key material out of git.
 
-Product analytics needs no Environment field: `Config/Release.xcconfig` carries PostHog's public project token, which only names the project, so Debug, verify, and e2e builds have none. The app sends through `burrow.put.io` only from the `com.putio.tvOS` bundle and only while a signed-in account's `product_analytics_enabled` is on; TestFlight installs tag their events `release_channel: beta`.
-
-## TestFlight Diagnostics Check
-
-One controlled, non-fatal event proves a build's Sentry path. Run the check on the beta, then again on the Release workflow's upload before submitting it for review. `release` archives its own binary and never submits it, so add that build to an internal TestFlight group and install it from TestFlight.
-
-1. On a TestFlight device, sign in to an account whose `diagnostics_enabled` is on.
-2. Open `putio://diagnostics-check` from Safari or Notes. Nothing changes on screen. The install's receipt decides, not the workflow: a TestFlight install sends the event, and an App Store install ignores the link. With diagnostics off the event is dropped like any other.
-3. In Sentry project `ios` (`5282170`), not `tvos`, find `category:diagnostics_check` and confirm release `com.putio.tvOS@3.0.0+<build>` for the installed build, environment `production`, OS `iOS` or `iPadOS`, and `app.build_type` `test`. TestFlight and App Store events share the `production` environment, so the build type is what tells them apart.
-
-Never paste the DSN or the event payload into issues, pull requests, or logs.
-
 ## App Privacy
 
-The App Privacy answers in App Store Connect must match Organizer's privacy report, which merges [`Putio/PrivacyInfo.xcprivacy`](../Putio/PrivacyInfo.xcprivacy) with the SDKs' own manifests. The answers, their sources, and the open questions live in [App Store app release](https://app.notion.com/p/3fdd546ba2f581a29718c0deeac09e20) in the put.io Notion; change the manifest and that page together.
-
-App Privacy is the one manual step: the App Store Connect API can't write it. To check for drift locally, `asc web privacy plan --app 1260479699 --file <declaration.json>` compares a declaration with the live answers through an Apple ID web session.
-
-Organizer's Generate Privacy Report has no command-line equivalent. CI deletes its archives, so archive locally, then open the archive in Organizer:
-
-```sh
-xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -archivePath build/privacy/Putio.xcarchive CODE_SIGNING_ALLOWED=NO archive
-open build/privacy/Putio.xcarchive
-```
-
-## GitHub Release Settings
-
-Repository admins must keep these settings aligned with the workflow trust model:
-
-- protect `main` for trusted team direct push; do not allow force-pushes or branch deletion
-- protect `v*` release tags so only release automation or release admins can create or update them; `putio-ci` holds the bypass the Release workflow tags with
-- limit the `release` Environment to `main` and `v*` tags with deployment branch policies; it has no required reviewers, so dispatching a delivery workflow on protected `main` is the approval
-
-## App Store IDs
-
-- App Store Connect app ID `1260479699`, in `Config/AppStore.json` and the asc commands
-
-## Operational Notes
-
-- App Store Connect upload success does not mean external distribution is complete
-- Apple processing failures may surface only after upload
-- release uploads must complete App Store Connect processing before promotion or submission can continue
-- privacy usage strings in `Putio/Info.plist` must stay aligned with enabled SDK features
-- Beta and release run on GitHub-hosted macOS runners, whose minutes count tenfold against the organization's included minutes, so prefer local validation and `node scripts/app-store.ts check` before rerunning full beta uploads
+The App Privacy answers in App Store Connect must match Organizer's privacy
+report, which merges [`Putio/PrivacyInfo.xcprivacy`](../Putio/PrivacyInfo.xcprivacy)
+with the SDKs' own manifests, and the usage strings in `Putio/Info.plist` must
+match the enabled SDK features. Change the manifest and the Notion answers
+together.
