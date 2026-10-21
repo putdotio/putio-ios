@@ -167,9 +167,10 @@ struct MainTabView: View {
         videoPlayer(for: route)
       }
     }
-    // A link that arrives after the ask still wins; the next launch asks.
+    // A link that arrives after the ask still wins; a save in flight finishes
+    // on its own, and an unanswered prompt asks again next launch.
     .onChange(of: deepLinks.hasReceivedLink) { _, received in
-      if received, analyticsPrompt?.isSaving == false { analyticsPrompt = nil }
+      if received { analyticsPrompt = nil }
     }
     .sheet(
       isPresented: Binding(
@@ -311,11 +312,13 @@ struct MainTabView: View {
   }
 
   /// Once per signed-in shell. A config that failed to load asks nothing;
-  /// the next launch reads it again.
+  /// the next launch reads it again. The account is read from the session,
+  /// since a setting changed while the config loaded postdates `account`.
   private func askProductAnalyticsIfNeeded() {
     guard HarnessLaunch.allowsProductAnalyticsPrompt, let config = appConfig.config,
+      case .signedIn(let current) = runtime.session.state, current.id == account.id,
       PutioProductAnalyticsPrompt.shouldAsk(
-        productAnalyticsEnabled: account.productAnalyticsEnabled,
+        productAnalyticsEnabled: current.productAnalyticsEnabled,
         promptAnswered: config.productAnalyticsPromptAnswered,
         opensLaunchLink: deepLinks.hasReceivedLink)
     else { return }
