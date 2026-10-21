@@ -228,6 +228,8 @@ class HistoryTableViewCell: UITableViewCell {
         }
         titleLabel.text = presentation?.text ?? NSLocalizedString("No title", comment: "")
         detailLabel.text = presentation?.detailText ?? ""
+        // One VoiceOver stop per row, as the built-in subtitle style gave.
+        accessibilityLabel = [titleLabel.text, detailLabel.text].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
         iconView.image = (presentation?.icon ?? .imageIcon).image
     }
 }
