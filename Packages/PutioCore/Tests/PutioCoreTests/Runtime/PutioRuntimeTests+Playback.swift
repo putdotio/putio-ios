@@ -467,6 +467,24 @@ extension PutioRuntimeTests {
     await assertRuntimeError(.invalidResponse) { try await runtime.setCastPlaybackType(.hls) }
   }
 
+  func testProductAnalyticsPromptAnswerWritesItsFlatConfigKey() async throws {
+    let (runtime, _) = await makeSignedInRuntime()
+    let route = "PUT /v2/config/dismissed.product_analytics_prompt"
+    fixtures.setFixture(#"{"status":"OK"}"#, for: route)
+    try await runtime.markProductAnalyticsPromptAnswered()
+    let request = try XCTUnwrap(
+      fixtures.capturedRequests().last {
+        $0.url?.path == "/v2/config/dismissed.product_analytics_prompt"
+      })
+    XCTAssertEqual(
+      String(data: try XCTUnwrap(requestBodyData(for: request)), encoding: .utf8),
+      #"{"value":true}"#)
+    fixtures.setFixture(#"{"status":"ERROR"}"#, for: route)
+    await assertRuntimeError(.invalidResponse) {
+      try await runtime.markProductAnalyticsPromptAnswered()
+    }
+  }
+
   func testCastMediaUsesHLSWithMuxedSubtitlesAndRedactsTheToken() async throws {
     let (runtime, _) = await makeSignedInRuntime()
     fixtures.setFixture(

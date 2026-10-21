@@ -85,6 +85,10 @@ extension PutioRuntime {
     try await setAppConfigValue(.autoplayNextVideo, enabled)
   }
 
+  public func markProductAnalyticsPromptAnswered() async throws {
+    try await setAppConfigValue(.productAnalyticsPromptAnswered, true)
+  }
+
   private func setAppConfigValue<Value: Encodable & Sendable>(
     _ key: PutioAppConfigKey, _ value: Value
   ) async throws {

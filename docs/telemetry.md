@@ -24,6 +24,14 @@ starts Sentry at launch and on every session change, including the Account ›
 Privacy toggle, so turning Diagnostics off closes the SDK in the running app.
 A failed restore that keeps the credential leaves the answer as it was.
 
+Product analytics is opt-in. The signed-in shell asks once per launch, through
+[ProductAnalyticsPromptView](../Apps/iOS/Sources/Account/ProductAnalyticsPromptView.swift),
+when `product_analytics_enabled` is off and `/v2/config` has no
+`dismissed.product_analytics_prompt`. put.io keeps that document per OAuth app,
+so an answer on the web doesn't reach this app; a value the app can't read
+counts as answered, and a launch that opens a link skips the ask. Answering
+saves the setting, then the key.
+
 Sentry queues envelopes and crash reports under `Caches/io.put.diagnostics`
 and uploads them on close and start without running `beforeSend`. Turning
 Diagnostics off, or launching with it off, deletes that folder, and a URL

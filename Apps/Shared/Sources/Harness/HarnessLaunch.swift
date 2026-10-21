@@ -14,6 +14,14 @@ enum HarnessLaunch {
   static let arguments = honoredArguments(ProcessInfo.processInfo.arguments, isEnabled: isEnabled)
   static var scenario: HarnessScenario { HarnessScenario.parse(arguments: arguments) }
 
+  /// Harness runs, live ones included, meet the product analytics prompt
+  /// only when they ask for it.
+  static let analyticsPromptArgument = "--putio-harness-analytics-prompt"
+  static var allowsProductAnalyticsPrompt: Bool {
+    !arguments.contains(HarnessScenario.launchArgument)
+      || arguments.contains(analyticsPromptArgument)
+  }
+
   static func honoredArguments(_ launchArguments: [String], isEnabled: Bool) -> [String] {
     isEnabled ? launchArguments : []
   }
