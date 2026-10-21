@@ -499,7 +499,16 @@ const exportListing = async (config: AppStoreConfig, version: string, remote: Re
   await writeFile(join(target, "age-rating.json"), `${JSON.stringify(ageRating, null, 2)}\n`);
 };
 
+// App Review's sign-in comes from the release Environment, never the repo.
+const REVIEW_ACCOUNT = ["APP_REVIEW_DEMO_ACCOUNT_NAME", "APP_REVIEW_DEMO_ACCOUNT_PASSWORD"] as const;
+
+const requireReviewAccount = (): void => {
+  const missing = REVIEW_ACCOUNT.filter((name) => !process.env[name]);
+  if (missing.length > 0) throw new Error(`apply needs ${missing.join(" and ")} for App Review's sign-in`);
+};
+
 const apply = async (config: AppStoreConfig, version: string): Promise<void> => {
+  requireReviewAccount();
   await check(config, version);
   const lines = [`## App Store changes for ${version}`, ""];
   let remote = await fetchRemoteVersion(config, version);
@@ -526,6 +535,16 @@ const apply = async (config: AppStoreConfig, version: string): Promise<void> => 
   // --confirm lets asc apply an explicit null, which clears a managed field.
   await asc([...metadataArgs(config, version), "--confirm", "--output", "json"]);
   lines.push(`- Metadata: applied \`${config.metadataDir}/\` for ${version}`);
+
+  // Updating keeps the review contact App Store Connect already holds; a
+  // version with none fails here until its contact is set there. @env: keeps
+  // the password out of argv, and asc redacts it from its output.
+  await asc([
+    "review", "details-create", "--version-id", requireVersion(remote).id, "--demo-account-required",
+    "--demo-account-name", `@env:${REVIEW_ACCOUNT[0]}`, "--demo-account-password", `@env:${REVIEW_ACCOUNT[1]}`,
+    "--if-exists", "update", "--output", "json",
+  ]);
+  lines.push("- App Review: sign-in set from the release Environment");
 
   const changes = ageRatingChanges(config.ageRating, await fetchAgeRating(config, remote));
   if (changes.length > 0) {

@@ -214,7 +214,9 @@ const listing = (state: string, phasedRelease: unknown = null) =>
     ...(phasedRelease ? { included: [{ type: "appStoreVersionPhasedReleases", id: "p1", attributes: { phasedReleaseState: "INACTIVE" } }] } : {}),
   });
 
-const MUTATING = /^(versions (create|update|phased-release (create|delete))|age-rating edit|screenshots upload|review submit|publish )/;
+const MUTATING = /^(versions (create|update|phased-release (create|delete))|age-rating edit|screenshots upload|review (submit|details-create)|publish )/;
+
+const REVIEW_ACCOUNT = { APP_REVIEW_DEMO_ACCOUNT_NAME: "reviewer@example.com", APP_REVIEW_DEMO_ACCOUNT_PASSWORD: "fixture-password" };
 
 const recordingFixture = async (t: test.TestContext, env: Record<string, string> = {}, configOverrides: Record<string, unknown> = {}) => {
   const dir = await mkdtemp(join(tmpdir(), "putio-app-store-fake-"));
@@ -232,7 +234,7 @@ const recordingFixture = async (t: test.TestContext, env: Record<string, string>
   await writeFile(log, "");
   const invoke = (...args: string[]) =>
     run(process.execPath, [script, ...args, "--config", configPath, "--version", "3.0.0"], {
-      env: { ...process.env, ASC_BIN: join(dir, "asc"), ASC_LOG: log, GITHUB_STEP_SUMMARY: "", FAKE_VERSIONS: listing("PREPARE_FOR_SUBMISSION"), ...env },
+      env: { ...process.env, ...REVIEW_ACCOUNT, ASC_BIN: join(dir, "asc"), ASC_LOG: log, GITHUB_STEP_SUMMARY: "", FAKE_VERSIONS: listing("PREPARE_FOR_SUBMISSION"), ...env },
     });
   const calls = async () => (await readFile(log, "utf8")).split("\n").filter(Boolean);
   return { dir, invoke, calls };
@@ -262,12 +264,32 @@ test("apply confirms the metadata push and only changes what drifted", async (t)
     "versions update",
     "versions phased-release create",
     "metadata push",
+    "review details-create",
     "age-rating edit",
   ]);
   assert.match(made[2] ?? "", /--confirm/);
   assert.doesNotMatch(made[2] ?? "", /--dry-run/);
-  assert.match(made[3] ?? "", /--social-media false/);
-  assert.doesNotMatch(made[3] ?? "", /social-media-age-restricted/);
+  assert.match(made[4] ?? "", /--social-media false/);
+  assert.doesNotMatch(made[4] ?? "", /social-media-age-restricted/);
+});
+
+test("apply sets App Review's sign-in by reference, never by value", async (t) => {
+  const { invoke, calls } = await recordingFixture(t);
+  const { stdout } = await invoke("apply", "--confirm");
+  const review = (await calls()).find((call) => call.startsWith("review details-create"));
+  assert.match(review ?? "", /--version-id v1 --demo-account-required --demo-account-name @env:APP_REVIEW_DEMO_ACCOUNT_NAME --demo-account-password @env:APP_REVIEW_DEMO_ACCOUNT_PASSWORD --if-exists update/);
+  for (const value of Object.values(REVIEW_ACCOUNT)) {
+    assert.doesNotMatch((await calls()).join("\n"), new RegExp(value), "asc never receives the value");
+    assert.doesNotMatch(stdout, new RegExp(value), "the report never prints it");
+  }
+});
+
+test("apply without the review account changes nothing", async (t) => {
+  for (const missing of Object.keys(REVIEW_ACCOUNT)) {
+    const { invoke, calls } = await recordingFixture(t, { [missing]: "" });
+    await assert.rejects(invoke("apply", "--confirm"), new RegExp(`apply needs ${missing}`));
+    assert.deepEqual(await calls(), [], missing);
+  }
 });
 
 test("check rejects a screenshot locale App Store Connect doesn't know", async (t) => {
@@ -388,7 +410,7 @@ test("every asc flag the store tool passes exists in the pinned asc", { skip: !a
   }
   for (const expected of [
     "age-rating view", "age-rating edit", "versions create", "versions update", "versions phased-release create",
-    "versions phased-release delete", "screenshots upload", "metadata pull", "metadata push", "validate",
+    "versions phased-release delete", "screenshots upload", "metadata pull", "metadata push", "review details-create", "validate",
   ]) {
     assert.ok(flagsByCommand.has(expected), `the scenarios reach asc ${expected}`);
   }
