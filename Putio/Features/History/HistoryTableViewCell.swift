@@ -194,9 +194,9 @@ class HistoryTableViewCell: UITableViewCell {
         NSLayoutConstraint.activate([
             iconView.widthAnchor.constraint(equalToConstant: Self.iconSize),
             iconView.heightAnchor.constraint(equalToConstant: Self.iconSize),
-            iconView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 21),
+            iconView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             iconView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor, constant: -1 / 3),
-            labels.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 16),
+            labels.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 15),
             labels.trailingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.trailingAnchor),
             labels.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor, constant: 8),
             labels.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -8),
