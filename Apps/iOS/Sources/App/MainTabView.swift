@@ -65,6 +65,7 @@ struct MainTabView: View {
   @State private var offlineQueueHolder: PutioOfflineQueueHolder
   private var offlineQueue: PutioOfflineQueue { offlineQueueHolder.queue }
   @State private var appConfig: PutioAppConfigModel
+  @State private var analyticsPrompt: PutioProductAnalyticsPromptModel?
   @State private var trackPicker: PutioOfflineTrackPickerRequest?
   @State private var offlineFailure: PutioOfflineFailure?
   @Environment(\.scenePhase) private var scenePhase
@@ -155,12 +156,32 @@ struct MainTabView: View {
     .environment(\.putioDefaultFolderSort, account.defaultSort)
     // Shrink-on-scroll is opt-in on iOS 26.
     .tabBarMinimizeBehavior(.onScrollDown)
-    .task { await appConfig.loadIfNeeded() }
+    .task {
+      await appConfig.loadIfNeeded()
+      askProductAnalyticsIfNeeded()
+    }
     .modifier(PutioCastPresentation(model: cast, audioPlayback: audioPlayback))
     .accessibilityHidden(selectedVideoRoute != nil)
     .overlay {
       PutioSelectedVideoCover(route: $selectedVideoRoute) { route in
         videoPlayer(for: route)
+      }
+    }
+    // A link that arrives after the ask still wins; a save in flight finishes
+    // on its own, and an unanswered prompt asks again next launch.
+    .onChange(of: deepLinks.hasReceivedLink) { _, received in
+      if received { analyticsPrompt = nil }
+    }
+    .onChange(of: account.productAnalyticsEnabled) { _, enabled in
+      if enabled, analyticsPrompt?.isSaving == false { analyticsPrompt = nil }
+    }
+    .sheet(
+      isPresented: Binding(
+        get: { analyticsPrompt != nil }, set: { if !$0 { analyticsPrompt = nil } })
+    ) {
+      if let analyticsPrompt {
+        ProductAnalyticsPromptView(model: analyticsPrompt)
+          .preferredColorScheme(.dark)
       }
     }
     .sheet(isPresented: $audioPlayback.isPresented) {
@@ -291,6 +312,22 @@ struct MainTabView: View {
       PutioFilesNavigationRestoration().clear(accountID: account.id)
       await runtime.session.signOut()
     }
+  }
+
+  /// Once per signed-in shell. A config that failed to load asks nothing;
+  /// the next launch reads it again. The account is read from the session,
+  /// since a setting changed while the config loaded postdates `account`,
+  /// and a preferences write still in flight leaves the answer to it.
+  private func askProductAnalyticsIfNeeded() {
+    guard HarnessLaunch.allowsProductAnalyticsPrompt, let config = appConfig.config,
+      !runtime.session.isUpdatingAccountPreferences,
+      case .signedIn(let current) = runtime.session.state, current.id == account.id,
+      PutioProductAnalyticsPrompt.shouldAsk(
+        productAnalyticsEnabled: current.productAnalyticsEnabled,
+        promptAnswered: config.productAnalyticsPromptAnswered,
+        opensLaunchLink: deepLinks.hasReceivedLink)
+    else { return }
+    analyticsPrompt = PutioProductAnalyticsPromptModel(actions: .init(runtime: runtime))
   }
 
   private func selectFile(_ route: PutioFileRoute) {

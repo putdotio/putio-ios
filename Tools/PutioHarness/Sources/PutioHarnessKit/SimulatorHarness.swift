@@ -887,6 +887,15 @@ public struct SimulatorHarness {
           attachmentNames: [BrowserJourneyContract.accountRatingAttachmentName],
           artifactDirectory: platformDirectory
         )
+        let analyticsPromptScreenshots = try runJourneyPreflightTest(
+          identifier: BrowserJourneyContract.analyticsPromptTestIdentifier,
+          platform: platform,
+          session: session,
+          mediaBaseURL: mediaBaseURL,
+          resultBundle: platformDirectory.appending(path: ".analytics-prompt.xcresult"),
+          attachmentNames: [BrowserJourneyContract.analyticsPromptAttachmentName],
+          artifactDirectory: platformDirectory
+        )
         let audioScreenshots = try runJourneyPreflightTest(
           identifier: BrowserJourneyContract.audioTestIdentifier,
           platform: platform,
@@ -1084,7 +1093,8 @@ public struct SimulatorHarness {
           + sortedRootScreenshots + searchScreenshots + historyScreenshots
           + filePreferencesScreenshots + playbackPreferencesScreenshots + subtitlesScreenshots
           + deepLinkScreenshots
-          + accountRatingScreenshots + audioScreenshots + previewScreenshots
+          + accountRatingScreenshots + analyticsPromptScreenshots + audioScreenshots
+          + previewScreenshots
           + downloadScreenshots + castScreenshots + accountSecurityScreenshots
           + accessibilityFilesScreenshots + accessibilityAudioScreenshots
         for screenshot in preflightScreenshots {
@@ -1098,7 +1108,8 @@ public struct SimulatorHarness {
           ".folder-reconciliation.xcresult",
           ".history.xcresult", ".deep-links.xcresult",
           ".file-preferences.xcresult", ".playback-preferences.xcresult", ".subtitles.xcresult",
-          ".account-rating.xcresult", ".audio.xcresult", ".previews.xcresult",
+          ".account-rating.xcresult", ".analytics-prompt.xcresult", ".audio.xcresult",
+          ".previews.xcresult",
           ".downloads.xcresult", ".cast.xcresult", ".account-security.xcresult",
         ] {
           try? fileManager.removeItem(at: platformDirectory.appending(path: bundle))

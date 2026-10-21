@@ -36,6 +36,9 @@ owns the selected tests and required screenshots; the
 [`appears(within:)` and `disappears(within:)`](../Tests/iOSUITests/Sources/XCUIElement+Wait.swift),
 because XCTest's existence waits sleep a second before they first look. HTTP responses
 and OAuth input come from [fixtures](../Apps/Shared/Sources/Harness/HarnessSeededAPI.swift).
+Harness launches, live ones included, skip the product analytics prompt unless
+`--putio-harness-analytics-prompt` asks for it; the seeded `/config` answers it
+otherwise.
 Session transitions, navigation, and AVFoundation playback are real; media is
 served by the harness's [loopback server](../Tools/PutioHarness/Sources/PutioHarnessKit/HarnessMediaServer.swift).
 Cast uses a [stub receiver](../Apps/iOS/Sources/Harness/ChromecastHarness.swift), so this

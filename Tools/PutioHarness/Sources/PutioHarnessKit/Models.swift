@@ -617,6 +617,9 @@ enum BrowserJourneyContract {
   static let accountRatingTestIdentifier =
     "PutioUITests/AccountJourneyTests/testRatingAndContactLinksOpenOnlyAfterExplicitTaps"
   static let accountRatingAttachmentName = "runtime-account-rating"
+  static let analyticsPromptTestIdentifier =
+    "PutioUITests/ProductAnalyticsPromptJourneyTests/testPromptRetriesAndSavesTheChoiceOnce"
+  static let analyticsPromptAttachmentName = "runtime-analytics-prompt"
   static let audioTestIdentifier =
     "PutioUITests/AudioJourneyTests/testAudioPlaysPausesChangesSpeedAndAdvancesToTheNextTrack"
   static let audioAttachmentName = "runtime-audio-player"

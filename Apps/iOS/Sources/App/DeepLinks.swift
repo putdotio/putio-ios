@@ -112,6 +112,8 @@ final class PutioDeepLinkModel {
   private(set) var destination: PutioDeepLinkDestination?
   private(set) var failure: PutioDeepLinkFailure?
   private(set) var isLoading = false
+  /// Whether this launch received a link at all, resolved or not.
+  private(set) var hasReceivedLink = false
   private var boundAccountID: Int?
   private var isSigningOut = false
   /// Resolution runs in a task the model owns. SwiftUI recreates the view's
@@ -129,6 +131,7 @@ final class PutioDeepLinkModel {
 
   func receive(_ url: URL) {
     guard !isSigningOut, let link = PutioDeepLink.parse(url) else { return }
+    hasReceivedLink = true
     cancel()
     pending = link
     boundAccountID = accountID

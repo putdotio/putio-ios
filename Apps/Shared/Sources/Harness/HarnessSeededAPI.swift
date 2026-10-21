@@ -63,6 +63,10 @@ import Foundation
     /// default (off) and fails the first save once for retry proof.
     nonisolated(unsafe) private static var autoplayNextVideo = true
     nonisolated(unsafe) private static var autoplaySaveFailed = false
+    /// Journeys never meet the analytics prompt: the document answers it
+    /// unless a run asks for the prompt, which leaves the key unset.
+    nonisolated(unsafe) private static var analyticsPromptAnswered = !ProcessInfo.processInfo
+      .arguments.contains(HarnessLaunch.analyticsPromptArgument)
 
     /// Account security fixtures are process-scoped like Chromecast config:
     /// one launch enrolls, revokes, links, clears, and destroys, with one
@@ -994,11 +998,24 @@ import Foundation
           return (200, accountInfoLocked)
         }
       case "GET /v2/config":
-        let playbackType = castLock.withLock { castPlaybackType }
+        let (playbackType, answered) = castLock.withLock {
+          (castPlaybackType, analyticsPromptAnswered)
+        }
+        let prompt = answered ? #","dismissed.product_analytics_prompt":true"# : ""
         return (
           200,
-          #"{"config":{"chromecast_playback_type":"\#(playbackType)","autoplay_next_video":\#(autoplayConfigValue)}}"#
+          #"{"config":{"chromecast_playback_type":"\#(playbackType)","autoplay_next_video":\#(autoplayConfigValue)\#(prompt)}}"#
         )
+      case "PUT /v2/config/dismissed.product_analytics_prompt":
+        guard requestPayload(request)?["value"] as? Bool == true else {
+          return (
+            400,
+            fixtureError(
+              statusCode: 400, type: "HARNESS_INVALID_PROMPT_ANSWER", message: "value must be true")
+          )
+        }
+        castLock.withLock { analyticsPromptAnswered = true }
+        return (200, #"{"status":"OK"}"#)
       case "PUT /v2/config/autoplay_next_video":
         return updateAutoplayConfig(request: request)
       case "PUT /v2/config/chromecast_playback_type":

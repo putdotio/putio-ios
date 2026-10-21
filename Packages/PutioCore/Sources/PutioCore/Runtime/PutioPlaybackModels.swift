@@ -78,12 +78,14 @@ public enum PutioCastPlaybackType: String, CaseIterable, Hashable, Codable, Send
 }
 
 /// The keys this app stores in the account's `/config` document. put.io keeps
-/// whatever a client writes, so the shape is the app's to declare; the web app
-/// keeps its own keys, and the Chromecast key below is the one iOS has always
-/// written.
+/// whatever a client writes, per OAuth app, so the shape is the app's to
+/// declare; the web app keeps its own keys, and the Chromecast key below is
+/// the one iOS has always written.
 public enum PutioAppConfigKey: String, CaseIterable, Sendable {
   case chromecastPlaybackType = "chromecast_playback_type"
   case autoplayNextVideo = "autoplay_next_video"
+  /// One flat key, dot included, as the App Store app writes it.
+  case productAnalyticsPromptAnswered = "dismissed.product_analytics_prompt"
 }
 
 /// This app's view of the config document. Missing or unknown values decode
@@ -92,16 +94,21 @@ public enum PutioAppConfigKey: String, CaseIterable, Sendable {
 public struct PutioAppConfig: Codable, Equatable, Sendable {
   public var chromecastPlaybackType: PutioCastPlaybackType
   public var autoplayNextVideo: Bool
+  public var productAnalyticsPromptAnswered: Bool
 
-  public init(chromecastPlaybackType: PutioCastPlaybackType = .hls, autoplayNextVideo: Bool = false)
-  {
+  public init(
+    chromecastPlaybackType: PutioCastPlaybackType = .hls, autoplayNextVideo: Bool = false,
+    productAnalyticsPromptAnswered: Bool = false
+  ) {
     self.chromecastPlaybackType = chromecastPlaybackType
     self.autoplayNextVideo = autoplayNextVideo
+    self.productAnalyticsPromptAnswered = productAnalyticsPromptAnswered
   }
 
   private enum CodingKeys: String, CodingKey {
     case chromecastPlaybackType = "chromecast_playback_type"
     case autoplayNextVideo = "autoplay_next_video"
+    case productAnalyticsPromptAnswered = "dismissed.product_analytics_prompt"
   }
 
   public init(from decoder: Decoder) throws {
@@ -111,6 +118,14 @@ public struct PutioAppConfig: Codable, Equatable, Sendable {
     chromecastPlaybackType = rawPlaybackType.flatMap(PutioCastPlaybackType.init(rawValue:)) ?? .hls
     autoplayNextVideo =
       (try? container.decodeIfPresent(Bool.self, forKey: .autoplayNextVideo)) ?? false
+    // Only a readable "not answered" asks; a value this app can't read counts
+    // as an answer rather than asking again on every launch.
+    do {
+      productAnalyticsPromptAnswered =
+        try container.decodeIfPresent(Bool.self, forKey: .productAnalyticsPromptAnswered) ?? false
+    } catch {
+      productAnalyticsPromptAnswered = true
+    }
   }
 }
 
