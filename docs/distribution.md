@@ -42,6 +42,13 @@ gh workflow run signing-check.yml --ref main -f expected_sha="$sha"
 - Release tags as the `putio-ci` GitHub App, from `PUTIO_CI_APP_CLIENT_ID` and
   `PUTIO_CI_APP_PRIVATE_KEY`, because the `v*` ruleset lets only that App and
   organization admins create tags.
+- Beta's What to Test notes are its `changelog` input, flattened to one line.
+  A blank `changelog` runs
+  [beta-notes](https://github.com/putdotio/.github#actionsbeta-notes) after
+  `verify`: Claude writes one bullet per user-facing change since the latest
+  `v*` tag, and a range with none, or any Claude failure, gives "Bug fixes and
+  improvements." The job authenticates through Anthropic workload identity
+  federation, so it needs `id-token: write` and a full-history checkout.
 - Build numbers are UTC timestamps (`YYMMDDHHMM`) passed as
   `CURRENT_PROJECT_VERSION`; Release passes its version as `MARKETING_VERSION`.
   The checked-in `CURRENT_PROJECT_VERSION` stays `1`, so archiving changes no
