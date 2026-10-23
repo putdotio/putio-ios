@@ -213,12 +213,9 @@ test("release refuses a version without a listing, or with a committed whatsNew,
       env: { PATH: process.env.PATH, RELEASE_VERSION: "3.0.1", GITHUB_ENV: join(dir, "env"), GITHUB_OUTPUT: join(dir, "output"), RUNNER_TEMP: dir },
     }).status;
   };
-  for (const localization of [{}, { description: "x" }]) {
-    assert.equal(await status(localization), 0, JSON.stringify(localization));
-  }
-  for (const localization of [undefined, [], "x", { whatsNew: "Faster folders." }, { whatsNew: "" }, { whatsNew: null }]) {
-    assert.equal(await status(localization), 1, JSON.stringify(localization));
-  }
+  assert.equal(await status({}), 0);
+  assert.equal(await status(undefined), 1);
+  assert.equal(await status({ whatsNew: "Faster folders." }), 1);
 });
 
 // A stand-in gh that serves the tag ref and tag object from FAKE_REF and

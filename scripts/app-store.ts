@@ -363,7 +363,6 @@ const report = async (markdown: string): Promise<void> => {
 const versionFile = (config: AppStoreConfig, version: string): string =>
   resolve(root, config.metadataDir, "version", version, `${config.primaryLocale}.json`);
 
-// Release writes What's New into the checkout before apply, so apply sees it.
 const requireVersionListing = async (config: AppStoreConfig, version: string): Promise<void> => {
   const relative = `${config.metadataDir}/version/${version}/${config.primaryLocale}.json`;
   const path = versionFile(config, version);
