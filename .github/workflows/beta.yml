@@ -109,8 +109,8 @@ jobs:
       - name: Verify repository
         run: mise run verify
 
-      # Notes cover everything since the latest v* tag, which Release creates
-      # at upload; betas are not tagged. Any Claude failure gives the fallback note.
+      # Betas are not tagged, so notes cover everything since the latest v*
+      # tag, which Release creates at upload.
       - name: Write tester notes
         id: notes
         uses: putdotio/.github/.github/actions/beta-notes@32b9f2f9ac2b6b17b2be6b111ec495e079384b4c # v2.3.1

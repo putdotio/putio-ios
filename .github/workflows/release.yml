@@ -190,9 +190,7 @@ jobs:
           [ ! -e "$PUTIO_SIGNING_KEYCHAIN" ] || asc signing keychain delete --keychain "$PUTIO_SIGNING_KEYCHAIN" --confirm --output json > /dev/null
 
   # After the upload, so a failed build spends no Claude call, and outside the
-  # release Environment, so Claude runs beside no secrets. Notes cover the
-  # changes since the previous version's v* tag; no earlier tag, or any
-  # failure, leaves the output empty and the listing job uses the fallback.
+  # release Environment, so Claude runs beside no secrets.
   whats-new:
     name: Write What's New
     needs: [validate-ref, release]
