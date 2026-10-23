@@ -201,7 +201,7 @@ const tempDir = async (t: test.TestContext): Promise<string> => {
   return dir;
 };
 
-test("release refuses a version without a non-empty whatsNew before building", async (t) => {
+test("release refuses a version without a listing, or with a committed whatsNew, before building", async (t) => {
   const run = await stepRun("release.yml", "release", "Prepare release metadata");
   const status = async (localization: unknown) => {
     const dir = await tempDir(t);
@@ -213,8 +213,10 @@ test("release refuses a version without a non-empty whatsNew before building", a
       env: { PATH: process.env.PATH, RELEASE_VERSION: "3.0.1", GITHUB_ENV: join(dir, "env"), GITHUB_OUTPUT: join(dir, "output"), RUNNER_TEMP: dir },
     }).status;
   };
-  assert.equal(await status({ whatsNew: "Faster folders." }), 0);
-  for (const localization of [undefined, {}, { whatsNew: "" }, { whatsNew: 7 }, { whatsNew: null }, { description: "x" }]) {
+  for (const localization of [{}, { description: "x" }]) {
+    assert.equal(await status(localization), 0, JSON.stringify(localization));
+  }
+  for (const localization of [undefined, [], "x", { whatsNew: "Faster folders." }, { whatsNew: "" }, { whatsNew: null }]) {
     assert.equal(await status(localization), 1, JSON.stringify(localization));
   }
 });

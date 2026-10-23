@@ -363,13 +363,13 @@ const report = async (markdown: string): Promise<void> => {
 const versionFile = (config: AppStoreConfig, version: string): string =>
   resolve(root, config.metadataDir, "version", version, `${config.primaryLocale}.json`);
 
-const requireWhatsNew = async (config: AppStoreConfig, version: string): Promise<void> => {
+// Release writes What's New into the checkout before apply, so apply sees it.
+const requireVersionListing = async (config: AppStoreConfig, version: string): Promise<void> => {
+  const relative = `${config.metadataDir}/version/${version}/${config.primaryLocale}.json`;
   const path = versionFile(config, version);
-  if (!(await exists(path))) throw new Error(`${config.metadataDir}/version/${version}/${config.primaryLocale}.json is missing; every version needs its What's New`);
+  if (!(await exists(path))) throw new Error(`${relative} is missing; every version needs its listing`);
   const localization: unknown = JSON.parse(await readFile(path, "utf8"));
-  if (!isObject(localization) || typeof localization.whatsNew !== "string" || localization.whatsNew.trim() === "") {
-    throw new Error(`${config.metadataDir}/version/${version}/${config.primaryLocale}.json has no whatsNew`);
-  }
+  if (!isObject(localization)) throw new Error(`${relative} is not a JSON object`);
 };
 
 // Copies each set into its own directory, because asc validates and
@@ -410,8 +410,8 @@ const check = async (config: AppStoreConfig, version: string | undefined): Promi
   await asc(["metadata", "validate", "--dir", metadataDir, "--output", "json"]);
   lines.push(`- Metadata in \`${config.metadataDir}/\` passes \`asc metadata validate\``);
   if (version) {
-    await requireWhatsNew(config, version);
-    lines.push(`- ${version} has What's New for ${config.primaryLocale}`);
+    await requireVersionListing(config, version);
+    lines.push(`- ${version} has a ${config.primaryLocale} listing`);
   }
   if (!(await exists(resolve(root, config.screenshots.dir)))) throw new Error(`${config.screenshots.dir}/ is missing`);
   const staged = await stageScreenshots(config);

@@ -58,8 +58,9 @@ jobs:
           ref: ${{ needs.validate-ref.outputs.sha }}
           persist-credentials: false
 
-      # First: a version without What's New can't be submitted, so it must not
-      # cost a macOS verify and archive to find out.
+      # First: a broken listing must not cost a macOS verify and archive to
+      # find out. What's New is written later, by the whats-new job, so the
+      # committed listing must not carry one.
       - name: Prepare release metadata
         id: metadata
         shell: bash
@@ -70,9 +71,13 @@ jobs:
             echo "Release version must be three period-separated integers, for example 3.0.1" >&2
             exit 1
           fi
-          whats_new="metadata/version/$RELEASE_VERSION/en-US.json"
-          if ! jq -e '.whatsNew | type == "string" and length > 0' "$whats_new" > /dev/null; then
-            echo "$whats_new needs a whatsNew before $RELEASE_VERSION can ship" >&2
+          listing="metadata/version/$RELEASE_VERSION/en-US.json"
+          if ! jq -e 'type == "object"' "$listing" > /dev/null; then
+            echo "$listing needs a JSON object listing before $RELEASE_VERSION can ship" >&2
+            exit 1
+          fi
+          if jq -e 'has("whatsNew")' "$listing" > /dev/null; then
+            echo "$listing commits whatsNew; Release writes What's New" >&2
             exit 1
           fi
           build_number="$(date -u +%y%m%d%H%M)"
@@ -184,9 +189,57 @@ jobs:
         run: |
           [ ! -e "$PUTIO_SIGNING_KEYCHAIN" ] || asc signing keychain delete --keychain "$PUTIO_SIGNING_KEYCHAIN" --confirm --output json > /dev/null
 
+  # After the upload, so a failed build spends no Claude call, and outside the
+  # release Environment, so Claude runs beside no secrets. Notes cover the
+  # changes since the previous version's v* tag; no earlier tag, or any
+  # failure, leaves the output empty and the listing job uses the fallback.
+  whats-new:
+    name: Write What's New
+    needs: [validate-ref, release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # A failure here gives the fallback; it never blocks the listing.
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: read # Claude reads the pull requests in the range
+      id-token: write # Anthropic workload identity federation
+    outputs:
+      notes: ${{ steps.notes.outputs.notes }}
+
+    steps:
+      # Full history, so the previous version's tag is reachable.
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate-ref.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Release tags each version once, as v<version>; a re-run of this
+      # version reuses that tag, so excluding it skips this version entirely.
+      - name: Find the previous version's release
+        id: base
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          base="$(git describe --tags --abbrev=0 --match 'v*' --exclude "v$RELEASE_VERSION" HEAD^ 2>/dev/null)" || base=""
+          echo "ref=$base" >> "$GITHUB_OUTPUT"
+
+      - name: Write What's New
+        id: notes
+        if: steps.base.outputs.ref != ''
+        uses: putdotio/.github/.github/actions/beta-notes@32b9f2f9ac2b6b17b2be6b111ec495e079384b4c # v2.3.1
+        with:
+          app: put.io for iPhone and iPad
+          base: ${{ steps.base.outputs.ref }}
+          max-length: "4000"
+
   listing:
     name: Apply the listing and validate
-    needs: [validate-ref, release]
+    needs: [validate-ref, release, whats-new]
+    # Runs whatever whats-new did; an empty output gives the fallback below.
+    if: ${{ !cancelled() && needs.validate-ref.result == 'success' && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
     environment: release
     timeout-minutes: 15
@@ -211,6 +264,15 @@ jobs:
           mise install node
           ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
           echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
+
+      # Only in this checkout: What's New is never committed.
+      - name: Add What's New to the listing
+        env:
+          WHATS_NEW: ${{ needs.whats-new.outputs.notes || 'Bug fixes and improvements.' }}
+        run: |
+          file="metadata/version/$RELEASE_VERSION/en-US.json"
+          jq --arg whats_new "$WHATS_NEW" '.whatsNew = $whats_new' "$file" > "$RUNNER_TEMP/listing.json"
+          mv "$RUNNER_TEMP/listing.json" "$file"
 
       - name: Apply metadata, release type, phased release and age rating
         env:
