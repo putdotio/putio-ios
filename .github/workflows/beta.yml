@@ -60,7 +60,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.validate-ref.outputs.sha }}
-          # Full history, so beta-notes finds the latest release tag.
           fetch-depth: 0
           persist-credentials: false
 
@@ -109,8 +108,6 @@ jobs:
       - name: Verify repository
         run: mise run verify
 
-      # Notes cover everything since the latest v* tag, which Release creates
-      # at upload; betas are not tagged. Any Claude failure gives the fallback note.
       - name: Write tester notes
         id: notes
         uses: putdotio/.github/.github/actions/beta-notes@32b9f2f9ac2b6b17b2be6b111ec495e079384b4c # v2.3.1

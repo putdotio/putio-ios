@@ -44,10 +44,7 @@ gh workflow run signing-check.yml --ref main -f expected_sha="$sha"
   organization admins create tags.
 - Beta's What to Test notes always come from
   [beta-notes](https://github.com/putdotio/.github#actionsbeta-notes), run
-  after `verify`: Claude writes one bullet per user-facing change since the
-  latest `v*` tag, and a range with none, or any Claude failure, gives "Bug
-  fixes and improvements." The job authenticates through Anthropic workload identity
-  federation, so it needs `id-token: write` and a full-history checkout.
+  after `verify` on the changes since the latest `v*` tag.
 - Build numbers are UTC timestamps (`YYMMDDHHMM`) passed as
   `CURRENT_PROJECT_VERSION`; Release passes its version as `MARKETING_VERSION`.
   The checked-in `CURRENT_PROJECT_VERSION` stays `1`, so archiving changes no
@@ -76,10 +73,10 @@ one, take it from the Screenshots dry run's artifact and commit it.
 
 Release fails before building when the version's listing is missing or commits
 a `whatsNew`. After the upload, a secretless job runs
-[beta-notes](https://github.com/putdotio/.github#actionsbeta-notes) from the
-previous version's latest `v*` tag; the listing job writes its notes, or "Bug
-fixes and improvements." when there is no earlier tag or Claude fails, into
-the listing in its checkout before `apply`. Submit and Screenshots leave What's
+[beta-notes](https://github.com/putdotio/.github#actionsbeta-notes) on the
+changes since the previous version's `v*` tag, and the listing job writes the
+result, or "Bug fixes and improvements." when that job gives none, into the
+listing in its checkout before `apply`. Submit and Screenshots leave What's
 New as Release set it. [The store tool](../scripts/app-store.ts) drives asc:
 
 ```bash
