@@ -1,4 +1,6 @@
 import Foundation
+import PutioSDK
+import RealmSwift
 import UIKit
 import XCTest
 @testable import Putio
@@ -217,3 +219,39 @@ final class LegacyInstallCleanupTests: XCTestCase {
         return expectation
     }
 }
+
+final class DownloadRestartTests: XCTestCase {
+    func testRestartAnswerIgnoresDownloadDeletedWhileFileLookupRuns() throws {
+        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: #function))
+        let download = Download()
+        download.id = 112
+        download.state = .stopped
+        try realm.write { realm.add(download) }
+
+        var requestedID: Int?
+        var answer: ((Result<PutioFile, PutioSDKError>) -> Void)?
+        RestartingDownloadPresenter().restartDownload(download) { id, completion in
+            requestedID = id
+            answer = completion
+        }
+        try realm.write { realm.delete(download) }
+
+        let file = try JSONDecoder().decode(PutioFile.self, from: JSONSerialization.data(withJSONObject: [
+            "id": 112,
+            "name": "Episode",
+            "icon": "file",
+            "parent_id": 1,
+            "file_type": "VIDEO",
+            "size": 1024,
+            "created_at": "2026-04-20T00:00:00Z",
+            "updated_at": "2026-04-20T00:00:00Z",
+            "is_shared": false
+        ]))
+        answer?(.success(file))
+
+        XCTAssertEqual(requestedID, 112)
+        XCTAssertTrue(download.isInvalidated)
+    }
+}
+
+private final class RestartingDownloadPresenter: UIViewController, DownloadedFilePresenter {}
