@@ -155,7 +155,7 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
                 for index in modifications {
                     let indexPath = IndexPath(row: index, section: 0)
                     if let cell = self.tableView.cellForRow(at: indexPath) as? DownloadsTableViewCell {
-                        guard let download = self.downloads?[index] else { continue }
+                        guard let download = self.download(at: indexPath) else { continue }
                         cell.configure(with: download.id)
                         self.configureSelectionAccessibility(for: cell, download: download)
                     }

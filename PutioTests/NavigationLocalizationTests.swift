@@ -700,6 +700,45 @@ final class NavigationLocalizationTests: XCTestCase {
         XCTAssertTrue(viewController.tableView(tableView, canEditRowAt: IndexPath(row: 1, section: 0)))
     }
 
+    func testDownloadsRowCallbacksIgnoreRowsDeletedBeforeTheTableUpdates() throws {
+        let configuration = Realm.Configuration(inMemoryIdentifier: #function)
+        let realm = try Realm(configuration: configuration)
+        let first = Download()
+        first.id = 21
+        first.state = .completed
+        first.createdAt = Date(timeIntervalSince1970: 1)
+        let second = Download()
+        second.id = 22
+        second.state = .completed
+        second.createdAt = Date(timeIntervalSince1970: 2)
+        try realm.write {
+            realm.add([first, second])
+        }
+
+        let viewController = DownloadsViewController()
+        viewController.downloads = realm.objects(Download.self).sorted(byKeyPath: "createdAt")
+        let tableView = UITableView()
+        tableView.dataSource = viewController
+        tableView.delegate = viewController
+        viewController.tableView = tableView
+        tableView.reloadData()
+        XCTAssertEqual(tableView.numberOfRows(inSection: 0), 2)
+
+        try realm.write {
+            realm.delete(first)
+        }
+        let staleRow = IndexPath(row: 1, section: 0)
+
+        XCTAssertEqual(tableView.numberOfRows(inSection: 0), 2)
+        XCTAssertNil(viewController.tableView(tableView, trailingSwipeActionsConfigurationForRowAt: staleRow))
+        viewController.tableView(tableView, didSelectRowAt: staleRow)
+
+        tableView.setEditing(true, animated: false)
+        XCTAssertFalse(viewController.tableView(tableView, canEditRowAt: staleRow))
+        XCTAssertNil(viewController.tableView(tableView, willSelectRowAt: staleRow))
+        viewController.tableView(tableView, didDeselectRowAt: staleRow)
+    }
+
     private func makeDownloadCell(realm: Realm? = nil) -> DownloadsTableViewCell {
         let cell = DownloadsTableViewCell()
         let icon = UIImageView()

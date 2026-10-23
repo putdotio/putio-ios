@@ -2,8 +2,13 @@ import AVKit
 import UIKit
 
 extension DownloadsViewController {
+    func download(at indexPath: IndexPath) -> Download? {
+        guard let downloads, downloads.indices.contains(indexPath.row) else { return nil }
+        return downloads[indexPath.row]
+    }
+
     func contextualDeleteAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
-        guard let download = downloads?[indexPath.row],
+        guard let download = download(at: indexPath),
               let cell = tableView.cellForRow(at: indexPath) else {
             InternalFailurePresenter.log("Unable to access download row \(indexPath.row) for delete action")
             return UIContextualAction(style: .destructive, title: NSLocalizedString("Delete", comment: "")) { _, _, handler in
@@ -104,7 +109,7 @@ extension DownloadsViewController: UITableViewDataSource {
             withIdentifier: "downloadsReuse",
             for: indexPath
         ) as? DownloadsTableViewCell,
-        let download = downloads?[indexPath.row] else {
+        let download = download(at: indexPath) else {
             InternalFailurePresenter.log("Unable to dequeue DownloadsTableViewCell")
             return UITableViewCell()
         }
@@ -119,22 +124,16 @@ extension DownloadsViewController: UITableViewDataSource {
 extension DownloadsViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
         guard tableView.isEditing else { return true }
-        guard let downloads, indexPath.row < downloads.count else { return false }
-        return downloads[indexPath.row].state == .completed
+        return download(at: indexPath)?.state == .completed
     }
 
     func tableView(_ tableView: UITableView, willSelectRowAt indexPath: IndexPath) -> IndexPath? {
         guard tableView.isEditing else { return indexPath }
-        guard let downloads,
-              indexPath.row < downloads.count,
-              downloads[indexPath.row].state == .completed else {
-            return nil
-        }
-        return indexPath
+        return download(at: indexPath)?.state == .completed ? indexPath : nil
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        guard let download = downloads?[indexPath.row] else { return }
+        guard let download = download(at: indexPath) else { return }
 
         if tableView.isEditing {
             selectionState.select(download.id, isCompleted: download.state == .completed)
@@ -151,7 +150,7 @@ extension DownloadsViewController: UITableViewDelegate {
     }
 
     func tableView(_ tableView: UITableView, didDeselectRowAt indexPath: IndexPath) {
-        guard tableView.isEditing, let download = downloads?[indexPath.row] else { return }
+        guard tableView.isEditing, let download = download(at: indexPath) else { return }
         selectionState.deselect(download.id)
         updateSelectionUI()
         if let cell = tableView.cellForRow(at: indexPath) as? DownloadsTableViewCell {
@@ -163,7 +162,7 @@ extension DownloadsViewController: UITableViewDelegate {
         _ tableView: UITableView,
         trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
     ) -> UISwipeActionsConfiguration? {
-        guard !tableView.isEditing else { return nil }
+        guard !tableView.isEditing, download(at: indexPath) != nil else { return nil }
         let actions = [contextualDeleteAction(forRowAtIndexPath: indexPath)]
         let configuration = UISwipeActionsConfiguration(actions: actions)
         configuration.performsFirstActionWithFullSwipe = false
