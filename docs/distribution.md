@@ -75,7 +75,8 @@ Release fails before building when the version's listing is missing or commits
 a `whatsNew`. After the upload, a secretless job runs
 [beta-notes](https://github.com/putdotio/.github#actionsbeta-notes) on the
 changes since the previous version's `v*` tag, and the listing job writes the
-result into the listing in its checkout before `apply`. Submit and Screenshots leave What's
+result, or "Bug fixes and improvements." when that job gives none, into the
+listing in its checkout before `apply`. Submit and Screenshots leave What's
 New as Release set it. [The store tool](../scripts/app-store.ts) drives asc:
 
 ```bash
