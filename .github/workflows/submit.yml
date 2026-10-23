@@ -127,8 +127,8 @@ jobs:
           ASC_INSTALL_DIR="$RUNNER_TEMP/asc/bin" ./scripts/install-asc.sh
           echo "$RUNNER_TEMP/asc/bin" >> "$GITHUB_PATH"
 
-      # Offline, from the validated commit: What's New must be committed, not
-      # only present in App Store Connect.
+      # Offline, from the validated commit. What's New is not committed: it
+      # stays as Release set it, and strict validation below requires it.
       - name: Check the committed listing
         run: mise exec -- node scripts/app-store.ts check --version "$VERSION"
 

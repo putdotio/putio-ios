@@ -184,6 +184,9 @@ test("check runs the pinned asc against the listing offline", { skip: !ascAvaila
     run(process.execPath, [script, "apply", "--config", join(dir, "AppStore.json"), "--version", "3.0.0", "--confirm", "--dry-run"]),
     /without --dry-run/,
   );
+  // Release adds What's New only in its checkout; the committed listing has none.
+  await writeFile(join(dir, "metadata/version/3.0.0/en-US.json"), JSON.stringify({ description: "Your put.io files, on your iPhone and iPad." }));
+  await check("3.0.0");
   await version("x".repeat(4001));
   await assert.rejects(check("3.0.0"), /asc metadata validate exited/);
   await version("Faster folders.");

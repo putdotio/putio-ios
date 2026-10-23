@@ -65,17 +65,25 @@ Nothing the repository manages is edited in App Store Connect:
 
 | What                                                              | Source                                                                                                                                                                                                          |
 | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Name, description, keywords, URLs, What's New                     | `metadata/` in asc's canonical format; `metadata/version/<version>/en-US.json` carries that version's `whatsNew`                                                                                                |
+| Name, description, keywords, URLs                                 | `metadata/` in asc's canonical format; each version needs `metadata/version/<version>/en-US.json`                                                                                                               |
+| What's New                                                        | Written by Claude at Release from the changes since the previous version's latest `v*` tag; never committed                                                                                                     |
 | Release type, phased release, age-rating answers, screenshot sets | [`Config/AppStore.json`](../Config/AppStore.json)                                                                                                                                                               |
 | Screenshots                                                       | `screenshots/<locale>/`, written by `mise run store-images`; locale folders must be App Store locales such as `en-US`                                                                                           |
 | App Review sign-in                                                | The `release` Environment's `APP_REVIEW_DEMO_ACCOUNT_*` secrets; `apply` sets them on every version. The review contact stays in App Store Connect, and a version with none fails `apply` until it is set there |
 
 A field left out of `metadata/` stays unmanaged: asc never clears it. To adopt
 one, take it from the Screenshots dry run's artifact and commit it.
-[The store tool](../scripts/app-store.ts) drives asc:
+
+Release fails before building when the version's listing is missing or commits
+a `whatsNew`. After the upload, a secretless job runs
+[beta-notes](https://github.com/putdotio/.github#actionsbeta-notes) from the
+previous version's latest `v*` tag; the listing job writes its notes, or "Bug
+fixes and improvements." when there is no earlier tag or Claude fails, into
+the listing in its checkout before `apply`. Submit and Screenshots leave What's
+New as Release set it. [The store tool](../scripts/app-store.ts) drives asc:
 
 ```bash
-node scripts/app-store.ts check --version 3.0.0        # offline: metadata, What's New, screenshots
+node scripts/app-store.ts check --version 3.0.0        # offline: metadata, version listing, screenshots
 node scripts/app-store.ts plan --version 3.0.0         # read-only diff against App Store Connect
 node scripts/app-store.ts apply --version 3.0.0 --confirm
 node scripts/app-store.ts validate --version 3.0.0     # asc validate, blockers fail
