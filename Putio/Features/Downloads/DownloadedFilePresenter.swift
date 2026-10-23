@@ -64,8 +64,13 @@ extension DownloadedFilePresenter where Self: UIViewController {
         }
     }
 
-    func restartDownload(_ download: Download) {
-        api.getFile(fileID: download.id) { result in
+    func restartDownload(
+        _ download: Download,
+        fetchFile: (Int, @escaping (Result<PutioFile, PutioSDKError>) -> Void) -> Void = api.getFile(fileID:_:)
+    ) {
+        fetchFile(download.id) { result in
+            guard !download.isInvalidated else { return }
+
             switch result {
             case .success:
                 switch download.fileType {
