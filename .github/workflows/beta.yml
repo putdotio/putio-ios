@@ -7,10 +7,6 @@ on:
         description: Exact protected-main commit SHA to build
         required: true
         type: string
-      changelog:
-        description: Optional TestFlight What to Test notes
-        required: false
-        default: ''
       groups:
         description: Comma-separated TestFlight groups
         required: false
@@ -54,12 +50,18 @@ jobs:
     runs-on: macos-latest
     environment: release
     timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: read
+      id-token: write
 
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.validate-ref.outputs.sha }}
+          # Full history, so beta-notes finds the latest release tag.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Select latest stable Xcode
@@ -107,12 +109,19 @@ jobs:
       - name: Verify repository
         run: mise run verify
 
+      # Notes cover everything since the latest v* tag, which Release creates
+      # at upload; betas are not tagged. Any Claude failure gives the fallback note.
+      - name: Write tester notes
+        id: notes
+        uses: putdotio/.github/.github/actions/beta-notes@32b9f2f9ac2b6b17b2be6b111ec495e079384b4c # v2.3.1
+        with:
+          app: put.io for iPhone and iPad
+          tag-pattern: v*
+
       - name: Prepare beta metadata
         shell: bash
         env:
-          PUTIO_BETA_CHANGELOG: ${{ inputs.changelog }}
           PUTIO_BETA_GROUPS: ${{ inputs.groups }}
-          PUTIO_BETA_REF: main
           PROCESSING_TIMEOUT_MINUTES: ${{ inputs.processing_timeout_minutes }}
           PUTIO_APP_DISPLAY_NAME: put.io
           PUTIO_PRIMARY_APP_ICON: AppIconNightly
@@ -139,18 +148,10 @@ jobs:
           export PUTIO_BETA_IPA_PATH
           export PUTIO_BETA_WAIT_TIMEOUT_DURATION
 
-          if [ -z "$PUTIO_BETA_CHANGELOG" ]; then
-            short_sha="$(git rev-parse --short HEAD)"
-            export PUTIO_BETA_CHANGELOG="Manual beta build ${PUTIO_BETA_BUILD_NUMBER} from ${PUTIO_BETA_REF} (${short_sha})"
-          fi
-
-          PUTIO_BETA_CHANGELOG="${PUTIO_BETA_CHANGELOG//$'\n'/ }"
-
           {
             echo "PUTIO_BETA_BUILD_NUMBER=$PUTIO_BETA_BUILD_NUMBER"
             echo "PUTIO_BETA_IPA_PATH=$PUTIO_BETA_IPA_PATH"
             echo "PUTIO_BETA_WAIT_TIMEOUT_DURATION=$PUTIO_BETA_WAIT_TIMEOUT_DURATION"
-            echo "PUTIO_BETA_CHANGELOG=$PUTIO_BETA_CHANGELOG"
             echo "PUTIO_BETA_GROUPS=$PUTIO_BETA_GROUPS"
           } >> "$GITHUB_ENV"
 
@@ -201,11 +202,12 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
           ASC_BYPASS_KEYCHAIN: "1"
+          PUTIO_BETA_NOTES: ${{ steps.notes.outputs.notes }}
         run: |
           asc telemetry status --output json | jq -e '.enabled == false' > /dev/null
           # --notify keeps pilot's default of emailing external testers.
           asc publish testflight --app 1260479699 --ipa "$PUTIO_BETA_IPA_PATH" \
-            --group "$PUTIO_BETA_GROUPS" --test-notes "$PUTIO_BETA_CHANGELOG" --locale en-US \
+            --group "$PUTIO_BETA_GROUPS" --test-notes "$PUTIO_BETA_NOTES" --locale en-US \
             --wait --timeout "${PUTIO_BETA_WAIT_TIMEOUT_DURATION}s" --notify --submit --confirm --output markdown \
             | tee -a "$GITHUB_STEP_SUMMARY"
 
