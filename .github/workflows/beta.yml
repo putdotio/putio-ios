@@ -7,10 +7,6 @@ on:
         description: Exact protected-main commit SHA to build
         required: true
         type: string
-      changelog:
-        description: TestFlight What to Test notes; blank has Claude write them from the changes since the latest release tag
-        required: false
-        default: ''
       groups:
         description: Comma-separated TestFlight groups
         required: false
@@ -119,7 +115,6 @@ jobs:
         id: notes
         uses: putdotio/.github/.github/actions/beta-notes@32b9f2f9ac2b6b17b2be6b111ec495e079384b4c # v2.3.1
         with:
-          notes: ${{ inputs.changelog }}
           app: put.io for iPhone and iPad
           tag-pattern: v*
 
@@ -207,17 +202,12 @@ jobs:
           ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
           ASC_PRIVATE_KEY: ${{ secrets.APPSTORE_CONNECT_KEY_CONTENT }}
           ASC_BYPASS_KEYCHAIN: "1"
-          PUTIO_BETA_CHANGELOG: ${{ steps.notes.outputs.notes }}
-          PUTIO_BETA_NOTES_SOURCE: ${{ steps.notes.outputs.source }}
+          PUTIO_BETA_NOTES: ${{ steps.notes.outputs.notes }}
         run: |
           asc telemetry status --output json | jq -e '.enabled == false' > /dev/null
-          # Hand-written notes stay one line; Claude's keep one bullet per line.
-          if [ "$PUTIO_BETA_NOTES_SOURCE" = manual ]; then
-            PUTIO_BETA_CHANGELOG="${PUTIO_BETA_CHANGELOG//$'\n'/ }"
-          fi
           # --notify keeps pilot's default of emailing external testers.
           asc publish testflight --app 1260479699 --ipa "$PUTIO_BETA_IPA_PATH" \
-            --group "$PUTIO_BETA_GROUPS" --test-notes "$PUTIO_BETA_CHANGELOG" --locale en-US \
+            --group "$PUTIO_BETA_GROUPS" --test-notes "$PUTIO_BETA_NOTES" --locale en-US \
             --wait --timeout "${PUTIO_BETA_WAIT_TIMEOUT_DURATION}s" --notify --submit --confirm --output markdown \
             | tee -a "$GITHUB_STEP_SUMMARY"
 
