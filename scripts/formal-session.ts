@@ -100,7 +100,7 @@ const runTLC = async (property: string): Promise<Outcome> => {
     const child = spawn(
       "java",
       // One worker keeps breadth-first order, so a counterexample is a shortest one.
-      ["-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC", "-workers", "1", "-deadlock",
+      ["-XX:+UseParallelGC", "-cp", jar, "tlc2.TLC", "-workers", "1", "-deadlock", "-coverage", "60",
         "-metadir", states, "-config", config, "PutioSession.tla"],
       { cwd: modelDirectory },
     );
@@ -110,6 +110,14 @@ const runTLC = async (property: string): Promise<Outcome> => {
     child.on("error", fail);
     child.on("close", () => done(text));
   });
+  // An action whose conjuncts contradict each other never fires, and a pass
+  // would then silently skip the code it models.
+  const dead = Object.keys(steps).filter((action) =>
+    new RegExp(`^<${action} line [^>]*>: \\d+:0$`, "m").test(output),
+  );
+  if (dead.length > 0) {
+    throw new Error(`${property}: these model actions never fire: ${dead.join(", ")}`);
+  }
   if (output.includes("Model checking completed. No error has been found.")) {
     const count = /(\d+) distinct states found/.exec(output)?.[1] ?? "?";
     return { property, passed: true, report: `${property}: holds (${count} distinct states)` };

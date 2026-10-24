@@ -57,12 +57,15 @@ NewGrant == CHOOSE t \in Grants \ issued : \A u \in Grants \ issued : t <= u
 CanIssue == issued # Grants
 CanAdvance == gen < MaxGen
 
-\* abandonPendingSignIn() followed by advanceAuthenticationGeneration().
-AbandonAndAdvance ==
+\* abandonPendingSignIn() followed by advanceAuthenticationGeneration(),
+\* leaving device-code sign-in in `next`.
+AdvanceWithDevice(next) ==
   /\ CanAdvance
   /\ gen' = gen + 1
   /\ oauthGen' = None
-  /\ device' = "none"
+  /\ device' = next
+
+AbandonAndAdvance == AdvanceWithDevice("none")
 
 \* endSession(reason), behind expireSession() and endDestroyedSession().
 \* `try? tokenStore.clear()` may fail and leave the saved token behind.
@@ -218,8 +221,7 @@ CompleteSignIn ==
 DeviceStart ==
   /\ \/ state \in {"signedOut", "authFailed"}
      \/ state = "authenticating" /\ device = "expired"
-  /\ AbandonAndAdvance
-  /\ device' = "fetching"
+  /\ AdvanceWithDevice("fetching")
   /\ state' = "authenticating"
   /\ flows' = flows \cup {Flow("code", gen + 1, None, "")}
   /\ UNCHANGED <<keychain, sdkTok, pendingSignOut, live, issued, excused, launched>>

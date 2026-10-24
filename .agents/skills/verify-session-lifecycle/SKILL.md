@@ -31,7 +31,9 @@ mise run formal-session
 ```
 
 The task downloads TLC 1.7.4 into `build/formal/`, checks its SHA-256, and runs
-each property in about 5 seconds. It exits nonzero on a violation or on drift.
+each property in about 5 seconds. It exits nonzero on a violation, on drift, or
+when a model action never fires. An action that never fires means the model
+skips the code it names, so fix the action before you trust a pass.
 
 Expected result today: `NoOrphanGrant` fails with the known finding below, and
 `SignedInIsSaved` holds. To check for new violations behind the known finding:
