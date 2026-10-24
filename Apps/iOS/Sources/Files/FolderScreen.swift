@@ -297,12 +297,6 @@ struct PutioFolderScreen: View {
     .task(id: actionRequest) {
       await runActionRequest()
     }
-    .task(id: toast) {
-      guard let presentedToast = toast else { return }
-      try? await Task.sleep(for: .seconds(3))
-      guard !Task.isCancelled, toast == presentedToast else { return }
-      toast = nil
-    }
     // Keyed on the loaded flag too, so a request that arrived while the
     // initial load was in flight is retried once the folder is loaded.
     .task(
