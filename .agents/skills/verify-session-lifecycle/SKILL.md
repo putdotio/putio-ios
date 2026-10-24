@@ -48,16 +48,18 @@ code's words. For each step, find the code it names:
 
 ## When the code changes
 
-The script also lists covered files that changed since the sync commit.
+The script fails when the covered files no longer hash to the sync digest
+below, and prints the new digest.
 
-1. Read the diff of each listed file.
+1. Read the change's diff of each covered file, for example
+   `git diff origin/next -- <files>`.
 2. If the change alters a step, update the matching action in the model. Each
    action names its Swift function. A screen file matters only when it changes
    which session method it calls, or from which state.
 3. Run `mise run formal-session`.
 4. Show that a property still fails on a broken model, for example
    `-- --variant dropPendingSignOutToken`.
-5. Move the sync commit below to the commit that holds the checked code.
+5. Set the sync digest below to the one the script printed.
 
 ## Scope
 
@@ -73,7 +75,7 @@ The script also lists covered files that changed since the sync commit.
 
 ## Coverage
 
-Sync commit: `6813031b`
+Sync digest: `998b0a14e27ac9a099b58064d2f434934b7065fa0387d568f92f1e98b422d799`
 
 - `Packages/PutioCore/Sources/PutioCore/Session/PutioSessionStore.swift` (all session transitions)
 - `Packages/PutioCore/Sources/PutioCore/Runtime/PutioRuntime.swift` (`performAuthenticatedOperation`)

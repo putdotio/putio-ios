@@ -3,12 +3,12 @@
 // covers. See .agents/skills/verify-session-lifecycle/SKILL.md.
 //
 //   node scripts/formal-session.ts [--variant <name>]
-import { execFile, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseArgs, promisify } from "node:util";
+import { parseArgs } from "node:util";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const modelDirectory = join(root, "Tests/Formal/Session");
@@ -155,15 +155,20 @@ const counterexample = (output: string): string => {
   return lines.join("\n");
 };
 
-// The model describes the covered code at the skill's sync commit.
-const drift = async (): Promise<string[]> => {
+// The model describes the covered code whose contents hash to the skill's
+// sync digest. A digest, unlike a commit, survives rebases and squash merges.
+const drift = async (): Promise<string | undefined> => {
   const text = await readFile(skill, "utf8");
-  const sync = /^Sync commit: `([0-9a-f]{7,40})`/m.exec(text)?.[1];
+  const sync = /^Sync digest: `([0-9a-f]{64})`/m.exec(text)?.[1];
   const coverage = text.split(/^## /m).find((section) => section.startsWith("Coverage"));
   const files = [...(coverage ?? "").matchAll(/^- `([^`]+)`/gm)].map((match) => match[1]);
-  if (!sync || files.length === 0) throw new Error(`${skill} lacks its sync commit or coverage list`);
-  const { stdout } = await promisify(execFile)("git", ["diff", "--name-only", sync, "--", ...files], { cwd: root });
-  return stdout.split("\n").filter(Boolean);
+  if (!sync || files.length === 0) throw new Error(`${skill} lacks its sync digest or coverage list`);
+  const hash = createHash("sha256");
+  for (const file of [...files].sort()) {
+    hash.update(`${file}\0`).update(await readFile(join(root, file))).update("\0");
+  }
+  const current = hash.digest("hex");
+  return current === sync ? undefined : current;
 };
 
 await ensureJar();
@@ -175,10 +180,10 @@ for (const property of properties) {
   outcomes.push(outcome);
 }
 const changed = await drift();
-if (changed.length > 0) {
+if (changed) {
   console.log(
-    `Covered code changed since the sync commit:\n${changed.map((file) => `  ${file}`).join("\n")}\n` +
-      "Check the model against it, then move the sync commit in the skill.",
+    "Covered code changed since the model was last checked against it.\n" +
+      `Check the model against the covered files, then set the skill's sync digest to ${changed}.`,
   );
 }
-if (changed.length > 0 || outcomes.some((outcome) => !outcome.passed)) process.exitCode = 1;
+if (changed || outcomes.some((outcome) => !outcome.passed)) process.exitCode = 1;
