@@ -162,12 +162,6 @@ private struct PutioMoveDestinationScreen: View {
       await model.loadIfNeeded()
     }
     .putioToast($toast)
-    .task(id: toast) {
-      guard let presentedToast = toast else { return }
-      try? await Task.sleep(for: .seconds(3))
-      guard !Task.isCancelled, toast == presentedToast else { return }
-      toast = nil
-    }
     .navigationBarBackButtonHidden(model.activeAction != nil)
     .interactiveDismissDisabled(model.activeAction != nil)
   }

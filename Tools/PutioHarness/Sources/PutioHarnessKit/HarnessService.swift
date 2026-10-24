@@ -65,14 +65,15 @@ public struct HarnessService {
           message: run.message
         )
       )
-    case .journey(let platform, let scenario, let requestedRunID, _):
+    case .journey(let platform, let scenario, let requestedRunID, let only, _):
       let runID = try requestedRunID ?? simulator.defaultRunID()
       let sourceRevision = try simulator.pinProofSourceRevision()
       let run = try simulator.journey(
         platform,
         scenario: scenario,
         runID: runID,
-        sourceRevision: sourceRevision
+        sourceRevision: sourceRevision,
+        only: only
       )
       return .result(
         HarnessResult(
@@ -156,7 +157,7 @@ public enum HarnessOutput {
     case .doctor(let output): output
     case .surface(_, _, _, _, _, let output, _): output
     case .test(_, _, let output): output
-    case .journey(_, _, _, let output): output
+    case .journey(_, _, _, _, let output): output
     case .authStatus(let output): output
     case .liveFixture(let output): output
     }

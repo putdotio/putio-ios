@@ -118,7 +118,7 @@ struct PairedDeviceSelectionTests {
   @Test func rejectsUnpairedAppleTV() throws {
     let message = try selectionFailure("Bedroom", in: fixtureDevices())
     #expect(message.contains("is not paired"))
-    #expect(message.contains("docs/harness.md"))
+    #expect(message.contains(".agents/skills/verify-putio-apple/references/apple-tv-device.md"))
   }
 
   @Test func rejectsNonTVDeviceAndListsPairedAppleTVs() throws {

@@ -89,7 +89,7 @@ struct TVSearchView: View {
         toast = TVFilePresentation.toast(for: outcome, trashEnabled: account.trashEnabled)
         itemActions.clearOutcome()
       }
-      .tvToast($toast)
+      .putioToast($toast)
   }
 
   @ViewBuilder

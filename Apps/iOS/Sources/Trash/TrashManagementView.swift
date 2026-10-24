@@ -184,12 +184,6 @@ struct TrashManagementView: View {
     .onChange(of: editMode) { _, mode in
       if mode != .active { selectedIDs = [] }
     }
-    .task(id: toast) {
-      guard let presentedToast = toast else { return }
-      try? await Task.sleep(for: .seconds(3))
-      guard !Task.isCancelled, toast == presentedToast else { return }
-      toast = nil
-    }
   }
 
   @ViewBuilder

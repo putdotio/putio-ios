@@ -16,93 +16,6 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
   }
 
-  func testBulkSelectionControls() {
-    app.launch()
-
-    let signIn = element(identifier: "auth.sign-in")
-    XCTAssertTrue(signIn.appears(within: 10))
-    signIn.tap()
-    XCTAssertTrue(element(identifier: "files.screen.0").appears(within: 10))
-
-    let unsupportedFile = documentRowBeforeEditing()
-
-    let successFolder = createFolder(named: "Bulk Success", expectedID: 415)
-    let retryFolder = createFolder(named: "Bulk Retry", expectedID: 416)
-    openBrowseMenu()
-    let edit = app.buttons["files.selection.toggle"]
-    XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
-    edit.tap()
-    XCTAssertTrue(app.staticTexts["Select Items"].appears(within: 5))
-    XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
-    let bulkMove = app.buttons["files.bulk.move"]
-    XCTAssertTrue(bulkMove.appears(within: 5), "bulk toolbar did not appear")
-    XCTAssertEqual(unsupportedFile.value as? String, "Not selected")
-    XCTAssertFalse(bulkMove.isEnabled)
-
-    let selectAll = app.buttons["files.selection.select-all"]
-    XCTAssertTrue(
-      waitUntilHittable(selectAll, timeout: 5),
-      "select-all action is not hittable: \(selectAll.debugDescription)"
-    )
-    selectAll.tap()
-    XCTAssertEqual(successFolder.value as? String, "Selected")
-    XCTAssertEqual(retryFolder.value as? String, "Selected")
-    XCTAssertTrue(bulkMove.isEnabled)
-    let deselectAll = app.buttons["files.selection.deselect-all"]
-    XCTAssertTrue(waitUntilHittable(deselectAll, timeout: 5))
-    deselectAll.tap()
-    XCTAssertEqual(successFolder.value as? String, "Not selected")
-    XCTAssertEqual(retryFolder.value as? String, "Not selected")
-    XCTAssertFalse(bulkMove.isEnabled)
-
-    successFolder.tap()
-    XCTAssertEqual(successFolder.value as? String, "Selected")
-    XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
-    edit.tap()
-    XCTAssertTrue(app.buttons["files.menu"].appears(within: 5))
-    XCTAssertTrue(bulkMove.disappears(within: 5))
-    openBrowseMenu()
-    XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
-    edit.tap()
-    XCTAssertTrue(bulkMove.appears(within: 5))
-    XCTAssertEqual(successFolder.value as? String, "Not selected")
-    XCTAssertFalse(bulkMove.isEnabled, "ending selection retained the previous selection")
-
-    successFolder.tap()
-    retryFolder.tap()
-    XCTAssertEqual(successFolder.value as? String, "Selected")
-    XCTAssertEqual(retryFolder.value as? String, "Selected")
-    XCTAssertTrue(bulkMove.isEnabled)
-    XCTAssertTrue(waitUntilHittable(bulkMove, timeout: 5))
-
-    let bulkRemove = app.buttons["files.bulk.remove"]
-    XCTAssertTrue(waitUntilHittable(bulkRemove, timeout: 5))
-    XCTAssertEqual(bulkRemove.label, "Trash")
-    // Trash is recoverable, so the move starts without a confirmation.
-    bulkRemove.tap()
-    XCTAssertFalse(app.buttons["files.bulk.remove-confirm"].exists)
-    let progress = element(identifier: "files.bulk.progress")
-    XCTAssertTrue(progress.appears(within: 5))
-    assertCurrentBulkProgress(progress, itemNames: ["Bulk Success", "Bulk Retry"])
-    // One batched request: the server fails the whole batch or none of it.
-    XCTAssertTrue(
-      app.staticTexts["Could not move items to Trash"].appears(within: 10)
-    )
-    let retry = app.buttons["files.bulk.retry"].firstMatch
-    XCTAssertTrue(waitUntilHittable(retry, timeout: 5))
-    retry.tap()
-    XCTAssertTrue(app.staticTexts["Moved 2 items to Trash."].appears(within: 10))
-    XCTAssertTrue(retryFolder.disappears(within: 5))
-    XCTAssertTrue(successFolder.disappears(within: 5))
-
-    app.buttons["Account"].tap()
-    let signOut = app.revealed("auth.sign-out")
-    XCTAssertTrue(signOut.appears(within: 5), "sign-out action never appeared")
-    signOut.tap()
-    app.confirmSignOut()
-    XCTAssertTrue(signIn.appears(within: 10), "sign-out did not return to sign-in")
-  }
-
   func testRunnableAlphaLoop() {
     app.launch()
 
@@ -1020,6 +933,17 @@ final class FilesBrowserJourneyTests: XCTestCase {
     bulkRetryFolder.tap()
     XCTAssertEqual(bulkRetryFolder.value as? String, "Not selected")
     bulkRetryFolder.tap()
+    XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
+    edit.tap()
+    XCTAssertTrue(bulkMove.disappears(within: 5))
+    openBrowseMenu()
+    XCTAssertTrue(waitUntilHittable(edit, timeout: 5))
+    edit.tap()
+    XCTAssertTrue(bulkMove.appears(within: 5))
+    XCTAssertEqual(
+      bulkRetryFolder.value as? String, "Not selected",
+      "ending selection retained the previous selection")
+    bulkRetryFolder.tap()
     bulkSuccessFolder.tap()
     XCTAssertEqual(bulkRetryFolder.value as? String, "Selected")
     XCTAssertEqual(bulkSuccessFolder.value as? String, "Selected")
@@ -1080,6 +1004,8 @@ final class FilesBrowserJourneyTests: XCTestCase {
     )
     XCTAssertEqual(bulkRemove.label, "Trash")
     bulkRemove.tap()
+    XCTAssertFalse(
+      app.buttons["files.bulk.remove-confirm"].exists, "a recoverable bulk Trash asked to confirm")
     let bulkProgress = element(identifier: "files.bulk.progress")
     XCTAssertTrue(bulkProgress.appears(within: 5))
     XCTAssertFalse(app.buttons["BackButton"].isHittable, "back remained active during bulk work")

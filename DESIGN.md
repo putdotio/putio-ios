@@ -93,7 +93,7 @@ pages.
 
 Component and theming changes follow the
 [proof table](AGENTS.md#verification-and-completion): intentional visual changes
-need inspected, re-recorded baselines through the [harness](docs/harness.md#snapshot-comparison).
+need inspected, re-recorded baselines through the [harness](.agents/skills/verify-putio-apple/references/snapshots.md).
 Inspect native materials, focus, and Dynamic Type in the affected simulator;
 off-screen snapshots cannot prove Liquid Glass. Use the Files journey when
 changing disclosure, Trash, or playback interactions.

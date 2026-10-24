@@ -178,6 +178,7 @@ public enum HarnessInvocation: Equatable, Sendable {
     platform: HarnessPlatform,
     scenario: JourneyScenario,
     runID: String?,
+    only: [String] = [],
     output: OutputFormat
   )
   case authStatus(output: OutputFormat)
@@ -564,100 +565,147 @@ enum TVPlaybackJourneyContract {
   ]
 }
 
+/// One XCUITest the iOS journey runs on its own before the recorded walk.
+struct JourneyPreflight: Equatable, Sendable {
+  /// Names the test's result bundle, `.<name>.xcresult`.
+  let name: String
+  let testIdentifier: String
+  let attachmentNames: [String]
+  /// XCTest's per-test execution allowance, in seconds.
+  let timeAllowance: Int
+
+  init(
+    _ name: String, _ testIdentifier: String, attachmentNames: [String] = [],
+    timeAllowance: Int = 60
+  ) {
+    self.name = name
+    self.testIdentifier = "PutioUITests/" + testIdentifier
+    self.attachmentNames = attachmentNames
+    self.timeAllowance = timeAllowance
+  }
+}
+
 enum BrowserJourneyContract {
-  static let accessibilityFilesTestIdentifier =
-    "PutioUITests/AccessibilityJourneyTests/testLongNamesSelectionAndDownloadPickerAtLargestTextSize"
-  static let accessibilityAudioTestIdentifier =
-    "PutioUITests/AccessibilityJourneyTests/testAudioSliderAndControlsAtLargestTextSizeInBothOrientations"
-  static let accessibilityFilesAttachmentNames = [
-    "runtime-accessibility-files", "runtime-accessibility-selection",
-    "runtime-accessibility-downloads", "runtime-accessibility-download-picker",
-  ]
-  static let accessibilityAudioAttachmentNames = [
-    "runtime-accessibility-audio-portrait", "runtime-accessibility-audio-landscape",
-    "runtime-accessibility-audio-portrait-controls",
-    "runtime-accessibility-audio-landscape-controls",
+  /// Run in order on one simulator; each launches the app from a clean state.
+  static let preflights = [
+    JourneyPreflight(
+      "accessibility-files",
+      "AccessibilityJourneyTests/testLongNamesSelectionAndDownloadPickerAtLargestTextSize",
+      attachmentNames: [
+        "runtime-accessibility-files", "runtime-accessibility-selection",
+        "runtime-accessibility-downloads", "runtime-accessibility-download-picker",
+      ],
+      timeAllowance: 180),
+    JourneyPreflight(
+      "accessibility-audio",
+      "AccessibilityJourneyTests/testAudioSliderAndControlsAtLargestTextSizeInBothOrientations",
+      attachmentNames: [
+        "runtime-accessibility-audio-portrait", "runtime-accessibility-audio-landscape",
+        "runtime-accessibility-audio-portrait-controls",
+        "runtime-accessibility-audio-landscape-controls",
+      ],
+      timeAllowance: 180),
+    JourneyPreflight(
+      "account-rating", "AccountJourneyTests/testRatingAndContactLinksOpenOnlyAfterExplicitTaps",
+      attachmentNames: ["runtime-account-rating"]),
+    JourneyPreflight(
+      "analytics-prompt",
+      "ProductAnalyticsPromptJourneyTests/testPromptRetriesAndSavesTheChoiceOnce",
+      attachmentNames: ["runtime-analytics-prompt"]),
+    JourneyPreflight(
+      "audio", "AudioJourneyTests/testAudioPlaysPausesChangesSpeedAndAdvancesToTheNextTrack",
+      attachmentNames: ["runtime-audio-player"], timeAllowance: 120),
+    JourneyPreflight(
+      "downloads", "DownloadsJourneyTests/testMultiAudioDownloadOfflinePlaybackAndPositionSync",
+      attachmentNames: [
+        "runtime-downloads-picker", "runtime-downloads-queue", "runtime-downloads-detail",
+        "runtime-downloads-remove",
+      ],
+      timeAllowance: 180),
+    JourneyPreflight(
+      "unsaved-downloads",
+      "DownloadsJourneyTests/testAnUnsavedDownloadIsReportedOutsideDownloads",
+      timeAllowance: 90),
+    JourneyPreflight(
+      "cast", "ChromecastJourneyTests/testCastSettingsSessionControlsSubtitlesAndPositionSync",
+      attachmentNames: [
+        "runtime-cast-settings", "runtime-cast-error", "runtime-cast-controls",
+        "runtime-cast-signed-out",
+      ],
+      timeAllowance: 180),
+    JourneyPreflight(
+      "previews", "PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes",
+      attachmentNames: [
+        "runtime-preview-image", "runtime-preview-document", "runtime-preview-error",
+        "runtime-preview-unsupported", "runtime-vlc-missing",
+      ],
+      timeAllowance: 120),
+    JourneyPreflight(
+      "deep-links", "DeepLinkJourneyTests/testColdWarmAndSignedOutLinksUseExistingScreens",
+      attachmentNames: [
+        "runtime-deep-link-loading", "runtime-deep-link-error", "runtime-deep-link-folder",
+      ],
+      timeAllowance: 180),
+    JourneyPreflight(
+      "sign-out-recovery", "FilesBrowserJourneyTests/testSignOutFailureRecoversWithExplicitRetry",
+      attachmentNames: ["runtime-sign-out-failure"], timeAllowance: 90),
+    JourneyPreflight(
+      "file-actions", "FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash",
+      attachmentNames: ["runtime-file-actions"], timeAllowance: 300),
+    JourneyPreflight(
+      "trash-disabled",
+      "FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"),
+    JourneyPreflight(
+      "trash-management", "FilesBrowserJourneyTests/testTrashManagementRestoreRetryDeleteAndEmpty",
+      attachmentNames: [
+        "runtime-trash-refresh-error", "runtime-trash-loaded", "runtime-trash-empty",
+      ],
+      timeAllowance: 90),
+    JourneyPreflight(
+      "sort-continuation",
+      "FilesBrowserJourneyTests/testSortRoundTripAndContinuationAppendsTheSecondPage",
+      attachmentNames: ["runtime-sorted-root"], timeAllowance: 90),
+    JourneyPreflight(
+      "search-restoration",
+      "FilesBrowserJourneyTests/testSearchPaginationRetryAndFolderRestoration",
+      attachmentNames: ["runtime-search-results"], timeAllowance: 180),
+    JourneyPreflight(
+      "folder-reconciliation",
+      "FilesBrowserJourneyTests/testRenamingAndDeletingOpenFolderReconcilesOtherTabs",
+      timeAllowance: 120),
+    JourneyPreflight(
+      "history", "HistoryJourneyTests/testHistoryPagingNavigationMutationsAndSettingGate",
+      attachmentNames: [
+        "runtime-history-loaded", "runtime-history-error", "runtime-history-empty",
+      ],
+      timeAllowance: 180),
+    JourneyPreflight(
+      "file-preferences",
+      "FilePreferencesJourneyTests/testFilePreferencesFailureRecoveryResetAndPersistence",
+      attachmentNames: [
+        "runtime-file-preferences", "runtime-file-preferences-refresh", "runtime-privacy-controls",
+      ],
+      timeAllowance: 180),
+    JourneyPreflight(
+      "playback-preferences",
+      "PlaybackPreferencesJourneyTests/testProxySubtitlesAndAutoplayRetryAndPersistAcrossRelaunch",
+      attachmentNames: ["runtime-playback-preferences"], timeAllowance: 180),
+    JourneyPreflight(
+      "subtitles",
+      "SubtitlesJourneyTests/testSystemMenuSelectsSubtitlesWithoutChangingAudioAndFollowsPreferences",
+      attachmentNames: ["runtime-subtitles-menu", "runtime-subtitles-selected"],
+      timeAllowance: 180),
+    JourneyPreflight(
+      "account-security", "AccountSecurityJourneyTests/testTwoFactorAppsLinkingClearDataAndDestroy",
+      attachmentNames: [
+        "runtime-security-recovery-codes", "runtime-security-apps", "runtime-danger-clear-data",
+      ],
+      timeAllowance: 180),
+    JourneyPreflight(
+      "resume-persistence", "FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen"),
   ]
   static let testIdentifier =
     "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
-  static let downloadsTestIdentifier =
-    "PutioUITests/DownloadsJourneyTests/testMultiAudioDownloadOfflinePlaybackAndPositionSync"
-  static let unsavedDownloadsTestIdentifier =
-    "PutioUITests/DownloadsJourneyTests/testAnUnsavedDownloadIsReportedOutsideDownloads"
-  static let downloadsAttachmentNames = [
-    "runtime-downloads-picker", "runtime-downloads-queue", "runtime-downloads-detail",
-    "runtime-downloads-remove",
-  ]
-  static let castTestIdentifier =
-    "PutioUITests/ChromecastJourneyTests/testCastSettingsSessionControlsSubtitlesAndPositionSync"
-  static let castAttachmentNames = [
-    "runtime-cast-settings", "runtime-cast-error", "runtime-cast-controls",
-    "runtime-cast-signed-out",
-  ]
-  static let previewsTestIdentifier =
-    "PutioUITests/PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes"
-  static let previewsAttachmentNames = [
-    "runtime-preview-image", "runtime-preview-document", "runtime-preview-error",
-    "runtime-preview-unsupported", "runtime-vlc-missing",
-  ]
-  static let resumePersistenceTestIdentifier =
-    "PutioUITests/FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen"
-  static let fileActionsTestIdentifier =
-    "PutioUITests/FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash"
-  static let trashDisabledTestIdentifier =
-    "PutioUITests/FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"
-  static let trashManagementTestIdentifier =
-    "PutioUITests/FilesBrowserJourneyTests/testTrashManagementRestoreRetryDeleteAndEmpty"
-  static let sortAndContinuationTestIdentifier =
-    "PutioUITests/FilesBrowserJourneyTests/testSortRoundTripAndContinuationAppendsTheSecondPage"
-  static let searchAndRestorationTestIdentifier =
-    "PutioUITests/FilesBrowserJourneyTests/testSearchPaginationRetryAndFolderRestoration"
-  static let folderReconciliationTestIdentifier =
-    "PutioUITests/FilesBrowserJourneyTests/testRenamingAndDeletingOpenFolderReconcilesOtherTabs"
-  static let accountRatingTestIdentifier =
-    "PutioUITests/AccountJourneyTests/testRatingAndContactLinksOpenOnlyAfterExplicitTaps"
-  static let accountRatingAttachmentName = "runtime-account-rating"
-  static let analyticsPromptTestIdentifier =
-    "PutioUITests/ProductAnalyticsPromptJourneyTests/testPromptRetriesAndSavesTheChoiceOnce"
-  static let analyticsPromptAttachmentName = "runtime-analytics-prompt"
-  static let audioTestIdentifier =
-    "PutioUITests/AudioJourneyTests/testAudioPlaysPausesChangesSpeedAndAdvancesToTheNextTrack"
-  static let audioAttachmentName = "runtime-audio-player"
-  static let playbackPreferencesTestIdentifier =
-    "PutioUITests/PlaybackPreferencesJourneyTests/testProxySubtitlesAndAutoplayRetryAndPersistAcrossRelaunch"
-  static let playbackPreferencesAttachmentName = "runtime-playback-preferences"
-  static let subtitlesTestIdentifier =
-    "PutioUITests/SubtitlesJourneyTests/testSystemMenuSelectsSubtitlesWithoutChangingAudioAndFollowsPreferences"
-  static let subtitlesAttachmentNames = ["runtime-subtitles-menu", "runtime-subtitles-selected"]
-  static let accountSecurityTestIdentifier =
-    "PutioUITests/AccountSecurityJourneyTests/testTwoFactorAppsLinkingClearDataAndDestroy"
-  static let accountSecurityAttachmentNames = [
-    "runtime-security-recovery-codes", "runtime-security-apps", "runtime-danger-clear-data",
-  ]
-  static let deepLinksTestIdentifier =
-    "PutioUITests/DeepLinkJourneyTests/testColdWarmAndSignedOutLinksUseExistingScreens"
-  static let deepLinksAttachmentNames = [
-    "runtime-deep-link-loading", "runtime-deep-link-error", "runtime-deep-link-folder",
-  ]
-  static let filePreferencesTestIdentifier =
-    "PutioUITests/FilePreferencesJourneyTests/testFilePreferencesFailureRecoveryResetAndPersistence"
-  static let filePreferencesAttachmentNames = [
-    "runtime-file-preferences", "runtime-file-preferences-refresh", "runtime-privacy-controls",
-  ]
-  static let historyTestIdentifier =
-    "PutioUITests/HistoryJourneyTests/testHistoryPagingNavigationMutationsAndSettingGate"
-  static let historyAttachmentNames = [
-    "runtime-history-loaded", "runtime-history-error", "runtime-history-empty",
-  ]
-  static let searchResultsAttachmentName = "runtime-search-results"
-  static let sortedRootAttachmentName = "runtime-sorted-root"
-  static let fileActionsAttachmentName = "runtime-file-actions"
-  static let signOutRecoveryTestIdentifier =
-    "PutioUITests/FilesBrowserJourneyTests/testSignOutFailureRecoversWithExplicitRetry"
-  static let signOutFailureAttachmentName = "runtime-sign-out-failure"
-  static let trashManagementAttachmentNames = [
-    "runtime-trash-refresh-error", "runtime-trash-loaded", "runtime-trash-empty",
-  ]
   static let attachmentNames = [
     "runtime-sign-in",
     "runtime-playback",
