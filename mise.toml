@@ -53,6 +53,11 @@ run = "./scripts/harness-ci.sh"
 description = "Scan the app shells, PutioCore, and the harness for unused code with Periphery"
 run = "./scripts/dead-code.sh"
 
+[tasks.formal-session]
+description = "Model-check the session lifecycle with a pinned TLC"
+tools = { java = "temurin-21" }
+run = "node scripts/formal-session.ts"
+
 [tasks.verify]
 description = "Test the shared core and build every Apple app shell; pass lanes (checks, build, ios, tvos) to run a subset"
 run = "./scripts/verify.sh"

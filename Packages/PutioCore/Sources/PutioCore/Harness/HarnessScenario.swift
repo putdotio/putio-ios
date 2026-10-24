@@ -16,7 +16,7 @@ public enum HarnessScenario: String, CaseIterable, Sendable {
   case signedIn = "signed-in"
   case deviceSignIn = "device-sign-in"
   /// Signs in to put.io for real through the device-code flow; see
-  /// docs/harness.md.
+  /// .agents/skills/verify-putio-apple/references/live-account.md.
   case live
 
   public static let launchArgument = "--putio-harness-scenario"

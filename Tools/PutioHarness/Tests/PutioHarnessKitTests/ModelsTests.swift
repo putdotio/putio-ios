@@ -24,90 +24,13 @@ import Testing
   )
 }
 
-@Test func browserJourneyContractUsesSeededFixtureAndExactTest() {
-  #expect(JourneyScenario.filesBrowser.fixtureSet == "seeded-runtime-loop-v5")
-  #expect(
-    BrowserJourneyContract.testIdentifier
-      == "PutioUITests/FilesBrowserJourneyTests/testRunnableAlphaLoop"
-  )
-  #expect(
-    BrowserJourneyContract.downloadsTestIdentifier
-      == "PutioUITests/DownloadsJourneyTests/testMultiAudioDownloadOfflinePlaybackAndPositionSync"
-  )
-  #expect(
-    BrowserJourneyContract.downloadsAttachmentNames == [
-      "runtime-downloads-picker", "runtime-downloads-queue", "runtime-downloads-detail",
-      "runtime-downloads-remove",
-    ]
-  )
-  #expect(
-    BrowserJourneyContract.castTestIdentifier
-      == "PutioUITests/ChromecastJourneyTests/testCastSettingsSessionControlsSubtitlesAndPositionSync"
-  )
-  #expect(
-    BrowserJourneyContract.castAttachmentNames == [
-      "runtime-cast-settings", "runtime-cast-error", "runtime-cast-controls",
-      "runtime-cast-signed-out",
-    ]
-  )
-  #expect(
-    BrowserJourneyContract.accountSecurityTestIdentifier
-      == "PutioUITests/AccountSecurityJourneyTests/testTwoFactorAppsLinkingClearDataAndDestroy"
-  )
-  #expect(
-    BrowserJourneyContract.accountSecurityAttachmentNames == [
-      "runtime-security-recovery-codes", "runtime-security-apps", "runtime-danger-clear-data",
-    ]
-  )
-  #expect(
-    BrowserJourneyContract.previewsTestIdentifier
-      == "PutioUITests/PreviewJourneyTests/testImagePDFUnsupportedAndVLCHandoffOutcomes"
-  )
-  #expect(
-    BrowserJourneyContract.previewsAttachmentNames == [
-      "runtime-preview-image", "runtime-preview-document", "runtime-preview-error",
-      "runtime-preview-unsupported", "runtime-vlc-missing",
-    ]
-  )
-  #expect(
-    BrowserJourneyContract.resumePersistenceTestIdentifier
-      == "PutioUITests/FilesBrowserJourneyTests/testPlaybackPositionPersistsAcrossReopen"
-  )
-  #expect(
-    BrowserJourneyContract.fileActionsTestIdentifier
-      == "PutioUITests/FilesBrowserJourneyTests/testFileActionsCreateRenameRollbackRetryAndTrash"
-  )
-  #expect(
-    BrowserJourneyContract.unsavedDownloadsTestIdentifier
-      == "PutioUITests/DownloadsJourneyTests/testAnUnsavedDownloadIsReportedOutsideDownloads"
-  )
-  #expect(
-    BrowserJourneyContract.trashDisabledTestIdentifier
-      == "PutioUITests/FilesBrowserJourneyTests/testTrashDisabledUsesPermanentDeleteCopyInContextMenu"
-  )
-  #expect(
-    BrowserJourneyContract.trashManagementTestIdentifier
-      == "PutioUITests/FilesBrowserJourneyTests/testTrashManagementRestoreRetryDeleteAndEmpty"
-  )
-  #expect(BrowserJourneyContract.fileActionsAttachmentName == "runtime-file-actions")
-  #expect(
-    BrowserJourneyContract.sortAndContinuationTestIdentifier
-      == "PutioUITests/FilesBrowserJourneyTests/testSortRoundTripAndContinuationAppendsTheSecondPage"
-  )
-  #expect(BrowserJourneyContract.sortedRootAttachmentName == "runtime-sorted-root")
-  #expect(
-    BrowserJourneyContract.signOutRecoveryTestIdentifier
-      == "PutioUITests/FilesBrowserJourneyTests/testSignOutFailureRecoversWithExplicitRetry"
-  )
-  #expect(BrowserJourneyContract.signOutFailureAttachmentName == "runtime-sign-out-failure")
-  #expect(
-    BrowserJourneyContract.trashManagementAttachmentNames
-      == ["runtime-trash-refresh-error", "runtime-trash-loaded", "runtime-trash-empty"]
-  )
-  #expect(
-    BrowserJourneyContract.attachmentNames
-      == ["runtime-sign-in", "runtime-playback", "runtime-signed-out"]
-  )
+@Test func browserJourneyArtifactsCannotOverwriteEachOther() {
+  let preflights = BrowserJourneyContract.preflights
+  #expect(Set(preflights.map(\.name)).count == preflights.count)
+  #expect(Set(preflights.map(\.testIdentifier)).count == preflights.count)
+  let screenshots =
+    preflights.flatMap(\.attachmentNames) + BrowserJourneyContract.attachmentNames
+  #expect(Set(screenshots).count == screenshots.count)
 }
 
 @Test func browserJourneySelectsAttachmentsBySuggestedName() throws {

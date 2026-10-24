@@ -195,12 +195,6 @@ struct PutioFileItemActionsHost: ViewModifier {
         perform { await model.delete(item) }
       }
       .putioToast($toast)
-      .task(id: toast) {
-        guard let presentedToast = toast else { return }
-        try? await Task.sleep(for: .seconds(3))
-        guard !Task.isCancelled, toast == presentedToast else { return }
-        toast = nil
-      }
   }
 
   private var deletion: PutioFileDeletionPresentation {

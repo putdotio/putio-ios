@@ -24,6 +24,10 @@ returns to the normal sign-in. The abandoned grant is not revoked; it stays
 listed under "Where you are logged in" until revoked there. If removal fails,
 restore recovery stays with the removal error.
 
+If a new sign-in saves its token but the account then fails to load for a
+non-authentication reason, the store enters the same restore recovery. A fresh
+sign-in would overwrite a grant that put.io still accepts.
+
 If a new sign-in cannot save its token, the store revokes the new grant on a best-effort basis
 and fails sign-in. Expiry and account destruction remove the saved token on a
 best-effort basis. A copy left behind fails validation on the next restore,

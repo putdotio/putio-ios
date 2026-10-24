@@ -249,17 +249,6 @@ extension View {
         item: item, account: account, canDelete: canDelete, setWatched: setWatched,
         delete: delete))
   }
-
-  /// Shows a toast and lets it go after three seconds.
-  func tvToast(_ toast: Binding<PutioToast?>) -> some View {
-    putioToast(toast)
-      .task(id: toast.wrappedValue) {
-        guard let presented = toast.wrappedValue else { return }
-        try? await Task.sleep(for: .seconds(3))
-        guard !Task.isCancelled, toast.wrappedValue == presented else { return }
-        toast.wrappedValue = nil
-      }
-  }
 }
 
 /// One folder of Your Files. Browse, sort, paging, and file actions come
@@ -377,7 +366,7 @@ struct TVFolderView: View {
       }
     )
     .modifier(TVFocusHandoff(target: $focusTarget, focusedRow: $focusedRow))
-    .tvToast($toast)
+    .putioToast($toast)
     .task(id: route.id) {
       guard loadsOnAppear else { return }
       refreshRegistration.activate()

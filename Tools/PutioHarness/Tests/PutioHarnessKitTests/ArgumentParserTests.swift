@@ -69,6 +69,27 @@ import Testing
   )
 }
 
+@Test func selectsJourneyPreflightsByName() throws {
+  #expect(
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--scenario", "files-browser",
+      "--only", "accessibility-files,file-actions",
+    ])
+      == .journey(
+        platform: .ios, scenario: .filesBrowser, runID: nil,
+        only: ["accessibility-files", "file-actions"], output: .text))
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "ios", "--scenario", "files-browser", "--only", "file-action",
+    ])
+  }
+  #expect(throws: HarnessFailure.self) {
+    try HarnessArgumentParser.parse([
+      "journey", "--platform", "tvos", "--scenario", "device-sign-in", "--only", "file-actions",
+    ])
+  }
+}
+
 @Test func rejectsGalleryScenarioOutsideCapture() {
   #expect(throws: HarnessFailure.self) {
     try HarnessArgumentParser.parse(["proof", "--platform", "ios", "--scenario", "gallery"])
