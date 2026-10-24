@@ -792,7 +792,8 @@ public struct SimulatorHarness {
     _ platform: HarnessPlatform,
     scenario: JourneyScenario,
     runID: String,
-    sourceRevision: String
+    sourceRevision: String,
+    only: [String] = []
   ) throws -> SurfaceRun {
     guard scenario.platform == platform else {
       throw HarnessFailure(
@@ -863,10 +864,13 @@ public struct SimulatorHarness {
         }
         let mediaBaseURL = try mediaServer.start()
 
-        // Every preflight runs, so one journey reports every failing test.
+        // Every selected preflight runs, so one journey reports every failing test.
+        let preflights = BrowserJourneyContract.preflights.filter {
+          only.isEmpty || only.contains($0.name)
+        }
         var preflightScreenshots: [URL] = []
         var preflightFailures: [(name: String, failure: Error)] = []
-        for preflight in BrowserJourneyContract.preflights {
+        for preflight in preflights {
           do {
             preflightScreenshots += try runJourneyPreflightTest(
               identifier: preflight.testIdentifier,
@@ -885,7 +889,7 @@ public struct SimulatorHarness {
         }
         guard preflightFailures.isEmpty else {
           throw HarnessFailure(
-            "\(preflightFailures.count) of \(BrowserJourneyContract.preflights.count) journey "
+            "\(preflightFailures.count) of \(preflights.count) journey "
               + "preflights failed: \(preflightFailures.map(\.name).joined(separator: ", "))\n\n"
               + preflightFailures.map { "[\($0.name)] \($0.failure)" }.joined(separator: "\n\n"))
         }
@@ -894,9 +898,31 @@ public struct SimulatorHarness {
         }
         // A blank screenshot needs its bundle for diagnosis, so bundles
         // outlive the checks above.
-        for preflight in BrowserJourneyContract.preflights {
+        for preflight in preflights {
           try? fileManager.removeItem(
             at: platformDirectory.appending(path: ".\(preflight.name).xcresult"))
+        }
+        // A partial run proves only its preflights; its manifest says so, and
+        // it records no walk.
+        if !only.isEmpty {
+          try requireCleanSource()
+          try requireRevision(sourceRevision)
+          let manifest = try writeManifest(
+            platform: platform,
+            command: "journey --only \(only.joined(separator: ","))",
+            runID: runID,
+            commit: sourceRevision,
+            session: session,
+            artifactURLs: preflightScreenshots,
+            directory: platformDirectory,
+            fixtureSet: scenario.fixtureSet
+          )
+          return SurfaceRun(
+            platform: platform,
+            artifacts: preflightScreenshots + [manifest],
+            message:
+              "\(preflights.count) journey preflights passed in \(context.relativePath(for: platformDirectory))"
+          )
         }
 
         let resultBundle = platformDirectory.appending(path: "runtime-proof.xcresult")

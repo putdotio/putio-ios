@@ -178,6 +178,7 @@ public enum HarnessInvocation: Equatable, Sendable {
     platform: HarnessPlatform,
     scenario: JourneyScenario,
     runID: String?,
+    only: [String] = [],
     output: OutputFormat
   )
   case authStatus(output: OutputFormat)
