@@ -91,10 +91,16 @@ private struct PutioToastSurface: ViewModifier {
 }
 
 extension View {
+  /// Shows `toast` and clears it after three seconds.
   public func putioToast(_ toast: Binding<PutioToast?>) -> some View {
     modifier(PutioToastPresenter(toast: toast))
   }
 }
+
+// The presenter, not the screen, reads the toast and runs its timer, so
+// showing or clearing one re-renders only this overlay. Re-rendering the
+// screen updates its toolbar, and an open toolbar menu then drops a tap that
+// lands mid-update.
 
 private struct PutioToastPresenter: ViewModifier {
   @Binding var toast: PutioToast?
@@ -114,6 +120,12 @@ private struct PutioToastPresenter: ViewModifier {
       PutioTheme.Motion.easingOut.animation(duration: PutioTheme.Motion.durationBase),
       value: toast
     )
+    .task(id: toast) {
+      guard let presented = toast else { return }
+      try? await Task.sleep(for: .seconds(3))
+      guard !Task.isCancelled, toast == presented else { return }
+      toast = nil
+    }
   }
 }
 

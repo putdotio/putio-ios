@@ -160,12 +160,6 @@ struct TVTrashView: View {
       toast = TVTrashPresentation.toast(for: outcome)
       model.clearMutationOutcome()
     }
-    .task(id: toast) {
-      guard let presented = toast else { return }
-      try? await Task.sleep(for: .seconds(3))
-      guard !Task.isCancelled, toast == presented else { return }
-      toast = nil
-    }
   }
 
   /// Another screen may have removed the row while its modal was up.
