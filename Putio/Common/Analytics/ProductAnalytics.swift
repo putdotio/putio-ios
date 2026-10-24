@@ -1,6 +1,7 @@
 import Foundation
 import os
 import PostHog
+import RealmSwift
 import UIKit
 
 /// The app's only PostHog entry point. `scripts/verify-fast.sh` rejects
@@ -17,7 +18,11 @@ enum ProductAnalytics {
 
     static let shared = ProductAnalyticsGate(environment: .live)
 
-    static let appSession = AppSessionAnalytics(capture: capture)
+    /// The cached account's route, nil until its settings load: a fresh
+    /// sign-in's cold launch has none yet.
+    static let appSession = AppSessionAnalytics(capture: capture, route: {
+        PutioRealm.open(context: "ProductAnalytics.route")?.objects(User.self).first?.settings?.routeName
+    })
 
     /// `nil` is signed out; an unset answer is off.
     static func update(accountID: Int?, productAnalyticsEnabled: Bool?) {

@@ -3,7 +3,8 @@ import Foundation
 import PutioSDK
 
 /// The events from the Analytics event contract that this app has a hook for.
-/// Every value is a fixed vocabulary, so a call site can't send free text.
+/// Every value is a fixed vocabulary, so a call site can't send free text,
+/// except `app_opened`'s route, which the allowlist checks by shape.
 enum AnalyticsEvent: Equatable {
     enum Entry: String, CaseIterable {
         case direct, deeplink, resume
@@ -116,7 +117,9 @@ enum AnalyticsEvent: Equatable {
         }
     }
 
-    case appOpened(Entry)
+    /// `route` is the account's tunnel route name, nil while settings aren't
+    /// loaded; empty is the API's null, the default route.
+    case appOpened(Entry, route: String? = nil)
     case appBackgrounded(SessionDuration)
     case screenViewed(Screen)
     case settingsChanged(Setting, SettingValue)
@@ -140,8 +143,9 @@ enum AnalyticsEvent: Equatable {
 
     var properties: [String: String] {
         switch self {
-        case .appOpened(let entry):
-            return ["entry": entry.rawValue]
+        case .appOpened(let entry, let route):
+            guard let route else { return ["entry": entry.rawValue] }
+            return ["entry": entry.rawValue, "route": route.isEmpty ? "default" : route]
         case .appBackgrounded(let duration):
             return ["session_duration": duration.rawValue]
         case .screenViewed(let screen):
@@ -203,6 +207,11 @@ enum AnalyticsAllowlist {
         "release_channel": ["stable", "beta"]
     ]
 
+    /// Free-form short strings that only one event carries.
+    static let eventPatternProperties: [String: [String: String]] = [
+        "app_opened": ["route": "^[A-Za-z0-9_ .()-]{1,64}\\z"]
+    ]
+
     static let patternProperties: [String: String] = [
         "app_version": "^[A-Za-z0-9_.+-]{1,64}$",
         "runtime_version": "^[0-9]+(\\.[0-9]+){0,2}$"
@@ -225,7 +234,7 @@ enum AnalyticsAllowlist {
             if let isValid = sdkProperties[key] { return isValid(value) }
             guard let value = value as? String else { return false }
             if let listed = eventValues[key] ?? commonProperties[key] { return listed.contains(value) }
-            if let pattern = patternProperties[key] { return value.range(of: pattern, options: .regularExpression) != nil }
+            if let pattern = eventPatternProperties[event]?[key] ?? patternProperties[key] { return value.range(of: pattern, options: .regularExpression) != nil }
             return false
         }
     }
@@ -235,6 +244,7 @@ enum AnalyticsAllowlist {
 /// thread only, as UIKit calls the scene delegate.
 final class AppSessionAnalytics {
     private let capture: (AnalyticsEvent) -> Void
+    private let route: () -> String?
     private let now: () -> Date
     /// A launch is an open, whether or not the scene reports entering the foreground.
     private var opensOnActive = true
@@ -242,8 +252,9 @@ final class AppSessionAnalytics {
     private var hasOpened = false
     private var activeSince: Date?
 
-    init(capture: @escaping (AnalyticsEvent) -> Void, now: @escaping () -> Date = Date.init) {
+    init(capture: @escaping (AnalyticsEvent) -> Void, route: @escaping () -> String? = { nil }, now: @escaping () -> Date = Date.init) {
         self.capture = capture
+        self.route = route
         self.now = now
     }
 
@@ -264,7 +275,7 @@ final class AppSessionAnalytics {
         openedFromLink = false
         hasOpened = true
         activeSince = now()
-        capture(.appOpened(entry))
+        capture(.appOpened(entry, route: route()))
     }
 
     func didEnterBackground() {
