@@ -54,6 +54,7 @@ Report skipped or unavailable checks.
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | Docs only                           | `pnpm run markdown:check`; check web links and commands                                                                |
 | Shared logic                        | `swift test --package-path Packages/PutioCore`                                                                         |
+| Session lifecycle                   | `mise run formal-session`; see [verify-session-lifecycle][session-model]                                               |
 | Tooling scripts, tokens, or fonts   | `pnpm run verify`                                                                                                      |
 | App Store tool or asc pin           | `pnpm run verify`, then `PUTIO_REQUIRE_ASC=1 node --test scripts/app-store.test.ts` with the pinned asc on `PATH`      |
 | Manifest or dependency graph        | `mise run build`                                                                                                       |
@@ -69,3 +70,4 @@ Upload reviewed screenshots or recordings with
 [verify]: .agents/skills/verify-putio-apple/SKILL.md
 [live-account]: .agents/skills/verify-putio-apple/references/live-account.md
 [apple-tv]: .agents/skills/verify-putio-apple/references/apple-tv-device.md
+[session-model]: .agents/skills/verify-session-lifecycle/SKILL.md
