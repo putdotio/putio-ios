@@ -103,14 +103,16 @@ the tooling checks and tvOS suites; the lanes are `checks`, `build`, `ios`, and
 `tvos`. Keep generation and verification secret-free.
 
 The `checks` lane includes the oxfmt Markdown check; `pnpm exec oxfmt "**/*.md"`
-fixes findings. [.oxfmtrc.json](.oxfmtrc.json) skips the installed upstream
-skills under `.agents/`, which keep their upstream content.
+fixes findings. [.oxfmtrc.json](.oxfmtrc.json) skips each upstream skill in
+[skills-lock.json](skills-lock.json), which keeps its upstream content; add a
+newly installed one there. Repository-owned skills, such as `verify-putio-apple`,
+are checked.
 
 `mise run dead-code` builds both app shells with their tests, PutioCore, and the
 harness, then runs [Periphery](.periphery.yml) over them; it is local only.
 
 For runtime changes, exercise the affected shell through the
-[headless harness](docs/harness.md); the
+[headless harness](.agents/skills/verify-putio-apple/SKILL.md); the
 [proof table](AGENTS.md#verification-and-completion) maps change types to the
 required journey or snapshot command. Proof and journey commands require a clean
 committed worktree. Publishing artifacts is a separate action; the pull request

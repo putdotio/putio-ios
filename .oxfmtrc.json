@@ -1,3 +1,15 @@
 {
-  "ignorePatterns": [".agents/**"]
+  "ignorePatterns": [
+    ".agents/skills/spm-build-analysis/**",
+    ".agents/skills/swift-concurrency/**",
+    ".agents/skills/swift-testing-expert/**",
+    ".agents/skills/swiftui-expert-skill/**",
+    ".agents/skills/update-swiftui-apis/**",
+    ".agents/skills/using-tuist-generated-projects/**",
+    ".agents/skills/xcode-build-benchmark/**",
+    ".agents/skills/xcode-build-fixer/**",
+    ".agents/skills/xcode-build-orchestrator/**",
+    ".agents/skills/xcode-compilation-analyzer/**",
+    ".agents/skills/xcode-project-analyzer/**"
+  ]
 }

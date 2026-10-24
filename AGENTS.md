@@ -25,7 +25,7 @@ session, API, and feature logic belong in `Packages/PutioCore`.
 ## Hazards
 
 - **Shared test account.** Live journeys and `live-fixture` use the `devs-auto`
-  put.io CLI profile ([live-profile contract](docs/harness.md#live-profile-and-publishing)),
+  put.io CLI profile ([live account][live-account]),
   shared with the web, Android, and TV harnesses. Each live journey approves a
   real grant and revokes it on sign-out; an interrupted approval can leave one
   live, and the harness names the manual revocation. The Account > Security
@@ -46,7 +46,7 @@ session, API, and feature logic belong in `Packages/PutioCore`.
 `mise run verify` is the full gate; pass lanes (`checks`, `build`, `ios`,
 `tvos`) to run a subset in order. Code changes pass the lanes they affect plus
 the focused proof below; runtime changes also exercise the affected shell
-through the [typed headless harness](docs/harness.md). Proof and journey
+through the [verify-putio-apple][verify] skill. Proof and journey
 commands need a clean committed worktree and write under ignored `build/proof/`.
 Report skipped or unavailable checks.
 
@@ -61,7 +61,11 @@ Report skipped or unavailable checks.
 | iOS Files browser                   | `mise run harness -- journey --platform ios --scenario files-browser`                                                  |
 | tvOS shell or sign-in               | `mise run harness -- journey --platform tvos --scenario device-sign-in`                                                |
 | Recorded platform proof             | `mise run harness -- proof --platform <ios\|watchos\|tvos\|all>`                                                       |
-| tvOS device launch and rendering    | `mise run harness -- proof --platform tvos --device <udid>` on a [paired Apple TV](docs/harness.md#physical-apple-tv)  |
+| tvOS device launch and rendering    | `mise run harness -- proof --platform tvos --device <udid>` on a [paired Apple TV][apple-tv]                           |
 
 Upload reviewed screenshots or recordings with
 `gh pr comment <n> --attach ./file.png`; never commit them.
+
+[verify]: .agents/skills/verify-putio-apple/SKILL.md
+[live-account]: .agents/skills/verify-putio-apple/references/live-account.md
+[apple-tv]: .agents/skills/verify-putio-apple/references/apple-tv-device.md

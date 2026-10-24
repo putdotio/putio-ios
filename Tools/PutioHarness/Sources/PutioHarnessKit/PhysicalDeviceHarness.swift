@@ -140,7 +140,7 @@ func selectPairedDevice(
   let pairedTargets = devices.filter(\.isEligibleAppleTV)
   let available =
     pairedTargets.isEmpty
-    ? "no \(target.deviceFamily) is paired; pair one as described in docs/harness.md"
+    ? "no \(target.deviceFamily) is paired; pair one as described in .agents/skills/verify-putio-apple/references/apple-tv-device.md"
     : "paired \(target.deviceFamily) devices: "
       + pairedTargets.map(\.label).joined(separator: ", ")
   var matches = devices.filter { device in
@@ -165,7 +165,7 @@ func selectPairedDevice(
   }
   guard device.isPaired else {
     throw HarnessFailure(
-      "\(device.label) is not paired with this Mac; pair it as described in docs/harness.md")
+      "\(device.label) is not paired with this Mac; pair it as described in .agents/skills/verify-putio-apple/references/apple-tv-device.md")
   }
   return device
 }

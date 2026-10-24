@@ -50,7 +50,7 @@ restoration, so native Back follows the linked item's parents.
 binding, cancellation, and resolution. The
 [deep-link journey](../Tests/iOSUITests/Sources/DeepLinkJourneyTests.swift) covers
 native cold/warm delivery and navigation with synthetic URLs and files. Run it
-as part of the [Files journey](harness.md#choose-the-proof):
+as part of the [Files journey](../.agents/skills/verify-putio-apple/features/files.md):
 
 ```bash
 mise run harness -- journey --platform ios --scenario files-browser

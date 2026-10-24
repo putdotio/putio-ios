@@ -15,8 +15,8 @@ public enum HarnessArgumentParser {
       putio-harness live-fixture [--output text|json]
 
     Simulator commands are headless. They never open Simulator.app.
-    --device targets an Apple TV already paired with Xcode; see docs/harness.md.
-    live-* journeys sign in to the devs-auto put.io account; see docs/harness.md.
+    --device targets an Apple TV already paired with Xcode; see .agents/skills/verify-putio-apple/references/apple-tv-device.md.
+    live-* journeys sign in to the devs-auto put.io account; see .agents/skills/verify-putio-apple/references/live-account.md.
     """
 
   public static func parse(_ arguments: [String]) throws -> HarnessInvocation {
