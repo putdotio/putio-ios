@@ -35,29 +35,7 @@ each property in about 5 seconds. It exits nonzero on a violation, on drift, or
 when a model action never fires. An action that never fires means the model
 skips the code it names, so fix the action before you trust a pass.
 
-Expected result today: `NoOrphanGrant` fails with the known finding below, and
-`SignedInIsSaved` holds. To check for new violations behind the known finding:
-
-```bash
-mise run formal-session -- --excuse-known-finding
-```
-
-Both properties must hold there. Report any other result.
-
-## Known finding
-
-A sign-in whose account load fails orphans its grant on the next sign-in:
-
-1. `completeSignIn(callbackURL:)` or the device-code flow gets grant A.
-   `storeSignInToken()` saves A in the keychain.
-2. `bootstrap()` gets a transient error. The SDK token is cleared, the state
-   becomes `.signedOut(.authenticationFailed)`, and A stays in the keychain.
-3. The user signs in again and gets grant B. `storeSignInToken()` overwrites A.
-4. A stays live on put.io, and no copy remains in the app.
-
-The fix is a product decision: revoke A in step 2, or restore it instead of
-starting a new sign-in. After a fix, remove `KnownFindingExcused` from the
-model and the `--excuse-known-finding` flag from the script.
+Both properties must hold. Report any other result.
 
 ## Read a violation
 
@@ -76,9 +54,9 @@ The script also lists covered files that changed since the sync commit.
 2. If the change alters a step, update the matching action in the model. Each
    action names its Swift function. A screen file matters only when it changes
    which session method it calls, or from which state.
-3. Run `mise run formal-session` and `mise run formal-session -- --excuse-known-finding`.
+3. Run `mise run formal-session`.
 4. Show that a property still fails on a broken model, for example
-   `-- --excuse-known-finding --variant dropPendingSignOutToken`.
+   `-- --variant dropPendingSignOutToken`.
 5. Move the sync commit below to the commit that holds the checked code.
 
 ## Scope
@@ -95,7 +73,7 @@ The script also lists covered files that changed since the sync commit.
 
 ## Coverage
 
-Sync commit: `48e9bc47`
+Sync commit: `6813031b`
 
 - `Packages/PutioCore/Sources/PutioCore/Session/PutioSessionStore.swift` (all session transitions)
 - `Packages/PutioCore/Sources/PutioCore/Runtime/PutioRuntime.swift` (`performAuthenticatedOperation`)
