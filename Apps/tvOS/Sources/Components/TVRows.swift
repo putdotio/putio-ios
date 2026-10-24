@@ -13,8 +13,10 @@ struct TVRowList<Content: View>: View {
       }
       .padding(.vertical, PutioTheme.TV.Spacing.small)
     }
-    // The card lift grows past the column; clipping would cut it off.
-    .scrollClipDisabled()
+    // Keep the scroll view's clipping. A lazy stack that draws rows past its
+    // bounds can leave a row focused on screen but unfocused to accessibility
+    // once a refresh inserts rows above it. The vertical padding holds the
+    // card lift.
     .buttonStyle(.card)
   }
 }
