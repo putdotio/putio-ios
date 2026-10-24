@@ -863,264 +863,41 @@ public struct SimulatorHarness {
         }
         let mediaBaseURL = try mediaServer.start()
 
-        let accessibilityFilesScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.accessibilityFilesTestIdentifier,
-          platform: platform, session: session, mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".accessibility-files.xcresult"),
-          attachmentNames: BrowserJourneyContract.accessibilityFilesAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 180, maximumExecutionTimeAllowance: 180)
-        let accessibilityAudioScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.accessibilityAudioTestIdentifier,
-          platform: platform, session: session, mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".accessibility-audio.xcresult"),
-          attachmentNames: BrowserJourneyContract.accessibilityAudioAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 180, maximumExecutionTimeAllowance: 180)
-
-        let accountRatingScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.accountRatingTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".account-rating.xcresult"),
-          attachmentNames: [BrowserJourneyContract.accountRatingAttachmentName],
-          artifactDirectory: platformDirectory
-        )
-        let analyticsPromptScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.analyticsPromptTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".analytics-prompt.xcresult"),
-          attachmentNames: [BrowserJourneyContract.analyticsPromptAttachmentName],
-          artifactDirectory: platformDirectory
-        )
-        let audioScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.audioTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".audio.xcresult"),
-          attachmentNames: [BrowserJourneyContract.audioAttachmentName],
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 120,
-          maximumExecutionTimeAllowance: 120
-        )
-        let downloadScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.downloadsTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".downloads.xcresult"),
-          attachmentNames: BrowserJourneyContract.downloadsAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 180,
-          maximumExecutionTimeAllowance: 180
-        )
-        _ = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.unsavedDownloadsTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".unsaved-downloads.xcresult"),
-          defaultExecutionTimeAllowance: 90,
-          maximumExecutionTimeAllowance: 90
-        )
-        let castScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.castTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".cast.xcresult"),
-          attachmentNames: BrowserJourneyContract.castAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 180,
-          maximumExecutionTimeAllowance: 180
-        )
-        let previewScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.previewsTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".previews.xcresult"),
-          attachmentNames: BrowserJourneyContract.previewsAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 120,
-          maximumExecutionTimeAllowance: 120
-        )
-        let deepLinkScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.deepLinksTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".deep-links.xcresult"),
-          attachmentNames: BrowserJourneyContract.deepLinksAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 180,
-          maximumExecutionTimeAllowance: 180
-        )
-        let signOutFailureScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.signOutRecoveryTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".sign-out-recovery.xcresult"),
-          attachmentNames: [BrowserJourneyContract.signOutFailureAttachmentName],
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 60,
-          maximumExecutionTimeAllowance: 90
-        )
-        let fileActionsScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.fileActionsTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".file-actions.xcresult"),
-          attachmentNames: [BrowserJourneyContract.fileActionsAttachmentName],
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 300,
-          maximumExecutionTimeAllowance: 300
-        )
-        _ = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.trashDisabledTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".trash-disabled.xcresult"),
-          defaultExecutionTimeAllowance: 60,
-          maximumExecutionTimeAllowance: 60
-        )
-        let trashManagementScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.trashManagementTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".trash-management.xcresult"),
-          attachmentNames: BrowserJourneyContract.trashManagementAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 90,
-          maximumExecutionTimeAllowance: 90
-        )
-        let sortedRootScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.sortAndContinuationTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".sort-continuation.xcresult"),
-          attachmentNames: [BrowserJourneyContract.sortedRootAttachmentName],
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 90,
-          maximumExecutionTimeAllowance: 90
-        )
-        let searchScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.searchAndRestorationTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".search-restoration.xcresult"),
-          attachmentNames: [BrowserJourneyContract.searchResultsAttachmentName],
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 180,
-          maximumExecutionTimeAllowance: 180
-        )
-        _ = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.folderReconciliationTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".folder-reconciliation.xcresult"),
-          defaultExecutionTimeAllowance: 120,
-          maximumExecutionTimeAllowance: 120
-        )
-        let historyScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.historyTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".history.xcresult"),
-          attachmentNames: BrowserJourneyContract.historyAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 180,
-          maximumExecutionTimeAllowance: 180
-        )
-        let filePreferencesScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.filePreferencesTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".file-preferences.xcresult"),
-          attachmentNames: BrowserJourneyContract.filePreferencesAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 180,
-          maximumExecutionTimeAllowance: 180
-        )
-        let playbackPreferencesScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.playbackPreferencesTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".playback-preferences.xcresult"),
-          attachmentNames: [BrowserJourneyContract.playbackPreferencesAttachmentName],
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 180,
-          maximumExecutionTimeAllowance: 180
-        )
-        let subtitlesScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.subtitlesTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".subtitles.xcresult"),
-          attachmentNames: BrowserJourneyContract.subtitlesAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 180,
-          maximumExecutionTimeAllowance: 180
-        )
-        let accountSecurityScreenshots = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.accountSecurityTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".account-security.xcresult"),
-          attachmentNames: BrowserJourneyContract.accountSecurityAttachmentNames,
-          artifactDirectory: platformDirectory,
-          defaultExecutionTimeAllowance: 180,
-          maximumExecutionTimeAllowance: 180
-        )
-        let preflightScreenshots =
-          signOutFailureScreenshots + fileActionsScreenshots + trashManagementScreenshots
-          + sortedRootScreenshots + searchScreenshots + historyScreenshots
-          + filePreferencesScreenshots + playbackPreferencesScreenshots + subtitlesScreenshots
-          + deepLinkScreenshots
-          + accountRatingScreenshots + analyticsPromptScreenshots + audioScreenshots
-          + previewScreenshots
-          + downloadScreenshots + castScreenshots + accountSecurityScreenshots
-          + accessibilityFilesScreenshots + accessibilityAudioScreenshots
+        // Every preflight runs, so one journey reports every failing test.
+        var preflightScreenshots: [URL] = []
+        var preflightFailures: [(name: String, failure: Error)] = []
+        for preflight in BrowserJourneyContract.preflights {
+          do {
+            preflightScreenshots += try runJourneyPreflightTest(
+              identifier: preflight.testIdentifier,
+              platform: platform,
+              session: session,
+              mediaBaseURL: mediaBaseURL,
+              resultBundle: platformDirectory.appending(path: ".\(preflight.name).xcresult"),
+              attachmentNames: preflight.attachmentNames,
+              artifactDirectory: platformDirectory,
+              defaultExecutionTimeAllowance: preflight.timeAllowance,
+              maximumExecutionTimeAllowance: preflight.timeAllowance
+            )
+          } catch {
+            preflightFailures.append((preflight.name, error))
+          }
+        }
+        guard preflightFailures.isEmpty else {
+          throw HarnessFailure(
+            "\(preflightFailures.count) of \(BrowserJourneyContract.preflights.count) journey "
+              + "preflights failed: \(preflightFailures.map(\.name).joined(separator: ", "))\n\n"
+              + preflightFailures.map { "[\($0.name)] \($0.failure)" }.joined(separator: "\n\n"))
+        }
         for screenshot in preflightScreenshots {
           _ = try requireMeaningfulScreenshot(screenshot, context: "journey preflight attachment")
         }
         // A blank screenshot needs its bundle for diagnosis, so bundles
         // outlive the checks above.
-        for bundle in [
-          ".sign-out-recovery.xcresult", ".file-actions.xcresult", ".trash-management.xcresult",
-          ".sort-continuation.xcresult", ".search-restoration.xcresult",
-          ".folder-reconciliation.xcresult",
-          ".history.xcresult", ".deep-links.xcresult",
-          ".file-preferences.xcresult", ".playback-preferences.xcresult", ".subtitles.xcresult",
-          ".account-rating.xcresult", ".analytics-prompt.xcresult", ".audio.xcresult",
-          ".previews.xcresult",
-          ".downloads.xcresult", ".cast.xcresult", ".account-security.xcresult",
-        ] {
-          try? fileManager.removeItem(at: platformDirectory.appending(path: bundle))
+        for preflight in BrowserJourneyContract.preflights {
+          try? fileManager.removeItem(
+            at: platformDirectory.appending(path: ".\(preflight.name).xcresult"))
         }
-        _ = try runJourneyPreflightTest(
-          identifier: BrowserJourneyContract.resumePersistenceTestIdentifier,
-          platform: platform,
-          session: session,
-          mediaBaseURL: mediaBaseURL,
-          resultBundle: platformDirectory.appending(path: ".resume-persistence.xcresult")
-        )
 
         let resultBundle = platformDirectory.appending(path: "runtime-proof.xcresult")
         let rawRecording = platformDirectory.appending(path: ".runtime-proof-walk.raw.mp4")

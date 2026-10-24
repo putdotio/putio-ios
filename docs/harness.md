@@ -30,7 +30,10 @@ mise run harness -- journey --platform tvos --scenario device-sign-in
 ```
 
 The iOS journey runs feature preflights and records the sign-in, browse, playback,
-and sign-out loop. [BrowserJourneyContract](../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift)
+and sign-out loop. Each preflight is its own `xcodebuild` run on one simulator.
+All of them run even after one fails, and the journey then names every failed
+preflight before skipping the recorded loop.
+[BrowserJourneyContract](../Tools/PutioHarness/Sources/PutioHarnessKit/Models.swift)
 owns the selected tests and required screenshots; the
 [UI tests](../Tests/iOSUITests/Sources) contain their assertions. They wait with
 [`appears(within:)` and `disappears(within:)`](../Tests/iOSUITests/Sources/XCUIElement+Wait.swift),
