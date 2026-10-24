@@ -85,6 +85,10 @@ extension PutioRuntime {
     try await setAppConfigValue(.autoplayNextVideo, enabled)
   }
 
+  public func setAutoRotateVideo(_ enabled: Bool) async throws {
+    try await setAppConfigValue(.autoRotateVideo, enabled)
+  }
+
   public func markProductAnalyticsPromptAnswered() async throws {
     try await setAppConfigValue(.productAnalyticsPromptAnswered, true)
   }

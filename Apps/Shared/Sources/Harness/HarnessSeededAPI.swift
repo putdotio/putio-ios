@@ -63,6 +63,8 @@ import Foundation
     /// default (off) and fails the first save once for retry proof.
     nonisolated(unsafe) private static var autoplayNextVideo = true
     nonisolated(unsafe) private static var autoplaySaveFailed = false
+    /// Unset like a fresh account, so playback holds landscape by default.
+    nonisolated(unsafe) private static var autoRotateVideo: Bool?
     /// Journeys never meet the analytics prompt: the document answers it
     /// unless a run asks for the prompt, which leaves the key unset.
     nonisolated(unsafe) private static var analyticsPromptAnswered = !ProcessInfo.processInfo
@@ -998,13 +1000,14 @@ import Foundation
           return (200, accountInfoLocked)
         }
       case "GET /v2/config":
-        let (playbackType, answered) = castLock.withLock {
-          (castPlaybackType, analyticsPromptAnswered)
+        let (playbackType, answered, rotates) = castLock.withLock {
+          (castPlaybackType, analyticsPromptAnswered, autoRotateVideo)
         }
         let prompt = answered ? #","dismissed.product_analytics_prompt":true"# : ""
+        let rotation = rotates.map { #","auto_rotate_video":\#($0)"# } ?? ""
         return (
           200,
-          #"{"config":{"chromecast_playback_type":"\#(playbackType)","autoplay_next_video":\#(autoplayConfigValue)\#(prompt)}}"#
+          #"{"config":{"chromecast_playback_type":"\#(playbackType)","autoplay_next_video":\#(autoplayConfigValue)\#(prompt)\#(rotation)}}"#
         )
       case "PUT /v2/config/dismissed.product_analytics_prompt":
         guard requestPayload(request)?["value"] as? Bool == true else {
@@ -1018,6 +1021,17 @@ import Foundation
         return (200, #"{"status":"OK"}"#)
       case "PUT /v2/config/autoplay_next_video":
         return updateAutoplayConfig(request: request)
+      case "PUT /v2/config/auto_rotate_video":
+        guard let value = requestPayload(request)?["value"] as? Bool else {
+          return (
+            400,
+            fixtureError(
+              statusCode: 400, type: "HARNESS_INVALID_AUTO_ROTATE",
+              message: "value must be a boolean")
+          )
+        }
+        castLock.withLock { autoRotateVideo = value }
+        return (200, #"{"status":"OK"}"#)
       case "PUT /v2/config/chromecast_playback_type":
         return castLock.withLock {
           guard let value = requestPayload(request)?["value"] as? String,

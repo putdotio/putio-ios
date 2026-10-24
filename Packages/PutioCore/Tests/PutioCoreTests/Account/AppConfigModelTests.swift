@@ -54,12 +54,12 @@ final class AppConfigModelTests: XCTestCase {
     await model.setAutoplayNextVideo(true)
     XCTAssertFalse(model.autoplayNextVideo)
     XCTAssertEqual(model.failure, "Could not save playback settings. Try again.")
-    XCTAssertEqual(model.failedAutoplayNextVideo, true)
+    XCTAssertEqual(model.failedWrite, .autoplayNextVideo(true))
 
     await model.retry()
     XCTAssertTrue(model.autoplayNextVideo)
     XCTAssertNil(model.failure)
-    XCTAssertNil(model.failedAutoplayNextVideo)
+    XCTAssertNil(model.failedWrite)
     XCTAssertEqual(writes, [true, true])
     XCTAssertEqual(loads, 1)
   }
@@ -80,7 +80,7 @@ final class AppConfigModelTests: XCTestCase {
     await model.setAutoplayNextVideo(true)
     XCTAssertEqual(writes, [true])
     XCTAssertNil(model.failure, "the session root owns expiry")
-    XCTAssertNil(model.failedAutoplayNextVideo)
+    XCTAssertNil(model.failedWrite)
     XCTAssertFalse(model.autoplayNextVideo)
   }
 
@@ -155,10 +155,36 @@ final class AppConfigModelTests: XCTestCase {
     XCTAssertEqual(model.failure, "Check your connection and try again.")
   }
 
+  func testAutoRotateIsOnUntilTheDocumentSaysOtherwise() async throws {
+    var writes: [PutioAppConfigWrite] = []
+    let model = PutioAppConfigModel(
+      actions: .init(
+        load: { try JSONDecoder().decode(PutioAppConfig.self, from: Data(#"{}"#.utf8)) },
+        save: { writes.append($0) }))
+    XCTAssertTrue(model.autoRotateVideo)
+
+    await model.loadIfNeeded()
+    XCTAssertTrue(model.autoRotateVideo, "a document without the key reads as on")
+
+    await model.setAutoRotateVideo(false)
+    XCTAssertFalse(model.autoRotateVideo)
+    XCTAssertEqual(writes, [.autoRotateVideo(false)])
+
+    let stored = try JSONDecoder().decode(
+      PutioAppConfig.self, from: Data(#"{"auto_rotate_video":false}"#.utf8))
+    XCTAssertFalse(stored.autoRotateVideo)
+  }
+
   private func model(
     load: @escaping @MainActor @Sendable () async throws -> PutioAppConfig,
     save: @escaping @MainActor @Sendable (Bool) async throws -> Void = { _ in }
   ) -> PutioAppConfigModel {
-    PutioAppConfigModel(actions: .init(load: load, saveAutoplayNextVideo: save))
+    PutioAppConfigModel(
+      actions: .init(
+        load: load,
+        save: { write in
+          guard case .autoplayNextVideo(let enabled) = write else { return XCTFail("\(write)") }
+          try await save(enabled)
+        }))
   }
 }

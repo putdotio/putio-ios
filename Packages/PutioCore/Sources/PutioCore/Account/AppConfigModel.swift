@@ -3,25 +3,36 @@ import Observation
 
 public struct PutioAppConfigActions: Sendable {
   let load: @MainActor @Sendable () async throws -> PutioAppConfig
-  let saveAutoplayNextVideo: @MainActor @Sendable (Bool) async throws -> Void
+  let save: @MainActor @Sendable (PutioAppConfigWrite) async throws -> Void
 
   public init(runtime: PutioRuntime) {
     load = { try await runtime.appConfig() }
-    saveAutoplayNextVideo = { try await runtime.setAutoplayNextVideo($0) }
+    save = { write in
+      switch write {
+      case .autoplayNextVideo(let enabled): try await runtime.setAutoplayNextVideo(enabled)
+      case .autoRotateVideo(let enabled): try await runtime.setAutoRotateVideo(enabled)
+      }
+    }
   }
 
   init(
     load: @escaping @MainActor @Sendable () async throws -> PutioAppConfig,
-    saveAutoplayNextVideo: @escaping @MainActor @Sendable (Bool) async throws -> Void
+    save: @escaping @MainActor @Sendable (PutioAppConfigWrite) async throws -> Void
   ) {
     self.load = load
-    self.saveAutoplayNextVideo = saveAutoplayNextVideo
+    self.save = save
   }
+}
+
+/// One app-owned setting written to the config document.
+public enum PutioAppConfigWrite: Equatable, Sendable {
+  case autoplayNextVideo(Bool)
+  case autoRotateVideo(Bool)
 }
 
 /// The per-user config document behind app-owned playback settings. The
 /// account snapshot owns `next_episode` (the suggestion); this document owns
-/// `autoplay_next_video`. A value flips locally only after the server
+/// `autoplay_next_video` and `auto_rotate_video`. A value flips locally only after the server
 /// acknowledges the write, so a failed save keeps showing the authoritative
 /// value with a retry.
 @MainActor
@@ -31,7 +42,7 @@ public final class PutioAppConfigModel {
   public private(set) var isLoading = false
   public private(set) var isSaving = false
   public private(set) var failure: String?
-  private(set) var failedAutoplayNextVideo: Bool?
+  private(set) var failedWrite: PutioAppConfigWrite?
   @ObservationIgnored private let actions: PutioAppConfigActions
   @ObservationIgnored private var loadGeneration: UInt64 = 0
   @ObservationIgnored private var activeLoad: Task<Void, Never>?
@@ -42,6 +53,8 @@ public final class PutioAppConfigModel {
 
   /// `false` until the document loads, matching the server default.
   public var autoplayNextVideo: Bool { config?.autoplayNextVideo ?? false }
+  /// `true` until the document loads, matching the server default.
+  public var autoRotateVideo: Bool { config?.autoRotateVideo ?? true }
   public var isBusy: Bool { isLoading || isSaving }
   public var canSave: Bool { config != nil && !isBusy }
 
@@ -57,7 +70,7 @@ public final class PutioAppConfigModel {
     let generation = loadGeneration
     isLoading = true
     failure = nil
-    failedAutoplayNextVideo = nil
+    failedWrite = nil
     let load = Task { @MainActor in
       defer {
         if generation == loadGeneration {
@@ -88,33 +101,46 @@ public final class PutioAppConfigModel {
   }
 
   public func setAutoplayNextVideo(_ enabled: Bool) async {
-    guard canSave, enabled != autoplayNextVideo else { return }
-    isSaving = true
-    failure = nil
-    failedAutoplayNextVideo = nil
-    // A save must settle even when the settings screen disappears mid-flight.
-    let task = Task { @MainActor in
-      defer { isSaving = false }
-      do {
-        try await actions.saveAutoplayNextVideo(enabled)
-        config?.autoplayNextVideo = enabled
-      } catch {
-        guard let message = Self.message(for: error, verb: "save") else { return }
-        failure = message
-        failedAutoplayNextVideo = enabled
-      }
-    }
-    await task.value
+    guard enabled != autoplayNextVideo else { return }
+    await save(.autoplayNextVideo(enabled))
+  }
+
+  public func setAutoRotateVideo(_ enabled: Bool) async {
+    guard enabled != autoRotateVideo else { return }
+    await save(.autoRotateVideo(enabled))
   }
 
   /// Repeats the failed write when one is pending; otherwise reloads the
   /// document, which is the only recovery after a failed read.
   public func retry() async {
-    if let failedAutoplayNextVideo {
-      await setAutoplayNextVideo(failedAutoplayNextVideo)
+    if let failedWrite {
+      await save(failedWrite)
     } else {
       await loadIfNeeded(force: true)
     }
+  }
+
+  private func save(_ write: PutioAppConfigWrite) async {
+    guard canSave else { return }
+    isSaving = true
+    failure = nil
+    failedWrite = nil
+    // A save must settle even when the settings screen disappears mid-flight.
+    let task = Task { @MainActor in
+      defer { isSaving = false }
+      do {
+        try await actions.save(write)
+        switch write {
+        case .autoplayNextVideo(let enabled): config?.autoplayNextVideo = enabled
+        case .autoRotateVideo(let enabled): config?.autoRotateVideo = enabled
+        }
+      } catch {
+        guard let message = Self.message(for: error, verb: "save") else { return }
+        failure = message
+        failedWrite = write
+      }
+    }
+    await task.value
   }
 
   private static func message(for error: Error, verb: String) -> String? {

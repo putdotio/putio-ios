@@ -84,8 +84,15 @@ private struct ContentSizeCap: UIViewRepresentable {
 }
 
 /// iOS relaunches the app for background download events and expects the
-/// completion handler back once the session has delivered them.
+/// completion handler back once the session has delivered them. Video
+/// playback narrows the allowed orientations through the same delegate.
 final class PutioAppDelegate: NSObject, UIApplicationDelegate {
+  func application(
+    _ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?
+  ) -> UIInterfaceOrientationMask {
+    PutioVideoOrientationLock.supportedOrientations
+  }
+
   func application(
     _ application: UIApplication,
     handleEventsForBackgroundURLSession identifier: String,

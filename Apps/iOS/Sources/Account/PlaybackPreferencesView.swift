@@ -91,6 +91,10 @@ struct PlaybackPreferencesView: View {
         .listRowBackground(PutioTheme.Colors.surface)
         PutioNextVideoPreferencesSection(
           suggestsNextVideo: account.suggestNextVideo, appConfig: appConfig)
+        if UIDevice.current.userInterfaceIdiom == .phone {
+          PutioVideoRotationPreferencesSection(
+            appConfig: appConfig, showsFailure: !account.suggestNextVideo)
+        }
       }
       if model.isSaving || appConfig.isSaving {
         ProgressView("Saving settings")
@@ -184,5 +188,41 @@ struct PutioNextVideoPreferencesSection: View {
     Binding(
       get: { appConfig.autoplayNextVideo },
       set: { enabled in Task { await appConfig.setAutoplayNextVideo(enabled) } })
+  }
+}
+
+/// The config document's failure shows once; the next-video section owns it
+/// while suggestions are on.
+struct PutioVideoRotationPreferencesSection: View {
+  let appConfig: PutioAppConfigModel
+  let showsFailure: Bool
+
+  var body: some View {
+    Section {
+      if appConfig.config != nil {
+        Toggle("Rotate to landscape", isOn: autoRotateVideo)
+          .disabled(!appConfig.canSave)
+          .accessibilityIdentifier("playback-settings.auto-rotate")
+      } else if appConfig.isLoading {
+        ProgressView("Loading playback settings")
+      }
+      if showsFailure, let failure = appConfig.failure {
+        Text(failure).foregroundStyle(PutioTheme.Colors.textSecondary)
+        Button("Try again") { Task { await appConfig.retry() } }
+          .disabled(appConfig.isBusy)
+          .accessibilityIdentifier("playback-settings.retry-auto-rotate")
+      }
+    } header: {
+      Text("Video")
+    } footer: {
+      Text("Videos play in landscape and stay there until you close them.")
+    }
+    .listRowBackground(PutioTheme.Colors.surface)
+  }
+
+  private var autoRotateVideo: Binding<Bool> {
+    Binding(
+      get: { appConfig.autoRotateVideo },
+      set: { enabled in Task { await appConfig.setAutoRotateVideo(enabled) } })
   }
 }
