@@ -289,7 +289,7 @@ export const generatedTokenNames = [...new Set([
   "radius.md",
   "radius.pill",
   "radius.sm",
-  ...Array.from({ length: 9 }, (_, index) => `spacing.${index}`),
+  ...[0, 1, 2, 4, 8, 16, 32, 64, 128].map((key) => `spacing.${key}`),
   "typography.fontFamily.display",
   "typography.fontFamily.mono",
   "typography.fontFamily.sans",
@@ -1040,12 +1040,12 @@ ${renderComponents(entries)}
     public static let space0: CGFloat = ${dimension(entries, "spacing.0")}
     public static let space1: CGFloat = ${dimension(entries, "spacing.1")}
     public static let space2: CGFloat = ${dimension(entries, "spacing.2")}
-    public static let space3: CGFloat = ${dimension(entries, "spacing.3")}
-    public static let space4: CGFloat = ${dimension(entries, "spacing.4")}
-    public static let space5: CGFloat = ${dimension(entries, "spacing.5")}
-    public static let space6: CGFloat = ${dimension(entries, "spacing.6")}
-    public static let space7: CGFloat = ${dimension(entries, "spacing.7")}
-    public static let space8: CGFloat = ${dimension(entries, "spacing.8")}
+    public static let space3: CGFloat = ${dimension(entries, "spacing.4")}
+    public static let space4: CGFloat = ${dimension(entries, "spacing.8")}
+    public static let space5: CGFloat = ${dimension(entries, "spacing.16")}
+    public static let space6: CGFloat = ${dimension(entries, "spacing.32")}
+    public static let space7: CGFloat = ${dimension(entries, "spacing.64")}
+    public static let space8: CGFloat = ${dimension(entries, "spacing.128")}
   }
 
   public enum ScaledMetrics {
