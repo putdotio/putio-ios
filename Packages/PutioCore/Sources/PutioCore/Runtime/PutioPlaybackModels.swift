@@ -84,6 +84,7 @@ public enum PutioCastPlaybackType: String, CaseIterable, Hashable, Codable, Send
 public enum PutioAppConfigKey: String, CaseIterable, Sendable {
   case chromecastPlaybackType = "chromecast_playback_type"
   case autoplayNextVideo = "autoplay_next_video"
+  case autoRotateVideo = "auto_rotate_video"
   /// One flat key, dot included, as the App Store app writes it.
   case productAnalyticsPromptAnswered = "dismissed.product_analytics_prompt"
 }
@@ -94,20 +95,24 @@ public enum PutioAppConfigKey: String, CaseIterable, Sendable {
 public struct PutioAppConfig: Codable, Equatable, Sendable {
   public var chromecastPlaybackType: PutioCastPlaybackType
   public var autoplayNextVideo: Bool
+  /// On unless turned off: video playback holds the phone in landscape.
+  public var autoRotateVideo: Bool
   public var productAnalyticsPromptAnswered: Bool
 
   public init(
     chromecastPlaybackType: PutioCastPlaybackType = .hls, autoplayNextVideo: Bool = false,
-    productAnalyticsPromptAnswered: Bool = false
+    autoRotateVideo: Bool = true, productAnalyticsPromptAnswered: Bool = false
   ) {
     self.chromecastPlaybackType = chromecastPlaybackType
     self.autoplayNextVideo = autoplayNextVideo
+    self.autoRotateVideo = autoRotateVideo
     self.productAnalyticsPromptAnswered = productAnalyticsPromptAnswered
   }
 
   private enum CodingKeys: String, CodingKey {
     case chromecastPlaybackType = "chromecast_playback_type"
     case autoplayNextVideo = "autoplay_next_video"
+    case autoRotateVideo = "auto_rotate_video"
     case productAnalyticsPromptAnswered = "dismissed.product_analytics_prompt"
   }
 
@@ -118,6 +123,8 @@ public struct PutioAppConfig: Codable, Equatable, Sendable {
     chromecastPlaybackType = rawPlaybackType.flatMap(PutioCastPlaybackType.init(rawValue:)) ?? .hls
     autoplayNextVideo =
       (try? container.decodeIfPresent(Bool.self, forKey: .autoplayNextVideo)) ?? false
+    autoRotateVideo =
+      (try? container.decodeIfPresent(Bool.self, forKey: .autoRotateVideo)) ?? true
     // Only a readable "not answered" asks; a value this app can't read counts
     // as an answer rather than asking again on every launch.
     do {

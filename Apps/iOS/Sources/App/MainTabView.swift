@@ -167,6 +167,10 @@ struct MainTabView: View {
         videoPlayer(for: route)
       }
     }
+    // Keyed on the cover, not the route, so the next video keeps the lock.
+    .onChange(of: selectedVideoRoute != nil && appConfig.autoRotateVideo, initial: true) {
+      _, locked in PutioVideoOrientationLock.setLocked(locked)
+    }
     // A link that arrives after the ask still wins; a save in flight finishes
     // on its own, and an unanswered prompt asks again next launch.
     .onChange(of: deepLinks.hasReceivedLink) { _, received in
@@ -195,6 +199,7 @@ struct MainTabView: View {
     .onDisappear {
       stopAudio()
       offlineQueueHolder.stop()
+      PutioVideoOrientationLock.setLocked(false)
     }
     .onChange(of: cast.hasSession) { _, hasSession in
       if hasSession { stopAudio() }

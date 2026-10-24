@@ -49,9 +49,8 @@ final class PlaybackPreferencesViewTests: XCTestCase {
   }
 
   private func model(
-    load: @escaping @MainActor @Sendable () async throws -> PutioAppConfig,
-    save: @escaping @MainActor @Sendable (Bool) async throws -> Void = { _ in }
+    load: @escaping @MainActor @Sendable () async throws -> PutioAppConfig
   ) -> PutioAppConfigModel {
-    PutioAppConfigModel(actions: .init(load: load, saveAutoplayNextVideo: save))
+    PutioAppConfigModel(actions: .init(load: load, save: { _ in }))
   }
 }
