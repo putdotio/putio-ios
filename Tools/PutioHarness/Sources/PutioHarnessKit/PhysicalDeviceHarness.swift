@@ -165,7 +165,8 @@ func selectPairedDevice(
   }
   guard device.isPaired else {
     throw HarnessFailure(
-      "\(device.label) is not paired with this Mac; pair it as described in .agents/skills/verify-putio-apple/references/apple-tv-device.md")
+      "\(device.label) is not paired with this Mac; pair it as described in .agents/skills/verify-putio-apple/references/apple-tv-device.md"
+    )
   }
   return device
 }

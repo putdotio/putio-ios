@@ -675,7 +675,9 @@ enum BrowserJourneyContract {
       timeAllowance: 120),
     JourneyPreflight(
       "history", "HistoryJourneyTests/testHistoryPagingNavigationMutationsAndSettingGate",
-      attachmentNames: ["runtime-history-loaded", "runtime-history-error", "runtime-history-empty"],
+      attachmentNames: [
+        "runtime-history-loaded", "runtime-history-error", "runtime-history-empty",
+      ],
       timeAllowance: 180),
     JourneyPreflight(
       "file-preferences",
