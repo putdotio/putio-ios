@@ -645,6 +645,35 @@ final class PutioSessionStoreTests: XCTestCase {
     XCTAssertEqual(try tokenStore.read(), "fresh-token")
   }
 
+  func testSignInBootstrapFailureKeepsTheSavedGrantForRestore() async throws {
+    stubSignedInRoutes()
+    fixtures.networkFailureRoutes = ["GET /v2/account/info"]
+    let (store, tokenStore) = makeStore(token: nil)
+
+    let request = try store.beginSignIn()
+    let oauthState = try XCTUnwrap(oauthState(from: request.url))
+    let callback = try XCTUnwrap(
+      URL(string: "putio://auth#access_token=fresh-token&state=\(oauthState)")
+    )
+    await store.completeSignIn(callbackURL: callback)
+
+    // A fresh sign-in would overwrite the saved grant and leave it live on put.io.
+    XCTAssertEqual(
+      store.state,
+      .signedOut(.restoreFailed("put.io is unreachable. Check your connection and try again.")))
+    XCTAssertEqual(try tokenStore.read(), "fresh-token")
+    XCTAssertThrowsError(try store.beginSignIn()) { error in
+      XCTAssertEqual(error as? PutioSessionOperationError, .signInUnavailable)
+    }
+
+    fixtures.networkFailureRoutes = []
+    await store.restore()
+    guard case .signedIn = store.state else {
+      return XCTFail("expected signedIn, got \(store.state)")
+    }
+    XCTAssertEqual(try tokenStore.read(), "fresh-token")
+  }
+
   func testDuplicateSignInFailureKeepsFirstFlowActive() async throws {
     stubSignedInRoutes()
     let (store, tokenStore) = makeStore(token: nil)

@@ -14,8 +14,7 @@ EXTENDS Naturals, FiniteSets
 CONSTANTS
   MaxGen,     \* bound on authenticationGeneration
   MaxGrants,  \* bound on grants put.io issues
-  Variant,    \* "shipped", or a scratch break used as a negative control
-  KnownFindingExcused \* TRUE treats the known orphan-grant path as by design
+  Variant     \* "shipped", or a scratch break used as a negative control
 
 None == 0
 Grants == 1..MaxGrants
@@ -37,7 +36,7 @@ VARIABLES
 vars == <<state, gen, keychain, sdkTok, pendingSignOut, oauthGen, device,
           live, issued, excused, flows, launched>>
 
-Flow(k, g, t, fail) == [k |-> k, g |-> g, t |-> t, fail |-> fail, cred |-> FALSE]
+Flow(k, g, t) == [k |-> k, g |-> g, t |-> t, cred |-> FALSE]
 
 Init ==
   /\ state = "unknown"
@@ -79,11 +78,11 @@ EndSession ==
 StoreToken(t, g, rest) ==
   /\ sdkTok' = t
   /\ \/ /\ keychain' = t
-        /\ flows' = rest \cup {Flow("bootstrap", g, t, "authFailed")}
+        /\ flows' = rest \cup {Flow("bootstrap", g, t)}
         /\ excused' = excused
      \/ /\ keychain' = keychain
         \* Best effort: `_ = try? await sdk.logout()`.
-        /\ flows' = rest \cup {Flow("revokeNew", g, t, "")}
+        /\ flows' = rest \cup {Flow("revokeNew", g, t)}
         /\ excused' = excused \cup {t}
 
 -----------------------------------------------------------------------------
@@ -103,7 +102,7 @@ RestoreStart ==
         /\ UNCHANGED flows
      \/ /\ keychain # None
         /\ sdkTok' = keychain
-        /\ flows' = flows \cup {Flow("validate", gen + 1, keychain, "restoreFailed")}
+        /\ flows' = flows \cup {Flow("validate", gen + 1, keychain)}
         /\ UNCHANGED state
   /\ UNCHANGED <<keychain, pendingSignOut, live, issued, excused>>
 
@@ -115,7 +114,7 @@ ValidateAnswer(f) ==
           /\ UNCHANGED <<state, gen, keychain, sdkTok, pendingSignOut, oauthGen, device,
                          live, issued, excused, launched>>
      ELSE \/ /\ f.t \in live                     \* valid: bootstrap
-             /\ flows' = rest \cup {Flow("bootstrap", f.g, f.t, "restoreFailed")}
+             /\ flows' = rest \cup {Flow("bootstrap", f.g, f.t)}
              /\ UNCHANGED <<state, gen, keychain, sdkTok, pendingSignOut, oauthGen, device,
                             live, issued, excused, launched>>
           \/ /\ f.t \notin live                  \* invalid or rejected: expireSession()
@@ -146,17 +145,13 @@ BootstrapAnswer(f) ==
                 /\ UNCHANGED pendingSignOut
            ELSE UNCHANGED <<state, gen, keychain, sdkTok, pendingSignOut, oauthGen, device>>
         /\ UNCHANGED <<live, issued, excused, launched>>
-     \/ /\ flows' = rest                         \* transient failure keeps the saved token
+     \/ /\ flows' = rest                         \* transient failure: restore recovery keeps the saved token
         /\ IF f.g = gen
            THEN /\ sdkTok' = None
-                /\ state' = f.fail
+                /\ state' = "restoreFailed"
            ELSE UNCHANGED <<sdkTok, state>>
-        \* Known finding: after a fresh sign-in, the next sign-in overwrites
-        \* this saved, still-live grant. Excusing it looks past it.
-        /\ excused' = IF KnownFindingExcused /\ f.fail = "authFailed"
-                      THEN excused \cup {f.t} ELSE excused
         /\ UNCHANGED <<gen, keychain, pendingSignOut, oauthGen, device,
-                       live, issued, launched>>
+                       live, issued, excused, launched>>
 
 (* discardUnrestoredCredential(): "Sign in again" on the restore-failed    *)
 (* screen. The abandoned grant is not revoked (docs/session.md).           *)
@@ -223,7 +218,7 @@ DeviceStart ==
      \/ state = "authenticating" /\ device = "expired"
   /\ AdvanceWithDevice("fetching")
   /\ state' = "authenticating"
-  /\ flows' = flows \cup {Flow("code", gen + 1, None, "")}
+  /\ flows' = flows \cup {Flow("code", gen + 1, None)}
   /\ UNCHANGED <<keychain, sdkTok, pendingSignOut, live, issued, excused, launched>>
 
 CodeAnswer(f) ==
@@ -234,7 +229,7 @@ CodeAnswer(f) ==
           /\ UNCHANGED <<state, gen, keychain, sdkTok, pendingSignOut, oauthGen, device,
                          live, issued, excused, launched>>
      ELSE \/ /\ device' = "awaiting"
-             /\ flows' = rest \cup {Flow("approval", f.g, None, "")}
+             /\ flows' = rest \cup {Flow("approval", f.g, None)}
              /\ UNCHANGED <<state, sdkTok>>
           \/ /\ device' = "none"
              /\ flows' = rest
@@ -289,7 +284,7 @@ SignOutStart ==
                   /\ pendingSignOut' = pso
                   /\ state' = "signingOut"
                   /\ flows' = flows \cup
-                       {[k |-> "logout", g |-> gen + 1, t |-> pso, fail |-> "", cred |-> credFailed]}
+                       {[k |-> "logout", g |-> gen + 1, t |-> pso, cred |-> credFailed]}
              ELSE /\ sdkTok' = None
                   /\ pendingSignOut' = None
                   /\ state' = IF credFailed THEN "signOutFailed" ELSE "signedOut"

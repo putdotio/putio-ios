@@ -2,13 +2,13 @@
 // with a pinned TLC, then reports drift between the model and the code it
 // covers. See .agents/skills/verify-session-lifecycle/SKILL.md.
 //
-//   node scripts/formal-session.ts [--variant <name>] [--excuse-known-finding]
-import { execFile, spawn } from "node:child_process";
+//   node scripts/formal-session.ts [--variant <name>]
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseArgs, promisify } from "node:util";
+import { parseArgs } from "node:util";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const modelDirectory = join(root, "Tests/Formal/Session");
@@ -51,11 +51,9 @@ const steps: Readonly<Record<string, string>> = {
 const { values } = parseArgs({
   options: {
     variant: { type: "string", default: "shipped" },
-    "excuse-known-finding": { type: "boolean", default: false },
   },
 });
 const variant = values.variant ?? "shipped";
-const excuseKnownFinding = values["excuse-known-finding"] === true;
 if (!(variants as readonly string[]).includes(variant)) {
   throw new Error(`--variant must be one of: ${variants.join(", ")}`);
 }
@@ -80,7 +78,7 @@ const ensureJar = async (): Promise<void> => {
 type Outcome = { property: string; passed: boolean; report: string };
 
 const runTLC = async (property: string): Promise<Outcome> => {
-  const name = `${property}-${variant}${excuseKnownFinding ? "-excused" : ""}`;
+  const name = `${property}-${variant}`;
   const config = join(workDirectory, `${name}.cfg`);
   await writeFile(
     config,
@@ -88,7 +86,6 @@ const runTLC = async (property: string): Promise<Outcome> => {
       "CONSTANTS",
       ...Object.entries(bounds).map(([name, value]) => `  ${name} = ${value}`),
       `  Variant = "${variant}"`,
-      `  KnownFindingExcused = ${excuseKnownFinding ? "TRUE" : "FALSE"}`,
       "SPECIFICATION Spec",
       "INVARIANTS TypeOK " + property,
       "",
@@ -119,7 +116,7 @@ const runTLC = async (property: string): Promise<Outcome> => {
     throw new Error(`${property}: these model actions never fire: ${dead.join(", ")}`);
   }
   if (output.includes("Model checking completed. No error has been found.")) {
-    const count = /(\d+) distinct states found/.exec(output)?.[1] ?? "?";
+    const count = /(\d+) distinct states found, 0 states left/.exec(output)?.[1] ?? "?";
     return { property, passed: true, report: `${property}: holds (${count} distinct states)` };
   }
   if (!output.includes(`Invariant ${property} is violated`)) {
@@ -158,22 +155,24 @@ const counterexample = (output: string): string => {
   return lines.join("\n");
 };
 
-// The model describes the covered code at the skill's sync commit.
-const drift = async (): Promise<string[]> => {
+// The model describes the covered code whose contents hash to the skill's
+// sync digest. A digest, unlike a commit, survives rebases and squash merges.
+const drift = async (): Promise<string | undefined> => {
   const text = await readFile(skill, "utf8");
-  const sync = /^Sync commit: `([0-9a-f]{7,40})`/m.exec(text)?.[1];
+  const sync = /^Sync digest: `([0-9a-f]{64})`/m.exec(text)?.[1];
   const coverage = text.split(/^## /m).find((section) => section.startsWith("Coverage"));
   const files = [...(coverage ?? "").matchAll(/^- `([^`]+)`/gm)].map((match) => match[1]);
-  if (!sync || files.length === 0) throw new Error(`${skill} lacks its sync commit or coverage list`);
-  const { stdout } = await promisify(execFile)("git", ["diff", "--name-only", sync, "--", ...files], { cwd: root });
-  return stdout.split("\n").filter(Boolean);
+  if (!sync || files.length === 0) throw new Error(`${skill} lacks its sync digest or coverage list`);
+  const hash = createHash("sha256");
+  for (const file of [...files].sort()) {
+    hash.update(`${file}\0`).update(await readFile(join(root, file))).update("\0");
+  }
+  const current = hash.digest("hex");
+  return current === sync ? undefined : current;
 };
 
 await ensureJar();
-console.log(
-  `TLC ${tlc.version}, variant ${variant}${excuseKnownFinding ? ", known finding excused" : ""}, ` +
-    `bounds ${JSON.stringify(bounds)}`,
-);
+console.log(`TLC ${tlc.version}, variant ${variant}, bounds ${JSON.stringify(bounds)}`);
 const outcomes: Outcome[] = [];
 for (const property of properties) {
   const outcome = await runTLC(property);
@@ -181,10 +180,10 @@ for (const property of properties) {
   outcomes.push(outcome);
 }
 const changed = await drift();
-if (changed.length > 0) {
+if (changed) {
   console.log(
-    `Covered code changed since the sync commit:\n${changed.map((file) => `  ${file}`).join("\n")}\n` +
-      "Check the model against it, then move the sync commit in the skill.",
+    "Covered code changed since the model was last checked against it.\n" +
+      `Check the model against the covered files, then set the skill's sync digest to ${changed}.`,
   );
 }
-if (changed.length > 0 || outcomes.some((outcome) => !outcome.passed)) process.exitCode = 1;
+if (changed || outcomes.some((outcome) => !outcome.passed)) process.exitCode = 1;
