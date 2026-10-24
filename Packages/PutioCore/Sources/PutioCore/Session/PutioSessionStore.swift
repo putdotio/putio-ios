@@ -164,7 +164,7 @@ public final class PutioSessionStore {
         expireSession()
         return
       }
-      await bootstrap(failure: PutioSignedOutReason.restoreFailed, generation: generation)
+      await bootstrap(generation: generation)
     } catch {
       guard generation == authenticationGeneration else { return }
       if isAuthRejection(error) {
@@ -252,7 +252,7 @@ public final class PutioSessionStore {
     }
     guard generation == authenticationGeneration else { return }
     guard await storeSignInToken(token, generation: generation) else { return }
-    await bootstrap(failure: PutioSignedOutReason.authenticationFailed, generation: generation)
+    await bootstrap(generation: generation)
   }
 
   /// Saves a freshly granted token. When it cannot be saved, the grant is
@@ -324,7 +324,7 @@ public final class PutioSessionStore {
       case .authorized(let token):
         deviceCodeSignIn = nil
         guard await storeSignInToken(token, generation: generation) else { return }
-        await bootstrap(failure: PutioSignedOutReason.authenticationFailed, generation: generation)
+        await bootstrap(generation: generation)
       }
     } catch {
       // Cancellation already moved the state on and advanced the generation.
@@ -517,10 +517,10 @@ public final class PutioSessionStore {
     }
   }
 
-  private func bootstrap(
-    failure: (String) -> PutioSignedOutReason,
-    generation: UInt64
-  ) async {
+  // Every caller has a saved token. A transient failure keeps it behind
+  // restore recovery: a fresh sign-in would overwrite a grant put.io still
+  // accepts, leaving a session the app can no longer revoke.
+  private func bootstrap(generation: UInt64) async {
     do {
       let account = try await sdk.getAccountInfo(query: accountQuery)
       guard generation == authenticationGeneration else { return }
@@ -531,7 +531,7 @@ public final class PutioSessionStore {
         expireSession()
       } else {
         sdk.clearToken()
-        state = .signedOut(failure(message(for: error)))
+        state = .signedOut(.restoreFailed(message(for: error)))
       }
     }
   }

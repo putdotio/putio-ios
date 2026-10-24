@@ -2,7 +2,7 @@
 // with a pinned TLC, then reports drift between the model and the code it
 // covers. See .agents/skills/verify-session-lifecycle/SKILL.md.
 //
-//   node scripts/formal-session.ts [--variant <name>] [--excuse-known-finding]
+//   node scripts/formal-session.ts [--variant <name>]
 import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
@@ -51,11 +51,9 @@ const steps: Readonly<Record<string, string>> = {
 const { values } = parseArgs({
   options: {
     variant: { type: "string", default: "shipped" },
-    "excuse-known-finding": { type: "boolean", default: false },
   },
 });
 const variant = values.variant ?? "shipped";
-const excuseKnownFinding = values["excuse-known-finding"] === true;
 if (!(variants as readonly string[]).includes(variant)) {
   throw new Error(`--variant must be one of: ${variants.join(", ")}`);
 }
@@ -80,7 +78,7 @@ const ensureJar = async (): Promise<void> => {
 type Outcome = { property: string; passed: boolean; report: string };
 
 const runTLC = async (property: string): Promise<Outcome> => {
-  const name = `${property}-${variant}${excuseKnownFinding ? "-excused" : ""}`;
+  const name = `${property}-${variant}`;
   const config = join(workDirectory, `${name}.cfg`);
   await writeFile(
     config,
@@ -88,7 +86,6 @@ const runTLC = async (property: string): Promise<Outcome> => {
       "CONSTANTS",
       ...Object.entries(bounds).map(([name, value]) => `  ${name} = ${value}`),
       `  Variant = "${variant}"`,
-      `  KnownFindingExcused = ${excuseKnownFinding ? "TRUE" : "FALSE"}`,
       "SPECIFICATION Spec",
       "INVARIANTS TypeOK " + property,
       "",
@@ -111,7 +108,7 @@ const runTLC = async (property: string): Promise<Outcome> => {
     child.on("close", () => done(text));
   });
   if (output.includes("Model checking completed. No error has been found.")) {
-    const count = /(\d+) distinct states found/.exec(output)?.[1] ?? "?";
+    const count = /(\d+) distinct states found, 0 states left/.exec(output)?.[1] ?? "?";
     return { property, passed: true, report: `${property}: holds (${count} distinct states)` };
   }
   if (!output.includes(`Invariant ${property} is violated`)) {
@@ -162,10 +159,7 @@ const drift = async (): Promise<string[]> => {
 };
 
 await ensureJar();
-console.log(
-  `TLC ${tlc.version}, variant ${variant}${excuseKnownFinding ? ", known finding excused" : ""}, ` +
-    `bounds ${JSON.stringify(bounds)}`,
-);
+console.log(`TLC ${tlc.version}, variant ${variant}, bounds ${JSON.stringify(bounds)}`);
 const outcomes: Outcome[] = [];
 for (const property of properties) {
   const outcome = await runTLC(property);
