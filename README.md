@@ -6,7 +6,7 @@
   <h1>putio-ios</h1>
 
   <p>
-    Native iOS app for put.io
+    Native iPhone and iPad app for put.io
   </p>
 
   <p>
@@ -15,32 +15,22 @@
   </p>
 </div>
 
-## Overview
-
-`putio-ios` is the native iPhone and iPad app for put.io.
-
 ## Install
 
-Install the public app from the [App Store](https://apps.apple.com/app/id1260479699)
+Get the app from the [App Store](https://apps.apple.com/app/id1260479699).
 
 ## Use
 
-Sign in with your put.io account to browse files, view history, manage downloads, and stream supported media on iPhone and iPad
+Sign in with your put.io account to browse files, view history, manage
+downloads, and stream media.
 
 ## Docs
 
-- [Distribution](./docs/distribution.md) for CI, TestFlight, and release delivery details
-- [Icon system](./docs/icons.md) for the Phosphor asset and UIKit integration contract
-- [Security](./SECURITY.md) for private vulnerability reporting
-
-## Repo Internals
-
-- [Agent guide](./AGENTS.md) for repo-specific agent guidance
-
-## Contributing
-
-Contributions are welcome. Start with [Contributing](./CONTRIBUTING.md)
+- [Contributing](./CONTRIBUTING.md): setup, run, and checks
+- [Agent guide](./AGENTS.md): repo rules for coding agents
+- [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md):
+  report vulnerabilities privately
 
 ## License
 
-This project is available under the [MIT License](./LICENSE)
+[MIT](./LICENSE)
