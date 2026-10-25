@@ -139,18 +139,6 @@ run = "./scripts/secrets-setup.sh"
 description = "Remove Config/Local.xcconfig"
 run = "rm -f Config/Local.xcconfig"
 
-[tasks.vref]
-description = "Build the browsable gallery of committed visual baselines"
-run = "node scripts/vref.ts build"
-
-[tasks.verify-vref]
-description = "Check every baseline has a manifest entry and vice versa"
-run = "node scripts/vref.ts validate"
-
-[tasks.vref-serve]
-description = "Serve the visual reference gallery locally"
-run = "node scripts/vref.ts serve"
-
 [tasks.store-capture-ipad]
 description = "Capture the iPad App Store screenshots (iPhone needs no capture)"
 run = "./scripts/capture-store-ipad.sh"
