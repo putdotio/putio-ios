@@ -54,7 +54,9 @@ file.
   override. Local builds use `io.put.dev`.
 - Keep the payload contract, `Config/Local.example.xcconfig`, and the renderer
   test aligned.
-- CI builds use the [release secret contract](docs/distribution.md#release-secret-contract).
+- CI reads the GitHub `release` Environment instead;
+  [load-ios-release-secrets](.github/actions/load-ios-release-secrets/action.yml)
+  validates its keys.
 
 ## Run and validate
 
@@ -121,6 +123,27 @@ files nav bar omits the Cast button, and login does not auto-start web auth.
   `Config/StoreImages.lock.json` together; CI checks the lock with
   `mise run verify-store-images`.
 
+## Icons
+
+Product glyphs are [Phosphor Icons](https://github.com/phosphor-icons/core),
+like the put.io design system, checked into `Putio/Assets.xcassets/Phosphor`.
+
+- Regular weight in neutral gray by default; fill weight for selected or active
+  states.
+- Keep the SVG canvas at 16 points; scale it with UIKit constraints.
+- The filled yellow folder stays the file-browser signature icon.
+- Save-to-put.io, download-to-device, and stream/play stay distinct metaphors.
+- Brand artwork, app icons, media artwork, and other non-glyph images stay
+  outside Phosphor.
+- The `AppIcon*` catalogs take their 1024×1024 marks from
+  `@putdotio/design/assets/*`; the workflows pick one per channel.
+
+To change glyphs, edit the list in
+[`Config/PhosphorIcons.json`](Config/PhosphorIcons.json), run
+`mise run icons-sync`, review the image sets and `Config/PhosphorIcons.lock.json`
+diff, then run `mise run verify`. `mise run verify-icons`, part of
+`verify-fast`, fails on drift from the manifest and on SF Symbol call sites.
+
 ## Measure Performance
 
 `mise run perf` runs `PutioUITests/PerformanceUITests` against a large mocked
@@ -159,9 +182,24 @@ mise run perf -- --latency-ms 300                    # delay every mocked respon
 
 ## CI and delivery
 
-[Distribution](docs/distribution.md) owns the workflows and the App Store
-contract. Listing work needs the pinned [asc](https://asccli.sh) CLI with its
-telemetry off:
+The [workflows](.github/workflows) own CI, TestFlight, and App Store delivery.
+The release runbook, App Privacy answers, and secret rotation live in
+[iOS release](https://app.notion.com/p/3fdd546ba2f581a29718c0deeac09e20) in the
+put.io Notion.
+
+- The App Store listing is code: `metadata/`, `screenshots/`, and
+  [`Config/AppStore.json`](Config/AppStore.json). Never edit those fields in
+  App Store Connect; only the App Review contact lives there.
+- Each release needs `metadata/version/<version>/en-US.json` before Release
+  runs. A field left out of `metadata/` stays unmanaged; to adopt one, copy it
+  from the Screenshots dry run's artifact.
+- Release sets the version and build number. Leave the checked-in
+  `CURRENT_PROJECT_VERSION` at `1`.
+- Change [`Putio/PrivacyInfo.xcprivacy`](Putio/PrivacyInfo.xcprivacy) and the
+  App Privacy answers together.
+
+Listing work needs the pinned [asc](https://asccli.sh) CLI with its telemetry
+off:
 
 ```sh
 ./scripts/install-asc.sh   # checksum-verified, into ~/.local/bin

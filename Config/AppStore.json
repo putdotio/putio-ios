@@ -1,5 +1,5 @@
 {
-  "$comment": "App Store settings asc's metadata format can't hold. scripts/app-store.ts applies them; docs/distribution.md#app-store-as-code.",
+  "$comment": "App Store settings asc's metadata format can't hold. scripts/app-store.ts applies them; see CONTRIBUTING.md#ci-and-delivery.",
   "appId": "1260479699",
   "platform": "IOS",
   "primaryLocale": "en-US",

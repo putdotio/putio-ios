@@ -6,11 +6,9 @@ code lives in `Putio/Features/<Area>`; only genuinely shared code goes in
 
 ## Work in this repository
 
-- A fresh worktree needs `mise run bootstrap` and `mise run fonts-setup`. The
-  fonts are required: `Config/Verify.xcconfig` bundles them, so `verify`,
-  `e2e-simulator`, and `screenshots-record` fail their snapshot assertions
-  without them. `Config/BrandFonts.json` pins each file's sha256; bump a hash
-  only alongside a re-record.
+- A fresh worktree needs `mise run bootstrap` and `mise run fonts-setup`;
+  snapshot assertions fail without the [brand fonts](CONTRIBUTING.md#brand-fonts).
+  Bump a `Config/BrandFonts.json` hash only alongside a re-record.
 - Run `mise run secrets-setup` only for signed local builds or private support
   integrations ([Local Private Config](CONTRIBUTING.md#local-private-config)).
   Keep checked-in defaults open-source-safe.
@@ -47,7 +45,7 @@ code lives in `Putio/Features/<Area>`; only genuinely shared code goes in
   `main` with production credentials: Beta emails external testers, Release
   uploads to App Store Connect, Screenshots replaces the live listing images
   unless it runs as a dry run, and Submit sends a build to App Review. Dispatch
-  them only when asked ([Distribution](docs/distribution.md#workflows)).
+  them only when asked ([workflows](.github/workflows)).
 - **Simulators.** `verify` and `e2e-simulator` each create and delete an
   ephemeral simulator. `PUTIO_SIMULATOR_ID=<udid>` targets a device but keeps
   its own locale, so record baselines on the ephemeral one.

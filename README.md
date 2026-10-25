@@ -27,8 +27,6 @@ downloads, and stream media.
 ## Docs
 
 - [Contributing](./CONTRIBUTING.md): setup, run, and checks
-- [Distribution](./docs/distribution.md): CI, TestFlight, and App Store delivery
-- [Icon system](./docs/icons.md): Phosphor glyphs and app icons
 - [Agent guide](./AGENTS.md): repo rules for coding agents
 - [Security policy](https://github.com/putdotio/.github/blob/main/SECURITY.md):
   report vulnerabilities privately
