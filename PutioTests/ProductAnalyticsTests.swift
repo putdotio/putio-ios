@@ -84,11 +84,28 @@ final class ProductAnalyticsTests: XCTestCase {
             ("screen_viewed", "$lib_version", leak),
             ("screen_viewed", "$session_id", leak),
             ("screen_viewed", "$is_identified", leak),
-            ("screen_viewed", "$geoip_disable", false)
+            ("screen_viewed", "$geoip_disable", false),
+            ("app_opened", "route", ""),
+            ("app_opened", "route", String(repeating: "a", count: 65)),
+            ("app_opened", "route", "default\n"),
+            ("app_opened", "route", "\(title)/\(fileName)"),
+            ("app_opened", "route", "https://\(host)/"),
+            ("app_opened", "route", email),
+            ("app_opened", "route", "Zürich"),
+            ("app_opened", "route", 1),
+            ("screen_viewed", "route", "default"),
+            ("playback_started", "route", "default")
         ]
         for (event, key, value) in cases {
             let kept = try XCTUnwrap(AnalyticsAllowlist.allowedProperties(event: event, properties: [key: value]))
             XCTAssertNil(kept[key], "\(event).\(key) kept \(value)")
+        }
+    }
+
+    func testAppOpenedKeepsAShortRouteName() throws {
+        for route in ["default", "Amsterdam (NL)", "us-west_2.b", String(repeating: "a", count: 64)] {
+            let kept = try XCTUnwrap(AnalyticsAllowlist.allowedProperties(event: "app_opened", properties: ["entry": "direct", "route": route]))
+            XCTAssertEqual(kept["route"] as? String, route)
         }
     }
 
@@ -110,7 +127,10 @@ final class ProductAnalyticsTests: XCTestCase {
             (.settingsChanged(.sortBy, .changed), ["setting": "sort_by", "value": "changed"]),
             (.playbackStarted(video), ["media": "video", "stream_method": "hls", "player": "avplayer"]),
             (.playbackEnded(video, .under5m), ["media": "video", "stream_method": "hls", "player": "avplayer", "duration": "lt_5m"]),
-            (.playbackFailed(video, .source), ["media": "video", "stream_method": "hls", "player": "avplayer", "error": "source"])
+            (.playbackFailed(video, .source), ["media": "video", "stream_method": "hls", "player": "avplayer", "error": "source"]),
+            (.appOpened(.direct, route: "default"), ["entry": "direct", "route": "default"]),
+            (.appOpened(.resume, route: nil), ["entry": "resume"]),
+            (.appOpened(.deeplink, route: ""), ["entry": "deeplink", "route": "default"])
         ]
         for (event, properties) in expected {
             XCTAssertEqual(event.properties, properties)
@@ -405,6 +425,45 @@ final class ProductAnalyticsTests: XCTestCase {
         ])
     }
 
+    func testAnOpenCarriesTheRouteOnlyOnceSettingsLoad() {
+        var events: [AnalyticsEvent] = []
+        var clock = Date(timeIntervalSince1970: 0)
+        var route: String?
+        let session = AppSessionAnalytics(capture: { events.append($0) }, route: { route }, now: { clock })
+
+        // A fresh sign-in's cold launch opens before the account loads.
+        session.didBecomeActive()
+        clock += 30
+        session.didEnterBackground()
+        // Loaded, with no route ever picked.
+        route = ""
+        session.willEnterForeground()
+        session.didBecomeActive()
+        session.didEnterBackground()
+        route = "Amsterdam (NL)"
+        session.willEnterForeground()
+        session.didBecomeActive()
+
+        XCTAssertEqual(events.map(\.properties), [
+            ["entry": "direct"], ["session_duration": "lt_1m"],
+            ["entry": "resume", "route": "default"], ["session_duration": "lt_1m"],
+            ["entry": "resume", "route": "Amsterdam (NL)"]
+        ])
+    }
+
+    func testAnOpensRouteReachesTheWire() throws {
+        let (gate, token) = makeGate()
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        gate.capture(.appOpened(.direct, route: "default"))
+        gate.capture(.appOpened(.resume, route: "\(title) \(email)"))
+        gate.capture(.appOpened(.resume, route: ""))
+        gate.capture(.appOpened(.resume))
+        let events = try waitForEvents(token: token, count: 4)
+
+        let routes = events.map { ($0["properties"] as? [String: Any])?["route"] as? String }
+        XCTAssertEqual(routes, ["default", nil, "default", nil])
+    }
+
     func testPlaybackStartsOnceAndEndsOnlyAtTheEnd() {
         var events: [AnalyticsEvent] = []
         var clock = Date(timeIntervalSince1970: 0)
@@ -480,6 +539,7 @@ final class ProductAnalyticsTests: XCTestCase {
         Set(AnalyticsAllowlist.sdkProperties.keys)
             .union(AnalyticsAllowlist.commonProperties.keys)
             .union(AnalyticsAllowlist.patternProperties.keys)
+            .union(AnalyticsAllowlist.eventPatternProperties[event].map { Array($0.keys) } ?? [])
             .union(AnalyticsAllowlist.eventProperties[event].map { Array($0.keys) } ?? [])
     }
 
@@ -490,7 +550,9 @@ final class ProductAnalyticsTests: XCTestCase {
             }
         }
         var events: [AnalyticsEvent] = [.supportStarted]
-        events += AnalyticsEvent.Entry.allCases.map(AnalyticsEvent.appOpened)
+        events += AnalyticsEvent.Entry.allCases.map { AnalyticsEvent.appOpened($0) }
+        events += AnalyticsEvent.Entry.allCases.map { AnalyticsEvent.appOpened($0, route: "default") }
+        events += AnalyticsEvent.Entry.allCases.map { AnalyticsEvent.appOpened($0, route: "") }
         events += AnalyticsEvent.SessionDuration.allCases.map(AnalyticsEvent.appBackgrounded)
         events += AnalyticsEvent.Screen.allCases.map(AnalyticsEvent.screenViewed)
         for setting in AnalyticsEvent.Setting.allCases {
