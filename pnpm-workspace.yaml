@@ -1,9 +1,5 @@
 packages:
   - "."
-# Transitive native build (effect -> msgpackr -> msgpackr-extract). vref runs
-# fine on the JS fallback, so skip the native compile.
-allowBuilds:
-  msgpackr-extract: false
 # First-party packages are trusted (we publish them), so exempt the whole scope
 # from the minimum-release-age policy that guards third-party publishes. Scoped
 # rather than enumerated because every @putdotio release would otherwise need an

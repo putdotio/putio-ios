@@ -21,8 +21,6 @@ while IFS= read -r path; do
     .github/workflows/beta.yml | .github/workflows/release.yml | .github/workflows/screenshots.yml) tooling=true ;;
     .github/workflows/submit.yml | .github/workflows/delivery-ref.yml) tooling=true ;;
     .github/workflows/signing-check.yml) tooling=true ;;
-    # Gallery data. Nothing in CI reads it.
-    .vref/*) ;;
     # The control plane. These decide what every lane runs — mise.toml pins Node
     # and Ruby and defines the tasks, and the other two are this gate itself —
     # so a change to one has to be exercised by both lanes rather than only the
