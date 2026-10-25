@@ -1,6 +1,5 @@
 # Distribution
 
-What the workflows, the store tool, and the `release` Environment rely on.
 The release runbook, the TestFlight diagnostics check, App Privacy answers,
 secret rotation, and GitHub settings live in
 [iOS release](https://app.notion.com/p/3fdd546ba2f581a29718c0deeac09e20)
@@ -53,8 +52,6 @@ gh workflow run signing-check.yml --ref main -f expected_sha="$sha"
   a generated `Pods` tree from cache; Actions caches only CocoaPods downloads.
 - Third-party actions in delivery workflows are pinned to full commit SHAs with
   a trailing version comment; update both together.
-- App icons: `AppIconDev` locally, `AppIconNightly` on TestFlight, `AppIcon` on
-  the App Store.
 
 ## App Store as code
 
@@ -87,22 +84,21 @@ node scripts/app-store.ts validate --version 3.0.0     # asc validate, blockers 
 node scripts/app-store.ts screenshots --version 3.0.0 --dry-run
 ```
 
-[install-asc.sh](../scripts/install-asc.sh) pins asc 5.15.0 and checks each
-platform's SHA-256; CI never installs asc from Homebrew. Delivery steps run
-`shell: bash`, so an asc failure piped into the job summary still fails the
-step. asc sends command telemetry to rork.com by default, so every workflow that
-runs it sets `ASC_TELEMETRY_DISABLED=1` before its first asc command, the store
-tool refuses to run while `asc telemetry status` reports it on, and the tooling
-CI lane proves both. Locally, run `asc telemetry disable` once after installing.
-`asc web` subcommands use an Apple ID web session and never run in CI.
+- [install-asc.sh](../scripts/install-asc.sh) pins asc and checks each
+  platform's SHA-256; CI never installs asc from Homebrew.
+- Delivery steps run `shell: bash`, so an asc failure piped into the job
+  summary still fails the step.
+- asc sends command telemetry by default. Every workflow sets
+  `ASC_TELEMETRY_DISABLED=1` before its first asc command, the store tool
+  refuses to run while telemetry is on, and the tooling CI lane proves both.
+  Locally, run `asc telemetry disable` once after installing.
+- `asc web` subcommands use an Apple ID web session and never run in CI.
 
-Beta and Release sign with asc: [install-signing.sh](../scripts/install-signing.sh)
-installs `APPLE_DISTRIBUTION_P12` into a temporary keychain,
-[check-signing-profile.rb](../scripts/check-signing-profile.rb) picks an active
-App Store profile for this team and `PUTIO_APP_IDENTIFIER` that includes the
-identity's certificate, and [archive-ios.sh](../scripts/archive-ios.sh) signs
-with that profile's UUID. Ruby and Bundler remain only for CocoaPods and the
-profile check.
+Beta and Release sign with the `APPLE_DISTRIBUTION_P12` identity in a temporary
+keychain and the active App Store profile that contains its certificate
+([install-signing.sh](../scripts/install-signing.sh),
+[check-signing-profile.rb](../scripts/check-signing-profile.rb),
+[archive-ios.sh](../scripts/archive-ios.sh)).
 
 ## Release secret contract
 

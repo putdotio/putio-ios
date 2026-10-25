@@ -1,35 +1,42 @@
 # Icon system
 
-Product interface glyphs use [Phosphor Icons](https://github.com/phosphor-icons/core), matching the public put.io design system. The iOS app owns its native adapter and checks a selected set of official SVG assets into `Putio/Assets.xcassets/Phosphor` so builds never depend on the network.
+Product glyphs use [Phosphor Icons](https://github.com/phosphor-icons/core),
+like the put.io design system. A pinned set of official SVGs is checked into
+`Putio/Assets.xcassets/Phosphor`, so builds never fetch icons.
 
 ## Visual contract
 
-- Use regular-weight Phosphor icons in neutral gray by default
-- Use fill weight for selected or active states
-- Keep the intrinsic SVG canvas at 16 points and scale it with UIKit view constraints where a larger control needs it
-- Keep the filled folder yellow as the signature file-browser icon
-- Keep save-to-put.io, download-to-device, and stream/play as distinct metaphors
-- Do not replace brand artwork, app icons, media artwork, or other non-glyph imagery with Phosphor
+- Regular weight in neutral gray by default; fill weight for selected or active
+  states.
+- Keep the SVG canvas at 16 points; scale it with UIKit constraints where a
+  larger control needs it.
+- The filled yellow folder stays the file-browser signature icon.
+- Save-to-put.io, download-to-device, and stream/play stay distinct metaphors.
+- Brand artwork, app icons, media artwork, and other non-glyph images (logo,
+  offline illustration, disco ball, slider thumb) stay outside Phosphor.
 
 ## App icons
 
-The three 1024×1024 marks come from `@putdotio/design/assets/*`:
+The 1024×1024 marks come from `@putdotio/design/assets/*`:
 
-| Catalog | Asset | Channel |
-| --- | --- | --- |
-| `AppIconDev` | `app-icon-dev-blueprint.png` | local / `io.put.dev` |
-| `AppIconNightly` | `app-icon-nightly-stars.png` | TestFlight |
-| `AppIcon` | `app-icon-prod-dark.png` | App Store |
+| Catalog          | Asset                        | Channel              |
+| ---------------- | ---------------------------- | -------------------- |
+| `AppIconDev`     | `app-icon-dev-blueprint.png` | local / `io.put.dev` |
+| `AppIconNightly` | `app-icon-nightly-stars.png` | TestFlight           |
+| `AppIcon`        | `app-icon-prod-dark.png`     | App Store            |
 
-## Updating assets
+## Updating glyphs
 
-`Config/PhosphorIcons.json` pins the upstream npm tarball, its Subresource Integrity checksum, and the selected icon names and weights. Generated asset catalogs and source hashes are recorded in `Config/PhosphorIcons.lock.json`.
+[`Config/PhosphorIcons.json`](../Config/PhosphorIcons.json) pins the upstream
+npm tarball, its integrity checksum, and the selected names and weights;
+`Config/PhosphorIcons.lock.json` records the generated catalogs and hashes.
 
-1. Edit the selected icon list in `Config/PhosphorIcons.json`
-2. Run `mise run icons-sync`
-3. Inspect the generated SVG image sets and lock-file diff
-4. Run `mise run verify`
+1. Edit the icon list in `Config/PhosphorIcons.json`.
+2. Run `mise run icons-sync`.
+3. Inspect the generated image sets and the lock-file diff.
+4. Run `mise run verify`.
 
-`mise run verify-icons` is offline and fails when generated assets, their metadata, the lock file, or the checked-in MIT license drift from the manifest. It also rejects SF Symbol call sites and legacy icon catalogs. Product artwork such as the logo, offline illustration, disco ball, and slider thumb remains outside this icon system. `mise run verify` runs this check before building the app.
-
-Phosphor Icons is distributed under the MIT license. The pinned upstream license is checked in at `ThirdParty/PhosphorIcons/LICENSE`.
+`mise run verify-icons` runs offline inside `verify-fast`. It fails when the
+assets, their metadata, the lock file, or the MIT license at
+`ThirdParty/PhosphorIcons/LICENSE` drift from the manifest, and it rejects SF
+Symbol call sites and legacy icon catalogs.
