@@ -106,8 +106,9 @@ files nav bar omits the Cast button, and login does not auto-start web auth.
   `screenshots-record-components` and `screenshots-record-screens` run one tier.
 - A scoped run skips the baseline-count tripwire. Run the full set before you
   commit an added or removed snapshot test.
-- `mise run vref` builds a local gallery of the baselines for design review
-  ([.vref/README.md](.vref/README.md)).
+- Baselines ship in a public repository. Record them only from
+  `PUTIO_E2E_MOCK_API` fixtures, never a real account: no real usernames, file
+  names, content ids, tokens, or local IPs.
 
 ### App Store images
 
