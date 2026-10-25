@@ -59,12 +59,6 @@ Putio/Fonts/
 ## Node tooling; reinstalled by `mise run bootstrap`
 node_modules/
 
-# Visual reference gallery: the manifest is committed, but the screenshot copies
-# and the rendered gallery are regenerated from the committed baselines by
-# `mise run vref`, so they would only ever drift.
-.vref/screenshots/
-.vref/index.html
-
 # Raw App Store screenshots assembled from the committed baselines by
 # `mise run store-screenshots`. Intermediate: #51 frames these into the finished
 # marketing images, and those get committed.
