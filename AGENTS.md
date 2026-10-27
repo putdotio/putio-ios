@@ -6,14 +6,10 @@ code lives in `Putio/Features/<Area>`; only genuinely shared code goes in
 
 ## Work in this repository
 
-- A fresh worktree needs `mise run bootstrap` and `mise run fonts-setup`;
-  snapshot assertions fail without the [brand fonts](CONTRIBUTING.md#brand-fonts).
-- Run `mise run secrets-setup` only for signed local builds or private support
-  integrations ([Local Private Config](CONTRIBUTING.md#local-private-config)).
-  Keep checked-in defaults open-source-safe.
-- Change Ruby and Node versions only in the `[tools]` table of
-  [mise.toml](mise.toml), and pnpm only in `packageManager` in `package.json`.
-  Node is repo tooling only; `mise run verify-scripts-types` checks it.
+- Setup, brand fonts, and private config: [CONTRIBUTING](CONTRIBUTING.md#setup).
+- Keep checked-in defaults open-source-safe.
+- `mise run verify` skips `verify-scripts-types`; run it when you change Node
+  tooling.
 - Route put.io API behavior through the SDK wrapper in `Putio/Common/API`.
 - Open and write Realm through the `PutioRealm` helpers, with context strings
   for diagnostics.
