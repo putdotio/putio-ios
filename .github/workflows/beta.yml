@@ -69,7 +69,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Set up Ruby
-        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1
         with:
           ruby-version: mise.toml
           bundler-cache: false
@@ -110,7 +110,7 @@ jobs:
 
       - name: Write tester notes
         id: notes
-        uses: putdotio/.github/.github/actions/beta-notes@32b9f2f9ac2b6b17b2be6b111ec495e079384b4c # v2.3.1
+        uses: putdotio/.github/.github/actions/beta-notes@0299a68cb84725497b4349c6131aeec45c9611a5 # v2.3.2
         with:
           app: put.io for iPhone and iPad
           tag-pattern: v*
