@@ -41,7 +41,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Set up Ruby
-        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1
         with:
           ruby-version: mise.toml
           bundler-cache: true
@@ -80,7 +80,7 @@ jobs:
 
       - name: Upload test result bundle
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: e2e-simulator-xcresult
           path: build/e2e-simulator.xcresult
