@@ -267,8 +267,41 @@ struct ContentView: View {
 | **macOS** | Columns always visible side-by-side; sidebar has translucent material; variable-width column resizing by dragging |
 | **iPadOS (regular)** | Sidebar can overlay or push detail; supports column visibility toggle via toolbar button |
 | **iOS / iPadOS (compact)** | Collapses into a single `NavigationStack`; sidebar items show disclosure chevrons; back button navigates between columns |
-| **iPhone (all sizes)** | Always collapsed into a stack; sidebar appears as the root list; selections push detail onto the stack |
+| **iOS / iPadOS (regular)** | Can show columns tiled or as overlays, depending on available size and context |
 | **watchOS / tvOS** | Collapses into a single stack |
+
+Do not infer split-view behavior from the device family. Respond to the space SwiftUI offers: an iPhone can provide a regular-width context, including the inner display of iPhone Duo, where `NavigationSplitView` can show multiple columns. The same scene can later become compact and collapse, so keep selection and navigation state consistent through the transition.
+
+### Large Displays
+
+When rows push further screens (settings, mailboxes, folders), `NavigationSplitView` shows the next level beside the list on large displays and collapses on compact width; see [the screen-structure rule](iphone-duo.md#choose-the-technique-by-screen-structure).
+
+- Keep the sidebar visible with `columnVisibility` `.all` plus `toolbar(removing: .sidebarToggle)` when hiding the list would strand the user.
+- Use `navigationSplitViewColumnWidth(min:ideal:)` if sidebar cards or buttons wrap at the default width. Avoid `max:`: in a fold-aligned pose the system can widen the sidebar to the fold, and a maximum caps it short.
+- Consider choosing the default detail by importance, not position. When pushed pages are secondary, a regular-width-only overview page selected from a summary row atop the sidebar (as in Settings) can beat auto-selecting the first row.
+- The split view can reset selection to `nil` on expand: re-fill it on regular width, and clear regular-only selections on collapse so compact width returns to the list.
+- Use a `NavigationStack` in the detail column for deeper pushes.
+- In Xcode 27.1, a selectable `List` rendered `Link` and `Button` rows in the primary color rather than the tint.
+
+### Tab Bar and Sidebar (iOS 27+)
+
+On iPadOS, a `TabView` with `.tabViewStyle(.sidebarAdaptable)` morphs between a tab bar and a sidebar. On iPhone the bar cannot morph, so only one representation is shown. On iOS 27 an iPhone app can opt into the sidebar representation with `defaultTabBarPlacement(_:)`; on iPadOS the modifier has no effect and `defaultAdaptableTabBarPlacement(_:)` applies instead.
+
+```swift
+@available(iOS 27.0, *)
+struct RootTabs: View {
+    var body: some View {
+        TabView {
+            Tab("Home", systemImage: "house") { HomeView() }
+            Tab("Favorites", systemImage: "star") { FavoritesView() }
+        }
+        .tabViewStyle(.sidebarAdaptable)
+        .defaultTabBarPlacement(.sidebar)
+    }
+}
+```
+
+The system decides between tab bar and sidebar from the space available, and people cannot toggle it. Read `@Environment(\.isTabViewSidebarAvailable)` inside the tab content to learn whether a sidebar is (or can become) visible; it returns `false` outside a sidebar-capable `TabView`'s content. Use it rather than inspecting size classes for this question. When no sidebar is available, make sure content that lives behind nested tabs or sections stays reachable some other way. Keep a plain `TabView` fallback for earlier systems.
 
 ## Inspector
 
@@ -329,7 +362,7 @@ MyEditorView()
 | **macOS** | Trailing-edge sidebar panel; resizable by dragging edge; integrates with window toolbar |
 | **iPadOS (regular)** | Trailing column alongside content; toggleable via toolbar button |
 | **iOS / iPadOS (compact)** | Adapts to a sheet presentation; swipe-to-dismiss supported |
-| **iPhone (all sizes)** | Always presented as a sheet (no trailing column); dismiss via swipe or button |
+| **iOS / iPadOS (regular)** | Can appear as a trailing column when the presentation context provides enough space |
 
 > **Tip:** Use `InspectorCommands` in your app's `.commands` to include the default inspector toggle keyboard shortcut.
 
@@ -379,6 +412,7 @@ For older `alert` and `confirmationDialog` API patterns, see `latest-apis.md`. P
 - [ ] Use `NavigationStack` with `navigationDestination(for:)` for type-safe navigation
 - [ ] Use `NavigationPath` for programmatic navigation
 - [ ] Use `NavigationSplitView` for sidebar-driven multi-column layouts
+- [ ] `sidebarAdaptable` tab sidebars on iPhone use `defaultTabBarPlacement(_:)` behind `#available(iOS 27.0, *)`, with nested-tab content reachable when no sidebar is shown
 - [ ] Use `Inspector` for trailing-edge supplementary panels
 - [ ] Set column widths with `navigationSplitViewColumnWidth(min:ideal:max:)` or `inspectorColumnWidth(min:ideal:max:)`
 - [ ] Use appropriate presentation modifiers (sheet, fullScreenCover, popover)

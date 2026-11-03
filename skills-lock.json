@@ -23,7 +23,7 @@
       "source": "AvdLee/SwiftUI-Agent-Skill",
       "sourceType": "github",
       "skillPath": "skills/swiftui-expert-skill/SKILL.md",
-      "computedHash": "cb78ed6bbe4dabf53ef93431f8a0ae43e09cf39b8ce6e04dac1cc144f0cf02f4"
+      "computedHash": "5388cd2368b525d2906798ac313c70415e971da35670e571e98baf8a7140505f"
     },
     "update-swiftui-apis": {
       "source": "AvdLee/SwiftUI-Agent-Skill",
