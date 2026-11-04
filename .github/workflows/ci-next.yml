@@ -91,11 +91,11 @@ jobs:
           persist-credentials: false
 
       - name: Check Markdown links
-        uses: putdotio/.github/.github/actions/links@0299a68cb84725497b4349c6131aeec45c9611a5 # v2.3.2
+        uses: putdotio/.github/.github/actions/links@e07dede03892f9b80fec82bf38afcd5f76b763b0 # v2.3.3
 
       - name: Scan secrets and workflows
         if: ${{ !cancelled() }}
-        uses: putdotio/.github/.github/actions/scan@0299a68cb84725497b4349c6131aeec45c9611a5 # v2.3.2
+        uses: putdotio/.github/.github/actions/scan@e07dede03892f9b80fec82bf38afcd5f76b763b0 # v2.3.3
 
   markdown:
     name: Markdown
@@ -111,7 +111,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Node.js and pnpm
-        uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+        uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
           version: "2026.10.25"
           install_args: node pnpm
@@ -141,7 +141,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Node.js and pnpm
-        uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # v5.2.5
+        uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
           version: "2026.10.25"
           install_args: node pnpm
