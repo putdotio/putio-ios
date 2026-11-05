@@ -6,8 +6,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/intercom/intercom-ios-sp",
       "state" : {
-        "revision" : "a24fa69e81c5aa1f4d6a82540dc4013f09f151fd",
-        "version" : "19.9.2"
+        "revision" : "752ddd4412720141c8e97e1075fa3c88f699dde8",
+        "version" : "19.10.0"
       }
     }
   ],
