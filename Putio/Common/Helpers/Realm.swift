@@ -1,4 +1,5 @@
 import Foundation
+import os
 import RealmSwift
 
 class PutioRealm {
@@ -38,6 +39,8 @@ class PutioRealm {
         }
     }
 
+    private static let reportedWriteFailures = OSAllocatedUnfairLock(initialState: Set<String>())
+
     static func logFailure(_ context: String, error: Error) {
         log.error("[PutioRealm] \(context): \(error.localizedDescription)")
     }
@@ -73,7 +76,9 @@ class PutioRealm {
             return true
         } catch {
             logFailure(context, error: error)
-            SentryTelemetry.capture(.realmWrite, error: error, context: context)
+            if reportedWriteFailures.withLock({ $0.insert(context).inserted }) {
+                SentryTelemetry.capture(.realmWrite, error: error, context: context)
+            }
             return false
         }
     }

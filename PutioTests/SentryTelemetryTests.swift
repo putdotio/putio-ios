@@ -153,17 +153,8 @@ final class SentryTelemetryTests: XCTestCase {
     }
 
     func testDiagnosticsCheckSendsOneAllowlistedEventOnlyFromASandboxReceipt() throws {
-        let defaults = try isolatedDefaults()
-        addTeardownBlock { SentryTelemetry.update(diagnosticsEnabled: false, dsn: self.dsn, defaults: defaults) }
-        let options = SentryTelemetry.options(dsn: dsn)
-        let beforeSend = try XCTUnwrap(options.beforeSend)
-        var sent: [Event] = []
-        options.beforeSend = { event in
-            beforeSend(event).map { sent.append($0) }
-            return nil
-        }
-        SentrySDK.start(options: options)
-        allowCapture()
+        let recorded = try recordSentEvents()
+        var sent: [Event] { recorded.events }
         let receipts = URL(filePath: "/synthetic/StoreKit", directoryHint: .isDirectory)
 
         XCTAssertFalse(SentryTelemetry.captureDiagnosticsCheck(receiptURL: receipts.appending(path: "receipt")))
@@ -191,6 +182,7 @@ final class SentryTelemetryTests: XCTestCase {
             ("RLMException", "Index 2 is out of bounds (must be less than 2).", "table_row_out_of_bounds"),
             ("NSRangeException", "*** -[__NSArrayM objectAtIndexedSubscript:]: index 5 beyond bounds [0 .. 3]", "table_row_out_of_bounds"),
             ("NSInternalInconsistencyException", "attempt to delete row 3 from section 0 which only contains 2 rows before the update", "table_row_out_of_bounds"),
+            ("NSInternalInconsistencyException", "Invalid update: invalid number of rows in section 0.", "table_row_out_of_bounds"),
             ("RLMException", "Unable to open a realm at path '\(path)': Permission denied.", "other"),
             ("RLMException", nil, "other"),
             ("NSInvalidArgumentException", "Synthetic reason at \(path)", nil),
@@ -235,6 +227,12 @@ final class SentryTelemetryTests: XCTestCase {
         let forged = Event(level: .error)
         forged.tags = ["category": "session_load", "reason": leak, "endpoint": "https://media.example.invalid/config"]
         XCTAssertEqual(SentryTelemetry.allowlisted(forged).tags, ["category": "session_load"])
+
+        forged.tags = ["category": leak]
+        forged.exceptions = [Exception(value: leak, type: "NSError")]
+        let unlisted = SentryTelemetry.allowlisted(forged)
+        XCTAssertNil(unlisted.tags)
+        XCTAssertNil(unlisted.exceptions?.first?.value)
     }
 
     func testSDKFailureReasons() {
@@ -276,6 +274,32 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertEqual(kept.mechanism?.synthetic?.boolValue, true)
         XCTAssertEqual(kept.stacktrace?.frames.count, 1)
         XCTAssertEqual(sent.threads?.count, 1)
+    }
+
+    func testMetricKitDropsDiagnosticsFromBeforeAnOptIn() throws {
+        let defaults = try isolatedDefaults()
+        let cleared = try isolatedDefaults()
+        addTeardownBlock { SentryTelemetry.start(dsn: nil, defaults: cleared) }
+        let options = SentryTelemetry.options(dsn: dsn)
+        func hang(at timestamp: Date) -> Event {
+            let event = Event(level: .warning)
+            event.timestamp = timestamp
+            let exception = Exception(value: nil, type: "MXHangDiagnostic")
+            exception.mechanism = Mechanism(type: "mx_hang_diagnostic")
+            event.exceptions = [exception]
+            return event
+        }
+        allowCapture()
+        let beforeOptIn = Date()
+
+        SentryTelemetry.update(diagnosticsEnabled: true, dsn: nil, defaults: defaults)
+        XCTAssertNotNil(options.beforeSend?(hang(at: beforeOptIn)), "never opted out, so nothing predates consent")
+
+        SentryTelemetry.update(diagnosticsEnabled: false, dsn: nil, defaults: defaults)
+        SentryTelemetry.update(diagnosticsEnabled: true, dsn: nil, defaults: defaults)
+        XCTAssertNil(options.beforeSend?(hang(at: beforeOptIn)), "a payload from the opt-out window left")
+        XCTAssertNotNil(options.beforeSend?(hang(at: Date().addingTimeInterval(1))))
+        XCTAssertNotNil(options.beforeSend?(crash(type: "RLMException", reason: nil, handled: false)), "only MetricKit payloads predate consent")
     }
 
     func testDeletesTheLegacySentryCacheOnly() throws {

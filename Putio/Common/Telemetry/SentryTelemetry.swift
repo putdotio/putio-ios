@@ -50,11 +50,13 @@ enum SentryTelemetry {
         private static let patterns: [(String, CrashReason)] = [
             ("incorrect thread", .realmIncorrectThread),
             ("outside of a write transaction", .realmWriteOutsideTransaction),
-            ("invalidated", .realmObjectInvalidated),
+            ("deleted or invalidated", .realmObjectInvalidated),
+            ("invalidated or deleted", .realmObjectInvalidated),
             ("out of bounds", .tableRowOutOfBounds),
             ("beyond bounds", .tableRowOutOfBounds),
             ("when max is", .tableRowOutOfBounds),
             ("which only contains", .tableRowOutOfBounds),
+            ("invalid number of rows", .tableRowOutOfBounds),
         ]
 
         init?(_ exception: Exception) {
@@ -111,6 +113,12 @@ enum SentryTelemetry {
     /// is on.
     private static let consentKey = "io.put.diagnostics-enabled"
 
+    private static let consentedSinceKey = "io.put.diagnostics-enabled-since"
+
+    private static let consentedSince = OSAllocatedUnfairLock<Date?>(initialState: nil)
+
+    private static let metricKitMechanisms: Set<String> = ["MXCrashDiagnostic", "mx_cpu_exception", "mx_disk_write_exception", "mx_hang_diagnostic"]
+
     static func lastKnownDiagnosticsEnabled(defaults: UserDefaults = .standard) -> Bool {
         defaults.object(forKey: consentKey) as? Bool ?? true
     }
@@ -122,7 +130,11 @@ enum SentryTelemetry {
     /// Keeps the account's answer, even in a build without a DSN, and applies it.
     /// `nil` is signed out.
     static func update(diagnosticsEnabled enabled: Bool?, dsn: String? = SENTRY_DSN, defaults: UserDefaults = .standard) {
+        let wasEnabled = lastKnownDiagnosticsEnabled(defaults: defaults)
         defaults.set(enabled, forKey: consentKey)
+        if !wasEnabled, lastKnownDiagnosticsEnabled(defaults: defaults) {
+            defaults.set(Date(), forKey: consentedSinceKey)
+        }
         apply(dsn: dsn, defaults: defaults)
     }
 
@@ -130,6 +142,7 @@ enum SentryTelemetry {
     /// `beforeSend`. The transport gate cancels those uploads and the cache is
     /// deleted, so nothing recorded before a switch-off leaves later either.
     private static func apply(dsn: String?, defaults: UserDefaults) {
+        consentedSince.withLock { $0 = defaults.object(forKey: consentedSinceKey) as? Date }
         guard let dsn else { return }
         let enabled = lastKnownDiagnosticsEnabled(defaults: defaults)
         isCapturing = enabled
@@ -158,7 +171,7 @@ enum SentryTelemetry {
         options.enableCaptureFailedRequests = false
         options.enableMetricKit = true
         options.enableMetricKitRawPayload = false
-        options.beforeSend = { isCapturing ? allowlisted($0) : nil }
+        options.beforeSend = { isCapturing && !predatesConsent($0) ? allowlisted($0) : nil }
         return options
     }
 
@@ -195,12 +208,20 @@ enum SentryTelemetry {
         return true
     }
 
+    private static func predatesConsent(_ event: Event) -> Bool {
+        guard let mechanism = event.exceptions?.first?.mechanism?.type,
+              metricKitMechanisms.contains(mechanism),
+              let since = consentedSince.withLock({ $0 })
+        else { return false }
+        return (event.timestamp ?? .distantPast) < since
+    }
+
     /// Copies listed fields into a new event, so unlisted ones, including any a
     /// Sentry upgrade adds to the event, stay on the device. Assumes tracing stays
     /// off: a transaction would lose its spans and trace state here.
     static func allowlisted(_ event: Event) -> Event {
         let tags = event.tags ?? [:]
-        let category = tags["category"]
+        let category = tags["category"].flatMap(Failure.init(rawValue:))?.rawValue
         var sentTags: [String: String] = [:]
         sentTags["category"] = category
         sentTags["reason"] = tags["reason"].flatMap(Reason.init(rawValue:))?.rawValue
