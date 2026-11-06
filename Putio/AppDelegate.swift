@@ -318,11 +318,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             guard api.mediaToken == token else { return }
 
             if let error = accountError ?? configError {
-                switch error.type {
-                case .decodingError, .unknownError:
-                    SentryTelemetry.capture(.sessionLoad, error: error)
-                default:
-                    break
+                let failures: [(PutioSDKError?, SentryTelemetry.Endpoint)] = [(accountError, .accountInfo), (configError, .config)]
+                for case let (failure?, endpoint) in failures {
+                    switch failure.type {
+                    case .decodingError, .unknownError:
+                        SentryTelemetry.capture(.sessionLoad, error: failure, reason: .init(failure), endpoint: endpoint)
+                    default:
+                        break
+                    }
                 }
                 return self.fetchUserFailure(error: error)
             }
