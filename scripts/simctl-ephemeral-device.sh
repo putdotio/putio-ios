@@ -35,20 +35,6 @@ done
 device_type="com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max"
 ios_major="27"
 
-runtime="$(xcrun simctl list -j runtimes | ruby -rjson -e '
-  major = ARGV[0]
-  runtimes = JSON.parse($stdin.read)["runtimes"].select do |runtime|
-    runtime["isAvailable"] && runtime["platform"] == "iOS" && runtime["version"].split(".").first == major
-  end
-  newest = runtimes.max_by { |runtime| Gem::Version.new(runtime["version"]) }
-  puts newest["identifier"] if newest
-' "$ios_major")"
-
-if [ -z "$runtime" ]; then
-  echo "Baselines are recorded on iOS $ios_major, and no iOS $ios_major simulator runtime is installed. Run 'mise run download-ios-platform'." >&2
-  exit 1
-fi
-
 if [ -n "$device_type_override" ]; then
   # simctl create accepts an unknown identifier only to fail with a bare "Invalid
   # device type", so name the typo here instead.
@@ -66,15 +52,24 @@ if [ -n "$device_type_override" ]; then
   device_type="$device_type_override"
 fi
 
+runtime="$(xcrun simctl list -j runtimes | ruby -rjson -e '
+  major, device_type = ARGV
+  runtimes = JSON.parse($stdin.read)["runtimes"].select do |runtime|
+    runtime["isAvailable"] && runtime["platform"] == "iOS" && runtime["version"].split(".").first == major &&
+      runtime.fetch("supportedDeviceTypes", []).any? { |type| type["identifier"] == device_type }
+  end
+  newest = runtimes.max_by { |runtime| Gem::Version.new(runtime["version"]) }
+  puts newest["identifier"] if newest
+' "$ios_major" "$device_type")"
+
+if [ -z "$runtime" ]; then
+  echo "Baselines are recorded on iOS $ios_major, and no iOS $ios_major simulator runtime supporting $device_type is installed. Run 'mise run download-ios-platform'." >&2
+  exit 1
+fi
+
 device_name="putio-$label-$(date +%Y%m%d%H%M%S)-$$"
 
-attempt=1
-until device_id="$(xcrun simctl create "$device_name" "$device_type" "$runtime")"; do
-    [ "$attempt" -lt 6 ] || exit 1
-    echo "simctl create failed on attempt $attempt; retrying in 15s while $runtime finishes mounting" >&2
-    attempt=$((attempt + 1))
-    sleep 15
-done
+device_id="$(xcrun simctl create "$device_name" "$device_type" "$runtime")"
 
 # Callers can only clean up a device whose id they were given, so anything that
 # fails between here and the final echo has to delete it itself.
