@@ -248,10 +248,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         PutioKeychain.sharedInstance.setToken(token)
         api.setToken(token: token)
-        fetchUser()
+        fetchUser(token: token)
     }
 
-    func fetchUser() {
+    func fetchUser(token: String) {
         let signpost = PerfSignpost.begin("FetchUser")
         let dispatchGroup = DispatchGroup()
         
@@ -308,12 +308,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
             
             if let account = account, let config = config {
-                return self.fetchUserSuccess(account: account, config: config)
+                return self.fetchUserSuccess(account: account, config: config, token: token)
             }
         }
     }
 
-    func fetchUserSuccess(account: PutioAccount, config: AppConfig) {
+    func fetchUserSuccess(account: PutioAccount, config: AppConfig, token: String) {
         guard let realm = PutioRealm.open(context: "fetchUserSuccess") else {
             InternalFailurePresenter.log("Unable to open Realm during fetchUserSuccess")
             return presentLoginScreen(afterBootstrapFailure: "Realm unavailable in fetchUserSuccess")
@@ -349,7 +349,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             Intercom.loginUser(with: attributes)
             Intercom.setUserHash(account.hash)
         }
-        PutioKeychain.sharedInstance.setTokenOwner(accountID: account.id)
+        PutioKeychain.sharedInstance.setTokenOwner(accountID: account.id, for: token)
 
         self.presentMainScreen(asksProductAnalytics: ProductAnalyticsChoice.shouldAsk(
             productAnalyticsEnabled: account.settings.productAnalyticsEnabled,

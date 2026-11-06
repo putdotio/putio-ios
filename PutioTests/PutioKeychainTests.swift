@@ -22,18 +22,21 @@ final class PutioKeychainTests: XCTestCase {
         let keychain = PutioKeychain(serviceKey: "com.putio.tests.keychain.\(UUID().uuidString)", legacyServiceKey: nil)
         addTeardownBlock { keychain.clearToken() }
 
-        keychain.setTokenOwner(accountID: 1)
+        keychain.setTokenOwner(accountID: 1, for: "token-a")
         XCTAssertNil(keychain.tokenOwnerID)
 
         keychain.setToken("token-a")
-        keychain.setTokenOwner(accountID: 1)
+        keychain.setTokenOwner(accountID: 1, for: "token-a")
         keychain.setToken("token-a")
         XCTAssertEqual(keychain.tokenOwnerID, 1)
 
         keychain.setToken("token-b")
         XCTAssertNil(keychain.tokenOwnerID)
 
-        keychain.setTokenOwner(accountID: 2)
+        keychain.setTokenOwner(accountID: 1, for: "token-a")
+        XCTAssertNil(keychain.tokenOwnerID, "a late answer for an earlier token must not claim this one")
+
+        keychain.setTokenOwner(accountID: 2, for: "token-b")
         keychain.clearToken()
         keychain.setToken("token-b")
         XCTAssertNil(keychain.tokenOwnerID)

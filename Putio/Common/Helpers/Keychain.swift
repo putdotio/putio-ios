@@ -52,8 +52,8 @@ class PutioKeychain {
         return keychain[tokenOwnerKey].flatMap(Int.init)
     }
 
-    func setTokenOwner(accountID: Int) {
-        guard keychain[tokenKey] != nil else { return }
+    func setTokenOwner(accountID: Int, for token: String) {
+        guard keychain[tokenKey] == token else { return }
         keychain[tokenOwnerKey] = String(accountID)
     }
 
