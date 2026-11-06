@@ -107,6 +107,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         guard didWrite else { return }
 
         discardDownload(id: file.id)
+        ProductAnalytics.capture(.downloadStarted(.audio))
         DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 
@@ -194,6 +195,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 
         discardDownload(id: id)
         _ = deleteLocalFile(for: id)
+        ProductAnalytics.capture(.downloadStarted(.audio))
         DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 
@@ -306,6 +308,9 @@ extension AudioDownloadManager: URLSessionTaskDelegate {
 
         if download.state == .completed {
             notifyUser(for: id)
+            ProductAnalytics.capture(.downloadCompleted(.audio))
+        } else {
+            ProductAnalytics.capture(.downloadFailed(.audio, .init(downloadError: effectiveError)))
         }
 
         NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)
