@@ -9,43 +9,43 @@
   "images": {
     "en-US/iphone-6.9-01-files.jpg": {
       "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-files.png",
-      "sha256": "dd2fc2f0e7f418d05261ba70f840926e96478f2a179c18ef06038ae82b4cd90f"
+      "sha256": "b7a83532bd8f75af03e1d18aed338cbe3ee2de9818d729aef6c68f75fecc45b0"
     },
     "en-US/iphone-6.9-02-player.jpg": {
       "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-video-player.png",
-      "sha256": "330d7c6e5c0efece8545e87f3fd40198d9dc19ccd43e55829275e1b85b5fcf2f"
+      "sha256": "4b4e24817432763fd6081596a87446a7d4d13db4ce4f6af029393be7eeeb07e0"
     },
     "en-US/iphone-6.9-03-downloads.jpg": {
       "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-downloads.png",
-      "sha256": "d1fa3a46961dd1ebf6bbc77a420a1fb8b6d8b4c3e08c3098e305f97fe1939131"
+      "sha256": "91f415a34c828d93f810edf1207f3b249f254ad6c0a2d234f36c7438d58220e6"
     },
     "en-US/iphone-6.9-04-history.jpg": {
       "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-history.png",
-      "sha256": "d3088c3cc9ddc4ab9c5a5df43fd03909c6c208036bad7ed22d14aaaa498eba7e"
+      "sha256": "b36d4aa9b3b1144a33ffc01688fe268812bc5c1931a9617367712e5a21e2897c"
     },
     "en-US/iphone-6.9-05-account.jpg": {
       "baseline": "PutioUITests/__Snapshots__/ScreenshotWalkUITests/walk.dark-account.png",
-      "sha256": "716211aba94c8a81ab7f2bcf29674f06538fbe4ec41941e93b78c3152860c79d"
+      "sha256": "e8c3f3ac9b84f7e0305ee9e863260994bc1f696d63b032fa691d452d591edeee"
     },
     "en-US/ipad-13-01-files.jpg": {
       "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-files.png",
-      "sha256": "4663463e7ae8f486202d4d23d783100f6e18c526c9e439b44b64bf3fac29bb69"
+      "sha256": "1eeac28815e4968a7febfbac03539840ce43a267be936443a557685662c705fe"
     },
     "en-US/ipad-13-02-player.jpg": {
       "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-video-player.png",
-      "sha256": "b7005157e7c9947e9e02d99c9d884433a65d2b50672181ddf7ed9f4f4d970b84"
+      "sha256": "98edb8bc8ab9d9e065c75668f610c24b017fa026a7c533879885ac8deac7cea3"
     },
     "en-US/ipad-13-03-downloads.jpg": {
       "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-downloads.png",
-      "sha256": "9ef79f811f4f7d1eb8440fa7efe0db4f938bf7130fd769ee3619460be0b0d8ce"
+      "sha256": "83651144c7d9062e00f4ad4f7396ad400915d594007bf153e608b23f8784d7be"
     },
     "en-US/ipad-13-04-history.jpg": {
       "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-history.png",
-      "sha256": "4f3ab67c62be87ee64bacecf92cf89ef8e31e3fd89455d0f8d1baac80543be25"
+      "sha256": "4d05874e9ae6ea32919961590bc6473dfc947ca75ed74b7ae04a5608b30c89ff"
     },
     "en-US/ipad-13-05-account.jpg": {
       "baseline": "PutioUITests/__Captures__/ipad-13/walk.dark-account.png",
-      "sha256": "cda48ae9cd940799f24dbd4e3ef747bb9866aefdd1e1c87ca21b44ff8499359a"
+      "sha256": "7f361bb261a437a48ffa46f0a5841662375a68d3f308db2e0f6ac84b996f3558"
     }
   }
 }
