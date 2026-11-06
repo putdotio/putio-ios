@@ -325,6 +325,10 @@ test("delivery workflow changes run their contract tests in the tooling lane", (
     const result = spawnSync("sh", [script], { encoding: "utf8", input: `.github/workflows/${name}\n` });
     assert.match(result.stdout, /^tooling=true$/m, name);
   }
+  for (const path of ["scripts/archive-ios.sh", "scripts/upload-dsyms.sh"]) {
+    const result = spawnSync("sh", [script], { encoding: "utf8", input: `${path}\n` });
+    assert.match(result.stdout, /^tooling=true$/m, path);
+  }
 });
 
 test("macOS delivery checkouts keep no GitHub token on disk", async () => {
@@ -362,34 +366,57 @@ test("nothing runs fastlane or match: Beta and Release sign with asc and the rel
   }
 });
 
-// Stand-ins for xcodebuild and plutil: xcodebuild logs its arguments, keeps
-// the export options it was handed, and exports one ipa.
+// Stand-ins for xcodebuild and plutil: xcodebuild logs its arguments, writes
+// an app and a framework dSYM into the archive, keeps the export options it
+// was handed, and exports one ipa.
 const fakeXcodebuild = `#!/bin/bash
 echo "$*" >> "$XCODEBUILD_LOG"
-if [ "$1" = -exportArchive ]; then
-  while [ "$#" -gt 0 ]; do
-    case "$1" in
-      -exportOptionsPlist) cp "$2" "$EXPORT_OPTIONS" ;;
-      -exportPath) mkdir -p "$2" && touch "$2/Putio.ipa" ;;
-    esac
-    shift
-  done
-fi
+mode="\${@: -1}"
+[ "$1" = -exportArchive ] && mode=export
+while [ "$#" -gt 0 ]; do
+  case "$mode:$1" in
+    archive:-archivePath)
+      for name in Putio.app Sentry.framework; do
+        mkdir -p "$2/dSYMs/$name.dSYM/Contents/Resources/DWARF"
+        echo "dwarf for $name" > "$2/dSYMs/$name.dSYM/Contents/Resources/DWARF/\${name%.*}"
+      done
+      ;;
+    export:-exportOptionsPlist) cp "$2" "$EXPORT_OPTIONS" ;;
+    export:-exportPath) mkdir -p "$2" && touch "$2/Putio.ipa" ;;
+  esac
+  shift
+done
 `;
 
-test("the archive signs and exports with the profile install-signing.sh checked", async (t) => {
+const archiveFixture = async (t: test.TestContext) => {
   const dir = await tempDir(t);
   await writeFile(join(dir, "xcodebuild"), fakeXcodebuild);
   await writeFile(join(dir, "plutil"), "#!/bin/sh\n");
   for (const tool of ["xcodebuild", "plutil"]) await chmod(join(dir, tool), 0o755);
-  const archive = (env: Record<string, string>) =>
-    spawnSync("bash", [fileURLToPath(new URL("./archive-ios.sh", import.meta.url)), "3.0.1", "1", join(dir, "a.ipa")], {
+  const run = (env: Record<string, string>) =>
+    spawnSync("bash", [fileURLToPath(new URL("./archive-ios.sh", import.meta.url)), "3.0.1", "1", join(dir, "a.ipa"), join(dir, "dsyms")], {
       encoding: "utf8",
       env: {
         PATH: `${dir}:${process.env.PATH}`, XCODEBUILD_LOG: join(dir, "xcodebuild.log"), EXPORT_OPTIONS: join(dir, "ExportOptions.plist"),
         PUTIO_APP_IDENTIFIER: "com.example.app", PUTIO_DEVELOPMENT_TEAM: "TEAM123456", PUTIO_PRIMARY_APP_ICON: "AppIcon", ...env,
       },
     });
+  return { dir, run };
+};
+
+test("the archive keeps every dSYM after it removes the xcarchive", async (t) => {
+  const { dir, run } = await archiveFixture(t);
+  const result = run({ PUTIO_PROVISIONING_PROFILE_UUID: "12345678-1234-1234-1234-123456789ABC" });
+  assert.equal(result.status, 0, result.stderr);
+  const archivePath = /-archivePath (\S+)/.exec(await readFile(join(dir, "xcodebuild.log"), "utf8"))?.[1];
+  assert.ok(archivePath);
+  await assert.rejects(readFile(join(archivePath, "dSYMs/Putio.app.dSYM/Contents/Resources/DWARF/Putio")), { code: "ENOENT" });
+  assert.equal(await readFile(join(dir, "dsyms/Putio.app.dSYM/Contents/Resources/DWARF/Putio"), "utf8"), "dwarf for Putio.app\n");
+  assert.equal(await readFile(join(dir, "dsyms/Sentry.framework.dSYM/Contents/Resources/DWARF/Sentry"), "utf8"), "dwarf for Sentry.framework\n");
+});
+
+test("the archive signs and exports with the profile install-signing.sh checked", async (t) => {
+  const { dir, run: archive } = await archiveFixture(t);
 
   const missing = archive({});
   assert.notEqual(missing.status, 0);
@@ -458,5 +485,70 @@ test("release builds fail without well-formed Intercom keys", async () => {
       assert.match(result.stderr, new RegExp(name));
       assert.doesNotMatch(result.stdout + result.stderr, /canary/, "the preflight must not print the value");
     }
+  }
+});
+
+test("the dSYM upload sends the kept symbols to Sentry project ios and fails loudly without them", async (t) => {
+  const dir = await tempDir(t);
+  await writeFile(join(dir, "sentry-cli"), '#!/bin/bash\necho "$*" >> "$SENTRY_LOG"\nexit "${FAKE_SENTRY_STATUS:-0}"\n');
+  await chmod(join(dir, "sentry-cli"), 0o755);
+  const dsyms = join(dir, "dsyms");
+  await mkdir(join(dsyms, "Putio.app.dSYM/Contents/Resources/DWARF"), { recursive: true });
+  await mkdir(join(dir, "empty"));
+  const upload = async (env: Record<string, string>, path = dsyms) => {
+    await writeFile(join(dir, "sentry.log"), "");
+    const result = spawnSync("bash", [fileURLToPath(new URL("./upload-dsyms.sh", import.meta.url)), path], {
+      encoding: "utf8",
+      env: { PATH: `${dir}:${process.env.PATH}`, SENTRY_LOG: join(dir, "sentry.log"), SENTRY_AUTH_TOKEN: "synthetic", ...env },
+    });
+    return { ...result, calls: (await readFile(join(dir, "sentry.log"), "utf8")).split("\n").filter(Boolean) };
+  };
+
+  const uploaded = await upload({});
+  assert.equal(uploaded.status, 0, uploaded.stdout);
+  assert.deepEqual(uploaded.calls, [`debug-files upload --project ios --wait-for 600 ${dsyms}`]);
+  assert.deepEqual((await upload({ SENTRY_ORG: "example" })).calls, [`debug-files upload --project ios --wait-for 600 --org example ${dsyms}`]);
+
+  const refusals: [string, Record<string, string>, string, RegExp][] = [
+    ["an empty token", { SENTRY_AUTH_TOKEN: "" }, dsyms, /SENTRY_AUTH_TOKEN is empty/],
+    ["no app dSYM", {}, join(dir, "empty"), /no Putio\.app\.dSYM/],
+  ];
+  for (const [name, env, path, reason] of refusals) {
+    const refused = await upload(env, path);
+    assert.equal(refused.status, 1, name);
+    assert.match(refused.stdout, new RegExp(`^::error title=Sentry dSYM upload::.*${reason.source}`, "m"), name);
+    assert.deepEqual(refused.calls, [], `${name} calls no sentry-cli`);
+  }
+
+  const failed = await upload({ FAKE_SENTRY_STATUS: "1" });
+  assert.equal(failed.status, 1);
+  assert.match(failed.stdout, /^::error title=Sentry dSYM upload::sentry-cli could not upload/m);
+});
+
+test("Beta and Release keep the archive's dSYMs and upload them without holding back the App Store build", async () => {
+  assert.match(await readFile(new URL("../mise.toml", import.meta.url), "utf8"), /^sentry-cli = "\d+\.\d+\.\d+"$/m);
+  for (const [name, job, dsymPath] of [["beta.yml", "beta", "PUTIO_BETA_DSYM_PATH"], ["release.yml", "release", "PUTIO_RELEASE_DSYM_PATH"]] as const) {
+    const workflow = await loadYaml(`.github/workflows/${name}`);
+    const steps = arrayAt(recordAt(recordAt(workflow, "jobs", name), job, name), "steps", job).map((step) => asRecord(step, "step"));
+    const at = (predicate: (step: RecordValue) => boolean) => steps.findIndex(predicate);
+    const archive = at((step) => /scripts\/archive-ios\.sh/.test(String(step.run ?? "")));
+    const appStore = at((step) => /asc publish (testflight|appstore)/.test(String(step.run ?? "")));
+    const keep = at((step) => String(step.uses).startsWith("actions/upload-artifact@"));
+    const sentry = at((step) => /scripts\/upload-dsyms\.sh/.test(String(step.run ?? "")));
+    const cleanup = steps.length - 1;
+    assert.ok(archive >= 0 && archive < appStore && appStore < keep && keep < sentry && sentry < cleanup, `${name}: archive, App Store upload, keep, Sentry, cleanup`);
+
+    assert.equal(steps[archive]?.id, "archive", name);
+    assert.match(String(steps[archive]?.run), new RegExp(`archive-ios\\.sh .*"\\$${dsymPath}"$`, "m"), `${name} archives its dSYMs to ${dsymPath}`);
+    for (const step of [steps[keep], steps[sentry]]) {
+      assert.equal(step?.["continue-on-error"], true, `${name} ${String(step?.name)} can't fail the delivery`);
+      assert.equal(step?.if, "${{ !cancelled() && steps.archive.outcome == 'success' }}", `${name} ${String(step?.name)} runs after a failed App Store upload`);
+    }
+    assert.equal(recordAt(steps[keep] ?? {}, "with", name).path, `\${{ env.${dsymPath} }}`);
+    assert.equal(recordAt(steps[keep] ?? {}, "with", name)["if-no-files-found"], "error");
+    const env = recordAt(steps[sentry] ?? {}, "env", name);
+    assert.equal(env.SENTRY_AUTH_TOKEN, "${{ secrets.SENTRY_AUTH_TOKEN }}");
+    assert.match(String(steps[sentry]?.run), /^mise install sentry-cli$/m);
+    assert.match(String(steps[sentry]?.run), new RegExp(`mise exec -- \\./scripts/upload-dsyms\\.sh "\\$${dsymPath}"`));
   }
 });

@@ -82,6 +82,7 @@ jobs:
             echo "PUTIO_RELEASE_VERSION=$RELEASE_VERSION"
             echo "PUTIO_RELEASE_BUILD_NUMBER=$build_number"
             echo "PUTIO_RELEASE_IPA_PATH=$RUNNER_TEMP/putio-ios-release.ipa"
+            echo "PUTIO_RELEASE_DSYM_PATH=$RUNNER_TEMP/putio-ios-release-dsyms"
           } >> "$GITHUB_ENV"
           echo "build_number=$build_number" >> "$GITHUB_OUTPUT"
 
@@ -162,10 +163,11 @@ jobs:
           ./scripts/install-signing.sh
 
       - name: Archive and export the App Store ipa
+        id: archive
         env:
           PUTIO_APP_DISPLAY_NAME: put.io
           PUTIO_PRIMARY_APP_ICON: AppIcon
-        run: ./scripts/archive-ios.sh "$PUTIO_RELEASE_VERSION" "$PUTIO_RELEASE_BUILD_NUMBER" "$PUTIO_RELEASE_IPA_PATH"
+        run: ./scripts/archive-ios.sh "$PUTIO_RELEASE_VERSION" "$PUTIO_RELEASE_BUILD_NUMBER" "$PUTIO_RELEASE_IPA_PATH" "$PUTIO_RELEASE_DSYM_PATH"
 
       # Uploads, waits for processing, creates or finds the version and
       # attaches the build. Never submits: that is the Submit workflow.
@@ -180,6 +182,26 @@ jobs:
           asc publish appstore --app 1260479699 --platform IOS --ipa "$PUTIO_RELEASE_IPA_PATH" \
             --version "$PUTIO_RELEASE_VERSION" --wait --timeout 60m --output markdown \
             | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the dSYMs
+        if: ${{ !cancelled() && steps.archive.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dsyms-${{ env.PUTIO_RELEASE_VERSION }}-${{ env.PUTIO_RELEASE_BUILD_NUMBER }}
+          path: ${{ env.PUTIO_RELEASE_DSYM_PATH }}
+          if-no-files-found: error
+
+      - name: Upload dSYMs to Sentry
+        if: ${{ !cancelled() && steps.archive.outcome == 'success' }}
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+        run: |
+          mise install sentry-cli
+          mise exec -- ./scripts/upload-dsyms.sh "$PUTIO_RELEASE_DSYM_PATH"
 
       - name: Delete the signing keychain
         if: always() && env.PUTIO_SIGNING_KEYCHAIN != ''
