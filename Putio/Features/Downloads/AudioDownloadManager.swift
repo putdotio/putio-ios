@@ -91,7 +91,6 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 
         task.taskDescription = String(id)
         task.resume()
-        ProductAnalytics.capture(.downloadStarted(.audio))
 
         NotificationCenter.default.post(name: AudioDownloadManager.NOTIFICATION, object: nil)
     }
@@ -108,6 +107,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         guard didWrite else { return }
 
         discardDownload(id: file.id)
+        ProductAnalytics.capture(.downloadStarted(.audio))
         DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 
@@ -195,6 +195,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 
         discardDownload(id: id)
         _ = deleteLocalFile(for: id)
+        ProductAnalytics.capture(.downloadStarted(.audio))
         DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 

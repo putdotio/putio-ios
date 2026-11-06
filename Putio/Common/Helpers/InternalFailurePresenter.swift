@@ -18,8 +18,9 @@ enum InternalFailurePresenter {
 
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: ""), style: .cancel))
-        presenter.present(alert, animated: true)
-        ProductAnalytics.capture(.errorShown(screen))
+        presenter.present(alert, animated: true) {
+            ProductAnalytics.capture(.errorShown(screen))
+        }
     }
 
     static func logAndPresent(

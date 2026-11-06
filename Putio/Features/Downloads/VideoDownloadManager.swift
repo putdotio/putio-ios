@@ -138,7 +138,6 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 
             task.taskDescription = String(id)
             task.resume()
-            ProductAnalytics.capture(.downloadStarted(.video))
 
             NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)
         })
@@ -155,6 +154,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         guard didWrite else { return }
 
         discardDownload(id: file.id)
+        ProductAnalytics.capture(.downloadStarted(.video))
         DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 
@@ -256,6 +256,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         if deletionResult == .removed || deletionResult == .alreadyMissing {
             UserDefaults.standard.removeObject(forKey: String(id))
         }
+        ProductAnalytics.capture(.downloadStarted(.video))
         DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 

@@ -110,21 +110,6 @@ final class ProductAnalyticsTests: XCTestCase {
         }
     }
 
-    func testErrorAndDownloadEventsSurviveTheAllowlist() throws {
-        let expected: [(String, [String: String])] = [
-            ("error_shown", ["screen": "files", "error": "unknown"]),
-            ("error_shown", ["screen": "account", "error": "unknown"]),
-            ("download_started", ["media": "video", "stream_method": "hls"]),
-            ("download_completed", ["media": "audio", "stream_method": "progressive"]),
-            ("download_failed", ["media": "video", "stream_method": "hls", "error": "media"]),
-            ("download_failed", ["media": "audio", "stream_method": "progressive", "error": "source"])
-        ]
-        for (event, properties) in expected {
-            let kept = try XCTUnwrap(AnalyticsAllowlist.allowedProperties(event: event, properties: properties), event)
-            XCTAssertEqual(kept as? [String: String], properties, event)
-        }
-    }
-
     func testEveryTypedEventSurvivesTheAllowlistUnchanged() throws {
         for event in allEvents {
             let properties = ProductAnalyticsGate.commonProperties().merging(event.properties) { $1 }
@@ -146,7 +131,15 @@ final class ProductAnalyticsTests: XCTestCase {
             (.playbackFailed(video, .source), ["media": "video", "stream_method": "hls", "player": "avplayer", "error": "source"]),
             (.appOpened(.direct, route: "default"), ["entry": "direct", "route": "default"]),
             (.appOpened(.resume, route: nil), ["entry": "resume"]),
-            (.appOpened(.deeplink, route: ""), ["entry": "deeplink", "route": "default"])
+            (.appOpened(.deeplink, route: ""), ["entry": "deeplink", "route": "default"]),
+            (.errorShown(.files), ["screen": "files", "error": "unknown"]),
+            (.errorShown(.account), ["screen": "account", "error": "unknown"]),
+            (.downloadStarted(.video), ["media": "video", "stream_method": "hls"]),
+            (.downloadStarted(.audio), ["media": "audio", "stream_method": "progressive"]),
+            (.downloadCompleted(.video), ["media": "video", "stream_method": "hls"]),
+            (.downloadCompleted(.audio), ["media": "audio", "stream_method": "progressive"]),
+            (.downloadFailed(.video, .network), ["media": "video", "stream_method": "hls", "error": "network"]),
+            (.downloadFailed(.audio, .source), ["media": "audio", "stream_method": "progressive", "error": "source"])
         ]
         for (event, properties) in expected {
             XCTAssertEqual(event.properties, properties)
