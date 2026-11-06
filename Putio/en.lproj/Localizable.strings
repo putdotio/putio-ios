@@ -116,6 +116,9 @@
 "Couldn't save setting" = "Couldn't save setting";
 
 /* No comment provided by engineer. */
+"Couldn't load your account" = "Couldn't load your account";
+
+/* No comment provided by engineer. */
 "Crash reports, error details, and limited playback diagnostics, so we can fix problems." = "Crash reports, error details, and limited playback diagnostics, so we can fix problems.";
 
 /* No comment provided by engineer. */
@@ -167,6 +170,9 @@
 "Services we use" = "Services we use";
 
 /* No comment provided by engineer. */
+"Session expired" = "Session expired";
+
+/* No comment provided by engineer. */
 "Strictly necessary" = "Strictly necessary";
 
 /* No comment provided by engineer. */
@@ -195,6 +201,9 @@
 
 /* No comment provided by engineer. */
 "Choose your proxy" = "Choose your proxy";
+
+/* No comment provided by engineer. */
+"Check your connection and try again." = "Check your connection and try again.";
 
 /* No comment provided by engineer. */
 "Chromecast video playback type" = "Chromecast video playback type";
@@ -440,6 +449,12 @@
 
 /* No comment provided by engineer. */
 "Log out" = "Log out";
+
+/* No comment provided by engineer. */
+"Log in" = "Log in";
+
+/* No comment provided by engineer. */
+"Log in again to continue." = "Log in again to continue.";
 
 /* No comment provided by engineer. */
 "Manage your trash" = "Manage your trash";

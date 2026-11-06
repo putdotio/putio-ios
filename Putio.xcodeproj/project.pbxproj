@@ -56,6 +56,7 @@
 		810000000000000000000002 /* DownloadsViewController+TableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 810000000000000000000004 /* DownloadsViewController+TableView.swift */; };
 		810000000000000000000005 /* DownloadsSelectionSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 810000000000000000000006 /* DownloadsSelectionSupport.swift */; };
 		8B5C2D1E4F60718293A4B5C6 /* ErrorPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */; };
+		C0FFEE4E1A2B3C4D5E6F7A81 /* LoginSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE4E1A2B3C4D5E6F7A82 /* LoginSessionTests.swift */; };
 		86BF154D3B0B37FF6B673E89 /* SentryTelemetryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C22F65CCDE7A7515A9184817 /* SentryTelemetryTests.swift */; };
 		DE4E255A75D0AB510B1623B7 /* SentryTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE72AC5255691B21C30248E2 /* SentryTelemetry.swift */; };
 		5A1E0C000000000000000002 /* AnalyticsEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C000000000000000001 /* AnalyticsEvent.swift */; };
@@ -254,6 +255,7 @@
 		7F8A9B0C1D2E3F4A5B6C7D8E /* BrandFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandFont.swift; sourceTree = "<group>"; };
 		993DCCD7D09E1165737A70AF /* InactiveAccountUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InactiveAccountUITests.swift; sourceTree = "<group>"; };
 		8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ErrorPresentationTests.swift; sourceTree = "<group>"; };
+		C0FFEE4E1A2B3C4D5E6F7A82 /* LoginSessionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LoginSessionTests.swift; sourceTree = "<group>"; };
 		C22F65CCDE7A7515A9184817 /* SentryTelemetryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SentryTelemetryTests.swift; sourceTree = "<group>"; };
 		CE72AC5255691B21C30248E2 /* SentryTelemetry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SentryTelemetry.swift; sourceTree = "<group>"; };
 		5A1E0C000000000000000001 /* AnalyticsEvent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AnalyticsEvent.swift; sourceTree = "<group>"; };
@@ -432,6 +434,7 @@
 				103000000000000000000004 /* AudioPlayerTests.swift */,
 				333E41E81298A2E8796ACE97 /* APIErrorLocalizerTests.swift */,
 				8B5C2D1E4F60718293A4B5C7 /* ErrorPresentationTests.swift */,
+				C0FFEE4E1A2B3C4D5E6F7A82 /* LoginSessionTests.swift */,
 				C22F65CCDE7A7515A9184817 /* SentryTelemetryTests.swift */,
 				5A1E0C000000000000000005 /* ProductAnalyticsTests.swift */,
 				52F5F9EEE22658373A7BD1D0 /* ClearDataViewModelTests.swift */,
@@ -1264,6 +1267,7 @@
 				103000000000000000000003 /* AudioPlayerTests.swift in Sources */,
 				0E4F147822C01DF9814EE2C9 /* APIErrorLocalizerTests.swift in Sources */,
 				8B5C2D1E4F60718293A4B5C6 /* ErrorPresentationTests.swift in Sources */,
+				C0FFEE4E1A2B3C4D5E6F7A81 /* LoginSessionTests.swift in Sources */,
 				86BF154D3B0B37FF6B673E89 /* SentryTelemetryTests.swift in Sources */,
 				5A1E0C000000000000000006 /* ProductAnalyticsTests.swift in Sources */,
 				AC4AE379C21342CAB0F36251 /* ClearDataViewModelTests.swift in Sources */,

@@ -13,6 +13,7 @@ enum SentryTelemetry {
         case pushRegistration = "push_registration"
         case realmOpen = "realm_open"
         case sessionLoad = "session_load"
+        case supportLogin = "support_login"
     }
 
     /// put.io's tunnel to Sentry ingest. Some networks reset connections to
