@@ -28,7 +28,7 @@ class AcknowledgementsSync
     "realm-swift" => "RealmSwift",
     "sentry-cocoa" => "Sentry",
   }.freeze
-  TEST_PACKAGES = %w[swift-snapshot-testing swift-syntax].freeze
+  TEST_PACKAGES = %w[swift-custom-dump swift-issue-reporting swift-snapshot-testing swift-syntax].freeze
 
   LOCAL_LICENSES = {
     "Phosphor Icons" => "ThirdParty/PhosphorIcons/LICENSE",
