@@ -15,6 +15,7 @@ enum SentryTelemetry {
         case realmOpen = "realm_open"
         case realmWrite = "realm_write"
         case sessionLoad = "session_load"
+        case supportLogin = "support_login"
     }
 
     enum Reason: String {

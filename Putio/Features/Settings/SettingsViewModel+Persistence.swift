@@ -90,6 +90,7 @@ extension SettingsViewModel {
             loadingAlert.dismiss(animated: true) {
                 switch result {
                 case .success:
+                    guard self.holdsLiveSession else { return }
                     guard let realm = PutioRealm.open(context: "SettingsViewModel.performRemoteMutation") else {
                         return self.presentPersistenceFailure()
                     }
