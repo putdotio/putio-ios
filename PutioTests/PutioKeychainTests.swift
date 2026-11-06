@@ -278,9 +278,12 @@ final class SettingsViewModelTests: XCTestCase {
     }
 
     func testSignedInScreensAreReleasedWhenTheAppLeavesThem() throws {
+        let deeplinkReadiness = DeeplinkManager.sharedInstance.isReadyToHandleURL
+        addTeardownBlock { DeeplinkManager.sharedInstance.isReadyToHandleURL = deeplinkReadiness }
         weak var releasedTabBar: MainTabBarController?
         weak var releasedDownloads: DownloadsViewController?
         weak var releasedAccount: SettingsViewModel?
+        var releasedScreens: [() -> UIViewController?] = []
 
         try autoreleasepool {
             let storyboard = UIStoryboard(name: "Main", bundle: Bundle(for: MainTabBarController.self))
@@ -299,11 +302,14 @@ final class SettingsViewModelTests: XCTestCase {
             releasedTabBar = tabBar
             releasedDownloads = downloads
             releasedAccount = account.viewModel
+            releasedScreens = screens.map { screen in { [weak screen] in screen } }
         }
 
         XCTAssertNil(releasedTabBar)
         XCTAssertNil(releasedDownloads)
         XCTAssertNil(releasedAccount)
+        XCTAssertFalse(releasedScreens.isEmpty)
+        XCTAssertEqual(releasedScreens.compactMap { $0() }.map { String(describing: type(of: $0)) }, [])
     }
 
     func testAccountKeepsItsRowsWhenTheNextSignInReplacesTheSession() throws {

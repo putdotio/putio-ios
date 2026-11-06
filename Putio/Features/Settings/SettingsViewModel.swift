@@ -132,7 +132,7 @@ class SettingsViewModel {
             switch result {
             case .success(let account):
                 AccountNoticeStore.shared.update(with: account, startedIn: noticeSession)
-                guard savesBeforeRead == Self.confirmedSaves else { return }
+                guard self.holdsLiveSession, savesBeforeRead == Self.confirmedSaves else { return }
                 self.applyDiagnostics(account.settings.diagnosticsEnabled)
                 // Signing out moves the session on, and a signed-out app sends nothing.
                 if noticeSession == AccountNoticeStore.shared.session, refreshesBeforeRead == Self.accountRefreshes {
@@ -172,6 +172,10 @@ class SettingsViewModel {
         }
     }
 
+    var holdsLiveSession: Bool {
+        !user.isInvalidated && !settings.isInvalidated && !config.isInvalidated
+    }
+
     func reloadPersistedState() {
         guard let realm = PutioRealm.open(context: "SettingsViewModel.reloadPersistedState") else { return }
 
@@ -189,7 +193,9 @@ class SettingsViewModel {
     }
 
     @objc func update() {
-        guard !user.isInvalidated, !settings.isInvalidated, !config.isInvalidated else { return }
+        guard holdsLiveSession else {
+            return InternalFailurePresenter.log("SettingsViewModel outlived the session it was built for")
+        }
         updateSelectedSortState()
         sections = buildSections()
         tableViewController?.tableView.reloadData()
