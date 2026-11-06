@@ -17,6 +17,10 @@ enum DownloadQueueLifecyclePolicy {
     static func accountDidChange(previousID: Int?, currentID: Int) -> Bool {
         previousID.map { $0 != currentID } ?? false
     }
+
+    static func cachedLaunchKnowsAccount(tokenOwnerID: Int?, cachedUserID: Int?) -> Bool {
+        tokenOwnerID != nil && tokenOwnerID == cachedUserID
+    }
 }
 
 /// 2.58.0 leaves background downloads, Sentry 7 envelopes, and cached
@@ -244,10 +248,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         PutioKeychain.sharedInstance.setToken(token)
         api.setToken(token: token)
-        fetchUser()
+        fetchUser(token: token)
     }
 
-    func fetchUser() {
+    func fetchUser(token: String) {
         let signpost = PerfSignpost.begin("FetchUser")
         let dispatchGroup = DispatchGroup()
         
@@ -292,22 +296,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         
         dispatchGroup.notify(queue: .main) {
             PerfSignpost.end(signpost)
+            guard api.mediaToken == token else { return }
 
-            if let accountError = accountError {
-                return self.fetchUserFailure(error: accountError)
-            }
-            
-            if let configError = configError {
-                return self.fetchUserFailure(error: configError)
+            if let error = accountError ?? configError {
+                switch error.type {
+                case .decodingError, .unknownError:
+                    SentryTelemetry.capture(.sessionLoad, error: error)
+                default:
+                    break
+                }
+                return self.fetchUserFailure(error: error)
             }
             
             if let account = account, let config = config {
-                return self.fetchUserSuccess(account: account, config: config)
+                return self.fetchUserSuccess(account: account, config: config, token: token)
             }
         }
     }
 
-    func fetchUserSuccess(account: PutioAccount, config: AppConfig) {
+    func fetchUserSuccess(account: PutioAccount, config: AppConfig, token: String) {
         guard let realm = PutioRealm.open(context: "fetchUserSuccess") else {
             InternalFailurePresenter.log("Unable to open Realm during fetchUserSuccess")
             return presentLoginScreen(afterBootstrapFailure: "Realm unavailable in fetchUserSuccess")
@@ -343,6 +350,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             Intercom.loginUser(with: attributes)
             Intercom.setUserHash(account.hash)
         }
+        PutioKeychain.sharedInstance.setTokenOwner(accountID: account.id, for: token)
 
         self.presentMainScreen(asksProductAnalytics: ProductAnalyticsChoice.shouldAsk(
             productAnalyticsEnabled: account.settings.productAnalyticsEnabled,
@@ -357,12 +365,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
         // The upgrade from 2.58.0 deletes its Realm user, so until the next
         // sign-in the session restored at launch stands in for it.
-        let keepsSession = realm.objects(User.self).first != nil || (isRestoredSession && PutioRealm.isUpgradingFromShipped258())
+        let cachedUserID = realm.objects(User.self).first?.id
+        let keepsSession = cachedUserID != nil || (isRestoredSession && PutioRealm.isUpgradingFromShipped258())
+        let startsDownloadQueue = DownloadQueueLifecyclePolicy.cachedLaunchKnowsAccount(
+            tokenOwnerID: PutioKeychain.sharedInstance.tokenOwnerID,
+            cachedUserID: cachedUserID
+        )
 
         switch error.localizerType {
         case .decodingError, .unknownError, .networkError:
             if keepsSession {
-                return self.presentMainScreen(startDownloadQueue: false)
+                return self.presentMainScreen(startDownloadQueue: startsDownloadQueue)
             }
 
             self.presentLoginScreen(afterBootstrapFailure: "account fetch failed: \(error.localizerType)")
@@ -374,7 +387,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
 
             if keepsSession {
-                return self.presentMainScreen(startDownloadQueue: false)
+                return self.presentMainScreen(startDownloadQueue: startsDownloadQueue)
             }
 
             return self.presentLoginScreen(afterBootstrapFailure: "account fetch failed with HTTP \(statusCode)")

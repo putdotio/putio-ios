@@ -10,6 +10,7 @@ class PutioKeychain {
     static let shipped258ServiceKey = "com.putio.tvOS"
 
     let tokenKey: String = "access_token"
+    private let tokenOwnerKey = "access_token_account_id"
     let keychain: Keychain
     private let legacyKeychain: Keychain?
 
@@ -40,11 +41,25 @@ class PutioKeychain {
     }
 
     func setToken(_ token: String) {
+        if keychain[tokenKey] != token {
+            keychain[tokenOwnerKey] = nil
+        }
         self.keychain[tokenKey] = token
+    }
+
+    var tokenOwnerID: Int? {
+        guard keychain[tokenKey] != nil else { return nil }
+        return keychain[tokenOwnerKey].flatMap(Int.init)
+    }
+
+    func setTokenOwner(accountID: Int, for token: String) {
+        guard keychain[tokenKey] == token else { return }
+        keychain[tokenOwnerKey] = String(accountID)
     }
 
     func clearToken() {
         self.keychain[tokenKey] = nil
+        self.keychain[tokenOwnerKey] = nil
         legacyKeychain?[tokenKey] = nil
     }
 }

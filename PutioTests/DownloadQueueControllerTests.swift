@@ -94,6 +94,13 @@ final class DownloadQueueLifecyclePolicyTests: XCTestCase {
         XCTAssertTrue(DownloadQueueLifecyclePolicy.accountDidChange(previousID: 1, currentID: 2))
     }
 
+    func testCachedLaunchKnowsAccountOnlyWhenTheTokenOwnerIsTheCachedUser() {
+        XCTAssertTrue(DownloadQueueLifecyclePolicy.cachedLaunchKnowsAccount(tokenOwnerID: 2, cachedUserID: 2))
+        XCTAssertFalse(DownloadQueueLifecyclePolicy.cachedLaunchKnowsAccount(tokenOwnerID: 1, cachedUserID: 2))
+        XCTAssertFalse(DownloadQueueLifecyclePolicy.cachedLaunchKnowsAccount(tokenOwnerID: nil, cachedUserID: 2))
+        XCTAssertFalse(DownloadQueueLifecyclePolicy.cachedLaunchKnowsAccount(tokenOwnerID: nil, cachedUserID: nil))
+    }
+
     func testUnsupportedBackgroundSessionCompletesImmediately() {
         let completed = expectation(description: "completion handler called")
 
