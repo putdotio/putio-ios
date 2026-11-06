@@ -4,9 +4,11 @@ import PutioSDK
 class DisableTwoFactorAuthViewController: UIViewController {
     @IBOutlet weak var textField: UITextField!
     @IBOutlet weak var button: Button!
+    @IBOutlet weak var bottomBar: UIView!
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        view.keyboardLayoutGuide.topAnchor.constraint(equalTo: bottomBar.bottomAnchor).isActive = true
         textField.delegate = self
         textField.becomeFirstResponder()
         textField.applyCodeFont()

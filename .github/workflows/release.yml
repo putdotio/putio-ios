@@ -114,7 +114,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cocoapods-downloads-${{ github.workflow }}-
 
-      - name: Install CocoaPods dependencies
+      - name: Install CocoaPods, Swift packages and SwiftLint
         run: mise run bootstrap-ci
 
       # Must precede `mise run verify`: baselines are recorded with the brand faces

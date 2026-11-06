@@ -63,3 +63,6 @@ node_modules/
 # `mise run store-screenshots`. Intermediate: #51 frames these into the finished
 # marketing images, and those get committed.
 dist/
+
+# Xcode writes a copy beside the project; the workspace copy is the lockfile.
+Putio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/

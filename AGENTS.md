@@ -1,8 +1,8 @@
 # Agent Guide
 
-The put.io iOS app that ships on the App Store: UIKit with CocoaPods. Feature
-code lives in `Putio/Features/<Area>`; only genuinely shared code goes in
-`Putio/Common`.
+The put.io iOS app that ships on the App Store: UIKit with Swift packages, plus
+Google Cast as the last CocoaPod. Feature code lives in `Putio/Features/<Area>`;
+only genuinely shared code goes in `Putio/Common`.
 
 ## Work in this repository
 
@@ -22,7 +22,8 @@ code lives in `Putio/Features/<Area>`; only genuinely shared code goes in
   and back navigation.
 - Swift copy goes in `Putio/en.lproj/Localizable.strings`; storyboard and xib
   copy goes in the matching `Putio/en.lproj/*.strings` file.
-- Add a dependency only when no platform or SDK option fits.
+- Add a dependency only when no platform or SDK option fits. Add it as a Swift
+  package pinned to an exact version, then run `mise run acknowledgements-sync`.
 
 ## Hazards
 

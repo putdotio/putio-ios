@@ -59,7 +59,7 @@ plutil -lint "$work/ExportOptions.plist" >/dev/null
 
 xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Release -sdk iphoneos \
   -destination 'generic/platform=iOS' -quiet -archivePath "$work/Putio.xcarchive" \
-  "${settings[@]}" archive
+  -onlyUsePackageVersionsFromResolvedFile "${settings[@]}" archive
 mkdir -p "$dsym_dir"
 if [ -d "$work/Putio.xcarchive/dSYMs" ]; then
   cp -R "$work/Putio.xcarchive/dSYMs/." "$dsym_dir/"

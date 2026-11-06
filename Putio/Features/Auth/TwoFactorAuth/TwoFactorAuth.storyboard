@@ -231,7 +231,7 @@
                                     <constraint firstAttribute="width" constant="300" id="GPC-Gk-Yu8"/>
                                 </constraints>
                             </stackView>
-                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="8oa-Q6-Haf" customClass="KeyboardAvoidingView" customModule="KeyboardAvoidingView">
+                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="8oa-Q6-Haf">
                                 <rect key="frame" x="0.0" y="704" width="375" height="54"/>
                                 <subviews>
                                     <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="87x-Z2-iWq" customClass="Button" customModule="Putio" customModuleProvider="target">
@@ -264,7 +264,7 @@
                         <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <constraints>
                             <constraint firstItem="vLG-Id-K2m" firstAttribute="centerX" secondItem="lN7-3S-K2a" secondAttribute="centerX" id="DLn-bO-Lhn"/>
-                            <constraint firstItem="lN7-3S-K2a" firstAttribute="bottom" secondItem="8oa-Q6-Haf" secondAttribute="bottom" id="KnI-DZ-FT8"/>
+                            <constraint firstItem="lN7-3S-K2a" firstAttribute="bottom" secondItem="8oa-Q6-Haf" secondAttribute="bottom" placeholder="YES" id="KnI-DZ-FT8"/>
                             <constraint firstItem="8oa-Q6-Haf" firstAttribute="leading" secondItem="lN7-3S-K2a" secondAttribute="leading" id="M5p-fy-tZM"/>
                             <constraint firstItem="lN7-3S-K2a" firstAttribute="trailing" secondItem="8oa-Q6-Haf" secondAttribute="trailing" id="Sbb-CE-DcN"/>
                             <constraint firstItem="vLG-Id-K2m" firstAttribute="top" secondItem="lN7-3S-K2a" secondAttribute="top" constant="16" id="ZvZ-fd-mg5"/>
@@ -279,6 +279,7 @@
                         </barButtonItem>
                     </navigationItem>
                     <connections>
+                        <outlet property="bottomBar" destination="8oa-Q6-Haf" id="kbB-a1-Dis"/>
                         <outlet property="button" destination="87x-Z2-iWq" id="MjK-u1-czR"/>
                         <outlet property="textField" destination="chX-sm-jVE" id="05T-dk-kFg"/>
                     </connections>
@@ -442,7 +443,7 @@
                                     <constraint firstAttribute="width" constant="300" id="9Nz-Ql-gDB"/>
                                 </constraints>
                             </stackView>
-                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="fw3-0B-p0C" customClass="KeyboardAvoidingView" customModule="KeyboardAvoidingView">
+                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="fw3-0B-p0C">
                                 <rect key="frame" x="0.0" y="704" width="375" height="54"/>
                                 <subviews>
                                     <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="xtZ-72-xrq" customClass="Button" customModule="Putio" customModuleProvider="target">
@@ -475,7 +476,7 @@
                         <color key="backgroundColor" name="putio.surface.app-bg"/>
                         <constraints>
                             <constraint firstItem="fw3-0B-p0C" firstAttribute="trailing" secondItem="Uh8-7c-HLC" secondAttribute="trailing" id="MvR-jG-b7n"/>
-                            <constraint firstItem="Uh8-7c-HLC" firstAttribute="bottom" secondItem="fw3-0B-p0C" secondAttribute="bottom" id="N5B-94-lBv"/>
+                            <constraint firstItem="Uh8-7c-HLC" firstAttribute="bottom" secondItem="fw3-0B-p0C" secondAttribute="bottom" placeholder="YES" id="N5B-94-lBv"/>
                             <constraint firstItem="fw3-0B-p0C" firstAttribute="leading" secondItem="Uh8-7c-HLC" secondAttribute="leading" id="R1w-6z-Giz"/>
                             <constraint firstItem="k4S-dU-nbg" firstAttribute="top" secondItem="Uh8-7c-HLC" secondAttribute="top" constant="16" id="Tav-5l-w4U"/>
                             <constraint firstItem="k4S-dU-nbg" firstAttribute="centerX" secondItem="Uh8-7c-HLC" secondAttribute="centerX" id="USe-4O-QDz"/>
@@ -483,6 +484,7 @@
                     </view>
                     <navigationItem key="navigationItem" title="Enable two-factor authentication" id="JBP-jh-6lf"/>
                     <connections>
+                        <outlet property="bottomBar" destination="fw3-0B-p0C" id="kbB-a2-Ena"/>
                         <outlet property="button" destination="xtZ-72-xrq" id="TOO-P2-v8x"/>
                         <outlet property="textField" destination="vih-ax-O38" id="ZFY-A6-fnE"/>
                         <segue destination="Y6W-OH-hqX" kind="show" identifier="toTwoFactorRecoveryCodesVC" id="xbo-Gt-0Es"/>

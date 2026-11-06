@@ -95,7 +95,8 @@ echo "Using iPhone simulator destination: $destination"
 
 rm -rf "$bundle"
 xcodebuild -workspace "$WORKSPACE" -scheme "$scheme" -configuration Debug \
-    -xcconfig "$XCCONFIG" -destination "$destination" build-for-testing -quiet
+    -xcconfig "$XCCONFIG" -destination "$destination" -onlyUsePackageVersionsFromResolvedFile \
+    build-for-testing -quiet
 
 echo "Test results will be written to $bundle"
 TEST_RUNNER_PUTIO_RECORD_SNAPSHOTS="${PUTIO_RECORD_SNAPSHOTS:-0}" \

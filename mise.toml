@@ -13,6 +13,7 @@ ruby = "4.0.6"
 node = "24.22.1"
 periphery = "3.8.0"
 sentry-cli = "3.8.2"
+swiftlint = "0.65.1"
 
 [tasks.doctor]
 description = "Check Ruby, Node, pnpm and Xcode against this repo's pins"
@@ -25,12 +26,13 @@ run = [
     "bundle config set --local path vendor/bundle",
     "bundle install",
     "bundle exec pod install",
+    "xcodebuild -resolvePackageDependencies -workspace Putio.xcworkspace -scheme Putio -onlyUsePackageVersionsFromResolvedFile -quiet",
     "pnpm install --frozen-lockfile",
     "git config core.hooksPath .githooks",
 ]
 
 [tasks.bootstrap-ci]
-description = "Install Ruby gems and Pods only (CI)"
+description = "Install Ruby gems, Pods and Swift packages only (CI)"
 run = "./scripts/bootstrap-ci.sh"
 
 [tasks.icons-sync]
@@ -57,6 +59,18 @@ run = "ruby scripts/sync-type-scale.rb"
 description = "Check BrandTypography.swift is in sync"
 run = "ruby scripts/sync-type-scale.rb --check"
 
+[tasks.acknowledgements-sync]
+description = "Regenerate About > Libraries from the shipped libraries' licenses"
+run = "ruby scripts/sync-acknowledgements.rb"
+
+[tasks.verify-acknowledgements]
+description = "Check About > Libraries against Package.resolved and Podfile.lock"
+run = "ruby scripts/sync-acknowledgements.rb --check"
+
+[tasks.lint]
+description = "Lint the app's Swift with the pinned SwiftLint"
+run = "swiftlint lint --quiet"
+
 [tasks.fonts-setup]
 description = "Download the licensed brand fonts into Putio/Fonts"
 run = "ruby scripts/sync-brand-fonts.rb"
@@ -70,10 +84,15 @@ description = "Sub-second gate: generated assets, strings, workspace sanity"
 depends = ["verify-icons", "verify-tokens", "verify-type-scale"]
 run = "./scripts/verify-fast.sh"
 
+# The acknowledgements check reads the package checkouts, so it runs after the
+# build has resolved them.
 [tasks.verify]
-description = "Build and run the unit test suite on an ephemeral simulator"
-depends = ["verify-fast"]
-run = "./scripts/xcodebuild-test.sh --scheme Putio --result-bundle build/verify.xcresult --label verify"
+description = "Lint, build and run the unit test suite on an ephemeral simulator"
+depends = ["verify-fast", "lint"]
+run = [
+    "./scripts/xcodebuild-test.sh --scheme Putio --result-bundle build/verify.xcresult --label verify",
+    "ruby scripts/sync-acknowledgements.rb --check",
+]
 
 [tasks.e2e-simulator]
 description = "Build and run the mocked end-to-end suite"

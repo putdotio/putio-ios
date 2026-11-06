@@ -28,7 +28,13 @@ final class SentryTelemetryTests: XCTestCase {
         event.fingerprint = [leak]
         event.releaseName = "io.put.synthetic@1.0+1"
         event.tags = ["category": "downloads_observation", leak: leak]
-        event.context = ["os": ["name": "iOS"], "culture": [leak: leak], "user info": [leak: leak], "response": [leak: leak]]
+        event.context = [
+            "os": ["name": "iOS"],
+            "device": ["model": "iPhone18,1", "connection_type": "wifi", "connection_effective_type": "5g", "hinge_status": "open"],
+            "culture": [leak: leak],
+            "user info": [leak: leak],
+            "response": [leak: leak]
+        ]
         event.user = {
             let user = Sentry.User(userId: "synthetic-installation")
             user.email = leak
@@ -89,6 +95,7 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertEqual(sent.threads?.first?.threadId, 1)
         XCTAssertEqual(sent.debugMeta?.count, 1)
         XCTAssertEqual(sent.context?["os"]?["name"] as? String, "iOS")
+        XCTAssertEqual(sent.context?["device"]?.keys.sorted(), ["model"])
         XCTAssertEqual(sent.user?.userId, "synthetic-installation")
         XCTAssertEqual(sent.releaseName, "io.put.synthetic@1.0+1")
     }

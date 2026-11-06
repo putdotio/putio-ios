@@ -7,7 +7,7 @@ Prerequisites:
 - Xcode `26.x` and the iOS `26.x` simulator runtime
 - [mise](https://mise.jdx.dev): it pins the toolchain and runs every task
   (`mise tasks` lists them)
-- Ruby and Node from `mise install`; pnpm from `corepack enable`
+- Ruby, Node, and SwiftLint from `mise install`; pnpm from `corepack enable`
 - [SOPS](https://getsops.io) `3.10+` and `jq`, only for
   [private local config](#local-private-config)
 
