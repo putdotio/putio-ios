@@ -17,6 +17,10 @@ enum DownloadQueueLifecyclePolicy {
     static func accountDidChange(previousID: Int?, currentID: Int) -> Bool {
         previousID.map { $0 != currentID } ?? false
     }
+
+    static func cachedLaunchKnowsAccount(tokenOwnerID: Int?, cachedUserID: Int?) -> Bool {
+        tokenOwnerID != nil && tokenOwnerID == cachedUserID
+    }
 }
 
 /// 2.58.0 leaves background downloads, Sentry 7 envelopes, and cached
@@ -370,6 +374,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             Intercom.loginUser(with: attributes)
             Intercom.setUserHash(account.hash)
         }
+        PutioKeychain.sharedInstance.setTokenOwner(accountID: account.id)
 
         self.presentMainScreen(asksProductAnalytics: ProductAnalyticsChoice.shouldAsk(
             productAnalyticsEnabled: account.settings.productAnalyticsEnabled,
@@ -384,12 +389,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
         // The upgrade from 2.58.0 deletes its Realm user, so until the next
         // sign-in the session restored at launch stands in for it.
-        let keepsSession = realm.objects(User.self).first != nil || (isRestoredSession && PutioRealm.isUpgradingFromShipped258())
+        let cachedUserID = realm.objects(User.self).first?.id
+        let keepsSession = cachedUserID != nil || (isRestoredSession && PutioRealm.isUpgradingFromShipped258())
 
         switch error.localizerType {
         case .decodingError, .unknownError, .networkError:
             if keepsSession {
-                return self.presentCachedMainScreen()
+                return self.presentCachedMainScreen(cachedUserID: cachedUserID)
             }
 
             self.presentLoginScreen(afterBootstrapFailure: "account fetch failed: \(error.localizerType)")
@@ -401,7 +407,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
 
             if keepsSession {
-                return self.presentCachedMainScreen()
+                return self.presentCachedMainScreen(cachedUserID: cachedUserID)
             }
 
             return self.presentLoginScreen(afterBootstrapFailure: "account fetch failed with HTTP \(statusCode)")
@@ -466,6 +472,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 return self.fetchUserSuccess(account: account, config: config)
             }
             self.cachedShellAwaitsSession = false
+            PutioKeychain.sharedInstance.setTokenOwner(accountID: account.id)
             if DownloadQueueLifecyclePolicy.shouldStartQueue(
                 requested: true,
                 isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled
@@ -515,7 +522,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     /// Only a fresh account and config can ask about product analytics; the
     /// cached shell after a failed load never does.
-    private func presentCachedMainScreen() {
+    private func presentCachedMainScreen(cachedUserID: Int?) {
+        if DownloadQueueLifecyclePolicy.cachedLaunchKnowsAccount(
+            tokenOwnerID: PutioKeychain.sharedInstance.tokenOwnerID,
+            cachedUserID: cachedUserID
+        ) {
+            return presentMainScreen()
+        }
         presentMainScreen(startDownloadQueue: false)
         cachedShellAwaitsSession = true
     }

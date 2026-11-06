@@ -18,6 +18,27 @@ final class PutioKeychainTests: XCTestCase {
         XCTAssertNil(keychain.getToken())
     }
 
+    func testTokenOwnerBelongsOnlyToTheTokenItWasSavedWith() {
+        let keychain = PutioKeychain(serviceKey: "com.putio.tests.keychain.\(UUID().uuidString)", legacyServiceKey: nil)
+        addTeardownBlock { keychain.clearToken() }
+
+        keychain.setTokenOwner(accountID: 1)
+        XCTAssertNil(keychain.tokenOwnerID)
+
+        keychain.setToken("token-a")
+        keychain.setTokenOwner(accountID: 1)
+        keychain.setToken("token-a")
+        XCTAssertEqual(keychain.tokenOwnerID, 1)
+
+        keychain.setToken("token-b")
+        XCTAssertNil(keychain.tokenOwnerID)
+
+        keychain.setTokenOwner(accountID: 2)
+        keychain.clearToken()
+        keychain.setToken("token-b")
+        XCTAssertNil(keychain.tokenOwnerID)
+    }
+
     // 2.58.0 wrote the token under its own literal service, not this build's.
     func testShipped258TokenMovesToTheCurrentService() {
         let serviceKey = "com.putio.tests.keychain.\(UUID().uuidString)"
