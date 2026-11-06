@@ -48,7 +48,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     // A session restored at launch, not a fresh sign-in, which may be another
     // account than the one that left 2.58.0's downloads.
     private var isRestoredSession = false
-    private var cachedShellAwaitsSession = false
     static var isRunningUnitTests: Bool {
         let environment = ProcessInfo.processInfo.environment
         return [
@@ -112,12 +111,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             self,
             selector: #selector(capContentSizeCategory),
             name: UIContentSizeCategory.didChangeNotification,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(confirmCachedSessionOnReconnect),
-            name: NetworkReachability.NOTIFICATION,
             object: nil
         )
         applyWindowAppearance()
@@ -260,27 +253,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     func fetchUser() {
         let signpost = PerfSignpost.begin("FetchUser")
-        loadSession { result in
-            PerfSignpost.end(signpost)
-            switch result {
-            case .success(let (account, config)):
-                self.fetchUserSuccess(account: account, config: config)
-            case .failure(let error):
-                switch error.type {
-                case .decodingError, .unknownError:
-                    SentryTelemetry.capture(.sessionLoad, error: error)
-                default:
-                    break
-                }
-                self.fetchUserFailure(error: error)
-            }
-        }
-    }
-
-    private func loadSession(
-        appliesAccountSettings: Bool = true,
-        _ completion: @escaping (Result<(PutioAccount, AppConfig), PutioSDKError>) -> Void
-    ) {
         let dispatchGroup = DispatchGroup()
         
         var account: PutioAccount?
@@ -300,7 +272,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             switch result {
             case .success(let accountData):
                 account = accountData
-                guard appliesAccountSettings else { break }
                 // Not behind /config: an opt-out applies as soon as the account
                 // answers, and a /config failure still opens the cached main screen.
                 SentryTelemetry.update(diagnosticsEnabled: accountData.settings.diagnosticsEnabled)
@@ -324,16 +295,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
         
         dispatchGroup.notify(queue: .main) {
-            if let accountError = accountError {
-                return completion(.failure(accountError))
-            }
+            PerfSignpost.end(signpost)
 
-            if let configError = configError {
-                return completion(.failure(configError))
+            if let error = accountError ?? configError {
+                switch error.type {
+                case .decodingError, .unknownError:
+                    SentryTelemetry.capture(.sessionLoad, error: error)
+                default:
+                    break
+                }
+                return self.fetchUserFailure(error: error)
             }
-
+            
             if let account = account, let config = config {
-                return completion(.success((account, config)))
+                return self.fetchUserSuccess(account: account, config: config)
             }
         }
     }
@@ -391,11 +366,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // sign-in the session restored at launch stands in for it.
         let cachedUserID = realm.objects(User.self).first?.id
         let keepsSession = cachedUserID != nil || (isRestoredSession && PutioRealm.isUpgradingFromShipped258())
+        let startsDownloadQueue = DownloadQueueLifecyclePolicy.cachedLaunchKnowsAccount(
+            tokenOwnerID: PutioKeychain.sharedInstance.tokenOwnerID,
+            cachedUserID: cachedUserID
+        )
 
         switch error.localizerType {
         case .decodingError, .unknownError, .networkError:
             if keepsSession {
-                return self.presentCachedMainScreen(cachedUserID: cachedUserID)
+                return self.presentMainScreen(startDownloadQueue: startsDownloadQueue)
             }
 
             self.presentLoginScreen(afterBootstrapFailure: "account fetch failed: \(error.localizerType)")
@@ -407,7 +386,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
 
             if keepsSession {
-                return self.presentCachedMainScreen(cachedUserID: cachedUserID)
+                return self.presentMainScreen(startDownloadQueue: startsDownloadQueue)
             }
 
             return self.presentLoginScreen(afterBootstrapFailure: "account fetch failed with HTTP \(statusCode)")
@@ -421,9 +400,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     // rejected token keep the last notice, so going offline does not hide it.
     func refreshAccountStatus() {
         guard let signedInRoot = window?.rootViewController as? RootContainerViewController else { return }
-        if cachedShellAwaitsSession {
-            confirmCachedSession(for: signedInRoot)
-        }
         let savesBeforeRead = SettingsViewModel.confirmedSaves
         SettingsViewModel.accountRefreshes += 1
         let refresh = SettingsViewModel.accountRefreshes
@@ -450,34 +426,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 } else {
                     ProductAnalytics.keepAnswer()
                 }
-            }
-        }
-    }
-
-    @objc private func confirmCachedSessionOnReconnect() {
-        guard cachedShellAwaitsSession,
-              NetworkReachability.sharedInstance.getIsReachable(),
-              let signedInRoot = window?.rootViewController as? RootContainerViewController else { return }
-        confirmCachedSession(for: signedInRoot)
-    }
-
-    private func confirmCachedSession(for signedInRoot: RootContainerViewController) {
-        loadSession(appliesAccountSettings: false) { [weak signedInRoot] result in
-            guard let signedInRoot,
-                  self.window?.rootViewController === signedInRoot,
-                  self.cachedShellAwaitsSession,
-                  case .success(let (account, config)) = result else { return }
-            let cachedAccountID = PutioRealm.open(context: "confirmCachedSession")?.objects(User.self).first?.id
-            guard cachedAccountID == account.id else {
-                return self.fetchUserSuccess(account: account, config: config)
-            }
-            self.cachedShellAwaitsSession = false
-            PutioKeychain.sharedInstance.setTokenOwner(accountID: account.id)
-            if DownloadQueueLifecyclePolicy.shouldStartQueue(
-                requested: true,
-                isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled
-            ) {
-                DownloadQueueController.sharedInstance.start()
             }
         }
     }
@@ -522,19 +470,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     /// Only a fresh account and config can ask about product analytics; the
     /// cached shell after a failed load never does.
-    private func presentCachedMainScreen(cachedUserID: Int?) {
-        if DownloadQueueLifecyclePolicy.cachedLaunchKnowsAccount(
-            tokenOwnerID: PutioKeychain.sharedInstance.tokenOwnerID,
-            cachedUserID: cachedUserID
-        ) {
-            return presentMainScreen()
-        }
-        presentMainScreen(startDownloadQueue: false)
-        cachedShellAwaitsSession = true
-    }
-
     func presentMainScreen(startDownloadQueue: Bool = true, asksProductAnalytics: Bool = false) {
-        cachedShellAwaitsSession = false
         if DownloadQueueLifecyclePolicy.shouldStartQueue(
             requested: startDownloadQueue,
             isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled
