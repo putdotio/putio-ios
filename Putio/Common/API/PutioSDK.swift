@@ -72,6 +72,12 @@ extension PutioSDK {
     /// not the narrower `User.downloadToken` the SDK's `downloadToken:` asks for.
     var mediaToken: String { config.token }
 
+    func audioStreamURL(fileID: Int) -> URL? {
+        var components = URLComponents(string: "\(config.baseURL)/files/\(fileID)/stream")
+        components?.queryItems = [URLQueryItem(name: "oauth_token", value: mediaToken)]
+        return components?.url
+    }
+
     private func complete<T>(
         _ completion: @escaping (Result<T, PutioSDKError>) -> Void,
         operation: @escaping () async throws -> T

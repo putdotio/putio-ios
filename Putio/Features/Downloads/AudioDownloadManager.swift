@@ -80,7 +80,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
             return
         }
         guard download.state == .starting else { return }
-        guard let url = DownloadSupport.url(from: download.url, context: "AudioDownloadManager.beginDownload") else {
+        guard let url = api.audioStreamURL(fileID: download.id) else {
             DownloadQueueController.sharedInstance.startFailed(id: id)
             return
         }
@@ -98,10 +98,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     func createDownload(from file: PutioFile) {
         guard file.type == .audio else { return }
 
-        let url = file.getAudioStreamURL(downloadToken: api.mediaToken).absoluteString
-        log.debug("ADM: createDownload url: \(url)")
-
-        guard let download = Download(file: file, url: url) else { return }
+        guard let download = Download(file: file, url: "") else { return }
         guard let realm = DownloadSupport.realm(context: "AudioDownloadManager.createDownload") else { return }
 
         let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.createDownload.write") {
@@ -346,9 +343,11 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
 
         let fileExtension = deriveFileExtensionFromResponse(response: downloadTask.response)
         let destinationPath = "putio_adm_\(String(download.id))_\(download.name.slugify()).\(fileExtension)"
-        guard let destinationURL = getAbsoluteURL(for: destinationPath) else { return }
-
-        if let error = DownloadSupport.copyDownloadedArtifact(from: location, to: destinationURL) {
+        if let error = DownloadSupport.saveDownloadedArtifact(
+            response: downloadTask.response,
+            from: location,
+            to: getAbsoluteURL(for: destinationPath)
+        ) {
             artifactSaveErrors[downloadTask] = error
             return
         }
