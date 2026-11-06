@@ -8,6 +8,7 @@ final class VideoConversionSessionTests: XCTestCase {
         let delay: TimeInterval
         let work: () -> Void
         var isCancelled = false
+        var hasFired = false
 
         init(delay: TimeInterval, work: @escaping () -> Void) {
             self.delay = delay
@@ -34,7 +35,7 @@ final class VideoConversionSessionTests: XCTestCase {
         )
 
         var pendingPolls: [ScheduledPoll] {
-            polls.filter { !$0.isCancelled }
+            polls.filter { !$0.isCancelled && !$0.hasFired }
         }
 
         func respondToStatus(_ status: PutioMp4Conversion.Status, percentDone: Float = 0.5) {
@@ -42,7 +43,9 @@ final class VideoConversionSessionTests: XCTestCase {
         }
 
         func firePoll() {
-            polls.last?.work()
+            guard let poll = polls.last else { return }
+            poll.hasFired = true
+            poll.work()
         }
     }
 
