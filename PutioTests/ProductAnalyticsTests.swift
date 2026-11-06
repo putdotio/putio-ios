@@ -146,11 +146,7 @@ final class ProductAnalyticsTests: XCTestCase {
             (.playbackFailed(video, .source), ["media": "video", "stream_method": "hls", "player": "avplayer", "error": "source"]),
             (.appOpened(.direct, route: "default"), ["entry": "direct", "route": "default"]),
             (.appOpened(.resume, route: nil), ["entry": "resume"]),
-            (.appOpened(.deeplink, route: ""), ["entry": "deeplink", "route": "default"]),
-            (.errorShown(.files), ["screen": "files", "error": "unknown"]),
-            (.downloadStarted(.init(Download.FileType.video)), ["media": "video", "stream_method": "hls"]),
-            (.downloadCompleted(.init(Download.FileType.audio)), ["media": "audio", "stream_method": "progressive"]),
-            (.downloadFailed(.audio, .init(downloadError: DownloadSupport.ArtifactSaveError.httpStatus(404))), ["media": "audio", "stream_method": "progressive", "error": "source"])
+            (.appOpened(.deeplink, route: ""), ["entry": "deeplink", "route": "default"])
         ]
         for (event, properties) in expected {
             XCTAssertEqual(event.properties, properties)

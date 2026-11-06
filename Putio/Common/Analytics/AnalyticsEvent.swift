@@ -103,9 +103,8 @@ enum AnalyticsEvent: Equatable {
         init(_ error: Error?) {
             if let error = error as? PutioSDKError {
                 switch error.type {
-                case .networkError, .httpError(0, _), .httpError(408, _): self = .network
-                case .httpError(402, _), .httpError(404, _), .httpError(429, _): self = .source
-                case .httpError(let status, _) where status >= 500: self = .network
+                case .networkError: self = .network
+                case .httpError(let status, _): self.init(httpStatus: status)
                 default: self = .unknown
                 }
                 return
@@ -119,6 +118,14 @@ enum AnalyticsEvent: Equatable {
             case NSURLErrorDomain?: self = .network
             case AVFoundationErrorDomain?, "CoreMediaErrorDomain"?: self = .media
             case kGCKErrorDomain?: self = error.map { Self(castCode: $0.code) } ?? .unknown
+            default: self = .unknown
+            }
+        }
+
+        init(httpStatus status: Int) {
+            switch status {
+            case 402, 404, 429: self = .source
+            case 0, 408, 500...: self = .network
             default: self = .unknown
             }
         }
@@ -198,31 +205,10 @@ enum AnalyticsEvent: Equatable {
     }
 }
 
-extension AnalyticsEvent.Media {
-    init(_ fileType: Download.FileType) {
-        switch fileType {
-        case .video: self = .video
-        case .audio: self = .audio
-        }
-    }
-
-    fileprivate var downloadProperties: [String: String] {
+private extension AnalyticsEvent.Media {
+    var downloadProperties: [String: String] {
         let streamMethod: AnalyticsEvent.StreamMethod = self == .video ? .hls : .progressive
         return ["media": rawValue, "stream_method": streamMethod.rawValue]
-    }
-}
-
-extension AnalyticsEvent.PlaybackError {
-    init(downloadError error: Error?) {
-        guard case .httpStatus(let status)? = error as? DownloadSupport.ArtifactSaveError else {
-            self.init(error)
-            return
-        }
-        switch status {
-        case 402, 404, 429: self = .source
-        case 0, 408, 500...: self = .network
-        default: self = .unknown
-        }
     }
 }
 
