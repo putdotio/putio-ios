@@ -31,6 +31,12 @@ final class PlaybackSmokeUITests: XCTestCase {
             XCTAssertTrue(alert.waitForExistence(timeout: 20), route)
             XCTAssertEqual(app.alerts.count, 1, route)
             XCTAssertTrue(alert.buttons["Retry"].exists, route)
+            if failRoutes == "GET /v2/config" {
+                let screenshot = XCTAttachment(screenshot: app.screenshot())
+                screenshot.name = "Failed session load"
+                screenshot.lifetime = .keepAlways
+                add(screenshot)
+            }
 
             alert.buttons["Retry"].tap()
             XCTAssertTrue(alert.waitForExistence(timeout: 20), route)
