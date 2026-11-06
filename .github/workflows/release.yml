@@ -47,7 +47,7 @@ jobs:
     needs: validate-ref
     runs-on: macos-latest
     environment: release
-    timeout-minutes: 90
+    timeout-minutes: 105
     outputs:
       build_number: ${{ steps.metadata.outputs.build_number }}
 
@@ -169,6 +169,14 @@ jobs:
           PUTIO_PRIMARY_APP_ICON: AppIcon
         run: ./scripts/archive-ios.sh "$PUTIO_RELEASE_VERSION" "$PUTIO_RELEASE_BUILD_NUMBER" "$PUTIO_RELEASE_IPA_PATH" "$PUTIO_RELEASE_DSYM_PATH"
 
+      - name: Keep the dSYMs
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dsyms-${{ env.PUTIO_RELEASE_VERSION }}-${{ env.PUTIO_RELEASE_BUILD_NUMBER }}
+          path: ${{ env.PUTIO_RELEASE_DSYM_PATH }}
+          if-no-files-found: error
+
       # Uploads, waits for processing, creates or finds the version and
       # attaches the build. Never submits: that is the Submit workflow.
       - name: Upload and attach the build
@@ -182,15 +190,6 @@ jobs:
           asc publish appstore --app 1260479699 --platform IOS --ipa "$PUTIO_RELEASE_IPA_PATH" \
             --version "$PUTIO_RELEASE_VERSION" --wait --timeout 60m --output markdown \
             | tee -a "$GITHUB_STEP_SUMMARY"
-
-      - name: Keep the dSYMs
-        if: ${{ !cancelled() && steps.archive.outcome == 'success' }}
-        continue-on-error: true
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: dsyms-${{ env.PUTIO_RELEASE_VERSION }}-${{ env.PUTIO_RELEASE_BUILD_NUMBER }}
-          path: ${{ env.PUTIO_RELEASE_DSYM_PATH }}
-          if-no-files-found: error
 
       - name: Upload dSYMs to Sentry
         if: ${{ !cancelled() && steps.archive.outcome == 'success' }}

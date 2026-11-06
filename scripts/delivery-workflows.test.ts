@@ -366,9 +366,6 @@ test("nothing runs fastlane or match: Beta and Release sign with asc and the rel
   }
 });
 
-// Stand-ins for xcodebuild and plutil: xcodebuild logs its arguments, writes
-// an app and a framework dSYM into the archive, keeps the export options it
-// was handed, and exports one ipa.
 const fakeXcodebuild = `#!/bin/bash
 echo "$*" >> "$XCODEBUILD_LOG"
 mode="\${@: -1}"
@@ -497,7 +494,7 @@ test("the dSYM upload sends the kept symbols to Sentry project ios and fails lou
   await mkdir(join(dir, "empty"));
   const upload = async (env: Record<string, string>, path = dsyms) => {
     await writeFile(join(dir, "sentry.log"), "");
-    const result = spawnSync("bash", [fileURLToPath(new URL("./upload-dsyms.sh", import.meta.url)), path], {
+    const result = spawnSync(fileURLToPath(new URL("./upload-dsyms.sh", import.meta.url)), [path], {
       encoding: "utf8",
       env: { PATH: `${dir}:${process.env.PATH}`, SENTRY_LOG: join(dir, "sentry.log"), SENTRY_AUTH_TOKEN: "synthetic", ...env },
     });
@@ -536,14 +533,14 @@ test("Beta and Release keep the archive's dSYMs and upload them without holding 
     const keep = at((step) => String(step.uses).startsWith("actions/upload-artifact@"));
     const sentry = at((step) => /scripts\/upload-dsyms\.sh/.test(String(step.run ?? "")));
     const cleanup = steps.length - 1;
-    assert.ok(archive >= 0 && archive < appStore && appStore < keep && keep < sentry && sentry < cleanup, `${name}: archive, App Store upload, keep, Sentry, cleanup`);
+    assert.ok(archive >= 0 && keep === archive + 1 && keep < appStore && appStore < sentry && sentry < cleanup, `${name}: archive, keep, App Store upload, Sentry, cleanup`);
 
     assert.equal(steps[archive]?.id, "archive", name);
     assert.match(String(steps[archive]?.run), new RegExp(`archive-ios\\.sh .*"\\$${dsymPath}"$`, "m"), `${name} archives its dSYMs to ${dsymPath}`);
     for (const step of [steps[keep], steps[sentry]]) {
       assert.equal(step?.["continue-on-error"], true, `${name} ${String(step?.name)} can't fail the delivery`);
-      assert.equal(step?.if, "${{ !cancelled() && steps.archive.outcome == 'success' }}", `${name} ${String(step?.name)} runs after a failed App Store upload`);
     }
+    assert.equal(steps[sentry]?.if, "${{ !cancelled() && steps.archive.outcome == 'success' }}", `${name} uploads to Sentry after a failed App Store upload`);
     assert.equal(recordAt(steps[keep] ?? {}, "with", name).path, `\${{ env.${dsymPath} }}`);
     assert.equal(recordAt(steps[keep] ?? {}, "with", name)["if-no-files-found"], "error");
     const env = recordAt(steps[sentry] ?? {}, "env", name);
