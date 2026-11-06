@@ -123,6 +123,7 @@ extension FilesViewController {
                     let newName = renameAlert.textFields?.first?.text ?? file.name
                     api.renameFile(fileID: file.id, name: newName) { _ in }
                     file.name = newName
+                    self.viewModel.files.first { $0.id == file.id }?.name = newName
                     self.tableView.reloadData()
                 })
 
