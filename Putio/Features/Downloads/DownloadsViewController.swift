@@ -11,20 +11,20 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
     var bulkDeleteButton: UIBarButtonItem?
     var selectionState = DownloadsSelectionState()
     var isDeletingSelectedDownloads = false
-    var deleteDownload: (Int, Download.FileType) -> Bool = { id, fileType in
+    var deleteDownload: DownloadOperation = { id, fileType, completion in
         switch fileType {
         case .video:
-            return VideoDownloadManager.sharedInstance.deleteDownload(id: id)
+            VideoDownloadManager.sharedInstance.deleteDownload(id: id, completion: completion)
         case .audio:
-            return AudioDownloadManager.sharedInstance.deleteDownload(id: id)
+            AudioDownloadManager.sharedInstance.deleteDownload(id: id, completion: completion)
         }
     }
-    var removeDownloadRecord: (Int, Download.FileType) -> Bool = { id, fileType in
+    var removeDownloadRecord: DownloadOperation = { id, fileType, completion in
         switch fileType {
         case .video:
-            return VideoDownloadManager.sharedInstance.removeDownloadRecord(id: id)
+            completion(VideoDownloadManager.sharedInstance.removeDownloadRecord(id: id))
         case .audio:
-            return AudioDownloadManager.sharedInstance.removeDownloadRecord(id: id)
+            completion(AudioDownloadManager.sharedInstance.removeDownloadRecord(id: id))
         }
     }
 

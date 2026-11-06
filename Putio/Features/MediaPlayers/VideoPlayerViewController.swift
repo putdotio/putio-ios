@@ -300,7 +300,7 @@ class VideoPlayerViewController: AVPlayerViewController {
     @objc private func handlePlaybackFailed(_ notification: Notification) {
         guard isNotificationForCurrentPlayerItem(notification) else { return }
         persistPlaybackPosition(shouldSyncRemoteInBackground: true)
-        playbackAnalytics?.fail(notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)
+        playbackAnalytics?.failedToPlayToEnd(notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)
     }
 
     @objc private func handlePlaybackEnded(_ notification: Notification) {

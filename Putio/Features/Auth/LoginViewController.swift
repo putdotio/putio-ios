@@ -2,9 +2,22 @@ import UIKit
 import PutioSDK
 import AuthenticationServices
 
+final class WebAuthAutoStart {
+    static let shared = WebAuthAutoStart()
+
+    private var isSpent = false
+
+    func claim(failure: LoginFailure?, isMockAPIEnabled: Bool) -> Bool {
+        defer { isSpent = true }
+        return !isSpent && failure == nil && !isMockAPIEnabled
+    }
+}
+
 class LoginViewController: UIViewController, UITextFieldDelegate {
     var session: ASWebAuthenticationSession?
     var currentOAuthState: String?
+    var failure: LoginFailure?
+    var webAuthAutoStart = WebAuthAutoStart.shared
 
     @IBOutlet weak var loginButton: UIButton!
     
@@ -19,15 +32,56 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
         }
     }
     
+    func retrySessionLoad() {
+        loginButton?.isEnabled = false
+        if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
+            appDelegate.retrySessionLoad()
+        }
+    }
+
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+
+        let failure = failure
+        self.failure = nil
 
         // Web auth cannot complete against the mocked API, and its system
         // consent alert would sit above the whole simulator until dismissed,
         // stranding any test that landed here. Tapping "Log in" still starts it.
-        guard PutioE2EEnvironment.isMockAPIEnabled == false else { return }
+        if webAuthAutoStart.claim(failure: failure, isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled) {
+            return startWebAuthFlow()
+        }
 
-        startWebAuthFlow()
+        if let failure {
+            presentFailure(failure)
+        }
+    }
+
+    func presentFailure(_ failure: LoginFailure) {
+        let alertController: UIAlertController
+        switch failure {
+        case .sessionExpired:
+            alertController = UIAlertController(
+                title: NSLocalizedString("Session expired", comment: ""),
+                message: NSLocalizedString("Log in again to continue.", comment: ""),
+                preferredStyle: .alert
+            )
+            alertController.addAction(UIAlertAction(title: NSLocalizedString("Log in", comment: ""), style: .default) { [weak self] _ in
+                self?.startWebAuthFlow()
+            })
+        case .sessionLoad:
+            alertController = UIAlertController(
+                title: NSLocalizedString("Couldn't load your account", comment: ""),
+                message: NSLocalizedString("Try again in a moment.", comment: ""),
+                preferredStyle: .alert
+            )
+            alertController.addAction(UIAlertAction(title: NSLocalizedString("Retry", comment: ""), style: .default) { [weak self] _ in
+                self?.retrySessionLoad()
+            })
+        }
+        alertController.preferredAction = alertController.actions.first
+        alertController.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel, handler: nil))
+        present(alertController, animated: true, completion: nil)
     }
 
     @IBAction func loginButtonPressed(_ sender: Any) {
@@ -51,6 +105,11 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
     }
 
     func handleWebAuthResult(callbackURL: URL?, error: Error?) {
+        if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin {
+            currentOAuthState = nil
+            return
+        }
+
         if let error = error {
             return handleWebAuthCallbackFailure(error: error)
         }
