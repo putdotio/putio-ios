@@ -60,7 +60,7 @@ enum SentryTelemetry {
         ]
 
         init?(_ exception: Exception) {
-            guard Self.exceptionTypes.contains(exception.type),
+            guard let type = exception.type, Self.exceptionTypes.contains(type),
                   exception.mechanism?.handled?.boolValue == false
             else { return nil }
             let reason = exception.value ?? ""
