@@ -271,7 +271,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
 
     func fetchUser(token: String) {
-        let signpost = PerfSignpost.begin("FetchUser")
+        let signpost = PerfSignpost.begin(.fetchUser)
         let dispatchGroup = DispatchGroup()
         
         var account: PutioAccount?
@@ -314,8 +314,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
         
         dispatchGroup.notify(queue: .main) {
-            PerfSignpost.end(signpost)
-            guard api.mediaToken == token else { return }
+            guard api.mediaToken == token else {
+                PerfSignpost.end(signpost, outcome: .cancelled)
+                return
+            }
+            PerfSignpost.end(signpost, outcome: (accountError ?? configError) == nil ? .succeeded : .failed)
 
             if let error = accountError ?? configError {
                 let failures: [(PutioSDKError?, SentryTelemetry.Endpoint)] = [(accountError, .accountInfo), (configError, .config)]

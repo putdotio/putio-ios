@@ -19,6 +19,14 @@ class VideoPlayerViewController: AVPlayerViewController {
     private var hasStoppedPlayback = false
     private var hasDisposedPlayer = false
     private var playbackAnalytics: PlaybackAnalytics?
+    private var playbackStartSignpost: PerfSignpost.Interval?
+
+    override var player: AVPlayer? {
+        didSet {
+            guard player != nil, playbackStartSignpost == nil, !hasDisposedPlayer else { return }
+            playbackStartSignpost = PerfSignpost.begin(.playbackStart)
+        }
+    }
 
     override var prefersStatusBarHidden: Bool {
         return true
@@ -216,6 +224,7 @@ class VideoPlayerViewController: AVPlayerViewController {
         }
 
         unregisterPlayerTimeObserver()
+        endPlaybackStartSignpost(.cancelled)
         player?.pause()
         onPlaybackStoppedIfNeeded()
         playbackAnalytics?.close()
@@ -253,11 +262,23 @@ class VideoPlayerViewController: AVPlayerViewController {
                     ? "ready"
                     : (playerItem.status == .failed ? "failed" : "loading")
                 self?.view.accessibilityValue = accessibilityValue
-                if playerItem.status == .failed {
+                switch playerItem.status {
+                case .readyToPlay:
+                    self?.endPlaybackStartSignpost(.succeeded)
+                case .failed:
+                    self?.endPlaybackStartSignpost(.failed)
                     self?.playbackAnalytics?.fail(playerItem.error)
+                default:
+                    break
                 }
             }
         }
+    }
+
+    private func endPlaybackStartSignpost(_ outcome: SentryTelemetry.Outcome) {
+        guard let signpost = playbackStartSignpost else { return }
+        playbackStartSignpost = nil
+        PerfSignpost.end(signpost, outcome: outcome)
     }
 
     private func registerLifecycleObservers() {
