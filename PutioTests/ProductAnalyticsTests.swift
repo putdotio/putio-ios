@@ -131,7 +131,15 @@ final class ProductAnalyticsTests: XCTestCase {
             (.playbackFailed(video, .source), ["media": "video", "stream_method": "hls", "player": "avplayer", "error": "source"]),
             (.appOpened(.direct, route: "default"), ["entry": "direct", "route": "default"]),
             (.appOpened(.resume, route: nil), ["entry": "resume"]),
-            (.appOpened(.deeplink, route: ""), ["entry": "deeplink", "route": "default"])
+            (.appOpened(.deeplink, route: ""), ["entry": "deeplink", "route": "default"]),
+            (.errorShown(.files), ["screen": "files", "error": "unknown"]),
+            (.errorShown(.account), ["screen": "account", "error": "unknown"]),
+            (.downloadStarted(.video), ["media": "video", "stream_method": "hls"]),
+            (.downloadStarted(.audio), ["media": "audio", "stream_method": "progressive"]),
+            (.downloadCompleted(.video), ["media": "video", "stream_method": "hls"]),
+            (.downloadCompleted(.audio), ["media": "audio", "stream_method": "progressive"]),
+            (.downloadFailed(.video, .network), ["media": "video", "stream_method": "hls", "error": "network"]),
+            (.downloadFailed(.audio, .source), ["media": "audio", "stream_method": "progressive", "error": "source"])
         ]
         for (event, properties) in expected {
             XCTAssertEqual(event.properties, properties)
@@ -147,6 +155,12 @@ final class ProductAnalyticsTests: XCTestCase {
             )
             XCTAssertEqual(AnalyticsEvent.PlaybackError(failure).rawValue, error, "\(status)")
         }
+        for (status, error) in [(404, "source"), (402, "source"), (429, "source"), (503, "network"), (408, "network"), (403, "unknown")] {
+            let failure = DownloadSupport.ArtifactSaveError.httpStatus(status)
+            XCTAssertEqual(AnalyticsEvent.PlaybackError(downloadError: failure).rawValue, error, "\(status)")
+        }
+        XCTAssertEqual(AnalyticsEvent.PlaybackError(downloadError: DownloadSupport.ArtifactSaveError.unresolvedDestination), .unknown)
+        XCTAssertEqual(AnalyticsEvent.PlaybackError(downloadError: URLError(.networkConnectionLost)), .network)
     }
 
     func testBeforeSendStripsWhatTheSDKAndCallersAddOnTheWire() throws {
@@ -618,6 +632,11 @@ final class ProductAnalyticsTests: XCTestCase {
         events += AnalyticsEvent.Entry.allCases.map { AnalyticsEvent.appOpened($0, route: "") }
         events += AnalyticsEvent.SessionDuration.allCases.map(AnalyticsEvent.appBackgrounded)
         events += AnalyticsEvent.Screen.allCases.map(AnalyticsEvent.screenViewed)
+        events += AnalyticsEvent.Screen.allCases.map(AnalyticsEvent.errorShown)
+        for media in AnalyticsEvent.Media.allCases {
+            events += [.downloadStarted(media), .downloadCompleted(media)]
+            events += AnalyticsEvent.PlaybackError.allCases.map { AnalyticsEvent.downloadFailed(media, $0) }
+        }
         for setting in AnalyticsEvent.Setting.allCases {
             events += AnalyticsEvent.SettingValue.allCases.map { AnalyticsEvent.settingsChanged(setting, $0) }
         }

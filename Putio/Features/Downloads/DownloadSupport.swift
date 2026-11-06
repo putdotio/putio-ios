@@ -298,3 +298,22 @@ enum DownloadSupport {
         }
     }
 }
+
+extension AnalyticsEvent.Media {
+    init(_ fileType: Download.FileType) {
+        switch fileType {
+        case .video: self = .video
+        case .audio: self = .audio
+        }
+    }
+}
+
+extension AnalyticsEvent.PlaybackError {
+    init(downloadError error: Error?) {
+        if case .httpStatus(let status)? = error as? DownloadSupport.ArtifactSaveError {
+            self.init(httpStatus: status)
+        } else {
+            self.init(error)
+        }
+    }
+}

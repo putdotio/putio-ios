@@ -103,9 +103,8 @@ enum AnalyticsEvent: Equatable {
         init(_ error: Error?) {
             if let error = error as? PutioSDKError {
                 switch error.type {
-                case .networkError, .httpError(0, _), .httpError(408, _): self = .network
-                case .httpError(402, _), .httpError(404, _), .httpError(429, _): self = .source
-                case .httpError(let status, _) where status >= 500: self = .network
+                case .networkError: self = .network
+                case .httpError(let status, _): self.init(httpStatus: status)
                 default: self = .unknown
                 }
                 return
@@ -119,6 +118,14 @@ enum AnalyticsEvent: Equatable {
             case NSURLErrorDomain?: self = .network
             case AVFoundationErrorDomain?, "CoreMediaErrorDomain"?: self = .media
             case kGCKErrorDomain?: self = error.map { Self(castCode: $0.code) } ?? .unknown
+            default: self = .unknown
+            }
+        }
+
+        init(httpStatus status: Int) {
+            switch status {
+            case 402, 404, 429: self = .source
+            case 0, 408, 500...: self = .network
             default: self = .unknown
             }
         }
@@ -147,6 +154,10 @@ enum AnalyticsEvent: Equatable {
     case playbackStarted(Playback)
     case playbackEnded(Playback, PlaybackDuration)
     case playbackFailed(Playback, PlaybackError)
+    case downloadStarted(Media)
+    case downloadCompleted(Media)
+    case downloadFailed(Media, PlaybackError)
+    case errorShown(Screen)
 
     var name: String {
         switch self {
@@ -158,6 +169,10 @@ enum AnalyticsEvent: Equatable {
         case .playbackStarted: return "playback_started"
         case .playbackEnded: return "playback_ended"
         case .playbackFailed: return "playback_failed"
+        case .downloadStarted: return "download_started"
+        case .downloadCompleted: return "download_completed"
+        case .downloadFailed: return "download_failed"
+        case .errorShown: return "error_shown"
         }
     }
 
@@ -180,7 +195,20 @@ enum AnalyticsEvent: Equatable {
             return playback.properties.merging(["duration": duration.rawValue]) { $1 }
         case .playbackFailed(let playback, let error):
             return playback.properties.merging(["error": error.rawValue]) { $1 }
+        case .downloadStarted(let media), .downloadCompleted(let media):
+            return media.downloadProperties
+        case .downloadFailed(let media, let error):
+            return media.downloadProperties.merging(["error": error.rawValue]) { $1 }
+        case .errorShown(let screen):
+            return ["screen": screen.rawValue, "error": "unknown"]
         }
+    }
+}
+
+private extension AnalyticsEvent.Media {
+    var downloadProperties: [String: String] {
+        let streamMethod: AnalyticsEvent.StreamMethod = self == .video ? .hls : .progressive
+        return ["media": rawValue, "stream_method": streamMethod.rawValue]
     }
 }
 
@@ -201,6 +229,11 @@ enum AnalyticsAllowlist {
         "player": ["avplayer", "chromecast"]
     ]
 
+    private static let download: [String: Set<String>] = [
+        "media": ["video", "audio"],
+        "stream_method": ["hls", "progressive"]
+    ]
+
     static let eventProperties: [String: [String: Set<String>]] = [
         "app_opened": ["entry": ["direct", "deeplink", "resume"]],
         "app_backgrounded": ["session_duration": ["lt_1m", "1m_5m", "5m_15m", "15m_60m", "gt_60m"]],
@@ -215,7 +248,11 @@ enum AnalyticsAllowlist {
         "support_started": [:],
         "playback_started": playback,
         "playback_ended": playback.merging(["duration": ["lt_5m", "5m_30m", "30m_90m", "gt_90m"]]) { $1 },
-        "playback_failed": playback.merging(["error": ["network", "media", "source", "unsupported", "unknown"]]) { $1 }
+        "playback_failed": playback.merging(["error": ["network", "media", "source", "unsupported", "unknown"]]) { $1 },
+        "download_started": download,
+        "download_completed": download,
+        "download_failed": download.merging(["error": ["network", "media", "source", "unsupported", "unknown"]]) { $1 },
+        "error_shown": ["screen": ["files", "account", "player"], "error": ["unknown"]]
     ]
 
     static let commonProperties: [String: Set<String>] = [
