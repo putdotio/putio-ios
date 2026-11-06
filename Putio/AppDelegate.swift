@@ -357,12 +357,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
         // The upgrade from 2.58.0 deletes its Realm user, so until the next
         // sign-in the session restored at launch stands in for it.
-        let keepsSession = realm.objects(User.self).first != nil || (isRestoredSession && PutioRealm.isUpgradingFromShipped258())
+        let hasCachedUser = realm.objects(User.self).first != nil
+        let keepsSession = hasCachedUser || (isRestoredSession && PutioRealm.isUpgradingFromShipped258())
 
         switch error.localizerType {
         case .decodingError, .unknownError, .networkError:
             if keepsSession {
-                return self.presentMainScreen(startDownloadQueue: false)
+                return self.presentMainScreen(startDownloadQueue: hasCachedUser)
             }
 
             self.presentLoginScreen(afterBootstrapFailure: "account fetch failed: \(error.localizerType)")
@@ -374,7 +375,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
 
             if keepsSession {
-                return self.presentMainScreen(startDownloadQueue: false)
+                return self.presentMainScreen(startDownloadQueue: hasCachedUser)
             }
 
             return self.presentLoginScreen(afterBootstrapFailure: "account fetch failed with HTTP \(statusCode)")
@@ -406,6 +407,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                     ProductAnalytics.keepAnswer()
                 }
                 AccountNoticeStore.shared.update(with: account)
+                self.startDownloadQueue(confirmedAccountID: account.id)
             case .failure(let error):
                 if case .httpError(let statusCode, let errorType) = error.type,
                    statusCode == 401 || errorType == "Unauthorized" {
@@ -416,6 +418,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 }
             }
         }
+    }
+
+    private func startDownloadQueue(confirmedAccountID accountID: Int) {
+        guard DownloadQueueLifecyclePolicy.shouldStartQueue(
+            requested: true,
+            isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled
+        ) else { return }
+        let cachedAccountID = PutioRealm.open(context: "startDownloadQueue")?.objects(User.self).first?.id
+        if DownloadQueueLifecyclePolicy.accountDidChange(previousID: cachedAccountID, currentID: accountID) {
+            DownloadQueueController.sharedInstance.clearDownloadsForAccountChange()
+        }
+        DownloadQueueController.sharedInstance.start()
     }
 
     func logout() {
