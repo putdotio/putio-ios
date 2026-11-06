@@ -103,10 +103,11 @@ enum DownloadSupport {
         }
     }
 
-    static func saveDownloadedArtifact(response: URLResponse?, from sourceURL: URL, to destinationURL: URL) -> Error? {
+    static func saveDownloadedArtifact(response: URLResponse?, from sourceURL: URL, to destinationURL: URL?) -> Error? {
         if let response = response as? HTTPURLResponse, !(200..<300).contains(response.statusCode) {
             return ArtifactSaveError.httpStatus(response.statusCode)
         }
+        guard let destinationURL else { return ArtifactSaveError.unresolvedDestination }
         return copyDownloadedArtifact(from: sourceURL, to: destinationURL)
     }
 

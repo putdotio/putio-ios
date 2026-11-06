@@ -72,12 +72,12 @@ extension DownloadedFilePresenter where Self: UIViewController {
             guard !download.isInvalidated else { return }
 
             switch result {
-            case .success(let file):
+            case .success:
                 switch download.fileType {
                 case .video:
                     VideoDownloadManager.sharedInstance.restartDownload(id: download.id)
                 case .audio:
-                    AudioDownloadManager.sharedInstance.restartDownload(file: file)
+                    AudioDownloadManager.sharedInstance.restartDownload(id: download.id)
                 }
 
             case .failure(let error):
