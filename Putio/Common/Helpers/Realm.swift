@@ -1,4 +1,5 @@
 import Foundation
+import os
 import PutioSDK
 import RealmSwift
 
@@ -39,8 +40,18 @@ class PutioRealm {
         }
     }
 
+    private static let reportedFailures = OSAllocatedUnfairLock(initialState: Set<String>())
+
     static func logFailure(_ context: String, error: Error) {
         log.error("[PutioRealm] \(context): \(error.localizedDescription)")
+    }
+
+    private static func report(_ failure: SentryTelemetry.Failure, context: String, error: Error) {
+        logFailure(context, error: error)
+        guard SentryTelemetry.isCapturing,
+              reportedFailures.withLock({ $0.insert("\(failure.rawValue):\(context)").inserted })
+        else { return }
+        SentryTelemetry.capture(failure, error: error, context: context)
     }
 
     static func configuration(fileURL: URL? = nil, defaults: UserDefaults = .standard) -> Realm.Configuration {
@@ -62,7 +73,7 @@ class PutioRealm {
         do {
             return try Realm(configuration: resolvedConfiguration)
         } catch {
-            logFailure(context, error: error)
+            report(.realmOpen, context: context, error: error)
             return nil
         }
     }
@@ -73,7 +84,7 @@ class PutioRealm {
             try realm.write(updates)
             return true
         } catch {
-            logFailure(context, error: error)
+            report(.realmWrite, context: context, error: error)
             return false
         }
     }
