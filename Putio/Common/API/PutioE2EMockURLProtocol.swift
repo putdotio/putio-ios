@@ -578,8 +578,10 @@ private enum PutioE2EMockAPI {
     }
     """
 
-    private static let mp4StatusValue = ["IN_QUEUE", "CONVERTING", "COMPLETED", "ERROR", "NOT_AVAILABLE"]
-        .first { $0 == ProcessInfo.processInfo.environment["PUTIO_E2E_MP4_STATUS"] } ?? "COMPLETED"
+    private static let mp4StatusValue: String = {
+        let requested = ProcessInfo.processInfo.environment["PUTIO_E2E_MP4_STATUS"] ?? ""
+        return ["IN_QUEUE", "CONVERTING", "COMPLETED", "ERROR", "NOT_AVAILABLE"].contains(requested) ? requested : "COMPLETED"
+    }()
 
     private static let mp4Status = """
     {
