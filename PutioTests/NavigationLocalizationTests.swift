@@ -231,14 +231,67 @@ final class NavigationLocalizationTests: XCTestCase {
             DownloadDeletionItem(id: 13, name: "Third", fileType: .video)
         ]
         var attemptedIDs = [Int]()
+        var failures: [DownloadDeletionItem]?
 
-        let failures = DownloadsBulkDeletion.failures(deleting: items) { id, _ in
-            attemptedIDs.append(id)
-            return id != 12
-        }
+        DownloadsBulkDeletion.failures(
+            deleting: items,
+            with: { id, _, completion in
+                attemptedIDs.append(id)
+                completion(id != 12)
+            },
+            completion: { failures = $0 }
+        )
 
         XCTAssertEqual(attemptedIDs, [11, 12, 13])
         XCTAssertEqual(failures, [items[1]])
+    }
+
+    func testFinishedDownloadDeletionRunsDiskWorkOffMainAndCompletesOnMain() {
+        let finished = expectation(description: "deletion finished")
+        var diskWorkRanOnMain = [Bool]()
+        var deletedLocalFile = false
+
+        DownloadSupport.performDeletion(
+            state: .completed,
+            cancelActiveDownload: { XCTFail("Completed downloads do not need cancellation") },
+            deleteLocalFile: {
+                diskWorkRanOnMain.append(Thread.isMainThread)
+                return .removed
+            },
+            deleteRecord: {
+                diskWorkRanOnMain.append(Thread.isMainThread)
+                return true
+            },
+            localFileDeletionDidSucceed: { deletedLocalFile = true },
+            workQueue: DownloadSupport.deletionQueue
+        ) { didDelete in
+            XCTAssertTrue(Thread.isMainThread)
+            XCTAssertTrue(didDelete)
+            finished.fulfill()
+        }
+
+        wait(for: [finished], timeout: 5)
+        XCTAssertEqual(diskWorkRanOnMain, [false, false])
+        XCTAssertTrue(deletedLocalFile)
+    }
+
+    func testActiveDownloadDeletionCancelsOnMainBeforeReturning() {
+        var cancelledOnMain: Bool?
+        var didDelete: Bool?
+
+        DownloadSupport.performDeletion(
+            state: .active,
+            cancelActiveDownload: { cancelledOnMain = Thread.isMainThread },
+            deleteLocalFile: {
+                XCTFail("Active downloads cancel instead of deleting a local file")
+                return .removed
+            },
+            deleteRecord: { true },
+            workQueue: DownloadSupport.deletionQueue
+        ) { didDelete = $0 }
+
+        XCTAssertEqual(cancelledOnMain, true)
+        XCTAssertEqual(didDelete, true)
     }
 
     func testDownloadsFailureSummaryCapsNamedItems() {

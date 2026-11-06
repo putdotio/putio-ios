@@ -37,6 +37,8 @@ struct DownloadsSelectionState {
     }
 }
 
+typealias DownloadOperation = (Int, Download.FileType, @escaping (Bool) -> Void) -> Void
+
 struct DownloadDeletionItem: Equatable {
     let id: Int
     let name: String
@@ -48,9 +50,18 @@ enum DownloadsBulkDeletion {
 
     static func failures(
         deleting items: [DownloadDeletionItem],
-        with delete: (Int, Download.FileType) -> Bool
-    ) -> [DownloadDeletionItem] {
-        items.filter { !delete($0.id, $0.fileType) }
+        with operation: @escaping DownloadOperation,
+        completion: @escaping ([DownloadDeletionItem]) -> Void
+    ) {
+        func attempt(from index: Int, failures: [DownloadDeletionItem]) {
+            guard items.indices.contains(index) else { return completion(failures) }
+            let item = items[index]
+            operation(item.id, item.fileType) { didSucceed in
+                attempt(from: index + 1, failures: didSucceed ? failures : failures + [item])
+            }
+        }
+
+        attempt(from: 0, failures: [])
     }
 
     static func failureNamesSummary(_ failures: [DownloadDeletionItem]) -> String {

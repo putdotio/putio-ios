@@ -172,6 +172,38 @@ enum DownloadSupport {
         return true
     }
 
+    static let deletionQueue = DispatchQueue(label: "com.putio.downloads.deletion", qos: .userInitiated)
+
+    static func performDeletion(
+        state: Download.State?,
+        cancelActiveDownload: @escaping () -> Void,
+        deleteLocalFile: @escaping () -> LocalFileDeletionResult,
+        deleteRecord: @escaping () -> Bool,
+        localFileDeletionDidSucceed: @escaping () -> Void = {},
+        workQueue: DispatchQueue?,
+        completion: @escaping (Bool) -> Void
+    ) {
+        let delete = {
+            performDeletion(
+                state: state,
+                cancelActiveDownload: cancelActiveDownload,
+                deleteLocalFile: deleteLocalFile,
+                deleteRecord: deleteRecord,
+                localFileDeletionDidSucceed: localFileDeletionDidSucceed
+            )
+        }
+
+        switch (state, workQueue) {
+        case (.completed, let workQueue?), (.failed, let workQueue?), (.stopped, let workQueue?):
+            workQueue.async {
+                let didDelete = autoreleasepool(invoking: delete)
+                DispatchQueue.main.async { completion(didDelete) }
+            }
+        default:
+            completion(delete())
+        }
+    }
+
     static func enqueueCompletedDownloadNotification(for downloadName: String) {
         let notificationContent = UNMutableNotificationContent()
         notificationContent.title = NSLocalizedString("Download Completed!", comment: "")

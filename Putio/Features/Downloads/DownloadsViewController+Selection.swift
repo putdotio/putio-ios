@@ -267,7 +267,7 @@ extension DownloadsViewController {
 
     private func performDownloadOperation(
         _ items: [DownloadDeletionItem],
-        with operation: @escaping (Int, Download.FileType) -> Bool
+        with operation: @escaping DownloadOperation
     ) {
         guard !items.isEmpty, !isDeletingSelectedDownloads else { return }
 
@@ -278,13 +278,8 @@ extension DownloadsViewController {
         bulkDeleteButton?.title = NSLocalizedString("Deleting...", comment: "")
         updateSelectionUI()
 
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let failures = DownloadsBulkDeletion.failures(deleting: items, with: operation)
-
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.finishDownloadOperation(failures: failures)
-            }
+        DownloadsBulkDeletion.failures(deleting: items, with: operation) { [weak self] failures in
+            self?.finishDownloadOperation(failures: failures)
         }
     }
 

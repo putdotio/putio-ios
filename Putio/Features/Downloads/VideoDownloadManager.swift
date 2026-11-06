@@ -173,11 +173,20 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 
     @discardableResult
     func deleteDownload(id: Int) -> Bool {
-        log.verbose(["VDM: deleteDownload", id])
-        let download = getDownloadFromDatabase(id: id)
+        var didDelete = false
+        deleteDownload(id: id, workQueue: nil) { didDelete = $0 }
+        return didDelete
+    }
 
-        let didDelete = DownloadSupport.performDeletion(
-            state: download?.state,
+    func deleteDownload(id: Int, completion: @escaping (Bool) -> Void) {
+        deleteDownload(id: id, workQueue: DownloadSupport.deletionQueue, completion: completion)
+    }
+
+    private func deleteDownload(id: Int, workQueue: DispatchQueue?, completion: @escaping (Bool) -> Void) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        log.verbose(["VDM: deleteDownload", id])
+        DownloadSupport.performDeletion(
+            state: getDownloadFromDatabase(id: id)?.state,
             cancelActiveDownload: { self.cancelDownload(id: id) },
             deleteLocalFile: { self.deleteLocalFile(for: id) },
             deleteRecord: {
@@ -188,17 +197,20 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
             },
             localFileDeletionDidSucceed: {
                 UserDefaults.standard.removeObject(forKey: String(id))
+            },
+            workQueue: workQueue
+        ) { didDelete in
+            if didDelete {
+                self.discardDownload(id: id)
+                DownloadQueueController.sharedInstance.managerDidFinish()
             }
-        )
-        if didDelete {
-            discardDownload(id: id)
-            DownloadQueueController.sharedInstance.managerDidFinish()
+            completion(didDelete)
         }
-        return didDelete
     }
 
     @discardableResult
     func removeDownloadRecord(id: Int) -> Bool {
+        dispatchPrecondition(condition: .onQueue(.main))
         guard DownloadSupport.deleteRecord(
             id: id,
             context: "VideoDownloadManager.removeDownloadRecord"
@@ -256,6 +268,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func discardDownload(id: Int) {
+        dispatchPrecondition(condition: .onQueue(.main))
         startAttempts.removeValue(forKey: id)
         lastProgressUpdateTime.removeValue(forKey: id)
         let task = withActiveDownloadsMap { map -> AVAssetDownloadTask? in
