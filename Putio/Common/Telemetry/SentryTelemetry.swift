@@ -35,12 +35,12 @@ enum SentryTelemetry {
         case posix = "NSPOSIXErrorDomain"
         case cocoa = "NSCocoaErrorDomain"
         case googleCast = "com.google.cast.GCKError"
-        case none
+        case missing = "none"
         case other
 
         init(_ error: NSError?) {
             guard let error else {
-                self = .none
+                self = .missing
                 return
             }
             self = Self(rawValue: error.domain) ?? .other

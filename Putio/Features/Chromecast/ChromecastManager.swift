@@ -25,7 +25,7 @@ class ChromecastManager: NSObject {
     var timer: Timer?
     /// The load the receiver has yet to answer; its answer sends the start or the failure.
     private var pendingLoad: (request: GCKRequest, playback: AnalyticsEvent.Playback, session: Int)?
-    private var playingLoad: (mediaSessionID: Int, playback: AnalyticsEvent.Playback, session: Int, startedAt: Date)?
+    private var playingLoad: (mediaSessionID: Int?, playback: AnalyticsEvent.Playback, session: Int, startedAt: Date)?
 
     var debug: Bool = false
 
@@ -299,11 +299,13 @@ class ChromecastManager: NSObject {
 extension ChromecastManager: GCKSessionManagerListener {
     func sessionManager(_ sessionManager: GCKSessionManager, didEnd session: GCKSession, withError error: Error?) {
         if timer != nil { timer?.invalidate() }
+        playingLoad = nil
         if let error = error { logError(error: error) }
     }
 
     func sessionManager(_ sessionManager: GCKSessionManager, didEnd session: GCKCastSession, withError error: Error?) {
         if timer != nil { timer?.invalidate() }
+        playingLoad = nil
         if let error = error { logError(error: error) }
     }
 
@@ -322,9 +324,8 @@ extension ChromecastManager: GCKRequestDelegate {
     func requestDidComplete(_ request: GCKRequest) {
         guard let load = takePendingLoad(request) else { return }
         ProductAnalytics.capture(.playbackStarted(load.playback), startedIn: load.session)
-        guard let client = GCKCastContext.sharedInstance().sessionManager.currentCastSession?.remoteMediaClient,
-              let mediaSessionID = client.mediaStatus?.mediaSessionID else { return }
-        playingLoad = (mediaSessionID, load.playback, load.session, Date())
+        guard let client = GCKCastContext.sharedInstance().sessionManager.currentCastSession?.remoteMediaClient else { return }
+        playingLoad = (client.mediaStatus?.mediaSessionID, load.playback, load.session, Date())
         client.remove(self)
         client.add(self)
     }
@@ -349,8 +350,12 @@ extension ChromecastManager: GCKRequestDelegate {
 
 extension ChromecastManager: GCKRemoteMediaClientListener {
     func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaStatus: GCKMediaStatus?) {
-        guard let mediaStatus, mediaStatus.playerState == .idle,
-              let playingLoad, playingLoad.mediaSessionID == mediaStatus.mediaSessionID else { return }
+        guard let mediaStatus, let playingLoad else { return }
+        guard let mediaSessionID = playingLoad.mediaSessionID else {
+            if mediaStatus.playerState != .idle { self.playingLoad?.mediaSessionID = mediaStatus.mediaSessionID }
+            return
+        }
+        guard mediaStatus.playerState == .idle, mediaStatus.mediaSessionID == mediaSessionID else { return }
         self.playingLoad = nil
         guard mediaStatus.idleReason == .finished else { return }
         let duration = AnalyticsEvent.PlaybackDuration(seconds: Date().timeIntervalSince(playingLoad.startedAt))
