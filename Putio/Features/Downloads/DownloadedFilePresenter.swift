@@ -4,16 +4,16 @@ import RealmSwift
 import PutioSDK
 
 protocol DownloadedFilePresenter {
-    func deleteDownloadedFile(_ download: Download) -> Bool
+    func deleteDownloadedFile(id: Int, fileType: Download.FileType, completion: @escaping (Bool) -> Void)
 }
 
 extension DownloadedFilePresenter where Self: UIViewController {
-    func deleteDownloadedFile(_ download: Download) -> Bool {
-        switch download.fileType {
+    func deleteDownloadedFile(id: Int, fileType: Download.FileType, completion: @escaping (Bool) -> Void) {
+        switch fileType {
         case .video:
-            return VideoDownloadManager.sharedInstance.deleteDownload(id: download.id)
+            VideoDownloadManager.sharedInstance.deleteDownload(id: id, completion: completion)
         case .audio:
-            return AudioDownloadManager.sharedInstance.deleteDownload(id: download.id)
+            AudioDownloadManager.sharedInstance.deleteDownload(id: id, completion: completion)
         }
     }
 
@@ -114,8 +114,14 @@ extension DownloadedFilePresenter where Self: UIViewController {
     }
 
     func handleDeleteDownloadedFile(_ download: Download) {
-        guard !deleteDownloadedFile(download) else { return }
+        guard !download.isInvalidated else { return }
+        deleteDownloadedFile(id: download.id, fileType: download.fileType) { [weak self] didDelete in
+            guard !didDelete, let self else { return }
+            self.presentDeleteDownloadedFileFailure()
+        }
+    }
 
+    func presentDeleteDownloadedFileFailure() {
         let alert = UIAlertController(
             title: NSLocalizedString("Couldn't Delete Download", comment: ""),
             message: NSLocalizedString(

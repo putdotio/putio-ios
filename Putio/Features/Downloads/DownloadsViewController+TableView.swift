@@ -16,48 +16,71 @@ extension DownloadsViewController {
             }
         }
 
-        let action = UIContextualAction(style: .destructive, title: NSLocalizedString("Delete", comment: "")) { _, _, handler in
-            let actionSheet = UIAlertController(
-                title: String(
-                    format: NSLocalizedString("Are you sure you want to delete %@?", comment: ""),
-                    download.name
-                ),
-                message: nil,
-                preferredStyle: .actionSheet
-            )
-
-            let deleteButton = UIAlertAction(title: NSLocalizedString("Delete", comment: ""), style: .destructive) { _ in
-                let didDelete = self.deleteDownload(download.id, download.fileType)
-                handler(didDelete)
-
-                if !didDelete {
-                    self.presentDeletionFailure(for: [DownloadDeletionItem(
-                        id: download.id,
-                        name: download.name,
-                        fileType: download.fileType
-                    )])
-                }
-            }
-
-            let cancelButton = UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel) { _ in
-                handler(false)
-            }
-
-            actionSheet.addAction(deleteButton)
-            actionSheet.addAction(cancelButton)
-            actionSheet.popoverPresentationController?.sourceView = cell
-            actionSheet.popoverPresentationController?.sourceRect = CGRect(
-                x: cell.frame.width + 65,
-                y: 0,
-                width: 80,
-                height: cell.frame.height
-            )
-
-            self.present(actionSheet, animated: true)
+        let item = DownloadDeletionItem(id: download.id, name: download.name, fileType: download.fileType)
+        let action = UIContextualAction(style: .destructive, title: NSLocalizedString("Delete", comment: "")) { [weak self] _, _, handler in
+            guard let self else { return handler(false) }
+            self.confirmDeletion(of: item, from: cell, completion: handler)
         }
 
         action.backgroundColor = UIColor.Putio.Red.solid
         return action
+    }
+}
+
+extension DownloadsViewController {
+    func confirmDeletion(of item: DownloadDeletionItem, from cell: UITableViewCell, completion: @escaping (Bool) -> Void) {
+        let actionSheet = UIAlertController(
+            title: String(
+                format: NSLocalizedString("Are you sure you want to delete %@?", comment: ""),
+                item.name
+            ),
+            message: nil,
+            preferredStyle: .actionSheet
+        )
+
+        let deleteButton = UIAlertAction(title: NSLocalizedString("Delete", comment: ""), style: .destructive) { [weak self] _ in
+            guard let self else { return completion(false) }
+            self.deleteConfirmedDownload(item, completion: completion)
+        }
+
+        let cancelButton = UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel) { _ in
+            completion(false)
+        }
+
+        actionSheet.addAction(deleteButton)
+        actionSheet.addAction(cancelButton)
+        actionSheet.popoverPresentationController?.sourceView = cell
+        actionSheet.popoverPresentationController?.sourceRect = CGRect(
+            x: cell.frame.width + 65,
+            y: 0,
+            width: 80,
+            height: cell.frame.height
+        )
+
+        present(actionSheet, animated: true)
+    }
+
+    func deleteConfirmedDownload(_ item: DownloadDeletionItem, completion: @escaping (Bool) -> Void) {
+        guard isStored(item) else { return completion(true) }
+
+        deleteDownload(item.id, item.fileType) { [weak self] didDelete in
+            guard let self else { return completion(didDelete) }
+            let isGone = didDelete || !self.isStored(item)
+            completion(isGone)
+            if !isGone {
+                self.presentDeletionFailure(for: [item])
+            }
+        }
+    }
+
+    func isStored(_ item: DownloadDeletionItem) -> Bool {
+        !storedItems([item]).isEmpty
+    }
+
+    func storedItems(_ items: [DownloadDeletionItem]) -> [DownloadDeletionItem] {
+        guard !items.isEmpty, let realm = downloads?.realm else { return items }
+        realm.refresh()
+        return items.filter { realm.object(ofType: Download.self, forPrimaryKey: $0.id) != nil }
     }
 }
 

@@ -662,8 +662,8 @@ final class DownloadedFilePresenterTests: XCTestCase {
         var deleteResult = true
         var presentedAlert: UIAlertController?
 
-        func deleteDownloadedFile(_ download: Download) -> Bool {
-            deleteResult
+        func deleteDownloadedFile(id: Int, fileType: Download.FileType, completion: @escaping (Bool) -> Void) {
+            completion(deleteResult)
         }
 
         override func present(
