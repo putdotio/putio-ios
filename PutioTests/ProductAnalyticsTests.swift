@@ -1,7 +1,7 @@
 import AVFoundation
 import GoogleCast
 import os
-@testable import PostHog
+import PostHog
 @testable import PutioSDK
 import UIKit
 import XCTest
@@ -330,11 +330,8 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertEqual((events.last?["properties"] as? [String: Any])?["session_duration"] as? String, "lt_1m")
     }
 
-    func testAnOpenAfterHalfAnHourAwayKeepsASession() throws {
-        var away: TimeInterval = 0
-        let sdkNow = PostHog.now
-        PostHog.now = { Date().addingTimeInterval(away) }
-        addTeardownBlock { PostHog.now = sdkNow }
+    func testAnOpenAfterHalfAnHourAwayStartsASession() throws {
+        var away: TimeInterval = -31 * 60
         let (gate, token) = makeGate(now: { Date().addingTimeInterval(away) })
         gate.update(accountID: 1001, productAnalyticsEnabled: true)
 
@@ -342,7 +339,7 @@ final class ProductAnalyticsTests: XCTestCase {
         gate.capture(.appBackgrounded(.under1m))
         NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
         addTeardownBlock { NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil) }
-        away = 31 * 60
+        away = 0
         gate.capture(.appOpened(.resume))
         NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
         let events = try waitForEvents(token: token, count: 3)
