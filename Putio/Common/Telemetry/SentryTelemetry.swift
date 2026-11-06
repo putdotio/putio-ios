@@ -75,6 +75,61 @@ enum SentryTelemetry {
         (1...80).contains(value.count) && value.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "." || $0 == "_") }
     }
 
+    struct PlaybackFailure {
+        static let category = "playback"
+
+        enum Signal: String, CaseIterable {
+            case itemFailed = "item_failed"
+            case failedToPlayToEnd = "failed_to_play_to_end"
+            case castLoadFailed = "cast_load_failed"
+        }
+
+        enum Tag: String {
+            case signal = "playback_signal"
+            case player
+            case streamMethod = "stream_method"
+            case media
+            case errorDomain = "error_domain"
+            case errorCode = "error_code"
+            case underlyingDomain = "underlying_domain"
+            case underlyingCode = "underlying_code"
+
+            func allows(_ value: String) -> Bool {
+                switch self {
+                case .signal: return Signal(rawValue: value) != nil
+                case .player: return AnalyticsEvent.Player(rawValue: value) != nil
+                case .streamMethod: return AnalyticsEvent.StreamMethod(rawValue: value) != nil
+                case .media: return AnalyticsEvent.Media(rawValue: value) != nil
+                case .errorDomain, .underlyingDomain: return ErrorDomain(rawValue: value) != nil
+                case .errorCode, .underlyingCode: return Int(value).map(String.init) == value
+                }
+            }
+        }
+
+        let signal: Signal
+        let playback: AnalyticsEvent.Playback
+    }
+
+    enum ErrorDomain: String, CaseIterable {
+        case url = "NSURLErrorDomain"
+        case avFoundation = "AVFoundationErrorDomain"
+        case coreMedia = "CoreMediaErrorDomain"
+        case osStatus = "NSOSStatusErrorDomain"
+        case posix = "NSPOSIXErrorDomain"
+        case cocoa = "NSCocoaErrorDomain"
+        case googleCast = "com.google.cast.GCKError"
+        case missing = "none"
+        case other
+
+        init(_ error: NSError?) {
+            guard let error else {
+                self = .missing
+                return
+            }
+            self = Self(rawValue: error.domain) ?? .other
+        }
+    }
+
     /// put.io's tunnel to Sentry ingest. Some networks reset connections to
     /// Sentry's own host, and the tunnel forwards only allowlisted project ids.
     private static let relayHost = "relay.put.io"
@@ -199,6 +254,37 @@ enum SentryTelemetry {
         }
     }
 
+    static func capture(_ failure: PlaybackFailure, error: Error?, startedIn session: Int) {
+        guard session == AccountNoticeStore.shared.session else { return }
+        let error = error as NSError?
+        let underlying = error?.userInfo[NSUnderlyingErrorKey] as? NSError
+        let domain = ErrorDomain(error)
+        let code = error?.code ?? 0
+        var tags: [PlaybackFailure.Tag: String] = [
+            .signal: failure.signal.rawValue,
+            .player: failure.playback.player.rawValue,
+            .streamMethod: failure.playback.streamMethod.rawValue,
+            .media: failure.playback.media.rawValue,
+            .errorDomain: domain.rawValue,
+            .errorCode: String(code)
+        ]
+        if let underlying {
+            tags[.underlyingDomain] = ErrorDomain(underlying).rawValue
+            tags[.underlyingCode] = String(underlying.code)
+        }
+        SentrySDK.capture(error: NSError(domain: domain.rawValue, code: code)) { scope in
+            scope.setTag(value: PlaybackFailure.category, key: "category")
+            for (tag, value) in tags { scope.setTag(value: value, key: tag.rawValue) }
+        }
+    }
+
+    static func captureInCurrentSession() -> (PlaybackFailure, Error?) -> Void {
+        let session = AccountNoticeStore.shared.session
+        return { failure, error in
+            DispatchQueue.main.async { capture(failure, error: error, startedIn: session) }
+        }
+    }
+
     /// Lets a tester prove a TestFlight install's Sentry path on demand, beta or
     /// release lane. TestFlight names the receipt `sandboxReceipt`, the test
     /// Sentry uses for build type `test`; the App Store and the simulator name it
@@ -222,8 +308,8 @@ enum SentryTelemetry {
     /// off: a transaction would lose its spans and trace state here.
     static func allowlisted(_ event: Event) -> Event {
         let tags = event.tags ?? [:]
-        let category = tags["category"].flatMap(Failure.init(rawValue:))?.rawValue
-        var sentTags: [String: String] = [:]
+        let category = tags["category"].flatMap { Failure(rawValue: $0)?.rawValue ?? ($0 == PlaybackFailure.category ? $0 : nil) }
+        var sentTags = tags.filter { key, value in PlaybackFailure.Tag(rawValue: key)?.allows(value) == true }
         sentTags["category"] = category
         sentTags["reason"] = tags["reason"].flatMap(Reason.init(rawValue:))?.rawValue
         sentTags["endpoint"] = tags["endpoint"].flatMap(Endpoint.init(rawValue:))?.rawValue

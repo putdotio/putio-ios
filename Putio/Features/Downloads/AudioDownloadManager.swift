@@ -80,7 +80,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
             return
         }
         guard download.state == .starting else { return }
-        guard let url = DownloadSupport.url(from: download.url, context: "AudioDownloadManager.beginDownload") else {
+        guard let url = api.audioStreamURL(fileID: download.id) else {
             DownloadQueueController.sharedInstance.startFailed(id: id)
             return
         }
@@ -98,10 +98,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     func createDownload(from file: PutioFile) {
         guard file.type == .audio else { return }
 
-        let url = file.getAudioStreamURL(downloadToken: api.mediaToken).absoluteString
-        log.debug("ADM: createDownload url: \(url)")
-
-        guard let download = Download(file: file, url: url) else { return }
+        guard let download = Download(file: file, url: "") else { return }
         guard let realm = DownloadSupport.realm(context: "AudioDownloadManager.createDownload") else { return }
 
         let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.createDownload.write") {
@@ -130,31 +127,38 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 
     @discardableResult
     func deleteDownload(id: Int) -> Bool {
-        let download = getDownloadFromDatabase(id: id)
-
-        let didDelete = DownloadSupport.performDeletion(
-            state: download?.state,
-            cancelActiveDownload: { self.cancelDownload(id: id) },
-            deleteLocalFile: { self.deleteLocalFile(for: id) },
-            deleteRecord: {
-                DownloadSupport.deleteRecord(
-                    id: id,
-                    context: "AudioDownloadManager.deleteDownload"
-                )
-            },
-            localFileDeletionDidSucceed: {
-                UserDefaults.standard.removeObject(forKey: String(id))
-            }
-        )
-        if didDelete {
-            discardDownload(id: id)
-            DownloadQueueController.sharedInstance.managerDidFinish()
-        }
+        let didDelete = deletion(for: id).perform()
+        finishDeletion(id: id, didDelete: didDelete)
         return didDelete
+    }
+
+    func deleteDownload(id: Int, completion: @escaping (Bool) -> Void) {
+        deletion(for: id).perform { didDelete in
+            self.finishDeletion(id: id, didDelete: didDelete)
+            completion(didDelete)
+        }
+    }
+
+    private func deletion(for id: Int) -> DownloadSupport.Deletion {
+        dispatchPrecondition(condition: .onQueue(.main))
+        return DownloadSupport.deletion(
+            id: id,
+            state: getDownloadFromDatabase(id: id)?.state,
+            context: "AudioDownloadManager.deleteDownload",
+            cancelActiveDownload: { self.cancelDownload(id: id) },
+            deleteLocalFile: { self.deleteLocalFile(for: id) }
+        )
+    }
+
+    private func finishDeletion(id: Int, didDelete: Bool) {
+        guard didDelete else { return }
+        discardDownload(id: id)
+        DownloadQueueController.sharedInstance.managerDidFinish()
     }
 
     @discardableResult
     func removeDownloadRecord(id: Int) -> Bool {
+        dispatchPrecondition(condition: .onQueue(.main))
         guard DownloadSupport.deleteRecord(
             id: id,
             context: "AudioDownloadManager.removeDownloadRecord"
@@ -198,6 +202,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func discardDownload(id: Int) {
+        dispatchPrecondition(condition: .onQueue(.main))
         let task = withActiveDownloadsMap { map -> URLSessionTask? in
             guard let task = map.first(where: { $0.value == id })?.key else { return nil }
             map.removeValue(forKey: task)
@@ -346,9 +351,11 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
 
         let fileExtension = deriveFileExtensionFromResponse(response: downloadTask.response)
         let destinationPath = "putio_adm_\(String(download.id))_\(download.name.slugify()).\(fileExtension)"
-        guard let destinationURL = getAbsoluteURL(for: destinationPath) else { return }
-
-        if let error = DownloadSupport.copyDownloadedArtifact(from: location, to: destinationURL) {
+        if let error = DownloadSupport.saveDownloadedArtifact(
+            response: downloadTask.response,
+            from: location,
+            to: getAbsoluteURL(for: destinationPath)
+        ) {
             artifactSaveErrors[downloadTask] = error
             return
         }

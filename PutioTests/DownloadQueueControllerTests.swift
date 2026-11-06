@@ -175,6 +175,29 @@ final class DownloadArtifactTests: XCTestCase {
         XCTAssertNil(DownloadSupport.copyDownloadedArtifact(from: source, to: destination))
         XCTAssertEqual(try Data(contentsOf: destination), Data("new".utf8))
     }
+
+    func testHTTPErrorBodyIsNotSavedAsArtifact() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ArtifactStatusTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("source")
+        let destination = directory.appendingPathComponent("destination")
+        let url = try XCTUnwrap(URL(string: "https://api.put.io/v2/files/1/stream"))
+        let response = { (statusCode: Int) in
+            HTTPURLResponse(url: url, statusCode: statusCode, httpVersion: "HTTP/1.1", headerFields: nil)
+        }
+        try Data("{\"error_type\":\"NotFound\"}".utf8).write(to: source)
+
+        let error = DownloadSupport.saveDownloadedArtifact(response: response(404), from: source, to: destination)
+
+        XCTAssertEqual(error as? DownloadSupport.ArtifactSaveError, .httpStatus(404))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
+
+        try Data("audio".utf8).write(to: source, options: .atomic)
+        XCTAssertNil(DownloadSupport.saveDownloadedArtifact(response: response(200), from: source, to: destination))
+        XCTAssertEqual(try Data(contentsOf: destination), Data("audio".utf8))
+    }
 }
 
 final class BackgroundDownloadSessionEventsTests: XCTestCase {
@@ -262,3 +285,152 @@ final class DownloadRestartTests: XCTestCase {
 }
 
 private final class RestartingDownloadPresenter: UIViewController, DownloadedFilePresenter {}
+
+final class DownloadDeletionFlowTests: XCTestCase {
+    private var realm: Realm!
+    private var viewController: DeletingDownloadsViewController!
+    private var rows: SingleRowDataSource!
+    private var window: UIWindow!
+
+    override func setUpWithError() throws {
+        realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: name))
+        viewController = DeletingDownloadsViewController()
+        rows = SingleRowDataSource()
+        let tableView = UITableView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        tableView.dataSource = rows
+        viewController.view.addSubview(tableView)
+        viewController.tableView = tableView
+        viewController.downloads = realm.objects(Download.self).sorted(byKeyPath: "createdAt")
+        window = UIWindow(frame: tableView.frame)
+        window.rootViewController = viewController
+        window.isHidden = false
+    }
+
+    override func tearDown() {
+        window.isHidden = true
+        window = nil
+        super.tearDown()
+    }
+
+    func testSwipeDeletionSurvivesRowRemovalWhileConfirmationIsPending() throws {
+        let download = try addCompletedDownload(id: 301, name: "Pending Episode")
+        var confirmedResults = [Bool]()
+        let confirmation = try presentConfirmation { confirmedResults.append($0) }
+        try realm.write { realm.delete(download) }
+
+        try tap(NSLocalizedString("Delete", comment: ""), in: confirmation)
+
+        XCTAssertEqual(confirmation.title, String(
+            format: NSLocalizedString("Are you sure you want to delete %@?", comment: ""),
+            "Pending Episode"
+        ))
+        XCTAssertEqual(confirmedResults, [true])
+        XCTAssertEqual(viewController.presentedAlerts.count, 1)
+
+        let cancelled = try addCompletedDownload(id: 302, name: "Cancelled Episode")
+        var cancelledResults = [Bool]()
+        let cancellation = try presentConfirmation { cancelledResults.append($0) }
+        try realm.write { realm.delete(cancelled) }
+
+        try tap(NSLocalizedString("Cancel", comment: ""), in: cancellation)
+
+        XCTAssertEqual(cancelledResults, [false])
+    }
+
+    func testSwipeDeletionReturnsBeforeDiskWorkAndFinishesOnce() throws {
+        try addCompletedDownload(id: 303, name: "Slow Episode")
+        var pendingDeletion: ((Bool) -> Void)?
+        viewController.deleteDownload = { id, fileType, completion in
+            XCTAssertEqual(id, 303)
+            XCTAssertEqual(fileType, .video)
+            pendingDeletion = completion
+        }
+        var results = [Bool]()
+        let confirmation = try presentConfirmation { results.append($0) }
+
+        try tap(NSLocalizedString("Delete", comment: ""), in: confirmation)
+
+        XCTAssertTrue(results.isEmpty)
+        pendingDeletion?(false)
+        XCTAssertEqual(results, [false])
+        XCTAssertEqual(
+            viewController.presentedAlerts.last?.title,
+            NSLocalizedString("Couldn't Delete 1 Download", comment: "")
+        )
+    }
+
+    func testBulkDeletionCallsManagersOnMainAndFinishes() {
+        let items = [
+            DownloadDeletionItem(id: 304, name: "First", fileType: .video),
+            DownloadDeletionItem(id: 305, name: "Second", fileType: .audio)
+        ]
+        var calledOnMain = [Bool]()
+        viewController.deleteDownload = { _, _, completion in
+            calledOnMain.append(Thread.isMainThread)
+            DispatchQueue.main.async { completion(true) }
+        }
+
+        viewController.deleteSelectedDownloads(items)
+
+        let finished = expectation(for: NSPredicate { _, _ in
+            self.viewController.isDeletingSelectedDownloads == false
+        }, evaluatedWith: nil)
+        wait(for: [finished], timeout: 5)
+        XCTAssertEqual(calledOnMain, [true, true])
+        XCTAssertTrue(viewController.tableView.isUserInteractionEnabled)
+    }
+
+    @discardableResult
+    private func addCompletedDownload(id: Int, name: String) throws -> Download {
+        let download = Download()
+        download.id = id
+        download.name = name
+        download.state = .completed
+        download.fileType = .video
+        download.createdAt = Date()
+        try realm.write { realm.add(download) }
+        viewController.tableView.reloadData()
+        viewController.tableView.layoutIfNeeded()
+        return download
+    }
+
+    private func presentConfirmation(_ handler: @escaping (Bool) -> Void) throws -> UIAlertController {
+        let action = viewController.contextualDeleteAction(forRowAtIndexPath: IndexPath(row: 0, section: 0))
+        let presentedCount = viewController.presentedAlerts.count
+        action.handler(action, UIView()) { handler($0) }
+        XCTAssertEqual(viewController.presentedAlerts.count, presentedCount + 1)
+        return try XCTUnwrap(viewController.presentedAlerts.last)
+    }
+
+    private func tap(_ title: String, in alert: UIAlertController) throws {
+        typealias AlertHandler = @convention(block) (UIAlertAction) -> Void
+        let action = try XCTUnwrap(alert.actions.first { $0.title == title })
+        let block = try XCTUnwrap(action.value(forKey: "handler") as AnyObject?)
+        unsafeBitCast(block, to: AlertHandler.self)(action)
+    }
+}
+
+private final class DeletingDownloadsViewController: DownloadsViewController {
+    var presentedAlerts = [UIAlertController]()
+
+    override func viewDidLoad() {}
+
+    override func present(
+        _ viewControllerToPresent: UIViewController,
+        animated flag: Bool,
+        completion: (() -> Void)? = nil
+    ) {
+        if let alert = viewControllerToPresent as? UIAlertController {
+            presentedAlerts.append(alert)
+        }
+        completion?()
+    }
+}
+
+private final class SingleRowDataSource: NSObject, UITableViewDataSource {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int { 1 }
+
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        UITableViewCell()
+    }
+}

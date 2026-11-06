@@ -94,6 +94,10 @@ private enum PutioE2EMockAPI {
             """)
         }
 
+        if missingRoutes.contains(routeKey) {
+            return notFound(errorType: "E2E_FORCED_NOT_FOUND", message: "Forced not found for \(routeKey)")
+        }
+
         if routeKey == "POST /v2/account/settings" {
             rememberPrivacySettings(from: request)
         }
@@ -114,12 +118,16 @@ private enum PutioE2EMockAPI {
             return fixture
         }
 
-        return Fixture(statusCode: 404, body: """
+        return notFound(errorType: "E2E_FIXTURE_NOT_FOUND", message: "No e2e fixture for \(routeKey)")
+    }
+
+    private static func notFound(errorType: String, message: String) -> Fixture {
+        Fixture(statusCode: 404, body: """
         {
           "status": "ERROR",
           "status_code": 404,
-          "error_type": "E2E_FIXTURE_NOT_FOUND",
-          "message": "No e2e fixture for \(request.httpMethod ?? "GET") \(url.path)"
+          "error_type": "\(errorType)",
+          "message": "\(message)"
         }
         """)
     }
@@ -129,6 +137,7 @@ private enum PutioE2EMockAPI {
     }
 
     private static let failRoutes = routeSet("PUTIO_E2E_FAIL_ROUTES")
+    private static let missingRoutes = routeSet("PUTIO_E2E_MISSING_ROUTES")
     // Fail with a transport error, the way a request does with no connection.
     private static let offlineRoutes = routeSet("PUTIO_E2E_OFFLINE_ROUTES")
 

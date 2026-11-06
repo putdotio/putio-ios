@@ -231,14 +231,185 @@ final class NavigationLocalizationTests: XCTestCase {
             DownloadDeletionItem(id: 13, name: "Third", fileType: .video)
         ]
         var attemptedIDs = [Int]()
+        var failures: [DownloadDeletionItem]?
+        let finished = expectation(description: "bulk deletion finished")
 
-        let failures = DownloadsBulkDeletion.failures(deleting: items) { id, _ in
-            attemptedIDs.append(id)
-            return id != 12
-        }
+        DownloadsBulkDeletion.failures(
+            deleting: items,
+            with: { id, _, completion in
+                attemptedIDs.append(id)
+                completion(id != 12)
+            },
+            completion: {
+                failures = $0
+                finished.fulfill()
+            }
+        )
 
+        wait(for: [finished], timeout: 5)
         XCTAssertEqual(attemptedIDs, [11, 12, 13])
         XCTAssertEqual(failures, [items[1]])
+    }
+
+    func testFinishedDownloadDeletionRunsDiskWorkOffMainAndCompletesOnMain() {
+        let finished = expectation(description: "deletion finished")
+        var diskWorkRanOnMain = [Bool]()
+        var deletedLocalFile = false
+        var expectedStates = [Download.State?]()
+
+        makeDeletion(
+            state: .completed,
+            deleteLocalFile: {
+                diskWorkRanOnMain.append(Thread.isMainThread)
+                return .removed
+            },
+            deleteRecord: {
+                diskWorkRanOnMain.append(Thread.isMainThread)
+                expectedStates.append($0)
+                return true
+            },
+            localFileDeletionDidSucceed: { deletedLocalFile = true }
+        ).perform { didDelete in
+            XCTAssertTrue(Thread.isMainThread)
+            XCTAssertTrue(didDelete)
+            finished.fulfill()
+        }
+
+        wait(for: [finished], timeout: 5)
+        XCTAssertEqual(diskWorkRanOnMain, [false, false])
+        XCTAssertEqual(expectedStates, [.completed])
+        XCTAssertTrue(deletedLocalFile)
+    }
+
+    func testFinishedDownloadDeletionKeepsARowThatChangedBeforeDiskWork() {
+        let finished = expectation(description: "deletion finished")
+
+        makeDeletion(
+            state: .failed,
+            currentState: { .stored(.queued) },
+            deleteLocalFile: {
+                XCTFail("A restarted row keeps its files")
+                return .removed
+            },
+            deleteRecord: { _ in
+                XCTFail("A restarted row keeps its record")
+                return true
+            }
+        ).perform { didDelete in
+            XCTAssertFalse(didDelete)
+            finished.fulfill()
+        }
+
+        wait(for: [finished], timeout: 5)
+    }
+
+    func testFinishedDownloadDeletionTreatsARemovedRowAsDeleted() {
+        let finished = expectation(description: "deletion finished")
+
+        makeDeletion(
+            state: .completed,
+            currentState: { .missing },
+            deleteLocalFile: {
+                XCTFail("A removed row has no files to delete")
+                return .removed
+            }
+        ).perform { didDelete in
+            XCTAssertTrue(didDelete)
+            finished.fulfill()
+        }
+
+        wait(for: [finished], timeout: 5)
+    }
+
+    func testFinishedDownloadDeletionFailsWhenTheRowCannotBeRead() {
+        let finished = expectation(description: "deletion finished")
+
+        makeDeletion(
+            state: .completed,
+            currentState: { .unreadable },
+            deleteLocalFile: {
+                XCTFail("An unreadable row keeps its files")
+                return .removed
+            }
+        ).perform { didDelete in
+            XCTAssertFalse(didDelete)
+            finished.fulfill()
+        }
+
+        wait(for: [finished], timeout: 5)
+    }
+
+    func testBlockingDeletionWaitsForPendingBackgroundDeletion() {
+        let finished = expectation(description: "background deletion finished")
+        let release = DispatchSemaphore(value: 0)
+        var order = [String]()
+        let lock = NSLock()
+        func record(_ step: String) {
+            lock.lock()
+            order.append(step)
+            lock.unlock()
+        }
+
+        makeDeletion(
+            state: .completed,
+            deleteLocalFile: {
+                release.wait()
+                record("background")
+                return .removed
+            }
+        ).perform { _ in finished.fulfill() }
+
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) { release.signal() }
+        let didDelete = makeDeletion(
+            state: .completed,
+            deleteLocalFile: {
+                record("blocking")
+                return .alreadyMissing
+            }
+        ).perform()
+
+        XCTAssertTrue(didDelete)
+        XCTAssertEqual(order, ["background", "blocking"])
+        wait(for: [finished], timeout: 5)
+    }
+
+    func testActiveDownloadDeletionCancelsOnMainBeforeReturning() {
+        var cancelledOnMain: Bool?
+        var didDelete: Bool?
+
+        makeDeletion(
+            state: .active,
+            cancelActiveDownload: { cancelledOnMain = Thread.isMainThread },
+            currentState: {
+                XCTFail("Active downloads cancel on main without rereading the row")
+                return .stored(.active)
+            },
+            deleteLocalFile: {
+                XCTFail("Active downloads cancel instead of deleting a local file")
+                return .removed
+            }
+        ).perform { didDelete = $0 }
+
+        XCTAssertEqual(cancelledOnMain, true)
+        XCTAssertEqual(didDelete, true)
+    }
+
+    private func makeDeletion(
+        state: Download.State,
+        cancelActiveDownload: @escaping () -> Void = { XCTFail("Finished downloads do not need cancellation") },
+        currentState: (() -> DownloadSupport.RecordLookup)? = nil,
+        deleteLocalFile: @escaping () -> DownloadSupport.LocalFileDeletionResult,
+        deleteRecord: @escaping (Download.State?) -> Bool = { _ in true },
+        localFileDeletionDidSucceed: @escaping () -> Void = {}
+    ) -> DownloadSupport.Deletion {
+        DownloadSupport.Deletion(
+            state: state,
+            cancelActiveDownload: cancelActiveDownload,
+            deleteLocalFile: deleteLocalFile,
+            currentState: currentState ?? { .stored(state) },
+            deleteRecord: deleteRecord,
+            localFileDeletionDidSucceed: localFileDeletionDidSucceed
+        )
     }
 
     func testDownloadsFailureSummaryCapsNamedItems() {

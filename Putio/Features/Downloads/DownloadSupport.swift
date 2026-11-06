@@ -17,6 +17,11 @@ enum DownloadSupport {
         case failed
     }
 
+    enum ArtifactSaveError: Error, Equatable {
+        case httpStatus(Int)
+        case unresolvedDestination
+    }
+
     static func realm(context: String) -> Realm? {
         PutioRealm.open(context: context)
     }
@@ -43,15 +48,20 @@ enum DownloadSupport {
         return true
     }
 
-    static func deleteRecord(id: Int, context: String) -> Bool {
+    static func deleteRecord(id: Int, context: String, ifStateIs expectedState: Download.State? = nil) -> Bool {
         guard let realm = realm(context: context) else { return false }
-        guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else {
+        guard realm.object(ofType: Download.self, forPrimaryKey: id) != nil else {
             return true
         }
 
-        return write(realm, context: "\(context).write") {
+        var stateMatched = true
+        let didWrite = write(realm, context: "\(context).write") {
+            guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
+            stateMatched = expectedState.map { download.state == $0 } ?? true
+            guard stateMatched else { return }
             realm.delete(download)
         }
+        return didWrite && stateMatched
     }
 
     static func url(from string: String, context: String) -> URL? {
@@ -96,6 +106,14 @@ enum DownloadSupport {
             log.error("[DownloadSupport] \(context): \(error.localizedDescription)")
             return false
         }
+    }
+
+    static func saveDownloadedArtifact(response: URLResponse?, from sourceURL: URL, to destinationURL: URL?) -> Error? {
+        if let response = response as? HTTPURLResponse, !(200..<300).contains(response.statusCode) {
+            return ArtifactSaveError.httpStatus(response.statusCode)
+        }
+        guard let destinationURL else { return ArtifactSaveError.unresolvedDestination }
+        return copyDownloadedArtifact(from: sourceURL, to: destinationURL)
     }
 
     static func copyDownloadedArtifact(from sourceURL: URL, to destinationURL: URL) -> Error? {
@@ -170,6 +188,93 @@ enum DownloadSupport {
             localFileDeletionDidSucceed()
         }
         return true
+    }
+
+    static let deletionQueue = DispatchQueue(label: "com.putio.downloads.deletion", qos: .userInitiated)
+
+    enum RecordLookup: Equatable {
+        case missing
+        case stored(Download.State)
+        case unreadable
+    }
+
+    struct Deletion {
+        let state: Download.State?
+        let cancelActiveDownload: () -> Void
+        let deleteLocalFile: () -> LocalFileDeletionResult
+        let currentState: () -> RecordLookup
+        let deleteRecord: (_ expectedState: Download.State?) -> Bool
+        let localFileDeletionDidSucceed: () -> Void
+
+        func perform() -> Bool {
+            guard runsOnDeletionQueue else { return performNow() }
+            return deletionQueue.sync { autoreleasepool(invoking: performFinished) }
+        }
+
+        func perform(completion: @escaping (Bool) -> Void) {
+            guard runsOnDeletionQueue else { return completion(performNow()) }
+            deletionQueue.async {
+                let didDelete = autoreleasepool(invoking: performFinished)
+                DispatchQueue.main.async { completion(didDelete) }
+            }
+        }
+
+        private var runsOnDeletionQueue: Bool {
+            switch state {
+            case .completed, .failed, .stopped: return true
+            case .queued, .starting, .active, nil: return false
+            }
+        }
+
+        private func performNow() -> Bool {
+            performDeletion(
+                state: state,
+                cancelActiveDownload: cancelActiveDownload,
+                deleteLocalFile: deleteLocalFile,
+                deleteRecord: { deleteRecord(nil) },
+                localFileDeletionDidSucceed: localFileDeletionDidSucceed
+            )
+        }
+
+        private func performFinished() -> Bool {
+            switch currentState() {
+            case .missing: return true
+            case .unreadable: return false
+            case .stored(let current): guard current == state else { return false }
+            }
+            return performDeletion(
+                state: state,
+                cancelActiveDownload: cancelActiveDownload,
+                deleteLocalFile: deleteLocalFile,
+                deleteRecord: { deleteRecord(state) },
+                localFileDeletionDidSucceed: localFileDeletionDidSucceed
+            )
+        }
+    }
+
+    static func deletion(
+        id: Int,
+        state: Download.State?,
+        context: String,
+        cancelActiveDownload: @escaping () -> Void,
+        deleteLocalFile: @escaping () -> LocalFileDeletionResult
+    ) -> Deletion {
+        Deletion(
+            state: state,
+            cancelActiveDownload: cancelActiveDownload,
+            deleteLocalFile: deleteLocalFile,
+            currentState: {
+                guard let realm = realm(context: "\(context).currentState") else { return .unreadable }
+                realm.refresh()
+                return realm.object(ofType: Download.self, forPrimaryKey: id).map { .stored($0.state) } ?? .missing
+            },
+            deleteRecord: { expectedState in
+                deleteRecord(id: id, context: context, ifStateIs: expectedState)
+            },
+            localFileDeletionDidSucceed: {
+                UserDefaults.standard.removeObject(forKey: String(id))
+            }
+        )
     }
 
     static func enqueueCompletedDownloadNotification(for downloadName: String) {

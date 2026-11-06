@@ -1,3 +1,5 @@
+import AVFoundation
+import GoogleCast
 import os
 import RealmSwift
 import Sentry
@@ -153,22 +155,119 @@ final class SentryTelemetryTests: XCTestCase {
     }
 
     func testDiagnosticsCheckSendsOneAllowlistedEventOnlyFromASandboxReceipt() throws {
-        let recorded = try recordSentEvents()
-        var sent: [Event] { recorded.events }
+        let sent = try startRecordingSentEvents()
+        allowCapture()
         let receipts = URL(filePath: "/synthetic/StoreKit", directoryHint: .isDirectory)
 
         XCTAssertFalse(SentryTelemetry.captureDiagnosticsCheck(receiptURL: receipts.appending(path: "receipt")))
         XCTAssertFalse(SentryTelemetry.captureDiagnosticsCheck(receiptURL: nil))
-        XCTAssertTrue(sent.isEmpty, "an App Store install sent the check")
+        XCTAssertTrue(sent().isEmpty, "an App Store install sent the check")
 
         XCTAssertTrue(SentryTelemetry.captureDiagnosticsCheck(receiptURL: receipts.appending(path: "sandboxReceipt")))
-        XCTAssertEqual(sent.count, 1)
-        XCTAssertEqual(sent.first?.tags, ["category": "diagnostics_check"])
-        XCTAssertEqual(sent.first?.exceptions?.first?.value, "diagnostics_check")
+        XCTAssertEqual(sent().count, 1)
+        XCTAssertEqual(sent().first?.tags, ["category": "diagnostics_check"])
+        XCTAssertEqual(sent().first?.exceptions?.first?.value, "diagnostics_check")
 
         SentryTelemetry.isCapturing = false
         SentryTelemetry.captureDiagnosticsCheck(receiptURL: receipts.appending(path: "sandboxReceipt"))
-        XCTAssertEqual(sent.count, 1, "the check skipped the diagnostics gate")
+        XCTAssertEqual(sent().count, 1, "the check skipped the diagnostics gate")
+    }
+
+    func testAPlaybackFailureSendsOneBoundedReportWhileDiagnosticsAreOn() throws {
+        let sent = try startRecordingSentEvents()
+        allowCapture()
+        let title = "Synthetic Feature Title"
+        let fileName = "Synthetic.Feature.Title.2001.mkv"
+        let host = "media.example.invalid"
+        let token = "synthetic-token-5f1c9e"
+        let streamFailure = NSError(domain: AVFoundationErrorDomain, code: -11800, userInfo: [
+            NSLocalizedDescriptionKey: fileName,
+            NSURLErrorFailingURLStringErrorKey: "https://\(host)/hls/master.m3u8?oauth_token=\(token)",
+            NSUnderlyingErrorKey: NSError(domain: NSOSStatusErrorDomain, code: -12971, userInfo: [NSLocalizedDescriptionKey: title])
+        ])
+        let missingDownload = NSError(domain: NSURLErrorDomain, code: NSURLErrorFileDoesNotExist, userInfo: [
+            NSURLErrorFailingURLErrorKey: URL(filePath: "/Documents/\(fileName)")
+        ])
+
+        let streamed = PlaybackAnalytics(AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer), capture: { _ in })
+        streamed.fail(streamFailure)
+        streamed.fail(streamFailure)
+        PlaybackAnalytics(AnalyticsEvent.Playback(media: .video, streamMethod: .localFile, player: .avplayer), capture: { _ in })
+            .fail(missingDownload)
+        drainMainQueue()
+        SentryTelemetry.isCapturing = false
+        PlaybackAnalytics(AnalyticsEvent.Playback(media: .audio, streamMethod: .progressive, player: .avplayer), capture: { _ in })
+            .fail(streamFailure)
+        drainMainQueue()
+
+        XCTAssertEqual(sent().map(\.tags), [
+            [
+                "category": "playback", "playback_signal": "item_failed", "player": "avplayer", "stream_method": "hls", "media": "video",
+                "error_domain": "AVFoundationErrorDomain", "error_code": "-11800", "underlying_domain": "NSOSStatusErrorDomain", "underlying_code": "-12971"
+            ],
+            [
+                "category": "playback", "playback_signal": "item_failed", "player": "avplayer", "stream_method": "local_file", "media": "video",
+                "error_domain": "NSURLErrorDomain", "error_code": "-1100"
+            ]
+        ])
+        XCTAssertEqual(sent().map { $0.exceptions?.first?.type }, ["AVFoundationErrorDomain", "NSURLErrorDomain"])
+        let json = String(decoding: try JSONSerialization.data(withJSONObject: sent().map { $0.serialize() }), as: UTF8.self)
+        for leaked in [title, fileName, host, token] {
+            XCTAssertFalse(json.contains(leaked), "\(leaked) left the device: \(json)")
+        }
+    }
+
+    func testEachPlaybackFailureSignalIsReportedOncePerAttempt() throws {
+        let sent = try startRecordingSentEvents()
+        allowCapture()
+        let streamed = PlaybackAnalytics(AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer), capture: { _ in })
+        streamed.failedToPlayToEnd(URLError(.networkConnectionLost))
+        streamed.fail(URLError(.networkConnectionLost))
+        drainMainQueue()
+        let cast = CastPlaybackTracker(capture: { _, _ in })
+        let load = NSObject()
+        cast.loadStarted(load, playback: AnalyticsEvent.Playback(media: .video, streamMethod: .mp4, player: .chromecast), session: AccountNoticeStore.shared.session)
+        cast.loadFailed(load, error: GCKError(code: .mediaLoadFailed))
+        cast.loadFailed(load, error: GCKError(code: .mediaLoadFailed))
+        SentryTelemetry.capture(
+            .init(signal: .castLoadFailed, playback: AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .chromecast)),
+            error: NSError(domain: "io.synthetic.unlisted", code: 7),
+            startedIn: AccountNoticeStore.shared.session
+        )
+
+        XCTAssertEqual(sent().map(\.tags), [
+            [
+                "category": "playback", "playback_signal": "failed_to_play_to_end", "player": "avplayer", "stream_method": "hls", "media": "video",
+                "error_domain": "NSURLErrorDomain", "error_code": "-1005"
+            ],
+            [
+                "category": "playback", "playback_signal": "cast_load_failed", "player": "chromecast", "stream_method": "mp4", "media": "video",
+                "error_domain": "com.google.cast.GCKError", "error_code": "30"
+            ],
+            [
+                "category": "playback", "playback_signal": "cast_load_failed", "player": "chromecast", "stream_method": "hls", "media": "video",
+                "error_domain": "other", "error_code": "7"
+            ]
+        ])
+        XCTAssertEqual(sent().last?.exceptions?.first?.type, "other")
+    }
+
+    func testAPlaybackFailureThatOutlivesItsSessionSendsNothing() throws {
+        let sent = try startRecordingSentEvents()
+        allowCapture()
+        let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer)
+        let pictureInPicture = PlaybackAnalytics(video, capture: { _ in })
+        let cast = CastPlaybackTracker(capture: { _, _ in })
+        let load = NSObject()
+        cast.loadStarted(load, playback: AnalyticsEvent.Playback(media: .video, streamMethod: .mp4, player: .chromecast), session: AccountNoticeStore.shared.session)
+
+        AccountNoticeStore.shared.clear()
+        pictureInPicture.fail(URLError(.timedOut))
+        cast.loadFailed(load, error: GCKError(code: .timeout))
+        PlaybackAnalytics(video, capture: { _ in }).fail(URLError(.timedOut))
+        drainMainQueue()
+
+        XCTAssertEqual(sent().map { $0.tags?["playback_signal"] }, ["item_failed"])
     }
 
     func testUnhandledCrashesKeepATokenizedReasonOnly() throws {
@@ -205,7 +304,8 @@ final class SentryTelemetryTests: XCTestCase {
     }
 
     func testFailureTagsKeepOnlyTheirFixedVocabulary() throws {
-        let sent = try recordSentEvents()
+        let sent = try startRecordingSentEvents()
+        allowCapture()
         let config = PutioSDKRequestConfig(apiConfig: PutioSDKConfig(clientID: "3001"), url: "/config", method: .get)
         let decoding = PutioSDKError(
             request: PutioSDKErrorRequestInformation(config: config),
@@ -218,13 +318,13 @@ final class SentryTelemetryTests: XCTestCase {
         SentryTelemetry.capture(.realmWrite, error: Realm.Error(.fail), context: "DownloadManager.persistTask.write")
         SentryTelemetry.capture(.realmWrite, context: leak)
 
-        XCTAssertEqual(sent.events.map(\.tags), [
+        XCTAssertEqual(sent().map(\.tags), [
             ["category": "session_load", "reason": "decoding", "endpoint": "config"],
             ["category": "realm_write", "context": "DownloadManager.persistTask.write"],
             ["category": "realm_write"],
         ])
-        XCTAssertEqual(sent.events[1].exceptions?.first?.mechanism?.meta?.error?.domain, "io.realm")
-        XCTAssertEqual(sent.events[1].exceptions?.first?.mechanism?.meta?.error?.code, Realm.Error.Code.fail.rawValue)
+        XCTAssertEqual(sent()[1].exceptions?.first?.mechanism?.meta?.error?.domain, "io.realm")
+        XCTAssertEqual(sent()[1].exceptions?.first?.mechanism?.meta?.error?.code, Realm.Error.Code.fail.rawValue)
 
         let forged = Event(level: .error)
         forged.tags = ["category": "session_load", "reason": leak, "endpoint": "https://media.example.invalid/config"]
@@ -248,11 +348,12 @@ final class SentryTelemetryTests: XCTestCase {
 
         SentryTelemetry.isCapturing = false
         XCTAssertNil(PutioRealm.open(context: context, configuration: missing))
-        let sent = try recordSentEvents()
+        let sent = try startRecordingSentEvents()
+        allowCapture()
         XCTAssertNil(PutioRealm.open(context: context, configuration: missing))
         XCTAssertNil(PutioRealm.open(context: context, configuration: missing))
 
-        XCTAssertEqual(sent.events.map(\.tags), [["category": "realm_open", "context": context]])
+        XCTAssertEqual(sent().map(\.tags), [["category": "realm_open", "context": context]])
     }
 
     func testSDKFailureReasons() {
@@ -364,25 +465,18 @@ final class SentryTelemetryTests: XCTestCase {
         return event
     }
 
-    private func recordSentEvents() throws -> SentEvents {
+    private func startRecordingSentEvents() throws -> () -> [Event] {
         let defaults = try isolatedDefaults()
         addTeardownBlock { SentryTelemetry.update(diagnosticsEnabled: false, dsn: self.dsn, defaults: defaults) }
         let options = SentryTelemetry.options(dsn: dsn)
         let beforeSend = try XCTUnwrap(options.beforeSend)
-        let sent = SentEvents()
+        var sent: [Event] = []
         options.beforeSend = { event in
-            beforeSend(event).map { sent.events.append($0) }
+            beforeSend(event).map { sent.append($0) }
             return nil
         }
         SentrySDK.start(options: options)
-        allowCapture()
-        return sent
-    }
-
-    private func cacheEnvelope() throws {
-        let pending = SentryTelemetry.cacheDirectory.appending(path: "envelopes/pending")
-        try FileManager.default.createDirectory(at: pending.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try Data("synthetic".utf8).write(to: pending)
+        return { sent }
     }
 
     private func isolatedDefaults() throws -> UserDefaults {
@@ -392,15 +486,17 @@ final class SentryTelemetryTests: XCTestCase {
         return defaults
     }
 
+    private func drainMainQueue() {
+        let drained = expectation(description: "main queue drained")
+        DispatchQueue.main.async { drained.fulfill() }
+        wait(for: [drained], timeout: 5)
+    }
+
     private func allowCapture() {
         let previous = SentryTelemetry.isCapturing
         SentryTelemetry.isCapturing = true
         addTeardownBlock { SentryTelemetry.isCapturing = previous }
     }
-}
-
-private final class SentEvents {
-    var events: [Event] = []
 }
 
 /// Stands in for the network: records every request that starts loading.

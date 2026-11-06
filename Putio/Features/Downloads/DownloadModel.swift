@@ -22,6 +22,7 @@ class Download: Object {
     @objc dynamic var message: String = ""
     @objc dynamic var fileTypeRaw: Int = FileType.video.rawValue
 
+    // periphery:ignore - persisted Realm column
     @objc dynamic var url: String = ""
     // periphery:ignore - persisted Realm column
     @objc dynamic var path: String = ""
