@@ -30,7 +30,9 @@ final class SentryTelemetryTests: XCTestCase {
         event.tags = ["category": "downloads_observation", leak: leak]
         event.context = [
             "os": ["name": "iOS"],
-            "device": ["model": "iPhone18,1", "connection_type": "wifi", "connection_effective_type": "5g", "hinge_status": "open"],
+            "device": [
+                "model": "iPhone18,1", "connection_type": "wifi", "connection_effective_type": "5g", "hinge_status": "open", leak: leak
+            ],
             "culture": [leak: leak],
             "user info": [leak: leak],
             "response": [leak: leak]

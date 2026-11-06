@@ -84,14 +84,12 @@ description = "Sub-second gate: generated assets, strings, workspace sanity"
 depends = ["verify-icons", "verify-tokens", "verify-type-scale"]
 run = "./scripts/verify-fast.sh"
 
-# The acknowledgements check reads the package checkouts, so it runs after the
-# build has resolved them.
 [tasks.verify]
 description = "Lint, build and run the unit test suite on an ephemeral simulator"
 depends = ["verify-fast", "lint"]
 run = [
     "./scripts/xcodebuild-test.sh --scheme Putio --result-bundle build/verify.xcresult --label verify",
-    "ruby scripts/sync-acknowledgements.rb --check",
+    "mise run verify-acknowledgements",
 ]
 
 [tasks.e2e-simulator]

@@ -401,11 +401,15 @@ enum SentryTelemetry {
 
     private static let sentContextKeys: Set<String> = ["app", "device", "os", "runtime"]
 
-    private static let withheldDeviceKeys: Set<String> = ["connection_type", "connection_effective_type", "hinge_status"]
+    private static let sentDeviceKeys: Set<String> = [
+        "arch", "battery_level", "charging", "family", "free_memory", "ios_app_on_macos", "ios_app_on_visionos",
+        "locale", "low_power_mode", "mac_catalyst_app", "memory_size", "model", "model_id", "orientation",
+        "processor_count", "screen_height_pixels", "screen_width_pixels", "simulator", "thermal_state", "usable_memory"
+    ]
 
     private static func sentContext(_ context: [String: [String: Any]]?) -> [String: [String: Any]]? {
         guard var sent = context?.filter({ sentContextKeys.contains($0.key) }) else { return nil }
-        sent["device"] = sent["device"]?.filter { !withheldDeviceKeys.contains($0.key) }
+        sent["device"] = sent["device"]?.filter { sentDeviceKeys.contains($0.key) }
         return sent
     }
 
