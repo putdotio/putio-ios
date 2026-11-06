@@ -533,19 +533,18 @@ test("Beta and Release keep the archive's dSYMs and upload them without holding 
     const keep = at((step) => String(step.uses).startsWith("actions/upload-artifact@"));
     const sentry = at((step) => /scripts\/upload-dsyms\.sh/.test(String(step.run ?? "")));
     const cleanup = steps.length - 1;
-    assert.ok(archive >= 0 && keep === archive + 1 && keep < appStore && appStore < sentry && sentry < cleanup, `${name}: archive, keep, App Store upload, Sentry, cleanup`);
+    assert.ok(archive >= 0 && keep === archive + 1 && sentry === keep + 1 && sentry < appStore && appStore < cleanup, `${name}: archive, keep, Sentry, App Store upload, cleanup`);
 
-    assert.equal(steps[archive]?.id, "archive", name);
     assert.match(String(steps[archive]?.run), new RegExp(`archive-ios\\.sh .*"\\$${dsymPath}"$`, "m"), `${name} archives its dSYMs to ${dsymPath}`);
     for (const step of [steps[keep], steps[sentry]]) {
       assert.equal(step?.["continue-on-error"], true, `${name} ${String(step?.name)} can't fail the delivery`);
     }
-    assert.equal(steps[sentry]?.if, "${{ !cancelled() && steps.archive.outcome == 'success' }}", `${name} uploads to Sentry after a failed App Store upload`);
     assert.equal(recordAt(steps[keep] ?? {}, "with", name).path, `\${{ env.${dsymPath} }}`);
     assert.equal(recordAt(steps[keep] ?? {}, "with", name)["if-no-files-found"], "error");
+    assert.equal(recordAt(steps[keep] ?? {}, "with", name)["retention-days"], 90, `${name} keeps the dSYMs for the longest retention`);
     const env = recordAt(steps[sentry] ?? {}, "env", name);
     assert.equal(env.SENTRY_AUTH_TOKEN, "${{ secrets.SENTRY_AUTH_TOKEN }}");
     assert.match(String(steps[sentry]?.run), /^mise install sentry-cli$/m);
-    assert.match(String(steps[sentry]?.run), new RegExp(`mise exec -- \\./scripts/upload-dsyms\\.sh "\\$${dsymPath}"`));
+    assert.match(String(steps[sentry]?.run), new RegExp(`mise exec sentry-cli -- \\./scripts/upload-dsyms\\.sh "\\$${dsymPath}"`));
   }
 });

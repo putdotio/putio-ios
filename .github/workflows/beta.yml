@@ -23,7 +23,7 @@ concurrency:
   group: beta-main
   cancel-in-progress: false
 
-# mise must never install a tool here: it would compile Ruby from source.
+# mise must never install Ruby here: it would compile it from source.
 # ruby/setup-ruby provides the prebuilt one each job runs against.
 env:
   MISE_AUTO_INSTALL: "false"
@@ -185,7 +185,6 @@ jobs:
           ./scripts/install-signing.sh
 
       - name: Archive and export beta ipa
-        id: archive
         env:
           PUTIO_APP_DISPLAY_NAME: put.io
           PUTIO_PRIMARY_APP_ICON: AppIconNightly
@@ -202,6 +201,17 @@ jobs:
           name: dsyms-${{ env.PUTIO_BETA_APP_VERSION }}-${{ env.PUTIO_BETA_BUILD_NUMBER }}
           path: ${{ env.PUTIO_BETA_DSYM_PATH }}
           if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload dSYMs to Sentry
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+        run: |
+          mise install sentry-cli
+          mise exec sentry-cli -- ./scripts/upload-dsyms.sh "$PUTIO_BETA_DSYM_PATH"
 
       - name: Upload and distribute to TestFlight
         env:
@@ -217,17 +227,6 @@ jobs:
             --group "$PUTIO_BETA_GROUPS" --test-notes "$PUTIO_BETA_NOTES" --locale en-US \
             --wait --timeout "${PUTIO_BETA_WAIT_TIMEOUT_DURATION}s" --notify --submit --confirm --output markdown \
             | tee -a "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload dSYMs to Sentry
-        if: ${{ !cancelled() && steps.archive.outcome == 'success' }}
-        continue-on-error: true
-        timeout-minutes: 15
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
-        run: |
-          mise install sentry-cli
-          mise exec -- ./scripts/upload-dsyms.sh "$PUTIO_BETA_DSYM_PATH"
 
       - name: Delete the signing keychain
         if: always() && env.PUTIO_SIGNING_KEYCHAIN != ''
