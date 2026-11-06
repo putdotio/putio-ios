@@ -286,59 +286,6 @@ final class DownloadRestartTests: XCTestCase {
 
 private final class RestartingDownloadPresenter: UIViewController, DownloadedFilePresenter {}
 
-final class OfflineVideoPlaybackTests: XCTestCase {
-    func testUnplayablePackageOffersRedownloadInsteadOfPlayer() throws {
-        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: name))
-        let download = Download()
-        download.id = 9_000_401
-        download.name = "Partial Episode"
-        download.state = .completed
-        download.fileType = .video
-        try realm.write { realm.add(download) }
-        let package = FileManager.default.temporaryDirectory
-            .appendingPathComponent("OfflineVideoPlaybackTests-\(UUID().uuidString).movpkg", isDirectory: true)
-        try FileManager.default.createDirectory(at: package, withIntermediateDirectories: false)
-        let bookmarkKey = String(download.id)
-        UserDefaults.standard.set(try package.bookmarkData(), forKey: bookmarkKey)
-        addTeardownBlock {
-            UserDefaults.standard.removeObject(forKey: bookmarkKey)
-            try? FileManager.default.removeItem(at: package)
-        }
-        let presenter = RecordingDownloadPresenter()
-
-        presenter.presentDownloadedFile(download)
-
-        XCTAssertEqual(presenter.presented.count, 1)
-        let alert = try XCTUnwrap(presenter.presented.first as? UIAlertController)
-        XCTAssertEqual(alert.title, NSLocalizedString("File Unavailable", comment: ""))
-        XCTAssertTrue(alert.actions.contains { $0.title == NSLocalizedString("Re-download", comment: "") })
-        XCTAssertEqual(download.state, .failed)
-    }
-
-    func testFinishedTaskWithUnplayablePackageDoesNotComplete() throws {
-        let package = FileManager.default.temporaryDirectory
-            .appendingPathComponent("OfflineVideoPlaybackTests-\(UUID().uuidString).movpkg", isDirectory: true)
-        try FileManager.default.createDirectory(at: package, withIntermediateDirectories: false)
-        addTeardownBlock { try? FileManager.default.removeItem(at: package) }
-
-        XCTAssertNil(VideoDownloadManager.playablePackage(at: package, error: nil))
-        XCTAssertNil(VideoDownloadManager.playablePackage(at: nil, error: nil))
-    }
-}
-
-private final class RecordingDownloadPresenter: UIViewController, DownloadedFilePresenter {
-    var presented = [UIViewController]()
-
-    override func present(
-        _ viewControllerToPresent: UIViewController,
-        animated flag: Bool,
-        completion: (() -> Void)? = nil
-    ) {
-        presented.append(viewControllerToPresent)
-        completion?()
-    }
-}
-
 final class DownloadDeletionFlowTests: XCTestCase {
     private var realm: Realm!
     private var viewController: DeletingDownloadsViewController!

@@ -53,6 +53,12 @@ enum PutioE2EDownloadFixtures {
         Seed(id: 72, name: "Tears of Steel.mp4", size: 2_254_857_830, state: .active, progress: "0.62")
     ]
 
+    private static let filenamePrefix = "putio_e2e_"
+
+    static func isFixture(_ url: URL) -> Bool {
+        url.lastPathComponent.hasPrefix(filenamePrefix)
+    }
+
     static func install(into realm: Realm) {
         if PutioE2ELargeFixture.isEnabled {
             return installLarge(into: realm)
@@ -120,7 +126,7 @@ enum PutioE2EDownloadFixtures {
         }
 
         let fileExtension = seed.fileType == .audio ? "mp3" : "movpkg"
-        let filename = "putio_e2e_\(seed.id).\(fileExtension)"
+        let filename = "\(filenamePrefix)\(seed.id).\(fileExtension)"
         let fileURL = documentsURL.appendingPathComponent(filename)
         guard FileManager.default.createFile(atPath: fileURL.path, contents: Data()) else {
             return log.error("[PutioE2EDownloadFixtures] Unable to create \(filename)")

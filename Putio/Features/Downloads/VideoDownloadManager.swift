@@ -15,6 +15,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     private let activeDownloadsLock = NSLock()
     fileprivate var willDownloadToURLMap = [AVAssetDownloadTask: URL]()
     fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
+    private var reportedUnplayableIDs = Set<Int>()
 
     var activeDownloadCount: Int {
         withActiveDownloadsMap { $0.count }
@@ -332,21 +333,29 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
             return nil
         }
         guard Self.isPlayableOffline(url) else {
-            SentryTelemetry.capture(.unplayableOfflineVideo)
+            if reportedUnplayableIDs.insert(downloadId).inserted {
+                SentryTelemetry.capture(.unplayableOfflineVideo)
+            }
             return nil
         }
         return url
     }
 
-    static func playablePackage(at location: URL?, error: Error?) -> URL? {
-        guard error == nil, let location, isPlayableOffline(location) else { return nil }
+    static func playablePackage(
+        at location: URL?,
+        error: Error?,
+        isPlayable: (URL) -> Bool = isPlayableOffline
+    ) -> URL? {
+        guard error == nil, let location, isPlayable(location) else { return nil }
         return location
     }
 
-    private static func isPlayableOffline(_ url: URL) -> Bool {
-        if PutioE2EEnvironment.isMockAPIEnabled, url.lastPathComponent.hasPrefix("putio_e2e_") {
+    static func isPlayableOffline(_ url: URL) -> Bool {
+        #if DEBUG
+        if PutioE2EEnvironment.isMockAPIEnabled, PutioE2EDownloadFixtures.isFixture(url) {
             return true
         }
+        #endif
         return AVURLAsset(url: url).assetCache?.isPlayableOffline == true
     }
 
@@ -447,6 +456,7 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
         if let packageURL = Self.playablePackage(at: downloadURL, error: error) {
             do {
                 UserDefaults.standard.set(try packageURL.bookmarkData(), forKey: String(download.id))
+                reportedUnplayableIDs.remove(download.id)
                 didFail = false
             } catch {
                 _ = DownloadSupport.deleteItemIfPresent(
@@ -456,7 +466,7 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
             }
         } else if let downloadURL {
             if error == nil {
-                SentryTelemetry.capture(.unplayableOfflineVideo)
+                SentryTelemetry.capture(.unplayableOfflineDownload)
             }
             _ = DownloadSupport.deleteItemIfPresent(
                 at: downloadURL,
