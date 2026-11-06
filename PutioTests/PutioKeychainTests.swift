@@ -688,13 +688,19 @@ final class DownloadedFilePresenterTests: XCTestCase {
     }
 
     func testUnplayablePackageOffersRedownloadInsteadOfPlayer() throws {
-        let realm = try Realm(configuration: Realm.Configuration(inMemoryIdentifier: name))
+        let temporaryDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("DownloadedFilePresenterTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: temporaryDirectory) }
+        let configuration = PutioRealm.configuration(fileURL: temporaryDirectory.appendingPathComponent("Downloads.realm"))
+        let realm = try XCTUnwrap(PutioRealm.open(context: "DownloadedFilePresenterTests.unplayablePackage", configuration: configuration))
         let download = Download()
         download.id = 9_000_401
         download.name = "Partial Episode"
         download.state = .completed
         download.fileType = .video
-        try realm.write { realm.add(download) }
+        XCTAssertTrue(PutioRealm.write(realm, context: "DownloadedFilePresenterTests.unplayablePackage.seed") {
+            realm.add(download, update: .all)
+        })
         let package = try makeEmptyPackage()
         let bookmarkKey = String(download.id)
         UserDefaults.standard.set(try package.bookmarkData(), forKey: bookmarkKey)
