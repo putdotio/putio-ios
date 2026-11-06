@@ -1,4 +1,5 @@
 import UIKit
+import PutioSDK
 
 extension FilesViewController {
     func file(at indexPath: IndexPath) -> PutioFile? {
