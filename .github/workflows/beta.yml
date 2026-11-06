@@ -23,7 +23,7 @@ concurrency:
   group: beta-main
   cancel-in-progress: false
 
-# mise must never install a tool here: it would compile Ruby from source.
+# mise must never install Ruby here: it would compile it from source.
 # ruby/setup-ruby provides the prebuilt one each job runs against.
 env:
   MISE_AUTO_INSTALL: "false"
@@ -49,7 +49,7 @@ jobs:
     needs: validate-ref
     runs-on: macos-latest
     environment: release
-    timeout-minutes: 60
+    timeout-minutes: 75
     permissions:
       contents: read
       pull-requests: read
@@ -148,6 +148,7 @@ jobs:
           {
             echo "PUTIO_BETA_BUILD_NUMBER=$PUTIO_BETA_BUILD_NUMBER"
             echo "PUTIO_BETA_IPA_PATH=$PUTIO_BETA_IPA_PATH"
+            echo "PUTIO_BETA_DSYM_PATH=$RUNNER_TEMP/putio-ios-beta-dsyms"
             echo "PUTIO_BETA_WAIT_TIMEOUT_DURATION=$PUTIO_BETA_WAIT_TIMEOUT_DURATION"
             echo "PUTIO_BETA_GROUPS=$PUTIO_BETA_GROUPS"
           } >> "$GITHUB_ENV"
@@ -191,7 +192,26 @@ jobs:
           version="$(xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Release -showBuildSettings -json \
             | jq -r '.[0].buildSettings.MARKETING_VERSION')"
           echo "PUTIO_BETA_APP_VERSION=$version" >> "$GITHUB_ENV"
-          ./scripts/archive-ios.sh "$version" "$PUTIO_BETA_BUILD_NUMBER" "$PUTIO_BETA_IPA_PATH"
+          ./scripts/archive-ios.sh "$version" "$PUTIO_BETA_BUILD_NUMBER" "$PUTIO_BETA_IPA_PATH" "$PUTIO_BETA_DSYM_PATH"
+
+      - name: Keep the dSYMs
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dsyms-${{ env.PUTIO_BETA_APP_VERSION }}-${{ env.PUTIO_BETA_BUILD_NUMBER }}
+          path: ${{ env.PUTIO_BETA_DSYM_PATH }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload dSYMs to Sentry
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+        run: |
+          mise install sentry-cli
+          mise exec sentry-cli -- ./scripts/upload-dsyms.sh "$PUTIO_BETA_DSYM_PATH"
 
       - name: Upload and distribute to TestFlight
         env:
