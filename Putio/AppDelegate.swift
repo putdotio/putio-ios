@@ -46,12 +46,19 @@ enum LoginFailure: Equatable {
     case sessionLoad
 }
 
+extension PutioSDKErrorType {
+    var isUnauthorized: Bool {
+        guard case .httpError(let statusCode, let errorType) = self else { return false }
+        return statusCode == 401 || errorType == "Unauthorized"
+    }
+}
+
 enum SessionLoadFallback: Equatable {
     case cachedSession
     case login(LoginFailure)
 
     static func after(_ error: PutioSDKErrorType, keepsSession: Bool) -> SessionLoadFallback {
-        if case .httpError(let statusCode, let errorType) = error, statusCode == 401 || errorType == "Unauthorized" {
+        if error.isUnauthorized {
             return .login(.sessionExpired)
         }
 
@@ -91,17 +98,23 @@ struct IntercomMessenger: SupportMessenger {
     }
 }
 
-enum SupportLoginFailure: Int {
-    case network = 1
-    case rejected = 2
-
-    static let errorDomain = "io.put.support-login"
-
-    init(_ error: Error) {
-        self = (error as NSError).domain == NSURLErrorDomain ? .network : .rejected
+struct SupportLoginFailure: Equatable {
+    enum Category: String {
+        case network
+        case rejected
     }
 
-    var error: NSError { NSError(domain: Self.errorDomain, code: rawValue) }
+    let category: Category
+    let code: Int
+
+    init(_ error: Error) {
+        let error = error as NSError
+        let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError
+        category = [error.domain, underlying?.domain].contains(NSURLErrorDomain) ? .network : .rejected
+        code = error.code
+    }
+
+    var error: NSError { NSError(domain: "io.put.support-login.\(category.rawValue)", code: code) }
 }
 
 enum SupportIdentity {
@@ -127,10 +140,6 @@ enum SupportIdentity {
                 report(SupportLoginFailure(error))
             }
         }
-    }
-
-    static func signOut(messenger: SupportMessenger?) {
-        messenger?.logout()
     }
 }
 
@@ -466,6 +475,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             return presentMainScreen(startDownloadQueue: startsDownloadQueue)
         case .login(let failure):
             if failure == .sessionExpired {
+                PutioKeychain.sharedInstance.clearToken()
+                api.clearToken()
                 SentryTelemetry.update(diagnosticsEnabled: nil)
             }
             return presentLoginScreen(after: failure, reason: "account fetch failed: \(error.localizerType)")
@@ -498,8 +509,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 }
                 AccountNoticeStore.shared.update(with: account)
             case .failure(let error):
-                if case .httpError(let statusCode, let errorType) = error.type,
-                   statusCode == 401 || errorType == "Unauthorized" {
+                if error.type.isUnauthorized {
                     AccountNoticeStore.shared.clear()
                     ProductAnalytics.update(accountID: nil, productAnalyticsEnabled: nil)
                 } else {
@@ -540,7 +550,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         DownloadQueueController.sharedInstance.pause()
         AccountNoticeStore.shared.clear()
         ProductAnalytics.update(accountID: nil, productAnalyticsEnabled: nil)
-        SupportIdentity.signOut(messenger: supportMessenger)
+        if failure != .sessionLoad {
+            supportMessenger?.logout()
+        }
         applyWindowAppearance()
         let storyboard = UIStoryboard(name: "Login", bundle: nil)
         guard let loginViewController = storyboard.instantiateViewController(withIdentifier: "LoginVC", as: LoginViewController.self) else {

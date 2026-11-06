@@ -33,6 +33,7 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
     }
     
     func retrySessionLoad() {
+        loginButton?.isEnabled = false
         if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
             appDelegate.retrySessionLoad()
         }

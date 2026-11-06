@@ -94,32 +94,38 @@ final class LoginSessionTests: XCTestCase {
         XCTAssertEqual(messenger.events, [.logout, .setUserHash("hash-7"), .login("7")])
     }
 
-    func testSupportLoginFailuresReportOnlyABoundedCategory() {
-        let failures: [(Error, SupportLoginFailure)] = [
-            (URLError(.notConnectedToInternet), .network),
-            (NSError(domain: "com.intercom.sdk", code: 401, userInfo: [NSLocalizedDescriptionKey: "user 7 hash-7"]), .rejected)
+    func testSupportLoginFailuresReportOnlyACategoryAndCode() {
+        let offline = URLError(.notConnectedToInternet)
+        let wrappedOffline = NSError(domain: "com.intercom.sdk", code: 3, userInfo: [NSUnderlyingErrorKey: offline])
+        let rejected = NSError(domain: "com.intercom.sdk", code: 401, userInfo: [NSLocalizedDescriptionKey: "user 7 hash-7"])
+        let failures: [(Error, String, Int)] = [
+            (offline, "io.put.support-login.network", URLError.notConnectedToInternet.rawValue),
+            (wrappedOffline, "io.put.support-login.network", 3),
+            (rejected, "io.put.support-login.rejected", 401)
         ]
 
-        for (error, expected) in failures {
+        for (error, domain, code) in failures {
             let messenger = SupportMessengerSpy(loginResult: .failure(error))
-            var reported: [SupportLoginFailure] = []
+            var reported: [NSError] = []
 
-            SupportIdentity.signIn(accountID: 7, userHash: "hash-7", messenger: messenger) { reported.append($0) }
+            SupportIdentity.signIn(accountID: 7, userHash: "hash-7", messenger: messenger) { reported.append($0.error) }
 
-            XCTAssertEqual(reported, [expected])
-            XCTAssertEqual(expected.error.domain, SupportLoginFailure.errorDomain)
-            XCTAssertEqual(expected.error.userInfo.count, 0)
+            XCTAssertEqual(reported.map(\.domain), [domain])
+            XCTAssertEqual(reported.map(\.code), [code])
+            XCTAssertEqual(reported.map(\.userInfo.count), [0])
         }
     }
 
-    func testEveryTransitionToLoginClearsTheSupportSession() {
+    func testEndingTheSessionClearsSupportButAFailedLoadKeepsIt() {
         let messenger = SupportMessengerSpy(loggedInUserID: "7")
         let appDelegate = AppDelegate()
         appDelegate.supportMessenger = messenger
 
-        appDelegate.presentLoginScreen()
-        appDelegate.presentLoginScreen(failure: .sessionExpired)
+        appDelegate.presentLoginScreen(failure: .sessionLoad)
+        XCTAssertEqual(messenger.events, [])
 
+        appDelegate.presentLoginScreen(failure: .sessionExpired)
+        appDelegate.presentLoginScreen()
         XCTAssertEqual(messenger.events, [.logout, .logout])
     }
 
