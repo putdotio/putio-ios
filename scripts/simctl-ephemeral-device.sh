@@ -68,7 +68,13 @@ fi
 
 device_name="putio-$label-$(date +%Y%m%d%H%M%S)-$$"
 
-device_id="$(xcrun simctl create "$device_name" "$device_type" "$runtime")"
+attempt=1
+until device_id="$(xcrun simctl create "$device_name" "$device_type" "$runtime")"; do
+    [ "$attempt" -lt 6 ] || exit 1
+    echo "simctl create failed on attempt $attempt; retrying in 15s while $runtime finishes mounting" >&2
+    attempt=$((attempt + 1))
+    sleep 15
+done
 
 # Callers can only clean up a device whose id they were given, so anything that
 # fails between here and the final echo has to delete it itself.
