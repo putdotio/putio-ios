@@ -57,7 +57,9 @@ enum DownloadsBulkDeletion {
             guard items.indices.contains(index) else { return completion(failures) }
             let item = items[index]
             operation(item.id, item.fileType) { didSucceed in
-                attempt(from: index + 1, failures: didSucceed ? failures : failures + [item])
+                DispatchQueue.main.async {
+                    attempt(from: index + 1, failures: didSucceed ? failures : failures + [item])
+                }
             }
         }
 

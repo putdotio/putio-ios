@@ -61,16 +61,22 @@ extension DownloadsViewController {
     }
 
     func deleteConfirmedDownload(_ item: DownloadDeletionItem, completion: @escaping (Bool) -> Void) {
-        guard downloads?.realm?.object(ofType: Download.self, forPrimaryKey: item.id) != nil else {
-            return completion(true)
-        }
+        guard isStored(item) else { return completion(true) }
 
         deleteDownload(item.id, item.fileType) { [weak self] didDelete in
-            completion(didDelete)
-            if !didDelete {
-                self?.presentDeletionFailure(for: [item])
+            guard let self else { return completion(didDelete) }
+            let isGone = didDelete || !self.isStored(item)
+            completion(isGone)
+            if !isGone {
+                self.presentDeletionFailure(for: [item])
             }
         }
+    }
+
+    func isStored(_ item: DownloadDeletionItem) -> Bool {
+        guard let realm = downloads?.realm else { return false }
+        realm.refresh()
+        return realm.object(ofType: Download.self, forPrimaryKey: item.id) != nil
     }
 }
 

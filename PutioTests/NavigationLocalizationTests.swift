@@ -232,6 +232,7 @@ final class NavigationLocalizationTests: XCTestCase {
         ]
         var attemptedIDs = [Int]()
         var failures: [DownloadDeletionItem]?
+        let finished = expectation(description: "bulk deletion finished")
 
         DownloadsBulkDeletion.failures(
             deleting: items,
@@ -239,9 +240,13 @@ final class NavigationLocalizationTests: XCTestCase {
                 attemptedIDs.append(id)
                 completion(id != 12)
             },
-            completion: { failures = $0 }
+            completion: {
+                failures = $0
+                finished.fulfill()
+            }
         )
 
+        wait(for: [finished], timeout: 5)
         XCTAssertEqual(attemptedIDs, [11, 12, 13])
         XCTAssertEqual(failures, [items[1]])
     }

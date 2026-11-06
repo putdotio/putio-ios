@@ -279,7 +279,8 @@ extension DownloadsViewController {
         updateSelectionUI()
 
         DownloadsBulkDeletion.failures(deleting: items, with: operation) { [weak self] failures in
-            self?.finishDownloadOperation(failures: failures)
+            guard let self else { return }
+            self.finishDownloadOperation(failures: failures.filter(self.isStored))
         }
     }
 
