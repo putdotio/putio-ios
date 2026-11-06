@@ -44,6 +44,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     // A session restored at launch, not a fresh sign-in, which may be another
     // account than the one that left 2.58.0's downloads.
     private var isRestoredSession = false
+    private var cachedShellAwaitsSession = false
     static var isRunningUnitTests: Bool {
         let environment = ProcessInfo.processInfo.environment
         return [
@@ -249,6 +250,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     func fetchUser() {
         let signpost = PerfSignpost.begin("FetchUser")
+        loadSession { result in
+            PerfSignpost.end(signpost)
+            switch result {
+            case .success(let (account, config)):
+                self.fetchUserSuccess(account: account, config: config)
+            case .failure(let error):
+                self.fetchUserFailure(error: error)
+            }
+        }
+    }
+
+    private func loadSession(
+        appliesAccountSettings: Bool = true,
+        _ completion: @escaping (Result<(PutioAccount, AppConfig), PutioSDKError>) -> Void
+    ) {
         let dispatchGroup = DispatchGroup()
         
         var account: PutioAccount?
@@ -268,6 +284,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             switch result {
             case .success(let accountData):
                 account = accountData
+                guard appliesAccountSettings else { break }
                 // Not behind /config: an opt-out applies as soon as the account
                 // answers, and a /config failure still opens the cached main screen.
                 SentryTelemetry.update(diagnosticsEnabled: accountData.settings.diagnosticsEnabled)
@@ -291,57 +308,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
         
         dispatchGroup.notify(queue: .main) {
-            PerfSignpost.end(signpost)
-
             if let accountError = accountError {
-                return self.fetchUserFailure(error: accountError)
+                return completion(.failure(accountError))
             }
-            
+
             if let configError = configError {
-                return self.fetchUserFailure(error: configError)
+                return completion(.failure(configError))
             }
-            
+
             if let account = account, let config = config {
-                return self.fetchUserSuccess(account: account, config: config)
+                return completion(.success((account, config)))
             }
         }
     }
 
     func fetchUserSuccess(account: PutioAccount, config: AppConfig) {
-        guard let realm = PutioRealm.open(context: "fetchUserSuccess") else {
-            InternalFailurePresenter.log("Unable to open Realm during fetchUserSuccess")
-            return presentLoginScreen(afterBootstrapFailure: "Realm unavailable in fetchUserSuccess")
-        }
-
-        guard let persistedUser = User(account: account), let persistedConfig = UserConfig(config: config) else {
-            InternalFailurePresenter.log("Unable to construct persisted user/config models")
-            return presentLoginScreen(afterBootstrapFailure: "user/config models could not be constructed")
-        }
-
-        let previousAccountID = realm.objects(User.self).first?.id
-
-        let didPersist = PutioRealm.replaceUserSession(
-            realm,
-            user: persistedUser,
-            config: persistedConfig,
-            context: "fetchUserSuccess.persist"
-        )
-
-        guard didPersist else {
-            return presentLoginScreen(afterBootstrapFailure: "user session could not be persisted")
-        }
-
-        if DownloadQueueLifecyclePolicy.accountDidChange(previousID: previousAccountID, currentID: account.id) {
-            DownloadQueueController.sharedInstance.clearDownloadsForAccountChange()
-        }
-
-        Utils.authorizeNotifications(application: UIApplication.shared)
-
-        if INTERCOM_ENABLED {
-            let attributes = ICMUserAttributes()
-            attributes.userId = String(account.id)
-            Intercom.loginUser(with: attributes)
-            Intercom.setUserHash(account.hash)
+        if let failure = confirmSession(account: account, config: config) {
+            return presentLoginScreen(afterBootstrapFailure: failure)
         }
 
         self.presentMainScreen(asksProductAnalytics: ProductAnalyticsChoice.shouldAsk(
@@ -357,13 +340,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
         // The upgrade from 2.58.0 deletes its Realm user, so until the next
         // sign-in the session restored at launch stands in for it.
-        let hasCachedUser = realm.objects(User.self).first != nil
-        let keepsSession = hasCachedUser || (isRestoredSession && PutioRealm.isUpgradingFromShipped258())
+        let keepsSession = realm.objects(User.self).first != nil || (isRestoredSession && PutioRealm.isUpgradingFromShipped258())
 
         switch error.localizerType {
         case .decodingError, .unknownError, .networkError:
             if keepsSession {
-                return self.presentMainScreen(startDownloadQueue: hasCachedUser)
+                return self.presentMainScreen(startDownloadQueue: false)
             }
 
             self.presentLoginScreen(afterBootstrapFailure: "account fetch failed: \(error.localizerType)")
@@ -375,7 +357,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             }
 
             if keepsSession {
-                return self.presentMainScreen(startDownloadQueue: hasCachedUser)
+                return self.presentMainScreen(startDownloadQueue: false)
             }
 
             return self.presentLoginScreen(afterBootstrapFailure: "account fetch failed with HTTP \(statusCode)")
@@ -389,6 +371,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     // rejected token keep the last notice, so going offline does not hide it.
     func refreshAccountStatus() {
         guard let signedInRoot = window?.rootViewController as? RootContainerViewController else { return }
+        if cachedShellAwaitsSession {
+            confirmCachedSession(for: signedInRoot)
+        }
         let savesBeforeRead = SettingsViewModel.confirmedSaves
         SettingsViewModel.accountRefreshes += 1
         let refresh = SettingsViewModel.accountRefreshes
@@ -407,7 +392,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                     ProductAnalytics.keepAnswer()
                 }
                 AccountNoticeStore.shared.update(with: account)
-                self.startDownloadQueue(confirmedAccountID: account.id)
             case .failure(let error):
                 if case .httpError(let statusCode, let errorType) = error.type,
                    statusCode == 401 || errorType == "Unauthorized" {
@@ -420,16 +404,60 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
     }
 
-    private func startDownloadQueue(confirmedAccountID accountID: Int) {
-        guard DownloadQueueLifecyclePolicy.shouldStartQueue(
-            requested: true,
-            isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled
-        ) else { return }
-        let cachedAccountID = PutioRealm.open(context: "startDownloadQueue")?.objects(User.self).first?.id
-        if DownloadQueueLifecyclePolicy.accountDidChange(previousID: cachedAccountID, currentID: accountID) {
+    private func confirmSession(account: PutioAccount, config: AppConfig) -> String? {
+        guard let realm = PutioRealm.open(context: "confirmSession") else {
+            InternalFailurePresenter.log("Unable to open Realm during confirmSession")
+            return "Realm unavailable in confirmSession"
+        }
+
+        guard let persistedUser = User(account: account), let persistedConfig = UserConfig(config: config) else {
+            InternalFailurePresenter.log("Unable to construct persisted user/config models")
+            return "user/config models could not be constructed"
+        }
+
+        let previousAccountID = realm.objects(User.self).first?.id
+
+        let didPersist = PutioRealm.replaceUserSession(
+            realm,
+            user: persistedUser,
+            config: persistedConfig,
+            context: "confirmSession.persist"
+        )
+
+        guard didPersist else {
+            return "user session could not be persisted"
+        }
+
+        if DownloadQueueLifecyclePolicy.accountDidChange(previousID: previousAccountID, currentID: account.id) {
             DownloadQueueController.sharedInstance.clearDownloadsForAccountChange()
         }
-        DownloadQueueController.sharedInstance.start()
+
+        Utils.authorizeNotifications(application: UIApplication.shared)
+
+        if INTERCOM_ENABLED {
+            let attributes = ICMUserAttributes()
+            attributes.userId = String(account.id)
+            Intercom.loginUser(with: attributes)
+            Intercom.setUserHash(account.hash)
+        }
+        return nil
+    }
+
+    private func confirmCachedSession(for signedInRoot: RootContainerViewController) {
+        loadSession(appliesAccountSettings: false) { [weak signedInRoot] result in
+            guard let signedInRoot,
+                  self.window?.rootViewController === signedInRoot,
+                  self.cachedShellAwaitsSession,
+                  case .success(let (account, config)) = result,
+                  self.confirmSession(account: account, config: config) == nil else { return }
+            self.cachedShellAwaitsSession = false
+            if DownloadQueueLifecyclePolicy.shouldStartQueue(
+                requested: true,
+                isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled
+            ) {
+                DownloadQueueController.sharedInstance.start()
+            }
+        }
     }
 
     func logout() {
@@ -473,6 +501,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     /// Only a fresh account and config can ask about product analytics; the
     /// cached shell after a failed load never does.
     func presentMainScreen(startDownloadQueue: Bool = true, asksProductAnalytics: Bool = false) {
+        cachedShellAwaitsSession = !startDownloadQueue
         if DownloadQueueLifecyclePolicy.shouldStartQueue(
             requested: startDownloadQueue,
             isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled
