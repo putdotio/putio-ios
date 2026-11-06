@@ -173,39 +173,34 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 
     @discardableResult
     func deleteDownload(id: Int) -> Bool {
-        var didDelete = false
-        deleteDownload(id: id, workQueue: nil) { didDelete = $0 }
+        let didDelete = deletion(for: id).perform()
+        finishDeletion(id: id, didDelete: didDelete)
         return didDelete
     }
 
     func deleteDownload(id: Int, completion: @escaping (Bool) -> Void) {
-        deleteDownload(id: id, workQueue: DownloadSupport.deletionQueue, completion: completion)
-    }
-
-    private func deleteDownload(id: Int, workQueue: DispatchQueue?, completion: @escaping (Bool) -> Void) {
-        dispatchPrecondition(condition: .onQueue(.main))
-        log.verbose(["VDM: deleteDownload", id])
-        DownloadSupport.performDeletion(
-            state: getDownloadFromDatabase(id: id)?.state,
-            cancelActiveDownload: { self.cancelDownload(id: id) },
-            deleteLocalFile: { self.deleteLocalFile(for: id) },
-            deleteRecord: {
-                DownloadSupport.deleteRecord(
-                    id: id,
-                    context: "VideoDownloadManager.deleteDownload"
-                )
-            },
-            localFileDeletionDidSucceed: {
-                UserDefaults.standard.removeObject(forKey: String(id))
-            },
-            workQueue: workQueue
-        ) { didDelete in
-            if didDelete {
-                self.discardDownload(id: id)
-                DownloadQueueController.sharedInstance.managerDidFinish()
-            }
+        deletion(for: id).perform { didDelete in
+            self.finishDeletion(id: id, didDelete: didDelete)
             completion(didDelete)
         }
+    }
+
+    private func deletion(for id: Int) -> DownloadSupport.Deletion {
+        dispatchPrecondition(condition: .onQueue(.main))
+        log.verbose(["VDM: deleteDownload", id])
+        return DownloadSupport.deletion(
+            id: id,
+            state: getDownloadFromDatabase(id: id)?.state,
+            context: "VideoDownloadManager.deleteDownload",
+            cancelActiveDownload: { self.cancelDownload(id: id) },
+            deleteLocalFile: { self.deleteLocalFile(for: id) }
+        )
+    }
+
+    private func finishDeletion(id: Int, didDelete: Bool) {
+        guard didDelete else { return }
+        discardDownload(id: id)
+        DownloadQueueController.sharedInstance.managerDidFinish()
     }
 
     @discardableResult

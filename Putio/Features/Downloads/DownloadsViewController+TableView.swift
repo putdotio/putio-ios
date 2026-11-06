@@ -74,9 +74,13 @@ extension DownloadsViewController {
     }
 
     func isStored(_ item: DownloadDeletionItem) -> Bool {
-        guard let realm = downloads?.realm else { return false }
+        !storedItems([item]).isEmpty
+    }
+
+    func storedItems(_ items: [DownloadDeletionItem]) -> [DownloadDeletionItem] {
+        guard !items.isEmpty, let realm = downloads?.realm else { return items }
         realm.refresh()
-        return realm.object(ofType: Download.self, forPrimaryKey: item.id) != nil
+        return items.filter { realm.object(ofType: Download.self, forPrimaryKey: $0.id) != nil }
     }
 }
 

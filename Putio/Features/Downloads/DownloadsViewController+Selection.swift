@@ -280,7 +280,7 @@ extension DownloadsViewController {
 
         DownloadsBulkDeletion.failures(deleting: items, with: operation) { [weak self] failures in
             guard let self else { return }
-            self.finishDownloadOperation(failures: failures.filter(self.isStored))
+            self.finishDownloadOperation(failures: self.storedItems(failures))
         }
     }
 
