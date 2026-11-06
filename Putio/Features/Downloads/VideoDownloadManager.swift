@@ -326,10 +326,15 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func getLocalFileURL(for downloadId: Int) -> URL? {
-        guard case .resolved(let url) = getLocalFileLocation(for: downloadId) else {
+        guard case .resolved(let url) = getLocalFileLocation(for: downloadId),
+              Self.isPlayableOffline(url) else {
             return nil
         }
         return url
+    }
+
+    private static func isPlayableOffline(_ url: URL) -> Bool {
+        AVURLAsset(url: url).assetCache?.isPlayableOffline == true
     }
 
     @discardableResult
@@ -425,19 +430,17 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
         log.verbose(["VDM: didCompleteWithError download: ", download.id, download.name])
 
         let downloadURL = willDownloadToURLMap.removeValue(forKey: task)
-        var didFail = error != nil
-        if error == nil, let downloadURL {
+        var didFail = true
+        if error == nil, let downloadURL, Self.isPlayableOffline(downloadURL) {
             do {
                 UserDefaults.standard.set(try downloadURL.bookmarkData(), forKey: String(download.id))
+                didFail = false
             } catch {
                 _ = DownloadSupport.deleteItemIfPresent(
                     at: downloadURL,
                     context: "VideoDownloadManager.didComplete.bookmarkCleanup"
                 )
-                didFail = true
             }
-        } else if error == nil {
-            didFail = true
         } else if let downloadURL {
             _ = DownloadSupport.deleteItemIfPresent(
                 at: downloadURL,
