@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import GoogleCast
 import PutioSDK
 
 /// The events from the Analytics event contract that this app has a hook for.
@@ -113,10 +114,25 @@ enum AnalyticsEvent: Equatable {
                 self = .source
                 return
             }
-            switch (error as NSError?)?.domain {
+            let error = error as NSError?
+            switch error?.domain {
             case NSURLErrorDomain?: self = .network
             case AVFoundationErrorDomain?, "CoreMediaErrorDomain"?: self = .media
+            case kGCKErrorDomain?: self = error.map { Self(castCode: $0.code) } ?? .unknown
             default: self = .unknown
+            }
+        }
+
+        private init(castCode: Int) {
+            switch GCKErrorCode(rawValue: castCode) {
+            case .networkError?, .timeout?, .networkNotReachable?, .channelNotConnected?, .deviceNotConnected?, .disconnected?:
+                self = .network
+            case .mediaLoadFailed?, .mediaError?:
+                self = .media
+            case .invalidRequest?, .unsupportedFeature?, .deviceCapabilityNotSupported?:
+                self = .unsupported
+            default:
+                self = .unknown
             }
         }
     }
@@ -296,6 +312,7 @@ final class AppSessionAnalytics {
 final class PlaybackAnalytics {
     private let playback: AnalyticsEvent.Playback
     private let capture: (AnalyticsEvent) -> Void
+    private let report: (SentryTelemetry.PlaybackFailure, Error?) -> Void
     private let now: () -> Date
     private let lock = NSLock()
     private var startedAt: Date?
@@ -307,10 +324,12 @@ final class PlaybackAnalytics {
     init(
         _ playback: AnalyticsEvent.Playback,
         capture: @escaping (AnalyticsEvent) -> Void = ProductAnalytics.captureInCurrentSession(),
+        report: @escaping (SentryTelemetry.PlaybackFailure, Error?) -> Void = SentryTelemetry.captureInCurrentSession(),
         now: @escaping () -> Date = Date.init
     ) {
         self.playback = playback
         self.capture = capture
+        self.report = report
         self.now = now
     }
 
@@ -371,6 +390,6 @@ final class PlaybackAnalytics {
             capture(.playbackFailed(playback, .init(error)))
             return true
         }
-        if isFirstFailure { SentryTelemetry.capture(.init(signal: signal, playback: playback), error: error) }
+        if isFirstFailure { report(.init(signal: signal, playback: playback), error) }
     }
 }

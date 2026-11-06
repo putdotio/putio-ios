@@ -10,17 +10,40 @@ enum SentryTelemetry {
         case diagnosticsCheck = "diagnostics_check"
         case downloadedAssetDeletion = "downloaded_asset_deletion"
         case downloadsObservation = "downloads_observation"
-        case playback = "playback"
         case pushRegistration = "push_registration"
         case realmOpen = "realm_open"
         case sessionLoad = "session_load"
     }
 
     struct PlaybackFailure {
+        static let category = "playback"
+
         enum Signal: String, CaseIterable {
             case itemFailed = "item_failed"
             case failedToPlayToEnd = "failed_to_play_to_end"
             case castLoadFailed = "cast_load_failed"
+        }
+
+        enum Tag: String {
+            case signal = "playback_signal"
+            case player
+            case streamMethod = "stream_method"
+            case media
+            case errorDomain = "error_domain"
+            case errorCode = "error_code"
+            case underlyingDomain = "underlying_domain"
+            case underlyingCode = "underlying_code"
+
+            func allows(_ value: String) -> Bool {
+                switch self {
+                case .signal: return Signal(rawValue: value) != nil
+                case .player: return AnalyticsEvent.Player(rawValue: value) != nil
+                case .streamMethod: return AnalyticsEvent.StreamMethod(rawValue: value) != nil
+                case .media: return AnalyticsEvent.Media(rawValue: value) != nil
+                case .errorDomain, .underlyingDomain: return ErrorDomain(rawValue: value) != nil
+                case .errorCode, .underlyingCode: return Int(value).map(String.init) == value
+                }
+            }
         }
 
         let signal: Signal
@@ -46,17 +69,6 @@ enum SentryTelemetry {
             self = Self(rawValue: error.domain) ?? .other
         }
     }
-
-    private static let listedTags: [String: Set<String>] = [
-        "playback_signal": Set(PlaybackFailure.Signal.allCases.map(\.rawValue)),
-        "player": Set(AnalyticsEvent.Player.allCases.map(\.rawValue)),
-        "stream_method": Set(AnalyticsEvent.StreamMethod.allCases.map(\.rawValue)),
-        "media": Set(AnalyticsEvent.Media.allCases.map(\.rawValue)),
-        "error_domain": Set(ErrorDomain.allCases.map(\.rawValue)),
-        "underlying_domain": Set(ErrorDomain.allCases.map(\.rawValue))
-    ]
-
-    private static let codeTags: Set<String> = ["error_code", "underlying_code"]
 
     /// put.io's tunnel to Sentry ingest. Some networks reset connections to
     /// Sentry's own host, and the tunnel forwards only allowlisted project ids.
@@ -167,26 +179,34 @@ enum SentryTelemetry {
         }
     }
 
-    static func capture(_ failure: PlaybackFailure, error: Error?) {
+    static func capture(_ failure: PlaybackFailure, error: Error?, startedIn session: Int) {
+        guard session == AccountNoticeStore.shared.session else { return }
         let error = error as NSError?
         let underlying = error?.userInfo[NSUnderlyingErrorKey] as? NSError
         let domain = ErrorDomain(error)
         let code = error?.code ?? 0
-        var tags = [
-            "category": Failure.playback.rawValue,
-            "playback_signal": failure.signal.rawValue,
-            "player": failure.playback.player.rawValue,
-            "stream_method": failure.playback.streamMethod.rawValue,
-            "media": failure.playback.media.rawValue,
-            "error_domain": domain.rawValue,
-            "error_code": String(code)
+        var tags: [PlaybackFailure.Tag: String] = [
+            .signal: failure.signal.rawValue,
+            .player: failure.playback.player.rawValue,
+            .streamMethod: failure.playback.streamMethod.rawValue,
+            .media: failure.playback.media.rawValue,
+            .errorDomain: domain.rawValue,
+            .errorCode: String(code)
         ]
         if let underlying {
-            tags["underlying_domain"] = ErrorDomain(underlying).rawValue
-            tags["underlying_code"] = String(underlying.code)
+            tags[.underlyingDomain] = ErrorDomain(underlying).rawValue
+            tags[.underlyingCode] = String(underlying.code)
         }
         SentrySDK.capture(error: NSError(domain: domain.rawValue, code: code)) { scope in
-            scope.setTags(tags)
+            scope.setTag(value: PlaybackFailure.category, key: "category")
+            for (tag, value) in tags { scope.setTag(value: value, key: tag.rawValue) }
+        }
+    }
+
+    static func captureInCurrentSession() -> (PlaybackFailure, Error?) -> Void {
+        let session = AccountNoticeStore.shared.session
+        return { failure, error in
+            DispatchQueue.main.async { capture(failure, error: error, startedIn: session) }
         }
     }
 
@@ -207,9 +227,7 @@ enum SentryTelemetry {
     static func allowlisted(_ event: Event) -> Event {
         let category = event.tags?["category"]
         let tags = event.tags?.filter { key, value in
-            key == "category"
-                || listedTags[key]?.contains(value) == true
-                || (codeTags.contains(key) && Int(value).map(String.init) == value)
+            key == "category" || PlaybackFailure.Tag(rawValue: key)?.allows(value) == true
         }
         let sent = Event(level: event.level)
         sent.eventId = event.eventId

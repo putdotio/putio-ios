@@ -192,9 +192,11 @@ final class SentryTelemetryTests: XCTestCase {
         streamed.fail(streamFailure)
         PlaybackAnalytics(AnalyticsEvent.Playback(media: .video, streamMethod: .localFile, player: .avplayer), capture: { _ in })
             .fail(missingDownload)
+        drainMainQueue()
         SentryTelemetry.isCapturing = false
         PlaybackAnalytics(AnalyticsEvent.Playback(media: .audio, streamMethod: .progressive, player: .avplayer), capture: { _ in })
             .fail(streamFailure)
+        drainMainQueue()
 
         XCTAssertEqual(sent().map(\.tags), [
             [
@@ -219,13 +221,16 @@ final class SentryTelemetryTests: XCTestCase {
         let streamed = PlaybackAnalytics(AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer), capture: { _ in })
         streamed.failedToPlayToEnd(URLError(.networkConnectionLost))
         streamed.fail(URLError(.networkConnectionLost))
-        SentryTelemetry.capture(
-            .init(signal: .castLoadFailed, playback: AnalyticsEvent.Playback(media: .video, streamMethod: .mp4, player: .chromecast)),
-            error: GCKError(code: .mediaLoadFailed)
-        )
+        drainMainQueue()
+        let cast = CastPlaybackTracker(capture: { _, _ in })
+        let load = NSObject()
+        cast.loadStarted(load, playback: AnalyticsEvent.Playback(media: .video, streamMethod: .mp4, player: .chromecast), session: AccountNoticeStore.shared.session)
+        cast.loadFailed(load, error: GCKError(code: .mediaLoadFailed))
+        cast.loadFailed(load, error: GCKError(code: .mediaLoadFailed))
         SentryTelemetry.capture(
             .init(signal: .castLoadFailed, playback: AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .chromecast)),
-            error: NSError(domain: "io.synthetic.unlisted", code: 7)
+            error: NSError(domain: "io.synthetic.unlisted", code: 7),
+            startedIn: AccountNoticeStore.shared.session
         )
 
         XCTAssertEqual(sent().map(\.tags), [
@@ -243,6 +248,24 @@ final class SentryTelemetryTests: XCTestCase {
             ]
         ])
         XCTAssertEqual(sent().last?.exceptions?.first?.type, "other")
+    }
+
+    func testAPlaybackFailureThatOutlivesItsSessionSendsNothing() throws {
+        let sent = try startRecordingSentEvents()
+        allowCapture()
+        let video = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .avplayer)
+        let pictureInPicture = PlaybackAnalytics(video, capture: { _ in })
+        let cast = CastPlaybackTracker(capture: { _, _ in })
+        let load = NSObject()
+        cast.loadStarted(load, playback: AnalyticsEvent.Playback(media: .video, streamMethod: .mp4, player: .chromecast), session: AccountNoticeStore.shared.session)
+
+        AccountNoticeStore.shared.clear()
+        pictureInPicture.fail(URLError(.timedOut))
+        cast.loadFailed(load, error: GCKError(code: .timeout))
+        PlaybackAnalytics(video, capture: { _ in }).fail(URLError(.timedOut))
+        drainMainQueue()
+
+        XCTAssertEqual(sent().map { $0.tags?["playback_signal"] }, ["item_failed"])
     }
 
     func testDeletesTheLegacySentryCacheOnly() throws {
@@ -303,6 +326,12 @@ final class SentryTelemetryTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
         return defaults
+    }
+
+    private func drainMainQueue() {
+        let drained = expectation(description: "main queue drained")
+        DispatchQueue.main.async { drained.fulfill() }
+        wait(for: [drained], timeout: 5)
     }
 
     private func allowCapture() {

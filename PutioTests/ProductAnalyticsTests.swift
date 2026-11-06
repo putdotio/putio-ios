@@ -519,6 +519,51 @@ final class ProductAnalyticsTests: XCTestCase {
         for (code, playbackError) in expected {
             XCTAssertEqual(AnalyticsEvent.PlaybackError(GCKError(code: code)), playbackError, "\(code.rawValue)")
         }
+        XCTAssertEqual(AnalyticsEvent.PlaybackError(NSError(domain: kGCKErrorDomain, code: GCKErrorCode.timeout.rawValue)), .network)
+    }
+
+    func testACastEndsOnlyWhenItsOwnMediaSessionFinishes() {
+        let cast = AnalyticsEvent.Playback(media: .video, streamMethod: .mp4, player: .chromecast)
+        var clock = Date(timeIntervalSinceReferenceDate: 0)
+        var events: [AnalyticsEvent] = []
+        let tracker = CastPlaybackTracker(capture: { event, _ in events.append(event) }, report: { _, _, _ in }, now: { clock })
+
+        let unanswered = NSObject()
+        tracker.loadStarted(unanswered, playback: cast, session: 1)
+        let load = NSObject()
+        tracker.loadStarted(load, playback: cast, session: 1)
+        XCTAssertFalse(tracker.loadCompleted(unanswered, status: nil))
+        XCTAssertTrue(tracker.loadCompleted(load, status: .init(playerState: .idle, idleReason: .interrupted, mediaSessionID: 0)))
+        tracker.update(.init(playerState: .idle, idleReason: .finished, mediaSessionID: 0))
+        tracker.update(.init(playerState: .buffering, mediaSessionID: 0))
+        tracker.update(.init(playerState: .playing, mediaSessionID: 8))
+        tracker.update(.init(playerState: .idle, idleReason: .interrupted, mediaSessionID: 7))
+        clock += 2400
+        tracker.update(.init(playerState: .idle, idleReason: .finished, mediaSessionID: 8))
+        tracker.update(.init(playerState: .idle, idleReason: .finished, mediaSessionID: 8))
+
+        XCTAssertEqual(events, [.playbackStarted(cast), .playbackEnded(cast, .from30mTo90m)])
+    }
+
+    func testACastThatStopsOrLosesItsSessionSendsNoEnd() {
+        let cast = AnalyticsEvent.Playback(media: .video, streamMethod: .hls, player: .chromecast)
+        var events: [AnalyticsEvent] = []
+        let tracker = CastPlaybackTracker(capture: { event, _ in events.append(event) }, report: { _, _, _ in })
+
+        for idleReason in [GCKMediaPlayerIdleReason.cancelled, .error, .interrupted] {
+            let load = NSObject()
+            tracker.loadStarted(load, playback: cast, session: 1)
+            XCTAssertTrue(tracker.loadCompleted(load, status: .init(playerState: .playing, mediaSessionID: 3)))
+            tracker.update(.init(playerState: .idle, idleReason: idleReason, mediaSessionID: 3))
+            tracker.update(.init(playerState: .idle, idleReason: .finished, mediaSessionID: 3))
+        }
+        let load = NSObject()
+        tracker.loadStarted(load, playback: cast, session: 1)
+        XCTAssertTrue(tracker.loadCompleted(load, status: .init(playerState: .playing, mediaSessionID: 4)))
+        tracker.sessionEnded()
+        tracker.update(.init(playerState: .idle, idleReason: .finished, mediaSessionID: 4))
+
+        XCTAssertEqual(events, Array(repeating: .playbackStarted(cast), count: 4))
     }
 
     func testAnEndFromAnotherThreadLeavesAfterTheStart() {
