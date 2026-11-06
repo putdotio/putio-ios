@@ -105,7 +105,7 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
     }
 
     func handleWebAuthResult(callbackURL: URL?, error: Error?) {
-        if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLoginRequest {
+        if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin {
             currentOAuthState = nil
             return
         }

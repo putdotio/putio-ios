@@ -8,7 +8,7 @@ final class LoginSessionTests: XCTestCase {
         let viewController = LoginViewControllerSpy()
         viewController.currentOAuthState = "oauth-state"
 
-        viewController.handleWebAuthResult(callbackURL: nil, error: ASWebAuthenticationSessionError(.canceledLoginRequest))
+        viewController.handleWebAuthResult(callbackURL: nil, error: ASWebAuthenticationSessionError(.canceledLogin))
 
         XCTAssertNil(viewController.presentedAlert)
         XCTAssertNil(viewController.currentOAuthState)
