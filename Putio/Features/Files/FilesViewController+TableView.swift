@@ -122,7 +122,6 @@ extension FilesViewController {
                 renameAlert.addAction(UIAlertAction(title: NSLocalizedString("Save", comment: ""), style: .default) { _ in
                     let newName = renameAlert.textFields?.first?.text ?? file.name
                     api.renameFile(fileID: file.id, name: newName) { _ in }
-                    file.name = newName
                     self.viewModel.files.first { $0.id == file.id }?.name = newName
                     self.tableView.reloadData()
                 })
@@ -235,7 +234,7 @@ extension FilesViewController: UITableViewDataSource {
 
         guard let file = file(at: indexPath) else {
             InternalFailurePresenter.log("Unable to access file row \(indexPath.row) for cell")
-            return cell
+            return UITableViewCell()
         }
 
         let download = downloads?.first(where: { download in

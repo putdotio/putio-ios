@@ -397,7 +397,7 @@ extension TrashViewController: UITableViewDataSource {
 
         guard let file = file(at: indexPath) else {
             InternalFailurePresenter.log("Unable to access trash row \(indexPath.row) for cell")
-            return cell
+            return UITableViewCell()
         }
 
         cell.configure(with: file)
