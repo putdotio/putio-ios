@@ -98,3 +98,10 @@ extension PutioSDK {
         }
     }
 }
+
+extension PutioSDKErrorType {
+    var isUnauthorized: Bool {
+        guard case .httpError(let statusCode, let errorType) = self else { return false }
+        return statusCode == 401 || errorType == "Unauthorized"
+    }
+}

@@ -41,9 +41,28 @@ enum LegacyInstallCleanup {
     }
 }
 
+enum LoginFailure: Equatable {
+    case sessionExpired
+    case sessionLoad
+}
+
+enum SessionLoadFallback: Equatable {
+    case cachedSession
+    case login(LoginFailure)
+
+    static func after(_ error: PutioSDKErrorType, keepsSession: Bool) -> SessionLoadFallback {
+        if error.isUnauthorized {
+            return .login(.sessionExpired)
+        }
+
+        return keepsSession ? .cachedSession : .login(.sessionLoad)
+    }
+}
+
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     var window: UIWindow?
+    var supportMessenger: SupportMessenger? = IntercomMessenger.ifEnabled
     private var pendingURLs: [URL] = []
     // A session restored at launch, not a fresh sign-in, which may be another
     // account than the one that left 2.58.0's downloads.
@@ -317,12 +336,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func fetchUserSuccess(account: PutioAccount, config: AppConfig, token: String) {
         guard let realm = PutioRealm.open(context: "fetchUserSuccess") else {
             InternalFailurePresenter.log("Unable to open Realm during fetchUserSuccess")
-            return presentLoginScreen(afterBootstrapFailure: "Realm unavailable in fetchUserSuccess")
+            return presentLoginScreen(after: .sessionLoad, reason: "Realm unavailable in fetchUserSuccess")
         }
 
         guard let persistedUser = User(account: account), let persistedConfig = UserConfig(config: config) else {
             InternalFailurePresenter.log("Unable to construct persisted user/config models")
-            return presentLoginScreen(afterBootstrapFailure: "user/config models could not be constructed")
+            return presentLoginScreen(after: .sessionLoad, reason: "user/config models could not be constructed")
         }
 
         let previousAccountID = realm.objects(User.self).first?.id
@@ -335,7 +354,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         )
 
         guard didPersist else {
-            return presentLoginScreen(afterBootstrapFailure: "user session could not be persisted")
+            return presentLoginScreen(after: .sessionLoad, reason: "user session could not be persisted")
         }
 
         if DownloadQueueLifecyclePolicy.accountDidChange(previousID: previousAccountID, currentID: account.id) {
@@ -344,12 +363,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         Utils.authorizeNotifications(application: UIApplication.shared)
 
-        if INTERCOM_ENABLED {
-            let attributes = ICMUserAttributes()
-            attributes.userId = String(account.id)
-            Intercom.loginUser(with: attributes)
-            Intercom.setUserHash(account.hash)
-        }
+        SupportIdentity.signIn(accountID: account.id, userHash: account.hash, messenger: supportMessenger)
         PutioKeychain.sharedInstance.setTokenOwner(accountID: account.id, for: token)
 
         self.presentMainScreen(asksProductAnalytics: ProductAnalyticsChoice.shouldAsk(
@@ -361,7 +375,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     func fetchUserFailure(error: any PutioErrorLocalizableInput) {
         guard let realm = PutioRealm.open(context: "fetchUserFailure") else {
-            return presentLoginScreen(afterBootstrapFailure: "Realm unavailable in fetchUserFailure")
+            return presentLoginScreen(after: .sessionLoad, reason: "Realm unavailable in fetchUserFailure")
         }
         // The upgrade from 2.58.0 deletes its Realm user, so until the next
         // sign-in the session restored at launch stands in for it.
@@ -372,25 +386,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             cachedUserID: cachedUserID
         )
 
-        switch error.localizerType {
-        case .decodingError, .unknownError, .networkError:
-            if keepsSession {
-                return self.presentMainScreen(startDownloadQueue: startsDownloadQueue)
+        switch SessionLoadFallback.after(error.localizerType, keepsSession: keepsSession) {
+        case .cachedSession:
+            return presentMainScreen(startDownloadQueue: startsDownloadQueue)
+        case .login(let failure):
+            if failure == .sessionExpired {
+                endSession()
             }
-
-            self.presentLoginScreen(afterBootstrapFailure: "account fetch failed: \(error.localizerType)")
-
-        case .httpError(let statusCode, let errorType):
-            if statusCode == 401 || errorType == "Unauthorized" {
-                SentryTelemetry.update(diagnosticsEnabled: nil)
-                return self.presentLoginScreen(afterBootstrapFailure: "account fetch rejected the token (\(statusCode))")
-            }
-
-            if keepsSession {
-                return self.presentMainScreen(startDownloadQueue: startsDownloadQueue)
-            }
-
-            return self.presentLoginScreen(afterBootstrapFailure: "account fetch failed with HTTP \(statusCode)")
+            return presentLoginScreen(after: failure, reason: "account fetch failed: \(error.localizerType)")
         }
     }
 
@@ -420,8 +423,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 }
                 AccountNoticeStore.shared.update(with: account)
             case .failure(let error):
-                if case .httpError(let statusCode, let errorType) = error.type,
-                   statusCode == 401 || errorType == "Unauthorized" {
+                if error.type.isUnauthorized {
                     AccountNoticeStore.shared.clear()
                     ProductAnalytics.update(accountID: nil, productAnalyticsEnabled: nil)
                 } else {
@@ -432,39 +434,48 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
 
     func logout() {
+        endSession()
+        presentLoginScreen()
+    }
+
+    private func endSession() {
         DownloadQueueController.sharedInstance.pause()
         OfflineVideoPlaybackPositionStore.shared.clearAllUpdates()
         PutioKeychain.sharedInstance.clearToken()
         api.clearToken()
         VideoPlaybackPositionStore.shared.clearAllPositions()
-        Intercom.logout()
         SentryTelemetry.update(diagnosticsEnabled: nil)
-        presentLoginScreen()
     }
 
     // Falling back to login is normal for a signed-out launch, but when the e2e
     // suite injected a token it means the mocked sign-in path broke. Say so
     // instead of leaving a bare login screen for the test to interpret.
-    private func presentLoginScreen(afterBootstrapFailure reason: String) {
+    private func presentLoginScreen(after failure: LoginFailure, reason: String) {
         if e2eAccessToken != nil {
             InternalFailurePresenter.log("E2E sign-in bootstrap fell back to the login screen: \(reason)")
         }
 
-        presentLoginScreen()
+        presentLoginScreen(failure: failure)
+    }
+
+    func retrySessionLoad() {
+        authenticate(isRestoredSession: isRestoredSession)
     }
 
     /// Every way out of the signed-in app ends here: logout, a rejected token,
     /// a launch with no session, or a failed bootstrap.
-    func presentLoginScreen() {
+    func presentLoginScreen(failure: LoginFailure? = nil) {
         DownloadQueueController.sharedInstance.pause()
         AccountNoticeStore.shared.clear()
         ProductAnalytics.update(accountID: nil, productAnalyticsEnabled: nil)
+        SupportIdentity.signOut(after: failure, messenger: supportMessenger)
         applyWindowAppearance()
         let storyboard = UIStoryboard(name: "Login", bundle: nil)
-        guard let loginViewController = storyboard.instantiateViewController(withIdentifier: "LoginVC", as: UIViewController.self) else {
+        guard let loginViewController = storyboard.instantiateViewController(withIdentifier: "LoginVC", as: LoginViewController.self) else {
             InternalFailurePresenter.log("Unable to instantiate LoginVC")
             return
         }
+        loginViewController.failure = failure
         window?.rootViewController = loginViewController
         window?.makeKeyAndVisible()
     }

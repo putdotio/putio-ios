@@ -6,7 +6,7 @@ import PutioSDK
 class DeeplinkManager {
     static let sharedInstance = DeeplinkManager()
 
-    var tabBarController: MainTabBarController?
+    weak var tabBarController: MainTabBarController?
     var isReadyToHandleURL: Bool = false
     var diagnosticsCheck: () -> Bool = { SentryTelemetry.captureDiagnosticsCheck() }
 
