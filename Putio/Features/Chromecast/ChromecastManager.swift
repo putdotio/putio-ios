@@ -25,7 +25,14 @@ class ChromecastManager: NSObject {
     var timer: Timer?
     /// The load the receiver has yet to answer; its answer sends the start or the failure.
     private var pendingLoad: (request: GCKRequest, playback: AnalyticsEvent.Playback, session: Int)?
-    private var playingLoad: (mediaSessionID: Int?, playback: AnalyticsEvent.Playback, session: Int, startedAt: Date)?
+    private var playingLoad: PlayingLoad?
+
+    private struct PlayingLoad {
+        var mediaSessionID: Int?
+        let playback: AnalyticsEvent.Playback
+        let session: Int
+        let startedAt: Date
+    }
 
     var debug: Bool = false
 
@@ -325,7 +332,7 @@ extension ChromecastManager: GCKRequestDelegate {
         guard let load = takePendingLoad(request) else { return }
         ProductAnalytics.capture(.playbackStarted(load.playback), startedIn: load.session)
         guard let client = GCKCastContext.sharedInstance().sessionManager.currentCastSession?.remoteMediaClient else { return }
-        playingLoad = (client.mediaStatus?.mediaSessionID, load.playback, load.session, Date())
+        playingLoad = PlayingLoad(mediaSessionID: client.mediaStatus?.mediaSessionID, playback: load.playback, session: load.session, startedAt: Date())
         client.remove(self)
         client.add(self)
     }
