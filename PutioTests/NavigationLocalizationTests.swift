@@ -739,6 +739,37 @@ final class NavigationLocalizationTests: XCTestCase {
         viewController.tableView(tableView, didDeselectRowAt: staleRow)
     }
 
+    func testFilesRowCallbacksIgnoreRowsGoneBeforeTheTableUpdates() throws {
+        let viewController = FilesViewController()
+        viewController.viewModel.files = [try makeFile(id: 31, name: "Video", type: "VIDEO")]
+        let tableView = UITableView()
+        viewController.tableView = tableView
+        let staleRow = IndexPath(row: 1, section: 0)
+
+        XCTAssertNil(viewController.tableView(tableView, trailingSwipeActionsConfigurationForRowAt: staleRow))
+        XCTAssertFalse(viewController.tableView(tableView, canEditRowAt: staleRow))
+        XCTAssertNil(viewController.tableView(tableView, willSelectRowAt: staleRow))
+        viewController.tableView(tableView, didSelectRowAt: staleRow)
+    }
+
+    func testTrashSwipeActionsIgnoreRowsGoneBeforeTheTableUpdates() {
+        let viewController = TrashViewController()
+        let tableView = UITableView()
+
+        XCTAssertNil(viewController.tableView(tableView, trailingSwipeActionsConfigurationForRowAt: IndexPath(row: 0, section: 0)))
+    }
+
+    func testHistoryRowCallbacksIgnoreRowsGoneBeforeTheTableUpdates() {
+        let viewController = HistoryViewController()
+        let tableView = UITableView()
+        let staleRow = IndexPath(row: 0, section: 0)
+
+        XCTAssertNil(viewController.tableView(tableView, trailingSwipeActionsConfigurationForRowAt: staleRow))
+        XCTAssertNil(viewController.tableView(tableView, titleForHeaderInSection: 0))
+        XCTAssertEqual(viewController.tableView(tableView, numberOfRowsInSection: 0), 0)
+        viewController.tableView(tableView, didSelectRowAt: staleRow)
+    }
+
     private func makeDownloadCell(realm: Realm? = nil) -> DownloadsTableViewCell {
         let cell = DownloadsTableViewCell()
         let icon = UIImageView()

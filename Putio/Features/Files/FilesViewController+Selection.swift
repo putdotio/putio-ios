@@ -58,7 +58,7 @@ extension FilesViewController {
 
     func getSelectedFiles() -> [PutioFile] {
         let indexPaths = tableView.indexPathsForSelectedRows ?? []
-        return indexPaths.map { viewModel.files[$0.row] }
+        return indexPaths.compactMap { file(at: $0) }
     }
 
     func updateSelectionState() {
@@ -81,8 +81,10 @@ extension FilesViewController {
 
         let selectableIDs = Set(viewModel.getSelectableFiles().map(\.id))
         for section in 0..<tableView.numberOfSections {
-            for row in 0..<tableView.numberOfRows(inSection: section) where selectableIDs.contains(viewModel.files[row].id) {
-                tableView.selectRow(at: IndexPath(row: row, section: section), animated: false, scrollPosition: .none)
+            for row in 0..<tableView.numberOfRows(inSection: section) {
+                let indexPath = IndexPath(row: row, section: section)
+                guard let file = file(at: indexPath), selectableIDs.contains(file.id) else { continue }
+                tableView.selectRow(at: indexPath, animated: false, scrollPosition: .none)
             }
         }
 
