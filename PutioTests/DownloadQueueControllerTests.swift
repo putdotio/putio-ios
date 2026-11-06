@@ -175,6 +175,29 @@ final class DownloadArtifactTests: XCTestCase {
         XCTAssertNil(DownloadSupport.copyDownloadedArtifact(from: source, to: destination))
         XCTAssertEqual(try Data(contentsOf: destination), Data("new".utf8))
     }
+
+    func testHTTPErrorBodyIsNotSavedAsArtifact() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ArtifactStatusTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("source")
+        let destination = directory.appendingPathComponent("destination")
+        let url = try XCTUnwrap(URL(string: "https://api.put.io/v2/files/1/stream"))
+        let response = { (statusCode: Int) in
+            HTTPURLResponse(url: url, statusCode: statusCode, httpVersion: "HTTP/1.1", headerFields: nil)
+        }
+        try Data("{\"error_type\":\"NotFound\"}".utf8).write(to: source)
+
+        let error = DownloadSupport.saveDownloadedArtifact(response: response(404), from: source, to: destination)
+
+        XCTAssertEqual(error as? DownloadSupport.ArtifactSaveError, .httpStatus(404))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
+
+        try Data("audio".utf8).write(to: source, options: .atomic)
+        XCTAssertNil(DownloadSupport.saveDownloadedArtifact(response: response(200), from: source, to: destination))
+        XCTAssertEqual(try Data(contentsOf: destination), Data("audio".utf8))
+    }
 }
 
 final class BackgroundDownloadSessionEventsTests: XCTestCase {

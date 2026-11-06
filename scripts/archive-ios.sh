@@ -3,16 +3,17 @@
 # CI-only: needs the identity and profile install-signing.sh installs, and the
 # PUTIO_* build settings the release Environment provides.
 #
-#   scripts/archive-ios.sh <marketing-version> <build-number> <ipa-path>
+#   scripts/archive-ios.sh <marketing-version> <build-number> <ipa-path> <dsym-dir>
 set -euo pipefail
 
-if [ "$#" -ne 3 ]; then
-  echo "usage: scripts/archive-ios.sh <marketing-version> <build-number> <ipa-path>" >&2
+if [ "$#" -ne 4 ]; then
+  echo "usage: scripts/archive-ios.sh <marketing-version> <build-number> <ipa-path> <dsym-dir>" >&2
   exit 64
 fi
 version="$1"
 build_number="$2"
 ipa_path="$3"
+dsym_dir="$4"
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "marketing version must look like 3.0.0" >&2; exit 64; }
 [[ "$build_number" =~ ^[0-9]+$ ]] || { echo "build number must be an integer" >&2; exit 64; }
 
@@ -59,6 +60,10 @@ plutil -lint "$work/ExportOptions.plist" >/dev/null
 xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Release -sdk iphoneos \
   -destination 'generic/platform=iOS' -quiet -archivePath "$work/Putio.xcarchive" \
   "${settings[@]}" archive
+mkdir -p "$dsym_dir"
+if [ -d "$work/Putio.xcarchive/dSYMs" ]; then
+  cp -R "$work/Putio.xcarchive/dSYMs/." "$dsym_dir/"
+fi
 xcodebuild -exportArchive -archivePath "$work/Putio.xcarchive" \
   -exportOptionsPlist "$work/ExportOptions.plist" -exportPath "$work/export" -quiet
 
@@ -67,4 +72,4 @@ ipas=("$work"/export/*.ipa)
 [ "${#ipas[@]}" -eq 1 ] || { echo "expected one exported IPA, found ${#ipas[@]}" >&2; exit 1; }
 mkdir -p "$(dirname "$ipa_path")"
 cp "${ipas[0]}" "$ipa_path"
-echo "archived $version ($build_number) to $ipa_path"
+echo "archived $version ($build_number) to $ipa_path, dSYMs to $dsym_dir"
