@@ -23,8 +23,7 @@ class ChromecastManager: NSObject {
 
     var castingFileId: Int?
     var timer: Timer?
-    /// The load the receiver has yet to answer; its answer sends the start or the failure.
-    private var pendingLoad: (request: GCKRequest, playback: AnalyticsEvent.Playback, session: Int)?
+    private let playbackTracker = CastPlaybackTracker()
 
     var debug: Bool = false
 
@@ -251,7 +250,7 @@ class ChromecastManager: NSObject {
 
                     if let load = currentCastSession?.remoteMediaClient?.loadMedia(mediaInformation, with: mediaLoadOptions) {
                         load.delegate = self
-                        self.pendingLoad = (load, self.castPlayback(for: file), session)
+                        self.playbackTracker.loadStarted(load, playback: self.castPlayback(for: file), session: session)
                     }
                     GCKCastContext.sharedInstance().presentDefaultExpandedMediaControls()
 
@@ -298,11 +297,13 @@ class ChromecastManager: NSObject {
 extension ChromecastManager: GCKSessionManagerListener {
     func sessionManager(_ sessionManager: GCKSessionManager, didEnd session: GCKSession, withError error: Error?) {
         if timer != nil { timer?.invalidate() }
+        playbackTracker.sessionEnded()
         if let error = error { logError(error: error) }
     }
 
     func sessionManager(_ sessionManager: GCKSessionManager, didEnd session: GCKCastSession, withError error: Error?) {
         if timer != nil { timer?.invalidate() }
+        playbackTracker.sessionEnded()
         if let error = error { logError(error: error) }
     }
 
@@ -319,24 +320,121 @@ extension ChromecastManager: GCKSessionManagerListener {
 
 extension ChromecastManager: GCKRequestDelegate {
     func requestDidComplete(_ request: GCKRequest) {
-        guard let load = takePendingLoad(request) else { return }
-        ProductAnalytics.capture(.playbackStarted(load.playback), startedIn: load.session)
+        let client = GCKCastContext.sharedInstance().sessionManager.currentCastSession?.remoteMediaClient
+        let status = client?.mediaStatus.map { CastPlaybackTracker.Status($0) }
+        guard playbackTracker.loadCompleted(request, status: status), let client else { return }
+        client.remove(self)
+        client.add(self)
     }
 
     func request(_ request: GCKRequest, didFailWithError error: GCKError) {
-        guard let load = takePendingLoad(request) else { return }
-        ProductAnalytics.capture(.playbackFailed(load.playback, .init(error)), startedIn: load.session)
+        playbackTracker.loadFailed(request, error: error)
     }
 
     /// Replaced or dropped, so neither a start nor a failure.
     func request(_ request: GCKRequest, didAbortWith abortReason: GCKRequestAbortReason) {
-        _ = takePendingLoad(request)
+        playbackTracker.loadAborted(request)
+    }
+}
+
+extension ChromecastManager: GCKRemoteMediaClientListener {
+    func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaStatus: GCKMediaStatus?) {
+        guard let mediaStatus else { return }
+        playbackTracker.update(CastPlaybackTracker.Status(mediaStatus))
+    }
+}
+
+final class CastPlaybackTracker {
+    struct Status {
+        let playerState: GCKMediaPlayerState
+        let idleReason: GCKMediaPlayerIdleReason
+        let mediaSessionID: Int
+
+        init(playerState: GCKMediaPlayerState, idleReason: GCKMediaPlayerIdleReason = .none, mediaSessionID: Int) {
+            self.playerState = playerState
+            self.idleReason = idleReason
+            self.mediaSessionID = mediaSessionID
+        }
+
+        init(_ status: GCKMediaStatus) {
+            self.init(playerState: status.playerState, idleReason: status.idleReason, mediaSessionID: status.mediaSessionID)
+        }
+
+        var activeMediaSessionID: Int? {
+            guard mediaSessionID != 0, [.playing, .paused, .buffering, .loading].contains(playerState) else { return nil }
+            return mediaSessionID
+        }
     }
 
-    private func takePendingLoad(_ request: GCKRequest) -> (playback: AnalyticsEvent.Playback, session: Int)? {
-        guard let pendingLoad, pendingLoad.request === request else { return nil }
-        self.pendingLoad = nil
-        return (pendingLoad.playback, pendingLoad.session)
+    private struct Load {
+        let playback: AnalyticsEvent.Playback
+        let session: Int
+    }
+
+    private struct Playing {
+        let load: Load
+        let startedAt: Date
+        var mediaSessionID: Int?
+    }
+
+    private let capture: (AnalyticsEvent, Int) -> Void
+    private let report: (SentryTelemetry.PlaybackFailure, Error?, Int) -> Void
+    private let now: () -> Date
+    private var pending: (request: AnyObject, load: Load)?
+    private var playing: Playing?
+
+    init(
+        capture: @escaping (AnalyticsEvent, Int) -> Void = ProductAnalytics.capture(_:startedIn:),
+        report: @escaping (SentryTelemetry.PlaybackFailure, Error?, Int) -> Void = SentryTelemetry.capture(_:error:startedIn:),
+        now: @escaping () -> Date = Date.init
+    ) {
+        self.capture = capture
+        self.report = report
+        self.now = now
+    }
+
+    func loadStarted(_ request: AnyObject, playback: AnalyticsEvent.Playback, session: Int) {
+        pending = (request, Load(playback: playback, session: session))
+        playing = nil
+    }
+
+    func loadCompleted(_ request: AnyObject, status: Status?) -> Bool {
+        guard let load = takePending(request) else { return false }
+        capture(.playbackStarted(load.playback), load.session)
+        playing = Playing(load: load, startedAt: now(), mediaSessionID: status?.activeMediaSessionID)
+        return true
+    }
+
+    func loadFailed(_ request: AnyObject, error: GCKError) {
+        guard let load = takePending(request) else { return }
+        capture(.playbackFailed(load.playback, .init(error)), load.session)
+        report(.init(signal: .castLoadFailed, playback: load.playback), error, load.session)
+    }
+
+    func loadAborted(_ request: AnyObject) {
+        _ = takePending(request)
+    }
+
+    func update(_ status: Status) {
+        guard let current = playing else { return }
+        guard let mediaSessionID = current.mediaSessionID else {
+            playing?.mediaSessionID = status.activeMediaSessionID
+            return
+        }
+        guard status.playerState == .idle, status.mediaSessionID == mediaSessionID else { return }
+        playing = nil
+        guard status.idleReason == .finished else { return }
+        capture(.playbackEnded(current.load.playback, .init(seconds: now().timeIntervalSince(current.startedAt))), current.load.session)
+    }
+
+    func sessionEnded() {
+        playing = nil
+    }
+
+    private func takePending(_ request: AnyObject) -> Load? {
+        guard let pending, pending.request === request else { return nil }
+        self.pending = nil
+        return pending.load
     }
 }
 

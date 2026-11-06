@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import GoogleCast
 import PutioSDK
 
 /// The events from the Analytics event contract that this app has a hook for.
@@ -109,10 +110,29 @@ enum AnalyticsEvent: Equatable {
                 }
                 return
             }
-            switch (error as NSError?)?.domain {
+            if let error = error as? URLError, [.fileDoesNotExist, .fileIsDirectory, .noPermissionsToReadFile].contains(error.code) {
+                self = .source
+                return
+            }
+            let error = error as NSError?
+            switch error?.domain {
             case NSURLErrorDomain?: self = .network
             case AVFoundationErrorDomain?, "CoreMediaErrorDomain"?: self = .media
+            case kGCKErrorDomain?: self = error.map { Self(castCode: $0.code) } ?? .unknown
             default: self = .unknown
+            }
+        }
+
+        private init(castCode: Int) {
+            switch GCKErrorCode(rawValue: castCode) {
+            case .networkError?, .timeout?, .networkNotReachable?, .channelNotConnected?, .deviceNotConnected?, .disconnected?:
+                self = .network
+            case .mediaLoadFailed?, .mediaError?:
+                self = .media
+            case .invalidRequest?, .unsupportedFeature?, .deviceCapabilityNotSupported?:
+                self = .unsupported
+            default:
+                self = .unknown
             }
         }
     }
@@ -292,6 +312,7 @@ final class AppSessionAnalytics {
 final class PlaybackAnalytics {
     private let playback: AnalyticsEvent.Playback
     private let capture: (AnalyticsEvent) -> Void
+    private let report: (SentryTelemetry.PlaybackFailure, Error?) -> Void
     private let now: () -> Date
     private let lock = NSLock()
     private var startedAt: Date?
@@ -303,10 +324,12 @@ final class PlaybackAnalytics {
     init(
         _ playback: AnalyticsEvent.Playback,
         capture: @escaping (AnalyticsEvent) -> Void = ProductAnalytics.captureInCurrentSession(),
+        report: @escaping (SentryTelemetry.PlaybackFailure, Error?) -> Void = SentryTelemetry.captureInCurrentSession(),
         now: @escaping () -> Date = Date.init
     ) {
         self.playback = playback
         self.capture = capture
+        self.report = report
         self.now = now
     }
 
@@ -353,10 +376,20 @@ final class PlaybackAnalytics {
     }
 
     func fail(_ error: Error?) {
-        lock.withLock {
-            guard !isFinished else { return }
+        fail(error, signal: .itemFailed)
+    }
+
+    func failedToPlayToEnd(_ error: Error?) {
+        fail(error, signal: .failedToPlayToEnd)
+    }
+
+    private func fail(_ error: Error?, signal: SentryTelemetry.PlaybackFailure.Signal) {
+        let isFirstFailure = lock.withLock {
+            guard !isFinished else { return false }
             isFinished = true
             capture(.playbackFailed(playback, .init(error)))
+            return true
         }
+        if isFirstFailure { report(.init(signal: signal, playback: playback), error) }
     }
 }
