@@ -27,7 +27,7 @@ runs:
     - name: Install the pinned toolchain
       uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
       with:
-        version: "2026.11.1"
+        version: "2026.11.2"
 
     - name: Restore pnpm store cache
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
