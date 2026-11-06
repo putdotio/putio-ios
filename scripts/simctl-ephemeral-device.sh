@@ -1,12 +1,12 @@
 #!/bin/sh
 
-# Create a uniquely named ephemeral simulator matching the device type and
-# runtime of the repo's preferred simulator, and print the new device id.
+# Create a uniquely named ephemeral simulator on the device and iOS major that
+# the baselines are recorded on, and print the new device id.
 # Callers own deletion (xcrun simctl delete <id>), so parallel worktrees and
 # agents never share a simulator.
 #
-# --device-type overrides the device while keeping the mirrored runtime, so the
-# iPad store-capture lane pins one runtime with everything else.
+# --device-type overrides the device while keeping the runtime, so the iPad
+# store-capture lane pins one runtime with everything else.
 
 set -eu
 
@@ -32,30 +32,22 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+device_type="com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max"
+ios_major="27"
 
-base_device_id="$("$script_dir/simctl-iphone-device-id.sh")"
+runtime="$(xcrun simctl list -j runtimes | ruby -rjson -e '
+  major = ARGV[0]
+  runtimes = JSON.parse($stdin.read)["runtimes"].select do |runtime|
+    runtime["isAvailable"] && runtime["platform"] == "iOS" && runtime["version"].split(".").first == major
+  end
+  newest = runtimes.max_by { |runtime| Gem::Version.new(runtime["version"]) }
+  puts newest["identifier"] if newest
+' "$ios_major")"
 
-if [ -z "$base_device_id" ]; then
-  echo "No iPhone simulator available to mirror. Install the iOS simulator runtime or run 'mise run download-ios-platform'." >&2
+if [ -z "$runtime" ]; then
+  echo "Baselines are recorded on iOS $ios_major, and no iOS $ios_major simulator runtime is installed. Run 'mise run download-ios-platform'." >&2
   exit 1
 fi
-
-device_type_and_runtime="$(xcrun simctl list -j devices available | ruby -rjson -e '
-  target = ARGV[0]
-  JSON.parse($stdin.read)["devices"].each do |runtime, devices|
-    devices.each do |device|
-      if device["udid"] == target
-        puts "#{device["deviceTypeIdentifier"]} #{runtime}"
-        exit
-      end
-    end
-  end
-  abort "no available device with udid #{target}"
-' "$base_device_id")"
-
-device_type="${device_type_and_runtime% *}"
-runtime="${device_type_and_runtime#* }"
 
 if [ -n "$device_type_override" ]; then
   # simctl create accepts an unknown identifier only to fail with a bare "Invalid
