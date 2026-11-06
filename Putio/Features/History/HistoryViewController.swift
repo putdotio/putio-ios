@@ -134,10 +134,15 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
         present(actionSheet, animated: true, completion: nil)
     }
 
-    // MARK: Swipe Actions
-    func contextualDeleteAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
-        let event = viewModel.sections[indexPath.section].events[indexPath.row]
+    func event(at indexPath: IndexPath) -> PutioHistoryEvent? {
+        guard viewModel.sections.indices.contains(indexPath.section) else { return nil }
+        let events = viewModel.sections[indexPath.section].events
+        guard events.indices.contains(indexPath.row) else { return nil }
+        return events[indexPath.row]
+    }
 
+    // MARK: Swipe Actions
+    func contextualDeleteAction(for event: PutioHistoryEvent) -> UIContextualAction {
         let action = UIContextualAction(style: .destructive, title: NSLocalizedString("Delete", comment: "")) { (_, _, handler) in
             self.viewModel.removeEvent(event) { result in
                 switch result {
@@ -196,10 +201,12 @@ extension HistoryViewController: UITableViewDataSource {
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        guard viewModel.sections.indices.contains(section) else { return 0 }
         return viewModel.sections[section].events.count
     }
 
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+        guard viewModel.sections.indices.contains(section) else { return nil }
         return viewModel.sections[section].title
     }
 
@@ -219,7 +226,8 @@ extension HistoryViewController: UITableViewDataSource {
             return UITableViewCell()
         }
 
-        cell.configure(with: viewModel.sections[indexPath.section].events[indexPath.row])
+        guard let event = event(at: indexPath) else { return cell }
+        cell.configure(with: event)
         return cell
     }
 }
@@ -231,7 +239,7 @@ extension HistoryViewController: UITableViewDelegate {
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: false)
-        guard let event = (viewModel.sections[indexPath.section].events[indexPath.row] as? PutioFileHistoryEvent) else { return }
+        guard let event = event(at: indexPath) as? PutioFileHistoryEvent else { return }
 
         api.getFile(fileID: event.fileID) { result in
             switch result {
@@ -245,8 +253,8 @@ extension HistoryViewController: UITableViewDelegate {
     }
 
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        let actions = [contextualDeleteAction(forRowAtIndexPath: indexPath)]
-        return UISwipeActionsConfiguration(actions: actions)
+        guard let event = event(at: indexPath) else { return nil }
+        return UISwipeActionsConfiguration(actions: [contextualDeleteAction(for: event)])
     }
 }
 

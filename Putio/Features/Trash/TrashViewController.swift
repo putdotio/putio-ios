@@ -275,9 +275,14 @@ class TrashViewController: UIViewController, StatefulViewController {
     }
 
     // MARK: Selection
+    func file(at indexPath: IndexPath) -> PutioTrashFile? {
+        guard viewModel.files.indices.contains(indexPath.row) else { return nil }
+        return viewModel.files[indexPath.row]
+    }
+
     func getSelectedFiles() -> [PutioTrashFile] {
         let indexPaths = tableView.indexPathsForSelectedRows ?? []
-        return indexPaths.map { self.viewModel.files[$0.row] }
+        return indexPaths.compactMap { file(at: $0) }
     }
 
     func updateSelectionState() {
@@ -320,9 +325,7 @@ class TrashViewController: UIViewController, StatefulViewController {
     }
 
     // MARK: Swipe Actions
-    func contextualDeleteAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
-        let file = viewModel.files[indexPath.row]
-
+    func contextualDeleteAction(for file: PutioTrashFile) -> UIContextualAction {
         let action = UIContextualAction(style: .destructive, title: NSLocalizedString("Delete", comment: "")) { (_, _, handler) in
             self.viewModel.deleteFile(fileID: file.id) { result in
                 switch result {
@@ -376,8 +379,8 @@ extension TrashViewController: UITableViewDelegate {
     }
 
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        let actions = [contextualDeleteAction(forRowAtIndexPath: indexPath)]
-        return UISwipeActionsConfiguration(actions: actions)
+        guard let file = file(at: indexPath) else { return nil }
+        return UISwipeActionsConfiguration(actions: [contextualDeleteAction(for: file)])
     }
 }
 
@@ -387,8 +390,12 @@ extension TrashViewController: UITableViewDataSource {
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "trashReuse", for: indexPath) as! TrashTableViewCell
-        let file = viewModel.files[indexPath.row]
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: "trashReuse", for: indexPath) as? TrashTableViewCell else {
+            InternalFailurePresenter.log("Unable to dequeue TrashTableViewCell")
+            return UITableViewCell()
+        }
+
+        guard let file = file(at: indexPath) else { return cell }
         cell.configure(with: file)
         return cell
     }

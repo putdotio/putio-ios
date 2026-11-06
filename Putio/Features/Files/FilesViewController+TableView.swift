@@ -1,8 +1,12 @@
 import UIKit
 
 extension FilesViewController {
-    func contextualDeleteAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
-        let file = viewModel.files[indexPath.row]
+    func file(at indexPath: IndexPath) -> PutioFile? {
+        guard viewModel.files.indices.contains(indexPath.row) else { return nil }
+        return viewModel.files[indexPath.row]
+    }
+
+    func contextualDeleteAction(for file: PutioFile, at indexPath: IndexPath) -> UIContextualAction {
         guard let cell = tableView.cellForRow(at: indexPath) else {
             InternalFailurePresenter.log("Unable to access file cell for delete action at row \(indexPath.row)")
             return UIContextualAction(
@@ -32,8 +36,10 @@ extension FilesViewController {
                     loadingAlert.dismiss(animated: true) {
                         switch result {
                         case .success:
-                            self.viewModel.files.remove(at: indexPath.row)
-                            self.tableView.deleteRows(at: [indexPath], with: .automatic)
+                            if let row = self.viewModel.files.firstIndex(where: { $0.id == file.id }) {
+                                self.viewModel.files.remove(at: row)
+                                self.tableView.deleteRows(at: [IndexPath(row: row, section: indexPath.section)], with: .automatic)
+                            }
                             completion(true)
 
                         case .failure(let error):
@@ -81,8 +87,7 @@ extension FilesViewController {
         return action
     }
 
-    func contextualMoreAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
-        let file = viewModel.files[indexPath.row]
+    func contextualMoreAction(for file: PutioFile, at indexPath: IndexPath) -> UIContextualAction {
         guard let cell = tableView.cellForRow(at: indexPath) else {
             InternalFailurePresenter.log("Unable to access file cell for more action at row \(indexPath.row)")
             return UIContextualAction(style: .normal, title: NSLocalizedString("More", comment: "")) { _, _, handler in
@@ -114,7 +119,7 @@ extension FilesViewController {
                 renameAlert.addAction(UIAlertAction(title: NSLocalizedString("Save", comment: ""), style: .default) { _ in
                     let newName = renameAlert.textFields?.first?.text ?? file.name
                     api.renameFile(fileID: file.id, name: newName) { _ in }
-                    self.viewModel.files[indexPath.row].name = newName
+                    file.name = newName
                     self.tableView.reloadData()
                 })
 
@@ -152,9 +157,7 @@ extension FilesViewController {
         return action
     }
 
-    func contextualCopyAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
-        let file = viewModel.files[indexPath.row]
-
+    func contextualCopyAction(for file: PutioFile) -> UIContextualAction {
         let action = UIContextualAction(style: .normal, title: NSLocalizedString("Copy", comment: "")) { _, _, handler in
             handler(true)
             self.stateMachine.transitionToState(.view("loading"))
@@ -183,8 +186,7 @@ extension FilesViewController {
         return action
     }
 
-    func contextualDownloadAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
-        let file = viewModel.files[indexPath.row]
+    func contextualDownloadAction(for file: PutioFile) -> UIContextualAction {
         let action: UIContextualAction
 
         if file.needConvert {
@@ -227,7 +229,7 @@ extension FilesViewController: UITableViewDataSource {
             return UITableViewCell()
         }
 
-        let file = viewModel.files[indexPath.row]
+        guard let file = file(at: indexPath) else { return cell }
         let download = downloads?.first(where: { download in
             download.id == file.id
         })
@@ -244,11 +246,13 @@ extension FilesViewController: UITableViewDataSource {
 
 extension FilesViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        !viewModel.files[indexPath.row].isSharedRoot
+        guard let file = file(at: indexPath) else { return false }
+        return !file.isSharedRoot
     }
 
     func tableView(_ tableView: UITableView, willSelectRowAt indexPath: IndexPath) -> IndexPath? {
-        if tableView.isEditing && viewModel.files[indexPath.row].isSharedRoot {
+        guard let file = file(at: indexPath) else { return nil }
+        if tableView.isEditing && file.isSharedRoot {
             return nil
         }
 
@@ -261,8 +265,8 @@ extension FilesViewController: UITableViewDelegate {
             return
         }
 
-        let file = viewModel.files[indexPath.row]
         tableView.deselectRow(at: indexPath, animated: false)
+        guard let file = file(at: indexPath) else { return }
         presentFile(file)
     }
 
@@ -273,17 +277,17 @@ extension FilesViewController: UITableViewDelegate {
     }
 
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        let file = viewModel.files[indexPath.row]
+        guard let file = file(at: indexPath) else { return nil }
 
         var actions = file.isShared ? [
-            contextualCopyAction(forRowAtIndexPath: indexPath)
+            contextualCopyAction(for: file)
         ] : [
-            contextualDeleteAction(forRowAtIndexPath: indexPath),
-            contextualMoreAction(forRowAtIndexPath: indexPath)
+            contextualDeleteAction(for: file, at: indexPath),
+            contextualMoreAction(for: file, at: indexPath)
         ]
 
         if file.type == .video || file.type == .audio {
-            actions.insert(contextualDownloadAction(forRowAtIndexPath: indexPath), at: 1)
+            actions.insert(contextualDownloadAction(for: file), at: 1)
         }
 
         if file.isSharedRoot {
