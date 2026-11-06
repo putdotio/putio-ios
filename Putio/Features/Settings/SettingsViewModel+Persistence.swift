@@ -70,6 +70,7 @@ extension SettingsViewModel {
         update()
         InternalFailurePresenter.present(
             on: presenter,
+            screen: .account,
             title: NSLocalizedString("Settings updated", comment: ""),
             message: NSLocalizedString("The change was saved on put.io, but the app could not refresh local data. Please reopen Account settings.", comment: "")
         )
@@ -90,6 +91,7 @@ extension SettingsViewModel {
             loadingAlert.dismiss(animated: true) {
                 switch result {
                 case .success:
+                    guard self.holdsLiveSession else { return }
                     guard let realm = PutioRealm.open(context: "SettingsViewModel.performRemoteMutation") else {
                         return self.presentPersistenceFailure()
                     }

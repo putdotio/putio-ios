@@ -13,6 +13,8 @@ enum SentryTelemetry {
         case pushRegistration = "push_registration"
         case realmOpen = "realm_open"
         case sessionLoad = "session_load"
+        case supportLogin = "support_login"
+        case unplayableOfflineDownload = "unplayable_offline_download"
         case unplayableOfflineVideo = "unplayable_offline_video"
     }
 

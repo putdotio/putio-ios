@@ -116,6 +116,9 @@
 "Couldn't save setting" = "Couldn't save setting";
 
 /* No comment provided by engineer. */
+"Couldn't load your account" = "Couldn't load your account";
+
+/* No comment provided by engineer. */
 "Crash reports, error details, and limited playback diagnostics, so we can fix problems." = "Crash reports, error details, and limited playback diagnostics, so we can fix problems.";
 
 /* No comment provided by engineer. */
@@ -167,6 +170,9 @@
 "Services we use" = "Services we use";
 
 /* No comment provided by engineer. */
+"Session expired" = "Session expired";
+
+/* No comment provided by engineer. */
 "Strictly necessary" = "Strictly necessary";
 
 /* No comment provided by engineer. */
@@ -195,6 +201,9 @@
 
 /* No comment provided by engineer. */
 "Choose your proxy" = "Choose your proxy";
+
+/* No comment provided by engineer. */
+"Try again in a moment." = "Try again in a moment.";
 
 /* No comment provided by engineer. */
 "Chromecast video playback type" = "Chromecast video playback type";
@@ -364,9 +373,6 @@
 "Enabling..." = "Enabling...";
 
 /* No comment provided by engineer. */
-"Error" = "Error";
-
-/* No comment provided by engineer. */
 "Error in transfer %@" = "Error in transfer %@";
 
 /* No comment provided by engineer. */
@@ -440,6 +446,12 @@
 
 /* No comment provided by engineer. */
 "Log out" = "Log out";
+
+/* No comment provided by engineer. */
+"Log in" = "Log in";
+
+/* No comment provided by engineer. */
+"Log in again to continue." = "Log in again to continue.";
 
 /* No comment provided by engineer. */
 "Manage your trash" = "Manage your trash";
@@ -734,6 +746,9 @@
 
 /* %@ is the selected categories, for example "Files, History, and Trash". */
 "This permanently deletes %@ from your put.io account. It can't be undone." = "This permanently deletes %@ from your put.io account. It can't be undone.";
+
+/* No comment provided by engineer. */
+"This video couldn't be converted" = "This video couldn't be converted";
 
 /* No comment provided by engineer. */
 "Today" = "Today";

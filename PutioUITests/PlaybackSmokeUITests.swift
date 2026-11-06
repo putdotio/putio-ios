@@ -18,11 +18,33 @@ final class PlaybackSmokeUITests: XCTestCase {
     // Without a Realm user, only the update from 2.58.0 skips the account. Any
     // other failed bootstrap lands on Login, so a broken mocked one fails loudly.
     func testFailedBootstrapWithoutCachedUserShowsLogin() {
-        let failures: [(offline: String?, fail: String?)] = [(nil, "GET /v2/account/info"), (Self.offlineBootstrap, nil)]
+        let failures: [(offline: String?, fail: String?)] = [
+            (nil, "GET /v2/account/info"),
+            (nil, "GET /v2/config"),
+            (Self.offlineBootstrap, nil)
+        ]
         for (offlineRoutes, failRoutes) in failures {
             let app = launchFixtureApp(offlineRoutes: offlineRoutes, failRoutes: failRoutes)
+            let route = offlineRoutes ?? failRoutes ?? ""
 
-            XCTAssertTrue(app.buttons["Log in"].waitForExistence(timeout: 20), offlineRoutes ?? failRoutes ?? "")
+            let alert = app.alerts["Couldn't load your account"]
+            XCTAssertTrue(alert.waitForExistence(timeout: 20), route)
+            XCTAssertEqual(app.alerts.count, 1, route)
+            XCTAssertTrue(alert.buttons["Retry"].exists, route)
+            if failRoutes == "GET /v2/config" {
+                let screenshot = XCTAttachment(screenshot: app.screenshot())
+                screenshot.name = "Failed session load"
+                screenshot.lifetime = .keepAlways
+                add(screenshot)
+            }
+
+            alert.buttons["Retry"].tap()
+            XCTAssertTrue(alert.waitForExistence(timeout: 20), route)
+            XCTAssertEqual(app.alerts.count, 1, route)
+
+            alert.buttons["Cancel"].tap()
+            XCTAssertTrue(alert.waitForNonExistence(timeout: 5), route)
+            XCTAssertTrue(app.buttons["Log in"].exists, route)
             XCTAssertFalse(app.tabItem("Files").exists)
             app.terminate()
         }

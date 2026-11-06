@@ -97,10 +97,10 @@ class MainTabBarController: UITabBarController {
 
         guard let userSettings else { return }
 
-        notificationToken = userSettings.observe({ (change) in
+        notificationToken = userSettings.observe({ [weak self] change in
             switch change {
             case .change:
-                self.updateHistoryTabVisibility()
+                self?.updateHistoryTabVisibility()
             default:
                 break
             }

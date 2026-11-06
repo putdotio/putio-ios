@@ -154,6 +154,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         guard didWrite else { return }
 
         discardDownload(id: file.id)
+        ProductAnalytics.capture(.downloadStarted(.video))
         DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 
@@ -255,6 +256,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         if deletionResult == .removed || deletionResult == .alreadyMissing {
             UserDefaults.standard.removeObject(forKey: String(id))
         }
+        ProductAnalytics.capture(.downloadStarted(.video))
         DownloadQueueController.sharedInstance.downloadWasQueued()
     }
 
@@ -474,6 +476,9 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
 
         if download.state == .completed {
             notifyUser(for: id)
+            ProductAnalytics.capture(.downloadCompleted(.video))
+        } else {
+            ProductAnalytics.capture(.downloadFailed(.video, .init(downloadError: error)))
         }
         log.verbose("VDM: didCompleteWithError: posting notification")
         NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)

@@ -179,6 +179,7 @@ final class DownloadQueueController {
             }
             guard didWrite else { return }
             self.tasklessStartIDs.remove(id)
+            ProductAnalytics.capture(.downloadFailed(.init(download.fileType), .unknown))
         }
     }
 
