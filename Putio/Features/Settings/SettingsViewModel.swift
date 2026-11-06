@@ -78,10 +78,10 @@ class SettingsViewModel {
         var tokens: [NotificationToken] = []
 
         if user.realm != nil {
-            let userObserver = user.observe { change in
+            let userObserver = user.observe { [weak self] change in
                 switch change {
                 case .change:
-                    self.update()
+                    self?.update()
                 default:
                     break
                 }
@@ -90,10 +90,10 @@ class SettingsViewModel {
         }
 
         if settings.realm != nil {
-            let settingsObserver = settings.observe { change in
+            let settingsObserver = settings.observe { [weak self] change in
                 switch change {
                 case .change:
-                    self.update()
+                    self?.update()
                 default:
                     break
                 }
@@ -102,10 +102,10 @@ class SettingsViewModel {
         }
 
         if config.realm != nil {
-            let configObserver = config.observe { change in
+            let configObserver = config.observe { [weak self] change in
                 switch change {
                 case .change:
-                    self.update()
+                    self?.update()
                 default:
                     break
                 }
@@ -189,6 +189,7 @@ class SettingsViewModel {
     }
 
     @objc func update() {
+        guard !user.isInvalidated, !settings.isInvalidated, !config.isInvalidated else { return }
         updateSelectedSortState()
         sections = buildSections()
         tableViewController?.tableView.reloadData()

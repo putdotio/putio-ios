@@ -32,7 +32,7 @@ extension SettingsViewModel {
                         format: NSLocalizedString("%d at a time", comment: ""),
                         limit
                     ),
-                    action: { self.presentDownloadConcurrencyLimit() },
+                    action: { [weak self] in self?.presentDownloadConcurrencyLimit() },
                     visible: true
                 )
             ]
@@ -72,7 +72,7 @@ extension SettingsViewModel {
                     type: .button,
                     icon: .hardDrives,
                     value: storageUsageText(),
-                    action: { self.toggleOptimisticUsage() },
+                    action: { [weak self] in self?.toggleOptimisticUsage() },
                     visible: true
                 ),
                 SettingsModel.SectionItem(
@@ -80,7 +80,7 @@ extension SettingsViewModel {
                     type: .toggle,
                     icon: .recycle,
                     value: settings.trashEnabled,
-                    action: { self.toggleTrashEnabled() },
+                    action: { [weak self] in self?.toggleTrashEnabled() },
                     visible: true
                 ),
                 SettingsModel.SectionItem(
@@ -88,7 +88,7 @@ extension SettingsViewModel {
                     type: .link,
                     icon: .trash,
                     value: user.trashSize > 0 ? user.trashSize.bytesToHumanReadable() : "",
-                    action: { self.tableViewController?.performSegue(withIdentifier: "toTrash", sender: nil) },
+                    action: { [weak self] in self?.tableViewController?.performSegue(withIdentifier: "toTrash", sender: nil) },
                     visible: settings.trashEnabled
                 )
             ]
@@ -104,7 +104,7 @@ extension SettingsViewModel {
                     type: .button,
                     icon: .sortAscending,
                     value: "\(selectedSortByKey.label) \(selectedSortByDirection.label)",
-                    action: { self.presentSortSettings() },
+                    action: { [weak self] in self?.presentSortSettings() },
                     visible: true
                 ),
                 SettingsModel.SectionItem(
@@ -112,7 +112,7 @@ extension SettingsViewModel {
                     type: .button,
                     icon: .arrowCounterClockwise,
                     value: "",
-                    action: { self.resetSortSettings() },
+                    action: { [weak self] in self?.resetSortSettings() },
                     visible: true
                 )
             ]
@@ -128,7 +128,7 @@ extension SettingsViewModel {
                     type: .link,
                     icon: .network,
                     value: settings.routeName == "default" ? NSLocalizedString("Amsterdam", comment: "") : settings.routeName,
-                    action: { self.tableViewController?.performSegue(withIdentifier: "toRoutes", sender: nil) },
+                    action: { [weak self] in self?.tableViewController?.performSegue(withIdentifier: "toRoutes", sender: nil) },
                     visible: true
                 ),
                 SettingsModel.SectionItem(
@@ -136,7 +136,8 @@ extension SettingsViewModel {
                     type: .link,
                     icon: .screencast,
                     value: config.chromecastPlaybackType.uppercased(with: .autoupdatingCurrent),
-                    action: {
+                    action: { [weak self] in
+                        guard let self else { return }
                         let playbackType: PutioChromecastPlaybackType = self.config.chromecastPlaybackType == "hls" ? .mp4 : .hls
                         self.saveChromecastPlaybackType(playbackType)
                     },
@@ -147,7 +148,8 @@ extension SettingsViewModel {
                     type: .toggle,
                     icon: .closedCaptioning,
                     value: !settings.hideSubtitles,
-                    action: {
+                    action: { [weak self] in
+                        guard let self else { return }
                         let value = !self.settings.hideSubtitles
                         self.saveAccountSettings(.patch(PutioAccountSettingsPatch(hideSubtitles: value)), changing: .hideSubtitles, to: .init(value)) {
                             self.settings.hideSubtitles = value
@@ -160,7 +162,8 @@ extension SettingsViewModel {
                     type: .toggle,
                     icon: .subtitles,
                     value: settings.dontAutoSelectSubtitles,
-                    action: {
+                    action: { [weak self] in
+                        guard let self else { return }
                         let value = !self.settings.dontAutoSelectSubtitles
                         self.saveAccountSettings(.patch(PutioAccountSettingsPatch(dontAutoSelectSubtitles: value)), changing: .dontAutoSelectSubtitles, to: .init(value)) {
                             self.settings.dontAutoSelectSubtitles = value
@@ -181,7 +184,8 @@ extension SettingsViewModel {
                     type: .toggle,
                     icon: .shieldCheck,
                     value: settings.twoFactorEnabled,
-                    action: {
+                    action: { [weak self] in
+                        guard let self else { return }
                         if self.settings.twoFactorEnabled {
                             self.tableViewController?.toDisableTwoFactor()
                         } else {
@@ -195,8 +199,8 @@ extension SettingsViewModel {
                     type: .link,
                     icon: .key,
                     value: "",
-                    action: {
-                        self.tableViewController?.toTwoFactorRecoveryCodes(action: .regenerateCodes)
+                    action: { [weak self] in
+                        self?.tableViewController?.toTwoFactorRecoveryCodes(action: .regenerateCodes)
                     },
                     visible: settings.twoFactorEnabled
                 ),
@@ -205,7 +209,7 @@ extension SettingsViewModel {
                     type: .link,
                     icon: .devices,
                     value: "",
-                    action: { self.tableViewController?.performSegue(withIdentifier: "toAuthApps", sender: nil) },
+                    action: { [weak self] in self?.tableViewController?.performSegue(withIdentifier: "toAuthApps", sender: nil) },
                     visible: true
                 ),
                 SettingsModel.SectionItem(
@@ -213,7 +217,7 @@ extension SettingsViewModel {
                     type: .link,
                     icon: .televisionSimple,
                     value: "",
-                    action: { self.tableViewController?.performSegue(withIdentifier: "toLinkDevice", sender: nil) },
+                    action: { [weak self] in self?.tableViewController?.performSegue(withIdentifier: "toLinkDevice", sender: nil) },
                     visible: true
                 )
             ]
@@ -229,7 +233,7 @@ extension SettingsViewModel {
                     type: .toggle,
                     icon: .clockCounterClockwise,
                     value: settings.historyEnabled,
-                    action: { self.toggleHistoryEnabled() },
+                    action: { [weak self] in self?.toggleHistoryEnabled() },
                     visible: true
                 ),
                 SettingsModel.SectionItem(
@@ -237,7 +241,7 @@ extension SettingsViewModel {
                     type: .link,
                     icon: .shieldCheck,
                     value: "",
-                    action: { self.tableViewController?.showPrivacyControls() },
+                    action: { [weak self] in self?.tableViewController?.showPrivacyControls() },
                     visible: true,
                     subtitle: privacyControlsSummary()
                 )
@@ -265,7 +269,7 @@ extension SettingsViewModel {
                     type: .link,
                     icon: .info,
                     value: "\(Bundle.main.versionNumber)+\(Bundle.main.buildNumber)",
-                    action: { self.tableViewController?.performSegue(withIdentifier: "toAbout", sender: nil) },
+                    action: { [weak self] in self?.tableViewController?.performSegue(withIdentifier: "toAbout", sender: nil) },
                     visible: true
                 ),
                 SettingsModel.SectionItem(
@@ -300,7 +304,7 @@ extension SettingsViewModel {
                     type: .link,
                     icon: .folderMinus,
                     value: "",
-                    action: { self.tableViewController?.performSegue(withIdentifier: "toClearData", sender: nil) },
+                    action: { [weak self] in self?.tableViewController?.performSegue(withIdentifier: "toClearData", sender: nil) },
                     visible: true
                 ),
                 SettingsModel.SectionItem(
@@ -308,7 +312,7 @@ extension SettingsViewModel {
                     type: .link,
                     icon: .userCircleMinus,
                     value: "",
-                    action: { self.tableViewController?.performSegue(withIdentifier: "toDestroyAccount", sender: nil) },
+                    action: { [weak self] in self?.tableViewController?.performSegue(withIdentifier: "toDestroyAccount", sender: nil) },
                     visible: true
                 )
             ]
@@ -324,7 +328,7 @@ extension SettingsViewModel {
                     type: .button,
                     icon: .signOut,
                     value: "",
-                    action: { self.presentLogoutAlert() },
+                    action: { [weak self] in self?.presentLogoutAlert() },
                     visible: true
                 )
             ]

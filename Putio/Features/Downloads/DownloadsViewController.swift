@@ -134,7 +134,8 @@ class DownloadsViewController: UIViewController, DownloadedFilePresenter, Statef
             return
         }
 
-        notificationToken = downloads.observe { change in
+        notificationToken = downloads.observe { [weak self] change in
+            guard let self else { return }
             let downloadCount = self.downloads?.count ?? 0
 
             self.updateDownloadsContentState(downloadCount: downloadCount)
