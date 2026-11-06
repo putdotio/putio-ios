@@ -46,13 +46,6 @@ enum LoginFailure: Equatable {
     case sessionLoad
 }
 
-extension PutioSDKErrorType {
-    var isUnauthorized: Bool {
-        guard case .httpError(let statusCode, let errorType) = self else { return false }
-        return statusCode == 401 || errorType == "Unauthorized"
-    }
-}
-
 enum SessionLoadFallback: Equatable {
     case cachedSession
     case login(LoginFailure)
@@ -63,83 +56,6 @@ enum SessionLoadFallback: Equatable {
         }
 
         return keepsSession ? .cachedSession : .login(.sessionLoad)
-    }
-}
-
-protocol SupportMessenger {
-    var isUserLoggedIn: Bool { get }
-    var loggedInUserID: String? { get }
-    func setUserHash(_ hash: String)
-    func loginUser(id: String, completion: @escaping (Result<Void, Error>) -> Void)
-    func logout()
-}
-
-struct IntercomMessenger: SupportMessenger {
-    static var ifEnabled: SupportMessenger? {
-        INTERCOM_ENABLED ? IntercomMessenger() : nil
-    }
-
-    var isUserLoggedIn: Bool { Intercom.isUserLoggedIn() }
-
-    var loggedInUserID: String? { Intercom.fetchLoggedInUserAttributes()?.userId }
-
-    func setUserHash(_ hash: String) {
-        Intercom.setUserHash(hash)
-    }
-
-    func loginUser(id: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        let attributes = ICMUserAttributes()
-        attributes.userId = id
-        Intercom.loginUser(with: attributes, completion: completion)
-    }
-
-    func logout() {
-        Intercom.logout()
-    }
-}
-
-struct SupportLoginFailure: Equatable {
-    enum Category: String {
-        case network
-        case rejected
-    }
-
-    let category: Category
-    let code: Int
-
-    init(_ error: Error) {
-        let error = error as NSError
-        let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError
-        category = [error.domain, underlying?.domain].contains(NSURLErrorDomain) ? .network : .rejected
-        code = error.code
-    }
-
-    var error: NSError { NSError(domain: "io.put.support-login.\(category.rawValue)", code: code) }
-}
-
-enum SupportIdentity {
-    static func signIn(
-        accountID: Int,
-        userHash: String,
-        messenger: SupportMessenger?,
-        report: @escaping (SupportLoginFailure) -> Void = { SentryTelemetry.capture(.supportLogin, error: $0.error) }
-    ) {
-        guard let messenger else { return }
-        let userID = String(accountID)
-
-        if messenger.isUserLoggedIn {
-            if messenger.loggedInUserID == userID {
-                return messenger.setUserHash(userHash)
-            }
-            messenger.logout()
-        }
-
-        messenger.setUserHash(userHash)
-        messenger.loginUser(id: userID) { result in
-            if case .failure(let error) = result {
-                report(SupportLoginFailure(error))
-            }
-        }
     }
 }
 
@@ -475,9 +391,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             return presentMainScreen(startDownloadQueue: startsDownloadQueue)
         case .login(let failure):
             if failure == .sessionExpired {
-                PutioKeychain.sharedInstance.clearToken()
-                api.clearToken()
-                SentryTelemetry.update(diagnosticsEnabled: nil)
+                endSession()
             }
             return presentLoginScreen(after: failure, reason: "account fetch failed: \(error.localizerType)")
         }
@@ -520,13 +434,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
 
     func logout() {
+        endSession()
+        presentLoginScreen()
+    }
+
+    private func endSession() {
         DownloadQueueController.sharedInstance.pause()
         OfflineVideoPlaybackPositionStore.shared.clearAllUpdates()
         PutioKeychain.sharedInstance.clearToken()
         api.clearToken()
         VideoPlaybackPositionStore.shared.clearAllPositions()
         SentryTelemetry.update(diagnosticsEnabled: nil)
-        presentLoginScreen()
     }
 
     // Falling back to login is normal for a signed-out launch, but when the e2e
@@ -550,9 +468,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         DownloadQueueController.sharedInstance.pause()
         AccountNoticeStore.shared.clear()
         ProductAnalytics.update(accountID: nil, productAnalyticsEnabled: nil)
-        if failure != .sessionLoad {
-            supportMessenger?.logout()
-        }
+        SupportIdentity.signOut(after: failure, messenger: supportMessenger)
         applyWindowAppearance()
         let storyboard = UIStoryboard(name: "Login", bundle: nil)
         guard let loginViewController = storyboard.instantiateViewController(withIdentifier: "LoginVC", as: LoginViewController.self) else {

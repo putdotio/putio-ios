@@ -14,7 +14,7 @@ final class LoginSessionTests: XCTestCase {
         XCTAssertNil(viewController.currentOAuthState)
     }
 
-    func testWebAuthStartsOnlyOnTheFirstPlainAppearance() {
+    func testWebAuthStartsOnlyOnTheFirstAppearance() {
         let autoStart = WebAuthAutoStart()
         let first = LoginViewControllerSpy()
         first.webAuthAutoStart = autoStart
@@ -27,6 +27,20 @@ final class LoginSessionTests: XCTestCase {
 
         XCTAssertEqual(first.webAuthStarts, 1)
         XCTAssertEqual(second.webAuthStarts, 0)
+    }
+
+    func testAFailureOnTheFirstAppearanceSpendsTheAutoStart() {
+        let autoStart = WebAuthAutoStart()
+        let failed = LoginViewControllerSpy()
+        failed.webAuthAutoStart = autoStart
+        failed.failure = .sessionLoad
+        let plain = LoginViewControllerSpy()
+        plain.webAuthAutoStart = autoStart
+
+        failed.viewDidAppear(false)
+        plain.viewDidAppear(false)
+
+        XCTAssertEqual(failed.webAuthStarts + plain.webAuthStarts, 0)
     }
 
     func testFailedSessionLoadOffersRetryInsteadOfWebAuth() throws {
@@ -118,14 +132,12 @@ final class LoginSessionTests: XCTestCase {
 
     func testEndingTheSessionClearsSupportButAFailedLoadKeepsIt() {
         let messenger = SupportMessengerSpy(loggedInUserID: "7")
-        let appDelegate = AppDelegate()
-        appDelegate.supportMessenger = messenger
 
-        appDelegate.presentLoginScreen(failure: .sessionLoad)
+        SupportIdentity.signOut(after: .sessionLoad, messenger: messenger)
         XCTAssertEqual(messenger.events, [])
 
-        appDelegate.presentLoginScreen(failure: .sessionExpired)
-        appDelegate.presentLoginScreen()
+        SupportIdentity.signOut(after: .sessionExpired, messenger: messenger)
+        SupportIdentity.signOut(after: nil, messenger: messenger)
         XCTAssertEqual(messenger.events, [.logout, .logout])
     }
 

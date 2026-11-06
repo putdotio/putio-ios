@@ -72,7 +72,7 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
         case .sessionLoad:
             alertController = UIAlertController(
                 title: NSLocalizedString("Couldn't load your account", comment: ""),
-                message: NSLocalizedString("Check your connection and try again.", comment: ""),
+                message: NSLocalizedString("Try again in a moment.", comment: ""),
                 preferredStyle: .alert
             )
             alertController.addAction(UIAlertAction(title: NSLocalizedString("Retry", comment: ""), style: .default) { [weak self] _ in
