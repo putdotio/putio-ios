@@ -296,6 +296,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         
         dispatchGroup.notify(queue: .main) {
             PerfSignpost.end(signpost)
+            guard api.mediaToken == token else { return }
 
             if let error = accountError ?? configError {
                 switch error.type {
