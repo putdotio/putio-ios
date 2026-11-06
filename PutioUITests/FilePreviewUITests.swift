@@ -24,6 +24,11 @@ final class FilePreviewUITests: XCTestCase {
         assertPreview(app, of: document, failsWith: "An error occurred while fetching the PDF")
     }
 
+    func testImageServerErrorSaysTheFetchFailed() {
+        let app = launch(failRoutes: download(largeImage))
+        assertPreview(app, of: largeImage, failsWith: "An error occurred while fetching the image")
+    }
+
     private func launch(failRoutes: String? = nil, missingRoutes: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment = [

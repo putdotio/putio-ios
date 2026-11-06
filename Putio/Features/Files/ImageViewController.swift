@@ -59,6 +59,8 @@ class ImageViewController: UIViewController {
                 }
             }
 
+            guard self != nil else { return }
+
             DispatchQueue.global(qos: .userInitiated).async {
                 let image = ImagePreviewDecoder.decode(data, maxPixelSize: maxPixelSize)
 

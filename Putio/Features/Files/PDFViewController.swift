@@ -77,6 +77,8 @@ class PDFViewController: UIViewController {
                 }
             }
 
+            guard self != nil else { return }
+
             guard let pdfDocument = PDFDocument(data: data) else {
                 return DispatchQueue.main.async { [weak self] in
                     guard let self = self, self.request != nil else { return }
