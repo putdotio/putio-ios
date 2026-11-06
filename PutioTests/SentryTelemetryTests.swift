@@ -456,6 +456,120 @@ final class SentryTelemetryTests: XCTestCase {
         }
     }
 
+    func testBreadcrumbsKeepScreensLifecycleAndPutioRequestsOnly() throws {
+        let title = "Synthetic Feature Title"
+        let fileName = "Synthetic.Feature.Title.2001.mkv"
+        let token = "synthetic-token-5f1c9e"
+        func crumb(_ category: String, message: String? = nil, data: [String: Any]) -> Breadcrumb {
+            let crumb = Breadcrumb(level: .info, category: category)
+            crumb.type = "navigation"
+            crumb.message = message
+            crumb.data = data
+            return crumb
+        }
+        let trail = [
+            crumb("ui.lifecycle", data: [
+                "screen": "FilesViewController",
+                "parentViewController": "MainTabBarController",
+                "title": title,
+                "window": "<UIWindow: 0x1; \(title)>"
+            ]),
+            crumb("ui.lifecycle", data: ["screen": title]),
+            crumb("app.lifecycle", data: ["state": "background"]),
+            crumb("app.lifecycle", data: ["state": title]),
+            crumb("http", data: [
+                "url": "https://api.put.io/v2/files/\(fileName)",
+                "http.query": "oauth_token=\(token)",
+                "method": "GET",
+                "status_code": NSNumber(value: 404),
+                "reason": title
+            ]),
+            crumb("http", data: ["url": "https://media.example.invalid/\(fileName)", "method": "GET", "status_code": NSNumber(value: 200)]),
+            crumb("touch", message: "playTapped:", data: ["title": title]),
+            crumb("device.event", data: ["action": "BATTERY_STATE_CHANGE"]),
+            crumb("sentry.event", message: title, data: [:]),
+            crumb("putio.\(title)", message: title, data: [:])
+        ]
+
+        allowCapture()
+        let options = SentryTelemetry.options(dsn: dsn)
+        XCTAssertEqual(options.maxBreadcrumbs, 30)
+        let beforeBreadcrumb = try XCTUnwrap(options.beforeBreadcrumb)
+        let kept = trail.compactMap(beforeBreadcrumb)
+        let event = Event(level: .error)
+        event.breadcrumbs = trail
+        let sent = try XCTUnwrap(options.beforeSend?(event))
+
+        for crumbs in [kept, sent.breadcrumbs ?? []] {
+            let json = String(decoding: try JSONSerialization.data(withJSONObject: crumbs.map { $0.serialize() }), as: UTF8.self)
+            for leaked in [title, fileName, token, "/v2/files", "media.example.invalid", "playTapped"] {
+                XCTAssertFalse(json.contains(leaked), "\(leaked) left the device: \(json)")
+            }
+            XCTAssertEqual(crumbs.map(\.category), ["ui.lifecycle", "app.lifecycle", "http"])
+            XCTAssertEqual(crumbs.first?.data as? [String: String], ["screen": "FilesViewController", "parentViewController": "MainTabBarController"])
+            XCTAssertEqual(crumbs.last?.data?["host"] as? String, "api.put.io")
+            XCTAssertEqual(crumbs.last?.data?["method"] as? String, "GET")
+            XCTAssertEqual(crumbs.last?.data?["status_code"] as? Int, 404)
+        }
+
+        SentryTelemetry.isCapturing = false
+        XCTAssertNil(beforeBreadcrumb(trail[0]), "a breadcrumb was kept while diagnostics were off")
+    }
+
+    func testSampledTimingsSendOnlyStaticTransactions() throws {
+        let fileName = "Synthetic.Feature.Title.2001.mkv"
+        let url = "https://api.put.io/v2/files/list?oauth_token=synthetic-token-5f1c9e"
+        let options = SentryTelemetry.options(dsn: dsn)
+        XCTAssertEqual(options.tracesSampleRate?.doubleValue, SentryTelemetry.tracesSampleRate)
+        XCTAssertGreaterThan(SentryTelemetry.tracesSampleRate, 0)
+        XCTAssertLessThanOrEqual(SentryTelemetry.tracesSampleRate, 0.1)
+        for traced in [options.enableAutoPerformanceTracing, options.enableNetworkTracking, options.enableFileIOTracing, options.enableCoreDataTracing, options.enableUIViewControllerTracing, options.enableUserInteractionTracing] {
+            XCTAssertFalse(traced)
+        }
+        XCTAssertTrue(options.tracePropagationTargets.isEmpty)
+
+        let sent = try startRecordingSentEvents(tracesSampleRate: 1)
+        allowCapture()
+        SentrySDK.configureScope { scope in
+            scope.setTag(value: fileName, key: "file")
+            scope.setExtra(value: url, key: "url")
+            scope.setContext(value: ["url": url], key: "request")
+        }
+
+        SentrySDK.startTransaction(name: url, operation: "http.client").finish()
+        let withSpan = SentrySDK.startTransaction(name: SentryTelemetry.Interval.filesFetch.rawValue, operation: SentryTelemetry.Interval.filesFetch.operation)
+        withSpan.startChild(operation: "file.read", description: fileName).finish()
+        withSpan.finish()
+        let withData = SentrySDK.startTransaction(name: SentryTelemetry.Interval.fetchUser.rawValue, operation: SentryTelemetry.Interval.fetchUser.operation)
+        withData.setData(value: url, key: "url")
+        withData.finish()
+
+        for interval in SentryTelemetry.Interval.allCases {
+            PerfSignpost.end(PerfSignpost.begin(interval), outcome: interval == .playbackStart ? .failed : .succeeded)
+        }
+
+        let transactions = { sent().filter { $0.type == "transaction" } }
+        let arrived = expectation(for: NSPredicate { _, _ in transactions().count >= SentryTelemetry.Interval.allCases.count }, evaluatedWith: nil)
+        wait(for: [arrived], timeout: 10)
+        drainMainQueue()
+
+        let payloads = transactions().map { $0.serialize() }
+        XCTAssertEqual(Set(payloads.compactMap { $0["transaction"] as? String }), Set(SentryTelemetry.Interval.allCases.map(\.rawValue)))
+        XCTAssertEqual(payloads.count, SentryTelemetry.Interval.allCases.count, "an unlisted transaction left the device")
+        for payload in payloads {
+            let json = String(decoding: try JSONSerialization.data(withJSONObject: payload), as: UTF8.self)
+            for leaked in [fileName, url, "api.put.io", "oauth_token", "thread.name"] {
+                XCTAssertFalse(json.contains(leaked), "\(leaked) left the device: \(json)")
+            }
+            let interval = try XCTUnwrap((payload["transaction"] as? String).flatMap(SentryTelemetry.Interval.init(rawValue:)))
+            let trace = try XCTUnwrap((payload["contexts"] as? [String: Any])?["trace"] as? [String: Any])
+            XCTAssertEqual(trace["op"] as? String, interval.operation)
+            XCTAssertEqual(trace["status"] as? String, interval == .playbackStart ? "internal_error" : "ok")
+            XCTAssertEqual((payload["spans"] as? [Any])?.count ?? 0, 0)
+            XCTAssertEqual(Set(((payload["user"] as? [String: Any]) ?? [:]).keys), ["id"])
+        }
+    }
+
     private func crash(type: String, reason: String?, handled: Bool) -> Event {
         let event = Event(level: .fatal)
         let exception = Exception(value: reason, type: type)
@@ -472,18 +586,19 @@ final class SentryTelemetryTests: XCTestCase {
     }
 
 
-    private func startRecordingSentEvents() throws -> () -> [Event] {
+    private func startRecordingSentEvents(tracesSampleRate: Double? = nil) throws -> () -> [Event] {
         let defaults = try isolatedDefaults()
         addTeardownBlock { SentryTelemetry.update(diagnosticsEnabled: false, dsn: self.dsn, defaults: defaults) }
         let options = SentryTelemetry.options(dsn: dsn)
+        tracesSampleRate.map { options.tracesSampleRate = NSNumber(value: $0) }
         let beforeSend = try XCTUnwrap(options.beforeSend)
-        var sent: [Event] = []
+        let sent = OSAllocatedUnfairLock(initialState: [Event]())
         options.beforeSend = { event in
-            beforeSend(event).map { sent.append($0) }
+            if let kept = beforeSend(event) { sent.withLock { $0.append(kept) } }
             return nil
         }
         SentrySDK.start(options: options)
-        return { sent }
+        return { sent.withLock { $0 } }
     }
 
     private func isolatedDefaults() throws -> UserDefaults {

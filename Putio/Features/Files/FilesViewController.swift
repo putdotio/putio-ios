@@ -159,11 +159,11 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
             stateMachine.transitionToState(.view("loading"))
         }
 
-        let fetchSignpost = PerfSignpost.begin("FilesFetch")
+        let fetchSignpost = PerfSignpost.begin(.filesFetch)
 
         api.getFiles(parentID: viewModel.fileID, query: PutioFilesListQuery(mp4Status: true)) { result in
             defer {
-                PerfSignpost.endAfterCommit(fetchSignpost)
+                PerfSignpost.endAfterCommit(fetchSignpost, outcome: (try? result.get()) == nil ? .failed : .succeeded)
                 if case .success = result, self is FilesRootViewController {
                     PerfSignpost.endLaunchToFilesIfNeeded()
                 }

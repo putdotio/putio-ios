@@ -74,6 +74,30 @@ enum SentryTelemetry {
         }
     }
 
+    enum Interval: String, CaseIterable {
+        case fetchUser = "FetchUser"
+        case filesFetch = "FilesFetch"
+        case playbackStart = "PlaybackStart"
+
+        var operation: String {
+            switch self {
+            case .fetchUser: return "putio.fetch_user"
+            case .filesFetch: return "putio.files_fetch"
+            case .playbackStart: return "putio.playback_start"
+            }
+        }
+    }
+
+    enum Outcome {
+        case succeeded, failed, cancelled
+    }
+
+    struct Timing {
+        fileprivate let span: Sentry.Span?
+    }
+
+    static let tracesSampleRate = 0.1
+
     private static func isContext(_ value: String) -> Bool {
         (1...80).contains(value.count) && value.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "." || $0 == "_") }
     }
@@ -227,11 +251,23 @@ enum SentryTelemetry {
         options.sessionTrackingIntervalMillis = 60000
         options.cacheDirectoryPath = cacheDirectory.path
         options.urlSessionDelegate = transportGate
-        options.maxBreadcrumbs = 0
+        options.maxBreadcrumbs = 30
+        options.beforeBreadcrumb = { isCapturing ? allowlisted($0) : nil }
         options.enableCaptureFailedRequests = false
+        options.tracesSampleRate = NSNumber(value: tracesSampleRate)
+        options.enableAutoPerformanceTracing = false
+        options.enableUIViewControllerTracing = false
+        options.enableUserInteractionTracing = false
+        options.enableNetworkTracking = false
+        options.enableFileIOTracing = false
+        options.enableCoreDataTracing = false
+        options.tracePropagationTargets = []
         options.enableMetricKit = true
         options.enableMetricKitRawPayload = false
-        options.beforeSend = { isCapturing && !predatesConsent($0) ? allowlisted($0) : nil }
+        options.beforeSend = { event in
+            guard isCapturing, !predatesConsent(event) else { return nil }
+            return event.type == transactionType ? allowlistedTransaction(event) : allowlisted(event)
+        }
         return options
     }
 
@@ -288,6 +324,21 @@ enum SentryTelemetry {
         }
     }
 
+    static func begin(_ interval: Interval) -> Timing {
+        guard isCapturing, SentrySDK.isEnabled else { return Timing(span: nil) }
+        let span = SentrySDK.startTransaction(name: interval.rawValue, operation: interval.operation)
+        for key in span.data.keys { span.removeData(key: key) }
+        return Timing(span: span)
+    }
+
+    static func end(_ timing: Timing, outcome: Outcome) {
+        switch outcome {
+        case .succeeded: timing.span?.finish(status: .ok)
+        case .failed: timing.span?.finish(status: .internalError)
+        case .cancelled: timing.span?.finish(status: .cancelled)
+        }
+    }
+
     /// Lets a tester prove a TestFlight install's Sentry path on demand, beta or
     /// release lane. TestFlight names the receipt `sandboxReceipt`, the test
     /// Sentry uses for build type `test`; the App Store and the simulator name it
@@ -307,8 +358,8 @@ enum SentryTelemetry {
     }
 
     /// Copies listed fields into a new event, so unlisted ones, including any a
-    /// Sentry upgrade adds to the event, stay on the device. Assumes tracing stays
-    /// off: a transaction would lose its spans and trace state here.
+    /// Sentry upgrade adds to the event, stay on the device. Transactions go
+    /// through `allowlistedTransaction`: a copy would lose their spans and trace.
     static func allowlisted(_ event: Event) -> Event {
         let tags = event.tags ?? [:]
         let category = tags["category"].flatMap { Failure(rawValue: $0)?.rawValue ?? ($0 == PlaybackFailure.category ? $0 : nil) }
@@ -329,6 +380,8 @@ enum SentryTelemetry {
         sent.context = event.context?.filter { ["app", "device", "os", "runtime"].contains($0.key) }
         sent.tags = sentTags.isEmpty ? nil : sentTags
         sent.user = event.user?.userId.map(Sentry.User.init(userId:))
+        let breadcrumbs = event.breadcrumbs?.compactMap(allowlisted)
+        sent.breadcrumbs = breadcrumbs?.isEmpty == false ? breadcrumbs : nil
         sent.exceptions = event.exceptions?.map { exception in
             let kept = Exception(value: category ?? CrashReason(exception)?.rawValue, type: exception.type)
             kept.threadId = exception.threadId
@@ -343,6 +396,118 @@ enum SentryTelemetry {
             return kept
         }
         return sent
+    }
+
+    private static let transactionType = "transaction"
+
+    private static let screenKeys = ["screen", "parentViewController", "presentingViewController"]
+
+    private static let appStates: Set<String> = ["foreground", "background", "active", "inactive"]
+
+    private static let httpMethods: Set<String> = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]
+
+    /// Rebuilds a breadcrumb from class names, lifecycle states, or an HTTP
+    /// method, put.io host and status. Titles, messages, URL paths and queries
+    /// stay on the device, as does every other category.
+    static func allowlisted(_ breadcrumb: Breadcrumb) -> Breadcrumb? {
+        let data = breadcrumb.data ?? [:]
+        var kept: [String: Any] = [:]
+        switch breadcrumb.category {
+        case "ui.lifecycle":
+            for key in screenKeys {
+                if let name = data[key] as? String, isContext(name) { kept[key] = name }
+            }
+            guard kept["screen"] != nil else { return nil }
+        case "app.lifecycle":
+            guard let state = data["state"] as? String, appStates.contains(state) else { return nil }
+            kept["state"] = state
+        case "http":
+            guard let url = data["url"] as? String,
+                  let host = URLComponents(string: url)?.host?.lowercased(),
+                  host == "put.io" || host.hasSuffix(".put.io")
+            else { return nil }
+            kept["host"] = host
+            if let method = data["method"] as? String, httpMethods.contains(method) { kept["method"] = method }
+            if let status = data["status_code"] as? NSNumber, (100..<600).contains(status.intValue) {
+                kept["status_code"] = status.intValue
+            }
+        default:
+            return nil
+        }
+        let sent = Breadcrumb(level: breadcrumb.level, category: breadcrumb.category)
+        sent.type = breadcrumb.category == "http" ? "http" : "navigation"
+        sent.timestamp = breadcrumb.timestamp
+        sent.data = kept
+        return sent
+    }
+
+    private static let transactionKeys: Set<String> = [
+        "contexts", "dist", "environment", "event_id", "extra", "level", "measurements", "platform",
+        "release", "sdk", "spans", "start_timestamp", "tags", "timestamp", "transaction", "transaction_info", "type", "user"
+    ]
+
+    private static let traceKeys: Set<String> = [
+        "type", "span_id", "trace_id", "parent_span_id", "op", "origin", "sampled", "status", "timestamp", "start_timestamp", "data", "tags"
+    ]
+
+    private static let measurementKeys: Set<String> = ["frames_total", "frames_slow", "frames_frozen"]
+
+    private static let timingDataKeys: Set<String> = ["frames.delay"]
+
+    /// Strips a transaction in place, since the SDK keeps its spans and trace out
+    /// of reach, then sends it only when the payload is an `Interval` with its
+    /// static name and op, and no spans, tags, URLs, or user beyond the id.
+    static func allowlistedTransaction(_ event: Event) -> Event? {
+        event.tags = nil
+        event.extra = nil
+        event.breadcrumbs = nil
+        event.request = nil
+        event.message = nil
+        event.logger = nil
+        event.serverName = nil
+        event.modules = nil
+        event.fingerprint = nil
+        event.exceptions = nil
+        event.threads = nil
+        event.stacktrace = nil
+        event.debugMeta = nil
+        event.context = event.context?.filter { ["app", "device", "os", "runtime"].contains($0.key) }
+        event.user = event.user?.userId.map(Sentry.User.init(userId:))
+        return isStaticTiming(event.serialize()) ? event : nil
+    }
+
+    private static func isStaticTiming(_ payload: [String: Any]) -> Bool {
+        func isEmptyOrMissing(_ value: Any?) -> Bool {
+            switch value {
+            case nil: return true
+            case let value as [String: Any]: return value.isEmpty
+            case let value as [Any]: return value.isEmpty
+            default: return false
+            }
+        }
+        func keys(_ value: Any?, within allowed: Set<String>) -> Bool {
+            guard let value else { return true }
+            guard let dictionary = value as? [String: Any] else { return false }
+            return Set(dictionary.keys).isSubset(of: allowed)
+        }
+        guard keys(payload, within: transactionKeys),
+              let interval = (payload["transaction"] as? String).flatMap(Interval.init(rawValue:)),
+              (payload["transaction_info"] as? [String: String]) == ["source": "custom"],
+              isEmptyOrMissing(payload["spans"]),
+              isEmptyOrMissing(payload["tags"]),
+              keys(payload["extra"], within: timingDataKeys),
+              keys(payload["measurements"], within: measurementKeys),
+              keys(payload["user"], within: ["id"]),
+              let contexts = payload["contexts"] as? [String: Any],
+              keys(contexts, within: ["app", "device", "os", "runtime", "trace", "profile"]),
+              isEmptyOrMissing(contexts["profile"]),
+              let trace = contexts["trace"] as? [String: Any],
+              keys(trace, within: traceKeys),
+              trace["op"] as? String == interval.operation,
+              isEmptyOrMissing(trace["tags"]),
+              keys(trace["data"], within: timingDataKeys)
+        else { return false }
+        return true
     }
 }
 

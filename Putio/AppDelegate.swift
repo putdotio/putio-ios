@@ -271,7 +271,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
 
     func fetchUser(token: String) {
-        let signpost = PerfSignpost.begin("FetchUser")
+        let signpost = PerfSignpost.begin(.fetchUser)
         let dispatchGroup = DispatchGroup()
         
         var account: PutioAccount?
@@ -314,7 +314,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
         
         dispatchGroup.notify(queue: .main) {
-            PerfSignpost.end(signpost)
+            PerfSignpost.end(signpost, outcome: (accountError ?? configError) == nil ? .succeeded : .failed)
             guard api.mediaToken == token else { return }
 
             if let error = accountError ?? configError {
