@@ -269,7 +269,7 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertEqual(realm.configuration.fileURL, realmURL)
     }
 
-    func testPlaceholderEnrichmentLooksUpEachPlaceholderOnceUntilATransientFailure() throws {
+    func testPlaceholderEnrichmentLooksUpEachPlaceholderOncePerLaunch() throws {
         let configuration = PutioRealm.configuration(fileURL: temporaryDirectory.appendingPathComponent("Placeholders.realm"))
         let realm = try XCTUnwrap(PutioRealm.open(context: #function, configuration: configuration))
         let rows: [(Int, String, Download.FileType)] = [
@@ -277,7 +277,8 @@ final class PutioRealmTests: XCTestCase {
             (8, "Audio 8", .audio),
             (9, "Video Diary.mp4", .video),
             (10, "Recovering...", .audio),
-            (11, "Audio 3", .audio)
+            (11, "Audio 3", .audio),
+            (3_000_000_123, "Video 3000000123", .video)
         ]
         XCTAssertTrue(PutioRealm.write(realm, context: #function) {
             for (id, name, fileType) in rows {
@@ -298,22 +299,19 @@ final class PutioRealmTests: XCTestCase {
         }
 
         enricher.enrich(in: realm)
-        XCTAssertEqual(requestedIDs.sorted(), [7, 8, 10])
+        XCTAssertEqual(requestedIDs.sorted(), [7, 8, 10, 3_000_000_123])
 
         enricher.enrich(in: realm)
-        XCTAssertEqual(requestedIDs.sorted(), [7, 8, 10])
+        XCTAssertEqual(requestedIDs.sorted(), [7, 8, 10, 3_000_000_123])
 
-        pending[7]?(.notFound)
-        pending[8]?(.notFound)
-        pending[10]?(.failed)
-        requestedIDs.removeAll()
-
-        enricher.enrich(in: realm)
-        XCTAssertEqual(requestedIDs, [10])
-        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 7)?.name, "Video 7")
-        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 10)?.name, "Audio 10")
-
+        pending[7]?(.unavailable)
+        pending[8]?(.unavailable)
         pending[10]?(.found(name: "Episode.mp3", size: 2048))
+        pending[3_000_000_123]?(.unavailable)
+        enricher.enrich(in: realm)
+
+        XCTAssertEqual(requestedIDs.count, 4)
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 7)?.name, "Video 7")
         XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 10)?.name, "Episode.mp3")
         XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 10)?.size, 2048)
     }
