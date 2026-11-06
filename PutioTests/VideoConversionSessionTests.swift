@@ -107,19 +107,87 @@ final class VideoConversionSessionTests: XCTestCase {
         XCTAssertEqual(harness.pendingPolls.count, 1)
     }
 
-    func testTerminalStatusesStopPolling() {
-        for status in [PutioMp4Conversion.Status.error, .notAvailable] {
-            let harness = Harness()
-            harness.session.start()
-            harness.startCompletions[0](.success(()))
+    func testErrorStatusStopsPolling() {
+        let harness = Harness()
+        harness.session.start()
+        harness.startCompletions[0](.success(()))
 
-            harness.respondToStatus(status)
+        harness.respondToStatus(.error)
 
-            assertFailure(harness.session.state) {
-                if case .conversion(let failed) = $0 { return failed == status }
-                return false
-            }
-            XCTAssertTrue(harness.polls.isEmpty, status.rawValue)
+        assertFailure(harness.session.state) {
+            if case .conversion(let failed) = $0 { return failed == .error }
+            return false
+        }
+        XCTAssertTrue(harness.polls.isEmpty)
+    }
+
+    func testNotAvailablePollsBoundedThenFails() {
+        let harness = Harness()
+        harness.session.start()
+        harness.startCompletions[0](.success(()))
+
+        for attempt in 1...VideoConversionSession.maxStatusRetries {
+            harness.respondToStatus(.notAvailable)
+            XCTAssertEqual(harness.pendingPolls.count, 1, "attempt \(attempt)")
+            XCTAssertTrue(harness.session.isActive)
+            harness.firePoll()
+        }
+        harness.respondToStatus(.notAvailable)
+
+        assertFailure(harness.session.state) {
+            if case .conversion(let failed) = $0 { return failed == .notAvailable }
+            return false
+        }
+        XCTAssertTrue(harness.pendingPolls.isEmpty)
+        XCTAssertEqual(harness.polls.count, VideoConversionSession.maxStatusRetries)
+    }
+
+    func testNotAvailableBeforeQueuedKeepsConverting() {
+        let harness = Harness()
+        harness.session.start()
+        harness.startCompletions[0](.success(()))
+
+        harness.respondToStatus(.notAvailable)
+        harness.firePoll()
+        harness.respondToStatus(.queued)
+
+        guard case .converting = harness.session.state else {
+            return XCTFail("expected converting, got \(harness.session.state)")
+        }
+        XCTAssertEqual(harness.pendingPolls.count, 1)
+    }
+
+    func testRetryAfterStatusFailureResumesPollingWithoutRestarting() {
+        let harness = Harness()
+        harness.session.start()
+        harness.startCompletions[0](.success(()))
+        for _ in 1...VideoConversionSession.maxStatusRetries {
+            harness.statusCompletions.last?(.failure(error))
+            harness.firePoll()
+        }
+        harness.statusCompletions.last?(.failure(error))
+
+        harness.session.retry()
+
+        XCTAssertEqual(harness.startCompletions.count, 1)
+        XCTAssertEqual(harness.statusCompletions.count, VideoConversionSession.maxStatusRetries + 2)
+        XCTAssertTrue(harness.session.isActive)
+    }
+
+    func testRetryAfterConvertedFileFailureRefetchesFileOnly() throws {
+        let harness = Harness()
+        harness.session.start()
+        harness.startCompletions[0](.success(()))
+        harness.respondToStatus(.completed, percentDone: 1)
+        harness.fileCompletions[0](.failure(error))
+
+        harness.session.retry()
+        harness.fileCompletions[1](.success(try makePutioFile()))
+
+        XCTAssertEqual(harness.startCompletions.count, 1)
+        XCTAssertEqual(harness.statusCompletions.count, 1)
+        guard case .finished = harness.session.state else {
+            return XCTFail("expected finished, got \(harness.session.state)")
         }
     }
 
@@ -254,7 +322,7 @@ final class VideoConversionSessionTests: XCTestCase {
         XCTAssertFalse(viewController.progressView.isHidden)
 
         harness.startCompletions[1](.success(()))
-        harness.respondToStatus(.notAvailable)
+        harness.respondToStatus(.error)
 
         XCTAssertEqual(
             viewController.statusLabel.text,

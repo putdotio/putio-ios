@@ -1,7 +1,11 @@
 import XCTest
 
 final class VideoConversionUITests: XCTestCase {
-    private func openConvertingVideo(failRoutes: String? = nil, mp4Status: String? = nil) -> XCUIApplication? {
+    private func openConvertingVideo(
+        failRoutes: String? = nil,
+        mp4Status: String? = nil,
+        latencyMilliseconds: Int? = nil
+    ) -> XCUIApplication? {
         let app = XCUIApplication()
         app.launchEnvironment["PUTIO_E2E_MOCK_API"] = "1"
         app.launchEnvironment["PUTIO_E2E_ACCESS_TOKEN"] = "e2e-token"
@@ -9,6 +13,7 @@ final class VideoConversionUITests: XCTestCase {
         app.launchEnvironment["PUTIO_E2E_VIDEO_NEEDS_CONVERSION"] = "1"
         app.launchEnvironment["PUTIO_E2E_FAIL_ROUTES"] = failRoutes
         app.launchEnvironment["PUTIO_E2E_MP4_STATUS"] = mp4Status
+        app.launchEnvironment["PUTIO_E2E_LATENCY_MS"] = latencyMilliseconds.map(String.init)
         app.launch()
 
         guard app.waitForSignedInTabBar() else { return nil }
@@ -16,6 +21,10 @@ final class VideoConversionUITests: XCTestCase {
         XCTAssertTrue(movie.waitForExistence(timeout: 10))
         movie.tap()
         return app
+    }
+
+    private func closeButton(_ app: XCUIApplication) -> XCUIElement {
+        app.navigationBars.buttons.matching(NSPredicate(format: "label IN %@", ["Stop", "Close"])).firstMatch
     }
 
     private func statusText(_ app: XCUIApplication, containing text: String) -> XCUIElement {
@@ -28,7 +37,7 @@ final class VideoConversionUITests: XCTestCase {
         XCTAssertTrue(statusText(app, containing: "Something went wrong").waitForExistence(timeout: 10))
         XCTAssertTrue(app.navigationBars.buttons["Retry"].exists)
 
-        app.navigationBars.buttons.matching(NSPredicate(format: "label IN %@", ["Stop", "Close"])).firstMatch.tap()
+        closeButton(app).tap()
         XCTAssertTrue(app.navigationBars.buttons["Retry"].waitForNonExistence(timeout: 5))
     }
 
@@ -43,5 +52,30 @@ final class VideoConversionUITests: XCTestCase {
         guard let app = openConvertingVideo() else { return }
 
         XCTAssertTrue(app.alerts["Where would you like to start?"].waitForExistence(timeout: 10))
+    }
+
+    func testFailedStatusFetchOffersRetryAfterBoundedRetries() {
+        guard let app = openConvertingVideo(failRoutes: "GET /v2/files/42/mp4") else { return }
+
+        XCTAssertTrue(statusText(app, containing: "Something went wrong").waitForExistence(timeout: 30))
+        XCTAssertTrue(app.navigationBars.buttons["Retry"].exists)
+    }
+
+    func testFailedConvertedFileFetchOffersRetry() {
+        guard let app = openConvertingVideo(failRoutes: "GET /v2/files/42") else { return }
+
+        XCTAssertTrue(statusText(app, containing: "Something went wrong").waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars.buttons["Retry"].exists)
+        XCTAssertFalse(app.alerts["Where would you like to start?"].exists)
+    }
+
+    func testClosingBeforeTheStartResponseNeverContinuesToPlayback() {
+        guard let app = openConvertingVideo(latencyMilliseconds: 1500) else { return }
+
+        let close = closeButton(app)
+        XCTAssertTrue(close.waitForExistence(timeout: 5))
+        close.tap()
+
+        XCTAssertFalse(app.alerts["Where would you like to start?"].waitForExistence(timeout: 8))
     }
 }

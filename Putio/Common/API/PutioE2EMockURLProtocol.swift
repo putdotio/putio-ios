@@ -400,9 +400,9 @@ private enum PutioE2EMockAPI {
             audioFile
         ] + libraryFiles
 
-    private static let listedVideoFile = ProcessInfo.processInfo.environment["PUTIO_E2E_VIDEO_NEEDS_CONVERSION"] == "1"
-        ? videoFile.replacingOccurrences(of: #""need_convert": false"#, with: #""need_convert": true"#)
-        : videoFile
+    private static let listedVideoFile = videoFileJSON(
+        needConvert: ProcessInfo.processInfo.environment["PUTIO_E2E_VIDEO_NEEDS_CONVERSION"] == "1"
+    )
 
     // Padding past the eight rows the walk interacts with, so the list fills a
     // 13-inch iPad — the App Store set is cropped from it. Appended rather than
@@ -508,7 +508,10 @@ private enum PutioE2EMockAPI {
         ISO8601DateFormatter().string(from: Date().addingTimeInterval(-60 * 60 * 2))
     }()
 
-    private static let videoFile = """
+    private static let videoFile = videoFileJSON(needConvert: false)
+
+    private static func videoFileJSON(needConvert: Bool) -> String {
+        """
     {
       "id": 42,
       "name": "Big Buck Bunny.mp4",
@@ -529,13 +532,14 @@ private enum PutioE2EMockAPI {
       },
       "screenshot": "https://api.put.io/v2/files/42/screenshot",
       "start_from": 125,
-      "need_convert": false,
+      "need_convert": \(needConvert),
       "is_mp4_available": true,
       "mp4_size": 7340032,
       "mp4_stream_url": "https://api.put.io/v2/files/42/mp4/stream?oauth_token=e2e-token",
       "stream_url": "https://api.put.io/v2/files/42/stream?oauth_token=e2e-token"
     }
     """
+    }
 
     private static let subtitles = """
     {
@@ -565,10 +569,13 @@ private enum PutioE2EMockAPI {
     }
     """
 
+    private static let mp4StatusValue = ["IN_QUEUE", "CONVERTING", "COMPLETED", "ERROR", "NOT_AVAILABLE"]
+        .first { $0 == ProcessInfo.processInfo.environment["PUTIO_E2E_MP4_STATUS"] } ?? "COMPLETED"
+
     private static let mp4Status = """
     {
       "mp4": {
-        "status": "\(ProcessInfo.processInfo.environment["PUTIO_E2E_MP4_STATUS"] ?? "COMPLETED")",
+        "status": "\(mp4StatusValue)",
         "percent_done": 100,
         "start_from": 0
       }

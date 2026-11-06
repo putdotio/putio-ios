@@ -17,7 +17,7 @@ class VideoConversionViewController: UIViewController {
     weak var delegate: VideoConversionViewControllerDelegate?
 
     var file: PutioFile!
-    var intention: VideoConversionIntention!
+    var intention: VideoConversionIntention = .play
     lazy var session = VideoConversionSession(fileID: file.id)
     private var isFinishing = false
 
@@ -30,6 +30,7 @@ class VideoConversionViewController: UIViewController {
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
+        guard isBeingDismissed || navigationController?.isBeingDismissed == true || isMovingFromParent else { return }
         session.cancel()
         if !isFinishing {
             delegate?.videoConversionControllerDismissedBeforeFinish()
@@ -82,23 +83,23 @@ class VideoConversionViewController: UIViewController {
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: NSLocalizedString("Retry", comment: ""),
             primaryAction: UIAction { [weak self] _ in
-                self?.session.start()
+                self?.session.retry()
             }
         )
     }
 
     private func finish(with convertedFile: PutioFile) {
-        if let transitionCoordinator {
-            transitionCoordinator.animate(alongsideTransition: nil) { [weak self] _ in
-                guard let self, self.viewIfLoaded?.window != nil else { return }
-                self.finish(with: convertedFile)
-            }
+        if let transitionCoordinator,
+           transitionCoordinator.animate(alongsideTransition: nil, completion: { [weak self] _ in
+               guard let self, self.viewIfLoaded?.window != nil else { return }
+               self.finish(with: convertedFile)
+           }) {
             return
         }
 
         isFinishing = true
         let delegate = self.delegate
-        let intention = self.intention!
+        let intention = self.intention
         dismiss(animated: true) {
             delegate?.videoConversionFinished(for: convertedFile, intention: intention)
         }

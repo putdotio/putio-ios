@@ -51,6 +51,7 @@ final class VideoConversionSession {
     private let schedule: Schedule
     private var generation = 0
     private var statusFailures = 0
+    private var unavailablePolls = 0
     private var cancelScheduledPoll: (() -> Void)?
 
     init(
@@ -91,20 +92,30 @@ final class VideoConversionSession {
     }
 
     func start() {
-        invalidatePendingWork()
-        statusFailures = 0
-        state = .starting
+        begin(as: .starting) { generation in
+            self.startRequest(self.fileID) { [weak self] result in
+                guard let self, self.isCurrent(generation) else { return }
 
-        let generation = self.generation
-        startRequest(fileID) { [weak self] result in
-            guard let self, self.isCurrent(generation) else { return }
-
-            switch result {
-            case .success:
-                self.checkStatus(generation: generation)
-            case .failure(let error):
-                self.state = .failed(.start(error))
+                switch result {
+                case .success:
+                    self.checkStatus(generation: generation)
+                case .failure(let error):
+                    self.state = .failed(.start(error))
+                }
             }
+        }
+    }
+
+    func retry() {
+        guard case .failed(let failure) = state else { return start() }
+
+        switch failure {
+        case .start, .conversion:
+            start()
+        case .status:
+            begin(as: .starting) { self.checkStatus(generation: $0) }
+        case .convertedFile:
+            begin(as: .fetchingConvertedFile) { self.fetchConvertedFile(generation: $0) }
         }
     }
 
@@ -112,6 +123,14 @@ final class VideoConversionSession {
         invalidatePendingWork()
         guard isActive else { return }
         state = .cancelled
+    }
+
+    private func begin(as state: State, _ step: (Int) -> Void) {
+        invalidatePendingWork()
+        statusFailures = 0
+        unavailablePolls = 0
+        self.state = state
+        step(generation)
     }
 
     private func isCurrent(_ generation: Int) -> Bool {
@@ -150,10 +169,19 @@ final class VideoConversionSession {
             state = .fetchingConvertedFile
             fetchConvertedFile(generation: generation)
 
-        case .error, .notAvailable:
+        case .error:
             state = .failed(.conversion(progress.status))
 
+        case .notAvailable:
+            unavailablePolls += 1
+            if unavailablePolls > Self.maxStatusRetries {
+                state = .failed(.conversion(progress.status))
+            } else {
+                schedulePoll(generation: generation)
+            }
+
         default:
+            unavailablePolls = 0
             state = .converting(progress)
             schedulePoll(generation: generation)
         }
