@@ -91,6 +91,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 
         task.taskDescription = String(id)
         task.resume()
+        ProductAnalytics.capture(.downloadStarted(.audio))
 
         NotificationCenter.default.post(name: AudioDownloadManager.NOTIFICATION, object: nil)
     }
@@ -306,6 +307,9 @@ extension AudioDownloadManager: URLSessionTaskDelegate {
 
         if download.state == .completed {
             notifyUser(for: id)
+            ProductAnalytics.capture(.downloadCompleted(.audio))
+        } else {
+            ProductAnalytics.capture(.downloadFailed(.audio, .init(downloadError: effectiveError)))
         }
 
         NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)

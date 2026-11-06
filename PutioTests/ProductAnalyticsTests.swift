@@ -110,6 +110,21 @@ final class ProductAnalyticsTests: XCTestCase {
         }
     }
 
+    func testErrorAndDownloadEventsSurviveTheAllowlist() throws {
+        let expected: [(String, [String: String])] = [
+            ("error_shown", ["screen": "files", "error": "unknown"]),
+            ("error_shown", ["screen": "account", "error": "unknown"]),
+            ("download_started", ["media": "video", "stream_method": "hls"]),
+            ("download_completed", ["media": "audio", "stream_method": "progressive"]),
+            ("download_failed", ["media": "video", "stream_method": "hls", "error": "media"]),
+            ("download_failed", ["media": "audio", "stream_method": "progressive", "error": "source"])
+        ]
+        for (event, properties) in expected {
+            let kept = try XCTUnwrap(AnalyticsAllowlist.allowedProperties(event: event, properties: properties), event)
+            XCTAssertEqual(kept as? [String: String], properties, event)
+        }
+    }
+
     func testEveryTypedEventSurvivesTheAllowlistUnchanged() throws {
         for event in allEvents {
             let properties = ProductAnalyticsGate.commonProperties().merging(event.properties) { $1 }
@@ -131,7 +146,11 @@ final class ProductAnalyticsTests: XCTestCase {
             (.playbackFailed(video, .source), ["media": "video", "stream_method": "hls", "player": "avplayer", "error": "source"]),
             (.appOpened(.direct, route: "default"), ["entry": "direct", "route": "default"]),
             (.appOpened(.resume, route: nil), ["entry": "resume"]),
-            (.appOpened(.deeplink, route: ""), ["entry": "deeplink", "route": "default"])
+            (.appOpened(.deeplink, route: ""), ["entry": "deeplink", "route": "default"]),
+            (.errorShown(.files), ["screen": "files", "error": "unknown"]),
+            (.downloadStarted(.init(Download.FileType.video)), ["media": "video", "stream_method": "hls"]),
+            (.downloadCompleted(.init(Download.FileType.audio)), ["media": "audio", "stream_method": "progressive"]),
+            (.downloadFailed(.audio, .init(downloadError: DownloadSupport.ArtifactSaveError.httpStatus(404))), ["media": "audio", "stream_method": "progressive", "error": "source"])
         ]
         for (event, properties) in expected {
             XCTAssertEqual(event.properties, properties)
@@ -147,6 +166,12 @@ final class ProductAnalyticsTests: XCTestCase {
             )
             XCTAssertEqual(AnalyticsEvent.PlaybackError(failure).rawValue, error, "\(status)")
         }
+        for (status, error) in [(404, "source"), (402, "source"), (429, "source"), (503, "network"), (408, "network"), (403, "unknown")] {
+            let failure = DownloadSupport.ArtifactSaveError.httpStatus(status)
+            XCTAssertEqual(AnalyticsEvent.PlaybackError(downloadError: failure).rawValue, error, "\(status)")
+        }
+        XCTAssertEqual(AnalyticsEvent.PlaybackError(downloadError: DownloadSupport.ArtifactSaveError.unresolvedDestination), .unknown)
+        XCTAssertEqual(AnalyticsEvent.PlaybackError(downloadError: URLError(.networkConnectionLost)), .network)
     }
 
     func testBeforeSendStripsWhatTheSDKAndCallersAddOnTheWire() throws {
@@ -618,6 +643,11 @@ final class ProductAnalyticsTests: XCTestCase {
         events += AnalyticsEvent.Entry.allCases.map { AnalyticsEvent.appOpened($0, route: "") }
         events += AnalyticsEvent.SessionDuration.allCases.map(AnalyticsEvent.appBackgrounded)
         events += AnalyticsEvent.Screen.allCases.map(AnalyticsEvent.screenViewed)
+        events += AnalyticsEvent.Screen.allCases.map(AnalyticsEvent.errorShown)
+        for media in AnalyticsEvent.Media.allCases {
+            events += [.downloadStarted(media), .downloadCompleted(media)]
+            events += AnalyticsEvent.PlaybackError.allCases.map { AnalyticsEvent.downloadFailed(media, $0) }
+        }
         for setting in AnalyticsEvent.Setting.allCases {
             events += AnalyticsEvent.SettingValue.allCases.map { AnalyticsEvent.settingsChanged(setting, $0) }
         }

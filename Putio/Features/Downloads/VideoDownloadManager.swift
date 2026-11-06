@@ -138,6 +138,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
 
             task.taskDescription = String(id)
             task.resume()
+            ProductAnalytics.capture(.downloadStarted(.video))
 
             NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)
         })
@@ -457,6 +458,9 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
 
         if download.state == .completed {
             notifyUser(for: id)
+            ProductAnalytics.capture(.downloadCompleted(.video))
+        } else {
+            ProductAnalytics.capture(.downloadFailed(.video, .init(downloadError: error)))
         }
         log.verbose("VDM: didCompleteWithError: posting notification")
         NotificationCenter.default.post(name: VideoDownloadManager.NOTIFICATION, object: nil)

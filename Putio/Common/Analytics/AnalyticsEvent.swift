@@ -147,6 +147,10 @@ enum AnalyticsEvent: Equatable {
     case playbackStarted(Playback)
     case playbackEnded(Playback, PlaybackDuration)
     case playbackFailed(Playback, PlaybackError)
+    case downloadStarted(Media)
+    case downloadCompleted(Media)
+    case downloadFailed(Media, PlaybackError)
+    case errorShown(Screen)
 
     var name: String {
         switch self {
@@ -158,6 +162,10 @@ enum AnalyticsEvent: Equatable {
         case .playbackStarted: return "playback_started"
         case .playbackEnded: return "playback_ended"
         case .playbackFailed: return "playback_failed"
+        case .downloadStarted: return "download_started"
+        case .downloadCompleted: return "download_completed"
+        case .downloadFailed: return "download_failed"
+        case .errorShown: return "error_shown"
         }
     }
 
@@ -180,6 +188,40 @@ enum AnalyticsEvent: Equatable {
             return playback.properties.merging(["duration": duration.rawValue]) { $1 }
         case .playbackFailed(let playback, let error):
             return playback.properties.merging(["error": error.rawValue]) { $1 }
+        case .downloadStarted(let media), .downloadCompleted(let media):
+            return media.downloadProperties
+        case .downloadFailed(let media, let error):
+            return media.downloadProperties.merging(["error": error.rawValue]) { $1 }
+        case .errorShown(let screen):
+            return ["screen": screen.rawValue, "error": "unknown"]
+        }
+    }
+}
+
+extension AnalyticsEvent.Media {
+    init(_ fileType: Download.FileType) {
+        switch fileType {
+        case .video: self = .video
+        case .audio: self = .audio
+        }
+    }
+
+    fileprivate var downloadProperties: [String: String] {
+        let streamMethod: AnalyticsEvent.StreamMethod = self == .video ? .hls : .progressive
+        return ["media": rawValue, "stream_method": streamMethod.rawValue]
+    }
+}
+
+extension AnalyticsEvent.PlaybackError {
+    init(downloadError error: Error?) {
+        guard case .httpStatus(let status)? = error as? DownloadSupport.ArtifactSaveError else {
+            self.init(error)
+            return
+        }
+        switch status {
+        case 402, 404, 429: self = .source
+        case 0, 408, 500...: self = .network
+        default: self = .unknown
         }
     }
 }
@@ -201,6 +243,11 @@ enum AnalyticsAllowlist {
         "player": ["avplayer", "chromecast"]
     ]
 
+    private static let download: [String: Set<String>] = [
+        "media": ["video", "audio"],
+        "stream_method": ["hls", "progressive"]
+    ]
+
     static let eventProperties: [String: [String: Set<String>]] = [
         "app_opened": ["entry": ["direct", "deeplink", "resume"]],
         "app_backgrounded": ["session_duration": ["lt_1m", "1m_5m", "5m_15m", "15m_60m", "gt_60m"]],
@@ -215,7 +262,11 @@ enum AnalyticsAllowlist {
         "support_started": [:],
         "playback_started": playback,
         "playback_ended": playback.merging(["duration": ["lt_5m", "5m_30m", "30m_90m", "gt_90m"]]) { $1 },
-        "playback_failed": playback.merging(["error": ["network", "media", "source", "unsupported", "unknown"]]) { $1 }
+        "playback_failed": playback.merging(["error": ["network", "media", "source", "unsupported", "unknown"]]) { $1 },
+        "download_started": download,
+        "download_completed": download,
+        "download_failed": download.merging(["error": ["network", "media", "source", "unsupported", "unknown"]]) { $1 },
+        "error_shown": ["screen": ["files", "account", "player"], "error": ["unknown"]]
     ]
 
     static let commonProperties: [String: Set<String>] = [
