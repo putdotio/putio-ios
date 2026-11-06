@@ -286,7 +286,7 @@ final class NavigationLocalizationTests: XCTestCase {
 
         makeDeletion(
             state: .failed,
-            currentState: { .queued },
+            currentState: { .stored(.queued) },
             deleteLocalFile: {
                 XCTFail("A restarted row keeps its files")
                 return .removed
@@ -308,13 +308,31 @@ final class NavigationLocalizationTests: XCTestCase {
 
         makeDeletion(
             state: .completed,
-            currentState: { nil },
+            currentState: { .missing },
             deleteLocalFile: {
                 XCTFail("A removed row has no files to delete")
                 return .removed
             }
         ).perform { didDelete in
             XCTAssertTrue(didDelete)
+            finished.fulfill()
+        }
+
+        wait(for: [finished], timeout: 5)
+    }
+
+    func testFinishedDownloadDeletionFailsWhenTheRowCannotBeRead() {
+        let finished = expectation(description: "deletion finished")
+
+        makeDeletion(
+            state: .completed,
+            currentState: { .unreadable },
+            deleteLocalFile: {
+                XCTFail("An unreadable row keeps its files")
+                return .removed
+            }
+        ).perform { didDelete in
+            XCTAssertFalse(didDelete)
             finished.fulfill()
         }
 
@@ -364,7 +382,7 @@ final class NavigationLocalizationTests: XCTestCase {
             cancelActiveDownload: { cancelledOnMain = Thread.isMainThread },
             currentState: {
                 XCTFail("Active downloads cancel on main without rereading the row")
-                return .active
+                return .stored(.active)
             },
             deleteLocalFile: {
                 XCTFail("Active downloads cancel instead of deleting a local file")
@@ -379,7 +397,7 @@ final class NavigationLocalizationTests: XCTestCase {
     private func makeDeletion(
         state: Download.State,
         cancelActiveDownload: @escaping () -> Void = { XCTFail("Finished downloads do not need cancellation") },
-        currentState: (() -> Download.State?)? = nil,
+        currentState: (() -> DownloadSupport.RecordLookup)? = nil,
         deleteLocalFile: @escaping () -> DownloadSupport.LocalFileDeletionResult,
         deleteRecord: @escaping (Download.State?) -> Bool = { _ in true },
         localFileDeletionDidSucceed: @escaping () -> Void = {}
@@ -388,7 +406,7 @@ final class NavigationLocalizationTests: XCTestCase {
             state: state,
             cancelActiveDownload: cancelActiveDownload,
             deleteLocalFile: deleteLocalFile,
-            currentState: currentState ?? { state },
+            currentState: currentState ?? { .stored(state) },
             deleteRecord: deleteRecord,
             localFileDeletionDidSucceed: localFileDeletionDidSucceed
         )

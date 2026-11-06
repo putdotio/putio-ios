@@ -179,11 +179,17 @@ enum DownloadSupport {
 
     static let deletionQueue = DispatchQueue(label: "com.putio.downloads.deletion", qos: .userInitiated)
 
+    enum RecordLookup: Equatable {
+        case missing
+        case stored(Download.State)
+        case unreadable
+    }
+
     struct Deletion {
         let state: Download.State?
         let cancelActiveDownload: () -> Void
         let deleteLocalFile: () -> LocalFileDeletionResult
-        let currentState: () -> Download.State?
+        let currentState: () -> RecordLookup
         let deleteRecord: (_ expectedState: Download.State?) -> Bool
         let localFileDeletionDidSucceed: () -> Void
 
@@ -218,8 +224,11 @@ enum DownloadSupport {
         }
 
         private func performFinished() -> Bool {
-            guard let current = currentState() else { return true }
-            guard current == state else { return false }
+            switch currentState() {
+            case .missing: return true
+            case .unreadable: return false
+            case .stored(let current): guard current == state else { return false }
+            }
             return performDeletion(
                 state: state,
                 cancelActiveDownload: cancelActiveDownload,
@@ -242,9 +251,9 @@ enum DownloadSupport {
             cancelActiveDownload: cancelActiveDownload,
             deleteLocalFile: deleteLocalFile,
             currentState: {
-                guard let realm = realm(context: "\(context).currentState") else { return nil }
+                guard let realm = realm(context: "\(context).currentState") else { return .unreadable }
                 realm.refresh()
-                return realm.object(ofType: Download.self, forPrimaryKey: id)?.state
+                return realm.object(ofType: Download.self, forPrimaryKey: id).map { .stored($0.state) } ?? .missing
             },
             deleteRecord: { expectedState in
                 deleteRecord(id: id, context: context, ifStateIs: expectedState)
