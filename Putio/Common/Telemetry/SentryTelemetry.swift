@@ -56,7 +56,7 @@ enum SentryTelemetry {
             ("beyond bounds", .tableRowOutOfBounds),
             ("when max is", .tableRowOutOfBounds),
             ("which only contains", .tableRowOutOfBounds),
-            ("invalid number of rows", .tableRowOutOfBounds),
+            ("invalid number of rows", .tableRowOutOfBounds)
         ]
 
         init?(_ exception: Exception) {
@@ -142,7 +142,8 @@ enum SentryTelemetry {
     /// `beforeSend`. The transport gate cancels those uploads and the cache is
     /// deleted, so nothing recorded before a switch-off leaves later either.
     private static func apply(dsn: String?, defaults: UserDefaults) {
-        consentedSince.withLock { $0 = defaults.object(forKey: consentedSinceKey) as? Date }
+        let since = defaults.object(forKey: consentedSinceKey) as? Date
+        consentedSince.withLock { $0 = since }
         guard let dsn else { return }
         let enabled = lastKnownDiagnosticsEnabled(defaults: defaults)
         isCapturing = enabled
