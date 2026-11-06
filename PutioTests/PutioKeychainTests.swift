@@ -277,6 +277,51 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertEqual(privacyValues(viewModel), [false, true])
     }
 
+    func testSignedInScreensAreReleasedWhenTheAppLeavesThem() throws {
+        weak var releasedTabBar: MainTabBarController?
+        weak var releasedDownloads: DownloadsViewController?
+        weak var releasedAccount: SettingsViewModel?
+
+        try autoreleasepool {
+            let storyboard = UIStoryboard(name: "Main", bundle: Bundle(for: MainTabBarController.self))
+            let tabBar = try XCTUnwrap(storyboard.instantiateViewController(withIdentifier: "MainTabBarController") as? MainTabBarController)
+            tabBar.loadViewIfNeeded()
+            XCTAssertNotNil(tabBar.notificationToken)
+            let screens = tabBar.viewControllers?
+                .compactMap { $0 as? UINavigationController }
+                .flatMap(\.viewControllers) ?? []
+            let downloads = try XCTUnwrap(screens.compactMap { $0 as? DownloadsViewController }.first)
+            downloads.loadViewIfNeeded()
+            XCTAssertNotNil(downloads.notificationToken)
+            let account = try XCTUnwrap(screens.compactMap { $0 as? SettingsTableViewController }.first)
+            XCTAssertFalse(account.viewModel.notificationTokens.isEmpty)
+
+            releasedTabBar = tabBar
+            releasedDownloads = downloads
+            releasedAccount = account.viewModel
+        }
+
+        XCTAssertNil(releasedTabBar)
+        XCTAssertNil(releasedDownloads)
+        XCTAssertNil(releasedAccount)
+    }
+
+    func testAccountKeepsItsRowsWhenTheNextSignInReplacesTheSession() throws {
+        let viewModel = SettingsViewModel()
+        let nextUser = User()
+        nextUser.id = 2
+        nextUser.username = "next"
+        nextUser.settings = UserSettings()
+        nextUser.disk = UserDisk()
+        let realm = try XCTUnwrap(PutioRealm.open(context: #function))
+        XCTAssertTrue(PutioRealm.replaceUserSession(realm, user: nextUser, config: UserConfig(), context: #function))
+
+        viewModel.update()
+
+        let username = viewModel.sections.flatMap(\.items).first { $0.title == "Username" }
+        XCTAssertEqual(username?.value as? String, "tester")
+    }
+
     func testDiagnosticsSwitchSavesThePatchAndAppliesItBeforeTheLocalWrite() throws {
         var patches: [PutioAccountSettingsPatch] = []
         var applied: [(value: Bool, storedAtTheTime: Bool)] = []
