@@ -179,10 +179,12 @@ final class SentryTelemetryTests: XCTestCase {
             ("RLMException", "Accessing object of type Download which has been invalidated or deleted", "realm_object_invalidated"),
             ("RLMException", "Cannot modify managed RLMArray outside of a write transaction.", "realm_write_outside_transaction"),
             ("RLMException", "Cannot modify managed objects outside of a write transaction.", "realm_write_outside_transaction"),
+            ("RLMException", "Can only add, remove, or create objects in a Realm in a write transaction - call beginWriteTransaction on an RLMRealm instance first.", "realm_write_outside_transaction"),
             ("RLMException", "Index 2 is out of bounds (must be less than 2).", "table_row_out_of_bounds"),
             ("NSRangeException", "*** -[__NSArrayM objectAtIndexedSubscript:]: index 5 beyond bounds [0 .. 3]", "table_row_out_of_bounds"),
             ("NSInternalInconsistencyException", "attempt to delete row 3 from section 0 which only contains 2 rows before the update", "table_row_out_of_bounds"),
             ("NSInternalInconsistencyException", "Invalid update: invalid number of rows in section 0.", "table_row_out_of_bounds"),
+            ("NSRangeException", "-[__NSCFString substringWithRange:]: Range {5, 3} out of bounds; string length 4", "other"),
             ("RLMException", "Unable to open a realm at path '\(path)': Permission denied.", "other"),
             ("RLMException", nil, "other"),
             ("NSInvalidArgumentException", "Synthetic reason at \(path)", nil),
@@ -233,6 +235,24 @@ final class SentryTelemetryTests: XCTestCase {
         let unlisted = SentryTelemetry.allowlisted(forged)
         XCTAssertNil(unlisted.tags)
         XCTAssertNil(unlisted.exceptions?.first?.value)
+    }
+
+    func testRealmOpenFailuresReportOncePerContextWhileCapturing() throws {
+        let previous = SentryTelemetry.isCapturing
+        addTeardownBlock { SentryTelemetry.isCapturing = previous }
+        let missing = Realm.Configuration(
+            fileURL: FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).realm"),
+            readOnly: true
+        )
+        let context = "SentryTelemetryTests.open.\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
+
+        SentryTelemetry.isCapturing = false
+        XCTAssertNil(PutioRealm.open(context: context, configuration: missing))
+        let sent = try recordSentEvents()
+        XCTAssertNil(PutioRealm.open(context: context, configuration: missing))
+        XCTAssertNil(PutioRealm.open(context: context, configuration: missing))
+
+        XCTAssertEqual(sent.events.map(\.tags), [["category": "realm_open", "context": context]])
     }
 
     func testSDKFailureReasons() {

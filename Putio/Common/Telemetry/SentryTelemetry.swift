@@ -1,7 +1,7 @@
 import Foundation
 import os
 import PutioSDK
-import Sentry
+@_spi(Private) import Sentry
 
 /// The app's only Sentry entry point. `scripts/verify-fast.sh` rejects
 /// `import Sentry` anywhere else, so only the SDK fills the contexts and user
@@ -47,16 +47,17 @@ enum SentryTelemetry {
 
         private static let exceptionTypes: Set<String> = ["RLMException", "NSRangeException", "NSInternalInconsistencyException"]
 
-        private static let patterns: [(String, CrashReason)] = [
-            ("incorrect thread", .realmIncorrectThread),
-            ("outside of a write transaction", .realmWriteOutsideTransaction),
-            ("deleted or invalidated", .realmObjectInvalidated),
-            ("invalidated or deleted", .realmObjectInvalidated),
-            ("out of bounds", .tableRowOutOfBounds),
-            ("beyond bounds", .tableRowOutOfBounds),
-            ("when max is", .tableRowOutOfBounds),
-            ("which only contains", .tableRowOutOfBounds),
-            ("invalid number of rows", .tableRowOutOfBounds)
+        private static let patterns: [([String], CrashReason)] = [
+            (["incorrect thread"], .realmIncorrectThread),
+            (["outside of a write transaction"], .realmWriteOutsideTransaction),
+            (["call beginWriteTransaction"], .realmWriteOutsideTransaction),
+            (["deleted or invalidated"], .realmObjectInvalidated),
+            (["invalidated or deleted"], .realmObjectInvalidated),
+            (["index", "out of bounds"], .tableRowOutOfBounds),
+            (["index", "beyond bounds"], .tableRowOutOfBounds),
+            (["index", "when max is"], .tableRowOutOfBounds),
+            (["which only contains"], .tableRowOutOfBounds),
+            (["invalid number of rows"], .tableRowOutOfBounds)
         ]
 
         init?(_ exception: Exception) {
@@ -64,7 +65,9 @@ enum SentryTelemetry {
                   exception.mechanism?.handled?.boolValue == false
             else { return nil }
             let reason = exception.value ?? ""
-            self = Self.patterns.first { reason.range(of: $0.0, options: .caseInsensitive) != nil }?.1 ?? .other
+            self = Self.patterns.first { needles, _ in
+                needles.allSatisfy { reason.range(of: $0, options: .caseInsensitive) != nil }
+            }?.1 ?? .other
         }
     }
 
@@ -116,8 +119,6 @@ enum SentryTelemetry {
     private static let consentedSinceKey = "io.put.diagnostics-enabled-since"
 
     private static let consentedSince = OSAllocatedUnfairLock<Date?>(initialState: nil)
-
-    private static let metricKitMechanisms: Set<String> = ["MXCrashDiagnostic", "mx_cpu_exception", "mx_disk_write_exception", "mx_hang_diagnostic"]
 
     static func lastKnownDiagnosticsEnabled(defaults: UserDefaults = .standard) -> Bool {
         defaults.object(forKey: consentKey) as? Bool ?? true
@@ -210,8 +211,7 @@ enum SentryTelemetry {
     }
 
     private static func predatesConsent(_ event: Event) -> Bool {
-        guard let mechanism = event.exceptions?.first?.mechanism?.type,
-              metricKitMechanisms.contains(mechanism),
+        guard event.isMetricKitEvent(),
               let since = consentedSince.withLock({ $0 })
         else { return false }
         return (event.timestamp ?? .distantPast) < since
