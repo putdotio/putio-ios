@@ -61,27 +61,33 @@ class PDFViewController: UIViewController {
 
         let url = file.getDownloadURL(downloadToken: api.mediaToken)
 
-        request = MediaPreviewSession.shared.dataTask(with: url) { [weak self] data, _, error in
-            guard let self = self else { return }
+        request = MediaPreviewSession.shared.dataTask(with: url) { [weak self] data, response, error in
             if (error as? URLError)?.code == .cancelled { return }
 
-            guard let data = data else {
-                return DispatchQueue.main.async {
+            guard let data = MediaPreviewSession.body(data, of: response) else {
+                let message = MediaPreviewSession.fetchFailureMessage(
+                    for: response,
+                    otherwise: NSLocalizedString("An error occurred while fetching the PDF", comment: "")
+                )
+                return DispatchQueue.main.async { [weak self] in
+                    guard let self = self, self.request != nil else { return }
                     self.finishLoading()
-                    self.presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the PDF", comment: ""))
+                    self.presentErrorMessage(message: message)
                     self.endOpenSignpost()
                 }
             }
 
             guard let pdfDocument = PDFDocument(data: data) else {
-                return DispatchQueue.main.async {
+                return DispatchQueue.main.async { [weak self] in
+                    guard let self = self, self.request != nil else { return }
                     self.finishLoading()
                     self.presentErrorMessage(message: NSLocalizedString("An error occurred while displaying the PDF", comment: ""))
                     self.endOpenSignpost()
                 }
             }
 
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, self.request != nil else { return }
                 self.finishLoading()
                 self.pdfView.isUserInteractionEnabled = true
                 self.pdfView.document = pdfDocument

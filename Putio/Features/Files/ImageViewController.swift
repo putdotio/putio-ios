@@ -43,14 +43,18 @@ class ImageViewController: UIViewController {
         // viewDidLoad runs before this view joins a window.
         let maxPixelSize = ImagePreviewDecoder.maxPixelSize(on: navigationController?.view.window ?? view.window)
 
-        request = MediaPreviewSession.shared.dataTask(with: url) { [weak self] data, _, error in
+        request = MediaPreviewSession.shared.dataTask(with: url) { [weak self] data, response, error in
             if (error as? URLError)?.code == .cancelled { return }
 
-            guard let data = data else {
+            guard let data = MediaPreviewSession.body(data, of: response) else {
+                let message = MediaPreviewSession.fetchFailureMessage(
+                    for: response,
+                    otherwise: NSLocalizedString("An error occurred while fetching the image", comment: "")
+                )
                 return DispatchQueue.main.async { [weak self] in
                     guard let self = self, self.request != nil else { return }
                     self.finishLoading()
-                    self.presentErrorMessage(message: NSLocalizedString("An error occurred while fetching the image", comment: ""))
+                    self.presentErrorMessage(message: message)
                     self.endOpenSignpost()
                 }
             }
