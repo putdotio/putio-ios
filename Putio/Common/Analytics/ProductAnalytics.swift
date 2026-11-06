@@ -20,9 +20,11 @@ enum ProductAnalytics {
 
     /// The cached account's route, nil until its settings load: a fresh
     /// sign-in's cold launch has none yet.
-    static let appSession = AppSessionAnalytics(capture: capture, route: {
+    static let appSession = AppSessionAnalytics(capture: capture, route: route)
+
+    static func route() -> String? {
         PutioRealm.open(context: "ProductAnalytics.route")?.objects(User.self).first?.settings?.routeName
-    })
+    }
 
     /// `nil` is signed out; an unset answer is off.
     static func update(accountID: Int?, productAnalyticsEnabled: Bool?) {
@@ -80,6 +82,7 @@ final class ProductAnalyticsGate {
         var urlSessionConfiguration: URLSessionConfiguration?
         var compression: PostHogCompression = .gzip
         var now: () -> Date = Date.init
+        var route: () -> String? = { nil }
 
         static var live: Environment {
             Environment(
@@ -89,7 +92,8 @@ final class ProductAnalyticsGate {
                     isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled,
                     isRunningUnitTests: AppDelegate.isRunningUnitTests
                 ),
-                storageDirectory: URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? "")
+                storageDirectory: URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? ""),
+                route: ProductAnalytics.route
             )
         }
     }
@@ -101,7 +105,19 @@ final class ProductAnalyticsGate {
         /// Without an open since the start, a background would time a session
         /// that began before consent.
         var hasSentOpen = false
+        var sessionStartedAt: Date
+        var lastTransitionAt: Date?
+        var consentOpenedAt: Date?
+
+        func sessionExpires(at timestamp: Date) -> Bool {
+            guard let lastTransitionAt else { return false }
+            return timestamp.timeIntervalSince(lastTransitionAt) > ProductAnalyticsGate.sessionIdleLimit
+                || timestamp.timeIntervalSince(sessionStartedAt) > ProductAnalyticsGate.sessionLengthLimit
+        }
     }
+
+    private static let sessionIdleLimit: TimeInterval = 30 * 60
+    private static let sessionLengthLimit: TimeInterval = 24 * 60 * 60
 
     /// Events from before the first answer of this launch, such as the cold
     /// launch's `app_opened`, or of a foreground. Dropped if that answer is off.
@@ -113,6 +129,7 @@ final class ProductAnalyticsGate {
     private var enabled: Bool?
     private var hasAnswer = false
     private var held: [(event: AnalyticsEvent, at: Date)] = []
+    private var isForeground = false
     private var running: Running?
 
     /// Read by `beforeSend` on any SDK thread, so it has its own lock.
@@ -164,6 +181,11 @@ final class ProductAnalyticsGate {
         lock.withLock {
             guard environment.token != nil, environment.isEligible else { return }
             let at = environment.now()
+            switch event {
+            case .appOpened: isForeground = true
+            case .appBackgrounded: isForeground = false
+            default: break
+            }
             if hasAnswer, running != nil {
                 send(event, at: at)
             } else if !hasAnswer {
@@ -205,8 +227,18 @@ final class ProductAnalyticsGate {
                 return
             }
             start(token: token, accountID: target)
+            sendHeld()
+            sendConsentOpen()
+            return
         }
         sendHeld()
+    }
+
+    private func sendConsentOpen() {
+        guard isForeground, running?.hasSentOpen == false else { return }
+        let consentAt = environment.now()
+        send(.appOpened(.direct, route: environment.route()), at: consentAt)
+        running?.consentOpenedAt = consentAt
     }
 
     private func sendHeld() {
@@ -233,7 +265,12 @@ final class ProductAnalyticsGate {
                 return event
             }
         )
-        running = Running(sdk: PostHogSDK.with(config), accountID: accountID, commonProperties: Self.commonProperties())
+        running = Running(
+            sdk: PostHogSDK.with(config),
+            accountID: accountID,
+            commonProperties: Self.commonProperties(),
+            sessionStartedAt: environment.now()
+        )
     }
 
     /// `close()` sends what is queued, so the queue goes first; close may
@@ -266,9 +303,26 @@ final class ProductAnalyticsGate {
     /// A held event keeps the time it happened, not the time the answer came.
     private func send(_ event: AnalyticsEvent, at timestamp: Date) {
         guard var running else { return }
+        var event = event
         switch event {
-        case .appOpened: running.hasSentOpen = true
-        case .appBackgrounded where !running.hasSentOpen: return
+        case .appOpened:
+            if running.sessionExpires(at: timestamp) {
+                running.sdk.startSession()
+                running.sessionStartedAt = timestamp
+            }
+            running.hasSentOpen = true
+            running.consentOpenedAt = nil
+            running.lastTransitionAt = timestamp
+        case .appBackgrounded:
+            running.lastTransitionAt = timestamp
+            guard running.hasSentOpen else {
+                self.running = running
+                return
+            }
+            if let consentOpenedAt = running.consentOpenedAt {
+                event = .appBackgrounded(.init(seconds: timestamp.timeIntervalSince(consentOpenedAt)))
+                running.consentOpenedAt = nil
+            }
         default: break
         }
         self.running = running

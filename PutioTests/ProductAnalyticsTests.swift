@@ -1,8 +1,9 @@
 import AVFoundation
 import GoogleCast
 import os
-import PostHog
+@testable import PostHog
 @testable import PutioSDK
+import UIKit
 import XCTest
 @testable import Putio
 
@@ -307,6 +308,51 @@ final class ProductAnalyticsTests: XCTestCase {
 
         XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_backgrounded"])
         XCTAssertEqual((events.last?["properties"] as? [String: Any])?["session_duration"] as? String, "lt_1m")
+    }
+
+    func testAnOptInWhileOpenSendsAnOpenTimedFromConsent() throws {
+        var clock = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970) - 600)
+        let (gate, token) = makeGate(now: { clock })
+        let session = AppSessionAnalytics(capture: gate.capture, now: { clock })
+
+        gate.update(accountID: nil, productAnalyticsEnabled: nil)
+        session.didBecomeActive()
+        clock += 570
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        let consentAt = clock
+        clock += 30
+        session.didEnterBackground()
+        let events = try waitForEvents(token: token, count: 2)
+
+        XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_backgrounded"])
+        XCTAssertEqual((events.first?["properties"] as? [String: Any])?["entry"] as? String, "direct")
+        XCTAssertEqual((events.first?["timestamp"] as? String).flatMap(toISO8601Date), consentAt)
+        XCTAssertEqual((events.last?["properties"] as? [String: Any])?["session_duration"] as? String, "lt_1m")
+    }
+
+    func testAnOpenAfterHalfAnHourAwayKeepsASession() throws {
+        var away: TimeInterval = 0
+        let sdkNow = PostHog.now
+        PostHog.now = { Date().addingTimeInterval(away) }
+        addTeardownBlock { PostHog.now = sdkNow }
+        let (gate, token) = makeGate(now: { Date().addingTimeInterval(away) })
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+
+        gate.capture(.appOpened(.direct))
+        gate.capture(.appBackgrounded(.under1m))
+        NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+        addTeardownBlock { NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil) }
+        away = 31 * 60
+        gate.capture(.appOpened(.resume))
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        let events = try waitForEvents(token: token, count: 3)
+
+        let sessions = events.map { ($0["properties"] as? [String: Any])?["$session_id"] as? String }
+        XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_backgrounded", "app_opened"])
+        XCTAssertNotNil(sessions[0])
+        XCTAssertEqual(sessions[1], sessions[0])
+        XCTAssertNotNil(sessions[2], "the resume left without a session")
+        XCTAssertNotEqual(sessions[2], sessions[0])
     }
 
     func testStorageThatCannotBeDeletedKeepsTheGateClosed() throws {
