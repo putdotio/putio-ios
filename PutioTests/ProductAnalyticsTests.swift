@@ -323,6 +323,47 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertEqual((events.last?["properties"] as? [String: Any])?["session_duration"] as? String, "lt_1m")
     }
 
+    func testAnOptInWhileOpenSendsAnOpenTimedFromConsent() throws {
+        var clock = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970) - 600)
+        let (gate, token) = makeGate(now: { clock }, route: { $0 == 1001 ? "europe" : nil })
+        let session = AppSessionAnalytics(capture: gate.capture, now: { clock })
+
+        gate.update(accountID: nil, productAnalyticsEnabled: nil)
+        session.didBecomeActive()
+        clock += 570
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        let consentAt = clock
+        clock += 30
+        session.didEnterBackground()
+        let events = try waitForEvents(token: token, count: 2)
+
+        XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_backgrounded"])
+        XCTAssertEqual((events.first?["properties"] as? [String: Any])?["entry"] as? String, "direct")
+        XCTAssertEqual((events.first?["properties"] as? [String: Any])?["route"] as? String, "europe")
+        XCTAssertEqual((events.first?["timestamp"] as? String).flatMap(toISO8601Date), consentAt)
+        XCTAssertEqual((events.last?["properties"] as? [String: Any])?["session_duration"] as? String, "lt_1m")
+    }
+
+    func testAnOptInFromSettingsDuringARefreshSendsOnlyTheConsentOpen() throws {
+        var clock = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970) - 600)
+        let (gate, token) = makeGate(now: { clock })
+        gate.update(accountID: 1001, productAnalyticsEnabled: false)
+
+        gate.awaitAnswer()
+        gate.capture(.appOpened(.resume))
+        clock += 570
+        gate.settingDidSave(enabled: true)
+        let consentAt = clock
+        clock += 30
+        gate.capture(.appBackgrounded(.from5mTo15m))
+        let events = try waitForEvents(token: token, count: 2)
+
+        XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_backgrounded"])
+        XCTAssertEqual((events.first?["properties"] as? [String: Any])?["entry"] as? String, "resume")
+        XCTAssertEqual((events.first?["timestamp"] as? String).flatMap(toISO8601Date), consentAt)
+        XCTAssertEqual((events.last?["properties"] as? [String: Any])?["session_duration"] as? String, "lt_1m")
+    }
+
     func testStorageThatCannotBeDeletedKeepsTheGateClosed() throws {
         let root = FileManager.default.temporaryDirectory.appending(path: "ProductAnalyticsTests-\(UUID().uuidString)")
         let token = "phc_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
@@ -653,7 +694,8 @@ final class ProductAnalyticsTests: XCTestCase {
     private func makeGate(
         token: String? = "phc_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))",
         eligible: Bool = true,
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        route: @escaping (Int) -> String? = { _ in nil }
     ) -> (ProductAnalyticsGate, String) {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RecordingURLProtocol.self]
@@ -663,7 +705,8 @@ final class ProductAnalyticsTests: XCTestCase {
             storageDirectory: URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? ""),
             urlSessionConfiguration: configuration,
             compression: .none,
-            now: now
+            now: now,
+            route: route
         ))
         gates.append(gate)
         addTeardownBlock { gate.update(accountID: nil, productAnalyticsEnabled: nil) }

@@ -20,9 +20,14 @@ enum ProductAnalytics {
 
     /// The cached account's route, nil until its settings load: a fresh
     /// sign-in's cold launch has none yet.
-    static let appSession = AppSessionAnalytics(capture: capture, route: {
-        PutioRealm.open(context: "ProductAnalytics.route")?.objects(User.self).first?.settings?.routeName
-    })
+    static let appSession = AppSessionAnalytics(capture: capture, route: { route() })
+
+    static func route(accountID: Int? = nil) -> String? {
+        guard let user = PutioRealm.open(context: "ProductAnalytics.route")?.objects(User.self).first,
+              accountID == nil || user.id == accountID
+        else { return nil }
+        return user.settings?.routeName
+    }
 
     /// `nil` is signed out; an unset answer is off.
     static func update(accountID: Int?, productAnalyticsEnabled: Bool?) {
@@ -80,6 +85,7 @@ final class ProductAnalyticsGate {
         var urlSessionConfiguration: URLSessionConfiguration?
         var compression: PostHogCompression = .gzip
         var now: () -> Date = Date.init
+        var route: (Int) -> String? = { _ in nil }
 
         static var live: Environment {
             Environment(
@@ -89,7 +95,8 @@ final class ProductAnalyticsGate {
                     isMockAPIEnabled: PutioE2EEnvironment.isMockAPIEnabled,
                     isRunningUnitTests: AppDelegate.isRunningUnitTests
                 ),
-                storageDirectory: URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? "")
+                storageDirectory: URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? ""),
+                route: { ProductAnalytics.route(accountID: $0) }
             )
         }
     }
@@ -101,6 +108,7 @@ final class ProductAnalyticsGate {
         /// Without an open since the start, a background would time a session
         /// that began before consent.
         var hasSentOpen = false
+        var consentOpenedAt: Date?
     }
 
     /// Events from before the first answer of this launch, such as the cold
@@ -113,6 +121,7 @@ final class ProductAnalyticsGate {
     private var enabled: Bool?
     private var hasAnswer = false
     private var held: [(event: AnalyticsEvent, at: Date)] = []
+    private var foregroundEntry: AnalyticsEvent.Entry?
     private var running: Running?
 
     /// Read by `beforeSend` on any SDK thread, so it has its own lock.
@@ -143,7 +152,7 @@ final class ProductAnalyticsGate {
         lock.withLock {
             self.enabled = enabled
             hasAnswer = true
-            apply()
+            apply(heldPredatesConsent: true)
         }
     }
 
@@ -164,6 +173,11 @@ final class ProductAnalyticsGate {
         lock.withLock {
             guard environment.token != nil, environment.isEligible else { return }
             let at = environment.now()
+            switch event {
+            case .appOpened(let entry, _): foregroundEntry = entry
+            case .appBackgrounded: foregroundEntry = nil
+            default: break
+            }
             if hasAnswer, running != nil {
                 send(event, at: at)
             } else if !hasAnswer {
@@ -195,7 +209,7 @@ final class ProductAnalyticsGate {
         environment.storageDirectory.appending(path: token)
     }
 
-    private func apply() {
+    private func apply(heldPredatesConsent: Bool = false) {
         guard let token = environment.token, environment.isEligible else { return }
         let target = enabled == true ? accountID : nil
         if running == nil || running?.accountID != target {
@@ -205,8 +219,19 @@ final class ProductAnalyticsGate {
                 return
             }
             start(token: token, accountID: target)
+            if heldPredatesConsent { held.removeAll() }
+            sendHeld()
+            sendConsentOpen()
+            return
         }
         sendHeld()
+    }
+
+    private func sendConsentOpen() {
+        guard let foregroundEntry, let running, !running.hasSentOpen else { return }
+        let consentAt = environment.now()
+        send(.appOpened(foregroundEntry, route: environment.route(running.accountID)), at: consentAt)
+        self.running?.consentOpenedAt = consentAt
     }
 
     private func sendHeld() {
@@ -266,9 +291,17 @@ final class ProductAnalyticsGate {
     /// A held event keeps the time it happened, not the time the answer came.
     private func send(_ event: AnalyticsEvent, at timestamp: Date) {
         guard var running else { return }
+        var event = event
         switch event {
-        case .appOpened: running.hasSentOpen = true
-        case .appBackgrounded where !running.hasSentOpen: return
+        case .appOpened:
+            running.hasSentOpen = true
+            running.consentOpenedAt = nil
+        case .appBackgrounded:
+            guard running.hasSentOpen else { return }
+            if let consentOpenedAt = running.consentOpenedAt {
+                event = .appBackgrounded(.init(seconds: timestamp.timeIntervalSince(consentOpenedAt)))
+                running.consentOpenedAt = nil
+            }
         default: break
         }
         self.running = running
