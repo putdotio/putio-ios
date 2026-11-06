@@ -465,6 +465,13 @@ final class SentryTelemetryTests: XCTestCase {
         return event
     }
 
+    private func cacheEnvelope() throws {
+        let pending = SentryTelemetry.cacheDirectory.appending(path: "envelopes/pending")
+        try FileManager.default.createDirectory(at: pending.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("synthetic".utf8).write(to: pending)
+    }
+
+
     private func startRecordingSentEvents() throws -> () -> [Event] {
         let defaults = try isolatedDefaults()
         addTeardownBlock { SentryTelemetry.update(diagnosticsEnabled: false, dsn: self.dsn, defaults: defaults) }
