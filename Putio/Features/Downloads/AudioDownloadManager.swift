@@ -80,10 +80,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
             return
         }
         guard download.state == .starting else { return }
-        guard let url = DownloadSupport.url(
-            from: "\(api.config.baseURL)/files/\(download.id)/stream?oauth_token=\(api.mediaToken)",
-            context: "AudioDownloadManager.beginDownload"
-        ) else {
+        guard let url = api.audioStreamURL(fileID: download.id) else {
             DownloadQueueController.sharedInstance.startFailed(id: id)
             return
         }
