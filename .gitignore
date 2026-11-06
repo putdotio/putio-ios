@@ -63,3 +63,6 @@ node_modules/
 # `mise run store-screenshots`. Intermediate: #51 frames these into the finished
 # marketing images, and those get committed.
 dist/
+
+# Swift Package Manager: the lockfile is the one in Putio.xcworkspace
+Putio.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/

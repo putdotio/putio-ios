@@ -19,7 +19,7 @@ final class ProductAnalyticsTests: XCTestCase {
     private var gates: [ProductAnalyticsGate] = []
 
     /// What the SDK adds to an event before `beforeSend`, from PostHogContext
-    /// and PostHogSDK.buildProperties in 3.92.0.
+    /// and PostHogSDK.buildProperties in 3.93.6.
     private let sdkKeys = [
         "$app_name", "$app_version", "$app_build", "$app_namespace", "$is_testflight", "$is_sideloaded",
         "$device_manufacturer", "$device_model", "$device_type", "$device_name", "$is_emulator",

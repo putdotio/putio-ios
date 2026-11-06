@@ -29,7 +29,7 @@ settings=(
   "CURRENT_PROJECT_VERSION=$build_number"
   "CODE_SIGN_STYLE=Manual"
   "CODE_SIGN_IDENTITY=Apple Distribution"
-  "PROVISIONING_PROFILE_SPECIFIER=$profile"
+  "PUTIO_PROVISIONING_PROFILE_SPECIFIER=$profile"
 )
 for name in PUTIO_APP_IDENTIFIER PUTIO_PRIMARY_APP_ICON PUTIO_DEVELOPMENT_TEAM PUTIO_OAUTH_CLIENT_ID \
   PUTIO_CHROMECAST_RECEIVER_APP_ID PUTIO_INTERCOM_API_KEY PUTIO_INTERCOM_APP_ID PUTIO_SENTRY_DSN; do
@@ -59,7 +59,7 @@ plutil -lint "$work/ExportOptions.plist" >/dev/null
 
 xcodebuild -workspace Putio.xcworkspace -scheme Putio -configuration Release -sdk iphoneos \
   -destination 'generic/platform=iOS' -quiet -archivePath "$work/Putio.xcarchive" \
-  "${settings[@]}" archive
+  -onlyUsePackageVersionsFromResolvedFile "${settings[@]}" archive
 mkdir -p "$dsym_dir"
 if [ -d "$work/Putio.xcarchive/dSYMs" ]; then
   cp -R "$work/Putio.xcarchive/dSYMs/." "$dsym_dir/"

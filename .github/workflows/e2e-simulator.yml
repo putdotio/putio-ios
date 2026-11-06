@@ -63,7 +63,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cocoapods-downloads-${{ github.workflow }}-
 
-      - name: Install CocoaPods dependencies
+      - name: Install CocoaPods, Swift packages and SwiftLint
         run: mise run bootstrap-ci
 
       # The walk asserts committed baselines recorded with the brand faces

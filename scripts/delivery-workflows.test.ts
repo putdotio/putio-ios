@@ -422,7 +422,9 @@ test("the archive signs and exports with the profile install-signing.sh checked"
   const uuid = "12345678-1234-1234-1234-123456789ABC";
   const signed = archive({ PUTIO_PROVISIONING_PROFILE_UUID: uuid });
   assert.equal(signed.status, 0, signed.stderr);
-  assert.match(await readFile(join(dir, "xcodebuild.log"), "utf8"), new RegExp(`archive.*PROVISIONING_PROFILE_SPECIFIER=${uuid}|PROVISIONING_PROFILE_SPECIFIER=${uuid}.*archive`));
+  const log = await readFile(join(dir, "xcodebuild.log"), "utf8");
+  assert.match(log, new RegExp(`archive.*PUTIO_PROVISIONING_PROFILE_SPECIFIER=${uuid}|PUTIO_PROVISIONING_PROFILE_SPECIFIER=${uuid}.*archive`));
+  assert.doesNotMatch(log, /(^| )PROVISIONING_PROFILE_SPECIFIER=/m, "a command-line profile would also reach the package targets");
   assert.match(await readFile(join(dir, "ExportOptions.plist"), "utf8"), new RegExp(`<key>com\\.example\\.app</key>\\s*<string>${uuid}</string>`));
 });
 

@@ -1,6 +1,5 @@
 import UIKit
 import WebKit
-import VTAcknowledgementsViewController
 
 class AboutTableViewController: UITableViewController {
     var webView: WKWebView!
@@ -83,12 +82,6 @@ class AboutTableViewController: UITableViewController {
     }
 
     func showLicenses() {
-        let controller = VTAcknowledgementsViewController(fileNamed: "Pods-Putio-acknowledgements")
-
-        controller.title = NSLocalizedString("Libraries we use in put.io iOS", comment: "")
-        controller.headerText = ""
-        controller.footerText = ""
-
-        navigationController?.pushViewController(controller, animated: true)
+        navigationController?.pushViewController(AcknowledgementsViewController(), animated: true)
     }
 }

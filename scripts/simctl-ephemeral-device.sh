@@ -35,20 +35,6 @@ done
 device_type="com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max"
 ios_major="27"
 
-runtime="$(xcrun simctl list -j runtimes | ruby -rjson -e '
-  major = ARGV[0]
-  runtimes = JSON.parse($stdin.read)["runtimes"].select do |runtime|
-    runtime["isAvailable"] && runtime["platform"] == "iOS" && runtime["version"].split(".").first == major
-  end
-  newest = runtimes.max_by { |runtime| Gem::Version.new(runtime["version"]) }
-  puts newest["identifier"] if newest
-' "$ios_major")"
-
-if [ -z "$runtime" ]; then
-  echo "Baselines are recorded on iOS $ios_major, and no iOS $ios_major simulator runtime is installed. Run 'mise run download-ios-platform'." >&2
-  exit 1
-fi
-
 if [ -n "$device_type_override" ]; then
   # simctl create accepts an unknown identifier only to fail with a bare "Invalid
   # device type", so name the typo here instead.
@@ -64,6 +50,21 @@ if [ -n "$device_type_override" ]; then
   ' "$device_type_override" || exit 1
 
   device_type="$device_type_override"
+fi
+
+runtime="$(xcrun simctl list -j runtimes | ruby -rjson -e '
+  major, device_type = ARGV
+  runtimes = JSON.parse($stdin.read)["runtimes"].select do |runtime|
+    runtime["isAvailable"] && runtime["platform"] == "iOS" && runtime["version"].split(".").first == major &&
+      runtime.fetch("supportedDeviceTypes", []).any? { |type| type["identifier"] == device_type }
+  end
+  newest = runtimes.max_by { |runtime| Gem::Version.new(runtime["version"]) }
+  puts newest["identifier"] if newest
+' "$ios_major" "$device_type")"
+
+if [ -z "$runtime" ]; then
+  echo "Baselines are recorded on iOS $ios_major, and no iOS $ios_major simulator runtime supporting $device_type is installed. Run 'mise run download-ios-platform'." >&2
+  exit 1
 fi
 
 device_name="putio-$label-$(date +%Y%m%d%H%M%S)-$$"

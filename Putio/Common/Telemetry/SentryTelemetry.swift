@@ -376,7 +376,7 @@ enum SentryTelemetry {
         sent.sdk = event.sdk
         sent.threads = event.threads
         sent.debugMeta = event.debugMeta
-        sent.context = event.context?.filter { sentContextKeys.contains($0.key) }
+        sent.context = sentContext(event.context)
         sent.tags = sentTags.isEmpty ? nil : sentTags
         sent.user = event.user?.userId.map(Sentry.User.init(userId:))
         let breadcrumbs = event.breadcrumbs?.compactMap(allowlisted)
@@ -400,6 +400,18 @@ enum SentryTelemetry {
     private static let transactionType = "transaction"
 
     private static let sentContextKeys: Set<String> = ["app", "device", "os", "runtime"]
+
+    private static let sentDeviceKeys: Set<String> = [
+        "arch", "battery_level", "charging", "family", "free_memory", "ios_app_on_macos", "ios_app_on_visionos",
+        "locale", "low_power_mode", "mac_catalyst_app", "memory_size", "model", "model_id", "orientation",
+        "processor_count", "screen_height_pixels", "screen_width_pixels", "simulator", "thermal_state", "usable_memory"
+    ]
+
+    private static func sentContext(_ context: [String: [String: Any]]?) -> [String: [String: Any]]? {
+        guard var sent = context?.filter({ sentContextKeys.contains($0.key) }) else { return nil }
+        sent["device"] = sent["device"]?.filter { sentDeviceKeys.contains($0.key) }
+        return sent
+    }
 
     private static let screenKeys = ["screen", "parentViewController", "presentingViewController"]
 
@@ -434,7 +446,7 @@ enum SentryTelemetry {
         let sent = Breadcrumb(level: breadcrumb.level, category: breadcrumb.category)
         sent.type = breadcrumb.category == "http" ? "http" : "navigation"
         sent.timestamp = breadcrumb.timestamp
-        sent.data = kept
+        for (key, value) in kept { sent.setData(value: value, key: key) }
         return sent
     }
 
@@ -465,7 +477,7 @@ enum SentryTelemetry {
         event.threads = nil
         event.stacktrace = nil
         event.debugMeta = nil
-        event.context = event.context?.filter { sentContextKeys.contains($0.key) }
+        event.context = sentContext(event.context)
         event.user = nil
         return isStaticTiming(event.serialize()) ? event : nil
     }

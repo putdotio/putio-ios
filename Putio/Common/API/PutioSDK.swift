@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import PutioSDK
 
 let api = PutioSDKFactory.make()
