@@ -17,6 +17,11 @@ enum DownloadSupport {
         case failed
     }
 
+    enum ArtifactSaveError: Error, Equatable {
+        case httpStatus(Int)
+        case unresolvedDestination
+    }
+
     static func realm(context: String) -> Realm? {
         PutioRealm.open(context: context)
     }
@@ -96,6 +101,13 @@ enum DownloadSupport {
             log.error("[DownloadSupport] \(context): \(error.localizedDescription)")
             return false
         }
+    }
+
+    static func saveDownloadedArtifact(response: URLResponse?, from sourceURL: URL, to destinationURL: URL) -> Error? {
+        if let response = response as? HTTPURLResponse, !(200..<300).contains(response.statusCode) {
+            return ArtifactSaveError.httpStatus(response.statusCode)
+        }
+        return copyDownloadedArtifact(from: sourceURL, to: destinationURL)
     }
 
     static func copyDownloadedArtifact(from sourceURL: URL, to destinationURL: URL) -> Error? {

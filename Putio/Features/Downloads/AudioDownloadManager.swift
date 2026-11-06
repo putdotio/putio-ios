@@ -98,10 +98,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     func createDownload(from file: PutioFile) {
         guard file.type == .audio else { return }
 
-        let url = file.getAudioStreamURL(downloadToken: api.mediaToken).absoluteString
-        log.debug("ADM: createDownload url: \(url)")
-
-        guard let download = Download(file: file, url: url) else { return }
+        guard let download = Download(file: file, url: streamURL(for: file)) else { return }
         guard let realm = DownloadSupport.realm(context: "AudioDownloadManager.createDownload") else { return }
 
         let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.createDownload.write") {
@@ -176,12 +173,14 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         return body(&activeDownloadsMap)
     }
 
-    func restartDownload(id: Int) {
+    func restartDownload(file: PutioFile) {
+        let id = file.id
         log.verbose(["ADM: restartDownload", id])
         guard let download = getDownloadFromDatabase(id: id) else { return }
 
         guard let realm = download.realm else { return }
         let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.restartDownload.write") {
+            download.url = streamURL(for: file)
             download.progress = "0"
             download.message = ""
             download.state = .queued
@@ -205,6 +204,10 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         }
         if let task { artifactSaveErrors.removeValue(forKey: task) }
         task?.cancel()
+    }
+
+    private func streamURL(for file: PutioFile) -> String {
+        file.getAudioStreamURL(downloadToken: api.mediaToken).absoluteString
     }
 
     private func getAbsoluteURL(for relativePath: String) -> URL? {
@@ -346,9 +349,16 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
 
         let fileExtension = deriveFileExtensionFromResponse(response: downloadTask.response)
         let destinationPath = "putio_adm_\(String(download.id))_\(download.name.slugify()).\(fileExtension)"
-        guard let destinationURL = getAbsoluteURL(for: destinationPath) else { return }
+        guard let destinationURL = getAbsoluteURL(for: destinationPath) else {
+            artifactSaveErrors[downloadTask] = DownloadSupport.ArtifactSaveError.unresolvedDestination
+            return
+        }
 
-        if let error = DownloadSupport.copyDownloadedArtifact(from: location, to: destinationURL) {
+        if let error = DownloadSupport.saveDownloadedArtifact(
+            response: downloadTask.response,
+            from: location,
+            to: destinationURL
+        ) {
             artifactSaveErrors[downloadTask] = error
             return
         }
