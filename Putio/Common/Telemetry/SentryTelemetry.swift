@@ -13,6 +13,7 @@ enum SentryTelemetry {
         case pushRegistration = "push_registration"
         case realmOpen = "realm_open"
         case sessionLoad = "session_load"
+        case unplayableOfflineVideo = "unplayable_offline_video"
     }
 
     struct PlaybackFailure {

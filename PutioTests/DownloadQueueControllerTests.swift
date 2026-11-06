@@ -314,6 +314,16 @@ final class OfflineVideoPlaybackTests: XCTestCase {
         XCTAssertTrue(alert.actions.contains { $0.title == NSLocalizedString("Re-download", comment: "") })
         XCTAssertEqual(download.state, .failed)
     }
+
+    func testFinishedTaskWithUnplayablePackageDoesNotComplete() throws {
+        let package = FileManager.default.temporaryDirectory
+            .appendingPathComponent("OfflineVideoPlaybackTests-\(UUID().uuidString).movpkg", isDirectory: true)
+        try FileManager.default.createDirectory(at: package, withIntermediateDirectories: false)
+        addTeardownBlock { try? FileManager.default.removeItem(at: package) }
+
+        XCTAssertNil(VideoDownloadManager.playablePackage(at: package, error: nil))
+        XCTAssertNil(VideoDownloadManager.playablePackage(at: nil, error: nil))
+    }
 }
 
 private final class RecordingDownloadPresenter: UIViewController, DownloadedFilePresenter {

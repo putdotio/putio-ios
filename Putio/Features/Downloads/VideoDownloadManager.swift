@@ -326,15 +326,26 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func getLocalFileURL(for downloadId: Int) -> URL? {
-        guard case .resolved(let url) = getLocalFileLocation(for: downloadId),
-              Self.isPlayableOffline(url) else {
+        guard case .resolved(let url) = getLocalFileLocation(for: downloadId) else {
+            return nil
+        }
+        guard Self.isPlayableOffline(url) else {
+            SentryTelemetry.capture(.unplayableOfflineVideo)
             return nil
         }
         return url
     }
 
+    static func playablePackage(at location: URL?, error: Error?) -> URL? {
+        guard error == nil, let location, isPlayableOffline(location) else { return nil }
+        return location
+    }
+
     private static func isPlayableOffline(_ url: URL) -> Bool {
-        AVURLAsset(url: url).assetCache?.isPlayableOffline == true
+        if PutioE2EEnvironment.isMockAPIEnabled, url.lastPathComponent.hasPrefix("putio_e2e_") {
+            return true
+        }
+        return AVURLAsset(url: url).assetCache?.isPlayableOffline == true
     }
 
     @discardableResult
@@ -431,17 +442,20 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
 
         let downloadURL = willDownloadToURLMap.removeValue(forKey: task)
         var didFail = true
-        if error == nil, let downloadURL, Self.isPlayableOffline(downloadURL) {
+        if let packageURL = Self.playablePackage(at: downloadURL, error: error) {
             do {
-                UserDefaults.standard.set(try downloadURL.bookmarkData(), forKey: String(download.id))
+                UserDefaults.standard.set(try packageURL.bookmarkData(), forKey: String(download.id))
                 didFail = false
             } catch {
                 _ = DownloadSupport.deleteItemIfPresent(
-                    at: downloadURL,
+                    at: packageURL,
                     context: "VideoDownloadManager.didComplete.bookmarkCleanup"
                 )
             }
         } else if let downloadURL {
+            if error == nil {
+                SentryTelemetry.capture(.unplayableOfflineVideo)
+            }
             _ = DownloadSupport.deleteItemIfPresent(
                 at: downloadURL,
                 context: "VideoDownloadManager.didComplete.cleanup"
