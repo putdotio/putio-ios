@@ -36,10 +36,12 @@ extension FilesViewController {
                     loadingAlert.dismiss(animated: true) {
                         switch result {
                         case .success:
-                            if let row = self.viewModel.files.firstIndex(where: { $0.id == file.id }) {
-                                self.viewModel.files.remove(at: row)
-                                self.tableView.deleteRows(at: [IndexPath(row: row, section: indexPath.section)], with: .automatic)
+                            guard let row = self.viewModel.files.firstIndex(where: { $0.id == file.id }) else {
+                                completion(false)
+                                return
                             }
+                            self.viewModel.files.remove(at: row)
+                            self.tableView.deleteRows(at: [IndexPath(row: row, section: indexPath.section)], with: .automatic)
                             completion(true)
 
                         case .failure(let error):
@@ -229,7 +231,11 @@ extension FilesViewController: UITableViewDataSource {
             return UITableViewCell()
         }
 
-        guard let file = file(at: indexPath) else { return cell }
+        guard let file = file(at: indexPath) else {
+            InternalFailurePresenter.log("Unable to access file row \(indexPath.row) for cell")
+            return cell
+        }
+
         let download = downloads?.first(where: { download in
             download.id == file.id
         })

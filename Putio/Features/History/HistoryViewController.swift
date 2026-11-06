@@ -226,7 +226,11 @@ extension HistoryViewController: UITableViewDataSource {
             return UITableViewCell()
         }
 
-        guard let event = event(at: indexPath) else { return cell }
+        guard let event = event(at: indexPath) else {
+            InternalFailurePresenter.log("Unable to access history row \(indexPath.row) in section \(indexPath.section) for cell")
+            return cell
+        }
+
         cell.configure(with: event)
         return cell
     }
