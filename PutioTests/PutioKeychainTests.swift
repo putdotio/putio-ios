@@ -687,6 +687,52 @@ final class DownloadedFilePresenterTests: XCTestCase {
         XCTAssertEqual(managedDownload.message, "File not reachable")
     }
 
+    func testUnplayablePackageOffersRedownloadInsteadOfPlayer() throws {
+        let temporaryDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("DownloadedFilePresenterTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: temporaryDirectory) }
+        let configuration = PutioRealm.configuration(fileURL: temporaryDirectory.appendingPathComponent("Downloads.realm"))
+        let realm = try XCTUnwrap(PutioRealm.open(context: "DownloadedFilePresenterTests.unplayablePackage", configuration: configuration))
+        let download = Download()
+        download.id = 9_000_401
+        download.name = "Partial Episode"
+        download.state = .completed
+        download.fileType = .video
+        XCTAssertTrue(PutioRealm.write(realm, context: "DownloadedFilePresenterTests.unplayablePackage.seed") {
+            realm.add(download, update: .all)
+        })
+        let package = try makeEmptyPackage()
+        let bookmarkKey = String(download.id)
+        UserDefaults.standard.set(try package.bookmarkData(), forKey: bookmarkKey)
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: bookmarkKey) }
+        let viewController = PresenterSpyViewController()
+
+        viewController.presentDownloadedFile(download)
+
+        let alert = try XCTUnwrap(viewController.presentedAlert)
+        XCTAssertEqual(alert.title, NSLocalizedString("File Unavailable", comment: ""))
+        XCTAssertTrue(alert.actions.contains { $0.title == NSLocalizedString("Re-download", comment: "") })
+        XCTAssertEqual(download.state, .failed)
+    }
+
+    func testFinishedTaskKeepsOnlyAPlayablePackage() throws {
+        let package = try makeEmptyPackage()
+        let taskError = NSError(domain: NSURLErrorDomain, code: NSURLErrorNetworkConnectionLost)
+
+        XCTAssertEqual(VideoDownloadManager.playablePackage(at: package, error: nil) { _ in true }, package)
+        XCTAssertNil(VideoDownloadManager.playablePackage(at: package, error: taskError) { _ in true })
+        XCTAssertNil(VideoDownloadManager.playablePackage(at: nil, error: nil) { _ in true })
+        XCTAssertNil(VideoDownloadManager.playablePackage(at: package, error: nil))
+    }
+
+    private func makeEmptyPackage() throws -> URL {
+        let package = FileManager.default.temporaryDirectory
+            .appendingPathComponent("DownloadedFilePresenterTests-\(UUID().uuidString).movpkg", isDirectory: true)
+        try FileManager.default.createDirectory(at: package, withIntermediateDirectories: false)
+        addTeardownBlock { try? FileManager.default.removeItem(at: package) }
+        return package
+    }
+
     func testFailedDeleteFromRestartAlertPresentsRecoveryMessage() throws {
         let download = Download()
         download.id = 77

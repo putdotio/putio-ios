@@ -15,6 +15,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     private let activeDownloadsLock = NSLock()
     fileprivate var willDownloadToURLMap = [AVAssetDownloadTask: URL]()
     fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
+    private var reportedUnplayableIDs = Set<Int>()
 
     var activeDownloadCount: Int {
         withActiveDownloadsMap { $0.count }
@@ -331,7 +332,31 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         guard case .resolved(let url) = getLocalFileLocation(for: downloadId) else {
             return nil
         }
+        guard Self.isPlayableOffline(url) else {
+            if reportedUnplayableIDs.insert(downloadId).inserted {
+                SentryTelemetry.capture(.unplayableOfflineVideo)
+            }
+            return nil
+        }
         return url
+    }
+
+    static func playablePackage(
+        at location: URL?,
+        error: Error?,
+        isPlayable: (URL) -> Bool = isPlayableOffline
+    ) -> URL? {
+        guard error == nil, let location, isPlayable(location) else { return nil }
+        return location
+    }
+
+    static func isPlayableOffline(_ url: URL) -> Bool {
+        #if DEBUG
+        if PutioE2EEnvironment.isMockAPIEnabled, PutioE2EDownloadFixtures.isFixture(url) {
+            return true
+        }
+        #endif
+        return AVURLAsset(url: url).assetCache?.isPlayableOffline == true
     }
 
     @discardableResult
@@ -427,20 +452,22 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
         log.verbose(["VDM: didCompleteWithError download: ", download.id, download.name])
 
         let downloadURL = willDownloadToURLMap.removeValue(forKey: task)
-        var didFail = error != nil
-        if error == nil, let downloadURL {
+        var didFail = true
+        if let packageURL = Self.playablePackage(at: downloadURL, error: error) {
             do {
-                UserDefaults.standard.set(try downloadURL.bookmarkData(), forKey: String(download.id))
+                UserDefaults.standard.set(try packageURL.bookmarkData(), forKey: String(download.id))
+                reportedUnplayableIDs.remove(download.id)
+                didFail = false
             } catch {
                 _ = DownloadSupport.deleteItemIfPresent(
-                    at: downloadURL,
+                    at: packageURL,
                     context: "VideoDownloadManager.didComplete.bookmarkCleanup"
                 )
-                didFail = true
             }
-        } else if error == nil {
-            didFail = true
         } else if let downloadURL {
+            if error == nil {
+                SentryTelemetry.capture(.unplayableOfflineDownload)
+            }
             _ = DownloadSupport.deleteItemIfPresent(
                 at: downloadURL,
                 context: "VideoDownloadManager.didComplete.cleanup"
