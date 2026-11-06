@@ -19,6 +19,7 @@ class VideoConversionViewController: UIViewController {
     var file: PutioFile!
     var intention: VideoConversionIntention!
     lazy var session = VideoConversionSession(fileID: file.id)
+    private var isFinishing = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -29,8 +30,9 @@ class VideoConversionViewController: UIViewController {
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        if isBeingDismissed || navigationController?.isBeingDismissed == true {
-            session.cancel()
+        session.cancel()
+        if !isFinishing {
+            delegate?.videoConversionControllerDismissedBeforeFinish()
         }
     }
 
@@ -42,9 +44,7 @@ class VideoConversionViewController: UIViewController {
 
     @IBAction func closeButtonTapped(_ sender: Any) {
         session.cancel()
-        dismiss(animated: true) {
-            self.delegate?.videoConversionControllerDismissedBeforeFinish()
-        }
+        dismiss(animated: true)
     }
 
     private func render(_ state: VideoConversionSession.State) {
@@ -77,18 +77,26 @@ class VideoConversionViewController: UIViewController {
     }
 
     private func showFailure(_ failure: VideoConversionSession.Failure) {
-        let presentation = Self.failurePresentation(for: failure)
-        statusLabel.text = presentation.message
+        statusLabel.text = Self.failureMessage(for: failure)
         progressView.isHidden = true
-        navigationItem.rightBarButtonItem = presentation.canRetry ? UIBarButtonItem(
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: NSLocalizedString("Retry", comment: ""),
             primaryAction: UIAction { [weak self] _ in
                 self?.session.start()
             }
-        ) : nil
+        )
     }
 
     private func finish(with convertedFile: PutioFile) {
+        if let transitionCoordinator {
+            transitionCoordinator.animate(alongsideTransition: nil) { [weak self] _ in
+                guard let self, self.viewIfLoaded?.window != nil else { return }
+                self.finish(with: convertedFile)
+            }
+            return
+        }
+
+        isFinishing = true
         let delegate = self.delegate
         let intention = self.intention!
         dismiss(animated: true) {
@@ -105,20 +113,14 @@ class VideoConversionViewController: UIViewController {
         }
     }
 
-    static func failurePresentation(for failure: VideoConversionSession.Failure) -> (message: String, canRetry: Bool) {
+    static func failureMessage(for failure: VideoConversionSession.Failure) -> String {
         switch failure {
         case .start(let error), .status(let error), .convertedFile(let error):
             let localizedError = api.localizeError(error: error)
-            return ("\(localizedError.message)\n\(localizedError.recoverySuggestion.description)", true)
-
-        case .conversion(.notAvailable):
-            return (NSLocalizedString("This video can't be converted", comment: ""), false)
+            return "\(localizedError.message)\n\(localizedError.recoverySuggestion.description)"
 
         case .conversion:
-            return (
-                "\(NSLocalizedString("This video couldn't be converted", comment: ""))\n\(NSLocalizedString("Please try again later", comment: ""))",
-                true
-            )
+            return "\(NSLocalizedString("This video couldn't be converted", comment: ""))\n\(NSLocalizedString("Please try again later", comment: ""))"
         }
     }
 }

@@ -28,9 +28,6 @@ final class VideoConversionUITests: XCTestCase {
         XCTAssertTrue(statusText(app, containing: "Something went wrong").waitForExistence(timeout: 10))
         XCTAssertTrue(app.navigationBars.buttons["Retry"].exists)
 
-        app.navigationBars.buttons["Retry"].tap()
-        XCTAssertTrue(statusText(app, containing: "Something went wrong").waitForExistence(timeout: 10))
-
         app.navigationBars.buttons.matching(NSPredicate(format: "label IN %@", ["Stop", "Close"])).firstMatch.tap()
         XCTAssertTrue(app.navigationBars.buttons["Retry"].waitForNonExistence(timeout: 5))
     }

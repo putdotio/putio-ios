@@ -245,12 +245,19 @@ final class VideoConversionSessionTests: XCTestCase {
         XCTAssertTrue(viewController.progressView.isHidden)
         XCTAssertEqual(viewController.navigationItem.rightBarButtonItem?.title, NSLocalizedString("Retry", comment: ""))
 
-        harness.session.start()
+        viewController.navigationItem.rightBarButtonItem?.primaryAction?.performWithSender(nil, target: nil)
+        XCTAssertEqual(harness.startCompletions.count, 2)
+        XCTAssertNil(viewController.navigationItem.rightBarButtonItem)
+        XCTAssertFalse(viewController.progressView.isHidden)
+
         harness.startCompletions[1](.success(()))
         harness.respondToStatus(.notAvailable)
 
-        XCTAssertEqual(viewController.statusLabel.text, NSLocalizedString("This video can't be converted", comment: ""))
-        XCTAssertNil(viewController.navigationItem.rightBarButtonItem)
+        XCTAssertEqual(
+            viewController.statusLabel.text,
+            "\(NSLocalizedString("This video couldn't be converted", comment: ""))\n\(NSLocalizedString("Please try again later", comment: ""))"
+        )
+        XCTAssertEqual(viewController.navigationItem.rightBarButtonItem?.title, NSLocalizedString("Retry", comment: ""))
     }
 
     private func assertFailure(

@@ -115,7 +115,7 @@ final class VideoConversionSession {
     }
 
     private func isCurrent(_ generation: Int) -> Bool {
-        generation == self.generation && isActive
+        generation == self.generation
     }
 
     private func invalidatePendingWork() {
