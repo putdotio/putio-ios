@@ -25,6 +25,7 @@ class ChromecastManager: NSObject {
     var timer: Timer?
     /// The load the receiver has yet to answer; its answer sends the start or the failure.
     private var pendingLoad: (request: GCKRequest, playback: AnalyticsEvent.Playback, session: Int)?
+    private var playingLoad: (mediaSessionID: Int, playback: AnalyticsEvent.Playback, session: Int, startedAt: Date)?
 
     var debug: Bool = false
 
@@ -321,11 +322,17 @@ extension ChromecastManager: GCKRequestDelegate {
     func requestDidComplete(_ request: GCKRequest) {
         guard let load = takePendingLoad(request) else { return }
         ProductAnalytics.capture(.playbackStarted(load.playback), startedIn: load.session)
+        guard let client = GCKCastContext.sharedInstance().sessionManager.currentCastSession?.remoteMediaClient,
+              let mediaSessionID = client.mediaStatus?.mediaSessionID else { return }
+        playingLoad = (mediaSessionID, load.playback, load.session, Date())
+        client.remove(self)
+        client.add(self)
     }
 
     func request(_ request: GCKRequest, didFailWithError error: GCKError) {
         guard let load = takePendingLoad(request) else { return }
         ProductAnalytics.capture(.playbackFailed(load.playback, .init(error)), startedIn: load.session)
+        SentryTelemetry.capture(.init(signal: .castLoadFailed, playback: load.playback), error: error)
     }
 
     /// Replaced or dropped, so neither a start nor a failure.
@@ -337,6 +344,32 @@ extension ChromecastManager: GCKRequestDelegate {
         guard let pendingLoad, pendingLoad.request === request else { return nil }
         self.pendingLoad = nil
         return (pendingLoad.playback, pendingLoad.session)
+    }
+}
+
+extension ChromecastManager: GCKRemoteMediaClientListener {
+    func remoteMediaClient(_ client: GCKRemoteMediaClient, didUpdate mediaStatus: GCKMediaStatus?) {
+        guard let mediaStatus, mediaStatus.playerState == .idle,
+              let playingLoad, playingLoad.mediaSessionID == mediaStatus.mediaSessionID else { return }
+        self.playingLoad = nil
+        guard mediaStatus.idleReason == .finished else { return }
+        let duration = AnalyticsEvent.PlaybackDuration(seconds: Date().timeIntervalSince(playingLoad.startedAt))
+        ProductAnalytics.capture(.playbackEnded(playingLoad.playback, duration), startedIn: playingLoad.session)
+    }
+}
+
+extension AnalyticsEvent.PlaybackError {
+    init(_ error: GCKError) {
+        switch GCKErrorCode(rawValue: error.code) {
+        case .networkError?, .timeout?, .networkNotReachable?, .channelNotConnected?, .deviceNotConnected?, .disconnected?:
+            self = .network
+        case .mediaLoadFailed?, .mediaError?:
+            self = .media
+        case .invalidRequest?, .unsupportedFeature?, .deviceCapabilityNotSupported?:
+            self = .unsupported
+        default:
+            self = .unknown
+        }
     }
 }
 

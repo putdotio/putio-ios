@@ -109,6 +109,10 @@ enum AnalyticsEvent: Equatable {
                 }
                 return
             }
+            if let error = error as? URLError, [.fileDoesNotExist, .fileIsDirectory, .noPermissionsToReadFile].contains(error.code) {
+                self = .source
+                return
+            }
             switch (error as NSError?)?.domain {
             case NSURLErrorDomain?: self = .network
             case AVFoundationErrorDomain?, "CoreMediaErrorDomain"?: self = .media
@@ -353,10 +357,20 @@ final class PlaybackAnalytics {
     }
 
     func fail(_ error: Error?) {
-        lock.withLock {
-            guard !isFinished else { return }
+        fail(error, signal: .itemFailed)
+    }
+
+    func failedToPlayToEnd(_ error: Error?) {
+        fail(error, signal: .failedToPlayToEnd)
+    }
+
+    private func fail(_ error: Error?, signal: SentryTelemetry.PlaybackFailure.Signal) {
+        let isFirstFailure = lock.withLock {
+            guard !isFinished else { return false }
             isFinished = true
             capture(.playbackFailed(playback, .init(error)))
+            return true
         }
+        if isFirstFailure { SentryTelemetry.capture(.init(signal: signal, playback: playback), error: error) }
     }
 }

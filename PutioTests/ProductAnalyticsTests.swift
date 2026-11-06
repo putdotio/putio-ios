@@ -1,4 +1,5 @@
 import AVFoundation
+import GoogleCast
 import os
 import PostHog
 @testable import PutioSDK
@@ -501,6 +502,23 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertEqual(AnalyticsEvent.PlaybackError(PutioSDKError.offline("/files/1")), .network)
         XCTAssertEqual(AnalyticsEvent.PlaybackError(URLError(.timedOut)), .network)
         XCTAssertEqual(AnalyticsEvent.PlaybackError(NSError(domain: "Missing Metadata", code: 0)), .unknown)
+    }
+
+    func testLocalFileAndCastFailuresKeepTheirCause() {
+        for code in [URLError.Code.fileDoesNotExist, .fileIsDirectory, .noPermissionsToReadFile] {
+            XCTAssertEqual(AnalyticsEvent.PlaybackError(URLError(code)), .source, "\(code.rawValue)")
+        }
+        XCTAssertEqual(AnalyticsEvent.PlaybackError(URLError(.notConnectedToInternet)), .network)
+
+        let expected: [(GCKErrorCode, AnalyticsEvent.PlaybackError)] = [
+            (.networkError, .network), (.timeout, .network), (.networkNotReachable, .network), (.disconnected, .network),
+            (.mediaLoadFailed, .media), (.mediaError, .media),
+            (.invalidRequest, .unsupported), (.unsupportedFeature, .unsupported),
+            (.cancelled, .unknown), (.unknown, .unknown)
+        ]
+        for (code, playbackError) in expected {
+            XCTAssertEqual(AnalyticsEvent.PlaybackError(GCKError(code: code)), playbackError, "\(code.rawValue)")
+        }
     }
 
     func testAnEndFromAnotherThreadLeavesAfterTheStart() {
