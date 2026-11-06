@@ -20,10 +20,13 @@ enum ProductAnalytics {
 
     /// The cached account's route, nil until its settings load: a fresh
     /// sign-in's cold launch has none yet.
-    static let appSession = AppSessionAnalytics(capture: capture, route: route)
+    static let appSession = AppSessionAnalytics(capture: capture, route: { route() })
 
-    static func route() -> String? {
-        PutioRealm.open(context: "ProductAnalytics.route")?.objects(User.self).first?.settings?.routeName
+    static func route(accountID: Int? = nil) -> String? {
+        guard let user = PutioRealm.open(context: "ProductAnalytics.route")?.objects(User.self).first,
+              accountID == nil || user.id == accountID
+        else { return nil }
+        return user.settings?.routeName
     }
 
     /// `nil` is signed out; an unset answer is off.
@@ -82,7 +85,7 @@ final class ProductAnalyticsGate {
         var urlSessionConfiguration: URLSessionConfiguration?
         var compression: PostHogCompression = .gzip
         var now: () -> Date = Date.init
-        var route: () -> String? = { nil }
+        var route: (Int) -> String? = { _ in nil }
 
         static var live: Environment {
             Environment(
@@ -93,7 +96,7 @@ final class ProductAnalyticsGate {
                     isRunningUnitTests: AppDelegate.isRunningUnitTests
                 ),
                 storageDirectory: URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? ""),
-                route: ProductAnalytics.route
+                route: { ProductAnalytics.route(accountID: $0) }
             )
         }
     }
@@ -106,12 +109,11 @@ final class ProductAnalyticsGate {
         /// that began before consent.
         var hasSentOpen = false
         var sessionStartedAt: Date
-        var lastTransitionAt: Date?
+        var lastTransitionAt: Date
         var consentOpenedAt: Date?
 
         func sessionExpires(at timestamp: Date) -> Bool {
-            guard let lastTransitionAt else { return false }
-            return timestamp.timeIntervalSince(lastTransitionAt) > ProductAnalyticsGate.sessionIdleLimit
+            timestamp.timeIntervalSince(lastTransitionAt) > ProductAnalyticsGate.sessionIdleLimit
                 || timestamp.timeIntervalSince(sessionStartedAt) > ProductAnalyticsGate.sessionLengthLimit
         }
     }
@@ -129,7 +131,7 @@ final class ProductAnalyticsGate {
     private var enabled: Bool?
     private var hasAnswer = false
     private var held: [(event: AnalyticsEvent, at: Date)] = []
-    private var isForeground = false
+    private var foregroundEntry: AnalyticsEvent.Entry?
     private var running: Running?
 
     /// Read by `beforeSend` on any SDK thread, so it has its own lock.
@@ -182,8 +184,8 @@ final class ProductAnalyticsGate {
             guard environment.token != nil, environment.isEligible else { return }
             let at = environment.now()
             switch event {
-            case .appOpened: isForeground = true
-            case .appBackgrounded: isForeground = false
+            case .appOpened(let entry, _): foregroundEntry = entry
+            case .appBackgrounded: foregroundEntry = nil
             default: break
             }
             if hasAnswer, running != nil {
@@ -235,10 +237,10 @@ final class ProductAnalyticsGate {
     }
 
     private func sendConsentOpen() {
-        guard isForeground, running?.hasSentOpen == false else { return }
+        guard let foregroundEntry, let running, !running.hasSentOpen else { return }
         let consentAt = environment.now()
-        send(.appOpened(.direct, route: environment.route()), at: consentAt)
-        running?.consentOpenedAt = consentAt
+        send(.appOpened(foregroundEntry, route: environment.route(running.accountID)), at: consentAt)
+        self.running?.consentOpenedAt = consentAt
     }
 
     private func sendHeld() {
@@ -265,11 +267,13 @@ final class ProductAnalyticsGate {
                 return event
             }
         )
+        let startedAt = environment.now()
         running = Running(
             sdk: PostHogSDK.with(config),
             accountID: accountID,
             commonProperties: Self.commonProperties(),
-            sessionStartedAt: environment.now()
+            sessionStartedAt: startedAt,
+            lastTransitionAt: startedAt
         )
     }
 
@@ -312,9 +316,9 @@ final class ProductAnalyticsGate {
             }
             running.hasSentOpen = true
             running.consentOpenedAt = nil
-            running.lastTransitionAt = timestamp
+            running.lastTransitionAt = max(running.lastTransitionAt, timestamp)
         case .appBackgrounded:
-            running.lastTransitionAt = timestamp
+            running.lastTransitionAt = max(running.lastTransitionAt, timestamp)
             guard running.hasSentOpen else {
                 self.running = running
                 return
