@@ -9,7 +9,7 @@ extension FilesViewController {
         }
 
         guard let vlcURL = URL(string: "vlc://") else {
-            return InternalFailurePresenter.logAndPresent(on: self, logMessage: "Unable to construct VLC URL scheme")
+            return InternalFailurePresenter.logAndPresent(on: self, screen: .files, logMessage: "Unable to construct VLC URL scheme")
         }
 
         if UIApplication.shared.canOpenURL(vlcURL) {
@@ -31,6 +31,7 @@ extension FilesViewController {
                         guard let destinationURL = URL(string: "vlc://\(streamURLString)") else {
                             return InternalFailurePresenter.logAndPresent(
                                 on: self,
+                                screen: .files,
                                 logMessage: "Unable to construct VLC destination URL for file \(file.id)"
                             )
                         }
@@ -51,7 +52,7 @@ extension FilesViewController {
             }
         } else {
             guard let appStoreURL = URL(string: "https://apps.apple.com/app/vlc-for-mobile/id650377962") else {
-                return InternalFailurePresenter.logAndPresent(on: self, logMessage: "Unable to construct VLC App Store URL")
+                return InternalFailurePresenter.logAndPresent(on: self, screen: .files, logMessage: "Unable to construct VLC App Store URL")
             }
 
             UIApplication.shared.open(appStoreURL, options: [:], completionHandler: nil)

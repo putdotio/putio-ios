@@ -191,6 +191,7 @@ extension FilesViewController {
               let moveVC = moveNC.viewControllers.first as? MoveFilesViewController else {
             return InternalFailurePresenter.logAndPresent(
                 on: self,
+                screen: .files,
                 logMessage: "Unable to instantiate MoveFiles flow"
             )
         }
