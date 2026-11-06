@@ -108,18 +108,8 @@ final class ProductAnalyticsGate {
         /// Without an open since the start, a background would time a session
         /// that began before consent.
         var hasSentOpen = false
-        var sessionStartedAt: Date
-        var lastTransitionAt: Date
         var consentOpenedAt: Date?
-
-        func sessionExpires(at timestamp: Date) -> Bool {
-            timestamp.timeIntervalSince(lastTransitionAt) > ProductAnalyticsGate.sessionIdleLimit
-                || timestamp.timeIntervalSince(sessionStartedAt) > ProductAnalyticsGate.sessionLengthLimit
-        }
     }
-
-    private static let sessionIdleLimit: TimeInterval = 30 * 60
-    private static let sessionLengthLimit: TimeInterval = 24 * 60 * 60
 
     /// Events from before the first answer of this launch, such as the cold
     /// launch's `app_opened`, or of a foreground. Dropped if that answer is off.
@@ -162,7 +152,7 @@ final class ProductAnalyticsGate {
         lock.withLock {
             self.enabled = enabled
             hasAnswer = true
-            apply()
+            apply(heldPredatesConsent: true)
         }
     }
 
@@ -219,7 +209,7 @@ final class ProductAnalyticsGate {
         environment.storageDirectory.appending(path: token)
     }
 
-    private func apply() {
+    private func apply(heldPredatesConsent: Bool = false) {
         guard let token = environment.token, environment.isEligible else { return }
         let target = enabled == true ? accountID : nil
         if running == nil || running?.accountID != target {
@@ -229,6 +219,7 @@ final class ProductAnalyticsGate {
                 return
             }
             start(token: token, accountID: target)
+            if heldPredatesConsent { held.removeAll() }
             sendHeld()
             sendConsentOpen()
             return
@@ -267,14 +258,7 @@ final class ProductAnalyticsGate {
                 return event
             }
         )
-        let startedAt = environment.now()
-        running = Running(
-            sdk: PostHogSDK.with(config),
-            accountID: accountID,
-            commonProperties: Self.commonProperties(),
-            sessionStartedAt: startedAt,
-            lastTransitionAt: startedAt
-        )
+        running = Running(sdk: PostHogSDK.with(config), accountID: accountID, commonProperties: Self.commonProperties())
     }
 
     /// `close()` sends what is queued, so the queue goes first; close may
@@ -310,19 +294,10 @@ final class ProductAnalyticsGate {
         var event = event
         switch event {
         case .appOpened:
-            if running.sessionExpires(at: timestamp) {
-                running.sdk.startSession()
-                running.sessionStartedAt = timestamp
-            }
             running.hasSentOpen = true
             running.consentOpenedAt = nil
-            running.lastTransitionAt = max(running.lastTransitionAt, timestamp)
         case .appBackgrounded:
-            running.lastTransitionAt = max(running.lastTransitionAt, timestamp)
-            guard running.hasSentOpen else {
-                self.running = running
-                return
-            }
+            guard running.hasSentOpen else { return }
             if let consentOpenedAt = running.consentOpenedAt {
                 event = .appBackgrounded(.init(seconds: timestamp.timeIntervalSince(consentOpenedAt)))
                 running.consentOpenedAt = nil

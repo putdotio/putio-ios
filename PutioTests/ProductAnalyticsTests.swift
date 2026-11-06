@@ -3,7 +3,6 @@ import GoogleCast
 import os
 import PostHog
 @testable import PutioSDK
-import UIKit
 import XCTest
 @testable import Putio
 
@@ -312,7 +311,7 @@ final class ProductAnalyticsTests: XCTestCase {
 
     func testAnOptInWhileOpenSendsAnOpenTimedFromConsent() throws {
         var clock = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970) - 600)
-        let (gate, token) = makeGate(now: { clock })
+        let (gate, token) = makeGate(now: { clock }, route: { $0 == 1001 ? "europe" : nil })
         let session = AppSessionAnalytics(capture: gate.capture, now: { clock })
 
         gate.update(accountID: nil, productAnalyticsEnabled: nil)
@@ -326,30 +325,29 @@ final class ProductAnalyticsTests: XCTestCase {
 
         XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_backgrounded"])
         XCTAssertEqual((events.first?["properties"] as? [String: Any])?["entry"] as? String, "direct")
+        XCTAssertEqual((events.first?["properties"] as? [String: Any])?["route"] as? String, "europe")
         XCTAssertEqual((events.first?["timestamp"] as? String).flatMap(toISO8601Date), consentAt)
         XCTAssertEqual((events.last?["properties"] as? [String: Any])?["session_duration"] as? String, "lt_1m")
     }
 
-    func testAnOpenAfterHalfAnHourAwayStartsASession() throws {
-        var away: TimeInterval = -31 * 60
-        let (gate, token) = makeGate(now: { Date().addingTimeInterval(away) })
-        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+    func testAnOptInFromSettingsDuringARefreshSendsOnlyTheConsentOpen() throws {
+        var clock = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970) - 600)
+        let (gate, token) = makeGate(now: { clock })
+        gate.update(accountID: 1001, productAnalyticsEnabled: false)
 
-        gate.capture(.appOpened(.direct))
-        gate.capture(.appBackgrounded(.under1m))
-        NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
-        addTeardownBlock { NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil) }
-        away = 0
+        gate.awaitAnswer()
         gate.capture(.appOpened(.resume))
-        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
-        let events = try waitForEvents(token: token, count: 3)
+        clock += 570
+        gate.settingDidSave(enabled: true)
+        let consentAt = clock
+        clock += 30
+        gate.capture(.appBackgrounded(.from5mTo15m))
+        let events = try waitForEvents(token: token, count: 2)
 
-        let sessions = events.map { ($0["properties"] as? [String: Any])?["$session_id"] as? String }
-        XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_backgrounded", "app_opened"])
-        XCTAssertNotNil(sessions[0])
-        XCTAssertEqual(sessions[1], sessions[0])
-        XCTAssertNotNil(sessions[2], "the resume left without a session")
-        XCTAssertNotEqual(sessions[2], sessions[0])
+        XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_backgrounded"])
+        XCTAssertEqual((events.first?["properties"] as? [String: Any])?["entry"] as? String, "resume")
+        XCTAssertEqual((events.first?["timestamp"] as? String).flatMap(toISO8601Date), consentAt)
+        XCTAssertEqual((events.last?["properties"] as? [String: Any])?["session_duration"] as? String, "lt_1m")
     }
 
     func testStorageThatCannotBeDeletedKeepsTheGateClosed() throws {
@@ -677,7 +675,8 @@ final class ProductAnalyticsTests: XCTestCase {
     private func makeGate(
         token: String? = "phc_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))",
         eligible: Bool = true,
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        route: @escaping (Int) -> String? = { _ in nil }
     ) -> (ProductAnalyticsGate, String) {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RecordingURLProtocol.self]
@@ -687,7 +686,8 @@ final class ProductAnalyticsTests: XCTestCase {
             storageDirectory: URL.applicationSupportDirectory.appending(path: Bundle.main.bundleIdentifier ?? ""),
             urlSessionConfiguration: configuration,
             compression: .none,
-            now: now
+            now: now,
+            route: route
         ))
         gates.append(gate)
         addTeardownBlock { gate.update(accountID: nil, productAnalyticsEnabled: nil) }
