@@ -96,7 +96,7 @@ enum SentryTelemetry {
         fileprivate let span: Sentry.Span?
     }
 
-    static let tracesSampleRate = 0.1
+    private static let tracesSampleRate = 0.1
 
     private static func isContext(_ value: String) -> Bool {
         (1...80).contains(value.count) && value.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "." || $0 == "_") }
@@ -406,9 +406,6 @@ enum SentryTelemetry {
 
     private static let httpMethods: Set<String> = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]
 
-    /// Rebuilds a breadcrumb from class names, lifecycle states, or an HTTP
-    /// method, put.io host and status. Titles, messages, URL paths and queries
-    /// stay on the device, as does every other category.
     static func allowlisted(_ breadcrumb: Breadcrumb) -> Breadcrumb? {
         let data = breadcrumb.data ?? [:]
         var kept: [String: Any] = [:]
@@ -422,9 +419,8 @@ enum SentryTelemetry {
             guard let state = data["state"] as? String, appStates.contains(state) else { return nil }
             kept["state"] = state
         case "http":
-            guard let url = data["url"] as? String,
-                  let host = URLComponents(string: url)?.host?.lowercased(),
-                  host == "put.io" || host.hasSuffix(".put.io")
+            let host = ((data["url"] as? String).flatMap { URLComponents(string: $0)?.host } ?? data["host"] as? String)?.lowercased()
+            guard let host, host == "put.io" || host.hasSuffix(".put.io")
             else { return nil }
             kept["host"] = host
             if let method = data["method"] as? String, httpMethods.contains(method) { kept["method"] = method }
@@ -454,9 +450,6 @@ enum SentryTelemetry {
 
     private static let timingDataKeys: Set<String> = ["frames.delay"]
 
-    /// Strips a transaction in place, since the SDK keeps its spans and trace out
-    /// of reach, then sends it only when the payload is an `Interval` with its
-    /// static name and op, and no spans, tags, URLs, or user beyond the id.
     static func allowlistedTransaction(_ event: Event) -> Event? {
         event.tags = nil
         event.extra = nil

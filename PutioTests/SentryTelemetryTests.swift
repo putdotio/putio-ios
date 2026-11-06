@@ -496,11 +496,13 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertEqual(options.maxBreadcrumbs, 30)
         let beforeBreadcrumb = try XCTUnwrap(options.beforeBreadcrumb)
         let kept = trail.compactMap(beforeBreadcrumb)
-        let event = Event(level: .error)
-        event.breadcrumbs = trail
-        let sent = try XCTUnwrap(options.beforeSend?(event))
+        func sentTrail(_ breadcrumbs: [Breadcrumb]) throws -> [Breadcrumb] {
+            let event = Event(level: .error)
+            event.breadcrumbs = breadcrumbs
+            return try XCTUnwrap(options.beforeSend?(event)).breadcrumbs ?? []
+        }
 
-        for crumbs in [kept, sent.breadcrumbs ?? []] {
+        for crumbs in try [kept, sentTrail(kept), sentTrail(trail)] {
             let json = String(decoding: try JSONSerialization.data(withJSONObject: crumbs.map { $0.serialize() }), as: UTF8.self)
             for leaked in [title, fileName, token, "/v2/files", "media.example.invalid", "playTapped"] {
                 XCTAssertFalse(json.contains(leaked), "\(leaked) left the device: \(json)")
@@ -520,9 +522,10 @@ final class SentryTelemetryTests: XCTestCase {
         let fileName = "Synthetic.Feature.Title.2001.mkv"
         let url = "https://api.put.io/v2/files/list?oauth_token=synthetic-token-5f1c9e"
         let options = SentryTelemetry.options(dsn: dsn)
-        XCTAssertEqual(options.tracesSampleRate?.doubleValue, SentryTelemetry.tracesSampleRate)
-        XCTAssertGreaterThan(SentryTelemetry.tracesSampleRate, 0)
-        XCTAssertLessThanOrEqual(SentryTelemetry.tracesSampleRate, 0.1)
+        XCTAssertEqual(options.tracesSampleRate?.doubleValue, 0.1)
+        for interval in SentryTelemetry.Interval.allCases {
+            XCTAssertEqual("\(interval.signpostName)", interval.rawValue)
+        }
         for traced in [options.enableAutoPerformanceTracing, options.enableNetworkTracking, options.enableFileIOTracing, options.enableCoreDataTracing, options.enableUIViewControllerTracing, options.enableUserInteractionTracing] {
             XCTAssertFalse(traced)
         }

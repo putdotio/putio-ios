@@ -314,8 +314,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         }
         
         dispatchGroup.notify(queue: .main) {
+            guard api.mediaToken == token else {
+                PerfSignpost.end(signpost, outcome: .cancelled)
+                return
+            }
             PerfSignpost.end(signpost, outcome: (accountError ?? configError) == nil ? .succeeded : .failed)
-            guard api.mediaToken == token else { return }
 
             if let error = accountError ?? configError {
                 let failures: [(PutioSDKError?, SentryTelemetry.Endpoint)] = [(accountError, .accountInfo), (configError, .config)]
