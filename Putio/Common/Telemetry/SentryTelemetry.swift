@@ -1,5 +1,6 @@
 import Foundation
 import os
+import PutioSDK
 import Sentry
 
 /// The app's only Sentry entry point. `scripts/verify-fast.sh` rejects
@@ -12,7 +13,61 @@ enum SentryTelemetry {
         case downloadsObservation = "downloads_observation"
         case pushRegistration = "push_registration"
         case realmOpen = "realm_open"
+        case realmWrite = "realm_write"
         case sessionLoad = "session_load"
+    }
+
+    enum Reason: String {
+        case decoding, network, unknown
+        case http4xx = "http_4xx"
+        case http5xx = "http_5xx"
+
+        init(_ error: PutioSDKError) {
+            switch error.type {
+            case .decodingError: self = .decoding
+            case .networkError: self = .network
+            case .httpError(let status, _) where (400..<500).contains(status): self = .http4xx
+            case .httpError(let status, _) where (500..<600).contains(status): self = .http5xx
+            case .httpError, .unknownError: self = .unknown
+            }
+        }
+    }
+
+    enum Endpoint: String {
+        case accountInfo = "account_info"
+        case config
+    }
+
+    enum CrashReason: String {
+        case realmIncorrectThread = "realm_incorrect_thread"
+        case realmObjectInvalidated = "realm_object_invalidated"
+        case realmWriteOutsideTransaction = "realm_write_outside_transaction"
+        case tableRowOutOfBounds = "table_row_out_of_bounds"
+        case other
+
+        private static let exceptionTypes: Set<String> = ["RLMException", "NSRangeException", "NSInternalInconsistencyException"]
+
+        private static let patterns: [(String, CrashReason)] = [
+            ("incorrect thread", .realmIncorrectThread),
+            ("outside of a write transaction", .realmWriteOutsideTransaction),
+            ("invalidated", .realmObjectInvalidated),
+            ("out of bounds", .tableRowOutOfBounds),
+            ("beyond bounds", .tableRowOutOfBounds),
+            ("when max is", .tableRowOutOfBounds),
+            ("which only contains", .tableRowOutOfBounds),
+        ]
+
+        init?(_ exception: Exception) {
+            guard Self.exceptionTypes.contains(exception.type),
+                  exception.mechanism?.handled?.boolValue == false
+            else { return nil }
+            let reason = exception.value ?? ""
+            self = Self.patterns.first { reason.range(of: $0.0, options: .caseInsensitive) != nil }?.1 ?? .other
+        }
+    }
+
+    private static func isContext(_ value: String) -> Bool {
+        (1...80).contains(value.count) && value.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "." || $0 == "_") }
     }
 
     /// put.io's tunnel to Sentry ingest. Some networks reset connections to
@@ -101,6 +156,8 @@ enum SentryTelemetry {
         options.urlSessionDelegate = transportGate
         options.maxBreadcrumbs = 0
         options.enableCaptureFailedRequests = false
+        options.enableMetricKit = true
+        options.enableMetricKitRawPayload = false
         options.beforeSend = { isCapturing ? allowlisted($0) : nil }
         return options
     }
@@ -118,9 +175,12 @@ enum SentryTelemetry {
         return "https://\(key)@\(relayHost)/\(projectID)"
     }
 
-    static func capture(_ failure: Failure, error: Error? = nil) {
+    static func capture(_ failure: Failure, error: Error? = nil, reason: Reason? = nil, endpoint: Endpoint? = nil, context: String? = nil) {
         SentrySDK.capture(error: error ?? NSError(domain: "io.put.telemetry", code: 0)) { scope in
             scope.setTag(value: failure.rawValue, key: "category")
+            reason.map { scope.setTag(value: $0.rawValue, key: "reason") }
+            endpoint.map { scope.setTag(value: $0.rawValue, key: "endpoint") }
+            context.map { scope.setTag(value: $0, key: "context") }
         }
     }
 
@@ -139,7 +199,13 @@ enum SentryTelemetry {
     /// Sentry upgrade adds to the event, stay on the device. Assumes tracing stays
     /// off: a transaction would lose its spans and trace state here.
     static func allowlisted(_ event: Event) -> Event {
-        let category = event.tags?["category"]
+        let tags = event.tags ?? [:]
+        let category = tags["category"]
+        var sentTags: [String: String] = [:]
+        sentTags["category"] = category
+        sentTags["reason"] = tags["reason"].flatMap(Reason.init(rawValue:))?.rawValue
+        sentTags["endpoint"] = tags["endpoint"].flatMap(Endpoint.init(rawValue:))?.rawValue
+        sentTags["context"] = tags["context"].flatMap { isContext($0) ? $0 : nil }
         let sent = Event(level: event.level)
         sent.eventId = event.eventId
         sent.timestamp = event.timestamp
@@ -150,10 +216,10 @@ enum SentryTelemetry {
         sent.threads = event.threads
         sent.debugMeta = event.debugMeta
         sent.context = event.context?.filter { ["app", "device", "os", "runtime"].contains($0.key) }
-        sent.tags = category.map { ["category": $0] }
+        sent.tags = sentTags.isEmpty ? nil : sentTags
         sent.user = event.user?.userId.map(Sentry.User.init(userId:))
         sent.exceptions = event.exceptions?.map { exception in
-            let kept = Exception(value: category, type: exception.type)
+            let kept = Exception(value: category ?? CrashReason(exception)?.rawValue, type: exception.type)
             kept.threadId = exception.threadId
             kept.stacktrace = exception.stacktrace
             kept.mechanism = exception.mechanism.map { mechanism in

@@ -1,7 +1,9 @@
 import os
+import RealmSwift
 import Sentry
 import XCTest
 @testable import Putio
+@testable import PutioSDK
 
 final class SentryTelemetryTests: XCTestCase {
     private let dsn = "https://synthetickey@relay.example.invalid/1"
@@ -178,6 +180,104 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertEqual(sent.count, 1, "the check skipped the diagnostics gate")
     }
 
+    func testUnhandledCrashesKeepATokenizedReasonOnly() throws {
+        let path = "/var/mobile/Containers/Data/Application/SYNTHETIC/Documents/default.realm"
+        let fixtures: [(type: String, reason: String?, token: String?)] = [
+            ("RLMException", "Realm accessed from incorrect thread.", "realm_incorrect_thread"),
+            ("RLMException", "Object has been deleted or invalidated.", "realm_object_invalidated"),
+            ("RLMException", "Accessing object of type Download which has been invalidated or deleted", "realm_object_invalidated"),
+            ("RLMException", "Cannot modify managed RLMArray outside of a write transaction.", "realm_write_outside_transaction"),
+            ("RLMException", "Cannot modify managed objects outside of a write transaction.", "realm_write_outside_transaction"),
+            ("RLMException", "Index 2 is out of bounds (must be less than 2).", "table_row_out_of_bounds"),
+            ("NSRangeException", "*** -[__NSArrayM objectAtIndexedSubscript:]: index 5 beyond bounds [0 .. 3]", "table_row_out_of_bounds"),
+            ("NSInternalInconsistencyException", "attempt to delete row 3 from section 0 which only contains 2 rows before the update", "table_row_out_of_bounds"),
+            ("RLMException", "Unable to open a realm at path '\(path)': Permission denied.", "other"),
+            ("RLMException", nil, "other"),
+            ("NSInvalidArgumentException", "Synthetic reason at \(path)", nil),
+        ]
+        allowCapture()
+        let options = SentryTelemetry.options(dsn: dsn)
+
+        for fixture in fixtures {
+            let sent = try XCTUnwrap(options.beforeSend?(crash(type: fixture.type, reason: fixture.reason, handled: false)))
+            let json = String(decoding: try JSONSerialization.data(withJSONObject: sent.serialize()), as: UTF8.self)
+            XCTAssertEqual(sent.exceptions?.first?.value, fixture.token, fixture.reason ?? fixture.type)
+            XCTAssertEqual(sent.exceptions?.first?.type, fixture.type)
+            XCTAssertFalse(json.contains("/var/mobile"), json)
+        }
+
+        let handled = try XCTUnwrap(options.beforeSend?(crash(type: "RLMException", reason: "Realm accessed from incorrect thread.", handled: true)))
+        XCTAssertNil(handled.exceptions?.first?.value, "a handled exception is not a crash")
+    }
+
+    func testFailureTagsKeepOnlyTheirFixedVocabulary() throws {
+        let sent = try recordSentEvents()
+        let config = PutioSDKRequestConfig(apiConfig: PutioSDKConfig(clientID: "3001"), url: "/config", method: .get)
+        let decoding = PutioSDKError(
+            request: PutioSDKErrorRequestInformation(config: config),
+            decodingError: URLError(.cannotParseResponse),
+            responseBody: "{}"
+        )
+        let leak = "Synthetic Feature Title /Documents/Synthetic.mkv"
+
+        SentryTelemetry.capture(.sessionLoad, error: decoding, reason: .init(decoding), endpoint: .config)
+        SentryTelemetry.capture(.realmWrite, error: Realm.Error(.fail), context: "DownloadManager.persistTask.write")
+        SentryTelemetry.capture(.realmWrite, context: leak)
+
+        XCTAssertEqual(sent.events.map(\.tags), [
+            ["category": "session_load", "reason": "decoding", "endpoint": "config"],
+            ["category": "realm_write", "context": "DownloadManager.persistTask.write"],
+            ["category": "realm_write"],
+        ])
+        XCTAssertEqual(sent.events[1].exceptions?.first?.mechanism?.meta?.error?.domain, "io.realm")
+        XCTAssertEqual(sent.events[1].exceptions?.first?.mechanism?.meta?.error?.code, Realm.Error.Code.fail.rawValue)
+
+        let forged = Event(level: .error)
+        forged.tags = ["category": "session_load", "reason": leak, "endpoint": "https://media.example.invalid/config"]
+        XCTAssertEqual(SentryTelemetry.allowlisted(forged).tags, ["category": "session_load"])
+    }
+
+    func testSDKFailureReasons() {
+        let config = PutioSDKRequestConfig(apiConfig: PutioSDKConfig(clientID: "3001"), url: "/account/info", method: .get)
+        let request = PutioSDKErrorRequestInformation(config: config)
+        let cases: [(PutioSDKError, SentryTelemetry.Reason)] = [
+            (PutioSDKError(request: request, decodingError: URLError(.cannotParseResponse), responseBody: ""), .decoding),
+            (PutioSDKError(request: request, error: URLError(.notConnectedToInternet)), .network),
+            (PutioSDKError(request: request, unknownError: URLError(.badServerResponse)), .unknown),
+            (PutioSDKError(request: request, statusCode: 404, errorType: nil, message: "", underlyingError: URLError(.badServerResponse)), .http4xx),
+            (PutioSDKError(request: request, statusCode: 503, errorType: nil, message: "", underlyingError: URLError(.badServerResponse)), .http5xx),
+            (PutioSDKError(request: request, statusCode: 0, errorType: nil, message: "", underlyingError: URLError(.badServerResponse)), .unknown),
+        ]
+        for (error, reason) in cases {
+            XCTAssertEqual(SentryTelemetry.Reason(error), reason, "\(error.type)")
+        }
+    }
+
+    func testMetricKitHangsLeaveWithTheirMechanism() throws {
+        let options = SentryTelemetry.options(dsn: dsn)
+        XCTAssertTrue(options.enableMetricKit)
+        XCTAssertFalse(options.enableMetricKitRawPayload)
+
+        let hang = Event(level: .warning)
+        let exception = Exception(value: "MXHangDiagnostic hangDuration:3 sec", type: "MXHangDiagnostic")
+        exception.mechanism = Mechanism(type: "mx_hang_diagnostic")
+        exception.mechanism?.handled = NSNumber(value: true)
+        exception.mechanism?.synthetic = NSNumber(value: true)
+        exception.stacktrace = SentryStacktrace(frames: [Frame()], registers: [:])
+        hang.exceptions = [exception]
+        hang.threads = [SentryThread(threadId: 0)]
+        allowCapture()
+
+        let sent = try XCTUnwrap(options.beforeSend?(hang))
+        let kept = try XCTUnwrap(sent.exceptions?.first)
+        XCTAssertEqual(kept.type, "MXHangDiagnostic")
+        XCTAssertEqual(kept.mechanism?.type, "mx_hang_diagnostic")
+        XCTAssertEqual(kept.mechanism?.handled?.boolValue, true)
+        XCTAssertEqual(kept.mechanism?.synthetic?.boolValue, true)
+        XCTAssertEqual(kept.stacktrace?.frames.count, 1)
+        XCTAssertEqual(sent.threads?.count, 1)
+    }
+
     func testDeletesTheLegacySentryCacheOnly() throws {
         let caches = FileManager.default.temporaryDirectory.appending(path: "SentryTelemetryTests-\(UUID().uuidString)")
         addTeardownBlock { try? FileManager.default.removeItem(at: caches) }
@@ -211,6 +311,30 @@ final class SentryTelemetryTests: XCTestCase {
         }
     }
 
+    private func crash(type: String, reason: String?, handled: Bool) -> Event {
+        let event = Event(level: .fatal)
+        let exception = Exception(value: reason, type: type)
+        exception.mechanism = Mechanism(type: "nsexception")
+        exception.mechanism?.handled = NSNumber(value: handled)
+        event.exceptions = [exception]
+        return event
+    }
+
+    private func recordSentEvents() throws -> SentEvents {
+        let defaults = try isolatedDefaults()
+        addTeardownBlock { SentryTelemetry.update(diagnosticsEnabled: false, dsn: self.dsn, defaults: defaults) }
+        let options = SentryTelemetry.options(dsn: dsn)
+        let beforeSend = try XCTUnwrap(options.beforeSend)
+        let sent = SentEvents()
+        options.beforeSend = { event in
+            beforeSend(event).map { sent.events.append($0) }
+            return nil
+        }
+        SentrySDK.start(options: options)
+        allowCapture()
+        return sent
+    }
+
     private func cacheEnvelope() throws {
         let pending = SentryTelemetry.cacheDirectory.appending(path: "envelopes/pending")
         try FileManager.default.createDirectory(at: pending.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -229,6 +353,10 @@ final class SentryTelemetryTests: XCTestCase {
         SentryTelemetry.isCapturing = true
         addTeardownBlock { SentryTelemetry.isCapturing = previous }
     }
+}
+
+private final class SentEvents {
+    var events: [Event] = []
 }
 
 /// Stands in for the network: records every request that starts loading.

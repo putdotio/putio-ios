@@ -301,7 +301,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             if let error = accountError ?? configError {
                 switch error.type {
                 case .decodingError, .unknownError:
-                    SentryTelemetry.capture(.sessionLoad, error: error)
+                    SentryTelemetry.capture(.sessionLoad, error: error, reason: .init(error), endpoint: accountError == nil ? .config : .accountInfo)
                 default:
                     break
                 }

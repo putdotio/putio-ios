@@ -73,6 +73,7 @@ class PutioRealm {
             return true
         } catch {
             logFailure(context, error: error)
+            SentryTelemetry.capture(.realmWrite, error: error, context: context)
             return false
         }
     }
