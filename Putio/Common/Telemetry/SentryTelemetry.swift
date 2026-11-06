@@ -358,8 +358,7 @@ enum SentryTelemetry {
     }
 
     /// Copies listed fields into a new event, so unlisted ones, including any a
-    /// Sentry upgrade adds to the event, stay on the device. Transactions go
-    /// through `allowlistedTransaction`: a copy would lose their spans and trace.
+    /// Sentry upgrade adds to the event, stay on the device.
     static func allowlisted(_ event: Event) -> Event {
         let tags = event.tags ?? [:]
         let category = tags["category"].flatMap { Failure(rawValue: $0)?.rawValue ?? ($0 == PlaybackFailure.category ? $0 : nil) }
@@ -377,7 +376,7 @@ enum SentryTelemetry {
         sent.sdk = event.sdk
         sent.threads = event.threads
         sent.debugMeta = event.debugMeta
-        sent.context = event.context?.filter { ["app", "device", "os", "runtime"].contains($0.key) }
+        sent.context = event.context?.filter { sentContextKeys.contains($0.key) }
         sent.tags = sentTags.isEmpty ? nil : sentTags
         sent.user = event.user?.userId.map(Sentry.User.init(userId:))
         let breadcrumbs = event.breadcrumbs?.compactMap(allowlisted)
@@ -399,6 +398,8 @@ enum SentryTelemetry {
     }
 
     private static let transactionType = "transaction"
+
+    private static let sentContextKeys: Set<String> = ["app", "device", "os", "runtime"]
 
     private static let screenKeys = ["screen", "parentViewController", "presentingViewController"]
 
@@ -439,7 +440,7 @@ enum SentryTelemetry {
 
     private static let transactionKeys: Set<String> = [
         "contexts", "dist", "environment", "event_id", "extra", "level", "measurements", "platform",
-        "release", "sdk", "spans", "start_timestamp", "tags", "timestamp", "transaction", "transaction_info", "type", "user"
+        "release", "sdk", "spans", "start_timestamp", "tags", "timestamp", "transaction", "transaction_info", "type"
     ]
 
     private static let traceKeys: Set<String> = [
@@ -464,8 +465,8 @@ enum SentryTelemetry {
         event.threads = nil
         event.stacktrace = nil
         event.debugMeta = nil
-        event.context = event.context?.filter { ["app", "device", "os", "runtime"].contains($0.key) }
-        event.user = event.user?.userId.map(Sentry.User.init(userId:))
+        event.context = event.context?.filter { sentContextKeys.contains($0.key) }
+        event.user = nil
         return isStaticTiming(event.serialize()) ? event : nil
     }
 
@@ -490,9 +491,8 @@ enum SentryTelemetry {
               isEmptyOrMissing(payload["tags"]),
               keys(payload["extra"], within: timingDataKeys),
               keys(payload["measurements"], within: measurementKeys),
-              keys(payload["user"], within: ["id"]),
               let contexts = payload["contexts"] as? [String: Any],
-              keys(contexts, within: ["app", "device", "os", "runtime", "trace", "profile"]),
+              keys(contexts, within: sentContextKeys.union(["trace", "profile"])),
               isEmptyOrMissing(contexts["profile"]),
               let trace = contexts["trace"] as? [String: Any],
               keys(trace, within: traceKeys),

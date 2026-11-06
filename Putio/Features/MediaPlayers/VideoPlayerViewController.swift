@@ -21,6 +21,13 @@ class VideoPlayerViewController: AVPlayerViewController {
     private var playbackAnalytics: PlaybackAnalytics?
     private var playbackStartSignpost: PerfSignpost.Interval?
 
+    override var player: AVPlayer? {
+        didSet {
+            guard player != nil, playbackStartSignpost == nil, !hasDisposedPlayer else { return }
+            playbackStartSignpost = PerfSignpost.begin(.playbackStart)
+        }
+    }
+
     override var prefersStatusBarHidden: Bool {
         return true
     }
@@ -249,7 +256,6 @@ class VideoPlayerViewController: AVPlayerViewController {
             return
         }
 
-        playbackStartSignpost = PerfSignpost.begin(.playbackStart)
         playerStatusObserver = playerItem.observe(\.status, options: [.initial, .new]) { [weak self] playerItem, _ in
             DispatchQueue.main.async {
                 let accessibilityValue = playerItem.status == .readyToPlay

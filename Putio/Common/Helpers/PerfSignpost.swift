@@ -4,10 +4,8 @@ import QuartzCore
 /// `io.put.perf` Points of Interest intervals that Instruments and
 /// `PutioUITests/PerformanceUITests.swift` measure. Debug builds only, which
 /// `mise run perf` optimizes: in Release every signpost compiles to nothing, so
-/// shipping builds emit none and never flush Core Animation early. An interval
-/// begun from a `SentryTelemetry.Interval` also times a sampled Sentry
-/// transaction under the same static name, in every build. Metadata is row
-/// counts only, never ids, names, or URLs.
+/// shipping builds emit none and never flush Core Animation early.
+/// Metadata is row counts only, never ids, names, or URLs.
 enum PerfSignpost {
     struct Interval {
         #if DEBUG

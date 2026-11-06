@@ -569,7 +569,7 @@ final class SentryTelemetryTests: XCTestCase {
             XCTAssertEqual(trace["op"] as? String, interval.operation)
             XCTAssertEqual(trace["status"] as? String, interval == .playbackStart ? "internal_error" : "ok")
             XCTAssertEqual((payload["spans"] as? [Any])?.count ?? 0, 0)
-            XCTAssertEqual(Set(((payload["user"] as? [String: Any]) ?? [:]).keys), ["id"])
+            XCTAssertNil(payload["user"])
         }
     }
 
