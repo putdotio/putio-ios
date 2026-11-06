@@ -416,52 +416,22 @@ class PutioRealm {
         return FileManager.default.fileExists(atPath: fileURL.path)
     }
 
-    /// Re-attempts API enrichment for downloads that still have placeholder names.
-    /// Safe on every launch: it never reruns full recovery.
     static func enrichPlaceholderDownloads(in realm: Realm? = nil) {
-        guard let realm = realm ?? (try? Realm()) else { return }
-
-        let placeholders = realm.objects(Download.self).filter(
-            NSPredicate(
-                format: "name == %@ OR name BEGINSWITH %@ OR name BEGINSWITH %@",
-                localizedRecoveringPlaceholder,
-                localizedVideoPlaceholderPrefix,
-                localizedAudioPlaceholderPrefix
-            )
-        )
-        guard !placeholders.isEmpty else { return }
-
-        log.info("[PutioRealm] Enriching \(placeholders.count) download(s) with placeholder names")
-
-        for download in placeholders {
-            let fileId = download.id
-            let isVideo = download.fileTypeRaw == Download.FileType.video.rawValue
-            api.getFile(fileID: fileId) { result in
-                guard let download = realm.object(ofType: Download.self, forPrimaryKey: fileId) else { return }
-                switch result {
-                case .success(let file):
-                    try? realm.write {
-                        download.name = file.name
-                        download.size = file.size
-                    }
-                    log.info("[PutioRealm] Enriched download \(fileId): \(file.name)")
-                case .failure:
-                    // A "Video/Audio X" fallback name stays as it is.
-                    if download.name == localizedRecoveringPlaceholder {
-                        let fallbackName = isVideo
-                            ? String(format: localizedVideoPlaceholderFormat, fileId)
-                            : String(format: localizedAudioPlaceholderFormat, fileId)
-                        try? realm.write {
-                            download.name = fallbackName
-                        }
-                    }
-                    log.warning("[PutioRealm] Could not fetch file info for \(fileId)")
-                }
-            }
-        }
+        PlaceholderDownloadEnricher.shared.enrich(in: realm)
     }
 
-    private static var localizedRecoveringPlaceholder: String {
+    fileprivate static func isPlaceholderName(of download: Download) -> Bool {
+        download.name == localizedRecoveringPlaceholder || download.name == fallbackPlaceholderName(of: download)
+    }
+
+    fileprivate static func fallbackPlaceholderName(of download: Download) -> String {
+        let format = download.fileTypeRaw == Download.FileType.video.rawValue
+            ? localizedVideoPlaceholderFormat
+            : localizedAudioPlaceholderFormat
+        return String(format: format, download.id)
+    }
+
+    fileprivate static var localizedRecoveringPlaceholder: String {
         NSLocalizedString("Recovering...", comment: "")
     }
 
@@ -472,12 +442,77 @@ class PutioRealm {
     private static var localizedAudioPlaceholderFormat: String {
         NSLocalizedString("Audio %d", comment: "")
     }
+}
 
-    private static var localizedVideoPlaceholderPrefix: String {
-        String(format: localizedVideoPlaceholderFormat, 0).replacingOccurrences(of: "0", with: "")
+enum PlaceholderFileLookup {
+    case found(name: String, size: Int64)
+    case notFound
+    case failed
+}
+
+final class PlaceholderDownloadEnricher {
+    typealias LookUpFile = (Int, @escaping (PlaceholderFileLookup) -> Void) -> Void
+
+    static let shared = PlaceholderDownloadEnricher()
+
+    private let lookUpFile: LookUpFile
+    private var claimedFileIDs = Set<Int>()
+
+    init(lookUpFile: @escaping LookUpFile = PlaceholderDownloadEnricher.lookUpWithAPI) {
+        self.lookUpFile = lookUpFile
     }
 
-    private static var localizedAudioPlaceholderPrefix: String {
-        String(format: localizedAudioPlaceholderFormat, 0).replacingOccurrences(of: "0", with: "")
+    static func lookUpWithAPI(fileID: Int, completion: @escaping (PlaceholderFileLookup) -> Void) {
+        api.getFile(fileID: fileID) { result in
+            switch result {
+            case .success(let file):
+                completion(.found(name: file.name, size: file.size))
+            case .failure(let error):
+                completion(error.isNotFound ? .notFound : .failed)
+            }
+        }
+    }
+
+    func enrich(in realm: Realm? = nil) {
+        guard let realm = realm ?? PutioRealm.open(context: "enrichPlaceholderDownloads") else { return }
+
+        let fileIDs: [Int] = realm.objects(Download.self).compactMap { download in
+            guard !self.claimedFileIDs.contains(download.id), PutioRealm.isPlaceholderName(of: download) else { return nil }
+            return download.id
+        }
+        guard !fileIDs.isEmpty else { return }
+
+        log.info("[PutioRealm] Enriching \(fileIDs.count) download(s) with placeholder names")
+
+        claimedFileIDs.formUnion(fileIDs)
+        for fileID in fileIDs {
+            lookUpFile(fileID) { lookup in
+                self.finish(fileID: fileID, lookup: lookup, in: realm)
+            }
+        }
+    }
+
+    private func finish(fileID: Int, lookup: PlaceholderFileLookup, in realm: Realm) {
+        if case .failed = lookup {
+            claimedFileIDs.remove(fileID)
+        }
+
+        guard let download = realm.object(ofType: Download.self, forPrimaryKey: fileID) else { return }
+
+        switch lookup {
+        case .found(let name, let size):
+            PutioRealm.write(realm, context: "enrichPlaceholderDownloads.found") {
+                download.name = name
+                download.size = size
+            }
+            log.info("[PutioRealm] Enriched download \(fileID)")
+        case .notFound, .failed:
+            if download.name == PutioRealm.localizedRecoveringPlaceholder {
+                PutioRealm.write(realm, context: "enrichPlaceholderDownloads.fallback") {
+                    download.name = PutioRealm.fallbackPlaceholderName(of: download)
+                }
+            }
+            log.warning("[PutioRealm] Could not fetch file info for \(fileID)")
+        }
     }
 }

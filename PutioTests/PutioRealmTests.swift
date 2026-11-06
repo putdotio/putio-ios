@@ -269,6 +269,55 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertEqual(realm.configuration.fileURL, realmURL)
     }
 
+    func testPlaceholderEnrichmentLooksUpEachPlaceholderOnceUntilATransientFailure() throws {
+        let configuration = PutioRealm.configuration(fileURL: temporaryDirectory.appendingPathComponent("Placeholders.realm"))
+        let realm = try XCTUnwrap(PutioRealm.open(context: #function, configuration: configuration))
+        let rows: [(Int, String, Download.FileType)] = [
+            (7, "Recovering...", .video),
+            (8, "Audio 8", .audio),
+            (9, "Video Diary.mp4", .video),
+            (10, "Recovering...", .audio),
+            (11, "Audio 3", .audio)
+        ]
+        XCTAssertTrue(PutioRealm.write(realm, context: #function) {
+            for (id, name, fileType) in rows {
+                let download = Download()
+                download.id = id
+                download.name = name
+                download.state = .completed
+                download.fileType = fileType
+                realm.add(download)
+            }
+        })
+
+        var requestedIDs: [Int] = []
+        var pending: [Int: (PlaceholderFileLookup) -> Void] = [:]
+        let enricher = PlaceholderDownloadEnricher { fileID, completion in
+            requestedIDs.append(fileID)
+            pending[fileID] = completion
+        }
+
+        enricher.enrich(in: realm)
+        XCTAssertEqual(requestedIDs.sorted(), [7, 8, 10])
+
+        enricher.enrich(in: realm)
+        XCTAssertEqual(requestedIDs.sorted(), [7, 8, 10])
+
+        pending[7]?(.notFound)
+        pending[8]?(.notFound)
+        pending[10]?(.failed)
+        requestedIDs.removeAll()
+
+        enricher.enrich(in: realm)
+        XCTAssertEqual(requestedIDs, [10])
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 7)?.name, "Video 7")
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 10)?.name, "Audio 10")
+
+        pending[10]?(.found(name: "Episode.mp3", size: 2048))
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 10)?.name, "Episode.mp3")
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 10)?.size, 2048)
+    }
+
     func testRecoveredAudioFileIdParsesLegacyAndNormalAudioFilenames() {
         XCTAssertEqual(PutioRealm.recoveredAudioFileId(from: "putio_adm_123.mp3"), 123)
         XCTAssertEqual(PutioRealm.recoveredAudioFileId(from: "putio_adm_123_some-audio.mp3"), 123)
