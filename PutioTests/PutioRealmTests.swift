@@ -1,6 +1,6 @@
 import XCTest
 @testable import Putio
-import PutioSDK
+@testable import PutioSDK
 import RealmSwift
 
 final class PutioRealmTests: XCTestCase {
@@ -269,7 +269,7 @@ final class PutioRealmTests: XCTestCase {
         XCTAssertEqual(realm.configuration.fileURL, realmURL)
     }
 
-    func testPlaceholderEnrichmentLooksUpEachPlaceholderOncePerLaunch() throws {
+    func testPlaceholderEnrichmentRetriesFailuresAndRemembersMissingFiles() throws {
         let configuration = PutioRealm.configuration(fileURL: temporaryDirectory.appendingPathComponent("Placeholders.realm"))
         let realm = try XCTUnwrap(PutioRealm.open(context: #function, configuration: configuration))
         let rows: [(Int, String, Download.FileType)] = [
@@ -278,6 +278,7 @@ final class PutioRealmTests: XCTestCase {
             (9, "Video Diary.mp4", .video),
             (10, "Recovering...", .audio),
             (11, "Audio 3", .audio),
+            (12, "Video 12", .audio),
             (3_000_000_123, "Video 3000000123", .video)
         ]
         XCTAssertTrue(PutioRealm.write(realm, context: #function) {
@@ -293,27 +294,48 @@ final class PutioRealmTests: XCTestCase {
 
         var requestedIDs: [Int] = []
         var pending: [Int: (PlaceholderFileLookup) -> Void] = [:]
-        let enricher = PlaceholderDownloadEnricher { fileID, completion in
+        let lookUpFile: PlaceholderDownloadEnricher.LookUpFile = { fileID, completion in
             requestedIDs.append(fileID)
             pending[fileID] = completion
         }
+        let enricher = PlaceholderDownloadEnricher(defaults: defaults, lookUpFile: lookUpFile)
 
         enricher.enrich(in: realm)
-        XCTAssertEqual(requestedIDs.sorted(), [7, 8, 10, 3_000_000_123])
-
         enricher.enrich(in: realm)
-        XCTAssertEqual(requestedIDs.sorted(), [7, 8, 10, 3_000_000_123])
+        XCTAssertEqual(requestedIDs.sorted(), [7, 8, 10, 12, 3_000_000_123])
 
-        pending[7]?(.unavailable)
-        pending[8]?(.unavailable)
+        pending[7]?(.failed)
+        pending[8]?(.notFound)
         pending[10]?(.found(name: "Episode.mp3", size: 2048))
-        pending[3_000_000_123]?(.unavailable)
-        enricher.enrich(in: realm)
+        pending[12]?(.notFound)
+        pending[3_000_000_123]?(.failed)
 
-        XCTAssertEqual(requestedIDs.count, 4)
-        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 7)?.name, "Video 7")
-        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 10)?.name, "Episode.mp3")
+        let names = rows.map { realm.object(ofType: Download.self, forPrimaryKey: $0.0)?.name }
+        XCTAssertEqual(names, ["Video 7", "Audio 8", "Video Diary.mp4", "Episode.mp3", "Audio 3", "Video 12", "Video 3000000123"])
         XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: 10)?.size, 2048)
+
+        requestedIDs = []
+        enricher.enrich(in: realm)
+        XCTAssertEqual(requestedIDs.sorted(), [7, 3_000_000_123])
+
+        requestedIDs = []
+        PlaceholderDownloadEnricher(defaults: defaults, lookUpFile: lookUpFile).enrich(in: realm)
+        XCTAssertEqual(requestedIDs.sorted(), [7, 3_000_000_123])
+    }
+
+    func testPlaceholderLookupTreatsOnly404AsMissing() {
+        let config = PutioSDKRequestConfig(apiConfig: PutioSDKConfig(clientID: "3001"), url: "/files/1", method: .get)
+        func lookup(status: Int) -> PlaceholderFileLookup {
+            PlaceholderFileLookup(.failure(PutioSDKError(
+                request: PutioSDKErrorRequestInformation(config: config), statusCode: status, errorType: nil, message: "", underlyingError: URLError(.badServerResponse)
+            )))
+        }
+
+        XCTAssertEqual(lookup(status: 404), .notFound)
+        for status in [401, 403, 429, 500, 503] {
+            XCTAssertEqual(lookup(status: status), .failed, "\(status)")
+        }
+        XCTAssertEqual(PlaceholderFileLookup(.failure(.offline("/files/1"))), .failed)
     }
 
     func testRecoveredAudioFileIdParsesLegacyAndNormalAudioFilenames() {

@@ -1,4 +1,5 @@
 import Foundation
+import PutioSDK
 import RealmSwift
 
 class PutioRealm {
@@ -425,9 +426,23 @@ class PutioRealm {
     }
 }
 
-enum PlaceholderFileLookup {
+enum PlaceholderFileLookup: Equatable {
     case found(name: String, size: Int64)
-    case unavailable
+    case notFound
+    case failed
+
+    init(_ result: Result<PutioFile, PutioSDKError>) {
+        switch result {
+        case .success(let file):
+            self = .found(name: file.name, size: file.size)
+        case .failure(let error):
+            if case .httpError(404, _) = error.type {
+                self = .notFound
+            } else {
+                self = .failed
+            }
+        }
+    }
 }
 
 final class PlaceholderDownloadEnricher {
@@ -435,22 +450,19 @@ final class PlaceholderDownloadEnricher {
 
     static let shared = PlaceholderDownloadEnricher()
 
+    private static let missingFileIDsKey = "PutioRealm.missingPlaceholderFileIDs"
+
     private let lookUpFile: LookUpFile
+    private let defaults: UserDefaults
     private var attemptedFileIDs = Set<Int>()
 
-    init(lookUpFile: @escaping LookUpFile = PlaceholderDownloadEnricher.lookUpWithAPI) {
+    init(defaults: UserDefaults = .standard, lookUpFile: @escaping LookUpFile = PlaceholderDownloadEnricher.lookUpWithAPI) {
+        self.defaults = defaults
         self.lookUpFile = lookUpFile
     }
 
     static func lookUpWithAPI(fileID: Int, completion: @escaping (PlaceholderFileLookup) -> Void) {
-        api.getFile(fileID: fileID) { result in
-            switch result {
-            case .success(let file):
-                completion(.found(name: file.name, size: file.size))
-            case .failure:
-                completion(.unavailable)
-            }
-        }
+        api.getFile(fileID: fileID) { completion(PlaceholderFileLookup($0)) }
     }
 
     func enrich(in realm: Realm? = nil) {
@@ -467,26 +479,51 @@ final class PlaceholderDownloadEnricher {
             )
         )
         let placeholders: [(id: Int, fallbackName: String)] = candidates.compactMap { download in
-            guard !attemptedFileIDs.contains(download.id) else { return nil }
-            let format = download.fileType == .video ? videoFormat : audioFormat
-            let fallbackName = Self.fallbackName(format: format, fileID: download.id)
-            let placeholderNames = [PutioRealm.localizedRecoveringPlaceholder, fallbackName, String(format: format, download.id)]
+            let placeholderNames = [PutioRealm.localizedRecoveringPlaceholder] + [videoFormat, audioFormat].flatMap { format in
+                [Self.fallbackName(format: format, fileID: download.id), String(format: format, download.id)]
+            }
             guard placeholderNames.contains(download.name) else { return nil }
-            return (download.id, fallbackName)
+            let format = download.fileType == .video ? videoFormat : audioFormat
+            return (download.id, Self.fallbackName(format: format, fileID: download.id))
         }
-        guard !placeholders.isEmpty else { return }
 
-        log.info("[PutioRealm] Enriching \(placeholders.count) download(s) with placeholder names")
+        let missingFileIDs = self.missingFileIDs.intersection(placeholders.map(\.id))
+        self.missingFileIDs = missingFileIDs
 
-        for placeholder in placeholders {
+        let pending = placeholders.filter { !attemptedFileIDs.contains($0.id) && !missingFileIDs.contains($0.id) }
+        guard !pending.isEmpty else { return }
+
+        log.info("[PutioRealm] Enriching \(pending.count) download(s) with placeholder names")
+
+        for placeholder in pending {
             attemptedFileIDs.insert(placeholder.id)
-            lookUpFile(placeholder.id) { lookup in
-                Self.finish(placeholder.id, fallbackName: placeholder.fallbackName, lookup: lookup, in: realm)
+            lookUpFile(placeholder.id) { [weak self] lookup in
+                self?.finish(placeholder.id, fallbackName: placeholder.fallbackName, lookup: lookup, in: realm)
             }
         }
     }
 
-    private static func finish(_ fileID: Int, fallbackName: String, lookup: PlaceholderFileLookup, in realm: Realm) {
+    private var missingFileIDs: Set<Int> {
+        get { Set(defaults.array(forKey: Self.missingFileIDsKey) as? [Int] ?? []) }
+        set {
+            if newValue.isEmpty {
+                defaults.removeObject(forKey: Self.missingFileIDsKey)
+            } else {
+                defaults.set(newValue.sorted(), forKey: Self.missingFileIDsKey)
+            }
+        }
+    }
+
+    private func finish(_ fileID: Int, fallbackName: String, lookup: PlaceholderFileLookup, in realm: Realm) {
+        switch lookup {
+        case .found:
+            break
+        case .notFound:
+            missingFileIDs.insert(fileID)
+        case .failed:
+            attemptedFileIDs.remove(fileID)
+        }
+
         guard let download = realm.object(ofType: Download.self, forPrimaryKey: fileID) else { return }
 
         switch lookup {
@@ -496,7 +533,7 @@ final class PlaceholderDownloadEnricher {
                 download.size = size
             }
             log.info("[PutioRealm] Enriched download \(fileID)")
-        case .unavailable:
+        case .notFound, .failed:
             if download.name == PutioRealm.localizedRecoveringPlaceholder {
                 PutioRealm.write(realm, context: "enrichPlaceholderDownloads.fallback") {
                     download.name = fallbackName
