@@ -364,9 +364,6 @@
 "Enabling..." = "Enabling...";
 
 /* No comment provided by engineer. */
-"Error" = "Error";
-
-/* No comment provided by engineer. */
 "Error in transfer %@" = "Error in transfer %@";
 
 /* No comment provided by engineer. */
@@ -734,6 +731,12 @@
 
 /* %@ is the selected categories, for example "Files, History, and Trash". */
 "This permanently deletes %@ from your put.io account. It can't be undone." = "This permanently deletes %@ from your put.io account. It can't be undone.";
+
+/* No comment provided by engineer. */
+"This video can't be converted" = "This video can't be converted";
+
+/* No comment provided by engineer. */
+"This video couldn't be converted" = "This video couldn't be converted";
 
 /* No comment provided by engineer. */
 "Today" = "Today";

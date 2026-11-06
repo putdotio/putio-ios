@@ -396,9 +396,13 @@ private enum PutioE2EMockAPI {
             folder(id: 104, name: "Pictures", size: 268_435_456),
             folder(id: 105, name: "Series", size: 12_884_901_888),
             folder(id: 106, name: "Items shared with you", size: 4_294_967_296),
-            videoFile,
+            listedVideoFile,
             audioFile
         ] + libraryFiles
+
+    private static let listedVideoFile = ProcessInfo.processInfo.environment["PUTIO_E2E_VIDEO_NEEDS_CONVERSION"] == "1"
+        ? videoFile.replacingOccurrences(of: #""need_convert": false"#, with: #""need_convert": true"#)
+        : videoFile
 
     // Padding past the eight rows the walk interacts with, so the list fills a
     // 13-inch iPad — the App Store set is cropped from it. Appended rather than
@@ -564,7 +568,7 @@ private enum PutioE2EMockAPI {
     private static let mp4Status = """
     {
       "mp4": {
-        "status": "COMPLETED",
+        "status": "\(ProcessInfo.processInfo.environment["PUTIO_E2E_MP4_STATUS"] ?? "COMPLETED")",
         "percent_done": 100,
         "start_from": 0
       }

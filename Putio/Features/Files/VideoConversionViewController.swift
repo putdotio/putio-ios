@@ -16,107 +16,115 @@ class VideoConversionViewController: UIViewController {
 
     weak var delegate: VideoConversionViewControllerDelegate?
 
-    var shouldCheckConvertionStatus = false
     var file: PutioFile!
     var intention: VideoConversionIntention!
-    var status = PutioMp4Conversion.Status.queued {
-        didSet {
-            var label = NSLocalizedString("Waiting...", comment: "")
-
-            switch self.status {
-            case PutioMp4Conversion.Status.queued:
-                label = NSLocalizedString("In Queue", comment: "")
-
-            case PutioMp4Conversion.Status.converting:
-                label = NSLocalizedString("Converting...", comment: "")
-
-            case PutioMp4Conversion.Status.completed:
-                label = NSLocalizedString("Completed, video will automatically play!", comment: "")
-
-            case PutioMp4Conversion.Status.error, PutioMp4Conversion.Status.notAvailable:
-                label = NSLocalizedString("Error", comment: "")
-
-            default:
-                label = NSLocalizedString("Error", comment: "")
-            }
-
-            statusLabel.text = label
-        }
-    }
-    var percentDone: Float = 0.0 {
-        didSet {
-            progressView.progress = percentDone
-        }
-    }
+    lazy var session = VideoConversionSession(fileID: file.id)
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        configureApperance()
-        startConversion()
+        configureAppearance()
+        session.delegate = self
+        session.start()
     }
 
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        shouldCheckConvertionStatus = false
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        if isBeingDismissed || navigationController?.isBeingDismissed == true {
+            session.cancel()
+        }
     }
 
-    func configureApperance() {
+    func configureAppearance() {
         navigationItem.title = file.name.truncate(length: 24)
-        statusLabel.text = NSLocalizedString("Waiting...", comment: "")
-        progressView.progress = percentDone
-    }
-
-    func startConversion() {
-        api.startMp4Conversion(fileID: file.id) { result in
-            switch result {
-            case .success:
-                self.shouldCheckConvertionStatus = true
-                self.checkConversionStatus()
-
-            case .failure:
-                break
-            }
-        }
-    }
-
-    func checkConversionStatus() {
-        api.getMp4ConversionStatus(fileID: file.id) { result in
-            switch result {
-            case .success(let conversion):
-                let strongSelf = self
-
-                if conversion.status == .completed {
-                    return api.getFile(fileID: strongSelf.file.id) { result in
-                        switch result {
-                        case .success(let convertedFile):
-                            strongSelf.dismiss(animated: true, completion: {
-                                strongSelf.delegate?.videoConversionFinished(for: convertedFile, intention: strongSelf.intention)
-                            })
-
-                        case .failure:
-                            break
-                        }
-                    }
-                }
-
-                strongSelf.status = conversion.status
-                strongSelf.percentDone = conversion.percentDone
-
-                if strongSelf.shouldCheckConvertionStatus {
-                    Utils.delayWithSeconds(3, completion: {
-                        strongSelf.checkConversionStatus()
-                    })
-                }
-
-            case .failure:
-                break
-            }
-        }
+        statusLabel.numberOfLines = 0
+        showProgress(status: NSLocalizedString("Waiting...", comment: ""), percentDone: 0)
     }
 
     @IBAction func closeButtonTapped(_ sender: Any) {
+        session.cancel()
         dismiss(animated: true) {
             self.delegate?.videoConversionControllerDismissedBeforeFinish()
         }
+    }
+
+    private func render(_ state: VideoConversionSession.State) {
+        switch state {
+        case .idle, .starting:
+            showProgress(status: NSLocalizedString("Waiting...", comment: ""), percentDone: 0)
+
+        case .converting(let progress):
+            showProgress(status: Self.statusText(for: progress.status), percentDone: progress.percentDone)
+
+        case .fetchingConvertedFile:
+            showProgress(status: NSLocalizedString("Completed, video will automatically play!", comment: ""), percentDone: 1)
+
+        case .finished(let convertedFile):
+            finish(with: convertedFile)
+
+        case .failed(let failure):
+            showFailure(failure)
+
+        case .cancelled:
+            break
+        }
+    }
+
+    private func showProgress(status: String, percentDone: Float) {
+        statusLabel.text = status
+        progressView.isHidden = false
+        progressView.progress = percentDone
+        navigationItem.rightBarButtonItem = nil
+    }
+
+    private func showFailure(_ failure: VideoConversionSession.Failure) {
+        let presentation = Self.failurePresentation(for: failure)
+        statusLabel.text = presentation.message
+        progressView.isHidden = true
+        navigationItem.rightBarButtonItem = presentation.canRetry ? UIBarButtonItem(
+            title: NSLocalizedString("Retry", comment: ""),
+            primaryAction: UIAction { [weak self] _ in
+                self?.session.start()
+            }
+        ) : nil
+    }
+
+    private func finish(with convertedFile: PutioFile) {
+        let delegate = self.delegate
+        let intention = self.intention!
+        dismiss(animated: true) {
+            delegate?.videoConversionFinished(for: convertedFile, intention: intention)
+        }
+    }
+
+    static func statusText(for status: PutioMp4Conversion.Status) -> String {
+        switch status {
+        case .queued:
+            return NSLocalizedString("In Queue", comment: "")
+        default:
+            return NSLocalizedString("Converting...", comment: "")
+        }
+    }
+
+    static func failurePresentation(for failure: VideoConversionSession.Failure) -> (message: String, canRetry: Bool) {
+        switch failure {
+        case .start(let error), .status(let error), .convertedFile(let error):
+            let localizedError = api.localizeError(error: error)
+            return ("\(localizedError.message)\n\(localizedError.recoverySuggestion.description)", true)
+
+        case .conversion(.notAvailable):
+            return (NSLocalizedString("This video can't be converted", comment: ""), false)
+
+        case .conversion:
+            return (
+                "\(NSLocalizedString("This video couldn't be converted", comment: ""))\n\(NSLocalizedString("Please try again later", comment: ""))",
+                true
+            )
+        }
+    }
+}
+
+extension VideoConversionViewController: VideoConversionSessionDelegate {
+    func videoConversionSessionStateChanged(_ session: VideoConversionSession) {
+        render(session.state)
     }
 }

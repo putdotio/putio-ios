@@ -40,7 +40,9 @@
 		4F3388A6DA2720DACF20446B /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EEE14DC43F881736BEDFD030 /* Foundation.framework */; };
 		AC4AE379C21342CAB0F36251 /* ClearDataViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F5F9EEE22658373A7BD1D0 /* ClearDataViewModelTests.swift */; };
 		51D9E494DFC76AF375536663 /* HistoryViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2B1049C9B1A0CA9C66F6CD2 /* HistoryViewModelTests.swift */; };
+		357CF86FCEE47F2437B05021 /* VideoConversionSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63B93179C8F56EEDCD2C2877 /* VideoConversionSessionTests.swift */; };
 		53457AFE39DF68A6E14E3AA9 /* PlaybackSmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6152DB33E9792260A66491D4 /* PlaybackSmokeUITests.swift */; };
+		DE3603D7171E42FC98761431 /* VideoConversionUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35BC4E3941C4BD3835C54AF /* VideoConversionUITests.swift */; };
 		66592A832C92EA206BAB25BF /* DownloadSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15797E9117171E8D87F34F1C /* DownloadSupport.swift */; };
 		109000000000000000000001 /* DownloadQueueController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 109000000000000000000002 /* DownloadQueueController.swift */; };
 		109100000000000000000001 /* DownloadQueueControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 109100000000000000000002 /* DownloadQueueControllerTests.swift */; };
@@ -133,6 +135,7 @@
 		ACBAF58B1FB097ED00BEDE1D /* UIColor+Putio.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACBAF58A1FB097ED00BEDE1D /* UIColor+Putio.swift */; };
 		ACBAF5991FB0B1FF00BEDE1D /* SettingsTableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACBAF5981FB0B1FF00BEDE1D /* SettingsTableViewController.swift */; };
 		ACC38DB32196DB530065241F /* VideoConversionPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC38DB22196DB530065241F /* VideoConversionPresenter.swift */; };
+		BBBFF99B16DDA562E5A4E28B /* VideoConversionSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0398B766BC25D7BA227CF37E /* VideoConversionSession.swift */; };
 		ACC92DDA1FC5843100064BF9 /* AudioPlayerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC92DD91FC5843100064BF9 /* AudioPlayerViewController.swift */; };
 		ACC92DE01FC5993800064BF9 /* Stylize.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC92DDF1FC5993800064BF9 /* Stylize.swift */; };
 		ACCAE1CF27A90E56007DA85F /* PutioSDK.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCAE1CE27A90E56007DA85F /* PutioSDK.swift */; };
@@ -245,6 +248,7 @@
 		5C7E9B1D3F4A6C8E0B2D5F7A /* BrandFontTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrandFontTests.swift; sourceTree = "<group>"; };
 		5928D8EE387188412DBE6925 /* BrandTypographyCoverageTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrandTypographyCoverageTests.swift; sourceTree = "<group>"; };
 		6152DB33E9792260A66491D4 /* PlaybackSmokeUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlaybackSmokeUITests.swift; sourceTree = "<group>"; };
+		A35BC4E3941C4BD3835C54AF /* VideoConversionUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoConversionUITests.swift; sourceTree = "<group>"; };
 		651F74BAFDB08F5826583B32 /* PutioUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PutioUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		67587EFA32AA04C84BD5E5F5 /* FilesViewController+Playback.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "FilesViewController+Playback.swift"; sourceTree = "<group>"; };
 		6B7455A8D5EF4A2CE24BA6F2 /* Pods-Putio.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Putio.debug.xcconfig"; path = "Target Support Files/Pods-Putio/Pods-Putio.debug.xcconfig"; sourceTree = "<group>"; };
@@ -336,6 +340,7 @@
 		ACBAF58A1FB097ED00BEDE1D /* UIColor+Putio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIColor+Putio.swift"; sourceTree = "<group>"; };
 		ACBAF5981FB0B1FF00BEDE1D /* SettingsTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTableViewController.swift; sourceTree = "<group>"; };
 		ACC38DB22196DB530065241F /* VideoConversionPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoConversionPresenter.swift; sourceTree = "<group>"; };
+		0398B766BC25D7BA227CF37E /* VideoConversionSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoConversionSession.swift; sourceTree = "<group>"; };
 		ACC92DD91FC5843100064BF9 /* AudioPlayerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerViewController.swift; sourceTree = "<group>"; };
 		ACC92DDF1FC5993800064BF9 /* Stylize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stylize.swift; sourceTree = "<group>"; };
 		ACCAE1CE27A90E56007DA85F /* PutioSDK.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PutioSDK.swift; sourceTree = "<group>"; };
@@ -387,6 +392,7 @@
 		BB87A77E7CBC8A2FFDF88298 /* Pods-PutioTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PutioTests.debug.xcconfig"; path = "Target Support Files/Pods-PutioTests/Pods-PutioTests.debug.xcconfig"; sourceTree = "<group>"; };
 		52F5F9EEE22658373A7BD1D0 /* ClearDataViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClearDataViewModelTests.swift; sourceTree = "<group>"; };
 		C2B1049C9B1A0CA9C66F6CD2 /* HistoryViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryViewModelTests.swift; sourceTree = "<group>"; };
+		63B93179C8F56EEDCD2C2877 /* VideoConversionSessionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoConversionSessionTests.swift; sourceTree = "<group>"; };
 		D4FA3E925494F09D83976E4D /* Pods-PutioTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PutioTests.release.xcconfig"; path = "Target Support Files/Pods-PutioTests/Pods-PutioTests.release.xcconfig"; sourceTree = "<group>"; };
 		D6621E70422BFD153917AB79 /* SettingsViewModel+Persistence.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "SettingsViewModel+Persistence.swift"; sourceTree = "<group>"; };
 		E00971069F13C4F9912DC53A /* TypeScaleScalingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TypeScaleScalingTests.swift; sourceTree = "<group>"; };
@@ -436,6 +442,7 @@
 				5A1E0C000000000000000005 /* ProductAnalyticsTests.swift */,
 				52F5F9EEE22658373A7BD1D0 /* ClearDataViewModelTests.swift */,
 				C2B1049C9B1A0CA9C66F6CD2 /* HistoryViewModelTests.swift */,
+				63B93179C8F56EEDCD2C2877 /* VideoConversionSessionTests.swift */,
 				109100000000000000000002 /* DownloadQueueControllerTests.swift */,
 				7A112233445566778899AABC /* NavigationLocalizationTests.swift */,
 				9061977704DB05372D01A172 /* PutioKeychainTests.swift */,
@@ -480,6 +487,7 @@
 			isa = PBXGroup;
 			children = (
 				6152DB33E9792260A66491D4 /* PlaybackSmokeUITests.swift */,
+				A35BC4E3941C4BD3835C54AF /* VideoConversionUITests.swift */,
 				94C9F07E252A00E23B7969F4 /* ClearDataUITests.swift */,
 				4F8E2A6C0B3D7F1A5C9E3B6D /* HistorySmokeUITests.swift */,
 				51A7C0DE5E1B4A0C9D2E3F05 /* PrivacyControlsUITests.swift */,
@@ -668,6 +676,7 @@
 				ACAA622823BD05A80043458C /* VideoConversion.storyboard */,
 				AC5AF8761FBF16E8003B8C3C /* VideoConversionViewController.swift */,
 				ACC38DB22196DB530065241F /* VideoConversionPresenter.swift */,
+				0398B766BC25D7BA227CF37E /* VideoConversionSession.swift */,
 				ACCE33451FD58DF50006793D /* FilePresenter.swift */,
 				AC87F8F1269A1F4300953C42 /* FolderCreatorPresenter.swift */,
 				969D8492C4F12034E0FD0421 /* FilesViewController+Navigation.swift */,
@@ -1268,6 +1277,7 @@
 				5A1E0C000000000000000006 /* ProductAnalyticsTests.swift in Sources */,
 				AC4AE379C21342CAB0F36251 /* ClearDataViewModelTests.swift in Sources */,
 				51D9E494DFC76AF375536663 /* HistoryViewModelTests.swift in Sources */,
+				357CF86FCEE47F2437B05021 /* VideoConversionSessionTests.swift in Sources */,
 				109100000000000000000001 /* DownloadQueueControllerTests.swift in Sources */,
 				7A112233445566778899AABB /* NavigationLocalizationTests.swift in Sources */,
 				B5E0A31A3EECB199CBAC08D0 /* PutioKeychainTests.swift in Sources */,
@@ -1290,6 +1300,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				53457AFE39DF68A6E14E3AA9 /* PlaybackSmokeUITests.swift in Sources */,
+				DE3603D7171E42FC98761431 /* VideoConversionUITests.swift in Sources */,
 				4A46E6C53155BA88AC2B2345 /* ClearDataUITests.swift in Sources */,
 				7A1C9E4B2D6F8A0C3E5B7D9F /* HistorySmokeUITests.swift in Sources */,
 				9F3A1C7D2E4B6A8C0D1E2F33 /* SignedInLaunch.swift in Sources */,
@@ -1402,6 +1413,7 @@
 				AC1B592323B7EDCB00CDAF1D /* String+Slugify.swift in Sources */,
 				ACAA621C23BCC2430043458C /* CMTime+getFiniteSeconds.swift in Sources */,
 				ACC38DB32196DB530065241F /* VideoConversionPresenter.swift in Sources */,
+				BBBFF99B16DDA562E5A4E28B /* VideoConversionSession.swift in Sources */,
 				AC7F4E8C1FD691B7001FFBA9 /* FilesRootViewController.swift in Sources */,
 				ACF668E8282BF05600A48879 /* DisableTwoFactorAuthViewController.swift in Sources */,
 				ACCBBB3A1FF0EBBF00A44F9C /* RoutesViewModel.swift in Sources */,
