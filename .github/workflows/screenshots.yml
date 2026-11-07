@@ -47,7 +47,7 @@ jobs:
     with:
       expected_sha: ${{ inputs.expected_sha }}
 
-  # No Xcode, no CocoaPods, no signing: Linux, asc, and the App Store Connect
+  # No Xcode, no signing: Linux, asc, and the App Store Connect
   # key, nothing else from the release Environment.
   screenshots:
     name: Plan or apply the App Store listing

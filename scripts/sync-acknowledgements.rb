@@ -16,10 +16,10 @@ require "json"
 class AcknowledgementsSync
   ROOT = File.expand_path("..", __dir__)
   RESOLVED_PATH = File.join(ROOT, "Putio.xcworkspace", "xcshareddata", "swiftpm", "Package.resolved")
-  PODFILE_LOCK_PATH = File.join(ROOT, "Podfile.lock")
   PLIST_PATH = File.join(ROOT, "Putio", "Features", "Settings", "About", "Acknowledgements.plist")
 
   APP_PACKAGES = {
+    "gtm-session-fetcher" => "GTMSessionFetcher",
     "intercom-ios-sp" => "Intercom",
     "keychainaccess" => "KeychainAccess",
     "posthog-ios" => "PostHog",
@@ -35,9 +35,8 @@ class AcknowledgementsSync
     "StatefulViewController" => "ThirdParty/StatefulViewController/LICENSE",
   }.freeze
 
-  PODS = {
-    "google-cast-sdk" => ["Google Cast SDK", { text: "https://developers.google.com/terms/" }],
-    "Protobuf" => ["Protobuf", { path: "Pods/Protobuf/LICENSE" }],
+  TERMS_PACKAGES = {
+    "google-cast-ios-sdk" => ["Google Cast SDK", "https://developers.google.com/terms/"],
   }.freeze
 
   LICENSE_NAMES = %w[LICENSE LICENSE.md LICENSE.txt LICENCE].freeze
@@ -47,7 +46,7 @@ class AcknowledgementsSync
   end
 
   def run
-    entries = package_entries + local_entries + pod_entries
+    entries = package_entries + local_entries
     entries.sort_by! { |title, _| title.downcase }
     plist = render(entries)
     if @check_only
@@ -69,10 +68,13 @@ class AcknowledgementsSync
 
   def package_entries
     pins = JSON.parse(File.read(RESOLVED_PATH)).fetch("pins")
-    unknown = pins.map { |pin| pin.fetch("identity") } - APP_PACKAGES.keys - TEST_PACKAGES
-    fail!("classify #{unknown.join(", ")} in APP_PACKAGES or TEST_PACKAGES") unless unknown.empty?
+    unknown = pins.map { |pin| pin.fetch("identity") } - APP_PACKAGES.keys - TERMS_PACKAGES.keys - TEST_PACKAGES
+    fail!("classify #{unknown.join(", ")} in APP_PACKAGES, TERMS_PACKAGES or TEST_PACKAGES") unless unknown.empty?
 
     pins.filter_map do |pin|
+      terms = TERMS_PACKAGES[pin.fetch("identity")]
+      next terms if terms
+
       title = APP_PACKAGES[pin.fetch("identity")]
       next unless title
 
@@ -109,17 +111,6 @@ class AcknowledgementsSync
 
   def local_entries
     LOCAL_LICENSES.map { |title, path| [title, normalize(File.read(File.join(ROOT, path)))] }
-  end
-
-  def pod_entries
-    pods = File.read(PODFILE_LOCK_PATH)[/^PODS:\n(.*?)\n\n/m, 1].scan(/^  - ([^\s(]+)/).flatten
-    unknown = pods - PODS.keys
-    fail!("add #{unknown.join(", ")} to PODS") unless unknown.empty?
-
-    pods.map do |pod|
-      title, source = PODS.fetch(pod)
-      [title, source[:text] || normalize(File.read(File.join(ROOT, source.fetch(:path))))]
-    end
   end
 
   def normalize(text)

@@ -1,8 +1,8 @@
 # Agent Guide
 
-The put.io iOS app that ships on the App Store: UIKit with Swift packages, plus
-Google Cast as the last CocoaPod. Feature code lives in `Putio/Features/<Area>`;
-only genuinely shared code goes in `Putio/Common`.
+The put.io iOS app that ships on the App Store: UIKit with Swift packages.
+Feature code lives in `Putio/Features/<Area>`; only genuinely shared code goes
+in `Putio/Common`.
 
 ## Work in this repository
 
