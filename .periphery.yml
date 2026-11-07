@@ -4,9 +4,10 @@ project: Putio.xcworkspace
 schemes:
   - Putio
   - PutioE2E
-# CocoaPods sources are vendored; their unused API is not ours to delete.
+# Pods and vendored packages: their unused API is not ours to delete.
 index_exclude:
   - Pods/**
+  - ThirdParty/**
 # Generated from Config/DesignTokens.json, which carries the whole palette.
 report_exclude:
   - Putio/Common/Extensions/UIColor+Putio.swift
