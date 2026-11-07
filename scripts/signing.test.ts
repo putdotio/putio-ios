@@ -87,7 +87,7 @@ const listing = async (dir: string, profiles: unknown[]) => {
 
 const check = (dir: string, path: string, sha256: string) => {
   const output = join(dir, "picked.mobileprovision");
-  return { ...run("ruby", [script("check-signing-profile.rb"), path, sha256, BUNDLE, TEAM, output]), output };
+  return { ...run("node", [script("check-signing-profile.ts"), path, sha256, BUNDLE, TEAM, output]), output };
 };
 
 const signer = (dir: string) => certificate(dir, "signer");
@@ -235,7 +235,7 @@ test("the signing check is a dispatch-only release job on protected main", async
 });
 
 test("signing changes run their tests in the tooling lane", () => {
-  for (const path of [".github/workflows/signing-check.yml", "scripts/install-signing.sh", "scripts/check-signing-profile.rb"]) {
+  for (const path of [".github/workflows/signing-check.yml", "scripts/install-signing.sh", "scripts/check-signing-profile.ts"]) {
     const result = spawnSync("sh", [script("ci-affected.sh")], { encoding: "utf8", input: `${path}\n` });
     assert.match(result.stdout, /^tooling=true$/m, path);
   }

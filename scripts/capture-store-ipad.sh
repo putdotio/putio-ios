@@ -39,7 +39,7 @@ fatal() {
 
 # These are marketing assets, and nothing asserts them — a system-font capture
 # would reach the App Store rather than fail a test.
-ruby scripts/sync-brand-fonts.rb --check >/dev/null 2>&1 \
+node scripts/sync-brand-fonts.ts --check >/dev/null 2>&1 \
     || fatal "brand fonts are missing or do not match Config/BrandFonts.json. Run mise run fonts-setup first."
 
 device_id="$(./scripts/simctl-ephemeral-device.sh --label store-ipad --device-type "$DEVICE_TYPE")" || exit 1
@@ -64,7 +64,7 @@ xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Debug \
 
 # Recording is expected to report failures: SnapshotTesting fails every image it
 # rewrites so a record run can never be mistaken for a passing one.
-# verify-snapshot-recording.rb is what separates that from a real failure, which
+# verify-snapshot-recording.ts is what separates that from a real failure, which
 # is why this exit status is deliberately not checked.
 echo "== capturing into $CAPTURES/"
 rm -rf "$BUNDLE" "$CAPTURES"
@@ -77,7 +77,7 @@ TEST_RUNNER_PUTIO_SNAPSHOT_DIR="$ROOT/$CAPTURES" \
 
 [ -d "$BUNDLE" ] || fatal "the run produced no result bundle; it failed before testing."
 
-xcrun xcresulttool get test-results tests --path "$BUNDLE" | ruby scripts/verify-snapshot-recording.rb \
+xcrun xcresulttool get test-results tests --path "$BUNDLE" | node scripts/verify-snapshot-recording.ts \
     || fatal "the walk had failures beyond record-mode snapshot assertions. See $BUNDLE."
 
 # xcodebuild exits 0 for a -only-testing: identifier that matches nothing, so a
@@ -87,15 +87,21 @@ xcrun xcresulttool get test-results tests --path "$BUNDLE" | ruby scripts/verify
 
 # Keep only what the store set declares: an unused 2064x2752 capture is a
 # megabyte of committed weight that no config references.
-ruby -rjson -e '
-  dir, device = ARGV
-  wanted = JSON.parse(File.read("Config/StoreScreenshots.json"))
-    .fetch("devices").fetch(device).fetch("screenshots").map { |slot| slot.fetch("baseline") }
-  Dir.glob(File.join(dir, "*.png")).sort.each do |path|
-    next if wanted.include?(File.basename(path))
-    puts "  dropping #{File.basename(path)} (captured by the walk, not in the #{device} store set)"
-    File.delete(path)
-  end
+node -e '
+  const { readdirSync, readFileSync, unlinkSync } = require("node:fs");
+  const { join } = require("node:path");
+  const [dir, device] = process.argv.slice(1);
+  const key = (object, name) => {
+    if (!Object.hasOwn(object, name)) throw new Error(`key not found: ${JSON.stringify(name)}`);
+    return object[name];
+  };
+  const config = JSON.parse(readFileSync("Config/StoreScreenshots.json", "utf8"));
+  const wanted = key(key(key(config, "devices"), device), "screenshots").map((slot) => key(slot, "baseline"));
+  for (const name of readdirSync(dir).filter((name) => name.endsWith(".png") && !name.startsWith(".")).sort()) {
+    if (wanted.includes(name)) continue;
+    console.log(`  dropping ${name} (captured by the walk, not in the ${device} store set)`);
+    unlinkSync(join(dir, name));
+  }
 ' "$CAPTURES" "$DEVICE"
 
 # Proves the size Apple will be sent, read from the images rather than from what

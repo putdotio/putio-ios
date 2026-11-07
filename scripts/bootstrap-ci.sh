@@ -2,7 +2,7 @@
 
 set -eu
 
-mise install swiftlint
+mise install swiftlint node
 
 xcodebuild -resolvePackageDependencies -workspace Putio.xcworkspace -scheme Putio \
   -onlyUsePackageVersionsFromResolvedFile -quiet

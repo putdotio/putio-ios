@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Installs the App Store distribution identity into a new keychain, and the
-# active App Store profile check-signing-profile.rb picks for that identity and
+# active App Store profile check-signing-profile.ts picks for that identity and
 # PUTIO_APP_IDENTIFIER. CI-only, on macOS,
 # with the pinned asc on PATH. Creates and revokes nothing in App Store Connect.
 #
@@ -47,7 +47,7 @@ team_id="$(jq -er '.teamId' <<< "$identity")"
 asc profiles list --profile-type IOS_APP_STORE --profile-state ACTIVE \
   --fields name,profileContent,uuid --paginate --output json > "$work/profiles.json"
 profile="$work/App.mobileprovision"
-uuid="$(ruby "$(dirname "$0")/check-signing-profile.rb" "$work/profiles.json" "$certificate_sha256" \
+uuid="$(node "$(dirname "$0")/check-signing-profile.ts" "$work/profiles.json" "$certificate_sha256" \
   "$PUTIO_APP_IDENTIFIER" "$PUTIO_DEVELOPMENT_TEAM" "$profile")"
 asc profiles local install --path "$profile" --output json > /dev/null
 

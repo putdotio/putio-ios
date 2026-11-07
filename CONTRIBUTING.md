@@ -8,7 +8,7 @@ Prerequisites:
   and the visual baselines run on iOS 27
 - [mise](https://mise.jdx.dev): it pins the toolchain and runs every task
   (`mise tasks` lists them)
-- Ruby, Node, and SwiftLint from `mise install`; pnpm from `corepack enable`
+- Node and SwiftLint from `mise install`; pnpm from `corepack enable`
 - [SOPS](https://getsops.io) `3.10+` and `jq`, only for
   [private local config](#local-private-config)
 

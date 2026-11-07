@@ -23,8 +23,7 @@ concurrency:
   group: beta-main
   cancel-in-progress: false
 
-# mise must never install Ruby here: it would compile it from source.
-# ruby/setup-ruby provides the prebuilt one each job runs against.
+# Each job installs the tools it needs by name; mise run must not fetch the rest.
 env:
   MISE_AUTO_INSTALL: "false"
   # Before any asc command: asc 5.15.0 sends command telemetry unless this is set.
@@ -68,14 +67,6 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1
-        with:
-          ruby-version: mise.toml
-
-      # Task runner only. install: false and MISE_AUTO_INSTALL keep mise from
-      # building its own Ruby from source; the prebuilt one above is what tasks
-      # run against.
       - name: Install mise
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
@@ -173,7 +164,7 @@ jobs:
           ASC_BYPASS_KEYCHAIN: "1"
         run: |
           asc telemetry status --output json | jq -e '.enabled == false' > /dev/null
-          ./scripts/install-signing.sh
+          mise exec node -- ./scripts/install-signing.sh
 
       - name: Archive and export beta ipa
         env:

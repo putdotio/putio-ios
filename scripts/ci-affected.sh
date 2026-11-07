@@ -22,7 +22,7 @@ while IFS= read -r path; do
     .github/workflows/submit.yml | .github/workflows/delivery-ref.yml) tooling=true ;;
     .github/workflows/signing-check.yml) tooling=true ;;
     # The control plane. These decide what every lane runs — mise.toml pins Node
-    # and Ruby and defines the tasks, and the other two are this gate itself —
+    # and defines the tasks, and the other two are this gate itself —
     # so a change to one has to be exercised by both lanes rather than only the
     # one the default below would pick.
     mise.toml | .github/workflows/ci.yml | scripts/ci-affected.sh)
@@ -37,9 +37,12 @@ while IFS= read -r path; do
         app=true
         tooling=true
         ;;
-    # Node tooling. The app target builds with no Node involvement, so these
-    # reach the type-check lane only — until one of them joins the verify path,
-    # at which point it belongs in the default branch below instead.
+    # Node tooling. The sync scripts are on the verify path, so they run both
+    # lanes; the rest reach the type-check lane only.
+    scripts/sync-*.ts)
+        app=true
+        tooling=true
+        ;;
     scripts/*.ts | scripts/*.mjs | scripts/store-images/*) tooling=true ;;
     package.json | pnpm-lock.yaml | pnpm-workspace.yaml | tsconfig.json) tooling=true ;;
     # Store artwork, listing, and the configs that drive them. None can break
@@ -48,7 +51,7 @@ while IFS= read -r path; do
     Config/Store*.json | Config/AppStore.json | screenshots/* | metadata/*) tooling=true ;;
     scripts/install-asc.sh) tooling=true ;;
     # Signing runs only in delivery jobs; its tests run in the tooling lane.
-    scripts/install-signing.sh | scripts/check-signing-profile.rb) tooling=true ;;
+    scripts/install-signing.sh) tooling=true ;;
     scripts/archive-ios.sh | scripts/upload-dsyms.sh) tooling=true ;;
     # Composite actions. The tooling lane's workflow tests run their guards, and
     # the app lane stays on as it would for any unrecognized path.

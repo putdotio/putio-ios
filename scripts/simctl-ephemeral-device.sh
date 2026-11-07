@@ -38,28 +38,39 @@ ios_major="27"
 if [ -n "$device_type_override" ]; then
   # simctl create accepts an unknown identifier only to fail with a bare "Invalid
   # device type", so name the typo here instead.
-  xcrun simctl list -j devicetypes | ruby -rjson -e '
-    target = ARGV[0]
-    types = JSON.parse($stdin.read)["devicetypes"]
-    exit if types.any? { |type| type["identifier"] == target }
-    warn "No such simulator device type: #{target}"
-    warn "Available iPad types:"
-    types.select { |type| type["identifier"].include?("iPad") }
-         .each { |type| warn "  #{type["identifier"]}" }
-    exit 1
+  xcrun simctl list -j devicetypes | node -e '
+    const target = process.argv[1];
+    const types = JSON.parse(require("node:fs").readFileSync(0, "utf8")).devicetypes;
+    if (types.some((type) => type.identifier === target)) process.exit(0);
+    console.error(`No such simulator device type: ${target}`);
+    console.error("Available iPad types:");
+    for (const type of types.filter((type) => type.identifier.includes("iPad"))) console.error(`  ${type.identifier}`);
+    process.exit(1);
   ' "$device_type_override" || exit 1
 
   device_type="$device_type_override"
 fi
 
-runtime="$(xcrun simctl list -j runtimes | ruby -rjson -e '
-  major, device_type = ARGV
-  runtimes = JSON.parse($stdin.read)["runtimes"].select do |runtime|
-    runtime["isAvailable"] && runtime["platform"] == "iOS" && runtime["version"].split(".").first == major &&
-      runtime.fetch("supportedDeviceTypes", []).any? { |type| type["identifier"] == device_type }
-  end
-  newest = runtimes.max_by { |runtime| Gem::Version.new(runtime["version"]) }
-  puts newest["identifier"] if newest
+runtime="$(xcrun simctl list -j runtimes | node -e '
+  const [major, deviceType] = process.argv.slice(1);
+  const segments = (version) => version.split(".").map(Number);
+  const compare = (a, b) => {
+    const [x, y] = [segments(a), segments(b)];
+    for (let i = 0; i < Math.max(x.length, y.length); i += 1) {
+      const delta = (x[i] ?? 0) - (y[i] ?? 0);
+      if (delta !== 0) return delta;
+    }
+    return 0;
+  };
+  const runtimes = JSON.parse(require("node:fs").readFileSync(0, "utf8")).runtimes.filter(
+    (runtime) =>
+      runtime.isAvailable &&
+      runtime.platform === "iOS" &&
+      runtime.version.split(".")[0] === major &&
+      (runtime.supportedDeviceTypes ?? []).some((type) => type.identifier === deviceType),
+  );
+  const newest = runtimes.reduce((best, runtime) => (best && compare(best.version, runtime.version) >= 0 ? best : runtime), undefined);
+  if (newest) console.log(newest.identifier);
 ' "$ios_major" "$device_type")"
 
 if [ -z "$runtime" ]; then
@@ -79,17 +90,16 @@ trap 'status=$?; if [ "$status" -ne 0 ]; then xcrun simctl delete "$device_id" >
 # pinned clock renders: a 24-hour host shows "09:41" where a 12-hour host shows
 # "9:41". That is enough pixel drift to fail a baseline recorded on the other
 # machine, so pin the locale before first boot.
-data_path="$(xcrun simctl list -j devices | ruby -rjson -e '
-  target = ARGV[0]
-  JSON.parse($stdin.read)["devices"].each_value do |devices|
-    devices.each do |device|
-      if device["udid"] == target
-        puts device["dataPath"]
-        exit
-      end
-    end
-  end
-  abort "no device with udid #{target}"
+data_path="$(xcrun simctl list -j devices | node -e '
+  const target = process.argv[1];
+  const device = Object.values(JSON.parse(require("node:fs").readFileSync(0, "utf8")).devices)
+    .flat()
+    .find((device) => device.udid === target);
+  if (!device) {
+    console.error(`no device with udid ${target}`);
+    process.exit(1);
+  }
+  console.log(device.dataPath);
 ' "$device_id")"
 
 if [ -z "$data_path" ] || [ ! -d "$data_path" ]; then

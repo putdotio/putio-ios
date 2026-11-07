@@ -18,8 +18,7 @@ permissions:
   contents: read
   pull-requests: read
 
-# mise must never install a tool here: it would compile Ruby from source.
-# ruby/setup-ruby provides the prebuilt one each job runs against.
+# Each job installs the tools it needs by name; mise run must not fetch the rest.
 env:
   MISE_AUTO_INSTALL: "false"
 
@@ -100,14 +99,6 @@ jobs:
         with:
           xcode-version: "27"
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1
-        with:
-          ruby-version: mise.toml
-
-      # Task runner only. install: false and MISE_AUTO_INSTALL keep mise from
-      # building its own Ruby from source; the prebuilt one above is what tasks
-      # run against.
       - name: Install mise
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
@@ -137,9 +128,7 @@ jobs:
           path: build/verify.xcresult
           if-no-files-found: ignore
 
-  # Linux, because nothing here needs Xcode and macOS minutes bill at 10x. This
-  # is also where verify-scripts-types first runs in CI at all: it is kept out of
-  # verify-fast so that gate needs no Node, which left it running nowhere.
+  # Linux, because nothing here needs Xcode and macOS minutes bill at 10x.
   verify-tooling:
     name: Verify repo tooling
     needs: changes
@@ -162,8 +151,6 @@ jobs:
           install: false
           cache: false
 
-      # Named explicitly so mise installs Node and nothing else: its Ruby would
-      # compile from source, so ruby/setup-ruby below provides the prebuilt one.
       - name: Install the pinned Node
         run: |
           mise install node
@@ -171,12 +158,6 @@ jobs:
 
       - name: Install Node dependencies
         run: mise exec -- pnpm install --frozen-lockfile
-
-      # The signing profile check is Ruby, so its tests need the pinned one.
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1
-        with:
-          ruby-version: mise.toml
 
       - name: Type-check repo tooling
         run: mise run verify-scripts-types

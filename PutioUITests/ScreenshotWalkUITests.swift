@@ -39,7 +39,7 @@ final class ScreenshotWalkUITests: XCTestCase {
 
         // verifySnapshot rather than assertSnapshot: only the former takes a
         // snapshotDirectory, and its returned failure text is what
-        // verify-snapshot-recording.rb matches to tell a record-mode failure
+        // verify-snapshot-recording.ts matches to tell a record-mode failure
         // from a real one.
         //
         // precision tolerates a few outlier pixels; perceptualPrecision absorbs
