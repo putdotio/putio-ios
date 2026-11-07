@@ -108,7 +108,7 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertEqual(options.cacheDirectoryPath, SentryTelemetry.cacheDirectory.path)
         try cacheEnvelope()
         let configuration = SentryTelemetry.transportConfiguration()
-        configuration.protocolClasses = (configuration.protocolClasses ?? []) + [RecordingURLProtocol.self]
+        configuration.protocolClasses = [SentryTransportGate.self, RecordingURLProtocol.self]
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
         func uploadReachesTheNetwork() throws -> Bool {
