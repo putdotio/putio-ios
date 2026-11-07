@@ -92,7 +92,7 @@ jobs:
           xcode-version: latest-stable
 
       - name: Set up Ruby
-        uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1
+        uses: ruby/setup-ruby@de492cf36cbab201753d720ce4f4e336cd688c94 # v1
         with:
           ruby-version: mise.toml
 
@@ -100,7 +100,7 @@ jobs:
       # building its own Ruby from source; the prebuilt one above is what tasks
       # run against.
       - name: Install mise
-        uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
+        uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
           install: false
           cache: false
@@ -229,7 +229,7 @@ jobs:
       - name: Write What's New
         id: notes
         if: steps.base.outputs.ref != ''
-        uses: putdotio/.github/.github/actions/beta-notes@0299a68cb84725497b4349c6131aeec45c9611a5 # v2.3.2
+        uses: putdotio/.github/.github/actions/beta-notes@e07dede03892f9b80fec82bf38afcd5f76b763b0 # v2.3.3
         with:
           app: put.io for iPhone and iPad
           base: ${{ steps.base.outputs.ref }}
@@ -253,7 +253,7 @@ jobs:
           persist-credentials: false
 
       - name: Install mise
-        uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
+        uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
         with:
           install: false
           cache: false
