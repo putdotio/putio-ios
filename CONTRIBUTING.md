@@ -4,7 +4,8 @@
 
 Prerequisites:
 
-- Xcode `26.x` and the iOS `26.x` simulator runtime
+- Xcode `27.x` and the iOS `27.x` simulator runtime: `verify`, `e2e-simulator`,
+  and the visual baselines run on iOS 27
 - [mise](https://mise.jdx.dev): it pins the toolchain and runs every task
   (`mise tasks` lists them)
 - Ruby, Node, and SwiftLint from `mise install`; pnpm from `corepack enable`
