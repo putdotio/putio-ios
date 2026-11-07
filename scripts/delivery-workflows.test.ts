@@ -343,7 +343,7 @@ test("macOS delivery checkouts keep no GitHub token on disk", async () => {
 
 test("nothing runs fastlane or match: Beta and Release sign with asc and the release Environment's p12", async () => {
   await assert.rejects(readFile(new URL("../fastlane/Fastfile", import.meta.url)), { code: "ENOENT" });
-  for (const file of ["Gemfile", "Gemfile.lock", ".github/actions/load-ios-release-secrets/action.yml", "scripts/archive-ios.sh"]) {
+  for (const file of [".github/actions/load-ios-release-secrets/action.yml", "scripts/archive-ios.sh"]) {
     assert.doesNotMatch(await readFile(new URL(`../${file}`, import.meta.url), "utf8"), /fastlane|MATCH_|PUTIO_APPLE_ID|PUTIO_ITC_TEAM_ID/i, file);
   }
   for (const [name, job] of [["beta.yml", "beta"], ["release.yml", "release"]] as const) {

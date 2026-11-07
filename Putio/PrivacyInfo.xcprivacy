@@ -2,8 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
 	What put.io and the app's SDKs collect beyond the SDKs' own manifests.
-	Google Cast is linked statically into the app binary, so its API use is
-	declared here. Keep the App Privacy answers (linked from CONTRIBUTING.md) in step.
+	Google Cast's own manifest leaves out its boot-time read, so its API use is
+	declared here too. Keep the App Privacy answers (linked from CONTRIBUTING.md) in step.
 -->
 <plist version="1.0">
 <dict>
@@ -173,7 +173,7 @@
 		</dict>
 		<!--
 			Intercom: city and country from the IP address, linked.
-			Google Cast 4.8.3's nutrition label lists it for Analytics, not linked;
+			Google Cast's nutrition label lists it, not linked;
 			disableAnalyticsLogging doesn't change Google's declaration.
 		-->
 		<dict>
@@ -205,7 +205,7 @@
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
 			</array>
 		</dict>
-		<!-- Google Cast 4.8.3's nutrition label also lists it for Analytics. -->
+		<!-- Google Cast's nutrition label also lists it. -->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypePerformanceData</string>

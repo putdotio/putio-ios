@@ -104,7 +104,6 @@ jobs:
         uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1
         with:
           ruby-version: mise.toml
-          bundler-cache: true
 
       # Task runner only. install: false and MISE_AUTO_INSTALL keep mise from
       # building its own Ruby from source; the prebuilt one above is what tasks
@@ -115,15 +114,7 @@ jobs:
           install: false
           cache: false
 
-      - name: Restore CocoaPods cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
-        with:
-          path: ~/Library/Caches/CocoaPods
-          key: ${{ runner.os }}-cocoapods-downloads-${{ github.workflow }}-${{ hashFiles('Podfile.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cocoapods-downloads-${{ github.workflow }}-
-
-      - name: Install CocoaPods, Swift packages and SwiftLint
+      - name: Install Swift packages and SwiftLint
         run: mise run bootstrap-ci
 
       # Visual baselines are recorded with the brand faces bundled, so verify
@@ -186,7 +177,6 @@ jobs:
         uses: ruby/setup-ruby@7f797815d8adceb1c412e7abefdd1ab4abc47a5f # v1
         with:
           ruby-version: mise.toml
-          bundler-cache: false
 
       - name: Type-check repo tooling
         run: mise run verify-scripts-types

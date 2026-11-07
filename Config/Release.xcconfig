@@ -1,4 +1,3 @@
-#include "../Pods/Target Support Files/Pods-Putio/Pods-Putio.release.xcconfig"
 #include "Shared.xcconfig"
 
 // PostHog's public project token; it only names the project. Release only, so

@@ -31,14 +31,9 @@ xcuserdata
 timeline.xctimeline
 playground.xcworkspace
 
-# CocoaPods
-Pods/
-
 .claude/worktrees/
 # App Store Connect API keys, wherever an old setup left one
 *.p8
-.bundle/
-vendor/bundle/
 Config/Local.xcconfig
 Config/1Password.local.env
 .env

@@ -5,7 +5,7 @@
 # <bundle-id> for <team-id> with the certificate whose DER SHA-256 is
 # <certificate-sha256> and has not expired. Writes it to <output> and prints its
 # UUID; with no such profile, says why each candidate for the app was refused.
-# Ruby rather than Node: the archive jobs already have it for CocoaPods.
+# Ruby rather than Node: the archive jobs already set it up for the sync scripts.
 #
 #   ruby scripts/check-signing-profile.rb <profiles.json> <certificate-sha256> <bundle-id> <team-id> <output>
 

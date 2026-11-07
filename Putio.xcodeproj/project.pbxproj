@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		5A0F0000000000000000030A /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F0000000000000000020A /* Sentry-Dynamic */; };
 		5A0F0000000000000000030B /* RealmSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F0000000000000000020B /* RealmSwift */; };
+		5A0F0000000000000000030C /* GoogleCast in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F0000000000000000020C /* GoogleCast */; };
 		5A0F00000000000000000406 /* AcknowledgementsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A0F00000000000000000405 /* AcknowledgementsTests.swift */; };
 		5A0F00000000000000000301 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F00000000000000000201 /* Sentry-Dynamic */; };
 		5A0F00000000000000000302 /* Intercom in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F00000000000000000202 /* Intercom */; };
@@ -79,7 +80,6 @@
 		5A1E0C000000000000000002 /* AnalyticsEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C000000000000000001 /* AnalyticsEvent.swift */; };
 		5A1E0C000000000000000004 /* ProductAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C000000000000000003 /* ProductAnalytics.swift */; };
 		5A1E0C000000000000000006 /* ProductAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1E0C000000000000000005 /* ProductAnalyticsTests.swift */; };
-		9554916755C204A76581CC3A /* Pods_PutioTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7010BA68B2C5ECA69752D4D4 /* Pods_PutioTests.framework */; };
 		7DC87C4E70905D0A3B4F678B /* InactiveAccountUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 993DCCD7D09E1165737A70AF /* InactiveAccountUITests.swift */; };
 		AA4ADDA00F4D5221A3ABBB60 /* TypeScaleRampArtifactTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A924230BA95F3FB946456266 /* TypeScaleRampArtifactTests.swift */; };
 		AC0EACEA1FDEA76C00A728CB /* Realm.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC0EACE91FDEA76C00A728CB /* Realm.swift */; };
@@ -194,7 +194,6 @@
 		ACFA83811FF1338A008711B4 /* EmptyStateView.xib in Resources */ = {isa = PBXBuildFile; fileRef = ACFA83801FF1338A008711B4 /* EmptyStateView.xib */; };
 		B5E0A31A3EECB199CBAC08D0 /* PutioKeychainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9061977704DB05372D01A172 /* PutioKeychainTests.swift */; };
 		BD88F29F86DB1FF2928003F1 /* SettingsViewModel+Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6621E70422BFD153917AB79 /* SettingsViewModel+Persistence.swift */; };
-		C790519533CAE1AA768CCC56 /* Pods_Putio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 36936FB5AD6D469F9B2F9E4A /* Pods_Putio.framework */; };
 		CEBF9BFFE49971BF6934E873 /* InternalFailurePresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54B45BFE24B989083E180F82 /* InternalFailurePresenter.swift */; };
 		DC635AF0F100AD63CD875379 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EEE14DC43F881736BEDFD030 /* Foundation.framework */; };
 		DF84BAD3CCED8B054A1E09E7 /* FilesViewController+TableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B31D9D86843A740051235A /* FilesViewController+TableView.swift */; };
@@ -241,7 +240,6 @@
 		F1C53A65C635463CC4EC2252 /* AccountNoticeTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AccountNoticeTests.swift; sourceTree = "<group>"; };
 		2D4F6A8C0E1B3D5F7A9C1E3B /* UILabel+Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UILabel+Appearance.swift"; sourceTree = "<group>"; };
 		333E41E81298A2E8796ACE97 /* APIErrorLocalizerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = APIErrorLocalizerTests.swift; sourceTree = "<group>"; };
-		36936FB5AD6D469F9B2F9E4A /* Pods_Putio.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Putio.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		38466C37F620EDDBF46BFEF7 /* SettingsViewModel+Sections.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "SettingsViewModel+Sections.swift"; sourceTree = "<group>"; };
 		3B4C5D6E7F8A9B0C1D2E3F4A /* ComponentSnapshotTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ComponentSnapshotTests.swift; sourceTree = "<group>"; };
 		3D7E2A6C0B4D7F1A5C9E3B6E /* ScreenshotWalkUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ScreenshotWalkUITests.swift; sourceTree = "<group>"; };
@@ -268,8 +266,6 @@
 		A35BC4E3941C4BD3835C54AF /* VideoConversionUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoConversionUITests.swift; sourceTree = "<group>"; };
 		651F74BAFDB08F5826583B32 /* PutioUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PutioUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		67587EFA32AA04C84BD5E5F5 /* FilesViewController+Playback.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "FilesViewController+Playback.swift"; sourceTree = "<group>"; };
-		6B7455A8D5EF4A2CE24BA6F2 /* Pods-Putio.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Putio.debug.xcconfig"; path = "Target Support Files/Pods-Putio/Pods-Putio.debug.xcconfig"; sourceTree = "<group>"; };
-		7010BA68B2C5ECA69752D4D4 /* Pods_PutioTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_PutioTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		7A112233445566778899AABC /* NavigationLocalizationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NavigationLocalizationTests.swift; sourceTree = "<group>"; };
 		7F8A9B0C1D2E3F4A5B6C7D8E /* BrandFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandFont.swift; sourceTree = "<group>"; };
 		993DCCD7D09E1165737A70AF /* InactiveAccountUITests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InactiveAccountUITests.swift; sourceTree = "<group>"; };
@@ -284,7 +280,6 @@
 		8B9C0D1E2F3A4B5C6D7E8F90 /* BrandTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandTypography.swift; sourceTree = "<group>"; };
 		9061977704DB05372D01A172 /* PutioKeychainTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioKeychainTests.swift; sourceTree = "<group>"; };
 		969D8492C4F12034E0FD0421 /* FilesViewController+Navigation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "FilesViewController+Navigation.swift"; sourceTree = "<group>"; };
-		A273F236F62C981270AA634E /* Pods-Putio.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Putio.release.xcconfig"; path = "Target Support Files/Pods-Putio/Pods-Putio.release.xcconfig"; sourceTree = "<group>"; };
 		A924230BA95F3FB946456266 /* TypeScaleRampArtifactTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TypeScaleRampArtifactTests.swift; sourceTree = "<group>"; };
 		AC0EACE91FDEA76C00A728CB /* Realm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Realm.swift; sourceTree = "<group>"; };
 		AC0FC8BC1FC2D18B002E775B /* String+Truncate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Truncate.swift"; sourceTree = "<group>"; };
@@ -406,11 +401,9 @@
 		ACFA837C1FF13141008711B4 /* UIView+InterfaceBuilderInstantiable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIView+InterfaceBuilderInstantiable.swift"; sourceTree = "<group>"; };
 		ACFA837E1FF1337D008711B4 /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		ACFA83801FF1338A008711B4 /* EmptyStateView.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = EmptyStateView.xib; sourceTree = "<group>"; };
-		BB87A77E7CBC8A2FFDF88298 /* Pods-PutioTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PutioTests.debug.xcconfig"; path = "Target Support Files/Pods-PutioTests/Pods-PutioTests.debug.xcconfig"; sourceTree = "<group>"; };
 		52F5F9EEE22658373A7BD1D0 /* ClearDataViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClearDataViewModelTests.swift; sourceTree = "<group>"; };
 		C2B1049C9B1A0CA9C66F6CD2 /* HistoryViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HistoryViewModelTests.swift; sourceTree = "<group>"; };
 		63B93179C8F56EEDCD2C2877 /* VideoConversionSessionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VideoConversionSessionTests.swift; sourceTree = "<group>"; };
-		D4FA3E925494F09D83976E4D /* Pods-PutioTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PutioTests.release.xcconfig"; path = "Target Support Files/Pods-PutioTests/Pods-PutioTests.release.xcconfig"; sourceTree = "<group>"; };
 		D6621E70422BFD153917AB79 /* SettingsViewModel+Persistence.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "SettingsViewModel+Persistence.swift"; sourceTree = "<group>"; };
 		E00971069F13C4F9912DC53A /* TypeScaleScalingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TypeScaleScalingTests.swift; sourceTree = "<group>"; };
 		E635BD2FC5C6F52E07A922B3 /* PutioRealmTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PutioRealmTests.swift; sourceTree = "<group>"; };
@@ -440,7 +433,7 @@
 				5A0F00000000000000000305 /* KeychainAccess in Frameworks */,
 				5A0F00000000000000000306 /* PutioSDK in Frameworks */,
 				5A0F00000000000000000309 /* StatefulViewController in Frameworks */,
-				C790519533CAE1AA768CCC56 /* Pods_Putio.framework in Frameworks */,
+				5A0F0000000000000000030C /* GoogleCast in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -452,7 +445,6 @@
 				5A0F0000000000000000030B /* RealmSwift in Frameworks */,
 				5A0F00000000000000000307 /* SnapshotTesting in Frameworks */,
 				4F3388A6DA2720DACF20446B /* Foundation.framework in Frameworks */,
-				9554916755C204A76581CC3A /* Pods_PutioTests.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -504,9 +496,7 @@
 		30BC48A08C4548A56B8C2951 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				36936FB5AD6D469F9B2F9E4A /* Pods_Putio.framework */,
 				F22819B1869A0C552A88BB30 /* iOS */,
-				7010BA68B2C5ECA69752D4D4 /* Pods_PutioTests.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -848,7 +838,6 @@
 				ACF0C0052B0F000100C0F001 /* Config */,
 				ACEF62EC1F9A26AA0026B25E /* Putio */,
 				ACEF62EB1F9A26AA0026B25E /* Products */,
-				B974269A3F8B6789D782EBF0 /* Pods */,
 				30BC48A08C4548A56B8C2951 /* Frameworks */,
 				23057B4F8E5BE300D7880600 /* PutioTests */,
 				764BEAEF68E8171FDA0D4EA4 /* PutioUITests */,
@@ -924,17 +913,6 @@
 			path = UI;
 			sourceTree = "<group>";
 		};
-		B974269A3F8B6789D782EBF0 /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				6B7455A8D5EF4A2CE24BA6F2 /* Pods-Putio.debug.xcconfig */,
-				A273F236F62C981270AA634E /* Pods-Putio.release.xcconfig */,
-				D4FA3E925494F09D83976E4D /* Pods-PutioTests.release.xcconfig */,
-				BB87A77E7CBC8A2FFDF88298 /* Pods-PutioTests.debug.xcconfig */,
-			);
-			path = Pods;
-			sourceTree = "<group>";
-		};
 		F22819B1869A0C552A88BB30 /* iOS */ = {
 			isa = PBXGroup;
 			children = (
@@ -950,7 +928,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3110583E019EF88404C4EA4A /* Build configuration list for PBXNativeTarget "PutioTests" */;
 			buildPhases = (
-				7F96DF93B60CD61CECD60C6F /* [CP] Check Pods Manifest.lock */,
 				43EFF5EEB74189FAD36ED431 /* Sources */,
 				BAB612E5D594B429C5B37041 /* Frameworks */,
 				8CC9F8B2CF6613BDCCF7B37C /* Resources */,
@@ -995,14 +972,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = ACEF62FC1F9A26AA0026B25E /* Build configuration list for PBXNativeTarget "Putio" */;
 			buildPhases = (
-				BC0E8A1AA8DA2B002C7F31CA /* [CP] Check Pods Manifest.lock */,
 				ACCA91A01FB460430036F5CD /* SwiftLint */,
 				ACEF62E61F9A26AA0026B25E /* Sources */,
 				ACEF62E71F9A26AA0026B25E /* Frameworks */,
 				ACEF62E81F9A26AA0026B25E /* Resources */,
 				5D6E7F8A9B0C1D2E3F4A5B6C /* Bundle Conditional Resources */,
-				26118BC7F607871A1782580D /* [CP] Embed Pods Frameworks */,
-				454247F29E81ADB810CBAE89 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -1017,6 +991,7 @@
 				5A0F00000000000000000205 /* KeychainAccess */,
 				5A0F00000000000000000206 /* PutioSDK */,
 				5A0F00000000000000000209 /* StatefulViewController */,
+				5A0F0000000000000000020C /* GoogleCast */,
 			);
 			productName = Putio;
 			productReference = ACEF62EA1F9A26AA0026B25E /* Putio.app */;
@@ -1067,6 +1042,7 @@
 				5A0F00000000000000000105 /* XCRemoteSwiftPackageReference "KeychainAccess" */,
 				5A0F00000000000000000106 /* XCRemoteSwiftPackageReference "putio-sdk-swift" */,
 				5A0F00000000000000000107 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
+				5A0F00000000000000000109 /* XCLocalSwiftPackageReference "ThirdParty/GoogleCast" */,
 				5A0F00000000000000000108 /* XCLocalSwiftPackageReference "ThirdParty/StatefulViewController" */,
 			);
 			productRefGroup = ACEF62EB1F9A26AA0026B25E /* Products */;
@@ -1126,40 +1102,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		26118BC7F607871A1782580D /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Putio/Pods-Putio-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Putio/Pods-Putio-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Putio/Pods-Putio-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		454247F29E81ADB810CBAE89 /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Putio/Pods-Putio-resources-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Copy Pods Resources";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Putio/Pods-Putio-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Putio/Pods-Putio-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 		5D6E7F8A9B0C1D2E3F4A5B6C /* Bundle Conditional Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -1175,28 +1117,6 @@
 			shellPath = /bin/bash;
 			shellScript = "set -euo pipefail\ndest=\"$BUILT_PRODUCTS_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\n\n# --- Brand fonts -----------------------------------------------------------\n# Remove previously copied faces first so incremental builds cannot leak\n# licensed fonts into configurations that exclude them.\nrm -f \"$dest\"/gt-america-*.otf \"$dest\"/berkeley-mono-*.otf\nif [ \"${PUTIO_BUNDLE_BRAND_FONTS:-YES}\" = \"NO\" ]; then\n  echo \"Brand fonts excluded from this configuration.\"\nelse\n  # The copy glob matches the clean glob above and the runtime registration\n  # filter: font files outside the gt-america-/berkeley-mono- prefixes are never bundled.\n  shopt -s nullglob\n  fonts=(\"$SRCROOT\"/Putio/Fonts/gt-america-*.otf \"$SRCROOT\"/Putio/Fonts/berkeley-mono-*.otf)\n  if [ ${#fonts[@]} -eq 0 ]; then\n    echo \"No brand fonts present (optional); run 'mise run fonts-setup' to sync them.\"\n  else\n    mkdir -p \"$dest\"\n    cp \"${fonts[@]}\" \"$dest/\"\n    echo \"Bundled ${#fonts[@]} brand font files.\"\n  fi\nfi\n\n# --- E2E media -------------------------------------------------------------\n# Playback fixtures for the mocked e2e walk. Cleaned first for the same reason\n# as the fonts: an incremental build must not leave them in a configuration\n# that excludes them. Only Config/Verify.xcconfig opts in, so a distributed\n# build never carries them.\nrm -f \"$dest\"/big-buck-bunny.mp4\nif [ \"${PUTIO_BUNDLE_E2E_MEDIA:-NO}\" = \"YES\" ]; then\n  if [ -f \"$SRCROOT/Putio/E2EMedia/big-buck-bunny.mp4\" ]; then\n    mkdir -p \"$dest\"\n    cp \"$SRCROOT/Putio/E2EMedia/big-buck-bunny.mp4\" \"$dest/\"\n    echo \"Bundled e2e playback media.\"\n  else\n    echo \"error: PUTIO_BUNDLE_E2E_MEDIA=YES but Putio/E2EMedia/big-buck-bunny.mp4 is missing.\" >&2\n    exit 1\n  fi\nfi\n";
 		};
-		7F96DF93B60CD61CECD60C6F /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-PutioTests-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
 		ACCA91A01FB460430036F5CD /* SwiftLint */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -1211,28 +1131,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "export PATH=\"$PATH:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin\"\nif ! swiftlint=\"$(mise which swiftlint 2>/dev/null)\"; then\n  echo \"warning: SwiftLint skipped: run mise install for the pinned swiftlint\"\n  exit 0\nfi\n\"$swiftlint\"\n";
-		};
-		BC0E8A1AA8DA2B002C7F31CA /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-Putio-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -1436,7 +1334,6 @@
 /* Begin XCBuildConfiguration section */
 		2AC928AA015165B597903D24 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = D4FA3E925494F09D83976E4D /* Pods-PutioTests.release.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/Putio.app/Putio";
@@ -1447,6 +1344,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					GoogleCast,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = io.put.dev.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1461,7 +1363,6 @@
 		};
 		6E49E7DD15ED75BE666C5868 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB87A77E7CBC8A2FFDF88298 /* Pods-PutioTests.debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
 				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/Putio.app/Putio";
@@ -1472,6 +1373,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					GoogleCast,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = io.put.dev.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1655,8 +1561,6 @@
 					"-framework",
 					"\"Foundation\"",
 					"-framework",
-					"\"GoogleCast\"",
-					"-framework",
 					"\"ImageIO\"",
 					"-framework",
 					"\"MediaAccessibility\"",
@@ -1666,8 +1570,6 @@
 					"\"MobileCoreServices\"",
 					"-framework",
 					"\"Photos\"",
-					"-framework",
-					"\"Protobuf\"",
 					"-framework",
 					"\"QuartzCore\"",
 					"-framework",
@@ -1729,8 +1631,6 @@
 					"-framework",
 					"\"Foundation\"",
 					"-framework",
-					"\"GoogleCast\"",
-					"-framework",
 					"\"ImageIO\"",
 					"-framework",
 					"\"MediaAccessibility\"",
@@ -1740,8 +1640,6 @@
 					"\"MobileCoreServices\"",
 					"-framework",
 					"\"Photos\"",
-					"-framework",
-					"\"Protobuf\"",
 					"-framework",
 					"\"QuartzCore\"",
 					"-framework",
@@ -1822,6 +1720,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		5A0F00000000000000000109 /* XCLocalSwiftPackageReference "ThirdParty/GoogleCast" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ThirdParty/GoogleCast;
+		};
 		5A0F00000000000000000108 /* XCLocalSwiftPackageReference "ThirdParty/StatefulViewController" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ThirdParty/StatefulViewController;
@@ -1941,6 +1843,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 5A0F00000000000000000104 /* XCRemoteSwiftPackageReference "realm-swift" */;
 			productName = RealmSwift;
+		};
+		5A0F0000000000000000020C /* GoogleCast */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5A0F00000000000000000109 /* XCLocalSwiftPackageReference "ThirdParty/GoogleCast" */;
+			productName = GoogleCast;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

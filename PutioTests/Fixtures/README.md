@@ -28,8 +28,8 @@ against this file.
 2. Apply the build-only patches there:
    - In the `Podfile`, point SwiftGifOrigin at the mirror (the original repo is
      gone): `pod 'SwiftGifOrigin', :git => 'https://github.com/Expensify/SwiftGif.git', :tag => 'v1.6.1'`.
-   - Run `pod install` with this repository's bundle:
-     `BUNDLE_GEMFILE=<this checkout>/Gemfile bundle exec pod install`.
+   - Run `pod install` with CocoaPods 1.17
+     (`gem install cocoapods -v '~> 1.17.0'`).
    - Add `#include <exception>` at the top of
      `Pods/Sentry/Sources/SentryCrash/Recording/Monitors/SentryCrashMonitor_CPPException.cpp`.
 3. In `AppDelegate.application(_:didFinishLaunchingWithOptions:)`, right after

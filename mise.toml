@@ -23,16 +23,13 @@ run = "./scripts/doctor.sh"
 description = "Install every dependency and the pre-push hook"
 depends = ["doctor"]
 run = [
-    "bundle config set --local path vendor/bundle",
-    "bundle install",
-    "bundle exec pod install",
     "xcodebuild -resolvePackageDependencies -workspace Putio.xcworkspace -scheme Putio -onlyUsePackageVersionsFromResolvedFile -quiet",
     "pnpm install --frozen-lockfile",
     "git config core.hooksPath .githooks",
 ]
 
 [tasks.bootstrap-ci]
-description = "Install Ruby gems, Pods and Swift packages only (CI)"
+description = "Install SwiftLint and Swift packages only (CI)"
 run = "./scripts/bootstrap-ci.sh"
 
 [tasks.icons-sync]
@@ -64,7 +61,7 @@ description = "Regenerate About > Libraries from the shipped libraries' licenses
 run = "ruby scripts/sync-acknowledgements.rb"
 
 [tasks.verify-acknowledgements]
-description = "Check About > Libraries against Package.resolved and Podfile.lock"
+description = "Check About > Libraries against Package.resolved"
 run = "ruby scripts/sync-acknowledgements.rb --check"
 
 [tasks.lint]

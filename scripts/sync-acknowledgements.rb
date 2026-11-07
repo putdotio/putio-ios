@@ -16,7 +16,6 @@ require "json"
 class AcknowledgementsSync
   ROOT = File.expand_path("..", __dir__)
   RESOLVED_PATH = File.join(ROOT, "Putio.xcworkspace", "xcshareddata", "swiftpm", "Package.resolved")
-  PODFILE_LOCK_PATH = File.join(ROOT, "Podfile.lock")
   PLIST_PATH = File.join(ROOT, "Putio", "Features", "Settings", "About", "Acknowledgements.plist")
 
   APP_PACKAGES = {
@@ -35,10 +34,8 @@ class AcknowledgementsSync
     "StatefulViewController" => "ThirdParty/StatefulViewController/LICENSE",
   }.freeze
 
-  PODS = {
-    "google-cast-sdk" => ["Google Cast SDK", { text: "https://developers.google.com/terms/" }],
-    "Protobuf" => ["Protobuf", { path: "Pods/Protobuf/LICENSE" }],
-  }.freeze
+  CAST_PACKAGE = File.join(ROOT, "ThirdParty", "GoogleCast", "Package.swift")
+  CAST_TERMS = ["Google Cast SDK", "https://developers.google.com/terms/"].freeze
 
   LICENSE_NAMES = %w[LICENSE LICENSE.md LICENSE.txt LICENCE].freeze
 
@@ -47,7 +44,7 @@ class AcknowledgementsSync
   end
 
   def run
-    entries = package_entries + local_entries + pod_entries
+    entries = package_entries + local_entries + cast_entries
     entries.sort_by! { |title, _| title.downcase }
     plist = render(entries)
     if @check_only
@@ -89,6 +86,29 @@ class AcknowledgementsSync
     checkout || fail!("no checkout of #{name} at #{revision[0, 7]}; resolve packages first (mise run bootstrap)")
   end
 
+  def cast_entries
+    url = File.read(CAST_PACKAGE)[/url: "([^"]+)"/, 1] || fail!("no binary URL in #{CAST_PACKAGE}")
+    licenses = File.join(File.dirname(cast_artifact(url)), "OpenSourceLicenses")
+    text = File.binread(File.join(licenses, "oss_licenses.bin"))
+    index = IO.popen(["plutil", "-convert", "json", "-o", "-", File.join(licenses, "oss_licenses_index.plist")], &:read)
+    fail!("cannot read the Google Cast license index in #{licenses}") unless $?.success?
+
+    embedded = JSON.parse(index).map do |item|
+      license = text.byteslice(item.fetch("offset"), item.fetch("size")).force_encoding("UTF-8")
+      ["Google Cast SDK: #{item.fetch("name")}", normalize(license)]
+    end
+    [CAST_TERMS] + embedded
+  end
+
+  def cast_artifact(url)
+    artifacts = source_package_dirs.flat_map do |dir|
+      state = File.join(dir, "workspace-state.json")
+      File.file?(state) ? JSON.parse(File.read(state)).dig("object", "artifacts") || [] : []
+    end
+    artifact = artifacts.find { |candidate| candidate.dig("source", "url") == url && File.directory?(candidate.fetch("path")) }
+    artifact&.fetch("path") || fail!("no Google Cast artifact from #{url}; resolve packages first (mise run bootstrap)")
+  end
+
   def source_package_dirs
     @source_package_dirs ||= if ENV["PUTIO_SOURCE_PACKAGES"]
       [ENV.fetch("PUTIO_SOURCE_PACKAGES")]
@@ -109,17 +129,6 @@ class AcknowledgementsSync
 
   def local_entries
     LOCAL_LICENSES.map { |title, path| [title, normalize(File.read(File.join(ROOT, path)))] }
-  end
-
-  def pod_entries
-    pods = File.read(PODFILE_LOCK_PATH)[/^PODS:\n(.*?)\n\n/m, 1].scan(/^  - ([^\s(]+)/).flatten
-    unknown = pods - PODS.keys
-    fail!("add #{unknown.join(", ")} to PODS") unless unknown.empty?
-
-    pods.map do |pod|
-      title, source = PODS.fetch(pod)
-      [title, source[:text] || normalize(File.read(File.join(ROOT, source.fetch(:path))))]
-    end
   end
 
   def normalize(text)
