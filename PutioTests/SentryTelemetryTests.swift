@@ -108,9 +108,8 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertEqual(options.cacheDirectoryPath, SentryTelemetry.cacheDirectory.path)
         try cacheEnvelope()
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [RecordingURLProtocol.self]
-        // Built the way Sentry's transport builds its session.
-        let session = URLSession(configuration: configuration, delegate: options.urlSessionDelegate, delegateQueue: nil)
+        configuration.protocolClasses = [SentryTransportGate.self, RecordingURLProtocol.self]
+        let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
         func uploadReachesTheNetwork() throws -> Bool {
             let envelope = try XCTUnwrap(URL(string: "https://relay.example.invalid/api/1/envelope/?\(UUID().uuidString)"))
@@ -129,6 +128,30 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertNil(options.beforeSend?(Event(level: .error)))
         XCTAssertFalse(try uploadReachesTheNetwork(), "an upload left while diagnostics were off")
         XCTAssertFalse(FileManager.default.fileExists(atPath: SentryTelemetry.cacheDirectory.path))
+    }
+
+    func testAGatedUploadFinishesOnlyAfterItStarts() throws {
+        let previous = SentryTelemetry.isCapturing
+        addTeardownBlock { SentryTelemetry.isCapturing = previous }
+        SentryTelemetry.isCapturing = false
+        let session = URLSession(configuration: SentryTelemetry.transportConfiguration())
+        defer { session.invalidateAndCancel() }
+        let envelope = try XCTUnwrap(URL(string: "https://relay.example.invalid/api/1/envelope/?\(UUID().uuidString)"))
+        let early = expectation(description: "finished before it started")
+        early.isInverted = true
+        let finished = expectation(description: "finished")
+        let code = OSAllocatedUnfairLock<URLError.Code?>(initialState: nil)
+        let task = session.dataTask(with: URLRequest(url: envelope)) { _, _, error in
+            code.withLock { $0 = (error as? URLError)?.code }
+            early.fulfill()
+            finished.fulfill()
+        }
+
+        wait(for: [early], timeout: 0.5)
+        task.resume()
+        wait(for: [finished], timeout: 5)
+
+        XCTAssertEqual(code.withLock { $0 }, .cancelled)
     }
 
     func testColdLaunchHonoursAStoredOptOut() throws {
