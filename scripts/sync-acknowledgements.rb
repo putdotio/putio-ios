@@ -19,7 +19,6 @@ class AcknowledgementsSync
   PLIST_PATH = File.join(ROOT, "Putio", "Features", "Settings", "About", "Acknowledgements.plist")
 
   APP_PACKAGES = {
-    "gtm-session-fetcher" => "GTMSessionFetcher",
     "intercom-ios-sp" => "Intercom",
     "keychainaccess" => "KeychainAccess",
     "posthog-ios" => "PostHog",
@@ -35,9 +34,8 @@ class AcknowledgementsSync
     "StatefulViewController" => "ThirdParty/StatefulViewController/LICENSE",
   }.freeze
 
-  TERMS_PACKAGES = {
-    "google-cast-ios-sdk" => ["Google Cast SDK", "https://developers.google.com/terms/"],
-  }.freeze
+  CAST_PACKAGE = File.join(ROOT, "ThirdParty", "GoogleCast", "Package.swift")
+  CAST_TERMS = ["Google Cast SDK", "https://developers.google.com/terms/"].freeze
 
   LICENSE_NAMES = %w[LICENSE LICENSE.md LICENSE.txt LICENCE].freeze
 
@@ -46,7 +44,7 @@ class AcknowledgementsSync
   end
 
   def run
-    entries = package_entries + local_entries
+    entries = package_entries + local_entries + cast_entries
     entries.sort_by! { |title, _| title.downcase }
     plist = render(entries)
     if @check_only
@@ -68,13 +66,10 @@ class AcknowledgementsSync
 
   def package_entries
     pins = JSON.parse(File.read(RESOLVED_PATH)).fetch("pins")
-    unknown = pins.map { |pin| pin.fetch("identity") } - APP_PACKAGES.keys - TERMS_PACKAGES.keys - TEST_PACKAGES
-    fail!("classify #{unknown.join(", ")} in APP_PACKAGES, TERMS_PACKAGES or TEST_PACKAGES") unless unknown.empty?
+    unknown = pins.map { |pin| pin.fetch("identity") } - APP_PACKAGES.keys - TEST_PACKAGES
+    fail!("classify #{unknown.join(", ")} in APP_PACKAGES or TEST_PACKAGES") unless unknown.empty?
 
     pins.filter_map do |pin|
-      terms = TERMS_PACKAGES[pin.fetch("identity")]
-      next terms if terms
-
       title = APP_PACKAGES[pin.fetch("identity")]
       next unless title
 
@@ -89,6 +84,29 @@ class AcknowledgementsSync
       File.directory?(path) && git_head(path) == revision
     end
     checkout || fail!("no checkout of #{name} at #{revision[0, 7]}; resolve packages first (mise run bootstrap)")
+  end
+
+  def cast_entries
+    url = File.read(CAST_PACKAGE)[/url: "([^"]+)"/, 1] || fail!("no binary URL in #{CAST_PACKAGE}")
+    licenses = File.join(File.dirname(cast_artifact(url)), "OpenSourceLicenses")
+    text = File.binread(File.join(licenses, "oss_licenses.bin"))
+    index = IO.popen(["plutil", "-convert", "json", "-o", "-", File.join(licenses, "oss_licenses_index.plist")], &:read)
+    fail!("cannot read the Google Cast license index in #{licenses}") unless $?.success?
+
+    embedded = JSON.parse(index).map do |item|
+      license = text.byteslice(item.fetch("offset"), item.fetch("size")).force_encoding("UTF-8")
+      ["Google Cast SDK: #{item.fetch("name")}", normalize(license)]
+    end
+    [CAST_TERMS] + embedded
+  end
+
+  def cast_artifact(url)
+    artifacts = source_package_dirs.flat_map do |dir|
+      state = File.join(dir, "workspace-state.json")
+      File.file?(state) ? JSON.parse(File.read(state)).dig("object", "artifacts") || [] : []
+    end
+    artifact = artifacts.find { |candidate| candidate.dig("source", "url") == url && File.directory?(candidate.fetch("path")) }
+    artifact&.fetch("path") || fail!("no Google Cast artifact from #{url}; resolve packages first (mise run bootstrap)")
   end
 
   def source_package_dirs

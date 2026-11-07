@@ -1,5 +1,4 @@
 /.env
 /.env.local
-.bundle/config
 Config/Local.xcconfig
 Putio/Fonts/
