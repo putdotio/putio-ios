@@ -452,7 +452,7 @@ class PhosphorIconSync {
   }
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   const args = process.argv.slice(2);
   try {
     if (args.length === 0) {

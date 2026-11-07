@@ -182,7 +182,7 @@ async function verify(): Promise<void> {
 
 // store-images.ts imports computeLock from here; without this guard its own
 // `--check` would arrive as argv[2] and be rejected as an unknown command.
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   const command = process.argv[2];
 
   if (command === "verify") {

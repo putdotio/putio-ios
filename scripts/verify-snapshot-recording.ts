@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import process from "node:process";
-import { fileURLToPath } from "node:url";
 
 const ACCEPTED = /Record mode is on|No reference was found on disk/;
 
@@ -75,7 +73,7 @@ export function verifyRecording(payload: unknown): Verdict {
   return { ok: true };
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   const verdict = verifyRecording(JSON.parse(readFileSync(0, "utf8")));
   if (!verdict.ok) {
     for (const message of verdict.messages) console.error(message);

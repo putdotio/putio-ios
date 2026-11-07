@@ -167,7 +167,7 @@ function main(checkOnly: boolean): number {
   return 0;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   try {
     process.exitCode = main(process.argv.slice(2).includes("--check"));
   } catch (error) {
