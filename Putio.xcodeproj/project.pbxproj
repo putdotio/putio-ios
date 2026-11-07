@@ -10,7 +10,6 @@
 		5A0F0000000000000000030A /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F0000000000000000020A /* Sentry-Dynamic */; };
 		5A0F0000000000000000030B /* RealmSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F0000000000000000020B /* RealmSwift */; };
 		5A0F0000000000000000030C /* GoogleCastDynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F0000000000000000020C /* GoogleCastDynamic */; };
-		5A0F0000000000000000030D /* GoogleCastDynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F0000000000000000020D /* GoogleCastDynamic */; };
 		5A0F00000000000000000406 /* AcknowledgementsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A0F00000000000000000405 /* AcknowledgementsTests.swift */; };
 		5A0F00000000000000000301 /* Sentry-Dynamic in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F00000000000000000201 /* Sentry-Dynamic */; };
 		5A0F00000000000000000302 /* Intercom in Frameworks */ = {isa = PBXBuildFile; productRef = 5A0F00000000000000000202 /* Intercom */; };
@@ -444,7 +443,6 @@
 			files = (
 				5A0F0000000000000000030A /* Sentry-Dynamic in Frameworks */,
 				5A0F0000000000000000030B /* RealmSwift in Frameworks */,
-				5A0F0000000000000000030D /* GoogleCastDynamic in Frameworks */,
 				5A0F00000000000000000307 /* SnapshotTesting in Frameworks */,
 				4F3388A6DA2720DACF20446B /* Foundation.framework in Frameworks */,
 			);
@@ -943,7 +941,6 @@
 			packageProductDependencies = (
 				5A0F0000000000000000020A /* Sentry-Dynamic */,
 				5A0F0000000000000000020B /* RealmSwift */,
-				5A0F0000000000000000020D /* GoogleCastDynamic */,
 				5A0F00000000000000000207 /* SnapshotTesting */,
 			);
 			productName = PutioTests;
@@ -1348,6 +1345,11 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					GoogleCast,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = io.put.dev.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -1371,6 +1373,11 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					GoogleCast,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = io.put.dev.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1842,11 +1849,6 @@
 			productName = RealmSwift;
 		};
 		5A0F0000000000000000020C /* GoogleCastDynamic */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 5A0F00000000000000000109 /* XCRemoteSwiftPackageReference "google-cast-ios-sdk" */;
-			productName = GoogleCastDynamic;
-		};
-		5A0F0000000000000000020D /* GoogleCastDynamic */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 5A0F00000000000000000109 /* XCRemoteSwiftPackageReference "google-cast-ios-sdk" */;
 			productName = GoogleCastDynamic;
