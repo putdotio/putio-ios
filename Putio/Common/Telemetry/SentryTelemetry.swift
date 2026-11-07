@@ -190,8 +190,13 @@ enum SentryTelemetry {
         return deleted
     }
 
-    /// The SDK holds its session delegate weakly.
-    private static let transportGate = SentryTransportGate()
+    static func transportConfiguration() -> URLSessionConfiguration {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [SentryTransportGate.self] + (configuration.protocolClasses ?? [])
+        return configuration
+    }
+
+    private static let transportSession = URLSession(configuration: transportConfiguration())
 
     /// The account's last known `diagnostics_enabled`, kept so a cold launch
     /// honours an opt-out before the account loads. Missing, as when signed out,
@@ -250,7 +255,7 @@ enum SentryTelemetry {
         options.enableAutoSessionTracking = true
         options.sessionTrackingIntervalMillis = 60000
         options.cacheDirectoryPath = cacheDirectory.path
-        options.urlSessionDelegate = transportGate
+        options.urlSession = transportSession
         options.maxBreadcrumbs = 30
         options.beforeBreadcrumb = { isCapturing ? allowlisted($0) : nil }
         options.enableCaptureFailedRequests = false
@@ -516,8 +521,14 @@ enum SentryTelemetry {
     }
 }
 
-final class SentryTransportGate: NSObject, URLSessionTaskDelegate {
-    func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask) {
-        if !SentryTelemetry.isCapturing { task.cancel() }
+final class SentryTransportGate: URLProtocol {
+    override static func canInit(with request: URLRequest) -> Bool { !SentryTelemetry.isCapturing }
+
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        client?.urlProtocol(self, didFailWithError: URLError(.cancelled))
     }
+
+    override func stopLoading() {}
 }
