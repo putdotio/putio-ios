@@ -4,19 +4,14 @@
 # either, and a trust prompt before `mise run verify` works on a fresh clone is
 # not worth the two literals it would save.
 #
-# Keep [tools] first — `ruby/setup-ruby` reads the first `ruby = "…"` line in
-# this file without caring which table it is in.
 [tools]
-ruby = "4.0.9"
-# CI installs Ruby via ruby/setup-ruby instead: mise would compile it from
-# source on macOS. mise owns the pin, setup-ruby owns the install.
 node = "24.22.2"
 periphery = "3.8.0"
 sentry-cli = "3.8.2"
 swiftlint = "0.65.1"
 
 [tasks.doctor]
-description = "Check Ruby, Node, pnpm and Xcode against this repo's pins"
+description = "Check Node, pnpm and Xcode against this repo's pins"
 run = "./scripts/doctor.sh"
 
 [tasks.bootstrap]
@@ -29,40 +24,40 @@ run = [
 ]
 
 [tasks.bootstrap-ci]
-description = "Install SwiftLint and Swift packages only (CI)"
+description = "Install SwiftLint, Node and Swift packages only (CI)"
 run = "./scripts/bootstrap-ci.sh"
 
 [tasks.icons-sync]
 description = "Regenerate the pinned Phosphor icon assets"
-run = "ruby scripts/sync-phosphor-icons.rb"
+run = "node scripts/sync-phosphor-icons.ts"
 
 [tasks.verify-icons]
 description = "Check the Phosphor icon assets are in sync"
-run = "ruby scripts/sync-phosphor-icons.rb --check"
+run = "node scripts/sync-phosphor-icons.ts --check"
 
 [tasks.tokens-sync]
 description = "Regenerate the design tokens from Config/DesignTokens.json"
-run = "ruby scripts/sync-design-tokens.rb"
+run = "node scripts/sync-design-tokens.ts"
 
 [tasks.verify-tokens]
 description = "Check the generated design tokens are in sync"
-run = "ruby scripts/sync-design-tokens.rb --check"
+run = "node scripts/sync-design-tokens.ts --check"
 
 [tasks.type-scale-sync]
 description = "Regenerate BrandTypography.swift from Config/TypeScale.json"
-run = "ruby scripts/sync-type-scale.rb"
+run = "node scripts/sync-type-scale.ts"
 
 [tasks.verify-type-scale]
 description = "Check BrandTypography.swift is in sync"
-run = "ruby scripts/sync-type-scale.rb --check"
+run = "node scripts/sync-type-scale.ts --check"
 
 [tasks.acknowledgements-sync]
 description = "Regenerate About > Libraries from the shipped libraries' licenses"
-run = "ruby scripts/sync-acknowledgements.rb"
+run = "node scripts/sync-acknowledgements.ts"
 
 [tasks.verify-acknowledgements]
 description = "Check About > Libraries against Package.resolved"
-run = "ruby scripts/sync-acknowledgements.rb --check"
+run = "node scripts/sync-acknowledgements.ts --check"
 
 [tasks.lint]
 description = "Lint the app's Swift with the pinned SwiftLint"
@@ -70,11 +65,11 @@ run = "swiftlint lint --quiet"
 
 [tasks.fonts-setup]
 description = "Download the licensed brand fonts into Putio/Fonts"
-run = "ruby scripts/sync-brand-fonts.rb"
+run = "node scripts/sync-brand-fonts.ts"
 
 [tasks.verify-fonts]
 description = "Verify Putio/Fonts against Config/BrandFonts.json"
-run = "ruby scripts/sync-brand-fonts.rb --check"
+run = "node scripts/sync-brand-fonts.ts --check"
 
 [tasks.verify-fast]
 description = "Sub-second gate: generated assets, strings, workspace sanity"

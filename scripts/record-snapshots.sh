@@ -145,7 +145,7 @@ fi
 # Baselines are recorded with the licensed faces bundled, and a scoped screens
 # run never reaches BrandFontTests — so nothing else would stop it writing a set
 # of system-font captures that then become the committed reference.
-ruby scripts/sync-brand-fonts.rb --check >/dev/null 2>&1 \
+node scripts/sync-brand-fonts.ts --check >/dev/null 2>&1 \
     || fatal "brand fonts are missing or do not match Config/BrandFonts.json. Run mise run fonts-setup before recording."
 
 # One simulator for every tier in this run. The ephemeral script pins the status
@@ -208,7 +208,7 @@ run_tier() {
 
     # Recording is expected to fail: SnapshotTesting reports every rewritten
     # baseline as a failure so a record run can never be mistaken for a passing
-    # one. verify-snapshot-recording.rb is what distinguishes that from a real
+    # one. verify-snapshot-recording.ts is what distinguishes that from a real
     # failure, so the exit status here is deliberately not checked.
     echo "== $tier: recording${only:+ ($only)}"
     # Written before the pass so `find ! -newer` can separate the baselines this
@@ -221,7 +221,7 @@ run_tier() {
 
     [ -d "$bundle" ] || fatal "$tier produced no result bundle; the run failed before testing."
 
-    xcrun xcresulttool get test-results tests --path "$bundle" | ruby scripts/verify-snapshot-recording.rb \
+    xcrun xcresulttool get test-results tests --path "$bundle" | node scripts/verify-snapshot-recording.ts \
         || fatal "$tier had failures beyond record-mode snapshot assertions; baselines may be incomplete."
 
     # xcodebuild exits 0 for a -only-testing: identifier that matches nothing, so

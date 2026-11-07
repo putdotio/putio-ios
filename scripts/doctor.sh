@@ -18,10 +18,7 @@ status=0
 # Reads one pin out of mise.toml's [tools] table, scoped to that table so a task
 # or setting sharing a tool's name cannot answer in its place.
 #
-# Accepts either TOML quote style and any spacing around the `=`, matching what
-# ruby/setup-ruby's own parser accepts. The two read the same file, so a form one
-# understands and the other does not would put CI on a version doctor calls
-# missing.
+# Accepts either TOML quote style and any spacing around the `=`.
 mise_tool_version() {
   awk -v tool="$1" -v q="\"'" '
     /^[[:space:]]*\[/ { in_tools = ($0 ~ /^[[:space:]]*\[tools\][[:space:]]*(#.*)?$/); next }
@@ -60,7 +57,6 @@ check_tool() {
   fi
 }
 
-check_tool ruby "$(ruby -e 'print RUBY_VERSION' 2>/dev/null || echo "missing")"
 check_tool node "$(node -e 'process.stdout.write(process.versions.node)' 2>/dev/null || echo "missing")"
 
 # pnpm ships via corepack, which is bundled with node, so package.json's

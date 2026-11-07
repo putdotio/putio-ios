@@ -18,8 +18,7 @@ concurrency:
   group: e2e-simulator-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
-# mise must never install a tool here: it would compile Ruby from source.
-# ruby/setup-ruby provides the prebuilt one each job runs against.
+# Each job installs the tools it needs by name; mise run must not fetch the rest.
 env:
   MISE_AUTO_INSTALL: "false"
 
@@ -40,14 +39,6 @@ jobs:
         with:
           xcode-version: "27"
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1
-        with:
-          ruby-version: mise.toml
-
-      # Task runner only. install: false and MISE_AUTO_INSTALL keep mise from
-      # building its own Ruby from source; the prebuilt one above is what tasks
-      # run against.
       - name: Install mise
         uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
         with:
