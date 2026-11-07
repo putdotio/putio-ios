@@ -233,7 +233,12 @@ final class ErrorPresentationTests: XCTestCase {
         InternalFailurePresenter.log("Unable to bookmark /Documents/Synthetic.Feature.Title.2001.mkv")
 
         let predicate = NSPredicate(format: "subsystem == %@ AND category == %@", Bundle.main.bundleIdentifier ?? "", "app")
-        let entries = try store.getEntries(at: start, matching: predicate).compactMap { $0 as? OSLogEntryLog }
+        let entries: [OSLogEntryLog]
+        do {
+            entries = try store.getEntries(at: start, matching: predicate).compactMap { $0 as? OSLogEntryLog }
+        } catch let error as NSError where error.domain == "Foundation._GenericObjCError" {
+            throw XCTSkip("This simulator host cannot read the unified log")
+        }
         // The simulator shows private values, so the entry can be found by its
         // text, and privacy is checked by the marker a device redacts by.
         let entry = try XCTUnwrap(entries.last { $0.composedMessage.contains("Synthetic.Feature.Title") })
