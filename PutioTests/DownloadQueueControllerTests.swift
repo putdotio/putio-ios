@@ -143,40 +143,46 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
     }
 
     func testStartWaitsForEveryAccountChangeDelete() {
-        var pendingDeletes = [Int: (Bool) -> Void]()
         var pendingRemovals = [Int: (Bool) -> Void]()
         let controller = DownloadQueueController(
-            deleteDownload: { id, _, completion in pendingDeletes[id] = completion },
             removeDownloadAndLocalFile: { id, _, completion in pendingRemovals[id] = completion }
         )
 
         controller.clearDownloadsForAccountChange()
         controller.start()
 
-        XCTAssertEqual(Set(pendingDeletes.keys), [401, 402])
+        XCTAssertEqual(Set(pendingRemovals.keys), [401, 402])
         XCTAssertFalse(controller.isEnabled)
-        pendingDeletes[401]?(true)
+        pendingRemovals[401]?(true)
         XCTAssertFalse(controller.isEnabled)
-        pendingDeletes[402]?(false)
-        XCTAssertEqual(Set(pendingRemovals.keys), [402])
-        XCTAssertFalse(controller.isEnabled)
-        pendingRemovals[402]?(true)
+        pendingRemovals[402]?(false)
         XCTAssertTrue(controller.isEnabled)
     }
 
-    func testPauseDuringAccountChangeKeepsTheQueueStopped() {
-        var pendingDeletes = [(Bool) -> Void]()
+    func testAccountChangeHidesOldDownloadsBeforeTheirFilesAreDeleted() {
+        var pendingRemovals = [(Bool) -> Void]()
         let controller = DownloadQueueController(
-            deleteDownload: { _, _, completion in pendingDeletes.append(completion) },
-            removeDownloadAndLocalFile: { _, _, completion in completion(true) }
+            removeDownloadAndLocalFile: { _, _, completion in pendingRemovals.append(completion) }
+        )
+
+        controller.clearDownloadsForAccountChange()
+
+        XCTAssertEqual(pendingRemovals.count, 2)
+        XCTAssertTrue(realm.objects(Download.self).isEmpty)
+    }
+
+    func testPauseDuringAccountChangeKeepsTheQueueStopped() {
+        var pendingRemovals = [(Bool) -> Void]()
+        let controller = DownloadQueueController(
+            removeDownloadAndLocalFile: { _, _, completion in pendingRemovals.append(completion) }
         )
 
         controller.clearDownloadsForAccountChange()
         controller.start()
         controller.pause()
-        pendingDeletes.forEach { $0(true) }
+        pendingRemovals.forEach { $0(true) }
 
-        XCTAssertEqual(pendingDeletes.count, 2)
+        XCTAssertEqual(pendingRemovals.count, 2)
         XCTAssertFalse(controller.isEnabled)
     }
 }

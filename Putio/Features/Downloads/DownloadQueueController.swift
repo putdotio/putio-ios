@@ -88,16 +88,9 @@ final class DownloadQueueController {
     private(set) var isEnabled = false
     private var pendingAccountChangeDeletes = 0
     private var startsAfterAccountChange = false
-    private let deleteDownload: DownloadOperation
     private let removeDownloadAndLocalFile: DownloadOperation
 
     init(
-        deleteDownload: @escaping DownloadOperation = { id, fileType, completion in
-            switch fileType {
-            case .audio: AudioDownloadManager.sharedInstance.deleteDownload(id: id, completion: completion)
-            case .video: VideoDownloadManager.sharedInstance.deleteDownload(id: id, completion: completion)
-            }
-        },
         removeDownloadAndLocalFile: @escaping DownloadOperation = { id, fileType, completion in
             switch fileType {
             case .audio: AudioDownloadManager.sharedInstance.removeDownloadAndLocalFile(id: id, completion: completion)
@@ -105,7 +98,6 @@ final class DownloadQueueController {
             }
         }
     ) {
-        self.deleteDownload = deleteDownload
         self.removeDownloadAndLocalFile = removeDownloadAndLocalFile
     }
 
@@ -159,14 +151,20 @@ final class DownloadQueueController {
         onMain {
             self.isEnabled = false
             guard let realm = DownloadSupport.realm(context: "DownloadQueueController.accountChange") else { return }
-            let downloads = realm.objects(Download.self).map { ($0.id, $0.fileType) }
+            let downloads = Array(realm.objects(Download.self).map { ($0.id, $0.fileType) })
+            downloads.forEach { id, fileType in
+                switch fileType {
+                case .audio: AudioDownloadManager.sharedInstance.discardDownload(id: id)
+                case .video: VideoDownloadManager.sharedInstance.discardDownload(id: id)
+                }
+            }
+            DownloadSupport.write(realm, context: "DownloadQueueController.accountChange.write") {
+                realm.delete(realm.objects(Download.self))
+            }
             self.pendingAccountChangeDeletes += downloads.count
             downloads.forEach { id, fileType in
-                self.deleteDownload(id, fileType) { didDelete in
-                    guard !didDelete else { return self.onMain { self.accountChangeDeleteDidFinish() } }
-                    self.removeDownloadAndLocalFile(id, fileType) { _ in
-                        self.onMain { self.accountChangeDeleteDidFinish() }
-                    }
+                self.removeDownloadAndLocalFile(id, fileType) { _ in
+                    self.onMain { self.accountChangeDeleteDidFinish() }
                 }
             }
         }
