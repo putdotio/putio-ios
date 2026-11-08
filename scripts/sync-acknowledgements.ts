@@ -18,6 +18,7 @@ const RESOLVED_PATH = join(ROOT, "Putio.xcworkspace", "xcshareddata", "swiftpm",
 const PLIST_PATH = join(ROOT, "Putio", "Features", "Settings", "About", "Acknowledgements.plist");
 
 const APP_PACKAGES: Readonly<Record<string, string>> = {
+  "gtm-session-fetcher": "GTMSessionFetcher",
   "intercom-ios-sp": "Intercom",
   keychainaccess: "KeychainAccess",
   "posthog-ios": "PostHog",
@@ -33,7 +34,7 @@ const LOCAL_LICENSES: Readonly<Record<string, string>> = {
   StatefulViewController: "ThirdParty/StatefulViewController/LICENSE",
 };
 
-const CAST_PACKAGE = join(ROOT, "ThirdParty", "GoogleCast", "Package.swift");
+const CAST_PACKAGE = "google-cast-ios-sdk";
 const CAST_TERMS: Entry = ["Google Cast SDK", "https://developers.google.com/terms/"];
 
 const LICENSE_NAMES = ["LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE"];
@@ -137,11 +138,12 @@ function checkoutFor(pin: Pin): string {
 
 function packageEntries(): Entry[] {
   const pins = required((JSON.parse(readFileSync(RESOLVED_PATH, "utf8")) as { pins?: Pin[] }).pins, "pins");
-  const known = new Set([...Object.keys(APP_PACKAGES), ...TEST_PACKAGES]);
+  const known = new Set([...Object.keys(APP_PACKAGES), CAST_PACKAGE, ...TEST_PACKAGES]);
   const unknown = pins.map((pin) => required(pin.identity, "identity")).filter((identity) => !known.has(identity));
   if (unknown.length > 0) fail(`classify ${unknown.join(", ")} in APP_PACKAGES or TEST_PACKAGES`);
 
   return pins.flatMap((pin): Entry[] => {
+    if (pin.identity === CAST_PACKAGE) return castEntries(pin);
     const title = Object.hasOwn(APP_PACKAGES, pin.identity) ? APP_PACKAGES[pin.identity] : undefined;
     if (!title) return [];
     return [[title, licenseIn(checkoutFor(pin))]];
@@ -163,8 +165,11 @@ function castArtifact(url: string): string {
   return artifact?.path ?? fail(`no Google Cast artifact from ${url}; resolve packages first (mise run bootstrap)`);
 }
 
-function castEntries(): Entry[] {
-  const url = /url: "([^"]+)"/.exec(readFileSync(CAST_PACKAGE, "utf8"))?.[1] ?? fail(`no binary URL in ${CAST_PACKAGE}`);
+function castEntries(pin: Pin): Entry[] {
+  const manifest = join(checkoutFor(pin), "Package.swift");
+  const url =
+    /name: "GoogleCastDynamicBinary",\s*url: "([^"]+)"/.exec(readFileSync(manifest, "utf8"))?.[1] ??
+    fail(`no GoogleCastDynamicBinary URL in ${manifest}`);
   const licenses = join(dirname(castArtifact(url)), "OpenSourceLicenses");
   const text = readFileSync(join(licenses, "oss_licenses.bin"));
   const index = spawnSync("plutil", ["-convert", "json", "-o", "-", join(licenses, "oss_licenses_index.plist")], {
@@ -184,7 +189,7 @@ function castEntries(): Entry[] {
 
 export function main(argv: readonly string[]): void {
   const checkOnly = argv.includes("--check");
-  const entries = sortEntries([...packageEntries(), ...localEntries(), ...castEntries()]);
+  const entries = sortEntries([...packageEntries(), ...localEntries()]);
   const plist = render(entries);
   if (checkOnly) {
     const current = existsSync(PLIST_PATH) ? readFileSync(PLIST_PATH) : Buffer.alloc(0);

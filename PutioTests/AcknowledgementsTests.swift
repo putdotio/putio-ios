@@ -6,7 +6,7 @@ final class AcknowledgementsTests: XCTestCase {
         let acknowledgements = Acknowledgement.bundled()
         let titles = Set(acknowledgements.map(\.title))
 
-        XCTAssertTrue(titles.isSuperset(of: ["Google Cast SDK", "Intercom", "PostHog", "RealmSwift", "Sentry", "StatefulViewController"]), "\(titles)")
+        XCTAssertTrue(titles.isSuperset(of: ["Google Cast SDK", "GTMSessionFetcher", "Intercom", "PostHog", "RealmSwift", "Sentry", "StatefulViewController"]), "\(titles)")
         XCTAssertFalse(acknowledgements.contains { $0.license.isEmpty })
     }
 }
