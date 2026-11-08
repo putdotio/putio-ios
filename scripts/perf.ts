@@ -6,12 +6,11 @@
 //
 // The build keeps DEBUG, which the mocked API needs, but compiles with release
 // optimization into its own DerivedData, so verify's cache is untouched.
-// Without --simulator it creates an ephemeral simulator and deletes it on exit;
-// pass one UDID for a whole before/after series so both sides share a device.
+// Without --simulator it creates an ephemeral simulator and deletes it on exit.
 //
 // Usage:
 //   mise run perf
-//   mise run perf -- --iterations 5 --only testLaunchToFiles,testSelectAll
+//   mise run perf -- --iterations 5 --only testLaunchToFiles,testOpenLargePDF
 //   mise run perf -- --simulator <udid> --label before
 //   mise run perf -- --latency-ms 300
 //
@@ -46,7 +45,7 @@ interface Options {
 function parseOptions(): Options {
   const { values } = parseArgs({
     options: {
-      iterations: { type: "string", default: "10" },
+      iterations: { type: "string", default: "3" },
       "latency-ms": { type: "string", default: "0" },
       simulator: { type: "string" },
       only: { type: "string" },

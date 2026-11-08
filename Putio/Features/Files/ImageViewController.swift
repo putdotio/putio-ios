@@ -75,6 +75,9 @@ class ImageViewController: UIViewController {
                     }
 
                     self.imageView.image = image
+                    self.imageView.isAccessibilityElement = true
+                    self.imageView.accessibilityLabel = self.file?.name
+                    self.imageView.accessibilityIdentifier = "putio-preview-content"
                     self.endOpenSignpost()
                 }
             }

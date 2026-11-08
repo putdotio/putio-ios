@@ -93,6 +93,7 @@ class PDFViewController: UIViewController {
                 self.finishLoading()
                 self.pdfView.isUserInteractionEnabled = true
                 self.pdfView.document = pdfDocument
+                self.pdfView.accessibilityIdentifier = "putio-preview-content"
                 // After the commit, which lays out the document's pages.
                 self.endOpenSignpost()
             }

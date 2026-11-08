@@ -45,7 +45,7 @@ export function summarize(tests: XcresultTest[]): SummaryRow[] {
   const rows: SummaryRow[] = [];
 
   for (const test of tests) {
-    // "PerformanceUITests/testLaunch()" reads as "testLaunch".
+    // "PerformanceUITests/testLaunchToFiles()" reads as "testLaunchToFiles".
     const name = test.testIdentifier.replace(/^.*\//, "").replace(/\(\)$/, "");
 
     for (const run of test.testRuns) {

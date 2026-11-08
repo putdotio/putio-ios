@@ -12,10 +12,6 @@ class FilesViewController: UIViewController, StatefulViewController, FilePresent
     var chromecastButton: GCKUICastButton?
     var navigationActionsBarButtonItem: UIBarButtonItem?
     var editingToolbar: UIToolbar?
-    #if DEBUG
-    // periphery:ignore - held for its init/deinit side effects
-    private let perfProbeToken = PutioE2EPerfProbe.FilesControllerToken()
-    #endif
 
     lazy var downloads: Results<Download>? = {
         guard let realm = PutioRealm.open(context: "FilesViewController.downloads") else {
