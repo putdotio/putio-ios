@@ -200,6 +200,102 @@ final class DownloadArtifactTests: XCTestCase {
     }
 }
 
+final class AudioDownloadManagerTests: XCTestCase {
+    private var originalConfiguration: Realm.Configuration!
+    private var realm: Realm!
+    private var session: URLSession!
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        originalConfiguration = Realm.Configuration.defaultConfiguration
+        Realm.Configuration.defaultConfiguration = Realm.Configuration(inMemoryIdentifier: name)
+        realm = try Realm()
+        session = URLSession(configuration: .ephemeral)
+    }
+
+    override func tearDown() {
+        session.invalidateAndCancel()
+        session = nil
+        realm = nil
+        Realm.Configuration.defaultConfiguration = originalConfiguration
+        super.tearDown()
+    }
+
+    func testRestoreKeepsRunningSuspendedAndFinishedTasks() {
+        XCTAssertTrue(AudioDownloadManager.canRestore(.running))
+        XCTAssertTrue(AudioDownloadManager.canRestore(.suspended))
+        XCTAssertTrue(AudioDownloadManager.canRestore(.completed))
+        XCTAssertFalse(AudioDownloadManager.canRestore(.canceling))
+    }
+
+    func testUnmappedFinishedTaskCompletesItsActiveDownload() throws {
+        let id = 9_005_381
+        try addDownload(id: id, state: .active)
+        let task = try makeTask(id: id)
+        let location = try makeFinishedFile()
+        let manager = AudioDownloadManager.sharedInstance
+
+        manager.urlSession(session, downloadTask: task, didFinishDownloadingTo: location)
+        manager.urlSession(session, task: task, didCompleteWithError: nil)
+
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: id)?.state, .completed)
+        let savedURL = try XCTUnwrap(manager.getLocalFileURL(for: id))
+        XCTAssertEqual(try Data(contentsOf: savedURL), Data("audio".utf8))
+    }
+
+    func testUnmappedFinishedTaskWithoutActiveDownloadDeletesItsFile() throws {
+        let stoppedID = 9_005_382
+        let missingID = 9_005_383
+        try addDownload(id: stoppedID, state: .stopped)
+        let manager = AudioDownloadManager.sharedInstance
+
+        for id in [stoppedID, missingID] {
+            let task = try makeTask(id: id)
+            let location = try makeFinishedFile()
+
+            manager.urlSession(session, downloadTask: task, didFinishDownloadingTo: location)
+            manager.urlSession(session, task: task, didCompleteWithError: nil)
+
+            XCTAssertFalse(FileManager.default.fileExists(atPath: location.path))
+            XCTAssertNil(manager.getLocalFileURL(for: id))
+        }
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: stoppedID)?.state, .stopped)
+        XCTAssertNil(realm.object(ofType: Download.self, forPrimaryKey: missingID))
+    }
+
+    private func addDownload(id: Int, state: Download.State) throws {
+        let download = Download()
+        download.id = id
+        download.name = "Background Episode"
+        download.fileType = .audio
+        download.state = state
+        download.createdAt = Date()
+        try realm.write { realm.add(download) }
+    }
+
+    private func makeTask(id: Int) throws -> URLSessionDownloadTask {
+        let task = session.downloadTask(with: try XCTUnwrap(URL(string: "https://example.com/\(id).mp3")))
+        task.taskDescription = String(id)
+        addTeardownBlock {
+            if let url = AudioDownloadManager.sharedInstance.getLocalFileURL(for: id) {
+                try? FileManager.default.removeItem(at: url)
+            }
+            UserDefaults.standard.removeObject(forKey: String(id))
+        }
+        return task
+    }
+
+    private func makeFinishedFile() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("AudioDownloadManagerTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let location = directory.appendingPathComponent("download.tmp")
+        try Data("audio".utf8).write(to: location)
+        return location
+    }
+}
+
 final class BackgroundDownloadSessionEventsTests: XCTestCase {
     func testFinishBeforeRegistrationStillCompletes() {
         let identifier = "BackgroundSessionTests-\(UUID().uuidString)"
