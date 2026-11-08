@@ -23,16 +23,16 @@ enum DownloadSupport {
         case unsupportedMediaType
     }
 
-    static func realm(context: String) -> Realm? {
+    static func realm(context: PutioRealm.Context) -> Realm? {
         PutioRealm.open(context: context)
     }
 
     @discardableResult
-    static func write(_ realm: Realm, context: String, updates: () -> Void) -> Bool {
+    static func write(_ realm: Realm, context: PutioRealm.Context, updates: () -> Void) -> Bool {
         var attempt = 0
         return performWithOneRetry {
             defer { attempt += 1 }
-            let attemptContext = attempt == 0 ? context : "\(context).retry"
+            let attemptContext = attempt == 0 ? context : context.appending("retry")
             return PutioRealm.write(realm, context: attemptContext, updates: updates)
         }
     }
@@ -49,14 +49,14 @@ enum DownloadSupport {
         return true
     }
 
-    static func deleteRecord(id: Int, context: String, ifStateIs expectedState: Download.State? = nil) -> Bool {
+    static func deleteRecord(id: Int, context: PutioRealm.Context, ifStateIs expectedState: Download.State? = nil) -> Bool {
         guard let realm = realm(context: context) else { return false }
         guard realm.object(ofType: Download.self, forPrimaryKey: id) != nil else {
             return true
         }
 
         var stateMatched = true
-        let didWrite = write(realm, context: "\(context).write") {
+        let didWrite = write(realm, context: context.appending("write")) {
             guard let download = realm.object(ofType: Download.self, forPrimaryKey: id) else { return }
             stateMatched = expectedState.map { download.state == $0 } ?? true
             guard stateMatched else { return }
@@ -269,7 +269,7 @@ enum DownloadSupport {
     static func deletion(
         id: Int,
         state: Download.State?,
-        context: String,
+        context: PutioRealm.Context,
         cancelActiveDownload: @escaping () -> Void,
         deleteLocalFile: @escaping () -> LocalFileDeletionResult
     ) -> Deletion {
@@ -278,7 +278,7 @@ enum DownloadSupport {
             cancelActiveDownload: cancelActiveDownload,
             deleteLocalFile: deleteLocalFile,
             currentState: {
-                guard let realm = realm(context: "\(context).currentState") else { return .unreadable }
+                guard let realm = realm(context: context.appending("currentState")) else { return .unreadable }
                 realm.refresh()
                 return realm.object(ofType: Download.self, forPrimaryKey: id).map { .stored($0.state) } ?? .missing
             },

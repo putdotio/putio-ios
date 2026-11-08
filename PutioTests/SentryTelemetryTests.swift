@@ -377,7 +377,8 @@ final class SentryTelemetryTests: XCTestCase {
             fileURL: FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).realm"),
             readOnly: true
         )
-        let context = "SentryTelemetryTests.open.\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
+        let context = ("SentryTelemetryTests.open" as PutioRealm.Context).appending("currentState")
+        PutioRealm.reportedFailures.withLock { _ = $0.remove("realm_open:SentryTelemetryTests.open.currentState") }
 
         SentryTelemetry.isCapturing = false
         XCTAssertNil(PutioRealm.open(context: context, configuration: missing))
@@ -386,7 +387,7 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertNil(PutioRealm.open(context: context, configuration: missing))
         XCTAssertNil(PutioRealm.open(context: context, configuration: missing))
 
-        XCTAssertEqual(sent().map(\.tags), [["category": "realm_open", "context": context]])
+        XCTAssertEqual(sent().map(\.tags), [["category": "realm_open", "context": "SentryTelemetryTests.open.currentState"]])
     }
 
     func testInternalFailuresReportOncePerSiteWithAStaticContextOnly() throws {

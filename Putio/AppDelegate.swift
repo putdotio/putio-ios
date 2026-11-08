@@ -473,7 +473,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         SentryTelemetry.update(diagnosticsEnabled: nil)
     }
 
-    private func cachedUserID(context: String) -> Int? {
+    private func cachedUserID(context: PutioRealm.Context) -> Int? {
         PutioRealm.open(context: context)?.objects(User.self).first?.id
     }
 
