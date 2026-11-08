@@ -29,7 +29,7 @@
 
 ## Benchmarks
 
-- Before and after numbers for performance-sensitive changes
+- Device profiling evidence for performance-sensitive changes
 - Startup, scrolling, memory, network, or build-time impact when relevant
 - If not applicable, write `N/A`
 

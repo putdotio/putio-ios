@@ -9,6 +9,14 @@ final class FilePreviewUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    func testLargeImageOpens() {
+        assertPreviewOpens(launch(), file: largeImage, titled: "Perf fixture photo 8064x6048.jpg")
+    }
+
+    func testLargePDFOpens() {
+        assertPreviewOpens(launch(), file: document, titled: "Perf fixture document 300 pages.pdf")
+    }
+
     func testMissingPDFSaysTheFileWasDeleted() {
         let app = launch(missingRoutes: download(document))
         assertPreview(app, of: document, failsWith: deletedMessage)
@@ -45,6 +53,24 @@ final class FilePreviewUITests: XCTestCase {
 
     private func download(_ id: Int) -> String {
         "GET /v2/files/\(id)/download"
+    }
+
+    private func assertPreviewOpens(
+        _ app: XCUIApplication,
+        file id: Int,
+        titled title: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        guard app.waitForSignedInTabBar(file: file, line: line) else { return }
+        let cell = app.cells["putio-file-\(id)"]
+        XCTAssertTrue(cell.waitForExistence(timeout: 60), "large fixture root should list", file: file, line: line)
+        cell.tap()
+
+        XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 10), file: file, line: line)
+        XCTAssertTrue(app.staticTexts["Fetching File"].waitForNonExistence(timeout: 60), "the loader should hide", file: file, line: line)
+        XCTAssertTrue(app.descendants(matching: .any)["putio-preview-content"].waitForExistence(timeout: 5), "the file should show", file: file, line: line)
+        XCTAssertFalse(app.alerts.firstMatch.exists, "the preview should not report an error", file: file, line: line)
     }
 
     private func assertPreview(

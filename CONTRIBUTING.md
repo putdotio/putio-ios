@@ -109,22 +109,22 @@ run `mise run icons-sync`, and commit the image sets with
 
 ## Measure Performance
 
-`mise run perf` measures a large mocked account and prints each metric's median
-and spread:
+Profile the affected flow before and after on one physical device, with
+Instruments and an optimized build. Signposts in
+[`PerfSignpost.swift`](Putio/Common/Helpers/PerfSignpost.swift) show under
+Points of Interest and carry counts only, never ids, names, or URLs.
+
+`mise run perf` (about 4 minutes) gives early simulator feedback on a large
+mocked account: launch to files, and opening a large image and PDF.
 
 ```bash
-mise run perf                                        # 10 iterations on an ephemeral simulator
-mise run perf -- --simulator <udid> --label before   # reuse one device for a before/after series
-mise run perf -- --only testSelectAll,testOpenLargeImage --iterations 5
-mise run perf -- --latency-ms 300                    # delay every mocked response
+mise run perf                                   # 3 iterations on an ephemeral simulator
+mise run perf -- --only testOpenLargePDF --iterations 5
+mise run perf -- --latency-ms 300               # delay every mocked response
 ```
 
-- Signposts in [`PerfSignpost.swift`](Putio/Common/Helpers/PerfSignpost.swift)
-  carry counts only, never ids, names, or URLs.
-- Compare numbers only from one Mac, simulator, Xcode, and day, with nothing
-  else building or booted (`pgrep -fl xcodebuild`,
-  `xcrun simctl list devices booted`). Simulator numbers do not transfer to
-  devices.
+Simulator numbers don't transfer to devices. After release, check Sentry or the
+Xcode Organizer.
 
 ## Configuration
 

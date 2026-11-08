@@ -6,7 +6,10 @@ import { describe, test } from "node:test";
 import { median, parseMetrics, summarize } from "./perf-metrics.ts";
 
 describe("median", () => {
-  // N=10 is the default, so every median is of an even count.
+  test("takes the middle value of an odd count", () => {
+    assert.equal(median([3, 1, 2]), 2);
+  });
+
   test("averages the middle pair of an even count", () => {
     assert.equal(median([4, 1, 3, 2]), 2.5);
   });
