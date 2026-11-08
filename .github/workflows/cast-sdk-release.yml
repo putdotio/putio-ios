@@ -1,0 +1,50 @@
+name: Cast SDK Release
+
+on:
+  schedule:
+    - cron: '17 7 * * 1'
+  workflow_dispatch:
+    inputs:
+      pinned_version:
+        description: Version to compare upstream against instead of the one Package.swift pins
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: cast-sdk-release
+  cancel-in-progress: false
+
+env:
+  MISE_AUTO_INSTALL: "false"
+
+jobs:
+  check:
+    name: Alert on a newer Google Cast iOS SDK
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install mise
+        uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+        with:
+          install: false
+          cache: false
+
+      - name: Install the pinned Node
+        run: mise install node
+
+      - name: Open or update the release issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PINNED_VERSION: ${{ inputs.pinned_version }}
+        run: mise exec -- node scripts/cast-sdk-release.ts

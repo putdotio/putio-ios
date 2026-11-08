@@ -17,10 +17,11 @@ while IFS= read -r path; do
     # Prose, and the workflows that ship or publish rather than test.
     *.md | LICENSE | docs/* | .github/ISSUE_TEMPLATE/*) ;;
     .github/workflows/e2e-simulator.yml) ;;
-    # Delivery workflows. Their contract tests run in the tooling lane.
+    # Delivery and alert workflows. Their contract tests run in the tooling lane.
     .github/workflows/beta.yml | .github/workflows/release.yml | .github/workflows/screenshots.yml) tooling=true ;;
     .github/workflows/submit.yml | .github/workflows/delivery-ref.yml) tooling=true ;;
     .github/workflows/signing-check.yml) tooling=true ;;
+    .github/workflows/cast-sdk-release.yml) tooling=true ;;
     # The control plane. These decide what every lane runs — mise.toml pins Node
     # and defines the tasks, and the other two are this gate itself —
     # so a change to one has to be exercised by both lanes rather than only the
