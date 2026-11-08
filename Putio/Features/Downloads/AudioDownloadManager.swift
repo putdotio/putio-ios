@@ -41,28 +41,27 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     private func restore() {
         urlSession.getAllTasks { (tasks) in
             log.verbose("ADM: restore - task count: \(tasks.count)")
-
-            var restoredIDs = Set<Int>()
-            tasks.forEach { task in
-                guard let description = task.taskDescription,
-                      let id = Int(description),
-                      Self.canRestore(task.state, error: task.error),
-                      let download = self.getDownloadFromDatabase(id: id),
-                      download.state == .starting || download.state == .active,
-                      !restoredIDs.contains(id) else {
-                    task.cancel()
-                    return
-                }
-                if task.state == .running { task.suspend() }
-                self.withActiveDownloadsMap { $0[task] = id }
-                restoredIDs.insert(id)
-            }
-            DownloadQueueController.sharedInstance.managerDidRestore(.audio, activeIDs: restoredIDs)
+            DownloadQueueController.sharedInstance.managerDidRestore(.audio, activeIDs: self.restore(tasks))
         }
     }
 
-    static func canRestore(_ state: URLSessionTask.State, error: Error?) -> Bool {
-        state == .running || state == .suspended || (state == .completed && error == nil)
+    func restore(_ tasks: [URLSessionTask]) -> Set<Int> {
+        var restoredIDs = Set<Int>()
+        tasks.forEach { task in
+            guard let description = task.taskDescription,
+                  let id = Int(description),
+                  task.state == .running || task.state == .suspended || (task.state == .completed && task.error == nil),
+                  let download = getDownloadFromDatabase(id: id),
+                  download.state == .starting || download.state == .active,
+                  !restoredIDs.contains(id) else {
+                task.cancel()
+                return
+            }
+            if task.state == .running { task.suspend() }
+            withActiveDownloadsMap { $0[task] = id }
+            restoredIDs.insert(id)
+        }
+        return restoredIDs
     }
 
     private func downloadID(for task: URLSessionTask, error: Error? = nil) -> Int? {

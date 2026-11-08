@@ -210,7 +210,9 @@ final class AudioDownloadManagerTests: XCTestCase {
         originalConfiguration = Realm.Configuration.defaultConfiguration
         Realm.Configuration.defaultConfiguration = Realm.Configuration(inMemoryIdentifier: name)
         realm = try Realm()
-        session = URLSession(configuration: .ephemeral)
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [FinishedAudioURLProtocol.self]
+        session = URLSession(configuration: configuration)
     }
 
     override func tearDown() {
@@ -221,12 +223,29 @@ final class AudioDownloadManagerTests: XCTestCase {
         super.tearDown()
     }
 
-    func testRestoreKeepsRunningSuspendedAndCleanlyFinishedTasks() {
-        XCTAssertTrue(AudioDownloadManager.canRestore(.running, error: nil))
-        XCTAssertTrue(AudioDownloadManager.canRestore(.suspended, error: nil))
-        XCTAssertTrue(AudioDownloadManager.canRestore(.completed, error: nil))
-        XCTAssertFalse(AudioDownloadManager.canRestore(.completed, error: Self.forceQuitCancellation))
-        XCTAssertFalse(AudioDownloadManager.canRestore(.canceling, error: nil))
+    func testRestoredFinishedTaskCompletesItsActiveDownload() throws {
+        let suspendedID = 9_005_385
+        let finishedID = 9_005_386
+        let cancelledID = 9_005_387
+        for id in [suspendedID, finishedID, cancelledID] { try addDownload(id: id, state: .active) }
+        let suspended = try makeTask(id: suspendedID)
+        let finished = try makeTask(id: finishedID)
+        let cancelled = try makeTask(id: cancelledID)
+        finished.resume()
+        cancelled.cancel()
+        wait(for: [completion(of: finished), completion(of: cancelled)], timeout: 10)
+        XCTAssertNil(finished.error)
+        XCTAssertNotNil(cancelled.error)
+        let manager = AudioDownloadManager.sharedInstance
+
+        XCTAssertEqual(manager.restore([suspended, finished, cancelled]), [suspendedID, finishedID])
+
+        manager.urlSession(session, downloadTask: finished, didFinishDownloadingTo: try makeFinishedFile())
+        manager.urlSession(session, task: finished, didCompleteWithError: nil)
+
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: finishedID)?.state, .completed)
+        let savedURL = try XCTUnwrap(manager.getLocalFileURL(for: finishedID))
+        XCTAssertEqual(try Data(contentsOf: savedURL), Data("audio".utf8))
     }
 
     func testUnmappedTaskCancelledBySystemLeavesItsDownloadForRequeue() throws {
@@ -300,12 +319,23 @@ final class AudioDownloadManagerTests: XCTestCase {
         let task = session.downloadTask(with: try XCTUnwrap(URL(string: "https://example.com/\(id).mp3")))
         task.taskDescription = String(id)
         addTeardownBlock {
-            if let url = AudioDownloadManager.sharedInstance.getLocalFileURL(for: id) {
+            let manager = AudioDownloadManager.sharedInstance
+            manager.discardDownload(id: id)
+            if let url = manager.getLocalFileURL(for: id) {
                 try? FileManager.default.removeItem(at: url)
             }
             UserDefaults.standard.removeObject(forKey: String(id))
         }
         return task
+    }
+
+    private func completion(of task: URLSessionTask) -> XCTestExpectation {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in task.state == .completed },
+            object: nil
+        )
+        expectation.expectationDescription = "task \(task.taskDescription ?? "") completed"
+        return expectation
     }
 
     private func makeFinishedFile() throws -> URL {
@@ -317,6 +347,29 @@ final class AudioDownloadManagerTests: XCTestCase {
         try Data("audio".utf8).write(to: location)
         return location
     }
+}
+
+private final class FinishedAudioURLProtocol: URLProtocol {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url,
+              let response = HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "audio/mpeg"]
+              )
+        else { return }
+
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data("audio".utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
 }
 
 final class BackgroundDownloadSessionEventsTests: XCTestCase {
