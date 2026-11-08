@@ -84,6 +84,56 @@ final class LoginSessionTests: XCTestCase {
         XCTAssertEqual(SessionLoadFallback.after(serverError, keepsSession: true), .cachedSession)
     }
 
+    func testFailedSessionLoadKeepsTheCachedSessionOnlyForTheTokensOwner() {
+        XCTAssertTrue(keepsSession(cachedUserID: 1, tokenOwnerID: 1))
+        XCTAssertFalse(keepsSession(cachedUserID: 1, tokenOwnerID: 2))
+        XCTAssertFalse(keepsSession(cachedUserID: nil, tokenOwnerID: 2))
+    }
+
+    func testSigningInAfterTheCachedAccountSignedOutDropsItsSession() {
+        let keychain = makeKeychain()
+        keychain.setToken("token-a")
+        keychain.setTokenOwner(accountID: 1, for: "token-a")
+
+        keychain.signOut(cachedUserID: 1)
+        keychain.setToken("token-b")
+
+        XCTAssertEqual(keychain.signedOutAccountID, 1)
+        XCTAssertFalse(keepsSession(cachedUserID: 1, keychain: keychain))
+    }
+
+    func testSignOutWithoutATokenOwnerRecordsTheCachedUser() {
+        let keychain = makeKeychain()
+        keychain.setToken("token-without-owner")
+
+        keychain.signOut(cachedUserID: 1)
+        keychain.setToken("token-b")
+
+        XCTAssertEqual(keychain.signedOutAccountID, 1)
+        XCTAssertFalse(keepsSession(cachedUserID: 1, keychain: keychain))
+    }
+
+    func testSigningInAfterASignOutOn300DropsTheCachedSession() {
+        let keychain = makeKeychain()
+
+        keychain.signIn(token: "token-b", cachedUserID: 1)
+
+        XCTAssertFalse(keepsSession(cachedUserID: 1, keychain: keychain))
+    }
+
+    func testATokenFrom300WithoutAnOwnerKeepsTheCachedSession() {
+        let keychain = makeKeychain()
+        keychain.setToken("token-from-3.0.0")
+
+        XCTAssertNil(keychain.tokenOwnerID)
+        XCTAssertTrue(keepsSession(cachedUserID: 1, keychain: keychain))
+    }
+
+    func testTheRestoredSessionFrom258KeepsItsSessionWithoutACachedUser() {
+        XCTAssertTrue(SessionLoadFallback.keepsSession(cachedUserID: nil, tokenOwnerID: nil, signedOutAccountID: 1, restoresShipped258Session: true))
+        XCTAssertFalse(SessionLoadFallback.keepsSession(cachedUserID: nil, tokenOwnerID: nil, signedOutAccountID: nil, restoresShipped258Session: false))
+    }
+
     func testSupportSignInSetsTheHashBeforeLogin() {
         let messenger = SupportMessengerSpy()
 
@@ -139,6 +189,28 @@ final class LoginSessionTests: XCTestCase {
         SupportIdentity.signOut(after: .sessionExpired, messenger: messenger)
         SupportIdentity.signOut(after: nil, messenger: messenger)
         XCTAssertEqual(messenger.events, [.logout, .logout])
+    }
+
+    private func makeKeychain() -> PutioKeychain {
+        let keychain = PutioKeychain(serviceKey: "com.putio.tests.keychain.\(UUID().uuidString)", legacyServiceKey: nil)
+        addTeardownBlock {
+            keychain.clearToken()
+            keychain.clearSignedOutAccount()
+        }
+        return keychain
+    }
+
+    private func keepsSession(cachedUserID: Int?, tokenOwnerID: Int?) -> Bool {
+        SessionLoadFallback.keepsSession(cachedUserID: cachedUserID, tokenOwnerID: tokenOwnerID, signedOutAccountID: nil, restoresShipped258Session: false)
+    }
+
+    private func keepsSession(cachedUserID: Int, keychain: PutioKeychain) -> Bool {
+        SessionLoadFallback.keepsSession(
+            cachedUserID: cachedUserID,
+            tokenOwnerID: keychain.tokenOwnerID,
+            signedOutAccountID: keychain.signedOutAccountID,
+            restoresShipped258Session: false
+        )
     }
 
     private final class LoginViewControllerSpy: LoginViewController {
