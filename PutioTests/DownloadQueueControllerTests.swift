@@ -221,11 +221,28 @@ final class AudioDownloadManagerTests: XCTestCase {
         super.tearDown()
     }
 
-    func testRestoreKeepsRunningSuspendedAndFinishedTasks() {
-        XCTAssertTrue(AudioDownloadManager.canRestore(.running))
-        XCTAssertTrue(AudioDownloadManager.canRestore(.suspended))
-        XCTAssertTrue(AudioDownloadManager.canRestore(.completed))
-        XCTAssertFalse(AudioDownloadManager.canRestore(.canceling))
+    func testRestoreKeepsRunningSuspendedAndCleanlyFinishedTasks() {
+        XCTAssertTrue(AudioDownloadManager.canRestore(.running, error: nil))
+        XCTAssertTrue(AudioDownloadManager.canRestore(.suspended, error: nil))
+        XCTAssertTrue(AudioDownloadManager.canRestore(.completed, error: nil))
+        XCTAssertFalse(AudioDownloadManager.canRestore(.completed, error: Self.forceQuitCancellation))
+        XCTAssertFalse(AudioDownloadManager.canRestore(.canceling, error: nil))
+    }
+
+    func testUnmappedTaskCancelledBySystemLeavesItsDownloadForRequeue() throws {
+        let id = 9_005_384
+        try addDownload(id: id, state: .active)
+        let task = try makeTask(id: id)
+
+        AudioDownloadManager.sharedInstance.urlSession(
+            session,
+            task: task,
+            didCompleteWithError: Self.forceQuitCancellation
+        )
+
+        let download = try XCTUnwrap(realm.object(ofType: Download.self, forPrimaryKey: id))
+        XCTAssertEqual(download.state, .active)
+        XCTAssertEqual(download.message, "")
     }
 
     func testUnmappedFinishedTaskCompletesItsActiveDownload() throws {
@@ -262,6 +279,12 @@ final class AudioDownloadManagerTests: XCTestCase {
         XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: stoppedID)?.state, .stopped)
         XCTAssertNil(realm.object(ofType: Download.self, forPrimaryKey: missingID))
     }
+
+    private static let forceQuitCancellation = NSError(
+        domain: NSURLErrorDomain,
+        code: NSURLErrorCancelled,
+        userInfo: [NSURLErrorBackgroundTaskCancelledReasonKey: NSURLErrorCancelledReasonUserForceQuitApplication]
+    )
 
     private func addDownload(id: Int, state: Download.State) throws {
         let download = Download()

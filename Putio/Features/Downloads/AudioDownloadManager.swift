@@ -46,7 +46,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
             tasks.forEach { task in
                 guard let description = task.taskDescription,
                       let id = Int(description),
-                      Self.canRestore(task.state),
+                      Self.canRestore(task.state, error: task.error),
                       let download = self.getDownloadFromDatabase(id: id),
                       download.state == .starting || download.state == .active,
                       !restoredIDs.contains(id) else {
@@ -61,13 +61,14 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         }
     }
 
-    static func canRestore(_ state: URLSessionTask.State) -> Bool {
-        state == .running || state == .suspended || state == .completed
+    static func canRestore(_ state: URLSessionTask.State, error: Error?) -> Bool {
+        state == .running || state == .suspended || (state == .completed && error == nil)
     }
 
-    private func downloadID(for task: URLSessionTask) -> Int? {
+    private func downloadID(for task: URLSessionTask, error: Error? = nil) -> Int? {
         if let id = withActiveDownloadsMap({ $0[task] }) { return id }
-        guard let description = task.taskDescription,
+        guard error == nil,
+              let description = task.taskDescription,
               let id = Int(description),
               !activeDownloadIDs.contains(id),
               let download = getDownloadFromDatabase(id: id),
@@ -297,7 +298,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 
 extension AudioDownloadManager: URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        guard let id = downloadID(for: task) else { return }
+        guard let id = downloadID(for: task, error: error) else { return }
         lastProgressUpdateTime.removeValue(forKey: id)
         guard let download = getDownloadFromDatabase(id: id), let realm = download.realm else {
             artifactSaveErrors.removeValue(forKey: task)
