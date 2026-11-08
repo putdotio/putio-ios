@@ -3,7 +3,7 @@ import Intercom
 import RealmSwift
 
 class MainTabBarController: UITabBarController {
-    enum Tab: Int {
+    enum Tab: Int, CaseIterable {
         case files
         case history
         case downloads
@@ -32,6 +32,7 @@ class MainTabBarController: UITabBarController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = UIColor.Putio.Surface.appBg
+        delegate = self
         userSettings = loadUserSettings()
         configureTabBarIcons()
         configureNavigationControllers()
@@ -117,6 +118,7 @@ class MainTabBarController: UITabBarController {
     func setSelectedTab(_ tab: Tab) {
         guard let index = getTabBarItemIndex(for: tab) else { return }
         selectedIndex = index
+        SentryTelemetry.record(.tabSelected(tab))
     }
 
     func updateHistoryTabVisibility() {
@@ -140,5 +142,12 @@ class MainTabBarController: UITabBarController {
         guard let accountTab = getTabBarItem(for: .account) else { return }
         let count = Intercom.unreadConversationCount()
         accountTab.badgeValue = count > 0 ? String(count) : nil
+    }
+}
+
+extension MainTabBarController: UITabBarControllerDelegate {
+    func tabBarController(_ tabBarController: UITabBarController, didSelect viewController: UIViewController) {
+        guard let tab = Tab(rawValue: viewController.tabBarItem.tag) else { return }
+        SentryTelemetry.record(.tabSelected(tab))
     }
 }

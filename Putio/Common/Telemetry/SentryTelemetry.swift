@@ -93,6 +93,42 @@ enum SentryTelemetry {
         case succeeded, failed, cancelled
     }
 
+    enum Action: CaseIterable {
+        case tabSelected(MainTabBarController.Tab)
+
+        static var allCases: [Action] { MainTabBarController.Tab.allCases.map(Action.tabSelected) }
+
+        fileprivate var category: String {
+            switch self {
+            case .tabSelected: return "putio.tab"
+            }
+        }
+
+        fileprivate var message: String {
+            switch self {
+            case .tabSelected: return "Selected tab"
+            }
+        }
+
+        fileprivate var data: [String: String] {
+            switch self {
+            case .tabSelected(.files): return ["tab": "files"]
+            case .tabSelected(.history): return ["tab": "history"]
+            case .tabSelected(.downloads): return ["tab": "downloads"]
+            case .tabSelected(.account): return ["tab": "settings"]
+            }
+        }
+
+        fileprivate func breadcrumb(at timestamp: Date?) -> Breadcrumb {
+            let sent = Breadcrumb(level: .info, category: category)
+            sent.type = "user"
+            sent.message = message
+            sent.timestamp = timestamp
+            for (key, value) in data { sent.setData(value: value, key: key) }
+            return sent
+        }
+    }
+
     struct Timing {
         fileprivate let span: Sentry.Span?
     }
@@ -330,6 +366,10 @@ enum SentryTelemetry {
         }
     }
 
+    static func record(_ action: Action) {
+        SentrySDK.addBreadcrumb(action.breadcrumb(at: Date()))
+    }
+
     static func begin(_ interval: Interval) -> Timing {
         guard isCapturing, SentrySDK.isEnabled else { return Timing(span: nil) }
         let span = SentrySDK.startTransaction(name: interval.rawValue, operation: interval.operation)
@@ -447,7 +487,10 @@ enum SentryTelemetry {
                 kept["status_code"] = status.intValue
             }
         default:
-            return nil
+            let action = Action.allCases.first {
+                $0.category == breadcrumb.category && $0.message == breadcrumb.message && $0.data == breadcrumb.data as? [String: String]
+            }
+            return action?.breadcrumb(at: breadcrumb.timestamp)
         }
         let sent = Breadcrumb(level: breadcrumb.level, category: breadcrumb.category)
         sent.type = breadcrumb.category == "http" ? "http" : "navigation"
