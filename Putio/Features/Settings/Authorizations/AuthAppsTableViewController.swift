@@ -38,16 +38,22 @@ class AuthAppsTableViewController: UITableViewController {
     }
 
     // MARK: Swipe Actions
-    func contextualDeleteAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
+    func contextualDeleteAction(forGrantID grantID: Int) -> UIContextualAction {
         let action = UIContextualAction(
             style: .destructive,
             title: NSLocalizedString("Revoke", comment: "")
         ) { (_, _, handler) in
-            api.revokeGrant(id: self.apps[indexPath.row].id) { result in
+            api.revokeGrant(id: grantID) { result in
                 switch result {
                 case .success:
-                    self.apps.remove(at: indexPath.row)
-                    self.tableView.deleteRows(at: [indexPath], with: .automatic)
+                    let removal = AuthAppsList.removingGrant(id: grantID, from: self.apps)
+                    guard let row = removal.removedIndex else {
+                        handler(false)
+                        return
+                    }
+
+                    self.apps = removal.apps
+                    self.tableView.deleteRows(at: [IndexPath(row: row, section: 0)], with: .automatic)
                     handler(true)
 
                 case .failure(let error):
@@ -81,7 +87,7 @@ class AuthAppsTableViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        let actions = [contextualDeleteAction(forRowAtIndexPath: indexPath)]
+        let actions = [contextualDeleteAction(forGrantID: apps[indexPath.row].id)]
         return UISwipeActionsConfiguration(actions: actions)
     }
 }
