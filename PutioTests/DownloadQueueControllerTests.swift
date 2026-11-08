@@ -211,7 +211,7 @@ final class AudioDownloadManagerTests: XCTestCase {
         Realm.Configuration.defaultConfiguration = Realm.Configuration(inMemoryIdentifier: name)
         realm = try Realm()
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [FinishedAudioURLProtocol.self]
+        configuration.protocolClasses = [StubAudioURLProtocol.self]
         session = URLSession(configuration: configuration)
     }
 
@@ -350,6 +350,31 @@ final class AudioDownloadManagerTests: XCTestCase {
         XCTAssertEqual(notFound.message, "Download failed. Tap to retry.")
     }
 
+    func testUnplayableDownloadStopsAtItsFirstProgressCallback() throws {
+        let mp3ID = 9_005_404
+        let matroskaID = 9_005_405
+        for id in [mp3ID, matroskaID] { try addDownload(id: id, state: .active) }
+        let mp3 = try makeTask(id: mp3ID, contentType: "audio/mpeg", finishes: false)
+        let matroska = try makeTask(id: matroskaID, contentType: "audio/x-matroska", finishes: false)
+        let tasks = [mp3, matroska]
+        tasks.forEach { $0.resume() }
+        wait(for: tasks.map(responseArrival(of:)), timeout: 10)
+        let manager = AudioDownloadManager.sharedInstance
+        XCTAssertEqual(manager.restore(tasks), [mp3ID, matroskaID])
+
+        for task in tasks {
+            manager.urlSession(session, downloadTask: task, didWriteData: 5, totalBytesWritten: 5, totalBytesExpectedToWrite: 600_000_000)
+        }
+
+        XCTAssertEqual(mp3.state, .suspended)
+        wait(for: [completion(of: matroska)], timeout: 10)
+        XCTAssertEqual((matroska.error as? URLError)?.code, .cancelled)
+        manager.urlSession(session, task: matroska, didCompleteWithError: matroska.error)
+        let download = try XCTUnwrap(realm.object(ofType: Download.self, forPrimaryKey: matroskaID))
+        XCTAssertEqual(download.state, .failed)
+        XCTAssertEqual(download.message, "This audio format can't be played offline.")
+    }
+
     private static let forceQuitCancellation = NSError(
         domain: NSURLErrorDomain,
         code: NSURLErrorCancelled,
@@ -366,11 +391,17 @@ final class AudioDownloadManagerTests: XCTestCase {
         try realm.write { realm.add(download) }
     }
 
-    private func makeTask(id: Int, contentType: String = "audio/mpeg", statusCode: Int = 200) throws -> URLSessionDownloadTask {
+    private func makeTask(
+        id: Int,
+        contentType: String = "audio/mpeg",
+        statusCode: Int = 200,
+        finishes: Bool = true
+    ) throws -> URLSessionDownloadTask {
         var components = try XCTUnwrap(URLComponents(string: "https://example.com/\(id)"))
         components.queryItems = [
             URLQueryItem(name: "content_type", value: contentType),
-            URLQueryItem(name: "status_code", value: String(statusCode))
+            URLQueryItem(name: "status_code", value: String(statusCode)),
+            URLQueryItem(name: "finishes", value: String(finishes))
         ]
         let task = session.downloadTask(with: try XCTUnwrap(components.url))
         task.taskDescription = String(id)
@@ -394,6 +425,15 @@ final class AudioDownloadManagerTests: XCTestCase {
         return expectation
     }
 
+    private func responseArrival(of task: URLSessionTask) -> XCTestExpectation {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in task.response != nil },
+            object: nil
+        )
+        expectation.expectationDescription = "task \(task.taskDescription ?? "") received its response"
+        return expectation
+    }
+
     private func makeFinishedFile() throws -> URL {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("AudioDownloadManagerTests-\(UUID().uuidString)", isDirectory: true)
@@ -405,7 +445,7 @@ final class AudioDownloadManagerTests: XCTestCase {
     }
 }
 
-private final class FinishedAudioURLProtocol: URLProtocol {
+private final class StubAudioURLProtocol: URLProtocol {
     override class func canInit(with request: URLRequest) -> Bool { true }
 
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -425,7 +465,9 @@ private final class FinishedAudioURLProtocol: URLProtocol {
 
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data("audio".utf8))
-        client?.urlProtocolDidFinishLoading(self)
+        if query.contains(URLQueryItem(name: "finishes", value: "true")) {
+            client?.urlProtocolDidFinishLoading(self)
+        }
     }
 
     override func stopLoading() {}
