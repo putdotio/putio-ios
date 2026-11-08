@@ -3,6 +3,7 @@ import GoogleCast
 import os
 import PostHog
 @testable import PutioSDK
+import UIKit
 import XCTest
 @testable import Putio
 
@@ -362,6 +363,80 @@ final class ProductAnalyticsTests: XCTestCase {
         XCTAssertEqual((events.first?["properties"] as? [String: Any])?["entry"] as? String, "resume")
         XCTAssertEqual((events.first?["timestamp"] as? String).flatMap(toISO8601Date), consentAt)
         XCTAssertEqual((events.last?["properties"] as? [String: Any])?["session_duration"] as? String, "lt_1m")
+    }
+
+    func testARetryForTheSameAccountSendsNoSecondOpen() throws {
+        let (gate, token) = makeGate()
+        RecordingURLProtocol.holdBatches(token: token)
+        gate.capture(.appOpened(.direct))
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        _ = try waitForEvents(token: token, count: 1)
+
+        gate.signOut(after: .sessionLoad)
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        gate.capture(.appBackgrounded(.under1m))
+        RecordingURLProtocol.releaseBatches(token: token)
+        let events = try waitForEvents(token: token, count: 2)
+
+        XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_backgrounded"])
+        XCTAssertEqual(events.map { $0["distinct_id"] as? String }, ["1001", "1001"])
+    }
+
+    func testAnotherAccountAfterARetryGetsItsOwnOpen() throws {
+        var clock = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970) - 600)
+        let (gate, token) = makeGate(now: { clock })
+        gate.capture(.appOpened(.direct))
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        _ = try waitForEvents(token: token, count: 1)
+
+        gate.signOut(after: .sessionLoad)
+        gate.capture(.appBackgrounded(.under1m))
+        clock += 570
+        gate.capture(.appOpened(.resume))
+        clock += 30
+        gate.update(accountID: 1002, productAnalyticsEnabled: true)
+        let events = try waitForEvents(token: token, count: 2)
+
+        XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_opened"])
+        XCTAssertEqual(events.map { $0["distinct_id"] as? String }, ["1001", "1002"])
+        XCTAssertEqual((events.last?["timestamp"] as? String).flatMap(toISO8601Date), clock)
+    }
+
+    func testALoadThatFailsBeforeAnyAnswerTimesTheNextOpenFromConsent() throws {
+        var clock = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970) - 600)
+        let (gate, token) = makeGate(now: { clock })
+        gate.capture(.appOpened(.direct))
+        clock += 600
+
+        gate.signOut(after: .sessionLoad)
+        gate.update(accountID: 1002, productAnalyticsEnabled: true)
+        let events = try waitForEvents(token: token, count: 1)
+
+        XCTAssertEqual((events.first?["timestamp"] as? String).flatMap(toISO8601Date), clock)
+    }
+
+    func testAResumeAfterHalfAnHourAwayOpensInANewSession() throws {
+        var clock = Date().addingTimeInterval(-3600)
+        let (gate, token) = makeGate(now: { clock })
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        gate.capture(.appOpened(.direct))
+        clock += 60
+        gate.capture(.appBackgrounded(.from1mTo5m))
+        _ = try waitForEvents(token: token, count: 2)
+
+        NotificationCenter.default.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+        addTeardownBlock { NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil) }
+        try XCTUnwrap(gate.runningSDK).endSession()
+        clock = Date()
+        gate.awaitAnswer()
+        gate.capture(.appOpened(.resume))
+        gate.keepAnswer()
+        let events = try waitForEvents(token: token, count: 3)
+
+        let sessions = events.map { ($0["properties"] as? [String: Any])?["$session_id"] as? String }
+        let earlier = try XCTUnwrap(sessions[0])
+        let resumed = try XCTUnwrap(sessions[2], "the resume open left without a session")
+        XCTAssertNotEqual(resumed, earlier)
     }
 
     func testStorageThatCannotBeDeletedKeepsTheGateClosed() throws {
@@ -768,14 +843,41 @@ private final class RecordingURLProtocol: URLProtocol {
         }
     }
 
+    private struct HeldLoad {
+        let load: RecordingURLProtocol
+        let thread: Thread
+        let mode: RunLoop.Mode
+    }
+
+    private struct Holds {
+        var tokens: Set<String> = []
+        var loads: [String: [HeldLoad]] = [:]
+    }
+
     private static let recorded = OSAllocatedUnfairLock(uncheckedState: [Request]())
+    private static let holds = OSAllocatedUnfairLock(uncheckedState: Holds())
 
     static var requests: [Request] {
         recorded.withLock { $0 }
     }
 
+    static func holdBatches(token: String) {
+        holds.withLockUnchecked { _ = $0.tokens.insert(token) }
+    }
+
+    static func releaseBatches(token: String) {
+        let released = holds.withLockUnchecked { holds in
+            holds.tokens.remove(token)
+            return holds.loads.removeValue(forKey: token) ?? []
+        }
+        for held in released {
+            held.load.perform(#selector(respond), on: held.thread, with: nil, waitUntilDone: false, modes: [held.mode.rawValue])
+        }
+    }
+
     static func reset() {
         recorded.withLock { $0.removeAll() }
+        holds.withLockUnchecked { $0 = Holds() }
     }
 
     override class func canInit(with request: URLRequest) -> Bool { true }
@@ -785,6 +887,16 @@ private final class RecordingURLProtocol: URLProtocol {
     override func startLoading() {
         let recorded = Request(url: request.url, body: request.httpBody ?? request.httpBodyStream.map(Self.read))
         Self.recorded.withLock { $0.append(recorded) }
+        let token = recorded.json?["api_key"] as? String
+        let isHeld = Self.holds.withLockUnchecked { holds in
+            guard let token, holds.tokens.contains(token) else { return false }
+            holds.loads[token, default: []].append(HeldLoad(load: self, thread: .current, mode: RunLoop.current.currentMode ?? .default))
+            return true
+        }
+        if !isHeld { respond() }
+    }
+
+    @objc private func respond() {
         guard let url = request.url,
               let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])
         else { return }

@@ -497,7 +497,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func presentLoginScreen(failure: LoginFailure? = nil) {
         DownloadQueueController.sharedInstance.pause()
         AccountNoticeStore.shared.clear()
-        ProductAnalytics.update(accountID: nil, productAnalyticsEnabled: nil)
+        ProductAnalytics.signOut(after: failure)
         SupportIdentity.signOut(after: failure, messenger: supportMessenger)
         applyWindowAppearance()
         let storyboard = UIStoryboard(name: "Login", bundle: nil)

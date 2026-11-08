@@ -39,6 +39,10 @@ enum ProductAnalytics {
         shared.settingDidSave(enabled: enabled)
     }
 
+    static func signOut(after failure: LoginFailure?) {
+        shared.signOut(after: failure)
+    }
+
     /// The foreground refresh is reading the account again.
     static func awaitAnswer() {
         shared.awaitAnswer()
@@ -105,11 +109,14 @@ final class ProductAnalyticsGate {
         let sdk: PostHogSDK
         let accountID: Int
         let commonProperties: [String: String]
-        /// Without an open since the start, a background would time a session
-        /// that began before consent.
+        /// Without this foreground's open since consent, a background would
+        /// time a session that began before consent.
         var hasSentOpen = false
         var consentOpenedAt: Date?
+        var backgroundedAt: Date?
     }
+
+    private static let postHogSessionIdleTimeout: TimeInterval = 30 * 60
 
     /// Events from before the first answer of this launch, such as the cold
     /// launch's `app_opened`, or of a foreground. Dropped if that answer is off.
@@ -153,6 +160,19 @@ final class ProductAnalyticsGate {
             self.enabled = enabled
             hasAnswer = true
             apply(heldPredatesConsent: true)
+        }
+    }
+
+    func signOut(after failure: LoginFailure?) {
+        lock.withLock {
+            if failure == .sessionLoad, running != nil {
+                hasAnswer = false
+                return
+            }
+            accountID = nil
+            enabled = nil
+            hasAnswer = true
+            apply()
         }
     }
 
@@ -213,6 +233,7 @@ final class ProductAnalyticsGate {
         guard let token = environment.token, environment.isEligible else { return }
         let target = enabled == true ? accountID : nil
         if running == nil || running?.accountID != target {
+            let heldPredatesConsent = heldPredatesConsent || running != nil
             // A survivor could hand the next start the earlier identity or queue.
             guard stop(token: token), let target else {
                 held.removeAll()
@@ -294,10 +315,18 @@ final class ProductAnalyticsGate {
         var event = event
         switch event {
         case .appOpened:
+            if let backgroundedAt = running.backgroundedAt, timestamp.timeIntervalSince(backgroundedAt) > Self.postHogSessionIdleTimeout {
+                running.sdk.startSession()
+            }
+            running.backgroundedAt = nil
             running.hasSentOpen = true
             running.consentOpenedAt = nil
         case .appBackgrounded:
-            guard running.hasSentOpen else { return }
+            running.backgroundedAt = timestamp
+            guard running.hasSentOpen else {
+                self.running = running
+                return
+            }
             if let consentOpenedAt = running.consentOpenedAt {
                 event = .appBackgrounded(.init(seconds: timestamp.timeIntervalSince(consentOpenedAt)))
                 running.consentOpenedAt = nil
