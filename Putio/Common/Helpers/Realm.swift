@@ -56,7 +56,7 @@ class PutioRealm {
         }
     }
 
-    private static let reportedFailures = OSAllocatedUnfairLock(initialState: Set<String>())
+    static let reportedFailures = OSAllocatedUnfairLock(initialState: Set<String>())
 
     static func logFailure(_ context: String, error: Error) {
         log.error("[PutioRealm] \(context): \(error.localizedDescription)")

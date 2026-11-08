@@ -378,6 +378,7 @@ final class SentryTelemetryTests: XCTestCase {
             readOnly: true
         )
         let context = ("SentryTelemetryTests.open" as PutioRealm.Context).appending("currentState")
+        PutioRealm.reportedFailures.withLock { _ = $0.remove("realm_open:SentryTelemetryTests.open.currentState") }
 
         SentryTelemetry.isCapturing = false
         XCTAssertNil(PutioRealm.open(context: context, configuration: missing))
