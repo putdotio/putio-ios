@@ -113,6 +113,14 @@ final class LoginSessionTests: XCTestCase {
         XCTAssertFalse(keepsSession(cachedUserID: 1, keychain: keychain))
     }
 
+    func testSigningInAfterASignOutOn300DropsTheCachedSession() {
+        let keychain = makeKeychain()
+
+        keychain.signIn(token: "token-b", cachedUserID: 1)
+
+        XCTAssertFalse(keepsSession(cachedUserID: 1, keychain: keychain))
+    }
+
     func testATokenFrom300WithoutAnOwnerKeepsTheCachedSession() {
         let keychain = makeKeychain()
         keychain.setToken("token-from-3.0.0")

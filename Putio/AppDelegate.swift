@@ -269,15 +269,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         self.isRestoredSession = isRestoredSession
         if !isRestoredSession {
             PutioRealm.setUpgradingFromShipped258(false)
-            if let accountID = cachedUserID(context: "authenticate") {
-                PutioKeychain.sharedInstance.recordSignedOutAccount(accountID)
-            }
         }
         guard let token = token ?? PutioKeychain.sharedInstance.getToken(adoptsShipped258Token: PutioRealm.isUpgradingFromShipped258()) else {
             return presentLoginScreen()
         }
 
-        PutioKeychain.sharedInstance.setToken(token)
+        if isRestoredSession {
+            PutioKeychain.sharedInstance.setToken(token)
+        } else {
+            PutioKeychain.sharedInstance.signIn(token: token, cachedUserID: cachedUserID(context: "authenticate"))
+        }
         api.setToken(token: token)
         fetchUser(token: token)
     }
