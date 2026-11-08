@@ -112,14 +112,12 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     func createDownload(from file: PutioFile) {
         guard file.type == .audio else { return }
 
+        discardDownload(id: file.id)
         DownloadSupport.createRecord(
             id: file.id,
             context: "AudioDownloadManager.createDownload",
             makeDownload: { Download(file: file, url: "") },
-            didCreate: {
-                self.discardDownload(id: file.id)
-                ProductAnalytics.capture(.downloadStarted(.audio))
-            }
+            didCreate: { ProductAnalytics.capture(.downloadStarted(.audio)) }
         )
     }
 

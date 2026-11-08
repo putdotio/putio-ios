@@ -611,12 +611,37 @@ final class DownloadCreationTests: XCTestCase {
         released.wait()
         XCTAssertEqual(holderOutcome.withLock { $0 }, .released, "createDownload waited on the Realm write lock on the main thread", file: file, line: line)
         DownloadSupport.recordQueue.sync {}
-        let completed = expectation(description: "createRecord completion ran on main")
-        DispatchQueue.main.async { completed.fulfill() }
-        wait(for: [completed], timeout: 10)
         realm.refresh()
-        XCTAssertNotNil(realm.object(ofType: Download.self, forPrimaryKey: id), file: file, line: line)
+        XCTAssertNotNil(
+            realm.object(ofType: Download.self, forPrimaryKey: id),
+            "createDownload left its Realm write for a later main-thread turn",
+            file: file,
+            line: line
+        )
+        drainMainQueue()
         addTeardownBlock { UserDefaults.standard.removeObject(forKey: String(id)) }
+    }
+
+    func testAccountChangeDropsADownloadStillBeingCreated() throws {
+        let id = 9_004_993
+        let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
+        let writeMayRun = DispatchSemaphore(value: 0)
+        DownloadSupport.recordQueue.async { writeMayRun.wait() }
+
+        VideoDownloadManager.sharedInstance.createDownload(from: putioFile)
+        DownloadQueueController.sharedInstance.clearDownloadsForAccountChange()
+        writeMayRun.signal()
+        DownloadSupport.recordQueue.sync {}
+        drainMainQueue()
+
+        realm.refresh()
+        XCTAssertNil(realm.object(ofType: Download.self, forPrimaryKey: id))
+    }
+
+    private func drainMainQueue() {
+        let drained = expectation(description: "main queue drained")
+        DispatchQueue.main.async { drained.fulfill() }
+        wait(for: [drained], timeout: 10)
     }
 
     private func makePutioFile(id: Int, fileType: String) throws -> PutioFile {

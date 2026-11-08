@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import os
 import RealmSwift
 import UIKit
 
@@ -84,7 +85,8 @@ final class DownloadQueueController {
 
     private var restoredIDsByType = [Download.FileType: Set<Int>]()
     private var tasklessStartIDs = Set<Int>()
-    private var creatingIDs = Set<Int>()
+    private var creationsByID = [Int: RecordCreation]()
+    private let accountGeneration = OSAllocatedUnfairLock(initialState: 0)
     private var hasReconciledRestoredDownloads = false
     private(set) var isEnabled = false
     private var pendingAccountChangeDeletes = 0
@@ -144,6 +146,7 @@ final class DownloadQueueController {
     func clearDownloadsForAccountChange() {
         onMain {
             self.isEnabled = false
+            self.accountGeneration.withLock { $0 += 1 }
             guard let realm = DownloadSupport.realm(context: "DownloadQueueController.accountChange") else { return }
             let downloads = Array(realm.objects(Download.self).map { ($0.id, $0.fileType) })
             let locations = downloads.map { id, fileType -> DownloadSupport.LocalFileLocation in
@@ -199,15 +202,37 @@ final class DownloadQueueController {
         }
     }
 
-    func recordCreationWillStart(id: Int) {
+    func recordCreationWillStart(id: Int) -> Int {
         dispatchPrecondition(condition: .onQueue(.main))
-        creatingIDs.insert(id)
+        creationsByID[id, default: RecordCreation()].pending += 1
+        return accountGeneration.withLock { $0 }
     }
 
-    func recordCreationDidFinish(id: Int) {
+    func isAccountGenerationCurrent(_ generation: Int) -> Bool {
+        accountGeneration.withLock { $0 == generation }
+    }
+
+    func recordCreationDidFinish(id: Int, didWrite: Bool) {
         dispatchPrecondition(condition: .onQueue(.main))
-        creatingIDs.remove(id)
-        downloadWasQueued()
+        guard var creation = creationsByID[id] else { return }
+        creation.pending -= 1
+        creation.didWrite = creation.didWrite || didWrite
+        guard creation.pending == 0 else {
+            creationsByID[id] = creation
+            return
+        }
+        creationsByID.removeValue(forKey: id)
+        if creation.didWrite {
+            downloadWasQueued()
+        } else if isInFlightWithoutTask(id: id) {
+            startFailed(id: id)
+        }
+    }
+
+    private func isInFlightWithoutTask(id: Int) -> Bool {
+        guard let realm = DownloadSupport.realm(context: "DownloadQueueController.recordCreation"),
+              let state = realm.object(ofType: Download.self, forPrimaryKey: id)?.state else { return false }
+        return state == .starting || state == .active
     }
 
     func managerDidFinish() {
@@ -321,7 +346,7 @@ final class DownloadQueueController {
         let videoManager = VideoDownloadManager.sharedInstance
         let taskIDs = audioManager.activeDownloadIDs.union(videoManager.activeDownloadIDs)
         let items = realm.objects(Download.self)
-            .filter { !self.creatingIDs.contains($0.id) }
+            .filter { self.creationsByID[$0.id] == nil }
             .map { DownloadQueueItem(id: $0.id, state: $0.state, createdAt: $0.createdAt ?? .distantPast) }
         let stateIDs = Set(items.compactMap { item in
             (item.state == .starting || item.state == .active) && !self.tasklessStartIDs.contains(item.id)
@@ -361,6 +386,11 @@ final class DownloadQueueController {
             DispatchQueue.main.async(execute: work)
         }
     }
+}
+
+private struct RecordCreation {
+    var pending = 0
+    var didWrite = false
 }
 
 private final class LegacyDownloadSessionDelegate: NSObject, AVAssetDownloadDelegate {
