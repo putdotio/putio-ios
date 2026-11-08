@@ -92,6 +92,7 @@ extension SentryTelemetry.Interval {
         case .fetchUser: return "FetchUser"
         case .filesFetch: return "FilesFetch"
         case .playbackStart: return "PlaybackStart"
+        case .downloadStart: return "DownloadStart"
         }
     }
 }

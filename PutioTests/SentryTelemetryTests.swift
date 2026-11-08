@@ -696,6 +696,64 @@ final class SentryTelemetryTests: XCTestCase {
         }
     }
 
+    func testEachDownloadAttemptSendsOneStaticStartTransaction() throws {
+        let fileName = "Synthetic.Feature.Title.2001.mkv"
+        let url = "https://api.put.io/v2/files/9005501/hls/media.m3u8?oauth_token=synthetic-token-5f1c9e"
+        let sent = try startRecordingSentEvents(tracesSampleRate: 1)
+        allowCapture()
+        SentrySDK.configureScope { scope in
+            scope.setTag(value: fileName, key: "file")
+            scope.setExtra(value: url, key: "url")
+            scope.setContext(value: ["url": url], key: "request")
+        }
+        let lifecycle = NotificationCenter()
+        var inBackground = false
+        let timings = DownloadStartTimings(notificationCenter: lifecycle, isInBackground: { inBackground })
+        let (firstByte, failed, cancelled, suspended, restarted, wokenInBackground) =
+            (9_005_501, 9_005_502, 9_005_503, 9_005_504, 9_005_505, 9_005_506)
+
+        inBackground = true
+        timings.begin(id: wokenInBackground)
+        inBackground = false
+        timings.end(id: wokenInBackground, outcome: .succeeded)
+        timings.begin(id: firstByte)
+        timings.end(id: firstByte, outcome: .succeeded)
+        timings.end(id: firstByte, outcome: .succeeded)
+        timings.end(id: firstByte, outcome: .failed)
+        timings.begin(id: failed)
+        timings.end(id: failed, outcome: .failed)
+        timings.begin(id: cancelled)
+        timings.end(id: cancelled, outcome: .cancelled)
+        timings.begin(id: suspended)
+        lifecycle.post(name: UIApplication.didEnterBackgroundNotification, object: nil)
+        timings.end(id: suspended, outcome: .succeeded)
+        timings.begin(id: restarted)
+        timings.begin(id: restarted)
+        timings.end(id: restarted, outcome: .succeeded)
+
+        let transactions = { sent().filter { $0.type == "transaction" } }
+        let arrived = expectation(for: NSPredicate { _, _ in transactions().count >= 6 }, evaluatedWith: nil)
+        wait(for: [arrived], timeout: 10)
+        let extra = expectation(for: NSPredicate { _, _ in transactions().count > 6 }, evaluatedWith: nil)
+        extra.isInverted = true
+        wait(for: [extra], timeout: 2)
+        drainMainQueue()
+
+        let payloads = transactions().map { $0.serialize() }
+        var statuses = [String]()
+        for payload in payloads {
+            let json = String(decoding: try JSONSerialization.data(withJSONObject: payload), as: UTF8.self)
+            for leaked in [fileName, url, "api.put.io", "oauth_token", "9005501", "media.m3u8"] {
+                XCTAssertFalse(json.contains(leaked), "\(leaked) left the device: \(json)")
+            }
+            XCTAssertEqual(payload["transaction"] as? String, "DownloadStart")
+            let trace = try XCTUnwrap((payload["contexts"] as? [String: Any])?["trace"] as? [String: Any])
+            XCTAssertEqual(trace["op"] as? String, "putio.download_start")
+            statuses.append(try XCTUnwrap(trace["status"] as? String))
+        }
+        XCTAssertEqual(statuses.sorted(), ["cancelled", "cancelled", "cancelled", "internal_error", "ok", "ok"])
+    }
+
     private func crash(type: String, reason: String?, handled: Bool) -> Event {
         let event = Event(level: .fatal)
         let exception = Exception(value: reason, type: type)

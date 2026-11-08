@@ -16,6 +16,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     fileprivate var willDownloadToURLMap = [AVAssetDownloadTask: URL]()
     fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
     private var reportedUnplayableIDs = Set<Int>()
+    private let startTimings = DownloadStartTimings()
 
     var activeDownloadCount: Int {
         withActiveDownloadsMap { $0.count }
@@ -111,6 +112,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         guard download.state == .starting else { return }
         let attempt = UUID()
         startAttempts[id] = attempt
+        startTimings.begin(id: id)
 
         getRemoteStreamURL(for: download, completion: { url in
             guard self.startAttempts[id] == attempt else { return }
@@ -120,7 +122,10 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
                   let assetDownloadURLSession = self.assetDownloadURLSession,
                   let url else {
                 if self.getDownloadFromDatabase(id: id)?.state == .starting {
+                    self.startTimings.end(id: id, outcome: .failed)
                     DownloadQueueController.sharedInstance.startFailed(id: id)
+                } else {
+                    self.startTimings.end(id: id, outcome: .cancelled)
                 }
                 return
             }
@@ -131,6 +136,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
                 assetArtworkData: nil,
                 options: nil
             ) else {
+                self.startTimings.end(id: id, outcome: .failed)
                 DownloadQueueController.sharedInstance.startFailed(id: id)
                 return
             }
@@ -260,6 +266,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     func discardDownload(id: Int) {
         dispatchPrecondition(condition: .onQueue(.main))
         startAttempts.removeValue(forKey: id)
+        startTimings.end(id: id, outcome: .cancelled)
         lastProgressUpdateTime.removeValue(forKey: id)
         let task = withActiveDownloadsMap { map -> AVAssetDownloadTask? in
             guard let task = map.first(where: { $0.value == id })?.key else { return nil }
@@ -280,7 +287,10 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func invalidatePendingStarts(ids: Set<Int>) {
-        ids.forEach { startAttempts.removeValue(forKey: $0) }
+        ids.forEach { id in
+            startAttempts.removeValue(forKey: id)
+            startTimings.end(id: id, outcome: .cancelled)
+        }
     }
 
     func getLocalFileLocation(for downloadId: Int) -> DownloadSupport.LocalFileLocation {
@@ -388,6 +398,7 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
         log.verbose(["VDM: assetDownloadTask-progress task: ", assetDownloadTask.taskIdentifier])
 
         guard let downloadId = withActiveDownloadsMap({ $0[assetDownloadTask] }) else { return }
+        startTimings.end(id: downloadId, outcome: .succeeded)
         guard let download = getDownloadFromDatabase(id: downloadId) else { return }
 
         log.verbose(["VDM: assetDownloadTask-progress download: ", downloadId])
@@ -437,6 +448,7 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
                     context: "VideoDownloadManager.didComplete.missingRecord"
                 )
             }
+            startTimings.end(id: id, outcome: error == nil ? .succeeded : .failed)
             _ = withActiveDownloadsMap { $0.removeValue(forKey: task) }
             DownloadQueueController.sharedInstance.managerDidFinish()
             return
@@ -466,6 +478,7 @@ extension VideoDownloadManager: AVAssetDownloadDelegate {
             )
         }
 
+        startTimings.end(id: id, outcome: didFail ? .failed : .succeeded)
         log.verbose("VDM: didCompleteWithError: writing to realm")
         let didWrite = DownloadSupport.write(realm, context: "VideoDownloadManager.didComplete.write") {
             download.state = didFail ? .failed : .completed

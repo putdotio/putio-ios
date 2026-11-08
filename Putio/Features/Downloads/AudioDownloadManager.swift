@@ -14,6 +14,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     private let activeDownloadsLock = NSLock()
     fileprivate var lastProgressUpdateTime = [Int: CFAbsoluteTime]()
     private var artifactSaveErrors = [URLSessionTask: Error]()
+    private let startTimings = DownloadStartTimings()
 
     var activeDownloadCount: Int {
         withActiveDownloadsMap { $0.count }
@@ -94,7 +95,9 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
             return
         }
         guard download.state == .starting else { return }
+        startTimings.begin(id: id)
         guard let url = api.audioStreamURL(fileID: download.id) else {
+            startTimings.end(id: id, outcome: .failed)
             DownloadQueueController.sharedInstance.startFailed(id: id)
             return
         }
@@ -216,6 +219,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
             map.removeValue(forKey: task)
             return task
         }
+        startTimings.end(id: id, outcome: .cancelled)
         if let task { artifactSaveErrors.removeValue(forKey: task) }
         task?.cancel()
     }
@@ -297,6 +301,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 extension AudioDownloadManager: URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard let id = downloadID(for: task, error: error) else { return }
+        startTimings.end(id: id, outcome: (artifactSaveErrors[task] ?? error) == nil ? .succeeded : .failed)
         lastProgressUpdateTime.removeValue(forKey: id)
         guard let download = getDownloadFromDatabase(id: id), let realm = download.realm else {
             artifactSaveErrors.removeValue(forKey: task)
@@ -336,11 +341,13 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
         log.verbose(["ADM: downloadTask-didWriteData task:", downloadTask.taskIdentifier])
 
         guard let downloadId = withActiveDownloadsMap({ $0[downloadTask] }) else { return }
-        guard let download = getDownloadFromDatabase(id: downloadId) else { return }
         guard acceptedFileExtension(for: downloadTask) != nil else {
+            startTimings.end(id: downloadId, outcome: .failed)
             downloadTask.cancel()
             return
         }
+        startTimings.end(id: downloadId, outcome: .succeeded)
+        guard let download = getDownloadFromDatabase(id: downloadId) else { return }
 
         log.verbose(["ADM: downloadTask-didWriteData download:", downloadId])
 

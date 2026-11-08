@@ -79,12 +79,14 @@ enum SentryTelemetry {
         case fetchUser = "FetchUser"
         case filesFetch = "FilesFetch"
         case playbackStart = "PlaybackStart"
+        case downloadStart = "DownloadStart"
 
         var operation: String {
             switch self {
             case .fetchUser: return "putio.fetch_user"
             case .filesFetch: return "putio.files_fetch"
             case .playbackStart: return "putio.playback_start"
+            case .downloadStart: return "putio.download_start"
             }
         }
     }
