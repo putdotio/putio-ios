@@ -268,6 +268,8 @@ final class AudioDownloadManagerTests: XCTestCase {
         let id = 9_005_381
         try addDownload(id: id, state: .active)
         let task = try makeTask(id: id)
+        task.resume()
+        wait(for: [completion(of: task)], timeout: 10)
         let location = try makeFinishedFile()
         let manager = AudioDownloadManager.sharedInstance
 
@@ -299,6 +301,55 @@ final class AudioDownloadManagerTests: XCTestCase {
         XCTAssertNil(realm.object(ofType: Download.self, forPrimaryKey: missingID))
     }
 
+    func testOnlyAllowlistedMIMETypesGetAFileExtension() {
+        let expected: [(mimeType: String?, fileExtension: String?)] = [
+            ("audio/mpeg", "mp3"),
+            ("audio/mp4", "m4a"),
+            ("audio/aac", "m4a"),
+            ("audio/x-m4a", "m4a"),
+            ("audio/flac", "flac"),
+            ("audio/wav", "wav"),
+            ("audio/x-wav", "wav"),
+            ("audio/x-matroska", nil),
+            ("audio/ogg", nil),
+            ("application/octet-stream", nil),
+            (nil, nil)
+        ]
+        for (mimeType, fileExtension) in expected {
+            XCTAssertEqual(AudioDownloadManager.fileExtension(forMIMEType: mimeType), fileExtension, mimeType ?? "missing")
+        }
+    }
+
+    func testFinishedDownloadFailsUnlessItsMIMETypeIsAllowlisted() throws {
+        let mp3ID = 9_005_401
+        let matroskaID = 9_005_402
+        let notFoundID = 9_005_403
+        for id in [mp3ID, matroskaID, notFoundID] { try addDownload(id: id, state: .active) }
+        let tasks = [
+            try makeTask(id: mp3ID, contentType: "audio/mpeg"),
+            try makeTask(id: matroskaID, contentType: "audio/x-matroska"),
+            try makeTask(id: notFoundID, contentType: "application/json", statusCode: 404)
+        ]
+        tasks.forEach { $0.resume() }
+        wait(for: tasks.map(completion(of:)), timeout: 10)
+        let manager = AudioDownloadManager.sharedInstance
+
+        for task in tasks {
+            manager.urlSession(session, downloadTask: task, didFinishDownloadingTo: try makeFinishedFile())
+            manager.urlSession(session, task: task, didCompleteWithError: nil)
+        }
+
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: mp3ID)?.state, .completed)
+        XCTAssertEqual(manager.getLocalFileURL(for: mp3ID)?.pathExtension, "mp3")
+        let matroska = try XCTUnwrap(realm.object(ofType: Download.self, forPrimaryKey: matroskaID))
+        XCTAssertEqual(matroska.state, .failed)
+        XCTAssertEqual(matroska.message, "This audio format can't be played offline.")
+        XCTAssertNil(manager.getLocalFileURL(for: matroskaID))
+        let notFound = try XCTUnwrap(realm.object(ofType: Download.self, forPrimaryKey: notFoundID))
+        XCTAssertEqual(notFound.state, .failed)
+        XCTAssertEqual(notFound.message, "Download failed. Tap to retry.")
+    }
+
     private static let forceQuitCancellation = NSError(
         domain: NSURLErrorDomain,
         code: NSURLErrorCancelled,
@@ -315,8 +366,13 @@ final class AudioDownloadManagerTests: XCTestCase {
         try realm.write { realm.add(download) }
     }
 
-    private func makeTask(id: Int) throws -> URLSessionDownloadTask {
-        let task = session.downloadTask(with: try XCTUnwrap(URL(string: "https://example.com/\(id).mp3")))
+    private func makeTask(id: Int, contentType: String = "audio/mpeg", statusCode: Int = 200) throws -> URLSessionDownloadTask {
+        var components = try XCTUnwrap(URLComponents(string: "https://example.com/\(id)"))
+        components.queryItems = [
+            URLQueryItem(name: "content_type", value: contentType),
+            URLQueryItem(name: "status_code", value: String(statusCode))
+        ]
+        let task = session.downloadTask(with: try XCTUnwrap(components.url))
         task.taskDescription = String(id)
         addTeardownBlock {
             let manager = AudioDownloadManager.sharedInstance
@@ -356,11 +412,14 @@ private final class FinishedAudioURLProtocol: URLProtocol {
 
     override func startLoading() {
         guard let url = request.url,
+              let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
+              let contentType = query.first(where: { $0.name == "content_type" })?.value,
+              let statusCode = query.first(where: { $0.name == "status_code" })?.value.flatMap(Int.init),
               let response = HTTPURLResponse(
                 url: url,
-                statusCode: 200,
+                statusCode: statusCode,
                 httpVersion: "HTTP/1.1",
-                headerFields: ["Content-Type": "audio/mpeg"]
+                headerFields: ["Content-Type": contentType]
               )
         else { return }
 
