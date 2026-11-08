@@ -122,6 +122,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func cancelDownload(id: Int) {
+        DownloadQueueController.sharedInstance.invalidateRecordCreations(id: id)
         guard let download = getDownloadFromDatabase(id: id) else { return }
         guard let realm = download.realm else { return }
         let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.cancelDownload.write") {
@@ -137,6 +138,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     }
 
     func deleteDownload(id: Int, completion: @escaping (Bool) -> Void) {
+        DownloadQueueController.sharedInstance.invalidateRecordCreations(id: id)
         deletion(for: id).perform { didDelete in
             self.finishDeletion(id: id, didDelete: didDelete)
             completion(didDelete)
@@ -163,6 +165,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     @discardableResult
     func removeDownloadRecord(id: Int) -> Bool {
         dispatchPrecondition(condition: .onQueue(.main))
+        DownloadQueueController.sharedInstance.invalidateRecordCreations(id: id)
         guard DownloadSupport.deleteRecord(
             id: id,
             context: "AudioDownloadManager.removeDownloadRecord"

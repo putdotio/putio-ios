@@ -638,6 +638,26 @@ final class DownloadCreationTests: XCTestCase {
         XCTAssertNil(realm.object(ofType: Download.self, forPrimaryKey: id))
     }
 
+    func testCancellingDropsARedownloadStillBeingCreated() throws {
+        let id = 9_004_994
+        let putioFile = try makePutioFile(id: id, fileType: "VIDEO")
+        let existing = try XCTUnwrap(Download(file: putioFile, url: ""))
+        existing.state = .failed
+        try realm.write { realm.add(existing) }
+        addTeardownBlock { UserDefaults.standard.removeObject(forKey: String(id)) }
+        let writeMayRun = DispatchSemaphore(value: 0)
+        DownloadSupport.recordQueue.async { writeMayRun.wait() }
+
+        VideoDownloadManager.sharedInstance.createDownload(from: putioFile)
+        VideoDownloadManager.sharedInstance.cancelDownload(id: id)
+        writeMayRun.signal()
+        DownloadSupport.recordQueue.sync {}
+        drainMainQueue()
+
+        realm.refresh()
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: id)?.state, .stopped)
+    }
+
     private func drainMainQueue() {
         let drained = expectation(description: "main queue drained")
         DispatchQueue.main.async { drained.fulfill() }

@@ -47,13 +47,13 @@ enum DownloadSupport {
     ) {
         dispatchPrecondition(condition: .onQueue(.main))
         let queueController = DownloadQueueController.sharedInstance
-        let generation = queueController.recordCreationWillStart(id: id)
+        let token = queueController.recordCreationWillStart(id: id)
         recordQueue.async {
             let didWrite = autoreleasepool { () -> Bool in
                 guard let download = makeDownload(), let realm = realm(context: context) else { return false }
                 var isCurrent = false
                 let didCommit = write(realm, context: context.appending("write")) {
-                    isCurrent = queueController.isAccountGenerationCurrent(generation)
+                    isCurrent = queueController.isRecordCreationCurrent(token)
                     guard isCurrent else { return }
                     realm.add(download, update: .all)
                 }
