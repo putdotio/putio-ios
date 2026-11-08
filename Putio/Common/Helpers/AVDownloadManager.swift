@@ -23,7 +23,7 @@ class DownloadManager: NSObject {
         return AVAssetDownloadURLSession(configuration: configuration, assetDownloadDelegate: self, delegateQueue: OperationQueue.main)
     }()
 
-    private func realm(context: String) -> Realm? {
+    private func realm(context: PutioRealm.Context) -> Realm? {
         DownloadSupport.realm(context: context)
     }
 

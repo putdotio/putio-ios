@@ -4,6 +4,22 @@ import PutioSDK
 import RealmSwift
 
 class PutioRealm {
+    struct Context: ExpressibleByStringLiteral, CustomStringConvertible {
+        let description: String
+
+        init(stringLiteral value: StaticString) {
+            description = value.description
+        }
+
+        private init(description: String) {
+            self.description = description
+        }
+
+        func appending(_ suffix: StaticString) -> Context {
+            Context(description: "\(description).\(suffix)")
+        }
+    }
+
     private static let needsDownloadRecoveryKey = "PutioRealm.needsDownloadRecovery"
     static let latestSchemaVersion: UInt64 = 13
 
@@ -46,12 +62,12 @@ class PutioRealm {
         log.error("[PutioRealm] \(context): \(error.localizedDescription)")
     }
 
-    private static func report(_ failure: SentryTelemetry.Failure, context: String, error: Error) {
-        logFailure(context, error: error)
+    private static func report(_ failure: SentryTelemetry.Failure, context: Context, error: Error) {
+        logFailure(context.description, error: error)
         guard SentryTelemetry.isCapturing,
               reportedFailures.withLock({ $0.insert("\(failure.rawValue):\(context)").inserted })
         else { return }
-        SentryTelemetry.capture(failure, error: error, context: context)
+        SentryTelemetry.capture(failure, error: error, context: context.description)
     }
 
     static func configuration(fileURL: URL? = nil, defaults: UserDefaults = .standard) -> Realm.Configuration {
@@ -67,7 +83,7 @@ class PutioRealm {
         return configuration
     }
 
-    static func open(context: String, configuration: Realm.Configuration? = nil) -> Realm? {
+    static func open(context: Context, configuration: Realm.Configuration? = nil) -> Realm? {
         let resolvedConfiguration = configuration ?? Realm.Configuration.defaultConfiguration
 
         do {
@@ -79,7 +95,7 @@ class PutioRealm {
     }
 
     @discardableResult
-    static func write(_ realm: Realm, context: String, updates: () -> Void) -> Bool {
+    static func write(_ realm: Realm, context: Context, updates: () -> Void) -> Bool {
         do {
             try realm.write(updates)
             return true
@@ -90,7 +106,7 @@ class PutioRealm {
     }
 
     @discardableResult
-    static func replaceUserSession(_ realm: Realm, user: User, config: UserConfig, context: String) -> Bool {
+    static func replaceUserSession(_ realm: Realm, user: User, config: UserConfig, context: Context) -> Bool {
         write(realm, context: context) {
             realm.delete(realm.objects(User.self))
             realm.delete(realm.objects(UserConfig.self))
