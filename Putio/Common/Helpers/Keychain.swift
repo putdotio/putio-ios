@@ -11,6 +11,7 @@ class PutioKeychain {
 
     let tokenKey: String = "access_token"
     private let tokenOwnerKey = "access_token_account_id"
+    private let signedOutAccountKey = "signed_out_account_id"
     let keychain: Keychain
     private let legacyKeychain: Keychain?
 
@@ -55,6 +56,21 @@ class PutioKeychain {
     func setTokenOwner(accountID: Int, for token: String) {
         guard keychain[tokenKey] == token else { return }
         keychain[tokenOwnerKey] = String(accountID)
+    }
+
+    var signedOutAccountID: Int? {
+        keychain[signedOutAccountKey].flatMap(Int.init)
+    }
+
+    func signOut(cachedUserID: Int?) {
+        if let accountID = tokenOwnerID ?? cachedUserID {
+            keychain[signedOutAccountKey] = String(accountID)
+        }
+        clearToken()
+    }
+
+    func clearSignedOutAccount() {
+        keychain[signedOutAccountKey] = nil
     }
 
     func clearToken() {

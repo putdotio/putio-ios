@@ -57,6 +57,15 @@ enum SessionLoadFallback: Equatable {
 
         return keepsSession ? .cachedSession : .login(.sessionLoad)
     }
+
+    static func keepsSession(cachedUserID: Int?, tokenOwnerID: Int?, signedOutAccountID: Int?, restoresShipped258Session: Bool) -> Bool {
+        if restoresShipped258Session {
+            return true
+        }
+        guard let cachedUserID else { return false }
+        guard let tokenOwnerID else { return cachedUserID != signedOutAccountID }
+        return tokenOwnerID == cachedUserID
+    }
 }
 
 @UIApplicationMain
@@ -371,6 +380,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         SupportIdentity.signIn(accountID: account.id, userHash: account.hash, messenger: supportMessenger)
         PutioKeychain.sharedInstance.setTokenOwner(accountID: account.id, for: token)
+        PutioKeychain.sharedInstance.clearSignedOutAccount()
 
         self.presentMainScreen(asksProductAnalytics: ProductAnalyticsChoice.shouldAsk(
             productAnalyticsEnabled: account.settings.productAnalyticsEnabled,
@@ -386,9 +396,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // The upgrade from 2.58.0 deletes its Realm user, so until the next
         // sign-in the session restored at launch stands in for it.
         let cachedUserID = realm.objects(User.self).first?.id
-        let keepsSession = cachedUserID != nil || (isRestoredSession && PutioRealm.isUpgradingFromShipped258())
+        let tokenOwnerID = PutioKeychain.sharedInstance.tokenOwnerID
+        let keepsSession = SessionLoadFallback.keepsSession(
+            cachedUserID: cachedUserID,
+            tokenOwnerID: tokenOwnerID,
+            signedOutAccountID: PutioKeychain.sharedInstance.signedOutAccountID,
+            restoresShipped258Session: isRestoredSession && PutioRealm.isUpgradingFromShipped258()
+        )
         let startsDownloadQueue = DownloadQueueLifecyclePolicy.cachedLaunchKnowsAccount(
-            tokenOwnerID: PutioKeychain.sharedInstance.tokenOwnerID,
+            tokenOwnerID: tokenOwnerID,
             cachedUserID: cachedUserID
         )
 
@@ -447,7 +463,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     private func endSession() {
         DownloadQueueController.sharedInstance.pause()
         OfflineVideoPlaybackPositionStore.shared.clearAllUpdates()
-        PutioKeychain.sharedInstance.clearToken()
+        let cachedUserID = PutioRealm.open(context: "endSession")?.objects(User.self).first?.id
+        PutioKeychain.sharedInstance.signOut(cachedUserID: cachedUserID)
         api.clearToken()
         VideoPlaybackPositionStore.shared.clearAllPositions()
         SentryTelemetry.update(diagnosticsEnabled: nil)
