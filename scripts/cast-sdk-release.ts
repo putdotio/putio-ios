@@ -9,11 +9,13 @@ import { fileURLToPath } from "node:url";
 type Version = readonly [number, number, number];
 type Release = Readonly<{ version: string; url: string; checksum: string }>;
 type AlertIssue = Readonly<{ title: string; body: string }>;
+type Alert = Readonly<{ number: number; open: boolean; version: string }>;
 
 const UPSTREAM = "googlecast/google-cast-ios-sdk";
 const UPSTREAM_TARGET = "GoogleCastDynamicBinary";
+const PINNED_TARGET = "GoogleCast";
 const ISSUE_AUTHOR = "github-actions[bot]";
-const ISSUE_MARKER = "<!-- cast-sdk-release -->";
+const ALERT_MARKER = /^<!-- cast-sdk-release (\S+) -->$/m;
 const PACKAGE_PATH = "ThirdParty/GoogleCast/Package.swift";
 const CAST_PACKAGE = join(dirname(fileURLToPath(import.meta.url)), "..", PACKAGE_PATH);
 
@@ -44,22 +46,33 @@ export const latestVersion = (tags: readonly string[]): string | undefined => {
   return best?.name;
 };
 
-export const pinnedVersion = (packageSwift: string): string | undefined =>
-  /url: "https:\/\/dl\.google\.com\/[^"]*\/GoogleCastSDK-ios-(\d+\.\d+\.\d+)_dynamic\.zip"/.exec(packageSwift)?.[1];
+const binaryTarget = (packageSwift: string, name: string): Omit<Release, "version"> | undefined => {
+  const target = new RegExp(`\\.binaryTarget\\(\\s*name:\\s*"${name}",\\s*url:\\s*"([^"]+)",\\s*checksum:\\s*"([^"]+)"`).exec(packageSwift);
+  const [, url, checksum] = target ?? [];
+  return url && checksum ? { url, checksum } : undefined;
+};
+
+const releaseVersion = (url: string): string | undefined => {
+  const parsed = URL.parse(url);
+  if (parsed?.protocol !== "https:" || parsed.hostname !== "dl.google.com") return undefined;
+  return /\/GoogleCastSDK-ios-(\d+\.\d+\.\d+)[^/]*\.zip$/.exec(parsed.pathname)?.[1];
+};
+
+export const pinnedVersion = (packageSwift: string): string | undefined => {
+  const target = binaryTarget(packageSwift, PINNED_TARGET);
+  return target && releaseVersion(target.url);
+};
 
 export const dynamicBinary = (packageSwift: string): Omit<Release, "version"> | undefined => {
-  const target = new RegExp(`\\.binaryTarget\\(\\s*name:\\s*"${UPSTREAM_TARGET}",\\s*url:\\s*"([^"]+)",\\s*checksum:\\s*"([^"]+)"`).exec(packageSwift);
-  const [, url, checksum] = target ?? [];
-  if (!url || !checksum || !/^[0-9a-f]{64}$/.test(checksum)) return undefined;
-  const parsed = URL.parse(url);
-  if (parsed?.protocol !== "https:" || parsed.hostname !== "dl.google.com" || !parsed.pathname.endsWith(".zip")) return undefined;
-  return { url, checksum };
+  const target = binaryTarget(packageSwift, UPSTREAM_TARGET);
+  if (!target || !/^[0-9a-f]{64}$/.test(target.checksum) || releaseVersion(target.url) === undefined) return undefined;
+  return target;
 };
 
 export const alertIssue = (release: Release, pinned: string, repository: string): AlertIssue => ({
   title: `Update the Google Cast iOS SDK to ${release.version}`,
   body: [
-    ISSUE_MARKER,
+    `<!-- cast-sdk-release ${release.version} -->`,
     `Google Cast iOS SDK [${release.version}](https://github.com/${UPSTREAM}/tree/${release.version}) is out. \`main\` pins ${pinned}.`,
     "",
     `Point the binary target in [\`${PACKAGE_PATH}\`](https://github.com/${repository}/blob/main/${PACKAGE_PATH}) at the dynamic zip from [its upstream \`Package.swift\`](https://github.com/${UPSTREAM}/blob/${release.version}/Package.swift):`,
@@ -92,19 +105,14 @@ const tagNames = (json: string): string[] =>
     isRecord(tag) && typeof tag.name === "string" ? tag.name : fail("an upstream tag has no name"),
   );
 
-const openAlertNumber = (json: string): number | undefined => {
-  const issue = pages(json, "the open issue list").find(
-    (item) =>
-      isRecord(item) &&
-      !("pull_request" in item) &&
-      isRecord(item.user) &&
-      item.user.login === ISSUE_AUTHOR &&
-      typeof item.body === "string" &&
-      item.body.includes(ISSUE_MARKER),
-  );
-  if (issue === undefined) return undefined;
-  return isRecord(issue) && Number.isSafeInteger(issue.number) ? Number(issue.number) : fail("the open alert issue has no number");
-};
+const alerts = (json: string): Alert[] =>
+  pages(json, "the issue list").flatMap((item): Alert[] => {
+    if (!isRecord(item) || "pull_request" in item || !isRecord(item.user) || item.user.login !== ISSUE_AUTHOR) return [];
+    const version = typeof item.body === "string" ? ALERT_MARKER.exec(item.body)?.[1] : undefined;
+    if (version === undefined) return [];
+    if (!Number.isSafeInteger(item.number) || (item.state !== "open" && item.state !== "closed")) return fail("an alert issue has no number or state");
+    return [{ number: Number(item.number), open: item.state === "open", version }];
+  });
 
 const issueUrl = (json: string): string => {
   const parsed: unknown = JSON.parse(json);
@@ -114,7 +122,7 @@ const issueUrl = (json: string): string => {
 const main = (): void => {
   const repository = process.env.GITHUB_REPOSITORY || fail("GITHUB_REPOSITORY is not set");
   const override = process.env.PINNED_VERSION ?? "";
-  const pinned = override || (pinnedVersion(readFileSync(CAST_PACKAGE, "utf8")) ?? fail(`no dynamic Google Cast SDK URL in ${PACKAGE_PATH}`));
+  const pinned = override || (pinnedVersion(readFileSync(CAST_PACKAGE, "utf8")) ?? fail(`no ${PINNED_TARGET} binary target with a versioned dl.google.com zip in ${PACKAGE_PATH}`));
   const pinnedParsed = versionOrFail(pinned, override ? "PINNED_VERSION" : `the version pinned in ${PACKAGE_PATH}`);
 
   const latest = latestVersion(tagNames(gh(["api", "--paginate", "--slurp", `repos/${UPSTREAM}/tags?per_page=100`])));
@@ -125,18 +133,20 @@ const main = (): void => {
   }
 
   const upstreamPackage = gh(["api", "-H", "Accept: application/vnd.github.raw", `repos/${UPSTREAM}/contents/Package.swift?ref=${latest}`]);
-  const binary = dynamicBinary(upstreamPackage) ?? fail(`${UPSTREAM} ${latest} Package.swift has no ${UPSTREAM_TARGET} with a dl.google.com zip and a sha256 checksum`);
+  const binary = dynamicBinary(upstreamPackage) ?? fail(`${UPSTREAM} ${latest} Package.swift has no ${UPSTREAM_TARGET} with a versioned dl.google.com zip and a sha256 checksum`);
   const issue = JSON.stringify(alertIssue({ version: latest, ...binary }, pinned, repository));
 
-  const existing = openAlertNumber(
-    gh(["api", "--paginate", "--slurp", `repos/${repository}/issues?state=open&creator=${encodeURIComponent(ISSUE_AUTHOR)}&per_page=100`]),
-  );
-  if (existing === undefined) {
+  const known = alerts(gh(["api", "--paginate", "--slurp", `repos/${repository}/issues?state=all&creator=${encodeURIComponent(ISSUE_AUTHOR)}&per_page=100`]));
+  const open = known.find((alert) => alert.open);
+  const dismissed = known.find((alert) => alert.version === latest);
+  if (open) {
+    const url = issueUrl(gh(["api", "--method", "PATCH", `repos/${repository}/issues/${open.number}`, "--input", "-"], issue));
+    process.stdout.write(`Updated ${url} for Google Cast iOS SDK ${latest}.\n`);
+  } else if (dismissed) {
+    process.stdout.write(`Issue #${dismissed.number} for Google Cast iOS SDK ${latest} is closed; opening no new one.\n`);
+  } else {
     const url = issueUrl(gh(["api", "--method", "POST", `repos/${repository}/issues`, "--input", "-"], issue));
     process.stdout.write(`Opened ${url} for Google Cast iOS SDK ${latest}.\n`);
-  } else {
-    const url = issueUrl(gh(["api", "--method", "PATCH", `repos/${repository}/issues/${existing}`, "--input", "-"], issue));
-    process.stdout.write(`Updated ${url} for Google Cast iOS SDK ${latest}.\n`);
   }
 };
 

@@ -45,6 +45,10 @@ while IFS= read -r path; do
         tooling=true
         ;;
     scripts/*.ts | scripts/*.mjs | scripts/store-images/*) tooling=true ;;
+    ThirdParty/GoogleCast/Package.swift)
+        app=true
+        tooling=true
+        ;;
     package.json | pnpm-lock.yaml | pnpm-workspace.yaml | tsconfig.json) tooling=true ;;
     # Store artwork, listing, and the configs that drive them. None can break
     # an iOS build, so these skip the macOS lane; the tooling lane checks the

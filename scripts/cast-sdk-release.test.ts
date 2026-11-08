@@ -8,13 +8,14 @@ import { fileURLToPath } from "node:url";
 
 import { parse } from "yaml";
 
-import { dynamicBinary, latestVersion } from "./cast-sdk-release.ts";
+import { dynamicBinary, latestVersion, pinnedVersion } from "./cast-sdk-release.ts";
 
 const SCRIPT = fileURLToPath(new URL("./cast-sdk-release.ts", import.meta.url));
 const DYNAMIC_URL = "https://dl.google.com/dl/chromecast/sdk/ios/GoogleCastSDK-ios-4.8.6_dynamic.zip";
 const DYNAMIC_CHECKSUM = "55f6c21291a1315c68063f07e7d76225564bff70f2fd38caad135c71d66eb310";
 const STATIC_CHECKSUM = "e1fe7fd6f2bf4b58e830d378fafc435d159bd755f7ee20fd3033aa1ce313cd6e";
-const TAGS = [[{ name: "4.8.6" }, { name: "4.8.4" }]];
+const UPSTREAM_TAGS = [{ name: "4.8.6" }, { name: "4.8.4" }];
+const TAGS = [UPSTREAM_TAGS];
 
 const upstreamPackage = (dynamic: string) => `  targets: [
     .binaryTarget(
@@ -49,7 +50,7 @@ case "$*" in
   "api --method "*) printf '%s\\t%s\\n' "$*" "$(cat)" >> "$GH_WRITES"; echo '{"html_url":"https://github.com/putdotio/putio-ios/issues/41"}' ;;
   "api --paginate --slurp repos/googlecast/google-cast-ios-sdk/tags?"*) printf '%s\\n' "$FAKE_TAGS" ;;
   "api -H Accept: application/vnd.github.raw repos/googlecast/google-cast-ios-sdk/contents/Package.swift?ref="*) printf '%s' "$FAKE_UPSTREAM" ;;
-  "api --paginate --slurp repos/putdotio/putio-ios/issues?state=open&"*) printf '%s\\n' "$FAKE_ISSUES" ;;
+  "api --paginate --slurp repos/putdotio/putio-ios/issues?state=all&"*) printf '%s\\n' "$FAKE_ISSUES" ;;
   *) echo "unexpected gh $*" >&2; exit 1 ;;
 esac
 `;
@@ -108,7 +109,7 @@ test("a second run updates the open issue in place and opens no new one", async 
   const first = await run(t, { pinned: "4.8.4" });
   const opened = first.writes[0]?.payload;
   assert.ok(opened, first.stderr);
-  const issue = { number: 12, user: { login: "github-actions[bot]" }, ...opened };
+  const issue = { number: 12, state: "open", user: { login: "github-actions[bot]" }, ...opened };
   const pullRequest = { ...issue, number: 13, pull_request: {} };
 
   const second = await run(t, { pinned: "4.8.4", issues: [[pullRequest], [issue]] });
@@ -117,26 +118,58 @@ test("a second run updates the open issue in place and opens no new one", async 
   assert.deepEqual(second.writes, [{ args: "api --method PATCH repos/putdotio/putio-ios/issues/12 --input -", payload: opened }]);
 });
 
+test("a closed alert dismisses its version and only that version", async (t) => {
+  const first = await run(t, { pinned: "4.8.4" });
+  const opened = first.writes[0]?.payload;
+  assert.ok(opened, first.stderr);
+  const closed = { number: 12, state: "closed", user: { login: "github-actions[bot]" }, ...opened };
+
+  const same = await run(t, { pinned: "4.8.4", issues: [[closed]] });
+  assert.equal(same.status, 0, same.stderr);
+  assert.deepEqual(same.writes, []);
+
+  const newer = await run(t, { pinned: "4.8.4", tags: [[{ name: "4.8.7" }, ...UPSTREAM_TAGS]], issues: [[closed]] });
+  assert.equal(newer.status, 0, newer.stderr);
+  assert.deepEqual(newer.writes.map((write) => write.args), ["api --method POST repos/putdotio/putio-ios/issues --input -"]);
+  assert.match(newer.writes[0]?.payload.title ?? "", /\b4\.8\.7\b/);
+});
+
 test("an alert copied into someone else's issue is not reused", async (t) => {
   const first = await run(t, { pinned: "4.8.4" });
   const opened = first.writes[0]?.payload;
   assert.ok(opened, first.stderr);
 
-  const result = await run(t, { pinned: "4.8.4", issues: [[{ number: 5, user: { login: "someone" }, ...opened }]] });
+  const result = await run(t, { pinned: "4.8.4", issues: [[{ number: 5, state: "open", user: { login: "someone" }, ...opened }]] });
 
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.writes.map((write) => write.args), ["api --method POST repos/putdotio/putio-ios/issues --input -"]);
 });
 
-test("a pin at or past the latest tag stays quiet", async (t) => {
-  const latest = await run(t, { pinned: "4.8.6" });
-  assert.equal(latest.status, 0, latest.stderr);
-  assert.deepEqual(latest.writes, []);
-  assert.ok(!latest.calls.some((call) => call.includes("putio-ios/issues")), "never looks for an issue");
+test("a pin at the latest tag stays quiet", async (t) => {
+  for (const scenario of [{ pinned: "4.8.6" }, {}]) {
+    const result = await run(t, scenario);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(result.writes, []);
+    assert.ok(!result.calls.some((call) => call.includes("putio-ios/issues")), "never looks for an issue");
+  }
+});
 
-  const fromPackage = await run(t, { tags: [[{ name: "0.0.1" }]] });
-  assert.equal(fromPackage.status, 0, fromPackage.stderr);
-  assert.deepEqual(fromPackage.writes, []);
+test("a scheduled run compares a newer tag against the 4.8.6 pin in Package.swift", async (t) => {
+  const result = await run(t, { tags: [[{ name: "99.0.0" }, ...UPSTREAM_TAGS]] });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.writes.length, 1);
+  assert.match(result.writes[0]?.payload.title ?? "", /\b99\.0\.0\b/);
+  assert.ok(result.writes[0]?.payload.body.includes("`main` pins 4.8.6."), "names the 4.8.6 pin");
+});
+
+test("any upstream dynamic zip the alert names keeps a pin the next run can read", async () => {
+  const ours = await readFile(new URL("../ThirdParty/GoogleCast/Package.swift", import.meta.url), "utf8");
+  const url = "https://dl.google.com/dl/chromecast/sdk/ios/4.9.0/GoogleCastSDK-ios-4.9.0_dynamic_xcframework.zip";
+  const binary = dynamicBinary(upstreamPackage(dynamicTarget(url, DYNAMIC_CHECKSUM)));
+
+  assert.deepEqual(binary, { url, checksum: DYNAMIC_CHECKSUM });
+  assert.equal(pinnedVersion(ours.replace(DYNAMIC_URL, binary?.url ?? "")), "4.9.0");
 });
 
 test("an upstream dynamic binary without a dl.google.com zip and sha256 checksum opens nothing", async (t) => {
@@ -145,6 +178,7 @@ test("an upstream dynamic binary without a dl.google.com zip and sha256 checksum
     ["short checksum", dynamicTarget(DYNAMIC_URL, DYNAMIC_CHECKSUM.slice(1))],
     ["other host", dynamicTarget(DYNAMIC_URL.replace("dl.google.com", "dl.example.com"), DYNAMIC_CHECKSUM)],
     ["plain http", dynamicTarget(DYNAMIC_URL.replace("https:", "http:"), DYNAMIC_CHECKSUM)],
+    ["unversioned zip", dynamicTarget(DYNAMIC_URL.replace("GoogleCastSDK-ios-4.8.6_dynamic", "GoogleCastSDK_dynamic"), DYNAMIC_CHECKSUM)],
   ] as const) {
     assert.equal(dynamicBinary(upstreamPackage(target)), undefined, name);
   }
@@ -175,6 +209,8 @@ test("the workflow runs weekly and on dispatch with an optional pin, and may onl
   const step = Object.values(workflow.jobs).flatMap((job) => job.steps).find((candidate) => candidate.run?.includes("scripts/cast-sdk-release.ts"));
   assert.deepEqual(step?.env, { GH_TOKEN: "${{ github.token }}", PINNED_VERSION: "${{ inputs.pinned_version }}" });
 
-  const lanes = spawnSync("sh", [fileURLToPath(new URL("./ci-affected.sh", import.meta.url))], { encoding: "utf8", input: ".github/workflows/cast-sdk-release.yml\n" });
-  assert.match(lanes.stdout, /^tooling=true$/m);
+  for (const path of [".github/workflows/cast-sdk-release.yml", "ThirdParty/GoogleCast/Package.swift"]) {
+    const lanes = spawnSync("sh", [fileURLToPath(new URL("./ci-affected.sh", import.meta.url))], { encoding: "utf8", input: `${path}\n` });
+    assert.match(lanes.stdout, /^tooling=true$/m, path);
+  }
 });
