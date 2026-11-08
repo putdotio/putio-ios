@@ -161,6 +161,7 @@ final class ProductAnalyticsTests: XCTestCase {
             XCTAssertEqual(AnalyticsEvent.PlaybackError(downloadError: failure).rawValue, error, "\(status)")
         }
         XCTAssertEqual(AnalyticsEvent.PlaybackError(downloadError: DownloadSupport.ArtifactSaveError.unresolvedDestination), .unknown)
+        XCTAssertEqual(AnalyticsEvent.PlaybackError(downloadError: DownloadSupport.ArtifactSaveError.unsupportedMediaType), .unsupported)
         XCTAssertEqual(AnalyticsEvent.PlaybackError(downloadError: URLError(.networkConnectionLost)), .network)
     }
 

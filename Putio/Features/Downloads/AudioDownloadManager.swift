@@ -269,29 +269,36 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         return result
     }
 
-    private func deriveFileExtensionFromResponse(response: URLResponse?) -> String {
-        var fileExtension = "mp3"
-
-        if let mimeType = response?.mimeType {
-            switch mimeType {
-            case "audio/mp4":
-                fileExtension = "mp4"
-            case "audio/x-m4a":
-                fileExtension = "m4a"
-            case "audio/wav", "audio/wave", "audio/x-wav", "audio/x-pn-wav":
-                fileExtension = "wav"
-            case "audio/aac", "audio/x-hx-aac-adts":
-                fileExtension = "aac"
-            case "audio/ogg":
-                fileExtension = "ogg"
-            case "audio/flac":
-                fileExtension = "flac"
-            default:
-                break
-            }
+    static func fileExtension(forMIMEType mimeType: String?) -> String? {
+        switch mimeType?.lowercased() {
+        case "audio/mpeg": return "mp3"
+        case "audio/mp4", "audio/aac", "audio/x-m4a": return "m4a"
+        case "audio/flac": return "flac"
+        case "audio/wav", "audio/x-wav": return "wav"
+        default: return nil
         }
+    }
 
+    private func acceptedFileExtension(for task: URLSessionDownloadTask) -> String? {
+        guard artifactSaveErrors[task] == nil else { return nil }
+        if let error = DownloadSupport.statusError(of: task.response) {
+            artifactSaveErrors[task] = error
+            return nil
+        }
+        guard let fileExtension = Self.fileExtension(forMIMEType: task.response?.mimeType) else {
+            let error = DownloadSupport.ArtifactSaveError.unsupportedMediaType
+            artifactSaveErrors[task] = error
+            SentryTelemetry.capture(.unplayableOfflineDownload, error: error)
+            return nil
+        }
         return fileExtension
+    }
+
+    private static func failureMessage(for error: Error) -> String {
+        if case .unsupportedMediaType? = error as? DownloadSupport.ArtifactSaveError {
+            return NSLocalizedString("This audio format can't be played offline.", comment: "")
+        }
+        return NSLocalizedString("Download failed. Tap to retry.", comment: "")
     }
 }
 
@@ -307,9 +314,9 @@ extension AudioDownloadManager: URLSessionTaskDelegate {
         }
 
         let artifactError = artifactSaveErrors.removeValue(forKey: task)
-        let effectiveError = error ?? artifactError
+        let effectiveError = artifactError ?? error
         let state: Download.State = effectiveError == nil ? .completed : .failed
-        let message = effectiveError == nil ? "" : NSLocalizedString("Download failed. Tap to retry.", comment: "")
+        let message = effectiveError.map(Self.failureMessage) ?? ""
 
         let didWrite = DownloadSupport.write(realm, context: "AudioDownloadManager.didComplete.write") {
             download.state = state
@@ -338,6 +345,10 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
 
         guard let downloadId = withActiveDownloadsMap({ $0[downloadTask] }) else { return }
         guard let download = getDownloadFromDatabase(id: downloadId) else { return }
+        guard acceptedFileExtension(for: downloadTask) != nil else {
+            downloadTask.cancel()
+            return
+        }
 
         log.verbose(["ADM: downloadTask-didWriteData download:", downloadId])
 
@@ -373,7 +384,7 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
             return
         }
 
-        let fileExtension = deriveFileExtensionFromResponse(response: downloadTask.response)
+        guard let fileExtension = acceptedFileExtension(for: downloadTask) else { return }
         let destinationPath = "putio_adm_\(String(download.id))_\(download.name.slugify()).\(fileExtension)"
         if let error = DownloadSupport.saveDownloadedArtifact(
             response: downloadTask.response,

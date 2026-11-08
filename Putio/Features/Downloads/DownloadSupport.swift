@@ -20,6 +20,7 @@ enum DownloadSupport {
     enum ArtifactSaveError: Error, Equatable {
         case httpStatus(Int)
         case unresolvedDestination
+        case unsupportedMediaType
     }
 
     static func realm(context: String) -> Realm? {
@@ -109,11 +110,14 @@ enum DownloadSupport {
     }
 
     static func saveDownloadedArtifact(response: URLResponse?, from sourceURL: URL, to destinationURL: URL?) -> Error? {
-        if let response = response as? HTTPURLResponse, !(200..<300).contains(response.statusCode) {
-            return ArtifactSaveError.httpStatus(response.statusCode)
-        }
+        if let error = statusError(of: response) { return error }
         guard let destinationURL else { return ArtifactSaveError.unresolvedDestination }
         return copyDownloadedArtifact(from: sourceURL, to: destinationURL)
+    }
+
+    static func statusError(of response: URLResponse?) -> ArtifactSaveError? {
+        guard let response = response as? HTTPURLResponse, !(200..<300).contains(response.statusCode) else { return nil }
+        return .httpStatus(response.statusCode)
     }
 
     static func copyDownloadedArtifact(from sourceURL: URL, to destinationURL: URL) -> Error? {
@@ -310,10 +314,10 @@ extension AnalyticsEvent.Media {
 
 extension AnalyticsEvent.PlaybackError {
     init(downloadError error: Error?) {
-        if case .httpStatus(let status)? = error as? DownloadSupport.ArtifactSaveError {
-            self.init(httpStatus: status)
-        } else {
-            self.init(error)
+        switch error as? DownloadSupport.ArtifactSaveError {
+        case .httpStatus(let status)?: self.init(httpStatus: status)
+        case .unsupportedMediaType?: self = .unsupported
+        case .unresolvedDestination?, nil: self.init(error)
         }
     }
 }
