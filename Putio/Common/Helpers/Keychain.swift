@@ -64,9 +64,13 @@ class PutioKeychain {
 
     func signOut(cachedUserID: Int?) {
         if let accountID = tokenOwnerID ?? cachedUserID {
-            keychain[signedOutAccountKey] = String(accountID)
+            recordSignedOutAccount(accountID)
         }
         clearToken()
+    }
+
+    func recordSignedOutAccount(_ accountID: Int) {
+        keychain[signedOutAccountKey] = String(accountID)
     }
 
     func clearSignedOutAccount() {

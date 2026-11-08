@@ -269,6 +269,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         self.isRestoredSession = isRestoredSession
         if !isRestoredSession {
             PutioRealm.setUpgradingFromShipped258(false)
+            if let accountID = cachedUserID(context: "authenticate") {
+                PutioKeychain.sharedInstance.recordSignedOutAccount(accountID)
+            }
         }
         guard let token = token ?? PutioKeychain.sharedInstance.getToken(adoptsShipped258Token: PutioRealm.isUpgradingFromShipped258()) else {
             return presentLoginScreen()
@@ -463,11 +466,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     private func endSession() {
         DownloadQueueController.sharedInstance.pause()
         OfflineVideoPlaybackPositionStore.shared.clearAllUpdates()
-        let cachedUserID = PutioRealm.open(context: "endSession")?.objects(User.self).first?.id
-        PutioKeychain.sharedInstance.signOut(cachedUserID: cachedUserID)
+        PutioKeychain.sharedInstance.signOut(cachedUserID: cachedUserID(context: "endSession"))
         api.clearToken()
         VideoPlaybackPositionStore.shared.clearAllPositions()
         SentryTelemetry.update(diagnosticsEnabled: nil)
+    }
+
+    private func cachedUserID(context: String) -> Int? {
+        PutioRealm.open(context: context)?.objects(User.self).first?.id
     }
 
     // Falling back to login is normal for a signed-out launch, but when the e2e

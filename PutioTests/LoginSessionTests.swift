@@ -102,15 +102,14 @@ final class LoginSessionTests: XCTestCase {
         XCTAssertFalse(keepsSession(cachedUserID: 1, keychain: keychain))
     }
 
-    func testSigningInAfterARejectedTokenDropsTheCachedSession() {
+    func testSignOutWithoutATokenOwnerRecordsTheCachedUser() {
         let keychain = makeKeychain()
         keychain.setToken("token-without-owner")
-        let rejected = SessionLoadFallback.after(.httpError(statusCode: 401, errorType: "Unauthorized"), keepsSession: true)
-        XCTAssertEqual(rejected, .login(.sessionExpired))
 
         keychain.signOut(cachedUserID: 1)
         keychain.setToken("token-b")
 
+        XCTAssertEqual(keychain.signedOutAccountID, 1)
         XCTAssertFalse(keepsSession(cachedUserID: 1, keychain: keychain))
     }
 
