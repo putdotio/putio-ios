@@ -61,6 +61,7 @@ class TrashViewController: UIViewController, StatefulViewController {
             heading: NSLocalizedString("Oops", comment: ""),
             description: NSLocalizedString("An error occurred, please try again :(", comment: "")
         )
+        errorView.isUserInteractionEnabled = false
         stateMachine.addView(errorView, forState: "error")
 
         let offlineStatusView = OfflineStatusView.instantiateFromInterfaceBuilder()

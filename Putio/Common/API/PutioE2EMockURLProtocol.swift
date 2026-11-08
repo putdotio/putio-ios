@@ -111,7 +111,7 @@ private enum PutioE2EMockAPI {
             answers[routeKey] = answered + 1
             return answered
         }) {
-            return answered < emptiedList.emptyAnswers ? emptiedList.empty : emptiedList.refilled
+            return emptiedList.answersBeforeRefill.indices.contains(answered) ? emptiedList.answersBeforeRefill[answered] : emptiedList.refilled
         }
 
         if let response = PutioE2ELargeFixture.response(method: request.httpMethod ?? "GET", url: url) {
@@ -181,20 +181,17 @@ private enum PutioE2EMockAPI {
     ]
 
     private struct EmptiedList {
-        let emptyAnswers: Int
-        let empty: Fixture
+        let answersBeforeRefill: [Fixture]
         let refilled: Fixture
     }
 
     private static let emptiedLists: [String: EmptiedList] = [
         "GET /v2/trash/list": EmptiedList(
-            emptyAnswers: 1,
-            empty: Fixture(body: #"{"status":"OK","cursor":null,"total":0,"trash_size":0,"files":[]}"#),
+            answersBeforeRefill: [Fixture(body: #"{"status":"OK","cursor":null,"total":0,"trash_size":0,"files":[]}"#)],
             refilled: Fixture(body: trashListAfterEmptying)
         ),
         "GET /v2/events/list": EmptiedList(
-            emptyAnswers: 0,
-            empty: Fixture(body: #"{"status":"OK","has_more":false,"events":[]}"#),
+            answersBeforeRefill: [],
             refilled: Fixture(body: historyEventsAfterClearing)
         )
     ]

@@ -107,6 +107,7 @@ class HistoryViewController: UIViewController, FilePresenter, StatefulViewContro
             heading: NSLocalizedString("Oops", comment: ""),
             description: NSLocalizedString("An error occurred, please try again :(", comment: "")
         )
+        errorView.isUserInteractionEnabled = false
         stateMachine.addView(errorView, forState: "error")
     }
 
