@@ -129,7 +129,6 @@ final class ProductAnalyticsGate {
     private var hasAnswer = false
     private var held: [(event: AnalyticsEvent, at: Date)] = []
     private var foregroundEntry: AnalyticsEvent.Entry?
-    private var acceptedOpenAccountID: Int?
     private var running: Running?
 
     /// Read by `beforeSend` on any SDK thread, so it has its own lock.
@@ -166,12 +165,14 @@ final class ProductAnalyticsGate {
 
     func signOut(after failure: LoginFailure?) {
         lock.withLock {
-            let accepted = failure == .sessionLoad ? acceptedOpenAccount() : nil
+            if failure == .sessionLoad, running != nil {
+                hasAnswer = false
+                return
+            }
             accountID = nil
             enabled = nil
             hasAnswer = true
             apply()
-            acceptedOpenAccountID = accepted
         }
     }
 
@@ -193,9 +194,7 @@ final class ProductAnalyticsGate {
             guard environment.token != nil, environment.isEligible else { return }
             let at = environment.now()
             switch event {
-            case .appOpened(let entry, _):
-                foregroundEntry = entry
-                acceptedOpenAccountID = nil
+            case .appOpened(let entry, _): foregroundEntry = entry
             case .appBackgrounded: foregroundEntry = nil
             default: break
             }
@@ -230,16 +229,11 @@ final class ProductAnalyticsGate {
         environment.storageDirectory.appending(path: token)
     }
 
-    func hasUnsentEvents(token: String) -> Bool {
-        let queue = storageDirectory(token: token).appending(path: "posthog.queueFolder.uuid")
-        return (try? FileManager.default.contentsOfDirectory(atPath: queue.path).isEmpty) != true
-    }
-
     private func apply(heldPredatesConsent: Bool = false) {
         guard let token = environment.token, environment.isEligible else { return }
-        defer { acceptedOpenAccountID = nil }
         let target = enabled == true ? accountID : nil
         if running == nil || running?.accountID != target {
+            let heldPredatesConsent = heldPredatesConsent || running != nil
             // A survivor could hand the next start the earlier identity or queue.
             guard stop(token: token), let target else {
                 held.removeAll()
@@ -256,18 +250,9 @@ final class ProductAnalyticsGate {
 
     private func sendConsentOpen() {
         guard let foregroundEntry, let running, !running.hasSentOpen else { return }
-        guard acceptedOpenAccountID != running.accountID else {
-            self.running?.hasSentOpen = true
-            return
-        }
         let consentAt = environment.now()
         send(.appOpened(foregroundEntry, route: environment.route(running.accountID)), at: consentAt)
         self.running?.consentOpenedAt = consentAt
-    }
-
-    private func acceptedOpenAccount() -> Int? {
-        guard let running, let token = environment.token else { return acceptedOpenAccountID }
-        return running.hasSentOpen && !hasUnsentEvents(token: token) ? running.accountID : nil
     }
 
     private func sendHeld() {
