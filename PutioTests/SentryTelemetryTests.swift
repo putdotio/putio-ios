@@ -640,32 +640,6 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertEqual(actions.map { $0.data as? [String: String] }, [["tab": "files"], ["tab": "downloads"], ["tab": "history"], ["tab": "downloads"]])
     }
 
-    func testTheTrailKeepsTheCurrentTabAfterConsentAndPastTheBreadcrumbLimit() throws {
-        let defaults = try isolatedDefaults()
-        addTeardownBlock { SentryTelemetry.update(diagnosticsEnabled: false, dsn: self.dsn, defaults: defaults) }
-        func trail() -> [[String: Any]] {
-            var breadcrumbs: [[String: Any]] = []
-            SentrySDK.configureScope { breadcrumbs = $0.serialize()["breadcrumbs"] as? [[String: Any]] ?? [] }
-            return breadcrumbs
-        }
-        func tabs() -> [[String: String]] {
-            trail().filter { $0["category"] as? String == "putio.tab" }.compactMap { $0["data"] as? [String: String] }
-        }
-
-        SentryTelemetry.update(diagnosticsEnabled: false, dsn: dsn, defaults: defaults)
-        SentryTelemetry.record(.tabSelected(.account))
-        SentryTelemetry.update(diagnosticsEnabled: true, dsn: dsn, defaults: defaults)
-        XCTAssertEqual(tabs(), [["tab": "settings"]])
-
-        for _ in 0..<75 {
-            let crumb = Breadcrumb(level: .info, category: "app.lifecycle")
-            crumb.setData(value: "foreground", key: "state")
-            SentrySDK.addBreadcrumb(crumb)
-        }
-        XCTAssertEqual(trail().count, 30)
-        XCTAssertEqual(tabs(), [["tab": "settings"]])
-    }
-
     func testSampledTimingsSendOnlyStaticTransactions() throws {
         let fileName = "Synthetic.Feature.Title.2001.mkv"
         let url = "https://api.put.io/v2/files/list?oauth_token=synthetic-token-5f1c9e"

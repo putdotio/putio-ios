@@ -273,10 +273,7 @@ enum SentryTelemetry {
         let enabled = lastKnownDiagnosticsEnabled(defaults: defaults)
         isCapturing = enabled
         if enabled {
-            if !SentrySDK.isEnabled {
-                SentrySDK.start(options: options(dsn: dsn))
-                currentAction.withLock { $0.action }.map(record)
-            }
+            if !SentrySDK.isEnabled { SentrySDK.start(options: options(dsn: dsn)) }
         } else {
             if SentrySDK.isEnabled { SentrySDK.close() }
             do {
@@ -296,8 +293,8 @@ enum SentryTelemetry {
         options.sessionTrackingIntervalMillis = 60000
         options.cacheDirectoryPath = cacheDirectory.path
         options.urlSession = transportSession
-        options.maxBreadcrumbs = maxBreadcrumbs
-        options.beforeBreadcrumb = trailed
+        options.maxBreadcrumbs = 30
+        options.beforeBreadcrumb = { isCapturing ? allowlisted($0) : nil }
         options.enableCaptureFailedRequests = false
         options.tracesSampleRate = NSNumber(value: tracesSampleRate)
         options.enableAutoPerformanceTracing = false
@@ -369,29 +366,8 @@ enum SentryTelemetry {
         }
     }
 
-    private static let maxBreadcrumbs: UInt = 30
-
-    private static let currentAction = OSAllocatedUnfairLock<(action: Action?, crumbsSince: UInt)>(initialState: (nil, 0))
-
     static func record(_ action: Action) {
-        currentAction.withLock { $0 = (action, 0) }
         SentrySDK.addBreadcrumb(action.breadcrumb(at: Date()))
-    }
-
-    private static func trailed(_ breadcrumb: Breadcrumb) -> Breadcrumb? {
-        guard isCapturing, let kept = allowlisted(breadcrumb) else { return nil }
-        let evicted = currentAction.withLock { state -> Action? in
-            if Action.allCases.contains(where: { $0.category == kept.category }) {
-                state.crumbsSince = 0
-                return nil
-            }
-            state.crumbsSince += 1
-            guard state.crumbsSince >= maxBreadcrumbs, let action = state.action else { return nil }
-            state.crumbsSince = 1
-            return action
-        }
-        evicted.map { action in SentrySDK.configureScope { $0.addBreadcrumb(action.breadcrumb(at: Date())) } }
-        return kept
     }
 
     static func begin(_ interval: Interval) -> Timing {
