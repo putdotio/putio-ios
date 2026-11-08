@@ -370,8 +370,9 @@ final class ProductAnalyticsTests: XCTestCase {
         gate.capture(.appOpened(.direct))
         gate.update(accountID: 1001, productAnalyticsEnabled: true)
         _ = try waitForEvents(token: token, count: 1)
+        try waitForAcceptance(gate, token: token)
 
-        gate.update(accountID: nil, productAnalyticsEnabled: nil)
+        gate.signOut(after: .sessionLoad)
         gate.update(accountID: 1001, productAnalyticsEnabled: true)
         gate.capture(.appBackgrounded(.under1m))
         let events = try waitForEvents(token: token, count: 2)
@@ -385,13 +386,62 @@ final class ProductAnalyticsTests: XCTestCase {
         gate.capture(.appOpened(.direct))
         gate.update(accountID: 1001, productAnalyticsEnabled: true)
         _ = try waitForEvents(token: token, count: 1)
+        try waitForAcceptance(gate, token: token)
 
-        gate.update(accountID: nil, productAnalyticsEnabled: nil)
+        gate.signOut(after: .sessionLoad)
         gate.update(accountID: 1002, productAnalyticsEnabled: true)
         let events = try waitForEvents(token: token, count: 2)
 
         XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_opened"])
         XCTAssertEqual(events.map { $0["distinct_id"] as? String }, ["1001", "1002"])
+    }
+
+    func testARetryAfterAnOpenPostHogNeverAcceptedSendsItAgain() throws {
+        let (gate, token) = makeGate()
+        RecordingURLProtocol.rejectBatches(token: token)
+        gate.capture(.appOpened(.direct))
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        _ = try waitForEvents(token: token, count: 1)
+
+        gate.signOut(after: .sessionLoad)
+        RecordingURLProtocol.acceptBatches(token: token)
+        gate.update(accountID: 1001, productAnalyticsEnabled: true)
+        let events = try waitForEvents(token: token, count: 2)
+
+        XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_opened"])
+    }
+
+    func testAfterARetryEveryOtherWayOutAndBackSendsAnOpenTimedFromConsent() throws {
+        let signIn: (ProductAnalyticsGate) -> Void = { $0.update(accountID: 1001, productAnalyticsEnabled: true) }
+        let waysOutAndBack: [(out: (ProductAnalyticsGate) -> Void, back: (ProductAnalyticsGate) -> Void)] = [
+            ({ $0.settingDidSave(enabled: false) }, { $0.settingDidSave(enabled: true) }),
+            ({ $0.update(accountID: 1001, productAnalyticsEnabled: false) }, signIn),
+            ({ $0.signOut(after: nil) }, signIn),
+            ({ $0.signOut(after: .sessionExpired) }, signIn),
+            ({ $0.update(accountID: nil, productAnalyticsEnabled: nil) }, signIn)
+        ]
+        for (index, wayOut) in waysOutAndBack.enumerated() {
+            var clock = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970) - 900)
+            let (gate, token) = makeGate(now: { clock })
+            gate.capture(.appOpened(.direct))
+            signIn(gate)
+            _ = try waitForEvents(token: token, count: 1)
+            try waitForAcceptance(gate, token: token)
+            gate.signOut(after: .sessionLoad)
+            signIn(gate)
+
+            clock += 600
+            wayOut.out(gate)
+            wayOut.back(gate)
+            let consentAt = clock
+            clock += 30
+            gate.capture(.appBackgrounded(.from5mTo15m))
+            let events = try waitForEvents(token: token, count: 3)
+
+            XCTAssertEqual(events.map { $0["event"] as? String }, ["app_opened", "app_opened", "app_backgrounded"], "way out \(index)")
+            XCTAssertEqual((events[1]["timestamp"] as? String).flatMap(toISO8601Date), consentAt, "way out \(index)")
+            XCTAssertEqual((events[2]["properties"] as? [String: Any])?["session_duration"] as? String, "lt_1m", "way out \(index)")
+        }
     }
 
     func testAResumeAfterHalfAnHourAwayOpensInANewSession() throws {
@@ -802,6 +852,17 @@ final class ProductAnalyticsTests: XCTestCase {
         return sent
     }
 
+    private func waitForAcceptance(_ gate: ProductAnalyticsGate, token: String) throws {
+        let deadline = Date().addingTimeInterval(Self.aWaitTimedOut ? 10 : 90)
+        while gate.hasUnsentEvents(token: token), Date() < deadline {
+            spinRunLoop(seconds: 0.05)
+        }
+        guard !gate.hasUnsentEvents(token: token) else {
+            Self.aWaitTimedOut = true
+            throw MissingEvents(description: "PostHog still holds events it sent")
+        }
+    }
+
     private struct MissingEvents: Error, CustomStringConvertible {
         let description: String
     }
@@ -823,9 +884,18 @@ private final class RecordingURLProtocol: URLProtocol {
     }
 
     private static let recorded = OSAllocatedUnfairLock(uncheckedState: [Request]())
+    private static let rejectedTokens = OSAllocatedUnfairLock(initialState: Set<String>())
 
     static var requests: [Request] {
         recorded.withLock { $0 }
+    }
+
+    static func rejectBatches(token: String) {
+        rejectedTokens.withLock { _ = $0.insert(token) }
+    }
+
+    static func acceptBatches(token: String) {
+        rejectedTokens.withLock { _ = $0.remove(token) }
     }
 
     static func reset() {
@@ -839,8 +909,9 @@ private final class RecordingURLProtocol: URLProtocol {
     override func startLoading() {
         let recorded = Request(url: request.url, body: request.httpBody ?? request.httpBodyStream.map(Self.read))
         Self.recorded.withLock { $0.append(recorded) }
+        let isRejected = (recorded.json?["api_key"] as? String).map { key in Self.rejectedTokens.withLock { $0.contains(key) } } == true
         guard let url = request.url,
-              let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])
+              let response = HTTPURLResponse(url: url, statusCode: isRejected ? 503 : 200, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])
         else { return }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data(url.path.hasSuffix("/config") ? #"{"hasFeatureFlags":false}"#.utf8 : #"{"status":"Ok"}"#.utf8))

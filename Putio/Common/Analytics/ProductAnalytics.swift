@@ -39,6 +39,10 @@ enum ProductAnalytics {
         shared.settingDidSave(enabled: enabled)
     }
 
+    static func signOut(after failure: LoginFailure?) {
+        shared.signOut(after: failure)
+    }
+
     /// The foreground refresh is reading the account again.
     static func awaitAnswer() {
         shared.awaitAnswer()
@@ -105,8 +109,8 @@ final class ProductAnalyticsGate {
         let sdk: PostHogSDK
         let accountID: Int
         let commonProperties: [String: String]
-        /// Without an open since the start, a background would time a session
-        /// that began before consent.
+        /// Without this foreground's open since consent, a background would
+        /// time a session that began before consent.
         var hasSentOpen = false
         var consentOpenedAt: Date?
         var backgroundedAt: Date?
@@ -125,7 +129,7 @@ final class ProductAnalyticsGate {
     private var hasAnswer = false
     private var held: [(event: AnalyticsEvent, at: Date)] = []
     private var foregroundEntry: AnalyticsEvent.Entry?
-    private var openedAccountID: Int?
+    private var acceptedOpenAccountID: Int?
     private var running: Running?
 
     /// Read by `beforeSend` on any SDK thread, so it has its own lock.
@@ -160,6 +164,17 @@ final class ProductAnalyticsGate {
         }
     }
 
+    func signOut(after failure: LoginFailure?) {
+        lock.withLock {
+            let accepted = failure == .sessionLoad ? acceptedOpenAccount() : nil
+            accountID = nil
+            enabled = nil
+            hasAnswer = true
+            apply()
+            acceptedOpenAccountID = accepted
+        }
+    }
+
     /// Held until the refresh answers, so an opt-out made on another device
     /// while the app was away applies before the foreground's first event.
     func awaitAnswer() {
@@ -180,7 +195,7 @@ final class ProductAnalyticsGate {
             switch event {
             case .appOpened(let entry, _):
                 foregroundEntry = entry
-                openedAccountID = nil
+                acceptedOpenAccountID = nil
             case .appBackgrounded: foregroundEntry = nil
             default: break
             }
@@ -215,8 +230,14 @@ final class ProductAnalyticsGate {
         environment.storageDirectory.appending(path: token)
     }
 
+    func hasUnsentEvents(token: String) -> Bool {
+        let queue = storageDirectory(token: token).appending(path: "posthog.queueFolder.uuid")
+        return (try? FileManager.default.contentsOfDirectory(atPath: queue.path).isEmpty) != true
+    }
+
     private func apply(heldPredatesConsent: Bool = false) {
         guard let token = environment.token, environment.isEligible else { return }
+        defer { acceptedOpenAccountID = nil }
         let target = enabled == true ? accountID : nil
         if running == nil || running?.accountID != target {
             // A survivor could hand the next start the earlier identity or queue.
@@ -235,13 +256,18 @@ final class ProductAnalyticsGate {
 
     private func sendConsentOpen() {
         guard let foregroundEntry, let running, !running.hasSentOpen else { return }
-        guard openedAccountID != running.accountID else {
+        guard acceptedOpenAccountID != running.accountID else {
             self.running?.hasSentOpen = true
             return
         }
         let consentAt = environment.now()
         send(.appOpened(foregroundEntry, route: environment.route(running.accountID)), at: consentAt)
         self.running?.consentOpenedAt = consentAt
+    }
+
+    private func acceptedOpenAccount() -> Int? {
+        guard let running, let token = environment.token else { return acceptedOpenAccountID }
+        return running.hasSentOpen && !hasUnsentEvents(token: token) ? running.accountID : nil
     }
 
     private func sendHeld() {
@@ -310,7 +336,6 @@ final class ProductAnalyticsGate {
             running.backgroundedAt = nil
             running.hasSentOpen = true
             running.consentOpenedAt = nil
-            openedAccountID = running.accountID
         case .appBackgrounded:
             running.backgroundedAt = timestamp
             guard running.hasSentOpen else {
