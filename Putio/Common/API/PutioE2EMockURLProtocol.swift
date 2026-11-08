@@ -102,6 +102,14 @@ private enum PutioE2EMockAPI {
             rememberPrivacySettings(from: request)
         }
 
+        if let list = listsEmptiedBy[routeKey] {
+            emptiedLists.withLock { _ = $0.insert(list) }
+        }
+
+        if let emptyList = emptyLists[routeKey], emptiedLists.withLock({ $0.contains(routeKey) }) {
+            return emptyList
+        }
+
         if let response = PutioE2ELargeFixture.response(method: request.httpMethod ?? "GET", url: url) {
             return Fixture(response)
         }
@@ -163,6 +171,18 @@ private enum PutioE2EMockAPI {
 
     private static let ok = #"{"status":"OK"}"#
 
+    private static let listsEmptiedBy: [String: String] = [
+        "POST /v2/trash/empty": "GET /v2/trash/list",
+        "POST /v2/events/delete": "GET /v2/events/list"
+    ]
+
+    private static let emptyLists: [String: Fixture] = [
+        "GET /v2/trash/list": Fixture(body: #"{"status":"OK","cursor":null,"total":0,"trash_size":0,"files":[]}"#),
+        "GET /v2/events/list": Fixture(body: #"{"status":"OK","has_more":false,"events":[]}"#)
+    ]
+
+    private static let emptiedLists = OSAllocatedUnfairLock(initialState: Set<String>())
+
     // Without the flag the account has already answered, so no other test meets
     // the prompt.
     private static let isProductAnalyticsPromptUnanswered =
@@ -174,6 +194,7 @@ private enum PutioE2EMockAPI {
         "PUT /v2/config/dismissed.product_analytics_prompt": Fixture(body: ok),
         "POST /v2/account/settings": Fixture(body: ok),
         "GET /v2/files/list": Fixture(body: filesList),
+        "POST /v2/files/move": Fixture(body: #"{"status":"OK","errors":[]}"#),
         "GET /v2/files/42": Fixture(body: fileDetails),
         "GET /v2/files/42/start-from": Fixture(body: #"{"start_from":125}"#),
         "POST /v2/files/42/start-from/set": Fixture(body: ok),
@@ -184,7 +205,9 @@ private enum PutioE2EMockAPI {
         "POST /v2/files/42/mp4": Fixture(body: ok),
         "POST /v2/ifttt-client/event": Fixture(body: ok),
         "GET /v2/events/list": Fixture(body: historyEvents),
+        "POST /v2/events/delete": Fixture(body: ok),
         "GET /v2/trash/list": Fixture(body: trashList),
+        "POST /v2/trash/empty": Fixture(body: ok),
         "GET /v2/tunnel/routes": Fixture(body: tunnelRoutes),
         "GET /v2/oauth/grants": Fixture(body: grants),
         "GET /v2/files/43": Fixture(body: audioFileDetails),

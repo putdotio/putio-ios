@@ -356,6 +356,7 @@ extension TrashViewController: TrashViewModelDelegate {
             stateMachine.transitionToState(.none)
 
         case .empty:
+            tableView.reloadData()
             stateMachine.transitionToState(.view("empty"), animated: false, completion: nil)
 
         case .failure:

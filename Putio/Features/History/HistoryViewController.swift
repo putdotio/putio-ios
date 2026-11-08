@@ -170,6 +170,7 @@ extension HistoryViewController: HistoryViewModelDelegate {
 
         case .empty:
             tableView.refreshControl?.endRefreshing()
+            tableView.reloadData()
             stateMachine.transitionToState(.view("empty"), animated: false, completion: nil)
 
         case .loaded:
