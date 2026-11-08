@@ -1,5 +1,6 @@
 import Foundation
 import RealmSwift
+import UIKit
 import UserNotifications
 
 enum DownloadSupport {
@@ -310,6 +311,35 @@ enum DownloadSupport {
             guard let error else { return }
             log.error("[DownloadSupport] Failed to enqueue completion notification: \(error.localizedDescription)")
         }
+    }
+}
+
+final class DownloadStartTimings {
+    private var intervals = [Int: PerfSignpost.Interval]()
+    private var backgroundObserver: NSObjectProtocol?
+
+    init(notificationCenter: NotificationCenter = .default) {
+        backgroundObserver = notificationCenter.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            self?.endAll(outcome: .cancelled)
+        }
+    }
+
+    func begin(id: Int) {
+        end(id: id, outcome: .cancelled)
+        intervals[id] = PerfSignpost.begin(.downloadStart)
+    }
+
+    func end(id: Int, outcome: SentryTelemetry.Outcome) {
+        guard let interval = intervals.removeValue(forKey: id) else { return }
+        PerfSignpost.end(interval, outcome: outcome)
+    }
+
+    private func endAll(outcome: SentryTelemetry.Outcome) {
+        intervals.keys.forEach { end(id: $0, outcome: outcome) }
     }
 }
 
