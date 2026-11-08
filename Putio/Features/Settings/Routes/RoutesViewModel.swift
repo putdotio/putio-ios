@@ -79,7 +79,7 @@ class RoutesViewModel {
                     }
                 } else {
                     self.userSettings.routeName = route.name
-                    InternalFailurePresenter.log("Unable to load Realm while persisting selected route")
+                    InternalFailurePresenter.log("Unable to load Realm while persisting selected route", context: "RoutesViewModel.setRoute")
                 }
 
                 completion(.success)

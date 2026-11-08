@@ -391,12 +391,12 @@ extension TrashViewController: UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         guard let cell = tableView.dequeueReusableCell(withIdentifier: "trashReuse", for: indexPath) as? TrashTableViewCell else {
-            InternalFailurePresenter.log("Unable to dequeue TrashTableViewCell")
+            InternalFailurePresenter.log("Unable to dequeue TrashTableViewCell", context: "TrashViewController.cellForRow.dequeue")
             return UITableViewCell()
         }
 
         guard let file = file(at: indexPath) else {
-            InternalFailurePresenter.log("Unable to access trash row \(indexPath.row) for cell")
+            InternalFailurePresenter.log("Unable to access trash row \(indexPath.row) for cell", context: "TrashViewController.cellForRow.file")
             return UITableViewCell()
         }
 

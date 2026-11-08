@@ -198,7 +198,7 @@ private enum PutioE2EPlaybackAsset {
             try wav.write(to: url, options: .atomic)
             return url
         } catch {
-            InternalFailurePresenter.log("PutioE2EPlaybackAsset: cannot write audio fixture: \(error)")
+            InternalFailurePresenter.logLocally("PutioE2EPlaybackAsset: cannot write audio fixture: \(error)")
             return nil
         }
     }()

@@ -51,7 +51,7 @@ extension FilesViewController {
         }
 
         guard let fileActionsButton else {
-            InternalFailurePresenter.log("Unable to configure navigation bar right buttons")
+            InternalFailurePresenter.log("Unable to configure navigation bar right buttons", context: "FilesViewController.configureNavigationBarRightButtons")
             return
         }
 
@@ -192,7 +192,8 @@ extension FilesViewController {
             return InternalFailurePresenter.logAndPresent(
                 on: self,
                 screen: .files,
-                logMessage: "Unable to instantiate MoveFiles flow"
+                logMessage: "Unable to instantiate MoveFiles flow",
+                context: "FilesViewController.moveFiles"
             )
         }
 

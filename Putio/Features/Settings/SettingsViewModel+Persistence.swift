@@ -173,7 +173,10 @@ extension SettingsViewModel {
                             completion(.failure(error))
                         case .failure(.answer(let error)):
                             // The setting holds; without the answer the prompt asks once more.
-                            InternalFailurePresenter.log("Product analytics saved, but not as the prompt's answer: \(error.localizerType)")
+                            InternalFailurePresenter.log(
+                                "Product analytics saved, but not as the prompt's answer: \(error.localizerType)",
+                                context: "SettingsViewModel.saveProductAnalyticsEnabled.answer"
+                            )
                             completion(.success(()))
                         }
                     }

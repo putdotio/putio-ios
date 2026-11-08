@@ -388,6 +388,30 @@ final class SentryTelemetryTests: XCTestCase {
         XCTAssertEqual(sent().map(\.tags), [["category": "realm_open", "context": context]])
     }
 
+    func testInternalFailuresReportOncePerSiteWithAStaticContextOnly() throws {
+        let previous = SentryTelemetry.isCapturing
+        addTeardownBlock { SentryTelemetry.isCapturing = previous }
+        let fileName = "Synthetic.Feature.Title.2001.mkv"
+        let leak = "Synthetic Feature Title /Documents/\(fileName)"
+
+        SentryTelemetry.isCapturing = false
+        InternalFailurePresenter.log("Unable to access file row 7 for \(fileName)", context: "SentryTelemetryTests.internalFailure")
+        let sent = try startRecordingSentEvents()
+        allowCapture()
+        InternalFailurePresenter.log("Unable to access file row 7 for \(fileName)", context: "SentryTelemetryTests.internalFailure")
+        InternalFailurePresenter.log("Unable to access file row 8 for \(fileName)", context: "SentryTelemetryTests.internalFailure")
+        InternalFailurePresenter.logLocally("SentryTelemetry: cache not deleted: \(leak)")
+        SentryTelemetry.capture(.internalFailure, context: leak)
+
+        XCTAssertEqual(sent().map(\.tags), [
+            ["category": "internal_failure", "context": "SentryTelemetryTests.internalFailure"],
+            ["category": "internal_failure"],
+        ])
+        XCTAssertEqual(sent().first?.exceptions?.first?.value, "internal_failure")
+        let json = String(decoding: try JSONSerialization.data(withJSONObject: sent().map { $0.serialize() }), as: UTF8.self)
+        XCTAssertFalse(json.contains(fileName), "\(fileName) left the device: \(json)")
+    }
+
     func testSDKFailureReasons() {
         let config = PutioSDKRequestConfig(apiConfig: PutioSDKConfig(clientID: "3001"), url: "/account/info", method: .get)
         let request = PutioSDKErrorRequestInformation(config: config)

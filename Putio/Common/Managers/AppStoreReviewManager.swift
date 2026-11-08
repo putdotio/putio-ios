@@ -7,7 +7,7 @@ class AppStoreReviewManager {
 
     func requestReviewManually() {
         guard let writeReviewURL = URL(string: "https://apps.apple.com/app/\(APP_STORE_APP_ID)?action=write-review") else {
-            return InternalFailurePresenter.log("Unable to construct App Store review URL")
+            return InternalFailurePresenter.log("Unable to construct App Store review URL", context: "AppStoreReviewManager.requestReviewManually")
         }
         UIApplication.shared.open(writeReviewURL, options: [:], completionHandler: nil)
     }

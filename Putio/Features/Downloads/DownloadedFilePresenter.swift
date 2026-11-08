@@ -55,7 +55,7 @@ extension DownloadedFilePresenter where Self: UIViewController {
 
     func updateDownloadStateAsNotReachable(_ download: Download) {
         guard let realm = download.realm ?? PutioRealm.open(context: "DownloadedFilePresenter.updateDownloadStateAsNotReachable") else {
-            return InternalFailurePresenter.log("Unable to load Realm while marking download as not reachable")
+            return InternalFailurePresenter.log("Unable to load Realm while marking download as not reachable", context: "DownloadedFilePresenter.updateDownloadStateAsNotReachable")
         }
 
         _ = PutioRealm.write(realm, context: "DownloadedFilePresenter.updateDownloadStateAsNotReachable.write") {

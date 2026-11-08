@@ -10,7 +10,7 @@ extension DownloadsViewController {
     func contextualDeleteAction(forRowAtIndexPath indexPath: IndexPath) -> UIContextualAction {
         guard let download = download(at: indexPath),
               let cell = tableView.cellForRow(at: indexPath) else {
-            InternalFailurePresenter.log("Unable to access download row \(indexPath.row) for delete action")
+            InternalFailurePresenter.log("Unable to access download row \(indexPath.row) for delete action", context: "DownloadsViewController.contextualDeleteAction")
             return UIContextualAction(style: .destructive, title: NSLocalizedString("Delete", comment: "")) { _, _, handler in
                 handler(false)
             }
@@ -133,7 +133,7 @@ extension DownloadsViewController: UITableViewDataSource {
             for: indexPath
         ) as? DownloadsTableViewCell,
         let download = download(at: indexPath) else {
-            InternalFailurePresenter.log("Unable to dequeue DownloadsTableViewCell")
+            InternalFailurePresenter.log("Unable to dequeue DownloadsTableViewCell", context: "DownloadsViewController.cellForRow")
             return UITableViewCell()
         }
 
@@ -196,7 +196,7 @@ extension DownloadsViewController: UITableViewDelegate {
 extension DownloadsViewController: AVPlayerViewControllerDelegate {
     func playerViewControllerDidStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
         guard let videoPlayerViewController = playerViewController as? VideoPlayerViewController else {
-            return InternalFailurePresenter.log("PiP start received for unexpected player controller")
+            return InternalFailurePresenter.log("PiP start received for unexpected player controller", context: "DownloadsViewController.pipStart")
         }
 
         videoPlayerViewController.handlePictureInPictureDidStart()
@@ -207,7 +207,7 @@ extension DownloadsViewController: AVPlayerViewControllerDelegate {
         restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void
     ) {
         guard let videoPlayerViewController = playerViewController as? VideoPlayerViewController else {
-            InternalFailurePresenter.log("PiP restore received for unexpected player controller")
+            InternalFailurePresenter.log("PiP restore received for unexpected player controller", context: "DownloadsViewController.pipRestore")
             completionHandler(false)
             return
         }

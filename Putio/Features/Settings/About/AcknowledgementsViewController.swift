@@ -6,13 +6,13 @@ struct Acknowledgement: Decodable {
 
     static func bundled() -> [Acknowledgement] {
         guard let url = Bundle.main.url(forResource: "Acknowledgements", withExtension: "plist") else {
-            InternalFailurePresenter.log("Acknowledgements.plist is missing from the app bundle")
+            InternalFailurePresenter.log("Acknowledgements.plist is missing from the app bundle", context: "Acknowledgement.bundled.missing")
             return []
         }
         do {
             return try PropertyListDecoder().decode([Acknowledgement].self, from: Data(contentsOf: url))
         } catch {
-            InternalFailurePresenter.log("Acknowledgements.plist did not decode: \(error.localizedDescription)")
+            InternalFailurePresenter.log("Acknowledgements.plist did not decode: \(error.localizedDescription)", context: "Acknowledgement.bundled.decode")
             return []
         }
     }

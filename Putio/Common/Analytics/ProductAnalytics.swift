@@ -282,7 +282,7 @@ final class ProductAnalyticsGate {
         } catch let error as CocoaError where error.code == .fileNoSuchFile {
             // Already gone; every update while off lands here.
         } catch {
-            InternalFailurePresenter.log("ProductAnalytics: storage not deleted: \(error.localizedDescription)")
+            InternalFailurePresenter.log("ProductAnalytics: storage not deleted: \(error.localizedDescription)", context: "ProductAnalytics.deleteStorage")
             return false
         }
         return true

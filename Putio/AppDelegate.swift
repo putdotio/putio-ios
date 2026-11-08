@@ -341,12 +341,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     func fetchUserSuccess(account: PutioAccount, config: AppConfig, token: String) {
         guard let realm = PutioRealm.open(context: "fetchUserSuccess") else {
-            InternalFailurePresenter.log("Unable to open Realm during fetchUserSuccess")
+            InternalFailurePresenter.log("Unable to open Realm during fetchUserSuccess", context: "AppDelegate.fetchUserSuccess.realm")
             return presentLoginScreen(after: .sessionLoad, reason: "Realm unavailable in fetchUserSuccess")
         }
 
         guard let persistedUser = User(account: account), let persistedConfig = UserConfig(config: config) else {
-            InternalFailurePresenter.log("Unable to construct persisted user/config models")
+            InternalFailurePresenter.log("Unable to construct persisted user/config models", context: "AppDelegate.fetchUserSuccess.models")
             return presentLoginScreen(after: .sessionLoad, reason: "user/config models could not be constructed")
         }
 
@@ -458,7 +458,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     // instead of leaving a bare login screen for the test to interpret.
     private func presentLoginScreen(after failure: LoginFailure, reason: String) {
         if e2eAccessToken != nil {
-            InternalFailurePresenter.log("E2E sign-in bootstrap fell back to the login screen: \(reason)")
+            InternalFailurePresenter.logLocally("E2E sign-in bootstrap fell back to the login screen: \(reason)")
         }
 
         presentLoginScreen(failure: failure)
@@ -478,7 +478,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         applyWindowAppearance()
         let storyboard = UIStoryboard(name: "Login", bundle: nil)
         guard let loginViewController = storyboard.instantiateViewController(withIdentifier: "LoginVC", as: LoginViewController.self) else {
-            InternalFailurePresenter.log("Unable to instantiate LoginVC")
+            InternalFailurePresenter.log("Unable to instantiate LoginVC", context: "AppDelegate.presentLoginScreen.loginVC")
             return
         }
         loginViewController.failure = failure

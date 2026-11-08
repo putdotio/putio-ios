@@ -9,7 +9,7 @@ extension FilesViewController {
 
     func contextualDeleteAction(for file: PutioFile, at indexPath: IndexPath) -> UIContextualAction {
         guard let cell = tableView.cellForRow(at: indexPath) else {
-            InternalFailurePresenter.log("Unable to access file cell for delete action at row \(indexPath.row)")
+            InternalFailurePresenter.log("Unable to access file cell for delete action at row \(indexPath.row)", context: "FilesViewController.contextualDeleteAction")
             return UIContextualAction(
                 style: .destructive,
                 title: userSettings.trashEnabled ? NSLocalizedString("Trash", comment: "") : NSLocalizedString("Delete", comment: "")
@@ -92,7 +92,7 @@ extension FilesViewController {
 
     func contextualMoreAction(for file: PutioFile, at indexPath: IndexPath) -> UIContextualAction {
         guard let cell = tableView.cellForRow(at: indexPath) else {
-            InternalFailurePresenter.log("Unable to access file cell for more action at row \(indexPath.row)")
+            InternalFailurePresenter.log("Unable to access file cell for more action at row \(indexPath.row)", context: "FilesViewController.contextualMoreAction")
             return UIContextualAction(style: .normal, title: NSLocalizedString("More", comment: "")) { _, _, handler in
                 handler(false)
             }
@@ -228,12 +228,12 @@ extension FilesViewController: UITableViewDataSource {
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         guard let cell = tableView.dequeueReusableCell(withIdentifier: "fileReuse", for: indexPath) as? FilesTableViewCell else {
-            InternalFailurePresenter.log("Unable to dequeue FilesTableViewCell")
+            InternalFailurePresenter.log("Unable to dequeue FilesTableViewCell", context: "FilesViewController.cellForRow.dequeue")
             return UITableViewCell()
         }
 
         guard let file = file(at: indexPath) else {
-            InternalFailurePresenter.log("Unable to access file row \(indexPath.row) for cell")
+            InternalFailurePresenter.log("Unable to access file row \(indexPath.row) for cell", context: "FilesViewController.cellForRow.file")
             return UITableViewCell()
         }
 

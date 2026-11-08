@@ -29,18 +29,18 @@ class DeeplinkManager {
     private func openLinkPage() {
         let storyboard = UIStoryboard(name: "Main", bundle: nil)
         guard let linkAccountVC = storyboard.instantiateViewController(withIdentifier: "LinkAccount", as: LinkAccountViewController.self) else {
-            return InternalFailurePresenter.log("Unable to instantiate LinkAccountViewController")
+            return InternalFailurePresenter.log("Unable to instantiate LinkAccountViewController", context: "DeeplinkManager.openLinkPage.linkAccountVC")
         }
 
         guard let settingsNC = tabBarController?.selectedViewController as? UINavigationController else {
-            return InternalFailurePresenter.log("Unable to access settings navigation controller for deeplink")
+            return InternalFailurePresenter.log("Unable to access settings navigation controller for deeplink", context: "DeeplinkManager.openLinkPage.settingsNC")
         }
         settingsNC.pushViewController(linkAccountVC, animated: true)
     }
 
     private func openFilePage(file: PutioFile) {
         guard let filesNC = tabBarController?.selectedViewController as? UINavigationController else {
-            return InternalFailurePresenter.log("Open File Page: unable to access files navigation controller")
+            return InternalFailurePresenter.log("Open File Page: unable to access files navigation controller", context: "DeeplinkManager.openFilePage.filesNC")
         }
 
         if let presentedFileVC = filesNC.presentedViewController {
@@ -50,7 +50,7 @@ class DeeplinkManager {
         }
 
         guard let visibleFileVC = filesNC.visibleViewController as? FilesViewController else {
-            return InternalFailurePresenter.log("Open File Page: visible controller is not FilesViewController")
+            return InternalFailurePresenter.log("Open File Page: visible controller is not FilesViewController", context: "DeeplinkManager.openFilePage.visibleController")
         }
 
         return visibleFileVC.presentFile(file)
@@ -68,7 +68,7 @@ class DeeplinkManager {
         }
 
         guard let visibleDownloadVC = downloadsNC.visibleViewController as? DownloadsViewController else {
-            return InternalFailurePresenter.log("Open Downloaded File: visible controller is not DownloadsViewController")
+            return InternalFailurePresenter.log("Open Downloaded File: visible controller is not DownloadsViewController", context: "DeeplinkManager.openDownloadedFile.visibleController")
         }
 
         visibleDownloadVC.presentDownloadedFile(download)

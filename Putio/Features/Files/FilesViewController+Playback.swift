@@ -9,7 +9,7 @@ extension FilesViewController {
         }
 
         guard let vlcURL = URL(string: "vlc://") else {
-            return InternalFailurePresenter.logAndPresent(on: self, screen: .files, logMessage: "Unable to construct VLC URL scheme")
+            return InternalFailurePresenter.logAndPresent(on: self, screen: .files, logMessage: "Unable to construct VLC URL scheme", context: "FilesViewController.openInVLC.scheme")
         }
 
         if UIApplication.shared.canOpenURL(vlcURL) {
@@ -32,7 +32,8 @@ extension FilesViewController {
                             return InternalFailurePresenter.logAndPresent(
                                 on: self,
                                 screen: .files,
-                                logMessage: "Unable to construct VLC destination URL for file \(file.id)"
+                                logMessage: "Unable to construct VLC destination URL for file \(file.id)",
+                                context: "FilesViewController.openInVLC.destination"
                             )
                         }
 
@@ -52,7 +53,7 @@ extension FilesViewController {
             }
         } else {
             guard let appStoreURL = URL(string: "https://apps.apple.com/app/vlc-for-mobile/id650377962") else {
-                return InternalFailurePresenter.logAndPresent(on: self, screen: .files, logMessage: "Unable to construct VLC App Store URL")
+                return InternalFailurePresenter.logAndPresent(on: self, screen: .files, logMessage: "Unable to construct VLC App Store URL", context: "FilesViewController.openInVLC.appStore")
             }
 
             UIApplication.shared.open(appStoreURL, options: [:], completionHandler: nil)
@@ -63,7 +64,7 @@ extension FilesViewController {
 extension FilesViewController: AVPlayerViewControllerDelegate {
     func playerViewControllerDidStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
         guard let videoPlayerViewController = playerViewController as? VideoPlayerViewController else {
-            return InternalFailurePresenter.log("PiP start received for unexpected player controller")
+            return InternalFailurePresenter.log("PiP start received for unexpected player controller", context: "FilesViewController.pipStart")
         }
 
         videoPlayerViewController.handlePictureInPictureDidStart()
@@ -71,7 +72,7 @@ extension FilesViewController: AVPlayerViewControllerDelegate {
 
     func playerViewController(_ playerViewController: AVPlayerViewController, restoreUserInterfaceForPictureInPictureStopWithCompletionHandler completionHandler: @escaping (Bool) -> Void) {
         guard let videoPlayerViewController = playerViewController as? VideoPlayerViewController else {
-            InternalFailurePresenter.log("PiP restore received for unexpected player controller")
+            InternalFailurePresenter.log("PiP restore received for unexpected player controller", context: "FilesViewController.pipRestore")
             completionHandler(false)
             return
         }

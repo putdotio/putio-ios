@@ -50,7 +50,7 @@ class TrashViewModel {
             }
 
             guard didWrite else {
-                return InternalFailurePresenter.log("Unable to persist trash size update")
+                return InternalFailurePresenter.log("Unable to persist trash size update", context: "TrashViewModel.trashSize")
             }
         }
     }

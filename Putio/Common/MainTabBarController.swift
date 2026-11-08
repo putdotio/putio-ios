@@ -46,7 +46,7 @@ class MainTabBarController: UITabBarController {
     func configureTabBarIcons() {
         tabBar.items?.forEach { item in
             guard let tab = Tab(rawValue: item.tag) else {
-                return InternalFailurePresenter.log("Unknown tab bar item tag: \(item.tag)")
+                return InternalFailurePresenter.log("Unknown tab bar item tag: \(item.tag)", context: "MainTabBarController.configureTabBarIcons")
             }
             item.image = tab.icons.regular.image(for: .tabBar)
             item.selectedImage = tab.icons.fill.image(for: .tabBar)
@@ -61,7 +61,7 @@ class MainTabBarController: UITabBarController {
     private func loadUserSettings() -> UserSettings? {
         guard let realm = PutioRealm.open(context: "MainTabBarController.loadUserSettings"),
               let userSettings = realm.objects(User.self).first?.settings else {
-            InternalFailurePresenter.log("Unable to load UserSettings for MainTabBarController")
+            InternalFailurePresenter.log("Unable to load UserSettings for MainTabBarController", context: "MainTabBarController.loadUserSettings")
             return nil
         }
 

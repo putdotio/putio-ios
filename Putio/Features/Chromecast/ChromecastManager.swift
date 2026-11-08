@@ -129,7 +129,7 @@ class ChromecastManager: NSObject {
 
     func createMetadataImage(for file: PutioFile) -> GCKImage? {
         guard let imageURL = URL(string: file.screenshot) else {
-            InternalFailurePresenter.log("Unable to construct Chromecast screenshot URL for file \(file.id)")
+            InternalFailurePresenter.log("Unable to construct Chromecast screenshot URL for file \(file.id)", context: "ChromecastManager.createMetadataImage")
             return nil
         }
 

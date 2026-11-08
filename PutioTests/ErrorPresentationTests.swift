@@ -230,7 +230,7 @@ final class ErrorPresentationTests: XCTestCase {
         let store = try OSLogStore(scope: .currentProcessIdentifier)
         let start = store.position(date: Date())
 
-        InternalFailurePresenter.log("Unable to bookmark /Documents/Synthetic.Feature.Title.2001.mkv")
+        InternalFailurePresenter.log("Unable to bookmark /Documents/Synthetic.Feature.Title.2001.mkv", context: "ErrorPresentationTests.unifiedLog")
 
         let predicate = NSPredicate(format: "subsystem == %@ AND category == %@", Bundle.main.bundleIdentifier ?? "", "app")
         let entries: [OSLogEntryLog]
