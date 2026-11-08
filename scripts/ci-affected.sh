@@ -38,6 +38,12 @@ while IFS= read -r path; do
         app=true
         tooling=true
         ;;
+    # The Cast SDK pin builds into the app, and the Cast release alert's tests
+    # parse it.
+    ThirdParty/GoogleCast/Package.swift)
+        app=true
+        tooling=true
+        ;;
     # Node tooling. The sync scripts are on the verify path, so they run both
     # lanes; the rest reach the type-check lane only.
     scripts/sync-*.ts)
@@ -45,10 +51,6 @@ while IFS= read -r path; do
         tooling=true
         ;;
     scripts/*.ts | scripts/*.mjs | scripts/store-images/*) tooling=true ;;
-    ThirdParty/GoogleCast/Package.swift)
-        app=true
-        tooling=true
-        ;;
     package.json | pnpm-lock.yaml | pnpm-workspace.yaml | tsconfig.json) tooling=true ;;
     # Store artwork, listing, and the configs that drive them. None can break
     # an iOS build, so these skip the macOS lane; the tooling lane checks the

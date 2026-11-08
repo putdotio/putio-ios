@@ -10,6 +10,7 @@ type Version = readonly [number, number, number];
 type Release = Readonly<{ version: string; url: string; checksum: string }>;
 type AlertIssue = Readonly<{ title: string; body: string }>;
 type Alert = Readonly<{ number: number; open: boolean; version: string }>;
+type Pin = Readonly<{ version: string; override: boolean }>;
 
 const UPSTREAM = "googlecast/google-cast-ios-sdk";
 const UPSTREAM_TARGET = "GoogleCastDynamicBinary";
@@ -69,11 +70,14 @@ export const dynamicBinary = (packageSwift: string): Omit<Release, "version"> | 
   return target;
 };
 
-export const alertIssue = (release: Release, pinned: string, repository: string): AlertIssue => ({
+const pinSentence = (pin: Pin): string =>
+  pin.override ? `A manual run compared it against ${pin.version}, not the \`main\` pin.` : `\`main\` pins ${pin.version}.`;
+
+export const alertIssue = (release: Release, pin: Pin, repository: string): AlertIssue => ({
   title: `Update the Google Cast iOS SDK to ${release.version}`,
   body: [
     `<!-- cast-sdk-release ${release.version} -->`,
-    `Google Cast iOS SDK [${release.version}](https://github.com/${UPSTREAM}/tree/${release.version}) is out. \`main\` pins ${pinned}.`,
+    `Google Cast iOS SDK [${release.version}](https://github.com/${UPSTREAM}/tree/${release.version}) is out. ${pinSentence(pin)}`,
     "",
     `Point the binary target in [\`${PACKAGE_PATH}\`](https://github.com/${repository}/blob/main/${PACKAGE_PATH}) at the dynamic zip from [its upstream \`Package.swift\`](https://github.com/${UPSTREAM}/blob/${release.version}/Package.swift):`,
     "",
@@ -134,7 +138,7 @@ const main = (): void => {
 
   const upstreamPackage = gh(["api", "-H", "Accept: application/vnd.github.raw", `repos/${UPSTREAM}/contents/Package.swift?ref=${latest}`]);
   const binary = dynamicBinary(upstreamPackage) ?? fail(`${UPSTREAM} ${latest} Package.swift has no ${UPSTREAM_TARGET} with a versioned dl.google.com zip and a sha256 checksum`);
-  const issue = JSON.stringify(alertIssue({ version: latest, ...binary }, pinned, repository));
+  const issue = JSON.stringify(alertIssue({ version: latest, ...binary }, { version: pinned, override: override !== "" }, repository));
 
   const known = alerts(gh(["api", "--paginate", "--slurp", `repos/${repository}/issues?state=all&creator=${encodeURIComponent(ISSUE_AUTHOR)}&per_page=100`]));
   const open = known.find((alert) => alert.open);

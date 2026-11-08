@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -11,6 +11,8 @@ import { parse } from "yaml";
 import { dynamicBinary, latestVersion, pinnedVersion } from "./cast-sdk-release.ts";
 
 const SCRIPT = fileURLToPath(new URL("./cast-sdk-release.ts", import.meta.url));
+const PACKAGE_PATH = "ThirdParty/GoogleCast/Package.swift";
+const PIN_URL = /(\.binaryTarget\(\s*name:\s*"GoogleCast",\s*url:\s*")[^"]+(")/;
 const DYNAMIC_URL = "https://dl.google.com/dl/chromecast/sdk/ios/GoogleCastSDK-ios-4.8.6_dynamic.zip";
 const DYNAMIC_CHECKSUM = "55f6c21291a1315c68063f07e7d76225564bff70f2fd38caad135c71d66eb310";
 const STATIC_CHECKSUM = "e1fe7fd6f2bf4b58e830d378fafc435d159bd755f7ee20fd3033aa1ce313cd6e";
@@ -44,6 +46,12 @@ const dynamicTarget = (url: string, checksum: string) => `    .binaryTarget(
 
 const UPSTREAM_486 = upstreamPackage(dynamicTarget(DYNAMIC_URL, DYNAMIC_CHECKSUM));
 
+const pinAt = async (url: string) => {
+  const ours = await readFile(new URL(`../${PACKAGE_PATH}`, import.meta.url), "utf8");
+  assert.match(ours, PIN_URL, `${PACKAGE_PATH} has a GoogleCast binary target URL`);
+  return ours.replace(PIN_URL, (_, head: string, tail: string) => `${head}${url}${tail}`);
+};
+
 const fakeGh = `#!/bin/bash
 printf '%s\\n' "$*" >> "$GH_CALLS"
 case "$*" in
@@ -65,7 +73,13 @@ const run = async (t: test.TestContext, scenario: Scenario) => {
   await chmod(join(dir, "gh"), 0o755);
   await writeFile(join(dir, "calls"), "");
   await writeFile(join(dir, "writes"), "");
-  const result = spawnSync(process.execPath, [SCRIPT], {
+  const repo = join(dir, "repo");
+  await mkdir(join(repo, "scripts"), { recursive: true });
+  await mkdir(join(repo, PACKAGE_PATH, ".."), { recursive: true });
+  await writeFile(join(repo, "package.json"), '{ "type": "module" }\n');
+  await copyFile(SCRIPT, join(repo, "scripts", "cast-sdk-release.ts"));
+  await writeFile(join(repo, PACKAGE_PATH), await pinAt(DYNAMIC_URL));
+  const result = spawnSync(process.execPath, [join(repo, "scripts", "cast-sdk-release.ts")], {
     encoding: "utf8",
     env: {
       PATH: `${dir}:${process.env.PATH}`,
@@ -103,6 +117,7 @@ test("a newer upstream tag opens one issue naming its version, dynamic zip, and 
   assert.ok(created?.payload.body.includes(`url: "${DYNAMIC_URL}"`), "names the dynamic zip URL");
   assert.ok(created?.payload.body.includes(`checksum: "${DYNAMIC_CHECKSUM}"`), "names the dynamic zip checksum");
   assert.ok(!created?.payload.body.includes(STATIC_CHECKSUM), "skips the static zip");
+  assert.ok(!created?.payload.body.includes("`main` pins"), "does not claim `main` pins the dispatch input");
 });
 
 test("a second run updates the open issue in place and opens no new one", async (t) => {
@@ -154,7 +169,7 @@ test("a pin at the latest tag stays quiet", async (t) => {
   }
 });
 
-test("a scheduled run compares a newer tag against the 4.8.6 pin in Package.swift", async (t) => {
+test("a scheduled run compares a newer tag against the pin in Package.swift", async (t) => {
   const result = await run(t, { tags: [[{ name: "99.0.0" }, ...UPSTREAM_TAGS]] });
 
   assert.equal(result.status, 0, result.stderr);
@@ -164,12 +179,11 @@ test("a scheduled run compares a newer tag against the 4.8.6 pin in Package.swif
 });
 
 test("any upstream dynamic zip the alert names keeps a pin the next run can read", async () => {
-  const ours = await readFile(new URL("../ThirdParty/GoogleCast/Package.swift", import.meta.url), "utf8");
   const url = "https://dl.google.com/dl/chromecast/sdk/ios/4.9.0/GoogleCastSDK-ios-4.9.0_dynamic_xcframework.zip";
   const binary = dynamicBinary(upstreamPackage(dynamicTarget(url, DYNAMIC_CHECKSUM)));
 
   assert.deepEqual(binary, { url, checksum: DYNAMIC_CHECKSUM });
-  assert.equal(pinnedVersion(ours.replace(DYNAMIC_URL, binary?.url ?? "")), "4.9.0");
+  assert.equal(pinnedVersion(await pinAt(binary?.url ?? "")), "4.9.0");
 });
 
 test("an upstream dynamic binary without a dl.google.com zip and sha256 checksum opens nothing", async (t) => {
@@ -209,7 +223,7 @@ test("the workflow runs weekly and on dispatch with an optional pin, and may onl
   const step = Object.values(workflow.jobs).flatMap((job) => job.steps).find((candidate) => candidate.run?.includes("scripts/cast-sdk-release.ts"));
   assert.deepEqual(step?.env, { GH_TOKEN: "${{ github.token }}", PINNED_VERSION: "${{ inputs.pinned_version }}" });
 
-  for (const path of [".github/workflows/cast-sdk-release.yml", "ThirdParty/GoogleCast/Package.swift"]) {
+  for (const path of [".github/workflows/cast-sdk-release.yml", PACKAGE_PATH]) {
     const lanes = spawnSync("sh", [fileURLToPath(new URL("./ci-affected.sh", import.meta.url))], { encoding: "utf8", input: `${path}\n` });
     assert.match(lanes.stdout, /^tooling=true$/m, path);
   }
