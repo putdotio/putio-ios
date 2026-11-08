@@ -38,8 +38,6 @@ while IFS= read -r path; do
         app=true
         tooling=true
         ;;
-    # The Cast SDK pin builds into the app, and the Cast release alert's tests
-    # parse it.
     ThirdParty/GoogleCast/Package.swift)
         app=true
         tooling=true
