@@ -88,17 +88,10 @@ final class DownloadQueueController {
     private(set) var isEnabled = false
     private var pendingAccountChangeDeletes = 0
     private var startsAfterAccountChange = false
-    private let removeDownloadAndLocalFile: DownloadOperation
+    private let scheduleFileDeletion: (@escaping () -> Void) -> Void
 
-    init(
-        removeDownloadAndLocalFile: @escaping DownloadOperation = { id, fileType, completion in
-            switch fileType {
-            case .audio: AudioDownloadManager.sharedInstance.removeDownloadAndLocalFile(id: id, completion: completion)
-            case .video: VideoDownloadManager.sharedInstance.removeDownloadAndLocalFile(id: id, completion: completion)
-            }
-        }
-    ) {
-        self.removeDownloadAndLocalFile = removeDownloadAndLocalFile
+    init(scheduleFileDeletion: @escaping (@escaping () -> Void) -> Void = { DownloadSupport.deletionQueue.async(execute: $0) }) {
+        self.scheduleFileDeletion = scheduleFileDeletion
     }
 
     func restoreBackgroundSessions() {
@@ -152,19 +145,31 @@ final class DownloadQueueController {
             self.isEnabled = false
             guard let realm = DownloadSupport.realm(context: "DownloadQueueController.accountChange") else { return }
             let downloads = Array(realm.objects(Download.self).map { ($0.id, $0.fileType) })
-            downloads.forEach { id, fileType in
+            let locations = downloads.map { id, fileType -> DownloadSupport.LocalFileLocation in
                 switch fileType {
-                case .audio: AudioDownloadManager.sharedInstance.discardDownload(id: id)
-                case .video: VideoDownloadManager.sharedInstance.discardDownload(id: id)
+                case .audio:
+                    AudioDownloadManager.sharedInstance.discardDownload(id: id)
+                    return AudioDownloadManager.sharedInstance.getLocalFileLocation(for: id)
+                case .video:
+                    VideoDownloadManager.sharedInstance.discardDownload(id: id)
+                    return VideoDownloadManager.sharedInstance.getLocalFileLocation(for: id)
                 }
             }
             DownloadSupport.write(realm, context: "DownloadQueueController.accountChange.write") {
                 realm.delete(realm.objects(Download.self))
             }
-            self.pendingAccountChangeDeletes += downloads.count
-            downloads.forEach { id, fileType in
-                self.removeDownloadAndLocalFile(id, fileType) { _ in
-                    self.onMain { self.accountChangeDeleteDidFinish() }
+            downloads.forEach { id, _ in UserDefaults.standard.removeObject(forKey: String(id)) }
+            let pendingFiles = locations.map(DownloadSupport.moveAsideForDeletion)
+            self.pendingAccountChangeDeletes += pendingFiles.count
+            pendingFiles.forEach { location in
+                self.scheduleFileDeletion {
+                    let result = DownloadSupport.deleteLocalFile(at: location, context: "DownloadQueueController.accountChange")
+                    DispatchQueue.main.async {
+                        if result == .failed || result == .unresolvedLocation {
+                            SentryTelemetry.capture(.downloadedAssetDeletion, context: "DownloadQueueController.accountChange")
+                        }
+                        self.accountChangeDeleteDidFinish()
+                    }
                 }
             }
         }

@@ -147,10 +147,6 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         }
     }
 
-    func removeDownloadAndLocalFile(id: Int, completion: @escaping (Bool) -> Void) {
-        deletion(for: id).discard(removeRecord: { self.removeDownloadRecord(id: id) }, completion: completion)
-    }
-
     private func deletion(for id: Int) -> DownloadSupport.Deletion {
         dispatchPrecondition(condition: .onQueue(.main))
         return DownloadSupport.deletion(
@@ -229,7 +225,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
         DownloadSupport.absoluteDocumentsURL(for: relativePath)
     }
 
-    private func getLocalFileLocation(for downloadId: Int) -> DownloadSupport.LocalFileLocation {
+    func getLocalFileLocation(for downloadId: Int) -> DownloadSupport.LocalFileLocation {
         let location = DownloadSupport.localFileLocation(
             from: UserDefaults.standard.object(forKey: String(downloadId)),
             as: String.self,

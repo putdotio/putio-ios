@@ -116,8 +116,13 @@ final class DownloadQueueLifecyclePolicyTests: XCTestCase {
 }
 
 final class DownloadQueueAccountChangeTests: XCTestCase {
+    private let audioPath = "putio_adm_402_account_change_test.mp3"
     private var originalConfiguration: Realm.Configuration!
     private var realm: Realm!
+    private var heldDeletes = [() -> Void]()
+    private var audioURL: URL {
+        DownloadSupport.absoluteDocumentsURL(for: audioPath)!
+    }
 
     override func setUpWithError() throws {
         try super.setUpWithError()
@@ -126,64 +131,93 @@ final class DownloadQueueAccountChangeTests: XCTestCase {
         realm = try Realm()
         try realm.write {
             for (id, fileType) in [(401, Download.FileType.video), (402, .audio)] {
-                let download = Download()
-                download.id = id
-                download.fileType = fileType
-                download.state = .completed
-                download.createdAt = Date()
-                realm.add(download)
+                realm.add(makeDownload(id: id, fileType: fileType))
             }
         }
+        try Data("old account".utf8).write(to: audioURL)
+        UserDefaults.standard.set(audioPath, forKey: "402")
     }
 
     override func tearDown() {
+        try? FileManager.default.removeItem(at: audioURL)
+        UserDefaults.standard.removeObject(forKey: "402")
+        heldDeletes = []
         realm = nil
         Realm.Configuration.defaultConfiguration = originalConfiguration
         super.tearDown()
     }
 
     func testStartWaitsForEveryAccountChangeDelete() {
-        var pendingRemovals = [Int: (Bool) -> Void]()
-        let controller = DownloadQueueController(
-            removeDownloadAndLocalFile: { id, _, completion in pendingRemovals[id] = completion }
-        )
+        let controller = makeController()
 
         controller.clearDownloadsForAccountChange()
         controller.start()
 
-        XCTAssertEqual(Set(pendingRemovals.keys), [401, 402])
+        XCTAssertEqual(heldDeletes.count, 2)
         XCTAssertFalse(controller.isEnabled)
-        pendingRemovals[401]?(true)
+        runHeldDelete(at: 0)
         XCTAssertFalse(controller.isEnabled)
-        pendingRemovals[402]?(false)
+        runHeldDelete(at: 1)
         XCTAssertTrue(controller.isEnabled)
     }
 
     func testAccountChangeHidesOldDownloadsBeforeTheirFilesAreDeleted() {
-        var pendingRemovals = [(Bool) -> Void]()
-        let controller = DownloadQueueController(
-            removeDownloadAndLocalFile: { _, _, completion in pendingRemovals.append(completion) }
-        )
+        let controller = makeController()
 
         controller.clearDownloadsForAccountChange()
 
-        XCTAssertEqual(pendingRemovals.count, 2)
+        XCTAssertEqual(heldDeletes.count, 2)
         XCTAssertTrue(realm.objects(Download.self).isEmpty)
+        XCTAssertNil(UserDefaults.standard.object(forKey: "402"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: audioURL.path))
     }
 
     func testPauseDuringAccountChangeKeepsTheQueueStopped() {
-        var pendingRemovals = [(Bool) -> Void]()
-        let controller = DownloadQueueController(
-            removeDownloadAndLocalFile: { _, _, completion in pendingRemovals.append(completion) }
-        )
+        let controller = makeController()
 
         controller.clearDownloadsForAccountChange()
         controller.start()
         controller.pause()
-        pendingRemovals.forEach { $0(true) }
+        runHeldDelete(at: 0)
+        runHeldDelete(at: 1)
 
-        XCTAssertEqual(pendingRemovals.count, 2)
         XCTAssertFalse(controller.isEnabled)
+    }
+
+    func testDeferredAccountChangeCleanupKeepsAReplacementDownload() throws {
+        let controller = makeController()
+
+        controller.clearDownloadsForAccountChange()
+        try realm.write { realm.add(makeDownload(id: 402, fileType: .audio)) }
+        try Data("replacement".utf8).write(to: audioURL)
+        UserDefaults.standard.set(audioPath, forKey: "402")
+        runHeldDelete(at: 0)
+        runHeldDelete(at: 1)
+
+        realm.refresh()
+        XCTAssertNotNil(realm.object(ofType: Download.self, forPrimaryKey: 402))
+        XCTAssertEqual(UserDefaults.standard.string(forKey: "402"), audioPath)
+        XCTAssertEqual(try Data(contentsOf: audioURL), Data("replacement".utf8))
+    }
+
+    private func makeController() -> DownloadQueueController {
+        DownloadQueueController(scheduleFileDeletion: { [unowned self] in heldDeletes.append($0) })
+    }
+
+    private func makeDownload(id: Int, fileType: Download.FileType) -> Download {
+        let download = Download()
+        download.id = id
+        download.fileType = fileType
+        download.state = .completed
+        download.createdAt = Date()
+        return download
+    }
+
+    private func runHeldDelete(at index: Int) {
+        heldDeletes[index]()
+        let drained = expectation(description: "main queue drained")
+        DispatchQueue.main.async { drained.fulfill() }
+        wait(for: [drained], timeout: 1)
     }
 }
 

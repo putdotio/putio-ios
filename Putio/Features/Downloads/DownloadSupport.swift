@@ -160,6 +160,21 @@ enum DownloadSupport {
         }
     }
 
+    static func moveAsideForDeletion(_ location: LocalFileLocation) -> LocalFileLocation {
+        guard case .resolved(let url) = location else { return location }
+        let asideURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(UUID().uuidString)-\(url.lastPathComponent)")
+        do {
+            try FileManager.default.moveItem(at: url, to: asideURL)
+            return .resolved(asideURL)
+        } catch let error as CocoaError where error.code == .fileNoSuchFile {
+            return .none
+        } catch {
+            log.error("[DownloadSupport] moveAsideForDeletion: \(error.localizedDescription)")
+            return .unresolved
+        }
+    }
+
     static func performDeletion(
         state: Download.State?,
         cancelActiveDownload: () -> Void,
@@ -211,18 +226,6 @@ enum DownloadSupport {
             deletionQueue.async {
                 let didDelete = autoreleasepool(invoking: performFinished)
                 DispatchQueue.main.async { completion(didDelete) }
-            }
-        }
-
-        func discard(removeRecord: @escaping () -> Bool, completion: @escaping (Bool) -> Void) {
-            deletionQueue.async {
-                let fileResult = autoreleasepool(invoking: deleteLocalFile)
-                DispatchQueue.main.async {
-                    if fileResult == .failed || fileResult == .unresolvedLocation {
-                        SentryTelemetry.capture(.downloadedAssetDeletion, context: "DownloadSupport.Deletion.discard")
-                    }
-                    completion(removeRecord())
-                }
             }
         }
 

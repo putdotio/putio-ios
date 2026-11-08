@@ -180,10 +180,6 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         }
     }
 
-    func removeDownloadAndLocalFile(id: Int, completion: @escaping (Bool) -> Void) {
-        deletion(for: id).discard(removeRecord: { self.removeDownloadRecord(id: id) }, completion: completion)
-    }
-
     private func deletion(for id: Int) -> DownloadSupport.Deletion {
         dispatchPrecondition(condition: .onQueue(.main))
         log.verbose(["VDM: deleteDownload", id])
@@ -288,7 +284,7 @@ class VideoDownloadManager: NSObject, DownloadQueueManaging {
         ids.forEach { startAttempts.removeValue(forKey: $0) }
     }
 
-    private func getLocalFileLocation(for downloadId: Int) -> DownloadSupport.LocalFileLocation {
+    func getLocalFileLocation(for downloadId: Int) -> DownloadSupport.LocalFileLocation {
         log.verbose(["VDM: getLocalFileURL", downloadId])
 
         let persistedValue = UserDefaults.standard.object(forKey: String(downloadId))

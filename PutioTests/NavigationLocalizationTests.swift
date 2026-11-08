@@ -339,33 +339,6 @@ final class NavigationLocalizationTests: XCTestCase {
         wait(for: [finished], timeout: 5)
     }
 
-    func testDiscardRemovesTheLocalFileBeforeTheRecord() {
-        let finished = expectation(description: "discard finished")
-        var order = [String]()
-
-        makeDeletion(
-            state: .completed,
-            currentState: {
-                XCTFail("Discard removes the files whatever the row state")
-                return .missing
-            },
-            deleteLocalFile: {
-                order.append("file")
-                return .removed
-            }
-        ).discard(removeRecord: {
-            XCTAssertTrue(Thread.isMainThread)
-            order.append("record")
-            return true
-        }) { didRemove in
-            XCTAssertTrue(didRemove)
-            XCTAssertEqual(order, ["file", "record"])
-            finished.fulfill()
-        }
-
-        wait(for: [finished], timeout: 5)
-    }
-
     func testActiveDownloadDeletionCancelsOnMainBeforeReturning() {
         var cancelledOnMain: Bool?
         var didDelete: Bool?
