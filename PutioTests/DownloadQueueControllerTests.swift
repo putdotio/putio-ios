@@ -200,6 +200,178 @@ final class DownloadArtifactTests: XCTestCase {
     }
 }
 
+final class AudioDownloadManagerTests: XCTestCase {
+    private var originalConfiguration: Realm.Configuration!
+    private var realm: Realm!
+    private var session: URLSession!
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        originalConfiguration = Realm.Configuration.defaultConfiguration
+        Realm.Configuration.defaultConfiguration = Realm.Configuration(inMemoryIdentifier: name)
+        realm = try Realm()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [FinishedAudioURLProtocol.self]
+        session = URLSession(configuration: configuration)
+    }
+
+    override func tearDown() {
+        session.invalidateAndCancel()
+        session = nil
+        realm = nil
+        Realm.Configuration.defaultConfiguration = originalConfiguration
+        super.tearDown()
+    }
+
+    func testRestoredFinishedTaskCompletesItsActiveDownload() throws {
+        let suspendedID = 9_005_385
+        let finishedID = 9_005_386
+        let cancelledID = 9_005_387
+        for id in [suspendedID, finishedID, cancelledID] { try addDownload(id: id, state: .active) }
+        let suspended = try makeTask(id: suspendedID)
+        let finished = try makeTask(id: finishedID)
+        let cancelled = try makeTask(id: cancelledID)
+        finished.resume()
+        cancelled.cancel()
+        wait(for: [completion(of: finished), completion(of: cancelled)], timeout: 10)
+        XCTAssertNil(finished.error)
+        XCTAssertNotNil(cancelled.error)
+        let manager = AudioDownloadManager.sharedInstance
+
+        XCTAssertEqual(manager.restore([suspended, finished, cancelled]), [suspendedID, finishedID])
+
+        manager.urlSession(session, downloadTask: finished, didFinishDownloadingTo: try makeFinishedFile())
+        manager.urlSession(session, task: finished, didCompleteWithError: nil)
+
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: finishedID)?.state, .completed)
+        let savedURL = try XCTUnwrap(manager.getLocalFileURL(for: finishedID))
+        XCTAssertEqual(try Data(contentsOf: savedURL), Data("audio".utf8))
+    }
+
+    func testUnmappedTaskCancelledBySystemLeavesItsDownloadForRequeue() throws {
+        let id = 9_005_384
+        try addDownload(id: id, state: .active)
+        let task = try makeTask(id: id)
+
+        AudioDownloadManager.sharedInstance.urlSession(
+            session,
+            task: task,
+            didCompleteWithError: Self.forceQuitCancellation
+        )
+
+        let download = try XCTUnwrap(realm.object(ofType: Download.self, forPrimaryKey: id))
+        XCTAssertEqual(download.state, .active)
+        XCTAssertEqual(download.message, "")
+    }
+
+    func testUnmappedFinishedTaskCompletesItsActiveDownload() throws {
+        let id = 9_005_381
+        try addDownload(id: id, state: .active)
+        let task = try makeTask(id: id)
+        let location = try makeFinishedFile()
+        let manager = AudioDownloadManager.sharedInstance
+
+        manager.urlSession(session, downloadTask: task, didFinishDownloadingTo: location)
+        manager.urlSession(session, task: task, didCompleteWithError: nil)
+
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: id)?.state, .completed)
+        let savedURL = try XCTUnwrap(manager.getLocalFileURL(for: id))
+        XCTAssertEqual(try Data(contentsOf: savedURL), Data("audio".utf8))
+    }
+
+    func testUnmappedFinishedTaskWithoutActiveDownloadDeletesItsFile() throws {
+        let stoppedID = 9_005_382
+        let missingID = 9_005_383
+        try addDownload(id: stoppedID, state: .stopped)
+        let manager = AudioDownloadManager.sharedInstance
+
+        for id in [stoppedID, missingID] {
+            let task = try makeTask(id: id)
+            let location = try makeFinishedFile()
+
+            manager.urlSession(session, downloadTask: task, didFinishDownloadingTo: location)
+            manager.urlSession(session, task: task, didCompleteWithError: nil)
+
+            XCTAssertFalse(FileManager.default.fileExists(atPath: location.path))
+            XCTAssertNil(manager.getLocalFileURL(for: id))
+        }
+        XCTAssertEqual(realm.object(ofType: Download.self, forPrimaryKey: stoppedID)?.state, .stopped)
+        XCTAssertNil(realm.object(ofType: Download.self, forPrimaryKey: missingID))
+    }
+
+    private static let forceQuitCancellation = NSError(
+        domain: NSURLErrorDomain,
+        code: NSURLErrorCancelled,
+        userInfo: [NSURLErrorBackgroundTaskCancelledReasonKey: NSURLErrorCancelledReasonUserForceQuitApplication]
+    )
+
+    private func addDownload(id: Int, state: Download.State) throws {
+        let download = Download()
+        download.id = id
+        download.name = "Background Episode"
+        download.fileType = .audio
+        download.state = state
+        download.createdAt = Date()
+        try realm.write { realm.add(download) }
+    }
+
+    private func makeTask(id: Int) throws -> URLSessionDownloadTask {
+        let task = session.downloadTask(with: try XCTUnwrap(URL(string: "https://example.com/\(id).mp3")))
+        task.taskDescription = String(id)
+        addTeardownBlock {
+            let manager = AudioDownloadManager.sharedInstance
+            manager.discardDownload(id: id)
+            if let url = manager.getLocalFileURL(for: id) {
+                try? FileManager.default.removeItem(at: url)
+            }
+            UserDefaults.standard.removeObject(forKey: String(id))
+        }
+        return task
+    }
+
+    private func completion(of task: URLSessionTask) -> XCTestExpectation {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in task.state == .completed },
+            object: nil
+        )
+        expectation.expectationDescription = "task \(task.taskDescription ?? "") completed"
+        return expectation
+    }
+
+    private func makeFinishedFile() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("AudioDownloadManagerTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let location = directory.appendingPathComponent("download.tmp")
+        try Data("audio".utf8).write(to: location)
+        return location
+    }
+}
+
+private final class FinishedAudioURLProtocol: URLProtocol {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url,
+              let response = HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "audio/mpeg"]
+              )
+        else { return }
+
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data("audio".utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
 final class BackgroundDownloadSessionEventsTests: XCTestCase {
     func testFinishBeforeRegistrationStillCompletes() {
         let identifier = "BackgroundSessionTests-\(UUID().uuidString)"

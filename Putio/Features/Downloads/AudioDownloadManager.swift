@@ -41,24 +41,38 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
     private func restore() {
         urlSession.getAllTasks { (tasks) in
             log.verbose("ADM: restore - task count: \(tasks.count)")
-
-            var restoredIDs = Set<Int>()
-            tasks.forEach { task in
-                guard let description = task.taskDescription,
-                      let id = Int(description),
-                      task.state == .running || task.state == .suspended,
-                      let download = self.getDownloadFromDatabase(id: id),
-                      download.state == .starting || download.state == .active,
-                      !restoredIDs.contains(id) else {
-                    task.cancel()
-                    return
-                }
-                if task.state == .running { task.suspend() }
-                self.withActiveDownloadsMap { $0[task] = id }
-                restoredIDs.insert(id)
-            }
-            DownloadQueueController.sharedInstance.managerDidRestore(.audio, activeIDs: restoredIDs)
+            DownloadQueueController.sharedInstance.managerDidRestore(.audio, activeIDs: self.restore(tasks))
         }
+    }
+
+    func restore(_ tasks: [URLSessionTask]) -> Set<Int> {
+        var restoredIDs = Set<Int>()
+        tasks.forEach { task in
+            guard let description = task.taskDescription,
+                  let id = Int(description),
+                  task.state == .running || task.state == .suspended || (task.state == .completed && task.error == nil),
+                  let download = getDownloadFromDatabase(id: id),
+                  download.state == .starting || download.state == .active,
+                  !restoredIDs.contains(id) else {
+                task.cancel()
+                return
+            }
+            if task.state == .running { task.suspend() }
+            withActiveDownloadsMap { $0[task] = id }
+            restoredIDs.insert(id)
+        }
+        return restoredIDs
+    }
+
+    private func downloadID(for task: URLSessionTask, error: Error? = nil) -> Int? {
+        if let id = withActiveDownloadsMap({ $0[task] }) { return id }
+        guard error == nil,
+              let description = task.taskDescription,
+              let id = Int(description),
+              !activeDownloadIDs.contains(id),
+              let download = getDownloadFromDatabase(id: id),
+              download.state == .starting || download.state == .active else { return nil }
+        return id
     }
 
     private func notifyUser(for id: Int) {
@@ -283,7 +297,7 @@ class AudioDownloadManager: NSObject, DownloadQueueManaging {
 
 extension AudioDownloadManager: URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        guard let id = withActiveDownloadsMap({ $0[task] }) else { return }
+        guard let id = downloadID(for: task, error: error) else { return }
         lastProgressUpdateTime.removeValue(forKey: id)
         guard let download = getDownloadFromDatabase(id: id), let realm = download.realm else {
             artifactSaveErrors.removeValue(forKey: task)
@@ -351,8 +365,13 @@ extension AudioDownloadManager: URLSessionDownloadDelegate {
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
         log.verbose(["ADM: downloadTask-didFinishDownloadingTo task:", downloadTask.taskIdentifier])
 
-        guard let id = withActiveDownloadsMap({ $0[downloadTask] }) else { return }
-        guard let download = getDownloadFromDatabase(id: id) else { return }
+        guard let id = downloadID(for: downloadTask), let download = getDownloadFromDatabase(id: id) else {
+            _ = DownloadSupport.deleteItemIfPresent(
+                at: location,
+                context: "AudioDownloadManager.didFinishDownloadingTo.unowned"
+            )
+            return
+        }
 
         let fileExtension = deriveFileExtensionFromResponse(response: downloadTask.response)
         let destinationPath = "putio_adm_\(String(download.id))_\(download.name.slugify()).\(fileExtension)"
